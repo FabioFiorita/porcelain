@@ -1,17 +1,22 @@
 import { expectationHolds } from '@porcelain/kernel/rules';
-import type { DiffObservation } from '../models/diff-observation.ts';
+import type {
+  DiffObservation,
+  ObservationProblem,
+} from '../models/diff-observation.ts';
 
-export function observationHolds(input: DiffObservation): boolean {
+export function observationProblem(
+  input: DiffObservation,
+): ObservationProblem | undefined {
   const current = new Map(
     input.fingerprints.changes.map((change) => [
       change.path,
       change.fingerprint,
     ]),
   );
-  return (
+  const holds =
     input.statusToken === input.expectedStatusToken &&
     expectationHolds(input.expectedFiles, current) &&
     (input.previousStamp === undefined ||
-      input.previousStamp === input.fingerprints.stamp)
-  );
+      input.previousStamp === input.fingerprints.stamp);
+  return holds ? undefined : { kind: 'worktree-changed' };
 }

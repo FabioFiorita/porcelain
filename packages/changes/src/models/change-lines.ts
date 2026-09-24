@@ -6,3 +6,5 @@ export type ChangeLineRange = {
 };
 
 export type ChangeLines = ChangeLineRange & { lines: string[] };
+
+export type LineRangeProblem = { kind: 'reversed-range' };

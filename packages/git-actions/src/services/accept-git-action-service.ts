@@ -12,21 +12,13 @@ import type {
   AcceptGitActionInput,
   AcceptGitActionResult,
 } from '../models/accept-git-action.ts';
-import type { GitActionExpectation } from '../models/git-action-expectation.ts';
-import type { GitActionIntent } from '../models/git-action-intent.ts';
+import type { GitActionProblem } from '../models/git-action-problem.ts';
 import type { GitActionReceipt } from '../models/git-action-receipt.ts';
 import type { GitActionReceiptStore } from '../ports/git-action-receipt-store.ts';
-import { commitExpectsSelectedFiles } from '../rules/commit-expects-selected-files.ts';
-import { commitSelectsPaths } from '../rules/commit-selects-paths.ts';
-import { discardExpectsItsPath } from '../rules/discard-expects-its-path.ts';
-import { expectedFilesAreUnique } from '../rules/expected-files-are-unique.ts';
+import { gitActionProblem } from '../rules/git-action-problem.ts';
 import { gitActionReceiptView } from '../rules/git-action-receipt-view.ts';
 import { gitActionTarget } from '../rules/git-action-target.ts';
-import { hunkRangeIsOrdered } from '../rules/hunk-range-is-ordered.ts';
-import { mergeExpectationAgrees } from '../rules/merge-expectation-agrees.ts';
-import { networkActionExpectsUpstream } from '../rules/network-action-expects-upstream.ts';
 import { sameGitActionRequest } from '../rules/same-git-action-request.ts';
-import { stashExpectsFiles } from '../rules/stash-expects-files.ts';
 
 export class AcceptGitActionService {
   private readonly gitActionReceipts: GitActionReceiptStore;
@@ -39,7 +31,8 @@ export class AcceptGitActionService {
 
   execute(input: AcceptGitActionInput): AcceptGitActionResult {
     const { intent, expected } = input;
-    this.checkRequest(intent, expected);
+    const problem = gitActionProblem(intent, expected);
+    if (problem) throw this.failure(problem);
     const previous = this.gitActionReceipts.read({
       requestId: input.requestId,
     });
@@ -75,25 +68,24 @@ export class AcceptGitActionService {
     };
   }
 
-  private checkRequest(
-    intent: GitActionIntent,
-    expected: GitActionExpectation,
-  ): void {
-    if (!hunkRangeIsOrdered(intent)) throw new InvalidHunkRangeError();
-    if (!expectedFilesAreUnique(expected))
-      throw new DuplicateExpectedFileError();
-    if (!mergeExpectationAgrees(expected))
-      throw new MergeExpectationMismatchError();
-    if (!commitSelectsPaths(intent, expected))
-      throw new EmptyCommitSelectionError();
-    const commit = commitExpectsSelectedFiles(intent, expected);
-    if (commit === 'missing') throw new MissingExpectedFilesError();
-    if (commit === 'mismatched') throw new ExpectedFilesMismatchError();
-    if (!discardExpectsItsPath(intent, expected))
-      throw new DiscardExpectationMismatchError();
-    if (!stashExpectsFiles(intent, expected))
-      throw new MissingExpectedFilesError();
-    if (!networkActionExpectsUpstream(intent, expected))
-      throw new MissingUpstreamExpectationError();
+  private failure(problem: GitActionProblem): Error {
+    switch (problem.kind) {
+      case 'hunk-range':
+        return new InvalidHunkRangeError();
+      case 'duplicate-expected-file':
+        return new DuplicateExpectedFileError();
+      case 'merge-expectation':
+        return new MergeExpectationMismatchError();
+      case 'empty-commit-selection':
+        return new EmptyCommitSelectionError();
+      case 'missing-expected-files':
+        return new MissingExpectedFilesError();
+      case 'expected-files-mismatch':
+        return new ExpectedFilesMismatchError();
+      case 'discard-expectation':
+        return new DiscardExpectationMismatchError();
+      case 'missing-upstream-expectation':
+        return new MissingUpstreamExpectationError();
+    }
   }
 }

@@ -1,8 +1,10 @@
-import type { ChangeLines } from '../models/change-lines.ts';
+import type { ChangeLines, LineRangeProblem } from '../models/change-lines.ts';
 import type { ReadChangeLinesInput } from '../models/read-change-lines.ts';
 
-export function lineRangeOrdered(range: { from: number; to: number }): boolean {
-  return range.from <= range.to;
+export function lineRangeProblem(
+  range: Pick<ReadChangeLinesInput, 'from' | 'to'>,
+): LineRangeProblem | undefined {
+  return range.from <= range.to ? undefined : { kind: 'reversed-range' };
 }
 
 export function changeLines(

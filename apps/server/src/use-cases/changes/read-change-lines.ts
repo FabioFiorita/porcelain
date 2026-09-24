@@ -1,13 +1,13 @@
 import type { ReadEnvironmentService } from '@porcelain/access/services';
 import type { ReadHeadTextService } from '@porcelain/changes/services';
-import { changeLines, lineRangeOrdered } from '@porcelain/changes/rules';
+import { changeLines, lineRangeProblem } from '@porcelain/changes/rules';
+import { InvalidLineRangeError } from '@porcelain/kernel/errors';
 import type {
   ReadChangeLinesQuery,
   ReadChangeLinesResponse,
 } from '@porcelain/contracts/changes';
 import type { WorktreeParams } from '@porcelain/contracts/shared';
 import type { ReadTextFileService } from '@porcelain/files/services';
-import { InvalidLineRangeError } from '@porcelain/kernel/errors';
 import type { CheckWorktreeService } from '@porcelain/projects/services';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
@@ -56,7 +56,8 @@ export class ReadChangeLinesUseCase {
           at === 'head'
             ? await this.readHeadText.execute({ worktreeId, path }, signal)
             : await this.readTextFile.execute({ worktreeId, path }, signal);
-        if (!lineRangeOrdered({ from, to })) throw new InvalidLineRangeError();
+        const problem = lineRangeProblem({ from, to });
+        if (problem) throw new InvalidLineRangeError();
         const lines = changeLines(
           { path, from, to, at, text },
           this.options.maxLines,

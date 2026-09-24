@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { changeLines, lineRangeOrdered } from './change-lines.ts';
+import { changeLines, lineRangeProblem } from './change-lines.ts';
 
 const text = 'one\ntwo\nthree\n';
 
@@ -77,13 +77,17 @@ describe('changeLines', () => {
   });
 });
 
-describe('lineRangeOrdered', () => {
-  it('accepts a range that ends on or after its start', () => {
-    expect(lineRangeOrdered({ from: 2, to: 2 })).toBe(true);
-    expect(lineRangeOrdered({ from: 2, to: 3 })).toBe(true);
+describe('lineRangeProblem', () => {
+  it.each([
+    { name: 'on its start', to: 2 },
+    { name: 'after its start', to: 3 },
+  ])('accepts a range that ends $name', ({ to }) => {
+    expect(lineRangeProblem({ from: 2, to })).toBeUndefined();
   });
 
   it('refuses a range that ends before it starts', () => {
-    expect(lineRangeOrdered({ from: 3, to: 2 })).toBe(false);
+    expect(lineRangeProblem({ from: 3, to: 2 })).toEqual({
+      kind: 'reversed-range',
+    });
   });
 });

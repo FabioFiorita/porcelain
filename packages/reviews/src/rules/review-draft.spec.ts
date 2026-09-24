@@ -70,9 +70,9 @@ describe('reviewDraftProblem', () => {
       steps: [step('step-a'), step('step-a', 1)],
       arrows: [],
     });
-    expect(reviewDraftProblem(draft({ layers: [repeated] }))).toBe(
-      'duplicate-step-id',
-    );
+    expect(reviewDraftProblem(draft({ layers: [repeated] }))).toEqual({
+      kind: 'duplicate-step-id',
+    });
   });
 
   it('allows the same step id in two different layers', () => {
@@ -87,9 +87,9 @@ describe('reviewDraftProblem', () => {
     const last = layer('layer-a', { steps: [step('step-a', 1)], arrows: [] });
     const past = layer('layer-a', { steps: [step('step-a', 2)], arrows: [] });
     expect(reviewDraftProblem(draft({ layers: [last] }))).toBeUndefined();
-    expect(reviewDraftProblem(draft({ layers: [past] }))).toBe(
-      'step-lane-out-of-range',
-    );
+    expect(reviewDraftProblem(draft({ layers: [past] }))).toEqual({
+      kind: 'step-lane-out-of-range',
+    });
   });
 
   it.each([
@@ -102,7 +102,7 @@ describe('reviewDraftProblem', () => {
         reviewDraftProblem(
           draft({ layers: [layer('layer-a', { arrows: [arrow] })] }),
         ),
-      ).toBe('unknown-arrow-step');
+      ).toEqual({ kind: 'unknown-arrow-step' });
     },
   );
 
@@ -113,7 +113,7 @@ describe('reviewDraftProblem', () => {
     });
     expect(
       reviewDraftProblem(draft({ layers: [layer('layer-a'), other] })),
-    ).toBe('unknown-arrow-step');
+    ).toEqual({ kind: 'unknown-arrow-step' });
   });
 
   it('refuses a diagram box past its lanes, in the after or the before diagram', () => {
@@ -121,14 +121,14 @@ describe('reviewDraftProblem', () => {
       boxes: [{ id: 'box-a', lane: 2, label: 'Lost', kind: 'storage' }],
       arrows: [],
     });
-    expect(reviewDraftProblem(draft({ diagram: { after: outside } }))).toBe(
-      'box-lane-out-of-range',
-    );
+    expect(reviewDraftProblem(draft({ diagram: { after: outside } }))).toEqual({
+      kind: 'box-lane-out-of-range',
+    });
     expect(
       reviewDraftProblem(
         draft({ diagram: { after: diagram(), before: outside } }),
       ),
-    ).toBe('box-lane-out-of-range');
+    ).toEqual({ kind: 'box-lane-out-of-range' });
   });
 
   it.each([
@@ -141,7 +141,7 @@ describe('reviewDraftProblem', () => {
         reviewDraftProblem(
           draft({ diagram: { after: diagram({ arrows: [arrow] }) } }),
         ),
-      ).toBe('unknown-arrow-box');
+      ).toEqual({ kind: 'unknown-arrow-box' });
     },
   );
 
@@ -150,6 +150,6 @@ describe('reviewDraftProblem', () => {
       reviewDraftProblem(
         draft({ layers: [layer('layer-a'), layer('layer-a')] }),
       ),
-    ).toBe('duplicate-layer-id');
+    ).toEqual({ kind: 'duplicate-layer-id' });
   });
 });

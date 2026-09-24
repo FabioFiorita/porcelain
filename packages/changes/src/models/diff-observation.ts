@@ -8,3 +8,5 @@ export type DiffObservation = {
   fingerprints: ChangeFingerprints;
   previousStamp: string | undefined;
 };
+
+export type ObservationProblem = { kind: 'worktree-changed' };

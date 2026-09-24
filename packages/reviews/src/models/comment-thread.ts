@@ -91,3 +91,7 @@ export type CommentSeenMark = {
   worktreeId: string;
   seenThrough: number;
 };
+
+export type CommentAnchorProblem =
+  | { kind: 'reversed-range' }
+  | { kind: 'revision-mismatch' };

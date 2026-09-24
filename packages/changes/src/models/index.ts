@@ -4,7 +4,11 @@ export type {
   ChangeSelection,
 } from './change-diff.ts';
 export type { ChangeFingerprints } from './change-fingerprints.ts';
-export type { ChangeLineRange, ChangeLines } from './change-lines.ts';
+export type {
+  ChangeLineRange,
+  ChangeLines,
+  LineRangeProblem,
+} from './change-lines.ts';
 export type {
   BranchDetails,
   BranchDetailsRequest,
@@ -31,10 +35,14 @@ export type {
   HistorySnapshot,
 } from './commit-history.ts';
 export type {
-  DiffComparisons,
-  DiffComparisonsInput,
-} from './diff-comparisons.ts';
-export type { DiffObservation } from './diff-observation.ts';
+  DiffSelection,
+  DiffSelectionInput,
+  DiffSelectionProblem,
+} from './diff-selection.ts';
+export type {
+  DiffObservation,
+  ObservationProblem,
+} from './diff-observation.ts';
 export type { ListCommitsInput, ListCommitsResult } from './list-commits.ts';
 export type {
   ReadBranchDetailsInput,

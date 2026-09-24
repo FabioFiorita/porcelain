@@ -79,7 +79,7 @@ export class PublishReviewService {
   }
 
   private invalid(problem: ReviewDraftProblem): Error {
-    switch (problem) {
+    switch (problem.kind) {
       case 'duplicate-layer-id':
         return new DuplicateLayerIdError();
       case 'duplicate-step-id':

@@ -87,13 +87,13 @@ export type Review = {
 };
 
 export type ReviewDraftProblem =
-  | 'duplicate-layer-id'
-  | 'reversed-pointer'
-  | 'duplicate-step-id'
-  | 'step-lane-out-of-range'
-  | 'unknown-arrow-step'
-  | 'box-lane-out-of-range'
-  | 'unknown-arrow-box';
+  | { kind: 'duplicate-layer-id' }
+  | { kind: 'reversed-pointer' }
+  | { kind: 'duplicate-step-id' }
+  | { kind: 'step-lane-out-of-range' }
+  | { kind: 'unknown-arrow-step' }
+  | { kind: 'box-lane-out-of-range' }
+  | { kind: 'unknown-arrow-box' };
 
 export type ReviewSummary = Pick<
   Review,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ChangeStatusObservation } from '@porcelain/changes/models';
-import { diffComparisons } from './diff-comparisons.ts';
+import { diffSelection, diffSelectionProblem } from './diff-selection.ts';
 import { modified } from '../../spec/fakes/comparisons.ts';
 
 const renamed = {
@@ -21,22 +21,21 @@ const status: ChangeStatusObservation = {
   ],
 };
 
-describe('diffComparisons', () => {
+describe('diffSelectionProblem and diffSelection', () => {
   it('returns the listed comparisons for the selections and the paths they cover', () => {
-    expect(
-      diffComparisons({
-        status,
-        expectedFiles: [
-          { path: 'a.md', fingerprint: undefined },
-          { path: 'GUIDE.md', fingerprint: undefined },
-        ],
-        selections: [
-          { scope: 'unstaged', oldPath: 'a.md', newPath: 'a.md' },
-          { scope: 'staged', oldPath: 'README.md', newPath: 'GUIDE.md' },
-        ],
-      }),
-    ).toEqual({
-      kind: 'selected',
+    const input = {
+      status,
+      expectedFiles: [
+        { path: 'a.md', fingerprint: undefined },
+        { path: 'GUIDE.md', fingerprint: undefined },
+      ],
+      selections: [
+        { scope: 'unstaged' as const, oldPath: 'a.md', newPath: 'a.md' },
+        { scope: 'staged' as const, oldPath: 'README.md', newPath: 'GUIDE.md' },
+      ],
+    };
+    expect(diffSelectionProblem(input)).toBeUndefined();
+    expect(diffSelection(input)).toEqual({
       comparisons: [modified('unstaged', 'a.md'), renamed],
       paths: ['a.md', 'GUIDE.md'],
     });
@@ -44,7 +43,7 @@ describe('diffComparisons', () => {
 
   it('refuses a selection that names neither an old nor a new path', () => {
     expect(
-      diffComparisons({
+      diffSelectionProblem({
         status,
         expectedFiles: [{ path: 'a.md', fingerprint: undefined }],
         selections: [
@@ -56,7 +55,7 @@ describe('diffComparisons', () => {
 
   it('refuses a selection whose file was not stated', () => {
     expect(
-      diffComparisons({
+      diffSelectionProblem({
         status,
         expectedFiles: [{ path: 'a.md', fingerprint: undefined }],
         selections: [
@@ -68,7 +67,7 @@ describe('diffComparisons', () => {
 
   it('refuses a stated file that no selection covers', () => {
     expect(
-      diffComparisons({
+      diffSelectionProblem({
         status,
         expectedFiles: [
           { path: 'a.md', fingerprint: undefined },
@@ -81,7 +80,7 @@ describe('diffComparisons', () => {
 
   it('refuses a file stated twice', () => {
     expect(
-      diffComparisons({
+      diffSelectionProblem({
         status,
         expectedFiles: [
           { path: 'a.md', fingerprint: undefined },
@@ -94,7 +93,7 @@ describe('diffComparisons', () => {
 
   it('reports a moved worktree when a stated selection is no longer listed', () => {
     expect(
-      diffComparisons({
+      diffSelectionProblem({
         status,
         expectedFiles: [{ path: 'a.md', fingerprint: undefined }],
         selections: [{ scope: 'staged', oldPath: 'a.md', newPath: 'a.md' }],

@@ -8,13 +8,18 @@ import {
   SelectionMismatchError,
   UnnamedDiffSelectionError,
 } from '@porcelain/changes/errors';
-import { diffComparisons, observationHolds } from '@porcelain/changes/rules';
-import { WorktreeChangedError } from '@porcelain/kernel/errors';
+import type { DiffSelectionProblem } from '@porcelain/changes/models';
+import {
+  diffSelection,
+  diffSelectionProblem,
+  observationProblem,
+} from '@porcelain/changes/rules';
 import type {
   ReadChangeDiffsRequest,
   ReadChangeDiffsResponse,
 } from '@porcelain/contracts/changes';
 import type { WorktreeParams } from '@porcelain/contracts/shared';
+import { WorktreeChangedError } from '@porcelain/kernel/errors';
 import type { CheckWorktreeService } from '@porcelain/projects/services';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
@@ -62,31 +67,22 @@ export class ReadChangeDiffsUseCase {
           { worktreeId },
           signal,
         );
-        const selected = diffComparisons({
-          expectedFiles,
-          selections,
-          status: before,
-        });
-        if (selected.kind === 'unnamed-selection')
-          throw new UnnamedDiffSelectionError();
-        if (selected.kind === 'selection-mismatch')
-          throw new SelectionMismatchError();
-        if (selected.kind === 'worktree-changed')
-          throw new WorktreeChangedError();
+        const selection = { expectedFiles, selections, status: before };
+        const problem = diffSelectionProblem(selection);
+        if (problem) throw this.failure(problem);
+        const selected = diffSelection(selection);
         const observed = await this.readChangeFingerprints.execute(
           { worktreeId, comparisons: before.changes, paths: selected.paths },
           signal,
         );
-        if (
-          !observationHolds({
-            expectedStatusToken,
-            expectedFiles,
-            statusToken: before.statusToken,
-            fingerprints: observed,
-            previousStamp: undefined,
-          })
-        )
-          throw new WorktreeChangedError();
+        const changed = observationProblem({
+          expectedStatusToken,
+          expectedFiles,
+          statusToken: before.statusToken,
+          fingerprints: observed,
+          previousStamp: undefined,
+        });
+        if (changed) throw this.failure(changed);
         const diffs = await this.readChangeDiffs.execute(
           { worktreeId, comparisons: selected.comparisons },
           signal,
@@ -99,16 +95,14 @@ export class ReadChangeDiffsUseCase {
           { worktreeId, comparisons: after.changes, paths: selected.paths },
           signal,
         );
-        if (
-          !observationHolds({
-            expectedStatusToken,
-            expectedFiles,
-            statusToken: after.statusToken,
-            fingerprints: reobserved,
-            previousStamp: observed.stamp,
-          })
-        )
-          throw new WorktreeChangedError();
+        const moved = observationProblem({
+          expectedStatusToken,
+          expectedFiles,
+          statusToken: after.statusToken,
+          fingerprints: reobserved,
+          previousStamp: observed.stamp,
+        });
+        if (moved) throw this.failure(moved);
         await this.checkWorktree.execute({ worktreeId }, signal);
         return {
           environmentId: this.readEnvironment.execute().environmentId,
@@ -119,5 +113,16 @@ export class ReadChangeDiffsUseCase {
       },
       { callerSignal: context.signal },
     );
+  }
+
+  private failure(problem: DiffSelectionProblem): Error {
+    switch (problem.kind) {
+      case 'unnamed-selection':
+        return new UnnamedDiffSelectionError();
+      case 'selection-mismatch':
+        return new SelectionMismatchError();
+      case 'worktree-changed':
+        return new WorktreeChangedError();
+    }
   }
 }

@@ -2,7 +2,8 @@ import type {
   ReadChangeFingerprintsService,
   ReadWorktreeStatusService,
 } from '@porcelain/changes/services';
-import { observationHolds } from '@porcelain/changes/rules';
+import { observationProblem } from '@porcelain/changes/rules';
+import { WorktreeChangedError } from '@porcelain/kernel/errors';
 import type {
   GenerateCommitDraftRequest,
   GenerateCommitDraftResponse,
@@ -12,7 +13,6 @@ import type {
   CaptureCommitDraftService,
   GenerateCommitDraftService,
 } from '@porcelain/git-actions/services';
-import { WorktreeChangedError } from '@porcelain/kernel/errors';
 import type {
   CheckProjectService,
   CheckWorktreeService,
@@ -75,16 +75,14 @@ export class GenerateCommitDraftUseCase {
           { worktreeId, comparisons: status.changes, paths: undefined },
           signal,
         );
-        if (
-          !observationHolds({
-            expectedStatusToken: input.expectedStatusToken,
-            expectedFiles: [],
-            statusToken: status.statusToken,
-            fingerprints,
-            previousStamp: undefined,
-          })
-        )
-          throw new WorktreeChangedError();
+        const problem = observationProblem({
+          expectedStatusToken: input.expectedStatusToken,
+          expectedFiles: [],
+          statusToken: status.statusToken,
+          fingerprints,
+          previousStamp: undefined,
+        });
+        if (problem) throw new WorktreeChangedError();
         return this.captureCommitDraft.execute(
           {
             worktreeId,

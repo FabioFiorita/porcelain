@@ -4,6 +4,7 @@ import { CommentIdentityConflictError } from '../errors/comment-identity-conflic
 import { CommentLimitExceededError } from '../errors/comment-limit-exceeded-error.ts';
 import { CommentRevisionMismatchError } from '../errors/comment-revision-mismatch-error.ts';
 import type {
+  CommentAnchorProblem,
   CommentContent,
   CommentLimits,
 } from '../models/comment-thread.ts';
@@ -40,9 +41,7 @@ export class CreateCommentThreadService {
 
   execute(input: CreateCommentThreadInput): CreateCommentThreadResult {
     const problem = commentAnchorProblem(input.anchor);
-    if (problem === 'reversed-range') throw new InvalidLineRangeError();
-    if (problem === 'revision-mismatch')
-      throw new CommentRevisionMismatchError();
+    if (problem) throw this.failure(problem);
     const threadId = input.threadId ?? this.idSource.next();
     const messageId = input.messageId ?? this.idSource.next();
     const author = commentAuthor(input.writer);
@@ -84,5 +83,14 @@ export class CreateCommentThreadService {
       sizeBytes,
       writtenByAgent: author === 'agent',
     });
+  }
+
+  private failure(problem: CommentAnchorProblem): Error {
+    switch (problem.kind) {
+      case 'reversed-range':
+        return new InvalidLineRangeError();
+      case 'revision-mismatch':
+        return new CommentRevisionMismatchError();
+    }
   }
 }

@@ -1,6 +1,7 @@
 export type {
   AgentReply,
   CommentAnchor,
+  CommentAnchorProblem,
   CommentAuthor,
   CommentComparison,
   CommentContent,
