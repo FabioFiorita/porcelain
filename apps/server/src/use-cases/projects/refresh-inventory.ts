@@ -1,5 +1,4 @@
 import type {
-  CompareKnownWorktreesService,
   ListKnownWorktreesService,
   ListProjectWorktreesService,
   ListRegisteredProjectsService,
@@ -7,6 +6,7 @@ import type {
   RecordWorktreePresenceService,
   UpdateProjectAvailabilityService,
 } from '@porcelain/projects/services';
+import { knownWorktreesChanged } from '@porcelain/projects/rules';
 import type { EventPublisher } from '../../ports/event-publisher.ts';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
@@ -19,7 +19,6 @@ export class RefreshInventoryUseCase {
   private readonly markProjectsUnavailable: MarkProjectsUnavailableService;
   private readonly updateProjectAvailability: UpdateProjectAvailabilityService;
   private readonly recordWorktreePresence: RecordWorktreePresenceService;
-  private readonly compareKnownWorktrees: CompareKnownWorktreesService;
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
   private readonly events: EventPublisher;
@@ -31,7 +30,6 @@ export class RefreshInventoryUseCase {
     markProjectsUnavailable: MarkProjectsUnavailableService,
     updateProjectAvailability: UpdateProjectAvailabilityService,
     recordWorktreePresence: RecordWorktreePresenceService,
-    compareKnownWorktrees: CompareKnownWorktreesService,
     lanes: Lanes,
     laneKeys: LaneKeys,
     events: EventPublisher,
@@ -42,7 +40,6 @@ export class RefreshInventoryUseCase {
     this.markProjectsUnavailable = markProjectsUnavailable;
     this.updateProjectAvailability = updateProjectAvailability;
     this.recordWorktreePresence = recordWorktreePresence;
-    this.compareKnownWorktrees = compareKnownWorktrees;
     this.lanes = lanes;
     this.laneKeys = laneKeys;
     this.events = events;
@@ -68,7 +65,7 @@ export class RefreshInventoryUseCase {
         const after = this.listKnownWorktrees.execute(
           this.listRegisteredProjects.execute(),
         ).listings;
-        if (this.compareKnownWorktrees.execute({ before, after }).changed)
+        if (knownWorktreesChanged(before, after))
           this.events.inventoryChanged();
       },
       { callerSignal: context.signal },

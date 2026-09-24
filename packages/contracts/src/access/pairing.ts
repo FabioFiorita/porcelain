@@ -1,9 +1,13 @@
 import { z } from 'zod';
+import {
+  DEVICE_LABEL_LENGTH,
+  DEVICE_PLATFORM_LENGTH,
+} from '../shared/limits.ts';
 
 export const redeemPairingRequestSchema = z.strictObject({
   code: z.string().min(1).max(200),
-  platform: z.string().min(1).max(120),
-  label: z.string().min(1).max(80).optional(),
+  platform: z.string().min(1).max(DEVICE_PLATFORM_LENGTH),
+  label: z.string().min(1).max(DEVICE_LABEL_LENGTH).optional(),
 });
 export const redeemPairingResponseSchema = z.object({
   device: z.object({
@@ -37,7 +41,7 @@ export const listAccessResponseSchema = z.object({
 });
 
 export const issuePairingRequestSchema = z.strictObject({
-  labels: z.array(z.string().min(1).max(80)).min(1).max(20),
+  labels: z.array(z.string().min(1).max(DEVICE_LABEL_LENGTH)).min(1).max(20),
   addresses: z.array(z.url()).min(1).max(10),
 });
 export const issuePairingResponseSchema = z.object({

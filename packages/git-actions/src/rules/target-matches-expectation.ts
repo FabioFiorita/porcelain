@@ -1,4 +1,5 @@
 import type { FileChange } from '@porcelain/kernel/models';
+import { expectationHolds } from '@porcelain/kernel/rules';
 import type { FingerprintedFile } from '../models/fingerprinted-file.ts';
 
 export function targetMatchesExpectation(
@@ -6,11 +7,11 @@ export function targetMatchesExpectation(
   changes: readonly FileChange[],
   wholeChangeList: boolean,
 ): boolean {
-  const actual = new Map(
+  const current = new Map(
     changes.map((change) => [change.path, change.fingerprint]),
   );
   return (
-    expected.every((file) => actual.get(file.path) === file.fingerprint) &&
-    (!wholeChangeList || actual.size === expected.length)
+    expectationHolds(expected, current) &&
+    (!wholeChangeList || current.size === expected.length)
   );
 }

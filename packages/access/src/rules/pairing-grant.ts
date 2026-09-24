@@ -1,12 +1,5 @@
 import type { StoredPairingGrant } from '../models/pairing-grant.ts';
 
-export function pairingGrantExpiry(
-  createdAt: string,
-  lifetimeMs: number,
-): string {
-  return new Date(Date.parse(createdAt) + lifetimeMs).toISOString();
-}
-
 export function pairingGrantRevocable(grant: StoredPairingGrant): boolean {
   return grant.redeemedAt === undefined && grant.revokedAt === undefined;
 }

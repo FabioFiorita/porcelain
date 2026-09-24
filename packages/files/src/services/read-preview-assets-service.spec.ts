@@ -4,7 +4,12 @@ import { InMemoryFileReader } from '../../spec/fakes/in-memory-file-reader.ts';
 import { ReadPreviewAssetsService } from './read-preview-assets-service.ts';
 
 const worktreeId = 'a'.repeat(32);
-const roomy = { maxAssetBytes: 1024, maxTotalBytes: 4096, maxPathLength: 4096 };
+const roomy = {
+  maxAssetBytes: 1024,
+  maxTotalBytes: 4096,
+  maxPathLength: 4096,
+  base64ChunkBytes: 0x8000,
+};
 
 function file(length: number): FileRead {
   return {
@@ -83,7 +88,7 @@ describe('ReadPreviewAssetsService', () => {
   it('marks assets unavailable once the preview budget is spent', async () => {
     const service = serviceWith(
       { 'a.png': file(4), 'b.png': file(4), 'c.png': file(1) },
-      { maxAssetBytes: 10, maxTotalBytes: 6, maxPathLength: 4096 },
+      { ...roomy, maxAssetBytes: 10, maxTotalBytes: 6, maxPathLength: 4096 },
     );
     const { assets } = await service.execute({
       worktreeId,
@@ -100,7 +105,7 @@ describe('ReadPreviewAssetsService', () => {
   it('marks an asset over the single asset limit unavailable', async () => {
     const service = serviceWith(
       { 'big.png': file(5), 'ok.png': file(4) },
-      { maxAssetBytes: 4, maxTotalBytes: 100, maxPathLength: 4096 },
+      { ...roomy, maxAssetBytes: 4, maxTotalBytes: 100, maxPathLength: 4096 },
     );
     const { assets } = await service.execute({
       worktreeId,
@@ -129,7 +134,7 @@ describe('ReadPreviewAssetsService', () => {
   it('serves a reference at the path length limit and refuses one character more', async () => {
     const service = serviceWith(
       { 'abcdef.png': file(1), 'abcdefg.png': file(1) },
-      { maxAssetBytes: 10, maxTotalBytes: 100, maxPathLength: 10 },
+      { ...roomy, maxAssetBytes: 10, maxTotalBytes: 100, maxPathLength: 10 },
     );
     const { assets } = await service.execute({
       worktreeId,

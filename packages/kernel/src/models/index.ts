@@ -1,6 +1,7 @@
 export type {
   ChangeComparison,
   ChangeKind,
+  ComparisonSides,
   ConflictKind,
   ExpectedFile,
   FileChange,

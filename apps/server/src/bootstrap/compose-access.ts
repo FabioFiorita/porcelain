@@ -6,7 +6,6 @@ import type {
 } from '@porcelain/access/ports';
 import {
   AuthenticateDeviceService,
-  CheckRequestOriginService,
   FlushDeviceActivityService,
   IssuePairingService,
   ListAccessService,
@@ -52,7 +51,7 @@ export function composeAccess(
   const { session, lanes, laneKeys, clock, ids } = context;
   const limits = context.settings.limits.access;
   const { readEnvironment, deviceStore, deviceSightingStore } = adapters;
-  const secretSource = new RandomSecretSource();
+  const secretSource = new RandomSecretSource(limits.credentials);
   const pairingGrants = createPairingGrantStore(session);
   const pairingAttempts = new InMemoryPairingAttemptStore();
   return {
@@ -65,9 +64,7 @@ export function composeAccess(
       ),
     ),
     clearBrowserSession: new ClearBrowserSessionUseCase(),
-    checkRequestOrigin: new CheckRequestOriginUseCase(
-      new CheckRequestOriginService(),
-    ),
+    checkRequestOrigin: new CheckRequestOriginUseCase(),
     flushDeviceActivity: new FlushDeviceActivityUseCase(
       new FlushDeviceActivityService(deviceSightingStore, deviceStore),
       lanes,
@@ -82,6 +79,7 @@ export function composeAccess(
         ids,
         secretSource,
         limits.pairingGrant,
+        limits.deviceDetails,
       ),
       lanes,
       laneKeys,
@@ -96,7 +94,13 @@ export function composeAccess(
       new ReadOwnerStatusService(adapters.runtimeStatusReader),
     ),
     redeemPairing: new RedeemPairingUseCase(
-      new RedeemPairingService(pairingGrants, clock, ids, secretSource),
+      new RedeemPairingService(
+        pairingGrants,
+        clock,
+        ids,
+        secretSource,
+        limits.deviceDetails,
+      ),
       lanes,
       laneKeys,
     ),

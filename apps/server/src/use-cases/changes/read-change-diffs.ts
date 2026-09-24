@@ -1,11 +1,15 @@
 import type { ReadEnvironmentService } from '@porcelain/access/services';
 import type {
-  CheckDiffObservationService,
   ReadChangeDiffsService,
   ReadChangeFingerprintsService,
-  ReadDiffComparisonsService,
   ReadWorktreeStatusService,
 } from '@porcelain/changes/services';
+import {
+  SelectionMismatchError,
+  UnnamedDiffSelectionError,
+} from '@porcelain/changes/errors';
+import { diffComparisons, observationHolds } from '@porcelain/changes/rules';
+import { WorktreeChangedError } from '@porcelain/kernel/errors';
 import type {
   ReadChangeDiffsRequest,
   ReadChangeDiffsResponse,
@@ -19,9 +23,7 @@ import type { OperationContext } from '../../runtime/operation-context.ts';
 export class ReadChangeDiffsUseCase {
   private readonly checkWorktree: CheckWorktreeService;
   private readonly readWorktreeStatus: ReadWorktreeStatusService;
-  private readonly readDiffComparisons: ReadDiffComparisonsService;
   private readonly readChangeFingerprints: ReadChangeFingerprintsService;
-  private readonly checkDiffObservation: CheckDiffObservationService;
   private readonly readChangeDiffs: ReadChangeDiffsService;
   private readonly readEnvironment: ReadEnvironmentService;
   private readonly lanes: Lanes;
@@ -30,9 +32,7 @@ export class ReadChangeDiffsUseCase {
   constructor(
     checkWorktree: CheckWorktreeService,
     readWorktreeStatus: ReadWorktreeStatusService,
-    readDiffComparisons: ReadDiffComparisonsService,
     readChangeFingerprints: ReadChangeFingerprintsService,
-    checkDiffObservation: CheckDiffObservationService,
     readChangeDiffs: ReadChangeDiffsService,
     readEnvironment: ReadEnvironmentService,
     lanes: Lanes,
@@ -40,9 +40,7 @@ export class ReadChangeDiffsUseCase {
   ) {
     this.checkWorktree = checkWorktree;
     this.readWorktreeStatus = readWorktreeStatus;
-    this.readDiffComparisons = readDiffComparisons;
     this.readChangeFingerprints = readChangeFingerprints;
-    this.checkDiffObservation = checkDiffObservation;
     this.readChangeDiffs = readChangeDiffs;
     this.readEnvironment = readEnvironment;
     this.lanes = lanes;
@@ -64,22 +62,31 @@ export class ReadChangeDiffsUseCase {
           { worktreeId },
           signal,
         );
-        const selected = this.readDiffComparisons.execute({
+        const selected = diffComparisons({
           expectedFiles,
           selections,
           status: before,
         });
+        if (selected.kind === 'unnamed-selection')
+          throw new UnnamedDiffSelectionError();
+        if (selected.kind === 'selection-mismatch')
+          throw new SelectionMismatchError();
+        if (selected.kind === 'worktree-changed')
+          throw new WorktreeChangedError();
         const observed = await this.readChangeFingerprints.execute(
           { worktreeId, comparisons: before.changes, paths: selected.paths },
           signal,
         );
-        this.checkDiffObservation.execute({
-          expectedStatusToken,
-          expectedFiles,
-          statusToken: before.statusToken,
-          fingerprints: observed,
-          previousStamp: undefined,
-        });
+        if (
+          !observationHolds({
+            expectedStatusToken,
+            expectedFiles,
+            statusToken: before.statusToken,
+            fingerprints: observed,
+            previousStamp: undefined,
+          })
+        )
+          throw new WorktreeChangedError();
         const diffs = await this.readChangeDiffs.execute(
           { worktreeId, comparisons: selected.comparisons },
           signal,
@@ -92,13 +99,16 @@ export class ReadChangeDiffsUseCase {
           { worktreeId, comparisons: after.changes, paths: selected.paths },
           signal,
         );
-        this.checkDiffObservation.execute({
-          expectedStatusToken,
-          expectedFiles,
-          statusToken: after.statusToken,
-          fingerprints: reobserved,
-          previousStamp: observed.stamp,
-        });
+        if (
+          !observationHolds({
+            expectedStatusToken,
+            expectedFiles,
+            statusToken: after.statusToken,
+            fingerprints: reobserved,
+            previousStamp: observed.stamp,
+          })
+        )
+          throw new WorktreeChangedError();
         await this.checkWorktree.execute({ worktreeId }, signal);
         return {
           environmentId: this.readEnvironment.execute().environmentId,

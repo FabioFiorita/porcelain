@@ -5,7 +5,6 @@ export { CommentRevisionMismatchError } from './comment-revision-mismatch-error.
 export { CommentTargetNotFoundError } from './comment-target-not-found-error.ts';
 export { DuplicateLayerIdError } from './duplicate-layer-id-error.ts';
 export { DuplicateStepIdError } from './duplicate-step-id-error.ts';
-export { InvalidLineRangeError } from './invalid-line-range-error.ts';
 export { ReviewConflictError } from './review-conflict-error.ts';
 export { ReviewLayerNotFoundError } from './review-layer-not-found-error.ts';
 export { ReviewSummaryNotFoundError } from './review-summary-not-found-error.ts';

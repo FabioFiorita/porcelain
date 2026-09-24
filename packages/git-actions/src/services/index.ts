@@ -1,6 +1,5 @@
 export { AcceptGitActionService } from './accept-git-action-service.ts';
 export { CaptureCommitDraftService } from './capture-commit-draft-service.ts';
-export { CheckGitActionScopeService } from './check-git-action-scope-service.ts';
 export { DismissInterruptedGitActionService } from './dismiss-interrupted-git-action-service.ts';
 export { ExpireGitActionReceiptsService } from './expire-git-action-receipts-service.ts';
 export { FinishGitActionService } from './finish-git-action-service.ts';

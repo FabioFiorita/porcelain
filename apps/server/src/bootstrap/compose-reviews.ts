@@ -6,7 +6,6 @@ import {
   GeneratePublishedReviewService,
   InvalidateReviewedMarksService,
   ListCommentThreadsService,
-  ListReviewEvidenceService,
   ListReviewedFilesService,
   ListReviewedLayerPathsService,
   ListReviewedLayersService,
@@ -98,7 +97,6 @@ export function composeReviews(
   const reviewedLayerStore = createReviewedLayerStore(session);
 
   const readPublishedReview = new ReadPublishedReviewService(reviewStore);
-  const listReviewEvidence = new ListReviewEvidenceService();
   const generatePublishedReview = new GeneratePublishedReviewService(
     clock,
     signatureSource,
@@ -153,14 +151,13 @@ export function composeReviews(
       checkWorktree,
       changes.readWorktreeStatus,
       changes.readChangeFingerprints,
-      listReviewEvidence,
       readTextFile,
       changes.readChangeDiffs,
       new PublishReviewService(
         reviewStore,
         clock,
         ids,
-        new RandomSecretSource(),
+        new RandomSecretSource(limits.summaryLink),
       ),
       readEnvironment,
       generatePublishedReview,
@@ -173,7 +170,6 @@ export function composeReviews(
       readPublishedReview,
       changes.readWorktreeStatus,
       changes.readChangeFingerprints,
-      listReviewEvidence,
       readTextFile,
       changes.readChangeDiffs,
       readEnvironment,
@@ -247,7 +243,6 @@ export function composeReviews(
     ),
     services: {
       readPublishedReview,
-      listReviewEvidence,
       refreshReviewActivity: new RefreshReviewActivityService(reviewStore),
     },
   };

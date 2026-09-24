@@ -13,7 +13,7 @@ export type {
   CredentialKind,
   CredentialParts,
 } from './credential.ts';
-export type { Device, StoredDevice } from './device.ts';
+export type { Device, DeviceDetailLimits, StoredDevice } from './device.ts';
 export type { HostPolicy } from './host-policy.ts';
 export type {
   IssuedPairingGrant,

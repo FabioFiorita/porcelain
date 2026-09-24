@@ -28,6 +28,7 @@ function setup() {
     new SequentialIdSource(),
     new SequentialSecretSource(),
     { lifetimeMs: 15 * 60 * 1000 },
+    { labelLength: 80, platformLength: 120 },
   );
   return { grants, service };
 }

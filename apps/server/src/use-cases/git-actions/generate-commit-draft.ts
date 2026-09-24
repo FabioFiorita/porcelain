@@ -2,6 +2,7 @@ import type {
   ReadChangeFingerprintsService,
   ReadWorktreeStatusService,
 } from '@porcelain/changes/services';
+import { observationHolds } from '@porcelain/changes/rules';
 import type {
   GenerateCommitDraftRequest,
   GenerateCommitDraftResponse,
@@ -9,9 +10,9 @@ import type {
 } from '@porcelain/contracts/git-actions';
 import type {
   CaptureCommitDraftService,
-  CheckGitActionScopeService,
   GenerateCommitDraftService,
 } from '@porcelain/git-actions/services';
+import { WorktreeChangedError } from '@porcelain/kernel/errors';
 import type {
   CheckProjectService,
   CheckWorktreeService,
@@ -25,7 +26,6 @@ export type GenerateCommitDraftOptions = { deadlineMs: number };
 export class GenerateCommitDraftUseCase {
   private readonly checkProject: CheckProjectService;
   private readonly checkWorktree: CheckWorktreeService;
-  private readonly checkGitActionScope: CheckGitActionScopeService;
   private readonly readWorktreeStatus: ReadWorktreeStatusService;
   private readonly readChangeFingerprints: ReadChangeFingerprintsService;
   private readonly captureCommitDraft: CaptureCommitDraftService;
@@ -37,7 +37,6 @@ export class GenerateCommitDraftUseCase {
   constructor(
     checkProject: CheckProjectService,
     checkWorktree: CheckWorktreeService,
-    checkGitActionScope: CheckGitActionScopeService,
     readWorktreeStatus: ReadWorktreeStatusService,
     readChangeFingerprints: ReadChangeFingerprintsService,
     captureCommitDraft: CaptureCommitDraftService,
@@ -48,7 +47,6 @@ export class GenerateCommitDraftUseCase {
   ) {
     this.checkProject = checkProject;
     this.checkWorktree = checkWorktree;
-    this.checkGitActionScope = checkGitActionScope;
     this.readWorktreeStatus = readWorktreeStatus;
     this.readChangeFingerprints = readChangeFingerprints;
     this.captureCommitDraft = captureCommitDraft;
@@ -68,28 +66,32 @@ export class GenerateCommitDraftUseCase {
       this.laneKeys.project(projectId),
       'read',
       async ({ signal }) => {
-        const worktree = await this.checkWorktree.execute(
-          { worktreeId },
-          signal,
-        );
-        this.checkGitActionScope.execute({ projectId, worktree });
+        await this.checkWorktree.execute({ worktreeId, projectId }, signal);
         const status = await this.readWorktreeStatus.execute(
           { worktreeId },
           signal,
         );
-        const { changes } = await this.readChangeFingerprints.execute(
+        const fingerprints = await this.readChangeFingerprints.execute(
           { worktreeId, comparisons: status.changes, paths: undefined },
           signal,
         );
+        if (
+          !observationHolds({
+            expectedStatusToken: input.expectedStatusToken,
+            expectedFiles: [],
+            statusToken: status.statusToken,
+            fingerprints,
+            previousStamp: undefined,
+          })
+        )
+          throw new WorktreeChangedError();
         return this.captureCommitDraft.execute(
           {
             worktreeId,
             observation: {
-              statusToken: status.statusToken,
               headOid: status.headOid,
-              changes,
+              changes: fingerprints.changes,
             },
-            expectedStatusToken: input.expectedStatusToken,
             paths: input.paths,
           },
           signal,

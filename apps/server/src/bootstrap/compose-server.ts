@@ -82,9 +82,15 @@ export async function openApplication(
   dependencies: ApplicationDependencies,
 ) {
   const { limits } = settings;
+  const worktreeId = (projectId: string, metadataIdentity: string) =>
+    deriveWorktreeId(
+      projectId,
+      metadataIdentity,
+      limits.projects.worktreeIds.length,
+    );
   const gitVersion = await readGitVersion(dependencies.signal);
   const session = openStorageSession(settings.dataDirectory, {
-    worktreeId: deriveWorktreeId,
+    worktreeId,
   });
   const inventoryStore = createInventoryStore(session);
   const lanes = new Lanes({
@@ -109,7 +115,7 @@ export async function openApplication(
     sharedReads: new SharedReads(),
     launchLimit: new LaunchLimit(limits.inventory.listingLaunches),
     timeoutMs: limits.inventory.listingTimeoutMs,
-    worktreeId: deriveWorktreeId,
+    worktreeId,
   });
   const worktreeAccess = new GitWorktreeAccessReader(
     worktreeDirectory,

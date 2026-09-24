@@ -1,3 +1,4 @@
+import { withoutGitDirectory } from '@porcelain/kernel/rules';
 import { FolderNotFoundError } from '../errors/folder-not-found-error.ts';
 import { FolderNotReadableError } from '../errors/folder-not-readable-error.ts';
 import { UnsupportedFolderNameError } from '../errors/unsupported-folder-name-error.ts';
@@ -8,7 +9,6 @@ import type {
 } from '../models/browse-project-folders.ts';
 import type { ProjectFolderReader } from '../ports/project-folder-reader.ts';
 import type { ProjectRepositoryReader } from '../ports/project-repository-reader.ts';
-import { withoutGitDirectory } from '../rules/without-git-directory.ts';
 
 export class BrowseProjectFoldersService {
   private readonly projectFolderReader: ProjectFolderReader;

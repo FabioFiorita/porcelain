@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { FixedClock } from '@porcelain/kernel/fakes';
 import type { StoredDevice } from '@porcelain/access/models';
-import { credential, hashSecret } from '@porcelain/access/rules';
+import { credential } from '@porcelain/access/rules';
+import { sha256Hex } from '@porcelain/kernel/rules';
 import { InMemoryDeviceSightingStore } from '../../spec/fakes/in-memory-device-sighting-store.ts';
 import { InMemoryDeviceStore } from '../../spec/fakes/in-memory-device-store.ts';
 import { AuthenticateDeviceService } from './authenticate-device-service.ts';
@@ -21,7 +22,7 @@ function setup(device: Partial<StoredDevice> = {}) {
     createdAt: '2026-09-01T10:00:00.000Z',
     lastSeenAt,
     lastSeenAddress: '192.168.1.30',
-    secretHash: hashSecret(secret),
+    secretHash: sha256Hex(secret),
     ...device,
   });
   const sightings = new InMemoryDeviceSightingStore();

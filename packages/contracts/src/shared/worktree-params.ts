@@ -1,6 +1,9 @@
 import { z } from 'zod';
+import { WORKTREE_ID_LENGTH } from './limits.ts';
 
-export const worktreeIdSchema = z.string().regex(/^[0-9a-f]{32}$/);
+export const worktreeIdSchema = z
+  .string()
+  .regex(new RegExp(`^[0-9a-f]{${WORKTREE_ID_LENGTH}}$`));
 export const worktreeParamsSchema = z.strictObject({
   worktreeId: worktreeIdSchema,
 });

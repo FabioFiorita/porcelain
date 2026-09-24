@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { Lanes } from './lanes.ts';
 
 function lanes() {
-  return new Lanes({ deadlineMs: 1000 });
+  return new Lanes({ deadlineMs: 1000, readCapacity: 4 });
 }
 
 describe('Lanes', () => {

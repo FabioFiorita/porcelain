@@ -1,10 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import {
-  credential,
-  hashSecret,
-  parseCredential,
-  secretMatches,
-} from './credential.ts';
+import { sha256Hex } from '@porcelain/kernel/rules';
+import { credential, parseCredential, secretMatches } from './credential.ts';
 
 const id = '00000000-0000-4000-8000-000000000001';
 const secret = 'a'.repeat(43);
@@ -37,17 +33,13 @@ describe('parseCredential', () => {
 
 describe('secretMatches', () => {
   it('matches only the secret whose hash was stored', () => {
-    const stored = hashSecret(secret);
+    const stored = sha256Hex(secret);
     expect(secretMatches(stored, secret)).toBe(true);
     expect(secretMatches(stored, otherSecret)).toBe(false);
   });
 
-  it('never stores the secret itself', () => {
-    expect(hashSecret(secret)).not.toContain(secret);
-  });
-
   it('does not match against a stored hash of the wrong length', () => {
-    expect(secretMatches(hashSecret(secret).slice(0, -2), secret)).toBe(false);
+    expect(secretMatches(sha256Hex(secret).slice(0, -2), secret)).toBe(false);
     expect(secretMatches('', secret)).toBe(false);
   });
 });

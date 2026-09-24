@@ -10,10 +10,8 @@ import {
 import {
   CommitNotFoundError,
   IncompleteDiffReadError,
-  InvalidLineRangeError as ChangesInvalidLineRangeError,
   SelectionMismatchError,
   UnnamedDiffSelectionError,
-  WorktreeChangedError as ChangesWorktreeChangedError,
 } from '@porcelain/changes/errors';
 import type { RunGitActionResponse } from '@porcelain/contracts/git-actions';
 import type { ApiError } from '@porcelain/contracts/shared';
@@ -49,8 +47,6 @@ import {
   MissingExpectedFilesError,
   MissingUpstreamExpectationError,
   UnsupportedCommitModelError,
-  WorktreeChangedError as GitActionWorktreeChangedError,
-  WorktreeNotFoundError as GitActionWorktreeNotFoundError,
 } from '@porcelain/git-actions/errors';
 import { GitActionRejectedError } from '@porcelain/git/actions';
 import { isRepositoryUnavailable } from '@porcelain/git/discovery';
@@ -69,13 +65,17 @@ import {
   UnsupportedPathEncodingError,
 } from '@porcelain/git/inspection';
 import {
+  InvalidLineRangeError,
+  WorktreeChangedError,
+  WorktreeNotFoundError,
+} from '@porcelain/kernel/errors';
+import {
   FilePreferenceLimitError,
   FolderNotFoundError,
   FolderNotReadableError,
   NoWorktreeAtPathError,
   ProjectNotFoundError,
   UnsupportedFolderNameError,
-  WorktreeNotFoundError,
   WorktreeUnavailableError,
 } from '@porcelain/projects/errors';
 import {
@@ -86,7 +86,6 @@ import {
   CommentTargetNotFoundError,
   DuplicateLayerIdError,
   DuplicateStepIdError,
-  InvalidLineRangeError as ReviewsInvalidLineRangeError,
   ReviewConflictError,
   ReviewedMarkConflictError,
   ReviewLayerNotFoundError,
@@ -131,10 +130,9 @@ const rules: readonly StatusRule[] = [
       errorCodes.FST_ERR_CTP_EMPTY_JSON_BODY,
       errorCodes.FST_ERR_CTP_INVALID_MEDIA_TYPE,
       SelectionMismatchError,
-      ChangesInvalidLineRangeError,
+      InvalidLineRangeError,
       UnnamedDiffSelectionError,
       InvalidHunkRangeError,
-      ReviewsInvalidLineRangeError,
       CommentRevisionMismatchError,
       InvalidMoveError,
       DuplicateExpectedFileError,
@@ -158,7 +156,6 @@ const rules: readonly StatusRule[] = [
   {
     errors: [
       WorktreeNotFoundError,
-      GitActionWorktreeNotFoundError,
       ReviewLayerNotFoundError,
       ProjectNotFoundError,
       CommitNotFoundError,
@@ -176,7 +173,7 @@ const rules: readonly StatusRule[] = [
     message: 'Comment target not found',
   },
   {
-    errors: [ChangesWorktreeChangedError, GitActionWorktreeChangedError],
+    errors: [WorktreeChangedError],
     statusCode: 409,
     message: 'Refresh status and retry inspection',
   },

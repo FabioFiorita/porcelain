@@ -1,5 +1,3 @@
-import type { TrackedComparison } from '@porcelain/kernel/models';
-
 export type ChangeSelection = {
   scope: 'staged' | 'unstaged';
   oldPath: string | undefined;
@@ -18,9 +16,4 @@ export type ChangeDiffContent =
 export type ChangeDiff = {
   selection: ChangeSelection;
   content: ChangeDiffContent;
-};
-
-export type DiffSelection = {
-  comparisons: TrackedComparison[];
-  paths: string[];
 };

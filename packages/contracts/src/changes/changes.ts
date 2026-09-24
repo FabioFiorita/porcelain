@@ -7,6 +7,7 @@ import { relativePathSchema } from '../shared/relative-path.ts';
 import { worktreeIdSchema } from '../shared/worktree-params.ts';
 import { gitDiffContentSchema } from './git-diff.ts';
 import { gitChangeSchema, gitChangeSelectionSchema } from './git-status.ts';
+import { CHANGED_PATHS } from '../shared/limits.ts';
 
 const fileChangeSchema = z.object({
   path: relativePathSchema,
@@ -35,7 +36,7 @@ export const readChangesResponseSchema = z.object({
       action: gitActionSchema,
     })
     .optional(),
-  changes: z.array(fileChangeSchema).max(2000),
+  changes: z.array(fileChangeSchema).max(CHANGED_PATHS),
 });
 
 export const readChangeDiffsRequestSchema = z.strictObject({

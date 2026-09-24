@@ -73,7 +73,7 @@ export function composeFiles(context: ComposeContext, adapters: FilesAdapters) {
       checkWorktree,
       new EditFileService(
         fileReader,
-        new FilesystemFileWriter(worktreeAccess),
+        new FilesystemFileWriter(worktreeAccess, limits.permissions),
         limits.editFile,
       ),
       adapters.invalidateReviewedMarks,

@@ -3,7 +3,6 @@ import type {
   RegisterProjectResponse,
 } from '@porcelain/contracts/projects';
 import type {
-  ComposeProjectReportService,
   InspectProjectRepositoryService,
   ListOtherProjectsService,
   ListProjectWorktreesService,
@@ -13,6 +12,7 @@ import type {
   UpdateProjectAvailabilityService,
 } from '@porcelain/projects/services';
 import type { ReadWorktreeStatusesService } from '@porcelain/reviews/services';
+import { projectReport } from '@porcelain/projects/rules';
 import type { EventPublisher } from '../../ports/event-publisher.ts';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
@@ -27,7 +27,6 @@ export class RegisterProjectUseCase {
   private readonly updateProjectAvailability: UpdateProjectAvailabilityService;
   private readonly recordWorktreePresence: RecordWorktreePresenceService;
   private readonly readWorktreeStatuses: ReadWorktreeStatusesService;
-  private readonly composeProjectReport: ComposeProjectReportService;
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
   private readonly events: EventPublisher;
@@ -41,7 +40,6 @@ export class RegisterProjectUseCase {
     updateProjectAvailability: UpdateProjectAvailabilityService,
     recordWorktreePresence: RecordWorktreePresenceService,
     readWorktreeStatuses: ReadWorktreeStatusesService,
-    composeProjectReport: ComposeProjectReportService,
     lanes: Lanes,
     laneKeys: LaneKeys,
     events: EventPublisher,
@@ -54,7 +52,6 @@ export class RegisterProjectUseCase {
     this.updateProjectAvailability = updateProjectAvailability;
     this.recordWorktreePresence = recordWorktreePresence;
     this.readWorktreeStatuses = readWorktreeStatuses;
-    this.composeProjectReport = composeProjectReport;
     this.lanes = lanes;
     this.laneKeys = laneKeys;
     this.events = events;
@@ -92,11 +89,7 @@ export class RegisterProjectUseCase {
         const { statuses } = this.readWorktreeStatuses.execute({
           worktreeIds: worktrees.worktrees.map((worktree) => worktree.id),
         });
-        const report = this.composeProjectReport.execute({
-          project,
-          worktrees,
-          statuses,
-        });
+        const report = projectReport(project, worktrees, statuses);
         this.events.inventoryChanged();
         return report;
       },

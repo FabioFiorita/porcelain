@@ -1,7 +1,7 @@
+import { logicalPath } from '@porcelain/kernel/rules';
 import type { ChangeComparison, FileChange } from '@porcelain/kernel/models';
 import type { WorktreeSide } from '../models/worktree-side.ts';
 import { fingerprintChange } from './fingerprint-change.ts';
-import { logicalPath } from './logical-path.ts';
 import { orderComparisons } from './order-comparisons.ts';
 
 export function assembleChanges(

@@ -6,7 +6,6 @@ export type {
   CaptureCommitDraftInput,
   CaptureCommitDraftResult,
 } from './capture-commit-draft.ts';
-export type { CheckGitActionScopeInput } from './check-git-action-scope.ts';
 export type {
   CommitDraft,
   CommitDraftCapture,

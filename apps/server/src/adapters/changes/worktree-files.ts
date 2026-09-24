@@ -11,13 +11,13 @@ import {
   verifyPath,
 } from '../files/inspect-path.ts';
 
-const CHUNK_BYTES = 1024 * 1024;
-const CONCURRENT_READS = 8;
+export type WorktreeReadOptions = { chunkBytes: number; concurrency: number };
 
 export async function readWorktreeFiles(
   root: string,
   paths: readonly string[],
   maxDigestBytes: number,
+  options: WorktreeReadOptions,
 ): Promise<Map<string, WorktreeEntry>> {
   const entries = new Map<string, WorktreeEntry>();
   const wanted = [...new Set(paths)];
@@ -28,13 +28,21 @@ export async function readWorktreeFiles(
       next += 1;
       if (path === undefined) continue;
       try {
-        const entry = await readEntry(root, path, maxDigestBytes);
+        const entry = await readEntry(
+          root,
+          path,
+          maxDigestBytes,
+          options.chunkBytes,
+        );
         if (entry) entries.set(path, entry);
       } catch {}
     }
   };
   await Promise.all(
-    Array.from({ length: Math.min(CONCURRENT_READS, wanted.length) }, worker),
+    Array.from(
+      { length: Math.min(options.concurrency, wanted.length) },
+      worker,
+    ),
   );
   return entries;
 }
@@ -43,6 +51,7 @@ async function readEntry(
   root: string,
   path: string,
   maxDigestBytes: number,
+  chunkBytes: number,
 ): Promise<WorktreeEntry | undefined> {
   if (path === '' || path.split('/').some((part) => part === '..'))
     return undefined;
@@ -59,7 +68,7 @@ async function readEntry(
     return { kind: 'symlink', target: link, stamp: stampOf(info) };
   }
   if (!info.isFile()) return { kind: 'other' };
-  const read = await digestFile(full, info, maxDigestBytes);
+  const read = await digestFile(full, info, maxDigestBytes, chunkBytes);
   if (read.kind === 'file') await verifyPath(before, target);
   return read;
 }
@@ -80,6 +89,7 @@ async function digestFile(
   full: string,
   classified: BigIntStats,
   maxBytes: number,
+  chunkBytes: number,
 ): Promise<WorktreeEntry> {
   const handle = await open(
     full,
@@ -91,7 +101,7 @@ async function digestFile(
       return { kind: 'other' };
     if (opened.size > BigInt(maxBytes)) return { kind: 'too-large' };
     const hash = createHash('sha256');
-    const buffer = Buffer.alloc(CHUNK_BYTES);
+    const buffer = Buffer.alloc(chunkBytes);
     let read = 0;
     while (true) {
       const { bytesRead } = await handle.read(buffer, 0, buffer.length, read);

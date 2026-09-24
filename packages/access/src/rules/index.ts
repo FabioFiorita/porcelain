@@ -1,10 +1,5 @@
 export { inCreationOrder } from './creation-order.ts';
-export {
-  credential,
-  hashSecret,
-  parseCredential,
-  secretMatches,
-} from './credential.ts';
+export { credential, parseCredential, secretMatches } from './credential.ts';
 export { deviceUsable, idleMilliseconds, sighted } from './device-activity.ts';
 export { validLabel, validPlatform } from './device-details.ts';
 export {
@@ -14,9 +9,13 @@ export {
   reachableAt,
 } from './host-policy.ts';
 export {
-  pairingGrantExpiry,
   pairingGrantPending,
   pairingGrantRedeemable,
   pairingGrantRevocable,
 } from './pairing-grant.ts';
+export {
+  refundPairingAttempt,
+  takePairingAttempt,
+} from './pairing-attempts.ts';
 export { effectivePort, requestAuthority } from './request-authority.ts';
+export { requestOriginCheck } from './request-origin-check.ts';

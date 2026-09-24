@@ -1,7 +1,5 @@
-import {
-  OWNER_PROBE_TIMEOUT_MS,
-  ownerSocketPath,
-} from '../config/owner-socket-settings.ts';
+import { LIMITS } from '../config/limits.ts';
+import { ownerSocketPath } from '../config/owner-socket-settings.ts';
 import { probeOwnerSocket } from './owner-client.ts';
 import type { StatusSettings } from './arguments.ts';
 
@@ -14,7 +12,7 @@ export const statusExitCodes = {
 export async function reportStatus(
   settings: StatusSettings,
   output: { stdout: (message: string) => void; stderr: (m: string) => void },
-  timeoutMs = OWNER_PROBE_TIMEOUT_MS,
+  timeoutMs = LIMITS.owner.probeTimeoutMs,
 ): Promise<number> {
   let socketPath: string;
   try {

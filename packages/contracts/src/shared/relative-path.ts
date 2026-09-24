@@ -1,9 +1,10 @@
 import { z } from 'zod';
+import { PATH_LENGTH } from './limits.ts';
 
 export const relativePathSchema = z
   .string()
   .min(1)
-  .max(4096)
+  .max(PATH_LENGTH)
   .refine(
     (path) =>
       !path.includes('\0') &&

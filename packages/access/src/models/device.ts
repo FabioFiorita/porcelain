@@ -11,3 +11,8 @@ export type StoredDevice = Device & {
   secretHash: string;
   revokedAt?: string | undefined;
 };
+
+export type DeviceDetailLimits = {
+  labelLength: number;
+  platformLength: number;
+};

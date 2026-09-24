@@ -7,7 +7,6 @@ import type {
 import {
   AcceptGitActionService,
   CaptureCommitDraftService,
-  CheckGitActionScopeService,
   DismissInterruptedGitActionService,
   ExpireGitActionReceiptsService,
   FinishGitActionService,
@@ -68,7 +67,6 @@ export function composeGitActions(
   const limits = context.settings.limits.gitActions;
   const store = createGitActionStore(session);
   const checkProject = new CheckProjectService(adapters.inventoryStore);
-  const checkGitActionScope = new CheckGitActionScopeService();
   const expireGitActionReceipts = new ExpireGitActionReceiptsService(
     store,
     clock,
@@ -78,7 +76,6 @@ export function composeGitActions(
     runGitAction: new RunGitActionUseCase(
       checkProject,
       adapters.checkWorktree,
-      checkGitActionScope,
       expireGitActionReceipts,
       new AcceptGitActionService(store, clock),
       adapters.changes.readWorktreeStatus,
@@ -89,7 +86,6 @@ export function composeGitActions(
       new RecordGitActionProgressService(store, limits.progress),
       new FinishGitActionService(store, clock),
       adapters.reviews.readPublishedReview,
-      adapters.reviews.listReviewEvidence,
       adapters.readTextFile,
       adapters.changes.readChangeDiffs,
       adapters.reviews.refreshReviewActivity,
@@ -111,7 +107,6 @@ export function composeGitActions(
     listGitBranches: new ListGitBranchesUseCase(
       checkProject,
       adapters.checkWorktree,
-      checkGitActionScope,
       new ListGitBranchesService(
         new GitGitBranchReader(adapters.worktreeAccess, adapters.actionGit),
       ),
@@ -126,7 +121,6 @@ export function composeGitActions(
     generateCommitDraft: new GenerateCommitDraftUseCase(
       checkProject,
       adapters.checkWorktree,
-      checkGitActionScope,
       adapters.changes.readWorktreeStatus,
       adapters.changes.readChangeFingerprints,
       new CaptureCommitDraftService(

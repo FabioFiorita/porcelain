@@ -1,5 +1,5 @@
+import { WorktreeNotFoundError } from '@porcelain/kernel/errors';
 import type { WorktreeAccessReader } from '@porcelain/kernel/ports';
-import { WorktreeNotFoundError } from '../errors/worktree-not-found-error.ts';
 import { WorktreeUnavailableError } from '../errors/worktree-unavailable-error.ts';
 import type {
   CheckWorktreeInput,

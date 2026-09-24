@@ -12,7 +12,10 @@ import type { FileReader } from '../ports/file-reader.ts';
 import { assetMediaType } from '../rules/asset-media-type.ts';
 import { encodeBase64 } from '../rules/encode-base64.ts';
 
-export type ReadFileAssetOptions = { maxBytes: number };
+export type ReadFileAssetOptions = {
+  maxBytes: number;
+  base64ChunkBytes: number;
+};
 
 export class ReadFileAssetService {
   private readonly fileReader: FileReader;
@@ -40,7 +43,11 @@ export class ReadFileAssetService {
     if (read.kind === 'failed') throw this.failure(read.failure);
     if (read.kind === 'too-large' || read.bytes.length > this.options.maxBytes)
       throw new FileTooLargeError();
-    return { path: input.path, mediaType, base64: encodeBase64(read.bytes) };
+    return {
+      path: input.path,
+      mediaType,
+      base64: encodeBase64(read.bytes, this.options.base64ChunkBytes),
+    };
   }
 
   private failure(failure: ReadFailure): Error {

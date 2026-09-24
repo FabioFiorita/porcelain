@@ -12,7 +12,6 @@ import type { ReadTextFileService } from '@porcelain/files/services';
 import type { GitActionRun } from '@porcelain/git-actions/models';
 import type {
   AcceptGitActionService,
-  CheckGitActionScopeService,
   ExpireGitActionReceiptsService,
   FinishGitActionService,
   InterruptGitActionService,
@@ -25,11 +24,11 @@ import type {
   CheckWorktreeService,
 } from '@porcelain/projects/services';
 import type {
-  ListReviewEvidenceService,
   ReadPublishedReviewService,
   RefreshReviewActivityService,
 } from '@porcelain/reviews/services';
 import type { EventPublisher } from '../../ports/event-publisher.ts';
+import { reviewPaths, trackedComparisons } from '@porcelain/reviews/rules';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
 import type { OperationContext } from '../../runtime/operation-context.ts';
@@ -39,7 +38,6 @@ export type RunGitActionOptions = { deadlineMs: number };
 export class RunGitActionUseCase {
   private readonly checkProject: CheckProjectService;
   private readonly checkWorktree: CheckWorktreeService;
-  private readonly checkGitActionScope: CheckGitActionScopeService;
   private readonly expireGitActionReceipts: ExpireGitActionReceiptsService;
   private readonly acceptGitAction: AcceptGitActionService;
   private readonly readWorktreeStatus: ReadWorktreeStatusService;
@@ -48,7 +46,6 @@ export class RunGitActionUseCase {
   private readonly recordGitActionProgress: RecordGitActionProgressService;
   private readonly finishGitAction: FinishGitActionService;
   private readonly readPublishedReview: ReadPublishedReviewService;
-  private readonly listReviewEvidence: ListReviewEvidenceService;
   private readonly readTextFile: ReadTextFileService;
   private readonly readChangeDiffs: ReadChangeDiffsService;
   private readonly refreshReviewActivity: RefreshReviewActivityService;
@@ -61,7 +58,6 @@ export class RunGitActionUseCase {
   constructor(
     checkProject: CheckProjectService,
     checkWorktree: CheckWorktreeService,
-    checkGitActionScope: CheckGitActionScopeService,
     expireGitActionReceipts: ExpireGitActionReceiptsService,
     acceptGitAction: AcceptGitActionService,
     readWorktreeStatus: ReadWorktreeStatusService,
@@ -70,7 +66,6 @@ export class RunGitActionUseCase {
     recordGitActionProgress: RecordGitActionProgressService,
     finishGitAction: FinishGitActionService,
     readPublishedReview: ReadPublishedReviewService,
-    listReviewEvidence: ListReviewEvidenceService,
     readTextFile: ReadTextFileService,
     readChangeDiffs: ReadChangeDiffsService,
     refreshReviewActivity: RefreshReviewActivityService,
@@ -82,7 +77,6 @@ export class RunGitActionUseCase {
   ) {
     this.checkProject = checkProject;
     this.checkWorktree = checkWorktree;
-    this.checkGitActionScope = checkGitActionScope;
     this.expireGitActionReceipts = expireGitActionReceipts;
     this.acceptGitAction = acceptGitAction;
     this.readWorktreeStatus = readWorktreeStatus;
@@ -91,7 +85,6 @@ export class RunGitActionUseCase {
     this.recordGitActionProgress = recordGitActionProgress;
     this.finishGitAction = finishGitAction;
     this.readPublishedReview = readPublishedReview;
-    this.listReviewEvidence = listReviewEvidence;
     this.readTextFile = readTextFile;
     this.readChangeDiffs = readChangeDiffs;
     this.refreshReviewActivity = refreshReviewActivity;
@@ -109,11 +102,10 @@ export class RunGitActionUseCase {
     const { projectId, worktreeId } = input;
     const { upstreamOid, ...expected } = input.expected;
     this.checkProject.execute({ projectId });
-    const worktree = await this.lanes.unqueued(
-      (signal) => this.checkWorktree.execute({ worktreeId }, signal),
+    await this.lanes.unqueued(
+      (signal) => this.checkWorktree.execute({ worktreeId, projectId }, signal),
       { callerSignal: context.signal },
     );
-    this.checkGitActionScope.execute({ projectId, worktree });
     const accepted = await this.lanes.run(
       this.laneKeys.inventory(),
       'write',
@@ -186,17 +178,13 @@ export class RunGitActionUseCase {
       { worktreeId, comparisons: status.changes, paths: undefined },
       signal,
     );
-    const evidence = this.listReviewEvidence.execute({
-      layers: published.review.layers,
-      changes,
-    });
     const texts = await Promise.allSettled(
-      evidence.paths.map((path) =>
+      reviewPaths(published.review.layers, changes).map((path) =>
         this.readTextFile.execute({ worktreeId, path }, signal),
       ),
     );
     const diffs = await this.readChangeDiffs.execute(
-      { worktreeId, comparisons: evidence.comparisons },
+      { worktreeId, comparisons: trackedComparisons(changes) },
       signal,
     );
     this.refreshReviewActivity.execute({

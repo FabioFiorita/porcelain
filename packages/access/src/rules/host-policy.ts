@@ -4,6 +4,13 @@ import type { PairingReach } from '../models/pairing-reach.ts';
 const IPV4 =
   /^(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]\d|\d)\.){3}(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]\d|\d)$/;
 
+const MAPPED_HEX =
+  /^::ffff:([0-9a-f]{0,2}?)([0-9a-f]{1,2}):([0-9a-f]{0,2}?)([0-9a-f]{1,2})$/;
+
+function hexByte(digits: string | undefined): number {
+  return digits ? Number(`0x${digits}`) : 0;
+}
+
 function normalizedIpv6(value: string): string | undefined {
   return URL.parse(`http://[${value}]`)?.hostname.replace(/^\[|\]$/g, '');
 }
@@ -16,12 +23,8 @@ export function canonicalHostname(value: string): string | undefined {
   if (lower.length === 0) return undefined;
   const mapped = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/.exec(lower);
   if (mapped?.[1]) return mapped[1];
-  const hex = /^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/.exec(lower);
-  if (hex?.[1] && hex[2]) {
-    const high = Number.parseInt(hex[1], 16);
-    const low = Number.parseInt(hex[2], 16);
-    return [high >> 8, high & 0xff, low >> 8, low & 0xff].join('.');
-  }
+  const hex = MAPPED_HEX.exec(lower);
+  if (hex) return hex.slice(1).map(hexByte).join('.');
   if (lower.includes(':')) return normalizedIpv6(lower);
   return lower;
 }

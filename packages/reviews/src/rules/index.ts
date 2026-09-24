@@ -1,4 +1,5 @@
 export {
+  commentAnchorProblem,
   commentAuthor,
   commentStorageSize,
   repeatsCreation,
@@ -18,12 +19,9 @@ export {
 } from './resolve-review.ts';
 export { reviewDiagnostics } from './review-diagnostics.ts';
 export {
-  fingerprint,
-  sameSignature,
   summaryExpired,
   summaryMessage,
   summaryUrl,
-  utf8ByteLength,
 } from './review-digests.ts';
 export { reviewDraftProblem } from './review-draft.ts';
 export {
@@ -37,9 +35,12 @@ export {
 } from './review-evidence.ts';
 export {
   evictedPaths,
+  layerStaleness,
+  markedLayers,
   reviewedMarks,
   selectReviewedFiles,
   staleness,
   touchedMarks,
 } from './reviewed-marks.ts';
 export { summaryStyleWarnings } from './summary-style.ts';
+export { worktreeStatuses } from './worktree-statuses.ts';

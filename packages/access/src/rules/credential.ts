@@ -1,4 +1,4 @@
-import { createHash, timingSafeEqual } from 'node:crypto';
+import { constantTimeEquals, sha256Hex } from '@porcelain/kernel/rules';
 import type {
   Credential,
   CredentialKind,
@@ -17,10 +17,6 @@ export function credential(
   return { id, secret, token: `${kind}_${id}_${secret}` };
 }
 
-export function hashSecret(secret: string): string {
-  return createHash('sha256').update(secret).digest('hex');
-}
-
 export function parseCredential(
   kind: CredentialKind,
   value: string,
@@ -33,10 +29,6 @@ export function parseCredential(
     : undefined;
 }
 
-function digest(value: string) {
-  return createHash('sha256').update(value).digest();
-}
-
 export function secretMatches(expectedHash: string, secret: string): boolean {
-  return timingSafeEqual(digest(expectedHash), digest(hashSecret(secret)));
+  return constantTimeEquals(expectedHash, sha256Hex(secret));
 }

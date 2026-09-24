@@ -1,15 +1,12 @@
 import type { ReadEnvironmentService } from '@porcelain/access/services';
 import {
   CheckCommitService,
-  CheckDiffObservationService,
   ListCommitsService,
   ReadBranchDetailsService,
   ReadChangeDiffsService,
   ReadChangeFingerprintsService,
-  ReadChangeLinesService,
   ReadCommitDiffsService,
   ReadCommitFilesService,
-  ReadDiffComparisonsService,
   ReadHeadTextService,
   ReadWorktreeStatusService,
 } from '@porcelain/changes/services';
@@ -59,7 +56,10 @@ export function composeChanges(
     adapters.inspection,
   );
   const changeStatusReader = new GitChangeStatusReader(openInspection);
-  const worktreeSideReader = new GitWorktreeSideReader(openInspection);
+  const worktreeSideReader = new GitWorktreeSideReader(
+    openInspection,
+    limits.worktreeReads,
+  );
   const changeDiffReader = new GitChangeDiffReader(openInspection);
   const headTextReader = new GitHeadTextReader(openInspection);
   const commitHistoryReader = new GitCommitHistoryReader(
@@ -73,11 +73,8 @@ export function composeChanges(
     worktreeSideReader,
     limits.fingerprints,
   );
-  const readDiffComparisons = new ReadDiffComparisonsService();
-  const checkDiffObservation = new CheckDiffObservationService();
   const readChangeDiffs = new ReadChangeDiffsService(changeDiffReader);
   const readHeadText = new ReadHeadTextService(headTextReader);
-  const readChangeLines = new ReadChangeLinesService(limits.changeLines);
   const listCommits = new ListCommitsService(commitHistoryReader);
   const readCommitFiles = new ReadCommitFilesService(commitHistoryReader);
   const checkCommit = new CheckCommitService(commitHistoryReader);
@@ -96,9 +93,7 @@ export function composeChanges(
     readChangeDiffs: new ReadChangeDiffsUseCase(
       checkWorktree,
       readWorktreeStatus,
-      readDiffComparisons,
       readChangeFingerprints,
-      checkDiffObservation,
       readChangeDiffs,
       readEnvironment,
       lanes,
@@ -108,10 +103,10 @@ export function composeChanges(
       checkWorktree,
       readHeadText,
       adapters.readTextFile,
-      readChangeLines,
       readEnvironment,
       lanes,
       laneKeys,
+      limits.changeLines,
     ),
     readGitStatus: new ReadGitStatusUseCase(
       checkWorktree,
@@ -144,8 +139,6 @@ export function composeChanges(
     services: {
       readWorktreeStatus,
       readChangeFingerprints,
-      readDiffComparisons,
-      checkDiffObservation,
       readChangeDiffs,
     },
   };

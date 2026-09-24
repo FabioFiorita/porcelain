@@ -61,6 +61,8 @@ export const targetPackageExports: Record<string, Record<string, string>> = {
   kernel: {
     './models': './src/models/index.ts',
     './ports': './src/ports/index.ts',
+    './rules': './src/rules/index.ts',
+    './errors': './src/errors/index.ts',
     './fakes': './spec/fakes/index.ts',
   },
   process: { '.': './src/index.ts' },
@@ -218,6 +220,8 @@ function classifyPackage(name: string, inside: string) {
   if (name === 'kernel') {
     if (section === 'models' || section === 'ports')
       return classified('kernel', name);
+    if (section === 'rules' || section === 'errors')
+      return classifyDomain(name, inside);
     return;
   }
   if (name === 'contracts') {
@@ -324,6 +328,8 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
   'status-policy': new Set(['error-api', 'gateway-api', 'runtime', 'contract']),
   'use-case': new Set([
     'domain-api',
+    'rule-api',
+    'error-api',
     'model-api',
     'kernel',
     'contract',
@@ -355,7 +361,15 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
     'error',
     'error-api',
   ]),
-  rule: new Set(['kernel', 'rule', 'model', 'model-api', 'error', 'error-api']),
+  rule: new Set([
+    'kernel',
+    'rule',
+    'rule-api',
+    'model',
+    'model-api',
+    'error',
+    'error-api',
+  ]),
   model: new Set(['kernel', 'model', 'model-api']),
   port: new Set(['kernel', 'port', 'model', 'model-api']),
   error: new Set(['error']),
@@ -391,7 +405,7 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
   'server-port': new Set(['server-port', 'kernel', 'model-api']),
   bootstrap: new Set(everything),
   contract: new Set(['contract']),
-  config: new Set(['config']),
+  config: new Set(['config', 'contract']),
   kernel: new Set(['kernel']),
   fake: new Set([
     'kernel',
@@ -454,6 +468,8 @@ export function violation(
       return 'git-public-api-only';
     if (domainSet.has(to.owner) && !domainApiRoles.has(to.role))
       return 'domain-public-api-only';
+    if (to.owner === 'kernel' && (to.role === 'rule' || to.role === 'error'))
+      return 'kernel-public-api-only';
     if (to.owner === 'storage' && to.role !== 'repository-api')
       return 'storage-public-api-only';
     if (to.owner === 'agents' && to.role !== 'gateway-api')

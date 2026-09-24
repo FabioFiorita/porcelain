@@ -1,4 +1,5 @@
 import type { Clock } from '@porcelain/kernel/ports';
+import { constantTimeEquals } from '@porcelain/kernel/rules';
 import { ReviewSummaryNotFoundError } from '../errors/review-summary-not-found-error.ts';
 import type {
   ReadReviewSummaryInput,
@@ -6,11 +7,7 @@ import type {
 } from '../models/read-review-summary.ts';
 import type { ReviewStore } from '../ports/review-store.ts';
 import type { SignatureSource } from '../ports/signature-source.ts';
-import {
-  sameSignature,
-  summaryExpired,
-  summaryMessage,
-} from '../rules/review-digests.ts';
+import { summaryExpired, summaryMessage } from '../rules/review-digests.ts';
 
 export class ReadReviewSummaryService {
   private readonly reviews: ReviewStore;
@@ -32,7 +29,7 @@ export class ReadReviewSummaryService {
     if (
       summary === undefined ||
       summaryExpired(input.expires, this.clock.now()) ||
-      !sameSignature(
+      !constantTimeEquals(
         this.signatureSource.sign({
           secret: summary.summarySecret,
           message: summaryMessage(input.token, input.expires),

@@ -1,7 +1,7 @@
 import type { FileChange } from '@porcelain/kernel/models';
+import { isTracked, utf8ByteLength } from '@porcelain/kernel/rules';
 import { CommitDraftSelectionError } from '../errors/commit-draft-selection-error.ts';
 import { CommitDraftTooLargeError } from '../errors/commit-draft-too-large-error.ts';
-import { WorktreeChangedError } from '../errors/worktree-changed-error.ts';
 import type {
   CaptureCommitDraftInput,
   CaptureCommitDraftResult,
@@ -12,7 +12,6 @@ import type { SelectedDiffReader } from '../ports/selected-diff-reader.ts';
 import type { UntrackedFileReader } from '../ports/untracked-file-reader.ts';
 import { changedPaths } from '../rules/changed-paths.ts';
 import { untrackedEvidence } from '../rules/untracked-evidence.ts';
-import { utf8ByteLength } from '../rules/utf8-byte-length.ts';
 
 export type CaptureCommitDraftOptions = {
   maxComparisons: number;
@@ -40,8 +39,6 @@ export class CaptureCommitDraftService {
     signal?: AbortSignal,
   ): Promise<CaptureCommitDraftResult> {
     const { observation } = input;
-    if (observation.statusToken !== input.expectedStatusToken)
-      throw new WorktreeChangedError();
     const paths = [...new Set(input.paths)];
     const selected = observation.changes.filter((change) =>
       paths.includes(change.path),
@@ -86,18 +83,12 @@ export class CaptureCommitDraftService {
     signal: AbortSignal | undefined,
   ) {
     const compared = selected.flatMap((change) =>
-      change.comparisons.filter(
-        (comparison) =>
-          comparison.scope === 'staged' || comparison.scope === 'unstaged',
-      ),
+      change.comparisons.filter(isTracked),
     );
     if (compared.length > this.options.maxComparisons)
       throw new CommitDraftTooLargeError();
     const diffable = selected.filter((change) =>
-      change.comparisons.some(
-        (comparison) =>
-          comparison.scope === 'staged' || comparison.scope === 'unstaged',
-      ),
+      change.comparisons.some(isTracked),
     );
     const patch =
       diffable.length === 0

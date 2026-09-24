@@ -50,11 +50,15 @@ type Destination = {
   target: CheckoutPath;
 };
 
+export type FilePermissions = { fileMode: number; directoryMode: number };
+
 export class FilesystemFileWriter implements FileWriter {
   private readonly worktrees: KnownWorktrees;
+  private readonly permissions: FilePermissions;
 
-  constructor(worktrees: KnownWorktrees) {
+  constructor(worktrees: KnownWorktrees, permissions: FilePermissions) {
     this.worktrees = worktrees;
+    this.permissions = permissions;
   }
 
   async write(input: FileWriteInput, signal?: AbortSignal): Promise<FileWrite> {
@@ -109,7 +113,7 @@ export class FilesystemFileWriter implements FileWriter {
             constants.O_CREAT |
             constants.O_EXCL |
             constants.O_NOFOLLOW,
-          0o644,
+          this.permissions.fileMode,
         );
         await file.close();
       }
@@ -193,7 +197,7 @@ export class FilesystemFileWriter implements FileWriter {
         throw pathRefused('changed');
     };
     if (from.info.isDirectory()) {
-      await mkdir(to.path, { mode: 0o700 });
+      await mkdir(to.path, { mode: this.permissions.directoryMode });
       const reservation = await lstat(to.path, { bigint: true });
       try {
         await confirm();

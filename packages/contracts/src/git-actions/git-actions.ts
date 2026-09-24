@@ -7,18 +7,17 @@ import { oidSchema } from '../shared/oid.ts';
 import { relativePathSchema } from '../shared/relative-path.ts';
 import { utf8ByteLength } from '../shared/utf8-bytes.ts';
 import { worktreeIdSchema } from '../shared/worktree-params.ts';
-
-const MAX_MESSAGE_BYTES = 16_384;
+import { CHANGED_PATHS, COMMIT_MESSAGE_BYTES } from '../shared/limits.ts';
 
 const messageSchema = z
   .string()
   .min(1)
-  .max(MAX_MESSAGE_BYTES)
+  .max(COMMIT_MESSAGE_BYTES)
   .refine(
     (value) =>
       value.trim().length > 0 &&
       !value.includes('\0') &&
-      utf8ByteLength(value) <= MAX_MESSAGE_BYTES,
+      utf8ByteLength(value) <= COMMIT_MESSAGE_BYTES,
   );
 const refSchema = z
   .string()
@@ -63,12 +62,12 @@ const gitActionIntentSchema = z.discriminatedUnion('action', [
   z.strictObject({
     action: z.literal('commit'),
     message: messageSchema,
-    paths: z.array(relativePathSchema).max(2000),
+    paths: z.array(relativePathSchema).max(CHANGED_PATHS),
   }),
   z.strictObject({
     action: z.literal('amend'),
     message: messageSchema,
-    paths: z.array(relativePathSchema).max(2000),
+    paths: z.array(relativePathSchema).max(CHANGED_PATHS),
   }),
   z.strictObject({
     action: z.literal('stash-create'),
@@ -108,7 +107,7 @@ const gitActionExpectationSchema = z.strictObject({
   inProgress: absentAsNull(z.enum(['merge', 'rebase'])),
   mergeHeadOid: absentAsNull(oidSchema),
   upstreamOid: oidSchema.nullable().optional(),
-  files: z.array(expectedFileSchema).max(2000).optional(),
+  files: z.array(expectedFileSchema).max(CHANGED_PATHS).optional(),
 });
 
 export const runGitActionRequestSchema = z.strictObject({
