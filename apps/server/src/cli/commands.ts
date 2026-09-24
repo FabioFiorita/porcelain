@@ -1,3 +1,4 @@
+import type { Clock } from '../ports/clock.ts';
 import { issuePairings, listAccess, revokeAccess } from './access-commands.ts';
 import type { CliCommand } from './arguments.ts';
 import { serveHelp } from './help.ts';
@@ -10,6 +11,7 @@ export type CommandContext = {
   signal: AbortSignal;
   homeDirectory: string;
   searchPath: string;
+  clock: Clock;
   startServer: StartServer;
   stdout: (message: string) => void;
   stderr: (message: string) => void;
@@ -52,6 +54,7 @@ export async function runCommand(
       await runServiceCommand(command.settings, {
         homeDirectory: context.homeDirectory,
         searchPath: context.searchPath,
+        clock: context.clock,
         stdout: context.stdout,
       });
       return 0;

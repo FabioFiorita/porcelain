@@ -1,4 +1,6 @@
-export class UpdateRestartError extends Error {
+import { InstallerError } from './installer-error.ts';
+
+export class UpdateRestartError extends InstallerError {
   override readonly name = 'UpdateRestartError';
   constructor(detail: string) {
     super(

@@ -1,4 +1,6 @@
-export class InvalidUpdateJournalError extends Error {
+import { InstallerError } from './installer-error.ts';
+
+export class InvalidUpdateJournalError extends InstallerError {
   override readonly name = 'InvalidUpdateJournalError';
   constructor(path: string) {
     super(

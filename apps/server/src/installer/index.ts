@@ -8,4 +8,5 @@ export type { UpdateOutcome } from './update.ts';
 export type { ServiceStatus } from './status.ts';
 export type { ServiceConfiguration } from './records.ts';
 export type { CommandRunner } from './command-runner.ts';
+export { InstallerError } from './errors/installer-error.ts';
 export { ServiceDowngradeError } from './errors/service-downgrade-error.ts';

@@ -1,4 +1,6 @@
-export class RestoredServiceUnhealthyError extends Error {
+import { InstallerError } from './installer-error.ts';
+
+export class RestoredServiceUnhealthyError extends InstallerError {
   override readonly name = 'RestoredServiceUnhealthyError';
   constructor() {
     super(

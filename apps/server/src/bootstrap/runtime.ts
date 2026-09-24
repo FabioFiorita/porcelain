@@ -27,6 +27,8 @@ export type Runtime = {
   close(): Promise<void>;
 };
 
+const LISTENER_CLOSE_GRACE_MS = 5000;
+
 type RuntimeParts = {
   network?: FastifyInstance | undefined;
   owner?: FastifyInstance | undefined;
@@ -35,7 +37,10 @@ type RuntimeParts = {
 };
 
 async function closeListener(server: FastifyInstance) {
-  const deadline = setTimeout(() => server.server.closeAllConnections(), 5000);
+  const deadline = setTimeout(
+    () => server.server.closeAllConnections(),
+    LISTENER_CLOSE_GRACE_MS,
+  );
   deadline.unref();
   try {
     await server.close();

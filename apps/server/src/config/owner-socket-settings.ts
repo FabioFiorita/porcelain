@@ -10,3 +10,8 @@ export function ownerSocketPath(directory: string): string {
     throw new SocketPathTooLongError(path, PATH_LIMIT);
   return path;
 }
+
+export const OWNER_REQUEST_TIMEOUT_MS = 10_000;
+export const OWNER_PROBE_TIMEOUT_MS = 5000;
+export const OWNER_QUICK_PROBE_TIMEOUT_MS = 500;
+export const OWNER_MCP_TIMEOUT_MS = 120_000;

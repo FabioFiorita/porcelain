@@ -1,4 +1,6 @@
-export class RuntimeVersionMismatchError extends Error {
+import { InstallerError } from './installer-error.ts';
+
+export class RuntimeVersionMismatchError extends InstallerError {
   override readonly name = 'RuntimeVersionMismatchError';
   constructor(reported: string | undefined, expected: string) {
     super(

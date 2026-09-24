@@ -1,4 +1,6 @@
-export class InvalidInstalledRecordError extends Error {
+import { InstallerError } from './installer-error.ts';
+
+export class InvalidInstalledRecordError extends InstallerError {
   override readonly name = 'InvalidInstalledRecordError';
   constructor() {
     super(

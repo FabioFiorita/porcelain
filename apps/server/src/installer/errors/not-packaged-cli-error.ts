@@ -1,4 +1,6 @@
-export class NotPackagedCliError extends Error {
+import { InstallerError } from './installer-error.ts';
+
+export class NotPackagedCliError extends InstallerError {
   override readonly name = 'NotPackagedCliError';
   constructor() {
     super(

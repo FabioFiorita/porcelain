@@ -1,4 +1,6 @@
-export class RootUserError extends Error {
+import { InstallerError } from './installer-error.ts';
+
+export class RootUserError extends InstallerError {
   override readonly name = 'RootUserError';
   constructor() {
     super(

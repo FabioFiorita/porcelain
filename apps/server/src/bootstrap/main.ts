@@ -15,12 +15,15 @@ import type { PorcelainEnvironment } from '../config/environment-settings.ts';
 import { DataDirectoryInsecureError } from './errors/data-directory-insecure-error.ts';
 import { DataDirectoryOwnedError } from './errors/data-directory-owned-error.ts';
 import { OwnerSocketUnreadableError } from './errors/owner-socket-unreadable-error.ts';
+import { SystemClock } from '../adapters/runtime/system-clock.ts';
+import { InstallerError } from '../installer/index.ts';
 import { startRuntime } from './runtime.ts';
 
 const actionableErrors = [
   ServeConfigurationError,
   OwnerRequestError,
   ServiceCommandError,
+  InstallerError,
   DataDirectoryOwnedError,
   DataDirectoryInsecureError,
   OwnerSocketUnreadableError,
@@ -63,6 +66,7 @@ export async function runCli(
       signal: shutdown.signal,
       homeDirectory,
       searchPath: environment.PATH ?? '',
+      clock: new SystemClock(),
       startServer: dependencies.startServer ?? startRuntime,
       stdout,
       stderr,
