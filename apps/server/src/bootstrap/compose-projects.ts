@@ -1,6 +1,6 @@
 import type { GitFactory } from '@porcelain/git/discovery';
-import type { Clock, IdSource } from '@porcelain/kernel/ports';
 import type {
+  InventoryStore,
   ProjectFolderReader,
   WorktreeStatusStore,
 } from '@porcelain/projects/ports';
@@ -28,10 +28,8 @@ import {
   SetFilePreferenceService,
   UpdateProjectAvailabilityService,
 } from '@porcelain/projects/services';
-import type { StorageSession } from '@porcelain/storage';
 import {
   createFilePreferenceStore,
-  createInventoryStore,
   createProjectRemovalStore,
   createWorktreePresenceStore,
 } from '@porcelain/storage/projects';
@@ -48,42 +46,27 @@ import { RemoveProjectUseCase } from '../use-cases/projects/remove-project.ts';
 import { RenameProjectUseCase } from '../use-cases/projects/rename-project.ts';
 import { ResolveWorktreeByPathUseCase } from '../use-cases/projects/resolve-worktree-by-path.ts';
 import { SetFilePreferenceUseCase } from '../use-cases/projects/set-file-preference.ts';
-import type { EventPublisher } from '../ports/event-publisher.ts';
-import type { LaneKeys } from '../runtime/lane-keys.ts';
-import type { Lanes } from '../runtime/lanes.ts';
+import type { ComposeContext } from './compose-context.ts';
 
-const limits = {
-  presenceGraceMs: 30 * 24 * 60 * 60 * 1000,
-  folderEntries: 2000,
-  discoveredRepositories: 50,
-  discoveryFolders: 500,
-  discoveryDepth: 3,
-  discoverySkippedNames: ['node_modules', 'vendor', 'dist', 'build', 'target'],
-  filePreferences: 2000,
-};
-
-export type ProjectsDependencies = {
-  session: StorageSession;
-  lanes: Lanes;
-  laneKeys: LaneKeys;
-  events: EventPublisher;
+export type ProjectsAdapters = {
   git: GitFactory;
-  clock: Clock;
-  idSource: IdSource;
+  inventoryStore: InventoryStore;
   worktreeStatusStore: WorktreeStatusStore;
   projectFolderReader: ProjectFolderReader;
-  projectHome: string;
   worktreeDirectory: GitProjectWorktreeReader;
 };
 
-export function composeProjects(deps: ProjectsDependencies) {
-  const { lanes, laneKeys, events } = deps;
-  const inventory = createInventoryStore(deps.session);
-  const worktreePresence = createWorktreePresenceStore(deps.session);
-  const filePreference = createFilePreferenceStore(deps.session);
-  const { projectFolderReader } = deps;
-  const projectRepositoryReader = new GitProjectRepositoryReader(deps.git);
-  const { worktreeDirectory } = deps;
+export function composeProjects(
+  context: ComposeContext,
+  adapters: ProjectsAdapters,
+) {
+  const { session, lanes, laneKeys, events, clock, ids, settings } = context;
+  const limits = settings.limits.projects;
+  const inventory = adapters.inventoryStore;
+  const worktreePresence = createWorktreePresenceStore(session);
+  const filePreference = createFilePreferenceStore(session);
+  const { projectFolderReader, worktreeDirectory } = adapters;
+  const projectRepositoryReader = new GitProjectRepositoryReader(adapters.git);
 
   const listRegisteredProjects = new ListRegisteredProjectsService(inventory);
   const listProjectWorktrees = new ListProjectWorktreesService(
@@ -95,10 +78,10 @@ export function composeProjects(deps: ProjectsDependencies) {
   const recordWorktreePresence = new RecordWorktreePresenceService(
     inventory,
     worktreePresence,
-    deps.clock,
+    clock,
   );
   const readWorktreeStatuses = new ReadWorktreeStatusesService(
-    deps.worktreeStatusStore,
+    adapters.worktreeStatusStore,
   );
 
   return {
@@ -132,7 +115,7 @@ export function composeProjects(deps: ProjectsDependencies) {
       new ListOtherProjectsService(inventory),
       listProjectWorktrees,
       new ReadRepositoryOriginService(projectRepositoryReader),
-      new RegisterProjectService(inventory, deps.idSource),
+      new RegisterProjectService(inventory, ids),
       updateProjectAvailability,
       recordWorktreePresence,
       readWorktreeStatuses,
@@ -148,7 +131,7 @@ export function composeProjects(deps: ProjectsDependencies) {
       events,
     ),
     removeProject: new RemoveProjectUseCase(
-      new RemoveProjectService(createProjectRemovalStore(deps.session)),
+      new RemoveProjectService(createProjectRemovalStore(session)),
       new ForgetProjectWorktreesService(worktreeDirectory),
       lanes,
       laneKeys,
@@ -159,14 +142,7 @@ export function composeProjects(deps: ProjectsDependencies) {
         inventory,
         projectFolderReader,
         projectRepositoryReader,
-        {
-          home: deps.projectHome,
-          maxRepositories: limits.discoveredRepositories,
-          maxFolders: limits.discoveryFolders,
-          maxDepth: limits.discoveryDepth,
-          maxEntries: limits.folderEntries,
-          skippedNames: limits.discoverySkippedNames,
-        },
+        { home: settings.projectHome, ...limits.discovery },
       ),
       lanes,
       laneKeys,
@@ -175,7 +151,7 @@ export function composeProjects(deps: ProjectsDependencies) {
       new BrowseProjectFoldersService(
         projectFolderReader,
         projectRepositoryReader,
-        { home: deps.projectHome, maxEntries: limits.folderEntries },
+        { home: settings.projectHome, ...limits.folders },
       ),
       lanes,
       laneKeys,
@@ -185,17 +161,21 @@ export function composeProjects(deps: ProjectsDependencies) {
       lanes,
     ),
     setFilePreference: new SetFilePreferenceUseCase(
-      new SetFilePreferenceService(inventory, filePreference, {
-        maxPreferences: limits.filePreferences,
-      }),
+      new SetFilePreferenceService(
+        inventory,
+        filePreference,
+        limits.filePreferences,
+      ),
       lanes,
       laneKeys,
       events,
     ),
     collectAbsentWorktrees: new CollectAbsentWorktreesUseCase(
-      new CollectAbsentWorktreesService(worktreePresence, deps.clock, {
-        graceMs: limits.presenceGraceMs,
-      }),
+      new CollectAbsentWorktreesService(
+        worktreePresence,
+        clock,
+        limits.presence,
+      ),
       lanes,
       laneKeys,
     ),

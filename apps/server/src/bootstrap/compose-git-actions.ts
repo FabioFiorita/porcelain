@@ -22,21 +22,16 @@ import {
 import type { GitActionWriterFactory } from '@porcelain/git/actions';
 import type { WorktreeAccessReader } from '@porcelain/kernel/ports';
 import type { ListedWorktree } from '@porcelain/projects/models';
+import type { InventoryStore } from '@porcelain/projects/ports';
 import {
   CheckProjectService,
   type CheckWorktreeService,
 } from '@porcelain/projects/services';
-import type { StorageSession } from '@porcelain/storage';
 import { createGitActionStore } from '@porcelain/storage/git-actions';
-import { createInventoryStore } from '@porcelain/storage/projects';
 import { FilesystemUntrackedFileReader } from '../adapters/git-actions/filesystem-untracked-file-reader.ts';
 import { GitGitActionRunner } from '../adapters/git-actions/git-git-action-runner.ts';
 import { GitGitBranchReader } from '../adapters/git-actions/git-git-branch-reader.ts';
 import { GitSelectedDiffReader } from '../adapters/git-actions/git-selected-diff-reader.ts';
-import { SystemClock } from '../adapters/runtime/system-clock.ts';
-import type { EventPublisher } from '../ports/event-publisher.ts';
-import type { LaneKeys } from '../runtime/lane-keys.ts';
-import type { Lanes } from '../runtime/lanes.ts';
 import { DismissInterruptedGitActionUseCase } from '../use-cases/git-actions/dismiss-interrupted-git-action.ts';
 import { GenerateCommitDraftUseCase } from '../use-cases/git-actions/generate-commit-draft.ts';
 import { ListCommitModelsUseCase } from '../use-cases/git-actions/list-commit-models.ts';
@@ -48,46 +43,30 @@ import {
   type PublishedReviewRefresh,
 } from '../use-cases/git-actions/run-git-action.ts';
 import type { composeChanges } from './compose-changes.ts';
+import type { ComposeContext } from './compose-context.ts';
 
 type ChangesServices = ReturnType<typeof composeChanges>['services'];
 
-const MEBIBYTE = 1024 * 1024;
-const DAY_MS = 24 * 60 * 60 * 1000;
-
-const limits = {
-  receipts: { retentionMs: 30 * DAY_MS },
-  progress: { progressLines: 200 },
-  commitDraft: {
-    maxComparisons: 200,
-    maxEvidenceBytes: MEBIBYTE,
-    maxUntrackedBytes: MEBIBYTE,
-  },
-  commitGroups: { maxGroups: 20, maxMessageBytes: 16_384 },
-};
-
-export type GitActionsDependencies = {
-  session: StorageSession;
-  lanes: Lanes;
-  laneKeys: LaneKeys;
-  events: EventPublisher;
+export type GitActionsAdapters = {
   worktreeAccess: WorktreeAccessReader<ListedWorktree>;
   checkWorktree: CheckWorktreeService;
+  inventoryStore: InventoryStore;
   actionGit: GitActionWriterFactory;
   fileReader: Pick<FileReader, 'readText'>;
   changes: ChangesServices;
   refreshPublishedReview: PublishedReviewRefresh;
   commitDraftSource: CommitDraftSource;
   commitModelReader: CommitModelReader;
-  gitActionDeadlineMs: number;
-  commitModelDeadlineMs: number;
 };
 
-export function composeGitActions(deps: GitActionsDependencies) {
-  const store = createGitActionStore(deps.session);
-  const clock = new SystemClock();
-  const checkProject = new CheckProjectService(
-    createInventoryStore(deps.session),
-  );
+export function composeGitActions(
+  context: ComposeContext,
+  adapters: GitActionsAdapters,
+) {
+  const { session, lanes, laneKeys, events, clock } = context;
+  const limits = context.settings.limits.gitActions;
+  const store = createGitActionStore(session);
+  const checkProject = new CheckProjectService(adapters.inventoryStore);
   const checkGitActionScope = new CheckGitActionScopeService();
   const expireGitActionReceipts = new ExpireGitActionReceiptsService(
     store,
@@ -97,72 +76,72 @@ export function composeGitActions(deps: GitActionsDependencies) {
   return {
     runGitAction: new RunGitActionUseCase(
       checkProject,
-      deps.checkWorktree,
+      adapters.checkWorktree,
       checkGitActionScope,
       expireGitActionReceipts,
       new AcceptGitActionService(store, clock),
-      deps.changes.readWorktreeStatus,
-      deps.changes.readChangeFingerprints,
+      adapters.changes.readWorktreeStatus,
+      adapters.changes.readChangeFingerprints,
       new RunGitActionService(
-        new GitGitActionRunner(deps.worktreeAccess, deps.actionGit),
+        new GitGitActionRunner(adapters.worktreeAccess, adapters.actionGit),
       ),
       new RecordGitActionProgressService(store, limits.progress),
-      deps.refreshPublishedReview,
+      adapters.refreshPublishedReview,
       new FinishGitActionService(store, clock),
       new InterruptGitActionService(store, clock),
-      deps.lanes,
-      deps.laneKeys,
-      deps.events,
-      { deadlineMs: deps.gitActionDeadlineMs },
+      lanes,
+      laneKeys,
+      events,
+      { deadlineMs: limits.deadlineMs },
     ),
     readGitActionReceipt: new ReadGitActionReceiptUseCase(
       new ReadGitActionReceiptService(store),
-      deps.lanes,
+      lanes,
     ),
     dismissInterruptedGitAction: new DismissInterruptedGitActionUseCase(
       new DismissInterruptedGitActionService(store, clock),
-      deps.lanes,
-      deps.laneKeys,
+      lanes,
+      laneKeys,
     ),
     listGitBranches: new ListGitBranchesUseCase(
       checkProject,
-      deps.checkWorktree,
+      adapters.checkWorktree,
       checkGitActionScope,
       new ListGitBranchesService(
-        new GitGitBranchReader(deps.worktreeAccess, deps.actionGit),
+        new GitGitBranchReader(adapters.worktreeAccess, adapters.actionGit),
       ),
-      deps.lanes,
-      deps.laneKeys,
+      lanes,
+      laneKeys,
     ),
     listCommitModels: new ListCommitModelsUseCase(
-      new ListCommitModelsService(deps.commitModelReader),
-      deps.lanes,
-      { deadlineMs: deps.commitModelDeadlineMs },
+      new ListCommitModelsService(adapters.commitModelReader),
+      lanes,
+      { deadlineMs: limits.commitModelDeadlineMs },
     ),
     generateCommitDraft: new GenerateCommitDraftUseCase(
       checkProject,
-      deps.checkWorktree,
+      adapters.checkWorktree,
       checkGitActionScope,
-      deps.changes.readWorktreeStatus,
-      deps.changes.readChangeFingerprints,
+      adapters.changes.readWorktreeStatus,
+      adapters.changes.readChangeFingerprints,
       new CaptureCommitDraftService(
-        new GitSelectedDiffReader(deps.worktreeAccess, deps.actionGit),
-        new FilesystemUntrackedFileReader(deps.fileReader),
+        new GitSelectedDiffReader(adapters.worktreeAccess, adapters.actionGit),
+        new FilesystemUntrackedFileReader(adapters.fileReader),
         limits.commitDraft,
       ),
       new GenerateCommitDraftService(
-        deps.commitDraftSource,
+        adapters.commitDraftSource,
         limits.commitGroups,
       ),
-      deps.lanes,
-      deps.laneKeys,
-      { deadlineMs: deps.commitModelDeadlineMs },
+      lanes,
+      laneKeys,
+      { deadlineMs: limits.commitModelDeadlineMs },
     ),
     recoverInterruptedGitActions: new RecoverInterruptedGitActionsUseCase(
       new RecoverInterruptedGitActionsService(store, clock),
       expireGitActionReceipts,
-      deps.lanes,
-      deps.laneKeys,
+      lanes,
+      laneKeys,
     ),
   };
 }

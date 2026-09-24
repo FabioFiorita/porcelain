@@ -6,24 +6,26 @@ import type {
   IssuePairingRequest,
   IssuePairingResponse,
 } from '@porcelain/contracts/access';
+import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
 import type { OperationContext } from '../../runtime/operation-context.ts';
-
-const ACCESS_LANE = 'access';
 
 export class IssuePairingUseCase {
   private readonly readEnvironment: ReadEnvironmentService;
   private readonly issuePairing: IssuePairingService;
   private readonly lanes: Lanes;
+  private readonly laneKeys: LaneKeys;
 
   constructor(
     readEnvironment: ReadEnvironmentService,
     issuePairing: IssuePairingService,
     lanes: Lanes,
+    laneKeys: LaneKeys,
   ) {
     this.readEnvironment = readEnvironment;
     this.issuePairing = issuePairing;
     this.lanes = lanes;
+    this.laneKeys = laneKeys;
   }
 
   execute(
@@ -31,7 +33,7 @@ export class IssuePairingUseCase {
     context: OperationContext,
   ): Promise<IssuePairingResponse> {
     return this.lanes.run(
-      ACCESS_LANE,
+      this.laneKeys.access(),
       'write',
       async () => {
         const { environmentId } = this.readEnvironment.execute();

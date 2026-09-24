@@ -1,4 +1,5 @@
 export interface LaneKeys {
+  access(): string;
   inventory(): string;
   filesystem(): string;
   project(projectId: string): string;

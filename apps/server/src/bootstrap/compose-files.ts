@@ -20,30 +20,17 @@ import { ListWorktreePathsUseCase } from '../use-cases/files/list-worktree-paths
 import { ReadFileAssetUseCase } from '../use-cases/files/read-file-asset.ts';
 import { ReadPreviewAssetsUseCase } from '../use-cases/files/read-preview-assets.ts';
 import { ReadTextFileUseCase } from '../use-cases/files/read-text-file.ts';
-import type { EventPublisher } from '../ports/event-publisher.ts';
-import type { LaneKeys } from '../runtime/lane-keys.ts';
-import type { Lanes } from '../runtime/lanes.ts';
+import type { ComposeContext } from './compose-context.ts';
 
-const limits = {
-  readTextFile: { maxBytes: 1024 * 1024 },
-  editFile: { maxCurrentBytes: 1024 * 1024 },
-  readFileAsset: { maxBytes: 10 * 1024 * 1024 },
-  readPreviewAssets: {
-    maxAssetBytes: 10 * 1024 * 1024,
-    maxTotalBytes: 16 * 1024 * 1024,
-    maxPathLength: 4096,
-  },
-  listDirectory: { maxEntries: 2000, maxResponseBytes: 1024 * 1024 },
-};
-
-export function composeFiles(deps: {
-  lanes: Lanes;
-  laneKeys: LaneKeys;
-  events: EventPublisher;
+export type FilesAdapters = {
   worktreeAccess: WorktreeAccessReader<ListedWorktree>;
   checkWorktree: CheckWorktreeService;
-}) {
-  const { lanes, laneKeys, events, worktreeAccess, checkWorktree } = deps;
+};
+
+export function composeFiles(context: ComposeContext, adapters: FilesAdapters) {
+  const { lanes, laneKeys, events } = context;
+  const limits = context.settings.limits.files;
+  const { worktreeAccess, checkWorktree } = adapters;
   const fileReader = new FilesystemFileReader(worktreeAccess);
   const readTextFileService = new ReadTextFileService(
     fileReader,

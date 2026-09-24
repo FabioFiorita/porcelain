@@ -1,4 +1,5 @@
 import type { PairingReach, RuntimeStatus } from '@porcelain/access/models';
+import { ReadEnvironmentService } from '@porcelain/access/services';
 import { createCommitPlanner } from '@porcelain/agents/commit-planning';
 import { ReadInterruptedGitActionService } from '@porcelain/git-actions/services';
 import {
@@ -18,7 +19,10 @@ import {
 import { deriveWorktreeId } from '@porcelain/projects/rules';
 import { CheckWorktreeService } from '@porcelain/projects/services';
 import { openStorageSession } from '@porcelain/storage';
-import { createDeviceStore } from '@porcelain/storage/access';
+import {
+  createDeviceStore,
+  createEnvironmentIdentityStore,
+} from '@porcelain/storage/access';
 import { createGitActionStore } from '@porcelain/storage/git-actions';
 import {
   createInventoryStore,
@@ -51,6 +55,7 @@ import { LaunchLimit } from '../runtime/launch-limit.ts';
 import { SharedReads } from '../runtime/shared-reads.ts';
 import { composeAccess } from './compose-access.ts';
 import { composeChanges } from './compose-changes.ts';
+import type { ComposeContext } from './compose-context.ts';
 import { composeFiles } from './compose-files.ts';
 import { composeGitActions } from './compose-git-actions.ts';
 import { composeProjects } from './compose-projects.ts';
@@ -107,12 +112,20 @@ export async function openApplication(
   );
   const checkWorktree = new CheckWorktreeService(worktreeAccess);
   const laneKeys = new GitLaneKeys(worktreeDirectory, inventoryStore);
-  const reviewInvalidation = composeReviewInvalidation({
+  const events = new WebSocketEventPublisher({ limits: limits.liveUpdates });
+  const context: ComposeContext = {
     session,
     lanes,
     laneKeys,
-  });
-  const events = new WebSocketEventPublisher({ limits: limits.liveUpdates });
+    events,
+    settings,
+    clock,
+    ids,
+  };
+  const readEnvironment = new ReadEnvironmentService(
+    createEnvironmentIdentityStore(session),
+  );
+  const reviewInvalidation = composeReviewInvalidation(context);
   const worktreeWatches = new WatchWorktreesJob(
     reviewInvalidation.invalidateReviewedMarks,
     events,
@@ -127,9 +140,8 @@ export async function openApplication(
     createGitActionStore(session),
   );
 
-  const access = composeAccess({
-    session,
-    lanes,
+  const access = composeAccess(context, {
+    readEnvironment,
     deviceStore: new CachedDeviceStore(createDeviceStore(session)),
     deviceSightingStore: new InMemoryDeviceSightingStore(),
     deviceConnections,
@@ -137,66 +149,46 @@ export async function openApplication(
     runtimeStatusReader: new ProcessRuntimeStatusReader(
       dependencies.runtimeStatus,
     ),
-    pairingAttemptLimits: limits.pairingAttempts,
   });
-  const projects = composeProjects({
-    session,
-    lanes,
-    laneKeys,
-    events,
+  const projects = composeProjects(context, {
     git,
-    clock,
-    idSource: ids,
+    inventoryStore,
     worktreeStatusStore: createWorktreeStatusStore(session),
     projectFolderReader: new FilesystemProjectFolderReader(),
-    projectHome: settings.projectHome,
     worktreeDirectory,
   });
-  const { fileReader, readTextFileService, ...files } = composeFiles({
-    lanes,
-    laneKeys,
-    events,
+  const { fileReader, readTextFileService, ...files } = composeFiles(context, {
     worktreeAccess,
     checkWorktree,
   });
-  const { services: changeServices, ...changes } = composeChanges({
-    session,
-    lanes,
-    laneKeys,
+  const { services: changeServices, ...changes } = composeChanges(context, {
     worktreeAccess,
     checkWorktree,
-    inventory: inventoryStore,
+    readEnvironment,
+    inventoryStore,
     inspection,
     commitGit,
     readTextFile: readTextFileService,
     reconcileReviewedFiles: reviewInvalidation.reconcileReviewedFiles,
     readInterruptedGitAction,
   });
-  const reviews = composeReviews({
-    session,
-    lanes,
-    laneKeys,
-    events,
+  const reviews = composeReviews(context, {
     checkWorktree,
+    readEnvironment,
     readTextFile: readTextFileService,
     changes: changeServices,
   });
   const commitPlanner = createCommitPlanner();
-  const gitActions = composeGitActions({
-    session,
-    lanes,
-    laneKeys,
-    events,
+  const gitActions = composeGitActions(context, {
     worktreeAccess,
     checkWorktree,
+    inventoryStore,
     actionGit,
     fileReader,
     changes: changeServices,
     refreshPublishedReview: reviews.refreshReviewActivity,
     commitDraftSource: new ProcessCommitDraftSource(commitPlanner),
     commitModelReader: new ProcessCommitModelReader(commitPlanner),
-    gitActionDeadlineMs: limits.gitActions.deadlineMs,
-    commitModelDeadlineMs: limits.gitActions.commitModelDeadlineMs,
   });
   const jobs: readonly Job[] = [
     worktreeWatches,

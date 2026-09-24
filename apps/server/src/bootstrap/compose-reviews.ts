@@ -1,3 +1,4 @@
+import type { ReadEnvironmentService } from '@porcelain/access/services';
 import type { ReadTextFileService } from '@porcelain/files/services';
 import type { CheckWorktreeService } from '@porcelain/projects/services';
 import {
@@ -22,7 +23,6 @@ import {
   SetReviewedLayerService,
   UpdateCommentThreadService,
 } from '@porcelain/reviews/services';
-import type { StorageSession } from '@porcelain/storage';
 import {
   createCommentSeenStore,
   createCommentStore,
@@ -30,14 +30,8 @@ import {
   createReviewedLayerStore,
   createReviewStore,
 } from '@porcelain/storage/reviews';
-import type { LiveUpdatesLimits } from '../adapters/events/web-socket-event-publisher.ts';
 import { HmacSignatureSource } from '../adapters/reviews/hmac-signature-source.ts';
 import { RandomSecretSource } from '../adapters/reviews/random-secret-source.ts';
-import { RandomIdSource } from '../adapters/runtime/random-id-source.ts';
-import { SystemClock } from '../adapters/runtime/system-clock.ts';
-import type { EventPublisher } from '../ports/event-publisher.ts';
-import type { LaneKeys } from '../runtime/lane-keys.ts';
-import type { Lanes } from '../runtime/lanes.ts';
 import { CreateCommentThreadUseCase } from '../use-cases/reviews/create-comment-thread.ts';
 import { InvalidateReviewedMarksUseCase } from '../use-cases/reviews/invalidate-reviewed-marks.ts';
 import { ListCommentThreadsUseCase } from '../use-cases/reviews/list-comment-threads.ts';
@@ -56,40 +50,27 @@ import { SetReviewedFileUseCase } from '../use-cases/reviews/set-reviewed-file.t
 import { SetReviewedFilesUseCase } from '../use-cases/reviews/set-reviewed-files.ts';
 import { SetReviewedLayerUseCase } from '../use-cases/reviews/set-reviewed-layer.ts';
 import type { composeChanges } from './compose-changes.ts';
+import type { ComposeContext } from './compose-context.ts';
 
 type ChangesServices = ReturnType<typeof composeChanges>['services'];
 
-const limits = {
-  comments: {
-    threadsPerWorktree: 100,
-    messagesPerThread: 100,
-    bytesPerWorktree: 1024 * 1024,
-  },
-  reviewedFiles: { marksPerWorktree: 2000 },
-  summaryLink: { lifetimeMs: 60 * 60 * 1000 },
+export type ReviewsAdapters = {
+  checkWorktree: CheckWorktreeService;
+  readEnvironment: ReadEnvironmentService;
+  readTextFile: ReadTextFileService;
+  changes: ChangesServices;
 };
 
-export const LIVE_UPDATE_LIMITS: LiveUpdatesLimits = {
-  maxConnections: 64,
-  maxWatchedWorktrees: 64,
-  burstMs: 150,
-  heartbeatMs: 25_000,
-};
-
-export function composeReviewInvalidation(deps: {
-  session: StorageSession;
-  lanes: Lanes;
-  laneKeys: LaneKeys;
-}) {
-  const reviewedFileStore = createReviewedFileStore(deps.session);
+export function composeReviewInvalidation(context: ComposeContext) {
+  const reviewedFileStore = createReviewedFileStore(context.session);
   return {
     invalidateReviewedMarks: new InvalidateReviewedMarksUseCase(
       new InvalidateReviewedMarksService(
         reviewedFileStore,
-        createReviewedLayerStore(deps.session),
+        createReviewedLayerStore(context.session),
       ),
-      deps.lanes,
-      deps.laneKeys,
+      context.lanes,
+      context.laneKeys,
     ),
     reconcileReviewedFiles: new ReconcileReviewedFilesService(
       reviewedFileStore,
@@ -97,26 +78,19 @@ export function composeReviewInvalidation(deps: {
   };
 }
 
-export function composeReviews(deps: {
-  session: StorageSession;
-  lanes: Lanes;
-  laneKeys: LaneKeys;
-  events: EventPublisher;
-  checkWorktree: CheckWorktreeService;
-  readTextFile: ReadTextFileService;
-  changes: ChangesServices;
-  now?: (() => string) | undefined;
-}) {
-  const { lanes, laneKeys, events, readTextFile, changes } = deps;
-  const clock = new SystemClock(deps.now);
-  const idSource = new RandomIdSource();
+export function composeReviews(
+  context: ComposeContext,
+  adapters: ReviewsAdapters,
+) {
+  const { session, lanes, laneKeys, events, clock, ids } = context;
+  const limits = context.settings.limits.reviews;
+  const { checkWorktree, readEnvironment, readTextFile, changes } = adapters;
   const signatureSource = new HmacSignatureSource();
-  const commentStore = createCommentStore(deps.session);
-  const reviewStore = createReviewStore(deps.session);
-  const reviewedFileStore = createReviewedFileStore(deps.session);
-  const reviewedLayerStore = createReviewedLayerStore(deps.session);
+  const commentStore = createCommentStore(session);
+  const reviewStore = createReviewStore(session);
+  const reviewedFileStore = createReviewedFileStore(session);
+  const reviewedLayerStore = createReviewedLayerStore(session);
 
-  const { checkWorktree } = deps;
   const readPublishedReview = new ReadPublishedReviewService(reviewStore);
   const listReviewEvidence = new ListReviewEvidenceService();
   const generatePublishedReview = new GeneratePublishedReviewService(
@@ -140,19 +114,14 @@ export function composeReviews(deps: {
     ),
     createCommentThread: new CreateCommentThreadUseCase(
       checkWorktree,
-      new CreateCommentThreadService(
-        commentStore,
-        idSource,
-        clock,
-        limits.comments,
-      ),
+      new CreateCommentThreadService(commentStore, ids, clock, limits.comments),
       lanes,
       laneKeys,
       events,
     ),
     replyToComment: new ReplyToCommentUseCase(
       checkWorktree,
-      new ReplyToCommentService(commentStore, idSource, clock, limits.comments),
+      new ReplyToCommentService(commentStore, ids, clock, limits.comments),
       lanes,
       laneKeys,
       events,
@@ -167,7 +136,7 @@ export function composeReviews(deps: {
     markCommentsSeen: new MarkCommentsSeenUseCase(
       checkWorktree,
       new MarkCommentsSeenService(
-        createCommentSeenStore(deps.session),
+        createCommentSeenStore(session),
         commentStore,
       ),
       lanes,
@@ -184,10 +153,10 @@ export function composeReviews(deps: {
       new PublishReviewService(
         reviewStore,
         clock,
-        idSource,
+        ids,
         new RandomSecretSource(),
       ),
-      changes.readEnvironment,
+      readEnvironment,
       generatePublishedReview,
       lanes,
       laneKeys,
@@ -201,7 +170,7 @@ export function composeReviews(deps: {
       listReviewEvidence,
       readTextFile,
       changes.readChangeDiffs,
-      changes.readEnvironment,
+      readEnvironment,
       generatePublishedReview,
       recordReviewActivity,
       lanes,
@@ -214,7 +183,7 @@ export function composeReviews(deps: {
       listReviewEvidence,
       readTextFile,
       changes.readChangeDiffs,
-      changes.readEnvironment,
+      readEnvironment,
       generatePublishedReview,
       recordReviewActivity,
       lanes,

@@ -7,27 +7,29 @@ import type {
   RevokeAccessResponse,
 } from '@porcelain/contracts/access';
 import type { DeviceConnections } from '../../ports/device-connections.ts';
+import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
 import type { OperationContext } from '../../runtime/operation-context.ts';
-
-const ACCESS_LANE = 'access';
 
 export class RevokeAccessUseCase {
   private readonly revokePairingGrant: RevokePairingGrantService;
   private readonly revokeDevice: RevokeDeviceService;
   private readonly deviceConnections: DeviceConnections;
   private readonly lanes: Lanes;
+  private readonly laneKeys: LaneKeys;
 
   constructor(
     revokePairingGrant: RevokePairingGrantService,
     revokeDevice: RevokeDeviceService,
     deviceConnections: DeviceConnections,
     lanes: Lanes,
+    laneKeys: LaneKeys,
   ) {
     this.revokePairingGrant = revokePairingGrant;
     this.revokeDevice = revokeDevice;
     this.deviceConnections = deviceConnections;
     this.lanes = lanes;
+    this.laneKeys = laneKeys;
   }
 
   execute(
@@ -35,7 +37,7 @@ export class RevokeAccessUseCase {
     context: OperationContext,
   ): Promise<RevokeAccessResponse> {
     return this.lanes.run(
-      ACCESS_LANE,
+      this.laneKeys.access(),
       'write',
       async () => {
         if (this.revokePairingGrant.execute(input).kind === 'revoked')
