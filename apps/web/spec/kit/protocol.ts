@@ -8,7 +8,12 @@ export type RepoStep =
   | { kind: 'read'; path: string }
   | { kind: 'commit'; message: string }
   | { kind: 'branch'; name: string }
-  | { kind: 'switch'; name: string };
+  | { kind: 'switch'; name: string }
+  | { kind: 'agent'; action: AgentAction };
+
+export type AgentAction =
+  | { kind: 'publish-review'; title: string }
+  | { kind: 'comment'; path: string; body: string };
 
 export type RepoFixture = {
   branch: string;

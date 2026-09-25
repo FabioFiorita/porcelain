@@ -1,8 +1,10 @@
+import { randomUUID } from 'node:crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { issuePairingResponseSchema } from '@porcelain/contracts/access';
 import type { BrowserCommand } from 'vitest/node';
 import type {
+  AgentAction,
   PairingParts,
   ProjectHomeStep,
   RepoFixture,
@@ -11,7 +13,13 @@ import type {
   ServerHit,
   ServerRead,
 } from '../../../../apps/web/spec/kit/protocol.ts';
-import { read } from '../../server-verify/scripts/fixture.ts';
+import type { Session } from '../../server-verify/scripts/feature.ts';
+import {
+  read,
+  sampleReview,
+  toolCall,
+  toolResult,
+} from '../../server-verify/scripts/fixture.ts';
 import { Recorder, ServerHandle } from '../../server-verify/scripts/session.ts';
 
 export const journeyHeader = { 'x-porcelain-journey': 'kit' };
@@ -59,12 +67,39 @@ const porcelainRead: BrowserCommand<[ServerRead], ServerAnswer> = async (
   return { status: response.status, body: response.body };
 };
 
+async function agentActs(agent: Session, action: AgentAction) {
+  const call =
+    action.kind === 'publish-review'
+      ? toolCall(
+          agent,
+          1,
+          'publish_review',
+          sampleReview(agent, 0, randomUUID(), randomUUID(), {
+            title: action.title,
+          }),
+        )
+      : toolCall(agent, 1, 'create_comment', {
+          anchor: { kind: 'file', filePath: action.path },
+          body: action.body,
+        });
+  const response = await agent.send({
+    ...call,
+    headers: { ...call.headers, ...journeyHeader },
+  });
+  if (response.status !== 200 || toolResult(response.body).isError === true)
+    throw new Error(
+      `The agent's ${action.kind} was refused: ${JSON.stringify(response.body)}`,
+    );
+  return '';
+}
+
 const porcelainRepo: BrowserCommand<[RepoStep], string> = async (
   _context,
   step,
 ) => {
   const repository = await session();
   const done = await (async () => {
+    if (step.kind === 'agent') return agentActs(repository, step.action);
     if (step.kind === 'write') {
       await repository.writeFile(step.path, step.text);
       return '';
