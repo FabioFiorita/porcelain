@@ -10,7 +10,7 @@ import {
 } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { stripVTControlCharacters } from 'node:util';
+import { parseArgs, stripVTControlCharacters } from 'node:util';
 import { z } from 'zod';
 import {
   liveRuleNames,
@@ -25,6 +25,8 @@ type LoadedProbe = z.output<typeof probeSchema> & { id: string };
 type Planted = { touched: Set<string>; files: string[]; folders: string[] };
 type Verdict = 'rejected' | 'NOT REJECTED' | 'STALE';
 type Outcome = { verdict: Verdict; detail: string[] };
+type Shard = { index: number; count: number };
+type Selection = { named: readonly string[]; shard: Shard | undefined };
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const probeFolder = join(root, 'architecture', 'probes');
@@ -44,6 +46,16 @@ const gateCommands: Record<
     probe.feature ?? '--all',
   ],
   'web-verify': (probe) => ['pnpm', 'verify:web', probe.feature ?? '--all'],
+};
+const expectedSeconds: Record<ProbeGate, (probe: LoadedProbe) => number> = {
+  lint: () => 5,
+  'web-lint': () => 7,
+  arch: () => 4,
+  typecheck: () => 3,
+  test: () => 7,
+  db: () => 2,
+  verify: (probe) => (probe.feature === undefined ? 46 : 2),
+  'web-verify': (probe) => (probe.feature === undefined ? 140 : 12),
 };
 const moduleSchema = z.object({ default: probeSchema });
 const localEnvironment = Object.fromEntries(
@@ -68,7 +80,7 @@ function changedPaths(): string {
     .join('\n');
 }
 
-async function loadProbes(only: ReadonlySet<string>): Promise<LoadedProbe[]> {
+async function loadProbes(): Promise<LoadedProbe[]> {
   const files = readdirSync(probeFolder)
     .filter((file) => file.endsWith('.ts'))
     .toSorted();
@@ -95,14 +107,91 @@ async function loadProbes(only: ReadonlySet<string>): Promise<LoadedProbe[]> {
     throw new Error(
       `Every rule has a probe that plants its violation; these have none: ${unprobed.join(', ')}`,
     );
-  const unknown = [...only].filter(
+  return probes;
+}
+
+function parsedShard(value: string): Shard {
+  const match = /^([1-9]\d*)\/([1-9]\d*)$/.exec(value);
+  const index = Number(match?.[1] ?? 0);
+  const count = Number(match?.[2] ?? 0);
+  if (index < 1 || index > count)
+    throw new Error(
+      `--shard takes <index>/<count> with 1 <= index <= count, such as 2/6; got ${JSON.stringify(value)}.`,
+    );
+  return { index, count };
+}
+
+function selection(args: readonly string[]): Selection {
+  const { values, positionals } = parseArgs({
+    args: [...args],
+    options: { shard: { type: 'string', multiple: true } },
+    allowPositionals: true,
+    strict: true,
+  });
+  const shards = values.shard ?? [];
+  if (shards.length > 1)
+    throw new Error('--shard is given once; one run runs one shard.');
+  const [shard] = shards;
+  if (shard !== undefined && positionals.length > 0)
+    throw new Error(
+      'Name probes or give --shard, not both; a shard is a fixed share of every probe.',
+    );
+  return {
+    named: positionals,
+    shard: shard === undefined ? undefined : parsedShard(shard),
+  };
+}
+
+function namedProbes(
+  probes: readonly LoadedProbe[],
+  named: readonly string[],
+): LoadedProbe[] {
+  const unknown = named.filter(
     (id) => !probes.some((probe) => probe.id === id),
   );
   if (unknown.length > 0)
     throw new Error(`No probe is named ${unknown.join(', ')}.`);
-  return only.size === 0
-    ? probes
-    : probes.filter((probe) => only.has(probe.id));
+  return named.length === 0
+    ? [...probes]
+    : probes.filter((probe) => named.includes(probe.id));
+}
+
+function shardProbes(
+  probes: readonly LoadedProbe[],
+  shard: Shard,
+): LoadedProbe[] {
+  if (shard.count > probes.length)
+    throw new Error(
+      `--shard ${shard.index}/${shard.count} splits ${probes.length} probes into more shards than probes; every shard holds at least one.`,
+    );
+  const loads = Array.from({ length: shard.count }, () => 0);
+  const members = new Set<string>();
+  const byCost = probes
+    .map((probe) => ({ probe, seconds: expectedSeconds[probe.gate](probe) }))
+    .toSorted(
+      (left, right) =>
+        right.seconds - left.seconds ||
+        left.probe.id.localeCompare(right.probe.id),
+    );
+  for (const { probe, seconds } of byCost) {
+    const lightest = loads.indexOf(Math.min(...loads));
+    loads[lightest] = (loads[lightest] ?? 0) + seconds;
+    if (lightest === shard.index - 1) members.add(probe.id);
+  }
+  return probes.filter((probe) => members.has(probe.id));
+}
+
+function chosenProbes(
+  probes: readonly LoadedProbe[],
+  { named, shard }: Selection,
+): { chosen: LoadedProbe[]; scope: string } {
+  if (shard === undefined)
+    return { chosen: namedProbes(probes, named), scope: '' };
+  const chosen = shardProbes(probes, shard);
+  return {
+    chosen,
+    scope: `Shard ${shard.index}/${shard.count}: ${chosen.length} of ${probes.length} probes.\n`,
+  };
 }
 
 function missingFolders(path: string): string[] {
@@ -243,14 +332,15 @@ function table(probes: readonly LoadedProbe[]) {
 }
 
 async function main(): Promise<number> {
+  const selected = selection(process.argv.slice(2));
   const pending = changedPaths();
   if (pending !== '')
     throw new Error(
       `Commit or discard every change first; the probes plant into this checkout and restore it with git checkout:\n${pending}`,
     );
-  const probes = await loadProbes(new Set(process.argv.slice(2)));
+  const { chosen: probes, scope } = chosenProbes(await loadProbes(), selected);
   const { header, row } = table(probes);
-  process.stdout.write(header);
+  process.stdout.write(scope + header);
   let rejected = 0;
   for (const probe of probes) {
     if (interrupted) break;
