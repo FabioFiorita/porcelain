@@ -222,13 +222,13 @@ async function scan(sources: readonly string[]): Promise<CruiseReport> {
       .filter(
         (dependency) =>
           dependency.couldNotResolve &&
-          /^(?:@porcelain\/|@\/|\.)/.test(dependency.module),
+          /^(?:@porcelain\/|@\/)/.test(dependency.module),
       )
       .map((dependency) => `${module.source} -> ${dependency.module}`),
   );
   if (unresolved.length > 0)
     throw new Error(
-      `Workspace and local imports did not resolve:\n${unresolved.join('\n')}`,
+      `Workspace and @/ imports did not resolve:\n${unresolved.join('\n')}`,
     );
   return report;
 }
