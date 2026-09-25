@@ -114,6 +114,12 @@ const porcelainRepo: BrowserCommand<[RepoStep], string> = async (
       return repository.git('commit', '--message', step.message);
     }
     if (step.kind === 'branch') return repository.git('branch', step.name);
+    if (step.kind === 'fifo') {
+      await repository.fifo(step.path);
+      return '';
+    }
+    if (step.kind === 'remote')
+      return repository.git('remote', 'add', step.name, step.url);
     return repository.git('switch', step.name);
   })();
   await keepEvidence();

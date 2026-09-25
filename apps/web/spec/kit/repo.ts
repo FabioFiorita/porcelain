@@ -15,5 +15,8 @@ export async function sampleRepository() {
       hostCommands.porcelainRepo({ kind: 'branch', name }),
     switch: (name: string) =>
       hostCommands.porcelainRepo({ kind: 'switch', name }),
+    fifo: (path: string) => hostCommands.porcelainRepo({ kind: 'fifo', path }),
+    remote: (name: string, url: string) =>
+      hostCommands.porcelainRepo({ kind: 'remote', name, url }),
   };
 }
