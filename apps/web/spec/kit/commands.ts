@@ -1,5 +1,6 @@
 import { commands } from 'vitest/browser';
 import type {
+  CodingToolReplies,
   PairingParts,
   ProjectHomeStep,
   RepoFixture,
@@ -17,6 +18,7 @@ declare module 'vitest/browser' {
     porcelainPairingLink: (label: string) => Promise<PairingParts>;
     porcelainHits: (since: number) => Promise<ServerHit[]>;
     porcelainProjectHome: (step: ProjectHomeStep) => Promise<string>;
+    porcelainCodingTool: () => Promise<CodingToolReplies>;
   }
 }
 

@@ -7,6 +7,7 @@ import { readInventoryResponseSchema } from '@porcelain/contracts/projects';
 import type { BrowserCommand } from 'vitest/node';
 import type {
   AgentAction,
+  CodingToolReplies,
   PairingParts,
   ProjectHomeStep,
   RepoFixture,
@@ -210,6 +211,13 @@ const porcelainProjectHome: BrowserCommand<[ProjectHomeStep], string> = async (
   return path;
 };
 
+const porcelainCodingTool: BrowserCommand<[], CodingToolReplies> = async () => {
+  await (await session()).installCodingTool();
+  await keepEvidence();
+  const { message, groups } = (await handle()).fixture.codingTool;
+  return { message, groups };
+};
+
 export const journeyCommands = {
   porcelainRead,
   porcelainRepo,
@@ -217,4 +225,5 @@ export const journeyCommands = {
   porcelainPairingLink,
   porcelainHits,
   porcelainProjectHome,
+  porcelainCodingTool,
 };

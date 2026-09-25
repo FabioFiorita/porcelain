@@ -1,6 +1,7 @@
 import { expect, test as base } from 'vitest';
 import { agent } from './agent';
 import { app, takeBrowserFailures, watchBrowser } from './app';
+import { codingTool } from './coding-tool';
 import { hostCommands } from './commands';
 import { sampleRepository } from './repo';
 import { server } from './server';
@@ -59,6 +60,7 @@ export const test = base
   .extend('server', { scope: 'file' }, () => server)
   .extend('repo', { scope: 'file' }, () => sampleRepository())
   .extend('agent', { scope: 'file' }, () => agent)
+  .extend('codingTool', { scope: 'file' }, () => codingTool)
   .extend('app', { scope: 'file' }, () => app)
   .extend('pairedPage', { scope: 'file' }, async () => {
     const paired = await app.open(await app.link('this'));

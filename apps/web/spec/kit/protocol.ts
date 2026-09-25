@@ -28,6 +28,13 @@ export type RepoFixture = {
 
 export type PairingParts = { code: string; environmentId: string };
 
+export type DraftedCommit = { message: string; paths: string[] };
+
+export type CodingToolReplies = {
+  message: DraftedCommit;
+  groups: DraftedCommit[];
+};
+
 export type ProjectHomeStep = { kind: 'repository' | 'folder'; name: string };
 
 export type ServerHit = {

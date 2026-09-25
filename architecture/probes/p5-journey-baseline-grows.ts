@@ -10,8 +10,8 @@ export default {
     {
       kind: 'replace',
       path: 'architecture/web-journey-baseline.json',
-      old: '[',
-      new: '["PATCH /api/projects/:projectId",',
+      old: '[]',
+      new: '["PATCH /api/projects/:projectId"]',
     },
   ],
 } satisfies Probe;

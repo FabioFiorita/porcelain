@@ -243,7 +243,8 @@
           "porcelainFixture": "<function>",
           "porcelainPairingLink": "<function>",
           "porcelainHits": "<function>",
-          "porcelainProjectHome": "<function>"
+          "porcelainProjectHome": "<function>",
+          "porcelainCodingTool": "<function>"
         }
       }
     }
