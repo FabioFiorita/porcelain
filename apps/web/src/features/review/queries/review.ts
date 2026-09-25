@@ -163,7 +163,7 @@ export function isContentChangedError(error: unknown) {
   return (
     error instanceof RequestError &&
     error.status === 409 &&
-    error.message === 'Content changed; retry the operation'
+    error.code === 'content_changed'
   );
 }
 
@@ -178,12 +178,12 @@ function readFile(api: ReviewPort, request: ReviewRequest, path: string) {
       return await api.text({ ...request, path });
     } catch (error) {
       if (error instanceof RequestError && error.status === 422) {
-        if (error.message === 'File is not supported UTF-8 text')
+        if (error.code === 'unsupported_text')
           return {
             kind: 'unreadable',
             reason: 'This file is binary or uses an unsupported text encoding.',
           };
-        if (error.message === 'File exceeds the read limit')
+        if (error.code === 'file_too_large')
           return {
             kind: 'unreadable',
             reason: 'This file is too large to display as text.',
@@ -386,7 +386,7 @@ function isWorktreeChangedError(error: unknown) {
   return (
     error instanceof RequestError &&
     error.status === 409 &&
-    error.message === 'Refresh status and retry inspection'
+    error.code === 'worktree_changed'
   );
 }
 

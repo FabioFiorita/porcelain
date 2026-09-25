@@ -1,15 +1,17 @@
-import { apiErrorSchema } from '@porcelain/contracts/shared';
+import { apiErrorSchema, type ApiErrorCode } from '@porcelain/contracts/shared';
 import { ConnectionError } from './connection-error';
 
 type ResponseSchema<T> = { parse(value: unknown): T };
 
 export class RequestError extends Error {
   readonly status: number;
+  readonly code: ApiErrorCode | undefined;
 
-  constructor(status: number, message: string) {
+  constructor(status: number, message: string, code?: ApiErrorCode) {
     super(message);
     this.name = 'RequestError';
     this.status = status;
+    this.code = code;
   }
 }
 
@@ -41,6 +43,7 @@ export async function requestJson<T>(
       parsed.success
         ? parsed.data.message
         : `Request failed (${response.status})`,
+      parsed.success ? parsed.data.code : undefined,
     );
   }
   return schema.parse(await response.json());

@@ -62,4 +62,52 @@ describe('status policy', () => {
   it('answers an unknown failure as an unexpected failure', () => {
     expect(toStatusResponse(new Error('boom')).statusCode).toBe(500);
   });
+
+  it('identifies a changed file without relying on its message', () => {
+    expect(toStatusResponse(new filesErrors.ContentChangedError())).toEqual({
+      statusCode: 409,
+      body: {
+        statusCode: 409,
+        error: 'Conflict',
+        message: 'Content changed; retry the operation',
+        code: 'content_changed',
+      },
+    });
+  });
+
+  it('identifies unsupported text without relying on its message', () => {
+    expect(toStatusResponse(new filesErrors.UnsupportedTextError())).toEqual({
+      statusCode: 422,
+      body: {
+        statusCode: 422,
+        error: 'Unprocessable Entity',
+        message: 'File is not supported UTF-8 text',
+        code: 'unsupported_text',
+      },
+    });
+  });
+
+  it('identifies files beyond the read limit without relying on its message', () => {
+    expect(toStatusResponse(new filesErrors.FileTooLargeError())).toEqual({
+      statusCode: 422,
+      body: {
+        statusCode: 422,
+        error: 'Unprocessable Entity',
+        message: 'File exceeds the read limit',
+        code: 'file_too_large',
+      },
+    });
+  });
+
+  it('identifies a changed worktree without relying on its message', () => {
+    expect(toStatusResponse(new kernelErrors.WorktreeChangedError())).toEqual({
+      statusCode: 409,
+      body: {
+        statusCode: 409,
+        error: 'Conflict',
+        message: 'Refresh status and retry inspection',
+        code: 'worktree_changed',
+      },
+    });
+  });
 });

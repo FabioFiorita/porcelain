@@ -1,3 +1,5 @@
+import type { ApiErrorCode } from '@porcelain/contracts/shared';
+
 export type Intent = 'observed' | 'intended';
 
 export type HttpRequest = {
@@ -215,8 +217,13 @@ export const unknownWorktreeId = '0'.repeat(32);
 export const unknownOid = '0'.repeat(40);
 export const unknownFingerprint = '0'.repeat(64);
 
-export function apiError(statusCode: number, error: string, message: string) {
-  return { statusCode, error, message };
+export function apiError(
+  statusCode: number,
+  error: string,
+  message: string,
+  code?: ApiErrorCode,
+) {
+  return { statusCode, error, message, ...(code ? { code } : {}) };
 }
 export const invalidRequest = apiError(400, 'Bad Request', 'Invalid request');
 export const unauthenticated = apiError(

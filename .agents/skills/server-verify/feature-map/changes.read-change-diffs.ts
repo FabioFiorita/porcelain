@@ -20,6 +20,7 @@ const refresh = apiError(
   409,
   'Conflict',
   'Refresh status and retry inspection',
+  'worktree_changed',
 );
 const unstaged = (session: Session) => ({
   scope: 'unstaged',

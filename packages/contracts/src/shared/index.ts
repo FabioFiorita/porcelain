@@ -1,4 +1,8 @@
-export { apiErrorSchema, type ApiError } from './api-error.ts';
+export {
+  apiErrorSchema,
+  type ApiError,
+  type ApiErrorCode,
+} from './api-error.ts';
 export {
   CHANGED_PATHS,
   COMMIT_FILES,

@@ -14,7 +14,7 @@ import {
   UnnamedDiffSelectionError,
 } from '@porcelain/changes/errors';
 import type { RunGitActionResponse } from '@porcelain/contracts/git-actions';
-import type { ApiError } from '@porcelain/contracts/shared';
+import type { ApiError, ApiErrorCode } from '@porcelain/contracts/shared';
 import {
   ContentChangedError,
   CrossDeviceMoveError,
@@ -105,6 +105,7 @@ type StatusRule = {
   errors: readonly ErrorClass[];
   statusCode: number;
   message?: string;
+  code?: ApiErrorCode;
   withoutBody?: true;
 };
 
@@ -178,11 +179,12 @@ const rules: readonly StatusRule[] = [
     errors: [WorktreeChangedError],
     statusCode: 409,
     message: 'Refresh status and retry inspection',
+    code: 'worktree_changed',
   },
+  { errors: [ContentChangedError], statusCode: 409, code: 'content_changed' },
   {
     errors: [
       EntryExistsError,
-      ContentChangedError,
       CommentIdentityConflictError,
       ReviewedMarkConflictError,
     ],
@@ -227,8 +229,6 @@ const rules: readonly StatusRule[] = [
       FolderNotReadableError,
       UnsupportedEntryNameError,
       UnsupportedFolderNameError,
-      UnsupportedTextError,
-      FileTooLargeError,
       DirectoryTooLargeError,
       CrossDeviceMoveError,
       TrashUnavailableError,
@@ -243,6 +243,8 @@ const rules: readonly StatusRule[] = [
     ],
     statusCode: 422,
   },
+  { errors: [UnsupportedTextError], statusCode: 422, code: 'unsupported_text' },
+  { errors: [FileTooLargeError], statusCode: 422, code: 'file_too_large' },
   {
     errors: [GitActionRejectedError],
     statusCode: 422,
@@ -294,10 +296,19 @@ const rules: readonly StatusRule[] = [
   },
 ];
 
-function response(statusCode: number, message: string): StatusResponse {
+function response(
+  statusCode: number,
+  message: string,
+  code?: ApiErrorCode,
+): StatusResponse {
   return {
     statusCode,
-    body: { statusCode, error: STATUS_CODES[statusCode] ?? 'Error', message },
+    body: {
+      statusCode,
+      error: STATUS_CODES[statusCode] ?? 'Error',
+      message,
+      ...(code ? { code } : {}),
+    },
   };
 }
 
@@ -323,7 +334,12 @@ export function toStatusResponse(error: unknown): StatusResponse {
     );
     if (rule?.withoutBody)
       return { statusCode: rule.statusCode, body: undefined };
-    if (rule) return response(rule.statusCode, rule.message ?? error.message);
+    if (rule)
+      return response(
+        rule.statusCode,
+        rule.message ?? error.message,
+        rule.code,
+      );
     if ('validation' in error) return response(400, INVALID_REQUEST);
   }
   if (isRepositoryUnavailable(error))

@@ -116,6 +116,10 @@ export function webPolicyFindings(file: string, source: string): WebFinding[] {
   const parts = relative.split('/');
   const findings: WebFinding[] = [];
   const top = parts[0] ?? '';
+  const view =
+    top === 'routes' ||
+    (top === 'app' && parts[1] === 'views') ||
+    (top === 'features' && parts[2] === 'views');
   if (legacyFolders.has(top))
     findings.push(
       finding(
@@ -169,16 +173,28 @@ export function webPolicyFindings(file: string, source: string): WebFinding[] {
           'Use the server contracts and the shared HTTP transport.',
         ),
       );
-    if (
-      specifier.startsWith('@porcelain/contracts/') &&
-      (top === 'routes' || (top === 'features' && parts[2] === 'views'))
-    )
+    if (specifier.startsWith('@porcelain/contracts/') && view)
       findings.push(
         finding(
           'web-view-contracts',
           file,
           line,
           'Routes and views receive feature data; contract parsing belongs to queries, commands or models.',
+        ),
+      );
+    if (
+      view &&
+      (specifier === '@tanstack/react-query' ||
+        specifier.startsWith('@tanstack/react-query/') ||
+        specifier === '@tanstack/query-core' ||
+        specifier.startsWith('@tanstack/query-core/'))
+    )
+      findings.push(
+        finding(
+          'web-view-query-owner',
+          file,
+          line,
+          'Views receive feature hooks; query and cache implementation belongs in queries.',
         ),
       );
     const target = localTarget(file, specifier);
@@ -199,7 +215,7 @@ export function webPolicyFindings(file: string, source: string): WebFinding[] {
         ),
       );
     if (
-      (top === 'routes' || (top === 'features' && parts[2] === 'views')) &&
+      view &&
       (target === 'shared/api' ||
         target.startsWith('shared/api/') ||
         target === 'shared/live' ||
@@ -211,6 +227,21 @@ export function webPolicyFindings(file: string, source: string): WebFinding[] {
           file,
           line,
           'Routes and views use feature queries or commands, not the transport directly.',
+        ),
+      );
+    if (
+      view &&
+      (target === 'shared/query' ||
+        target.startsWith('shared/query/') ||
+        target === 'app/api' ||
+        (targetFeature && target.startsWith(`features/${targetFeature}/api/`)))
+    )
+      findings.push(
+        finding(
+          'web-view-query-owner',
+          file,
+          line,
+          'Views call feature hooks; API and cache implementation belongs in API or queries.',
         ),
       );
   };

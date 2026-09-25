@@ -98,7 +98,12 @@ export default defineFeature({
         check('stale status', 409, responses[0]?.status);
         check(
           'stale error body',
-          apiError(409, 'Conflict', 'Refresh status and retry inspection'),
+          apiError(
+            409,
+            'Conflict',
+            'Refresh status and retry inspection',
+            'worktree_changed',
+          ),
           responses[0]?.body,
         );
         check('not a change status', 422, responses[1]?.status);

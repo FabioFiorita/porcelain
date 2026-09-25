@@ -1,4 +1,5 @@
 import { readTextFileResponseSchema } from '@porcelain/contracts/files';
+import { TEXT_BYTES } from '@porcelain/contracts/shared';
 import {
   apiError,
   defineCase,
@@ -97,6 +98,26 @@ export default defineFeature({
             422,
             'Unprocessable Entity',
             'File is not supported UTF-8 text',
+            'unsupported_text',
+          ),
+          response.body,
+        );
+      },
+    }),
+    defineCase({
+      name: 'a file beyond the text read limit',
+      setup: (session) =>
+        session.writeFile('large.txt', 'a'.repeat(TEXT_BYTES + 1)),
+      request: (session) => text(session, 'large.txt'),
+      expect({ response, check }) {
+        check('status', 422, response.status);
+        check(
+          'error body',
+          apiError(
+            422,
+            'Unprocessable Entity',
+            'File exceeds the read limit',
+            'file_too_large',
           ),
           response.body,
         );

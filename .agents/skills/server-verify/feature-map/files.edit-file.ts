@@ -101,7 +101,12 @@ export default defineFeature({
         check('status', 409, response.status);
         check(
           'error body',
-          apiError(409, 'Conflict', 'Content changed; retry the operation'),
+          apiError(
+            409,
+            'Conflict',
+            'Content changed; retry the operation',
+            'content_changed',
+          ),
           response.body,
         );
         check(

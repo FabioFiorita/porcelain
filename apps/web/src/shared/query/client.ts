@@ -1,4 +1,4 @@
-import { QueryClient, useQueryErrorResetBoundary } from '@tanstack/react-query';
+import { QueryClient } from '@tanstack/react-query';
 
 export function createQueryClient() {
   return new QueryClient({
@@ -12,8 +12,4 @@ export function createQueryClient() {
       mutations: { retry: false },
     },
   });
-}
-
-export function useResetQueryErrors() {
-  return useQueryErrorResetBoundary().reset;
 }

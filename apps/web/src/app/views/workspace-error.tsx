@@ -1,23 +1,8 @@
 import type { ErrorComponentProps } from '@tanstack/react-router';
-import { useEffect } from 'react';
-import { useResetQueryErrors } from '@/shared/query/client';
+import { useWorkspaceRetry } from '../queries/workspace-retry';
 
 export function WorkspaceError({ reset }: ErrorComponentProps) {
-  const resetQueries = useResetQueryErrors();
-  useEffect(() => {
-    const retry = () => {
-      resetQueries();
-      reset();
-    };
-    window.addEventListener('focus', retry);
-    window.addEventListener('online', retry);
-    window.addEventListener('visibilitychange', retry);
-    return () => {
-      window.removeEventListener('focus', retry);
-      window.removeEventListener('online', retry);
-      window.removeEventListener('visibilitychange', retry);
-    };
-  }, [reset, resetQueries]);
+  useWorkspaceRetry(reset);
 
   return (
     <section role="alert" className="flex flex-col gap-3 p-6">

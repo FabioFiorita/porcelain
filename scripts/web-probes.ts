@@ -50,6 +50,26 @@ const probes = [
     "import x from '@porcelain/contracts/reviews'",
   ],
   [
+    'web-view-query-owner',
+    'apps/web/src/features/review/views/a.tsx',
+    "import { useQueryClient } from '@tanstack/react-query'",
+  ],
+  [
+    'web-view-query-owner',
+    'apps/web/src/features/review/views/a.tsx',
+    "import x from '@/shared/query/client'",
+  ],
+  [
+    'web-view-query-owner',
+    'apps/web/src/features/review/views/a.tsx',
+    "import x from '@/features/review/api/review-live'",
+  ],
+  [
+    'web-view-query-owner',
+    'apps/web/src/app/views/a.tsx',
+    "import x from '@/app/api'",
+  ],
+  [
     'web-transport-owner',
     'apps/web/src/features/review/queries/a.ts',
     "fetch('/api/inventory')",
@@ -101,6 +121,16 @@ const permitted = webPolicyFindings(
 if (permitted.length > 0) {
   process.stderr.write(
     `Permitted transport rejected: ${JSON.stringify(permitted)}\n`,
+  );
+  failed += 1;
+}
+const viewState = webPolicyFindings(
+  'apps/web/src/features/review/views/a.tsx',
+  "import { useEffect, useRef, useState } from 'react'",
+);
+if (viewState.length > 0) {
+  process.stderr.write(
+    `Permitted view state rejected: ${JSON.stringify(viewState)}\n`,
   );
   failed += 1;
 }

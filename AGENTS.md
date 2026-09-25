@@ -30,6 +30,8 @@ A change to behaviour is not done until a behaviour spec states its promise (`se
 
 Keep existing web behavior while moving each file to its app, feature or shared owner. The web checks now pass; keep them green by changing code instead of weakening a check. The server contract stays the server's contract.
 
+Views render feature data and own local UI state and DOM interactions. Queries, commands and models own API, cache and business behavior. DOM refs and effects are allowed in views; they do not carry business work.
+
 Run `pnpm typecheck:web`, `pnpm lint:web`, `pnpm format:web:check`, `pnpm arch:web`, `pnpm probes:web` and `pnpm verify:web --all` before declaring a web feature done. Browser behavior cases run with Vitest Browser Mode and its Playwright Chromium provider against a disposable real server. Agent inspection and performance use `pnpm devtools` through the `web-verify` skill. Do not add a runtime mock API or a separate prototype.
 
 ## Skills

@@ -40,7 +40,6 @@ import {
   type Status,
 } from '@/features/review/model/review';
 import { useGitAction } from '@/features/review/queries/git-actions';
-import { isTerminal } from '@/shared/query/operation-store';
 import {
   useGitStatus,
   useRefreshGitLook,
@@ -157,15 +156,26 @@ export function GitButton({ scope }: { scope: ReviewScope }) {
   const runningOperations: {
     name: NetworkAction;
     operation: typeof fetchAction.operation;
+    canStartNew: boolean;
   }[] = [
-    { name: 'fetch', operation: fetchAction.operation },
-    { name: 'pull', operation: pullAction.operation },
-    { name: 'push', operation: pushAction.operation },
+    {
+      name: 'fetch',
+      operation: fetchAction.operation,
+      canStartNew: fetchAction.canStartNew,
+    },
+    {
+      name: 'pull',
+      operation: pullAction.operation,
+      canStartNew: pullAction.canStartNew,
+    },
+    {
+      name: 'push',
+      operation: pushAction.operation,
+      canStartNew: pushAction.canStartNew,
+    },
   ];
   const running = runningOperations.find(
-    ({ operation }) =>
-      operation != null &&
-      (!operation.receipt || !isTerminal(operation.receipt)),
+    ({ operation, canStartNew }) => operation != null && !canStartNew,
   );
 
   const runNetwork = async (next: NetworkAction) => {
