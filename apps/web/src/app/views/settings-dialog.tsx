@@ -12,6 +12,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CommitModelSetting } from '@/app/views/commit-model-setting';
+import { DisconnectBrowser } from '@/features/access/index';
 import { copyText } from '@/shared/workspace/copy';
 import { DialogIcon } from '@/app/views/dialog-icon';
 import type { Preferences } from '@/shared/workspace/preferences';
@@ -186,6 +187,12 @@ export function SettingsDialog({
                   <CopyIcon />
                 </Button>
               </div>
+            </Section>
+
+            <Separator />
+
+            <Section title="Connection">
+              <DisconnectBrowser />
             </Section>
           </div>
         </ScrollArea>

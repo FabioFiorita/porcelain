@@ -8,6 +8,7 @@ export {
   useConnection,
   usePairing,
 } from './queries/connection';
+export { DisconnectBrowser } from './views/disconnect-browser';
 export { DisconnectedPage } from './views/disconnected-page';
 export { NotPaired } from './views/not-paired';
 export { PairingView } from './views/pairing-view';
