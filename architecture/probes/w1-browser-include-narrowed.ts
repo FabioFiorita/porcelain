@@ -10,8 +10,8 @@ export default {
     {
       kind: 'replace',
       path: '.agents/skills/web-verify/scripts/vitest.browser.config.ts',
-      old: "include: ['spec/browser/*.browser.ts'],",
-      new: "include: ['spec/browser/app-shell.browser.ts'],",
+      old: "include: ['spec/browser/*.browser.ts', 'spec/negative/*.browser.ts'],",
+      new: "include: ['spec/browser/app-shell.browser.ts', 'spec/negative/*.browser.ts'],",
     },
   ],
 } satisfies Probe;
