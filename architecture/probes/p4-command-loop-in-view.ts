@@ -10,7 +10,7 @@ export default {
       kind: 'create',
       path: 'apps/web/src/features/access/views/probe-view.tsx',
       content:
-        'export function probeRenameAll(\n  names: string[],\n  rename: { mutate: (name: string) => void },\n) {\n  for (const name of names) rename.mutate(name);\n}\n',
+        'export function probeRenameAll(\n  names: string[],\n  rename: { mutate: (name: string) => void },\n) {\n  names.forEach((name) => rename.mutate(name));\n}\n',
     },
   ],
 } satisfies Probe;

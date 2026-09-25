@@ -9,8 +9,8 @@ export default {
     {
       kind: 'replace',
       path: 'architecture/web-baseline.json',
-      old: '"apps/web/package.json": 3',
-      new: '"apps/web/package.json": 3,\n    "apps/server/src/bootstrap/main.ts": 1',
+      old: '"apps/web/src/features/review/views/inline-composer.tsx": 1',
+      new: '"apps/web/src/features/review/views/inline-composer.tsx": 1,\n    "apps/server/src/bootstrap/main.ts": 1',
     },
   ],
 } satisfies Probe;

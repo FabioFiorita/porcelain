@@ -2,15 +2,15 @@ import type { Probe } from '../probe.ts';
 
 export default {
   decision: 'P4',
-  plants: 'the unused web dependencies count raised in the baseline',
+  plants: 'a held web architecture count raised in the baseline',
   gate: 'arch',
   rule: 'web-baseline:',
   edits: [
     {
       kind: 'replace',
       path: 'architecture/web-baseline.json',
-      old: '"apps/web/package.json": 3',
-      new: '"apps/web/package.json": 4',
+      old: '"apps/web/src/features/projects/index.ts": 5',
+      new: '"apps/web/src/features/projects/index.ts": 6',
     },
   ],
 } satisfies Probe;
