@@ -179,7 +179,7 @@ export function sampleReview(
   expectedRevision: number,
   layerId: string,
   stepId: string,
-  options: { path?: string; title?: string } = {},
+  options: { path?: string; title?: string; kind?: 'changed' | 'context' } = {},
 ) {
   const line = lineCount(session.fixture.readme.changed);
   return {
@@ -197,7 +197,7 @@ export function sampleReview(
             lane: 0,
             title: 'New line',
             text: 'A line is added',
-            kind: 'changed',
+            kind: options.kind ?? 'changed',
             pointer: {
               path: options.path ?? session.fixture.readme.path,
               startLine: line,

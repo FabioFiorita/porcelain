@@ -7,7 +7,8 @@ const act = async (action: AgentAction) => {
 };
 
 export const agent = {
-  publishReview: (title: string) => act({ kind: 'publish-review', title }),
+  publishReview: (title: string, step: 'changed' | 'context' = 'changed') =>
+    act({ kind: 'publish-review', title, step }),
   comment: (path: string, body: string) => act({ kind: 'comment', path, body }),
   editFile: (edit: EditFileRequest) => act({ kind: 'edit-file', edit }),
 };

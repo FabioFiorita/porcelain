@@ -1,7 +1,1 @@
-[
-  "GET /api/worktrees/:worktreeId/asset",
-  "GET /api/worktrees/:worktreeId/changes/lines",
-  "GET /api/worktrees/:worktreeId/paths",
-  "POST /api/worktrees/:worktreeId/git/commit-draft",
-  "POST /api/worktrees/:worktreeId/preview-assets"
-]
+["POST /api/worktrees/:worktreeId/git/commit-draft"]

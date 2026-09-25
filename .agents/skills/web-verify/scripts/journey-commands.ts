@@ -103,6 +103,7 @@ async function agentRequest(
         'publish_review',
         sampleReview(agent, 0, randomUUID(), randomUUID(), {
           title: action.title,
+          kind: action.step,
         }),
       )
     : toolCall(agent, 1, 'create_comment', {

@@ -16,7 +16,7 @@ export type RepoStep =
   | { kind: 'agent'; action: AgentAction };
 
 export type AgentAction =
-  | { kind: 'publish-review'; title: string }
+  | { kind: 'publish-review'; title: string; step: 'changed' | 'context' }
   | { kind: 'comment'; path: string; body: string }
   | { kind: 'edit-file'; edit: EditFileRequest };
 
