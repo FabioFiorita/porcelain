@@ -11,7 +11,7 @@ export default defineFeature({
   paired: true,
   intent: 'observed',
   behaviour:
-    "The owner lists the models that can draft a commit message: those of the Codex and Claude command-line tools found on the server's PATH. The isolated server's PATH holds only Git, so the list is empty; what a machine with those tools lists is not verified here.",
+    "The owner lists the models that can draft a commit message: those of the Codex and Claude command-line tools found on the server's PATH. The isolated server's PATH starts with only Git, so the list is empty; once the fixture's coding tool is installed as claude, the list holds the Claude models. What Codex lists, from its model cache, is not verified here.",
   cases: [
     defineCase({
       name: 'no model tool installed',
@@ -19,6 +19,27 @@ export default defineFeature({
       expect({ response, check, checkContract }) {
         check('status', 200, response.status);
         check('body', [], response.body);
+        checkContract(
+          'contract',
+          listCommitModelsResponseSchema,
+          response.body,
+        );
+      },
+    }),
+    defineCase({
+      name: 'the Claude command-line tool installed',
+      setup: (session) => session.installCodingTool(),
+      request: () => ({ method: 'GET', path: '/api/git/commit-models' }),
+      expect({ response, check, checkContract }) {
+        check('status', 200, response.status);
+        check(
+          'body',
+          [
+            { id: 'claude:sonnet', label: 'Sonnet' },
+            { id: 'claude:haiku', label: 'Haiku' },
+          ],
+          response.body,
+        );
         checkContract(
           'contract',
           listCommitModelsResponseSchema,
