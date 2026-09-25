@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react';
 import type {
   ActionInput,
   CommitDraftInput,
@@ -105,7 +105,15 @@ export function useCommitModels() {
 }
 export function useCommitDraft(scope: ReviewScope) {
   const { api, connection } = useConnectedContext();
-  return asMutation(
+  const drafts = useRef(new Set<AbortController>());
+  useEffect(() => {
+    const active = drafts.current;
+    return () => {
+      for (const controller of active) controller.abort();
+      active.clear();
+    };
+  }, []);
+  const mutation = asMutation(
     useMutation({
       mutationFn: ({
         signal,
@@ -118,6 +126,18 @@ export function useCommitDraft(scope: ReviewScope) {
         }),
     }),
   );
+  return {
+    ...mutation,
+    submit: async (input: CommitDraftInput) => {
+      const controller = new AbortController();
+      drafts.current.add(controller);
+      try {
+        return await mutation.submit({ ...input, signal: controller.signal });
+      } finally {
+        drafts.current.delete(controller);
+      }
+    },
+  };
 }
 
 export function useBranches(scope: ReviewScope) {

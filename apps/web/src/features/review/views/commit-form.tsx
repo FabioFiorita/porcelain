@@ -1,5 +1,5 @@
 import { GitBranchIcon, PlusIcon, SparklesIcon } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   DialogDescription,
@@ -86,14 +86,6 @@ export function CommitForm({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const [draftToken, setDraftToken] = useState<string | null>(null);
-  const drafts = useRef(new Set<AbortController>());
-  useEffect(() => {
-    const active = drafts.current;
-    return () => {
-      for (const controller of active) controller.abort();
-      active.clear();
-    };
-  }, []);
   const files = commitFiles(status.changes);
   const commitPaths = [
     ...new Set(
@@ -114,21 +106,12 @@ export function CommitForm({
   const uncertain = Boolean(git.operation && !git.canStartNew);
   const receipt = git.operation?.receipt;
   const working = busy || generator.isPending;
-  async function draft(input: Parameters<typeof generator.submit>[0]) {
-    const controller = new AbortController();
-    drafts.current.add(controller);
-    try {
-      return await generator.submit({ ...input, signal: controller.signal });
-    } finally {
-      drafts.current.delete(controller);
-    }
-  }
   async function generate(mode: 'message' | 'groups', selectedPaths = paths) {
     if (!model || !selectedPaths.length || working) return;
     setBusy(true);
     setError(null);
     try {
-      const result = await draft({
+      const result = await generator.submit({
         mode,
         model,
         paths: selectedPaths,
@@ -160,7 +143,7 @@ export function CommitForm({
           throw new Error('Give the amended commit a message.');
         if (!model || !paths.length)
           throw new Error('Give every commit a message and at least one file.');
-        const result = await draft({
+        const result = await generator.submit({
           mode: 'message',
           model,
           paths,
