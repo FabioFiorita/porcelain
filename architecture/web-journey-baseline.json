@@ -1,9 +1,6 @@
 [
-  "DELETE /api/worktrees/:worktreeId/git/interrupted/:requestId",
   "GET /api/worktrees/:worktreeId/asset",
   "GET /api/worktrees/:worktreeId/changes/lines",
-  "GET /api/worktrees/:worktreeId/git/branches",
-  "GET /api/worktrees/:worktreeId/git/receipts/:requestId",
   "GET /api/worktrees/:worktreeId/paths",
   "POST /api/worktrees/:worktreeId/git/commit-draft",
   "POST /api/worktrees/:worktreeId/preview-assets"
