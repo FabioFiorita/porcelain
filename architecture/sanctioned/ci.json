@@ -90,7 +90,7 @@
       "jobs": {
         "web": {
           "runs-on": "ubuntu-latest",
-          "timeout-minutes": 30,
+          "timeout-minutes": 60,
           "steps": [
             {
               "uses": "actions/checkout@v7",
@@ -138,7 +138,10 @@
               "run": "bwrap --ro-bind / / --dev /dev --proc /proc --unshare-pid --unshare-ipc --unshare-net --new-session --die-with-parent -- true"
             },
             {
-              "run": "pnpm verify:web --all"
+              "run": "pnpm verify:web --all",
+              "env": {
+                "PORCELAIN_REPETITION_BASE": "${{ github.event.before }}"
+              }
             }
           ]
         }

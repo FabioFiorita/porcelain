@@ -32,6 +32,7 @@ const config = resolve(
   '.agents/skills/web-verify/scripts/vitest.browser.config.ts',
 );
 const stabilityRepeats = 5;
+const repetitionBaseVariable = 'PORCELAIN_REPETITION_BASE';
 const usage =
   'Usage: node .agents/skills/web-verify/scripts/browser.ts --list|--all|<journey>\n';
 
@@ -40,6 +41,12 @@ type Run = {
   failures: string[];
   durationMs: number;
   hits: Hit[];
+};
+
+type Stability = {
+  base: string;
+  source: string;
+  paths: Set<string>;
 };
 
 type Outcome = {
@@ -75,15 +82,52 @@ function git(args: readonly string[]): string {
   return result.stdout;
 }
 
-function changedSinceMergeBase(): { base: string; paths: Set<string> } {
-  if (process.env.CI !== 'true') return { base: '', paths: new Set() };
+function commitOf(revision: string): string | undefined {
+  const result = spawnSync(
+    'git',
+    [
+      'rev-parse',
+      '--verify',
+      '--quiet',
+      '--end-of-options',
+      `${revision}^{commit}`,
+    ],
+    { cwd: repositoryRoot, encoding: 'utf8' },
+  );
+  if (result.error) throw result.error;
+  return result.status === 0 ? result.stdout.trim() : undefined;
+}
+
+function stabilityBase(): Omit<Stability, 'paths'> {
+  const requested = process.env[repetitionBaseVariable] ?? '';
+  const ci = process.env.CI === 'true';
+  const base = requested === '' ? undefined : commitOf(requested);
+  if (base !== undefined)
+    return { base, source: `${repetitionBaseVariable}=${requested}` };
+  if (!ci && requested !== '')
+    throw new Error(
+      `${repetitionBaseVariable}=${requested} names no commit in this clone; set it to a commit to repeat the journeys changed since it, or unset it to run each journey once`,
+    );
+  if (!ci)
+    return {
+      base: '',
+      source: `no ${repetitionBaseVariable} outside CI; set it to a commit to repeat the journeys changed since it`,
+    };
   const target = `origin/${process.env.GITHUB_BASE_REF || 'main'}`;
-  const base = git(['merge-base', 'HEAD', target]).trim();
+  return {
+    base: git(['merge-base', 'HEAD', target]).trim(),
+    source: `${requested === '' ? `no ${repetitionBaseVariable}, as on an opened pull request` : `${repetitionBaseVariable}=${requested} is not a commit in this clone`}, so the merge base with ${target}`,
+  };
+}
+
+function changedSinceBase(): Stability {
+  const { base, source } = stabilityBase();
+  if (base === '') return { base, source, paths: new Set() };
   const lines = [
     ...git(['diff', '--name-only', base, '--']).split('\n'),
     ...git(['ls-files', '--others', '--exclude-standard']).split('\n'),
   ];
-  return { base, paths: new Set(lines.filter(Boolean)) };
+  return { base, source, paths: new Set(lines.filter(Boolean)) };
 }
 
 function repetitions(journey: Journey, changed: ReadonlySet<string>): number {
@@ -299,11 +343,19 @@ async function main(): Promise<number> {
     process.stderr.write(usage);
     return 2;
   }
+  const changed = changedSinceBase();
+  const repeated = selected.filter(
+    (journey) => repetitions(journey, changed.paths) > 1,
+  );
+  process.stdout.write(
+    changed.base === ''
+      ? `Stability: every journey runs once, ${selected.length} journey runs in all; ${changed.source}.\n`
+      : `Stability: ${repeated.length} of ${selected.length} journeys changed since ${changed.base.slice(0, 12)} and run ${stabilityRepeats} times each, ${repeated.length * stabilityRepeats + selected.length - repeated.length} journey runs in all; base: ${changed.source}.\n`,
+  );
   const evidence = await mkdtemp(
     join(tmpdir(), 'porcelain-web-browser-evidence-'),
   );
   const build = await mkdtemp(join(tmpdir(), 'porcelain-web-server-'));
-  const changed = changedSinceMergeBase();
   const registered = new Set<string>();
   const summary: Record<string, unknown>[] = [];
   let failed = false;
@@ -376,7 +428,12 @@ async function main(): Promise<number> {
     }
     const report: Record<string, unknown> = {
       journeys: summary.length,
-      stability: { base: changed.base, repeats: stabilityRepeats },
+      stability: {
+        base: changed.base,
+        source: changed.source,
+        repeats: stabilityRepeats,
+        repeated: repeated.map((journey) => journey.feature),
+      },
       negatives: rejected,
       registered: [...registered].toSorted(),
     };
