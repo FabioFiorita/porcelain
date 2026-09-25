@@ -125,6 +125,13 @@ export function PierreFileTree({
       },
     },
     dragAndDrop: {
+      canDrag: () => {
+        syncing.current = true;
+        queueMicrotask(() => {
+          syncing.current = false;
+        });
+        return true;
+      },
       canDrop: ({ draggedPaths, target }) =>
         !draggedPaths.some(
           (path) =>
@@ -323,7 +330,11 @@ export function PierreFileTree({
                   {
                     label: 'Rename',
                     icon: PencilIcon,
-                    run: () => model.startRenaming(path),
+                    run: () => {
+                      syncing.current = true;
+                      model.startRenaming(path);
+                      syncing.current = false;
+                    },
                   },
                 ]
               : []),
