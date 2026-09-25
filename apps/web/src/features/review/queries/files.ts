@@ -1,8 +1,12 @@
 import { ConnectionError } from '@/shared/api/connection-error';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useSyncExternalStore } from 'react';
-import { FileDraft } from '@/features/review/model/file-draft';
+import { useCallback, useEffect, useSyncExternalStore } from 'react';
+import {
+  FileDraft,
+  type FileDraftState,
+} from '@/features/review/model/file-draft';
 import type { FileEdit, ReviewScope } from '@/features/review/model/review';
+import { isContentChangedError } from '@/features/review/queries/review';
 import { createId } from '@/shared/lib/id';
 import { retainedFileDrafts } from '@/shared/query/file-drafts';
 import { queryKeys } from '@/shared/query/keys';
@@ -167,4 +171,38 @@ export function useFileDraft(
     [draft, entries, key],
   );
   return { draft, state };
+}
+
+export function useFileDraftSaving(
+  owner: string,
+  path: string,
+  draft: FileDraft,
+  state: FileDraftState,
+  onUnsaved: (path: string) => void,
+) {
+  const changedOnDisk = isContentChangedError(state.error);
+  useEffect(() => {
+    if (state.text === state.savedText || state.error || state.saving) return;
+    const timer = setTimeout(() => void draft.save(), 3000);
+    return () => clearTimeout(timer);
+  }, [draft, state.text, state.savedText, state.error, state.saving]);
+
+  useEffect(() => {
+    return () => {
+      draft.release(owner);
+      if (!draft.snapshot().error)
+        void draft.save().then((saved) => {
+          if (!saved) onUnsaved(path);
+        });
+    };
+  }, [draft, path, owner, onUnsaved]);
+
+  const save = () =>
+    isContentChangedError(draft.snapshot().error)
+      ? Promise.resolve(false)
+      : draft.save();
+  const saveOnBlur = useCallback(() => {
+    if (!draft.snapshot().error) void draft.save();
+  }, [draft]);
+  return { changedOnDisk, save, saveOnBlur };
 }

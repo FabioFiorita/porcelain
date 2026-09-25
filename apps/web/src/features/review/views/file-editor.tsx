@@ -6,7 +6,7 @@ import {
 import { EditProvider, File } from '@pierre/diffs/react';
 import { useHotkey } from '@tanstack/react-hotkeys';
 import { CheckIcon } from 'lucide-react';
-import { type ReactNode, useEffect, useMemo, useState } from 'react';
+import { type ReactNode, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/toast';
 import type {
@@ -14,10 +14,8 @@ import type {
   FileDraftState,
 } from '@/features/review/model/file-draft';
 import { createPierreFileOptions } from '@/shared/lib/pierre';
-import {
-  isContentChangedError,
-  reviewErrorMessage,
-} from '@/features/review/queries/review';
+import { useFileDraftSaving } from '@/features/review/queries/files';
+import { reviewErrorMessage } from '@/features/review/queries/review';
 import { copyText } from '@/shared/workspace/copy';
 import { usePreferences } from '@/shared/workspace/preferences';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
@@ -28,6 +26,14 @@ const createEditor: EditorFactory<undefined, undefined> = (
   options,
   key,
 ) => new Editor(type, options, key);
+
+function notifyUnsaved(path: string) {
+  toast.add({
+    title: `${path} was not saved`,
+    description: 'Your draft is kept in this session. Reopen Edit to retry.',
+    type: 'error',
+  });
+}
 
 export function FileEditor({
   owner,
@@ -54,43 +60,27 @@ export function FileEditor({
   const { dark } = useTheme();
   const [file] = useState(() => ({ name: path, contents: state.text }));
   const dirty = state.text !== state.savedText;
-  const changedOnDisk = isContentChangedError(state.error);
-  const save = () => {
-    if (isContentChangedError(draft.snapshot().error)) return;
-    void draft.save();
-  };
-  useHotkey(SHORTCUTS.saveFile, save, { enabled: active, ignoreInputs: false });
-  useEffect(() => {
-    if (state.text === state.savedText || state.error || state.saving) return;
-    const timer = setTimeout(() => void draft.save(), 3000);
-    return () => clearTimeout(timer);
-  }, [draft, state.text, state.savedText, state.error, state.saving]);
-
-  useEffect(() => {
-    return () => {
-      draft.release(owner);
-      if (!draft.snapshot().error)
-        void draft.save().then((saved) => {
-          if (!saved)
-            toast.add({
-              title: `${path} was not saved`,
-              description:
-                'Your draft is kept in this session. Reopen Edit to retry.',
-              type: 'error',
-            });
-        });
-    };
-  }, [draft, path, owner]);
+  const { changedOnDisk, save, saveOnBlur } = useFileDraftSaving(
+    owner,
+    path,
+    draft,
+    state,
+    notifyUnsaved,
+  );
+  useHotkey(SHORTCUTS.saveFile, () => void save(), {
+    enabled: active,
+    ignoreInputs: false,
+  });
   const editorOptions = useMemo<EditorOptions<'file', undefined, undefined>>(
     () => ({
       onAttach(editor) {
         editor.focus({ lineNumber: 1, character: 0 });
       },
       onBlur() {
-        if (!draft.snapshot().error) void draft.save();
+        saveOnBlur();
       },
     }),
-    [draft],
+    [saveOnBlur],
   );
   const label = changedOnDisk
     ? 'Not saving: changed on disk'
@@ -112,7 +102,7 @@ export function FileEditor({
         size="sm"
         disabled={changedOnDisk}
         onClick={() =>
-          void draft.save().then((saved) => {
+          void save().then((saved) => {
             if (saved) onDone();
           })
         }
@@ -149,7 +139,7 @@ export function FileEditor({
             Copy draft
           </Button>
           {!changedOnDisk && (
-            <Button size="xs" variant="outline" onClick={save}>
+            <Button size="xs" variant="outline" onClick={() => void save()}>
               Retry save
             </Button>
           )}
