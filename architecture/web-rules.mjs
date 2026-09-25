@@ -158,6 +158,7 @@ const journeyBypasses = new Set([
   'globalThis',
   'self',
 ]);
+const viewLoopMethods = new Set(['forEach', 'reduce', 'reduceRight']);
 
 function importedName(specifier) {
   return specifier.imported.type === 'Identifier'
@@ -742,6 +743,17 @@ export const webRules = {
         for (const body of bodies)
           for (const node of commandCalls(body, context.sourceCode.visitorKeys))
             context.report({ node, message });
+      },
+    };
+  }),
+  'web-views-no-loops': viewRule((context) => {
+    const message =
+      'A view only loops to render: map, filter, some and find shape what it shows; a write over many items is one command in commands/ that takes the list.';
+    const report = (node) => context.report({ node, message });
+    return {
+      ...Object.fromEntries([...loopStatements].map((type) => [type, report])),
+      CallExpression(node) {
+        if (viewLoopMethods.has(methodName(node.callee) ?? '')) report(node);
       },
     };
   }),

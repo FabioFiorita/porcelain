@@ -89,6 +89,7 @@
     "porcelain/web-views-no-await": "error",
     "porcelain/web-views-no-try": "error",
     "porcelain/web-views-no-command-loops": "error",
+    "porcelain/web-views-no-loops": "error",
     "porcelain/web-views-no-direct-data": "error",
     "porcelain/web-views-no-transport": "error",
     "porcelain/web-views-no-contracts": "error",

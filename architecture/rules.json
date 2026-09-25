@@ -94,6 +94,7 @@
     "web-views-no-contracts",
     "web-views-no-controlled-open",
     "web-views-no-direct-data",
+    "web-views-no-loops",
     "web-views-no-transport",
     "web-views-no-try"
   ],

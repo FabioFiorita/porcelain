@@ -260,6 +260,20 @@
     "apps/web/src/app/workspace-provider.tsx": 5,
     "apps/web/src/features/review/views/review-workspace.tsx": 1
   },
+  "porcelain/web-views-no-loops": {
+    "apps/web/src/app/workspace-provider.tsx": 1,
+    "apps/web/src/features/review/views/code-document.tsx": 1,
+    "apps/web/src/features/review/views/commit-form.tsx": 1,
+    "apps/web/src/features/review/views/file-navigation.tsx": 1,
+    "apps/web/src/features/review/views/patch-focus.ts": 3,
+    "apps/web/src/features/review/views/pierre-file-tree.tsx": 2,
+    "apps/web/src/features/review/views/published-layer.tsx": 1,
+    "apps/web/src/features/review/views/review-diagram.tsx": 9,
+    "apps/web/src/features/review/views/review-index.tsx": 1,
+    "apps/web/src/features/review/views/reviewed-control.tsx": 1,
+    "apps/web/src/features/review/views/use-code-folds.ts": 1,
+    "apps/web/src/features/review/views/use-tab-layout.ts": 1
+  },
   "porcelain/web-views-no-transport": {
     "apps/web/src/app/workspace-provider.tsx": 3
   },
