@@ -242,7 +242,8 @@
           "porcelainRepo": "<function>",
           "porcelainFixture": "<function>",
           "porcelainPairingLink": "<function>",
-          "porcelainHits": "<function>"
+          "porcelainHits": "<function>",
+          "porcelainProjectHome": "<function>"
         }
       }
     }

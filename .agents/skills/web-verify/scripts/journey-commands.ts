@@ -1,9 +1,10 @@
-import { writeFile } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { issuePairingResponseSchema } from '@porcelain/contracts/access';
 import type { BrowserCommand } from 'vitest/node';
 import type {
   PairingParts,
+  ProjectHomeStep,
   RepoFixture,
   RepoStep,
   ServerAnswer,
@@ -116,10 +117,28 @@ const porcelainHits: BrowserCommand<[number], ServerHit[]> = async (
   since,
 ) => (await (await handle()).hits()).slice(since);
 
+const porcelainProjectHome: BrowserCommand<[ProjectHomeStep], string> = async (
+  _context,
+  step,
+) => {
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(step.name))
+    throw new Error(
+      `${step.name} is not one lowercase folder name in the project home`,
+    );
+  const home = await session();
+  const path = join(home.projectHome, step.name);
+  if (step.kind === 'repository')
+    await home.git('init', '--initial-branch', 'main', path);
+  else await mkdir(path);
+  await keepEvidence();
+  return path;
+};
+
 export const journeyCommands = {
   porcelainRead,
   porcelainRepo,
   porcelainFixture,
   porcelainPairingLink,
   porcelainHits,
+  porcelainProjectHome,
 };

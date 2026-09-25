@@ -18,6 +18,8 @@ export type RepoFixture = {
 
 export type PairingParts = { code: string; environmentId: string };
 
+export type ProjectHomeStep = { kind: 'repository' | 'folder'; name: string };
+
 export type ServerHit = {
   method: string;
   route: string | undefined;

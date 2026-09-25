@@ -1,6 +1,7 @@
 import { commands } from 'vitest/browser';
 import type {
   PairingParts,
+  ProjectHomeStep,
   RepoFixture,
   RepoStep,
   ServerAnswer,
@@ -15,6 +16,7 @@ declare module 'vitest/browser' {
     porcelainFixture: () => Promise<RepoFixture>;
     porcelainPairingLink: (label: string) => Promise<PairingParts>;
     porcelainHits: (since: number) => Promise<ServerHit[]>;
+    porcelainProjectHome: (step: ProjectHomeStep) => Promise<string>;
   }
 }
 
