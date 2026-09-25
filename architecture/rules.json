@@ -124,6 +124,7 @@
     "package-scripts",
     "pre-push-hook",
     "probe-shape",
+    "probe-shards",
     "react-compiler",
     "rule-list",
     "strict-json",

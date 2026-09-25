@@ -1,4 +1,4 @@
-name: Server trust checks
+name: Probe shards
 
 on:
   pull_request:
@@ -13,9 +13,13 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  server:
+  probes:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5, 6]
     steps:
       - uses: actions/checkout@v7
         with:
@@ -26,14 +30,9 @@ jobs:
           cache: true
           require-lockfile: true
       - run: pnpm install --frozen-lockfile
-      - run: pnpm typecheck:server
-      - run: pnpm lint:server
-      - run: pnpm format:server:check
-      - run: pnpm test
-      - run: pnpm db:check
+      - run: pnpm exec playwright install --with-deps --only-shell chromium
       - run: sudo apt-get update && sudo apt-get install --yes bubblewrap
       - name: Allow unprivileged user namespaces, which Ubuntu 24.04 restricts through AppArmor and bwrap needs
         run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
       - run: bwrap --ro-bind / / --dev /dev --proc /proc --unshare-pid --unshare-ipc --unshare-net --new-session --die-with-parent -- true
-      - run: node .agents/skills/server-verify/scripts/verify.ts --all
-      - run: pnpm arch:check
+      - run: pnpm probes --shard ${{ matrix.shard }}/6
