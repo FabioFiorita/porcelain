@@ -70,7 +70,7 @@ function ComboboxInput({
             variant="ghost"
             render={<ComboboxTrigger />}
             data-slot="input-group-button"
-            className="group-has-data-[slot=combobox-clear]/input-group:hidden data-pressed:bg-transparent"
+            className="group-has-data-[slot=combobox-clear]/input-group:hidden"
             disabled={disabled}
           />
         )}
@@ -250,7 +250,7 @@ function ComboboxChip({
       {showRemove && (
         <ComboboxPrimitive.ChipRemove
           render={<Button variant="ghost" size="icon-xs" />}
-          className="-ml-0.5 size-4.5 opacity-50 hover:opacity-100 aria-disabled:pointer-events-none"
+          className="-ml-0.5 size-4.5 aria-disabled:pointer-events-none"
           data-slot="combobox-chip-remove"
         >
           <XIcon className="pointer-events-none" />

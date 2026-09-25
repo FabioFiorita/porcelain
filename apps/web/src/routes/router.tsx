@@ -5,12 +5,12 @@ import {
   Outlet,
   type RouterHistory,
 } from '@tanstack/react-router';
-import { isSurface, type Surface } from '../domain/review';
-import { PairingView } from '../views/connection/pairing-view';
-import { ThemeProvider } from '../views/workspace/theme';
-import { WorkspaceError } from '../views/workspace/workspace-error';
-import { WorkspacePending } from '../views/workspace/workspace-pending';
-import { WorkspaceView } from '../views/workspace/workspace-view';
+import { isSurface, type Surface } from '@/features/review/index';
+import { PairingView } from '@/features/access/index';
+import { ThemeProvider } from '@/shared/workspace/theme';
+import { WorkspaceError } from '@/app/views/workspace-error';
+import { WorkspacePending } from '@/app/views/workspace-pending';
+import { WorkspaceView } from '@/app/views/workspace-view';
 
 export function createAppRouter(history?: RouterHistory) {
   const rootRoute = createRootRoute({

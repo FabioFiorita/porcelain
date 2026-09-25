@@ -5,6 +5,7 @@ import { cn } from 'cn';
 import * as React from 'react';
 
 import { toggleVariants } from '@/components/ui/toggle';
+import type { CssVariables } from '@/shared/lib/css-variables';
 
 const ToggleGroupContext = React.createContext<
   VariantProps<typeof toggleVariants> & {
@@ -31,6 +32,7 @@ function ToggleGroup({
     spacing?: number;
     orientation?: 'horizontal' | 'vertical';
   }) {
+  const gapStyle: CssVariables = { '--gap': spacing };
   return (
     <ToggleGroupPrimitive
       data-slot="toggle-group"
@@ -38,7 +40,7 @@ function ToggleGroup({
       data-size={size}
       data-spacing={spacing}
       data-orientation={orientation}
-      style={{ '--gap': spacing } as React.CSSProperties}
+      style={gapStyle}
       className={cn(
         'group/toggle-group flex w-fit flex-row items-center gap-[--spacing(var(--gap))] data-[spacing=0]:data-[variant=outline]:rounded-2xl data-vertical:flex-col data-vertical:items-stretch',
         className,

@@ -39,6 +39,8 @@ const roots = [
   '.agents/skills/server-verify/scripts',
   '.agents/skills/server-verify/feature-map',
   '.agents/skills/server-verify/negative',
+  '.agents/skills/web-verify/scripts',
+  '.agents/skills/web-verify/feature-map',
 ].filter((root) => existsSync(root));
 
 const disableDirective = /(?:\/\/|\/\*)\s*(?:eslint|oxlint)-(?:disable|enable)/;
@@ -279,11 +281,16 @@ async function configProblems(): Promise<Problem[]> {
       ),
     );
   const { jsPlugins, rules, overrides } = config.data;
-  if (!isDeepStrictEqual(jsPlugins, ['./architecture/oxlint-plugin.mjs']))
+  if (
+    !isDeepStrictEqual(jsPlugins, [
+      './architecture/oxlint-plugin.mjs',
+      '@shadcn/lint',
+    ])
+  )
     problems.push(
       problem(
         'lint-config',
-        '.oxlintrc.json loads ./architecture/oxlint-plugin.mjs only.',
+        '.oxlintrc.json loads the Porcelain and shadcn plugins.',
       ),
     );
   const pluginPath = new URL(

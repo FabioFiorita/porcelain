@@ -3,12 +3,15 @@
     "typescript"
   ],
   "jsPlugins": [
-    "./architecture/oxlint-plugin.mjs"
+    "./architecture/oxlint-plugin.mjs",
+    "@shadcn/lint"
   ],
   "options": {
     "typeAware": true
   },
   "rules": {
+    "shadcn/no-restyle": ["error", { "allow": ["layout"] }],
+    "shadcn/no-raw-colors": "error",
     "porcelain/no-comments": "error",
     "porcelain/models-are-types": "error",
     "porcelain/bootstrap-constructs-only": "error",

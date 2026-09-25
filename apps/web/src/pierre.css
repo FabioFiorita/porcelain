@@ -229,162 +229,162 @@
   color-scheme: dark;
 }
 
-.pierre-file-icon[data-icon-token="astro"] {
+.pierre-file-icon[data-icon-token='astro'] {
   color: var(--trees-file-icon-color-astro);
 }
-.pierre-file-icon[data-icon-token="babel"] {
+.pierre-file-icon[data-icon-token='babel'] {
   color: var(--trees-file-icon-color-babel);
 }
-.pierre-file-icon[data-icon-token="bash"] {
+.pierre-file-icon[data-icon-token='bash'] {
   color: var(--trees-file-icon-color-bash);
 }
-.pierre-file-icon[data-icon-token="biome"] {
+.pierre-file-icon[data-icon-token='biome'] {
   color: var(--trees-file-icon-color-biome);
 }
-.pierre-file-icon[data-icon-token="bootstrap"] {
+.pierre-file-icon[data-icon-token='bootstrap'] {
   color: var(--trees-file-icon-color-bootstrap);
 }
-.pierre-file-icon[data-icon-token="browserslist"] {
+.pierre-file-icon[data-icon-token='browserslist'] {
   color: var(--trees-file-icon-color-browserslist);
 }
-.pierre-file-icon[data-icon-token="bun"] {
+.pierre-file-icon[data-icon-token='bun'] {
   color: var(--trees-file-icon-color-bun);
 }
-.pierre-file-icon[data-icon-token="c"] {
+.pierre-file-icon[data-icon-token='c'] {
   color: var(--trees-file-icon-color-c);
 }
-.pierre-file-icon[data-icon-token="cpp"] {
+.pierre-file-icon[data-icon-token='cpp'] {
   color: var(--trees-file-icon-color-cpp);
 }
-.pierre-file-icon[data-icon-token="claude"] {
+.pierre-file-icon[data-icon-token='claude'] {
   color: var(--trees-file-icon-color-claude);
 }
-.pierre-file-icon[data-icon-token="css"] {
+.pierre-file-icon[data-icon-token='css'] {
   color: var(--trees-file-icon-color-css);
 }
-.pierre-file-icon[data-icon-token="database"] {
+.pierre-file-icon[data-icon-token='database'] {
   color: var(--trees-file-icon-color-database);
 }
-.pierre-file-icon[data-icon-token="default"] {
+.pierre-file-icon[data-icon-token='default'] {
   color: var(--trees-file-icon-color-default);
 }
-.pierre-file-icon[data-icon-token="docker"] {
+.pierre-file-icon[data-icon-token='docker'] {
   color: var(--trees-file-icon-color-docker);
 }
-.pierre-file-icon[data-icon-token="eslint"] {
+.pierre-file-icon[data-icon-token='eslint'] {
   color: var(--trees-file-icon-color-eslint);
 }
-.pierre-file-icon[data-icon-token="font"] {
+.pierre-file-icon[data-icon-token='font'] {
   color: var(--trees-file-icon-color-font);
 }
-.pierre-file-icon[data-icon-token="git"] {
+.pierre-file-icon[data-icon-token='git'] {
   color: var(--trees-file-icon-color-git);
 }
-.pierre-file-icon[data-icon-token="go"] {
+.pierre-file-icon[data-icon-token='go'] {
   color: var(--trees-file-icon-color-go);
 }
-.pierre-file-icon[data-icon-token="graphql"] {
+.pierre-file-icon[data-icon-token='graphql'] {
   color: var(--trees-file-icon-color-graphql);
 }
-.pierre-file-icon[data-icon-token="html"] {
+.pierre-file-icon[data-icon-token='html'] {
   color: var(--trees-file-icon-color-html);
 }
-.pierre-file-icon[data-icon-token="image"] {
+.pierre-file-icon[data-icon-token='image'] {
   color: var(--trees-file-icon-color-image);
 }
-.pierre-file-icon[data-icon-token="javascript"] {
+.pierre-file-icon[data-icon-token='javascript'] {
   color: var(--trees-file-icon-color-javascript);
 }
-.pierre-file-icon[data-icon-token="json"] {
+.pierre-file-icon[data-icon-token='json'] {
   color: var(--trees-file-icon-color-json);
 }
-.pierre-file-icon[data-icon-token="markdown"] {
+.pierre-file-icon[data-icon-token='markdown'] {
   color: var(--trees-file-icon-color-markdown);
 }
-.pierre-file-icon[data-icon-token="mcp"] {
+.pierre-file-icon[data-icon-token='mcp'] {
   color: var(--trees-file-icon-color-mcp);
 }
-.pierre-file-icon[data-icon-token="npm"] {
+.pierre-file-icon[data-icon-token='npm'] {
   color: var(--trees-file-icon-color-npm);
 }
-.pierre-file-icon[data-icon-token="nextjs"] {
+.pierre-file-icon[data-icon-token='nextjs'] {
   color: var(--trees-file-icon-color-nextjs);
 }
-.pierre-file-icon[data-icon-token="oxc"] {
+.pierre-file-icon[data-icon-token='oxc'] {
   color: var(--trees-file-icon-color-oxc);
 }
-.pierre-file-icon[data-icon-token="postcss"] {
+.pierre-file-icon[data-icon-token='postcss'] {
   color: var(--trees-file-icon-color-postcss);
 }
-.pierre-file-icon[data-icon-token="prettier"] {
+.pierre-file-icon[data-icon-token='prettier'] {
   color: var(--trees-file-icon-color-prettier);
 }
-.pierre-file-icon[data-icon-token="python"] {
+.pierre-file-icon[data-icon-token='python'] {
   color: var(--trees-file-icon-color-python);
 }
-.pierre-file-icon[data-icon-token="react"] {
+.pierre-file-icon[data-icon-token='react'] {
   color: var(--trees-file-icon-color-react);
 }
-.pierre-file-icon[data-icon-token="ruby"] {
+.pierre-file-icon[data-icon-token='ruby'] {
   color: var(--trees-file-icon-color-ruby);
 }
-.pierre-file-icon[data-icon-token="rust"] {
+.pierre-file-icon[data-icon-token='rust'] {
   color: var(--trees-file-icon-color-rust);
 }
-.pierre-file-icon[data-icon-token="sass"] {
+.pierre-file-icon[data-icon-token='sass'] {
   color: var(--trees-file-icon-color-sass);
 }
-.pierre-file-icon[data-icon-token="stylelint"] {
+.pierre-file-icon[data-icon-token='stylelint'] {
   color: var(--trees-file-icon-color-stylelint);
 }
-.pierre-file-icon[data-icon-token="svg"] {
+.pierre-file-icon[data-icon-token='svg'] {
   color: var(--trees-file-icon-color-svg);
 }
-.pierre-file-icon[data-icon-token="svelte"] {
+.pierre-file-icon[data-icon-token='svelte'] {
   color: var(--trees-file-icon-color-svelte);
 }
-.pierre-file-icon[data-icon-token="svgo"] {
+.pierre-file-icon[data-icon-token='svgo'] {
   color: var(--trees-file-icon-color-svgo);
 }
-.pierre-file-icon[data-icon-token="swift"] {
+.pierre-file-icon[data-icon-token='swift'] {
   color: var(--trees-file-icon-color-swift);
 }
-.pierre-file-icon[data-icon-token="table"] {
+.pierre-file-icon[data-icon-token='table'] {
   color: var(--trees-file-icon-color-table);
 }
-.pierre-file-icon[data-icon-token="text"] {
+.pierre-file-icon[data-icon-token='text'] {
   color: var(--trees-file-icon-color-text);
 }
-.pierre-file-icon[data-icon-token="tailwind"] {
+.pierre-file-icon[data-icon-token='tailwind'] {
   color: var(--trees-file-icon-color-tailwind);
 }
-.pierre-file-icon[data-icon-token="terraform"] {
+.pierre-file-icon[data-icon-token='terraform'] {
   color: var(--trees-file-icon-color-terraform);
 }
-.pierre-file-icon[data-icon-token="typescript"] {
+.pierre-file-icon[data-icon-token='typescript'] {
   color: var(--trees-file-icon-color-typescript);
 }
-.pierre-file-icon[data-icon-token="vite"] {
+.pierre-file-icon[data-icon-token='vite'] {
   color: var(--trees-file-icon-color-vite);
 }
-.pierre-file-icon[data-icon-token="vscode"] {
+.pierre-file-icon[data-icon-token='vscode'] {
   color: var(--trees-file-icon-color-vscode);
 }
-.pierre-file-icon[data-icon-token="vue"] {
+.pierre-file-icon[data-icon-token='vue'] {
   color: var(--trees-file-icon-color-vue);
 }
-.pierre-file-icon[data-icon-token="wasm"] {
+.pierre-file-icon[data-icon-token='wasm'] {
   color: var(--trees-file-icon-color-wasm);
 }
-.pierre-file-icon[data-icon-token="webpack"] {
+.pierre-file-icon[data-icon-token='webpack'] {
   color: var(--trees-file-icon-color-webpack);
 }
-.pierre-file-icon[data-icon-token="yml"] {
+.pierre-file-icon[data-icon-token='yml'] {
   color: var(--trees-file-icon-color-yml);
 }
-.pierre-file-icon[data-icon-token="zig"] {
+.pierre-file-icon[data-icon-token='zig'] {
   color: var(--trees-file-icon-color-zig);
 }
-.pierre-file-icon[data-icon-token="zip"] {
+.pierre-file-icon[data-icon-token='zip'] {
   color: var(--trees-file-icon-color-zip);
 }

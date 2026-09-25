@@ -55,7 +55,7 @@ function InputGroupAddon({
       data-align={align}
       className={cn(inputGroupAddonVariants({ align }), className)}
       onClick={(e) => {
-        if ((e.target as HTMLElement).closest('button')) {
+        if (e.target instanceof HTMLElement && e.target.closest('button')) {
           return;
         }
         e.currentTarget.parentElement?.querySelector('input')?.focus();
@@ -122,10 +122,7 @@ function InputGroupInput({
   return (
     <Input
       data-slot="input-group-control"
-      className={cn(
-        'flex-1 rounded-none border-0 bg-transparent shadow-none ring-0 focus-visible:ring-0 aria-invalid:ring-0 dark:bg-transparent',
-        className,
-      )}
+      className={cn('flex-1        ', className)}
       {...props}
     />
   );
@@ -138,10 +135,7 @@ function InputGroupTextarea({
   return (
     <Textarea
       data-slot="input-group-control"
-      className={cn(
-        'flex-1 resize-none rounded-none border-0 bg-transparent py-2 shadow-none ring-0 focus-visible:ring-0 aria-invalid:ring-0 dark:bg-transparent',
-        className,
-      )}
+      className={cn('flex-1 resize-none         ', className)}
       {...props}
     />
   );

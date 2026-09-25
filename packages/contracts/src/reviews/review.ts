@@ -1,4 +1,4 @@
-import { utf8ByteLength } from '@porcelain/kernel/rules';
+import { utf8ByteLength } from '../shared/utf8-byte-length.ts';
 import { z } from 'zod';
 import { absentAsNull } from '../shared/absent-as-null.ts';
 import { fingerprintSchema } from '../shared/fingerprint.ts';

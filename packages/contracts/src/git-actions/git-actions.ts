@@ -5,7 +5,7 @@ import { fingerprintSchema } from '../shared/fingerprint.ts';
 import { gitActionReceiptSchema } from '../shared/git-action-receipt.ts';
 import { oidSchema } from '../shared/oid.ts';
 import { relativePathSchema } from '../shared/relative-path.ts';
-import { utf8ByteLength } from '@porcelain/kernel/rules';
+import { utf8ByteLength } from '../shared/utf8-byte-length.ts';
 import { worktreeIdSchema } from '../shared/worktree-params.ts';
 import {
   CHANGED_PATHS,

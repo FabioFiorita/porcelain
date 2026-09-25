@@ -26,16 +26,23 @@ node .agents/skills/server-verify/scripts/verify.ts --all
 
 A change to behaviour is not done until a behaviour spec states its promise (`server-spec`) and the verification net has a case that reaches it over HTTP (`server-verify`). A change to a guardrail is not done until `pnpm probes` reports every probe under `architecture/probes/` rejected.
 
+## Web rebuild
+
+Keep existing web behavior while moving each file to its app, feature or shared owner. The web checks now pass; keep them green by changing code instead of weakening a check. The server contract stays the server's contract.
+
+Run `pnpm typecheck:web`, `pnpm lint:web`, `pnpm format:web:check`, `pnpm arch:web`, `pnpm probes:web` and `pnpm verify:web --all` before declaring a web feature done. Browser behavior cases run with Vitest Browser Mode and its Playwright Chromium provider against a disposable real server. Agent inspection and performance use `pnpm devtools` through the `web-verify` skill. Do not add a runtime mock API or a separate prototype.
+
 ## Skills
 
 - `server-spec`: whether a unit gets a spec, how to derive its cases from the promise, fakes and fixtures.
 - `server-verify`: run the HTTP regression net, add a feature case, read the evidence.
 - `server-feature`: add, change or remove an endpoint end to end: contract, use case, route, scope, wiring, spec, net case, gates.
+- `web-verify`: browser behavior tests and Chrome DevTools CLI against a disposable server.
 
 ## Working rules the tooling cannot see
 
 - Commit only the paths you changed; never `git add -A`; never stash or reset hard; never commit anything under `.claude/`.
 - One short imperative sentence per commit; no attribution lines of any kind.
 - Before using a library, check its current documentation for a built-in pattern and prefer it over a helper.
-- `apps/web` is frozen until its own rebuild; do not edit it and do not make the server bend to it.
+- Do not make the server bend to the old web code during its rebuild.
 - Limits live in `packages/contracts/src/shared/limits.ts` and `apps/server/src/config/limits.ts`, nowhere else.
