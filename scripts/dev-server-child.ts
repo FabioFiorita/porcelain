@@ -1,5 +1,6 @@
 import { execFile } from 'node:child_process';
 import { subscribe } from 'node:diagnostics_channel';
+import { appendFileSync } from 'node:fs';
 import { mkdir, symlink, writeFile } from 'node:fs/promises';
 import { connect, createServer } from 'node:net';
 import { join } from 'node:path';
@@ -36,8 +37,23 @@ const relay = createServer((incoming) => {
 });
 
 type RouteOptions = { method: string | readonly string[]; url: string };
+type HitRequest = {
+  id: string;
+  method: string;
+  url: string;
+  routeOptions: { url?: string | undefined };
+  headers: Record<string, string | string[] | undefined>;
+};
 type RouteHost = {
   addHook(name: 'onRoute', hook: (route: RouteOptions) => void): unknown;
+  addHook(
+    name: 'onRequest',
+    hook: (request: HitRequest) => Promise<void>,
+  ): unknown;
+  addHook(
+    name: 'onResponse',
+    hook: (request: HitRequest, reply: { statusCode: number }) => Promise<void>,
+  ): unknown;
   server: { address(): unknown };
 };
 
@@ -53,6 +69,14 @@ function isRouteHost(value: unknown): value is RouteHost {
 
 const listedMethods = new Set(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']);
 const listeners: { host: RouteHost; routes: string[] }[] = [];
+const hitsFile = join(root, 'hits.jsonl');
+let fixtureReady = false;
+
+function recordHit(host: RouteHost, entry: Record<string, unknown>) {
+  if (!fixtureReady || typeof host.server.address() === 'string') return;
+  appendFileSync(hitsFile, `${JSON.stringify(entry)}\n`);
+}
+
 subscribe('fastify.initialization', (message) => {
   const host =
     typeof message === 'object' && message !== null && 'fastify' in message
@@ -61,6 +85,23 @@ subscribe('fastify.initialization', (message) => {
   if (!isRouteHost(host)) return;
   const listener = { host, routes: new Array<string>() };
   listeners.push(listener);
+  host.addHook('onRequest', async (request) => {
+    recordHit(host, {
+      event: 'request',
+      id: request.id,
+      method: request.method,
+      route: request.routeOptions.url,
+      path: request.url,
+      kit: request.headers['x-porcelain-journey'] === 'kit',
+    });
+  });
+  host.addHook('onResponse', async (request, reply) => {
+    recordHit(host, {
+      event: 'response',
+      id: request.id,
+      status: reply.statusCode,
+    });
+  });
   host.addHook('onRoute', (route) => {
     const methods =
       typeof route.method === 'string' ? [route.method] : route.method;
@@ -225,9 +266,10 @@ try {
     mode: 0o600,
   });
   const manifest = join(root, 'manifest.json');
+  fixtureReady = true;
   await writeFile(
     manifest,
-    `${JSON.stringify({ address: server.address, dataDirectory: state, repository, socketPath: server.socketPath, credentialFile, fixture, routes: registeredRoutes() }, null, 2)}\n`,
+    `${JSON.stringify({ address: server.address, dataDirectory: state, repository, socketPath: server.socketPath, credentialFile, hitsFile, fixture, routes: registeredRoutes() }, null, 2)}\n`,
     { mode: 0o600 },
   );
   process.stdout.write(

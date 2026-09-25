@@ -84,8 +84,17 @@ type Manifest = {
   repository: string;
   socketPath: string;
   credentialFile: string;
+  hitsFile: string;
   fixture: Fixture;
   routes: string[];
+};
+
+export type Hit = {
+  method: string;
+  route: string | undefined;
+  path: string;
+  kit: boolean;
+  status: number | undefined;
 };
 
 const execute = promisify(execFile);
@@ -285,6 +294,7 @@ function manifestOf(value: unknown): Manifest {
     repository: text(manifest.repository),
     socketPath: text(manifest.socketPath),
     credentialFile: text(manifest.credentialFile),
+    hitsFile: text(manifest.hitsFile),
     fixture: fixtureOf(manifest.fixture),
     routes: list(manifest.routes).map(text),
   };
@@ -342,7 +352,39 @@ function waitForReady(
   });
 }
 
-export class IsolatedServer {
+async function readManifest(
+  manifestPath: string,
+): Promise<{ manifest: Manifest; credential: string }> {
+  const manifest = manifestOf(JSON.parse(await readFile(manifestPath, 'utf8')));
+  const secret = record(
+    JSON.parse(await readFile(manifest.credentialFile, 'utf8')),
+  );
+  if (typeof secret.credential !== 'string' || secret.credential === '')
+    throw new Error('Isolated server wrote no credential');
+  return { manifest, credential: secret.credential };
+}
+
+function hitsOf(lines: string): Hit[] {
+  const requests = new Map<string, Hit>();
+  for (const line of lines.split('\n').filter(Boolean)) {
+    const entry = record(JSON.parse(line));
+    const id = text(entry.id);
+    if (entry.event === 'request')
+      requests.set(id, {
+        method: text(entry.method),
+        route: typeof entry.route === 'string' ? entry.route : undefined,
+        path: text(entry.path),
+        kit: entry.kit === true,
+        status: undefined,
+      });
+    const hit = requests.get(id);
+    if (entry.event === 'response' && hit && typeof entry.status === 'number')
+      hit.status = entry.status;
+  }
+  return [...requests.values()];
+}
+
+export class ServerHandle {
   readonly address: string;
   readonly repository: string;
   readonly projectHome: string;
@@ -350,90 +392,28 @@ export class IsolatedServer {
   readonly credential: string;
   readonly fixture: Fixture;
   readonly routes: readonly string[];
-  private readonly child: ChildProcess;
-  private readonly exited: Promise<void>;
-  private readonly output: { stdout: string; stderr: string };
+  private readonly hitsFile: string;
 
-  private constructor(
-    child: ChildProcess,
-    exited: Promise<void>,
-    output: { stdout: string; stderr: string },
-    manifest: Manifest,
-    credential: string,
-  ) {
-    this.child = child;
-    this.exited = exited;
-    this.output = output;
+  protected constructor(manifest: Manifest, credential: string) {
     this.address = manifest.address;
     this.repository = manifest.repository;
     this.projectHome = resolve(manifest.repository, '..');
     this.socketPath = manifest.socketPath;
     this.fixture = manifest.fixture;
     this.routes = manifest.routes;
+    this.hitsFile = manifest.hitsFile;
     this.credential = credential;
   }
 
-  static async start(
-    repositoryRoot: string,
-    build: string,
-  ): Promise<IsolatedServer> {
-    const child = spawn(
-      process.execPath,
-      ['scripts/dev-server.ts', '--server', build],
-      {
-        cwd: repositoryRoot,
-        stdio: ['ignore', 'pipe', 'pipe'],
-      },
-    );
-    const output = { stdout: '', stderr: '' };
-    const exited = new Promise<void>((resolveExit) =>
-      child.once('close', () => resolveExit()),
-    );
-    child.stderr.on('data', (chunk: Buffer) => {
-      output.stderr += chunk.toString('utf8');
-    });
-    try {
-      const manifestPath = await waitForReady(child, output);
-      const manifest = manifestOf(
-        JSON.parse(await readFile(manifestPath, 'utf8')),
-      );
-      const secret = record(
-        JSON.parse(await readFile(manifest.credentialFile, 'utf8')),
-      );
-      if (typeof secret.credential !== 'string' || secret.credential === '')
-        throw new Error('Isolated server wrote no credential');
-      return new IsolatedServer(
-        child,
-        exited,
-        output,
-        manifest,
-        secret.credential,
-      );
-    } catch (error) {
-      child.kill('SIGTERM');
-      await exited;
-      throw error;
-    }
+  static async attach(manifestPath: string): Promise<ServerHandle> {
+    const { manifest, credential } = await readManifest(manifestPath);
+    return new ServerHandle(manifest, credential);
   }
 
-  logs() {
-    return { ...this.output };
-  }
-
-  async stop(): Promise<string | undefined> {
-    this.child.kill('SIGTERM');
-    let timer: NodeJS.Timeout | undefined;
-    const closed = await Promise.race([
-      this.exited.then(() => true),
-      new Promise<false>((resolveTimeout) => {
-        timer = setTimeout(() => resolveTimeout(false), stopTimeoutMs);
-      }),
-    ]);
-    if (timer) clearTimeout(timer);
-    if (closed) return undefined;
-    this.child.kill('SIGKILL');
-    await this.exited;
-    return 'Isolated server did not stop within 10 seconds';
+  async hits(): Promise<Hit[]> {
+    return existsSync(this.hitsFile)
+      ? hitsOf(await readFile(this.hitsFile, 'utf8'))
+      : [];
   }
 
   session(
@@ -838,5 +818,81 @@ export class IsolatedServer {
         socket.close();
       },
     };
+  }
+}
+
+export class IsolatedServer extends ServerHandle {
+  readonly manifestPath: string;
+  private readonly child: ChildProcess;
+  private readonly exited: Promise<void>;
+  private readonly output: { stdout: string; stderr: string };
+
+  private constructor(
+    child: ChildProcess,
+    exited: Promise<void>,
+    output: { stdout: string; stderr: string },
+    manifestPath: string,
+    read: { manifest: Manifest; credential: string },
+  ) {
+    super(read.manifest, read.credential);
+    this.child = child;
+    this.exited = exited;
+    this.output = output;
+    this.manifestPath = manifestPath;
+  }
+
+  static async start(
+    repositoryRoot: string,
+    build: string,
+  ): Promise<IsolatedServer> {
+    const child = spawn(
+      process.execPath,
+      ['scripts/dev-server.ts', '--server', build],
+      {
+        cwd: repositoryRoot,
+        stdio: ['ignore', 'pipe', 'pipe'],
+      },
+    );
+    const output = { stdout: '', stderr: '' };
+    const exited = new Promise<void>((resolveExit) =>
+      child.once('close', () => resolveExit()),
+    );
+    child.stderr.on('data', (chunk: Buffer) => {
+      output.stderr += chunk.toString('utf8');
+    });
+    try {
+      const manifestPath = await waitForReady(child, output);
+      return new IsolatedServer(
+        child,
+        exited,
+        output,
+        manifestPath,
+        await readManifest(manifestPath),
+      );
+    } catch (error) {
+      child.kill('SIGTERM');
+      await exited;
+      throw error;
+    }
+  }
+
+  logs() {
+    return { ...this.output };
+  }
+
+  async stop(): Promise<string | undefined> {
+    this.child.kill('SIGTERM');
+    let timer: NodeJS.Timeout | undefined;
+    const closed = await Promise.race([
+      this.exited.then(() => true),
+      new Promise<false>((resolveTimeout) => {
+        timer = setTimeout(() => resolveTimeout(false), stopTimeoutMs);
+      }),
+    ]);
+    if (timer) clearTimeout(timer);
+    if (closed) return undefined;
+    this.child.kill('SIGKILL');
+    await this.exited;
+    return 'Isolated server did not stop within 10 seconds';
   }
 }
