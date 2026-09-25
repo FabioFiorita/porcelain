@@ -10,7 +10,7 @@ export default {
     {
       kind: 'replace',
       path: 'apps/web/package.json',
-      old: '"typecheck": "tsc --noEmit"',
+      old: '"typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.node.json"',
       new: '"typecheck": "true"',
     },
   ],

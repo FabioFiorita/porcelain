@@ -48,6 +48,7 @@ const probeEditSchema = z.discriminatedUnion('kind', [
 
 export const probeGates = [
   'lint',
+  'web-lint',
   'arch',
   'typecheck',
   'test',
@@ -64,6 +65,11 @@ export const ruleShapes: Readonly<
     pattern: /^(?:porcelain|typescript|style)\([a-z]+(?:-[a-z]+)*\)$/,
     shape:
       'porcelain(<plugin rule>), typescript(<rule>) or style(<rule>), as lint prints its code',
+  },
+  'web-lint': {
+    pattern: /^(?:porcelain|typescript|style|shadcn)\([a-z]+(?:-[a-z]+)*\)$/,
+    shape:
+      'porcelain(<plugin rule>), typescript(<rule>), shadcn(<rule>) or style(<rule>), as the web lint prints its code',
   },
   arch: {
     pattern: /^[a-z]+(?:-[a-z]+)*:$/,
@@ -120,7 +126,12 @@ export const probeSchema = z
 export type Probe = z.input<typeof probeSchema>;
 export type ProbeEdit = z.output<typeof probeEditSchema>;
 
-export type RuleFamily = 'porcelain' | 'typescript' | 'style' | 'arch';
+export type RuleFamily =
+  | 'porcelain'
+  | 'typescript'
+  | 'shadcn'
+  | 'style'
+  | 'arch';
 export type RuleNames = Readonly<Record<RuleFamily, readonly string[]>>;
 
 const pluginSchema = z.object({
@@ -150,6 +161,11 @@ export async function liveRuleNames(root: string): Promise<RuleNames> {
         .filter((name) => name.startsWith('typescript/'))
         .map((name) => name.slice('typescript/'.length)),
     ),
+    shadcn: sorted(
+      Object.keys(lint.rules)
+        .filter((name) => name.startsWith('shadcn/'))
+        .map((name) => name.slice('shadcn/'.length)),
+    ),
     style: sorted(styleRules),
     arch: sorted([...archRules, ...archRuleFamilies]),
   };
@@ -163,10 +179,15 @@ function namedRule(
     const name = rule.slice(0, -1);
     return { family: 'arch', name: archRuleFamily(name) ?? name };
   }
-  if (gate !== 'lint') return undefined;
-  const match = /^(porcelain|typescript|style)\((.+)\)$/.exec(rule);
+  if (gate !== 'lint' && gate !== 'web-lint') return undefined;
+  const match = /^(porcelain|typescript|shadcn|style)\((.+)\)$/.exec(rule);
   const family = match?.[1];
-  if (family !== 'porcelain' && family !== 'typescript' && family !== 'style')
+  if (
+    family !== 'porcelain' &&
+    family !== 'typescript' &&
+    family !== 'shadcn' &&
+    family !== 'style'
+  )
     return undefined;
   return { family, name: match?.[2] ?? '' };
 }
@@ -191,10 +212,11 @@ export function unprobedRules(
       return named ? [`${named.family} ${named.name}`] : [];
     }),
   );
-  return (['porcelain', 'typescript', 'style', 'arch'] as const).flatMap(
-    (family) =>
-      names[family]
-        .filter((name) => !probed.has(`${family} ${name}`))
-        .map((name) => (family === 'arch' ? `${name}:` : `${family}(${name})`)),
+  return (
+    ['porcelain', 'typescript', 'shadcn', 'style', 'arch'] as const
+  ).flatMap((family) =>
+    names[family]
+      .filter((name) => !probed.has(`${family} ${name}`))
+      .map((name) => (family === 'arch' ? `${name}:` : `${family}(${name})`)),
   );
 }

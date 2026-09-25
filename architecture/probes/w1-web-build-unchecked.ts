@@ -9,7 +9,7 @@ export default {
     {
       kind: 'replace',
       path: 'apps/web/package.json',
-      old: '"build": "tsc --noEmit && vite build"',
+      old: '"build": "tsc --noEmit && tsc --noEmit -p tsconfig.node.json && vite build"',
       new: '"build": "vite build"',
     },
   ],

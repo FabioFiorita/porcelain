@@ -33,6 +33,7 @@ const gateCommands: Record<
   (probe: LoadedProbe) => readonly [string, ...string[]]
 > = {
   lint: () => ['pnpm', 'lint:server'],
+  'web-lint': () => ['pnpm', 'lint:web'],
   arch: () => ['pnpm', 'arch:check'],
   typecheck: () => ['pnpm', 'typecheck:server'],
   test: () => ['pnpm', 'test'],

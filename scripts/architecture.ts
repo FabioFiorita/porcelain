@@ -2,7 +2,15 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { cruise } from 'dependency-cruiser';
+import extractDepcruiseOptions from 'dependency-cruiser/config-utl/extract-depcruise-options';
 import { z } from 'zod';
+import web from '../apps/web/vite.config.ts';
+import {
+  baselineHistoryProblems,
+  readBaseline,
+  settleBaseline,
+} from '../architecture/baseline.ts';
 import {
   allowedContractType,
   archRules,
@@ -17,6 +25,9 @@ import {
   runtimeNodeViolation,
   targetPackageExports,
   violation,
+  webLayout,
+  webPart,
+  shadcnRegistry,
   type ArchRule,
   type Classification,
 } from '../architecture/policy.ts';
@@ -73,6 +84,9 @@ const sourceRoots = [
     `packages/${name}/spec`,
   ]),
 ].filter((root) => existsSync(join(repositoryRoot, root)));
+const webRoots = ['apps/web/src', 'apps/web/spec'];
+const webConfig = 'apps/web/vite.config.ts';
+const allRoots = [...sourceRoots, ...webRoots];
 
 const ignoredDirectories = new Set(['node_modules', 'dist', '.vite', '.turbo']);
 const ignoredFile = /(?:^\.DS_Store|\.tsbuildinfo)$/;
@@ -99,14 +113,27 @@ const permittedOutsideRoots: readonly RegExp[] = [
   /^packages\/storage\/drizzle\/(?:meta\/)?[^/]+\.(?:sql|json)$/,
   /^packages\/storage\/drizzle\.config\.ts$/,
   /^packages\/storage\/scripts\/[^/]+\.ts$/,
-  /^apps\/web\//,
+  /^apps\/web\/(?:package\.json|tsconfig(?:\.node)?\.json|components\.json|index\.html|vite\.config\.ts)$/,
+  /^apps\/web\/public\/[^/]+$/,
 ];
 const insideRoot = /^(?:packages\/[^/]+|apps\/server)\/(?:src|spec)\//;
 const fixtureData = /^packages\/[^/]+\/spec\/fixtures\//;
+const webInside = /^apps\/web\/(?:src|spec)\//;
+const webAsset = /^apps\/web\/src\/(?:[^/]+\.css|assets\/[^/]+)$/;
 
 function placementFindings(): Finding[] {
   const files = [...filesUnder('packages'), ...filesUnder('apps')];
   return files.flatMap((path) => {
+    if (webInside.test(path)) {
+      if (/\.tsx?$/.test(path) || webAsset.test(path)) return [];
+      return [
+        {
+          rule: 'code-outside-roots',
+          from: path,
+          to: 'apps/web/src holds .ts and .tsx files, stylesheets at its root and images in assets/; apps/web/spec holds browser cases',
+        },
+      ];
+    }
     if (insideRoot.test(path)) {
       if (/\.ts$/.test(path) && !/\.[cm]ts$/.test(path)) return [];
       if (fixtureData.test(path) && !codeFile.test(path)) return [];
@@ -123,7 +150,7 @@ function placementFindings(): Finding[] {
       {
         rule: 'code-outside-roots',
         from: path,
-        to: 'packages/ and apps/ hold package folders only; a package holds package.json, tsconfig.json, src/ and spec/, and storage also drizzle/, drizzle.config.ts and scripts/*.ts',
+        to: 'packages/ and apps/ hold package folders only; a package holds package.json, tsconfig.json, src/ and spec/, storage also drizzle/, drizzle.config.ts and scripts/*.ts, and the web also tsconfig.node.json, vite.config.ts, index.html, components.json and public/',
       },
     ];
   });
@@ -136,7 +163,22 @@ function isRepositoryPath(resolved: string): boolean {
   );
 }
 
-function scan(sources: readonly string[]): CruiseReport {
+const webResolveSchema = z.object({
+  resolve: z.object({ alias: z.record(z.string(), z.string()) }),
+});
+
+async function webScan(): Promise<CruiseReport> {
+  const result = await cruise(
+    [...webRoots, webConfig],
+    await extractDepcruiseOptions(
+      join(repositoryRoot, 'architecture/dependency-cruiser.cjs'),
+    ),
+    { alias: webResolveSchema.parse(web).resolve.alias },
+  );
+  return cruiseReportSchema.parse(result.output);
+}
+
+async function scan(sources: readonly string[]): Promise<CruiseReport> {
   const result = spawnSync(
     join(repositoryRoot, 'node_modules/.bin/depcruise'),
     [
@@ -151,9 +193,24 @@ function scan(sources: readonly string[]): CruiseReport {
   if (result.error) throw result.error;
   if (result.status !== 0)
     throw new Error(result.stderr || result.stdout || 'Dependency scan failed');
-  const report: CruiseReport = cruiseReportSchema.parse(
+  const server: CruiseReport = cruiseReportSchema.parse(
     JSON.parse(result.stdout),
   );
+  const webReport = await webScan();
+  const report: CruiseReport = {
+    modules: [...server.modules, ...webReport.modules],
+    summary: {
+      totalCruised:
+        server.summary.totalCruised + webReport.summary.totalCruised,
+      totalDependenciesCruised:
+        server.summary.totalDependenciesCruised +
+        webReport.summary.totalDependenciesCruised,
+      violations: [
+        ...server.summary.violations,
+        ...webReport.summary.violations,
+      ],
+    },
+  };
   const scanned = new Set(report.modules.map((module) => module.source));
   const missing = sources.filter((file) => !scanned.has(file));
   if (report.summary.totalCruised === 0 || missing.length > 0)
@@ -165,13 +222,13 @@ function scan(sources: readonly string[]): CruiseReport {
       .filter(
         (dependency) =>
           dependency.couldNotResolve &&
-          dependency.module.startsWith('@porcelain/'),
+          /^(?:@porcelain\/|@\/|\.)/.test(dependency.module),
       )
       .map((dependency) => `${module.source} -> ${dependency.module}`),
   );
   if (unresolved.length > 0)
     throw new Error(
-      `Workspace imports did not resolve:\n${unresolved.join('\n')}`,
+      `Workspace and local imports did not resolve:\n${unresolved.join('\n')}`,
     );
   return report;
 }
@@ -224,6 +281,8 @@ function packageExportFindings(): Finding[] {
   return result;
 }
 
+const runtimeFixture = /(?:^|[/.])(?:mocks?|fixtures?|fakes?)(?:[./-]|$)/i;
+
 const useCaseFile = new RegExp(
   `^(?:${domainPackages.join('|')})/[a-z0-9]+(?:-[a-z0-9]+)*\\.ts$`,
 );
@@ -261,6 +320,30 @@ function structureFindings(
       from: folder,
       to: 'name the module after what it does',
     });
+  for (const path of sources) {
+    if (!path.startsWith('apps/web/src/')) continue;
+    const stem =
+      path
+        .split('/')
+        .at(-1)
+        ?.replace(/\.tsx$/, '') ?? '';
+    if (
+      path.endsWith('.tsx') &&
+      webPart(path) !== 'ui' &&
+      shadcnRegistry.has(stem)
+    )
+      result.push({
+        rule: 'web-shadcn-primitive-owner',
+        from: path,
+        to: `use the shadcn ${stem} from components/ui and its variants; add it through the shadcn CLI when it is missing`,
+      });
+    if (runtimeFixture.test(path.slice('apps/web/src/'.length)))
+      result.push({
+        rule: 'web-no-runtime-fixture',
+        from: path,
+        to: 'the web runs against the real isolated server; mocks, fixtures and fakes have no place in runtime code',
+      });
+  }
   for (const [path, info] of classified) {
     if (/^apps\/server\/src\/http\/routes\/[^/]+\.ts$/.test(path))
       result.push({
@@ -296,17 +379,27 @@ function classifyAll(sources: readonly string[]): {
   for (const file of sources) {
     const result = classify(file);
     if (result) classified.set(file, result);
+    else if (webPart(file) === 'ui')
+      findings.push({
+        rule: 'web-shadcn-ui-owner',
+        from: file,
+        to: 'components/ui holds shadcn registry components only, flat and as .tsx; search the registry and add a missing one through the shadcn CLI, and compose product views in features/<domain>/views/',
+      });
     else if (nestedInRoleFolder(file))
       findings.push({
         rule: 'role-folder-is-flat',
         from: file,
-        to: 'services/, models/, rules/, ports/, errors/ and use-cases/<area>/ hold files, never subfolders',
+        to: file.startsWith('apps/web/')
+          ? 'queries/, commands/, rules/, adapters/ and views/ hold files, never subfolders'
+          : 'services/, models/, rules/, ports/, errors/ and use-cases/<area>/ hold files, never subfolders',
       });
     else
       findings.push({
         rule: 'unclassified-source',
         from: file,
-        to: 'a folder that architecture/policy.ts classifies',
+        to: file.startsWith('apps/web/')
+          ? webLayout(file)
+          : 'a folder that architecture/policy.ts classifies',
       });
   }
   return { classified, findings };
@@ -325,6 +418,7 @@ function dependencyFindings(
     const from = classified.get(module.source);
     if (!from) continue;
     for (const dependency of module.dependencies) {
+      if (webAsset.test(dependency.resolved)) continue;
       const to = classified.get(dependency.resolved);
       if (to) {
         const gitRule = gitCapabilityViolation(
@@ -357,7 +451,7 @@ function dependencyFindings(
         if (rule)
           result.push({ rule, from: module.source, to: dependency.resolved });
       } else if (
-        sourceRoots.some((root) => dependency.resolved.startsWith(root))
+        allRoots.some((root) => dependency.resolved.startsWith(root))
       ) {
         result.push({
           rule: 'unclassified-import-target',
@@ -391,10 +485,10 @@ function dependencyFindings(
 try {
   if (process.argv[2] !== 'check')
     throw new Error('Usage: pnpm arch:check [--all]');
-  const sources = sourceRoots.flatMap(sourceFiles);
-  const report = scan(sources);
+  const sources = [...allRoots.flatMap(sourceFiles), webConfig];
+  const report = await scan(sources);
   const { classified, findings } = classifyAll(sources);
-  const violations = [
+  const found = [
     ...findings,
     ...dependencyFindings(report, classified),
     ...packageExportFindings(),
@@ -402,6 +496,21 @@ try {
     ...placementFindings(),
     ...typeRuleFindings(repositoryRoot),
     ...unusedExportFindings(repositoryRoot),
+  ];
+  const settled = settleBaseline(
+    readBaseline(repositoryRoot),
+    (rule) => !rule.includes('/'),
+    found.map((finding) => ({ ...finding, file: finding.from })),
+  );
+  const violations: Finding[] = [
+    ...settled.reported,
+    ...[...settled.problems, ...baselineHistoryProblems(repositoryRoot)].map(
+      (problem) => ({
+        rule: 'web-baseline' as const,
+        from: problem,
+        to: 'architecture/web-baseline.json',
+      }),
+    ),
   ];
   const byRule = new Map<ArchRule, Finding[]>();
   for (const finding of violations) {
@@ -420,7 +529,7 @@ try {
       process.stdout.write(`  ... ${entries.length - 3} more (use --all)\n`);
   }
   process.stdout.write(
-    `${violations.length} violations; ${classified.size} of ${sources.length} source files classified; ${report.summary.totalDependenciesCruised} dependencies\n`,
+    `${violations.length} violations; ${settled.held} web findings held by architecture/web-baseline.json; ${classified.size} of ${sources.length} source files classified; ${report.summary.totalDependenciesCruised} dependencies\n`,
   );
   if (violations.length > 0) process.exitCode = 1;
 } catch (error) {

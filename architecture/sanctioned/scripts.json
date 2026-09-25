@@ -1,26 +1,24 @@
 {
   "package.json": {
     "typecheck:server": "tsc --noEmit && pnpm --filter '@porcelain/server...' -r typecheck",
-    "lint:server": "node scripts/server-style.ts lint",
-    "format:server:check": "node scripts/server-style.ts format",
+    "lint:server": "node scripts/style.ts lint server",
+    "format:server:check": "node scripts/style.ts format server",
     "arch:check": "node scripts/architecture.ts check",
     "probes": "node scripts/probes.ts",
     "test": "vitest run",
     "db:check": "pnpm --filter @porcelain/storage db:check",
     "prepare": "lefthook install --reset-hooks-path",
     "typecheck:web": "pnpm --filter @porcelain/web typecheck",
-    "lint:web": "oxlint apps/web/src apps/web/spec apps/web/vite.config.ts",
-    "format:web:check": "oxfmt --check apps/web/src apps/web/spec apps/web/vite.config.ts",
-    "arch:web": "node scripts/web-architecture.ts",
-    "probes:web": "node scripts/web-probes.ts",
+    "lint:web": "node scripts/style.ts lint web",
+    "format:web:check": "node scripts/style.ts format web",
     "verify:web": "node .agents/skills/web-verify/scripts/browser.ts"
   },
   "apps/server/package.json": {
     "typecheck": "tsc --noEmit"
   },
   "apps/web/package.json": {
-    "typecheck": "tsc --noEmit",
-    "build": "tsc --noEmit && vite build"
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.node.json",
+    "build": "tsc --noEmit && tsc --noEmit -p tsconfig.node.json && vite build"
   },
   "packages/access/package.json": {
     "typecheck": "tsc --noEmit"

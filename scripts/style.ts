@@ -4,17 +4,27 @@ import { tmpdir } from 'node:os';
 import { isDeepStrictEqual } from 'node:util';
 import { basename, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { parseSync } from 'oxc-parser';
 import { z } from 'zod';
+import {
+  baselineHistoryProblems,
+  readBaseline,
+  settleBaseline,
+} from '../architecture/baseline.ts';
 import { domainPackages, type StyleRule } from '../architecture/policy.ts';
 import {
   liveRuleNames,
   probeSchema,
   unknownRule,
 } from '../architecture/probe.ts';
+import { compilerFindings } from '../architecture/react-compiler.ts';
 
-const mode = process.argv[2];
-if (mode !== 'lint' && mode !== 'format')
-  throw new Error('Usage: node scripts/server-style.ts lint|format');
+const [mode, target] = process.argv.slice(2);
+if (
+  (mode !== 'lint' && mode !== 'format') ||
+  (target !== 'server' && target !== 'web')
+)
+  throw new Error('Usage: node scripts/style.ts lint|format server|web');
 
 const packageNames = readdirSync('packages', { withFileTypes: true })
   .filter(
@@ -28,7 +38,7 @@ const packages = packageNames.flatMap((name) => [
   join('packages', name, 'spec'),
 ]);
 
-const roots = [
+const serverRoots = [
   'apps/server/src',
   'apps/server/spec',
   ...packages,
@@ -43,6 +53,9 @@ const roots = [
   '.agents/skills/web-verify/scripts',
   '.agents/skills/web-verify/feature-map',
 ].filter((root) => existsSync(root));
+const webRoots = ['apps/web/src', 'apps/web/spec', 'apps/web/vite.config.ts'];
+const allRoots = [...serverRoots, ...webRoots];
+const roots = target === 'web' ? webRoots : serverRoots;
 
 const disableDirective = /(?:\/\/|\/\*)\s*(?:eslint|oxlint)-(?:disable|enable)/;
 const lintConfig = '.oxlintrc.json';
@@ -75,7 +88,7 @@ function filesUnder(path: string): string[] {
 }
 
 function disableDirectives(): Problem[] {
-  return roots.flatMap(filesUnder).flatMap((file) =>
+  return allRoots.flatMap(filesUnder).flatMap((file) =>
     readFileSync(file, 'utf8')
       .split('\n')
       .flatMap((line, index) =>
@@ -104,14 +117,13 @@ function codeOutsideLintRoots(): Problem[] {
       (path) =>
         lintedFile.test(path) &&
         existsSync(path) &&
-        !path.startsWith('apps/web/') &&
         !path.startsWith('.claude/') &&
-        !roots.some((root) => path === root || path.startsWith(`${root}/`)),
+        !allRoots.some((root) => path === root || path.startsWith(`${root}/`)),
     )
     .map((path) =>
       problem(
         'code-outside-lint-roots',
-        `${path}: code lives under a lint root (${roots.join(', ')}); a file outside them escapes lint, the disable-directive scan and the format check.`,
+        `${path}: code lives under a lint root (${allRoots.join(', ')}); a file outside them escapes lint, the disable-directive scan and the format check.`,
       ),
     );
 }
@@ -209,6 +221,23 @@ function hookProblems(): Problem[] {
       ];
 }
 
+const formatConfig = '.oxfmtrc.json';
+const strayFormatConfig =
+  /^(?:\.oxfmtrc(?:\..+)?|\.prettierrc(?:\..+)?|\.prettierignore|prettier\.config\.[cm]?[jt]s)$/;
+
+function strayFormatConfigs(): Problem[] {
+  return filesUnder('.')
+    .filter(
+      (path) => path !== formatConfig && strayFormatConfig.test(basename(path)),
+    )
+    .map((path) =>
+      problem(
+        'format-config',
+        `${path}: the format check reads one configuration, the root ${formatConfig}, with no ignore files; remove this file.`,
+      ),
+    );
+}
+
 function strayLintConfigs(): Problem[] {
   return filesUnder('.')
     .filter(
@@ -239,6 +268,7 @@ const pluginSchema = z.object({
 const ruleListSchema = z.strictObject({
   porcelain: z.array(z.string()),
   typescript: z.array(z.string()),
+  shadcn: z.array(z.string()),
   style: z.array(z.string()),
   arch: z.array(z.string()),
 });
@@ -325,7 +355,19 @@ async function configProblems(): Promise<Problem[]> {
         `.oxlintrc.json holds plugins, jsPlugins, options, rules and overrides only: ${config.error.message}`,
       ),
     ];
-  strictJson('.oxfmtrc.json');
+  if (
+    !isDeepStrictEqual(
+      strictJson(formatConfig),
+      strictJson('architecture/sanctioned/oxfmt.json'),
+    )
+  )
+    problems.push(
+      problem(
+        'format-config',
+        `${formatConfig} differs from architecture/sanctioned/oxfmt.json; the format both format checks run with changes only there, where the change is visible.`,
+      ),
+    );
+  problems.push(...viteProblems());
   if (
     !isDeepStrictEqual(
       strictJson('.oxlintrc.json'),
@@ -398,6 +440,7 @@ async function configProblems(): Promise<Problem[]> {
   );
   for (const path of [
     'tsconfig.json',
+    'apps/web/tsconfig.node.json',
     ...packageFolders.map((folder) => join(folder, 'tsconfig.json')),
   ])
     if (!(path in sanctionedTsconfigs))
@@ -447,12 +490,66 @@ async function configProblems(): Promise<Problem[]> {
         ),
       );
   }
+  const webTypes = tsconfigSchema.parse(strictJson('apps/web/tsconfig.json'))
+    .compilerOptions?.types;
+  if (!isDeepStrictEqual(webTypes, ['vite/client']))
+    problems.push(
+      problem(
+        'tsconfig',
+        'apps/web/tsconfig.json sets "types": ["vite/client"] so Node globals do not compile in browser code; vite.config.ts gets Node through apps/web/tsconfig.node.json.',
+      ),
+    );
   problems.push(...scriptProblems());
   problems.push(...ciProblems());
   problems.push(...hookProblems());
   problems.push(...(await configModuleProblems()));
   problems.push(...(await ruleProblems()));
   return problems;
+}
+
+const viteSchema = z.strictObject({
+  'apps/web/vite.config.ts': z.strictObject({ plugins: z.array(z.string()) }),
+});
+
+function vitePlugins(path: string): string[] | undefined {
+  const source = readFileSync(path, 'utf8');
+  const program = parseSync(path, source).program;
+  for (const statement of program.body) {
+    if (statement.type !== 'ExportDefaultDeclaration') continue;
+    const call = statement.declaration;
+    if (call.type !== 'CallExpression') return undefined;
+    const config = call.arguments[0];
+    if (config?.type !== 'ObjectExpression') return undefined;
+    for (const property of config.properties)
+      if (
+        property.type === 'Property' &&
+        property.key.type === 'Identifier' &&
+        property.key.name === 'plugins' &&
+        property.value.type === 'ArrayExpression'
+      )
+        return property.value.elements.map((element) =>
+          element === null
+            ? ''
+            : source.slice(element.start, element.end).replace(/\s+/g, ''),
+        );
+  }
+  return undefined;
+}
+
+function viteProblems(): Problem[] {
+  const sanctioned = viteSchema.parse(
+    strictJson('architecture/sanctioned/vite.json'),
+  );
+  return Object.entries(sanctioned).flatMap(([path, { plugins }]) =>
+    existsSync(path) && isDeepStrictEqual(vitePlugins(path), plugins)
+      ? []
+      : [
+          problem(
+            'vite-config',
+            `${path} runs the plugins architecture/sanctioned/vite.json lists, the React Compiler with panicThreshold none among them; the build a user gets changes only there, where the change is visible.`,
+          ),
+        ],
+  );
 }
 
 function scriptProblems(): Problem[] {
@@ -586,7 +683,13 @@ async function ruleProblems(): Promise<Problem[]> {
   const sanctioned = ruleListSchema.parse(
     strictJson('architecture/rules.json'),
   );
-  for (const family of ['porcelain', 'typescript', 'style', 'arch'] as const)
+  for (const family of [
+    'porcelain',
+    'typescript',
+    'shadcn',
+    'style',
+    'arch',
+  ] as const)
     if (!isDeepStrictEqual(live[family], sortedNames(sanctioned[family])))
       problems.push(
         problem(
@@ -635,7 +738,23 @@ const diagnosticsSchema = z.object({
   ),
 });
 
-function lint(): number {
+type Finding = {
+  rule: string;
+  file: string;
+  line: number;
+  column: number;
+  code: string;
+  message: string;
+};
+
+function webSources(): string[] {
+  return filesUnder('apps/web/src').filter(
+    (path) =>
+      /\.tsx?$/.test(path) && !path.startsWith('apps/web/src/components/ui/'),
+  );
+}
+
+async function lint(): Promise<number> {
   const files = roots
     .flatMap(filesUnder)
     .filter((path) => lintedFile.test(path));
@@ -659,28 +778,46 @@ function lint(): number {
     process.stderr.write(result.stdout + result.stderr);
     return 1;
   }
-  const findings = parsed.data.diagnostics.map((diagnostic) => ({
-    ...diagnostic,
-    rule: (diagnostic.code ?? '').replace(
-      /^porcelain\((.+)\)$/,
-      'porcelain/$1',
-    ),
+  const linted: Finding[] = parsed.data.diagnostics.map((diagnostic) => ({
+    rule: (diagnostic.code ?? '').replace(/^([a-z-]+)\((.+)\)$/, '$1/$2'),
     file: diagnostic.filename,
+    line: diagnostic.labels?.[0]?.span.line ?? 0,
+    column: diagnostic.labels?.[0]?.span.column ?? 0,
+    code: `${diagnostic.severity} ${diagnostic.code ?? ''}`,
+    message: diagnostic.message,
   }));
-  for (const finding of findings) {
-    const span = finding.labels?.[0]?.span;
+  const compiled: Finding[] =
+    target === 'web'
+      ? (await compilerFindings(webSources())).map((finding) => ({
+          rule: 'style/react-compiler',
+          file: finding.file,
+          line: finding.line,
+          column: 0,
+          code: 'error style(react-compiler)',
+          message: finding.message,
+        }))
+      : [];
+  const settled = settleBaseline(
+    readBaseline('.'),
+    (rule) => target === 'web' && rule.includes('/'),
+    [...linted, ...compiled],
+  );
+  for (const finding of settled.reported)
     process.stdout.write(
-      `${finding.filename}:${span?.line ?? 0}:${span?.column ?? 0}: ${finding.severity} ${finding.code ?? ''}: ${finding.message}\n`,
+      `${finding.file}:${finding.line}:${finding.column}: ${finding.code}: ${finding.message}\n`,
     );
-  }
-  process.stdout.write(`${findings.length} findings.\n`);
+  for (const found of settled.problems)
+    process.stdout.write(`error style(web-baseline): ${found}\n`);
+  process.stdout.write(
+    `${settled.reported.length} findings; ${settled.held} web findings held by architecture/web-baseline.json.\n`,
+  );
   if (parsed.data.number_of_files !== files.length) {
     process.stdout.write(
       `lint skipped files: oxlint read ${parsed.data.number_of_files} of the ${files.length} files under the lint roots; nothing may hide a file from lint.\n`,
     );
     return 1;
   }
-  return findings.length > 0 ? 1 : 0;
+  return settled.reported.length > 0 || settled.problems.length > 0 ? 1 : 0;
 }
 
 if (mode === 'format') {
@@ -692,11 +829,15 @@ if (mode === 'format') {
   if (result.error) throw result.error;
   process.exitCode = result.status ?? 1;
 } else {
-  process.exitCode = lint();
+  process.exitCode = await lint();
   const problems = [
     ...disableDirectives(),
     ...strayLintConfigs(),
+    ...strayFormatConfigs(),
     ...codeOutsideLintRoots(),
+    ...baselineHistoryProblems('.').map((found) =>
+      problem('web-baseline', found),
+    ),
     ...(await configProblems().catch((error: unknown) => {
       if (error instanceof StyleProblem) return [error.problem];
       throw error;

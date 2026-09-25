@@ -19,8 +19,7 @@
       "pnpm typecheck:web",
       "pnpm lint:web",
       "pnpm format:web:check",
-      "pnpm arch:web",
-      "pnpm probes:web",
+      "pnpm arch:check",
       "pnpm --filter @porcelain/web build",
       "pnpm exec playwright install --with-deps --only-shell chromium",
       "sudo apt-get update && sudo apt-get install --yes bubblewrap",
@@ -69,9 +68,6 @@
               },
               {
                 "run": "pnpm format:web:check"
-              },
-              {
-                "run": "pnpm arch:web"
               }
             ]
           }

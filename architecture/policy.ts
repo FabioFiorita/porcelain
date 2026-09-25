@@ -125,9 +125,124 @@ export const roles = [
   'capture',
   'store-contract',
   'test',
+  'route',
+  'shell',
+  'view',
+  'query',
+  'command',
+  'store',
+  'live',
+  'overlays',
+  'web-rule',
+  'adapter',
+  'api',
+  'feature-index',
+  'web-shared',
+  'ui',
+  'browser-spec',
+  'web-config',
+  'web-limits',
+  'web-entry',
 ] as const;
 
 export type Role = (typeof roles)[number];
+
+export const webRoles: ReadonlySet<Role> = new Set<Role>([
+  'route',
+  'shell',
+  'view',
+  'query',
+  'command',
+  'store',
+  'live',
+  'overlays',
+  'web-rule',
+  'adapter',
+  'api',
+  'feature-index',
+  'web-shared',
+  'ui',
+  'browser-spec',
+  'web-config',
+  'web-limits',
+  'web-entry',
+]);
+
+export const webDomains = [
+  'access',
+  'projects',
+  'changes',
+  'files',
+  'git-actions',
+  'history',
+  'reviews',
+] as const;
+
+export const shadcnRegistry: ReadonlySet<string> = new Set([
+  'accordion',
+  'alert',
+  'alert-dialog',
+  'aspect-ratio',
+  'attachment',
+  'avatar',
+  'badge',
+  'breadcrumb',
+  'bubble',
+  'button',
+  'button-group',
+  'calendar',
+  'card',
+  'carousel',
+  'chart',
+  'checkbox',
+  'collapsible',
+  'combobox',
+  'command',
+  'context-menu',
+  'dialog',
+  'direction',
+  'drawer',
+  'dropdown-menu',
+  'empty',
+  'field',
+  'form',
+  'hover-card',
+  'input',
+  'input-group',
+  'input-otp',
+  'item',
+  'kbd',
+  'label',
+  'marker',
+  'menubar',
+  'message',
+  'message-scroller',
+  'native-select',
+  'navigation-menu',
+  'pagination',
+  'popover',
+  'progress',
+  'questionnaire',
+  'radio-group',
+  'resizable',
+  'scroll-area',
+  'select',
+  'separator',
+  'sheet',
+  'sidebar',
+  'skeleton',
+  'slider',
+  'sonner',
+  'spinner',
+  'switch',
+  'table',
+  'tabs',
+  'textarea',
+  'toast',
+  'toggle',
+  'toggle-group',
+  'tooltip',
+]);
 
 export const archRules = [
   'code-outside-roots',
@@ -171,6 +286,15 @@ export const archRules = [
   'lane-per-table',
   'lane-mode-matches-service',
   'unused-export',
+  'unused-dependency',
+  'web-shadcn-ui-owner',
+  'web-shadcn-primitive-owner',
+  'web-no-runtime-fixture',
+  'web-routes-import-feature-index',
+  'web-features-import-feature-index',
+  'web-shared-imports-no-owner',
+  'web-nothing-imports-routes',
+  'web-baseline',
 ] as const;
 
 export type ArchRule =
@@ -206,6 +330,10 @@ export const styleRules = [
   'ci-steps',
   'pre-push-hook',
   'code-outside-lint-roots',
+  'format-config',
+  'vite-config',
+  'react-compiler',
+  'web-baseline',
 ] as const;
 
 export type StyleRule = (typeof styleRules)[number];
@@ -382,8 +510,100 @@ function classifyServer(inside: string) {
   return;
 }
 
+const webFeatureFolders = ['queries', 'commands', 'rules', 'adapters', 'views'];
+const webFeatureFiles: Readonly<Record<string, Role>> = {
+  'api.ts': 'api',
+  'store.ts': 'store',
+  'live.ts': 'live',
+  'overlays.ts': 'overlays',
+  'index.ts': 'feature-index',
+};
+const webFolderRoles: Readonly<Record<string, Role>> = {
+  queries: 'query',
+  commands: 'command',
+  rules: 'web-rule',
+  adapters: 'adapter',
+  views: 'view',
+};
+const webDomainSet: ReadonlySet<string> = new Set(webDomains);
+const webCode = /\.tsx?$/;
+const kebabFile = /^[a-z0-9]+(?:-[a-z0-9]+)*\.tsx?$/;
+
+export function webPart(path: string): Role | undefined {
+  if (path === 'apps/web/vite.config.ts') return 'web-config';
+  if (path.startsWith('apps/web/spec/browser/')) return 'browser-spec';
+  if (!path.startsWith('apps/web/src/') || !webCode.test(path)) return;
+  const inside = path.slice('apps/web/src/'.length);
+  const parts = inside.split('/');
+  const top = parts[0] ?? '';
+  if (inside === 'main.tsx' || inside === 'routeTree.gen.ts')
+    return 'web-entry';
+  if (inside === 'config/limits.ts') return 'web-limits';
+  if (top === 'routes') return 'route';
+  if (top === 'app') return inside.endsWith('.tsx') ? 'shell' : undefined;
+  if (top === 'components' && parts[1] === 'ui') return 'ui';
+  if (top === 'shared') return 'web-shared';
+  if (top !== 'features' || parts.length < 3) return;
+  const part = parts[2] ?? '';
+  if (parts.length === 3) return webFeatureFiles[part];
+  return part === 'api' ? 'api' : webFolderRoles[part];
+}
+
+function classifyWeb(path: string): Classification | undefined {
+  const owner = 'web';
+  const role = webPart(path);
+  if (role === undefined) return;
+  const inside = path.slice('apps/web/'.length).split('/');
+  const name = inside.at(-1) ?? '';
+  if (role === 'browser-spec')
+    return inside.length === 3 && /^[a-z0-9-]+\.browser\.ts$/.test(name)
+      ? classified(role, owner)
+      : undefined;
+  if (role === 'shell')
+    return inside.length === 3 && kebabFile.test(name)
+      ? classified(role, owner)
+      : undefined;
+  if (role === 'ui')
+    return inside.length === 4 && shadcnRegistry.has(name.replace(/\.tsx$/, ''))
+      ? classified(role, owner)
+      : undefined;
+  if (role === 'web-shared')
+    return inside.length <= 4 && kebabFile.test(name)
+      ? classified(role, owner)
+      : undefined;
+  if (role === 'route' || role === 'web-entry' || role === 'web-config')
+    return classified(role, owner);
+  if (role === 'web-limits') return classified(role, owner);
+  const [, , domain = '', part = ''] = inside;
+  if (!webDomainSet.has(domain)) return;
+  if (inside.length === 4)
+    return webFeatureFiles[part] === role ? classified(role, owner) : undefined;
+  if (inside.length !== 5 || !webFeatureFolders.includes(part)) return;
+  if (!kebabFile.test(name)) return;
+  if (role === 'view' && !name.endsWith('.tsx')) return;
+  if (
+    (role === 'query' || role === 'command' || role === 'web-rule') &&
+    name.endsWith('.tsx')
+  )
+    return;
+  return classified(role, owner);
+}
+
+export function webLayout(path: string): string {
+  if (path.startsWith('apps/web/spec/'))
+    return 'apps/web/spec/browser/<case>.browser.ts holds the browser behaviour cases and nothing else';
+  const inside = path.slice('apps/web/src/'.length);
+  if (inside.startsWith('features/'))
+    return `features/<domain>/ holds api.ts, store.ts, live.ts, overlays.ts, index.ts and the flat folders queries/, commands/, rules/ (.ts), adapters/ and views/ (.tsx); <domain> is one of ${webDomains.join(', ')}`;
+  if (inside.startsWith('app/'))
+    return 'app/ holds the shell only: flat <name>.tsx pieces for the root layout, settings dialog, error and pending views';
+  if (inside.startsWith('components/'))
+    return 'components/ui/ holds shadcn registry components, added through the shadcn CLI; product views live in features/<domain>/views/';
+  return 'apps/web/src holds main.tsx, routes/, app/, components/ui/, shared/, config/limits.ts and features/<domain>/';
+}
+
 const nestedRoleFolder =
-  /^(?:packages\/[^/]+\/src\/(?:services|models|rules|ports|errors)\/[^/]+\/|apps\/server\/src\/(?:ports\/[^/]+\/|use-cases\/[^/]+\/[^/]+\/))/;
+  /^(?:packages\/[^/]+\/src\/(?:services|models|rules|ports|errors)\/[^/]+\/|apps\/server\/src\/(?:ports\/[^/]+\/|use-cases\/[^/]+\/[^/]+\/)|apps\/web\/src\/features\/[^/]+\/(?:queries|commands|rules|adapters|views)\/[^/]+\/)/;
 
 export function nestedInRoleFolder(path: string): boolean {
   return nestedRoleFolder.test(path);
@@ -409,6 +629,7 @@ export function classify(path: string): Classification | undefined {
     return classifyPackage(packageFile[1] ?? '', packageFile[2] ?? '');
   if (path.startsWith('apps/server/src/'))
     return classifyServer(path.slice('apps/server/src/'.length));
+  if (path.startsWith('apps/web/')) return classifyWeb(path);
   return;
 }
 
@@ -587,6 +808,76 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
     'store-contract',
     'test',
     'process',
+  ]),
+  route: new Set(['feature-index', 'shell', 'web-shared', 'web-limits']),
+  shell: new Set(['feature-index', 'shell', 'ui', 'web-shared', 'web-limits']),
+  view: new Set([
+    'view',
+    'query',
+    'command',
+    'store',
+    'overlays',
+    'web-rule',
+    'adapter',
+    'ui',
+    'web-shared',
+    'web-limits',
+    'feature-index',
+  ]),
+  query: new Set([
+    'query',
+    'api',
+    'store',
+    'web-rule',
+    'web-shared',
+    'web-limits',
+    'contract',
+  ]),
+  command: new Set([
+    'command',
+    'query',
+    'api',
+    'store',
+    'web-rule',
+    'web-shared',
+    'web-limits',
+    'contract',
+  ]),
+  store: new Set(['web-rule', 'web-shared', 'web-limits', 'contract']),
+  live: new Set(['query', 'web-rule', 'web-shared', 'contract']),
+  overlays: new Set(['contract']),
+  'web-rule': new Set(['web-rule', 'web-limits', 'contract']),
+  adapter: new Set([
+    'adapter',
+    'store',
+    'web-rule',
+    'web-shared',
+    'web-limits',
+    'contract',
+  ]),
+  api: new Set(['web-rule', 'web-shared', 'web-limits', 'contract']),
+  'feature-index': new Set([
+    'view',
+    'query',
+    'command',
+    'store',
+    'live',
+    'overlays',
+    'web-rule',
+    'adapter',
+  ]),
+  'web-shared': new Set(['web-shared', 'web-limits', 'contract']),
+  ui: new Set(['ui', 'web-shared']),
+  'browser-spec': new Set([...webRoles, 'contract']),
+  'web-config': new Set(),
+  'web-limits': new Set(['contract']),
+  'web-entry': new Set([
+    'route',
+    'shell',
+    'feature-index',
+    'ui',
+    'web-shared',
+    'web-limits',
   ]),
 };
 
@@ -769,6 +1060,24 @@ export const externalPackages: Record<Role, readonly string[]> = {
   capture: [],
   'store-contract': ['vitest'],
   test: [],
+  route: [],
+  shell: [],
+  view: [],
+  query: [],
+  command: [],
+  store: [],
+  live: [],
+  overlays: [],
+  'web-rule': [],
+  adapter: [],
+  api: [],
+  'feature-index': [],
+  'web-shared': [],
+  ui: [],
+  'browser-spec': [],
+  'web-config': [],
+  'web-limits': [],
+  'web-entry': [],
 };
 
 const fixtureNodeModules = new Set(['fs', 'path', 'url']);
@@ -835,6 +1144,11 @@ export function runtimeNodeViolation(
 }
 
 export function forbiddenExternal(role: Role, module: string): boolean {
+  if (webRoles.has(role))
+    return (
+      role !== 'web-config' &&
+      (module.startsWith('node:') || isNodeModule(module))
+    );
   if (module.startsWith('node:') || isNodeModule(module))
     return forbiddenNodeModule(role, module.replace(/^node:/, ''));
   if (role === 'test') return false;

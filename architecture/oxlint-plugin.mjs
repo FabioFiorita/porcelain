@@ -2,7 +2,8 @@ import { existsSync } from 'node:fs';
 import { builtinModules } from 'node:module';
 import { posix } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { classify, nodeGlobalRoles } from './policy.ts';
+import { classify, nodeGlobalRoles, webPart } from './policy.ts';
+import { webRules } from './web-rules.mjs';
 
 const domainPackage = '(?:projects|changes|reviews|files|git-actions|access)';
 const domainSource = new RegExp(
@@ -424,9 +425,11 @@ const openTypes = new Set([
   'TSAnyKeyword',
 ]);
 const kernelTypesFile = /^packages\/kernel\/src\/(?:models|ports)\//;
-const numberFreeFile = new RegExp(`^(?:packages/[^/]+/src/|apps/server/src/)`);
+const numberFreeFile = new RegExp(
+  `^(?:packages/[^/]+/src/|apps/server/src/|apps/web/src/)`,
+);
 const limitsFile =
-  /^(?:packages\/contracts\/src\/shared\/limits|apps\/server\/src\/config\/limits)\.ts$/;
+  /^(?:packages\/contracts\/src\/shared\/limits|apps\/(?:server|web)\/src\/config\/limits)\.ts$/;
 const statusName = /(?:^|\.)status(?:Code)?$/i;
 const positionMethods = new Set(['slice', 'at', 'substring', 'padStart']);
 const FIELD_POSITION_MAX = 16;
@@ -1169,6 +1172,7 @@ function allowedSpecImport(filename, source) {
 export default {
   meta: { name: 'porcelain' },
   rules: {
+    ...webRules,
     'operation-class-members': {
       create(context) {
         if (!operationFile.test(repositoryPath(context)) || isSpec(context))
@@ -2681,11 +2685,12 @@ export default {
         if (
           !numberFreeFile.test(path) ||
           limitsFile.test(path) ||
+          webPart(path) === 'ui' ||
           isSpec(context)
         )
           return {};
         const message =
-          'A number above 1 is a limit: it lives in contracts/shared/limits.ts or config/limits.ts and arrives as a parameter or an option.';
+          'A number above 1 is a limit: it lives in contracts/shared/limits.ts when the server enforces it too, otherwise in the server or web config/limits.ts, and arrives as a parameter or an option.';
         const hiddenNumber = (node) => {
           const text = staticString(node, context);
           return text !== undefined && Number(text) > 1;
@@ -2739,11 +2744,7 @@ export default {
               node.parent?.type !== 'TSLiteralType' &&
               !allowedNumberContext(node, node.value)
             )
-              context.report({
-                node,
-                message:
-                  'A number above 1 is a limit: it lives in contracts/shared/limits.ts or config/limits.ts and arrives as a parameter or an option.',
-              });
+              context.report({ node, message });
           },
         };
       },

@@ -9,12 +9,14 @@ import {
   type Statement,
 } from 'typescript/unstable/ast';
 import {
+  isCallExpression,
   isClassDeclaration,
   isEnumDeclaration,
   isExportDeclaration,
   isFunctionDeclaration,
   isIdentifier,
   isImportDeclaration,
+  isImportExpression,
   isInterfaceDeclaration,
   isNamedExports,
   isNamedImports,
@@ -35,10 +37,18 @@ type ModuleShape = {
   forwarded: Map<string, Binding>;
   starred: string[];
   imports: Imported[];
+  external: string[];
 };
 
-const checkedFile = /^(?:packages\/[^/]+|apps\/server)\/src\/.+\.ts$/;
-const skippedFile = /(?:\.spec|\.d)\.ts$/;
+const checkedFile =
+  /^(?:(?:packages\/[^/]+|apps\/server)\/src\/.+\.ts|apps\/web\/src\/.+\.tsx?)$/;
+const skippedFile = /(?:\.spec|\.d)\.ts$|^apps\/web\/src\/components\/ui\//;
+const webSource = 'apps/web/src';
+const webCandidates = ['', '.ts', '.tsx', '/index.ts', '/index.tsx'];
+const cssImport = /^@import\s+['"]([^'"]+)['"]/gm;
+const webManifestSchema = z.object({
+  dependencies: z.record(z.string(), z.string()).optional(),
+});
 const workspaceModule = /^@porcelain\/([^/]+)(?:\/(.+))?$/;
 const manifestSchema = z.object({
   exports: z.record(z.string(), z.string()).optional(),
@@ -90,6 +100,15 @@ function resolveModule(
   specifier: string,
   manifests: Map<string, Record<string, string>>,
 ): string | undefined {
+  if (from.startsWith('apps/web/') && /^(?:\.|@\/)/.test(specifier)) {
+    const base = specifier.startsWith('@/')
+      ? join(root, webSource, specifier.slice('@/'.length))
+      : resolve(root, dirname(from), specifier);
+    const found = webCandidates
+      .map((suffix) => base + suffix)
+      .find((path) => /\.tsx?$/.test(path) && existsSync(path));
+    return found === undefined ? undefined : relative(root, found);
+  }
   if (specifier.startsWith('.'))
     return relative(root, resolve(root, dirname(from), specifier));
   const workspace = workspaceModule.exec(specifier);
@@ -114,13 +133,34 @@ function shapeOf(
     forwarded: new Map(),
     starred: [],
     imports: [],
+    external: [],
   };
   const target = (specifier: Node | undefined) =>
     specifier !== undefined && isStringLiteral(specifier)
       ? resolveModule(root, path, specifier.text, manifests)
       : undefined;
+  const dynamic = (node: Node): undefined => {
+    if (isCallExpression(node) && isImportExpression(node.expression)) {
+      const source = target(node.arguments[0]);
+      if (source !== undefined)
+        shape.imports.push({ file: source, names: 'every' });
+    }
+    node.forEachChild(dynamic);
+    return undefined;
+  };
+  file.forEachChild(dynamic);
   for (const statement of file.statements) {
     for (const name of declared(statement)) shape.local.add(name);
+    const specifier =
+      isImportDeclaration(statement) || isExportDeclaration(statement)
+        ? statement.moduleSpecifier
+        : undefined;
+    if (
+      specifier !== undefined &&
+      isStringLiteral(specifier) &&
+      !/^(?:\.|@\/)/.test(specifier.text)
+    )
+      shape.external.push(specifier.text);
     if (isImportDeclaration(statement)) {
       const source = target(statement.moduleSpecifier);
       const bindings = statement.importClause?.namedBindings;
@@ -171,6 +211,8 @@ function projectConfigs(root: string): string[] {
   return [
     join(root, 'tsconfig.json'),
     join(root, 'apps/server/tsconfig.json'),
+    join(root, 'apps/web/tsconfig.json'),
+    join(root, 'apps/web/tsconfig.node.json'),
     ...packages,
   ].filter((path) => existsSync(path));
 }
@@ -189,7 +231,7 @@ export function unusedExportFindings(root: string): UnusedExportFinding[] {
         if (!name.startsWith(`${root}/`) || name.includes('/node_modules/'))
           continue;
         const path = relative(root, name);
-        if (path.startsWith('apps/web/') || shapes.has(path)) continue;
+        if (shapes.has(path)) continue;
         const file = project.program.getSourceFile(name);
         if (file) shapes.set(path, shapeOf(root, path, file, manifests));
       }
@@ -233,8 +275,40 @@ export function unusedExportFindings(root: string): UnusedExportFinding[] {
             to: `${name}: no file imports it; delete it or stop exporting it`,
           });
     }
-    return findings;
+    return [...findings, ...unusedWebDependencies(root, shapes)];
   } finally {
     api.close();
   }
+}
+
+function packageOf(specifier: string): string {
+  const [scope = '', name = ''] = specifier.split('/');
+  return scope.startsWith('@') ? `${scope}/${name}` : scope;
+}
+
+function unusedWebDependencies(
+  root: string,
+  shapes: ReadonlyMap<string, ModuleShape>,
+): UnusedExportFinding[] {
+  const manifest = webManifestSchema.parse(
+    JSON.parse(readFileSync(join(root, 'apps/web/package.json'), 'utf8')),
+  );
+  const used = new Set<string>();
+  for (const [path, shape] of shapes)
+    if (path.startsWith('apps/web/'))
+      for (const specifier of shape.external) used.add(packageOf(specifier));
+  for (const entry of readdirSync(join(root, webSource)))
+    if (entry.endsWith('.css'))
+      for (const match of readFileSync(
+        join(root, webSource, entry),
+        'utf8',
+      ).matchAll(cssImport))
+        used.add(packageOf(match[1] ?? ''));
+  return Object.keys(manifest.dependencies ?? {})
+    .filter((name) => !used.has(name))
+    .map((name) => ({
+      rule: 'unused-dependency',
+      from: 'apps/web/package.json',
+      to: `${name}: no web file or stylesheet imports it; remove it from the dependencies`,
+    }));
 }

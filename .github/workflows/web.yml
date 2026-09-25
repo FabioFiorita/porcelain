@@ -29,8 +29,7 @@ jobs:
       - run: pnpm typecheck:web
       - run: pnpm lint:web
       - run: pnpm format:web:check
-      - run: pnpm arch:web
-      - run: pnpm probes:web
+      - run: pnpm arch:check
       - run: pnpm --filter @porcelain/web build
       - run: pnpm exec playwright install --with-deps --only-shell chromium
       - run: sudo apt-get update && sudo apt-get install --yes bubblewrap

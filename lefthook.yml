@@ -17,4 +17,3 @@ pre-push:
           - run: pnpm typecheck:web
           - run: pnpm lint:web
           - run: pnpm format:web:check
-          - run: pnpm arch:web
