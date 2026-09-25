@@ -39,6 +39,20 @@
       "lib": ["ES2024"]
     }
   },
+  "apps/web/tsconfig.json": {
+    "extends": "../../tsconfig.json",
+    "compilerOptions": {
+      "module": "ESNext",
+      "moduleResolution": "Bundler",
+      "lib": ["ES2024", "DOM", "DOM.Iterable"],
+      "jsx": "react-jsx",
+      "types": ["vite/client", "node"],
+      "paths": {
+        "@/*": ["./src/*"]
+      }
+    },
+    "include": ["src", "spec", "vite.config.ts"]
+  },
   "packages/access/tsconfig.json": {
     "extends": "../../tsconfig.json",
     "compilerOptions": {

@@ -1,5 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { isDeepStrictEqual } from 'node:util';
 import { basename, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -116,31 +117,48 @@ function codeOutsideLintRoots(): Problem[] {
 }
 
 const ciSchema = z.strictObject({
-  workflow: z.array(z.string()),
+  workflows: z.record(z.string(), z.array(z.string())),
   prePush: z.array(z.string()),
 });
+
+const pinnedWorkflows = [
+  '.github/workflows/server.yml',
+  '.github/workflows/web.yml',
+] as const;
+
+function workflowSteps(path: string): string[] {
+  if (!existsSync(path)) return [];
+  return [
+    ...readFileSync(path, 'utf8').matchAll(/^\s*(?:- )?run: (.+)$/gm),
+  ].map((match) => match[1] ?? '');
+}
 
 function ciProblems(): Problem[] {
   const sanctioned = ciSchema.parse(
     strictJson('architecture/sanctioned/ci.json'),
   );
-  const workflow = [
-    ...readFileSync('.github/workflows/server.yml', 'utf8').matchAll(
-      /^\s*(?:- )?run: (.+)$/gm,
-    ),
-  ].map((match) => match[1] ?? '');
   const prePush = readFileSync('.githooks/pre-push', 'utf8')
     .split('\n')
     .filter((line) => line.trim() !== '');
   return [
-    ...(isDeepStrictEqual(workflow, sanctioned.workflow)
-      ? []
-      : [
-          problem(
-            'ci-steps',
-            '.github/workflows/server.yml runs the steps architecture/sanctioned/ci.json lists, in that order; a gate leaves CI only through the sanctioned list.',
-          ),
-        ]),
+    ...pinnedWorkflows.flatMap((path) =>
+      isDeepStrictEqual(workflowSteps(path), sanctioned.workflows[path])
+        ? []
+        : [
+            problem(
+              'ci-steps',
+              `${path} runs the steps architecture/sanctioned/ci.json lists for it, in that order; a gate leaves CI only through the sanctioned list.`,
+            ),
+          ],
+    ),
+    ...Object.keys(sanctioned.workflows)
+      .filter((path) => !pinnedWorkflows.some((pinned) => pinned === path))
+      .map((path) =>
+        problem(
+          'ci-steps',
+          `architecture/sanctioned/ci.json lists ${path}, which the CI check does not read; every sanctioned workflow is checked.`,
+        ),
+      ),
     ...(isDeepStrictEqual(prePush, sanctioned.prePush)
       ? []
       : [
@@ -206,6 +224,7 @@ const configModuleSchema = z.object({ default: z.unknown() });
 
 const packageFolders = [
   'apps/server',
+  'apps/web',
   ...packageNames.map((name) => join('packages', name)),
 ];
 
@@ -425,46 +444,86 @@ function scriptProblems(): Problem[] {
   return problems;
 }
 
-function pinnedShape(value: unknown, root: string): unknown {
+function pinnedShape(
+  value: unknown,
+  places: { root: string; temporary: string },
+): unknown {
   if (typeof value === 'function') return '<function>';
-  if (value === root) return '<root>';
+  if (typeof value === 'string') {
+    for (const [name, path] of [
+      ['<root>', places.root],
+      ['<tmp>', places.temporary],
+    ] as const)
+      if (value === path || value.startsWith(`${path}/`))
+        return name + value.slice(path.length);
+    return value;
+  }
   if (Array.isArray(value))
-    return value.map((entry: unknown) => pinnedShape(entry, root));
+    return value.map((entry: unknown) => pinnedShape(entry, places));
   if (typeof value === 'object' && value !== null)
     return Object.fromEntries(
       Object.entries(value).map(([key, entry]) => [
         key,
-        pinnedShape(entry, root),
+        pinnedShape(entry, places),
       ]),
     );
   return value;
 }
 
+type PinnedModule = {
+  rule: StyleRule;
+  module: string;
+  sanctioned: string;
+  entry?: string;
+  keys?: readonly string[];
+  why: string;
+};
+
+const pinnedModules: readonly PinnedModule[] = [
+  {
+    rule: 'vitest-config',
+    module: 'vitest.config.ts',
+    sanctioned: 'architecture/sanctioned/vitest.json',
+    entry: 'vitest.config.ts',
+    why: 'every project keeps its include, setup files and expect settings, requireAssertions among them, and the run keeps the spec-discipline reporter',
+  },
+  {
+    rule: 'vitest-config',
+    module: '.agents/skills/web-verify/scripts/vitest.browser.config.ts',
+    sanctioned: 'architecture/sanctioned/vitest.json',
+    entry: '.agents/skills/web-verify/scripts/vitest.browser.config.ts',
+    keys: ['root', 'test'],
+    why: 'the browser run keeps its web root, spec include, evidence folders and headless Chromium through the Playwright provider',
+  },
+  {
+    rule: 'cruiser-config',
+    module: 'architecture/dependency-cruiser.cjs',
+    sanctioned: 'architecture/sanctioned/dependency-cruiser.json',
+    why: 'the forbidden rules keep their names, severity and from/to scope, and the resolution options stay as they are',
+  },
+];
+
+function pinnedPart(
+  config: unknown,
+  keys: readonly string[] | undefined,
+): unknown {
+  if (keys === undefined) return config;
+  const fields = sanctionedFilesSchema.parse(config);
+  return Object.fromEntries(keys.map((key) => [key, fields[key]]));
+}
+
 async function configModuleProblems(): Promise<Problem[]> {
-  const root = resolve('.');
-  const pinned = [
-    {
-      rule: 'vitest-config',
-      module: 'vitest.config.ts',
-      sanctioned: 'architecture/sanctioned/vitest.json',
-      why: 'every project keeps its include, setup files and expect settings, requireAssertions among them, and the run keeps the spec-discipline reporter',
-    },
-    {
-      rule: 'cruiser-config',
-      module: 'architecture/dependency-cruiser.cjs',
-      sanctioned: 'architecture/sanctioned/dependency-cruiser.json',
-      why: 'the forbidden rules keep their names, severity and from/to scope, and the resolution options stay as they are',
-    },
-  ] as const;
+  const places = { root: resolve('.'), temporary: tmpdir() };
   const problems: Problem[] = [];
-  for (const { rule, module, sanctioned, why } of pinned) {
+  for (const { rule, module, sanctioned, entry, keys, why } of pinnedModules) {
     const loaded = configModuleSchema.parse(
       await import(pathToFileURL(resolve(module)).href),
     );
+    const copy = strictJson(sanctioned);
     if (
       !isDeepStrictEqual(
-        pinnedShape(loaded.default, root),
-        strictJson(sanctioned),
+        pinnedShape(pinnedPart(loaded.default, keys), places),
+        entry === undefined ? copy : sanctionedFilesSchema.parse(copy)[entry],
       )
     )
       problems.push(

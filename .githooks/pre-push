@@ -2,8 +2,14 @@
 set -eu
 unset $(git rev-parse --local-env-vars)
 cd "$(git rev-parse --show-toplevel)"
+
 pnpm typecheck:server
 pnpm lint:server
 pnpm format:server:check
 pnpm test
 pnpm arch:check
+
+pnpm typecheck:web
+pnpm lint:web
+pnpm format:web:check
+pnpm arch:web

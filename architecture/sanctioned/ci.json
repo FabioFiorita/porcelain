@@ -1,18 +1,34 @@
 {
-  "workflow": [
-    "pnpm install --frozen-lockfile",
-    "pnpm typecheck:server",
-    "pnpm lint:server",
-    "pnpm format:server:check",
-    "pnpm test",
-    "pnpm db:check",
-    "sudo apt-get update && sudo apt-get install --yes bubblewrap",
-    "sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0",
-    "bwrap --ro-bind / / --dev /dev --proc /proc --unshare-pid --unshare-ipc --unshare-net --new-session --die-with-parent -- true",
-    "node .agents/skills/server-verify/scripts/verify.ts --all",
-    "pnpm arch:check",
-    "pnpm probes"
-  ],
+  "workflows": {
+    ".github/workflows/server.yml": [
+      "pnpm install --frozen-lockfile",
+      "pnpm typecheck:server",
+      "pnpm lint:server",
+      "pnpm format:server:check",
+      "pnpm test",
+      "pnpm db:check",
+      "sudo apt-get update && sudo apt-get install --yes bubblewrap",
+      "sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0",
+      "bwrap --ro-bind / / --dev /dev --proc /proc --unshare-pid --unshare-ipc --unshare-net --new-session --die-with-parent -- true",
+      "node .agents/skills/server-verify/scripts/verify.ts --all",
+      "pnpm arch:check",
+      "pnpm probes"
+    ],
+    ".github/workflows/web.yml": [
+      "pnpm install --frozen-lockfile",
+      "pnpm typecheck:web",
+      "pnpm lint:web",
+      "pnpm format:web:check",
+      "pnpm arch:web",
+      "pnpm probes:web",
+      "pnpm --filter @porcelain/web build",
+      "pnpm exec playwright install --with-deps --only-shell chromium",
+      "sudo apt-get update && sudo apt-get install --yes bubblewrap",
+      "sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0",
+      "bwrap --ro-bind / / --dev /dev --proc /proc --unshare-pid --unshare-ipc --unshare-net --new-session --die-with-parent -- true",
+      "pnpm verify:web --all"
+    ]
+  },
   "prePush": [
     "#!/bin/sh",
     "set -eu",
@@ -22,6 +38,10 @@
     "pnpm lint:server",
     "pnpm format:server:check",
     "pnpm test",
-    "pnpm arch:check"
+    "pnpm arch:check",
+    "pnpm typecheck:web",
+    "pnpm lint:web",
+    "pnpm format:web:check",
+    "pnpm arch:web"
   ]
 }
