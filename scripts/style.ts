@@ -8,7 +8,9 @@ import { parseSync } from 'oxc-parser';
 import { z } from 'zod';
 import {
   baselineHistoryProblems,
+  journeyBaselineHistoryProblems,
   readBaseline,
+  readJourneyBaseline,
   settleBaseline,
 } from '../architecture/baseline.ts';
 import { domainPackages, type StyleRule } from '../architecture/policy.ts';
@@ -838,6 +840,10 @@ if (mode === 'format') {
     ...baselineHistoryProblems('.').map((found) =>
       problem('web-baseline', found),
     ),
+    ...[
+      ...readJourneyBaseline('.').problems,
+      ...journeyBaselineHistoryProblems('.'),
+    ].map((found) => problem('web-journey-baseline', found)),
     ...(await configProblems().catch((error: unknown) => {
       if (error instanceof StyleProblem) return [error.problem];
       throw error;

@@ -43,6 +43,7 @@ const gateCommands: Record<
     '.agents/skills/server-verify/scripts/verify.ts',
     probe.feature ?? '--all',
   ],
+  'web-verify': (probe) => ['pnpm', 'verify:web', probe.feature ?? '--all'],
 };
 const moduleSchema = z.object({ default: probeSchema });
 const localEnvironment = Object.fromEntries(

@@ -1,0 +1,125 @@
+import { writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import { issuePairingResponseSchema } from '@porcelain/contracts/access';
+import type { BrowserCommand } from 'vitest/node';
+import type {
+  PairingParts,
+  RepoFixture,
+  RepoStep,
+  ServerAnswer,
+  ServerHit,
+  ServerRead,
+} from '../../../../apps/web/spec/kit/protocol.ts';
+import { read } from '../../server-verify/scripts/fixture.ts';
+import { Recorder, ServerHandle } from '../../server-verify/scripts/session.ts';
+
+export const journeyHeader = { 'x-porcelain-journey': 'kit' };
+
+const recorder = new Recorder();
+recorder.phase = 'follow-up';
+let attached: Promise<ServerHandle> | undefined;
+
+function handle(): Promise<ServerHandle> {
+  const manifest = process.env.PORCELAIN_WEB_MANIFEST;
+  if (manifest === undefined || manifest === '')
+    throw new Error(
+      'Journeys run through pnpm verify:web, which starts their isolated server.',
+    );
+  attached ??= ServerHandle.attach(manifest);
+  return attached;
+}
+
+async function session() {
+  return (await handle()).session(recorder, { projectId: '', worktreeId: '' });
+}
+
+async function keepEvidence() {
+  const evidence = process.env.PORCELAIN_WEB_EVIDENCE;
+  if (evidence === undefined || evidence === '') return;
+  await writeFile(
+    join(evidence, 'kit.json'),
+    `${JSON.stringify(recorder.redact(recorder.steps), null, 2)}\n`,
+  );
+}
+
+const porcelainRead: BrowserCommand<[ServerRead], ServerAnswer> = async (
+  _context,
+  request,
+) => {
+  const response = await (
+    await session()
+  ).send({
+    method: 'GET',
+    path: request.path,
+    target: request.target,
+    headers: journeyHeader,
+  });
+  await keepEvidence();
+  return { status: response.status, body: response.body };
+};
+
+const porcelainRepo: BrowserCommand<[RepoStep], string> = async (
+  _context,
+  step,
+) => {
+  const repository = await session();
+  const done = await (async () => {
+    if (step.kind === 'write') {
+      await repository.writeFile(step.path, step.text);
+      return '';
+    }
+    if (step.kind === 'remove') {
+      await repository.remove(step.path);
+      return '';
+    }
+    if (step.kind === 'read') return repository.readFile(step.path);
+    if (step.kind === 'commit') {
+      await repository.git('add', '--all');
+      return repository.git('commit', '--message', step.message);
+    }
+    if (step.kind === 'branch') return repository.git('branch', step.name);
+    return repository.git('switch', step.name);
+  })();
+  await keepEvidence();
+  return done;
+};
+
+const porcelainFixture: BrowserCommand<[], RepoFixture> = async () => {
+  const { fixture } = await handle();
+  return {
+    branch: fixture.branch,
+    initialCommit: fixture.initialCommit,
+    readme: fixture.readme,
+  };
+};
+
+const porcelainPairingLink: BrowserCommand<[string], PairingParts> = async (
+  _context,
+  label,
+) => {
+  const owner = await session();
+  const [grant] = issuePairingResponseSchema.parse(
+    await read(owner, {
+      method: 'POST',
+      path: '/pairings',
+      target: 'owner',
+      body: { labels: [label], addresses: [owner.address] },
+    }),
+  ).grants;
+  await keepEvidence();
+  if (grant === undefined) throw new Error('The owner issued no pairing grant');
+  return { code: grant.link.code, environmentId: grant.link.environmentId };
+};
+
+const porcelainHits: BrowserCommand<[number], ServerHit[]> = async (
+  _context,
+  since,
+) => (await (await handle()).hits()).slice(since);
+
+export const journeyCommands = {
+  porcelainRead,
+  porcelainRepo,
+  porcelainFixture,
+  porcelainPairingLink,
+  porcelainHits,
+};

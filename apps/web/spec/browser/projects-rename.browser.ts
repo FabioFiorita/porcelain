@@ -1,52 +1,29 @@
-import { readInventoryResponseSchema } from '@porcelain/contracts/projects';
-import { expect, test } from 'vitest';
-import { page } from 'vitest/browser';
+import { expect } from 'vitest';
+import { test } from '../kit/journey';
 
-test('projects.rename: a renamed project persists on the server', async () => {
-  const code: unknown = import.meta.env.VITE_WEB_PROJECTS_RENAME_CODE;
-  const environmentId: unknown = import.meta.env.VITE_WEB_ENVIRONMENT_ID;
-  if (typeof code !== 'string' || typeof environmentId !== 'string')
-    throw new Error('Browser verification did not issue a pairing link');
-  const fragment = new URLSearchParams({ c: code, e: environmentId });
-  history.replaceState({}, '', `/pair#${fragment.toString()}`);
-  const root = document.createElement('div');
-  root.id = 'root';
-  document.body.append(root);
-
-  await import('../../src/main.tsx');
+test('renaming a project in the navigator shows the new name and the server keeps it', async ({
+  pairedPage,
+  server,
+}) => {
+  const project = await server.project();
+  const name = 'Browser renamed project';
+  await pairedPage.getByRole('button', { name: 'Toggle Sidebar' }).click();
   await expect
-    .element(page.getByRole('region', { name: 'Review content' }))
+    .element(
+      pairedPage.getByRole('navigation', { name: 'Projects and worktrees' }),
+    )
     .toBeVisible();
-  await page.getByRole('button', { name: 'Toggle Sidebar' }).click();
-  await expect
-    .element(page.getByRole('navigation', { name: 'Projects and worktrees' }))
-    .toBeVisible();
-  const originalResponse = await fetch('/api/inventory', { cache: 'no-store' });
-  expect(originalResponse.status).toBe(200);
-  const original = readInventoryResponseSchema.parse(
-    await originalResponse.json(),
-  );
-  const project = original.projects[0];
-  if (!project) throw new Error('The isolated server has no project');
-
-  const projectButton = page.getByRole('button', {
+  const projectButton = pairedPage.getByRole('button', {
     name: project.name,
     exact: true,
   });
   await expect.element(projectButton).toBeVisible();
   await projectButton.click({ button: 'right' });
-  await page.getByRole('menuitem', { name: 'Rename project' }).click();
-  const name = 'Browser renamed project';
-  await page.getByRole('textbox', { name: 'Name' }).fill(name);
-  await page.getByRole('button', { name: 'Rename', exact: true }).click();
+  await pairedPage.getByRole('menuitem', { name: 'Rename project' }).click();
+  await pairedPage.getByRole('textbox', { name: 'Name' }).fill(name);
+  await pairedPage.getByRole('button', { name: 'Rename', exact: true }).click();
   await expect
-    .element(page.getByRole('button', { name, exact: true }))
+    .element(pairedPage.getByRole('button', { name, exact: true }))
     .toBeVisible();
-
-  const savedResponse = await fetch('/api/inventory', { cache: 'no-store' });
-  expect(savedResponse.status).toBe(200);
-  const saved = readInventoryResponseSchema.parse(await savedResponse.json());
-  expect(saved.projects.find((entry) => entry.id === project.id)?.name).toBe(
-    name,
-  );
+  await expect.poll(async () => (await server.project()).name).toBe(name);
 });

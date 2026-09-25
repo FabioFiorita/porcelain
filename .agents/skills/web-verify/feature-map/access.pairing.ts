@@ -1,8 +1,11 @@
+import type { JourneyEntry } from '../scripts/catalogue.ts';
+
 export default {
   feature: 'access.pairing',
-  path: '/pair',
-  behavior:
-    'A one-time link pairs the browser and opens the connected workspace; a link for another installation is rejected after checking the real server health.',
-  needsPairing: true,
+  route: '/pair',
+  reach: 'open the one-time link that porcelain pair prints',
+  behaviour:
+    'A one-time link pairs the browser as a device, opens the connected workspace and leaves no code in the address bar.',
+  server: ['access.health', 'access.pairing', 'projects.inventory'],
   spec: 'apps/web/spec/browser/access-pairing.browser.ts',
-} as const;
+} satisfies JourneyEntry;

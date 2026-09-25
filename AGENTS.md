@@ -32,7 +32,7 @@ Keep existing web behavior while moving each file to its app, feature or shared 
 
 Views render feature data and forward events; they hold no state, effects, refs, awaits or try blocks. A feature's `api.ts` talks to the server, `queries/` and `commands/` own reads, writes and the cache, `store.ts` owns client state, `overlays.ts` owns Base UI handles, `rules/` holds pure functions, and `adapters/` is the only home for effects, refs and DOM listeners. The React Compiler memoizes; write no `useMemo` or `useCallback`.
 
-Existing web code still breaks many of these rules. `architecture/web-baseline.json` holds those findings per file and rule, and it only shrinks: a new finding or a growing count fails, a fixed finding must be written down, and nothing is ever added. Keep the checks green by changing code, never a rule or the baseline.
+Existing web code still breaks many of these rules. `architecture/web-baseline.json` holds those findings per file and rule, and it only shrinks: a new finding or a growing count fails, a fixed finding must be written down, and nothing is added after the commit that introduces its rule. Keep the checks green by changing code, never a rule or the baseline.
 
 Use shadcn registry components for UI primitives. Search the installed registry with `pnpm --filter @porcelain/web exec shadcn list @shadcn --query <name>` and add a missing primitive through the shadcn CLI. Do not create a local replacement in a feature view or add a hand-written primitive to `components/ui`; that folder holds shadcn registry components. Compose product-specific views in their feature folders.
 

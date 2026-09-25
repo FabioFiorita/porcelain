@@ -1,17 +1,12 @@
-import { expect, test } from 'vitest';
-import { page } from 'vitest/browser';
+import { expect } from 'vitest';
+import { test } from '../kit/journey';
 
-test('app.shell: an unpaired browser sees pairing instructions from the real server', async () => {
-  history.replaceState({}, '', '/');
-  const root = document.createElement('div');
-  root.id = 'root';
-  document.body.append(root);
-
-  const health = await fetch('/api/health', { cache: 'no-store' });
-  expect(health.status).toBe(200);
-
-  await import('../../src/main.tsx');
+test('a browser that was never paired sees how to pair it', async ({
+  unpairedPage,
+}) => {
   await expect
-    .element(page.getByText('This browser is not paired', { exact: true }))
+    .element(
+      unpairedPage.getByRole('heading', { name: 'This browser is not paired' }),
+    )
     .toBeVisible();
 });

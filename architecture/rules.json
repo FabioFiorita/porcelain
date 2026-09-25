@@ -65,6 +65,12 @@
     "web-cache-writes-in-commands",
     "web-commands-own-writes",
     "web-effects-in-adapters",
+    "web-journey-asserts",
+    "web-journey-imports",
+    "web-journey-locators",
+    "web-journey-no-waits",
+    "web-journey-retrying-assertions",
+    "web-journey-through-kit",
     "web-listeners-in-adapters",
     "web-no-action-hooks",
     "web-no-context",
@@ -123,7 +129,8 @@
     "tsconfig",
     "vite-config",
     "vitest-config",
-    "web-baseline"
+    "web-baseline",
+    "web-journey-baseline"
   ],
   "arch": [
     "<role>-cannot-import-<role>",

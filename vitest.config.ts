@@ -77,6 +77,15 @@ export default defineConfig({
           expect: { requireAssertions: true },
         },
       },
+      {
+        resolve: { alias: { '@': join(root, 'apps/web/src') } },
+        test: {
+          name: '@porcelain/web',
+          root,
+          include: ['apps/web/src/features/*/rules/*.spec.ts'],
+          expect: { requireAssertions: true },
+        },
+      },
       ...packages.map((name) => ({
         test: {
           name: `@porcelain/${name}`,

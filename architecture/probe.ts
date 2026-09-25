@@ -54,6 +54,7 @@ export const probeGates = [
   'test',
   'db',
   'verify',
+  'web-verify',
 ] as const;
 
 export type ProbeGate = (typeof probeGates)[number];
@@ -96,6 +97,11 @@ export const ruleShapes: Readonly<
     shape:
       '<case or net part>: <reason>, as the net prints each failure under its FAIL line',
   },
+  'web-verify': {
+    pattern: /^[^:\s][^:\n]*: \S.*$/,
+    shape:
+      '<journey or runner part>: <reason>, as pnpm verify:web prints each failure under its FAIL or NOT REJECTED line',
+  },
 };
 
 export const probeSchema = z
@@ -108,11 +114,16 @@ export const probeSchema = z
     edits: z.array(probeEditSchema).min(1),
   })
   .superRefine((probe, context) => {
-    if (probe.feature !== undefined && probe.gate !== 'verify')
+    if (
+      probe.feature !== undefined &&
+      probe.gate !== 'verify' &&
+      probe.gate !== 'web-verify'
+    )
       context.addIssue({
         code: 'custom',
         path: ['feature'],
-        message: 'only a verify probe names the feature the net runs',
+        message:
+          'only a verify or web-verify probe names the feature or journey its runner runs',
       });
     const { pattern, shape } = ruleShapes[probe.gate];
     if (!pattern.test(probe.rule))

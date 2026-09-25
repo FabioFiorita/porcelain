@@ -1,66 +1,43 @@
-import { readTextFileResponseSchema } from '@porcelain/contracts/files';
-import { readInventoryResponseSchema } from '@porcelain/contracts/projects';
-import { expect, test } from 'vitest';
-import { page } from 'vitest/browser';
+import { expect } from 'vitest';
+import { test } from '../kit/journey';
 
-test('files.edit: editor saves paused and completed changes', async () => {
-  const code: unknown = import.meta.env.VITE_WEB_FILES_EDIT_CODE;
-  const environmentId: unknown = import.meta.env.VITE_WEB_ENVIRONMENT_ID;
-  if (typeof code !== 'string' || typeof environmentId !== 'string')
-    throw new Error('Browser verification did not issue a pairing link');
-  const fragment = new URLSearchParams({ c: code, e: environmentId });
-  history.replaceState({}, '', `/pair#${fragment.toString()}`);
-  const root = document.createElement('div');
-  root.id = 'root';
-  document.body.append(root);
-
-  await import('../../src/main.tsx');
-  await expect
-    .element(page.getByRole('region', { name: 'Review content' }))
-    .toBeVisible();
-  const inventoryResponse = await fetch('/api/inventory', {
-    cache: 'no-store',
-  });
-  expect(inventoryResponse.status).toBe(200);
-  const inventory = readInventoryResponseSchema.parse(
-    await inventoryResponse.json(),
-  );
-  const worktreeId = inventory.projects[0]?.worktrees[0]?.id;
-  if (!worktreeId) throw new Error('The isolated server has no worktree');
-
-  await page.getByRole('button', { name: 'Review', exact: true }).click();
-  await page.getByRole('tab', { name: 'Files' }).click();
-  const file = page.getByRole('treeitem', { name: 'README.md' });
+test('an edited file saves after a pause, with Done and when its tab closes', async ({
+  pairedPage,
+  repo,
+  server,
+}) => {
+  const readme = repo.readme.path;
+  const saved = async () => (await server.text(readme)).text;
+  await pairedPage.getByRole('button', { name: 'Review', exact: true }).click();
+  await pairedPage.getByRole('tab', { name: 'Files' }).click();
+  const file = pairedPage.getByRole('treeitem', { name: readme });
   await expect.element(file).toBeVisible();
   await file.click({ button: 'right' });
-  await page.getByRole('menuitem', { name: 'Open file' }).click();
-  await page.getByRole('button', { name: 'Edit', exact: true }).click();
-  const editor = page.getByRole('textbox', { name: 'README.md' });
+  await pairedPage.getByRole('menuitem', { name: 'Open file' }).click();
+  await pairedPage.getByRole('button', { name: 'Edit', exact: true }).click();
+  const editor = pairedPage.getByRole('textbox', { name: readme });
   await expect.element(editor).toBeVisible();
 
   await editor.fill('Browser autosave marker');
-  await expect.element(page.getByText('Saved', { exact: true })).toBeVisible();
-  const readSaved = async () => {
-    const response = await fetch(
-      `/api/worktrees/${encodeURIComponent(worktreeId)}/text?path=README.md`,
-      { cache: 'no-store' },
-    );
-    expect(response.status).toBe(200);
-    return readTextFileResponseSchema.parse(await response.json()).text;
-  };
-  expect(await readSaved()).toContain('Browser autosave marker');
+  await expect
+    .element(pairedPage.getByText('Saved', { exact: true }))
+    .toBeVisible();
+  await expect.poll(saved).toContain('Browser autosave marker');
 
   await editor.fill('Browser done marker');
-  await page.getByRole('button', { name: 'Done' }).click();
+  await pairedPage.getByRole('button', { name: 'Done' }).click();
   await expect
-    .element(page.getByRole('button', { name: 'Edit', exact: true }))
+    .element(pairedPage.getByRole('button', { name: 'Edit', exact: true }))
     .toBeVisible();
-  expect(await readSaved()).toContain('Browser done marker');
+  await expect.poll(saved).toContain('Browser done marker');
 
-  await page.getByRole('button', { name: 'Edit', exact: true }).click();
-  await page
-    .getByRole('textbox', { name: 'README.md' })
+  await pairedPage.getByRole('button', { name: 'Edit', exact: true }).click();
+  await pairedPage
+    .getByRole('textbox', { name: readme })
     .fill('Browser close marker');
-  await page.getByRole('button', { name: 'Close README.md' }).last().click();
-  await expect.poll(readSaved).toContain('Browser close marker');
+  await pairedPage
+    .getByRole('button', { name: `Close ${readme}` })
+    .last()
+    .click();
+  await expect.poll(saved).toContain('Browser close marker');
 });

@@ -1,8 +1,11 @@
+import type { JourneyEntry } from '../scripts/catalogue.ts';
+
 export default {
   feature: 'projects.rename',
-  path: '/',
-  behavior:
-    'Renaming a project through the navigator updates its label and persists the name in the real server.',
-  needsPairing: true,
+  route: '/',
+  reach: 'sidebar → project → right-click → Rename project',
+  behaviour:
+    'Renaming a project in the navigator shows the new name and the server keeps it.',
+  server: ['projects.rename'],
   spec: 'apps/web/spec/browser/projects-rename.browser.ts',
-} as const;
+} satisfies JourneyEntry;

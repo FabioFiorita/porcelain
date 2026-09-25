@@ -140,6 +140,8 @@ export const roles = [
   'web-shared',
   'ui',
   'browser-spec',
+  'browser-kit',
+  'web-rule-spec',
   'web-config',
   'web-limits',
   'web-entry',
@@ -163,6 +165,8 @@ export const webRoles: ReadonlySet<Role> = new Set<Role>([
   'web-shared',
   'ui',
   'browser-spec',
+  'browser-kit',
+  'web-rule-spec',
   'web-config',
   'web-limits',
   'web-entry',
@@ -334,6 +338,7 @@ export const styleRules = [
   'vite-config',
   'react-compiler',
   'web-baseline',
+  'web-journey-baseline',
 ] as const;
 
 export type StyleRule = (typeof styleRules)[number];
@@ -531,7 +536,9 @@ const kebabFile = /^[a-z0-9]+(?:-[a-z0-9]+)*\.tsx?$/;
 
 export function webPart(path: string): Role | undefined {
   if (path === 'apps/web/vite.config.ts') return 'web-config';
-  if (path.startsWith('apps/web/spec/browser/')) return 'browser-spec';
+  if (/^apps\/web\/spec\/(?:browser|negative)\//.test(path))
+    return 'browser-spec';
+  if (path.startsWith('apps/web/spec/kit/')) return 'browser-kit';
   if (!path.startsWith('apps/web/src/') || !webCode.test(path)) return;
   const inside = path.slice('apps/web/src/'.length);
   const parts = inside.split('/');
@@ -546,6 +553,7 @@ export function webPart(path: string): Role | undefined {
   if (top !== 'features' || parts.length < 3) return;
   const part = parts[2] ?? '';
   if (parts.length === 3) return webFeatureFiles[part];
+  if (part === 'rules' && inside.endsWith('.spec.ts')) return 'web-rule-spec';
   return part === 'api' ? 'api' : webFolderRoles[part];
 }
 
@@ -557,6 +565,16 @@ function classifyWeb(path: string): Classification | undefined {
   const name = inside.at(-1) ?? '';
   if (role === 'browser-spec')
     return inside.length === 3 && /^[a-z0-9-]+\.browser\.ts$/.test(name)
+      ? classified(role, owner)
+      : undefined;
+  if (role === 'browser-kit')
+    return inside.length === 3 && kebabFile.test(name) && name.endsWith('.ts')
+      ? classified(role, owner)
+      : undefined;
+  if (role === 'web-rule-spec')
+    return inside.length === 5 &&
+      webDomainSet.has(inside[2] ?? '') &&
+      /^[a-z0-9]+(?:-[a-z0-9]+)*\.spec\.ts$/.test(name)
       ? classified(role, owner)
       : undefined;
   if (role === 'shell')
@@ -591,7 +609,7 @@ function classifyWeb(path: string): Classification | undefined {
 
 export function webLayout(path: string): string {
   if (path.startsWith('apps/web/spec/'))
-    return 'apps/web/spec/browser/<case>.browser.ts holds the browser behaviour cases and nothing else';
+    return 'apps/web/spec/browser/<journey>.browser.ts holds the journeys, apps/web/spec/negative/<name>.browser.ts the planted journeys the runner must reject, and apps/web/spec/kit/<part>.ts the journey kit; nothing else';
   const inside = path.slice('apps/web/src/'.length);
   if (inside.startsWith('features/'))
     return `features/<domain>/ holds api.ts, store.ts, live.ts, overlays.ts, index.ts and the flat folders queries/, commands/, rules/ (.ts), adapters/ and views/ (.tsx); <domain> is one of ${webDomains.join(', ')}`;
@@ -868,7 +886,9 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
   ]),
   'web-shared': new Set(['web-shared', 'web-limits', 'contract']),
   ui: new Set(['ui', 'web-shared']),
-  'browser-spec': new Set([...webRoles, 'contract']),
+  'browser-spec': new Set(['browser-kit', 'contract']),
+  'browser-kit': new Set(['browser-kit', 'web-entry', 'contract']),
+  'web-rule-spec': new Set(['web-rule', 'web-limits', 'contract']),
   'web-config': new Set(),
   'web-limits': new Set(['contract']),
   'web-entry': new Set([
@@ -1075,6 +1095,8 @@ export const externalPackages: Record<Role, readonly string[]> = {
   'web-shared': [],
   ui: [],
   'browser-spec': [],
+  'browser-kit': [],
+  'web-rule-spec': [],
   'web-config': [],
   'web-limits': [],
   'web-entry': [],

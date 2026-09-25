@@ -104,7 +104,109 @@ const shadcnNames = new Set(
   ),
 );
 const testFunctions = new Set(['test', 'it', 'describe', 'suite']);
-const skipMembers = new Set(['skip', 'only', 'todo', 'fails', 'skipIf']);
+const caseFunctions = new Set(['test', 'it']);
+const skipMembers = new Set([
+  'skip',
+  'only',
+  'todo',
+  'fails',
+  'skipIf',
+  'runIf',
+]);
+const journeyImports = new Map([
+  ['vitest', new Set(['expect', 'describe'])],
+  ['vitest/browser', new Set(['page', 'userEvent'])],
+]);
+const retryingAssertions = new Set(['element', 'poll']);
+const journeyLocatorReads = new Set([
+  'querySelector',
+  'querySelectorAll',
+  'getElementById',
+  'getElementsByClassName',
+  'getElementsByName',
+  'getElementsByTagName',
+  'closest',
+  'locator',
+  'elementLocator',
+  'getByTestId',
+  'getByPlaceholder',
+  'getByAltText',
+  'getByTitle',
+  'element',
+  'elements',
+  'query',
+]);
+const journeyTimers = new Set([
+  'setTimeout',
+  'setInterval',
+  'requestAnimationFrame',
+  'requestIdleCallback',
+]);
+const journeyWaits = /^(?:sleep|delay|wait|pause|waitForTimeout)$/i;
+const journeyBypasses = new Set([
+  'fetch',
+  'XMLHttpRequest',
+  'WebSocket',
+  'EventSource',
+  'document',
+  'window',
+  'location',
+  'history',
+  'localStorage',
+  'sessionStorage',
+  'navigator',
+  'globalThis',
+  'self',
+]);
+
+function importedName(specifier) {
+  return specifier.imported.type === 'Identifier'
+    ? specifier.imported.name
+    : specifier.imported.value;
+}
+
+function journeyRule(visitors) {
+  return {
+    create(context) {
+      if (webPart(webPath(context)) !== 'browser-spec') return {};
+      return visitors(context);
+    },
+  };
+}
+
+function expectCall(node) {
+  return node?.type === 'CallExpression' &&
+    node.callee.type === 'MemberExpression' &&
+    !node.callee.computed &&
+    node.callee.object.type === 'Identifier' &&
+    node.callee.object.name === 'expect' &&
+    node.callee.property.type === 'Identifier'
+    ? node.callee.property.name
+    : undefined;
+}
+
+function retryingMatcher(node) {
+  if (node.type !== 'CallExpression' || node.callee.type !== 'MemberExpression')
+    return false;
+  let current = node.callee.object;
+  while (current.type === 'MemberExpression') current = current.object;
+  return retryingAssertions.has(expectCall(current) ?? '');
+}
+
+function enclosingFunction(context, node) {
+  return context.sourceCode
+    .getAncestors(node)
+    .reverse()
+    .find((ancestor) => functionTypes.has(ancestor.type));
+}
+
+function caseBody(node) {
+  if (node.type !== 'CallExpression') return undefined;
+  const root = rootName(node.callee);
+  if (!caseFunctions.has(root ?? '')) return undefined;
+  const body = node.arguments.at(-1);
+  return body && functionTypes.has(body.type) ? body : undefined;
+}
 
 function webPath(context) {
   const path = context.filename.replaceAll('\\', '/');
@@ -787,6 +889,8 @@ export const webRules = {
   'web-browser-spec-no-skips': {
     create(context) {
       if (webPart(webPath(context)) !== 'browser-spec') return {};
+      const message =
+        'Every journey runs every time, once, and must pass at once; remove the skip, only, todo, fails or the options object that sets retry, repeats or a timeout. The runner alone repeats a new or changed journey.';
       return {
         MemberExpression(node) {
           if (
@@ -795,13 +899,146 @@ export const webRules = {
               (node.property.type === 'Identifier' &&
                 skipMembers.has(node.property.name)))
           )
-            context.report({
-              node,
-              message:
-                'Every browser behaviour case runs every time; remove the skip, only, todo or fails.',
-            });
+            context.report({ node, message });
+        },
+        CallExpression(node) {
+          if (
+            testFunctions.has(rootName(node.callee) ?? '') &&
+            node.arguments.some(
+              (argument) => argument.type === 'ObjectExpression',
+            )
+          )
+            context.report({ node, message });
         },
       };
     },
   },
+  'web-journey-imports': journeyRule((context) => {
+    const message =
+      'A journey imports test and its fixtures from ../kit/, expect and describe from vitest, page and userEvent from vitest/browser, and @porcelain/contracts; the app is reached only through the kit, which opens it the way a user does.';
+    const check = (node) => {
+      const source = sourceOf(node);
+      if (source === undefined) {
+        context.report({ node, message });
+        return;
+      }
+      if (source.startsWith('@porcelain/contracts/')) return;
+      if (/^\.\.\/kit\/[a-z0-9-]+$/.test(source)) return;
+      const names = journeyImports.get(source);
+      if (names === undefined || node.type !== 'ImportDeclaration') {
+        context.report({ node, message });
+        return;
+      }
+      for (const specifier of node.specifiers)
+        if (
+          specifier.type !== 'ImportSpecifier' ||
+          !names.has(importedName(specifier))
+        )
+          context.report({ node: specifier, message });
+    };
+    return {
+      ImportDeclaration: check,
+      ImportExpression: check,
+      ExportNamedDeclaration(node) {
+        if (node.source) check(node);
+      },
+      ExportAllDeclaration: check,
+    };
+  }),
+  'web-journey-asserts': journeyRule((context) => {
+    const cases = [];
+    const asserting = new Set();
+    return {
+      CallExpression(node) {
+        const body = caseBody(node);
+        if (body) cases.push({ node, body });
+        if (retryingMatcher(node))
+          asserting.add(enclosingFunction(context, node));
+      },
+      'Program:exit'() {
+        for (const { node, body } of cases)
+          if (!asserting.has(body))
+            context.report({
+              node,
+              message:
+                'Every journey case asserts in its own body what the user sees, with expect.element, or what the server kept, with expect.poll; a case without one proves only that nothing threw.',
+            });
+      },
+    };
+  }),
+  'web-journey-retrying-assertions': journeyRule((context) => ({
+    CallExpression(node) {
+      const message =
+        'A journey asserts with retrying expect.element for what the page shows and expect.poll over the kit for what the server kept; a synchronous expect reads one moment and races the app.';
+      if (node.callee.type === 'Identifier' && node.callee.name === 'expect') {
+        context.report({ node, message });
+        return;
+      }
+      const kind = expectCall(node);
+      if (kind === undefined) return;
+      if (!retryingAssertions.has(kind)) {
+        context.report({ node, message });
+        return;
+      }
+      const subject = node.arguments[0];
+      if (
+        kind === 'poll' &&
+        !(
+          subject &&
+          (functionTypes.has(subject.type) || subject.type === 'Identifier')
+        )
+      )
+        context.report({ node, message });
+    },
+  })),
+  'web-journey-locators': journeyRule((context) => ({
+    CallExpression(node) {
+      if (
+        expectCall(node) === undefined &&
+        journeyLocatorReads.has(methodName(node.callee) ?? '')
+      )
+        context.report({
+          node,
+          message:
+            'A journey finds elements by role, label or text, the way a user and assistive technology do; CSS selectors, test ids and element reads couple it to markup and read one moment.',
+        });
+    },
+  })),
+  'web-journey-no-waits': journeyRule((context) => {
+    const message =
+      'A journey never waits a fixed time; expect.element and expect.poll retry until the page or the server catches up and fail with what they last saw.';
+    return {
+      CallExpression(node) {
+        const name =
+          node.callee.type === 'Identifier'
+            ? node.callee.name
+            : methodName(node.callee);
+        if (journeyWaits.test(name ?? '')) context.report({ node, message });
+      },
+      'Program:exit'(program) {
+        for (const node of globalUses(context, program, journeyTimers))
+          context.report({ node, message });
+      },
+    };
+  }),
+  'web-journey-through-kit': journeyRule((context) => {
+    const message =
+      'A journey reaches the page through its locators and the server through the kit server and repo fixtures; the kit owns every /api path and the DOM, so a route or markup change is fixed in one place.';
+    const report = (node) => context.report({ node, message });
+    return {
+      MetaProperty: report,
+      Literal(node) {
+        if (typeof node.value === 'string' && node.value.includes('/api/'))
+          report(node);
+      },
+      TemplateElement(node) {
+        if ((node.value.cooked ?? node.value.raw).includes('/api/'))
+          report(node);
+      },
+      'Program:exit'(program) {
+        for (const node of globalUses(context, program, journeyBypasses))
+          report(node);
+      },
+    };
+  }),
 };

@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { z } from 'zod';
 
 export const baselineFile = 'architecture/web-baseline.json';
+export const journeyBaselineFile = 'architecture/web-journey-baseline.json';
 
 const baselineSchema = z.record(
   z.string().min(1),
@@ -12,6 +13,22 @@ const baselineSchema = z.record(
     z.number().int().positive(),
   ),
 );
+
+const journeyBaselineSchema = z
+  .array(
+    z
+      .string()
+      .regex(
+        /^(?:GET|POST|PUT|PATCH|DELETE) \/api\/\S*$/,
+        'each entry is a server route the web calls, as <METHOD> /api/<path>',
+      ),
+  )
+  .refine(
+    (routes) => routes.every((route, index) => routes.indexOf(route) === index),
+    'each route is listed once',
+  );
+
+const ruleListSchema = z.record(z.string(), z.array(z.string()));
 
 export type Baseline = z.output<typeof baselineSchema>;
 export type Located = { rule: string; file: string };
@@ -23,18 +40,28 @@ export type Settled<T extends Located> = {
 
 export type Read = { baseline: Baseline; problems: string[] };
 
-function parsed(text: string, where: string): Read {
-  let json: unknown;
+function strictJson(
+  text: string,
+  where: string,
+): { json: unknown; problem?: string } {
   try {
-    json = JSON.parse(text);
+    const json: unknown = JSON.parse(text);
+    return { json };
   } catch (error) {
     return {
-      baseline: {},
-      problems: [
-        `${where} is not strict JSON (${error instanceof Error ? error.message : String(error)}); it holds rule, web file and count only.`,
-      ],
+      json: undefined,
+      problem: `${where} is not strict JSON (${error instanceof Error ? error.message : String(error)})`,
     };
   }
+}
+
+function parsed(text: string, where: string): Read {
+  const { json, problem } = strictJson(text, where);
+  if (problem !== undefined)
+    return {
+      baseline: {},
+      problems: [`${problem}; it holds rule, web file and count only.`],
+    };
   const read = baselineSchema.safeParse(json);
   return read.success
     ? { baseline: read.data, problems: [] }
@@ -46,11 +73,38 @@ function parsed(text: string, where: string): Read {
       };
 }
 
+function parsedRoutes(
+  text: string,
+  where: string,
+): { routes: string[]; problems: string[] } {
+  const { json, problem } = strictJson(text, where);
+  if (problem !== undefined) return { routes: [], problems: [`${problem}.`] };
+  const read = journeyBaselineSchema.safeParse(json);
+  return read.success
+    ? { routes: read.data, problems: [] }
+    : {
+        routes: [],
+        problems: [
+          `${where} lists the routes the web calls that no journey reaches yet: ${read.error.issues.map((issue) => issue.message).join('; ')}.`,
+        ],
+      };
+}
+
 export function readBaseline(root: string): Read {
   const path = join(root, baselineFile);
   return existsSync(path)
     ? parsed(readFileSync(path, 'utf8'), baselineFile)
     : { baseline: {}, problems: [] };
+}
+
+export function readJourneyBaseline(root: string): {
+  routes: string[];
+  problems: string[];
+} {
+  const path = join(root, journeyBaselineFile);
+  return existsSync(path)
+    ? parsedRoutes(readFileSync(path, 'utf8'), journeyBaselineFile)
+    : { routes: [], problems: [] };
 }
 
 const separator = '\u0000';
@@ -109,30 +163,53 @@ function git(root: string, args: readonly string[]) {
   return result;
 }
 
-function versionAt(root: string, commit: string): Baseline | undefined {
-  const shown = git(root, ['show', `${commit}:${baselineFile}`]);
-  return shown.status === 0
-    ? parsed(shown.stdout, `${baselineFile} at ${commit.slice(0, 12)}`).baseline
-    : undefined;
+type Units = Map<string, number>;
+
+type ShrinkOnly = {
+  file: string;
+  units(text: string, where: string): Units;
+  introduces(key: string, later: string, earlier: string): boolean;
+};
+
+function shown(root: string, commit: string, file: string) {
+  if (commit === '')
+    return existsSync(join(root, file))
+      ? readFileSync(join(root, file), 'utf8')
+      : undefined;
+  const result = git(root, ['show', `${commit}:${file}`]);
+  return result.status === 0 ? result.stdout : undefined;
 }
 
-function raised(later: Baseline, earlier: Baseline): string[] {
-  return Object.entries(later).flatMap(([rule, files]) =>
-    Object.entries(files).flatMap(([file, count]) => {
-      const before = earlier[rule]?.[file];
-      if (before === undefined) return [`${rule} in ${file} (new entry)`];
-      return count > before
-        ? [`${rule} in ${file} (${before} to ${count})`]
-        : [];
-    }),
-  );
+function unitsAt(root: string, ledger: ShrinkOnly, commit: string) {
+  const text = shown(root, commit, ledger.file);
+  return text === undefined
+    ? undefined
+    : ledger.units(
+        text,
+        commit === ''
+          ? ledger.file
+          : `${ledger.file} at ${commit.slice(0, 12)}`,
+      );
 }
 
-export function baselineHistoryProblems(root: string): string[] {
+function grown(
+  later: Units,
+  earlier: Units,
+  introduced: (key: string) => boolean,
+): string[] {
+  return [...later].flatMap(([key, count]) => {
+    const before = earlier.get(key);
+    if (before === undefined)
+      return introduced(key) ? [] : [`${key} (new entry)`];
+    return count > before ? [`${key} (${before} to ${count})`] : [];
+  });
+}
+
+function shrinkOnlyProblems(root: string, ledger: ShrinkOnly): string[] {
   const shallow = git(root, ['rev-parse', '--is-shallow-repository']);
   if (shallow.stdout.trim() !== 'false')
     return [
-      `${baselineFile} is checked against its whole history, and this clone is shallow; fetch the full history.`,
+      `${ledger.file} is checked against its whole history, and this clone is shallow; fetch the full history.`,
     ];
   const problems: string[] = [];
   const logged = git(root, [
@@ -141,44 +218,97 @@ export function baselineHistoryProblems(root: string): string[] {
     '--format=%H %P',
     'HEAD',
     '--',
-    baselineFile,
+    ledger.file,
   ]);
   if (logged.status !== 0)
-    return [`git log could not read the history of ${baselineFile}.`];
+    return [`git log could not read the history of ${ledger.file}.`];
   let creations = 0;
   for (const line of logged.stdout.split('\n').filter(Boolean)) {
     const [commit = '', ...parents] = line.split(' ');
-    const version = versionAt(root, commit);
+    const version = unitsAt(root, ledger, commit);
     if (version === undefined) continue;
     const earlier = parents.flatMap((parent) => {
-      const found = versionAt(root, parent);
-      return found === undefined ? [] : [found];
+      const found = unitsAt(root, ledger, parent);
+      return found === undefined ? [] : [{ parent, found }];
     });
     if (earlier.length === 0) creations += 1;
-    for (const before of earlier)
-      for (const growth of raised(version, before))
+    for (const { parent, found } of earlier)
+      for (const growth of grown(version, found, (key) =>
+        ledger.introduces(key, commit, parent),
+      ))
         problems.push(
-          `commit ${commit.slice(0, 12)} raised ${growth}; ${baselineFile} only loses entries or lowers counts.`,
+          `commit ${commit.slice(0, 12)} raised ${growth}; ${ledger.file} only loses entries or lowers counts.`,
         );
   }
   if (creations > 1)
     problems.push(
-      `${baselineFile} was created ${creations} times in the history; it is created once and only shrinks until it is deleted.`,
+      `${ledger.file} was created ${creations} times in the history; it is created once and only shrinks until it is deleted.`,
     );
-  const path = join(root, baselineFile);
-  if (!existsSync(path)) return problems;
-  const working = readBaseline(root).baseline;
-  const committed = versionAt(root, 'HEAD');
+  const working = unitsAt(root, ledger, '');
+  if (working === undefined) return problems;
+  const committed = unitsAt(root, ledger, 'HEAD');
   if (committed === undefined) {
     if (creations > 0)
       problems.push(
-        `${baselineFile} is created again after its history deleted it; it only shrinks.`,
+        `${ledger.file} is created again after its history deleted it; it only shrinks.`,
       );
     return problems;
   }
-  for (const growth of raised(working, committed))
+  for (const growth of grown(working, committed, (key) =>
+    ledger.introduces(key, '', 'HEAD'),
+  ))
     problems.push(
-      `${baselineFile} raises ${growth} above the committed baseline; it only loses entries or lowers counts.`,
+      `${ledger.file} raises ${growth} above the committed baseline; it only loses entries or lowers counts.`,
     );
   return problems;
+}
+
+function listedRules(root: string, commit: string): Set<string> | undefined {
+  const text = shown(root, commit, 'architecture/rules.json');
+  if (text === undefined) return undefined;
+  const read = ruleListSchema.safeParse(strictJson(text, commit).json);
+  if (!read.success) return undefined;
+  return new Set(
+    Object.entries(read.data).flatMap(([family, names]) =>
+      names.map((name) => (family === 'arch' ? name : `${family}/${name}`)),
+    ),
+  );
+}
+
+export function baselineHistoryProblems(root: string): string[] {
+  return shrinkOnlyProblems(root, {
+    file: baselineFile,
+    units: (text, where) =>
+      new Map(
+        Object.entries(parsed(text, where).baseline).flatMap(([rule, files]) =>
+          Object.entries(files).map(([file, count]): [string, number] => [
+            `${rule} in ${file}`,
+            count,
+          ]),
+        ),
+      ),
+    introduces(key, later, earlier) {
+      const rule = key.split(' in ')[0] ?? '';
+      const before = listedRules(root, earlier);
+      return (
+        before !== undefined &&
+        !before.has(rule) &&
+        listedRules(root, later)?.has(rule) === true
+      );
+    },
+  });
+}
+
+export function journeyBaselineHistoryProblems(root: string): string[] {
+  return shrinkOnlyProblems(root, {
+    file: journeyBaselineFile,
+    units: (text, where) =>
+      new Map(
+        parsedRoutes(text, where).routes.map((route): [string, number] => [
+          route,
+          1,
+        ]),
+      ),
+    introduces: () => false,
+  });
 }

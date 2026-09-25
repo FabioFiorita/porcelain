@@ -3215,7 +3215,8 @@ export default {
     },
     'spec-behaviour-names': {
       create(context) {
-        if (!isSpec(context)) return {};
+        const journey = webPart(repositoryPath(context)) === 'browser-spec';
+        if (!isSpec(context) && !journey) return {};
         return {
           CallExpression(node) {
             if (
@@ -3232,6 +3233,18 @@ export default {
               return;
             }
             const title = caseTitle(node);
+            if (
+              journey &&
+              caseFunctions.has(chainRoot(node.callee) ?? '') &&
+              (title === undefined ||
+                /^\s*[a-z-]+\.[a-z-]+\s*:/.test(title) ||
+                title.trim().split(/\s+/).length < 4)
+            )
+              context.report({
+                node: node.arguments[0] ?? node,
+                message:
+                  'Name the journey case as a written sentence of what the user does and sees, without its feature id; the feature map entry already names the feature.',
+              });
             if (title === undefined) return;
             if (/^\s*should\b/i.test(title))
               context.report({

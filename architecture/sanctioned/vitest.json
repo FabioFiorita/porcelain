@@ -25,6 +25,21 @@
           }
         },
         {
+          "resolve": {
+            "alias": {
+              "@": "<root>/apps/web/src"
+            }
+          },
+          "test": {
+            "name": "@porcelain/web",
+            "root": "<root>",
+            "include": ["apps/web/src/features/*/rules/*.spec.ts"],
+            "expect": {
+              "requireAssertions": true
+            }
+          }
+        },
+        {
           "test": {
             "name": "@porcelain/access",
             "root": "<root>",
@@ -198,7 +213,8 @@
   ".agents/skills/web-verify/scripts/vitest.browser.config.ts": {
     "root": "<root>/apps/web",
     "test": {
-      "include": ["spec/browser/*.browser.ts"],
+      "include": ["spec/browser/*.browser.ts", "spec/negative/*.browser.ts"],
+      "retry": 0,
       "attachmentsDir": "<tmp>/porcelain-web-browser-attachments",
       "browser": {
         "enabled": true,
@@ -220,7 +236,14 @@
             }
           }
         ],
-        "screenshotDirectory": "<tmp>/porcelain-web-browser-attachments/screenshots"
+        "screenshotDirectory": "<tmp>/porcelain-web-browser-attachments/screenshots",
+        "commands": {
+          "porcelainRead": "<function>",
+          "porcelainRepo": "<function>",
+          "porcelainFixture": "<function>",
+          "porcelainPairingLink": "<function>",
+          "porcelainHits": "<function>"
+        }
       }
     }
   }
