@@ -2,6 +2,8 @@ import { randomUUID } from 'node:crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { issuePairingResponseSchema } from '@porcelain/contracts/access';
+import { editFileRequestSchema } from '@porcelain/contracts/files';
+import { readInventoryResponseSchema } from '@porcelain/contracts/projects';
 import type { BrowserCommand } from 'vitest/node';
 import type {
   AgentAction,
@@ -13,7 +15,10 @@ import type {
   ServerHit,
   ServerRead,
 } from '../../../../apps/web/spec/kit/protocol.ts';
-import type { Session } from '../../server-verify/scripts/feature.ts';
+import type {
+  HttpRequest,
+  Session,
+} from '../../server-verify/scripts/feature.ts';
 import {
   read,
   sampleReview,
@@ -67,26 +72,55 @@ const porcelainRead: BrowserCommand<[ServerRead], ServerAnswer> = async (
   return { status: response.status, body: response.body };
 };
 
-async function agentActs(agent: Session, action: AgentAction) {
-  const call =
-    action.kind === 'publish-review'
-      ? toolCall(
-          agent,
-          1,
-          'publish_review',
-          sampleReview(agent, 0, randomUUID(), randomUUID(), {
-            title: action.title,
-          }),
-        )
-      : toolCall(agent, 1, 'create_comment', {
-          anchor: { kind: 'file', filePath: action.path },
-          body: action.body,
-        });
+async function mainWorktree(agent: Session) {
   const response = await agent.send({
-    ...call,
-    headers: { ...call.headers, ...journeyHeader },
+    method: 'GET',
+    path: '/api/inventory',
+    headers: journeyHeader,
   });
-  if (response.status !== 200 || toolResult(response.body).isError === true)
+  const worktree = readInventoryResponseSchema
+    .parse(response.body)
+    .projects[0]?.worktrees.find((entry) => entry.main);
+  if (worktree === undefined)
+    throw new Error('The isolated server has no main worktree.');
+  return worktree.id;
+}
+
+async function agentRequest(
+  agent: Session,
+  action: AgentAction,
+): Promise<HttpRequest> {
+  if (action.kind === 'edit-file')
+    return {
+      method: 'POST',
+      path: `/api/worktrees/${encodeURIComponent(await mainWorktree(agent))}/files`,
+      body: editFileRequestSchema.parse(action.edit),
+    };
+  return action.kind === 'publish-review'
+    ? toolCall(
+        agent,
+        1,
+        'publish_review',
+        sampleReview(agent, 0, randomUUID(), randomUUID(), {
+          title: action.title,
+        }),
+      )
+    : toolCall(agent, 1, 'create_comment', {
+        anchor: { kind: 'file', filePath: action.path },
+        body: action.body,
+      });
+}
+
+async function agentActs(agent: Session, action: AgentAction) {
+  const request = await agentRequest(agent, action);
+  const response = await agent.send({
+    ...request,
+    headers: { ...request.headers, ...journeyHeader },
+  });
+  if (
+    response.status !== 200 ||
+    (action.kind !== 'edit-file' && toolResult(response.body).isError === true)
+  )
     throw new Error(
       `The agent's ${action.kind} was refused: ${JSON.stringify(response.body)}`,
     );

@@ -1,3 +1,5 @@
+import type { EditFileRequest } from '@porcelain/contracts/files';
+
 export type ServerRead = { target: 'network' | 'owner'; path: string };
 
 export type ServerAnswer = { status: number; body: unknown };
@@ -15,7 +17,8 @@ export type RepoStep =
 
 export type AgentAction =
   | { kind: 'publish-review'; title: string }
-  | { kind: 'comment'; path: string; body: string };
+  | { kind: 'comment'; path: string; body: string }
+  | { kind: 'edit-file'; edit: EditFileRequest };
 
 export type RepoFixture = {
   branch: string;
