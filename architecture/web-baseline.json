@@ -2,7 +2,6 @@
   "porcelain/no-number-outside-limits": {
     "apps/web/src/app/views/connected-workspace.tsx": 5,
     "apps/web/src/app/views/workspace-pending.tsx": 1,
-    "apps/web/src/features/access/api/pairing-live.ts": 1,
     "apps/web/src/features/projects/queries/project-locations.ts": 1,
     "apps/web/src/features/projects/views/rename-project-dialog.tsx": 1,
     "apps/web/src/features/review/api/git-actions-live.ts": 2,
@@ -44,7 +43,7 @@
     "apps/web/src/features/review/queries/review.ts": 1
   },
   "porcelain/web-cache-writes-in-commands": {
-    "apps/web/src/app/workspace-provider.tsx": 4,
+    "apps/web/src/app/workspace-provider.tsx": 3,
     "apps/web/src/features/projects/queries/file-preferences.ts": 2,
     "apps/web/src/features/projects/queries/inventory.ts": 10,
     "apps/web/src/features/review/queries/comments.ts": 4,
@@ -56,7 +55,6 @@
     "apps/web/src/shared/query/live-updates.ts": 6
   },
   "porcelain/web-commands-own-writes": {
-    "apps/web/src/features/access/queries/connection.ts": 1,
     "apps/web/src/features/projects/queries/file-preferences.ts": 1,
     "apps/web/src/features/projects/queries/inventory.ts": 3,
     "apps/web/src/features/review/queries/comments.ts": 4,
@@ -69,7 +67,6 @@
     "apps/web/src/app/queries/workspace-retry.ts": 1,
     "apps/web/src/app/views/connected-workspace.tsx": 1,
     "apps/web/src/app/workspace-provider.tsx": 4,
-    "apps/web/src/features/access/queries/pairing-flow.ts": 1,
     "apps/web/src/features/review/queries/files.ts": 4,
     "apps/web/src/features/review/queries/git-actions.ts": 1,
     "apps/web/src/features/review/queries/review.ts": 1,
@@ -103,7 +100,7 @@
     "apps/web/src/shared/workspace/preferences.tsx": 2
   },
   "porcelain/web-no-empty-catch": {
-    "apps/web/src/app/workspace-provider.tsx": 2,
+    "apps/web/src/app/workspace-provider.tsx": 1,
     "apps/web/src/features/review/views/inline-composer.tsx": 1,
     "apps/web/src/features/review/views/reviewed-control.tsx": 2,
     "apps/web/src/features/review/views/use-code-folds.ts": 1,
@@ -112,7 +109,6 @@
     "apps/web/src/shared/workspace/preferences.tsx": 1
   },
   "porcelain/web-no-manual-memo": {
-    "apps/web/src/app/workspace-provider.tsx": 3,
     "apps/web/src/features/review/queries/files.ts": 1,
     "apps/web/src/features/review/queries/git-actions.ts": 1,
     "apps/web/src/features/review/views/code-document.tsx": 3,
@@ -126,8 +122,6 @@
   },
   "porcelain/web-no-use-state": {
     "apps/web/src/app/views/connected-workspace.tsx": 4,
-    "apps/web/src/app/workspace-provider.tsx": 4,
-    "apps/web/src/features/access/queries/pairing-flow.ts": 2,
     "apps/web/src/features/projects/views/project-discovery.tsx": 1,
     "apps/web/src/features/projects/views/project-folder-picker.tsx": 2,
     "apps/web/src/features/projects/views/project-navigator.tsx": 2,
@@ -164,8 +158,6 @@
   },
   "porcelain/web-refs-in-adapters": {
     "apps/web/src/app/views/connected-workspace.tsx": 1,
-    "apps/web/src/app/workspace-provider.tsx": 1,
-    "apps/web/src/features/access/queries/pairing-flow.ts": 1,
     "apps/web/src/features/projects/views/project-navigator.tsx": 1,
     "apps/web/src/features/review/queries/git-actions.ts": 1,
     "apps/web/src/features/review/queries/review.ts": 1,
@@ -185,7 +177,6 @@
     "apps/web/src/features/review/views/use-tab-layout.ts": 3
   },
   "porcelain/web-store-owns-storage": {
-    "apps/web/src/app/workspace-provider.tsx": 1,
     "apps/web/src/features/review/views/use-code-folds.ts": 2,
     "apps/web/src/features/review/views/use-tab-layout.ts": 4,
     "apps/web/src/shared/workspace/preferences.tsx": 2
@@ -199,7 +190,6 @@
   "porcelain/web-view-line-budget": {
     "apps/web/src/app/views/connected-workspace.tsx": 1,
     "apps/web/src/app/views/settings-dialog.tsx": 1,
-    "apps/web/src/app/workspace-provider.tsx": 1,
     "apps/web/src/features/projects/views/open-project-dialog.tsx": 1,
     "apps/web/src/features/projects/views/project-folder-picker.tsx": 1,
     "apps/web/src/features/projects/views/project-navigator.tsx": 1,
@@ -229,7 +219,7 @@
     "apps/web/src/features/review/views/use-tab-layout.ts": 1
   },
   "porcelain/web-views-no-await": {
-    "apps/web/src/app/workspace-provider.tsx": 3,
+    "apps/web/src/app/workspace-provider.tsx": 1,
     "apps/web/src/features/projects/views/open-project-dialog.tsx": 1,
     "apps/web/src/features/review/views/branch-dialog.tsx": 2,
     "apps/web/src/features/review/views/commit-form.tsx": 3,
@@ -257,11 +247,10 @@
   },
   "porcelain/web-views-no-direct-data": {
     "apps/web/src/app/views/connected-workspace.tsx": 1,
-    "apps/web/src/app/workspace-provider.tsx": 5,
+    "apps/web/src/app/workspace-provider.tsx": 4,
     "apps/web/src/features/review/views/review-workspace.tsx": 1
   },
   "porcelain/web-views-no-loops": {
-    "apps/web/src/app/workspace-provider.tsx": 1,
     "apps/web/src/features/review/views/code-document.tsx": 1,
     "apps/web/src/features/review/views/commit-form.tsx": 1,
     "apps/web/src/features/review/views/file-navigation.tsx": 1,
@@ -275,10 +264,10 @@
     "apps/web/src/features/review/views/use-tab-layout.ts": 1
   },
   "porcelain/web-views-no-transport": {
-    "apps/web/src/app/workspace-provider.tsx": 3
+    "apps/web/src/app/workspace-provider.tsx": 1
   },
   "porcelain/web-views-no-try": {
-    "apps/web/src/app/workspace-provider.tsx": 3,
+    "apps/web/src/app/workspace-provider.tsx": 1,
     "apps/web/src/features/review/views/branch-dialog.tsx": 2,
     "apps/web/src/features/review/views/commit-form.tsx": 2,
     "apps/web/src/features/review/views/discard.tsx": 3,
@@ -290,7 +279,6 @@
     "apps/web/src/features/review/views/use-tab-layout.ts": 4
   },
   "query-cannot-import-shell": {
-    "apps/web/src/features/access/queries/connection.ts": 1,
     "apps/web/src/features/projects/queries/file-preferences.ts": 1,
     "apps/web/src/features/projects/queries/inventory.ts": 1,
     "apps/web/src/features/projects/queries/project-locations.ts": 1
@@ -311,8 +299,6 @@
   },
   "unclassified-import-target": {
     "apps/web/src/app/workspace-provider.tsx": 1,
-    "apps/web/src/features/access/index.ts": 4,
-    "apps/web/src/features/access/queries/connection.ts": 2,
     "apps/web/src/features/projects/index.ts": 6,
     "apps/web/src/features/projects/queries/file-preferences.ts": 2,
     "apps/web/src/features/projects/queries/inventory.ts": 2,
@@ -338,11 +324,6 @@
     "apps/web/src/app/views/workspace-error.tsx": 1,
     "apps/web/src/app/views/workspace-pending.tsx": 1,
     "apps/web/src/app/views/workspace-view.tsx": 1,
-    "apps/web/src/features/access/api/pairing-link.ts": 1,
-    "apps/web/src/features/access/api/pairing-live.ts": 1,
-    "apps/web/src/features/access/api/pairing-port.ts": 1,
-    "apps/web/src/features/access/api/session-live.ts": 1,
-    "apps/web/src/features/access/api/session-port.ts": 1,
     "apps/web/src/features/projects/api/file-preferences-live.ts": 1,
     "apps/web/src/features/projects/api/file-preferences-port.ts": 1,
     "apps/web/src/features/projects/api/inventory-live.ts": 1,
@@ -431,12 +412,7 @@
     "apps/web/src/features/review/views/use-code-folds.ts": 1,
     "apps/web/src/features/review/views/use-tab-layout.ts": 1
   },
-  "unused-dependency": {
-    "apps/web/package.json": 3
-  },
   "unused-export": {
-    "apps/web/src/features/access/api/pairing-link.ts": 1,
-    "apps/web/src/features/access/index.ts": 2,
     "apps/web/src/features/projects/api/file-preferences-port.ts": 1,
     "apps/web/src/features/projects/file-preferences.ts": 1,
     "apps/web/src/features/projects/index.ts": 5,

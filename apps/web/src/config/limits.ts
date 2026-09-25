@@ -1,0 +1,1 @@
+export const WEB_PLATFORM_NAME_MAX_LENGTH = 120;

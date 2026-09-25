@@ -2,10 +2,11 @@ import { UnplugIcon } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
-import { connectionErrorMessage, useConnection } from '../queries/connection';
+import { useDisconnect } from '../commands/disconnect';
+import { connectionErrorMessage } from '../queries/session';
 
 export function DisconnectBrowser() {
-  const { disconnect, disconnectError, disconnectPending } = useConnection();
+  const disconnect = useDisconnect();
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
@@ -18,17 +19,17 @@ export function DisconnectBrowser() {
         <Button
           variant="outline"
           className="shrink-0"
-          disabled={disconnectPending}
-          onClick={() => void disconnect()}
+          disabled={disconnect.isPending}
+          onClick={() => disconnect.submit()}
         >
-          {disconnectPending ? <Spinner /> : <UnplugIcon />}
+          {disconnect.isPending ? <Spinner /> : <UnplugIcon />}
           Disconnect this browser
         </Button>
       </div>
-      {disconnectError && (
+      {disconnect.error && (
         <Alert variant="destructive">
           <AlertDescription>
-            {connectionErrorMessage(disconnectError)}
+            {connectionErrorMessage(disconnect.error)}
           </AlertDescription>
         </Alert>
       )}
