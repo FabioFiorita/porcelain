@@ -8,14 +8,9 @@ export default {
   edits: [
     {
       kind: 'create',
-      path: 'apps/web/src/features/access/api.ts',
-      content: "export const probeApi = 'probe';\n",
-    },
-    {
-      kind: 'create',
       path: 'apps/web/src/features/access/views/probe-view.tsx',
       content:
-        "import { probeApi } from '../api';\n\nexport const ProbeView = () => <p>{probeApi}</p>;\n",
+        "import * as probeApi from '../api';\n\nexport const ProbeView = () => <p>{Object.keys(probeApi).length}</p>;\n",
     },
   ],
 } satisfies Probe;

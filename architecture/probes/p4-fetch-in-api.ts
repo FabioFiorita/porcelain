@@ -8,10 +8,10 @@ export default {
   rule: 'porcelain(web-transport-owner)',
   edits: [
     {
-      kind: 'create',
+      kind: 'append',
       path: 'apps/web/src/features/access/api.ts',
       content:
-        "export function probeRead() {\n  return fetch('/api/probe');\n}\n",
+        "\nexport function probeRead() {\n  return fetch('/api/probe');\n}\n",
     },
   ],
 } satisfies Probe;
