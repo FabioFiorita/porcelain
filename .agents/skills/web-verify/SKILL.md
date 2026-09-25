@@ -38,4 +38,4 @@ pnpm dlx @puppeteer/browsers@3.2.3 install chrome@154.0.8037.57 --path "$HOME/.c
 
 Set `PORCELAIN_CHROME_PATH` to an existing Chrome executable for a different installation. On hosts where Chrome's sandbox cannot start, set `PORCELAIN_CHROME_NO_SANDBOX=1` for `pnpm devtools start`.
 
-Before reporting a web feature complete, run its browser case and the web typecheck, lint, format and architecture checks. Run `pnpm probes:web` after changing web architecture policy. A red result is a concrete refactor target; do not relax a guard to turn it green.
+Before reporting a web feature complete, run its browser case and the web typecheck, lint and format checks and `pnpm arch:check`. Run `pnpm probes` after changing web architecture policy. A red result is a concrete refactor target; do not relax a guard to turn it green.

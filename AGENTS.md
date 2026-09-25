@@ -22,19 +22,21 @@ pnpm db:check
 node .agents/skills/server-verify/scripts/verify.ts --all
 ```
 
-Lefthook's pre-push, installed by `pnpm install`, runs the fast server checks (typecheck, lint, format check, test and arch) and the fast web checks (typecheck, lint, format check and arch) before every push; `db:check`, the net and `pnpm probes` stay yours to run. CI runs the full web set in `.github/workflows/web.yml`.
+Lefthook's pre-push, installed by `pnpm install`, runs the fast server checks (typecheck, lint, format check, test and arch, which covers the web too) and the fast web checks (typecheck, lint and format check) before every push; `db:check`, the net and `pnpm probes` stay yours to run. CI runs the full web set in `.github/workflows/web.yml`.
 
 A change to behaviour is not done until a behaviour spec states its promise (`server-spec`) and the verification net has a case that reaches it over HTTP (`server-verify`). A change to a guardrail is not done until `pnpm probes` reports every probe under `architecture/probes/` rejected.
 
 ## Web rebuild
 
-Keep existing web behavior while moving each file to its app, feature or shared owner. The web checks now pass; keep them green by changing code instead of weakening a check. The server contract stays the server's contract.
+Keep existing web behavior while moving each file to its app, feature or shared owner. The server contract stays the server's contract.
 
-Views render feature data and own local UI state and DOM interactions. Queries, commands and models own API, cache and business behavior. DOM refs and effects are allowed in views; they do not carry business work.
+Views render feature data and forward events; they hold no state, effects, refs, awaits or try blocks. A feature's `api.ts` talks to the server, `queries/` and `commands/` own reads, writes and the cache, `store.ts` owns client state, `overlays.ts` owns Base UI handles, `rules/` holds pure functions, and `adapters/` is the only home for effects, refs and DOM listeners. The React Compiler memoizes; write no `useMemo` or `useCallback`.
+
+Existing web code still breaks many of these rules. `architecture/web-baseline.json` holds those findings per file and rule, and it only shrinks: a new finding or a growing count fails, a fixed finding must be written down, and nothing is ever added. Keep the checks green by changing code, never a rule or the baseline.
 
 Use shadcn registry components for UI primitives. Search the installed registry with `pnpm --filter @porcelain/web exec shadcn list @shadcn --query <name>` and add a missing primitive through the shadcn CLI. Do not create a local replacement in a feature view or add a hand-written primitive to `components/ui`; that folder holds shadcn registry components. Compose product-specific views in their feature folders.
 
-Run `pnpm typecheck:web`, `pnpm lint:web`, `pnpm format:web:check`, `pnpm arch:web`, `pnpm probes:web` and `pnpm verify:web --all` before declaring a web feature done. Browser behavior cases run with Vitest Browser Mode and its Playwright Chromium provider against a disposable real server. Agent inspection and performance use `pnpm devtools` through the `web-verify` skill. Do not add a runtime mock API or a separate prototype.
+Run `pnpm typecheck:web`, `pnpm lint:web`, `pnpm format:web:check`, `pnpm arch:check` and `pnpm verify:web --all` before declaring a web feature done, and `pnpm probes` after changing a guardrail. Browser behavior cases run with Vitest Browser Mode and its Playwright Chromium provider against a disposable real server. Agent inspection and performance use `pnpm devtools` through the `web-verify` skill. Do not add a runtime mock API or a separate prototype.
 
 ## Skills
 
@@ -49,4 +51,4 @@ Run `pnpm typecheck:web`, `pnpm lint:web`, `pnpm format:web:check`, `pnpm arch:w
 - One short imperative sentence per commit; no attribution lines of any kind.
 - Before using a library, check its current documentation for a built-in pattern and prefer it over a helper.
 - Do not make the server bend to the old web code during its rebuild.
-- Limits live in `packages/contracts/src/shared/limits.ts` and `apps/server/src/config/limits.ts`, nowhere else.
+- Limits live in `packages/contracts/src/shared/limits.ts` when the server enforces them, otherwise in `apps/server/src/config/limits.ts` or `apps/web/src/config/limits.ts`, nowhere else.
