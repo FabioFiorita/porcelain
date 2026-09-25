@@ -2,15 +2,16 @@ import type { Probe } from '../probe.ts';
 
 export default {
   decision: 'P4',
-  plants: 'a web dependency nothing imports',
+  plants:
+    'the only import of cmdk removed while apps/web/package.json still depends on it',
   gate: 'arch',
   rule: 'unused-dependency:',
   edits: [
     {
       kind: 'replace',
-      path: 'apps/web/package.json',
-      old: '"@base-ui/react": "1.8.0",',
-      new: '"@base-ui/react": "1.8.0",\n    "left-pad": "1.3.0",',
+      path: 'apps/web/src/components/ui/command.tsx',
+      old: "import { Command as CommandPrimitive } from 'cmdk';\n",
+      new: '',
     },
   ],
 } satisfies Probe;

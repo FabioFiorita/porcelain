@@ -405,6 +405,17 @@ function classifyAll(sources: readonly string[]): {
   return { classified, findings };
 }
 
+const cruiserReasons: Partial<Record<ArchRule, string>> = {
+  'web-routes-import-feature-index':
+    "a route reaches a feature through features/<domain>/index.ts only, so the feature's inside can move without touching routes",
+  'web-features-import-feature-index':
+    "a feature reaches another feature through its index.ts only, so each feature's inside stays its own",
+  'web-shared-imports-no-owner':
+    'shared/ and components/ui serve every owner and import none of them: no feature, no app shell, no route',
+  'web-nothing-imports-routes':
+    'routes are the leaves TanStack Router loads from the generated route tree; nothing else imports them',
+};
+
 function dependencyFindings(
   report: CruiseReport,
   classified: ReadonlyMap<string, Classification>,
@@ -412,7 +423,7 @@ function dependencyFindings(
   const result: Finding[] = report.summary.violations.map((entry) => ({
     rule: entry.rule.name,
     from: entry.from,
-    to: entry.to,
+    to: [entry.to, cruiserReasons[entry.rule.name]].filter(Boolean).join(': '),
   }));
   for (const module of report.modules) {
     const from = classified.get(module.source);
