@@ -11,11 +11,13 @@ import {
 import { request as httpRequest, type IncomingHttpHeaders } from 'node:http';
 import { basename, dirname, join, resolve, sep } from 'node:path';
 import { promisify } from 'node:util';
+import { codingToolExecutable } from '../../../../scripts/dev-server.ts';
 import {
   isRecord,
   list,
   record,
   text,
+  type DraftedCommit,
   type Fixture,
   type HttpRequest,
   type HttpResponse,
@@ -54,6 +56,12 @@ type FileStep = {
 type LinkStep = { phase: Phase; kind: 'link'; path: string; target: string };
 type FifoStep = { phase: Phase; kind: 'fifo' | 'remove'; path: string };
 type RenameStep = { phase: Phase; kind: 'rename'; from: string; to: string };
+type InstallStep = {
+  phase: Phase;
+  kind: 'install';
+  command: string;
+  target: string;
+};
 type EntriesStep = {
   phase: Phase;
   kind: 'entries';
@@ -76,6 +84,7 @@ export type Step =
   | LinkStep
   | FifoStep
   | RenameStep
+  | InstallStep
   | EntriesStep
   | LiveStep;
 
@@ -85,6 +94,7 @@ type Manifest = {
   socketPath: string;
   credentialFile: string;
   hitsFile: string;
+  bin: string;
   fixture: Fixture;
   routes: string[];
 };
@@ -254,8 +264,14 @@ function withQuery(path: string, query: HttpRequest['query']): string {
   return `${path}${path.includes('?') ? '&' : '?'}${search.toString()}`;
 }
 
+function draftedCommitOf(value: unknown): DraftedCommit {
+  const commit = record(value);
+  return { message: text(commit.message), paths: list(commit.paths).map(text) };
+}
+
 function fixtureOf(value: unknown): Fixture {
   const fixture = record(value);
+  const codingTool = record(fixture.codingTool);
   const device = record(fixture.device);
   const readme = record(fixture.readme);
   const folders = record(fixture.folders);
@@ -284,6 +300,11 @@ function fixtureOf(value: unknown): Fixture {
     summaryLinkLifetimeMs: Number(fixture.summaryLinkLifetimeMs),
     gitActionDeadlineMs: Number(fixture.gitActionDeadlineMs),
     inventoryStaleAfterMs: Number(fixture.inventoryStaleAfterMs),
+    codingTool: {
+      command: text(codingTool.command),
+      message: draftedCommitOf(codingTool.message),
+      groups: list(codingTool.groups).map(draftedCommitOf),
+    },
   };
 }
 
@@ -295,6 +316,7 @@ function manifestOf(value: unknown): Manifest {
     socketPath: text(manifest.socketPath),
     credentialFile: text(manifest.credentialFile),
     hitsFile: text(manifest.hitsFile),
+    bin: text(manifest.bin),
     fixture: fixtureOf(manifest.fixture),
     routes: list(manifest.routes).map(text),
   };
@@ -393,6 +415,7 @@ export class ServerHandle {
   readonly fixture: Fixture;
   readonly routes: readonly string[];
   private readonly hitsFile: string;
+  private readonly bin: string;
 
   protected constructor(manifest: Manifest, credential: string) {
     this.address = manifest.address;
@@ -402,6 +425,7 @@ export class ServerHandle {
     this.fixture = manifest.fixture;
     this.routes = manifest.routes;
     this.hitsFile = manifest.hitsFile;
+    this.bin = manifest.bin;
     this.credential = credential;
   }
 
@@ -544,6 +568,20 @@ export class ServerHandle {
         });
         recorder.provenance.observe(`entries ${path}`, names);
         return names;
+      },
+      installCodingTool: async () => {
+        const { command } = this.fixture.codingTool;
+        await symlink(codingToolExecutable, join(this.bin, command)).catch(
+          (error: unknown) => {
+            if (!(isRecord(error) && error.code === 'EEXIST')) throw error;
+          },
+        );
+        recorder.steps.push({
+          phase: recorder.phase,
+          kind: 'install',
+          command,
+          target: codingToolExecutable,
+        });
       },
     };
   }

@@ -8,7 +8,7 @@ import {
   realpathSync,
   statSync,
 } from 'node:fs';
-import { cp, mkdtemp, rm } from 'node:fs/promises';
+import { chmod, cp, mkdtemp, rm, symlink } from 'node:fs/promises';
 import { connect, createServer, type Server } from 'node:net';
 import { tmpdir } from 'node:os';
 import { delimiter, dirname, join, resolve } from 'node:path';
@@ -18,6 +18,7 @@ import { z } from 'zod';
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const childBundle = 'server/src/bootstrap/dev-server-child.mjs';
+const codingToolBundle = 'coding-tool/claude.mjs';
 const unbundled = [
   { name: 'better-sqlite3', via: [] },
   { name: '@parcel/watcher', via: [] },
@@ -25,7 +26,8 @@ const unbundled = [
 ];
 const optionalModules = ['bufferutil', 'utf-8-validate'];
 const serverMount = '/opt/porcelain/server';
-const gitOnlyPath = '/opt/porcelain/bin';
+const sandboxPath = '/opt/porcelain/bin';
+export const codingToolExecutable = join(serverMount, codingToolBundle);
 const stopGraceMs = 10_000;
 const packageSchema = z.object({
   dependencies: z.record(z.string(), z.string()).optional(),
@@ -76,6 +78,22 @@ export async function buildIsolatedServer(output: string): Promise<void> {
     },
     logLevel: 'warning',
   });
+  await build({
+    stdin: {
+      contents:
+        "import { runCodingTool } from './dev-coding-tool.ts'; runCodingTool();",
+      resolveDir: join(repositoryRoot, 'scripts'),
+      loader: 'ts',
+    },
+    outfile: join(output, codingToolBundle),
+    bundle: true,
+    format: 'esm',
+    platform: 'node',
+    target: 'node24',
+    banner: { js: `#!${realpathSync(process.execPath)}` },
+    logLevel: 'warning',
+  });
+  await chmod(join(output, codingToolBundle), 0o755);
   await cp(
     join(repositoryRoot, 'packages/storage/drizzle'),
     join(output, 'server/drizzle'),
@@ -148,9 +166,13 @@ function libraryMounts(libraries: readonly string[]): string[] {
   });
 }
 
-function sandboxArguments(server: string, root: string): string[] {
+function sandboxArguments(
+  server: string,
+  root: string,
+  bin: string,
+  git: string,
+): string[] {
   const node = realpathSync(process.execPath);
-  const git = hostExecutable('git');
   const gitExecPath = realpathSync(
     execFileSync(git, ['--exec-path'], { encoding: 'utf8' }).trim(),
   );
@@ -174,11 +196,7 @@ function sandboxArguments(server: string, root: string): string[] {
     ...(existsSync('/etc/ld.so.cache') ? readOnly('/etc/ld.so.cache') : []),
     ...libraryMounts(sharedLibraries([node, git, ...addons(server)])),
     ...readOnly(server, serverMount),
-    '--dir',
-    gitOnlyPath,
-    '--symlink',
-    git,
-    join(gitOnlyPath, 'git'),
+    ...readOnly(bin, sandboxPath),
     '--bind',
     root,
     root,
@@ -215,6 +233,7 @@ function serverOption(): string | undefined {
 
 async function main() {
   const root = await mkdtemp(join(tmpdir(), 'porcelain-dev-'));
+  const bin = await mkdtemp(join(tmpdir(), 'porcelain-dev-bin-'));
   const given = serverOption();
   const built =
     given === undefined
@@ -235,19 +254,22 @@ async function main() {
         'The isolated development server requires Linux and bwrap',
       );
     const bwrap = hostExecutable('bwrap');
+    const git = hostExecutable('git');
+    await symlink(git, join(bin, 'git'));
     if (built !== undefined) await buildIsolatedServer(built);
     const server = realpathSync(given ?? built ?? '');
     const network = await relayTo(join(root, 'network.sock'));
     relay = network.relay;
-    const child = spawn(bwrap, sandboxArguments(server, root), {
+    const child = spawn(bwrap, sandboxArguments(server, root, bin, git), {
       cwd: root,
       detached: true,
       stdio: ['pipe', 'inherit', 'inherit'],
       env: {
-        PATH: gitOnlyPath,
+        PATH: sandboxPath,
         HOME: root,
         TMPDIR: root,
         PORCELAIN_DEV_ROOT: root,
+        PORCELAIN_DEV_BIN: bin,
         PORCELAIN_DEV_PORT: String(network.port),
       },
     });
@@ -271,6 +293,7 @@ async function main() {
     process.off('SIGTERM', stop);
     relay?.close();
     await rm(root, { recursive: true, force: true });
+    await rm(bin, { recursive: true, force: true });
     if (built !== undefined) await rm(built, { recursive: true, force: true });
   }
 }

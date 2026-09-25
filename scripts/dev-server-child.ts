@@ -10,6 +10,7 @@ import { startServer } from '../apps/server/src/bootstrap/compose-server.ts';
 import { askOwner } from '../apps/server/src/cli/owner-client.ts';
 import { readServerSettings } from '../apps/server/src/config/server-settings.ts';
 import type { Runtime } from '../apps/server/src/ports/runtime.ts';
+import { codingTool } from './dev-coding-tool.ts';
 
 const issuedPairingSchema = z.object({
   grants: z.array(z.object({ code: z.string() })),
@@ -27,6 +28,8 @@ process.stdin.resume();
 const root = process.env.PORCELAIN_DEV_ROOT;
 if (!root) throw new Error('Missing development root');
 const port = Number(process.env.PORCELAIN_DEV_PORT ?? '0');
+const bin = process.env.PORCELAIN_DEV_BIN;
+if (!bin) throw new Error('Missing development PATH folder');
 let server: Runtime | undefined;
 const relay = createServer((incoming) => {
   const address = new URL(server?.address ?? 'http://127.0.0.1:0');
@@ -142,6 +145,7 @@ const fixture = {
   summaryLinkLifetimeMs: 2000,
   gitActionDeadlineMs: 1500,
   inventoryStaleAfterMs: 200,
+  codingTool,
 };
 
 try {
@@ -269,7 +273,7 @@ try {
   fixtureReady = true;
   await writeFile(
     manifest,
-    `${JSON.stringify({ address: server.address, dataDirectory: state, repository, socketPath: server.socketPath, credentialFile, hitsFile, fixture, routes: registeredRoutes() }, null, 2)}\n`,
+    `${JSON.stringify({ address: server.address, dataDirectory: state, repository, socketPath: server.socketPath, credentialFile, hitsFile, bin, fixture, routes: registeredRoutes() }, null, 2)}\n`,
     { mode: 0o600 },
   );
   process.stdout.write(

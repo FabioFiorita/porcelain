@@ -40,7 +40,14 @@ export type Fixture = {
   summaryLinkLifetimeMs: number;
   gitActionDeadlineMs: number;
   inventoryStaleAfterMs: number;
+  codingTool: {
+    command: string;
+    message: DraftedCommit;
+    groups: DraftedCommit[];
+  };
 };
+
+export type DraftedCommit = { message: string; paths: string[] };
 
 export type GitSubcommand =
   | 'add'
@@ -81,6 +88,7 @@ export type Session = {
   remove(path: string): Promise<void>;
   rename(from: string, to: string): Promise<void>;
   entries(path: string): Promise<string[]>;
+  installCodingTool(): Promise<void>;
   secret(value: string): void;
 };
 
