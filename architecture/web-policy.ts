@@ -26,6 +26,88 @@ const allowedTopLevel = new Set([
   'routes',
   'shared',
 ]);
+const shadcnUi = new Set([
+  'accordion',
+  'alert',
+  'alert-dialog',
+  'aspect-ratio',
+  'attachment',
+  'avatar',
+  'badge',
+  'breadcrumb',
+  'bubble',
+  'button',
+  'button-group',
+  'calendar',
+  'card',
+  'carousel',
+  'chart',
+  'checkbox',
+  'collapsible',
+  'combobox',
+  'command',
+  'context-menu',
+  'dialog',
+  'direction',
+  'drawer',
+  'dropdown-menu',
+  'empty',
+  'field',
+  'form',
+  'hover-card',
+  'input',
+  'input-group',
+  'input-otp',
+  'item',
+  'kbd',
+  'label',
+  'marker',
+  'menubar',
+  'message',
+  'message-scroller',
+  'native-select',
+  'navigation-menu',
+  'pagination',
+  'popover',
+  'progress',
+  'questionnaire',
+  'radio-group',
+  'resizable',
+  'scroll-area',
+  'select',
+  'separator',
+  'sheet',
+  'sidebar',
+  'skeleton',
+  'slider',
+  'sonner',
+  'spinner',
+  'switch',
+  'table',
+  'tabs',
+  'textarea',
+  'toast',
+  'toggle',
+  'toggle-group',
+  'tooltip',
+]);
+const shadcnNames = new Set(
+  [...shadcnUi].map((name) =>
+    name
+      .split('-')
+      .map((part) => part[0]?.toUpperCase() + part.slice(1))
+      .join(''),
+  ),
+);
+const nativePrimitives = new Set([
+  'button',
+  'dialog',
+  'input',
+  'label',
+  'progress',
+  'select',
+  'textarea',
+]);
 
 function finding(
   rule: string,
@@ -116,6 +198,30 @@ export function webPolicyFindings(file: string, source: string): WebFinding[] {
   const parts = relative.split('/');
   const findings: WebFinding[] = [];
   const top = parts[0] ?? '';
+  const uiFile = top === 'components' && parts[1] === 'ui';
+  const stem = parts.at(-1)?.replace(/\.[^.]+$/, '') ?? '';
+  if (
+    uiFile &&
+    /\.tsx?$/.test(file) &&
+    (parts.length !== 3 || !shadcnUi.has(stem))
+  )
+    findings.push(
+      finding(
+        'web-shadcn-ui-owner',
+        file,
+        1,
+        'components/ui contains shadcn registry primitives only. Search the shadcn registry before adding a component; feature composition belongs in feature views.',
+      ),
+    );
+  if (!uiFile && file.endsWith('.tsx') && shadcnUi.has(stem))
+    findings.push(
+      finding(
+        'web-shadcn-primitive-owner',
+        file,
+        1,
+        `Use the shadcn ${stem} component from components/ui; add it through the shadcn CLI if it is missing.`,
+      ),
+    );
   const view =
     top === 'routes' ||
     (top === 'app' && parts[1] === 'views') ||
@@ -246,6 +352,31 @@ export function webPolicyFindings(file: string, source: string): WebFinding[] {
       );
   };
   new Visitor({
+    JSXOpeningElement(node) {
+      if (uiFile || node.name.type !== 'JSXIdentifier') return;
+      if (
+        !nativePrimitives.has(node.name.name) &&
+        !shadcnNames.has(node.name.name)
+      )
+        return;
+      if (
+        !node.attributes.some(
+          (attribute) =>
+            attribute.type === 'JSXSpreadAttribute' &&
+            attribute.argument.type === 'Identifier' &&
+            attribute.argument.name === 'props',
+        )
+      )
+        return;
+      findings.push(
+        finding(
+          'web-shadcn-wrapper',
+          file,
+          lineOf(node.start),
+          'Forwarding generic props through another primitive duplicates shadcn. Use its registry component and variants in the feature view.',
+        ),
+      );
+    },
     ImportDeclaration(node) {
       if (typeof node.source.value === 'string')
         checkImport(node.start, node.source.value);

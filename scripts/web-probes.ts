@@ -15,6 +15,26 @@ const probes = [
     'export const Card = () => null',
   ],
   [
+    'web-shadcn-ui-owner',
+    'apps/web/src/components/ui/action-control.tsx',
+    'export const ActionControl = () => null',
+  ],
+  [
+    'web-shadcn-primitive-owner',
+    'apps/web/src/features/review/views/button.tsx',
+    'export const Button = () => null',
+  ],
+  [
+    'web-shadcn-wrapper',
+    'apps/web/src/features/review/views/save-button.tsx',
+    'export const SaveButton = (props: React.ComponentProps<"button">) => <button {...props} />',
+  ],
+  [
+    'web-shadcn-wrapper',
+    'apps/web/src/features/review/views/save-button.tsx',
+    'import { Button } from "@/components/ui/button"; export const SaveButton = (props: React.ComponentProps<typeof Button>) => <Button {...props} />',
+  ],
+  [
     'web-no-runtime-fixture',
     'apps/web/src/features/review/fixture.ts',
     'export const value = 1',
@@ -131,6 +151,16 @@ const viewState = webPolicyFindings(
 if (viewState.length > 0) {
   process.stderr.write(
     `Permitted view state rejected: ${JSON.stringify(viewState)}\n`,
+  );
+  failed += 1;
+}
+const registryPrimitive = webPolicyFindings(
+  'apps/web/src/components/ui/button.tsx',
+  'export const Button = () => null',
+);
+if (registryPrimitive.length > 0) {
+  process.stderr.write(
+    `Registry primitive rejected: ${JSON.stringify(registryPrimitive)}\n`,
   );
   failed += 1;
 }

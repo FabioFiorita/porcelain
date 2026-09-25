@@ -32,6 +32,8 @@ Keep existing web behavior while moving each file to its app, feature or shared 
 
 Views render feature data and own local UI state and DOM interactions. Queries, commands and models own API, cache and business behavior. DOM refs and effects are allowed in views; they do not carry business work.
 
+Use shadcn registry components for UI primitives. Search the installed registry with `pnpm --filter @porcelain/web exec shadcn list @shadcn --query <name>` and add a missing primitive through the shadcn CLI. Do not create a local replacement in a feature view or add a hand-written primitive to `components/ui`; that folder holds shadcn registry components. Compose product-specific views in their feature folders.
+
 Run `pnpm typecheck:web`, `pnpm lint:web`, `pnpm format:web:check`, `pnpm arch:web`, `pnpm probes:web` and `pnpm verify:web --all` before declaring a web feature done. Browser behavior cases run with Vitest Browser Mode and its Playwright Chromium provider against a disposable real server. Agent inspection and performance use `pnpm devtools` through the `web-verify` skill. Do not add a runtime mock API or a separate prototype.
 
 ## Skills

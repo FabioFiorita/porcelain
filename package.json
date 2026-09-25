@@ -19,7 +19,7 @@
     "test": "vitest run",
     "db:generate": "pnpm --filter @porcelain/storage db:generate",
     "db:check": "pnpm --filter @porcelain/storage db:check",
-    "dev": "pnpm dev:server",
+    "dev": "node scripts/dev.ts",
     "dev:server": "node scripts/dev-server.ts",
     "dev:web": "pnpm --filter @porcelain/web dev",
     "serve": "node scripts/serve.ts",
