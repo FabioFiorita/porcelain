@@ -100,7 +100,7 @@ export async function loadJourneys(): Promise<Journey[]> {
     const parsed = z.object({ default: journeySchema }).safeParse(module);
     if (!parsed.success)
       throw new Error(
-        `feature-map/${file}: ${parsed.error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`).join('; ')}`,
+        `feature-map/${file}: ${parsed.error.issues.map((issue) => `${issue.path.slice(1).join('.')}: ${issue.message}`).join('; ')}`,
       );
     const journey = parsed.data.default;
     if (journey.feature !== basename(file, '.ts'))
