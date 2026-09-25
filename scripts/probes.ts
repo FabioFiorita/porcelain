@@ -10,6 +10,7 @@ import {
 } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { stripVTControlCharacters } from 'node:util';
 import { z } from 'zod';
 import {
   liveRuleNames,
@@ -173,7 +174,9 @@ function runGate(
       running = undefined;
       done({
         status: status ?? 1,
-        output: Buffer.concat(chunks).toString('utf8'),
+        output: stripVTControlCharacters(
+          Buffer.concat(chunks).toString('utf8'),
+        ),
       });
     });
   });
