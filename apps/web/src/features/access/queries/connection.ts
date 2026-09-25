@@ -2,6 +2,7 @@ import { ConnectionError } from '../../../shared/api/connection-error';
 import { useMutation } from '@tanstack/react-query';
 import { pairingCode } from '../api/pairing-link';
 import type { PairingCode } from '../api/pairing-port';
+import { refusalMessage } from '../api';
 import { REQUEST_TIMEOUT_MS } from '@/shared/api/request-timeout';
 import { asMutation } from '@/shared/query/mutation';
 import { useWorkspaceContext } from '@/app/workspace-provider';
@@ -9,7 +10,8 @@ import { useWorkspaceContext } from '@/app/workspace-provider';
 export function connectionErrorMessage(error: unknown) {
   return error instanceof ConnectionError
     ? error.message
-    : 'Could not connect to the environment. Try again.';
+    : (refusalMessage(error) ??
+        'Could not connect to the environment. Try again.');
 }
 
 export function useConnection() {
