@@ -204,6 +204,7 @@ export const styleRules = [
   'vitest-config',
   'cruiser-config',
   'ci-steps',
+  'pre-push-hook',
   'code-outside-lint-roots',
 ] as const;
 

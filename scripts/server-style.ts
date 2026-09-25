@@ -179,6 +179,36 @@ function lefthookConfig(): unknown {
   return parsed;
 }
 
+function hookProblems(): Problem[] {
+  if (process.env.CI === 'true') return [];
+  const checked = spawnSync(
+    join('node_modules', '.bin', 'lefthook'),
+    ['check-install'],
+    { encoding: 'utf8' },
+  );
+  if (checked.error) throw checked.error;
+  const hooks = spawnSync(
+    'git',
+    ['rev-parse', '--path-format=absolute', '--git-path', 'hooks'],
+    { encoding: 'utf8' },
+  );
+  if (hooks.error) throw hooks.error;
+  const hook = join(hooks.stdout.trim(), 'pre-push');
+  const installed =
+    checked.status === 0 &&
+    hooks.status === 0 &&
+    existsSync(hook) &&
+    readFileSync(hook, 'utf8').includes('lefthook run "pre-push"');
+  return installed
+    ? []
+    : [
+        problem(
+          'pre-push-hook',
+          `${hook} is not the Lefthook pre-push hook in sync with lefthook.yml; without it a push runs none of the pre-push checks and nothing says so. Run pnpm run prepare, which installs the hook and resets core.hooksPath.`,
+        ),
+      ];
+}
+
 function strayLintConfigs(): Problem[] {
   return filesUnder('.')
     .filter(
@@ -419,6 +449,7 @@ async function configProblems(): Promise<Problem[]> {
   }
   problems.push(...scriptProblems());
   problems.push(...ciProblems());
+  problems.push(...hookProblems());
   problems.push(...(await configModuleProblems()));
   problems.push(...(await ruleProblems()));
   return problems;

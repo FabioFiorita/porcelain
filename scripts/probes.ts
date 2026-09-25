@@ -43,6 +43,9 @@ const gateCommands: Record<
   ],
 };
 const moduleSchema = z.object({ default: probeSchema });
+const localEnvironment = Object.fromEntries(
+  Object.entries(process.env).filter(([name]) => name !== 'CI'),
+);
 
 let running: ChildProcess | undefined;
 let interrupted = false;
@@ -160,7 +163,7 @@ function runGate(
 ): Promise<{ status: number; output: string }> {
   return new Promise((done, fail) => {
     const [program, ...args] = command;
-    const child = spawn(program, args, { cwd: root });
+    const child = spawn(program, args, { cwd: root, env: localEnvironment });
     running = child;
     const chunks: Buffer[] = [];
     child.stdout.on('data', (chunk: Buffer) => chunks.push(chunk));

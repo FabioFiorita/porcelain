@@ -82,6 +82,7 @@
     "lint-config",
     "one-lint-config",
     "package-scripts",
+    "pre-push-hook",
     "probe-shape",
     "rule-list",
     "strict-json",
