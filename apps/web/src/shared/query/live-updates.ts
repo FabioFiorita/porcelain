@@ -26,7 +26,8 @@ export function liveSubscription(client: QueryClient, environmentId: string) {
       root !== 'review' ||
       environment !== environmentId ||
       typeof projectId !== 'string' ||
-      typeof worktreeId !== 'string'
+      typeof worktreeId !== 'string' ||
+      typeof surface !== 'string'
     )
       continue;
     const entry = watched.get(worktreeId) ?? {
@@ -40,7 +41,8 @@ export function liveSubscription(client: QueryClient, environmentId: string) {
         surface === 'asset' ||
         surface === 'html-preview' ||
         surface === 'step-lines') &&
-      typeof path === 'string'
+      typeof path === 'string' &&
+      path !== ''
     )
       entry.paths.add(path);
     watched.set(worktreeId, entry);
