@@ -15,8 +15,8 @@ export default {
     },
     {
       kind: 'replace',
-      path: '.githooks/pre-push',
-      old: 'pnpm arch:check\n',
+      path: 'lefthook.yml',
+      old: '          - run: pnpm arch:check\n',
       new: '',
     },
   ],

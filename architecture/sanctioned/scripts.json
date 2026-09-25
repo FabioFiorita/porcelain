@@ -7,7 +7,7 @@
     "probes": "node scripts/probes.ts",
     "test": "vitest run",
     "db:check": "pnpm --filter @porcelain/storage db:check",
-    "prepare": "git config core.hooksPath .githooks",
+    "prepare": "lefthook install --reset-hooks-path",
     "typecheck:web": "pnpm --filter @porcelain/web typecheck",
     "lint:web": "oxlint apps/web/src apps/web/spec apps/web/vite.config.ts",
     "format:web:check": "oxfmt --check apps/web/src apps/web/spec apps/web/vite.config.ts",

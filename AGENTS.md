@@ -22,7 +22,7 @@ pnpm db:check
 node .agents/skills/server-verify/scripts/verify.ts --all
 ```
 
-`.githooks/pre-push`, active after `pnpm install`, runs typecheck, lint, format check, test and arch before every push, then the four fast web checks: typecheck, lint, format check and arch; `db:check`, the net and `pnpm probes` stay yours to run. CI runs the full web set in `.github/workflows/web.yml`.
+Lefthook's pre-push, installed by `pnpm install`, runs the fast server checks (typecheck, lint, format check, test and arch) and the fast web checks (typecheck, lint, format check and arch) before every push; `db:check`, the net and `pnpm probes` stay yours to run. CI runs the full web set in `.github/workflows/web.yml`.
 
 A change to behaviour is not done until a behaviour spec states its promise (`server-spec`) and the verification net has a case that reaches it over HTTP (`server-verify`). A change to a guardrail is not done until `pnpm probes` reports every probe under `architecture/probes/` rejected.
 

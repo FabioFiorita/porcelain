@@ -118,7 +118,7 @@ function codeOutsideLintRoots(): Problem[] {
 
 const ciSchema = z.strictObject({
   workflows: z.record(z.string(), z.array(z.string())),
-  prePush: z.array(z.string()),
+  lefthook: z.unknown(),
 });
 
 const pinnedWorkflows = [
@@ -137,9 +137,6 @@ function ciProblems(): Problem[] {
   const sanctioned = ciSchema.parse(
     strictJson('architecture/sanctioned/ci.json'),
   );
-  const prePush = readFileSync('.githooks/pre-push', 'utf8')
-    .split('\n')
-    .filter((line) => line.trim() !== '');
   return [
     ...pinnedWorkflows.flatMap((path) =>
       isDeepStrictEqual(workflowSteps(path), sanctioned.workflows[path])
@@ -159,15 +156,27 @@ function ciProblems(): Problem[] {
           `architecture/sanctioned/ci.json lists ${path}, which the CI check does not read; every sanctioned workflow is checked.`,
         ),
       ),
-    ...(isDeepStrictEqual(prePush, sanctioned.prePush)
+    ...(isDeepStrictEqual(lefthookConfig(), sanctioned.lefthook)
       ? []
       : [
           problem(
             'ci-steps',
-            '.githooks/pre-push runs the lines architecture/sanctioned/ci.json lists; a gate leaves the hook only through the sanctioned list.',
+            'lefthook.yml, merged with any local or extended Lefthook configuration, runs the pre-push jobs architecture/sanctioned/ci.json pins, with no skip, only or file filter; a gate leaves the hook only through the sanctioned copy.',
           ),
         ]),
   ];
+}
+
+function lefthookConfig(): unknown {
+  const dumped = spawnSync(
+    join('node_modules', '.bin', 'lefthook'),
+    ['dump', '--format', 'json'],
+    { encoding: 'utf8' },
+  );
+  if (dumped.error) throw dumped.error;
+  if (dumped.status !== 0) return undefined;
+  const parsed: unknown = JSON.parse(dumped.stdout);
+  return parsed;
 }
 
 function strayLintConfigs(): Problem[] {

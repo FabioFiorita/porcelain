@@ -1,0 +1,20 @@
+pre-push:
+  parallel: true
+  jobs:
+    - name: server
+      group:
+        parallel: true
+        jobs:
+          - run: pnpm typecheck:server
+          - run: pnpm lint:server
+          - run: pnpm format:server:check
+          - run: pnpm test
+          - run: pnpm arch:check
+    - name: web
+      group:
+        parallel: true
+        jobs:
+          - run: pnpm typecheck:web
+          - run: pnpm lint:web
+          - run: pnpm format:web:check
+          - run: pnpm arch:web

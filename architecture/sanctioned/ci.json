@@ -29,19 +29,54 @@
       "pnpm verify:web --all"
     ]
   },
-  "prePush": [
-    "#!/bin/sh",
-    "set -eu",
-    "unset $(git rev-parse --local-env-vars)",
-    "cd \"$(git rev-parse --show-toplevel)\"",
-    "pnpm typecheck:server",
-    "pnpm lint:server",
-    "pnpm format:server:check",
-    "pnpm test",
-    "pnpm arch:check",
-    "pnpm typecheck:web",
-    "pnpm lint:web",
-    "pnpm format:web:check",
-    "pnpm arch:web"
-  ]
+  "lefthook": {
+    "pre-push": {
+      "parallel": true,
+      "jobs": [
+        {
+          "name": "server",
+          "group": {
+            "parallel": true,
+            "jobs": [
+              {
+                "run": "pnpm typecheck:server"
+              },
+              {
+                "run": "pnpm lint:server"
+              },
+              {
+                "run": "pnpm format:server:check"
+              },
+              {
+                "run": "pnpm test"
+              },
+              {
+                "run": "pnpm arch:check"
+              }
+            ]
+          }
+        },
+        {
+          "name": "web",
+          "group": {
+            "parallel": true,
+            "jobs": [
+              {
+                "run": "pnpm typecheck:web"
+              },
+              {
+                "run": "pnpm lint:web"
+              },
+              {
+                "run": "pnpm format:web:check"
+              },
+              {
+                "run": "pnpm arch:web"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
 }

@@ -2,15 +2,15 @@ import type { Probe } from '../probe.ts';
 
 export default {
   decision: 'W1',
-  plants: 'pnpm arch:web deleted from the pre-push hook',
+  plants: 'the web group of the Lefthook pre-push marked skip: true',
   gate: 'lint',
   rule: 'style(ci-steps)',
   edits: [
     {
       kind: 'replace',
-      path: '.githooks/pre-push',
-      old: 'pnpm arch:web\n',
-      new: '',
+      path: 'lefthook.yml',
+      old: '    - name: web\n',
+      new: '    - name: web\n      skip: true\n',
     },
   ],
 } satisfies Probe;

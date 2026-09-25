@@ -24,7 +24,7 @@
     "dev:web": "pnpm --filter @porcelain/web dev",
     "serve": "node scripts/serve.ts",
     "build:package": "node scripts/build-package.ts",
-    "prepare": "git config core.hooksPath .githooks"
+    "prepare": "lefthook install --reset-hooks-path"
   },
   "devDependencies": {
     "@porcelain/contracts": "workspace:*",
@@ -34,6 +34,7 @@
     "chrome-devtools-mcp": "1.10.1",
     "dependency-cruiser": "18.4.0",
     "esbuild": "0.28.2",
+    "lefthook": "2.1.14",
     "oxc-parser": "0.148.0",
     "oxfmt": "0.70.0",
     "oxlint": "1.85.0",
