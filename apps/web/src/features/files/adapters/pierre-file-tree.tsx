@@ -1,6 +1,12 @@
 import type { GitStatusEntry } from '@pierre/trees';
 import { FileTree, useFileTree } from '@pierre/trees/react';
-import { type ReactNode, useEffect, useLayoutEffect, useRef } from 'react';
+import {
+  type KeyboardEvent,
+  type ReactNode,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+} from 'react';
 import type { ContextMenuItem, ContextMenuOpenContext } from '@pierre/trees';
 import { treeIconsFor } from './file-icons';
 import {
@@ -11,6 +17,15 @@ import {
   selectedDirectories,
   topLevelDraggedPaths,
 } from '../rules/tree-actions';
+
+function focusFirstMenuItem(event: KeyboardEvent<HTMLDivElement>) {
+  if (event.key !== 'ArrowDown' || event.target !== event.currentTarget) return;
+  const first = event.currentTarget.querySelector('[role="menuitem"]');
+  if (!(first instanceof HTMLElement)) return;
+  event.preventDefault();
+  event.stopPropagation();
+  first.focus();
+}
 
 export function PierreFileTree({
   paths,
@@ -39,6 +54,7 @@ export function PierreFileTree({
     item: ContextMenuItem,
     context: ContextMenuOpenContext,
     rename: () => void,
+    onMenuKeyDown: (event: KeyboardEvent<HTMLDivElement>) => void,
   ) => ReactNode;
   onInvalidName: (error: string) => void;
   onSelect: (path: string) => void;
@@ -263,13 +279,18 @@ export function PierreFileTree({
         aria-label="Worktree files"
         className="min-h-0 flex-1"
         renderContextMenu={(item, context) =>
-          renderMenu(item, context, () => {
-            requestAnimationFrame(() => {
-              syncing.current = true;
-              model.startRenaming(item.path);
-              syncing.current = false;
-            });
-          })
+          renderMenu(
+            item,
+            context,
+            () => {
+              requestAnimationFrame(() => {
+                syncing.current = true;
+                model.startRenaming(item.path);
+                syncing.current = false;
+              });
+            },
+            focusFirstMenuItem,
+          )
         }
       />
     </div>

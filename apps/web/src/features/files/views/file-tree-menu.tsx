@@ -9,6 +9,7 @@ import {
   PencilIcon,
   Trash2Icon,
 } from 'lucide-react';
+import type { KeyboardEvent } from 'react';
 import {
   ContextMenu,
   ContextMenuContent,
@@ -24,6 +25,7 @@ type Props = {
   actions: readonly { id: TreeAction; label: string }[];
   hidden: boolean;
   onAction: (id: TreeAction) => void;
+  onMenuKeyDown: (event: KeyboardEvent<HTMLDivElement>) => void;
 };
 
 const icons = {
@@ -45,6 +47,7 @@ export function FileTreeMenu({
   actions,
   hidden,
   onAction,
+  onMenuKeyDown,
 }: Props) {
   return (
     <ContextMenu defaultOpen>
@@ -53,7 +56,11 @@ export function FileTreeMenu({
         className="fixed size-px"
         style={{ left: anchor.left, top: anchor.bottom }}
       />
-      <ContextMenuContent side="bottom" align="start">
+      <ContextMenuContent
+        side="bottom"
+        align="start"
+        onKeyDownCapture={onMenuKeyDown}
+      >
         {actions.map((action) => (
           <FileTreeMenuAction
             key={action.id}

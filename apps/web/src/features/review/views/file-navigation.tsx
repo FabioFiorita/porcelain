@@ -220,7 +220,7 @@ function ScopedFileNavigation({
             type: 'error',
           })
         }
-        renderMenu={(item, context, rename) => {
+        renderMenu={(item, context, rename, onMenuKeyDown) => {
           const folder = item.kind === 'directory';
           const path =
             folder && !item.path.endsWith('/') ? `${item.path}/` : item.path;
@@ -244,6 +244,7 @@ function ScopedFileNavigation({
               anchor={context.anchorRect}
               actions={actions}
               hidden={hiddenEntry !== null}
+              onMenuKeyDown={onMenuKeyDown}
               onAction={(id) =>
                 runFileTreeAction(id, {
                   path,
