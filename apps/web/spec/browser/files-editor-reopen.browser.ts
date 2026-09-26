@@ -43,3 +43,33 @@ test('closing an editor saves its draft and reopening starts a fresh editor sess
     .poll(async () => (await server.text(path)).text)
     .toContain('Reopened editor marker');
 });
+
+test('an editor keeps its draft ownership while the file opens in another pane', async ({
+  pairedPage,
+  repo,
+}) => {
+  const path = repo.readme.path;
+  await pairedPage.getByRole('button', { name: 'Review', exact: true }).click();
+  await pairedPage.getByRole('tab', { name: 'Files' }).click();
+  const file = pairedPage.getByRole('treeitem', { name: path });
+  await expect.element(file).toBeVisible();
+  await file.click({ button: 'right' });
+  await pairedPage.getByRole('menuitem', { name: 'Open file' }).click();
+  await pairedPage.getByRole('tab', { name: new RegExp(path) }).click({
+    button: 'right',
+  });
+  await pairedPage.getByRole('menuitem', { name: /Open to the side/ }).click();
+  await pairedPage
+    .getByRole('button', { name: 'Edit', exact: true })
+    .first()
+    .click();
+  await expect
+    .element(pairedPage.getByRole('textbox', { name: path }))
+    .toBeVisible();
+  await expect
+    .element(pairedPage.getByRole('button', { name: 'Edit', exact: true }))
+    .toBeDisabled();
+  await expect
+    .element(pairedPage.getByRole('button', { name: 'Done' }))
+    .toBeVisible();
+});

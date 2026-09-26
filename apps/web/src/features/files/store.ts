@@ -85,18 +85,17 @@ export class FileDraft {
   }
   finishEditing(owner: string, onUnsaved: () => void) {
     const session = this.editorFiles.get(owner);
-    if (session) {
-      session.attached = false;
-      queueMicrotask(() => {
-        if (this.editorFiles.get(owner) === session && !session.attached)
-          this.editorFiles.delete(owner);
-      });
-    }
-    this.release(owner);
-    if (!this.snapshot().error)
-      void this.save().then((saved) => {
-        if (!saved) onUnsaved();
-      });
+    if (session) session.attached = false;
+    queueMicrotask(() => {
+      const current = this.editorFiles.get(owner);
+      if (current?.attached) return;
+      if (current === session) this.editorFiles.delete(owner);
+      this.release(owner);
+      if (!this.snapshot().error)
+        void this.save().then((saved) => {
+          if (!saved) onUnsaved();
+        });
+    });
   }
   change(text: string) {
     if (this.snapshot().text === text) return;
