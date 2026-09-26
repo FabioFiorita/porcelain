@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAccessStore } from '@/features/access/index';
+import { commitEntry } from '@/features/changes/index';
 import {
   historyRefLabel,
   ordinal,
@@ -17,7 +18,6 @@ import {
 import type { DiffContent, ReviewScope } from '@/features/review/model/review';
 import { copyText } from '@/shared/workspace/copy';
 import { CodeDocument } from './code-document';
-import { commitEntry } from './diff-entries';
 import { useDocumentInteraction } from './document-interaction';
 import { DocumentToolbar } from './document-toolbar';
 

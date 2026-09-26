@@ -1,7 +1,8 @@
 import { CopyIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useAccessStore } from '@/features/access/index';
+import { useReviewOverview } from '@/features/changes/index';
 import type { ReviewScope } from '@/features/review/model/review';
-import { useReviewOverview } from '@/features/review/queries/review';
 import { copyText } from '@/shared/workspace/copy';
 
 export function ConflictGuidance({
@@ -11,7 +12,8 @@ export function ConflictGuidance({
   scope: ReviewScope;
   onOpen: (entry: { kind: 'file'; path: string }) => void;
 }) {
-  const overview = useReviewOverview(scope);
+  const connection = useAccessStore((state) => state.connection);
+  const overview = useReviewOverview(scope, connection);
   const state = overview?.changes.inProgress;
   if (!state) return null;
   const conflicts = overview.changes.changes.filter((file) =>

@@ -11,6 +11,11 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/toast';
+import { useAccessStore } from '@/features/access/index';
+import {
+  useReadCurrentChanges,
+  useReviewOverview,
+} from '@/features/changes/index';
 import type { Receipt } from '@/features/review/model/git-action';
 import {
   basename,
@@ -19,10 +24,6 @@ import {
   type ReviewScope,
 } from '@/features/review/model/review';
 import { useGitAction } from '@/features/review/queries/git-actions';
-import {
-  useReadCurrentChanges,
-  useReviewOverview,
-} from '@/features/review/queries/review';
 import {
   changedSinceLooked,
   expectationFor,
@@ -44,8 +45,9 @@ export function DiscardButton({
   hunk?: { scope: 'staged' | 'unstaged'; startLine: number; endLine: number };
   variant?: 'button' | 'compact';
 }) {
-  const overview = useReviewOverview(scope);
-  const readChanges = useReadCurrentChanges(scope);
+  const connection = useAccessStore((state) => state.connection);
+  const overview = useReviewOverview(scope, connection);
+  const readChanges = useReadCurrentChanges(scope, connection);
   const discard = useGitAction(scope, 'discard');
   const restore = useGitAction(scope, 'stash-apply');
   const [open, setOpen] = useState(false);

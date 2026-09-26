@@ -5,6 +5,12 @@ import {
   Undo2Icon,
 } from 'lucide-react';
 import { Fragment, useState } from 'react';
+import { useAccessStore } from '@/features/access/index';
+import {
+  useGitStatus,
+  useRefreshGitLook,
+  useReviewOverview,
+} from '@/features/changes/index';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -40,11 +46,6 @@ import {
   type Status,
 } from '@/features/review/model/review';
 import { useGitAction } from '@/features/review/queries/git-actions';
-import {
-  useGitStatus,
-  useRefreshGitLook,
-  useReviewOverview,
-} from '@/features/review/queries/review';
 import { usePreferences } from '@/shared/workspace/preferences';
 import { BranchDialog } from './branch-dialog';
 import {
@@ -117,11 +118,12 @@ const networkLabel = (action: NetworkAction) =>
   action === 'fetch' ? 'Fetching' : action === 'pull' ? 'Pulling' : 'Pushing';
 
 export function GitButton({ scope }: { scope: ReviewScope }) {
-  const overview = useReviewOverview(scope);
+  const connection = useAccessStore((state) => state.connection);
+  const overview = useReviewOverview(scope, connection);
   const [detailsEnabled, setDetailsEnabled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const details = useGitStatus(scope, detailsEnabled);
-  const refreshLook = useRefreshGitLook(scope);
+  const details = useGitStatus(scope, connection, detailsEnabled);
+  const refreshLook = useRefreshGitLook(scope, connection);
   const { preferences } = usePreferences();
   const fetchAction = useGitAction(scope, 'fetch');
   const pullAction = useGitAction(scope, 'pull');

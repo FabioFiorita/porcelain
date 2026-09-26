@@ -61,6 +61,20 @@ async function worktreePath(suffix: string) {
 }
 
 export const server = {
+  changeDiffHits: async () =>
+    (await hostCommands.porcelainHits(0)).filter(
+      (hit) =>
+        !hit.kit &&
+        hit.method === 'POST' &&
+        hit.route === '/api/worktrees/:worktreeId/changes/diffs',
+    ),
+  changeListHits: async () =>
+    (await hostCommands.porcelainHits(0)).filter(
+      (hit) =>
+        !hit.kit &&
+        hit.method === 'GET' &&
+        hit.route === '/api/worktrees/:worktreeId/changes',
+    ),
   fileWriteCount: async () =>
     (await hostCommands.porcelainHits(0)).filter(
       (hit) =>

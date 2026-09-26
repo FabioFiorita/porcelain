@@ -1,6 +1,13 @@
 import { parsePatchFiles } from '@pierre/diffs';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { useAccessStore } from '@/features/access/index';
+import {
+  selectionKey,
+  useChangeDiffs,
+  useChangeLines,
+  useRecoverChangedDiffs,
+} from '@/features/changes/index';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { OpenDocument } from '@/features/review/model/documents';
 import type {
@@ -11,15 +18,8 @@ import type {
   ReviewStep,
 } from '@/features/review/model/review';
 import { contentVersion } from '@/shared/lib/pierre';
-import {
-  useLayerMarks,
-  useStepLines,
-} from '@/features/review/queries/published-review';
-import {
-  selectionKey,
-  useChangeDiffs,
-  useReviewChanges,
-} from '@/features/review/queries/review';
+import { useLayerMarks } from '@/features/review/queries/published-review';
+import { useReviewChanges } from '@/features/review/queries/review';
 import { CodeDocument, type CodeEntry } from './code-document';
 import { DocumentToolbar } from './document-toolbar';
 import { MarkdownView } from './markdown-view';
@@ -189,6 +189,8 @@ function LayerSteps({
   focus: string | undefined;
   onOpen: OpenDocument;
 }) {
+  const connection = useAccessStore((state) => state.connection);
+  const recover = useRecoverChangedDiffs(scope, connection);
   const items = useReviewChanges(
     scope,
     steps.map((step) => step.pointer.path),
@@ -208,6 +210,7 @@ function LayerSteps({
   );
   const diffs = useChangeDiffs(
     scope,
+    connection,
     items[0]?.statusToken ?? '',
     items
       .filter((item) =>
@@ -215,6 +218,7 @@ function LayerSteps({
       )
       .map(({ path, fingerprint }) => ({ path, fingerprint })),
     selections,
+    recover,
   );
   return (
     <div className="space-y-6">
@@ -264,8 +268,10 @@ function Step({
     step.kind === 'context' ||
     committed ||
     item?.comparisons.some((change) => change.scope === 'untracked');
-  const lines = useStepLines(
+  const connection = useAccessStore((state) => state.connection);
+  const lines = useChangeLines(
     scope,
+    connection,
     step.pointer.path,
     location.startLine,
     location.endLine,

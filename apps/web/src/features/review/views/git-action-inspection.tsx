@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { useAccessStore } from '@/features/access/index';
+import { useGitStatus } from '@/features/changes/index';
 import { Button } from '@/components/ui/button';
 import {
   DialogDescription,
@@ -18,7 +20,6 @@ import type {
 } from '@/features/review/model/git-action';
 import type { ReviewScope } from '@/features/review/model/review';
 import { useGitAction } from '@/features/review/queries/git-actions';
-import { useGitStatus } from '@/features/review/queries/review';
 import { usePreferences } from '@/shared/workspace/preferences';
 import { CommitForm } from './commit-form';
 import {
@@ -84,7 +85,8 @@ function CommitActionForm({
   onBusy: (busy: boolean) => void;
   onLookAgain?: (() => Promise<void>) | undefined;
 }) {
-  const details = useGitStatus(scope);
+  const connection = useAccessStore((state) => state.connection);
+  const details = useGitStatus(scope, connection);
   if (details.pending)
     return (
       <>
@@ -156,7 +158,8 @@ function RemoteActionForm({
   onBusy: (busy: boolean) => void;
   onLookAgain?: (() => Promise<void>) | undefined;
 }) {
-  const details = useGitStatus(scope);
+  const connection = useAccessStore((state) => state.connection);
+  const details = useGitStatus(scope, connection);
   if (details.pending)
     return (
       <p role="status" className="text-sm text-muted-foreground">

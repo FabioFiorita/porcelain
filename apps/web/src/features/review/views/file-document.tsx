@@ -6,6 +6,8 @@ import {
 } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { useAccessStore } from '@/features/access/index';
+import { useChanges } from '@/features/changes/index';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { OpenDocument } from '@/features/review/model/documents';
 import type {
@@ -15,11 +17,7 @@ import type {
 import { isImagePath } from '@/features/review/model/html-assets';
 import type { ReviewScope } from '@/features/review/model/review';
 import { useFileDraft } from '@/features/review/queries/files';
-import {
-  useChanges,
-  useDirectory,
-  useTextFile,
-} from '@/features/review/queries/review';
+import { useDirectory, useTextFile } from '@/features/review/queries/review';
 import { copyText } from '@/shared/workspace/copy';
 import { usePreferences } from '@/shared/workspace/preferences';
 import { CodeDocument } from './code-document';
@@ -147,7 +145,8 @@ function ReadableFileDocument({
   onOpen: OpenDocument;
 }) {
   const { preferences } = usePreferences();
-  const { changes } = useChanges(scope);
+  const connection = useAccessStore((state) => state.connection);
+  const { changes } = useChanges(scope, connection);
   const kind = fileKind(path);
   const changed = changes.changes.some((entry) => entry.path === path);
   const [mode, setMode] = useState<FileDisplayMode>(() =>

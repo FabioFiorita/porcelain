@@ -4,21 +4,16 @@ import {
   usePrefetchQuery,
   useQueries,
   useQuery,
-  useQueryClient,
   useQueryErrorResetBoundary,
   useSuspenseQueries,
   useSuspenseQuery,
 } from '@tanstack/react-query';
-import { useEffect, useRef } from 'react';
 import type {
   ReviewPort,
   ReviewRequest,
 } from '@/features/review/api/review-port';
 import type {
   ChangeList,
-  ChangeSelection,
-  DiffContent,
-  ExpectedFile,
   ReviewChangeItem,
   ReviewedMarksResponse,
   ReviewScope,
@@ -28,6 +23,7 @@ import { reviewMark, reviewStatus } from '@/features/review/model/review';
 import { queryKeys } from '@/shared/query/keys';
 import { usePublishedReview } from '@/features/review/queries/published-review';
 import { useConnectedContext } from '@/app/workspace-provider';
+import { changesQueryOptions } from '@/features/changes';
 
 function useReviewOptions<T>(
   scope: ReviewScope,
@@ -81,63 +77,8 @@ export function useDirectories(scope: ReviewScope, paths: readonly string[]) {
     })),
   });
 }
-export function useChanges(scope: ReviewScope) {
-  return useSuspenseQuery(useChangesOptions(scope)).data;
-}
-
-export function useReviewOverview(scope: ReviewScope) {
-  return useQuery({ ...useChangesOptions(scope), throwOnError: false }).data;
-}
-
-export function useReadCurrentChanges(scope: ReviewScope) {
-  const client = useQueryClient();
-  const options = useChangesOptions(scope);
-  return async () =>
-    (await client.fetchQuery({ ...options, staleTime: 0 })).changes;
-}
-
-export function useRefreshGitLook(scope: ReviewScope) {
-  const readChanges = useReadCurrentChanges(scope);
-  const client = useQueryClient();
-  const { connection } = useConnectedContext();
-  return async () => {
-    const changes = await readChanges();
-    await client.invalidateQueries({
-      queryKey: queryKeys.reviewSurface(connection.environmentId, scope, [
-        'git-status',
-      ]),
-      exact: true,
-    });
-    return changes;
-  };
-}
-
 export function useHasReviewLayers(scope: ReviewScope) {
   return usePublishedReview(scope).data?.active ?? false;
-}
-
-function useChangesOptions(scope: ReviewScope) {
-  const { api, connection } = useConnectedContext();
-  return {
-    queryKey: queryKeys.reviewSurface(connection.environmentId, scope, [
-      'changes',
-    ]),
-    refetchOnWindowFocus: false as const,
-    refetchOnReconnect: false as const,
-    queryFn: async ({ signal }: { signal: AbortSignal }) => {
-      const request = connection.request(signal);
-      const data = await api.review.changes({ ...scope, ...request });
-      request.signal.throwIfAborted();
-      if (
-        data.changes.environmentId !== connection.environmentId ||
-        data.changes.worktreeId !== scope.worktreeId
-      )
-        throw new ConnectionError(
-          'The review context changed. Reopen Porcelain to continue safely.',
-        );
-      return data;
-    },
-  };
 }
 
 function useReviewedOptions(scope: ReviewScope) {
@@ -149,7 +90,8 @@ function useReviewedOptions(scope: ReviewScope) {
 }
 
 export function usePrefetchReview(scope: ReviewScope) {
-  usePrefetchQuery(useChangesOptions(scope));
+  const { connection } = useConnectedContext();
+  usePrefetchQuery(changesQueryOptions(scope, connection));
   usePrefetchQuery(useReviewedOptions(scope));
 }
 
@@ -228,13 +170,17 @@ export function useReviewChanges(
   scope: ReviewScope,
   paths?: readonly string[],
 ): ReviewChangeItem[] {
+  const { connection } = useConnectedContext();
   const [list, reviewed] = useSuspenseQueries({
-    queries: [useChangesOptions(scope), useReviewedOptions(scope)],
+    queries: [
+      changesQueryOptions(scope, connection),
+      useReviewedOptions(scope),
+    ],
   });
   return mergeReviewChanges(list.data.changes, reviewed.data, paths);
 }
 
-export function mergeReviewChanges(
+function mergeReviewChanges(
   list: ChangeList,
   reviewed: ReviewedMarksResponse,
   paths?: readonly string[],
@@ -254,111 +200,6 @@ export function mergeReviewChanges(
       },
     ];
   });
-}
-
-export function useChangeDiffs(
-  scope: ReviewScope,
-  statusToken: string,
-  expectedFiles: readonly ExpectedFile[],
-  selections: readonly ChangeSelection[],
-) {
-  const { api, connection } = useConnectedContext();
-  const client = useQueryClient();
-  const changesKey = queryKeys.reviewSurface(connection.environmentId, scope, [
-    'changes',
-  ]);
-  const wanted = [...selections].sort((left, right) =>
-    selectionKey(left).localeCompare(selectionKey(right)),
-  );
-  const query = useQuery({
-    queryKey: queryKeys.reviewSurface(connection.environmentId, scope, [
-      'change-diffs',
-      statusToken,
-      [...expectedFiles]
-        .map((file) => `${file.path}:${file.fingerprint ?? ''}`)
-        .sort(),
-      wanted.map(selectionKey),
-    ]),
-    enabled: wanted.length > 0,
-    refetchOnWindowFocus: false as const,
-    refetchOnReconnect: false as const,
-    queryFn: async ({ signal }: { signal: AbortSignal }) => {
-      const request = connection.request(signal);
-      const data = await api.review.diffs({
-        ...scope,
-        ...request,
-        input: {
-          expectedStatusToken: statusToken,
-          expectedFiles: [...expectedFiles].sort((left, right) =>
-            left.path.localeCompare(right.path),
-          ),
-          selections: wanted,
-        },
-      });
-      request.signal.throwIfAborted();
-      return new Map(
-        data.diffs.map(({ selection, content }) => [
-          selectionKey(selection),
-          content,
-        ]),
-      );
-    },
-    throwOnError: false,
-  });
-  const moved = query.isError && isWorktreeChangedError(query.error);
-  const recovered = useRef<string | undefined>(undefined);
-  useEffect(() => {
-    if (!moved || recovered.current === statusToken) return;
-    recovered.current = statusToken;
-    void client.invalidateQueries({ queryKey: changesKey });
-  }, [moved, statusToken, client, changesKey]);
-  const recovering = moved && recovered.current !== statusToken;
-  return {
-    diffs: query.data ?? new Map<string, DiffContent>(),
-    pending: (wanted.length > 0 && query.isPending) || recovering,
-    failed: query.isError && !recovering,
-    retry: () => void query.refetch(),
-  };
-}
-
-function isWorktreeChangedError(error: unknown) {
-  return (
-    error instanceof RequestError &&
-    error.status === 409 &&
-    error.code === 'worktree_changed'
-  );
-}
-
-export function gitStatusQuery(
-  scope: ReviewScope,
-  api: ReturnType<typeof useConnectedContext>['api'],
-  connection: ReturnType<typeof useConnectedContext>['connection'],
-) {
-  return {
-    queryKey: queryKeys.reviewSurface(connection.environmentId, scope, [
-      'git-status',
-    ]),
-    queryFn: async ({ signal }: { signal: AbortSignal }) => {
-      const request = connection.request(signal);
-      const data = await api.review.status({ ...scope, ...request });
-      request.signal.throwIfAborted();
-      return data;
-    },
-  };
-}
-
-export function useGitStatus(scope: ReviewScope, enabled = true) {
-  const { api, connection } = useConnectedContext();
-  const query = useQuery({
-    ...gitStatusQuery(scope, api, connection),
-    enabled,
-    throwOnError: false,
-  });
-  return {
-    status: query.data,
-    pending: enabled && query.isPending,
-    read: async () => (await query.refetch()).data,
-  };
 }
 
 export function useUntrackedContents(
@@ -387,10 +228,6 @@ export function useUntrackedContents(
       for (const query of queries) void query.refetch();
     },
   };
-}
-
-export function selectionKey(selection: ChangeSelection) {
-  return `${selection.scope}\n${selection.oldPath}\n${selection.newPath}`;
 }
 
 export function useWorktreePaths(scope: ReviewScope, enabled = true) {

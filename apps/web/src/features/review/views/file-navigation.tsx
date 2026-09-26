@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button';
 import type { DocumentRef } from '@/features/review/model/documents';
 import { visibleFileTreePaths } from '@/features/projects/index';
 import { useAccessStore } from '@/features/access/index';
+import { useReviewOverview } from '@/features/changes/index';
 import {
   fileTreeAncestors,
   mergeFileTreeEntries,
@@ -36,7 +37,6 @@ import {
   reviewErrorMessage,
   useDirectories,
   useDirectory,
-  useReviewOverview,
 } from '@/features/review/queries/review';
 import { PierreFileTree } from './pierre-file-tree';
 import { QuickOpen } from './quick-open';
@@ -80,8 +80,8 @@ function ScopedFileNavigation({
     nonce: number;
   }>();
   const [deleting, setDeleting] = useState<string | null>(null);
-  const overview = useReviewOverview(scope);
   const connection = useAccessStore((state) => state.connection);
+  const overview = useReviewOverview(scope, connection);
   const hidden = useHiddenPaths(connection, scope.projectId);
   const setHidden = useSetHidden(connection, scope.projectId);
   const [showHidden, setShowHidden] = useState(false);

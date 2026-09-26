@@ -32,7 +32,6 @@ export type ChangeDiffsRequest = ReadChangeDiffsRequest;
 export type ChangeLines = ReadChangeLinesResponse;
 export type DiffContent = ChangeDiffs['diffs'][number]['content'];
 export type ChangeSelection = ChangeDiffs['diffs'][number]['selection'];
-export type ExpectedFile = ChangeDiffsRequest['expectedFiles'][number];
 export type ReviewedMark = ListReviewedFilesResponse['marks'][number];
 export type ReviewedMarksResponse = ListReviewedFilesResponse;
 export type SetReviewedRequest = SetReviewedFileRequest;

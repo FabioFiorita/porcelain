@@ -1,6 +1,14 @@
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { useAccessStore } from '@/features/access/index';
+import {
+  changeId,
+  diffEntry,
+  selectionKey,
+  useChangeDiffs,
+  useRecoverChangedDiffs,
+} from '@/features/changes/index';
 import { isImagePath } from '@/features/review/model/html-assets';
 import type {
   Change,
@@ -12,13 +20,11 @@ import type {
 import { orderReviewChanges } from '@/features/review/model/review';
 import { useComments } from '@/features/review/queries/comments';
 import {
-  selectionKey,
-  useChangeDiffs,
   useReviewChanges,
   useUntrackedContents,
 } from '@/features/review/queries/review';
 import { CodeDocument, type CodeEntry } from './code-document';
-import { changeId, diffEntry, fileEntry } from './diff-entries';
+import { fileEntry } from './diff-entries';
 import { ImagePreview } from './image-preview';
 import { InlineComposer } from './inline-composer';
 import { focusPatch, type LineSpan } from './patch-focus';
@@ -42,10 +48,13 @@ export function ReviewCodeDocument({
   commentRequest?: number;
   toolbar?: (collapseControl: ReactNode) => ReactNode;
 }) {
+  const connection = useAccessStore((state) => state.connection);
+  const recover = useRecoverChangedDiffs(scope, connection);
   const items = orderReviewChanges(useReviewChanges(scope, paths), files);
   const statusToken = items[0]?.statusToken ?? '';
   const diffs = useChangeDiffs(
     scope,
+    connection,
     statusToken,
     items.flatMap((item) =>
       item.comparisons.some(
@@ -55,6 +64,7 @@ export function ReviewCodeDocument({
         : [],
     ),
     items.flatMap((item) => item.comparisons.flatMap(selectionOf)),
+    recover,
   );
   const untracked = useUntrackedContents(
     scope,

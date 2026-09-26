@@ -17,6 +17,8 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/shared/lib/utils';
+import { useAccessStore } from '@/features/access/index';
+import { useChanges } from '@/features/changes/index';
 import type {
   CommentAnchor,
   CommentThread,
@@ -39,7 +41,6 @@ import {
 } from '@/features/review/queries/comments';
 import { usePublishedReview } from '@/features/review/queries/published-review';
 import {
-  useChanges,
   usePrefetchReview,
   useReviewChanges,
 } from '@/features/review/queries/review';
@@ -57,10 +58,11 @@ const ROW =
   'flex w-full min-w-0 items-center gap-1.5 rounded-lg px-2 py-1 text-left text-[12.5px] transition-colors hover:bg-accent';
 
 export function ReviewIndex({ scope, activeEntry, onOpen }: Props) {
+  const connection = useAccessStore((state) => state.connection);
   const [view, setView] = useState<'layers' | 'comments'>('layers');
   usePrefetchReview(scope);
   usePrefetchComments(scope);
-  const { changes: list } = useChanges(scope);
+  const { changes: list } = useChanges(scope, connection);
   const published = usePublishedReview(scope);
   const review = published.data?.active ? published.data : null;
   const { threads } = useComments(scope);

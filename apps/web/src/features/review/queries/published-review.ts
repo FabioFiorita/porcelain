@@ -31,39 +31,6 @@ export function usePublishedReview(scope: ReviewScope) {
   });
 }
 
-export function useStepLines(
-  scope: ReviewScope,
-  path: string,
-  from: number,
-  to: number,
-  enabled: boolean,
-) {
-  const { api, connection } = useConnectedContext();
-  return useQuery({
-    queryKey: queryKeys.reviewSurface(connection.environmentId, scope, [
-      'step-lines',
-      path,
-      from,
-      to,
-    ]),
-    enabled,
-    queryFn: async ({ signal }) => {
-      const request = connection.request(signal);
-      const result = await api.review.lines({
-        ...scope,
-        ...request,
-        path,
-        from,
-        to,
-        at: 'worktree',
-      });
-      request.signal.throwIfAborted();
-      return result;
-    },
-    throwOnError: false,
-  });
-}
-
 export function useLayerMarks(scope: ReviewScope) {
   const { api, connection } = useConnectedContext();
   const client = useQueryClient();
