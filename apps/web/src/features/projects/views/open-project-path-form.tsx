@@ -10,12 +10,14 @@ import { DialogFooter } from '@/components/ui/dialog';
 import {
   Field,
   FieldDescription,
+  FieldError,
   FieldGroup,
   FieldLabel,
 } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Spinner } from '@/components/ui/spinner';
 import { submitForm } from '@/shared/lib/submit-form';
+import { registerProjectValidator } from '../commands/register-project';
 import { openProjectDialog } from '../overlays';
 
 export function OpenProjectPathForm({
@@ -27,6 +29,7 @@ export function OpenProjectPathForm({
 }) {
   const form = useForm({
     defaultValues: { path: '' },
+    validators: { onChange: registerProjectValidator },
     onSubmit: ({ value }) => onOpen(value.path),
   });
   return (
@@ -42,7 +45,11 @@ export function OpenProjectPathForm({
           <FieldGroup>
             <form.Field name="path">
               {(field) => (
-                <Field>
+                <Field
+                  data-invalid={
+                    field.state.meta.isTouched && !field.state.meta.isValid
+                  }
+                >
                   <FieldLabel htmlFor="project-path">
                     Repository path
                   </FieldLabel>
@@ -56,9 +63,23 @@ export function OpenProjectPathForm({
                     spellCheck={false}
                     required
                     value={field.state.value}
+                    aria-invalid={
+                      field.state.meta.isTouched && !field.state.meta.isValid
+                    }
+                    aria-describedby={
+                      field.state.meta.isTouched && !field.state.meta.isValid
+                        ? 'project-path-error'
+                        : undefined
+                    }
                     onBlur={field.handleBlur}
                     onChange={(event) => field.handleChange(event.target.value)}
                   />
+                  {field.state.meta.isTouched && !field.state.meta.isValid && (
+                    <FieldError
+                      id="project-path-error"
+                      errors={field.state.meta.errors}
+                    />
+                  )}
                   <FieldDescription>
                     Use an absolute path on the machine running the server.
                   </FieldDescription>
@@ -74,14 +95,18 @@ export function OpenProjectPathForm({
                 Cancel
               </Button>
               <form.Subscribe
-                selector={(state) =>
-                  [state.isSubmitting, state.values.path] as const
-                }
+                selector={(state) => ({
+                  submitting: state.isSubmitting,
+                  path: state.values.path,
+                  canSubmit: state.canSubmit,
+                })}
               >
-                {([submitting, path]) => (
+                {({ submitting, path, canSubmit }) => (
                   <Button
                     type="submit"
-                    disabled={submitting || disabled || !path.trim()}
+                    disabled={
+                      submitting || disabled || !path.trim() || !canSubmit
+                    }
                   >
                     {disabled ? (
                       <Spinner />

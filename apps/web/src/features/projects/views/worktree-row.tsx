@@ -21,17 +21,17 @@ function worktreeDisplayLabel(worktree: Worktree) {
   return worktreeLabel(worktree.branch);
 }
 
-const STATUS_LABEL = {
+const STATUS_LABEL: Record<NonNullable<Worktree['status']>, string> = {
   pending: 'Waiting for your review',
   reviewed: 'Reviewed, waiting for a commit',
   replied: 'The agent replied',
-} as const;
+};
 
-const STATUS_STYLE = {
+const STATUS_STYLE: Record<NonNullable<Worktree['status']>, string> = {
   pending: 'bg-yellow-500',
   reviewed: 'bg-graph-2',
   replied: 'bg-blue-500',
-} as const;
+};
 
 export function WorktreeRow({
   worktree,

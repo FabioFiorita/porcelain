@@ -24,6 +24,13 @@ test('a folder that is not a Git repository cannot be opened by browsing or by t
     .toBeDisabled();
 
   await dialog.getByRole('button', { name: 'Enter a path' }).click();
+  await dialog
+    .getByRole('textbox', { name: 'Repository path' })
+    .fill('relative/repository');
+  await expect
+    .element(dialog.getByRole('button', { name: 'Open project' }))
+    .toBeDisabled();
+  await expect.element(dialog.getByRole('alert')).toBeVisible();
   await dialog.getByRole('textbox', { name: 'Repository path' }).fill(plain);
   await dialog.getByRole('button', { name: 'Open project' }).click();
   await expect

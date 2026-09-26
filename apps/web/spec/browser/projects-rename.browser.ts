@@ -20,6 +20,11 @@ test('renaming a project in the navigator shows the new name and the server keep
   await expect.element(projectButton).toBeVisible();
   await projectButton.click({ button: 'right' });
   await pairedPage.getByRole('menuitem', { name: 'Rename project' }).click();
+  await pairedPage.getByRole('textbox', { name: 'Name' }).fill(' ');
+  await expect
+    .element(pairedPage.getByRole('button', { name: 'Rename', exact: true }))
+    .toBeDisabled();
+  await expect.element(pairedPage.getByRole('alert')).toBeVisible();
   await pairedPage.getByRole('textbox', { name: 'Name' }).fill(name);
   await pairedPage.getByRole('button', { name: 'Rename', exact: true }).click();
   await expect

@@ -1,9 +1,12 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { registerProjectRequestSchema } from '@porcelain/contracts/projects';
 import type { ProjectConnection } from '../rules/connection';
 import { asMutation } from '@/shared/query/mutation';
 import { projectsApi } from '../api';
 import { inventoryQueryOptions } from '../queries/inventory';
 import type { Inventory } from '../rules/inventory';
+
+export const registerProjectValidator = registerProjectRequestSchema;
 
 export function useRegisterProject(connection: ProjectConnection | null) {
   if (!connection) throw new Error('A connected environment is required');

@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Field, FieldError } from '@/components/ui/field';
 import { Spinner } from '@/components/ui/spinner';
 import {
   connectionErrorMessage,
@@ -71,17 +72,37 @@ function RenameProjectContent({
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-2 py-4">
-          <Label htmlFor="project-name">Name</Label>
           <form.Field name="name">
             {(field) => (
-              <Input
-                id="project-name"
-                name={field.name}
-                value={field.state.value}
-                autoFocus
-                onBlur={field.handleBlur}
-                onChange={(event) => field.handleChange(event.target.value)}
-              />
+              <Field
+                data-invalid={
+                  field.state.meta.isTouched && !field.state.meta.isValid
+                }
+              >
+                <Label htmlFor="project-name">Name</Label>
+                <Input
+                  id="project-name"
+                  name={field.name}
+                  value={field.state.value}
+                  autoFocus
+                  aria-invalid={
+                    field.state.meta.isTouched && !field.state.meta.isValid
+                  }
+                  aria-describedby={
+                    field.state.meta.isTouched && !field.state.meta.isValid
+                      ? 'project-name-error'
+                      : undefined
+                  }
+                  onBlur={field.handleBlur}
+                  onChange={(event) => field.handleChange(event.target.value)}
+                />
+                {field.state.meta.isTouched && !field.state.meta.isValid && (
+                  <FieldError
+                    id="project-name-error"
+                    errors={field.state.meta.errors}
+                  />
+                )}
+              </Field>
             )}
           </form.Field>
           <p className="break-all font-mono text-xs text-muted-foreground">

@@ -6,50 +6,59 @@ import {
   selectedWorktreeInProject,
   worktreeLabel,
   type Inventory,
+  type Project,
 } from './inventory.ts';
+
+const project: Project = {
+  id: 'project',
+  name: 'Example',
+  available: true,
+  worktrees: [
+    {
+      id: 'main',
+      path: '/repo',
+      main: true,
+      branch: 'refs/heads/main',
+      available: true,
+      status: undefined,
+    },
+    {
+      id: 'linked-ready',
+      path: '/repo-linked-ready',
+      main: false,
+      branch: undefined,
+      available: true,
+      status: 'reviewed',
+    },
+    {
+      id: 'linked',
+      path: '/repo-linked',
+      main: false,
+      branch: undefined,
+      available: true,
+      status: 'pending',
+    },
+  ],
+};
 
 const inventory: Inventory = {
   environmentId: 'environment',
-  projects: [
-    {
-      id: 'project',
-      name: 'Example',
-      available: true,
-      worktrees: [
-        {
-          id: 'main',
-          path: '/repo',
-          main: true,
-          branch: 'refs/heads/main',
-          available: true,
-          status: undefined,
-        },
-        {
-          id: 'linked',
-          path: '/repo-linked',
-          main: false,
-          branch: undefined,
-          available: true,
-          status: 'pending',
-        },
-      ],
-    },
-  ],
+  projects: [project],
 };
 
 describe('project inventory decisions', () => {
   it('selects a worktree with its owning project', () => {
     expect(selectedWorktreeInProject(inventory, 'linked')).toEqual({
       projectId: 'project',
-      worktree: inventory.projects[0]?.worktrees[1],
+      worktree: project.worktrees[2],
     });
     expect(selectedWorktreeInProject(inventory, 'missing')).toBeUndefined();
   });
 
   it('prefers an available linked worktree and shows the main repository path', () => {
-    expect(firstAvailableWorktree(inventory)?.id).toBe('linked');
+    expect(firstAvailableWorktree(inventory)?.id).toBe('linked-ready');
     expect(firstWaitingWorktree(inventory)?.id).toBe('linked');
-    expect(projectPath(inventory.projects[0]!)).toBe('/repo');
+    expect(projectPath(project)).toBe('/repo');
   });
 
   it('shows branch names without the refs prefix and labels detached heads', () => {
