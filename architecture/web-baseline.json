@@ -412,7 +412,6 @@
   },
   "porcelain/web-views-no-promise-chains": {
     "apps/web/src/app/views/workspace-view.tsx": 1,
-    "apps/web/src/features/review/views/branch-dialog.tsx": 1,
     "apps/web/src/features/review/views/code-document.tsx": 1,
     "apps/web/src/features/review/views/commit-form.tsx": 5,
     "apps/web/src/features/review/views/discard.tsx": 2,
