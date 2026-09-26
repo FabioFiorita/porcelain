@@ -9,7 +9,7 @@ export default {
   edits: [
     {
       kind: 'append',
-      path: 'apps/web/src/features/review/views/file-editor.tsx',
+      path: 'apps/web/src/features/files/views/file-editor.tsx',
       content:
         '\nexport function probeLabels(names: string[]) {\n  const labels: string[] = [];\n  for (const name of names) labels.push(name);\n  return labels;\n}\n',
     },
@@ -17,7 +17,7 @@ export default {
       kind: 'replace',
       path: 'architecture/web-baseline.json',
       old: '    "apps/web/src/features/review/views/commit-form.tsx": 1,\n    "apps/web/src/features/review/views/file-navigation.tsx": 1,\n    "apps/web/src/features/review/views/patch-focus.ts": 3,',
-      new: '    "apps/web/src/features/review/views/commit-form.tsx": 1,\n    "apps/web/src/features/review/views/file-editor.tsx": 1,\n    "apps/web/src/features/review/views/file-navigation.tsx": 1,\n    "apps/web/src/features/review/views/patch-focus.ts": 3,',
+      new: '    "apps/web/src/features/review/views/commit-form.tsx": 1,\n    "apps/web/src/features/files/views/file-editor.tsx": 1,\n    "apps/web/src/features/review/views/file-navigation.tsx": 1,\n    "apps/web/src/features/review/views/patch-focus.ts": 3,',
     },
   ],
 } satisfies Probe;

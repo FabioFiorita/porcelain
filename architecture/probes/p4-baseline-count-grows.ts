@@ -8,7 +8,7 @@ export default {
   edits: [
     {
       kind: 'append',
-      path: 'apps/web/src/features/review/views/file-editor.tsx',
+      path: 'apps/web/src/app/views/connected-workspace.tsx',
       content:
         "\nexport function ProbeGrow() {\n  const [value] = useState('');\n  return value;\n}\n",
     },

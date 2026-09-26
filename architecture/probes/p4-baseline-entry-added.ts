@@ -9,7 +9,7 @@ export default {
   edits: [
     {
       kind: 'append',
-      path: 'apps/web/src/features/review/views/file-editor.tsx',
+      path: 'apps/web/src/features/files/views/file-editor.tsx',
       content:
         '\nexport function probeSwallow(run: () => void) {\n  try {\n    run();\n  } catch {}\n}\n',
     },
@@ -17,7 +17,7 @@ export default {
       kind: 'replace',
       path: 'architecture/web-baseline.json',
       old: '  "porcelain/web-no-empty-catch": {\n    "apps/web/src/app/workspace-provider.tsx": 1,\n    "apps/web/src/features/review/views/inline-composer.tsx": 1,\n',
-      new: '  "porcelain/web-no-empty-catch": {\n    "apps/web/src/app/workspace-provider.tsx": 1,\n    "apps/web/src/features/review/views/inline-composer.tsx": 1,\n    "apps/web/src/features/review/views/file-editor.tsx": 1,\n',
+      new: '  "porcelain/web-no-empty-catch": {\n    "apps/web/src/app/workspace-provider.tsx": 1,\n    "apps/web/src/features/review/views/inline-composer.tsx": 1,\n    "apps/web/src/features/files/views/file-editor.tsx": 1,\n',
     },
   ],
 } satisfies Probe;

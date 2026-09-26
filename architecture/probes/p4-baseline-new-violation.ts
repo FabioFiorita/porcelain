@@ -9,7 +9,7 @@ export default {
   edits: [
     {
       kind: 'append',
-      path: 'apps/web/src/features/review/views/file-editor.tsx',
+      path: 'apps/web/src/features/files/views/file-editor.tsx',
       content:
         '\nexport function probeSwallow(run: () => void) {\n  try {\n    run();\n  } catch {}\n}\n',
     },
