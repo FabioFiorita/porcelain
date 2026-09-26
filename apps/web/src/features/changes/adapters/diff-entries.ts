@@ -1,5 +1,6 @@
 import { parsePatchFiles, type FileDiffMetadata } from '@pierre/diffs';
 import { contentVersion } from '@/shared/lib/pierre';
+import { changeId } from '../rules/change-id';
 import {
   changePath,
   type Change,
@@ -17,10 +18,6 @@ type DiffEntry = {
   version: number;
   note: string;
 };
-
-export function changeId(change: Change) {
-  return `change:${change.scope}:${changePath(change)}`;
-}
 
 export function diffEntry(
   change: OrdinaryChange,

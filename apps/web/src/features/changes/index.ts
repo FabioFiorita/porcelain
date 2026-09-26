@@ -10,7 +10,8 @@ export { useGitStatus } from './queries/git-status';
 export { useChangeLines } from './queries/lines';
 export { useRecoverChangedDiffs } from './commands/recover-changed-diffs';
 export { selectionKey } from './rules/changes';
-export { changeId, commitEntry, diffEntry } from './adapters/diff-entries';
+export { commitEntry, diffEntry } from './adapters/diff-entries';
+export { changeId } from './rules/change-id';
 export {
   useReadCurrentChanges,
   useRefreshGitLook,
