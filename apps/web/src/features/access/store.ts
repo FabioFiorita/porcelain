@@ -15,6 +15,7 @@ type Connection = {
 
 type AccessState = {
   connection: Connection | null;
+  generation: number;
   restoring: boolean;
   connect: (environmentId: string) => Connection;
   beginConnection: (
@@ -22,11 +23,7 @@ type AccessState = {
   ) => ((inventory: ReadInventoryResponse) => boolean) | null;
   setRestoring: (restoring: boolean) => void;
   clear: () => void;
-  pairingAttempted: boolean;
-  beginPairing: () => boolean;
 };
-
-let generation = 0;
 
 function createConnection(environmentId: string): Connection {
   let storage: Storage | undefined;
@@ -56,8 +53,8 @@ function createConnection(environmentId: string): Connection {
 
 export const useAccessStore = create<AccessState>()((set, get) => ({
   connection: null,
+  generation: 0,
   restoring: true,
-  pairingAttempted: false,
   connect(environmentId) {
     const current = get().connection;
     if (current?.environmentId === environmentId) return current;
@@ -68,11 +65,11 @@ export const useAccessStore = create<AccessState>()((set, get) => ({
     return connection;
   },
   beginConnection(automatic = false) {
-    if (automatic && generation !== 0) return null;
-    const attempt = generation;
+    if (automatic && get().generation !== 0) return null;
+    const attempt = get().generation;
     return (inventory) => {
-      if (attempt !== generation) return false;
-      generation += 1;
+      if (attempt !== get().generation) return false;
+      set({ generation: attempt + 1 });
       get().connect(inventory.environmentId);
       return true;
     };
@@ -81,16 +78,14 @@ export const useAccessStore = create<AccessState>()((set, get) => ({
     set({ restoring });
   },
   clear() {
-    generation += 1;
     const current = get().connection;
     current?.operations.clear();
     current?.controller.abort();
-    set({ connection: null, restoring: false });
-  },
-  beginPairing() {
-    if (get().pairingAttempted) return false;
-    set({ pairingAttempted: true });
-    return true;
+    set((state) => ({
+      connection: null,
+      generation: state.generation + 1,
+      restoring: false,
+    }));
   },
 }));
 

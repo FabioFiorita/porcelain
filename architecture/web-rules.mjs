@@ -390,6 +390,30 @@ export const webRules = {
     message: () =>
       '`useState` is not ours here: server data is Query, drafts are TanStack Form, client state is the feature store.ts, overlays are Base UI handles.',
   }),
+  'web-no-module-mutable-binding': {
+    create(context) {
+      if (!runtimeWeb(webPath(context))) return {};
+      return {
+        Program(program) {
+          for (const statement of program.body) {
+            const declaration =
+              statement.type === 'ExportNamedDeclaration'
+                ? statement.declaration
+                : statement;
+            if (
+              declaration?.type === 'VariableDeclaration' &&
+              declaration.kind !== 'const'
+            )
+              context.report({
+                node: declaration,
+                message:
+                  'Module-level mutable bindings bypass subscribers; put client state and counters in the feature store.ts.',
+              });
+          }
+        },
+      };
+    },
+  },
   'web-no-use-reducer': hookBan({
     names: new Set(['useReducer']),
     modules: reactModules,
@@ -520,6 +544,69 @@ export const webRules = {
                 'A query key is built in features/<domain>/queries/ only; elsewhere read it from the factory as options.queryKey.',
             });
         },
+      };
+    },
+  },
+  'web-queries-export-reads': {
+    create(context) {
+      if (webPart(webPath(context)) !== 'query') return {};
+      const message =
+        'A queries/ file exports only queryOptions factories and read hooks; pure decisions belong in rules/, and re-exports belong in index.ts.';
+      const readName = (name) =>
+        /^use[A-Z]/.test(name) || /QueryOptions$/.test(name);
+      return {
+        ExportAllDeclaration(node) {
+          context.report({ node, message });
+        },
+        ExportDefaultDeclaration(node) {
+          context.report({ node, message });
+        },
+        ExportNamedDeclaration(node) {
+          if (node.source || node.specifiers.length > 0) {
+            context.report({ node, message });
+            return;
+          }
+          const declaration = node.declaration;
+          const names =
+            declaration?.type === 'FunctionDeclaration'
+              ? [declaration.id?.name]
+              : declaration?.type === 'VariableDeclaration'
+                ? declaration.declarations.map((entry) =>
+                    entry.id.type === 'Identifier' ? entry.id.name : undefined,
+                  )
+                : [];
+          if (names.length === 0 || names.some((name) => !readName(name ?? '')))
+            context.report({ node, message });
+        },
+      };
+    },
+  },
+  'web-adapters-are-imperative-glue': {
+    create(context) {
+      const path = webPath(context);
+      if (!inAdapters(path)) return {};
+      const check = (node) => {
+        const source = sourceOf(node) ?? '';
+        const target = localTarget(path, source);
+        const featurePart = /^features\/[^/]+\/([^/]+)/.exec(target ?? '')?.[1];
+        if (
+          /^@tanstack\/(?:react-router|router-core)(?:\/|$)/.test(source) ||
+          target?.startsWith('routes/') ||
+          (featurePart !== undefined &&
+            featurePart !== 'adapters' &&
+            featurePart !== 'rules')
+        )
+          context.report({
+            node,
+            message:
+              'An adapter wraps an imperative library or DOM element passed to it; router loaders own URL work and commands/ owns writes. Pass data and callbacks into adapters instead of importing feature business modules or the router.',
+          });
+      };
+      return {
+        ImportDeclaration: check,
+        ImportExpression: check,
+        ExportNamedDeclaration: check,
+        ExportAllDeclaration: check,
       };
     },
   },

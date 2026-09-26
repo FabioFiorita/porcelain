@@ -19,6 +19,7 @@ import {
   useBranches,
   useGitAction,
 } from '@/features/review/queries/git-actions';
+import { useGitStatus } from '@/features/review/queries/review';
 import {
   expectationFor,
   gitErrorMessage,
@@ -44,7 +45,8 @@ export function BranchDialog({
   const action = mode === 'switch' ? 'switch-branch' : 'create-branch';
   const git = useGitAction(scope, action);
   const branches = useBranches(scope);
-  const current = status.branch?.name?.replace(/^refs\/heads\//, '') ?? null;
+  const details = useGitStatus(scope);
+  const current = branches.data?.current ?? null;
   const [branch, setBranch] = useState('');
   const [switchTo, setSwitchTo] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -73,12 +75,16 @@ export function BranchDialog({
     setBusy(true);
     setError(null);
     try {
-      const receipt = await git.run(
-        mode === 'switch'
-          ? { action: 'switch-branch', branch: name }
-          : { action: 'create-branch', branch: name, switchTo },
-        expectationFor(status),
-      );
+      const receipt = await details.read().then((fresh) => {
+        if (!fresh)
+          throw new Error('Git status could not be loaded. Try again.');
+        return git.run(
+          mode === 'switch'
+            ? { action: 'switch-branch', branch: name }
+            : { action: 'create-branch', branch: name, switchTo },
+          expectationFor(fresh),
+        );
+      });
       if (receiptFailed(receipt)) {
         setError(receiptWords(receipt));
         if (mode === 'switch') void branches.refetch();

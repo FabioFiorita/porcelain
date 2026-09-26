@@ -12,7 +12,7 @@ import { WorkspaceProvider } from './app/workspace-provider';
 
 const queryClient = createQueryClient();
 const api = await createBootApi();
-const router = createAppRouter();
+const router = createAppRouter(queryClient);
 
 const root = document.getElementById('root');
 if (!root) throw new Error('Missing application root');

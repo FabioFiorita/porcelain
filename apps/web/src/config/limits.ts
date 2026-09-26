@@ -1,1 +1,2 @@
 export const WEB_PLATFORM_NAME_MAX_LENGTH = 120;
+export const PAIRING_PENDING_MS = 0;

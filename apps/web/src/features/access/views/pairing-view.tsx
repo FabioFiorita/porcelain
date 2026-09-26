@@ -1,19 +1,11 @@
-import { usePairingFlow } from '../adapters/pairing-flow';
-import { usePairing } from '../commands/pairing';
-import { connectionErrorMessage } from '../queries/session';
 import { DisconnectedPage } from './disconnected-page';
 import { NotPaired } from './not-paired';
 
-export function PairingView() {
-  const pairing = usePairing();
-  const missing = usePairingFlow(pairing.submit);
-  const failure =
-    missing ?? (pairing.error ? connectionErrorMessage(pairing.error) : null);
-
+export function PairingView({ reason }: { reason?: string }) {
   return (
     <DisconnectedPage>
-      {failure ? (
-        <NotPaired reason={failure} />
+      {reason ? (
+        <NotPaired reason={reason} />
       ) : (
         <section className="mx-auto flex w-full max-w-md flex-col gap-2">
           <h2 className="text-lg font-medium">Pairing this browser…</h2>

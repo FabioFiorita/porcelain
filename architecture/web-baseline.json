@@ -156,6 +156,12 @@
     "apps/web/src/features/review/queries/git-actions.ts": 1,
     "apps/web/src/shared/workspace/preferences.tsx": 1
   },
+  "porcelain/web-queries-export-reads": {
+    "apps/web/src/features/review/queries/comments.ts": 2,
+    "apps/web/src/features/review/queries/review.ts": 5,
+    "apps/web/src/features/review/queries/reviewed-mutations.ts": 2,
+    "apps/web/src/features/review/queries/reviewed-queue.ts": 2
+  },
   "porcelain/web-refs-in-adapters": {
     "apps/web/src/app/views/connected-workspace.tsx": 1,
     "apps/web/src/features/projects/views/project-navigator.tsx": 1,

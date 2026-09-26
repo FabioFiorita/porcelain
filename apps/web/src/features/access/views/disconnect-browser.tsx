@@ -3,7 +3,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import { useDisconnect } from '../commands/disconnect';
-import { connectionErrorMessage } from '../queries/session';
+import { connectionErrorMessage } from '../rules/connection-error-message';
 
 export function DisconnectBrowser() {
   const disconnect = useDisconnect();

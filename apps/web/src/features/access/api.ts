@@ -6,10 +6,8 @@ import {
 import { WEB_PLATFORM_NAME_MAX_LENGTH } from '@/config/limits';
 import { ConnectionError } from '@/shared/api/connection-error';
 import { REQUEST_TIMEOUT_MS } from '@/shared/api/request-timeout';
-import { RequestError } from '@/shared/api/request';
 import { browserTransport } from '@/shared/api/transport';
-
-export type PairingCode = { code: string; environmentId: string };
+import type { PairingCode } from './rules/pairing-link';
 
 export type PairingPort = {
   redeem(
@@ -21,12 +19,6 @@ export type SessionPort = {
   restore(signal: AbortSignal): Promise<ReadInventoryResponse>;
   disconnect(): Promise<void>;
 };
-
-export function connectionErrorMessage(error: unknown) {
-  return error instanceof ConnectionError || error instanceof RequestError
-    ? error.message
-    : 'Could not connect to the environment. Try again.';
-}
 
 function createPairingApi(transport: typeof fetch): PairingPort {
   return {
