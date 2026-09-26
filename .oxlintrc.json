@@ -80,6 +80,7 @@
     "porcelain/web-no-manual-memo": "error",
     "porcelain/web-effects-in-adapters": "error",
     "porcelain/web-refs-in-adapters": "error",
+    "porcelain/web-views-no-jsx-refs": "error",
     "porcelain/web-listeners-in-adapters": "error",
     "porcelain/web-store-owns-zustand": "error",
     "porcelain/web-store-owns-storage": "error",

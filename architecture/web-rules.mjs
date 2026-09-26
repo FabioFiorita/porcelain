@@ -473,6 +473,16 @@ export const webRules = {
     message: () =>
       '`useRef` belongs to features/<domain>/adapters/, where imperative library glue holds its DOM handles; a view renders data and forwards events.',
   }),
+  'web-views-no-jsx-refs': viewRule((context) => ({
+    JSXAttribute(node) {
+      if (node.name.type === 'JSXIdentifier' && node.name.name === 'ref')
+        context.report({
+          node,
+          message:
+            'A view renders data and forwards events; move a DOM ref and its element into an adapter component, including callback refs.',
+        });
+    },
+  })),
   'web-listeners-in-adapters': {
     create(context) {
       const path = webPath(context);

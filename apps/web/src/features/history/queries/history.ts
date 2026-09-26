@@ -4,6 +4,7 @@ import {
   type InfiniteData,
   useSuspenseInfiniteQuery,
 } from '@tanstack/react-query';
+import { discardRejection } from '@/shared/lib/submit-form';
 import { historyApi } from '../api';
 import type { HistoryConnection, HistoryScope } from '../rules/connection';
 
@@ -78,6 +79,6 @@ export function useHistory(
     hasNextPage: query.hasNextPage,
     isFetchingNextPage: query.isFetchingNextPage,
     isFetchNextPageError: query.isFetchNextPageError,
-    fetchNextPage: query.fetchNextPage,
+    loadNextPage: () => discardRejection(query.fetchNextPage()),
   };
 }

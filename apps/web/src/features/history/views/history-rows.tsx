@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import { HISTORY_ROW_HEIGHT } from '@/config/limits';
 import { cn } from '@/shared/lib/utils';
+import { HistorySentinel } from '../adapters/history-sentinel';
 import {
   historyGraphWidth,
   historyRefLabel,
@@ -20,8 +21,8 @@ export function HistoryRows({
   failed,
   nextAfter,
   boundary,
-  onRetry,
-  sentinel,
+  onLoadMore,
+  canLoadMore,
 }: {
   rows: readonly GraphRow[];
   selected: string;
@@ -30,8 +31,8 @@ export function HistoryRows({
   failed: boolean;
   nextAfter: readonly string[] | null;
   boundary: 'shallow' | 'wide' | null;
-  onRetry: () => void;
-  sentinel: (element: HTMLDivElement | null) => void | (() => void);
+  onLoadMore: () => void;
+  canLoadMore: boolean;
 }) {
   return (
     <div className="flex px-1.5 py-2">
@@ -87,7 +88,7 @@ export function HistoryRows({
         ) : failed ? (
           <div className="flex items-center gap-2 px-2 py-2 text-[11px] text-muted-foreground">
             <span>Couldn&apos;t load older commits</span>
-            <Button size="xs" variant="outline" onClick={onRetry}>
+            <Button size="xs" variant="outline" onClick={onLoadMore}>
               Retry
             </Button>
           </div>
@@ -100,7 +101,7 @@ export function HistoryRows({
                 : 'Start of history.'}
           </p>
         ) : null}
-        <div ref={sentinel} aria-hidden="true" className="h-px" />
+        <HistorySentinel enabled={canLoadMore} onVisible={onLoadMore} />
       </div>
     </div>
   );

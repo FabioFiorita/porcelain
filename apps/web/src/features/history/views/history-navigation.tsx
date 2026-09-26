@@ -7,8 +7,6 @@ import {
 } from '@/components/ui/empty';
 import { useAccessStore } from '@/features/access/index';
 import { worktreeLabel } from '@/features/projects/index';
-import { discardRejection } from '@/shared/lib/submit-form';
-import { observeHistoryEnd } from '../adapters/history-sentinel';
 import { useHistory } from '../queries/history';
 import type { HistoryScope } from '../rules/connection';
 import { historyFollows, layoutGraph } from '../rules/graph';
@@ -26,7 +24,6 @@ export function HistoryNavigation({
   const connection = useAccessStore((state) => state.connection);
   const history = useHistory(connection, scope);
   const rows = layoutGraph(history.commits);
-  const loadNext = () => discardRejection(history.fetchNextPage());
   const observe =
     history.hasNextPage &&
     !history.isFetchingNextPage &&
@@ -68,8 +65,8 @@ export function HistoryNavigation({
           failed={history.isFetchNextPageError}
           nextAfter={history.nextAfter}
           boundary={history.boundary}
-          onRetry={loadNext}
-          sentinel={(element) => observeHistoryEnd(element, observe, loadNext)}
+          onLoadMore={history.loadNextPage}
+          canLoadMore={observe}
         />
       )}
     </div>

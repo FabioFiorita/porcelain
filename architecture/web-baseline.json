@@ -411,5 +411,15 @@
     "apps/web/src/features/review/views/pierre-file-tree.tsx": 4,
     "apps/web/src/features/review/views/reviewed-control.tsx": 2,
     "apps/web/src/features/review/views/thread-card.tsx": 2
+  },
+  "porcelain/web-views-no-jsx-refs": {
+    "apps/web/src/app/views/connected-workspace.tsx": 1,
+    "apps/web/src/features/review/views/code-document.tsx": 1,
+    "apps/web/src/features/review/views/document-tabs.tsx": 1,
+    "apps/web/src/features/review/views/pierre-file-tree.tsx": 1,
+    "apps/web/src/features/review/views/published-layer.tsx": 1,
+    "apps/web/src/features/review/views/published-overview.tsx": 1,
+    "apps/web/src/features/review/views/review-diagram.tsx": 1,
+    "apps/web/src/features/review/views/review-workspace.tsx": 3
   }
 }
