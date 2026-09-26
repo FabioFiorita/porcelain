@@ -1,4 +1,5 @@
 import { detectPlatform, useHotkey } from '@tanstack/react-hotkeys';
+import { useAccessStore } from '@/features/access/index';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -20,7 +21,8 @@ import {
 } from '@/components/ui/sidebar';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import {
-  firstAvailableWorktree,
+  firstWaitingWorktree,
+  openProjectDialog,
   selectedWorktreeInProject,
 } from '@/features/projects/index';
 import { useInventory } from '@/features/projects/index';
@@ -44,14 +46,14 @@ export function ConnectedWorkspace() {
 
 function WorkspaceNavigation() {
   const navigationTrigger = useRef<HTMLButtonElement>(null);
-  const [openProject, setOpenProject] = useState(false);
   const [settings, setSettings] = useState(false);
   const [shortcuts, setShortcuts] = useState(false);
   const { setOpenMobile, isMobile, open, openMobile, toggleSidebar } =
     useSidebar();
   const { worktree: selected } = useSearch({ from: '/' });
   const navigate = useNavigate({ from: '/' });
-  const inventory = useInventory();
+  const connection = useAccessStore((state) => state.connection);
+  const inventory = useInventory(connection);
   const selection = selectedWorktreeInProject(inventory, selected);
   const fallback = firstWaitingWorktree(inventory);
 
@@ -90,7 +92,7 @@ function WorkspaceNavigation() {
           onSelectWorktree={(id) => {
             void navigate({ search: { worktree: id } });
           }}
-          openProject={() => setOpenProject(true)}
+          openProject={() => openProjectDialog.open(null)}
           openSettings={() => setSettings(true)}
           openShortcuts={() => setShortcuts(true)}
         />
@@ -106,12 +108,12 @@ function WorkspaceNavigation() {
         onSelectWorktree={(id) => {
           void navigate({ search: { worktree: id } });
         }}
-        openProject={() => setOpenProject(true)}
+        openProject={() => openProjectDialog.open(null)}
         openSettings={() => setSettings(true)}
         openShortcuts={() => setShortcuts(true)}
       />
 
-      <OpenProjectDialog open={openProject} onOpenChange={setOpenProject} />
+      <OpenProjectDialog />
       <SettingsDialog open={settings} onOpenChange={setSettings} />
       <ShortcutsDialog open={shortcuts} onOpenChange={setShortcuts} />
     </>
@@ -265,16 +267,5 @@ function WorkspaceDocument({
         </div>
       )}
     </div>
-  );
-}
-
-function firstWaitingWorktree(inventory: ReturnType<typeof useInventory>) {
-  const worktrees = inventory.projects.flatMap((project) => project.worktrees);
-  return (
-    worktrees.find(
-      (worktree) =>
-        worktree.available &&
-        (worktree.status === 'replied' || worktree.status === 'pending'),
-    ) ?? firstAvailableWorktree(inventory)
   );
 }

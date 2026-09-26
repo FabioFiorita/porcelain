@@ -1,5 +1,5 @@
+import type { ProjectConnection } from '../rules/connection';
 import { FolderGit2Icon, RefreshCwIcon, SearchIcon } from 'lucide-react';
-import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   InputGroup,
@@ -10,16 +10,20 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Spinner } from '@/components/ui/spinner';
 import { connectionErrorMessage } from '@/features/access/index';
 import { useProjectDiscovery } from '../queries/project-locations';
+import { useProjectBrowserStore } from '../store';
 
 export function ProjectDiscovery({
+  connection,
   disabled,
   onOpen,
 }: {
+  connection: ProjectConnection | null;
   disabled: boolean;
   onOpen: (path: string) => void;
 }) {
-  const [search, setSearch] = useState('');
-  const discovery = useProjectDiscovery(true);
+  const search = useProjectBrowserStore((state) => state.search);
+  const setSearch = useProjectBrowserStore((state) => state.setSearch);
+  const discovery = useProjectDiscovery(connection, true);
   const query = search.trim().toLocaleLowerCase();
   const repositories =
     discovery.data?.repositories.filter((repository) =>

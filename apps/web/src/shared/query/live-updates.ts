@@ -16,6 +16,35 @@ type Connection = {
 };
 
 type Watched = { projectId: string; worktreeId: string; paths: Set<string> };
+type FeatureLive = {
+  subscriptionProjects?: (
+    client: QueryClient,
+    environmentId: string,
+  ) => string[];
+  onNotice?: (
+    client: QueryClient,
+    environmentId: string,
+    notice: LiveNotice,
+  ) => Promise<void>;
+  onGitReceipt?: (client: QueryClient, environmentId: string) => Promise<void>;
+};
+const featureLives = Object.values(
+  import.meta.glob<{ default: FeatureLive }>('../../features/*/live.ts', {
+    eager: true,
+  }),
+).map((module) => module.default);
+
+async function notifyFeatures(
+  client: QueryClient,
+  environmentId: string,
+  notice: LiveNotice,
+) {
+  await Promise.all(
+    featureLives.flatMap((feature) =>
+      feature.onNotice ? [feature.onNotice(client, environmentId, notice)] : [],
+    ),
+  );
+}
 
 export function liveSubscription(client: QueryClient, environmentId: string) {
   const watched = new Map<string, Watched>();
@@ -49,13 +78,12 @@ export function liveSubscription(client: QueryClient, environmentId: string) {
   }
   return {
     type: 'subscribe' as const,
-    projects:
-      client
-        .getQueryData<{ projects: { id: string }[] }>(
-          queryKeys.inventory(environmentId),
-        )
-        ?.projects.map((project) => project.id)
-        .slice(0, 128) ?? [],
+    projects: featureLives
+      .flatMap(
+        (feature) =>
+          feature.subscriptionProjects?.(client, environmentId) ?? [],
+      )
+      .slice(0, 128),
     worktrees: [...watched.values()].slice(0, 32).map((entry) => ({
       projectId: entry.projectId,
       worktreeId: entry.worktreeId,
@@ -98,9 +126,8 @@ async function refreshActionQueries(
   await client.invalidateQueries(filters);
   await Promise.all(
     active.map(async (query) => {
-      if (query.state.isInvalidated && query.state.status === 'success') {
+      if (query.state.isInvalidated && query.state.status === 'success')
         await query.fetch().catch(() => undefined);
-      }
       if (query.state.isInvalidated && query.state.status === 'success')
         throw new Error(
           'Git state refresh was interrupted. Check the action again.',
@@ -158,10 +185,13 @@ export async function refreshGitReceipt(
       queryKey: prefix,
       predicate: (query) => surfaces.has(String(query.queryKey[prefix.length])),
     });
-    await refreshActionQueries(client, {
-      queryKey: queryKeys.inventory(environmentId),
-      exact: true,
-    });
+    await Promise.all(
+      featureLives.flatMap((feature) =>
+        feature.onGitReceipt
+          ? [feature.onGitReceipt(client, environmentId)]
+          : [],
+      ),
+    );
   })();
   pending.set(key, refresh);
   try {
@@ -182,33 +212,21 @@ export async function applyLiveNotice(
     return;
   }
   if (notice.type === 'inventory') {
-    await client.invalidateQueries({
-      queryKey: queryKeys.inventory(environmentId),
-      exact: true,
-    });
+    await notifyFeatures(client, environmentId, notice);
     return;
   }
   if (notice.type === 'project') {
-    if (notice.change === 'preferences')
-      await client.invalidateQueries({
-        queryKey: queryKeys.filePreferences(environmentId, notice.projectId),
-        exact: true,
-      });
+    await notifyFeatures(client, environmentId, notice);
     return;
   }
-  const inventory = () =>
-    client.invalidateQueries({
-      queryKey: queryKeys.inventory(environmentId),
-      exact: true,
-    });
   if (notice.change === 'files') {
     await invalidateSurfaces(client, environmentId, notice, FILE_SURFACES);
-    await inventory();
+    await notifyFeatures(client, environmentId, notice);
     return;
   }
   if (notice.change === 'git') {
     await invalidateSurfaces(client, environmentId, notice, GIT_SURFACES);
-    await inventory();
+    await notifyFeatures(client, environmentId, notice);
     return;
   }
   const surfaces =
@@ -218,7 +236,7 @@ export async function applyLiveNotice(
         ? new Set(['comments'])
         : new Set(['review', 'reviewed-layers']);
   await invalidateSurfaces(client, environmentId, notice, surfaces);
-  await inventory();
+  await notifyFeatures(client, environmentId, notice);
 }
 
 export function connectLiveQueries(

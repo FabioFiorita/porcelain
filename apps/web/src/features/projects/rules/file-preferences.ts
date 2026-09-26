@@ -1,12 +1,3 @@
-import type {
-  ListFilePreferencesResponse,
-  SetFilePreferenceRequest,
-} from '@porcelain/contracts/projects';
-
-export type FilePreference = ListFilePreferencesResponse['preferences'][number];
-export type FilePreferencesResponse = ListFilePreferencesResponse;
-export type { SetFilePreferenceRequest };
-
 export type SetHiddenInput = { path: string; hidden: boolean };
 
 export function canonicalPreferencePath(path: string) {

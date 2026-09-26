@@ -1,11 +1,4 @@
-import type {
-  BrowseProjectFoldersResponse,
-  DiscoverProjectsResponse,
-  ReadInventoryResponse,
-} from '@porcelain/contracts/projects';
-
-export type ProjectDiscovery = DiscoverProjectsResponse;
-export type ProjectFolder = BrowseProjectFoldersResponse;
+import type { ReadInventoryResponse } from '@porcelain/contracts/projects';
 
 export type Inventory = ReadInventoryResponse;
 export type Project = Inventory['projects'][number];
@@ -26,6 +19,17 @@ export function firstAvailableWorktree(inventory: Inventory) {
   return (
     worktrees.find((worktree) => worktree.available && !worktree.main) ??
     worktrees.find((worktree) => worktree.available)
+  );
+}
+
+export function firstWaitingWorktree(inventory: Inventory) {
+  const worktrees = inventory.projects.flatMap((project) => project.worktrees);
+  return (
+    worktrees.find(
+      (worktree) =>
+        worktree.available &&
+        (worktree.status === 'replied' || worktree.status === 'pending'),
+    ) ?? firstAvailableWorktree(inventory)
   );
 }
 

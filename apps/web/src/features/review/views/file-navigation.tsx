@@ -18,6 +18,7 @@ import {
 import { Button } from '@/components/ui/button';
 import type { DocumentRef } from '@/features/review/model/documents';
 import { visibleFileTreePaths } from '@/features/projects/index';
+import { useAccessStore } from '@/features/access/index';
 import {
   fileTreeAncestors,
   mergeFileTreeEntries,
@@ -80,8 +81,9 @@ function ScopedFileNavigation({
   }>();
   const [deleting, setDeleting] = useState<string | null>(null);
   const overview = useReviewOverview(scope);
-  const hidden = useHiddenPaths(scope.projectId);
-  const setHidden = useSetHidden(scope.projectId);
+  const connection = useAccessStore((state) => state.connection);
+  const hidden = useHiddenPaths(connection, scope.projectId);
+  const setHidden = useSetHidden(connection, scope.projectId);
   const [showHidden, setShowHidden] = useState(false);
   const [requested, setRequested] = useState<readonly string[]>(() =>
     fileTreeAncestors(selected),

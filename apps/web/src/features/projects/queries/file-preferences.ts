@@ -1,84 +1,41 @@
-import {
-  useMutation,
-  useQueryClient,
-  useSuspenseQuery,
-} from '@tanstack/react-query';
-import type {
-  FilePreferencesResponse,
-  SetFilePreferenceRequest,
-  SetHiddenInput,
-} from '../file-preferences';
-import { canonicalPreferencePath } from '../file-preferences';
-import { queryKeys } from '@/shared/query/keys';
-import { asMutation } from '@/shared/query/mutation';
-import { useConnectedContext } from '@/app/workspace-provider';
+import { queryOptions, useSuspenseQuery } from '@tanstack/react-query';
+import type { ProjectConnection } from '../rules/connection';
+import { projectsApi } from '../api';
 
-function useFilePreferencesContext(projectId: string) {
-  const { api, connection } = useConnectedContext();
-  return {
-    api: api.filePreferences,
-    key: queryKeys.filePreferences(connection.environmentId, projectId),
-    mutationScope: {
-      id: `file-preferences:${connection.environmentId}:${projectId}`,
-    },
-    request: (signal?: AbortSignal) => ({
-      projectId,
-      ...connection.request(signal),
-    }),
-  };
-}
-
-function useFilePreferences(projectId: string) {
-  const context = useFilePreferencesContext(projectId);
-  return useSuspenseQuery({
-    queryKey: context.key,
+export function filePreferencesQueryOptions(
+  environmentId: string,
+  projectId: string,
+  request: (signal?: AbortSignal) => { signal: AbortSignal },
+) {
+  return queryOptions({
+    queryKey: ['review', environmentId, projectId, 'file-preferences'],
     queryFn: async ({ signal }) => {
-      const request = context.request(signal);
-      const response = await context.api.list(request);
-      request.signal.throwIfAborted();
+      const connected = request(signal);
+      const response = await projectsApi.filePreferences.list(
+        connected.signal,
+        projectId,
+      );
+      connected.signal.throwIfAborted();
       return response;
     },
-  }).data;
+  });
 }
 
-export function useHiddenPaths(projectId: string): ReadonlySet<string> {
-  const response = useFilePreferences(projectId);
+export function useHiddenPaths(
+  connection: ProjectConnection | null,
+  projectId: string,
+): ReadonlySet<string> {
+  if (!connection) throw new Error('A connected environment is required');
+  const response = useSuspenseQuery(
+    filePreferencesQueryOptions(
+      connection.environmentId,
+      projectId,
+      connection.request,
+    ),
+  ).data;
   return new Set(
     response.preferences
       .filter((preference) => preference.hidden)
       .map((preference) => preference.path),
   );
-}
-
-function useSetFilePreference(projectId: string) {
-  const context = useFilePreferencesContext(projectId);
-  const client = useQueryClient();
-  return asMutation(
-    useMutation<FilePreferencesResponse, Error, SetFilePreferenceRequest>({
-      scope: context.mutationScope,
-      mutationFn: async (input) => {
-        const request = context.request();
-        const response = await context.api.set({ ...request, input });
-        request.signal.throwIfAborted();
-        return response;
-      },
-      onSuccess: async (response) => {
-        await client.cancelQueries({ queryKey: context.key, exact: true });
-        client.setQueryData(context.key, response);
-      },
-    }),
-  );
-}
-
-export function useSetHidden(projectId: string) {
-  const mutation = useSetFilePreference(projectId);
-  return {
-    ...mutation,
-    submit: (input: SetHiddenInput) =>
-      mutation.submit({
-        path: canonicalPreferencePath(input.path),
-        flag: 'hidden',
-        value: input.hidden,
-      }),
-  };
 }

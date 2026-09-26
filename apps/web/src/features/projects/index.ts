@@ -1,19 +1,17 @@
-export * from './file-preferences';
-export * from './inventory';
-export { createFilePreferencesLive } from './api/file-preferences-live';
-export { createInventoryLive } from './api/inventory-live';
-export type { FilePreferencesPort } from './api/file-preferences-port';
-export type { InventoryPort } from './api/inventory-port';
-export { useHiddenPaths, useSetHidden } from './queries/file-preferences';
+export { useSetHidden } from './commands/set-hidden';
+export { openProjectDialog } from './overlays';
+export { useHiddenPaths } from './queries/file-preferences';
+export { useInventory } from './queries/inventory';
 export {
-  useInventory,
-  useRegisterProject,
-  useRemoveProject,
-  useRenameProject,
-} from './queries/inventory';
+  canonicalPreferencePath,
+  hiddenPathFor,
+  visibleFileTreePaths,
+} from './rules/file-preferences';
 export {
-  useProjectDiscovery,
-  useProjectFolder,
-} from './queries/project-locations';
+  firstWaitingWorktree,
+  selectedWorktreeInProject,
+  worktreeLabel,
+  type Project,
+} from './rules/inventory';
 export { OpenProjectDialog } from './views/open-project-dialog';
 export { ProjectNavigator } from './views/project-navigator';

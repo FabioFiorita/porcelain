@@ -33,6 +33,7 @@ const readHooks = new Set([
   'infiniteQueryOptions',
 ]);
 const writeHooks = new Set(['useMutation', 'mutationOptions']);
+const promiseContinuations = new Set(['then', 'catch', 'finally']);
 const cacheWrites = new Set([
   'setQueryData',
   'setQueriesData',
@@ -285,6 +286,15 @@ function methodName(callee) {
     !callee.computed &&
     callee.property.type === 'Identifier'
     ? callee.property.name
+    : undefined;
+}
+
+function promiseContinuationName(callee) {
+  if (callee.type !== 'MemberExpression') return undefined;
+  if (!callee.computed) return methodName(callee);
+  return callee.property.type === 'Literal' &&
+    typeof callee.property.value === 'string'
+    ? callee.property.value
     : undefined;
 }
 
@@ -795,6 +805,17 @@ export const webRules = {
           message:
             'A view does not await: it calls a command hook and renders the command state; the async work lives in commands/.',
         });
+    },
+  })),
+  'web-views-no-promise-chains': viewRule((context) => ({
+    CallExpression(node) {
+      if (!promiseContinuations.has(promiseContinuationName(node.callee)))
+        return;
+      context.report({
+        node,
+        message:
+          'A view does not sequence promise completion: put success and error work in a command hook and let the view forward the event.',
+      });
     },
   })),
   'web-views-no-try': viewRule((context) => ({

@@ -90,6 +90,7 @@
     "porcelain/web-timers-in-commands-and-store": "error",
     "porcelain/web-rules-are-pure": "error",
     "porcelain/web-views-no-await": "error",
+    "porcelain/web-views-no-promise-chains": "error",
     "porcelain/web-views-no-try": "error",
     "porcelain/web-views-no-command-loops": "error",
     "porcelain/web-views-no-loops": "error",

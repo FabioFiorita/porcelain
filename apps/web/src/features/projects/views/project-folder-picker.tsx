@@ -1,10 +1,6 @@
-import {
-  ArrowUpIcon,
-  ChevronDownIcon,
-  FolderIcon,
-  FolderOpenIcon,
-} from 'lucide-react';
-import { Fragment, useState } from 'react';
+import type { ProjectConnection } from '../rules/connection';
+import { ChevronDownIcon, FolderOpenIcon } from 'lucide-react';
+import { Fragment } from 'react';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -19,31 +15,29 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Spinner } from '@/components/ui/spinner';
-import { connectionErrorMessage } from '@/features/access/index';
 import { useProjectFolder } from '../queries/project-locations';
+import { useProjectBrowserStore } from '../store';
+import { ProjectFolderList } from './project-folder-list';
 
 export function ProjectFolderPicker({
+  connection,
   disabled,
   onOpen,
 }: {
+  connection: ProjectConnection | null;
   disabled: boolean;
   onOpen: (path: string) => void;
 }) {
-  const [expanded, setExpanded] = useState(true);
-  const [path, setPath] = useState<string>();
-  const folder = useProjectFolder(path, expanded);
+  const path = useProjectBrowserStore((state) => state.folderPath);
+  const setPath = useProjectBrowserStore((state) => state.setFolderPath);
+  const folder = useProjectFolder(connection, path, true);
   const current = folder.data;
   const crumbs = current
     ? ['/', ...current.path.split('/').filter(Boolean)]
     : [];
   return (
-    <Collapsible
-      open={expanded}
-      onOpenChange={setExpanded}
-      className="group/folders"
-    >
+    <Collapsible defaultOpen className="group/folders">
       <CollapsibleTrigger
         render={<Button variant="ghost" className="w-full justify-start" />}
       >
@@ -93,73 +87,7 @@ export function ProjectFolderPicker({
               </BreadcrumbList>
             </Breadcrumb>
           )}
-          <ScrollArea className="h-40" aria-label="Folders">
-            <div className="flex flex-col p-1">
-              {folder.isPending ? (
-                <p role="status" className="p-2 text-xs text-muted-foreground">
-                  Loading folders…
-                </p>
-              ) : folder.error ? (
-                <div className="flex flex-col items-start gap-2 p-2">
-                  <p role="alert" className="text-xs text-destructive">
-                    {connectionErrorMessage(folder.error)}
-                  </p>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="xs"
-                      onClick={() => void folder.refetch()}
-                      disabled={disabled}
-                    >
-                      Try again
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="xs"
-                      onClick={() => setPath(undefined)}
-                      disabled={disabled}
-                    >
-                      Home folder
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                current && (
-                  <>
-                    {current.parent && (
-                      <Button
-                        variant="ghost"
-                        className="w-full justify-start"
-                        onClick={() => setPath(current.parent ?? undefined)}
-                        disabled={disabled}
-                      >
-                        <ArrowUpIcon data-icon="inline-start" />
-                        Up
-                      </Button>
-                    )}
-                    {current.directories.map((directory) => (
-                      <Button
-                        key={directory.path}
-                        variant="ghost"
-                        className="w-full justify-start"
-                        title={directory.path}
-                        onClick={() => setPath(directory.path)}
-                        disabled={disabled}
-                      >
-                        <FolderIcon data-icon="inline-start" />
-                        <span className="truncate">{directory.name}</span>
-                      </Button>
-                    ))}
-                    {!current.directories.length && (
-                      <p className="p-2 text-xs text-muted-foreground">
-                        No subfolders.
-                      </p>
-                    )}
-                  </>
-                )
-              )}
-            </div>
-          </ScrollArea>
+          <ProjectFolderList folder={folder} disabled={disabled} />
           {current?.truncated && (
             <p className="px-1 text-xs text-muted-foreground">
               This folder is large; some entries are not shown. Enter a

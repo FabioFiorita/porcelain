@@ -93,6 +93,7 @@
     "web-transport-owner",
     "web-view-line-budget",
     "web-views-no-await",
+    "web-views-no-promise-chains",
     "web-views-no-command-loops",
     "web-views-no-contracts",
     "web-views-no-controlled-open",
