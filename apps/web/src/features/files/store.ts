@@ -16,7 +16,11 @@ export class FileDraft {
   readonly store;
   private readonly editorFiles = new Map<
     string,
-    { file: { name: string; contents: string }; initialText: string }
+    {
+      file: { name: string; contents: string };
+      initialText: string;
+      attached: boolean;
+    }
   >();
   lastWrittenFingerprint: string | null = null;
   private pending: Promise<boolean> | undefined;
@@ -63,15 +67,31 @@ export class FileDraft {
   editorFile(owner: string, path: string, text: string) {
     let session = this.editorFiles.get(owner);
     if (!session) {
-      session = { file: { name: path, contents: text }, initialText: text };
+      session = {
+        file: { name: path, contents: text },
+        initialText: text,
+        attached: false,
+      };
       this.editorFiles.set(owner, session);
     }
     return session;
+  }
+  attachEditor(owner: string) {
+    const session = this.editorFiles.get(owner);
+    if (session) session.attached = true;
   }
   clearEditorFile(owner: string) {
     this.editorFiles.delete(owner);
   }
   finishEditing(owner: string, onUnsaved: () => void) {
+    const session = this.editorFiles.get(owner);
+    if (session) {
+      session.attached = false;
+      queueMicrotask(() => {
+        if (this.editorFiles.get(owner) === session && !session.attached)
+          this.editorFiles.delete(owner);
+      });
+    }
     this.release(owner);
     if (!this.snapshot().error)
       void this.save().then((saved) => {

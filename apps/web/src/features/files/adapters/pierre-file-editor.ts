@@ -17,6 +17,7 @@ type EditorDraft = {
     file: { name: string; contents: string };
     initialText: string;
   };
+  attachEditor: (owner: string) => void;
   finishEditing: (owner: string, onUnsaved: () => void) => void;
 };
 
@@ -55,9 +56,9 @@ export function usePierreFileEditor(
     enabled: active,
     ignoreInputs: false,
   });
-  useEffect(
-    () => () => draft.finishEditing(owner, () => latest.current(path)),
-    [draft, owner, path],
-  );
+  useEffect(() => {
+    draft.attachEditor(owner);
+    return () => draft.finishEditing(owner, () => latest.current(path));
+  }, [draft, owner, path]);
   return { file, initialText: editorInitialText, options };
 }
