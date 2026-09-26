@@ -6,14 +6,6 @@ import type {
   ReadGitStatusResponse,
 } from '@porcelain/contracts/changes';
 import type {
-  EditFileRequest,
-  EditFileResponse,
-  ListDirectoryResponse,
-  ListWorktreePathsResponse,
-  ReadPreviewAssetsResponse,
-  ReadTextFileResponse,
-} from '@porcelain/contracts/files';
-import type {
   ListReviewedFilesResponse,
   ReadPublishedReviewResponse,
   SetReviewedFileRequest,
@@ -21,8 +13,6 @@ import type {
   SetReviewedFilesResponse,
 } from '@porcelain/contracts/reviews';
 
-export type Directory = ListDirectoryResponse;
-export type PreviewAssets = ReadPreviewAssetsResponse;
 export type Status = ReadGitStatusResponse;
 export type ChangeList = ReadChangesResponse;
 export type FileChange = ChangeList['changes'][number];
@@ -119,10 +109,6 @@ export function basename(path: string) {
   return path.split('/').at(-1) ?? path;
 }
 
-export type TextFile = ReadTextFileResponse;
-export type FileEdit = EditFileRequest;
-export type FileEditResult = EditFileResponse;
-export type WorktreePaths = ListWorktreePathsResponse;
 export type ReviewResponse = NonNullable<ReadPublishedReviewResponse['review']>;
 export type Diagram = NonNullable<ReviewResponse['diagram']>['after'];
 export type DiagramBox = Diagram['boxes'][number];

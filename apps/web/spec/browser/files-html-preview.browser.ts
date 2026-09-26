@@ -19,6 +19,9 @@ test('an HTML page opened from the file tree previews with its local images and 
   await opened.getByRole('tab', { name: 'Files' }).click();
   await opened.getByRole('treeitem', { name: 'page.html' }).click();
   await expect
+    .element(opened.getByLabelText('page.html HTML preview'))
+    .toBeVisible();
+  await expect
     .element(
       opened.getByText(
         'Some assets could not be loaded: missing.png. This preview supports local static assets.',

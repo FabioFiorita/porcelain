@@ -1,10 +1,10 @@
 import type { FileTreeIconConfig } from '@pierre/trees';
-import { basename } from '@/features/review/model/review';
+const basename = (path: string) => path.split('/').at(-1) ?? path;
 
 const LINK_SYMBOLS = {
   symlink: 'porcelain-symlink',
   submodule: 'porcelain-submodule',
-} as const;
+};
 
 const LINK_SPRITE = `<svg xmlns="http://www.w3.org/2000/svg" style="display:none">
   <symbol id="${LINK_SYMBOLS.symlink}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

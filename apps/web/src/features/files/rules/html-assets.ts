@@ -1,17 +1,19 @@
 import type { ReadFileAssetResponse as AssetResponse } from '@porcelain/contracts/files';
+import {
+  FILE_PREVIEW_MAX_ASSETS,
+  FILE_PREVIEW_MAX_BYTES,
+  FILE_PREVIEW_MAX_ROUNDS,
+} from '@/config/limits';
 
 export const isImagePath = (path: string) =>
   /\.(png|jpe?g|gif|webp|avif|svg|ico)$/i.test(path);
 export const assetUrl = (asset: AssetResponse) =>
   `data:${asset.mediaType};base64,${asset.base64}`;
 
-export type ReadAssets = (
+type ReadAssets = (
   paths: string[],
 ) => Promise<Map<string, AssetResponse | null>>;
 
-const MAX_ASSETS = 64;
-const MAX_BYTES = 28 * 1024 * 1024;
-const MAX_ROUNDS = 8;
 const STYLE_REFERENCE =
   /url\(\s*(['"]?)([^)'"]+)\1\s*\)|@import\s+(['"])([^'"]+)\3/g;
 
@@ -63,12 +65,12 @@ export async function inlineHtmlAssets(
 
   async function collect(initial: string[]) {
     let wanted = initial;
-    for (let round = 0; round < MAX_ROUNDS; round += 1) {
+    for (let round = 0; round < FILE_PREVIEW_MAX_ROUNDS; round += 1) {
       const fresh = [...new Set(wanted)].filter(
         (candidate) => !assets.has(candidate),
       );
       if (fresh.length === 0) return;
-      const room = MAX_ASSETS - assets.size;
+      const room = FILE_PREVIEW_MAX_ASSETS - assets.size;
       if (room <= 0) {
         for (const candidate of fresh) assets.set(candidate, null);
         return;
@@ -84,7 +86,7 @@ export async function inlineHtmlAssets(
           continue;
         }
         bytes += asset.base64.length;
-        if (bytes > MAX_BYTES) {
+        if (bytes > FILE_PREVIEW_MAX_BYTES) {
           assets.set(candidate, null);
           continue;
         }
@@ -114,7 +116,7 @@ export async function inlineHtmlAssets(
             )}`
           : assetUrl(asset);
       const reference = url + resolved.hash;
-      if (expanded + reference.length > MAX_BYTES)
+      if (expanded + reference.length > FILE_PREVIEW_MAX_BYTES)
         throw new Error('Expanded preview too large');
       expanded += reference.length;
       return reference;

@@ -3,8 +3,9 @@ import {
   getBuiltInSpriteSheet,
 } from '@pierre/trees';
 import { cn } from '@/shared/lib/utils';
+import { FILE_ICON_DEFAULT_SIZE } from '@/config/limits';
 
-const ICON_SET = 'complete' as const;
+const ICON_SET = 'complete';
 
 const resolver = createFileTreeIconResolver({
   set: ICON_SET,
@@ -34,8 +35,8 @@ export function FileTypeIcon({
   className?: string;
 }) {
   const icon = resolver.resolveIcon('file-tree-icon-file', path);
-  const width = icon.width ?? 16;
-  const height = icon.height ?? 16;
+  const width = icon.width ?? FILE_ICON_DEFAULT_SIZE;
+  const height = icon.height ?? FILE_ICON_DEFAULT_SIZE;
   return (
     <svg
       aria-hidden="true"

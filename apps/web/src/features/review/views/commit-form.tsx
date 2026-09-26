@@ -28,7 +28,7 @@ import {
   useGitAction,
 } from '@/features/review/queries/git-actions';
 import { usePreferences } from '@/shared/workspace/preferences';
-import { FileTypeIcon } from './file-type-icon';
+import { FileTypeIcon } from '@/features/files/index';
 import {
   changedSinceLooked,
   expectationFor,

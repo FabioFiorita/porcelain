@@ -10,25 +10,21 @@ import { useAccessStore } from '@/features/access/index';
 import { useChanges } from '@/features/changes/index';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { OpenDocument } from '@/features/review/model/documents';
-import type {
-  FileDraft,
-  FileDraftState,
-} from '@/features/review/model/file-draft';
-import { isImagePath } from '@/features/review/model/html-assets';
+import type { FileDraft, FileDraftState } from '@/features/files/index';
+import { isImagePath, useDirectory, useTextFile } from '@/features/files/index';
 import type { ReviewScope } from '@/features/review/model/review';
-import { useFileDraft } from '@/features/review/queries/files';
-import { useDirectory, useTextFile } from '@/features/review/queries/review';
+import { useFileDraft } from '@/features/files/index';
 import { copyText } from '@/shared/workspace/copy';
 import { usePreferences } from '@/shared/workspace/preferences';
 import { CodeDocument } from './code-document';
 import { fileEntry } from './diff-entries';
 import { useDocumentInteraction } from './document-interaction';
 import { DocumentToolbar } from './document-toolbar';
-import { FileEditor } from './file-editor';
-import { FileTypeIcon } from './file-type-icon';
-import { HtmlPreview } from './html-preview';
-import { ImagePreview } from './image-preview';
-import { MarkdownView } from './markdown-view';
+import { FileEditor } from '@/features/files/index';
+import { FileTypeIcon } from '@/features/files/index';
+import { HtmlPreview } from '@/features/files/index';
+import { ImagePreview } from '@/features/files/index';
+import { MarkdownView } from '@/features/files/index';
 import { ReviewEmpty } from './review-empty';
 
 export function FileDocument(props: {
@@ -52,7 +48,8 @@ function LinkedFileDocument(props: {
   onOpen: OpenDocument;
 }) {
   const parent = props.path.split('/').slice(0, -1).join('/');
-  const folder = useDirectory(props.scope, parent);
+  const connection = useAccessStore((state) => state.connection);
+  const folder = useDirectory(connection, props.scope, parent);
   const name = props.path.split('/').at(-1);
   const link = folder.entries.find((entry) => entry.name === name);
   if (link?.kind === 'symlink')
@@ -88,9 +85,11 @@ function TextFileDocument({
   onOpen: OpenDocument;
 }) {
   const { active } = useDocumentInteraction();
-  const file = useTextFile(scope, path, active);
+  const connection = useAccessStore((state) => state.connection);
+  const file = useTextFile(connection, scope, path, active);
   const unreadable = 'kind' in file;
   const { draft, state } = useFileDraft(
+    connection,
     scope,
     path,
     unreadable ? '' : file.text,

@@ -9,7 +9,7 @@ import {
   useChangeDiffs,
   useRecoverChangedDiffs,
 } from '@/features/changes/index';
-import { isImagePath } from '@/features/review/model/html-assets';
+import { isImagePath, ImagePreview } from '@/features/files/index';
 import type {
   Change,
   ChangeSelection,
@@ -25,7 +25,6 @@ import {
 } from '@/features/review/queries/review';
 import { CodeDocument, type CodeEntry } from './code-document';
 import { fileEntry } from './diff-entries';
-import { ImagePreview } from './image-preview';
 import { InlineComposer } from './inline-composer';
 import { focusPatch, type LineSpan } from './patch-focus';
 import { ReviewedControl } from './reviewed-control';

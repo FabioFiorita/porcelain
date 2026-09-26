@@ -1,31 +1,19 @@
-import {
-  Editor,
-  type EditorFactory,
-  type EditorOptions,
-} from '@pierre/diffs/edit';
 import { EditProvider, File } from '@pierre/diffs/react';
-import { useHotkey } from '@tanstack/react-hotkeys';
 import { CheckIcon } from 'lucide-react';
-import { type ReactNode, useMemo, useState } from 'react';
+import { type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/toast';
-import type {
-  FileDraft,
-  FileDraftState,
-} from '@/features/review/model/file-draft';
+import type { FileDraft, FileDraftState } from '@/features/files/store';
 import { createPierreFileOptions } from '@/shared/lib/pierre';
-import { useFileDraftSaving } from '@/features/review/queries/files';
-import { reviewErrorMessage } from '@/features/review/queries/review';
+import { useFileDraftSaving } from '@/features/files/commands/edit-file';
+import { fileErrorMessage } from '../rules/error-message';
+import {
+  createEditor,
+  usePierreFileEditor,
+} from '../adapters/pierre-file-editor';
 import { copyText } from '@/shared/workspace/copy';
 import { usePreferences } from '@/shared/workspace/preferences';
-import { SHORTCUTS } from '@/shared/workspace/shortcuts';
 import { useTheme } from '@/shared/workspace/theme';
-
-const createEditor: EditorFactory<undefined, undefined> = (
-  type,
-  options,
-  key,
-) => new Editor(type, options, key);
 
 function notifyUnsaved(path: string) {
   toast.add({
@@ -58,30 +46,16 @@ export function FileEditor({
 }) {
   const { preferences } = usePreferences();
   const { dark } = useTheme();
-  const [file] = useState(() => ({ name: path, contents: state.text }));
-  const dirty = state.text !== state.savedText;
-  const { changedOnDisk, save, saveOnBlur } = useFileDraftSaving(
+  const { file, options: editorOptions } = usePierreFileEditor(
     owner,
     path,
+    state.text,
     draft,
-    state,
+    active,
     notifyUnsaved,
   );
-  useHotkey(SHORTCUTS.saveFile, () => void save(), {
-    enabled: active,
-    ignoreInputs: false,
-  });
-  const editorOptions = useMemo<EditorOptions<'file', undefined, undefined>>(
-    () => ({
-      onAttach(editor) {
-        editor.focus({ lineNumber: 1, character: 0 });
-      },
-      onBlur() {
-        saveOnBlur();
-      },
-    }),
-    [saveOnBlur],
-  );
+  const dirty = state.text !== state.savedText;
+  const { changedOnDisk, save, done } = useFileDraftSaving(draft, state);
   const label = changedOnDisk
     ? 'Not saving: changed on disk'
     : state.error
@@ -101,11 +75,7 @@ export function FileEditor({
       <Button
         size="sm"
         disabled={changedOnDisk}
-        onClick={() =>
-          void save().then((saved) => {
-            if (saved) onDone();
-          })
-        }
+        onClick={() => void done(onDone)}
       >
         <CheckIcon className="size-3.5" />
         Done
@@ -128,7 +98,7 @@ export function FileEditor({
           <span className="flex-1">
             {changedOnDisk
               ? 'The file changed on disk since you opened it. Reload it before saving.'
-              : reviewErrorMessage(state.error)}{' '}
+              : fileErrorMessage(state.error)}{' '}
             Your draft is kept here.
           </span>
           <Button

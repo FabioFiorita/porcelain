@@ -27,5 +27,9 @@ test('saving over a file that changed on disk is refused and keeps both texts', 
   await expect
     .element(pairedPage.getByText('Not saving: changed on disk'))
     .toBeVisible();
+  await expect
+    .element(pairedPage.getByRole('button', { name: 'Done' }))
+    .toBeDisabled();
+  await expect.poll(() => server.fileWriteCount()).toBe(1);
   await expect.poll(async () => (await server.text(readme)).text).toBe(onDisk);
 });

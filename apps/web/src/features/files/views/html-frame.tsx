@@ -14,6 +14,7 @@ export function HtmlFrame({
   return (
     <iframe
       title={title}
+      aria-label={title}
       sandbox="allow-scripts"
       referrerPolicy="no-referrer"
       srcDoc={html}

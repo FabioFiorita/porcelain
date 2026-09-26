@@ -18,7 +18,6 @@ export type { GitActionsPort } from './api/git-actions-port';
 export { createReviewLive } from './api/review-live';
 export type { ReviewPort } from './api/review-port';
 export { groupedCommitModels, resolveCommitModel } from './model/commit-model';
-export type { FileDraft } from './model/file-draft';
 export { parseRetainedOperation } from './model/git-action';
 export type { Operation, Receipt } from './model/git-action';
 export { isSurface } from './model/review';

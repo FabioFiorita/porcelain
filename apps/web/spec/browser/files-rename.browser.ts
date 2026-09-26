@@ -48,7 +48,10 @@ test('renaming a file onto an existing name is refused and keeps both files', as
   server,
 }) => {
   await page.getByRole('treeitem', { name: after }).click({ button: 'right' });
-  await page.getByRole('menuitem', { name: 'Rename' }).click();
+  const renameAction = page.getByRole('menuitem', { name: 'Rename' });
+  await userEvent.keyboard('{ArrowDown}');
+  await expect.element(renameAction).toHaveFocus();
+  await userEvent.keyboard('{Enter}');
   const name = page.getByRole('textbox', { name: /rename/i });
   await expect.element(name).toBeVisible();
   await name.fill(repo.readme.path);

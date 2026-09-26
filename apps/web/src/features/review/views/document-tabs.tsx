@@ -31,7 +31,7 @@ import { cn } from '@/shared/lib/utils';
 import { parseEntry } from '@/features/review/model/documents';
 import { basename, type ReviewLayer } from '@/features/review/model/review';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
-import { FileTypeIcon } from './file-type-icon';
+import { FileTypeIcon } from '@/features/files/index';
 
 type Layer = Pick<ReviewLayer, 'id' | 'title'>;
 type TabIcon = LucideIcon | ComponentType<SVGProps<SVGSVGElement>>;

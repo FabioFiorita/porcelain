@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import '../../../pierre.css';
-import { PierreIconSprite } from './file-type-icon';
+import { PierreIconSprite } from '@/features/files/index';
 import { PierreWorkers } from './pierre-workers';
 
 export function ReviewShell({ children }: { children: ReactNode }) {

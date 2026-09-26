@@ -3,10 +3,6 @@ import type {
   ChangeDiffsRequest,
   ChangeLines,
   ChangeList,
-  Directory,
-  FileEdit,
-  FileEditResult,
-  PreviewAssets,
   ReviewedMarksResponse,
   ReviewResponse,
   ReviewScope,
@@ -14,14 +10,11 @@ import type {
   SetReviewedBulkResponse,
   SetReviewedRequest,
   Status,
-  TextFile,
-  WorktreePaths,
 } from '@/features/review/model/review';
 import type {
   ListReviewedLayersResponse,
   SetReviewedLayerRequest,
 } from '@porcelain/contracts/reviews';
-import type { ReadFileAssetResponse } from '@porcelain/contracts/files';
 export type ReviewRequest = ReviewScope & {
   signal: AbortSignal;
 };
@@ -36,17 +29,6 @@ export type ReviewPort = {
     ) => Promise<ListReviewedLayersResponse>;
   };
   review: (request: ReviewRequest) => Promise<ReviewResponse | null>;
-  asset: (
-    request: ReviewRequest & { path: string },
-  ) => Promise<ReadFileAssetResponse>;
-  previewAssets: (
-    request: ReviewRequest & { document: string; paths: string[] },
-  ) => Promise<PreviewAssets>;
-  worktreePaths: (request: ReviewRequest) => Promise<WorktreePaths>;
-  editFile: (
-    request: ReviewRequest & { input: FileEdit },
-  ) => Promise<FileEditResult>;
-  text: (request: ReviewRequest & { path: string }) => Promise<TextFile>;
   status: (request: ReviewRequest) => Promise<Status>;
   diffs: (
     request: ReviewRequest & { input: ChangeDiffsRequest },
@@ -59,7 +41,6 @@ export type ReviewPort = {
       at: 'head' | 'worktree';
     },
   ) => Promise<ChangeLines>;
-  directory: (request: ReviewRequest & { path: string }) => Promise<Directory>;
   changes: (request: ReviewRequest) => Promise<{ changes: ChangeList }>;
   reviewed: {
     list: (request: ReviewRequest) => Promise<ReviewedMarksResponse>;

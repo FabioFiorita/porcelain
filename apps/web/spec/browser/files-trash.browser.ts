@@ -46,7 +46,9 @@ test('moving a file another writer already removed to the trash is refused and s
   await repo.remove(gone);
   await expect.poll(() => names(server)).not.toContain(gone);
   await dialog.getByRole('button', { name: 'Move to trash' }).click();
-  await expect.element(dialog.getByRole('alert')).toBeVisible();
+  await expect
+    .element(dialog.getByRole('alert'))
+    .toHaveTextContent('Path not found');
   await dialog.getByRole('button', { name: 'Cancel' }).click();
   await expect.element(dialog).not.toBeInTheDocument();
   await expect.poll(() => names(server)).toContain(repo.readme.path);

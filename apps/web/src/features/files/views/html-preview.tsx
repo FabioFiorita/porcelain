@@ -1,6 +1,7 @@
-import type { ReviewScope } from '@/features/review/model/review';
-import { useHtmlPreview } from '@/features/review/queries/preview-assets';
-import { reviewErrorMessage } from '@/features/review/queries/review';
+import type { FilesScope } from '../rules/scope';
+import { useAccessStore } from '@/features/access/index';
+import { useHtmlPreview } from '@/features/files/queries/preview-assets';
+import { fileErrorMessage } from '../rules/error-message';
 import { HtmlFrame } from './html-frame';
 
 export function HtmlPreview({
@@ -8,11 +9,12 @@ export function HtmlPreview({
   path,
   html,
 }: {
-  scope: ReviewScope;
+  scope: FilesScope;
   path: string;
   html: string;
 }) {
-  const preview = useHtmlPreview(scope, path, html);
+  const connection = useAccessStore((state) => state.connection);
+  const preview = useHtmlPreview(connection, scope, path, html);
   if (preview.isPending)
     return (
       <p role="status" className="p-4">
@@ -22,7 +24,7 @@ export function HtmlPreview({
   if (preview.error)
     return (
       <p role="alert" className="p-4">
-        {reviewErrorMessage(preview.error)}
+        {fileErrorMessage(preview.error)}
       </p>
     );
   return (
@@ -35,7 +37,7 @@ export function HtmlPreview({
       )}
       <HtmlFrame
         html={preview.data.html}
-        title={path}
+        title={`${path} HTML preview`}
         className="min-h-0 flex-1"
       />
     </>

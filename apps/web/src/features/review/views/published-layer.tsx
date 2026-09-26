@@ -22,7 +22,7 @@ import { useLayerMarks } from '@/features/review/queries/published-review';
 import { useReviewChanges } from '@/features/review/queries/review';
 import { CodeDocument, type CodeEntry } from './code-document';
 import { DocumentToolbar } from './document-toolbar';
-import { MarkdownView } from './markdown-view';
+import { MarkdownView } from '@/features/files/index';
 import { contextPatch, focusPatch } from './patch-focus';
 import { type Graph, ReviewDiagram } from './review-diagram';
 

@@ -1,13 +1,13 @@
-import type { Directory } from '@/features/review/model/review';
+import type { ListDirectoryResponse as Directory } from '@porcelain/contracts/files';
 
-export type FileTreeEntry = {
+type FileTreeEntry = {
   path: string;
   kind: Directory['entries'][number]['kind'];
   ignored?: boolean;
   target?: string;
 };
 
-export function fileTreeEntries(directory: Directory): FileTreeEntry[] {
+function fileTreeEntries(directory: Directory): FileTreeEntry[] {
   const prefix = directory.path ? `${directory.path}/` : '';
   return directory.entries.map((entry) => ({
     path: `${prefix}${entry.name}${entry.kind === 'directory' ? '/' : ''}`,

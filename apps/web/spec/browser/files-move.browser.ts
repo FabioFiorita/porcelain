@@ -52,7 +52,9 @@ test('dragging a file onto a folder that already holds that name is refused and 
     page.getByRole('treeitem', { name: clash }),
     page.getByRole('treeitem', { name: folder }),
   );
-  await expect.element(page.getByRole('alert')).toBeVisible();
+  await expect
+    .element(page.getByRole('alert'))
+    .toHaveTextContent('An entry already exists at that path');
   await expect
     .element(page.getByRole('treeitem', { name: clash }))
     .toBeVisible();

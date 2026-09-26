@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Command,
@@ -7,38 +6,35 @@ import {
   CommandItem,
   CommandList,
 } from '@/components/ui/command';
-import type { ReviewScope } from '@/features/review/model/review';
-import { useWorktreePaths } from '@/features/review/queries/review';
-
-const SHOWN = 50;
+import type { FilesScope } from '../rules/scope';
+import { useWorktreePaths } from '../queries/paths';
+import { FILE_QUICK_OPEN_MAX } from '@/config/limits';
+import { useAccessStore } from '@/features/access/index';
+import { quickOpenDialog } from '../overlays';
+import { useQuickOpenQuery } from '../store';
+import { useQuickOpenShortcut } from '../adapters/quick-open-shortcut';
 
 export function QuickOpen({
   scope,
   onOpen,
 }: {
-  scope: ReviewScope;
+  scope: FilesScope;
   onOpen: (path: string) => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState('');
-  const names = useWorktreePaths(scope, open);
-  useEffect(() => {
-    const shortcut = (event: KeyboardEvent) => {
-      if (event.key !== 'p' || !(event.metaKey || event.ctrlKey)) return;
-      event.preventDefault();
-      setOpen((current) => !current);
-    };
-    window.addEventListener('keydown', shortcut);
-    return () => window.removeEventListener('keydown', shortcut);
-  }, []);
+  const { query, setQuery } = useQuickOpenQuery();
+  const connection = useAccessStore((state) => state.connection);
+  const names = useWorktreePaths(connection, scope);
+  useQuickOpenShortcut(() => {
+    if (quickOpenDialog.isOpen) quickOpenDialog.close();
+    else quickOpenDialog.open(null);
+  });
   const needle = query.trim().toLowerCase();
   const matches = (names.data?.paths ?? [])
     .filter((path) => path.toLowerCase().includes(needle))
-    .slice(0, SHOWN);
+    .slice(0, FILE_QUICK_OPEN_MAX);
   return (
     <CommandDialog
-      open={open}
-      onOpenChange={setOpen}
+      handle={quickOpenDialog}
       title="Find a file"
       description="Search every file in this worktree by name."
     >
@@ -81,7 +77,7 @@ export function QuickOpen({
               key={path}
               value={path}
               onSelect={() => {
-                setOpen(false);
+                quickOpenDialog.close();
                 setQuery('');
                 onOpen(path);
               }}

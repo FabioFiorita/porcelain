@@ -16,15 +16,27 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
+import { toast } from '@/components/ui/toast';
 import type { DocumentRef } from '@/features/review/model/documents';
-import { visibleFileTreePaths } from '@/features/projects/index';
+import {
+  canonicalPreferencePath,
+  hiddenPathFor,
+  visibleFileTreePaths,
+} from '@/features/projects/index';
 import { useAccessStore } from '@/features/access/index';
 import { useReviewOverview } from '@/features/changes/index';
 import {
   fileTreeAncestors,
   mergeFileTreeEntries,
-} from '@/features/review/model/file-tree';
-import { isImagePath } from '@/features/review/model/html-assets';
+  isImagePath,
+  useDirectories,
+  useDirectory,
+  fileErrorMessage,
+  PierreFileTree,
+  FileTreeMenu,
+  treeActions,
+  runFileTreeAction,
+} from '@/features/files/index';
 import {
   changePath,
   comparisons,
@@ -32,14 +44,9 @@ import {
 } from '@/features/review/model/review';
 import { discardRejection } from '@/shared/lib/submit-form';
 import { useHiddenPaths, useSetHidden } from '@/features/projects/index';
-import { useEditFile } from '@/features/review/queries/files';
-import {
-  reviewErrorMessage,
-  useDirectories,
-  useDirectory,
-} from '@/features/review/queries/review';
-import { PierreFileTree } from './pierre-file-tree';
-import { QuickOpen } from './quick-open';
+import { useEditFile } from '@/features/files/index';
+import { reviewErrorMessage } from '@/features/review/queries/review';
+import { QuickOpen } from '@/features/files/index';
 
 type Props = {
   scope: ReviewScope;
@@ -72,15 +79,15 @@ function ScopedFileNavigation({
   selected,
   onOpen,
 }: Props) {
-  const root = useDirectory(scope, '');
-  const edit = useEditFile(scope);
+  const connection = useAccessStore((state) => state.connection);
+  const root = useDirectory(connection, scope, '');
+  const edit = useEditFile(connection, scope);
   const [creating, setCreating] = useState<{
     kind: 'file' | 'directory';
     folder: string;
     nonce: number;
   }>();
   const [deleting, setDeleting] = useState<string | null>(null);
-  const connection = useAccessStore((state) => state.connection);
   const overview = useReviewOverview(scope, connection);
   const hidden = useHiddenPaths(connection, scope.projectId);
   const setHidden = useSetHidden(connection, scope.projectId);
@@ -92,7 +99,7 @@ function ScopedFileNavigation({
     setRequested((current) => union(current, fileTreeAncestors(selected)));
   }, [selected]);
 
-  const queries = useDirectories(scope, requested);
+  const queries = useDirectories(connection, scope, requested);
   const directories = [
     root,
     ...queries.flatMap((query) => (query.data ? [query.data] : [])),
@@ -189,9 +196,6 @@ function ScopedFileNavigation({
           (entry) => entry.kind === 'symlink' || entry.kind === 'submodule',
         )}
         creating={creating}
-        onStartCreate={(kind, folder) => {
-          if (!edit.isPending) setCreating({ kind, folder, nonce: Date.now() });
-        }}
         onCreate={async (path, entryKind) => {
           await edit.submit({
             kind: 'create',
@@ -207,13 +211,60 @@ function ScopedFileNavigation({
             destination: destination.replace(/\/$/, ''),
           });
         }}
-        onTrash={setDeleting}
         gitStatus={gitStatus}
         selected={selected}
-        hidden={hidden}
-        changed={changed}
-        openable={openable}
-        worktreePath={worktreePath}
+        onInvalidName={(error) =>
+          toast.add({
+            title: 'Invalid name',
+            description: error,
+            type: 'error',
+          })
+        }
+        renderMenu={(item, context, rename) => {
+          const folder = item.kind === 'directory';
+          const path =
+            folder && !item.path.endsWith('/') ? `${item.path}/` : item.path;
+          const hiddenEntry = hiddenPathFor(path, hidden);
+          const actions = treeActions({
+            folder,
+            link: entries.some(
+              (entry) =>
+                entry.path === path &&
+                (entry.kind === 'symlink' || entry.kind === 'submodule'),
+            ),
+            changed: changed.has(path),
+            openable: openable.has(path),
+            hiddenEntry,
+            ownHidden: hiddenEntry === canonicalPreferencePath(path),
+            hiddenName: hiddenEntry?.replace(/\/$/, '').split('/').at(-1) ?? '',
+          });
+          return (
+            <FileTreeMenu
+              path={path}
+              anchor={context.anchorRect}
+              actions={actions}
+              hidden={hiddenEntry !== null}
+              onAction={(id) =>
+                runFileTreeAction(id, {
+                  path,
+                  hiddenEntry,
+                  worktreePath,
+                  close: (restoreFocus) => context.close({ restoreFocus }),
+                  rename,
+                  onStartCreate: (kind, folder) => {
+                    if (!edit.isPending)
+                      setCreating({ kind, folder, nonce: Date.now() });
+                  },
+                  onOpenFile: (path) => onOpen({ kind: 'file', path }),
+                  onOpenDiff: (path) => onOpen({ kind: 'change', path }),
+                  onSetHidden: (path, value) =>
+                    discardRejection(setHidden.submit({ path, hidden: value })),
+                  onTrash: setDeleting,
+                })
+              }
+            />
+          );
+        }}
         onExpand={(paths) => setRequested((current) => union(current, paths))}
         onSelect={(path) => {
           const kind = kinds.get(path);
@@ -230,11 +281,6 @@ function ScopedFileNavigation({
               path,
             });
         }}
-        onOpenFile={(path) => onOpen({ kind: 'file', path })}
-        onOpenDiff={(path) => onOpen({ kind: 'change', path })}
-        onSetHidden={(path, value) =>
-          discardRejection(setHidden.submit({ path, hidden: value }))
-        }
       />
       <AlertDialog
         open={deleting !== null}
@@ -274,14 +320,14 @@ function ScopedFileNavigation({
           </AlertDialogFooter>
           {edit.error && (
             <p role="alert" className="text-xs text-destructive">
-              {reviewErrorMessage(edit.error)}
+              {fileErrorMessage(edit.error)}
             </p>
           )}
         </AlertDialogContent>
       </AlertDialog>
       {edit.error && !deleting && (
         <p role="alert" className="px-3 py-2 text-xs text-destructive">
-          {reviewErrorMessage(edit.error)}
+          {fileErrorMessage(edit.error)}
         </p>
       )}
       {setHidden.error && (

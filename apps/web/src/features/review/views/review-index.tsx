@@ -44,7 +44,7 @@ import {
   usePrefetchReview,
   useReviewChanges,
 } from '@/features/review/queries/review';
-import { FileTypeIcon } from './file-type-icon';
+import { FileTypeIcon } from '@/features/files/index';
 import { ThreadCard } from './thread-card';
 
 type OpenDocument = (ref: DocumentRef, anchor?: CommentAnchor) => void;
