@@ -23,6 +23,7 @@ test('disconnecting is refused while a file draft cannot be saved, and the file 
   await expect
     .element(pairedPage.getByText('Not saving: changed on disk'))
     .toBeVisible();
+  await expect.poll(() => server.fileWriteCount()).toBe(1);
 
   await pairedPage.getByRole('button', { name: 'Toggle Sidebar' }).click();
   await pairedPage.getByRole('button', { name: 'Settings' }).click();
@@ -36,6 +37,7 @@ test('disconnecting is refused while a file draft cannot be saved, and the file 
     .toHaveTextContent(
       'Save or discard unsaved file drafts before disconnecting.',
     );
+  await expect.poll(() => server.fileWriteCount()).toBe(1);
   await expect.poll(async () => (await server.text(readme)).text).toBe(onDisk);
 });
 

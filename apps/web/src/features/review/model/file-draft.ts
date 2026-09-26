@@ -16,10 +16,12 @@ export class FileDraft {
     text: string,
     expectedFingerprint: string,
   ) => Promise<string>;
+  private readonly isBlockedError: (error: unknown) => boolean;
   constructor(
     text: string,
     fingerprint: string,
     write: (text: string, expectedFingerprint: string) => Promise<string>,
+    isBlockedError: (error: unknown) => boolean,
   ) {
     this.state = {
       text,
@@ -30,6 +32,7 @@ export class FileDraft {
       error: null,
     };
     this.write = write;
+    this.isBlockedError = isBlockedError;
   }
   get observed() {
     return this.listeners.size > 0;
@@ -69,6 +72,7 @@ export class FileDraft {
   }
   save(): Promise<boolean> {
     if (this.pending) return this.pending;
+    if (this.isBlockedError(this.state.error)) return Promise.resolve(false);
     if (this.state.text === this.state.savedText) return Promise.resolve(true);
     this.update({ saving: true, error: null });
     const run = async () => {

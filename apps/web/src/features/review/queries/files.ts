@@ -145,6 +145,7 @@ export function useFileDraft(
           throw new Error('The server did not confirm the saved version.');
         return result.contentFingerprint;
       },
+      isContentChangedError,
     );
     entries.set(key, draft);
   }

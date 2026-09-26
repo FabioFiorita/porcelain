@@ -61,6 +61,13 @@ async function worktreePath(suffix: string) {
 }
 
 export const server = {
+  fileWriteCount: async () =>
+    (await hostCommands.porcelainHits(0)).filter(
+      (hit) =>
+        !hit.kit &&
+        hit.method === 'POST' &&
+        hit.route === '/api/worktrees/:worktreeId/files',
+    ).length,
   health: () => read(readHealthResponseSchema, '/api/health'),
   inventory: () => read(readInventoryResponseSchema, '/api/inventory'),
   project: sampleProject,
