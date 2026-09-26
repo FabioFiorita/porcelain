@@ -493,7 +493,7 @@ export function GitButton({ scope }: { scope: ReviewScope }) {
           scope={scope}
           open
           mode={action === 'switch-branch' ? 'switch' : 'create'}
-          status={openedStatus ?? status}
+          status={{ ...status, branch: overview.changes.branch }}
           onOpenChange={(open) => {
             if (!open) setAction(null);
           }}

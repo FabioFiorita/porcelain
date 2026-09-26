@@ -19,7 +19,6 @@ import {
   useBranches,
   useGitAction,
 } from '@/features/review/queries/git-actions';
-import { useGitStatus } from '@/features/review/queries/review';
 import {
   expectationFor,
   gitErrorMessage,
@@ -45,8 +44,10 @@ export function BranchDialog({
   const action = mode === 'switch' ? 'switch-branch' : 'create-branch';
   const git = useGitAction(scope, action);
   const branches = useBranches(scope);
-  const details = useGitStatus(scope);
   const current = branches.data?.current ?? null;
+  const lookedBranch =
+    status.branch?.name?.replace(/^refs\/heads\//, '') ?? null;
+  const aligned = branches.data !== undefined && current === lookedBranch;
   const [branch, setBranch] = useState('');
   const [switchTo, setSwitchTo] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -71,20 +72,16 @@ export function BranchDialog({
 
   async function submit() {
     const name = branch.trim();
-    if (!name || busy || uncertain) return;
+    if (!name || busy || uncertain || !aligned) return;
     setBusy(true);
     setError(null);
     try {
-      const receipt = await details.read().then((fresh) => {
-        if (!fresh)
-          throw new Error('Git status could not be loaded. Try again.');
-        return git.run(
-          mode === 'switch'
-            ? { action: 'switch-branch', branch: name }
-            : { action: 'create-branch', branch: name, switchTo },
-          expectationFor(fresh),
-        );
-      });
+      const receipt = await git.run(
+        mode === 'switch'
+          ? { action: 'switch-branch', branch: name }
+          : { action: 'create-branch', branch: name, switchTo },
+        expectationFor(status),
+      );
       if (receiptFailed(receipt)) {
         setError(receiptWords(receipt));
         if (mode === 'switch') void branches.refetch();
@@ -121,6 +118,10 @@ export function BranchDialog({
           ) : branches.error ? (
             <p role="alert" className="text-sm text-destructive">
               {gitErrorMessage(branches.error)}
+            </p>
+          ) : !aligned ? (
+            <p role="status" className="text-sm text-muted-foreground">
+              Updating branch status…
             </p>
           ) : (
             <NativeSelect
@@ -166,6 +167,11 @@ export function BranchDialog({
               />
               Switch to it
             </label>
+            {!aligned && (
+              <p role="status" className="text-sm text-muted-foreground">
+                Updating branch status…
+              </p>
+            )}
           </>
         )}
         {error && <GitActionError text={error} />}
@@ -194,7 +200,7 @@ export function BranchDialog({
             </Button>
           ) : (
             <Button
-              disabled={busy || !branch.trim()}
+              disabled={busy || !branch.trim() || !aligned}
               onClick={() => void submit()}
             >
               {mode === 'switch' ? <GitBranchIcon /> : <GitBranchPlusIcon />}
