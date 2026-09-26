@@ -1,9 +1,6 @@
 import { type FileDiffMetadata, parsePatchFiles } from '@pierre/diffs';
-import type {
-  Change,
-  CommitFile,
-  DiffContent,
-} from '@/features/review/model/review';
+import type { Change, DiffContent } from '@/features/review/model/review';
+import type { CommitFile } from '@/features/history/index';
 import { changePath } from '@/features/review/model/review';
 import { contentVersion } from '@/shared/lib/pierre';
 import type { CodeEntry } from './code-document';

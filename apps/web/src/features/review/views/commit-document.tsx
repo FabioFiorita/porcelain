@@ -4,15 +4,17 @@ import { useCallback, useMemo, useState, useTransition } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { historyRefLabel, ordinal } from '@/features/review/model/history';
-import type {
-  CommitFile,
-  CommitFiles,
-  DiffContent,
-  ReviewScope,
-} from '@/features/review/model/review';
-import { shortOid } from '@/features/review/model/review';
-import { useCommit, useCommitDiffs } from '@/features/review/queries/review';
+import { useAccessStore } from '@/features/access/index';
+import {
+  historyRefLabel,
+  ordinal,
+  shortOid,
+  useCommit,
+  useCommitDiffs,
+  type CommitFile,
+  type CommitFiles,
+} from '@/features/history/index';
+import type { DiffContent, ReviewScope } from '@/features/review/model/review';
 import { copyText } from '@/shared/workspace/copy';
 import { CodeDocument } from './code-document';
 import { commitEntry } from './diff-entries';
@@ -33,6 +35,7 @@ export function CommitDocument({
   scope: ReviewScope;
   oid: string;
 }) {
+  const connection = useAccessStore((state) => state.connection);
   const { reveal } = useDocumentInteraction();
   const requestedParent =
     reveal?.anchor.comparison?.kind === 'commit'
@@ -47,7 +50,7 @@ export function CommitDocument({
       ? parentChoice.parent
       : requestedParent;
   const [, startTransition] = useTransition();
-  const commit = useCommit(scope, oid, parent);
+  const commit = useCommit(connection, scope, oid, parent);
   const [window, setWindow] = useState({
     of: `${oid}:${parent}`,
     shown: SHOWN_STEP,
@@ -60,7 +63,7 @@ export function CommitDocument({
     () => reached.map((file) => pathList(file)),
     [reached],
   );
-  const diffs = useCommitDiffs(scope, oid, parent, wanted);
+  const diffs = useCommitDiffs(connection, scope, oid, parent, wanted);
   const patchOf = useCallback(
     (file: CommitFile) => diffs.patches.get(pathKey(file)),
     [diffs.patches],

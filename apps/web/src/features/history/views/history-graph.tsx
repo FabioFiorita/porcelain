@@ -1,9 +1,14 @@
-import { cn } from '@/shared/lib/utils';
-import type { GraphRow } from '@/features/review/model/history';
+import {
+  HISTORY_GRAPH_DOT_RADIUS,
+  HISTORY_GRAPH_DOT_STROKE_WIDTH,
+  HISTORY_GRAPH_INSET,
+  HISTORY_GRAPH_MERGE_RADIUS,
+  HISTORY_GRAPH_STROKE_WIDTH,
+  HISTORY_LANE_WIDTH,
+  HISTORY_ROW_HEIGHT,
+} from '@/config/limits';
+import type { GraphRow } from '../rules/graph';
 
-export const HISTORY_ROW_HEIGHT = 58;
-const LANE_WIDTH = 16;
-const GRAPH_INSET = 13;
 const LANE_CLASSES = [
   'text-graph-1',
   'text-graph-2',
@@ -13,19 +18,7 @@ const LANE_CLASSES = [
   'text-graph-6',
 ];
 
-export function historyGraphWidth(rows: readonly GraphRow[]) {
-  const occupiedLanes = rows.flatMap((row) => [
-    row.lane,
-    ...row.outgoing,
-    ...row.lanesAfter.flatMap((waitingFor, lane) =>
-      waitingFor == null ? [] : [lane],
-    ),
-  ]);
-
-  return GRAPH_INSET * 2 + Math.max(0, ...occupiedLanes) * LANE_WIDTH;
-}
-
-const laneX = (lane: number) => GRAPH_INSET + lane * LANE_WIDTH;
+const laneX = (lane: number) => HISTORY_GRAPH_INSET + lane * HISTORY_LANE_WIDTH;
 const laneClass = (lane: number) =>
   LANE_CLASSES[lane % LANE_CLASSES.length] ?? LANE_CLASSES[0];
 
@@ -45,7 +38,7 @@ export function HistoryGraph({
       height={rows.length * HISTORY_ROW_HEIGHT}
     >
       {rows.map((row, index) => {
-        const y = index * HISTORY_ROW_HEIGHT + HISTORY_ROW_HEIGHT / 2;
+        const y = index * HISTORY_ROW_HEIGHT + HISTORY_ROW_HEIGHT * 0.5;
         const next = rows[index + 1];
         const segments = row.lanesAfter.flatMap((waitingFor, lane) => {
           if (waitingFor == null || next == null) return [];
@@ -66,22 +59,22 @@ export function HistoryGraph({
                 d={
                   startX === endX
                     ? `M ${startX} ${y} L ${endX} ${y + HISTORY_ROW_HEIGHT}`
-                    : `M ${startX} ${y} C ${startX} ${y + HISTORY_ROW_HEIGHT / 2}, ${endX} ${y + HISTORY_ROW_HEIGHT / 2}, ${endX} ${y + HISTORY_ROW_HEIGHT}`
+                    : `M ${startX} ${y} C ${startX} ${y + HISTORY_ROW_HEIGHT * 0.5}, ${endX} ${y + HISTORY_ROW_HEIGHT * 0.5}, ${endX} ${y + HISTORY_ROW_HEIGHT}`
                 }
                 fill="none"
                 stroke="currentColor"
-                strokeWidth={1.5}
+                strokeWidth={HISTORY_GRAPH_STROKE_WIDTH}
                 className={laneClass(lane)}
               />
             ))}
             <circle
               cx={laneX(row.lane)}
               cy={y}
-              r={merge ? 5 : 4}
+              r={merge ? HISTORY_GRAPH_MERGE_RADIUS : HISTORY_GRAPH_DOT_RADIUS}
               fill={merge ? 'var(--card)' : 'currentColor'}
               stroke="currentColor"
-              strokeWidth={2}
-              className={cn(laneClass(row.lane))}
+              strokeWidth={HISTORY_GRAPH_DOT_STROKE_WIDTH}
+              className={laneClass(row.lane)}
             />
           </g>
         );

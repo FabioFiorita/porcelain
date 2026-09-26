@@ -3,12 +3,9 @@ import type {
   ChangeDiffsRequest,
   ChangeLines,
   ChangeList,
-  CommitDiffs,
-  CommitFiles,
   Directory,
   FileEdit,
   FileEditResult,
-  History,
   PreviewAssets,
   ReviewedMarksResponse,
   ReviewResponse,
@@ -62,21 +59,8 @@ export type ReviewPort = {
       at: 'head' | 'worktree';
     },
   ) => Promise<ChangeLines>;
-  commit: (
-    request: ReviewRequest & { oid: string; parent?: number },
-  ) => Promise<CommitFiles>;
-  commitDiffs: (
-    request: ReviewRequest & {
-      oid: string;
-      parent?: number;
-      paths: string[][];
-    },
-  ) => Promise<CommitDiffs>;
   directory: (request: ReviewRequest & { path: string }) => Promise<Directory>;
   changes: (request: ReviewRequest) => Promise<{ changes: ChangeList }>;
-  history: (
-    request: ReviewRequest & { after?: string[]; tip?: string },
-  ) => Promise<History>;
   reviewed: {
     list: (request: ReviewRequest) => Promise<ReviewedMarksResponse>;
     set: (

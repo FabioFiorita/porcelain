@@ -224,67 +224,6 @@ export function useTextFile(
     refetchInterval: false,
   }).data;
 }
-export function useCommit(scope: ReviewScope, oid: string, parent = 1) {
-  return useReviewData(
-    scope,
-    ['commit', oid, parent],
-    (api, request) =>
-      api.commit({ ...request, oid, ...(parent === 1 ? {} : { parent }) }),
-    false,
-    false,
-  );
-}
-
-const COMMIT_DIFF_BATCH = 200;
-
-export function useCommitDiffs(
-  scope: ReviewScope,
-  oid: string,
-  parent: number,
-  paths: readonly (readonly string[])[],
-) {
-  const { api, connection } = useConnectedContext();
-  const batches: (readonly string[])[][] = [];
-  for (let at = 0; at < paths.length; at += COMMIT_DIFF_BATCH)
-    batches.push([...paths.slice(at, at + COMMIT_DIFF_BATCH)]);
-  const results = useQueries({
-    queries: batches.map((batch) => ({
-      queryKey: queryKeys.reviewSurface(connection.environmentId, scope, [
-        'commit-diffs',
-        oid,
-        parent,
-        batch.map((entry) => entry.join('\0')),
-      ]),
-      refetchOnWindowFocus: false as const,
-      refetchOnReconnect: false as const,
-      queryFn: async ({ signal }: { signal: AbortSignal }) => {
-        const request = connection.request(signal);
-        const data = await api.review.commitDiffs({
-          ...scope,
-          ...request,
-          oid,
-          ...(parent === 1 ? {} : { parent }),
-          paths: batch.map((entry) => [...entry]),
-        });
-        request.signal.throwIfAborted();
-        return data.diffs;
-      },
-    })),
-  });
-  const patches = new Map<string, DiffContent>();
-  for (const result of results)
-    for (const diff of result.data ?? [])
-      patches.set(diff.paths.join('\0'), diff.content);
-  return {
-    patches,
-    isPending: results.some((result) => result.isPending),
-    isError: results.some((result) => result.isError),
-    retry: () => {
-      for (const result of results) if (result.isError) void result.refetch();
-    },
-  };
-}
-
 export function useReviewChanges(
   scope: ReviewScope,
   paths?: readonly string[],

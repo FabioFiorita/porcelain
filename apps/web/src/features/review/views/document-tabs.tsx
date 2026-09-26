@@ -26,13 +26,10 @@ import {
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
 import { ScrollBar } from '@/components/ui/scroll-area';
+import { shortOid } from '@/features/history/index';
 import { cn } from '@/shared/lib/utils';
 import { parseEntry } from '@/features/review/model/documents';
-import {
-  basename,
-  shortOid,
-  type ReviewLayer,
-} from '@/features/review/model/review';
+import { basename, type ReviewLayer } from '@/features/review/model/review';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
 import { FileTypeIcon } from './file-type-icon';
 

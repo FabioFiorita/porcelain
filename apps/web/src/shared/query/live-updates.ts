@@ -26,7 +26,11 @@ type FeatureLive = {
     environmentId: string,
     notice: LiveNotice,
   ) => Promise<void>;
-  onGitReceipt?: (client: QueryClient, environmentId: string) => Promise<void>;
+  onGitReceipt?: (
+    client: QueryClient,
+    environmentId: string,
+    receipt: Receipt,
+  ) => Promise<void>;
 };
 const featureLives = Object.values(
   import.meta.glob<{ default: FeatureLive }>('../../features/*/live.ts', {
@@ -107,7 +111,6 @@ const FILE_SURFACES = new Set([
 const GIT_SURFACES = new Set([
   'changes',
   'git-status',
-  'history',
   'branches',
   'paths',
   'review',
@@ -178,7 +181,7 @@ export async function refreshGitReceipt(
   const refresh = (async () => {
     const surfaces =
       receipt.action === 'fetch' || receipt.action === 'push'
-        ? new Set(['git-status', 'changes', 'history', 'branches'])
+        ? new Set(['git-status', 'changes', 'branches'])
         : new Set([...GIT_SURFACES, ...FILE_SURFACES]);
     const prefix = queryKeys.review(environmentId, receipt);
     await refreshActionQueries(client, {
@@ -188,7 +191,7 @@ export async function refreshGitReceipt(
     await Promise.all(
       featureLives.flatMap((feature) =>
         feature.onGitReceipt
-          ? [feature.onGitReceipt(client, environmentId)]
+          ? [feature.onGitReceipt(client, environmentId, receipt)]
           : [],
       ),
     );

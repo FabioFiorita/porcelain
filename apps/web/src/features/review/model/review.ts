@@ -3,9 +3,6 @@ import type {
   ReadChangeDiffsResponse,
   ReadChangeLinesResponse,
   ReadChangesResponse,
-  ReadCommitDiffsResponse,
-  ReadCommitFilesResponse,
-  ListCommitsResponse,
   ReadGitStatusResponse,
 } from '@porcelain/contracts/changes';
 import type {
@@ -26,7 +23,6 @@ import type {
 
 export type Directory = ListDirectoryResponse;
 export type PreviewAssets = ReadPreviewAssetsResponse;
-export type History = ListCommitsResponse;
 export type Status = ReadGitStatusResponse;
 export type ChangeList = ReadChangesResponse;
 export type FileChange = ChangeList['changes'][number];
@@ -124,14 +120,7 @@ export function basename(path: string) {
   return path.split('/').at(-1) ?? path;
 }
 
-export function shortOid(oid: string) {
-  return oid.slice(0, 7);
-}
-
 export type TextFile = ReadTextFileResponse;
-export type CommitFiles = ReadCommitFilesResponse;
-export type CommitFile = CommitFiles['files'][number];
-export type CommitDiffs = ReadCommitDiffsResponse;
 export type FileEdit = EditFileRequest;
 export type FileEditResult = EditFileResponse;
 export type WorktreePaths = ListWorktreePathsResponse;

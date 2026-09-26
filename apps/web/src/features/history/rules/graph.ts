@@ -1,8 +1,14 @@
 import type { ListCommitsResponse } from '@porcelain/contracts/changes';
-import { worktreeLabel } from '@/features/projects/index';
-
-export type CommitSummary = ListCommitsResponse['commits'][number];
-
+import {
+  HISTORY_GRAPH_INSET,
+  HISTORY_LANE_WIDTH,
+  HISTORY_OID_LENGTH,
+  HISTORY_ORDINAL_CENTURY,
+  HISTORY_ORDINAL_DECADE,
+  HISTORY_ORDINAL_TEENS_END,
+  HISTORY_ORDINAL_TEENS_START,
+} from '@/config/limits';
+type CommitSummary = ListCommitsResponse['commits'][number];
 export type GraphRow = {
   commit: CommitSummary;
   lane: number;
@@ -41,8 +47,23 @@ export function layoutGraph(commits: readonly CommitSummary[]): GraphRow[] {
   return rows;
 }
 
+export function historyGraphWidth(rows: readonly GraphRow[]) {
+  const occupiedLanes = rows.flatMap((row) => [
+    row.lane,
+    ...row.outgoing,
+    ...row.lanesAfter.flatMap((waitingFor, lane) =>
+      waitingFor == null ? [] : [lane],
+    ),
+  ]);
+  return (
+    HISTORY_GRAPH_INSET +
+    HISTORY_GRAPH_INSET +
+    Math.max(0, ...occupiedLanes) * HISTORY_LANE_WIDTH
+  );
+}
+
 export function shortOid(oid: string) {
-  return oid.slice(0, 7);
+  return oid.slice(0, HISTORY_OID_LENGTH);
 }
 
 export function historyRefLabel(ref: string) {
@@ -50,25 +71,26 @@ export function historyRefLabel(ref: string) {
 }
 
 export function ordinal(n: number) {
-  const tens = n % 100;
+  const tens = n % HISTORY_ORDINAL_CENTURY;
   const suffix =
-    tens >= 11 && tens <= 13
+    tens >= HISTORY_ORDINAL_TEENS_START && tens <= HISTORY_ORDINAL_TEENS_END
       ? 'th'
-      : (['th', 'st', 'nd', 'rd'][n % 10] ?? 'th');
+      : (['th', 'st', 'nd', 'rd'][n % HISTORY_ORDINAL_DECADE] ?? 'th');
   return `${n}${suffix}`;
 }
 
 export function historyFollows(
   snapshot: ListCommitsResponse['snapshot'],
-): string {
+  branchLabel: (ref: string) => string,
+) {
   if (!snapshot) return 'This branch';
   const head = snapshot.head;
   switch (head.kind) {
     case 'attached':
-      return worktreeLabel(head.ref);
+      return branchLabel(head.ref);
     case 'detached':
       return 'Detached HEAD';
     case 'unborn':
-      return `No commits yet on ${worktreeLabel(head.ref)}`;
+      return `No commits yet on ${branchLabel(head.ref)}`;
   }
 }

@@ -5,6 +5,7 @@ import {
   ListChecksIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { HistoryNavigation } from '@/features/history/index';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { OpenDocument } from '@/features/review/model/documents';
@@ -16,7 +17,6 @@ import {
 import { usePublishedReview } from '@/features/review/queries/published-review';
 import { useHasReviewLayers } from '@/features/review/queries/review';
 import { FileNavigation } from './file-navigation';
-import { HistoryNavigation } from './history-navigation';
 import { ReviewBoundary } from './review-boundary';
 import { ReviewEmpty } from './review-empty';
 import { ReviewIndex } from './review-index';
