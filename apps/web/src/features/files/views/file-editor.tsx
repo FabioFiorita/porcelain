@@ -11,17 +11,8 @@ import {
   createEditor,
   usePierreFileEditor,
 } from '../adapters/pierre-file-editor';
-import { copyText } from '@/shared/workspace/copy';
 import { usePreferences } from '@/shared/workspace/preferences';
 import { useTheme } from '@/shared/workspace/theme';
-
-function notifyUnsaved(path: string) {
-  toast.add({
-    title: `${path} was not saved`,
-    description: 'Your draft is kept in this session. Reopen Edit to retry.',
-    type: 'error',
-  });
-}
 
 export function FileEditor({
   owner,
@@ -46,7 +37,20 @@ export function FileEditor({
 }) {
   const { preferences } = usePreferences();
   const { dark } = useTheme();
-  const { file, options: editorOptions } = usePierreFileEditor(
+  const {
+    changedOnDisk,
+    change,
+    copyDraft,
+    save,
+    done,
+    discard,
+    notifyUnsaved,
+  } = useFileDraftSaving(owner, draft, state, toast.add);
+  const {
+    file,
+    initialText,
+    options: editorOptions,
+  } = usePierreFileEditor(
     owner,
     path,
     state.text,
@@ -55,7 +59,6 @@ export function FileEditor({
     notifyUnsaved,
   );
   const dirty = state.text !== state.savedText;
-  const { changedOnDisk, save, done } = useFileDraftSaving(draft, state);
   const label = changedOnDisk
     ? 'Not saving: changed on disk'
     : state.error
@@ -64,7 +67,7 @@ export function FileEditor({
         ? 'Saving…'
         : dirty
           ? 'Unsaved changes'
-          : state.text === file.contents
+          : state.text === initialText
             ? 'Saves as you pause'
             : 'Saved';
   const controls = (
@@ -101,11 +104,7 @@ export function FileEditor({
               : fileErrorMessage(state.error)}{' '}
             Your draft is kept here.
           </span>
-          <Button
-            size="xs"
-            variant="outline"
-            onClick={() => copyText(state.text, 'draft')}
-          >
+          <Button size="xs" variant="outline" onClick={copyDraft}>
             Copy draft
           </Button>
           {!changedOnDisk && (
@@ -113,7 +112,7 @@ export function FileEditor({
               Retry save
             </Button>
           )}
-          <Button size="xs" variant="ghost" onClick={onDiscard}>
+          <Button size="xs" variant="ghost" onClick={() => discard(onDiscard)}>
             {changedOnDisk ? 'Reload' : 'Discard draft and reload'}
           </Button>
         </div>
@@ -127,7 +126,7 @@ export function FileEditor({
             options={createPierreFileOptions(dark ? 'dark' : 'light', {
               overflow: preferences.lineOverflow,
             })}
-            onEditChange={(event) => draft.change(event.file.contents)}
+            onEditChange={(event) => change(event.file.contents)}
             onEditComplete={() => 'reject'}
           />
         </EditProvider>

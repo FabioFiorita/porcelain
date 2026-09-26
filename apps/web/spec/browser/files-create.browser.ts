@@ -19,6 +19,11 @@ test('New file and New folder open inline names at phone width and create entrie
       (await server.directory('')).entries.map((entry) => entry.name),
     )
     .toContain('phone-created.md');
+  await expect
+    .element(opened.getByRole('dialog', { name: 'Worktree review' }))
+    .not.toBeInTheDocument();
+  await opened.getByRole('button', { name: 'Review', exact: true }).click();
+  await opened.getByRole('tab', { name: 'Files' }).click();
   await opened.getByRole('button', { name: 'New folder' }).click();
   const folderName = opened.getByRole('textbox', { name: /rename/i });
   await expect.element(folderName).toBeVisible();

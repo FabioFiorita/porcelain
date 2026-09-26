@@ -9,6 +9,7 @@ import { useFileDraftState } from '../store';
 import { retainedFileDrafts } from '@/shared/query/file-drafts';
 import { asMutation } from '@/shared/query/mutation';
 import { filesApi } from '../api';
+import { copyText } from '@/shared/workspace/copy';
 
 const parentOf = (path: string) => path.split('/').slice(0, -1).join('/');
 
@@ -164,15 +165,37 @@ export function useFileDraft(
   return { draft, state };
 }
 
-export function useFileDraftSaving(draft: FileDraft, state: FileDraftState) {
+export function useFileDraftSaving(
+  owner: string,
+  draft: FileDraft,
+  state: FileDraftState,
+  notify: (message: {
+    title: string;
+    description: string;
+    type: 'error';
+  }) => void,
+) {
   return {
     changedOnDisk: isContentChangedError(state.error),
+    change: (text: string) => draft.change(text),
+    copyDraft: () => copyText(draft.snapshot().text, 'draft'),
+    notifyUnsaved: (path: string) =>
+      notify({
+        title: `${path} was not saved`,
+        description:
+          'Your draft is kept in this session. Reopen Edit to retry.',
+        type: 'error',
+      }),
     save: () => draft.save(),
     done: async (onDone: () => void) => {
-      if (await draft.save()) onDone();
+      if (await draft.save()) {
+        draft.clearEditorFile(owner);
+        onDone();
+      }
     },
-    saveOnBlur: () => {
-      if (!draft.snapshot().error) void draft.save();
+    discard: (onDiscard: () => void) => {
+      draft.clearEditorFile(owner);
+      onDiscard();
     },
   };
 }

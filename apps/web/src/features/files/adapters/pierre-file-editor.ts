@@ -3,12 +3,20 @@ import {
   type EditorFactory,
   type EditorOptions,
 } from '@pierre/diffs/edit';
-import { useEffect } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import { useHotkey } from '@tanstack/react-hotkeys';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
 type EditorDraft = {
   snapshot: () => { error: unknown };
   save: () => Promise<boolean>;
+  editorFile: (
+    owner: string,
+    path: string,
+    text: string,
+  ) => {
+    file: { name: string; contents: string };
+    initialText: string;
+  };
   finishEditing: (owner: string, onUnsaved: () => void) => void;
 };
 
@@ -26,7 +34,15 @@ export function usePierreFileEditor(
   active: boolean,
   onUnsaved: (path: string) => void,
 ) {
-  const file = { name: path, contents: initialText };
+  const { file, initialText: editorInitialText } = draft.editorFile(
+    owner,
+    path,
+    initialText,
+  );
+  const latest = useRef(onUnsaved);
+  useLayoutEffect(() => {
+    latest.current = onUnsaved;
+  });
   const options: EditorOptions<'file', undefined, undefined> = {
     onAttach(editor) {
       editor.focus({ lineNumber: 1, character: 0 });
@@ -40,8 +56,8 @@ export function usePierreFileEditor(
     ignoreInputs: false,
   });
   useEffect(
-    () => () => draft.finishEditing(owner, () => onUnsaved(path)),
-    [draft, owner, path, onUnsaved],
+    () => () => draft.finishEditing(owner, () => latest.current(path)),
+    [draft, owner, path],
   );
-  return { file, options };
+  return { file, initialText: editorInitialText, options };
 }

@@ -14,6 +14,10 @@ export type FileDraftState = {
 
 export class FileDraft {
   readonly store;
+  private readonly editorFiles = new Map<
+    string,
+    { file: { name: string; contents: string }; initialText: string }
+  >();
   lastWrittenFingerprint: string | null = null;
   private pending: Promise<boolean> | undefined;
   private readonly write: (
@@ -56,6 +60,17 @@ export class FileDraft {
   release(owner: string) {
     if (this.snapshot().owner === owner) this.update({ owner: null });
   }
+  editorFile(owner: string, path: string, text: string) {
+    let session = this.editorFiles.get(owner);
+    if (!session) {
+      session = { file: { name: path, contents: text }, initialText: text };
+      this.editorFiles.set(owner, session);
+    }
+    return session;
+  }
+  clearEditorFile(owner: string) {
+    this.editorFiles.delete(owner);
+  }
   finishEditing(owner: string, onUnsaved: () => void) {
     this.release(owner);
     if (!this.snapshot().error)
@@ -64,6 +79,7 @@ export class FileDraft {
       });
   }
   change(text: string) {
+    if (this.snapshot().text === text) return;
     this.update({ text });
     this.autosave.maybeExecute();
   }

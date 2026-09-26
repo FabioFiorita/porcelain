@@ -8,11 +8,11 @@ import {
 } from '@/components/ui/command';
 import type { FilesScope } from '../rules/scope';
 import { useWorktreePaths } from '../queries/paths';
-import { FILE_QUICK_OPEN_MAX } from '@/config/limits';
 import { useAccessStore } from '@/features/access/index';
-import { quickOpenDialog } from '../overlays';
-import { useQuickOpenQuery } from '../store';
+import { quickOpenDialog, quickOpenOperations } from '../overlays';
+import { useQuickOpenActions } from '../commands/quick-open';
 import { useQuickOpenShortcut } from '../adapters/quick-open-shortcut';
+import { quickOpenMatches } from '../rules/quick-open';
 
 export function QuickOpen({
   scope,
@@ -21,17 +21,14 @@ export function QuickOpen({
   scope: FilesScope;
   onOpen: (path: string) => void;
 }) {
-  const { query, setQuery } = useQuickOpenQuery();
+  const { query, setQuery, toggle, select } = useQuickOpenActions(
+    onOpen,
+    quickOpenOperations,
+  );
   const connection = useAccessStore((state) => state.connection);
   const names = useWorktreePaths(connection, scope);
-  useQuickOpenShortcut(() => {
-    if (quickOpenDialog.isOpen) quickOpenDialog.close();
-    else quickOpenDialog.open(null);
-  });
-  const needle = query.trim().toLowerCase();
-  const matches = (names.data?.paths ?? [])
-    .filter((path) => path.toLowerCase().includes(needle))
-    .slice(0, FILE_QUICK_OPEN_MAX);
+  useQuickOpenShortcut(toggle);
+  const matches = quickOpenMatches(names.data?.paths ?? [], query);
   return (
     <CommandDialog
       handle={quickOpenDialog}
@@ -73,15 +70,7 @@ export function QuickOpen({
         )}
         <CommandList>
           {matches.map((path) => (
-            <CommandItem
-              key={path}
-              value={path}
-              onSelect={() => {
-                quickOpenDialog.close();
-                setQuery('');
-                onOpen(path);
-              }}
-            >
+            <CommandItem key={path} value={path} onSelect={() => select(path)}>
               {path}
             </CommandItem>
           ))}
