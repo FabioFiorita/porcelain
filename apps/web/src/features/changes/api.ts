@@ -3,12 +3,8 @@ import {
   readChangeDiffsResponseSchema,
   readChangeLinesResponseSchema,
   readChangesResponseSchema,
-  readCommitDiffsRequestSchema,
-  readCommitDiffsResponseSchema,
-  readCommitFilesResponseSchema,
   readGitStatusResponseSchema,
   type ReadChangeDiffsRequest,
-  type ReadCommitDiffsRequest,
 } from '@porcelain/contracts/changes';
 import { RequestError, requestJson } from '@/shared/api/request';
 import { browserTransport } from '@/shared/api/transport';
@@ -16,8 +12,6 @@ import { browserTransport } from '@/shared/api/transport';
 function createChangesApi(transport: typeof fetch) {
   const worktreePath = (worktreeId: string) =>
     `/api/worktrees/${encodeURIComponent(worktreeId)}`;
-  const commitPath = (worktreeId: string, oid: string) =>
-    `${worktreePath(worktreeId)}/commits/${encodeURIComponent(oid)}`;
   return {
     list: (signal: AbortSignal, worktreeId: string) =>
       requestJson(
@@ -62,35 +56,6 @@ function createChangesApi(transport: typeof fetch) {
         `${worktreePath(worktreeId)}/git/status`,
         readGitStatusResponseSchema,
         { signal },
-      ),
-    commit: (
-      signal: AbortSignal,
-      worktreeId: string,
-      oid: string,
-      parent: number,
-    ) =>
-      requestJson(
-        transport,
-        `${commitPath(worktreeId, oid)}/files?${new URLSearchParams({ parent: String(parent) })}`,
-        readCommitFilesResponseSchema,
-        { signal },
-      ),
-    commitDiffs: (
-      signal: AbortSignal,
-      worktreeId: string,
-      oid: string,
-      input: ReadCommitDiffsRequest,
-    ) =>
-      requestJson(
-        transport,
-        `${commitPath(worktreeId, oid)}/diffs`,
-        readCommitDiffsResponseSchema,
-        {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify(readCommitDiffsRequestSchema.parse(input)),
-          signal,
-        },
       ),
   };
 }
