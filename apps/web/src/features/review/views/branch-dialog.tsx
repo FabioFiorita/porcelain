@@ -47,7 +47,9 @@ export function BranchDialog({
   const current = branches.data?.current ?? null;
   const lookedBranch =
     status.branch?.name?.replace(/^refs\/heads\//, '') ?? null;
-  const aligned = branches.data !== undefined && current === lookedBranch;
+  const aligned =
+    mode === 'create' ||
+    (branches.data !== undefined && current === lookedBranch);
   const [branch, setBranch] = useState('');
   const [switchTo, setSwitchTo] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -107,7 +109,7 @@ export function BranchDialog({
               ? status.changes.length
                 ? `${status.files?.length ?? 0} uncommitted file${status.files?.length === 1 ? '' : 's'} come along unless Git says they would be overwritten.`
                 : 'The review follows the branch you choose.'
-              : `Starts from ${current ?? 'the detached HEAD'}.`}
+              : `Starts from ${lookedBranch ?? 'the detached HEAD'}.`}
           </DialogDescription>
         </DialogHeader>
         {mode === 'switch' ? (
@@ -167,11 +169,6 @@ export function BranchDialog({
               />
               Switch to it
             </label>
-            {!aligned && (
-              <p role="status" className="text-sm text-muted-foreground">
-                Updating branch status…
-              </p>
-            )}
           </>
         )}
         {error && <GitActionError text={error} />}
