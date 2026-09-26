@@ -1,0 +1,1 @@
+ALTER TABLE `reviewed_layers` DROP COLUMN `stale`;

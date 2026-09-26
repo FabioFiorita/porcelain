@@ -1,0 +1,9 @@
+{
+  "apps/web/vite.config.ts": {
+    "plugins": [
+      "react()",
+      "babel({presets:[reactCompilerPreset({panicThreshold:'none'})]})",
+      "tailwindcss()"
+    ]
+  }
+}

@@ -1,0 +1,42 @@
+const KIBIBYTE = 1024;
+const MEBIBYTE = 1024 * KIBIBYTE;
+
+export const gitLimits = {
+  processGroup: { lingerMs: 250, cleanupMs: 5000, pollMs: 10 },
+  readTimeoutMs: 10_000,
+  outputBytes: 4 * MEBIBYTE,
+  followUpTimeoutMs: 5000,
+  inspection: {
+    statusBytes: 8 * MEBIBYTE,
+    maxChanges: 2000,
+    maxPathLength: 4096,
+    diffBatchBytes: 32 * MEBIBYTE,
+    patchBytes: MEBIBYTE,
+    selectedDiffBytes: MEBIBYTE,
+    upstreamOidBytes: KIBIBYTE,
+    ignoredPathsBytes: 4 * MEBIBYTE,
+    checkIgnoredBytes: MEBIBYTE,
+    checkoutDirectoryBytes: 16 * KIBIBYTE,
+    stashListBytes: MEBIBYTE,
+    submoduleStatusBytes: MEBIBYTE,
+    filterConfigBytes: MEBIBYTE,
+    filterPathsBytes: 8 * MEBIBYTE,
+    filterAttributesBytes: 16 * MEBIBYTE,
+    trackedPathsBytes: 4 * MEBIBYTE,
+    maxTrackedPaths: 50_000,
+    headCommitBytes: 64 * KIBIBYTE,
+    branchTrackingBytes: MEBIBYTE,
+    discardedRefsBytes: 64 * KIBIBYTE,
+    discardedBlobsBytes: 4 * MEBIBYTE,
+    maxDiscarded: 50,
+  },
+  history: {
+    defaultCommits: 50,
+    maxCommits: 100,
+    maxFrontier: 100,
+    maxCommitFiles: 10_000,
+    subjectBytes: 512,
+    bodyBytes: 4096,
+  },
+  actions: { maxCommitPaths: 2000, hookBytes: MEBIBYTE, maxNewFiles: 10_000 },
+};

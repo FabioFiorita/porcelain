@@ -1,0 +1,252 @@
+{
+  "vitest.config.ts": {
+    "test": {
+      "root": "<root>",
+      "passWithNoTests": false,
+      "allowOnly": false,
+      "reporters": [
+        "default",
+        {
+          "onTestRunEnd": "<function>"
+        }
+      ],
+      "projects": [
+        {
+          "test": {
+            "name": "@porcelain/server",
+            "root": "<root>",
+            "include": [
+              "apps/server/src/**/*.spec.ts",
+              "apps/server/spec/**/*.spec.ts"
+            ],
+            "expect": {
+              "requireAssertions": true
+            }
+          }
+        },
+        {
+          "resolve": {
+            "alias": {
+              "@": "<root>/apps/web/src"
+            }
+          },
+          "test": {
+            "name": "@porcelain/web",
+            "root": "<root>",
+            "include": ["apps/web/src/features/*/rules/*.spec.ts"],
+            "expect": {
+              "requireAssertions": true
+            }
+          }
+        },
+        {
+          "test": {
+            "name": "@porcelain/access",
+            "root": "<root>",
+            "include": [
+              "packages/access/src/**/*.spec.ts",
+              "packages/access/spec/**/*.spec.ts"
+            ],
+            "expect": {
+              "requireAssertions": true
+            },
+            "setupFiles": []
+          }
+        },
+        {
+          "test": {
+            "name": "@porcelain/agents",
+            "root": "<root>",
+            "include": [
+              "packages/agents/src/**/*.spec.ts",
+              "packages/agents/spec/**/*.spec.ts"
+            ],
+            "expect": {
+              "requireAssertions": true
+            },
+            "setupFiles": []
+          }
+        },
+        {
+          "test": {
+            "name": "@porcelain/changes",
+            "root": "<root>",
+            "include": [
+              "packages/changes/src/**/*.spec.ts",
+              "packages/changes/spec/**/*.spec.ts"
+            ],
+            "expect": {
+              "requireAssertions": true
+            },
+            "setupFiles": []
+          }
+        },
+        {
+          "test": {
+            "name": "@porcelain/contracts",
+            "root": "<root>",
+            "include": [
+              "packages/contracts/src/**/*.spec.ts",
+              "packages/contracts/spec/**/*.spec.ts"
+            ],
+            "expect": {
+              "requireAssertions": true
+            },
+            "setupFiles": []
+          }
+        },
+        {
+          "test": {
+            "name": "@porcelain/files",
+            "root": "<root>",
+            "include": [
+              "packages/files/src/**/*.spec.ts",
+              "packages/files/spec/**/*.spec.ts"
+            ],
+            "expect": {
+              "requireAssertions": true
+            },
+            "setupFiles": []
+          }
+        },
+        {
+          "test": {
+            "name": "@porcelain/git",
+            "root": "<root>",
+            "include": [
+              "packages/git/src/**/*.spec.ts",
+              "packages/git/spec/**/*.spec.ts"
+            ],
+            "expect": {
+              "requireAssertions": true
+            },
+            "setupFiles": ["packages/git/spec/fixtures/isolated-git.ts"]
+          }
+        },
+        {
+          "test": {
+            "name": "@porcelain/git-actions",
+            "root": "<root>",
+            "include": [
+              "packages/git-actions/src/**/*.spec.ts",
+              "packages/git-actions/spec/**/*.spec.ts"
+            ],
+            "expect": {
+              "requireAssertions": true
+            },
+            "setupFiles": []
+          }
+        },
+        {
+          "test": {
+            "name": "@porcelain/kernel",
+            "root": "<root>",
+            "include": [
+              "packages/kernel/src/**/*.spec.ts",
+              "packages/kernel/spec/**/*.spec.ts"
+            ],
+            "expect": {
+              "requireAssertions": true
+            },
+            "setupFiles": []
+          }
+        },
+        {
+          "test": {
+            "name": "@porcelain/process",
+            "root": "<root>",
+            "include": [
+              "packages/process/src/**/*.spec.ts",
+              "packages/process/spec/**/*.spec.ts"
+            ],
+            "expect": {
+              "requireAssertions": true
+            },
+            "setupFiles": []
+          }
+        },
+        {
+          "test": {
+            "name": "@porcelain/projects",
+            "root": "<root>",
+            "include": [
+              "packages/projects/src/**/*.spec.ts",
+              "packages/projects/spec/**/*.spec.ts"
+            ],
+            "expect": {
+              "requireAssertions": true
+            },
+            "setupFiles": []
+          }
+        },
+        {
+          "test": {
+            "name": "@porcelain/reviews",
+            "root": "<root>",
+            "include": [
+              "packages/reviews/src/**/*.spec.ts",
+              "packages/reviews/spec/**/*.spec.ts"
+            ],
+            "expect": {
+              "requireAssertions": true
+            },
+            "setupFiles": []
+          }
+        },
+        {
+          "test": {
+            "name": "@porcelain/storage",
+            "root": "<root>",
+            "include": [
+              "packages/storage/src/**/*.spec.ts",
+              "packages/storage/spec/**/*.spec.ts"
+            ],
+            "expect": {
+              "requireAssertions": true
+            },
+            "setupFiles": []
+          }
+        }
+      ]
+    }
+  },
+  ".agents/skills/web-verify/scripts/vitest.browser.config.ts": {
+    "root": "<root>/apps/web",
+    "test": {
+      "include": ["spec/browser/*.browser.ts", "spec/negative/*.browser.ts"],
+      "retry": 0,
+      "attachmentsDir": "<tmp>/porcelain-web-browser-attachments",
+      "browser": {
+        "enabled": true,
+        "provider": {
+          "name": "playwright",
+          "supportedBrowser": ["firefox", "webkit", "chromium"],
+          "options": {},
+          "prewarm": "<function>",
+          "providerFactory": "<function>",
+          "serverFactory": "<function>"
+        },
+        "headless": true,
+        "instances": [
+          {
+            "browser": "chromium",
+            "viewport": {
+              "width": 414,
+              "height": 896
+            }
+          }
+        ],
+        "screenshotDirectory": "<tmp>/porcelain-web-browser-attachments/screenshots",
+        "commands": {
+          "porcelainRead": "<function>",
+          "porcelainRepo": "<function>",
+          "porcelainFixture": "<function>",
+          "porcelainPairingLink": "<function>",
+          "porcelainHits": "<function>",
+          "porcelainProjectHome": "<function>",
+          "porcelainCodingTool": "<function>"
+        }
+      }
+    }
+  }
+}

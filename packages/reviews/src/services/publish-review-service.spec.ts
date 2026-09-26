@@ -1,0 +1,297 @@
+import { InvalidLineRangeError } from '@porcelain/kernel/errors';
+import { describe, expect, it } from 'vitest';
+import {
+  FixedClock,
+  SequentialIdSource,
+  SequentialSecretSource,
+} from '@porcelain/kernel/fakes';
+import {
+  BoxLaneOutOfRangeError,
+  DuplicateLayerIdError,
+  DuplicateStepIdError,
+  ReviewConflictError,
+  StepLaneOutOfRangeError,
+  UnknownArrowBoxError,
+  UnknownArrowStepError,
+} from '@porcelain/reviews/errors';
+import type { FileChange } from '@porcelain/kernel/models';
+import type {
+  DiagramBox,
+  LayerDraft,
+  ReviewDraft,
+  ReviewEvidence,
+} from '@porcelain/reviews/models';
+import { InMemoryReviewStore } from '../../spec/fakes/in-memory-review-store.ts';
+import { PublishReviewService } from './publish-review-service.ts';
+
+const worktreeId = 'a'.repeat(64);
+const styled = '<style>h1{color:red}</style><h1>Summary</h1>';
+const readme = 'first\nsecond\nadded\n';
+const modified: FileChange = {
+  path: 'README.md',
+  fingerprint: 'f',
+  comparisons: [
+    {
+      scope: 'unstaged',
+      kind: 'modified',
+      oldPath: 'README.md',
+      newPath: 'README.md',
+      oldMode: '100644',
+      newMode: '100644',
+      oldOid: undefined,
+      newOid: undefined,
+      supported: true,
+    },
+  ],
+};
+
+function evidence(texts: [string, string][] = []): ReviewEvidence {
+  return { changes: [], texts: new Map(texts), diffs: [] };
+}
+
+const stillChanged: ReviewEvidence = {
+  changes: [modified],
+  texts: new Map([['README.md', readme]]),
+  diffs: [
+    {
+      selection: {
+        scope: 'unstaged',
+        oldPath: 'README.md',
+        newPath: 'README.md',
+      },
+      content: { kind: 'text', patch: '@@ -1,0 +2,2 @@\n+second\n+added\n' },
+    },
+  ],
+};
+
+function layer(overrides: Partial<LayerDraft> = {}): LayerDraft {
+  return {
+    id: 'layer-1',
+    title: 'Readme',
+    summary: 'Adds a line',
+    lanes: ['Docs'],
+    steps: [
+      {
+        id: 'step-1',
+        lane: 0,
+        title: 'New line',
+        text: 'A line is added',
+        kind: 'changed',
+        pointer: { path: 'README.md', startLine: 2, endLine: 3 },
+      },
+    ],
+    ...overrides,
+  };
+}
+
+function draft(overrides: Partial<ReviewDraft> = {}): ReviewDraft {
+  return {
+    expectedRevision: 0,
+    summaryHtml: styled,
+    layers: [layer()],
+    ...overrides,
+  };
+}
+
+function setup() {
+  const store = new InMemoryReviewStore();
+  const service = new PublishReviewService(
+    store,
+    new FixedClock('2026-01-01T00:00:00.000Z'),
+    new SequentialIdSource(),
+    new SequentialSecretSource(),
+  );
+  return { store, service };
+}
+
+describe('PublishReviewService', () => {
+  it('publishes the first review at revision one with the lines each step points at', () => {
+    const { service, store } = setup();
+    const { review, warnings } = service.execute({
+      worktreeId,
+      draft: draft(),
+      evidence: stillChanged,
+    });
+    expect(review).toMatchObject({
+      worktreeId,
+      revision: 1,
+      publishedAt: '2026-01-01T00:00:00.000Z',
+      active: true,
+      summaryHtml: styled,
+    });
+    expect(review.layers[0]?.steps[0]?.published).toEqual(['second', 'added']);
+    expect(warnings).toEqual([]);
+    expect(store.read({ worktreeId })).toEqual(review);
+  });
+
+  it('stores the first review inactive when every line it explains is already committed', () => {
+    const { service, store } = setup();
+    const { review } = service.execute({
+      worktreeId,
+      draft: draft(),
+      evidence: evidence([['README.md', readme]]),
+    });
+    expect(review.active).toBe(false);
+    expect(store.read({ worktreeId })?.active).toBe(false);
+  });
+
+  it('keeps no lines for a step whose file could not be read or whose range runs past the file', () => {
+    const { service } = setup();
+    const past = layer({
+      id: 'layer-2',
+      steps: [
+        {
+          id: 'step-2',
+          lane: 0,
+          title: 'Past the end',
+          text: 'Points too far',
+          kind: 'context',
+          pointer: { path: 'README.md', startLine: 3, endLine: 4 },
+        },
+      ],
+    });
+    const { review } = service.execute({
+      worktreeId,
+      draft: draft({ layers: [layer(), past] }),
+      evidence: evidence(),
+    });
+    expect(review.layers.map((entry) => entry.steps[0]?.published)).toEqual([
+      [],
+      [],
+    ]);
+    expect(
+      setup().service.execute({
+        worktreeId,
+        draft: draft({ layers: [past] }),
+        evidence: evidence([['README.md', readme]]),
+      }).review.layers[0]?.steps[0]?.published,
+    ).toEqual([]);
+  });
+
+  it('replaces the review when the publisher states the current revision, with a fresh summary link', () => {
+    const { service } = setup();
+    const first = service.execute({
+      worktreeId,
+      draft: draft(),
+      evidence: evidence(),
+    });
+    const second = service.execute({
+      worktreeId,
+      draft: draft({ expectedRevision: 1 }),
+      evidence: evidence(),
+    });
+    expect(second.review.revision).toBe(2);
+    expect(second.review.summaryToken).not.toBe(first.review.summaryToken);
+  });
+
+  it.each([
+    { name: 'an older revision', expectedRevision: 0 },
+    { name: 'a revision it has not reached', expectedRevision: 2 },
+  ])(
+    'refuses a publish that states $name and keeps the stored review',
+    ({ expectedRevision }) => {
+      const { service, store } = setup();
+      service.execute({ worktreeId, draft: draft(), evidence: evidence() });
+      expect(() =>
+        service.execute({
+          worktreeId,
+          draft: draft({ expectedRevision, summaryHtml: '<p>Other</p>' }),
+          evidence: evidence(),
+        }),
+      ).toThrow(ReviewConflictError);
+      expect(store.read({ worktreeId })?.summaryHtml).toBe(styled);
+    },
+  );
+
+  const box: DiagramBox = {
+    id: 'box-1',
+    lane: 0,
+    label: 'API',
+    kind: 'component',
+  };
+  it.each<{ name: string; refused: ReviewDraft; error: new () => Error }>([
+    {
+      name: 'two layers with one id',
+      refused: draft({ layers: [layer(), layer()] }),
+      error: DuplicateLayerIdError,
+    },
+    {
+      name: 'two steps with one id',
+      refused: draft({
+        layers: [layer({ steps: [...layer().steps, ...layer().steps] })],
+      }),
+      error: DuplicateStepIdError,
+    },
+    {
+      name: 'a step pointing at lines that end before they start',
+      refused: draft({
+        layers: [
+          layer({
+            steps: [
+              {
+                id: 'step-1',
+                lane: 0,
+                title: 'Backwards',
+                text: 'Ends before it starts',
+                kind: 'changed',
+                pointer: { path: 'README.md', startLine: 3, endLine: 2 },
+              },
+            ],
+          }),
+        ],
+      }),
+      error: InvalidLineRangeError,
+    },
+    {
+      name: 'a step on a lane the layer does not have',
+      refused: draft({ layers: [layer({ lanes: [] })] }),
+      error: StepLaneOutOfRangeError,
+    },
+    {
+      name: 'a layer arrow to an unknown step',
+      refused: draft({
+        layers: [layer({ arrows: [{ from: 'step-1', to: 'step-9' }] })],
+      }),
+      error: UnknownArrowStepError,
+    },
+    {
+      name: 'a box on a lane the diagram does not have',
+      refused: draft({
+        diagram: {
+          after: { lanes: [], boxes: [box], arrows: [] },
+        },
+      }),
+      error: BoxLaneOutOfRangeError,
+    },
+    {
+      name: 'a diagram arrow to an unknown box',
+      refused: draft({
+        diagram: {
+          after: {
+            lanes: ['Server'],
+            boxes: [box],
+            arrows: [{ from: 'box-1', to: 'box-9' }],
+          },
+        },
+      }),
+      error: UnknownArrowBoxError,
+    },
+  ])('refuses a draft with $name and stores nothing', ({ refused, error }) => {
+    const { service, store } = setup();
+    expect(() =>
+      service.execute({ worktreeId, draft: refused, evidence: evidence() }),
+    ).toThrow(error);
+    expect(store.read({ worktreeId })).toBeUndefined();
+  });
+
+  it('warns when the summary carries no authored CSS but still publishes', () => {
+    const { service, store } = setup();
+    const { warnings } = service.execute({
+      worktreeId,
+      draft: draft({ summaryHtml: '<h1>Summary</h1>' }),
+      evidence: evidence(),
+    });
+    expect(warnings).toEqual(['missing-style']);
+    expect(store.read({ worktreeId })?.revision).toBe(1);
+  });
+});

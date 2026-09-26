@@ -1,25 +1,20 @@
 {
   "name": "@porcelain/contracts",
-  "main": "src/index.ts",
-  "types": "src/index.ts",
-  "version": "0.64.0",
+  "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts",
-    "./remote": "./src/remote/index.ts",
+    "./shared": "./src/shared/index.ts",
     "./projects": "./src/projects/index.ts",
+    "./changes": "./src/changes/index.ts",
+    "./reviews": "./src/reviews/index.ts",
     "./files": "./src/files/index.ts",
-    "./search": "./src/search/index.ts",
-    "./git": "./src/git/index.ts",
-    "./review": "./src/review/index.ts",
-    "./actions": "./src/actions/index.ts",
-    "./terminal": "./src/terminal/index.ts",
-    "./project-data": "./src/project-data/index.ts",
-    "./session": "./src/session/index.ts",
-    "./testing": "./src/testing.ts"
+    "./git-actions": "./src/git-actions/index.ts",
+    "./access": "./src/access/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "zod": "^4.4.3"
-  },
-  "private": true
+    "zod": "4.5.4"
+  }
 }

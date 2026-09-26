@@ -1,0 +1,913 @@
+import { spawnSync } from 'node:child_process';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { isDeepStrictEqual } from 'node:util';
+import { basename, join, resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { parseSync } from 'oxc-parser';
+import { parseDocument } from 'yaml';
+import { z } from 'zod';
+import {
+  baselineHistoryProblems,
+  journeyBaselineHistoryProblems,
+  readBaseline,
+  readJourneyBaseline,
+  settleBaseline,
+} from '../architecture/baseline.ts';
+import { domainPackages, type StyleRule } from '../architecture/policy.ts';
+import {
+  liveRuleNames,
+  probeSchema,
+  unknownRule,
+} from '../architecture/probe.ts';
+import { compilerFindings } from '../architecture/react-compiler.ts';
+
+const [mode, target] = process.argv.slice(2);
+if (
+  (mode !== 'lint' && mode !== 'format') ||
+  (target !== 'server' && target !== 'web')
+)
+  throw new Error('Usage: node scripts/style.ts lint|format server|web');
+
+const packageNames = readdirSync('packages', { withFileTypes: true })
+  .filter(
+    (entry) =>
+      entry.isDirectory() && existsSync(join('packages', entry.name, 'src')),
+  )
+  .map((entry) => entry.name);
+
+const packages = packageNames.flatMap((name) => [
+  join('packages', name, 'src'),
+  join('packages', name, 'spec'),
+]);
+
+const serverRoots = [
+  'apps/server/src',
+  'apps/server/spec',
+  ...packages,
+  'packages/storage/scripts',
+  'packages/storage/drizzle.config.ts',
+  'architecture',
+  'scripts',
+  'vitest.config.ts',
+  '.agents/skills/server-verify/scripts',
+  '.agents/skills/server-verify/feature-map',
+  '.agents/skills/server-verify/negative',
+  '.agents/skills/web-verify/scripts',
+  '.agents/skills/web-verify/feature-map',
+].filter((root) => existsSync(root));
+const webRoots = ['apps/web/src', 'apps/web/spec', 'apps/web/vite.config.ts'];
+const allRoots = [...serverRoots, ...webRoots];
+const roots = target === 'web' ? webRoots : serverRoots;
+
+const disableDirective = /(?:\/\/|\/\*)\s*(?:eslint|oxlint)-(?:disable|enable)/;
+const lintConfig = '.oxlintrc.json';
+const lintedFile = /\.[cm]?[jt]sx?$/;
+const strayLintConfig =
+  /^(?:\.(?:oxlintrc|eslintrc)(?:\..+)?|\.(?:eslint|oxlint)ignore|(?:oxlint|eslint)\.config\.[cm]?[jt]s)$/;
+type Problem = { rule: StyleRule; message: string };
+
+function problem(rule: StyleRule, message: string): Problem {
+  return { rule, message };
+}
+
+const skippedDirectories = new Set([
+  'node_modules',
+  '.git',
+  '.claude',
+  'dist',
+  '.vite',
+  '.turbo',
+]);
+
+function filesUnder(path: string): string[] {
+  if (!statSync(path).isDirectory()) return [path];
+  return readdirSync(path, { withFileTypes: true }).flatMap((entry) => {
+    const child = join(path, entry.name);
+    if (entry.isDirectory())
+      return skippedDirectories.has(entry.name) ? [] : filesUnder(child);
+    return entry.isFile() ? [child] : [];
+  });
+}
+
+function disableDirectives(): Problem[] {
+  return allRoots.flatMap(filesUnder).flatMap((file) =>
+    readFileSync(file, 'utf8')
+      .split('\n')
+      .flatMap((line, index) =>
+        disableDirective.test(line)
+          ? [
+              problem(
+                'disable-directives',
+                `${file}:${index + 1}: fix the code instead of disabling a rule; disable directives are not allowed.`,
+              ),
+            ]
+          : [],
+      ),
+  );
+}
+
+function codeOutsideLintRoots(): Problem[] {
+  const listed = spawnSync(
+    'git',
+    ['ls-files', '--cached', '--others', '--exclude-standard'],
+    { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 },
+  );
+  if (listed.error) throw listed.error;
+  return listed.stdout
+    .split('\n')
+    .filter(
+      (path) =>
+        lintedFile.test(path) &&
+        existsSync(path) &&
+        !path.startsWith('.claude/') &&
+        !allRoots.some((root) => path === root || path.startsWith(`${root}/`)),
+    )
+    .map((path) =>
+      problem(
+        'code-outside-lint-roots',
+        `${path}: code lives under a lint root (${allRoots.join(', ')}); a file outside them escapes lint, the disable-directive scan and the format check.`,
+      ),
+    );
+}
+
+const ciSchema = z.strictObject({
+  workflows: z.record(z.string(), z.unknown()),
+  lefthook: z.unknown(),
+});
+
+const pinnedWorkflows = [
+  '.github/workflows/server.yml',
+  '.github/workflows/web.yml',
+  '.github/workflows/probes.yml',
+] as const;
+
+const workflowSchema = z.object({
+  jobs: z.record(
+    z.string(),
+    z.object({
+      strategy: z.object({ matrix: z.unknown() }).optional(),
+      steps: z.array(z.object({ run: z.string().optional() })),
+    }),
+  ),
+});
+
+const probeRun = /^pnpm probes(?:\s|$)/;
+const shardRun = /^pnpm probes --shard \$\{\{ matrix\.shard \}\}\/([1-9]\d*)$/;
+
+function workflowDocument(path: string): unknown {
+  if (!existsSync(path)) return undefined;
+  const document = parseDocument(readFileSync(path, 'utf8'));
+  if (document.errors.length > 0) return undefined;
+  const parsed: unknown = document.toJS();
+  return parsed;
+}
+
+function probeShardProblems(
+  documents: ReadonlyMap<string, unknown>,
+): Problem[] {
+  const running = [...documents].flatMap(([path, document]) => {
+    const workflow = workflowSchema.safeParse(document);
+    if (!workflow.success) return [];
+    return Object.entries(workflow.data.jobs).flatMap(([name, job]) => {
+      const runs = job.steps.flatMap((step) =>
+        step.run !== undefined && probeRun.test(step.run) ? [step.run] : [],
+      );
+      return runs.length > 0
+        ? [{ where: `${path} job ${name}`, job, runs }]
+        : [];
+    });
+  });
+  const [only, ...others] = running;
+  if (only === undefined || others.length > 0)
+    return [
+      problem(
+        'probe-shards',
+        `${running.length === 0 ? 'no pinned workflow job runs' : `${running.map(({ where }) => where).join(', ')} all run`} pnpm probes; one CI job runs the probes as matrix shards, so every push plants every probe once within the job timeout.`,
+      ),
+    ];
+  const [run, ...extra] = only.runs;
+  const count = Number(shardRun.exec(run ?? '')?.[1] ?? 0);
+  const shards = Array.from({ length: count }, (_, index) => index + 1);
+  return count > 0 &&
+    extra.length === 0 &&
+    isDeepStrictEqual(only.job.strategy?.matrix, { shard: shards })
+    ? []
+    : [
+        problem(
+          'probe-shards',
+          `${only.where} runs ${JSON.stringify(only.runs)} over the matrix ${JSON.stringify(only.job.strategy?.matrix ?? null)}; the job runs one step, pnpm probes --shard \${{ matrix.shard }}/<N>, over the matrix shard: [1, ..., N] with nothing else, so the shards together plant every probe exactly once.`,
+        ),
+      ];
+}
+
+function ciProblems(): Problem[] {
+  const sanctioned = ciSchema.parse(
+    strictJson('architecture/sanctioned/ci.json'),
+  );
+  const documents = new Map(
+    pinnedWorkflows.map((path) => [path, workflowDocument(path)]),
+  );
+  return [
+    ...pinnedWorkflows.flatMap((path) =>
+      isDeepStrictEqual(documents.get(path), sanctioned.workflows[path])
+        ? []
+        : [
+            problem(
+              'ci-steps',
+              `${path} is missing, is not valid YAML or differs from its sanctioned copy in architecture/sanctioned/ci.json; its triggers, jobs, timeouts, matrix and steps change only there, where the change is visible, and a gate leaves CI only through the sanctioned copy.`,
+            ),
+          ],
+    ),
+    ...Object.keys(sanctioned.workflows)
+      .filter((path) => !pinnedWorkflows.some((pinned) => pinned === path))
+      .map((path) =>
+        problem(
+          'ci-steps',
+          `architecture/sanctioned/ci.json lists ${path}, which the CI check does not read; every sanctioned workflow is checked.`,
+        ),
+      ),
+    ...probeShardProblems(documents),
+    ...(isDeepStrictEqual(lefthookConfig(), sanctioned.lefthook)
+      ? []
+      : [
+          problem(
+            'ci-steps',
+            'lefthook.yml, merged with any local or extended Lefthook configuration, runs the pre-push jobs architecture/sanctioned/ci.json pins, with no skip, only or file filter; a gate leaves the hook only through the sanctioned copy.',
+          ),
+        ]),
+  ];
+}
+
+function lefthookConfig(): unknown {
+  const dumped = spawnSync(
+    join('node_modules', '.bin', 'lefthook'),
+    ['dump', '--format', 'json'],
+    { encoding: 'utf8' },
+  );
+  if (dumped.error) throw dumped.error;
+  if (dumped.status !== 0) return undefined;
+  const parsed: unknown = JSON.parse(dumped.stdout);
+  return parsed;
+}
+
+function hookProblems(): Problem[] {
+  if (process.env.CI === 'true') return [];
+  const checked = spawnSync(
+    join('node_modules', '.bin', 'lefthook'),
+    ['check-install'],
+    { encoding: 'utf8' },
+  );
+  if (checked.error) throw checked.error;
+  const hooks = spawnSync(
+    'git',
+    ['rev-parse', '--path-format=absolute', '--git-path', 'hooks'],
+    { encoding: 'utf8' },
+  );
+  if (hooks.error) throw hooks.error;
+  const hook = join(hooks.stdout.trim(), 'pre-push');
+  const installed =
+    checked.status === 0 &&
+    hooks.status === 0 &&
+    existsSync(hook) &&
+    readFileSync(hook, 'utf8').includes('lefthook run "pre-push"');
+  return installed
+    ? []
+    : [
+        problem(
+          'pre-push-hook',
+          `${hook} is not the Lefthook pre-push hook in sync with lefthook.yml; without it a push runs none of the pre-push checks and nothing says so. Run pnpm run prepare, which installs the hook and resets core.hooksPath.`,
+        ),
+      ];
+}
+
+const formatConfig = '.oxfmtrc.json';
+const strayFormatConfig =
+  /^(?:\.oxfmtrc(?:\..+)?|\.prettierrc(?:\..+)?|\.prettierignore|prettier\.config\.[cm]?[jt]s)$/;
+
+function strayFormatConfigs(): Problem[] {
+  return filesUnder('.')
+    .filter(
+      (path) => path !== formatConfig && strayFormatConfig.test(basename(path)),
+    )
+    .map((path) =>
+      problem(
+        'format-config',
+        `${path}: the format check reads one configuration, the root ${formatConfig}, with no ignore files; remove this file.`,
+      ),
+    );
+}
+
+function strayLintConfigs(): Problem[] {
+  return filesUnder('.')
+    .filter(
+      (path) => path !== lintConfig && strayLintConfig.test(basename(path)),
+    )
+    .map((path) =>
+      problem(
+        'one-lint-config',
+        `${path}: lint reads one configuration, the root ${lintConfig}, with no ignore files; remove this file.`,
+      ),
+    );
+}
+
+const lintConfigSchema = z
+  .object({
+    plugins: z.array(z.string()),
+    jsPlugins: z.array(z.string()),
+    options: z.object({ typeAware: z.literal(true) }).strict(),
+    rules: z.record(z.string(), z.unknown()),
+    overrides: z.array(z.unknown()),
+  })
+  .strict();
+
+const pluginSchema = z.object({
+  default: z.object({ rules: z.record(z.string(), z.unknown()) }),
+});
+
+const ruleListSchema = z.strictObject({
+  porcelain: z.array(z.string()),
+  typescript: z.array(z.string()),
+  shadcn: z.array(z.string()),
+  style: z.array(z.string()),
+  arch: z.array(z.string()),
+});
+
+const probeModuleSchema = z.object({ default: z.unknown() });
+
+const tsconfigSchema = z.object({
+  extends: z.string().optional(),
+  compilerOptions: z.record(z.string(), z.unknown()).optional(),
+  include: z.array(z.string()).optional(),
+});
+
+const sanctionedFilesSchema = z.record(z.string(), z.unknown());
+const sanctionedScriptsSchema = z.record(
+  z.string(),
+  z.record(z.string(), z.string()),
+);
+const manifestScriptsSchema = z.object({
+  scripts: z.record(z.string(), z.string()).optional(),
+});
+const configModuleSchema = z.object({ default: z.unknown() });
+
+const packageFolders = [
+  'apps/server',
+  'apps/web',
+  ...packageNames.map((name) => join('packages', name)),
+];
+
+const tsconfigPackageOptions: ReadonlySet<string> = new Set(['types', 'lib']);
+
+const sanctionedOverrides: readonly unknown[] = [
+  {
+    files: ['architecture/*.mjs', 'architecture/*.cjs'],
+    rules: {
+      'typescript/no-unsafe-argument': 'off',
+      'typescript/no-unsafe-assignment': 'off',
+      'typescript/no-unsafe-call': 'off',
+      'typescript/no-unsafe-member-access': 'off',
+      'typescript/no-unsafe-return': 'off',
+    },
+  },
+];
+
+const typesFreePackages = new Set<string>([
+  ...domainPackages,
+  'kernel',
+  'contracts',
+]);
+
+class StyleProblem extends Error {
+  readonly problem: Problem;
+
+  constructor(found: Problem) {
+    super(found.message);
+    this.problem = found;
+  }
+}
+
+function strictJson(path: string): unknown {
+  try {
+    const parsed: unknown = JSON.parse(readFileSync(path, 'utf8'));
+    return parsed;
+  } catch (error) {
+    throw new StyleProblem(
+      problem(
+        'strict-json',
+        `${path} is not strict JSON; configuration carries no comments or trailing commas (${error instanceof Error ? error.message : String(error)}).`,
+      ),
+    );
+  }
+}
+
+function isError(level: unknown): boolean {
+  return level === 'error' || (Array.isArray(level) && level[0] === 'error');
+}
+
+async function configProblems(): Promise<Problem[]> {
+  const problems: Problem[] = [];
+  const config = lintConfigSchema.safeParse(strictJson('.oxlintrc.json'));
+  if (!config.success)
+    return [
+      problem(
+        'lint-config',
+        `.oxlintrc.json holds plugins, jsPlugins, options, rules and overrides only: ${config.error.message}`,
+      ),
+    ];
+  if (
+    !isDeepStrictEqual(
+      strictJson(formatConfig),
+      strictJson('architecture/sanctioned/oxfmt.json'),
+    )
+  )
+    problems.push(
+      problem(
+        'format-config',
+        `${formatConfig} differs from architecture/sanctioned/oxfmt.json; the format both format checks run with changes only there, where the change is visible.`,
+      ),
+    );
+  problems.push(...viteProblems());
+  if (
+    !isDeepStrictEqual(
+      strictJson('.oxlintrc.json'),
+      strictJson('architecture/lint-config.json'),
+    )
+  )
+    problems.push(
+      problem(
+        'lint-config',
+        '.oxlintrc.json differs from architecture/lint-config.json; the lint configuration is pinned whole, plugins, rules and overrides alike.',
+      ),
+    );
+  const { jsPlugins, rules, overrides } = config.data;
+  if (
+    !isDeepStrictEqual(jsPlugins, [
+      './architecture/oxlint-plugin.mjs',
+      '@shadcn/lint',
+    ])
+  )
+    problems.push(
+      problem(
+        'lint-config',
+        '.oxlintrc.json loads the Porcelain and shadcn plugins.',
+      ),
+    );
+  const pluginPath = new URL(
+    '../architecture/oxlint-plugin.mjs',
+    import.meta.url,
+  ).href;
+  const plugin = pluginSchema.parse(await import(pluginPath));
+  for (const name of Object.keys(plugin.default.rules))
+    if (!isError(rules[`porcelain/${name}`]))
+      problems.push(
+        problem(
+          'lint-config',
+          `.oxlintrc.json sets porcelain/${name} to "error".`,
+        ),
+      );
+  for (const [name, level] of Object.entries(rules)) {
+    if (!isError(level))
+      problems.push(
+        problem(
+          'lint-config',
+          `.oxlintrc.json turns ${name} on as "error" or leaves it out.`,
+        ),
+      );
+    if (
+      name.startsWith('porcelain/') &&
+      !(name.slice('porcelain/'.length) in plugin.default.rules)
+    )
+      problems.push(
+        problem(
+          'lint-config',
+          `.oxlintrc.json names ${name}, which the plugin does not define.`,
+        ),
+      );
+  }
+  if (!isDeepStrictEqual(overrides, sanctionedOverrides))
+    problems.push(
+      problem(
+        'lint-config',
+        '.oxlintrc.json overrides only the plugin files; a per-file override is a disable directive.',
+      ),
+    );
+  const tsconfigs = filesUnder('.').filter((path) =>
+    /(?:^|\/)tsconfig[^/]*\.json$/.test(path),
+  );
+  const sanctionedTsconfigs = sanctionedFilesSchema.parse(
+    strictJson('architecture/sanctioned/tsconfigs.json'),
+  );
+  for (const path of [
+    'tsconfig.json',
+    'apps/web/tsconfig.node.json',
+    ...packageFolders.map((folder) => join(folder, 'tsconfig.json')),
+  ])
+    if (!(path in sanctionedTsconfigs))
+      problems.push(
+        problem(
+          'tsconfig',
+          `${path} has no sanctioned copy in architecture/sanctioned/tsconfigs.json; every tsconfig a gate compiles with is pinned.`,
+        ),
+      );
+  for (const [path, sanctioned] of Object.entries(sanctionedTsconfigs))
+    if (!existsSync(path) || !isDeepStrictEqual(strictJson(path), sanctioned))
+      problems.push(
+        problem(
+          'tsconfig',
+          `${path} differs from its sanctioned copy in architecture/sanctioned/tsconfigs.json; the compiler options a gate runs with change only there, where the change is visible.`,
+        ),
+      );
+  for (const path of tsconfigs) {
+    const tsconfig = tsconfigSchema.parse(strictJson(path));
+    const owner = /^(?:packages\/([^/]+)|apps\/(server))\/tsconfig\.json$/.exec(
+      path,
+    );
+    const name = owner?.[1] ?? owner?.[2];
+    if (name === undefined) continue;
+    for (const pattern of ['src/**/*.ts', 'spec/**/*.ts'])
+      if (!tsconfig.include?.includes(pattern))
+        problems.push(problem('tsconfig', `${path} includes ${pattern}.`));
+    const options = Object.keys(tsconfig.compilerOptions ?? {});
+    if (
+      tsconfig.extends !== '../../tsconfig.json' ||
+      options.some((option) => !tsconfigPackageOptions.has(option))
+    )
+      problems.push(
+        problem(
+          'tsconfig',
+          `${path} extends ../../tsconfig.json and sets only types and lib; every strictness flag comes from the root.`,
+        ),
+      );
+    if (
+      typesFreePackages.has(name) &&
+      !isDeepStrictEqual(tsconfig.compilerOptions, { types: [] })
+    )
+      problems.push(
+        problem(
+          'tsconfig',
+          `${path} sets "types": [] so Node globals do not compile in a domain.`,
+        ),
+      );
+  }
+  const webTypes = tsconfigSchema.parse(strictJson('apps/web/tsconfig.json'))
+    .compilerOptions?.types;
+  if (!isDeepStrictEqual(webTypes, ['vite/client']))
+    problems.push(
+      problem(
+        'tsconfig',
+        'apps/web/tsconfig.json sets "types": ["vite/client"] so Node globals do not compile in browser code; vite.config.ts gets Node through apps/web/tsconfig.node.json.',
+      ),
+    );
+  problems.push(...scriptProblems());
+  problems.push(...ciProblems());
+  problems.push(...hookProblems());
+  problems.push(...(await configModuleProblems()));
+  problems.push(...(await ruleProblems()));
+  return problems;
+}
+
+const viteSchema = z.strictObject({
+  'apps/web/vite.config.ts': z.strictObject({ plugins: z.array(z.string()) }),
+});
+
+function vitePlugins(path: string): string[] | undefined {
+  const source = readFileSync(path, 'utf8');
+  const program = parseSync(path, source).program;
+  for (const statement of program.body) {
+    if (statement.type !== 'ExportDefaultDeclaration') continue;
+    const call = statement.declaration;
+    if (call.type !== 'CallExpression') return undefined;
+    const config = call.arguments[0];
+    if (config?.type !== 'ObjectExpression') return undefined;
+    for (const property of config.properties)
+      if (
+        property.type === 'Property' &&
+        property.key.type === 'Identifier' &&
+        property.key.name === 'plugins' &&
+        property.value.type === 'ArrayExpression'
+      )
+        return property.value.elements.map((element) =>
+          element === null
+            ? ''
+            : source.slice(element.start, element.end).replace(/\s+/g, ''),
+        );
+  }
+  return undefined;
+}
+
+function viteProblems(): Problem[] {
+  const sanctioned = viteSchema.parse(
+    strictJson('architecture/sanctioned/vite.json'),
+  );
+  return Object.entries(sanctioned).flatMap(([path, { plugins }]) =>
+    existsSync(path) && isDeepStrictEqual(vitePlugins(path), plugins)
+      ? []
+      : [
+          problem(
+            'vite-config',
+            `${path} runs the plugins architecture/sanctioned/vite.json lists, the React Compiler with panicThreshold none among them; the build a user gets changes only there, where the change is visible.`,
+          ),
+        ],
+  );
+}
+
+function scriptProblems(): Problem[] {
+  const problems: Problem[] = [];
+  const sanctioned = sanctionedScriptsSchema.parse(
+    strictJson('architecture/sanctioned/scripts.json'),
+  );
+  for (const folder of packageFolders)
+    if (!(join(folder, 'package.json') in sanctioned))
+      problems.push(
+        problem(
+          'package-scripts',
+          `${join(folder, 'package.json')} has no sanctioned scripts in architecture/sanctioned/scripts.json; every package runs the type gate.`,
+        ),
+      );
+  for (const [path, scripts] of Object.entries(sanctioned)) {
+    const manifest = existsSync(path)
+      ? manifestScriptsSchema.parse(strictJson(path))
+      : undefined;
+    for (const [name, command] of Object.entries(scripts))
+      if (manifest?.scripts?.[name] !== command)
+        problems.push(
+          problem(
+            'package-scripts',
+            `${path} runs "${command}" as ${name}, as architecture/sanctioned/scripts.json pins it; a gate cannot be switched off from a package script.`,
+          ),
+        );
+  }
+  return problems;
+}
+
+function pinnedShape(
+  value: unknown,
+  places: { root: string; temporary: string },
+): unknown {
+  if (typeof value === 'function') return '<function>';
+  if (typeof value === 'string') {
+    for (const [name, path] of [
+      ['<root>', places.root],
+      ['<tmp>', places.temporary],
+    ] as const)
+      if (value === path || value.startsWith(`${path}/`))
+        return name + value.slice(path.length);
+    return value;
+  }
+  if (Array.isArray(value))
+    return value.map((entry: unknown) => pinnedShape(entry, places));
+  if (typeof value === 'object' && value !== null)
+    return Object.fromEntries(
+      Object.entries(value).map(([key, entry]) => [
+        key,
+        pinnedShape(entry, places),
+      ]),
+    );
+  return value;
+}
+
+type PinnedModule = {
+  rule: StyleRule;
+  module: string;
+  sanctioned: string;
+  entry?: string;
+  keys?: readonly string[];
+  why: string;
+};
+
+const pinnedModules: readonly PinnedModule[] = [
+  {
+    rule: 'vitest-config',
+    module: 'vitest.config.ts',
+    sanctioned: 'architecture/sanctioned/vitest.json',
+    entry: 'vitest.config.ts',
+    why: 'every project keeps its include, setup files and expect settings, requireAssertions among them, and the run keeps the spec-discipline reporter',
+  },
+  {
+    rule: 'vitest-config',
+    module: '.agents/skills/web-verify/scripts/vitest.browser.config.ts',
+    sanctioned: 'architecture/sanctioned/vitest.json',
+    entry: '.agents/skills/web-verify/scripts/vitest.browser.config.ts',
+    keys: ['root', 'test'],
+    why: 'the browser run keeps its web root, spec include, evidence folders and headless Chromium through the Playwright provider',
+  },
+  {
+    rule: 'cruiser-config',
+    module: 'architecture/dependency-cruiser.cjs',
+    sanctioned: 'architecture/sanctioned/dependency-cruiser.json',
+    why: 'the forbidden rules keep their names, severity and from/to scope, and the resolution options stay as they are',
+  },
+];
+
+function pinnedPart(
+  config: unknown,
+  keys: readonly string[] | undefined,
+): unknown {
+  if (keys === undefined) return config;
+  const fields = sanctionedFilesSchema.parse(config);
+  return Object.fromEntries(keys.map((key) => [key, fields[key]]));
+}
+
+async function configModuleProblems(): Promise<Problem[]> {
+  const places = { root: resolve('.'), temporary: tmpdir() };
+  const problems: Problem[] = [];
+  for (const { rule, module, sanctioned, entry, keys, why } of pinnedModules) {
+    const loaded = configModuleSchema.parse(
+      await import(pathToFileURL(resolve(module)).href),
+    );
+    const copy = strictJson(sanctioned);
+    if (
+      !isDeepStrictEqual(
+        pinnedShape(pinnedPart(loaded.default, keys), places),
+        entry === undefined ? copy : sanctionedFilesSchema.parse(copy)[entry],
+      )
+    )
+      problems.push(
+        problem(
+          rule,
+          `${module} differs from ${sanctioned}; ${why}. A change to the gate is made in the sanctioned copy, where it is visible.`,
+        ),
+      );
+  }
+  return problems;
+}
+
+function sortedNames(names: readonly string[]): string[] {
+  return names.toSorted((left, right) => left.localeCompare(right));
+}
+
+async function ruleProblems(): Promise<Problem[]> {
+  const problems: Problem[] = [];
+  const live = await liveRuleNames('.');
+  const sanctioned = ruleListSchema.parse(
+    strictJson('architecture/rules.json'),
+  );
+  for (const family of [
+    'porcelain',
+    'typescript',
+    'shadcn',
+    'style',
+    'arch',
+  ] as const)
+    if (!isDeepStrictEqual(live[family], sortedNames(sanctioned[family])))
+      problems.push(
+        problem(
+          'rule-list',
+          `the ${family} rules differ from architecture/rules.json (live: ${live[family].filter((name) => !sanctioned[family].includes(name)).join(', ') || 'none added'}; sanctioned: ${sanctioned[family].filter((name) => !live[family].includes(name)).join(', ') || 'none removed'}); a rule is added or removed in the sanctioned list, where the change is visible.`,
+        ),
+      );
+  const probeFolder = join('architecture', 'probes');
+  for (const file of readdirSync(probeFolder).filter((name) =>
+    name.endsWith('.ts'),
+  )) {
+    const loaded = probeModuleSchema.parse(
+      await import(pathToFileURL(join(probeFolder, file)).href),
+    );
+    const probe = probeSchema.safeParse(loaded.default);
+    const dishonest = probe.success
+      ? unknownRule(probe.data, live)
+      : probe.error.issues.map((issue) => issue.message).join('; ');
+    if (dishonest !== undefined)
+      problems.push(
+        problem(
+          'probe-shape',
+          `${probeFolder}/${file}: ${dishonest}; a probe names the exact rule its gate prints, so its verdict cannot lie.`,
+        ),
+      );
+  }
+  return problems;
+}
+
+const diagnosticsSchema = z.object({
+  number_of_files: z.number(),
+  diagnostics: z.array(
+    z.object({
+      message: z.string(),
+      code: z.string().optional(),
+      severity: z.string(),
+      filename: z.string(),
+      labels: z
+        .array(
+          z.object({
+            span: z.object({ line: z.number(), column: z.number() }),
+          }),
+        )
+        .optional(),
+    }),
+  ),
+});
+
+type Finding = {
+  rule: string;
+  file: string;
+  line: number;
+  column: number;
+  code: string;
+  message: string;
+};
+
+function webSources(): string[] {
+  return filesUnder('apps/web/src').filter(
+    (path) =>
+      /\.tsx?$/.test(path) && !path.startsWith('apps/web/src/components/ui/'),
+  );
+}
+
+async function lint(): Promise<number> {
+  const files = roots
+    .flatMap(filesUnder)
+    .filter((path) => lintedFile.test(path));
+  const result = spawnSync(
+    join('node_modules', '.bin', 'oxlint'),
+    [
+      '--config',
+      lintConfig,
+      '--no-ignore',
+      '--type-aware',
+      '--report-unused-disable-directives',
+      '--format',
+      'json',
+      ...files,
+    ],
+    { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 },
+  );
+  if (result.error) throw result.error;
+  const parsed = diagnosticsSchema.safeParse(JSON.parse(result.stdout || '{}'));
+  if (!parsed.success) {
+    process.stderr.write(result.stdout + result.stderr);
+    return 1;
+  }
+  const linted: Finding[] = parsed.data.diagnostics.map((diagnostic) => ({
+    rule: (diagnostic.code ?? '').replace(/^([a-z-]+)\((.+)\)$/, '$1/$2'),
+    file: diagnostic.filename,
+    line: diagnostic.labels?.[0]?.span.line ?? 0,
+    column: diagnostic.labels?.[0]?.span.column ?? 0,
+    code: `${diagnostic.severity} ${diagnostic.code ?? ''}`,
+    message: diagnostic.message,
+  }));
+  const compiled: Finding[] =
+    target === 'web'
+      ? (await compilerFindings(webSources())).map((finding) => ({
+          rule: 'style/react-compiler',
+          file: finding.file,
+          line: finding.line,
+          column: 0,
+          code: 'error style(react-compiler)',
+          message: finding.message,
+        }))
+      : [];
+  const settled = settleBaseline(
+    readBaseline('.'),
+    (rule) => target === 'web' && rule.includes('/'),
+    [...linted, ...compiled],
+  );
+  for (const finding of settled.reported)
+    process.stdout.write(
+      `${finding.file}:${finding.line}:${finding.column}: ${finding.code}: ${finding.message}\n`,
+    );
+  for (const found of settled.problems)
+    process.stdout.write(`error style(web-baseline): ${found}\n`);
+  process.stdout.write(
+    `${settled.reported.length} findings; ${settled.held} web findings held by architecture/web-baseline.json.\n`,
+  );
+  if (parsed.data.number_of_files !== files.length) {
+    process.stdout.write(
+      `lint skipped files: oxlint read ${parsed.data.number_of_files} of the ${files.length} files under the lint roots; nothing may hide a file from lint.\n`,
+    );
+    return 1;
+  }
+  return settled.reported.length > 0 || settled.problems.length > 0 ? 1 : 0;
+}
+
+if (mode === 'format') {
+  const result = spawnSync(
+    join('node_modules', '.bin', 'oxfmt'),
+    ['--check', ...roots],
+    { stdio: 'inherit' },
+  );
+  if (result.error) throw result.error;
+  process.exitCode = result.status ?? 1;
+} else {
+  process.exitCode = await lint();
+  const problems = [
+    ...disableDirectives(),
+    ...strayLintConfigs(),
+    ...strayFormatConfigs(),
+    ...codeOutsideLintRoots(),
+    ...baselineHistoryProblems('.').map((found) =>
+      problem('web-baseline', found),
+    ),
+    ...[
+      ...readJourneyBaseline('.').problems,
+      ...journeyBaselineHistoryProblems('.'),
+    ].map((found) => problem('web-journey-baseline', found)),
+    ...(await configProblems().catch((error: unknown) => {
+      if (error instanceof StyleProblem) return [error.problem];
+      throw error;
+    })),
+  ];
+  for (const { rule, message } of problems)
+    process.stderr.write(`error style(${rule}): ${message}\n`);
+  if (problems.length > 0) process.exitCode = 1;
+}

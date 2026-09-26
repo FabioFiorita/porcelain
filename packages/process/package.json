@@ -1,0 +1,13 @@
+{
+  "name": "@porcelain/process",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --config ../../vitest.config.ts --project @porcelain/process"
+  },
+  "dependencies": {}
+}

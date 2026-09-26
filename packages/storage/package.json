@@ -1,0 +1,30 @@
+{
+  "name": "@porcelain/storage",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./access": "./src/repositories/access/index.ts",
+    "./git-actions": "./src/repositories/git-actions/index.ts",
+    "./projects": "./src/repositories/projects/index.ts",
+    "./reviews": "./src/repositories/reviews/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "db:generate": "drizzle-kit generate",
+    "db:check": "drizzle-kit check && node scripts/check-migrations.ts",
+    "test": "vitest run --config ../../vitest.config.ts --project @porcelain/storage"
+  },
+  "dependencies": {
+    "@porcelain/access": "workspace:*",
+    "@porcelain/git-actions": "workspace:*",
+    "@porcelain/projects": "workspace:*",
+    "@porcelain/reviews": "workspace:*",
+    "better-sqlite3": "13.0.3",
+    "drizzle-orm": "0.45.2"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "9.6.0",
+    "drizzle-kit": "0.31.10"
+  }
+}

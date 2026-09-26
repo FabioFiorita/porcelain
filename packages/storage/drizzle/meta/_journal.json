@@ -1,0 +1,111 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1788921607579,
+      "tag": "0000_current-schema",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1789345784383,
+      "tag": "0001_light_iceman",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789347169518,
+      "tag": "0002_backfill_comment_authors",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1789882726950,
+      "tag": "0003_pairing_and_devices",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1789905077147,
+      "tag": "0004_worktrees_from_git",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1789909823222,
+      "tag": "0005_names_and_status",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1789996071293,
+      "tag": "0006_stale_reviewed_files",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790000128000,
+      "tag": "0007_normalize_comment_messages",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1790003964000,
+      "tag": "0008_published_reviews",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1790203978906,
+      "tag": "0009_drop_unused_git_action_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1790204021181,
+      "tag": "0010_cascade_deletes_through_foreign_keys",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1790222601073,
+      "tag": "0011_receipts_per_worktree",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1790260447207,
+      "tag": "0012_receipts_as_columns",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
+      "when": 1790261397066,
+      "tag": "0013_monotonic_comment_revision",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "6",
+      "when": 1790279091760,
+      "tag": "0014_reviewed_layers_without_stale",
+      "breakpoints": true
+    }
+  ]
+}

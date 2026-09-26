@@ -1,0 +1,45 @@
+import type { Limits } from '../../config/limits.ts';
+import type { FastifyInstance } from 'fastify';
+import {
+  authenticate,
+  type AuthenticateOptions,
+} from '../hooks/authenticate.ts';
+import {
+  checkRequestOrigin,
+  type RequestOriginOptions,
+} from '../hooks/request-origin.ts';
+import {
+  liveUpdates,
+  type LiveUpdatesOptions,
+} from '../protocol/live-updates.ts';
+
+export type LiveUseCases = AuthenticateOptions &
+  Pick<RequestOriginOptions, 'access'> &
+  LiveUpdatesOptions;
+
+export async function liveScope(
+  server: FastifyInstance,
+  options: {
+    limits: Limits;
+    application: LiveUseCases;
+    allowedHosts: readonly string[];
+  },
+) {
+  const { application, allowedHosts } = options;
+  server.addHook(
+    'onRequest',
+    checkRequestOrigin({ access: application.access, allowedHosts }, true),
+  );
+  server.addHook(
+    'onRequest',
+    authenticate(application, {
+      cookieMaxAgeSeconds: options.limits.access.device.cookieMaxAgeSeconds,
+    }),
+  );
+  server.register(liveUpdates, {
+    deviceConnections: application.deviceConnections,
+    liveUpdates: application.liveUpdates,
+    worktreeWatches: application.worktreeWatches,
+    logger: application.logger,
+  });
+}

@@ -1,7 +1,40 @@
-export * from './private-document.contract'
-export * from './projects.contract'
-export * from './projects.notifications'
-export * from './projects.errors'
-export { type ProjectsProcedureName, projectsProcedures } from './projects.procedures'
-export * from './structured-canvas.contract'
-export * from './structured-canvas-templates.contract'
+export {
+  listFilePreferencesResponseSchema,
+  setFilePreferenceRequestSchema,
+  setFilePreferenceResponseSchema,
+  type ListFilePreferencesResponse,
+  type SetFilePreferenceRequest,
+  type SetFilePreferenceResponse,
+} from './file-preferences.ts';
+export {
+  browseProjectFoldersQuerySchema,
+  browseProjectFoldersResponseSchema,
+  discoverProjectsResponseSchema,
+  listFilePreferencesParamsSchema,
+  readInventoryResponseSchema,
+  registerProjectRequestSchema,
+  registerProjectResponseSchema,
+  removeProjectParamsSchema,
+  removeProjectResponseSchema,
+  renameProjectParamsSchema,
+  renameProjectRequestSchema,
+  renameProjectResponseSchema,
+  setFilePreferenceParamsSchema,
+  type BrowseProjectFoldersQuery,
+  type BrowseProjectFoldersResponse,
+  type DiscoverProjectsResponse,
+  type ListFilePreferencesParams,
+  type ReadInventoryResponse,
+  type RegisterProjectRequest,
+  type RegisterProjectResponse,
+  type RemoveProjectParams,
+  type RemoveProjectResponse,
+  type RenameProjectParams,
+  type RenameProjectRequest,
+  type RenameProjectResponse,
+  type SetFilePreferenceParams,
+} from './inventory.ts';
+export {
+  type FindWorktreeByPathRequest,
+  type FindWorktreeByPathResponse,
+} from './worktree-path.ts';

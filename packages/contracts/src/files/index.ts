@@ -1,4 +1,24 @@
-export * from './files.contract'
-export * from './files.errors'
-export * from './files.notifications'
-export { type FilesProcedureName, filesProcedures } from './files.procedures'
+export {
+  editFileRequestSchema,
+  editFileResponseSchema,
+  listDirectoryQuerySchema,
+  listDirectoryResponseSchema,
+  listWorktreePathsResponseSchema,
+  readFileAssetQuerySchema,
+  readFileAssetResponseSchema,
+  readPreviewAssetsRequestSchema,
+  readPreviewAssetsResponseSchema,
+  readTextFileQuerySchema,
+  readTextFileResponseSchema,
+  type EditFileRequest,
+  type EditFileResponse,
+  type ListDirectoryQuery,
+  type ListDirectoryResponse,
+  type ListWorktreePathsResponse,
+  type ReadFileAssetQuery,
+  type ReadFileAssetResponse,
+  type ReadPreviewAssetsRequest,
+  type ReadPreviewAssetsResponse,
+  type ReadTextFileQuery,
+  type ReadTextFileResponse,
+} from './files.ts';

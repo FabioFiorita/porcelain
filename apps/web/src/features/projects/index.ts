@@ -1,28 +1,17 @@
-/** Web Projects data boundary for the shell's switcher and directory picker. */
-
-export type { ProjectSummary } from '@porcelain/client-runtime/projects'
-export { CanvasList } from './canvas-list'
-export { CanvasView } from './canvas-view'
-export { useCanvasNotificationSubscription } from './canvas-notifications'
-export { useOpenHubWorktree } from './hub-open'
-export { HubTree } from './hub-tree'
+export { useSetHidden } from './commands/set-hidden';
+export { openProjectDialog } from './overlays';
+export { useHiddenPaths } from './queries/file-preferences';
+export { useInventory } from './queries/inventory';
 export {
-  isProjectsQueryKey,
-  projectsQueryKey,
-  useCanvas,
-  useCanvasList,
-  useHubInventories,
-  useHubInventory,
-  useMintCanvasAccessToken,
-  useOpenProject,
-  useProjectDirectories,
-  useRecentProjects,
-  useRemoveRecentProject,
-  useSelectedProject,
-} from './project-data'
+  canonicalPreferencePath,
+  hiddenPathFor,
+  visibleFileTreePaths,
+} from './rules/file-preferences';
 export {
-  browseProjectDirectoriesOnDaemon,
-  openProjectOnDaemon,
-  recentProjectsOnDaemon,
-  removeRecentProjectOnDaemon,
-} from './project-transport'
+  firstWaitingWorktree,
+  selectedWorktreeInProject,
+  worktreeLabel,
+  type Project,
+} from './rules/inventory';
+export { OpenProjectDialog } from './views/open-project-dialog';
+export { ProjectNavigator } from './views/project-navigator';

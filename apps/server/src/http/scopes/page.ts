@@ -1,0 +1,37 @@
+import type { FastifyInstance } from 'fastify';
+import type { WebRootReader } from '../../ports/web-root-reader.ts';
+import type { ReadReviewSummaryUseCase } from '../../use-cases/reviews/read-review-summary.ts';
+import {
+  checkRequestOrigin,
+  type RequestOriginOptions,
+} from '../hooks/request-origin.ts';
+import { summaryPageHeaders } from '../hooks/summary-page-headers.ts';
+import { readReviewSummaryPage } from '../routes/reviews/read-review-summary-page.ts';
+import { staticFiles } from '../static-files.ts';
+
+export type PageUseCases = {
+  access: RequestOriginOptions['access'];
+  reviews: { readReviewSummary: Pick<ReadReviewSummaryUseCase, 'execute'> };
+};
+
+export async function pageScope(
+  server: FastifyInstance,
+  options: {
+    application: PageUseCases;
+    allowedHosts: readonly string[];
+    files: WebRootReader;
+  },
+) {
+  const { application, allowedHosts, files } = options;
+  server.addHook(
+    'onRequest',
+    checkRequestOrigin({ access: application.access, allowedHosts }),
+  );
+  server.register(async (summaries) => {
+    summaries.addHook('onRequest', summaryPageHeaders);
+    summaries.register(readReviewSummaryPage, {
+      useCase: application.reviews.readReviewSummary,
+    });
+  });
+  server.register(staticFiles, { files });
+}

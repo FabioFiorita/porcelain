@@ -1,0 +1,42 @@
+import type { ChangeComparison } from '@porcelain/kernel/models';
+
+export type BranchStatus = {
+  name: string | undefined;
+  upstream: string | undefined;
+  ahead: number;
+  behind: number;
+};
+
+export type ChangeStatusObservation = {
+  statusToken: string;
+  headOid: string | undefined;
+  inProgress: 'merge' | 'rebase' | undefined;
+  mergeHeadOid: string | undefined;
+  branch: BranchStatus | undefined;
+  changes: ChangeComparison[];
+};
+
+type Stash = { oid: string; message: string };
+
+type DiscardedChange = {
+  oid: string;
+  path: string;
+  kind: 'hunk' | 'rename';
+};
+
+type HeadCommit = { subject: string; body?: string | undefined };
+
+export type BranchDetailsRequest = {
+  worktreeId: string;
+  branchName: string | undefined;
+  headOid: string | undefined;
+};
+
+export type BranchDetails = {
+  remoteName: string | undefined;
+  sourceRef: string | undefined;
+  upstreamOid: string | undefined;
+  stashes: Stash[];
+  discarded: DiscardedChange[];
+  headCommit: HeadCommit | undefined;
+};

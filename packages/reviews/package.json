@@ -1,0 +1,20 @@
+{
+  "name": "@porcelain/reviews",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./services": "./src/services/index.ts",
+    "./rules": "./src/rules/index.ts",
+    "./models": "./src/models/index.ts",
+    "./ports": "./src/ports/index.ts",
+    "./errors": "./src/errors/index.ts",
+    "./store-contracts": "./spec/contracts/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --config ../../vitest.config.ts --project @porcelain/reviews"
+  },
+  "dependencies": {
+    "@porcelain/kernel": "workspace:*"
+  }
+}

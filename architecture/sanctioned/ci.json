@@ -1,0 +1,261 @@
+{
+  "workflows": {
+    ".github/workflows/server.yml": {
+      "name": "Server trust checks",
+      "on": {
+        "pull_request": null,
+        "push": {
+          "branches": ["main"]
+        }
+      },
+      "permissions": {
+        "contents": "read"
+      },
+      "concurrency": {
+        "group": "${{ github.workflow }}-${{ github.ref }}",
+        "cancel-in-progress": true
+      },
+      "jobs": {
+        "server": {
+          "runs-on": "ubuntu-latest",
+          "timeout-minutes": 30,
+          "steps": [
+            {
+              "uses": "actions/checkout@v7",
+              "with": {
+                "fetch-depth": 0
+              }
+            },
+            {
+              "uses": "pnpm/setup@v3",
+              "with": {
+                "runtime": "node@24.20.0",
+                "cache": true,
+                "require-lockfile": true
+              }
+            },
+            {
+              "run": "pnpm install --frozen-lockfile"
+            },
+            {
+              "run": "pnpm typecheck:server"
+            },
+            {
+              "run": "pnpm lint:server"
+            },
+            {
+              "run": "pnpm format:server:check"
+            },
+            {
+              "run": "pnpm test"
+            },
+            {
+              "run": "pnpm db:check"
+            },
+            {
+              "run": "sudo apt-get update && sudo apt-get install --yes bubblewrap"
+            },
+            {
+              "name": "Allow unprivileged user namespaces, which Ubuntu 24.04 restricts through AppArmor and bwrap needs",
+              "run": "sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0"
+            },
+            {
+              "run": "bwrap --ro-bind / / --dev /dev --proc /proc --unshare-pid --unshare-ipc --unshare-net --new-session --die-with-parent -- true"
+            },
+            {
+              "run": "node .agents/skills/server-verify/scripts/verify.ts --all"
+            },
+            {
+              "run": "pnpm arch:check"
+            }
+          ]
+        }
+      }
+    },
+    ".github/workflows/web.yml": {
+      "name": "Web trust checks",
+      "on": {
+        "pull_request": null,
+        "push": {
+          "branches": ["main"]
+        }
+      },
+      "permissions": {
+        "contents": "read"
+      },
+      "concurrency": {
+        "group": "${{ github.workflow }}-${{ github.ref }}",
+        "cancel-in-progress": true
+      },
+      "jobs": {
+        "web": {
+          "runs-on": "ubuntu-latest",
+          "timeout-minutes": 60,
+          "steps": [
+            {
+              "uses": "actions/checkout@v7",
+              "with": {
+                "fetch-depth": 0
+              }
+            },
+            {
+              "uses": "pnpm/setup@v3",
+              "with": {
+                "runtime": "node@24.20.0",
+                "cache": true,
+                "require-lockfile": true
+              }
+            },
+            {
+              "run": "pnpm install --frozen-lockfile"
+            },
+            {
+              "run": "pnpm typecheck:web"
+            },
+            {
+              "run": "pnpm lint:web"
+            },
+            {
+              "run": "pnpm format:web:check"
+            },
+            {
+              "run": "pnpm arch:check"
+            },
+            {
+              "run": "pnpm --filter @porcelain/web build"
+            },
+            {
+              "run": "pnpm exec playwright install --with-deps --only-shell chromium"
+            },
+            {
+              "run": "sudo apt-get update && sudo apt-get install --yes bubblewrap"
+            },
+            {
+              "name": "Allow unprivileged user namespaces, which Ubuntu 24.04 restricts through AppArmor and bwrap needs",
+              "run": "sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0"
+            },
+            {
+              "run": "bwrap --ro-bind / / --dev /dev --proc /proc --unshare-pid --unshare-ipc --unshare-net --new-session --die-with-parent -- true"
+            },
+            {
+              "run": "pnpm verify:web --all",
+              "env": {
+                "PORCELAIN_REPETITION_BASE": "${{ github.event.before }}"
+              }
+            }
+          ]
+        }
+      }
+    },
+    ".github/workflows/probes.yml": {
+      "name": "Probe shards",
+      "on": {
+        "pull_request": null,
+        "push": {
+          "branches": ["main"]
+        }
+      },
+      "permissions": {
+        "contents": "read"
+      },
+      "concurrency": {
+        "group": "${{ github.workflow }}-${{ github.ref }}",
+        "cancel-in-progress": true
+      },
+      "jobs": {
+        "probes": {
+          "runs-on": "ubuntu-latest",
+          "timeout-minutes": 20,
+          "strategy": {
+            "fail-fast": false,
+            "matrix": {
+              "shard": [1, 2, 3, 4, 5, 6]
+            }
+          },
+          "steps": [
+            {
+              "uses": "actions/checkout@v7",
+              "with": {
+                "fetch-depth": 0
+              }
+            },
+            {
+              "uses": "pnpm/setup@v3",
+              "with": {
+                "runtime": "node@24.20.0",
+                "cache": true,
+                "require-lockfile": true
+              }
+            },
+            {
+              "run": "pnpm install --frozen-lockfile"
+            },
+            {
+              "run": "pnpm exec playwright install --with-deps --only-shell chromium"
+            },
+            {
+              "run": "sudo apt-get update && sudo apt-get install --yes bubblewrap"
+            },
+            {
+              "name": "Allow unprivileged user namespaces, which Ubuntu 24.04 restricts through AppArmor and bwrap needs",
+              "run": "sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0"
+            },
+            {
+              "run": "bwrap --ro-bind / / --dev /dev --proc /proc --unshare-pid --unshare-ipc --unshare-net --new-session --die-with-parent -- true"
+            },
+            {
+              "run": "pnpm probes --shard ${{ matrix.shard }}/6"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "lefthook": {
+    "pre-push": {
+      "parallel": true,
+      "jobs": [
+        {
+          "name": "server",
+          "group": {
+            "parallel": true,
+            "jobs": [
+              {
+                "run": "pnpm typecheck:server"
+              },
+              {
+                "run": "pnpm lint:server"
+              },
+              {
+                "run": "pnpm format:server:check"
+              },
+              {
+                "run": "pnpm test"
+              },
+              {
+                "run": "pnpm arch:check"
+              }
+            ]
+          }
+        },
+        {
+          "name": "web",
+          "group": {
+            "parallel": true,
+            "jobs": [
+              {
+                "run": "pnpm typecheck:web"
+              },
+              {
+                "run": "pnpm lint:web"
+              },
+              {
+                "run": "pnpm format:web:check"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

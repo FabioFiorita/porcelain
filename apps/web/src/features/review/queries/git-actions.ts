@@ -1,0 +1,175 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react';
+import type {
+  ActionInput,
+  CommitDraftInput,
+  Expectation,
+  GitAction,
+  Receipt,
+} from '@/features/review/model/git-action';
+import type { ReviewScope } from '@/features/review/model/review';
+import { createId } from '@/shared/lib/id';
+import { queryKeys } from '@/shared/query/keys';
+import { refreshGitReceipt } from '@/shared/query/live-updates';
+import { asMutation } from '@/shared/query/mutation';
+import { isTerminal, operationKey } from '@/shared/query/operation-store';
+import { useConnectedContext } from '@/app/workspace-provider';
+
+export function useGitAction(scope: ReviewScope, action: GitAction) {
+  const { api, connection } = useConnectedContext();
+  const client = useQueryClient();
+  const { operations } = connection;
+  const key = operationKey(scope, action);
+  const operation = useSyncExternalStore(
+    (listener) => operations.subscribe(listener),
+    useCallback(() => operations.get(key), [operations, key]),
+  );
+  const request = () => ({ ...scope, ...connection.request() });
+  async function accept(receipt: Receipt) {
+    connection.controller.signal.throwIfAborted();
+    if (
+      receipt.projectId !== scope.projectId ||
+      receipt.worktreeId !== scope.worktreeId ||
+      receipt.action !== action ||
+      receipt.requestId !== operations.get(key)?.requestId
+    )
+      throw new Error('Receipt identity mismatch');
+    await refreshGitReceipt(client, connection.environmentId, receipt);
+    connection.controller.signal.throwIfAborted();
+    operations.accept(receipt);
+    return receipt;
+  }
+  const execution = useMutation({
+    mutationFn: async ({
+      input,
+      expected,
+    }: {
+      input: ActionInput;
+      expected: Expectation;
+    }) => {
+      const previous = operations.get(key);
+      if (previous && (!previous.receipt || !isTerminal(previous.receipt)))
+        throw new Error(
+          'Check the existing receipt before starting another operation.',
+        );
+      if (input.action !== action) throw new Error('Action mismatch');
+      const body = { requestId: createId(), input, expected };
+      operations.set(key, {
+        ...scope,
+        requestId: body.requestId,
+        request: body,
+      });
+      await accept(await api.gitActions.run({ ...request(), input: body }));
+      return operations.wait(key, connection.controller.signal);
+    },
+  });
+  const recovery = useMutation({
+    mutationFn: async () => {
+      const current = operations.get(key);
+      if (!current) throw new Error('No operation to recover');
+      await accept(
+        await api.gitActions.run({ ...request(), input: current.request }),
+      );
+      return operations.wait(key, connection.controller.signal);
+    },
+  });
+  const terminal = operation?.receipt && isTerminal(operation.receipt);
+  return {
+    run: (input: ActionInput, expected: Expectation) =>
+      execution.mutateAsync({ input, expected }),
+    execute: asMutation(execution),
+    recover: asMutation(recovery),
+    operation,
+    startNew: () => {
+      if (terminal) {
+        operations.set(key, null);
+        execution.reset();
+        recovery.reset();
+      }
+    },
+    canStartNew: Boolean(terminal),
+  };
+}
+
+export function useCommitModels() {
+  const { api, connection } = useConnectedContext();
+  return useQuery({
+    queryKey: queryKeys.commitModels(connection.environmentId),
+    queryFn: ({ signal }) =>
+      api.gitActions.models({
+        ...connection.request(),
+        signal: AbortSignal.any([signal, connection.controller.signal]),
+      }),
+    staleTime: 60_000,
+  });
+}
+export function useCommitDraft(scope: ReviewScope) {
+  const { api, connection } = useConnectedContext();
+  const drafts = useRef(new Set<AbortController>());
+  useEffect(() => {
+    const active = drafts.current;
+    return () => {
+      for (const controller of active) controller.abort();
+      active.clear();
+    };
+  }, []);
+  const mutation = asMutation(
+    useMutation({
+      mutationFn: ({
+        signal,
+        ...input
+      }: CommitDraftInput & { signal?: AbortSignal }) =>
+        api.gitActions.draft({
+          ...scope,
+          ...connection.request(signal),
+          input,
+        }),
+    }),
+  );
+  return {
+    ...mutation,
+    submit: async (input: CommitDraftInput) => {
+      const controller = new AbortController();
+      drafts.current.add(controller);
+      try {
+        return await mutation.submit({ ...input, signal: controller.signal });
+      } finally {
+        drafts.current.delete(controller);
+      }
+    },
+  };
+}
+
+export function useBranches(scope: ReviewScope) {
+  const { api, connection } = useConnectedContext();
+  return useQuery({
+    queryKey: queryKeys.reviewSurface(connection.environmentId, scope, [
+      'branches',
+    ]),
+    queryFn: ({ signal }) =>
+      api.gitActions.branches({ ...scope, ...connection.request(signal) }),
+    staleTime: 0,
+  });
+}
+
+export function useDismissInterrupted(scope: ReviewScope) {
+  const { api, connection } = useConnectedContext();
+  const client = useQueryClient();
+  return asMutation(
+    useMutation({
+      mutationFn: (requestId: string) =>
+        api.gitActions.dismissInterrupted({
+          ...scope,
+          ...connection.request(),
+          requestId,
+        }),
+      onSuccess: () =>
+        client.invalidateQueries({
+          queryKey: queryKeys.reviewSurface(connection.environmentId, scope, [
+            'changes',
+          ]),
+          exact: true,
+        }),
+    }),
+  );
+}

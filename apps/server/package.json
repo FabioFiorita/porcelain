@@ -1,0 +1,41 @@
+{
+  "name": "@porcelain/server",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node --input-type=module --eval \"const { cli } = await import('./src/bootstrap/main.ts'); await cli.run();\"",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --config ../../vitest.config.ts --project @porcelain/server"
+  },
+  "dependencies": {
+    "@fastify/sensible": "6.0.5",
+    "@fastify/type-provider-zod": "1.0.0",
+    "@fastify/websocket": "11.3.1",
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "@parcel/watcher": "2.6.0",
+    "@porcelain/access": "workspace:*",
+    "@porcelain/agents": "workspace:*",
+    "@porcelain/changes": "workspace:*",
+    "@porcelain/contracts": "workspace:*",
+    "@porcelain/files": "workspace:*",
+    "@porcelain/git": "workspace:*",
+    "@porcelain/git-actions": "workspace:*",
+    "@porcelain/kernel": "workspace:*",
+    "@porcelain/process": "workspace:*",
+    "@porcelain/projects": "workspace:*",
+    "@porcelain/reviews": "workspace:*",
+    "@porcelain/storage": "workspace:*",
+    "better-sqlite3": "13.0.3",
+    "drizzle-orm": "0.45.2",
+    "fastify": "5.12.3",
+    "qrcode-terminal": "0.12.0",
+    "trash": "10.1.1",
+    "ws": "8.21.3",
+    "zod": "4.5.4"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "9.6.0",
+    "@types/qrcode-terminal": "0.12.2",
+    "@types/ws": "8.18.1"
+  }
+}

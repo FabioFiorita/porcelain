@@ -1,22 +1,31 @@
-import './assets/main.css'
+import { QueryClientProvider } from '@tanstack/react-query';
+import { RouterProvider } from '@tanstack/react-router';
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
+import { Toaster } from './components/ui/toast';
+import { TooltipProvider } from './components/ui/tooltip';
+import { createAppRouter } from './routes/router';
+import './app.css';
+import { createBootApi } from './app/boot';
+import { createQueryClient } from '@/shared/query/client';
+import { WorkspaceProvider } from './app/workspace-provider';
 
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import App from './App'
-import { applyResolvedTheme, resolveTheme } from './lib/theme'
-import { usePreferencesStore } from './stores/preferences'
+const queryClient = createQueryClient();
+const api = await createBootApi();
+const router = createAppRouter(queryClient);
 
-// Correct the boot theme before first paint. index.html hardwires
-// `class="dark"` as a dark flash-guard; zustand's persist hydrates
-// synchronously from localStorage, so we can resolve the real preference here
-// and flip the class/color-scheme before React mounts (no light-on-dark flash).
-applyResolvedTheme(resolveTheme(usePreferencesStore.getState().theme))
-
-const root = document.getElementById('root')
-if (!root) throw new Error('Root element not found')
-
+const root = document.getElementById('root');
+if (!root) throw new Error('Missing application root');
 createRoot(root).render(
   <StrictMode>
-    <App />
+    <TooltipProvider>
+      <QueryClientProvider client={queryClient}>
+        <WorkspaceProvider api={api}>
+          <Toaster>
+            <RouterProvider router={router} />
+          </Toaster>
+        </WorkspaceProvider>
+      </QueryClientProvider>
+    </TooltipProvider>
   </StrictMode>,
-)
+);
