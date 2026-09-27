@@ -7,7 +7,7 @@ import type {
 import { isFingerprintable } from '../model/review';
 import { queryKeys } from '@/shared/query/keys';
 import { asMutation } from '@/shared/query/mutation';
-import { enqueueReviewed, enqueueReviewedMany } from './reviewed-queue';
+import { enqueueReviewed, enqueueReviewedMany } from '@/features/reviews/index';
 import { useConnectedContext } from '@/app/workspace-provider';
 
 function useReviewedContext(scope: ReviewScope) {

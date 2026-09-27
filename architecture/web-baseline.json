@@ -16,7 +16,6 @@
     "apps/web/src/features/review/queries/comments.ts": 4,
     "apps/web/src/features/review/queries/git-actions.ts": 1,
     "apps/web/src/features/review/queries/published-review.ts": 2,
-    "apps/web/src/features/review/queries/reviewed-queue.ts": 3,
     "apps/web/src/shared/query/live-updates.ts": 3
   },
   "porcelain/web-commands-own-writes": {
@@ -103,8 +102,7 @@
   "porcelain/web-queries-export-reads": {
     "apps/web/src/features/review/queries/comments.ts": 2,
     "apps/web/src/features/review/queries/review.ts": 1,
-    "apps/web/src/features/review/queries/reviewed-mutations.ts": 2,
-    "apps/web/src/features/review/queries/reviewed-queue.ts": 2
+    "apps/web/src/features/review/queries/reviewed-mutations.ts": 2
   },
   "porcelain/web-refs-in-adapters": {
     "apps/web/src/app/views/connected-workspace.tsx": 1,
@@ -251,7 +249,6 @@
     "apps/web/src/features/review/queries/published-review.ts": 1,
     "apps/web/src/features/review/queries/review.ts": 1,
     "apps/web/src/features/review/queries/reviewed-mutations.ts": 1,
-    "apps/web/src/features/review/queries/reviewed-queue.ts": 1,
     "apps/web/src/features/review/views/branch-dialog.tsx": 1,
     "apps/web/src/features/review/views/code-document.tsx": 1,
     "apps/web/src/features/review/views/commit-document.tsx": 1,

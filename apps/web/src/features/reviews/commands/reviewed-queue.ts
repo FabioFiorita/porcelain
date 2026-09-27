@@ -1,5 +1,7 @@
 import type { QueryClient } from '@tanstack/react-query';
-import type { ReviewedMarksResponse } from '@/features/review/model/review';
+import type { ListReviewedFilesResponse } from '@porcelain/contracts/reviews';
+
+type ReviewedMarksResponse = ListReviewedFilesResponse;
 
 type Intent = { path: string; fingerprint?: string; reviewedAt: string };
 type Queue = {
