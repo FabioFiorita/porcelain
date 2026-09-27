@@ -8,23 +8,17 @@ TypeScript, the architecture check, Oxlint and Oxfmt are the rules; the codebase
 
 Copy the nearest feature's shape. Every lint message says why its rule exists; read the message before working around it.
 
-## Before you finish a server change
+## Proof at each stage
 
-Run from the repository root, all of them, and report every result honestly:
+Run commands from the repository root and report every result honestly.
 
-```
-pnpm typecheck:server
-pnpm lint:server
-pnpm format:server:check
-pnpm test
-pnpm arch:check
-pnpm db:check
-node .agents/skills/server-verify/scripts/verify.ts --all
-```
+- **Worker, ordinary feature change:** run typecheck, lint and format checks for the side you changed, `pnpm arch:check`, and `pnpm test` when changing a spec or pure rule. For server behavior, run the affected HTTP feature with `node .agents/skills/server-verify/scripts/verify.ts <feature>` and `pnpm db:check` if storage changed. For web behavior, run each affected browser journey five clean times against fresh servers, stopping on a failure. The `web-verify` skill explains the runner's five-run selection. Do not call a feature done without its focused proof.
+- **Integrated candidate, before push:** run `pnpm typecheck:server`, `pnpm lint:server`, `pnpm format:server:check`, `pnpm test`, `pnpm arch:check`, `pnpm db:check`, `node .agents/skills/server-verify/scripts/verify.ts --all`, `pnpm typecheck:web`, `pnpm lint:web`, `pnpm format:web:check`, `pnpm --filter @porcelain/web build` and `pnpm verify:web --all`. The full HTTP net and browser suite run once here; changed journeys already have five-run worker proof and CI repeats changed journey specs or map entries.
+- **Guardrail or verifier change:** run the full local `pnpm probes` suite, including every probe under `architecture/probes/`, before push. Ordinary feature changes use the focused worker proof and integrated candidate proof instead. CI runs every probe in six shards on each pull request update and on pushes to `main`.
 
-Lefthook's pre-push, installed by `pnpm install`, runs the fast server checks (typecheck, lint, format check, test and arch, which covers the web too) and the fast web checks (typecheck, lint and format check) before every push; `db:check`, the net and `pnpm probes` stay yours to run. CI runs the full web set in `.github/workflows/web.yml`.
+Lefthook's pre-push, installed by `pnpm install`, runs the fast server checks (typecheck, lint, format check, test and arch, which covers the web too) and the fast web checks (typecheck, lint and format check). CI runs the full web set in `.github/workflows/web.yml`.
 
-A change to behaviour is not done until a behaviour spec states its promise (`server-spec`) and the verification net has a case that reaches it over HTTP (`server-verify`). A change to a guardrail is not done until `pnpm probes` reports every probe under `architecture/probes/` rejected.
+A change to behaviour is not done until a behaviour spec states its promise (`server-spec`) and the verification net has a case that reaches it over HTTP (`server-verify`). A change to a guardrail is not done until the full local probe suite rejects every probe.
 
 ## Web rebuild
 
@@ -36,7 +30,7 @@ Existing web code still breaks many of these rules. `architecture/web-baseline.j
 
 Use shadcn registry components for UI primitives. Search the installed registry with `pnpm --filter @porcelain/web exec shadcn list @shadcn --query <name>` and add a missing primitive through the shadcn CLI. Do not create a local replacement in a feature view or add a hand-written primitive to `components/ui`; that folder holds shadcn registry components. Compose product-specific views in their feature folders.
 
-Run `pnpm typecheck:web`, `pnpm lint:web`, `pnpm format:web:check`, `pnpm arch:check` and `pnpm verify:web --all` before declaring a web feature done, and `pnpm probes` after changing a guardrail. Browser behavior cases run with Vitest Browser Mode and its Playwright Chromium provider against a disposable real server. Agent inspection and performance use `pnpm devtools` through the `web-verify` skill. Do not add a runtime mock API or a separate prototype.
+Use the proof stages above for web work. Browser behavior cases run with Vitest Browser Mode and its Playwright Chromium provider against a disposable real server. Agent inspection and performance use `pnpm devtools` through the `web-verify` skill. Do not add a runtime mock API or a separate prototype.
 
 ## Skills
 

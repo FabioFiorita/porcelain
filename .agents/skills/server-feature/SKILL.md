@@ -18,7 +18,7 @@ A feature is one route over one use case. Copy the nearest feature in the same a
 7. **Errors.** Give every new error class its status in `apps/server/src/http/status-policy.ts`; `status-policy.spec.ts` fails until it has one.
 8. **Spec.** Follow `server-spec` for each new service, rule, parser or sequencing use case.
 9. **Net case.** Follow `server-verify`: name the route in a feature's `reaches` under `.agents/skills/server-verify/feature-map/` and request it from a case. `verify.ts --all` fails while any registered route is in no feature's `reaches`.
-10. **Gates.** Run the seven commands in `AGENTS.md` and report each result.
+10. **Gates.** Run the worker proof for the affected feature in `AGENTS.md` and report each result. The integrated candidate runs the full gate list and HTTP net once.
 
 ## Changing or removing one
 
@@ -26,4 +26,4 @@ Change the contract first; `pnpm typecheck:server` then leads through the route,
 
 ## When a guardrail changed
 
-A change to a lint, `architecture/policy.ts`, `architecture/type-rules.ts` or a gate's configuration is committed and then proved with `pnpm probes`, which plants every probe in `architecture/probes/` and fails unless its gate rejects it. A new guardrail adds a probe there, `<decision>-<what-it-plants>.ts`, shaped like its neighbours (`architecture/probe.ts`).
+A change to a lint, `architecture/policy.ts`, `architecture/type-rules.ts` or a gate's configuration is proved with the full local `pnpm probes` suite before push. It runs from a clean checkout; use a disposable worktree if the main checkout must remain uncommitted. A new guardrail adds a probe there, `<decision>-<what-it-plants>.ts`, shaped like its neighbours (`architecture/probe.ts`).
