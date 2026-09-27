@@ -24,7 +24,7 @@ import { useReviewChanges } from '@/features/review/queries/review';
 import { CodeDocument, type CodeEntry } from './code-document';
 import { DocumentToolbar } from './document-toolbar';
 import { MarkdownView } from '@/features/files/index';
-import { contextPatch, focusPatch } from './patch-focus';
+import { contextPatch, focusPatch } from '@/features/reviews/index';
 import { type Graph, ReviewDiagram } from './review-diagram';
 
 export function PublishedLayer({

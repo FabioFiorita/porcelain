@@ -6,3 +6,5 @@ export {
   enqueueReviewedMany,
 } from './commands/reviewed-queue';
 export * from './rules/review';
+export { contextPatch, focusPatch, spansLabel } from './rules/patch-focus';
+export type { LineSpan } from './rules/patch-focus';

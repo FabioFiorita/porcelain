@@ -27,7 +27,7 @@ import {
 import { CodeDocument, type CodeEntry } from './code-document';
 import { fileEntry } from './diff-entries';
 import { InlineComposer } from './inline-composer';
-import { focusPatch, type LineSpan } from './patch-focus';
+import { focusPatch, type LineSpan } from '@/features/reviews/index';
 import { ReviewedControl } from './reviewed-control';
 import { ThreadCard } from './thread-card';
 

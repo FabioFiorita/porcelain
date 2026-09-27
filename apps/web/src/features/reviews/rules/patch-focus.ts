@@ -1,3 +1,5 @@
+import { REVIEW_PATCH_CONTEXT_LINES } from '@/config/limits';
+
 export type LineSpan = { startLine: number; endLine: number };
 
 type PatchHunk = { oldStart: number; newStart: number; lines: string[] };
@@ -81,7 +83,7 @@ export function spansLabel(spans: readonly LineSpan[]): string {
 export function focusPatch(
   patch: string,
   spans: readonly LineSpan[],
-  context = 3,
+  context = REVIEW_PATCH_CONTEXT_LINES,
 ): string | null {
   const { header, hunks } = splitPatch(patch);
   if (hunks.length === 0) return patch;

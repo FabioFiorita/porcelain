@@ -2,7 +2,7 @@ import { type ReviewScope, notExplainedLabel } from '@/features/reviews/index';
 
 import { usePublishedReview } from '@/features/review/queries/published-review';
 import { DocumentToolbar } from './document-toolbar';
-import { spansLabel } from './patch-focus';
+import { spansLabel } from '@/features/reviews/index';
 import { ReviewCodeDocument } from './review-code-document';
 import { ReviewEmpty } from './review-empty';
 
