@@ -219,6 +219,12 @@
     "apps/web/src/features/review/views/reviewed-control.tsx": 1,
     "apps/web/src/features/review/views/use-tab-layout.ts": 1
   },
+  "typescript/no-deprecated": {
+    "apps/web/src/app/workspace-provider.tsx": 2,
+    "apps/web/src/features/changes/commands/read-current-changes.ts": 1,
+    "apps/web/src/shared/lib/submit-form.ts": 1,
+    "apps/web/src/shared/workspace/copy.ts": 1
+  },
   "unclassified-import-target": {
     "apps/web/src/app/workspace-provider.tsx": 1,
     "apps/web/src/main.tsx": 1,

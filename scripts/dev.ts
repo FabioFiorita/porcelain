@@ -6,7 +6,7 @@ import { z } from 'zod';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const webRoot = resolve(root, 'apps/web');
-const readySchema = z.object({ address: z.string().url() });
+const readySchema = z.object({ address: z.url() });
 
 function exitOf(child: ChildProcess): Promise<number> {
   return new Promise((done) => {

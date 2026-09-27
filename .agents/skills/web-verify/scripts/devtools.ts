@@ -36,8 +36,8 @@ const logPath = join(folder, 'host.log');
 const cli = resolve(repositoryRoot, 'node_modules/.bin/chrome-devtools');
 const stateSchema = z.object({
   pid: z.number(),
-  origin: z.string().url(),
-  serverAddress: z.string().url(),
+  origin: z.url(),
+  serverAddress: z.url(),
   evidence: z.string(),
   socketPath: z.string(),
 });

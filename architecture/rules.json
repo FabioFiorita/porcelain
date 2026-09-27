@@ -104,6 +104,7 @@
   ],
   "typescript": [
     "consistent-type-imports",
+    "no-deprecated",
     "no-explicit-any",
     "no-floating-promises",
     "no-misused-promises",
