@@ -1,6 +1,5 @@
 {
   "porcelain/no-number-outside-limits": {
-    "apps/web/src/features/review/api/git-actions-live.ts": 2,
     "apps/web/src/features/review/queries/git-actions.ts": 1,
     "apps/web/src/features/review/queries/published-review.ts": 8,
     "apps/web/src/routes/router.tsx": 2,
@@ -60,7 +59,6 @@
     "apps/web/src/features/review/views/reviewed-control.tsx": 2,
     "apps/web/src/features/review/views/use-code-folds.ts": 1,
     "apps/web/src/features/review/views/use-tab-layout.ts": 2,
-    "apps/web/src/shared/query/operation-store.ts": 2,
     "apps/web/src/shared/workspace/preferences.tsx": 1
   },
   "porcelain/web-no-manual-memo": {
@@ -228,8 +226,7 @@
     "apps/web/src/main.tsx": 1,
     "apps/web/src/routes/router.tsx": 2,
     "apps/web/src/shared/query/keys.ts": 1,
-    "apps/web/src/shared/query/live-updates.ts": 2,
-    "apps/web/src/shared/query/operation-store.ts": 1
+    "apps/web/src/shared/query/live-updates.ts": 2
   },
   "unclassified-source": {
     "apps/web/src/app/api.ts": 1,
@@ -243,8 +240,6 @@
     "apps/web/src/features/review/api/changes-live.ts": 1,
     "apps/web/src/features/review/api/comments-live.ts": 1,
     "apps/web/src/features/review/api/comments-port.ts": 1,
-    "apps/web/src/features/review/api/git-actions-live.ts": 1,
-    "apps/web/src/features/review/api/git-actions-port.ts": 1,
     "apps/web/src/features/review/api/published-review-live.ts": 1,
     "apps/web/src/features/review/api/review-live.ts": 1,
     "apps/web/src/features/review/api/review-port.ts": 1,
@@ -253,9 +248,7 @@
     "apps/web/src/features/review/index.ts": 1,
     "apps/web/src/features/review/model/comments.ts": 1,
     "apps/web/src/features/review/model/commit-files.ts": 1,
-    "apps/web/src/features/review/model/commit-model.ts": 1,
     "apps/web/src/features/review/model/documents.ts": 1,
-    "apps/web/src/features/review/model/git-action.ts": 1,
     "apps/web/src/features/review/model/review.ts": 1,
     "apps/web/src/features/review/model/tab-strip.ts": 1,
     "apps/web/src/features/review/queries/comments.ts": 1,
@@ -322,7 +315,6 @@
   },
   "web-shared-imports-no-owner": {
     "apps/web/src/shared/query/keys.ts": 1,
-    "apps/web/src/shared/query/live-updates.ts": 2,
-    "apps/web/src/shared/query/operation-store.ts": 1
+    "apps/web/src/shared/query/live-updates.ts": 2
   }
 }

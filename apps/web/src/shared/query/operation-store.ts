@@ -1,8 +1,46 @@
 import {
-  type Operation,
-  parseRetainedOperation,
-  type Receipt,
-} from '@/features/review/index';
+  gitActionScopeSchema,
+  runGitActionRequestSchema,
+  type RunGitActionRequest,
+  type RunGitActionResponse,
+} from '@porcelain/contracts/git-actions';
+
+type Receipt = RunGitActionResponse;
+type Operation = {
+  requestId: string;
+  projectId: string;
+  worktreeId: string;
+  request: RunGitActionRequest;
+  receipt?: Receipt;
+};
+
+function parseRetainedOperation(value: unknown): Operation | null {
+  if (!isRecord(value)) return null;
+  const candidate = value;
+  const parsedScope = gitActionScopeSchema.safeParse({
+    projectId: candidate.projectId,
+    worktreeId: candidate.worktreeId,
+  });
+  const request = runGitActionRequestSchema.safeParse(candidate.request);
+  if (
+    !parsedScope.success ||
+    !request.success ||
+    typeof candidate.projectId !== 'string' ||
+    candidate.projectId.length === 0 ||
+    candidate.requestId !== request.data.requestId
+  )
+    return null;
+  return {
+    ...parsedScope.data,
+    projectId: candidate.projectId,
+    requestId: request.data.requestId,
+    request: request.data,
+  };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
 
 export function isTerminal(receipt: Receipt) {
   return receipt.state !== 'running';
@@ -32,7 +70,9 @@ export function createOperationStore(persistence?: Persistence) {
               operation,
             );
         }
-    } catch {}
+    } catch {
+      operations.clear();
+    }
   }
   const persist = () => {
     if (!persistence) return;
@@ -43,7 +83,9 @@ export function createOperationStore(persistence?: Persistence) {
       if (pending.length)
         persistence.storage.setItem(persistence.key, JSON.stringify(pending));
       else persistence.storage.removeItem(persistence.key);
-    } catch {}
+    } catch {
+      return;
+    }
   };
   const listeners = new Set<() => void>();
   const notify = () => {

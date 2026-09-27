@@ -9,7 +9,7 @@ import {
   GitCommitHorizontalIcon,
   HistoryIcon,
 } from 'lucide-react';
-import type { GitAction } from '@/features/review/model/git-action';
+import type { GitAction } from '@/features/git-actions/index';
 import type { Change, Status } from '@/features/review/model/review';
 
 export type GitBranchStatus = Pick<

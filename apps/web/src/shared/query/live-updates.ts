@@ -1,13 +1,15 @@
 import type { LiveNotice } from '@porcelain/contracts/access';
+import type { RunGitActionResponse } from '@porcelain/contracts/git-actions';
 import type { QueryClient, QueryFilters } from '@tanstack/react-query';
 import type { Api } from '@/app/api';
-import type { Receipt } from '@/features/review/index';
 import type { ReviewScope } from '@/features/review/index';
 import { queryKeys } from '@/shared/query/keys';
 import {
   isTerminal,
   type OperationStore,
 } from '@/shared/query/operation-store';
+
+type Receipt = RunGitActionResponse;
 
 type Connection = {
   environmentId: string;

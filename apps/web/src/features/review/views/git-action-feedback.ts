@@ -1,4 +1,4 @@
-import type { Expectation, Receipt } from '@/features/review/model/git-action';
+import type { Expectation, Receipt } from '@/features/git-actions/index';
 import type { GitActionStatus } from './git-action-options';
 
 export function expectationFor(

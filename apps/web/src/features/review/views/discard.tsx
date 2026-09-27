@@ -16,7 +16,7 @@ import {
   useReadCurrentChanges,
   useReviewOverview,
 } from '@/features/changes/index';
-import type { Receipt } from '@/features/review/model/git-action';
+import type { Receipt } from '@/features/git-actions/index';
 import {
   basename,
   type ChangeList,

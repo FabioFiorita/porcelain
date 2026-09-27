@@ -13,13 +13,8 @@ export const ReviewWorkspace = lazy(() =>
 );
 export { createCommentsLive } from './api/comments-live';
 export type { CommentsPort } from './api/comments-port';
-export { createGitActionsLive } from './api/git-actions-live';
-export type { GitActionsPort } from './api/git-actions-port';
 export { createReviewLive } from './api/review-live';
 export type { ReviewPort } from './api/review-port';
-export { groupedCommitModels, resolveCommitModel } from './model/commit-model';
-export { parseRetainedOperation } from './model/git-action';
-export type { Operation, Receipt } from './model/git-action';
 export { isSurface } from './model/review';
 export type { ReviewScope, Surface } from './model/review';
 export { useCommitModels } from './queries/git-actions';

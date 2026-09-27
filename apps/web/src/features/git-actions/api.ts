@@ -9,7 +9,40 @@ import {
   runGitActionRequestSchema,
 } from '@porcelain/contracts/git-actions';
 import { RequestError, requestJson } from '@/shared/api/request';
-import type { GitActionsPort } from '@/features/review/api/git-actions-port';
+import { GIT_ACTION_REJECTED_STATUSES } from '@/config/limits';
+import type {
+  BranchesResponse,
+  CommitDraft,
+  CommitDraftInput,
+  CommitModel,
+  Receipt,
+  RunGitActionRequest,
+} from './rules/git-action';
+
+type GitActionsRequest = {
+  projectId: string;
+  worktreeId: string;
+  signal: AbortSignal;
+};
+
+export type GitActionsPort = {
+  models: (
+    request: Pick<GitActionsRequest, 'signal'>,
+  ) => Promise<CommitModel[]>;
+  draft: (
+    request: GitActionsRequest & { input: CommitDraftInput },
+  ) => Promise<CommitDraft>;
+  run: (
+    request: GitActionsRequest & { input: RunGitActionRequest },
+  ) => Promise<Receipt>;
+  branches: (request: GitActionsRequest) => Promise<BranchesResponse>;
+  dismissInterrupted: (
+    request: GitActionsRequest & { requestId: string },
+  ) => Promise<void>;
+  receipt: (
+    request: GitActionsRequest & { requestId: string },
+  ) => Promise<Receipt>;
+};
 
 export function createGitActionsLive(transport: typeof fetch): GitActionsPort {
   const path = (worktreeId: string) =>
@@ -47,7 +80,7 @@ export function createGitActionsLive(transport: typeof fetch): GitActionsPort {
           ...json(runGitActionRequestSchema.encode(input)),
           signal,
         },
-        [409, 503],
+        GIT_ACTION_REJECTED_STATUSES,
       );
       if ('requestId' in result) return result;
       throw new RequestError(result.statusCode, result.message);

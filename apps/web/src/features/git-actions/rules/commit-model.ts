@@ -1,4 +1,4 @@
-import type { CommitModel } from '@/features/review/model/git-action';
+import type { CommitModel } from './git-action';
 
 export function groupedCommitModels(models: readonly CommitModel[]) {
   const groups = new Map<string, CommitModel[]>();

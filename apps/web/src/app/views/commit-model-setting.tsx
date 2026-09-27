@@ -6,7 +6,7 @@ import {
 import {
   groupedCommitModels,
   resolveCommitModel,
-} from '@/features/review/index';
+} from '@/features/git-actions/index';
 import { useCommitModels } from '@/features/review/index';
 import { usePreferences } from '@/shared/workspace/preferences';
 

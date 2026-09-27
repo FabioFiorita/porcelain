@@ -36,10 +36,7 @@ import {
 } from '@/components/ui/popover';
 import { Spinner } from '@/components/ui/spinner';
 import { toast } from '@/components/ui/toast';
-import type {
-  ActionInput,
-  GitAction,
-} from '@/features/review/model/git-action';
+import type { ActionInput, GitAction } from '@/features/git-actions/index';
 import {
   comparisons,
   type ReviewScope,

@@ -6,7 +6,7 @@ import type {
   Expectation,
   GitAction,
   Receipt,
-} from '@/features/review/model/git-action';
+} from '@/features/git-actions/index';
 import type { ReviewScope } from '@/features/review/model/review';
 import { createId } from '@/shared/lib/id';
 import { queryKeys } from '@/shared/query/keys';

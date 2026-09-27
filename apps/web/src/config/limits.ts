@@ -21,3 +21,4 @@ export const FILE_PREVIEW_MAX_BYTES = 28 * 1024 * 1024;
 export const FILE_PREVIEW_MAX_ROUNDS = 8;
 export const FILE_ICON_DEFAULT_SIZE = 16;
 export const FILE_NAME_SUFFIX_START = 2;
+export const GIT_ACTION_REJECTED_STATUSES = [409, 503];
