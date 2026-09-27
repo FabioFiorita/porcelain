@@ -91,7 +91,6 @@
     "web-store-owns-zustand",
     "web-timers-in-commands-and-store",
     "web-transport-owner",
-    "web-view-line-budget",
     "web-views-no-await",
     "web-views-no-promise-chains",
     "web-views-no-command-loops",

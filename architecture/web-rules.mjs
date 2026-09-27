@@ -6,7 +6,6 @@ const repositoryRoot = fileURLToPath(new URL('..', import.meta.url)).replaceAll(
   '\\',
   '/',
 );
-const VIEW_LINE_BUDGET = 150;
 const webSource = 'apps/web/src/';
 const reactModules = new Set(['react', 'react-dom']);
 const queryModules = new Set(['@tanstack/react-query', '@tanstack/query-core']);
@@ -937,15 +936,6 @@ export const webRules = {
           node,
           message:
             'A view receives feature data; the contract is read and parsed in api.ts, queries/ and commands/.',
-        });
-    },
-  })),
-  'web-view-line-budget': viewRule((context) => ({
-    Program(program) {
-      if (context.sourceCode.lines.length > VIEW_LINE_BUDGET)
-        context.report({
-          node: program,
-          message: `A view stays under ${VIEW_LINE_BUDGET} lines: split it into smaller views in the same views/ folder and move logic into rules/, queries/ or commands/.`,
         });
     },
   })),

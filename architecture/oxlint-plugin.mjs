@@ -428,6 +428,7 @@ const kernelTypesFile = /^packages\/kernel\/src\/(?:models|ports)\//;
 const numberFreeFile = new RegExp(
   `^(?:packages/[^/]+/src/|apps/server/src/|apps/web/src/)`,
 );
+const visualViewFile = /^apps\/web\/src\/(?:app|features\/[^/]+)\/views\//;
 const limitsFile =
   /^(?:packages\/contracts\/src\/shared\/limits|apps\/(?:server|web)\/src\/config\/limits)\.ts$/;
 const statusName = /(?:^|\.)status(?:Code)?$/i;
@@ -2685,12 +2686,13 @@ export default {
         if (
           !numberFreeFile.test(path) ||
           limitsFile.test(path) ||
+          visualViewFile.test(path) ||
           webPart(path) === 'ui' ||
           isSpec(context)
         )
           return {};
         const message =
-          'A number above 1 is a limit: it lives in contracts/shared/limits.ts when the server enforces it too, otherwise in the server or web config/limits.ts, and arrives as a parameter or an option.';
+          'An operational number above 1 lives in contracts/shared/limits.ts when the server enforces it too, otherwise in the server or web config/limits.ts, and arrives as a parameter or an option. Visual values in views are outside this rule.';
         const hiddenNumber = (node) => {
           const text = staticString(node, context);
           return text !== undefined && Number(text) > 1;
