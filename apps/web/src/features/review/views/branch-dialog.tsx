@@ -14,7 +14,7 @@ import {
   NativeSelect,
   NativeSelectOption,
 } from '@/components/ui/native-select';
-import type { ReviewScope } from '@/features/review/model/review';
+import type { ReviewScope } from '@/features/reviews/index';
 import {
   useBranches,
   useGitAction,

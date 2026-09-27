@@ -9,13 +9,15 @@ import type {
   ReviewPort,
   ReviewRequest,
 } from '@/features/review/api/review-port';
-import type {
-  ChangeList,
-  ReviewChangeItem,
-  ReviewedMarksResponse,
-  ReviewScope,
-} from '@/features/review/model/review';
-import { reviewMark, reviewStatus } from '@/features/review/model/review';
+import {
+  type ChangeList,
+  type ReviewChangeItem,
+  type ReviewedMarksResponse,
+  type ReviewScope,
+  reviewMark,
+  reviewStatus,
+} from '@/features/reviews/index';
+
 import { queryKeys } from '@/shared/query/keys';
 import { usePublishedReview } from '@/features/review/queries/published-review';
 import { useConnectedContext } from '@/app/workspace-provider';

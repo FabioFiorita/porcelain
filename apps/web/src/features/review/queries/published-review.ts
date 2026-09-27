@@ -1,6 +1,6 @@
 import { ConnectionError } from '@/shared/api/connection-error';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { ReviewScope } from '@/features/review/model/review';
+import type { ReviewScope } from '@/features/reviews/index';
 import { queryKeys } from '@/shared/query/keys';
 import { useConnectedContext } from '@/app/workspace-provider';
 

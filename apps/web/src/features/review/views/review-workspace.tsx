@@ -43,9 +43,11 @@ import {
   type OpenDocument,
   parseEntry,
   type RevealComment,
+  type ReviewLayer,
+  type Surface,
 } from '@/features/reviews/index';
 import type { Project } from '@/features/projects/index';
-import type { ReviewLayer, Surface } from '@/features/review/model/review';
+
 import { usePublishedReview } from '@/features/review/queries/published-review';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
 import { ConflictGuidance } from './conflict-guidance';

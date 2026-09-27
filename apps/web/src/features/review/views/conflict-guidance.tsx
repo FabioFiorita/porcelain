@@ -2,7 +2,7 @@ import { CopyIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAccessStore } from '@/features/access/index';
 import { useReviewOverview } from '@/features/changes/index';
-import type { ReviewScope } from '@/features/review/model/review';
+import type { ReviewScope } from '@/features/reviews/index';
 import { copyText } from '@/shared/workspace/copy';
 
 export function ConflictGuidance({

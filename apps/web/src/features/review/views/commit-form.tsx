@@ -20,7 +20,7 @@ import {
   resolveCommitModel,
 } from '@/features/git-actions/index';
 import type { CommitDraft } from '@/features/git-actions/index';
-import type { ReviewScope } from '@/features/review/model/review';
+import type { ReviewScope } from '@/features/reviews/index';
 import { createId } from '@/shared/lib/id';
 import {
   useCommitDraft,

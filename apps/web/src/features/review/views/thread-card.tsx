@@ -14,14 +14,15 @@ import {
 } from '@/components/ui/message';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/shared/lib/utils';
-import type {
-  CommentAnchor,
-  CommentAuthor,
-  CommentMessage,
-  CommentThread,
+import {
+  type CommentAnchor,
+  type CommentAuthor,
+  type CommentMessage,
+  type CommentThread,
+  type ReviewScope,
+  basename,
 } from '@/features/reviews/index';
-import type { ReviewScope } from '@/features/review/model/review';
-import { basename } from '@/features/review/model/review';
+
 import { discardRejection } from '@/shared/lib/submit-form';
 import {
   useReplyComment,

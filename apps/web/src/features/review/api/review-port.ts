@@ -10,7 +10,7 @@ import type {
   SetReviewedBulkResponse,
   SetReviewedRequest,
   Status,
-} from '@/features/review/model/review';
+} from '@/features/reviews/index';
 import type {
   ListReviewedLayersResponse,
   SetReviewedLayerRequest,

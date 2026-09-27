@@ -9,14 +9,15 @@ import {
   useRecoverChangedDiffs,
 } from '@/features/changes/index';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import type { OpenDocument } from '@/features/reviews/index';
-import type {
-  ChangeSelection,
-  ReviewChangeItem,
-  ReviewLayer,
-  ReviewScope,
-  ReviewStep,
-} from '@/features/review/model/review';
+import {
+  type OpenDocument,
+  type ChangeSelection,
+  type ReviewChangeItem,
+  type ReviewLayer,
+  type ReviewScope,
+  type ReviewStep,
+} from '@/features/reviews/index';
+
 import { contentVersion } from '@/shared/lib/pierre';
 import { useLayerMarks } from '@/features/review/queries/published-review';
 import { useReviewChanges } from '@/features/review/queries/review';

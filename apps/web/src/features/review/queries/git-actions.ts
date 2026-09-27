@@ -7,7 +7,7 @@ import type {
   GitAction,
   Receipt,
 } from '@/features/git-actions/index';
-import type { ReviewScope } from '@/features/review/model/review';
+import type { ReviewScope } from '@/features/reviews/index';
 import { createId } from '@/shared/lib/id';
 import { queryKeys } from '@/shared/query/keys';
 import { refreshGitReceipt } from '@/shared/query/live-updates';

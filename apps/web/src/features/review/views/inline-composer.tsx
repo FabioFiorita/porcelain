@@ -1,8 +1,8 @@
 import { useId, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import type { CommentAnchor } from '@/features/reviews/index';
-import type { ReviewScope } from '@/features/review/model/review';
+import { type CommentAnchor, type ReviewScope } from '@/features/reviews/index';
+
 import { useCreateComment } from '@/features/review/queries/comments';
 import { reviewErrorMessage } from '@/features/review/queries/review';
 import { anchorLabel } from './thread-card';

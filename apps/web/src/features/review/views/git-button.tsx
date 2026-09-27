@@ -41,7 +41,7 @@ import {
   comparisons,
   type ReviewScope,
   type Status,
-} from '@/features/review/model/review';
+} from '@/features/reviews/index';
 import { useGitAction } from '@/features/review/queries/git-actions';
 import { usePreferences } from '@/shared/workspace/preferences';
 import { BranchDialog } from './branch-dialog';

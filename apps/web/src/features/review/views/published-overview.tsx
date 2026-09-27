@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import type { OpenDocument } from '@/features/reviews/index';
 import {
+  type OpenDocument,
   reviewSummaryUrl,
   type ReviewResponse,
-} from '@/features/review/model/review';
+} from '@/features/reviews/index';
+
 import { useTheme } from '@/shared/workspace/theme';
 import { DocumentToolbar } from './document-toolbar';
 import { type Graph, ReviewDiagram } from './review-diagram';

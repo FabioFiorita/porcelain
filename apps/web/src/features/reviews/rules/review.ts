@@ -15,14 +15,14 @@ import type {
 
 export type Status = ReadGitStatusResponse;
 export type ChangeList = ReadChangesResponse;
-export type FileChange = ChangeList['changes'][number];
+type FileChange = ChangeList['changes'][number];
 export type Change = FileChange['comparisons'][number];
 export type ChangeDiffs = ReadChangeDiffsResponse;
 export type ChangeDiffsRequest = ReadChangeDiffsRequest;
 export type ChangeLines = ReadChangeLinesResponse;
 export type DiffContent = ChangeDiffs['diffs'][number]['content'];
 export type ChangeSelection = ChangeDiffs['diffs'][number]['selection'];
-export type ReviewedMark = ListReviewedFilesResponse['marks'][number];
+type ReviewedMark = ListReviewedFilesResponse['marks'][number];
 export type ReviewedMarksResponse = ListReviewedFilesResponse;
 export type SetReviewedRequest = SetReviewedFileRequest;
 export type SetReviewedBulkRequest = SetReviewedFilesRequest;
@@ -76,23 +76,6 @@ export function reviewMark(
   marks: readonly ReviewedMark[],
 ) {
   return marks.find((candidate) => candidate.path === change.path);
-}
-
-export function reviewProgress(
-  paths: readonly string[],
-  changes: readonly Pick<ReviewChangeItem, 'path' | 'reviewStatus'>[],
-) {
-  const uniquePaths = new Set(paths.filter(Boolean));
-  const reviewedPaths = new Set(
-    changes
-      .filter((entry) => entry.reviewStatus === 'reviewed')
-      .map((entry) => entry.path),
-  );
-  let done = 0;
-  for (const path of uniquePaths) {
-    if (reviewedPaths.has(path)) done += 1;
-  }
-  return { done, total: uniquePaths.size };
 }
 
 export function isFingerprintable<

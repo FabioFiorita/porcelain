@@ -13,6 +13,6 @@ export const ReviewWorkspace = lazy(() =>
 );
 export { createReviewLive } from './api/review-live';
 export type { ReviewPort } from './api/review-port';
-export { isSurface } from './model/review';
-export type { ReviewScope, Surface } from './model/review';
+export { isSurface } from '@/features/reviews/index';
+export type { ReviewScope, Surface } from '@/features/reviews/index';
 export { useCommitModels } from './queries/git-actions';

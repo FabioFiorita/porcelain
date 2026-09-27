@@ -15,7 +15,7 @@ import {
   type CommitFile,
   type CommitFiles,
 } from '@/features/history/index';
-import type { DiffContent, ReviewScope } from '@/features/review/model/review';
+import type { DiffContent, ReviewScope } from '@/features/reviews/index';
 import { copyText } from '@/shared/workspace/copy';
 import { CodeDocument } from './code-document';
 import { useDocumentInteraction } from './document-interaction';

@@ -17,7 +17,12 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/toast';
-import type { DocumentRef } from '@/features/reviews/index';
+import {
+  type DocumentRef,
+  changePath,
+  comparisons,
+  type ReviewScope,
+} from '@/features/reviews/index';
 import {
   canonicalPreferencePath,
   hiddenPathFor,
@@ -37,11 +42,7 @@ import {
   treeActions,
   runFileTreeAction,
 } from '@/features/files/index';
-import {
-  changePath,
-  comparisons,
-  type ReviewScope,
-} from '@/features/review/model/review';
+
 import { discardRejection } from '@/shared/lib/submit-form';
 import { useHiddenPaths, useSetHidden } from '@/features/projects/index';
 import { useEditFile } from '@/features/files/index';

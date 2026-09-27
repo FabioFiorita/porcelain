@@ -10,14 +10,15 @@ import {
   useRecoverChangedDiffs,
 } from '@/features/changes/index';
 import { isImagePath, ImagePreview } from '@/features/files/index';
-import type {
-  Change,
-  ChangeSelection,
-  DiffContent,
-  ReviewChangeItem,
-  ReviewScope,
-} from '@/features/review/model/review';
-import { orderReviewChanges } from '@/features/review/model/review';
+import {
+  type Change,
+  type ChangeSelection,
+  type DiffContent,
+  type ReviewChangeItem,
+  type ReviewScope,
+  orderReviewChanges,
+} from '@/features/reviews/index';
+
 import { useComments } from '@/features/review/queries/comments';
 import {
   useReviewChanges,

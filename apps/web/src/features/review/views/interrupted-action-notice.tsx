@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { useAccessStore } from '@/features/access/index';
 import { useReviewOverview } from '@/features/changes/index';
-import type { ReviewScope } from '@/features/review/model/review';
+import type { ReviewScope } from '@/features/reviews/index';
 import { useDismissInterrupted } from '@/features/review/queries/git-actions';
 import { gitErrorMessage } from './git-action-feedback';
 

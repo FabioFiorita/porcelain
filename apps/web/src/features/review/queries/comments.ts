@@ -5,13 +5,14 @@ import {
   useQueryClient,
   useSuspenseQuery,
 } from '@tanstack/react-query';
-import type {
-  CommentResolution,
-  CommentThread,
-  NewComment,
-  NewReply,
+import {
+  type CommentResolution,
+  type CommentThread,
+  type NewComment,
+  type NewReply,
+  type ReviewScope,
 } from '@/features/reviews/index';
-import type { ReviewScope } from '@/features/review/model/review';
+
 import { queryKeys } from '@/shared/query/keys';
 import { asMutation } from '@/shared/query/mutation';
 import { useConnectedContext } from '@/app/workspace-provider';

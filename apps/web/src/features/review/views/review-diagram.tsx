@@ -25,7 +25,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { cn } from '@/shared/lib/utils';
 import type { CssVariables } from '@/shared/lib/css-variables';
-import type { Diagram, DiagramBox } from '@/features/review/model/review';
+import type { Diagram, DiagramBox } from '@/features/reviews/index';
 import { usePreferences } from '@/shared/workspace/preferences';
 
 export type GraphBox = DiagramBox & {

@@ -10,7 +10,7 @@ import {
   HistoryIcon,
 } from 'lucide-react';
 import type { GitAction } from '@/features/git-actions/index';
-import type { Change, Status } from '@/features/review/model/review';
+import type { Change, Status } from '@/features/reviews/index';
 
 export type GitBranchStatus = Pick<
   NonNullable<Status['branch']>,

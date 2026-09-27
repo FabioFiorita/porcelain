@@ -25,8 +25,6 @@ import {
   type DocumentRef,
   entryKey,
   UNEXPLAINED,
-} from '@/features/reviews/index';
-import {
   basename,
   type ChangeList,
   notExplainedLabel,
@@ -34,7 +32,8 @@ import {
   type ReviewResponse,
   type ReviewScope,
   type ReviewStatus,
-} from '@/features/review/model/review';
+} from '@/features/reviews/index';
+
 import {
   useComments,
   useMarkCommentsSeen,

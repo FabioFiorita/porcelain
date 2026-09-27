@@ -9,10 +9,10 @@ import { Button } from '@/components/ui/button';
 import { useAccessStore } from '@/features/access/index';
 import { useChanges } from '@/features/changes/index';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import type { OpenDocument } from '@/features/reviews/index';
+import { type OpenDocument, type ReviewScope } from '@/features/reviews/index';
 import type { FileDraft, FileDraftState } from '@/features/files/index';
 import { isImagePath, useDirectory, useTextFile } from '@/features/files/index';
-import type { ReviewScope } from '@/features/review/model/review';
+
 import { useFileDraft } from '@/features/files/index';
 import { copyText } from '@/shared/workspace/copy';
 import { usePreferences } from '@/shared/workspace/preferences';

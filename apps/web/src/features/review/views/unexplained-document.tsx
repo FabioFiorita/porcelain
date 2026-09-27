@@ -1,5 +1,5 @@
-import type { ReviewScope } from '@/features/review/model/review';
-import { notExplainedLabel } from '@/features/review/model/review';
+import { type ReviewScope, notExplainedLabel } from '@/features/reviews/index';
+
 import { usePublishedReview } from '@/features/review/queries/published-review';
 import { DocumentToolbar } from './document-toolbar';
 import { spansLabel } from './patch-focus';

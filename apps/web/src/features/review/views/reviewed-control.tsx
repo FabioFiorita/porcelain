@@ -8,12 +8,13 @@ import {
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/shared/lib/utils';
-import type {
-  ReviewChangeItem,
-  ReviewScope,
-  ReviewStatus,
-} from '@/features/review/model/review';
-import { isFingerprintable } from '@/features/review/model/review';
+import {
+  type ReviewChangeItem,
+  type ReviewScope,
+  type ReviewStatus,
+  isFingerprintable,
+} from '@/features/reviews/index';
+
 import { reviewErrorMessage } from '@/features/review/queries/review';
 import {
   type BulkReviewReport,

@@ -8,12 +8,13 @@ import { Button } from '@/components/ui/button';
 import { HistoryNavigation } from '@/features/history/index';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import type { OpenDocument } from '@/features/reviews/index';
 import {
+  type OpenDocument,
   isSurface,
   type ReviewScope,
   type Surface,
-} from '@/features/review/model/review';
+} from '@/features/reviews/index';
+
 import { usePublishedReview } from '@/features/review/queries/published-review';
 import { useHasReviewLayers } from '@/features/review/queries/review';
 import { FileNavigation } from './file-navigation';

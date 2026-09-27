@@ -27,8 +27,10 @@ import {
   type CommentThread,
   matchesCommentTarget,
   rangeAnchor,
+  basename,
+  type ReviewScope,
 } from '@/features/reviews/index';
-import { basename, type ReviewScope } from '@/features/review/model/review';
+
 import {
   contentVersion,
   PIERRE_COMMENT_CSS,

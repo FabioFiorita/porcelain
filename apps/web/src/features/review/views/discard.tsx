@@ -22,7 +22,7 @@ import {
   type ChangeList,
   comparisons,
   type ReviewScope,
-} from '@/features/review/model/review';
+} from '@/features/reviews/index';
 import { useGitAction } from '@/features/review/queries/git-actions';
 import {
   changedSinceLooked,

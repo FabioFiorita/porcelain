@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/native-select';
 import { Textarea } from '@/components/ui/textarea';
 import type { ActionInput, GitAction } from '@/features/git-actions/index';
-import type { ReviewScope } from '@/features/review/model/review';
+import type { ReviewScope } from '@/features/reviews/index';
 import { useGitAction } from '@/features/review/queries/git-actions';
 import { usePreferences } from '@/shared/workspace/preferences';
 import { CommitForm } from './commit-form';

@@ -1,13 +1,16 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import type {
-  ReviewChangeItem,
-  ReviewScope,
-  SetReviewedRequest,
-} from '../model/review';
-import { isFingerprintable } from '../model/review';
+import {
+  type ReviewChangeItem,
+  type ReviewScope,
+  type SetReviewedRequest,
+  isFingerprintable,
+  enqueueReviewed,
+  enqueueReviewedMany,
+} from '@/features/reviews/index';
+
 import { queryKeys } from '@/shared/query/keys';
 import { asMutation } from '@/shared/query/mutation';
-import { enqueueReviewed, enqueueReviewedMany } from '@/features/reviews/index';
+
 import { useConnectedContext } from '@/app/workspace-provider';
 
 function useReviewedContext(scope: ReviewScope) {

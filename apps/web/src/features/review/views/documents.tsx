@@ -4,8 +4,9 @@ import {
   entryKey,
   type OpenDocument,
   type RevealComment,
+  type ReviewScope,
 } from '@/features/reviews/index';
-import type { ReviewScope } from '@/features/review/model/review';
+
 import { usePublishedReview } from '@/features/review/queries/published-review';
 import { useReviewChanges } from '@/features/review/queries/review';
 import { CommitDocument } from './commit-document';
