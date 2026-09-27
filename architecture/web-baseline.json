@@ -246,11 +246,8 @@
     "apps/web/src/features/review/api/review-request.ts": 1,
     "apps/web/src/features/review/api/reviewed-live.ts": 1,
     "apps/web/src/features/review/index.ts": 1,
-    "apps/web/src/features/review/model/comments.ts": 1,
     "apps/web/src/features/review/model/commit-files.ts": 1,
-    "apps/web/src/features/review/model/documents.ts": 1,
     "apps/web/src/features/review/model/review.ts": 1,
-    "apps/web/src/features/review/model/tab-strip.ts": 1,
     "apps/web/src/features/review/queries/comments.ts": 1,
     "apps/web/src/features/review/queries/git-actions.ts": 1,
     "apps/web/src/features/review/queries/published-review.ts": 1,
@@ -296,7 +293,6 @@
     "apps/web/src/features/review/views/use-tab-layout.ts": 1
   },
   "unused-export": {
-    "apps/web/src/features/review/model/documents.ts": 1,
     "apps/web/src/features/review/model/review.ts": 3,
     "apps/web/src/features/review/queries/comments.ts": 2,
     "apps/web/src/features/review/queries/reviewed-mutations.ts": 1,

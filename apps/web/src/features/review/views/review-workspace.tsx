@@ -38,9 +38,12 @@ import { SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
 import { cn } from '@/shared/lib/utils';
 import { useAccessStore } from '@/features/access/index';
 import { useReviewOverview } from '@/features/changes/index';
-import type { RevealComment } from '@/features/review/model/comments';
-import type { OpenDocument } from '@/features/review/model/documents';
-import { entryKey, parseEntry } from '@/features/review/model/documents';
+import {
+  entryKey,
+  type OpenDocument,
+  parseEntry,
+  type RevealComment,
+} from '@/features/reviews/index';
 import type { Project } from '@/features/projects/index';
 import type { ReviewLayer, Surface } from '@/features/review/model/review';
 import { usePublishedReview } from '@/features/review/queries/published-review';

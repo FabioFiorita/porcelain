@@ -20,16 +20,14 @@ import {
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/toast';
-import type {
-  CommentAnchor,
-  CommentTarget,
-  CommentThread,
-} from '@/features/review/model/comments';
 import {
   commentIsStale,
+  type CommentAnchor,
+  type CommentTarget,
+  type CommentThread,
   matchesCommentTarget,
   rangeAnchor,
-} from '@/features/review/model/comments';
+} from '@/features/reviews/index';
 import { basename, type ReviewScope } from '@/features/review/model/review';
 import {
   contentVersion,

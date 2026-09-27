@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/toast';
-import type { DocumentRef } from '@/features/review/model/documents';
+import type { DocumentRef } from '@/features/reviews/index';
 import {
   canonicalPreferencePath,
   hiddenPathFor,

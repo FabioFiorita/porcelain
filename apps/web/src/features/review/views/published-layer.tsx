@@ -9,7 +9,7 @@ import {
   useRecoverChangedDiffs,
 } from '@/features/changes/index';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import type { OpenDocument } from '@/features/review/model/documents';
+import type { OpenDocument } from '@/features/reviews/index';
 import type {
   ChangeSelection,
   ReviewChangeItem,

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import type { OpenDocument } from '@/features/review/model/documents';
+import type { OpenDocument } from '@/features/reviews/index';
 import {
   reviewSummaryUrl,
   type ReviewResponse,

@@ -1,10 +1,10 @@
 import { Button } from '@/components/ui/button';
-import type { RevealComment } from '@/features/review/model/comments';
-import type {
-  DocumentRef,
-  OpenDocument,
-} from '@/features/review/model/documents';
-import { entryKey } from '@/features/review/model/documents';
+import {
+  type DocumentRef,
+  entryKey,
+  type OpenDocument,
+  type RevealComment,
+} from '@/features/reviews/index';
 import type { ReviewScope } from '@/features/review/model/review';
 import { usePublishedReview } from '@/features/review/queries/published-review';
 import { useReviewChanges } from '@/features/review/queries/review';

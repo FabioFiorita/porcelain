@@ -1,4 +1,4 @@
-import type { CommentAnchor } from '@/features/review/model/comments';
+import type { CommentAnchor } from './comments';
 export type DocumentRef =
   | { kind: 'handoff' }
   | { kind: 'layer'; layerId: string }
@@ -7,7 +7,7 @@ export type DocumentRef =
   | { kind: 'file'; path: string }
   | { kind: 'commit'; oid: string };
 
-export const HANDOFF: DocumentRef = { kind: 'handoff' };
+const HANDOFF: DocumentRef = { kind: 'handoff' };
 export const UNEXPLAINED: DocumentRef = { kind: 'unexplained' };
 
 export function entryKey(ref: DocumentRef): string {

@@ -3,7 +3,7 @@ import type {
   CommentThread,
   NewComment,
   NewReply,
-} from '@/features/review/model/comments';
+} from '@/features/reviews/index';
 import type { ReviewRequest } from '@/features/review/api/review-port';
 export type CommentsPort = {
   list: (request: ReviewRequest) => Promise<CommentThread[]>;

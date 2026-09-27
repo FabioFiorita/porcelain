@@ -19,7 +19,7 @@ import type {
   CommentAuthor,
   CommentMessage,
   CommentThread,
-} from '@/features/review/model/comments';
+} from '@/features/reviews/index';
 import type { ReviewScope } from '@/features/review/model/review';
 import { basename } from '@/features/review/model/review';
 import { discardRejection } from '@/shared/lib/submit-form';

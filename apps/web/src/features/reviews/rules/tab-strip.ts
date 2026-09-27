@@ -1,4 +1,4 @@
-import { withDocument } from '@/features/review/model/documents';
+import { withDocument } from './documents';
 
 export type Pane = { tabs: string[]; pinned: string[] };
 

@@ -1,6 +1,5 @@
 import { useNavigate } from '@tanstack/react-router';
 import { useEffect, useRef, useState } from 'react';
-import { parseEntry } from '@/features/review/model/documents';
 import {
   closeInPane,
   closeOthersInPane,
@@ -9,9 +8,10 @@ import {
   neighbourAfterClose,
   openInPane,
   orderedTabs,
+  parseEntry,
   type Pane,
   togglePinInPane,
-} from '@/features/review/model/tab-strip';
+} from '@/features/reviews/index';
 
 export type PaneIndex = 0 | 1;
 type Stored = { panes: Pane[] };

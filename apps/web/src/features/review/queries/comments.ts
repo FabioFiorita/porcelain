@@ -10,7 +10,7 @@ import type {
   CommentThread,
   NewComment,
   NewReply,
-} from '@/features/review/model/comments';
+} from '@/features/reviews/index';
 import type { ReviewScope } from '@/features/review/model/review';
 import { queryKeys } from '@/shared/query/keys';
 import { asMutation } from '@/shared/query/mutation';

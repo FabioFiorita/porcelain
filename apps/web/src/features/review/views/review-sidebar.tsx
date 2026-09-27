@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { HistoryNavigation } from '@/features/history/index';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import type { OpenDocument } from '@/features/review/model/documents';
+import type { OpenDocument } from '@/features/reviews/index';
 import {
   isSurface,
   type ReviewScope,

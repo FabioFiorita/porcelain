@@ -19,12 +19,13 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/shared/lib/utils';
 import { useAccessStore } from '@/features/access/index';
 import { useChanges } from '@/features/changes/index';
-import type {
-  CommentAnchor,
-  CommentThread,
-} from '@/features/review/model/comments';
-import type { DocumentRef } from '@/features/review/model/documents';
-import { entryKey, UNEXPLAINED } from '@/features/review/model/documents';
+import {
+  type CommentAnchor,
+  type CommentThread,
+  type DocumentRef,
+  entryKey,
+  UNEXPLAINED,
+} from '@/features/reviews/index';
 import {
   basename,
   type ChangeList,
