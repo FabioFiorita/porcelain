@@ -33,6 +33,7 @@ const config = resolve(
 );
 const stabilityRepeats = 5;
 const repetitionBaseVariable = 'PORCELAIN_REPETITION_BASE';
+const browserLockVariable = 'PORCELAIN_BROWSER_LOCK_HELD';
 const usage =
   'Usage: node .agents/skills/web-verify/scripts/browser.ts --list|--all|<journey>\n';
 
@@ -518,8 +519,38 @@ async function main(): Promise<number> {
   return failed ? 1 : 0;
 }
 
+function withBrowserLock(): Promise<number> {
+  if (process.env[browserLockVariable] === '1' || process.argv[2] === '--list')
+    return main();
+  const lock = join(
+    tmpdir(),
+    `porcelain-web-verify-${process.getuid?.() ?? 'local'}.lock`,
+  );
+  process.stdout.write('Waiting for the host browser verification slot.\n');
+  return new Promise((done, fail) => {
+    const child = spawn(
+      'flock',
+      [
+        '--exclusive',
+        '--verbose',
+        lock,
+        process.execPath,
+        fileURLToPath(import.meta.url),
+        ...process.argv.slice(2),
+      ],
+      {
+        cwd: repositoryRoot,
+        env: { ...process.env, [browserLockVariable]: '1' },
+        stdio: 'inherit',
+      },
+    );
+    child.once('error', fail);
+    child.once('close', (status) => done(status ?? 1));
+  });
+}
+
 try {
-  process.exitCode = await main();
+  process.exitCode = await withBrowserLock();
 } catch (error) {
   process.stderr.write(
     `${error instanceof Error ? error.message : String(error)}\n`,

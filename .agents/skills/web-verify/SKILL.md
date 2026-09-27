@@ -7,6 +7,8 @@ description: Run Porcelain web journeys in Vitest Browser Mode with Chromium aga
 
 A journey drives the real web app in Chromium through Vitest Browser Mode and its Playwright provider, against its own disposable server started by `scripts/dev-server.ts`. Vite proxies `/api` to that server. Nothing is mocked.
 
+The runner holds one browser verification slot per Linux host user with `flock`. Runs from other Porcelain worktrees on the same host wait for it, so concurrent workers do not overload Chromium. Separate CI hosts remain independent. The runner prints when it waits and how long acquiring the slot took.
+
 ```sh
 pnpm verify:web --list
 pnpm verify:web projects.rename
