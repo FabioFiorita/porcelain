@@ -238,8 +238,6 @@
     "apps/web/src/app/views/shortcuts-dialog.tsx": 1,
     "apps/web/src/app/views/workspace-view.tsx": 1,
     "apps/web/src/features/review/api/changes-live.ts": 1,
-    "apps/web/src/features/review/api/comments-live.ts": 1,
-    "apps/web/src/features/review/api/comments-port.ts": 1,
     "apps/web/src/features/review/api/published-review-live.ts": 1,
     "apps/web/src/features/review/api/review-live.ts": 1,
     "apps/web/src/features/review/api/review-port.ts": 1,

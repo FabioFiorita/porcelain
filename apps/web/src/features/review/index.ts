@@ -11,8 +11,6 @@ export const ReviewWorkspace = lazy(() =>
     default: ReviewWorkspace,
   })),
 );
-export { createCommentsLive } from './api/comments-live';
-export type { CommentsPort } from './api/comments-port';
 export { createReviewLive } from './api/review-live';
 export type { ReviewPort } from './api/review-port';
 export { isSurface } from './model/review';

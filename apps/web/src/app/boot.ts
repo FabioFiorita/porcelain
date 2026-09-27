@@ -1,5 +1,5 @@
 import type { Api } from './api';
-import { createCommentsLive } from '@/features/review/index';
+import { createCommentsLive } from '@/features/reviews/api';
 import { createGitActionsLive } from '@/features/git-actions/api';
 import { createLiveUpdatesLive } from '../shared/live/socket';
 import { accessApi } from '@/features/access/api';

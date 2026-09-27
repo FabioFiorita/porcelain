@@ -1,4 +1,4 @@
-import type { CommentsPort } from '@/features/review/index';
+import type { CommentsPort } from '@/features/reviews/api';
 import type { GitActionsPort } from '@/features/git-actions/api';
 import type { LiveUpdatePort } from '@/shared/live/port';
 import type { PairingPort } from '@/features/access/api';

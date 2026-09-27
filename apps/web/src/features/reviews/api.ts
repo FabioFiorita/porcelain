@@ -9,7 +9,33 @@ import {
   updateCommentThreadResponseSchema,
 } from '@porcelain/contracts/reviews';
 import { requestJson } from '@/shared/api/request';
-import type { CommentsPort } from '@/features/review/api/comments-port';
+import type {
+  CommentResolution,
+  CommentThread,
+  NewComment,
+  NewReply,
+} from './rules/comments';
+
+type CommentRequest = {
+  projectId: string;
+  worktreeId: string;
+  signal: AbortSignal;
+};
+export type CommentsPort = {
+  list: (request: CommentRequest) => Promise<CommentThread[]>;
+  create: (
+    request: CommentRequest & { input: NewComment },
+  ) => Promise<CommentThread[]>;
+  reply: (
+    request: CommentRequest & { threadId: string; input: NewReply },
+  ) => Promise<CommentThread[]>;
+  resolve: (
+    request: CommentRequest & { threadId: string; input: CommentResolution },
+  ) => Promise<CommentThread[]>;
+  seen: (
+    request: CommentRequest & { throughRevision: number },
+  ) => Promise<{ worktreeId: string; seenThrough: number }>;
+};
 
 export function createCommentsLive(transport: typeof fetch): CommentsPort {
   const path = (worktreeId: string) =>
