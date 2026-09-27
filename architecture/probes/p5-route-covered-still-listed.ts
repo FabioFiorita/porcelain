@@ -5,6 +5,7 @@ export default {
   plants:
     'the rename route listed as uncovered although the projects.rename journey reaches it',
   gate: 'web-verify',
+  feature: 'projects.rename',
   rule: 'coverage: PATCH /api/projects/:projectId: a journey now reaches it through the UI',
   edits: [
     {

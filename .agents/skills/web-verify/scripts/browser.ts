@@ -278,6 +278,19 @@ async function journeyOutcome(
   return { runs, routes, problems };
 }
 
+function coveredBaselineProblems(
+  covered: ReadonlySet<string>,
+  called: readonly string[],
+  held: readonly string[],
+): string[] {
+  return held
+    .filter((route) => covered.has(route) && called.includes(route))
+    .map(
+      (route) =>
+        `${route}: a journey now reaches it through the UI; remove it from ${journeyBaselineFile} so it cannot become uncovered again`,
+    );
+}
+
 function coverage(
   covered: ReadonlySet<string>,
   registered: readonly string[],
@@ -297,12 +310,7 @@ function coverage(
         (route) =>
           `${route}: the web calls it (${(matched.routes.get(route) ?? []).map((call) => `${call.file}:${call.line}`).join(', ')}) and no journey reaches it through the UI; add a journey that drives it`,
       ),
-    ...held.routes
-      .filter((route) => covered.has(route) && called.includes(route))
-      .map(
-        (route) =>
-          `${route}: a journey now reaches it through the UI; remove it from ${journeyBaselineFile} so it cannot become uncovered again`,
-      ),
+    ...coveredBaselineProblems(covered, called, held.routes),
     ...held.routes
       .filter((route) => !called.includes(route))
       .map(
@@ -323,6 +331,7 @@ function list(journeys: readonly Journey[]) {
 }
 
 async function main(): Promise<number> {
+  const started = performance.now();
   const journeys = await loadJourneys();
   const argument = process.argv[2];
   if (argument === '--list' && process.argv.length === 3) {
@@ -359,10 +368,17 @@ async function main(): Promise<number> {
   const registered = new Set<string>();
   const summary: Record<string, unknown>[] = [];
   let failed = false;
+  let buildMs = 0;
+  let journeyMs = 0;
+  let negativeMs = 0;
+  let coverageMs = 0;
   try {
+    const buildStarted = performance.now();
     await buildIsolatedServer(build);
+    buildMs = Math.round(performance.now() - buildStarted);
     const covered = new Set<string>();
     for (const journey of selected) {
+      const journeyStarted = performance.now();
       const times = repetitions(journey, changed.paths);
       const outcome = await journeyOutcome(
         journey,
@@ -371,11 +387,13 @@ async function main(): Promise<number> {
         evidence,
         registered,
       );
+      const wallMs = Math.round(performance.now() - journeyStarted);
+      journeyMs += wallMs;
       for (const route of outcome.routes) covered.add(route);
       const passed = outcome.problems.length === 0;
       if (!passed) failed = true;
       process.stdout.write(
-        `${passed ? 'PASS' : 'FAIL'} ${journey.feature} (${times === 1 ? 'once' : `${times} times, changed since ${changed.base.slice(0, 12)}`}; ${outcome.routes.size} routes through the UI)\n`,
+        `${passed ? 'PASS' : 'FAIL'} ${journey.feature} (${times === 1 ? 'once' : `${times} times, changed since ${changed.base.slice(0, 12)}`}; ${outcome.routes.size} routes through the UI; ${wallMs} ms)\n`,
       );
       for (const problem of outcome.problems)
         process.stdout.write(`  ${journey.feature}: ${problem}\n`);
@@ -385,6 +403,7 @@ async function main(): Promise<number> {
         passed,
         problems: outcome.problems,
         routes: [...outcome.routes].toSorted(),
+        wallMs,
         runs: outcome.runs,
       };
       summary.push(record);
@@ -395,12 +414,14 @@ async function main(): Promise<number> {
     }
     const rejected: Record<string, unknown>[] = [];
     for (const negative of negatives) {
+      const negativeStarted = performance.now();
       const outcome = await run(
         negative.spec,
         build,
         join(evidence, `negative.${negative.name}`),
         registered,
       );
+      negativeMs += Math.round(performance.now() - negativeStarted);
       const reason = outcome.failures.find((failure) =>
         negative.rejectedWhen.test(failure),
       );
@@ -437,6 +458,7 @@ async function main(): Promise<number> {
       negatives: rejected,
       registered: [...registered].toSorted(),
     };
+    const coverageStarted = performance.now();
     if (all) {
       const result = coverage(covered, [...registered]);
       const reached = result.called.length - result.uncovered.length;
@@ -454,10 +476,34 @@ async function main(): Promise<number> {
         uncovered: result.uncovered,
         problems: result.problems,
       };
-    } else
+    } else if (selected.length > 0) {
+      const calls = webCalls(repositoryRoot);
+      const matched = calledRoutes(calls.calls, [...registered]);
+      const held = readJourneyBaseline(repositoryRoot);
+      const problems = [
+        ...held.problems,
+        ...coveredBaselineProblems(
+          covered,
+          [...matched.routes.keys()],
+          held.routes,
+        ),
+      ];
+      for (const problem of problems)
+        process.stdout.write(`  coverage: ${problem}\n`);
+      if (problems.length > 0) failed = true;
+      report.coveredBaseline = { problems };
       process.stdout.write(
-        'Coverage is judged with --all, where every journey runs.\n',
+        'Selected journeys checked for stale baseline entries; full coverage is judged with --all.\n',
       );
+    } else process.stdout.write('Coverage is judged with --all.\n');
+    coverageMs = Math.round(performance.now() - coverageStarted);
+    report.timings = {
+      buildMs,
+      journeyMs,
+      negativeMs,
+      coverageMs,
+      totalMs: Math.round(performance.now() - started),
+    };
     await writeFile(
       join(evidence, 'summary.json'),
       `${JSON.stringify(report, null, 2)}\n`,
@@ -465,6 +511,9 @@ async function main(): Promise<number> {
   } finally {
     await rm(build, { recursive: true, force: true });
   }
+  process.stdout.write(
+    `Browser time: build ${buildMs} ms; journeys ${journeyMs} ms; negatives ${negativeMs} ms; coverage ${coverageMs} ms; total ${Math.round(performance.now() - started)} ms.\n`,
+  );
   process.stdout.write(`Browser evidence: ${evidence}\n`);
   return failed ? 1 : 0;
 }

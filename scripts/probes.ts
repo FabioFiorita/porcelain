@@ -55,7 +55,7 @@ const expectedSeconds: Record<ProbeGate, (probe: LoadedProbe) => number> = {
   test: () => 7,
   db: () => 2,
   verify: (probe) => (probe.feature === undefined ? 46 : 2),
-  'web-verify': (probe) => (probe.feature === undefined ? 140 : 12),
+  'web-verify': (probe) => (probe.feature === undefined ? 400 : 12),
 };
 const moduleSchema = z.object({ default: probeSchema });
 const localEnvironment = Object.fromEntries(
@@ -255,13 +255,28 @@ function runGate(
 ): Promise<{ status: number; output: string }> {
   return new Promise((done, fail) => {
     const [program, ...args] = command;
-    const child = spawn(program, args, { cwd: root, env: localEnvironment });
+    const child = spawn(program, args, {
+      cwd: root,
+      env: localEnvironment,
+      detached: process.platform !== 'win32',
+    });
     running = child;
+    const started = performance.now();
+    const heartbeat = setInterval(() => {
+      process.stdout.write(
+        `  gate still running after ${Math.round((performance.now() - started) / 1000)} s\n`,
+      );
+    }, 30_000);
     const chunks: Buffer[] = [];
     child.stdout.on('data', (chunk: Buffer) => chunks.push(chunk));
     child.stderr.on('data', (chunk: Buffer) => chunks.push(chunk));
-    child.on('error', fail);
+    child.on('error', (error) => {
+      clearInterval(heartbeat);
+      running = undefined;
+      fail(error);
+    });
     child.on('close', (status) => {
+      clearInterval(heartbeat);
       running = undefined;
       done({
         status: status ?? 1,
@@ -304,10 +319,22 @@ async function attempt(probe: LoadedProbe): Promise<Outcome> {
   }
 }
 
-process.on('SIGINT', () => {
+function interrupt(signal: NodeJS.Signals): void {
   interrupted = true;
-  running?.kill('SIGINT');
-});
+  if (running?.pid === undefined) return;
+  if (process.platform === 'win32') {
+    running.kill(signal);
+    return;
+  }
+  try {
+    process.kill(-running.pid, signal);
+  } catch {
+    running.kill(signal);
+  }
+}
+
+process.on('SIGINT', () => interrupt('SIGINT'));
+process.on('SIGTERM', () => interrupt('SIGTERM'));
 
 function table(probes: readonly LoadedProbe[]) {
   const titles = ['probe', 'decision', 'gate', 'rule'] as const;
@@ -332,6 +359,7 @@ function table(probes: readonly LoadedProbe[]) {
 }
 
 async function main(): Promise<number> {
+  const started = performance.now();
   const selected = selection(process.argv.slice(2));
   const pending = changedPaths();
   if (pending !== '')
@@ -342,15 +370,32 @@ async function main(): Promise<number> {
   const { header, row } = table(probes);
   process.stdout.write(scope + header);
   let rejected = 0;
+  const gateTime = new Map<ProbeGate, { count: number; durationMs: number }>();
   for (const probe of probes) {
     if (interrupted) break;
+    process.stdout.write(`RUN ${probe.id} (${probe.gate})\n`);
+    const probeStarted = performance.now();
     const outcome = await attempt(probe);
+    const durationMs = Math.round(performance.now() - probeStarted);
+    const timed = gateTime.get(probe.gate) ?? { count: 0, durationMs: 0 };
+    gateTime.set(probe.gate, {
+      count: timed.count + 1,
+      durationMs: timed.durationMs + durationMs,
+    });
     if (outcome.verdict === 'rejected') rejected += 1;
-    process.stdout.write(row(probe, outcome.verdict));
+    process.stdout.write(
+      row(probe, `${outcome.verdict} (${(durationMs / 1000).toFixed(1)} s)`),
+    );
     for (const line of outcome.detail) process.stdout.write(`    ${line}\n`);
   }
+  for (const [gate, timed] of [...gateTime].toSorted(
+    (left, right) => right[1].durationMs - left[1].durationMs,
+  ))
+    process.stdout.write(
+      `Gate time: ${gate} ${(timed.durationMs / 1000).toFixed(1)} s across ${timed.count} probes.\n`,
+    );
   process.stdout.write(
-    `${rejected} of ${probes.length} probes rejected${interrupted ? '; interrupted' : ''}.\n`,
+    `${rejected} of ${probes.length} probes rejected${interrupted ? '; interrupted' : ''} in ${((performance.now() - started) / 1000).toFixed(1)} s.\n`,
   );
   return interrupted || rejected !== probes.length ? 1 : 0;
 }
