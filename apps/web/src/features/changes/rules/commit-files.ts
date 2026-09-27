@@ -1,4 +1,4 @@
-import { type Change, changePath } from '@/features/review/model/review';
+import { type Change, changePath } from './changes';
 
 export function commitFiles(changes: readonly Change[]) {
   const files = new Map<

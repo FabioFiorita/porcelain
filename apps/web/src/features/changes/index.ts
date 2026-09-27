@@ -14,3 +14,4 @@ export {
   useReadCurrentChanges,
   useRefreshGitLook,
 } from './commands/read-current-changes';
+export { commitFiles } from './rules/commit-files';

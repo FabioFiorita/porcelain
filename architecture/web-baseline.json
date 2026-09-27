@@ -242,7 +242,6 @@
     "apps/web/src/features/review/api/review-request.ts": 1,
     "apps/web/src/features/review/api/reviewed-live.ts": 1,
     "apps/web/src/features/review/index.ts": 1,
-    "apps/web/src/features/review/model/commit-files.ts": 1,
     "apps/web/src/features/review/model/review.ts": 1,
     "apps/web/src/features/review/queries/comments.ts": 1,
     "apps/web/src/features/review/queries/git-actions.ts": 1,

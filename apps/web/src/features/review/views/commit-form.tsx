@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/native-select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
-import { commitFiles } from '@/features/review/model/commit-files';
+import { commitFiles } from '@/features/changes/index';
 import {
   groupedCommitModels,
   resolveCommitModel,
