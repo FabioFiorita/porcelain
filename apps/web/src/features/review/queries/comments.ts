@@ -91,6 +91,8 @@ function useCommentsOptions(scope: ReviewScope) {
   const context = useCommentContext(scope);
   return {
     queryKey: context.key,
+    staleTime: 0,
+    refetchOnMount: true,
     queryFn: async ({ signal }: { signal: AbortSignal }) => {
       const request = context.request(signal);
       const result = await context.api.list(request);
