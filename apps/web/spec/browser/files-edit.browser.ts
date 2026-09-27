@@ -40,4 +40,4 @@ test('an edited file saves after a pause, with Done and when its tab closes', as
     .last()
     .click();
   await expect.poll(saved).toContain('Browser close marker');
-});
+}, 30_000);

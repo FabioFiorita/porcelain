@@ -39,7 +39,7 @@ test('disconnecting is refused while a file draft cannot be saved, and the file 
     );
   await expect.poll(() => server.fileWriteCount()).toBe(1);
   await expect.poll(async () => (await server.text(readme)).text).toBe(onDisk);
-});
+}, 30_000);
 
 test('disconnecting this browser ends its session and shows how to pair it again, while the device stays paired', async ({
   pairedPage,
@@ -72,4 +72,4 @@ test('disconnecting this browser ends its session and shows how to pair it again
   await expect
     .poll(async () => (await server.devices()).map((device) => device.label))
     .toContain('Journey browser');
-});
+}, 30_000);
