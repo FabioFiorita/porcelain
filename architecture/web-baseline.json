@@ -27,7 +27,6 @@
     "apps/web/src/features/review/queries/reviewed-mutations.ts": 3
   },
   "porcelain/web-effects-in-adapters": {
-    "apps/web/src/app/queries/workspace-retry.ts": 1,
     "apps/web/src/app/views/connected-workspace.tsx": 1,
     "apps/web/src/app/workspace-provider.tsx": 4,
     "apps/web/src/features/review/queries/git-actions.ts": 1,
@@ -47,7 +46,6 @@
     "apps/web/src/shared/workspace/preferences.tsx": 2
   },
   "porcelain/web-listeners-in-adapters": {
-    "apps/web/src/app/queries/workspace-retry.ts": 3,
     "apps/web/src/app/workspace-provider.tsx": 1,
     "apps/web/src/features/review/views/published-overview.tsx": 1
   },
@@ -228,7 +226,7 @@
   "unclassified-import-target": {
     "apps/web/src/app/workspace-provider.tsx": 1,
     "apps/web/src/main.tsx": 1,
-    "apps/web/src/routes/router.tsx": 4,
+    "apps/web/src/routes/router.tsx": 2,
     "apps/web/src/shared/query/keys.ts": 1,
     "apps/web/src/shared/query/live-updates.ts": 2,
     "apps/web/src/shared/query/operation-store.ts": 1
@@ -236,14 +234,11 @@
   "unclassified-source": {
     "apps/web/src/app/api.ts": 1,
     "apps/web/src/app/boot.ts": 1,
-    "apps/web/src/app/queries/workspace-retry.ts": 1,
     "apps/web/src/app/views/commit-model-setting.tsx": 1,
     "apps/web/src/app/views/connected-workspace.tsx": 1,
     "apps/web/src/app/views/dialog-icon.tsx": 1,
     "apps/web/src/app/views/settings-dialog.tsx": 1,
     "apps/web/src/app/views/shortcuts-dialog.tsx": 1,
-    "apps/web/src/app/views/workspace-error.tsx": 1,
-    "apps/web/src/app/views/workspace-pending.tsx": 1,
     "apps/web/src/app/views/workspace-view.tsx": 1,
     "apps/web/src/features/review/api/changes-live.ts": 1,
     "apps/web/src/features/review/api/comments-live.ts": 1,

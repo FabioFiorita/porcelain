@@ -1,3 +1,4 @@
+export { useWorkspaceRetry } from './adapters/workspace-retry';
 export { pairBrowser } from './commands/pairing';
 export { sessionQueryOptions } from './queries/session';
 export { connectionErrorMessage } from './rules/connection-error-message';

@@ -5,7 +5,7 @@ import {
   useConnection,
 } from '@/features/access/index';
 import { ReviewShell } from '@/features/review/index';
-import { WorkspacePending } from '@/app/views/workspace-pending';
+import { WorkspacePending } from '@/app/workspace-pending';
 
 const ConnectedWorkspace = lazy(() =>
   import('./connected-workspace').then(({ ConnectedWorkspace }) => ({

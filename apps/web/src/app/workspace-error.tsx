@@ -1,5 +1,5 @@
 import type { ErrorComponentProps } from '@tanstack/react-router';
-import { useWorkspaceRetry } from '../queries/workspace-retry';
+import { useWorkspaceRetry } from '@/features/access/index';
 
 export function WorkspaceError({ reset }: ErrorComponentProps) {
   useWorkspaceRetry(reset);

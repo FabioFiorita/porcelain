@@ -10,7 +10,7 @@ export function WorkspacePending() {
       <div className="hidden w-80 shrink-0 flex-col gap-6 border-r bg-sidebar p-6 md:flex">
         <Skeleton className="h-9 w-40" />
         <Skeleton className="h-16 w-full" />
-        {[0, 1, 2].map((group) => (
+        {['first', 'second', 'third'].map((group) => (
           <div key={group} className="flex flex-col gap-3">
             <Skeleton className="h-5 w-32" />
             <Skeleton className="ml-4 h-12 w-52" />

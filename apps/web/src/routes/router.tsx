@@ -17,8 +17,8 @@ import {
 } from '@/features/access/index';
 import { PAIRING_PENDING_MS } from '@/config/limits';
 import { ThemeProvider } from '@/shared/workspace/theme';
-import { WorkspaceError } from '@/app/views/workspace-error';
-import { WorkspacePending } from '@/app/views/workspace-pending';
+import { WorkspaceError } from '@/app/workspace-error';
+import { WorkspacePending } from '@/app/workspace-pending';
 import { WorkspaceView } from '@/app/views/workspace-view';
 
 function PairRoute() {
