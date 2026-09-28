@@ -122,16 +122,6 @@ export class FileDraft {
     this.update({ text });
     this.autosave.maybeExecute();
   }
-  sync(text: string, fingerprint: string) {
-    if (
-      this.snapshot().owner === null &&
-      !this.snapshot().saving &&
-      this.snapshot().text === this.snapshot().savedText &&
-      (this.snapshot().savedText !== text ||
-        this.snapshot().fingerprint !== fingerprint)
-    )
-      this.update({ text, savedText: text, fingerprint, error: null });
-  }
   reset(text: string, fingerprint: string) {
     if (!this.snapshot().saving) {
       this.autosave.cancel();
