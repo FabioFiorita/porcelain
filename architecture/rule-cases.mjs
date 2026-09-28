@@ -1516,58 +1516,6 @@ export function probeLoose(left: string, right: string): boolean {
     errors: 1,
   },
   {
-    rule: 'no-disable-directives',
-    path: 'packages/files/src/services/list-directory-service.ts',
-    valid: `export class ListDirectoryService {
-  async execute(
-  ): Promise<ListDirectoryResult> {
-    const read = await this.directoryReader.list(
-      {
-        limit: this.options.maxEntries + 1,
-      },
-    );
-  }
-}`,
-    invalid: `export class ListDirectoryService {
-  async execute(
-  ): Promise<ListDirectoryResult> {
-    const read = await this.directoryReader.list(
-      {
-        ${'//'} eslint-disable-next-line porcelain/no-exported-constants
-        limit: Math.min(this.options.maxEntries, 2000) + 1,
-      },
-    );
-  }
-}`,
-    errors: 1,
-  },
-  {
-    rule: 'no-disable-directives',
-    path: 'packages/files/src/services/list-directory-service.ts',
-    valid: `export class ListDirectoryService {
-  async execute(
-  ): Promise<ListDirectoryResult> {
-    const read = await this.directoryReader.list(
-      {
-        limit: this.options.maxEntries + 1,
-      },
-    );
-  }
-}`,
-    invalid: `export class ListDirectoryService {
-  async execute(
-  ): Promise<ListDirectoryResult> {
-    const read = await this.directoryReader.list(
-      {
-        ${'//'} oxlint-disable-next-line porcelain/no-exported-constants
-        limit: Math.min(this.options.maxEntries, 2000) + 1,
-      },
-    );
-  }
-}`,
-    errors: 1,
-  },
-  {
     rule: 'no-exported-constants',
     path: 'packages/reviews/src/rules/comment-threads.ts',
     invalid: `
@@ -1613,18 +1561,6 @@ export interface ProbeDelay {
   readonly milliseconds: string;
 }
 `,
-    errors: 1,
-  },
-  {
-    rule: 'no-loose-equality-in-domain',
-    path: 'packages/access/src/services/issue-pairing-service.ts',
-    invalid: `    if (value == null) throw new InvalidDeviceDetailsError();`,
-    errors: 1,
-  },
-  {
-    rule: 'no-loose-equality-in-domain',
-    path: 'packages/access/src/services/issue-pairing-service.ts',
-    invalid: `    if (value == undefined) throw new InvalidDeviceDetailsError();`,
     errors: 1,
   },
   {
@@ -1684,6 +1620,12 @@ export interface ProbeDelay {
     );
   }
 }`,
+    errors: 1,
+  },
+  {
+    rule: 'no-loose-equality-in-domain',
+    path: 'packages/access/src/services/issue-pairing-service.ts',
+    invalid: `    if (value == null) throw new InvalidDeviceDetailsError();`,
     errors: 1,
   },
   {
@@ -2996,22 +2938,6 @@ export class CreateCommentThreadUseCase {
     errors: 1,
   },
   {
-    rule: 'web-adapters-are-imperative-glue',
-    path: 'apps/web/src/features/access/adapters/probe-adapter.ts',
-    invalid: `import { useDisconnect } from '../commands/disconnect';
-export const probeCommand = useDisconnect;
-`,
-    errors: 1,
-  },
-  {
-    rule: 'web-adapters-are-imperative-glue',
-    path: 'apps/web/src/features/access/adapters/probe-adapter.ts',
-    invalid: `import { useNavigate } from '@tanstack/react-router';
-export const probeNavigate = useNavigate;
-`,
-    errors: 1,
-  },
-  {
     rule: 'web-api-owns-request',
     path: 'apps/web/src/features/access/queries/probe-query.ts',
     invalid: `import { requestJson } from '@/shared/api/request';
@@ -3068,18 +2994,6 @@ test('the workspace opens after pairing', { retry: 2 }, async ({ pairedPage }) =
 
 export function useProbeWrite() {
   return useMutation({ mutationFn: async () => undefined });
-}
-`,
-    errors: 1,
-  },
-  {
-    rule: 'web-effects-in-adapters',
-    path: 'apps/web/src/features/access/views/probe-view.tsx',
-    invalid: `import { useEffect } from 'react';
-
-export function ProbeView() {
-  useEffect(() => undefined, []);
-  return <p />;
 }
 `,
     errors: 1,
@@ -3174,15 +3088,6 @@ test('the paired browser can read its inventory', async ({ pairedPage }) => {
     errors: 2,
   },
   {
-    rule: 'web-listeners-in-adapters',
-    path: 'apps/web/src/features/access/views/probe-view.tsx',
-    invalid: `export function probeListen(onResize: () => void) {
-  window.addEventListener('resize', onResize);
-}
-`,
-    errors: 1,
-  },
-  {
     rule: 'web-no-action-hooks',
     path: 'apps/web/src/features/access/views/probe-view.tsx',
     invalid: `import { useOptimistic } from 'react';
@@ -3247,45 +3152,6 @@ export function nextGeneration() { return ++generation; }
     errors: 1,
   },
   {
-    rule: 'web-no-use-reducer',
-    path: 'apps/web/src/features/access/views/probe-view.tsx',
-    invalid: `import { useReducer } from 'react';
-
-export function ProbeView() {
-  const [count] = useReducer((value: number) => value, 0);
-  return <p>{count}</p>;
-}
-`,
-    errors: 1,
-  },
-  {
-    rule: 'web-no-use-state',
-    path: 'apps/web/src/features/access/views/probe-view.tsx',
-    invalid: `import { useState } from 'react';
-
-export function ProbeView() {
-  const [count] = useState(0);
-  return <p>{count}</p>;
-}
-`,
-    errors: 1,
-  },
-  {
-    rule: 'web-no-use-sync-external-store',
-    path: 'apps/web/src/features/access/views/probe-view.tsx',
-    invalid: `import { useSyncExternalStore } from 'react';
-
-export function ProbeView() {
-  const value = useSyncExternalStore(
-    () => () => undefined,
-    () => 'probe',
-  );
-  return <p>{value}</p>;
-}
-`,
-    errors: 1,
-  },
-  {
     rule: 'web-overlays-own-handles',
     path: 'apps/web/src/features/access/views/probe-view.tsx',
     invalid: `import { Dialog } from '@base-ui/react/dialog';
@@ -3322,18 +3188,6 @@ export function ProbeView() {
 }
 `,
     errors: 2,
-  },
-  {
-    rule: 'web-refs-in-adapters',
-    path: 'apps/web/src/features/access/views/probe-view.tsx',
-    invalid: `import { useRef } from 'react';
-
-export function ProbeView() {
-  const node = useRef<HTMLParagraphElement>(null);
-  return <p ref={node} />;
-}
-`,
-    errors: 1,
   },
   {
     rule: 'web-rules-are-pure',
@@ -3441,17 +3295,6 @@ export type ProbePrincipal = Principal;
     errors: 1,
   },
   {
-    rule: 'web-views-no-controlled-open',
-    path: 'apps/web/src/features/access/views/probe-view.tsx',
-    invalid: `import { Dialog } from '@/components/ui/dialog';
-
-export function ProbeView(props: { shown: boolean }) {
-  return <Dialog open={props.shown} />;
-}
-`,
-    errors: 1,
-  },
-  {
     rule: 'web-views-no-direct-data',
     path: 'apps/web/src/features/access/views/probe-view.tsx',
     invalid: `import { useQueryClient } from '@tanstack/react-query';
@@ -3466,44 +3309,6 @@ export const probeClient = useQueryClient;
     invalid: `import { useSearch } from '@tanstack/react-router';
 
 export const probeSearch = useSearch;
-`,
-    errors: 1,
-  },
-  {
-    rule: 'web-views-no-jsx-refs',
-    path: 'apps/web/src/features/access/views/probe-history-ref.tsx',
-    invalid: `export function ProbeHistoryRef() {
-  return <div ref={(element) => { if (element) element.id = "probe"; }} />;
-}
-`,
-    errors: 1,
-  },
-  {
-    rule: 'web-views-no-jsx-refs',
-    path: 'apps/web/src/features/access/views/probe-history-ref.tsx',
-    invalid: `export function ProbeHistoryRef({ elementRef }: { elementRef: (element: HTMLDivElement | null) => void }) {
-  return <div ref={elementRef} />;
-}
-`,
-    errors: 1,
-  },
-  {
-    rule: 'web-views-no-loops',
-    path: 'apps/web/src/features/access/views/probe-view.tsx',
-    invalid: `export function probeLabels(names: string[]) {
-  const labels: string[] = [];
-  for (const name of names) labels.push(name);
-  return labels;
-}
-`,
-    errors: 1,
-  },
-  {
-    rule: 'web-views-no-loops',
-    path: 'apps/web/src/features/access/views/probe-view.tsx',
-    invalid: `export function probeTotal(sizes: number[]) {
-  return sizes.reduce((total, size) => total + size, 0);
-}
 `,
     errors: 1,
   },

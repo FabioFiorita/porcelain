@@ -19,28 +19,6 @@
     "apps/web/src/features/review/queries/published-review.ts": 1,
     "apps/web/src/features/review/queries/reviewed-mutations.ts": 3
   },
-  "porcelain/web-effects-in-adapters": {
-    "apps/web/src/app/views/connected-workspace.tsx": 1,
-    "apps/web/src/app/workspace-provider.tsx": 4,
-    "apps/web/src/features/review/views/code-document.tsx": 2,
-    "apps/web/src/features/review/views/document-tabs.tsx": 1,
-    "apps/web/src/features/review/views/file-document.tsx": 3,
-    "apps/web/src/features/review/views/file-navigation.tsx": 1,
-    "apps/web/src/features/review/views/published-layer.tsx": 1,
-    "apps/web/src/features/review/views/published-overview.tsx": 1,
-    "apps/web/src/features/review/views/review-code-document.tsx": 1,
-    "apps/web/src/features/review/views/review-diagram.tsx": 2,
-    "apps/web/src/features/review/views/review-index.tsx": 1,
-    "apps/web/src/features/review/views/review-workspace.tsx": 1,
-    "apps/web/src/features/review/views/use-code-folds.ts": 1,
-    "apps/web/src/features/review/views/use-tab-layout.ts": 3,
-    "apps/web/src/shared/hooks/use-mobile.ts": 1,
-    "apps/web/src/shared/workspace/preferences.tsx": 2
-  },
-  "porcelain/web-listeners-in-adapters": {
-    "apps/web/src/app/workspace-provider.tsx": 1,
-    "apps/web/src/features/review/views/published-overview.tsx": 1
-  },
   "porcelain/web-no-context": {
     "apps/web/src/app/workspace-provider.tsx": 2,
     "apps/web/src/features/review/views/document-interaction.tsx": 2,
@@ -63,50 +41,9 @@
     "apps/web/src/features/review/views/review-workspace.tsx": 2,
     "apps/web/src/shared/workspace/preferences.tsx": 2
   },
-  "porcelain/web-no-use-state": {
-    "apps/web/src/app/views/connected-workspace.tsx": 3,
-    "apps/web/src/features/review/views/code-document.tsx": 4,
-    "apps/web/src/features/review/views/commit-document.tsx": 2,
-    "apps/web/src/features/review/views/discard.tsx": 4,
-    "apps/web/src/features/review/views/file-document.tsx": 4,
-    "apps/web/src/features/review/views/file-navigation.tsx": 4,
-    "apps/web/src/features/review/views/git-action-inspection.tsx": 8,
-    "apps/web/src/features/review/views/git-button.tsx": 6,
-    "apps/web/src/features/review/views/inline-composer.tsx": 1,
-    "apps/web/src/features/review/views/published-layer.tsx": 4,
-    "apps/web/src/features/review/views/published-overview.tsx": 2,
-    "apps/web/src/features/review/views/review-code-document.tsx": 1,
-    "apps/web/src/features/review/views/review-diagram.tsx": 1,
-    "apps/web/src/features/review/views/review-index.tsx": 2,
-    "apps/web/src/features/review/views/review-workspace.tsx": 5,
-    "apps/web/src/features/review/views/reviewed-control.tsx": 1,
-    "apps/web/src/features/review/views/thread-card.tsx": 3,
-    "apps/web/src/features/review/views/use-code-folds.ts": 1,
-    "apps/web/src/features/review/views/use-tab-layout.ts": 2,
-    "apps/web/src/shared/hooks/use-mobile.ts": 1,
-    "apps/web/src/shared/workspace/preferences.tsx": 1
-  },
-  "porcelain/web-no-use-sync-external-store": {
-    "apps/web/src/shared/workspace/preferences.tsx": 1
-  },
   "porcelain/web-queries-export-reads": {
     "apps/web/src/features/review/queries/review.ts": 1,
     "apps/web/src/features/review/queries/reviewed-mutations.ts": 2
-  },
-  "porcelain/web-refs-in-adapters": {
-    "apps/web/src/app/views/connected-workspace.tsx": 1,
-    "apps/web/src/features/review/views/code-document.tsx": 3,
-    "apps/web/src/features/review/views/document-tabs.tsx": 1,
-    "apps/web/src/features/review/views/file-document.tsx": 1,
-    "apps/web/src/features/review/views/inline-composer.tsx": 1,
-    "apps/web/src/features/review/views/published-layer.tsx": 1,
-    "apps/web/src/features/review/views/published-overview.tsx": 1,
-    "apps/web/src/features/review/views/review-code-document.tsx": 1,
-    "apps/web/src/features/review/views/review-diagram.tsx": 1,
-    "apps/web/src/features/review/views/review-index.tsx": 1,
-    "apps/web/src/features/review/views/review-workspace.tsx": 2,
-    "apps/web/src/features/review/views/thread-card.tsx": 1,
-    "apps/web/src/features/review/views/use-tab-layout.ts": 3
   },
   "porcelain/web-store-owns-storage": {
     "apps/web/src/features/review/views/use-code-folds.ts": 2,
@@ -126,39 +63,10 @@
     "apps/web/src/features/review/views/inline-composer.tsx": 1,
     "apps/web/src/features/review/views/reviewed-control.tsx": 3
   },
-  "porcelain/web-views-no-controlled-open": {
-    "apps/web/src/app/views/connected-workspace.tsx": 8,
-    "apps/web/src/app/views/settings-dialog.tsx": 2,
-    "apps/web/src/app/views/shortcuts-dialog.tsx": 2,
-    "apps/web/src/features/review/views/branch-dialog.tsx": 2,
-    "apps/web/src/features/review/views/discard.tsx": 2,
-    "apps/web/src/features/review/views/file-navigation.tsx": 2,
-    "apps/web/src/features/review/views/git-button.tsx": 8,
-    "apps/web/src/features/review/views/review-workspace.tsx": 2
-  },
   "porcelain/web-views-no-direct-data": {
     "apps/web/src/app/views/connected-workspace.tsx": 1,
     "apps/web/src/app/workspace-provider.tsx": 4,
     "apps/web/src/features/review/views/review-workspace.tsx": 1
-  },
-  "porcelain/web-views-no-jsx-refs": {
-    "apps/web/src/app/views/connected-workspace.tsx": 1,
-    "apps/web/src/features/review/views/code-document.tsx": 1,
-    "apps/web/src/features/review/views/document-tabs.tsx": 1,
-    "apps/web/src/features/review/views/published-layer.tsx": 1,
-    "apps/web/src/features/review/views/published-overview.tsx": 1,
-    "apps/web/src/features/review/views/review-diagram.tsx": 1,
-    "apps/web/src/features/review/views/review-workspace.tsx": 3
-  },
-  "porcelain/web-views-no-loops": {
-    "apps/web/src/features/review/views/code-document.tsx": 1,
-    "apps/web/src/features/review/views/file-navigation.tsx": 1,
-    "apps/web/src/features/review/views/published-layer.tsx": 1,
-    "apps/web/src/features/review/views/review-diagram.tsx": 9,
-    "apps/web/src/features/review/views/review-index.tsx": 1,
-    "apps/web/src/features/review/views/reviewed-control.tsx": 1,
-    "apps/web/src/features/review/views/use-code-folds.ts": 1,
-    "apps/web/src/features/review/views/use-tab-layout.ts": 1
   },
   "porcelain/web-views-no-promise-chains": {
     "apps/web/src/app/views/workspace-view.tsx": 1,

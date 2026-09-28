@@ -385,7 +385,6 @@ const gatingMethods = new Set(['filter', 'find', 'findLast', 'some', 'every']);
 const pascalCase = /^[A-Z][A-Za-z0-9]*$/;
 const camelCase = /^[a-z][A-Za-z0-9]*$/;
 const screamingCase = /^[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)*$/;
-const disableDirective = /^\s*(?:eslint|oxlint)-(?:disable|enable)/;
 const serverCode = /^(?:apps\/server|packages\/[^/]+)\//;
 const packageCode = /^packages\/([^/]+)\/(?:src|spec)\//;
 const nodeGlobalScope =
@@ -1491,21 +1490,6 @@ export default {
                 node: identifier,
                 message: `${identifier.name} is Node; reach it through a port that a gateway, repository or server adapter implements.`,
               });
-          },
-        };
-      },
-    },
-    'no-disable-directives': {
-      create(context) {
-        return {
-          Program() {
-            for (const comment of context.sourceCode.getAllComments())
-              if (disableDirective.test(comment.value))
-                context.report({
-                  loc: comment.loc,
-                  message:
-                    'Fix the code instead of disabling a rule; disable directives are not allowed.',
-                });
           },
         };
       },

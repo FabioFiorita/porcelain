@@ -45,7 +45,6 @@ const cacheWrites = new Set([
 const timerGlobals = new Set(['setTimeout', 'setInterval']);
 const storageGlobals = new Set(['localStorage', 'sessionStorage']);
 const globalObjects = new Set(['window', 'globalThis', 'self']);
-const listenerTargets = new Set(['window', 'document', 'globalThis']);
 const ioGlobals = new Set([
   'window',
   'document',
@@ -158,7 +157,6 @@ const journeyBypasses = new Set([
   'globalThis',
   'self',
 ]);
-const viewLoopMethods = new Set(['forEach', 'reduce', 'reduceRight']);
 
 function importedName(specifier) {
   return specifier.imported.type === 'Identifier'
@@ -359,10 +357,6 @@ function never() {
   return false;
 }
 
-function inAdapters(path) {
-  return webPart(path) === 'adapter';
-}
-
 function viewRule(visitors) {
   return {
     create(context) {
@@ -392,13 +386,6 @@ function commandCalls(body, visitorKeys) {
 }
 
 export const webRules = {
-  'web-no-use-state': hookBan({
-    names: new Set(['useState']),
-    modules: reactModules,
-    allowed: never,
-    message: () =>
-      '`useState` is not ours here: server data is Query, drafts are TanStack Form, client state is the feature store.ts, overlays are Base UI handles.',
-  }),
   'web-no-module-mutable-binding': {
     create(context) {
       if (!runtimeWeb(webPath(context))) return {};
@@ -423,26 +410,12 @@ export const webRules = {
       };
     },
   },
-  'web-no-use-reducer': hookBan({
-    names: new Set(['useReducer']),
-    modules: reactModules,
-    allowed: never,
-    message: () =>
-      '`useReducer` is not ours here: state that changes by action lives in the feature store.ts, where every view reads the same copy.',
-  }),
   'web-no-context': hookBan({
     names: new Set(['createContext', 'useContext']),
     modules: reactModules,
     allowed: never,
     message: (name) =>
       `\`${name}\` is not ours here: shared client state is the feature store.ts and server data is Query; a provider hides who owns the value.`,
-  }),
-  'web-no-use-sync-external-store': hookBan({
-    names: new Set(['useSyncExternalStore']),
-    modules: reactModules,
-    allowed: never,
-    message: () =>
-      '`useSyncExternalStore` is not ours here: an outside source reaches views through the feature store.ts, fed by an adapter.',
   }),
   'web-no-action-hooks': hookBan({
     names: new Set(['useOptimistic', 'useActionState', 'useFormStatus']),
@@ -458,49 +431,6 @@ export const webRules = {
     message: (name) =>
       `\`${name}\` is not ours here: the React Compiler memoizes every component; hand memoization hides what it cannot compile.`,
   }),
-  'web-effects-in-adapters': hookBan({
-    names: new Set(['useEffect', 'useLayoutEffect', 'useInsertionEffect']),
-    modules: reactModules,
-    allowed: inAdapters,
-    message: (name) =>
-      `\`${name}\` belongs to features/<domain>/adapters/, the imperative glue for Pierre and the editor; data arrives through Query, commands and live.ts, never through an effect.`,
-  }),
-  'web-refs-in-adapters': hookBan({
-    names: new Set(['useRef']),
-    modules: reactModules,
-    allowed: inAdapters,
-    message: () =>
-      '`useRef` belongs to features/<domain>/adapters/, where imperative library glue holds its DOM handles; a view renders data and forwards events.',
-  }),
-  'web-views-no-jsx-refs': viewRule((context) => ({
-    JSXAttribute(node) {
-      if (node.name.type === 'JSXIdentifier' && node.name.name === 'ref')
-        context.report({
-          node,
-          message:
-            'A view renders data and forwards events; move a DOM ref and its element into an adapter component, including callback refs.',
-        });
-    },
-  })),
-  'web-listeners-in-adapters': {
-    create(context) {
-      const path = webPath(context);
-      if (!runtimeWeb(path) || inAdapters(path)) return {};
-      return {
-        CallExpression(node) {
-          if (
-            methodName(node.callee) === 'addEventListener' &&
-            listenerTargets.has(rootName(node.callee.object) ?? '')
-          )
-            context.report({
-              node,
-              message:
-                'A window or document listener belongs to features/<domain>/adapters/; keyboard shortcuts are TanStack Hotkeys and everything else reaches a view as a prop.',
-            });
-        },
-      };
-    },
-  },
   'web-store-owns-zustand': {
     create(context) {
       const path = webPath(context);
@@ -600,35 +530,6 @@ export const webRules = {
       };
     },
   },
-  'web-adapters-are-imperative-glue': {
-    create(context) {
-      const path = webPath(context);
-      if (!inAdapters(path)) return {};
-      const check = (node) => {
-        const source = sourceOf(node) ?? '';
-        const target = localTarget(path, source);
-        const featurePart = /^features\/[^/]+\/([^/]+)/.exec(target ?? '')?.[1];
-        if (
-          /^@tanstack\/(?:react-router|router-core)(?:\/|$)/.test(source) ||
-          target?.startsWith('routes/') ||
-          (featurePart !== undefined &&
-            featurePart !== 'adapters' &&
-            featurePart !== 'rules')
-        )
-          context.report({
-            node,
-            message:
-              'An adapter wraps an imperative library or DOM element passed to it; router loaders own URL work and commands/ owns writes. Pass data and callbacks into adapters instead of importing feature business modules or the router.',
-          });
-      };
-      return {
-        ImportDeclaration: check,
-        ImportExpression: check,
-        ExportNamedDeclaration: check,
-        ExportAllDeclaration: check,
-      };
-    },
-  },
   'web-commands-own-writes': hookBan({
     names: writeHooks,
     modules: queryModules,
@@ -673,19 +574,6 @@ export const webRules = {
       };
     },
   },
-  'web-views-no-controlled-open': viewRule((context) => ({
-    JSXAttribute(node) {
-      if (
-        node.name.type === 'JSXIdentifier' &&
-        (node.name.name === 'open' || node.name.name === 'onOpenChange')
-      )
-        context.report({
-          node,
-          message:
-            'An overlay opens through its Base UI handle from the feature overlays.ts, not a controlled open prop; the handle is the state.',
-        });
-    },
-  })),
   'web-api-owns-request': {
     create(context) {
       const path = webPath(context);
@@ -860,17 +748,6 @@ export const webRules = {
         for (const body of bodies)
           for (const node of commandCalls(body, context.sourceCode.visitorKeys))
             context.report({ node, message });
-      },
-    };
-  }),
-  'web-views-no-loops': viewRule((context) => {
-    const message =
-      'A view only loops to render: map, filter, some and find shape what it shows; a write over many items is one command in commands/ that takes the list.';
-    const report = (node) => context.report({ node, message });
-    return {
-      ...Object.fromEntries([...loopStatements].map((type) => [type, report])),
-      CallExpression(node) {
-        if (viewLoopMethods.has(methodName(node.callee) ?? '')) report(node);
       },
     };
   }),

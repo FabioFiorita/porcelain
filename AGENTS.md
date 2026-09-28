@@ -29,7 +29,7 @@ A change to server behaviour is not done until a behaviour spec states its promi
 
 Move a web file to its app, feature or shared owner when a change touches it, keeping its behavior. The baseline cleanup is not a goal of its own. The server contract stays the server's contract.
 
-Views render feature data and forward events; they hold no state, effects, refs, awaits or try blocks. A feature's `api.ts` talks to the server, `queries/` and `commands/` own reads, writes and the cache, `store.ts` owns client state, `overlays.ts` owns Base UI handles, `rules/` holds pure functions, and `adapters/` is the only home for effects, refs and DOM listeners. The React Compiler memoizes; write no `useMemo` or `useCallback`.
+Views render feature data and forward events. A view may keep local UI state, effects and refs for its own UI, but never reaches the server, the Query client or the cache, and never awaits, chains or catches a command. A feature's `api.ts` talks to the server, `queries/` and `commands/` own reads, writes and the cache, `store.ts` owns shared client state and Web Storage, `overlays.ts` owns Base UI handles, `rules/` holds pure functions, and `adapters/` wraps imperative libraries such as Pierre and the editor. The React Compiler memoizes; write no `useMemo` or `useCallback`.
 
 Existing web code still breaks many of these rules. `architecture/web-baseline.json` holds those findings per file and rule, and it only shrinks: a new finding or a growing count fails, a fixed finding must be written down, and nothing is added after the commit that introduces its rule. Keep the checks green by changing code, never a rule or the baseline.
 

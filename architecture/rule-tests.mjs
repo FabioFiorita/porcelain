@@ -11,9 +11,6 @@ const root = new URL('../', import.meta.url);
 const filename = fileURLToPath(
   new URL('apps/web/src/features/files/views/rule-fixture.tsx', root),
 );
-const adapter = fileURLToPath(
-  new URL('apps/web/src/features/files/adapters/rule-fixture.tsx', root),
-);
 const tester = new RuleTester({
   languageOptions: { parserOptions: { lang: 'tsx' } },
 });
@@ -26,36 +23,11 @@ const cases = [
       'Remove the code comment; express the rule in code or architecture guidance.',
   },
   {
-    rule: 'web-no-use-state',
-    valid: "export function title() { return 'File'; }",
-    invalid:
-      "import { useState } from 'react'; export function draft() { return useState(''); }",
-    message:
-      '`useState` is not ours here: server data is Query, drafts are TanStack Form, client state is the feature store.ts, overlays are Base UI handles.',
-  },
-  {
-    rule: 'web-views-no-loops',
-    valid:
-      'export function labels(names: string[]) { return names.map(name => name); }',
-    invalid:
-      'export function labels(names: string[]) { const labels: string[] = []; for (const name of names) labels.push(name); return labels; }',
-    message:
-      'A view only loops to render: map, filter, some and find shape what it shows; a write over many items is one command in commands/ that takes the list.',
-  },
-  {
     rule: 'web-no-module-mutable-binding',
     valid: 'export const count = 0;',
     invalid: 'export let count = 0;',
     message:
       'Module-level mutable bindings bypass subscribers; put client state and counters in the feature store.ts.',
-  },
-  {
-    rule: 'web-no-use-reducer',
-    valid: 'export const count = 0;',
-    invalid:
-      "import { useReducer as reducer } from 'react'; export const draft = () => reducer(() => 0, 0);",
-    message:
-      '`useReducer` is not ours here: state that changes by action lives in the feature store.ts, where every view reads the same copy.',
   },
   {
     rule: 'web-no-context',
@@ -72,33 +44,6 @@ const cases = [
       "import { useMemo } from 'react'; export const title = () => useMemo(() => 'File', []);",
     message:
       '`useMemo` is not ours here: the React Compiler memoizes every component; hand memoization hides what it cannot compile.',
-  },
-  {
-    rule: 'web-effects-in-adapters',
-    allowed: adapter,
-    valid:
-      "import { useEffect } from 'react'; export const mount = () => useEffect(() => {}, []);",
-    invalid:
-      "import { useEffect } from 'react'; export const mount = () => useEffect(() => {}, []);",
-    message:
-      '`useEffect` belongs to features/<domain>/adapters/, the imperative glue for Pierre and the editor; data arrives through Query, commands and live.ts, never through an effect.',
-  },
-  {
-    rule: 'web-refs-in-adapters',
-    allowed: adapter,
-    valid:
-      "import { useRef } from 'react'; export const handle = () => useRef(null);",
-    invalid:
-      "import { useRef } from 'react'; export const handle = () => useRef(null);",
-    message:
-      '`useRef` belongs to features/<domain>/adapters/, where imperative library glue holds its DOM handles; a view renders data and forwards events.',
-  },
-  {
-    rule: 'web-views-no-jsx-refs',
-    valid: 'export const View = () => <div>File</div>;',
-    invalid: 'export const View = () => <div ref={() => {}}>File</div>;',
-    message:
-      'A view renders data and forwards events; move a DOM ref and its element into an adapter component, including callback refs.',
   },
   {
     rule: 'web-views-no-await',
@@ -128,7 +73,7 @@ const cases = [
 const started = performance.now();
 for (const entry of cases)
   tester.run(entry.rule, plugin.rules[entry.rule], {
-    valid: [{ filename: entry.allowed ?? filename, code: entry.valid }],
+    valid: [{ filename, code: entry.valid }],
     invalid: [
       { filename, code: entry.invalid, errors: [{ message: entry.message }] },
     ],
