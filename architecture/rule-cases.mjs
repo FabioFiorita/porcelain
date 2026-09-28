@@ -2948,7 +2948,7 @@ export class ReadChangeLinesUseCase {
   },
   {
     rule: 'use-case-input-is-contract',
-    path: 'apps/server/src/use-cases/reviews/create-comment-thread.ts',
+    path: 'apps/server/src/use-cases/reviews/rule-fixture.ts',
     valid: `import type {
   CommentAuthor,
   CreateCommentThreadRequest,
