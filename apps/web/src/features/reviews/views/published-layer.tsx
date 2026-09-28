@@ -1,7 +1,7 @@
-import { useConnectedContext } from '@/app/workspace-provider';
 import { parsePatchFiles } from '@pierre/diffs';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAccessStore } from '@/features/access/index';
 import {
   selectionKey,
@@ -9,38 +9,38 @@ import {
   useChangeLines,
   useRecoverChangedDiffs,
 } from '@/features/changes/index';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  type OpenDocument,
-  type ChangeSelection,
-  type ReviewChangeItem,
-  type ReviewLayer,
-  type ReviewScope,
-  type ReviewStep,
-  type Graph,
-  layerReviewState,
-  ReviewDiagram,
-  useLayerMarks,
-  useToggleLayerMark,
-} from '@/features/reviews/index';
-
-import { contentVersion } from '@/shared/lib/pierre';
-import { useReviewChanges } from '@/features/review/queries/review';
-import { CodeDocument, type CodeEntry } from './code-document';
-import { DocumentToolbar } from './document-toolbar';
 import { MarkdownView } from '@/features/files/index';
-import { contextPatch, focusPatch } from '@/features/reviews/index';
+import { contentVersion } from '@/shared/lib/pierre';
+import type { CodeEntry } from '../adapters/code-entries';
+import { useToggleLayerMark } from '../commands/layer-marks';
+import { useLayerMarks } from '../queries/published-review';
+import type { DocumentInteraction, OpenDocument } from '../rules/documents';
+import { contextPatch, focusPatch } from '../rules/patch-focus';
+import type {
+  ChangeSelection,
+  ReviewChangeItem,
+  ReviewLayer,
+  ReviewScope,
+  ReviewStep,
+} from '../rules/review';
+import { layerReviewState } from '../rules/reviewed';
+import { CodeDocument, type DocumentContext } from './code-document';
+import { DocumentToolbar } from './document-toolbar';
+import { type Graph, ReviewDiagram } from './review-diagram';
+import { useReviewChanges } from './review-code-document';
+
+type LayerProps = {
+  scope: ReviewScope;
+  context: DocumentContext;
+  interaction: DocumentInteraction;
+  onOpen: OpenDocument;
+};
 
 export function PublishedLayer({
-  scope,
   layer,
-  onOpen,
-}: {
-  scope: ReviewScope;
-  layer: ReviewLayer;
-  onOpen: OpenDocument;
-}) {
-  const context = useConnectedContext();
+  ...props
+}: LayerProps & { layer: ReviewLayer }) {
+  const { scope, context } = props;
   const marks = useLayerMarks(scope, context);
   const toggle = useToggleLayerMark(scope, context);
   const { reviewed, label } = layerReviewState(marks.data, layer);
@@ -49,32 +49,29 @@ export function PublishedLayer({
   const [focus, setFocus] = useState<string>();
   const steps = layer.steps.slice(0, shown);
   const selectedStep = layer.steps.find((step) => step.id === focus);
-  const graph = useMemo<Graph>(
-    () => ({
-      lanes: layer.lanes,
-      boxes: layer.steps.map((step) => ({
-        id: step.id,
-        lane: step.lane,
-        label: step.title,
-        detail: step.text,
-        kind: 'component',
-        clickable: true,
-        dimmed: step.location.state === 'committed',
-        ...(step.kind === 'changed' ? { change: 'changed' as const } : {}),
-        ...(step.location.state === 'changed'
-          ? { warning: 'Code changed since the review was written' }
-          : {}),
-      })),
-      arrows: [
-        ...layer.steps.slice(1).flatMap((step, index) => {
-          const previous = layer.steps[index];
-          return previous ? [{ from: previous.id, to: step.id }] : [];
-        }),
-        ...(layer.arrows ?? []),
-      ],
-    }),
-    [layer],
-  );
+  const graph: Graph = {
+    lanes: layer.lanes,
+    boxes: layer.steps.map((step) => ({
+      id: step.id,
+      lane: step.lane,
+      label: step.title,
+      detail: step.text,
+      kind: 'component',
+      clickable: true,
+      dimmed: step.location.state === 'committed',
+      ...(step.kind === 'changed' ? { change: 'changed' as const } : {}),
+      ...(step.location.state === 'changed'
+        ? { warning: 'Code changed since the review was written' }
+        : {}),
+    })),
+    arrows: [
+      ...layer.steps.slice(1).flatMap((step, index) => {
+        const previous = layer.steps[index];
+        return previous ? [{ from: previous.id, to: step.id }] : [];
+      }),
+      ...(layer.arrows ?? []),
+    ],
+  };
   return (
     <section
       className="flex min-h-0 flex-1 flex-col"
@@ -138,11 +135,10 @@ export function PublishedLayer({
               </div>
               <div className="min-h-0 flex-1 overflow-auto p-4">
                 <LayerSteps
-                  scope={scope}
+                  {...props}
                   layer={layer}
                   steps={[selectedStep]}
                   focus={undefined}
-                  onOpen={onOpen}
                 />
               </div>
             </section>
@@ -154,13 +150,7 @@ export function PublishedLayer({
             text={layer.summary}
             className="mb-5 max-w-3xl text-sm text-muted-foreground"
           />
-          <LayerSteps
-            scope={scope}
-            layer={layer}
-            steps={steps}
-            focus={focus}
-            onOpen={onOpen}
-          />
+          <LayerSteps {...props} layer={layer} steps={steps} focus={focus} />
           {shown < layer.steps.length && (
             <Button
               variant="outline"
@@ -177,22 +167,21 @@ export function PublishedLayer({
 }
 
 function LayerSteps({
-  scope,
   layer,
   steps,
   focus,
-  onOpen,
-}: {
-  scope: ReviewScope;
+  ...props
+}: LayerProps & {
   layer: ReviewLayer;
   steps: ReviewStep[];
   focus: string | undefined;
-  onOpen: OpenDocument;
 }) {
+  const { scope, context } = props;
   const connection = useAccessStore((state) => state.connection);
   const recover = useRecoverChangedDiffs(scope, connection);
   const items = useReviewChanges(
     scope,
+    context,
     steps.map((step) => step.pointer.path),
   );
   const selections = items.flatMap((item) =>
@@ -225,13 +214,12 @@ function LayerSteps({
       {steps.map((step) => (
         <Step
           key={step.id}
+          {...props}
           step={step}
           lane={layer.lanes[step.lane] ?? ''}
-          scope={scope}
           item={items.find((item) => item.path === step.pointer.path)}
           diffs={diffs}
           focus={focus === step.id}
-          onOpen={onOpen}
         />
       ))}
     </div>
@@ -242,18 +230,18 @@ function Step({
   step,
   lane,
   scope,
+  context,
+  interaction,
   item,
   diffs,
   focus,
   onOpen,
-}: {
+}: LayerProps & {
   step: ReviewStep;
   lane: string;
-  scope: ReviewScope;
   item: ReviewChangeItem | undefined;
   diffs: ReturnType<typeof useChangeDiffs>;
   focus: boolean;
-  onOpen: OpenDocument;
 }) {
   const [expanded, setExpanded] = useState(false);
   const element = useRef<HTMLElement>(null);
@@ -317,7 +305,7 @@ function Step({
                 ]
               : [];
           });
-    for (const [index, { patch, comparison }] of patches.entries()) {
+    patches.forEach(({ patch, comparison }, index) => {
       const fileDiff = parsePatchFiles(patch).flatMap(
         (group) => group.files,
       )[0];
@@ -336,7 +324,7 @@ function Step({
               : {}),
           },
         });
-    }
+    });
   }
   return (
     <article
@@ -371,7 +359,13 @@ function Step({
         </Button>
       ) : entries.length > 0 ? (
         <div className="flex min-w-0 flex-col">
-          <CodeDocument scope={scope} entries={entries} fullHeight />
+          <CodeDocument
+            scope={scope}
+            context={context}
+            interaction={interaction}
+            entries={entries}
+            fullHeight
+          />
         </div>
       ) : (
         <p role="status" className="text-sm text-muted-foreground">

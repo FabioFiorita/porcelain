@@ -15,6 +15,7 @@ export const HISTORY_ORDINAL_TEENS_START = 11;
 export const HISTORY_ORDINAL_TEENS_END = 13;
 export const HISTORY_ORDINAL_DECADE = 10;
 export const FILE_AUTOSAVE_WAIT_MS = 3_000;
+export const FILE_DISK_CHANGE_NOTICE_MS = 8_000;
 export const FILE_QUICK_OPEN_MAX = 50;
 export const FILE_PREVIEW_MAX_ASSETS = 64;
 export const FILE_PREVIEW_MAX_BYTES = 28 * 1024 * 1024;

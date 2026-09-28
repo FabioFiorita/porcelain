@@ -47,6 +47,7 @@ import {
   type Surface,
   usePublishedReview,
   DocumentTabs,
+  DocumentView,
   type PaneIndex,
   useTabLayout,
 } from '@/features/reviews/index';
@@ -59,7 +60,6 @@ import {
 import { useConnectedContext } from '@/app/workspace-provider';
 
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
-import { DocumentView } from './documents';
 import { ReviewBoundary } from './review-boundary';
 import { ReviewSidebar } from './review-sidebar';
 
@@ -289,7 +289,8 @@ function DocumentArea({
 }) {
   const connection = useAccessStore((state) => state.connection);
   const overview = useReviewOverview(scope, connection);
-  const published = usePublishedReview(scope, useConnectedContext());
+  const context = useConnectedContext();
+  const published = usePublishedReview(scope, context);
   const layers = published.data?.active ? published.data.layers : [];
   const hasHandoff =
     Boolean(published.data?.active) ||
@@ -311,6 +312,7 @@ function DocumentArea({
     focused: focused === index,
     setFocused,
     scope,
+    context,
     layers,
     hasHandoff,
     onOpen,
@@ -343,6 +345,7 @@ function PaneView({
   focused,
   setFocused,
   scope,
+  context,
   layers,
   hasHandoff,
   onOpen,
@@ -353,6 +356,7 @@ function PaneView({
   tabControls,
 }: {
   index: PaneIndex;
+  context: ReturnType<typeof useConnectedContext>;
   layout: ReturnType<typeof useTabLayout>;
   split: boolean;
   focused: boolean;
@@ -444,6 +448,7 @@ function PaneView({
           <ReviewBoundary key={pane.active}>
             <DocumentView
               scope={scope}
+              context={context}
               document={document}
               onOpen={onOpen}
               active={focused}

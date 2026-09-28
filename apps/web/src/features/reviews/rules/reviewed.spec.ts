@@ -5,6 +5,7 @@ import {
   bulkReportText,
   layerReviewState,
   markAllPlan,
+  reviewToggle,
   visibleBulkReport,
 } from './reviewed.ts';
 
@@ -225,5 +226,33 @@ describe('visibleBulkReport', () => {
     expect(visibleBulkReport({ report: undefined, submittedAt: 20 }, 0)).toBe(
       null,
     );
+  });
+});
+
+describe('reviewToggle', () => {
+  it('marks an unreviewed file with the fingerprint the user saw', () => {
+    expect(
+      reviewToggle(
+        { path: 'a.ts', fingerprint: 'seen', reviewed: false },
+        false,
+      ),
+    ).toEqual({ kind: 'mark', input: { path: 'a.ts', fingerprint: 'seen' } });
+  });
+
+  it('unmarks a reviewed file', () => {
+    expect(
+      reviewToggle(
+        { path: 'a.ts', fingerprint: 'seen', reviewed: true },
+        false,
+      ),
+    ).toEqual({ kind: 'unmark', path: 'a.ts' });
+  });
+
+  it('does nothing while a mark is pending or when the file state is unknown', () => {
+    expect([
+      reviewToggle({ path: 'a.ts', fingerprint: 'seen' }, true),
+      reviewToggle({ path: 'a.ts', fingerprint: null }, false),
+      reviewToggle(undefined, false),
+    ]).toEqual([null, null, null]);
   });
 });

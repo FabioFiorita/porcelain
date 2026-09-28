@@ -1,9 +1,7 @@
-import { useConnectedContext } from '@/app/workspace-provider';
 import type {
   CodeViewItem,
   CodeViewLineSelection,
   DiffLineAnnotation,
-  FileDiffMetadata,
 } from '@pierre/diffs';
 import {
   CodeView,
@@ -18,116 +16,66 @@ import {
   ChevronsUpDownIcon,
   MessageSquarePlusIcon,
 } from 'lucide-react';
-import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  type ComponentProps,
+  type ReactNode,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/toast';
-import {
-  commentIsStale,
-  type CommentAnchor,
-  type CommentTarget,
-  type CommentThread,
-  matchesCommentTarget,
-  rangeAnchor,
-  basename,
-  type ReviewScope,
-} from '@/features/reviews/index';
-
+import { DiscardButton } from '@/features/git-actions/index';
 import {
   contentVersion,
   PIERRE_COMMENT_CSS,
   PIERRE_SURFACE_CSS,
   PIERRE_THEME,
 } from '@/shared/lib/pierre';
-import {
-  anchorLabel,
-  InlineComposer,
-  reviewErrorMessage,
-  ThreadCard,
-  useComments,
-  useMarkReviewed,
-  useUnmarkReviewed,
-} from '@/features/reviews/index';
 import { usePreferences } from '@/shared/workspace/preferences';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
 import { useTheme } from '@/shared/workspace/theme';
-import { DiscardButton } from '@/features/git-actions/index';
-import { useDocumentInteraction } from './document-interaction';
-import { useCodeFolds } from './use-code-folds';
+import type { CodeEntry } from '../adapters/code-entries';
+import { useToggleReviewed } from '../commands/reviewed';
+import { useComments } from '../queries/comments';
+import { isFolded } from '../rules/code-folds';
+import {
+  anchorLabel,
+  commentIsStale,
+  type CommentAnchor,
+  type CommentThread,
+  matchesCommentTarget,
+  rangeAnchor,
+} from '../rules/comments';
+import type { DocumentInteraction } from '../rules/documents';
+import { basename, type ReviewScope } from '../rules/review';
+import type { ReviewsContext } from '../rules/reviewed';
+import { useCodeFolds } from '../store';
+import { InlineComposer } from './inline-composer';
+import { ThreadCard } from './thread-card';
 
-export type CodeEntry =
-  | {
-      id: string;
-      kind: 'diff';
-      path: string;
-      fileDiff: FileDiffMetadata;
-      version: number;
-      note?: string;
-      comment?: CommentTarget;
-      review?: {
-        path: string;
-        control: ReactNode;
-        reviewed?: boolean;
-        stale?: boolean;
-        fingerprint?: string | null;
-      };
-    }
-  | {
-      id: string;
-      kind: 'file';
-      path: string;
-      contents: string;
-      version: number;
-      note?: string;
-      comment?: CommentTarget;
-      review?: {
-        path: string;
-        control: ReactNode;
-        reviewed?: boolean;
-        stale?: boolean;
-        fingerprint?: string | null;
-      };
-    };
+export type DocumentContext = ReviewsContext &
+  ComponentProps<typeof DiscardButton>['context'];
 
 type Note =
   | { kind: 'thread'; thread: CommentThread; stale: boolean }
   | { kind: 'composer'; anchor: CommentAnchor };
 type Props = {
   entries: readonly CodeEntry[];
-  scope?: ReviewScope;
+  scope: ReviewScope;
+  context: DocumentContext;
+  interaction: DocumentInteraction;
   header?: () => ReactNode;
   toolbar?: (collapseControl: ReactNode) => ReactNode;
   commentRequest?: number;
   disableFileHeader?: boolean;
   fullHeight?: boolean;
-  headerActions?: ReactNode;
-  onToggleReviewed?: (entry: CodeEntry) => void;
 };
 export function CodeDocument(props: Props) {
-  return props.scope ? (
-    <ConnectedCodeDocument {...props} scope={props.scope} />
-  ) : (
-    <CodeSurface {...props} threads={[]} />
+  const { threads, error } = useComments(props.scope, props.context);
+  const review = useToggleReviewed(props.scope, props.context, (notice) =>
+    toast.add(notice),
   );
-}
-function ConnectedCodeDocument(props: Props & { scope: ReviewScope }) {
-  const gitContext = useConnectedContext();
-  const { threads, error } = useComments(props.scope, gitContext);
-  const mark = useMarkReviewed(props.scope, gitContext);
-  const unmark = useUnmarkReviewed(props.scope, gitContext);
-  const toggle = (entry: CodeEntry) => {
-    const review = entry.review;
-    if (!review?.fingerprint || mark.isPending || unmark.isPending) return;
-    const operation = review.reviewed
-      ? unmark.submit(review.path)
-      : mark.submit({ path: review.path, fingerprint: review.fingerprint });
-    void operation.catch((error: unknown) =>
-      toast.add({
-        title: 'Could not update review',
-        description: reviewErrorMessage(error),
-        type: 'error',
-      }),
-    );
-  };
   return (
     <>
       {error && (
@@ -138,8 +86,7 @@ function ConnectedCodeDocument(props: Props & { scope: ReviewScope }) {
       <CodeSurface
         {...props}
         threads={threads}
-        gitContext={gitContext}
-        onToggleReviewed={toggle}
+        onToggleReviewed={(entry) => review.toggle(entry.review)}
       />
     </>
   );
@@ -147,23 +94,22 @@ function ConnectedCodeDocument(props: Props & { scope: ReviewScope }) {
 function CodeSurface({
   entries,
   scope,
+  context: gitContext,
+  interaction,
   header,
   toolbar,
   threads,
   commentRequest,
   disableFileHeader = false,
   fullHeight = false,
-  headerActions,
   onToggleReviewed,
-  gitContext,
 }: Props & {
   threads: readonly CommentThread[];
-  gitContext?: ReturnType<typeof useConnectedContext>;
+  onToggleReviewed: (entry: CodeEntry) => void;
 }) {
   const { dark } = useTheme();
   const { preferences } = usePreferences();
-  const interaction = useDocumentInteraction();
-  const folds = useCodeFolds(interaction.storageKey);
+  const folds = useCodeFolds(interaction.worktreeId, interaction.entry);
   const viewer = useRef<CodeViewHandle<Note, undefined>>(null);
   const [composer, setComposer] = useState<{
     id: string;
@@ -179,15 +125,16 @@ function CodeSurface({
       .filter(
         (entry) =>
           composer?.id !== entry.id &&
-          folds.isCollapsed(
+          isFolded(
+            folds.folds,
             entry.id,
-            entries.length > 1 && entry.review?.reviewed,
+            entries.length > 1 && entry.review?.reviewed === true,
           ),
       )
       .map((entry) => entry.id),
   );
   const openFileComment = (entry: CodeEntry | undefined) => {
-    if (!entry?.comment || !scope) return;
+    if (!entry?.comment) return;
     setFocused(entries.findIndex((candidate) => candidate.id === entry.id));
     setComposer({ id: entry.id, anchor: { ...entry.comment, kind: 'file' } });
     setSelection(null);
@@ -269,14 +216,11 @@ function CodeSurface({
     SHORTCUTS.toggleReviewed,
     () => {
       const entry = entries[focused];
-      if (entry) onToggleReviewed?.(entry);
+      if (entry) onToggleReviewed(entry);
     },
     hotkeys,
   );
-  const byId = useMemo(
-    () => new Map(entries.map((entry) => [entry.id, entry])),
-    [entries],
-  );
+  const byId = new Map(entries.map((entry) => [entry.id, entry]));
   const items: CodeViewItem<Note>[] = entries.map((entry) => {
     const target = entry.comment;
     const notes: Note[] = target
@@ -329,63 +273,48 @@ function CodeSurface({
           file: { name: entry.path, contents: entry.contents },
         };
   });
-  const firstReviewEntryByPath = useMemo(() => {
-    const result = new Map<string, string>();
-    for (const entry of entries) {
-      if (entry.review && !result.has(entry.review.path))
-        result.set(entry.review.path, entry.id);
-    }
-    return result;
-  }, [entries]);
-  const options = useMemo<CodeViewReactOptions<Note, undefined>>(
-    () => ({
-      theme: PIERRE_THEME,
-      themeType: dark ? 'dark' : 'light',
-      overflow: preferences.lineOverflow,
-      diffStyle: preferences.diffStyle,
-      diffIndicators: 'classic',
-      hunkSeparators: 'line-info',
-      stickyHeaders: !disableFileHeader && !fullHeight,
-      disableFileHeader,
-      enableLineSelection: true,
-      enableGutterUtility: scope !== undefined,
-      onLineClick: (_, context) =>
-        setFocused(entries.findIndex((entry) => entry.id === context.item.id)),
-      onLineNumberClick: (_, context) =>
-        setFocused(entries.findIndex((entry) => entry.id === context.item.id)),
-      onGutterUtilityClick: (range, context) => {
-        const entry = byId.get(context.item.id);
-        if (!entry?.comment || !scope) return;
-        const anchor = rangeAnchor(entry.comment, range);
-        if (!anchor) {
-          setRangeError('Select lines on one side of the comparison.');
-          return;
-        }
-        setFocused(entries.findIndex((candidate) => candidate.id === entry.id));
-        setRangeError(null);
-        setComposer({ id: entry.id, anchor });
-        setSelection({ id: entry.id, range });
-      },
-      lineHoverHighlight: 'number',
-      unsafeCSS: `${PIERRE_SURFACE_CSS}${scope ? PIERRE_COMMENT_CSS : ''}${disableFileHeader ? '[data-code] { padding-top: 0 !important; }' : ''}`,
-      ...(disableFileHeader ? { itemMetrics: { paddingTop: 0 } } : {}),
-      layout: {
-        paddingTop: disableFileHeader ? 0 : 12,
-        paddingBottom: fullHeight ? 12 : 160,
-        gap: 12,
-      },
-    }),
-    [
-      dark,
-      preferences.diffStyle,
-      preferences.lineOverflow,
-      disableFileHeader,
-      fullHeight,
-      scope,
-      byId,
-      entries,
-    ],
-  );
+  const firstReviewEntryByPath = new Map<string, string>();
+  for (const entry of entries) {
+    if (entry.review && !firstReviewEntryByPath.has(entry.review.path))
+      firstReviewEntryByPath.set(entry.review.path, entry.id);
+  }
+  const options: CodeViewReactOptions<Note, undefined> = {
+    theme: PIERRE_THEME,
+    themeType: dark ? 'dark' : 'light',
+    overflow: preferences.lineOverflow,
+    diffStyle: preferences.diffStyle,
+    diffIndicators: 'classic',
+    hunkSeparators: 'line-info',
+    stickyHeaders: !disableFileHeader && !fullHeight,
+    disableFileHeader,
+    enableLineSelection: true,
+    enableGutterUtility: true,
+    onLineClick: (_, context) =>
+      setFocused(entries.findIndex((entry) => entry.id === context.item.id)),
+    onLineNumberClick: (_, context) =>
+      setFocused(entries.findIndex((entry) => entry.id === context.item.id)),
+    onGutterUtilityClick: (range, context) => {
+      const entry = byId.get(context.item.id);
+      if (!entry?.comment) return;
+      const anchor = rangeAnchor(entry.comment, range);
+      if (!anchor) {
+        setRangeError('Select lines on one side of the comparison.');
+        return;
+      }
+      setFocused(entries.findIndex((candidate) => candidate.id === entry.id));
+      setRangeError(null);
+      setComposer({ id: entry.id, anchor });
+      setSelection({ id: entry.id, range });
+    },
+    lineHoverHighlight: 'number',
+    unsafeCSS: `${PIERRE_SURFACE_CSS}${PIERRE_COMMENT_CSS}${disableFileHeader ? '[data-code] { padding-top: 0 !important; }' : ''}`,
+    ...(disableFileHeader ? { itemMetrics: { paddingTop: 0 } } : {}),
+    layout: {
+      paddingTop: disableFileHeader ? 0 : 12,
+      paddingBottom: fullHeight ? 12 : 160,
+      gap: 12,
+    },
+  };
   const allCollapsed =
     entries.length > 0 && entries.every((entry) => collapsed.has(entry.id));
 
@@ -415,7 +344,7 @@ function CodeSurface({
       </Button>
     ) : null;
   const selectionAnchor =
-    selection != null && composer == null && scope
+    selection != null && composer == null
       ? (() => {
           const entry = byId.get(selection.id);
           return entry?.comment
@@ -445,9 +374,7 @@ function CodeSurface({
               {basename(selectionAnchor.filePath)} ·{' '}
               {anchorLabel(selectionAnchor)}
             </span>
-            {scope &&
-              gitContext &&
-              selectionAnchor.kind === 'codeRange' &&
+            {selectionAnchor.kind === 'codeRange' &&
               selectionAnchor.comparison?.kind === 'worktree' &&
               selectionAnchor.side !== 'deletions' &&
               (selectionAnchor.comparison.scope === 'staged' ||
@@ -498,7 +425,6 @@ function CodeSurface({
           }}
           renderAnnotation={(annotation) => {
             const note = annotation.metadata;
-            if (!scope || !gitContext) return null;
             return note.kind === 'composer' ? (
               <InlineComposer
                 key={JSON.stringify(note.anchor)}
@@ -527,13 +453,12 @@ function CodeSurface({
             if (disableFileHeader) return null;
             return (
               <div className="flex items-center gap-2">
-                {headerActions}
                 {entry?.review?.stale && (
                   <span className="rounded-md bg-graph-4/15 px-1.5 py-0.5 font-sans text-[10.5px] text-graph-4">
                     Changed since reviewed
                   </span>
                 )}
-                {entry?.comment && scope ? (
+                {entry?.comment ? (
                   <button
                     type="button"
                     aria-label={`Comment on ${entry.path} (${entry.kind === 'diff' ? (entry.note ?? 'diff') : 'file'})`}

@@ -160,3 +160,18 @@ export function notExplainedLabel(
   ];
   return parts.length === 0 ? null : parts.join(' and ');
 }
+
+export function summaryLayerNumber(message: unknown): number | null {
+  if (
+    !message ||
+    typeof message !== 'object' ||
+    !('source' in message) ||
+    !('openLayer' in message)
+  )
+    return null;
+  return message.source === 'porcelain-summary' &&
+    typeof message.openLayer === 'number' &&
+    Number.isInteger(message.openLayer)
+    ? message.openLayer
+    : null;
+}

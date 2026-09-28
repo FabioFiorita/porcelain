@@ -1,7 +1,10 @@
 import { createStore } from 'zustand/vanilla';
 import { useStore } from 'zustand';
 import { Debouncer } from '@tanstack/pacer';
-import { FILE_AUTOSAVE_WAIT_MS } from '@/config/limits';
+import {
+  FILE_AUTOSAVE_WAIT_MS,
+  FILE_DISK_CHANGE_NOTICE_MS,
+} from '@/config/limits';
 
 export type FileDraftState = {
   text: string;
@@ -10,6 +13,7 @@ export type FileDraftState = {
   saving: boolean;
   owner: string | null;
   error: unknown;
+  diskChanged: boolean;
 };
 
 export class FileDraft {
@@ -48,6 +52,7 @@ export class FileDraft {
       saving: false,
       owner: null,
       error: null,
+      diskChanged: false,
     }));
     this.write = write;
     this.isBlockedError = isBlockedError;
@@ -96,6 +101,21 @@ export class FileDraft {
           if (!saved) onUnsaved();
         });
     });
+  }
+  noticeDiskChange(fingerprint: string | undefined) {
+    const state = this.snapshot();
+    if (
+      state.saving ||
+      state.owner !== null ||
+      state.diskChanged ||
+      this.lastWrittenFingerprint === fingerprint
+    )
+      return;
+    this.update({ diskChanged: true });
+    setTimeout(
+      () => this.update({ diskChanged: false }),
+      FILE_DISK_CHANGE_NOTICE_MS,
+    );
   }
   change(text: string) {
     if (this.snapshot().text === text) return;

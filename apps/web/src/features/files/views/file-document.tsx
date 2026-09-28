@@ -4,34 +4,43 @@ import {
   MessageSquarePlusIcon,
   PencilIcon,
 } from 'lucide-react';
-import { useEffect, useId, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useId, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAccessStore } from '@/features/access/index';
 import { useChanges } from '@/features/changes/index';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { type OpenDocument, type ReviewScope } from '@/features/reviews/index';
-import type { FileDraft, FileDraftState } from '@/features/files/index';
-import { isImagePath, useDirectory, useTextFile } from '@/features/files/index';
-
-import { useFileDraft } from '@/features/files/index';
+import {
+  CodeDocument,
+  type DocumentContext,
+  type DocumentInteraction,
+  DocumentToolbar,
+  fileEntry,
+  type OpenDocument,
+  ReviewEmpty,
+  type ReviewScope,
+} from '@/features/reviews/index';
 import { copyText } from '@/shared/workspace/copy';
 import { usePreferences } from '@/shared/workspace/preferences';
-import { CodeDocument } from './code-document';
-import { fileEntry } from './diff-entries';
-import { useDocumentInteraction } from './document-interaction';
-import { DocumentToolbar } from './document-toolbar';
-import { FileEditor } from '@/features/files/index';
-import { FileTypeIcon } from '@/features/files/index';
-import { HtmlPreview } from '@/features/files/index';
-import { ImagePreview } from '@/features/files/index';
-import { MarkdownView } from '@/features/files/index';
-import { ReviewEmpty } from './review-empty';
+import { useFileDraft } from '../commands/edit-file';
+import { useDirectory } from '../queries/directory';
+import { useTextFile } from '../queries/text';
+import { isImagePath } from '../rules/html-assets';
+import type { FileDraft, FileDraftState } from '../store';
+import { FileEditor } from './file-editor';
+import { FileTypeIcon } from './file-type-icon';
+import { HtmlPreview } from './html-preview';
+import { ImagePreview } from './image-preview';
+import { MarkdownView } from './markdown-view';
 
-export function FileDocument(props: {
+type FileDocumentProps = {
   scope: ReviewScope;
+  context: DocumentContext;
+  interaction: DocumentInteraction;
   path: string;
   onOpen: OpenDocument;
-}) {
+};
+
+export function FileDocument(props: FileDocumentProps) {
   return isImagePath(props.path) ? (
     <div className="flex min-h-0 flex-1 flex-col overflow-auto">
       <FileToolbar path={props.path} />
@@ -42,11 +51,7 @@ export function FileDocument(props: {
   );
 }
 
-function LinkedFileDocument(props: {
-  scope: ReviewScope;
-  path: string;
-  onOpen: OpenDocument;
-}) {
+function LinkedFileDocument(props: FileDocumentProps) {
   const parent = props.path.split('/').slice(0, -1).join('/');
   const connection = useAccessStore((state) => state.connection);
   const folder = useDirectory(connection, props.scope, parent);
@@ -77,16 +82,13 @@ function NotShownFile({ path, message }: { path: string; message: string }) {
 
 function TextFileDocument({
   scope,
+  context,
+  interaction,
   path,
   onOpen,
-}: {
-  scope: ReviewScope;
-  path: string;
-  onOpen: OpenDocument;
-}) {
-  const { active } = useDocumentInteraction();
+}: FileDocumentProps) {
   const connection = useAccessStore((state) => state.connection);
-  const file = useTextFile(connection, scope, path, active);
+  const file = useTextFile(connection, scope, path, interaction.active);
   const unreadable = 'kind' in file;
   const { draft, state } = useFileDraft(
     connection,
@@ -110,6 +112,8 @@ function TextFileDocument({
       )}
       <ReadableFileDocument
         scope={scope}
+        context={context}
+        interaction={interaction}
         path={path}
         text={unreadable ? state.savedText : file.text}
         contentFingerprint={
@@ -128,20 +132,19 @@ type FileDisplayMode = 'rendered' | 'source';
 
 function ReadableFileDocument({
   scope,
+  context,
+  interaction,
   path,
   text,
   contentFingerprint,
   draft,
   draftState,
   onOpen,
-}: {
-  scope: ReviewScope;
-  path: string;
+}: FileDocumentProps & {
   text: string;
   contentFingerprint?: string | undefined;
   draft: FileDraft;
   draftState: FileDraftState;
-  onOpen: OpenDocument;
 }) {
   const { preferences } = usePreferences();
   const connection = useAccessStore((state) => state.connection);
@@ -151,7 +154,7 @@ function ReadableFileDocument({
   const [mode, setMode] = useState<FileDisplayMode>(() =>
     defaultFileDisplayMode(kind, preferences),
   );
-  const { reveal } = useDocumentInteraction();
+  const { reveal, active } = interaction;
   useEffect(() => {
     if (
       reveal?.anchor.comparison?.kind === 'file' &&
@@ -162,24 +165,12 @@ function ReadableFileDocument({
   const [editing, setEditing] = useState(false);
   const [commentRequest, setCommentRequest] = useState<number>();
   const editorId = useId();
-  const { active } = useDocumentInteraction();
   const previousFingerprint = useRef(contentFingerprint);
-  const [diskChanged, setDiskChanged] = useState(false);
   useEffect(() => {
     if (previousFingerprint.current === contentFingerprint) return;
     previousFingerprint.current = contentFingerprint;
-    if (
-      !draft.snapshot().saving &&
-      draft.snapshot().owner === null &&
-      draft.lastWrittenFingerprint !== contentFingerprint
-    )
-      setDiskChanged(true);
+    draft.noticeDiskChange(contentFingerprint);
   }, [contentFingerprint, draft]);
-  useEffect(() => {
-    if (!diskChanged) return;
-    const timer = setTimeout(() => setDiskChanged(false), 8000);
-    return () => clearTimeout(timer);
-  }, [diskChanged]);
 
   const showingSource = kind === 'code' || mode === 'source';
   const actions = (
@@ -188,7 +179,7 @@ function ReadableFileDocument({
         aria-live="polite"
         className="hidden text-xs text-muted-foreground xl:inline"
       >
-        {diskChanged ? 'Changed on disk just now' : ''}
+        {draftState.diskChanged ? 'Changed on disk just now' : ''}
       </span>
       {kind !== 'code' && (
         <Tabs
@@ -289,6 +280,8 @@ function ReadableFileDocument({
       ) : (
         <CodeDocument
           scope={scope}
+          context={context}
+          interaction={interaction}
           disableFileHeader
           {...(commentRequest !== undefined ? { commentRequest } : {})}
           entries={[
@@ -313,7 +306,7 @@ function FileToolbar({
   copy = true,
 }: {
   path: string;
-  children?: React.ReactNode;
+  children?: ReactNode;
   copy?: boolean;
 }) {
   const separator = path.lastIndexOf('/') + 1;

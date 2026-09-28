@@ -1,8 +1,12 @@
-import { queryOptions, useSuspenseQuery } from '@tanstack/react-query';
+import {
+  queryOptions,
+  useQueries,
+  useSuspenseQuery,
+} from '@tanstack/react-query';
 import { filesApi, unreadableFileReason } from '../api';
 import type { FilesConnection, FilesScope } from '../rules/scope';
 
-export function textQueryOptions(
+function textQueryOptions(
   environmentId: string,
   scope: FilesScope,
   path: string,
@@ -52,4 +56,38 @@ export function useTextFile(
   return useSuspenseQuery(
     textQueryOptions(connection.environmentId, scope, path, connection.request),
   ).data;
+}
+
+export function useTextContents(
+  connection: FilesConnection | null,
+  scope: FilesScope,
+  paths: readonly string[],
+) {
+  if (!connection) throw new Error('A connected environment is required');
+  const queries = useQueries({
+    queries: paths.map((path) => ({
+      ...textQueryOptions(
+        connection.environmentId,
+        scope,
+        path,
+        connection.request,
+      ),
+      throwOnError: false,
+    })),
+  });
+  return {
+    contents: new Map(
+      paths.flatMap((path, index) => {
+        const data = queries[index]?.data;
+        return data === undefined || !('text' in data)
+          ? []
+          : [[path, data.text] as const];
+      }),
+    ),
+    pending: queries.some((query) => query.isPending),
+    failed: queries.some((query) => query.isError),
+    retry: () => {
+      for (const query of queries) void query.refetch();
+    },
+  };
 }

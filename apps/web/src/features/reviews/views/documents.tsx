@@ -1,93 +1,76 @@
-import { useConnectedContext } from '@/app/workspace-provider';
 import { Button } from '@/components/ui/button';
 import { DiscardButton } from '@/features/git-actions/index';
+import { CommitDocument } from '@/features/history/index';
+import { FileDocument } from '@/features/files/index';
+import { usePublishedReview } from '../queries/published-review';
+import type { RevealComment } from '../rules/comments';
 import {
+  type DocumentInteraction,
   type DocumentRef,
   entryKey,
   type OpenDocument,
-  type RevealComment,
-  type ReviewScope,
-  MarkAllReviewed,
-  ReviewedControl,
-  usePublishedReview,
-} from '@/features/reviews/index';
-import { useReviewChanges } from '@/features/review/queries/review';
-import { CommitDocument } from './commit-document';
-import { DocumentInteraction } from './document-interaction';
+} from '../rules/documents';
+import type { ReviewScope } from '../rules/review';
+import type { DocumentContext } from './code-document';
 import { DocumentToolbar } from './document-toolbar';
-import { FileDocument } from './file-document';
 import { PublishedLayer } from './published-layer';
 import { PublishedOverview } from './published-overview';
-import { ReviewCodeDocument } from './review-code-document';
+import { ReviewCodeDocument, useReviewChanges } from './review-code-document';
+import { MarkAllReviewed, ReviewedControl } from './reviewed-control';
 import { ReviewEmpty } from './review-empty';
 import { UnexplainedDocument } from './unexplained-document';
 
+type DocumentProps = {
+  scope: ReviewScope;
+  context: DocumentContext;
+  interaction: DocumentInteraction;
+  onOpen: OpenDocument;
+};
+
 export function DocumentView({
   scope,
+  context,
   document,
   onOpen,
   active = false,
   reveal,
 }: {
   scope: ReviewScope;
+  context: DocumentContext;
   document: DocumentRef;
   onOpen: OpenDocument;
   active?: boolean;
   reveal?: RevealComment | undefined;
 }) {
-  return (
-    <DocumentInteraction
-      value={{
-        active,
-        storageKey: `porcelain.folds.${scope.worktreeId}.${entryKey(document)}`,
-        reveal,
-      }}
-    >
-      <DocumentContent scope={scope} document={document} onOpen={onOpen} />
-    </DocumentInteraction>
-  );
-}
-function DocumentContent({
-  scope,
-  document,
-  onOpen,
-}: {
-  scope: ReviewScope;
-  document: DocumentRef;
-  onOpen: OpenDocument;
-}) {
+  const props = {
+    scope,
+    context,
+    onOpen,
+    interaction: {
+      active,
+      worktreeId: scope.worktreeId,
+      entry: entryKey(document),
+      reveal,
+    },
+  };
   switch (document.kind) {
     case 'handoff':
-      return <HandoffDocument scope={scope} onOpen={onOpen} />;
+      return <HandoffDocument {...props} />;
     case 'layer':
-      return (
-        <LayerDocument
-          scope={scope}
-          layerId={document.layerId}
-          onOpen={onOpen}
-        />
-      );
+      return <LayerDocument {...props} layerId={document.layerId} />;
     case 'unexplained':
-      return <UnexplainedDocument scope={scope} />;
+      return <UnexplainedDocument {...props} />;
     case 'change':
-      return <ChangeDocument scope={scope} path={document.path} />;
+      return <ChangeDocument {...props} path={document.path} />;
     case 'file':
-      return (
-        <FileDocument scope={scope} path={document.path} onOpen={onOpen} />
-      );
+      return <FileDocument {...props} path={document.path} />;
     case 'commit':
-      return <CommitDocument scope={scope} oid={document.oid} />;
+      return <CommitDocument {...props} oid={document.oid} />;
   }
 }
 
-function HandoffDocument({
-  scope,
-  onOpen,
-}: {
-  scope: ReviewScope;
-  onOpen: OpenDocument;
-}) {
-  const published = usePublishedReview(scope, useConnectedContext());
+function HandoffDocument(props: DocumentProps) {
+  const published = usePublishedReview(props.scope, props.context);
   if (published.isPending)
     return (
       <p role="status" className="p-4 text-sm">
@@ -97,17 +80,18 @@ function HandoffDocument({
   if (published.isError)
     return <PublicationFailure retry={() => void published.refetch()} />;
   if (published.data?.active)
-    return <PublishedOverview review={published.data} onOpen={onOpen} />;
-  return <PlainChangesDocument scope={scope} />;
+    return <PublishedOverview review={published.data} onOpen={props.onOpen} />;
+  return <PlainChangesDocument {...props} />;
 }
 
-function PlainChangesDocument({ scope }: { scope: ReviewScope }) {
-  const context = useConnectedContext();
-  const changes = useReviewChanges(scope);
+function PlainChangesDocument({ scope, context, interaction }: DocumentProps) {
+  const changes = useReviewChanges(scope, context);
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <ReviewCodeDocument
         scope={scope}
+        context={context}
+        interaction={interaction}
         toolbar={(collapseControl) => (
           <DocumentToolbar title="Changes" subtitle={`${changes.length} files`}>
             {collapseControl}
@@ -124,15 +108,10 @@ function PlainChangesDocument({ scope }: { scope: ReviewScope }) {
 }
 
 function LayerDocument({
-  scope,
   layerId,
-  onOpen,
-}: {
-  scope: ReviewScope;
-  layerId: string;
-  onOpen: OpenDocument;
-}) {
-  const published = usePublishedReview(scope, useConnectedContext());
+  ...props
+}: DocumentProps & { layerId: string }) {
+  const published = usePublishedReview(props.scope, props.context);
   const layer = published.data?.layers.find(
     (candidate) => candidate.id === layerId,
   );
@@ -154,16 +133,19 @@ function LayerDocument({
   return (
     <PublishedLayer
       key={`${layerId}:${published.data?.revision}`}
-      scope={scope}
+      {...props}
       layer={layer}
-      onOpen={onOpen}
     />
   );
 }
 
-function ChangeDocument({ scope, path }: { scope: ReviewScope; path: string }) {
-  const gitContext = useConnectedContext();
-  const change = useReviewChanges(scope, [path]).find(
+function ChangeDocument({
+  scope,
+  context,
+  interaction,
+  path,
+}: DocumentProps & { path: string }) {
+  const change = useReviewChanges(scope, context, [path]).find(
     (entry) => entry.path === path,
   );
   if (!change)
@@ -182,10 +164,10 @@ function ChangeDocument({ scope, path }: { scope: ReviewScope; path: string }) {
             title={path.slice(path.lastIndexOf('/') + 1)}
             subtitle={path}
           >
-            <DiscardButton scope={scope} context={gitContext} path={path} />
+            <DiscardButton scope={scope} context={context} path={path} />
             <ReviewedControl
               scope={scope}
-              context={gitContext}
+              context={context}
               path={path}
               fingerprint={change.fingerprint}
               status={change.reviewStatus}
@@ -193,6 +175,8 @@ function ChangeDocument({ scope, path }: { scope: ReviewScope; path: string }) {
           </DocumentToolbar>
         )}
         scope={scope}
+        context={context}
+        interaction={interaction}
         paths={[path]}
       />
     </div>

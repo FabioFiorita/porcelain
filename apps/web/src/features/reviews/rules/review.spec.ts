@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { mergeReviewChanges, reviewErrorMessage } from './review.ts';
+import {
+  mergeReviewChanges,
+  reviewErrorMessage,
+  summaryLayerNumber,
+} from './review.ts';
 
 const list = {
   environmentId: '00000000-0000-4000-8000-000000000000',
@@ -78,5 +82,24 @@ describe('reviewErrorMessage', () => {
     expect(reviewErrorMessage(new Error('socket hang up'))).toBe(
       'This review surface could not be loaded. Try again.',
     );
+  });
+});
+
+describe('summaryLayerNumber', () => {
+  it('reads the layer the summary asks to open', () => {
+    expect(
+      summaryLayerNumber({ source: 'porcelain-summary', openLayer: 2 }),
+    ).toBe(2);
+  });
+
+  it('ignores messages that are not a layer request from the summary', () => {
+    expect([
+      summaryLayerNumber({ source: 'elsewhere', openLayer: 2 }),
+      summaryLayerNumber({ source: 'porcelain-summary', openLayer: 1.5 }),
+      summaryLayerNumber({ source: 'porcelain-summary', openLayer: '2' }),
+      summaryLayerNumber({ source: 'porcelain-summary' }),
+      summaryLayerNumber('porcelain-summary'),
+      summaryLayerNumber(null),
+    ]).toEqual([null, null, null, null, null, null]);
   });
 });

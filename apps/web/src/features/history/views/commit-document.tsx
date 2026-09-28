@@ -1,25 +1,24 @@
 import { formatDistanceToNowStrict } from 'date-fns';
 import { CopyIcon } from 'lucide-react';
-import { useCallback, useMemo, useState, useTransition } from 'react';
+import { useState, useTransition } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAccessStore } from '@/features/access/index';
 import { commitEntry } from '@/features/changes/index';
 import {
-  historyRefLabel,
-  ordinal,
-  shortOid,
-  useCommit,
-  useCommitDiffs,
-  type CommitFile,
-  type CommitFiles,
-} from '@/features/history/index';
-import type { DiffContent, ReviewScope } from '@/features/reviews/index';
+  CodeDocument,
+  type DiffContent,
+  type DocumentContext,
+  type DocumentInteraction,
+  DocumentToolbar,
+  type ReviewScope,
+} from '@/features/reviews/index';
 import { copyText } from '@/shared/workspace/copy';
-import { CodeDocument } from './code-document';
-import { useDocumentInteraction } from './document-interaction';
-import { DocumentToolbar } from './document-toolbar';
+import { useCommit } from '../queries/commit';
+import { useCommitDiffs } from '../queries/commit-diffs';
+import type { CommitFile, CommitFiles } from '../rules/commit';
+import { historyRefLabel, ordinal, shortOid } from '../rules/graph';
 
 const SHOWN_STEP = 25;
 
@@ -30,13 +29,17 @@ const pathKey = (file: CommitFile) => pathList(file).join('\0');
 
 export function CommitDocument({
   scope,
+  context,
+  interaction,
   oid,
 }: {
   scope: ReviewScope;
+  context: DocumentContext;
+  interaction: DocumentInteraction;
   oid: string;
 }) {
   const connection = useAccessStore((state) => state.connection);
-  const { reveal } = useDocumentInteraction();
+  const { reveal } = interaction;
   const requestedParent =
     reveal?.anchor.comparison?.kind === 'commit'
       ? reveal.anchor.comparison.parent
@@ -58,40 +61,28 @@ export function CommitDocument({
   const shown = window.of === `${oid}:${parent}` ? window.shown : SHOWN_STEP;
   const readMore = () =>
     setWindow({ of: `${oid}:${parent}`, shown: shown + SHOWN_STEP });
-  const reached = useMemo(() => commit.files.slice(0, shown), [commit, shown]);
-  const wanted = useMemo(
-    () => reached.map((file) => pathList(file)),
-    [reached],
-  );
+  const reached = commit.files.slice(0, shown);
+  const wanted = reached.map((file) => pathList(file));
   const diffs = useCommitDiffs(connection, scope, oid, parent, wanted);
-  const patchOf = useCallback(
-    (file: CommitFile) => diffs.patches.get(pathKey(file)),
-    [diffs.patches],
-  );
-  const entries = useMemo(
-    () =>
-      reached.flatMap((file) => {
-        const entry = commitEntry(oid, file, patchOf(file));
-        return entry == null
-          ? []
-          : [
-              {
-                ...entry,
-                id: `${entry.id}:${parent}`,
-                comment: {
-                  filePath: entry.path,
-                  revision: oid,
-                  comparison: { kind: 'commit' as const, parent },
-                },
-              },
-            ];
-      }),
-    [reached, oid, parent, patchOf],
-  );
-  const omitted = useMemo(
-    () =>
-      reached.filter((file) => commitEntry(oid, file, patchOf(file)) == null),
-    [reached, oid, patchOf],
+  const patchOf = (file: CommitFile) => diffs.patches.get(pathKey(file));
+  const entries = reached.flatMap((file) => {
+    const entry = commitEntry(oid, file, patchOf(file));
+    return entry == null
+      ? []
+      : [
+          {
+            ...entry,
+            id: `${entry.id}:${parent}`,
+            comment: {
+              filePath: entry.path,
+              revision: oid,
+              comparison: { kind: 'commit' as const, parent },
+            },
+          },
+        ];
+  });
+  const omitted = reached.filter(
+    (file) => commitEntry(oid, file, patchOf(file)) == null,
   );
   const more = commit.files.length - reached.length;
 
@@ -137,6 +128,8 @@ export function CommitDocument({
           </DocumentToolbar>
         )}
         scope={scope}
+        context={context}
+        interaction={interaction}
         entries={entries}
         header={() => (
           <>

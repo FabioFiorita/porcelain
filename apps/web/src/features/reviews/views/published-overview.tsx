@@ -1,15 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  type Graph,
-  type OpenDocument,
-  ReviewDiagram,
-  reviewSummaryUrl,
-  type ReviewResponse,
-} from '@/features/reviews/index';
-
 import { useTheme } from '@/shared/workspace/theme';
+import { useSummaryLayerRequests } from '../adapters/summary-messages';
+import type { OpenDocument } from '../rules/documents';
+import { type ReviewResponse, reviewSummaryUrl } from '../rules/review';
 import { DocumentToolbar } from './document-toolbar';
+import { type Graph, ReviewDiagram } from './review-diagram';
 
 export function PublishedOverview({
   review,
@@ -99,27 +95,10 @@ function SummaryFrame({
 }) {
   const frame = useRef<HTMLIFrameElement>(null);
   const { dark } = useTheme();
-  useEffect(() => {
-    const receive = (event: MessageEvent<unknown>) => {
-      if (
-        event.source !== frame.current?.contentWindow ||
-        !event.data ||
-        typeof event.data !== 'object'
-      )
-        return;
-      const message = event.data as { source?: unknown; openLayer?: unknown };
-      if (
-        message.source !== 'porcelain-summary' ||
-        typeof message.openLayer !== 'number' ||
-        !Number.isInteger(message.openLayer)
-      )
-        return;
-      const layer = review.layers[message.openLayer - 1];
-      if (layer) onOpen({ kind: 'layer', layerId: layer.id });
-    };
-    window.addEventListener('message', receive);
-    return () => window.removeEventListener('message', receive);
-  }, [review.layers, onOpen]);
+  useSummaryLayerRequests(frame, (layerNumber) => {
+    const layer = review.layers[layerNumber - 1];
+    if (layer) onOpen({ kind: 'layer', layerId: layer.id });
+  });
   return (
     <iframe
       ref={frame}

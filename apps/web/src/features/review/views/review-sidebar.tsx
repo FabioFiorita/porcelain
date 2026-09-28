@@ -17,10 +17,10 @@ import {
   type Surface,
   useHasReviewLayers,
   usePublishedReview,
+  ReviewEmpty,
 } from '@/features/reviews/index';
 import { FileNavigation } from './file-navigation';
 import { ReviewBoundary } from './review-boundary';
-import { ReviewEmpty } from './review-empty';
 
 export function ReviewSidebar({
   scope,

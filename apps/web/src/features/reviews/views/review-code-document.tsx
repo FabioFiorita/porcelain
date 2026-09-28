@@ -1,4 +1,3 @@
-import { useConnectedContext } from '@/app/workspace-provider';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -8,33 +7,49 @@ import {
   diffEntry,
   selectionKey,
   useChangeDiffs,
+  useChanges,
   useRecoverChangedDiffs,
 } from '@/features/changes/index';
-import { isImagePath, ImagePreview } from '@/features/files/index';
+import {
+  ImagePreview,
+  isImagePath,
+  useTextContents,
+} from '@/features/files/index';
+import { type CodeEntry, fileEntry } from '../adapters/code-entries';
+import { useComments } from '../queries/comments';
+import { usePrefetchReviewed, useReviewedMarks } from '../queries/reviewed';
+import type { DocumentInteraction } from '../rules/documents';
+import { focusPatch, type LineSpan } from '../rules/patch-focus';
 import {
   type Change,
   type ChangeSelection,
   type DiffContent,
+  mergeReviewChanges,
+  orderReviewChanges,
   type ReviewChangeItem,
   type ReviewScope,
-  type ReviewsContext,
-  InlineComposer,
-  orderReviewChanges,
-  ReviewedControl,
-  ThreadCard,
-  useComments,
-} from '@/features/reviews/index';
+} from '../rules/review';
+import type { ReviewsContext } from '../rules/reviewed';
+import { CodeDocument, type DocumentContext } from './code-document';
+import { InlineComposer } from './inline-composer';
+import { ReviewedControl } from './reviewed-control';
+import { ThreadCard } from './thread-card';
 
-import {
-  useReviewChanges,
-  useUntrackedContents,
-} from '@/features/review/queries/review';
-import { CodeDocument, type CodeEntry } from './code-document';
-import { fileEntry } from './diff-entries';
-import { focusPatch, type LineSpan } from '@/features/reviews/index';
+export function useReviewChanges(
+  scope: ReviewScope,
+  context: ReviewsContext,
+  paths?: readonly string[],
+): ReviewChangeItem[] {
+  const connection = useAccessStore((state) => state.connection);
+  usePrefetchReviewed(scope, context);
+  const { changes } = useChanges(scope, connection);
+  return mergeReviewChanges(changes, useReviewedMarks(scope, context), paths);
+}
 
 export function ReviewCodeDocument({
   scope,
+  context,
+  interaction,
   paths,
   files = [],
   focus,
@@ -43,6 +58,8 @@ export function ReviewCodeDocument({
   toolbar,
 }: {
   scope: ReviewScope;
+  context: DocumentContext;
+  interaction: DocumentInteraction;
   paths?: readonly string[];
   files?: readonly { path: string; note?: string }[];
   focus?: Readonly<Record<string, readonly LineSpan[]>>;
@@ -50,10 +67,12 @@ export function ReviewCodeDocument({
   commentRequest?: number;
   toolbar?: (collapseControl: ReactNode) => ReactNode;
 }) {
-  const context = useConnectedContext();
   const connection = useAccessStore((state) => state.connection);
   const recover = useRecoverChangedDiffs(scope, connection);
-  const items = orderReviewChanges(useReviewChanges(scope, paths), files);
+  const items = orderReviewChanges(
+    useReviewChanges(scope, context, paths),
+    files,
+  );
   const statusToken = items[0]?.statusToken ?? '';
   const diffs = useChangeDiffs(
     scope,
@@ -69,7 +88,8 @@ export function ReviewCodeDocument({
     items.flatMap((item) => item.comparisons.flatMap(selectionOf)),
     recover,
   );
-  const untracked = useUntrackedContents(
+  const untracked = useTextContents(
+    connection,
     scope,
     items.flatMap((item) =>
       item.comparisons.flatMap((change) =>
@@ -179,6 +199,8 @@ export function ReviewCodeDocument({
   return (
     <CodeDocument
       scope={scope}
+      context={context}
+      interaction={interaction}
       {...(commentRequest !== undefined ? { commentRequest } : {})}
       entries={entries}
       {...(documentHeader ? { header: documentHeader } : {})}

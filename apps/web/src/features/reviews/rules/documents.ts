@@ -1,4 +1,4 @@
-import type { CommentAnchor } from './comments';
+import type { CommentAnchor, RevealComment } from './comments';
 export type DocumentRef =
   | { kind: 'handoff' }
   | { kind: 'layer'; layerId: string }
@@ -64,3 +64,10 @@ export function withDocument(
 }
 
 export type OpenDocument = (ref: DocumentRef, anchor?: CommentAnchor) => void;
+
+export type DocumentInteraction = {
+  active: boolean;
+  worktreeId: string;
+  entry: string;
+  reveal?: RevealComment | undefined;
+};

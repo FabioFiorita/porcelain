@@ -203,3 +203,31 @@ export function layerReviewState(
         : 'Mark layer reviewed',
   };
 }
+
+export type ReviewNotice = {
+  title: string;
+  description: string;
+  type: 'error';
+};
+
+export type ReviewToggleTarget = {
+  path: string;
+  reviewed?: boolean | undefined;
+  fingerprint?: string | null | undefined;
+};
+
+export function reviewToggle(
+  target: ReviewToggleTarget | undefined,
+  pending: boolean,
+):
+  | { kind: 'mark'; input: MarkReviewedInput }
+  | { kind: 'unmark'; path: string }
+  | null {
+  if (!target?.fingerprint || pending) return null;
+  return target.reviewed
+    ? { kind: 'unmark', path: target.path }
+    : {
+        kind: 'mark',
+        input: { path: target.path, fingerprint: target.fingerprint },
+      };
+}

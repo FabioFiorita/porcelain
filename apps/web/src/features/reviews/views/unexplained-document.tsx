@@ -1,17 +1,22 @@
-import { useConnectedContext } from '@/app/workspace-provider';
-import {
-  type ReviewScope,
-  notExplainedLabel,
-  usePublishedReview,
-} from '@/features/reviews/index';
-
+import { usePublishedReview } from '../queries/published-review';
+import type { DocumentInteraction } from '../rules/documents';
+import { spansLabel } from '../rules/patch-focus';
+import { notExplainedLabel, type ReviewScope } from '../rules/review';
+import type { DocumentContext } from './code-document';
 import { DocumentToolbar } from './document-toolbar';
-import { spansLabel } from '@/features/reviews/index';
 import { ReviewCodeDocument } from './review-code-document';
 import { ReviewEmpty } from './review-empty';
 
-export function UnexplainedDocument({ scope }: { scope: ReviewScope }) {
-  const published = usePublishedReview(scope, useConnectedContext());
+export function UnexplainedDocument({
+  scope,
+  context,
+  interaction,
+}: {
+  scope: ReviewScope;
+  context: DocumentContext;
+  interaction: DocumentInteraction;
+}) {
+  const published = usePublishedReview(scope, context);
   const review = published.data?.active ? published.data : null;
   if (published.isPending)
     return (
@@ -39,6 +44,8 @@ export function UnexplainedDocument({ scope }: { scope: ReviewScope }) {
     <div className="flex min-h-0 flex-1 flex-col">
       <ReviewCodeDocument
         scope={scope}
+        context={context}
+        interaction={interaction}
         paths={gaps.map((gap) => gap.path)}
         files={gaps.map((gap) => ({
           path: gap.path,

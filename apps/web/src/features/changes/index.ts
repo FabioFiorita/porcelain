@@ -1,8 +1,4 @@
-export {
-  changesQueryOptions,
-  useChanges,
-  useReviewOverview,
-} from './queries/changes';
+export { useChanges, useReviewOverview } from './queries/changes';
 export { useChangeDiffs } from './queries/change-diffs';
 export { useGitStatus } from './queries/git-status';
 export { useChangeLines } from './queries/lines';
