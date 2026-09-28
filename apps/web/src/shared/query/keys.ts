@@ -1,5 +1,6 @@
 import type { QueryFilters } from '@tanstack/react-query';
-import type { ReviewScope } from '@/features/review/index';
+
+type ReviewScope = { projectId: string; worktreeId: string };
 
 export const queryKeys = {
   commitModels: (environmentId: string) =>

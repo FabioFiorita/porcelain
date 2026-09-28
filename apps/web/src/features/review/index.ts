@@ -11,5 +11,3 @@ export const ReviewWorkspace = lazy(() =>
     default: ReviewWorkspace,
   })),
 );
-export { isSurface } from '@/features/reviews/index';
-export type { ReviewScope, Surface } from '@/features/reviews/index';

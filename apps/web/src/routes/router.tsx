@@ -8,7 +8,7 @@ import {
   type RouterHistory,
 } from '@tanstack/react-router';
 import type { QueryClient } from '@tanstack/react-query';
-import { isSurface, type Surface } from '@/features/review/index';
+import { isSurface, type Surface } from '@/features/reviews/index';
 import {
   connectionErrorMessage,
   pairBrowser,
