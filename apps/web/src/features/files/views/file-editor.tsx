@@ -1,4 +1,4 @@
-import { EditProvider, File } from '@pierre/diffs/react';
+import { EditProvider, File, Virtualizer } from '@pierre/diffs/react';
 import { CheckIcon } from 'lucide-react';
 import { type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
@@ -117,7 +117,7 @@ export function FileEditor({
           </Button>
         </div>
       )}
-      <div className="min-h-0 flex-1 overflow-auto">
+      <Virtualizer className="min-h-0 flex-1 overflow-auto">
         <EditProvider createEditor={createEditor}>
           <File
             file={file}
@@ -130,7 +130,7 @@ export function FileEditor({
             onEditComplete={() => 'reject'}
           />
         </EditProvider>
-      </div>
+      </Virtualizer>
     </div>
   );
 }
