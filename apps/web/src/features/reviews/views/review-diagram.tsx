@@ -27,7 +27,7 @@ import { cn } from '@/shared/lib/utils';
 import type { CssVariables } from '@/shared/lib/css-variables';
 import { usePreferences } from '@/shared/workspace/preferences';
 import type { Diagram, DiagramBox } from '../rules/review';
-import { diagramFitScheduler } from '../store';
+import { useFitOnResize } from '../adapters/diagram-fit';
 
 type GraphBox = DiagramBox & {
   dimmed?: boolean;
@@ -421,19 +421,7 @@ function Canvas({
     return () => cancelAnimationFrame(frame);
   }, [graph, flow]);
 
-  useEffect(() => {
-    const element = host.current;
-    if (element == null) return;
-    const fit = diagramFitScheduler(
-      () => void flow.fitView({ padding: 0.06, maxZoom: 1 }),
-    );
-    const observer = new ResizeObserver(() => fit.maybeExecute());
-    observer.observe(element);
-    return () => {
-      observer.disconnect();
-      fit.cancel();
-    };
-  }, [flow]);
+  useFitOnResize(host, flow);
 
   return (
     <div ref={host} className="absolute inset-0">
