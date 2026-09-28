@@ -22,13 +22,14 @@ import {
   TriangleAlert,
   User,
 } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { cn } from '@/shared/lib/utils';
 import type { CssVariables } from '@/shared/lib/css-variables';
-import type { Diagram, DiagramBox } from '@/features/reviews/index';
 import { usePreferences } from '@/shared/workspace/preferences';
+import type { Diagram, DiagramBox } from '../rules/review';
+import { diagramFitScheduler } from '../store';
 
-export type GraphBox = DiagramBox & {
+type GraphBox = DiagramBox & {
   dimmed?: boolean;
   warning?: string;
   clickable?: boolean;
@@ -363,11 +364,8 @@ export function ReviewDiagram({
   const [measured, setMeasured] = useState<ReadonlyMap<string, number>>(
     () => new Map(),
   );
-  const laidOut = useMemo(() => layout(graph, measured), [graph, measured]);
-  const boxIds = useMemo(
-    () => new Set(graph.boxes.map((box) => box.id)),
-    [graph.boxes],
-  );
+  const laidOut = layout(graph, measured);
+  const boxIds = new Set(graph.boxes.map((box) => box.id));
   const onNodesChange = (changes: NodeChange[]) => {
     const next = new Map(measured);
     for (const change of changes) {
@@ -426,18 +424,14 @@ function Canvas({
   useEffect(() => {
     const element = host.current;
     if (element == null) return;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const observer = new ResizeObserver(() => {
-      clearTimeout(timer);
-      timer = setTimeout(
-        () => void flow.fitView({ padding: 0.06, maxZoom: 1 }),
-        120,
-      );
-    });
+    const fit = diagramFitScheduler(
+      () => void flow.fitView({ padding: 0.06, maxZoom: 1 }),
+    );
+    const observer = new ResizeObserver(() => fit.maybeExecute());
     observer.observe(element);
     return () => {
       observer.disconnect();
-      clearTimeout(timer);
+      fit.cancel();
     };
   }, [flow]);
 

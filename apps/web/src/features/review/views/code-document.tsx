@@ -38,19 +38,20 @@ import {
   PIERRE_SURFACE_CSS,
   PIERRE_THEME,
 } from '@/shared/lib/pierre';
-import { useComments } from '@/features/reviews/index';
-import { reviewErrorMessage } from '@/features/review/queries/review';
 import {
+  anchorLabel,
+  InlineComposer,
+  reviewErrorMessage,
+  ThreadCard,
+  useComments,
   useMarkReviewed,
   useUnmarkReviewed,
-} from '@/features/review/queries/reviewed-mutations';
+} from '@/features/reviews/index';
 import { usePreferences } from '@/shared/workspace/preferences';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
 import { useTheme } from '@/shared/workspace/theme';
 import { DiscardButton } from '@/features/git-actions/index';
 import { useDocumentInteraction } from './document-interaction';
-import { InlineComposer } from './inline-composer';
-import { anchorLabel, ThreadCard } from './thread-card';
 import { useCodeFolds } from './use-code-folds';
 
 export type CodeEntry =
@@ -111,8 +112,8 @@ export function CodeDocument(props: Props) {
 function ConnectedCodeDocument(props: Props & { scope: ReviewScope }) {
   const gitContext = useConnectedContext();
   const { threads, error } = useComments(props.scope, gitContext);
-  const mark = useMarkReviewed(props.scope);
-  const unmark = useUnmarkReviewed(props.scope);
+  const mark = useMarkReviewed(props.scope, gitContext);
+  const unmark = useUnmarkReviewed(props.scope, gitContext);
   const toggle = (entry: CodeEntry) => {
     const review = entry.review;
     if (!review?.fingerprint || mark.isPending || unmark.isPending) return;
@@ -497,11 +498,12 @@ function CodeSurface({
           }}
           renderAnnotation={(annotation) => {
             const note = annotation.metadata;
-            if (!scope) return null;
+            if (!scope || !gitContext) return null;
             return note.kind === 'composer' ? (
               <InlineComposer
                 key={JSON.stringify(note.anchor)}
                 scope={scope}
+                context={gitContext}
                 anchor={note.anchor}
                 onClose={closeComposer}
               />
@@ -512,7 +514,11 @@ function CodeSurface({
                     Code changed since this comment
                   </p>
                 )}
-                <ThreadCard scope={scope} thread={note.thread} />
+                <ThreadCard
+                  scope={scope}
+                  context={gitContext}
+                  thread={note.thread}
+                />
               </div>
             );
           }}

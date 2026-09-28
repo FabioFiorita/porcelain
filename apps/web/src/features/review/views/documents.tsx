@@ -7,9 +7,10 @@ import {
   type OpenDocument,
   type RevealComment,
   type ReviewScope,
+  MarkAllReviewed,
+  ReviewedControl,
+  usePublishedReview,
 } from '@/features/reviews/index';
-
-import { usePublishedReview } from '@/features/review/queries/published-review';
 import { useReviewChanges } from '@/features/review/queries/review';
 import { CommitDocument } from './commit-document';
 import { DocumentInteraction } from './document-interaction';
@@ -19,7 +20,6 @@ import { PublishedLayer } from './published-layer';
 import { PublishedOverview } from './published-overview';
 import { ReviewCodeDocument } from './review-code-document';
 import { ReviewEmpty } from './review-empty';
-import { MarkAllReviewed, ReviewedControl } from './reviewed-control';
 import { UnexplainedDocument } from './unexplained-document';
 
 export function DocumentView({
@@ -87,7 +87,7 @@ function HandoffDocument({
   scope: ReviewScope;
   onOpen: OpenDocument;
 }) {
-  const published = usePublishedReview(scope);
+  const published = usePublishedReview(scope, useConnectedContext());
   if (published.isPending)
     return (
       <p role="status" className="p-4 text-sm">
@@ -102,6 +102,7 @@ function HandoffDocument({
 }
 
 function PlainChangesDocument({ scope }: { scope: ReviewScope }) {
+  const context = useConnectedContext();
   const changes = useReviewChanges(scope);
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -110,7 +111,11 @@ function PlainChangesDocument({ scope }: { scope: ReviewScope }) {
         toolbar={(collapseControl) => (
           <DocumentToolbar title="Changes" subtitle={`${changes.length} files`}>
             {collapseControl}
-            <MarkAllReviewed scope={scope} entries={changes} />
+            <MarkAllReviewed
+              scope={scope}
+              context={context}
+              entries={changes}
+            />
           </DocumentToolbar>
         )}
       />
@@ -127,7 +132,7 @@ function LayerDocument({
   layerId: string;
   onOpen: OpenDocument;
 }) {
-  const published = usePublishedReview(scope);
+  const published = usePublishedReview(scope, useConnectedContext());
   const layer = published.data?.layers.find(
     (candidate) => candidate.id === layerId,
   );
@@ -180,6 +185,7 @@ function ChangeDocument({ scope, path }: { scope: ReviewScope; path: string }) {
             <DiscardButton scope={scope} context={gitContext} path={path} />
             <ReviewedControl
               scope={scope}
+              context={gitContext}
               path={path}
               fingerprint={change.fingerprint}
               status={change.reviewStatus}

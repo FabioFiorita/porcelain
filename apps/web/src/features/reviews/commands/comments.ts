@@ -1,4 +1,9 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { COMMENT_BODY_LENGTH } from '@porcelain/contracts/shared';
+import {
+  type UseMutationResult,
+  useMutation,
+  useQueryClient,
+} from '@tanstack/react-query';
 import { ConnectionError } from '@/shared/api/connection-error';
 import { queryKeys } from '@/shared/query/keys';
 import { asMutation } from '@/shared/query/mutation';
@@ -83,6 +88,17 @@ function enqueueComment<T>(
   return result;
 }
 
+function withRun<TData, TVariables>(
+  mutation: UseMutationResult<TData, Error, TVariables>,
+) {
+  return {
+    ...asMutation(mutation),
+    run: (input: TVariables, onDone?: () => void) => {
+      void mutation.mutateAsync(input).then(onDone, () => undefined);
+    },
+  };
+}
+
 export function useMarkCommentsSeen(
   scope: ReviewScope,
   comments: CommentsContext,
@@ -109,7 +125,7 @@ export function useCreateComment(
 ) {
   const context = commentContext(scope, comments);
   const client = useQueryClient();
-  return asMutation(
+  const create = withRun(
     useMutation({
       mutationFn: (input: NewComment) =>
         enqueueComment(context, async () => {
@@ -122,12 +138,13 @@ export function useCreateComment(
         }),
     }),
   );
+  return { ...create, bodyLimit: COMMENT_BODY_LENGTH };
 }
 
 export function useReplyComment(scope: ReviewScope, comments: CommentsContext) {
   const context = commentContext(scope, comments);
   const client = useQueryClient();
-  return asMutation(
+  const reply = withRun(
     useMutation({
       mutationFn: ({ threadId, body, messageId }: ReplyCommentInput) =>
         enqueueComment(context, async () => {
@@ -149,6 +166,7 @@ export function useReplyComment(scope: ReviewScope, comments: CommentsContext) {
         }),
     }),
   );
+  return { ...reply, bodyLimit: COMMENT_BODY_LENGTH };
 }
 
 export function useResolveComment(
@@ -157,7 +175,7 @@ export function useResolveComment(
 ) {
   const context = commentContext(scope, comments);
   const client = useQueryClient();
-  return asMutation(
+  return withRun(
     useMutation({
       mutationFn: ({ threadId, resolved }: ResolveCommentInput) =>
         enqueueComment(context, async () => {

@@ -1,4 +1,3 @@
-import { useConnectedContext } from '@/app/workspace-provider';
 import { formatDistanceToNowStrict } from 'date-fns';
 import { CheckIcon, RotateCcwIcon, SparklesIcon, UserIcon } from 'lucide-react';
 import { useRef, useState } from 'react';
@@ -15,57 +14,29 @@ import {
 } from '@/components/ui/message';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/shared/lib/utils';
+import { useReplyComment, useResolveComment } from '../commands/comments';
 import {
-  type CommentAnchor,
+  anchorLabel,
   type CommentAuthor,
+  commentBodyValid,
   type CommentMessage,
   type CommentThread,
-  type ReviewScope,
+  retainIntent,
+  threadStarter,
+  threadState,
+  threadStateLabel,
+} from '../rules/comments';
+import {
   basename,
-} from '@/features/reviews/index';
-
-import { discardRejection } from '@/shared/lib/submit-form';
-import { useReplyComment, useResolveComment } from '@/features/reviews/index';
-import { reviewErrorMessage } from '@/features/review/queries/review';
+  reviewErrorMessage,
+  type ReviewScope,
+} from '../rules/review';
+import type { ReviewsContext } from '../rules/reviewed';
 
 const relative = (iso?: string) =>
   iso == null
     ? null
     : formatDistanceToNowStrict(new Date(iso), { addSuffix: true });
-
-export function anchorLabel(anchor: CommentAnchor): string {
-  if (anchor.kind === 'file') return 'Whole file';
-  const sign = anchor.side === 'deletions' ? '−' : '+';
-  return anchor.startLine === anchor.endLine
-    ? `${sign}${anchor.startLine}`
-    : `${sign}${anchor.startLine} to ${sign}${anchor.endLine}`;
-}
-
-function threadStarter(thread: CommentThread): CommentAuthor {
-  return thread.messages[0]?.author ?? 'reviewer';
-}
-
-export type ThreadState = 'agent-replied' | 'awaiting-agent' | 'resolved';
-
-function threadState(thread: CommentThread): ThreadState {
-  if (thread.resolved) return 'resolved';
-  return thread.messages.at(-1)?.author === 'agent'
-    ? 'agent-replied'
-    : 'awaiting-agent';
-}
-
-function threadStateLabel(thread: CommentThread): string {
-  switch (threadState(thread)) {
-    case 'resolved':
-      return 'Resolved';
-    case 'awaiting-agent':
-      return 'Waiting for the agent';
-    case 'agent-replied':
-      return threadStarter(thread) === 'agent' && thread.messages.length === 1
-        ? 'From the agent'
-        : 'Agent replied';
-  }
-}
 
 function AuthorAvatar({ author }: { author: CommentAuthor }) {
   const agent = author === 'agent';
@@ -135,10 +106,12 @@ function ThreadMessage({
 export function ThreadCard({
   thread,
   scope,
+  context,
   onReveal,
 }: {
   thread: CommentThread;
   scope: ReviewScope;
+  context: ReviewsContext;
   onReveal?: () => void;
 }) {
   const [replying, setReplying] = useState(false);
@@ -147,8 +120,8 @@ export function ThreadCard({
   const pendingReply = useRef<{ body: string; messageId: string } | undefined>(
     undefined,
   );
-  const reply = useReplyComment(scope, useConnectedContext());
-  const resolve = useResolveComment(scope, useConnectedContext());
+  const reply = useReplyComment(scope, context);
+  const resolve = useResolveComment(scope, context);
   const state = threadState(thread);
   const listed = onReveal != null;
 
@@ -181,9 +154,7 @@ export function ThreadCard({
       className="h-6"
       disabled={resolve.isPending}
       onClick={() =>
-        discardRejection(
-          resolve.submit({ threadId: thread.id, resolved: !thread.resolved }),
-        )
+        resolve.run({ threadId: thread.id, resolved: !thread.resolved })
       }
     >
       {thread.resolved ? (
@@ -211,24 +182,20 @@ export function ThreadCard({
       className="mt-3"
       onSubmit={(event) => {
         event.preventDefault();
-        if (!body.trim() || body.includes('\0') || reply.isPending) return;
-        const intent =
-          pendingReply.current?.body === body
-            ? pendingReply.current
-            : { body, messageId: crypto.randomUUID() };
+        if (!commentBodyValid(body) || reply.isPending) return;
+        const intent = retainIntent(pendingReply.current, body, () => ({
+          body,
+          messageId: crypto.randomUUID(),
+        }));
         pendingReply.current = intent;
-        void reply
-          .submit({
-            threadId: thread.id,
-            body,
-            messageId: intent.messageId,
-          })
-          .then(() => {
+        reply.run(
+          { threadId: thread.id, body, messageId: intent.messageId },
+          () => {
             pendingReply.current = undefined;
             setBody('');
             setReplying(false);
-          })
-          .catch(() => undefined);
+          },
+        );
       }}
     >
       <FieldGroup>
@@ -237,7 +204,7 @@ export function ThreadCard({
           <Textarea
             id={`reply-${thread.id}`}
             value={body}
-            maxLength={16000}
+            maxLength={reply.bodyLimit}
             required
             disabled={reply.isPending}
             onChange={(event) => {
@@ -256,7 +223,7 @@ export function ThreadCard({
           <Button
             type="submit"
             size="sm"
-            disabled={reply.isPending || !body.trim() || body.includes('\0')}
+            disabled={reply.isPending || !commentBodyValid(body)}
           >
             {reply.isPending ? 'Replying…' : 'Post reply'}
           </Button>

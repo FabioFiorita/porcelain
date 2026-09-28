@@ -104,3 +104,64 @@ export function commentIsStale(anchor: CommentAnchor, target: CommentTarget) {
     anchor.contentFingerprint !== target.contentFingerprint
   );
 }
+
+export function anchorLabel(anchor: CommentAnchor): string {
+  if (anchor.kind === 'file') return 'Whole file';
+  const sign = anchor.side === 'deletions' ? '−' : '+';
+  return anchor.startLine === anchor.endLine
+    ? `${sign}${anchor.startLine}`
+    : `${sign}${anchor.startLine} to ${sign}${anchor.endLine}`;
+}
+
+export function threadStarter(thread: CommentThread): CommentAuthor {
+  return thread.messages[0]?.author ?? 'reviewer';
+}
+
+export function threadState(
+  thread: CommentThread,
+): 'agent-replied' | 'awaiting-agent' | 'resolved' {
+  if (thread.resolved) return 'resolved';
+  return thread.messages.at(-1)?.author === 'agent'
+    ? 'agent-replied'
+    : 'awaiting-agent';
+}
+
+export function threadStateLabel(thread: CommentThread): string {
+  switch (threadState(thread)) {
+    case 'resolved':
+      return 'Resolved';
+    case 'awaiting-agent':
+      return 'Waiting for the agent';
+    case 'agent-replied':
+      return threadStarter(thread) === 'agent' && thread.messages.length === 1
+        ? 'From the agent'
+        : 'Agent replied';
+  }
+}
+
+export function commentBodyValid(body: string) {
+  return body.trim().length > 0 && !body.includes('\0');
+}
+
+export function retainIntent<T extends { body: string }>(
+  previous: T | undefined,
+  body: string,
+  fresh: () => T,
+): T {
+  return previous?.body === body ? previous : fresh();
+}
+
+export function commentsSeenThrough(
+  counts: { highest: number; open: number; resolved: number },
+  viewed: ReadonlySet<string>,
+): number | null {
+  const needed = (
+    [
+      ['open', counts.open],
+      ['resolved', counts.resolved],
+    ] as const
+  ).filter(([, count]) => count > 0);
+  return counts.highest === 0 || !needed.every(([filter]) => viewed.has(filter))
+    ? null
+    : counts.highest;
+}

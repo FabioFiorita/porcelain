@@ -46,7 +46,7 @@ import {
 import { discardRejection } from '@/shared/lib/submit-form';
 import { useHiddenPaths, useSetHidden } from '@/features/projects/index';
 import { useEditFile } from '@/features/files/index';
-import { reviewErrorMessage } from '@/features/review/queries/review';
+import { reviewErrorMessage } from '@/features/reviews/index';
 import { QuickOpen } from '@/features/files/index';
 
 type Props = {

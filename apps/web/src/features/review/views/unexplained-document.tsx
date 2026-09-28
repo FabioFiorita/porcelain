@@ -1,13 +1,17 @@
-import { type ReviewScope, notExplainedLabel } from '@/features/reviews/index';
+import { useConnectedContext } from '@/app/workspace-provider';
+import {
+  type ReviewScope,
+  notExplainedLabel,
+  usePublishedReview,
+} from '@/features/reviews/index';
 
-import { usePublishedReview } from '@/features/review/queries/published-review';
 import { DocumentToolbar } from './document-toolbar';
 import { spansLabel } from '@/features/reviews/index';
 import { ReviewCodeDocument } from './review-code-document';
 import { ReviewEmpty } from './review-empty';
 
 export function UnexplainedDocument({ scope }: { scope: ReviewScope }) {
-  const published = usePublishedReview(scope);
+  const published = usePublishedReview(scope, useConnectedContext());
   const review = published.data?.active ? published.data : null;
   if (published.isPending)
     return (

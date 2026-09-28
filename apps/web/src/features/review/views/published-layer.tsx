@@ -1,3 +1,4 @@
+import { useConnectedContext } from '@/app/workspace-provider';
 import { parsePatchFiles } from '@pierre/diffs';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -16,16 +17,19 @@ import {
   type ReviewLayer,
   type ReviewScope,
   type ReviewStep,
+  type Graph,
+  layerReviewState,
+  ReviewDiagram,
+  useLayerMarks,
+  useToggleLayerMark,
 } from '@/features/reviews/index';
 
 import { contentVersion } from '@/shared/lib/pierre';
-import { useLayerMarks } from '@/features/review/queries/published-review';
 import { useReviewChanges } from '@/features/review/queries/review';
 import { CodeDocument, type CodeEntry } from './code-document';
 import { DocumentToolbar } from './document-toolbar';
 import { MarkdownView } from '@/features/files/index';
 import { contextPatch, focusPatch } from '@/features/reviews/index';
-import { type Graph, ReviewDiagram } from './review-diagram';
 
 export function PublishedLayer({
   scope,
@@ -36,11 +40,10 @@ export function PublishedLayer({
   layer: ReviewLayer;
   onOpen: OpenDocument;
 }) {
-  const { marks, toggle } = useLayerMarks(scope);
-  const mark = marks.data?.marks.find(
-    (candidate) => candidate.layerId === layer.id,
-  );
-  const reviewed = mark?.fingerprint === layer.fingerprint && !mark.stale;
+  const context = useConnectedContext();
+  const marks = useLayerMarks(scope, context);
+  const toggle = useToggleLayerMark(scope, context);
+  const { reviewed, label } = layerReviewState(marks.data, layer);
   const [view, setView] = useState('code');
   const [shown, setShown] = useState(10);
   const [focus, setFocus] = useState<string>();
@@ -87,18 +90,14 @@ export function PublishedLayer({
           aria-pressed={reviewed}
           disabled={toggle.isPending || marks.isPending || marks.isError}
           onClick={() =>
-            toggle.mutate({
+            toggle.toggle({
               layerId: layer.id,
               fingerprint: layer.fingerprint,
               reviewed,
             })
           }
         >
-          {reviewed
-            ? 'Reviewed'
-            : mark
-              ? 'Mark changed layer reviewed'
-              : 'Mark layer reviewed'}
+          {label}
         </Button>
         <Tabs
           value={view}

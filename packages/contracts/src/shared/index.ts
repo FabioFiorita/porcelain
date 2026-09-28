@@ -5,6 +5,7 @@ export {
 } from './api-error.ts';
 export {
   CHANGED_PATHS,
+  COMMENT_BODY_LENGTH,
   COMMIT_FILES,
   COMMIT_GROUPS,
   COMMITS_PER_PAGE,

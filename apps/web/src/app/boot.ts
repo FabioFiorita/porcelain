@@ -1,5 +1,5 @@
 import type { Api } from './api';
-import { createCommentsLive } from '@/features/reviews/api';
+import { createCommentsLive, createReviewsLive } from '@/features/reviews/api';
 import { createGitActionsLive } from '@/features/git-actions/api';
 import { createLiveUpdatesLive } from '../shared/live/socket';
 import { accessApi } from '@/features/access/api';
@@ -14,6 +14,7 @@ export async function createBootApi(): Promise<Api> {
     liveUpdates: createLiveUpdatesLive(),
     pairing: accessApi.pairing,
     review: createReviewLive(transport),
+    reviews: createReviewsLive(transport),
     gitActions: createGitActionsLive(transport),
   };
 }

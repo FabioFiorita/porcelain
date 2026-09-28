@@ -1,6 +1,5 @@
 {
   "porcelain/no-number-outside-limits": {
-    "apps/web/src/features/review/queries/published-review.ts": 8,
     "apps/web/src/routes/router.tsx": 2,
     "apps/web/src/shared/api/request-timeout.ts": 1,
     "apps/web/src/shared/hooks/use-mobile.ts": 1,
@@ -12,12 +11,7 @@
   },
   "porcelain/web-cache-writes-in-commands": {
     "apps/web/src/app/workspace-provider.tsx": 3,
-    "apps/web/src/features/review/queries/published-review.ts": 2,
     "apps/web/src/shared/query/live-updates.ts": 3
-  },
-  "porcelain/web-commands-own-writes": {
-    "apps/web/src/features/review/queries/published-review.ts": 1,
-    "apps/web/src/features/review/queries/reviewed-mutations.ts": 3
   },
   "porcelain/web-no-context": {
     "apps/web/src/app/workspace-provider.tsx": 2,
@@ -26,8 +20,6 @@
   },
   "porcelain/web-no-empty-catch": {
     "apps/web/src/app/workspace-provider.tsx": 1,
-    "apps/web/src/features/review/views/inline-composer.tsx": 1,
-    "apps/web/src/features/review/views/reviewed-control.tsx": 2,
     "apps/web/src/features/review/views/use-code-folds.ts": 1,
     "apps/web/src/features/review/views/use-tab-layout.ts": 2,
     "apps/web/src/shared/workspace/preferences.tsx": 1
@@ -37,13 +29,8 @@
     "apps/web/src/features/review/views/commit-document.tsx": 5,
     "apps/web/src/features/review/views/file-navigation.tsx": 3,
     "apps/web/src/features/review/views/published-layer.tsx": 1,
-    "apps/web/src/features/review/views/review-diagram.tsx": 2,
     "apps/web/src/features/review/views/review-workspace.tsx": 2,
     "apps/web/src/shared/workspace/preferences.tsx": 2
-  },
-  "porcelain/web-queries-export-reads": {
-    "apps/web/src/features/review/queries/review.ts": 1,
-    "apps/web/src/features/review/queries/reviewed-mutations.ts": 2
   },
   "porcelain/web-store-owns-storage": {
     "apps/web/src/features/review/views/use-code-folds.ts": 2,
@@ -52,14 +39,11 @@
   },
   "porcelain/web-timers-in-commands-and-store": {
     "apps/web/src/features/review/views/file-document.tsx": 1,
-    "apps/web/src/features/review/views/review-diagram.tsx": 2,
     "apps/web/src/shared/live/socket.ts": 2
   },
   "porcelain/web-views-no-await": {
     "apps/web/src/app/workspace-provider.tsx": 1,
-    "apps/web/src/features/review/views/file-navigation.tsx": 2,
-    "apps/web/src/features/review/views/inline-composer.tsx": 1,
-    "apps/web/src/features/review/views/reviewed-control.tsx": 3
+    "apps/web/src/features/review/views/file-navigation.tsx": 2
   },
   "porcelain/web-views-no-direct-data": {
     "apps/web/src/app/views/connected-workspace.tsx": 1,
@@ -69,24 +53,19 @@
   "porcelain/web-views-no-promise-chains": {
     "apps/web/src/app/views/workspace-view.tsx": 1,
     "apps/web/src/features/review/views/code-document.tsx": 1,
-    "apps/web/src/features/review/views/file-navigation.tsx": 2,
-    "apps/web/src/features/review/views/reviewed-control.tsx": 2,
-    "apps/web/src/features/review/views/thread-card.tsx": 2
+    "apps/web/src/features/review/views/file-navigation.tsx": 2
   },
   "porcelain/web-views-no-transport": {
     "apps/web/src/app/workspace-provider.tsx": 1
   },
   "porcelain/web-views-no-try": {
     "apps/web/src/app/workspace-provider.tsx": 1,
-    "apps/web/src/features/review/views/inline-composer.tsx": 1,
-    "apps/web/src/features/review/views/reviewed-control.tsx": 2,
     "apps/web/src/features/review/views/use-code-folds.ts": 2,
     "apps/web/src/features/review/views/use-tab-layout.ts": 4
   },
   "style/react-compiler": {
     "apps/web/src/app/workspace-provider.tsx": 1,
     "apps/web/src/features/review/views/published-layer.tsx": 1,
-    "apps/web/src/features/review/views/reviewed-control.tsx": 1,
     "apps/web/src/features/review/views/use-tab-layout.ts": 1
   },
   "typescript/no-deprecated": {
@@ -112,15 +91,11 @@
     "apps/web/src/app/views/shortcuts-dialog.tsx": 1,
     "apps/web/src/app/views/workspace-view.tsx": 1,
     "apps/web/src/features/review/api/changes-live.ts": 1,
-    "apps/web/src/features/review/api/published-review-live.ts": 1,
     "apps/web/src/features/review/api/review-live.ts": 1,
     "apps/web/src/features/review/api/review-port.ts": 1,
     "apps/web/src/features/review/api/review-request.ts": 1,
-    "apps/web/src/features/review/api/reviewed-live.ts": 1,
     "apps/web/src/features/review/index.ts": 1,
-    "apps/web/src/features/review/queries/published-review.ts": 1,
     "apps/web/src/features/review/queries/review.ts": 1,
-    "apps/web/src/features/review/queries/reviewed-mutations.ts": 1,
     "apps/web/src/features/review/views/code-document.tsx": 1,
     "apps/web/src/features/review/views/commit-document.tsx": 1,
     "apps/web/src/features/review/views/diff-entries.ts": 1,
@@ -130,29 +105,21 @@
     "apps/web/src/features/review/views/documents.tsx": 1,
     "apps/web/src/features/review/views/file-document.tsx": 1,
     "apps/web/src/features/review/views/file-navigation.tsx": 1,
-    "apps/web/src/features/review/views/inline-composer.tsx": 1,
     "apps/web/src/features/review/views/pierre-workers.tsx": 1,
     "apps/web/src/features/review/views/published-layer.tsx": 1,
     "apps/web/src/features/review/views/published-overview.tsx": 1,
     "apps/web/src/features/review/views/review-boundary.tsx": 1,
     "apps/web/src/features/review/views/review-code-document.tsx": 1,
-    "apps/web/src/features/review/views/review-diagram.tsx": 1,
     "apps/web/src/features/review/views/review-empty.tsx": 1,
-    "apps/web/src/features/review/views/review-index.tsx": 1,
     "apps/web/src/features/review/views/review-shell.tsx": 1,
     "apps/web/src/features/review/views/review-sidebar.tsx": 1,
     "apps/web/src/features/review/views/review-workspace.tsx": 1,
-    "apps/web/src/features/review/views/reviewed-control.tsx": 1,
-    "apps/web/src/features/review/views/thread-card.tsx": 1,
     "apps/web/src/features/review/views/unexplained-document.tsx": 1,
     "apps/web/src/features/review/views/use-code-folds.ts": 1,
     "apps/web/src/features/review/views/use-tab-layout.ts": 1
   },
   "unused-export": {
-    "apps/web/src/features/review/queries/reviewed-mutations.ts": 1,
     "apps/web/src/features/review/views/document-tabs.tsx": 1,
-    "apps/web/src/features/review/views/review-diagram.tsx": 1,
-    "apps/web/src/features/review/views/thread-card.tsx": 1,
     "apps/web/src/shared/lib/pierre.ts": 1,
     "apps/web/src/shared/query/live-updates.ts": 2
   },

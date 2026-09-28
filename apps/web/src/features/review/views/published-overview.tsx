@@ -1,14 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
+  type Graph,
   type OpenDocument,
+  ReviewDiagram,
   reviewSummaryUrl,
   type ReviewResponse,
 } from '@/features/reviews/index';
 
 import { useTheme } from '@/shared/workspace/theme';
 import { DocumentToolbar } from './document-toolbar';
-import { type Graph, ReviewDiagram } from './review-diagram';
 
 export function PublishedOverview({
   review,

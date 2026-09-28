@@ -1,0 +1,198 @@
+import type {
+  ListReviewedLayersResponse,
+  SetReviewedLayerRequest,
+} from '@porcelain/contracts/reviews';
+import type { CommentsPort } from './comments';
+import {
+  isFingerprintable,
+  type ReviewChangeItem,
+  type ReviewedMarksResponse,
+  type ReviewLayer,
+  type ReviewResponse,
+  type ReviewScope,
+  type SetReviewedBulkRequest,
+  type SetReviewedBulkResponse,
+  type SetReviewedRequest,
+} from './review';
+
+type ReviewRequest = ReviewScope & { signal: AbortSignal };
+
+export type ReviewsPort = {
+  review: (request: ReviewRequest) => Promise<ReviewResponse | null>;
+  reviewed: {
+    list: (request: ReviewRequest) => Promise<ReviewedMarksResponse>;
+    set: (
+      request: ReviewRequest & { input: SetReviewedRequest },
+    ) => Promise<ReviewedMarksResponse>;
+    setAll: (
+      request: ReviewRequest & { input: SetReviewedBulkRequest },
+    ) => Promise<SetReviewedBulkResponse>;
+    remove: (
+      request: ReviewRequest & { path: string },
+    ) => Promise<ReviewedMarksResponse>;
+  };
+  reviewedLayers: {
+    list: (request: ReviewRequest) => Promise<ListReviewedLayersResponse>;
+    set: (
+      request: ReviewRequest & { input: SetReviewedLayerRequest },
+    ) => Promise<ListReviewedLayersResponse>;
+    remove: (
+      request: ReviewRequest & { layerId: string },
+    ) => Promise<ListReviewedLayersResponse>;
+  };
+};
+
+export type ReviewsContext = {
+  api: { comments: CommentsPort; reviews: ReviewsPort };
+  connection: {
+    environmentId: string;
+    controller: AbortController;
+    request: (signal?: AbortSignal) => { signal: AbortSignal };
+  };
+};
+
+export type MarkReviewedInput = Pick<
+  SetReviewedRequest,
+  'path' | 'fingerprint'
+>;
+
+export type BulkReviewReport = {
+  marked: string[];
+  skipped: Array<{
+    path: string;
+    reason: 'not-fingerprintable' | 'already-reviewed';
+  }>;
+  failed: Array<{ path: string; error: unknown }>;
+};
+
+function uniqueByPath<T extends { path: string }>(entries: readonly T[]): T[] {
+  return [...new Map(entries.map((entry) => [entry.path, entry])).values()];
+}
+
+export function bulkMarkPlan(entries: readonly ReviewChangeItem[]) {
+  const report: BulkReviewReport = { marked: [], skipped: [], failed: [] };
+  const files: { path: string; fingerprint: string }[] = [];
+  for (const entry of uniqueByPath(entries)) {
+    if (entry.reviewStatus === 'reviewed') {
+      report.skipped.push({ path: entry.path, reason: 'already-reviewed' });
+      continue;
+    }
+    if (!isFingerprintable(entry) || entry.fingerprint == null) {
+      report.skipped.push({ path: entry.path, reason: 'not-fingerprintable' });
+      continue;
+    }
+    files.push({ path: entry.path, fingerprint: entry.fingerprint });
+  }
+  return { report, files };
+}
+
+export function bulkMarkReport(
+  report: BulkReviewReport,
+  response: SetReviewedBulkResponse,
+): BulkReviewReport {
+  return {
+    ...report,
+    marked: [...report.marked, ...response.marked],
+    failed: [
+      ...report.failed,
+      ...response.conflicts.map((conflict) => ({
+        path: conflict.path,
+        error: new Error(
+          conflict.reason === 'missing'
+            ? 'That file is no longer in the change list.'
+            : 'The file changed since it was shown.',
+        ),
+      })),
+    ],
+  };
+}
+
+export function bulkReportText(report: BulkReviewReport) {
+  const failed = report.failed.length;
+  const skipped = report.skipped.length;
+  return [
+    report.marked.length > 0
+      ? `Marked ${report.marked.length} ${report.marked.length === 1 ? 'file' : 'files'}.`
+      : 'No files marked.',
+    skipped > 0 ? `Skipped ${skipped}.` : '',
+    failed > 0 ? `${failed} failed.` : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+}
+
+export function markAllPlan(
+  entries: readonly ReviewChangeItem[],
+  kind: 'all' | 'layer',
+) {
+  const unique = uniqueByPath(entries);
+  const fingerprintable = unique.filter(isFingerprintable);
+  const eligible = fingerprintable.filter(
+    (entry) => entry.fingerprint != null && entry.reviewStatus !== 'reviewed',
+  );
+  const reviewed = fingerprintable.filter(
+    (entry) => entry.reviewStatus === 'reviewed',
+  );
+  const unavailable = unique.length - fingerprintable.length;
+  const unmarking = eligible.length === 0 && reviewed.length > 0;
+  const completeLabel =
+    unavailable > 0
+      ? `${fingerprintable.length} reviewed · ${unavailable} unavailable`
+      : 'All reviewed';
+  const noun = kind === 'layer' ? 'layer' : 'all';
+  const settled =
+    fingerprintable.length === 0
+      ? null
+      : unmarking
+        ? `Unmark ${noun}`
+        : eligible.length === 0
+          ? completeLabel
+          : null;
+  return {
+    entries: unique,
+    reviewedPaths: reviewed.map((entry) => entry.path),
+    unmarking,
+    blocked:
+      fingerprintable.length === 0 ||
+      (eligible.length === 0 && reviewed.length === 0),
+    label:
+      fingerprintable.length === 0
+        ? 'No files can be marked reviewed'
+        : (settled ??
+          (kind === 'layer'
+            ? 'Mark layer reviewed'
+            : `Mark all ${eligible.length} files reviewed`)),
+    text:
+      fingerprintable.length === 0
+        ? 'No reviewable files'
+        : (settled ??
+          (kind === 'layer' ? 'Mark layer reviewed' : 'Mark all reviewed')),
+  };
+}
+
+export function reviewedControlLabel(
+  path: string,
+  status: 'unreviewed' | 'reviewed' | 'stale',
+) {
+  return status === 'reviewed'
+    ? `Unmark ${path} as unreviewed`
+    : status === 'stale'
+      ? `Mark changed ${path} as reviewed`
+      : `Mark ${path} as reviewed`;
+}
+
+export function layerReviewState(
+  marks: ListReviewedLayersResponse | undefined,
+  layer: Pick<ReviewLayer, 'id' | 'fingerprint'>,
+) {
+  const mark = marks?.marks.find((candidate) => candidate.layerId === layer.id);
+  const reviewed = mark?.fingerprint === layer.fingerprint && !mark.stale;
+  return {
+    reviewed,
+    label: reviewed
+      ? 'Reviewed'
+      : mark
+        ? 'Mark changed layer reviewed'
+        : 'Mark layer reviewed',
+  };
+}

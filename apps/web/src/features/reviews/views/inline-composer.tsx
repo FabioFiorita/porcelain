@@ -1,19 +1,24 @@
-import { useConnectedContext } from '@/app/workspace-provider';
 import { useId, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { type CommentAnchor, type ReviewScope } from '@/features/reviews/index';
-
-import { useCreateComment } from '@/features/reviews/index';
-import { reviewErrorMessage } from '@/features/review/queries/review';
-import { anchorLabel } from './thread-card';
+import { useCreateComment } from '../commands/comments';
+import {
+  type CommentAnchor,
+  anchorLabel,
+  commentBodyValid,
+  retainIntent,
+} from '../rules/comments';
+import { reviewErrorMessage, type ReviewScope } from '../rules/review';
+import type { ReviewsContext } from '../rules/reviewed';
 
 export function InlineComposer({
   scope,
+  context,
   anchor,
   onClose,
 }: {
   scope: ReviewScope;
+  context: ReviewsContext;
   anchor: CommentAnchor;
   onClose: () => void;
 }) {
@@ -22,36 +27,35 @@ export function InlineComposer({
   const pending = useRef<
     { body: string; threadId: string; messageId: string } | undefined
   >(undefined);
-  const mutation = useCreateComment(scope, useConnectedContext());
-  const valid = body.trim().length > 0 && !body.includes('\0');
-  const submit = async () => {
+  const mutation = useCreateComment(scope, context);
+  const valid = commentBodyValid(body);
+  const submit = () => {
     if (!valid || mutation.isPending) return;
-    const intent =
-      pending.current?.body === body
-        ? pending.current
-        : {
-            body,
-            threadId: crypto.randomUUID(),
-            messageId: crypto.randomUUID(),
-          };
+    const intent = retainIntent(pending.current, body, () => ({
+      body,
+      threadId: crypto.randomUUID(),
+      messageId: crypto.randomUUID(),
+    }));
     pending.current = intent;
-    try {
-      await mutation.submit({
+    mutation.run(
+      {
         anchor,
         body,
         threadId: intent.threadId,
         messageId: intent.messageId,
-      });
-      pending.current = undefined;
-      onClose();
-    } catch {}
+      },
+      () => {
+        pending.current = undefined;
+        onClose();
+      },
+    );
   };
   return (
     <form
       className="m-3 flex flex-col gap-2 rounded-lg border bg-card p-3 font-sans"
       onSubmit={(event) => {
         event.preventDefault();
-        void submit();
+        submit();
       }}
     >
       <label htmlFor={id} className="text-xs text-muted-foreground">
@@ -63,7 +67,7 @@ export function InlineComposer({
         aria-label="Comment"
         placeholder="Share feedback…"
         value={body}
-        maxLength={16000}
+        maxLength={mutation.bodyLimit}
         disabled={mutation.isPending}
         onChange={(event) => {
           pending.current = undefined;
@@ -72,7 +76,7 @@ export function InlineComposer({
         onKeyDown={(event) => {
           if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
             event.preventDefault();
-            void submit();
+            submit();
           }
           if (event.key === 'Escape' && !mutation.isPending) {
             event.stopPropagation();

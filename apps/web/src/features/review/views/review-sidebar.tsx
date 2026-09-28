@@ -8,19 +8,19 @@ import { Button } from '@/components/ui/button';
 import { HistoryNavigation } from '@/features/history/index';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useConnectedContext } from '@/app/workspace-provider';
 import {
   type OpenDocument,
   isSurface,
+  ReviewIndex,
   type ReviewScope,
   type Surface,
+  useHasReviewLayers,
+  usePublishedReview,
 } from '@/features/reviews/index';
-
-import { usePublishedReview } from '@/features/review/queries/published-review';
-import { useHasReviewLayers } from '@/features/review/queries/review';
 import { FileNavigation } from './file-navigation';
 import { ReviewBoundary } from './review-boundary';
 import { ReviewEmpty } from './review-empty';
-import { ReviewIndex } from './review-index';
 
 export function ReviewSidebar({
   scope,
@@ -103,7 +103,7 @@ export function ReviewSidebar({
 }
 
 function ChangesSurfaceLabel({ scope }: { scope: ReviewScope }) {
-  const hasReview = useHasReviewLayers(scope) === true;
+  const hasReview = useHasReviewLayers(scope, useConnectedContext()) === true;
   const Icon = hasReview ? ListChecksIcon : FileDiffIcon;
   return (
     <>
@@ -128,7 +128,8 @@ function SidebarSurface({
   available: boolean;
   onOpen: OpenDocument;
 }) {
-  const published = usePublishedReview(scope);
+  const context = useConnectedContext();
+  const published = usePublishedReview(scope, context);
   if (!available)
     return (
       <div className="p-3">
@@ -147,7 +148,12 @@ function SidebarSurface({
   const content = (
     <ReviewBoundary key={`${scope.worktreeId}:${surface}`}>
       {surface === 'changes' && (
-        <ReviewIndex scope={scope} activeEntry={activeEntry} onOpen={onOpen} />
+        <ReviewIndex
+          scope={scope}
+          context={context}
+          activeEntry={activeEntry}
+          onOpen={onOpen}
+        />
       )}
       {surface === 'files' && (
         <FileNavigation

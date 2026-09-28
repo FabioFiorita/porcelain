@@ -17,20 +17,21 @@ import {
   type DiffContent,
   type ReviewChangeItem,
   type ReviewScope,
+  type ReviewsContext,
+  InlineComposer,
   orderReviewChanges,
+  ReviewedControl,
+  ThreadCard,
+  useComments,
 } from '@/features/reviews/index';
 
-import { useComments } from '@/features/reviews/index';
 import {
   useReviewChanges,
   useUntrackedContents,
 } from '@/features/review/queries/review';
 import { CodeDocument, type CodeEntry } from './code-document';
 import { fileEntry } from './diff-entries';
-import { InlineComposer } from './inline-composer';
 import { focusPatch, type LineSpan } from '@/features/reviews/index';
-import { ReviewedControl } from './reviewed-control';
-import { ThreadCard } from './thread-card';
 
 export function ReviewCodeDocument({
   scope,
@@ -49,6 +50,7 @@ export function ReviewCodeDocument({
   commentRequest?: number;
   toolbar?: (collapseControl: ReactNode) => ReactNode;
 }) {
+  const context = useConnectedContext();
   const connection = useAccessStore((state) => state.connection);
   const recover = useRecoverChangedDiffs(scope, connection);
   const items = orderReviewChanges(useReviewChanges(scope, paths), files);
@@ -99,7 +101,7 @@ export function ReviewCodeDocument({
   });
   const entries = items.flatMap((item): CodeEntry[] =>
     item.comparisons.flatMap((change): CodeEntry[] => {
-      const review = reviewControl(scope, item);
+      const review = reviewControl(scope, context, item);
       if (change.scope === 'untracked') {
         const text = untracked.contents.get(change.path);
         if (text === undefined) return [];
@@ -164,6 +166,7 @@ export function ReviewCodeDocument({
                 changes={unrenderable}
                 renderedPaths={renderedPaths}
                 scope={scope}
+                context={context}
                 {...(entries.length === 0 && commentRequest !== undefined
                   ? { commentRequest }
                   : {})}
@@ -243,7 +246,11 @@ function ContentState({
   );
 }
 
-function reviewControl(scope: ReviewScope, item: ReviewChangeItem) {
+function reviewControl(
+  scope: ReviewScope,
+  context: ReviewsContext,
+  item: ReviewChangeItem,
+) {
   return {
     path: item.path,
     fingerprint: item.fingerprint ?? null,
@@ -253,6 +260,7 @@ function reviewControl(scope: ReviewScope, item: ReviewChangeItem) {
       <ReviewedControl
         key={`review:${item.path}`}
         scope={scope}
+        context={context}
         path={item.path}
         fingerprint={item.fingerprint}
         status={item.reviewStatus}
@@ -270,6 +278,7 @@ function OmittedChanges({
   changes,
   renderedPaths,
   scope,
+  context,
   commentRequest,
 }: {
   changes: ReadonlyArray<{
@@ -279,6 +288,7 @@ function OmittedChanges({
   commentRequest?: number;
   renderedPaths: ReadonlySet<string>;
   scope: ReviewScope;
+  context: ReviewsContext;
 }) {
   return (
     <section className="mx-4 mt-3 rounded-lg border bg-muted/40 px-4 py-3">
@@ -302,6 +312,7 @@ function OmittedChanges({
             {!renderedPaths.has(item.path) && (
               <ReviewedControl
                 scope={scope}
+                context={context}
                 path={item.path}
                 fingerprint={item.fingerprint}
                 status={item.reviewStatus}
@@ -311,6 +322,7 @@ function OmittedChanges({
             {!renderedPaths.has(item.path) && (
               <OmittedDiscussion
                 scope={scope}
+                context={context}
                 path={item.path}
                 {...(commentRequest !== undefined ? { commentRequest } : {})}
               />
@@ -324,14 +336,16 @@ function OmittedChanges({
 
 function OmittedDiscussion({
   scope,
+  context,
   path,
   commentRequest,
 }: {
   scope: ReviewScope;
+  context: ReviewsContext;
   path: string;
   commentRequest?: number;
 }) {
-  const { threads } = useComments(scope, useConnectedContext());
+  const { threads } = useComments(scope, context);
   const [compose, setCompose] = useState(false);
   const handled = useRef<number | undefined>(undefined);
   useEffect(() => {
@@ -354,11 +368,17 @@ function OmittedDiscussion({
       {(visible.length > 0 || compose) && (
         <div className="w-full space-y-2">
           {visible.map((thread) => (
-            <ThreadCard key={thread.id} scope={scope} thread={thread} />
+            <ThreadCard
+              key={thread.id}
+              scope={scope}
+              context={context}
+              thread={thread}
+            />
           ))}
           {compose && (
             <InlineComposer
               scope={scope}
+              context={context}
               anchor={{ kind: 'file', filePath: path }}
               onClose={() => setCompose(false)}
             />

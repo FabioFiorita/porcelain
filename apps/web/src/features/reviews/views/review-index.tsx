@@ -1,4 +1,3 @@
-import { useConnectedContext } from '@/app/workspace-provider';
 import {
   CheckIcon,
   FileQuestionIcon,
@@ -20,37 +19,34 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/shared/lib/utils';
 import { useAccessStore } from '@/features/access/index';
 import { useChanges } from '@/features/changes/index';
+import { FileTypeIcon } from '@/features/files/index';
+import { useMarkCommentsSeen } from '../commands/comments';
+import { useComments, usePrefetchComments } from '../queries/comments';
+import { usePublishedReview } from '../queries/published-review';
+import { usePrefetchReviewed, useReviewedMarks } from '../queries/reviewed';
 import {
   type CommentAnchor,
+  commentsSeenThrough,
   type CommentThread,
-  type DocumentRef,
-  entryKey,
-  UNEXPLAINED,
+} from '../rules/comments';
+import { type DocumentRef, entryKey, UNEXPLAINED } from '../rules/documents';
+import {
   basename,
   type ChangeList,
+  mergeReviewChanges,
   notExplainedLabel,
   type ReviewChangeItem,
   type ReviewResponse,
   type ReviewScope,
   type ReviewStatus,
-} from '@/features/reviews/index';
-
-import {
-  useComments,
-  useMarkCommentsSeen,
-  usePrefetchComments,
-} from '@/features/reviews/index';
-import { usePublishedReview } from '@/features/review/queries/published-review';
-import {
-  usePrefetchReview,
-  useReviewChanges,
-} from '@/features/review/queries/review';
-import { FileTypeIcon } from '@/features/files/index';
+} from '../rules/review';
+import type { ReviewsContext } from '../rules/reviewed';
 import { ThreadCard } from './thread-card';
 
 type OpenDocument = (ref: DocumentRef, anchor?: CommentAnchor) => void;
 type Props = {
   scope: ReviewScope;
+  context: ReviewsContext;
   activeEntry: string | undefined;
   onOpen: OpenDocument;
 };
@@ -58,16 +54,16 @@ type Props = {
 const ROW =
   'flex w-full min-w-0 items-center gap-1.5 rounded-lg px-2 py-1 text-left text-[12.5px] transition-colors hover:bg-accent';
 
-export function ReviewIndex({ scope, activeEntry, onOpen }: Props) {
+export function ReviewIndex({ scope, context, activeEntry, onOpen }: Props) {
   const connection = useAccessStore((state) => state.connection);
   const [view, setView] = useState<'layers' | 'comments'>('layers');
-  usePrefetchReview(scope);
-  usePrefetchComments(scope, useConnectedContext());
+  usePrefetchReviewed(scope, context);
+  usePrefetchComments(scope, context);
   const { changes: list } = useChanges(scope, connection);
-  const published = usePublishedReview(scope);
+  const published = usePublishedReview(scope, context);
   const review = published.data?.active ? published.data : null;
-  const { threads } = useComments(scope, useConnectedContext());
-  const changes = useReviewChanges(scope);
+  const { threads } = useComments(scope, context);
+  const changes = mergeReviewChanges(list, useReviewedMarks(scope, context));
   const openComments = threads.filter((thread) => !thread.resolved).length;
 
   return (
@@ -98,6 +94,7 @@ export function ReviewIndex({ scope, activeEntry, onOpen }: Props) {
       {view === 'layers' ? (
         <LayersView
           scope={scope}
+          context={context}
           activeEntry={activeEntry}
           onOpen={onOpen}
           list={list}
@@ -110,6 +107,7 @@ export function ReviewIndex({ scope, activeEntry, onOpen }: Props) {
           list={list}
           threads={threads}
           scope={scope}
+          context={context}
           onOpen={onOpen}
         />
       )}
@@ -288,11 +286,13 @@ function reviewStatusLabel(status: ReviewStatus | undefined) {
 
 function CommentsView({
   scope,
+  context,
   list,
   threads,
   onOpen,
 }: {
   scope: ReviewScope;
+  context: ReviewsContext;
   list: ChangeList;
   threads: readonly CommentThread[];
   onOpen: OpenDocument;
@@ -318,24 +318,17 @@ function CommentsView({
     (top, thread) => Math.max(top, thread.revision),
     0,
   );
-  const markSeen = useMarkCommentsSeen(scope, useConnectedContext()).mutate;
+  const markSeen = useMarkCommentsSeen(scope, context).mutate;
   const shown = useRef({ snapshot: '', filters: new Set<string>() });
   useEffect(() => {
     if (shown.current.snapshot !== snapshot)
       shown.current = { snapshot, filters: new Set() };
     shown.current.filters.add(filter);
-    const needed = (
-      [
-        ['open', openCount],
-        ['resolved', resolvedCount],
-      ] as const
-    ).filter(([, count]) => count > 0);
-    if (
-      highest === 0 ||
-      !needed.every(([value]) => shown.current.filters.has(value))
-    )
-      return;
-    markSeen(highest);
+    const through = commentsSeenThrough(
+      { highest, open: openCount, resolved: resolvedCount },
+      shown.current.filters,
+    );
+    if (through !== null) markSeen(through);
   }, [filter, highest, markSeen, openCount, resolvedCount, snapshot]);
 
   const reveal = (anchor: CommentAnchor) => {
@@ -391,6 +384,7 @@ function CommentsView({
                     <ThreadCard
                       thread={thread}
                       scope={scope}
+                      context={context}
                       onReveal={() => reveal(thread.anchor)}
                     />
                   </MessageScrollerItem>

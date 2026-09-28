@@ -61,7 +61,7 @@ export function orderReviewChanges<T extends { path: string }>(
   return [...ordered, ...remaining.values()];
 }
 
-export function reviewStatus(
+function reviewStatus(
   change: Pick<FileChange, 'path' | 'fingerprint'>,
   marks: readonly ReviewedMark[],
 ): ReviewStatus {
@@ -71,11 +71,39 @@ export function reviewStatus(
   return mark.fingerprint === change.fingerprint ? 'reviewed' : 'stale';
 }
 
-export function reviewMark(
+function reviewMark(
   change: Pick<FileChange, 'path'>,
   marks: readonly ReviewedMark[],
 ) {
   return marks.find((candidate) => candidate.path === change.path);
+}
+
+export function mergeReviewChanges(
+  list: ChangeList,
+  reviewed: ReviewedMarksResponse,
+  paths?: readonly string[],
+): ReviewChangeItem[] {
+  const selected = paths == null ? null : new Set(paths);
+  return list.changes.flatMap((entry) => {
+    if (selected && !selected.has(entry.path)) return [];
+    const mark = reviewMark(entry, reviewed.marks);
+    return [
+      {
+        ...entry,
+        environmentId: list.environmentId,
+        worktreeId: list.worktreeId,
+        statusToken: list.statusToken,
+        reviewStatus: reviewStatus(entry, reviewed.marks),
+        ...(mark ? { mark } : {}),
+      },
+    ];
+  });
+}
+
+export function reviewErrorMessage(error: unknown) {
+  return error instanceof Error && error.name === 'ConnectionError'
+    ? error.message
+    : 'This review surface could not be loaded. Try again.';
 }
 
 export function isFingerprintable<

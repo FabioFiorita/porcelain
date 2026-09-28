@@ -1,4 +1,15 @@
 import {
+  listReviewedFilesResponseSchema,
+  listReviewedLayersResponseSchema,
+  readPublishedReviewResponseSchema,
+  removeReviewedFileResponseSchema,
+  removeReviewedLayerResponseSchema,
+  setReviewedFileRequestSchema,
+  setReviewedFileResponseSchema,
+  setReviewedFilesRequestSchema,
+  setReviewedFilesResponseSchema,
+  setReviewedLayerRequestSchema,
+  setReviewedLayerResponseSchema,
   createCommentThreadRequestSchema,
   createCommentThreadResponseSchema,
   listCommentThreadsResponseSchema,
@@ -10,17 +21,25 @@ import {
 } from '@porcelain/contracts/reviews';
 import { requestJson } from '@/shared/api/request';
 import type { CommentsPort } from './rules/comments';
+import type { ReviewsPort } from './rules/reviewed';
 export type { CommentsPort } from './rules/comments';
+export type { ReviewsPort } from './rules/reviewed';
 
-export function createCommentsLive(transport: typeof fetch): CommentsPort {
-  const path = (worktreeId: string) =>
-    `/api/worktrees/${encodeURIComponent(worktreeId)}/comments`;
-  const threadPath = (worktreeId: string, threadId: string) =>
-    `${path(worktreeId)}/${encodeURIComponent(threadId)}`;
-  const json = (body: unknown) => ({
+function worktreePath(worktreeId: string) {
+  return `/api/worktrees/${encodeURIComponent(worktreeId)}`;
+}
+
+function json(body: unknown) {
+  return {
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(body),
-  });
+  };
+}
+
+export function createCommentsLive(transport: typeof fetch): CommentsPort {
+  const path = (worktreeId: string) => `${worktreePath(worktreeId)}/comments`;
+  const threadPath = (worktreeId: string, threadId: string) =>
+    `${path(worktreeId)}/${encodeURIComponent(threadId)}`;
   return {
     list: ({ worktreeId, signal }) =>
       requestJson(
@@ -76,5 +95,88 @@ export function createCommentsLive(transport: typeof fetch): CommentsPort {
           signal,
         },
       ),
+  };
+}
+
+export function createReviewsLive(transport: typeof fetch): ReviewsPort {
+  const reviewed = (worktreeId: string) =>
+    `${worktreePath(worktreeId)}/reviewed`;
+  const layers = (worktreeId: string) =>
+    `${worktreePath(worktreeId)}/reviewed-layers`;
+  return {
+    review: async ({ worktreeId, signal }) =>
+      (
+        await requestJson(
+          transport,
+          `${worktreePath(worktreeId)}/review`,
+          readPublishedReviewResponseSchema,
+          { signal },
+        )
+      ).review ?? null,
+    reviewed: {
+      list: ({ worktreeId, signal }) =>
+        requestJson(
+          transport,
+          reviewed(worktreeId),
+          listReviewedFilesResponseSchema,
+          { signal },
+        ),
+      set: ({ worktreeId, signal, input }) =>
+        requestJson(
+          transport,
+          reviewed(worktreeId),
+          setReviewedFileResponseSchema,
+          {
+            method: 'PUT',
+            ...json(setReviewedFileRequestSchema.parse(input)),
+            signal,
+          },
+        ),
+      setAll: ({ worktreeId, signal, input }) =>
+        requestJson(
+          transport,
+          `${worktreePath(worktreeId)}/reviewed-bulk`,
+          setReviewedFilesResponseSchema,
+          {
+            method: 'PUT',
+            ...json(setReviewedFilesRequestSchema.parse(input)),
+            signal,
+          },
+        ),
+      remove: ({ worktreeId, signal, path }) =>
+        requestJson(
+          transport,
+          `${reviewed(worktreeId)}?${new URLSearchParams({ path })}`,
+          removeReviewedFileResponseSchema,
+          { method: 'DELETE', signal },
+        ),
+    },
+    reviewedLayers: {
+      list: ({ worktreeId, signal }) =>
+        requestJson(
+          transport,
+          layers(worktreeId),
+          listReviewedLayersResponseSchema,
+          { signal },
+        ),
+      set: ({ worktreeId, signal, input }) =>
+        requestJson(
+          transport,
+          layers(worktreeId),
+          setReviewedLayerResponseSchema,
+          {
+            method: 'PUT',
+            ...json(setReviewedLayerRequestSchema.parse(input)),
+            signal,
+          },
+        ),
+      remove: ({ worktreeId, signal, layerId }) =>
+        requestJson(
+          transport,
+          `${layers(worktreeId)}?${new URLSearchParams({ layerId })}`,
+          removeReviewedLayerResponseSchema,
+          { method: 'DELETE', signal },
+        ),
+    },
   };
 }

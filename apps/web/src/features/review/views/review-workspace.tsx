@@ -45,6 +45,7 @@ import {
   type RevealComment,
   type ReviewLayer,
   type Surface,
+  usePublishedReview,
 } from '@/features/reviews/index';
 import type { Project } from '@/features/projects/index';
 import {
@@ -54,7 +55,6 @@ import {
 } from '@/features/git-actions/index';
 import { useConnectedContext } from '@/app/workspace-provider';
 
-import { usePublishedReview } from '@/features/review/queries/published-review';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
 import { DocumentTabs } from './document-tabs';
 import { DocumentView } from './documents';
@@ -288,7 +288,7 @@ function DocumentArea({
 }) {
   const connection = useAccessStore((state) => state.connection);
   const overview = useReviewOverview(scope, connection);
-  const published = usePublishedReview(scope);
+  const published = usePublishedReview(scope, useConnectedContext());
   const layers = published.data?.active ? published.data.layers : [];
   const hasHandoff =
     Boolean(published.data?.active) ||
