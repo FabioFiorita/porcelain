@@ -1,3 +1,4 @@
+import { useConnectedContext } from '@/app/workspace-provider';
 import { useState } from 'react';
 import { useAccessStore } from '@/features/access/index';
 import { useGitStatus } from '@/features/changes/index';
@@ -16,7 +17,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import type { ActionInput, GitAction } from '@/features/git-actions/index';
 import type { ReviewScope } from '@/features/reviews/index';
-import { useGitAction } from '@/features/review/queries/git-actions';
+import { useGitAction } from '@/features/git-actions/index';
 import { usePreferences } from '@/shared/workspace/preferences';
 import { CommitForm } from './commit-form';
 import {
@@ -24,8 +25,8 @@ import {
   expectationFor,
   gitErrorMessage,
   receiptFailed,
-} from './git-action-feedback';
-import { GitActionError } from './git-action-message';
+} from '@/features/git-actions/index';
+import { GitActionError } from '@/features/git-actions/index';
 import { type GitActionStatus, gitActions } from './git-action-options';
 
 export function GitActionInspection({
@@ -196,7 +197,7 @@ function ActionForm({
   onBusy: (busy: boolean) => void;
   onLookAgain?: (() => Promise<void>) | undefined;
 }) {
-  const git = useGitAction(scope, action);
+  const git = useGitAction(scope, action, useConnectedContext());
   const { preferences } = usePreferences();
   const [strategy] = useState(preferences.pullStrategy);
   const branch = status.branch;

@@ -1,3 +1,4 @@
+import { useConnectedContext } from '@/app/workspace-provider';
 import { Undo2Icon } from 'lucide-react';
 import { useState } from 'react';
 import {
@@ -23,15 +24,15 @@ import {
   comparisons,
   type ReviewScope,
 } from '@/features/reviews/index';
-import { useGitAction } from '@/features/review/queries/git-actions';
+import { useGitAction } from '@/features/git-actions/index';
 import {
   changedSinceLooked,
   expectationFor,
   gitErrorMessage,
   receiptFailed,
   receiptWords,
-} from './git-action-feedback';
-import { GitActionError } from './git-action-message';
+} from '@/features/git-actions/index';
+import { GitActionError } from '@/features/git-actions/index';
 import type { GitActionStatus } from './git-action-options';
 
 export function DiscardButton({
@@ -48,8 +49,8 @@ export function DiscardButton({
   const connection = useAccessStore((state) => state.connection);
   const overview = useReviewOverview(scope, connection);
   const readChanges = useReadCurrentChanges(scope, connection);
-  const discard = useGitAction(scope, 'discard');
-  const restore = useGitAction(scope, 'stash-apply');
+  const discard = useGitAction(scope, 'discard', useConnectedContext());
+  const restore = useGitAction(scope, 'stash-apply', useConnectedContext());
   const [open, setOpen] = useState(false);
   const [openedStatus, setOpenedStatus] = useState<GitActionStatus | null>(
     null,

@@ -1,6 +1,5 @@
 {
   "porcelain/no-number-outside-limits": {
-    "apps/web/src/features/review/queries/git-actions.ts": 1,
     "apps/web/src/features/review/queries/published-review.ts": 8,
     "apps/web/src/routes/router.tsx": 2,
     "apps/web/src/shared/api/request-timeout.ts": 1,
@@ -13,19 +12,16 @@
   },
   "porcelain/web-cache-writes-in-commands": {
     "apps/web/src/app/workspace-provider.tsx": 3,
-    "apps/web/src/features/review/queries/git-actions.ts": 1,
     "apps/web/src/features/review/queries/published-review.ts": 2,
     "apps/web/src/shared/query/live-updates.ts": 3
   },
   "porcelain/web-commands-own-writes": {
-    "apps/web/src/features/review/queries/git-actions.ts": 4,
     "apps/web/src/features/review/queries/published-review.ts": 1,
     "apps/web/src/features/review/queries/reviewed-mutations.ts": 3
   },
   "porcelain/web-effects-in-adapters": {
     "apps/web/src/app/views/connected-workspace.tsx": 1,
     "apps/web/src/app/workspace-provider.tsx": 4,
-    "apps/web/src/features/review/queries/git-actions.ts": 1,
     "apps/web/src/features/review/views/code-document.tsx": 2,
     "apps/web/src/features/review/views/document-tabs.tsx": 1,
     "apps/web/src/features/review/views/file-document.tsx": 3,
@@ -59,7 +55,6 @@
     "apps/web/src/shared/workspace/preferences.tsx": 1
   },
   "porcelain/web-no-manual-memo": {
-    "apps/web/src/features/review/queries/git-actions.ts": 1,
     "apps/web/src/features/review/views/code-document.tsx": 3,
     "apps/web/src/features/review/views/commit-document.tsx": 5,
     "apps/web/src/features/review/views/file-navigation.tsx": 3,
@@ -70,10 +65,8 @@
   },
   "porcelain/web-no-use-state": {
     "apps/web/src/app/views/connected-workspace.tsx": 3,
-    "apps/web/src/features/review/views/branch-dialog.tsx": 4,
     "apps/web/src/features/review/views/code-document.tsx": 4,
     "apps/web/src/features/review/views/commit-document.tsx": 2,
-    "apps/web/src/features/review/views/commit-form.tsx": 13,
     "apps/web/src/features/review/views/discard.tsx": 4,
     "apps/web/src/features/review/views/file-document.tsx": 4,
     "apps/web/src/features/review/views/file-navigation.tsx": 4,
@@ -94,7 +87,6 @@
     "apps/web/src/shared/workspace/preferences.tsx": 1
   },
   "porcelain/web-no-use-sync-external-store": {
-    "apps/web/src/features/review/queries/git-actions.ts": 1,
     "apps/web/src/shared/workspace/preferences.tsx": 1
   },
   "porcelain/web-queries-export-reads": {
@@ -103,7 +95,6 @@
   },
   "porcelain/web-refs-in-adapters": {
     "apps/web/src/app/views/connected-workspace.tsx": 1,
-    "apps/web/src/features/review/queries/git-actions.ts": 1,
     "apps/web/src/features/review/views/code-document.tsx": 3,
     "apps/web/src/features/review/views/document-tabs.tsx": 1,
     "apps/web/src/features/review/views/file-document.tsx": 1,
@@ -129,8 +120,6 @@
   },
   "porcelain/web-views-no-await": {
     "apps/web/src/app/workspace-provider.tsx": 1,
-    "apps/web/src/features/review/views/branch-dialog.tsx": 2,
-    "apps/web/src/features/review/views/commit-form.tsx": 3,
     "apps/web/src/features/review/views/discard.tsx": 4,
     "apps/web/src/features/review/views/file-navigation.tsx": 2,
     "apps/web/src/features/review/views/git-button.tsx": 4,
@@ -163,7 +152,6 @@
   },
   "porcelain/web-views-no-loops": {
     "apps/web/src/features/review/views/code-document.tsx": 1,
-    "apps/web/src/features/review/views/commit-form.tsx": 1,
     "apps/web/src/features/review/views/file-navigation.tsx": 1,
     "apps/web/src/features/review/views/published-layer.tsx": 1,
     "apps/web/src/features/review/views/review-diagram.tsx": 9,
@@ -175,7 +163,6 @@
   "porcelain/web-views-no-promise-chains": {
     "apps/web/src/app/views/workspace-view.tsx": 1,
     "apps/web/src/features/review/views/code-document.tsx": 1,
-    "apps/web/src/features/review/views/commit-form.tsx": 5,
     "apps/web/src/features/review/views/discard.tsx": 2,
     "apps/web/src/features/review/views/file-navigation.tsx": 2,
     "apps/web/src/features/review/views/git-action-inspection.tsx": 6,
@@ -189,8 +176,6 @@
   },
   "porcelain/web-views-no-try": {
     "apps/web/src/app/workspace-provider.tsx": 1,
-    "apps/web/src/features/review/views/branch-dialog.tsx": 2,
-    "apps/web/src/features/review/views/commit-form.tsx": 2,
     "apps/web/src/features/review/views/discard.tsx": 3,
     "apps/web/src/features/review/views/git-button.tsx": 2,
     "apps/web/src/features/review/views/inline-composer.tsx": 1,
@@ -200,9 +185,6 @@
   },
   "style/react-compiler": {
     "apps/web/src/app/workspace-provider.tsx": 1,
-    "apps/web/src/features/review/queries/git-actions.ts": 1,
-    "apps/web/src/features/review/views/branch-dialog.tsx": 1,
-    "apps/web/src/features/review/views/commit-form.tsx": 1,
     "apps/web/src/features/review/views/discard.tsx": 1,
     "apps/web/src/features/review/views/git-button.tsx": 1,
     "apps/web/src/features/review/views/published-layer.tsx": 1,
@@ -238,7 +220,6 @@
     "apps/web/src/features/review/api/review-request.ts": 1,
     "apps/web/src/features/review/api/reviewed-live.ts": 1,
     "apps/web/src/features/review/index.ts": 1,
-    "apps/web/src/features/review/queries/git-actions.ts": 1,
     "apps/web/src/features/review/queries/published-review.ts": 1,
     "apps/web/src/features/review/queries/review.ts": 1,
     "apps/web/src/features/review/queries/reviewed-mutations.ts": 1,
@@ -255,9 +236,7 @@
     "apps/web/src/features/review/views/documents.tsx": 1,
     "apps/web/src/features/review/views/file-document.tsx": 1,
     "apps/web/src/features/review/views/file-navigation.tsx": 1,
-    "apps/web/src/features/review/views/git-action-feedback.ts": 1,
     "apps/web/src/features/review/views/git-action-inspection.tsx": 1,
-    "apps/web/src/features/review/views/git-action-message.tsx": 1,
     "apps/web/src/features/review/views/git-action-options.ts": 1,
     "apps/web/src/features/review/views/git-button.tsx": 1,
     "apps/web/src/features/review/views/inline-composer.tsx": 1,
@@ -282,7 +261,7 @@
   "unused-export": {
     "apps/web/src/features/review/queries/reviewed-mutations.ts": 1,
     "apps/web/src/features/review/views/document-tabs.tsx": 1,
-    "apps/web/src/features/review/views/git-action-options.ts": 4,
+    "apps/web/src/features/review/views/git-action-options.ts": 2,
     "apps/web/src/features/review/views/review-diagram.tsx": 1,
     "apps/web/src/features/review/views/thread-card.tsx": 1,
     "apps/web/src/shared/lib/pierre.ts": 1,

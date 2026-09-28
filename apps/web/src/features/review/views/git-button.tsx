@@ -1,3 +1,4 @@
+import { useConnectedContext } from '@/app/workspace-provider';
 import {
   ChevronDownIcon,
   GitBranchIcon,
@@ -42,7 +43,7 @@ import {
   type ReviewScope,
   type Status,
 } from '@/features/reviews/index';
-import { useGitAction } from '@/features/review/queries/git-actions';
+import { useGitAction } from '@/features/git-actions/index';
 import { usePreferences } from '@/shared/workspace/preferences';
 import { BranchDialog } from './branch-dialog';
 import {
@@ -50,9 +51,9 @@ import {
   gitErrorMessage,
   receiptFailed,
   receiptWords,
-} from './git-action-feedback';
+} from '@/features/git-actions/index';
 import { GitActionInspection } from './git-action-inspection';
-import { GitActionMessage } from './git-action-message';
+import { GitActionMessage } from '@/features/git-actions/index';
 import {
   branchStatus,
   type GitActionStatus,
@@ -122,10 +123,14 @@ export function GitButton({ scope }: { scope: ReviewScope }) {
   const details = useGitStatus(scope, connection, detailsEnabled);
   const refreshLook = useRefreshGitLook(scope, connection);
   const { preferences } = usePreferences();
-  const fetchAction = useGitAction(scope, 'fetch');
-  const pullAction = useGitAction(scope, 'pull');
-  const pushAction = useGitAction(scope, 'push');
-  const restoreDiscardedAction = useGitAction(scope, 'stash-apply');
+  const fetchAction = useGitAction(scope, 'fetch', useConnectedContext());
+  const pullAction = useGitAction(scope, 'pull', useConnectedContext());
+  const pushAction = useGitAction(scope, 'push', useConnectedContext());
+  const restoreDiscardedAction = useGitAction(
+    scope,
+    'stash-apply',
+    useConnectedContext(),
+  );
   const [busy, setBusy] = useState(false);
   const [progressOpen, setProgressOpen] = useState(false);
   const [action, setAction] = useState<GitAction | null>(null);

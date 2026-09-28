@@ -1,5 +1,5 @@
-import type { Expectation, Receipt } from '@/features/git-actions/index';
-import type { GitActionStatus } from './git-action-options';
+import type { Expectation, Receipt } from './git-action';
+import type { GitActionStatus } from './status';
 
 export function expectationFor(
   status: GitActionStatus,

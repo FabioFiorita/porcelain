@@ -23,3 +23,5 @@ export const FILE_ICON_DEFAULT_SIZE = 16;
 export const FILE_NAME_SUFFIX_START = 2;
 export const GIT_ACTION_REJECTED_STATUSES = [409, 503];
 export const REVIEW_PATCH_CONTEXT_LINES = 3;
+
+export const COMMIT_MODELS_STALE_MS = 60_000;

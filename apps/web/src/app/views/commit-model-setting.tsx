@@ -1,3 +1,4 @@
+import { useConnectedContext } from '@/app/workspace-provider';
 import {
   NativeSelect,
   NativeSelectOptGroup,
@@ -7,11 +8,11 @@ import {
   groupedCommitModels,
   resolveCommitModel,
 } from '@/features/git-actions/index';
-import { useCommitModels } from '@/features/review/index';
+import { useCommitModels } from '@/features/git-actions/index';
 import { usePreferences } from '@/shared/workspace/preferences';
 
 export function CommitModelSetting() {
-  const models = useCommitModels();
+  const models = useCommitModels(useConnectedContext());
   const { preferences, setPreference } = usePreferences();
   const value = resolveCommitModel(models.data, preferences.commitModel) ?? '';
   return (

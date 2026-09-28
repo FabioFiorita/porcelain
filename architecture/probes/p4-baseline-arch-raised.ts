@@ -9,8 +9,8 @@ export default {
     {
       kind: 'replace',
       path: 'architecture/web-baseline.json',
-      old: '"apps/web/src/features/review/views/git-action-options.ts": 4',
-      new: '"apps/web/src/features/review/views/git-action-options.ts": 5',
+      old: '"apps/web/src/features/review/views/git-action-options.ts": 2',
+      new: '"apps/web/src/features/review/views/git-action-options.ts": 3',
     },
   ],
 } satisfies Probe;

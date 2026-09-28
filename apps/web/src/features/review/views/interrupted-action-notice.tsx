@@ -1,14 +1,15 @@
+import { useConnectedContext } from '@/app/workspace-provider';
 import { Button } from '@/components/ui/button';
 import { useAccessStore } from '@/features/access/index';
 import { useReviewOverview } from '@/features/changes/index';
 import type { ReviewScope } from '@/features/reviews/index';
-import { useDismissInterrupted } from '@/features/review/queries/git-actions';
-import { gitErrorMessage } from './git-action-feedback';
+import { useDismissInterrupted } from '@/features/git-actions/index';
+import { gitErrorMessage } from '@/features/git-actions/index';
 
 export function InterruptedActionNotice({ scope }: { scope: ReviewScope }) {
   const connection = useAccessStore((state) => state.connection);
   const overview = useReviewOverview(scope, connection);
-  const dismiss = useDismissInterrupted(scope);
+  const dismiss = useDismissInterrupted(scope, useConnectedContext());
   const interrupted = overview?.changes.interrupted;
   if (!interrupted) return null;
   return (
