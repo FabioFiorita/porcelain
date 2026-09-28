@@ -21,3 +21,4 @@ export { ReviewDiagram } from './views/review-diagram';
 export type { Graph } from './views/review-diagram';
 export { ReviewIndex } from './views/review-index';
 export { ThreadCard } from './views/thread-card';
+export { PierreWorkers } from './adapters/pierre-workers';

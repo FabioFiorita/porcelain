@@ -105,7 +105,6 @@
     "apps/web/src/features/review/views/documents.tsx": 1,
     "apps/web/src/features/review/views/file-document.tsx": 1,
     "apps/web/src/features/review/views/file-navigation.tsx": 1,
-    "apps/web/src/features/review/views/pierre-workers.tsx": 1,
     "apps/web/src/features/review/views/published-layer.tsx": 1,
     "apps/web/src/features/review/views/published-overview.tsx": 1,
     "apps/web/src/features/review/views/review-boundary.tsx": 1,
