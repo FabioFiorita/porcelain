@@ -1,10 +1,4 @@
-import { useConnectedContext } from '@/app/workspace-provider';
-import {
-  ChevronDownIcon,
-  GitBranchIcon,
-  GitCommitHorizontalIcon,
-  Undo2Icon,
-} from 'lucide-react';
+import { ChevronDownIcon, GitBranchIcon, Undo2Icon } from 'lucide-react';
 import { Fragment, useState } from 'react';
 import { useAccessStore } from '@/features/access/index';
 import {
@@ -37,85 +31,36 @@ import {
 } from '@/components/ui/popover';
 import { Spinner } from '@/components/ui/spinner';
 import { toast } from '@/components/ui/toast';
-import type { ActionInput, GitAction } from '@/features/git-actions/index';
-import {
-  comparisons,
-  type ReviewScope,
-  type Status,
-} from '@/features/reviews/index';
-import { useGitAction } from '@/features/git-actions/index';
+import type { ReviewScope } from '@/features/reviews/index';
 import { usePreferences } from '@/shared/workspace/preferences';
-import { BranchDialog } from './branch-dialog';
+import { useGitMenu } from '../commands/git-menu';
+import type { GitAction } from '../rules/git-action';
+import { gitActionGroups, gitActions } from '../rules/git-action-options';
 import {
-  expectationFor,
-  gitErrorMessage,
-  receiptFailed,
-  receiptWords,
-} from '@/features/git-actions/index';
-import { GitActionInspection } from './git-action-inspection';
-import { GitActionMessage } from '@/features/git-actions/index';
+  isNetworkAction,
+  networkLabel,
+  primaryTooltip,
+} from '../rules/network';
 import {
   branchStatus,
   type GitActionStatus,
   gitActionBlocker,
-  gitActionGroups,
   gitActionReason,
-  gitActions,
   primaryGitAction,
-} from './git-action-options';
+  statusFromChanges,
+} from '../rules/status';
+import { BranchDialog } from './branch-dialog';
+import { GitActionIcon } from './git-action-icon';
+import { GitActionInspection } from './git-action-inspection';
+import { GitActionMessage } from './git-action-message';
 
-type NetworkAction = 'fetch' | 'pull' | 'push';
-
-function networkInput(
-  action: NetworkAction,
-  branch: Status['branch'],
-  strategy: 'merge' | 'rebase',
-): ActionInput {
-  if (!branch?.name)
-    throw new Error('Check out a branch before using the remote.');
-  const name = branch.name.replace(/^refs\/heads\//, '');
-  if (action === 'fetch' || action === 'pull') {
-    if (!branch?.upstream || !branch.remoteName || !branch.sourceRef)
-      throw new Error('Configure an upstream branch first.');
-    const upstream = `${branch.remoteName}/${branch.sourceRef.replace(/^refs\/heads\//, '')}`;
-    if (upstream !== branch.upstream)
-      throw new Error(
-        'The configured upstream changed. Review it and try again.',
-      );
-    if (action === 'fetch')
-      return {
-        action,
-        remoteName: branch.remoteName,
-        sourceRef: branch.sourceRef,
-      };
-    return {
-      action,
-      remoteName: branch.remoteName,
-      sourceRef: branch.sourceRef,
-      strategy,
-    };
-  }
-  const ref = branch.sourceRef ?? `refs/heads/${name}`;
-  const remoteName = branch.remoteName ?? 'origin';
-  return {
-    action,
-    remoteName,
-    destinationRef: ref,
-    allowCreate: branch?.upstream == null,
-  };
-}
-
-const iconFor = (action: GitAction) =>
-  gitActions.find((candidate) => candidate.id === action)?.icon ??
-  GitCommitHorizontalIcon;
-
-const plural = (count: number, noun: string) =>
-  `${count} ${noun}${count === 1 ? '' : 's'}`;
-
-const networkLabel = (action: NetworkAction) =>
-  action === 'fetch' ? 'Fetching' : action === 'pull' ? 'Pulling' : 'Pushing';
-
-export function GitButton({ scope }: { scope: ReviewScope }) {
+export function GitButton({
+  scope,
+  context,
+}: {
+  scope: ReviewScope;
+  context: Parameters<typeof useGitMenu>[1];
+}) {
   const connection = useAccessStore((state) => state.connection);
   const overview = useReviewOverview(scope, connection);
   const [detailsEnabled, setDetailsEnabled] = useState(false);
@@ -123,183 +68,43 @@ export function GitButton({ scope }: { scope: ReviewScope }) {
   const details = useGitStatus(scope, connection, detailsEnabled);
   const refreshLook = useRefreshGitLook(scope, connection);
   const { preferences } = usePreferences();
-  const fetchAction = useGitAction(scope, 'fetch', useConnectedContext());
-  const pullAction = useGitAction(scope, 'pull', useConnectedContext());
-  const pushAction = useGitAction(scope, 'push', useConnectedContext());
-  const restoreDiscardedAction = useGitAction(
-    scope,
-    'stash-apply',
-    useConnectedContext(),
-  );
   const [busy, setBusy] = useState(false);
   const [progressOpen, setProgressOpen] = useState(false);
   const [action, setAction] = useState<GitAction | null>(null);
   const [openedStatus, setOpenedStatus] = useState<GitActionStatus | null>(
     null,
   );
+  const menu = useGitMenu(scope, context, {
+    details,
+    enableDetails: () => setDetailsEnabled(true),
+    pullStrategy: preferences.pullStrategy,
+    notify: ({ title, description, type }) =>
+      toast.add({
+        title,
+        description:
+          description === undefined ? undefined : (
+            <GitActionMessage text={description} />
+          ),
+        type,
+      }),
+    onProgress: setProgressOpen,
+    refreshLook,
+    onLooked: setOpenedStatus,
+  });
   if (overview == null) return null;
   const status = {
-    statusToken: overview.changes.statusToken,
-    inProgress: overview.changes.inProgress,
-    mergeHeadOid: overview.changes.mergeHeadOid,
-    headOid: overview.changes.headOid,
+    ...statusFromChanges(overview.changes),
     branch: details.status?.branch ?? overview.changes.branch,
-    changes: comparisons(overview.changes),
-    files: overview.changes.changes.map(({ path, fingerprint }) => ({
-      path,
-      fingerprint,
-    })),
   };
   const selected = gitActions.find((candidate) => candidate.id === action);
   const primary = primaryGitAction(status);
-  const PrimaryIcon =
-    primary.kind === 'run' ? iconFor(primary.action) : GitCommitHorizontalIcon;
   const primaryTip = primaryTooltip(primary, status);
   const branch = branchStatus(status);
-  const runners = { fetch: fetchAction, pull: pullAction, push: pushAction };
-  const runningOperations: {
-    name: NetworkAction;
-    operation: typeof fetchAction.operation;
-    canStartNew: boolean;
-  }[] = [
-    {
-      name: 'fetch',
-      operation: fetchAction.operation,
-      canStartNew: fetchAction.canStartNew,
-    },
-    {
-      name: 'pull',
-      operation: pullAction.operation,
-      canStartNew: pullAction.canStartNew,
-    },
-    {
-      name: 'push',
-      operation: pushAction.operation,
-      canStartNew: pushAction.canStartNew,
-    },
-  ];
-  const running = runningOperations.find(
-    ({ operation, canStartNew }) => operation != null && !canStartNew,
-  );
-
-  const runNetwork = async (next: NetworkAction) => {
-    const runner = runners[next];
-    const label =
-      next === 'fetch' ? 'Fetch' : next === 'pull' ? 'Pull' : 'Push';
-    const displayedBranch = status.branch;
-    let looked = details.status;
-    if (!looked) {
-      setDetailsEnabled(true);
-      looked = await details.read();
-      if (
-        looked &&
-        (looked.branch?.name !== displayedBranch?.name ||
-          looked.branch?.upstream !== displayedBranch?.upstream)
-      ) {
-        toast.add({
-          title: `${label} did not run`,
-          description: 'The branch target changed. Review it and try again.',
-          type: 'error',
-        });
-        return;
-      }
-    }
-    if (!looked) {
-      toast.add({
-        title: `${label} did not run`,
-        description: 'The branch target is still loading. Try again.',
-        type: 'error',
-      });
-      return;
-    }
-    let input: ActionInput;
-    try {
-      input = networkInput(next, looked.branch, preferences.pullStrategy);
-    } catch (error) {
-      toast.add({
-        title: `${label} did not run`,
-        description: <GitActionMessage text={gitErrorMessage(error)} />,
-        type: 'error',
-      });
-      return;
-    }
-    setProgressOpen(true);
-    void runner
-      .run(
-        input,
-        expectationFor(looked, [], looked.branch?.upstreamOid ?? null),
-      )
-      .then((receipt) => {
-        setProgressOpen(false);
-        toast.add({
-          title: receiptFailed(receipt) ? `${label} did not run` : label,
-          description: <GitActionMessage text={receiptWords(receipt)} />,
-          type: receiptFailed(receipt) ? 'error' : 'success',
-        });
-      })
-      .catch((error: unknown) => {
-        setProgressOpen(false);
-        toast.add({
-          title: `${label} did not run`,
-          description: <GitActionMessage text={gitErrorMessage(error)} />,
-          type: 'error',
-        });
-      });
-  };
-
-  const restoreDiscarded = async (item: {
-    oid: string;
-    path: string;
-    kind: 'hunk' | 'rename';
-  }) => {
-    setMenuOpen(false);
-    let looked = details.status;
-    if (!looked) {
-      setDetailsEnabled(true);
-      looked = await details.read();
-    }
-    if (!looked) {
-      toast.add({
-        title: 'Could not restore the discarded change',
-        description: 'The worktree status is still loading. Try again.',
-        type: 'error',
-      });
-      return;
-    }
-    const label =
-      item.kind === 'rename'
-        ? `rename of ${item.path}`
-        : `hunk of ${item.path}`;
-    try {
-      const receipt = await restoreDiscardedAction.run(
-        {
-          action: 'stash-apply',
-          stashOid: item.oid,
-          restoreIndex: item.kind === 'rename',
-        },
-        expectationFor(looked, [item.path], undefined, true),
-      );
-      toast.add({
-        title: receiptFailed(receipt)
-          ? `Could not restore the discarded ${label}`
-          : `Restored the discarded ${label}`,
-        description: receiptFailed(receipt) ? (
-          <GitActionMessage text={receiptWords(receipt)} />
-        ) : undefined,
-        type: receiptFailed(receipt) ? 'error' : 'success',
-      });
-    } catch (error) {
-      toast.add({
-        title: `Could not restore the discarded ${label}`,
-        description: <GitActionMessage text={gitErrorMessage(error)} />,
-        type: 'error',
-      });
-    }
-  };
+  const running = menu.running;
 
   const choose = (next: GitAction) => {
-    if (next === 'fetch' || next === 'pull' || next === 'push') {
-      void runNetwork(next);
+    if (isNetworkAction(next)) {
+      menu.runNetwork(next, status.branch);
       return;
     }
     setOpenedStatus(status);
@@ -340,7 +145,7 @@ export function GitButton({ scope }: { scope: ReviewScope }) {
                   if (running) return;
                   if (primary.kind === 'commit') choose('commit');
                   else if (primary.kind === 'run')
-                    void runNetwork(primary.action);
+                    menu.runNetwork(primary.action, status.branch);
                 }}
               />
             }
@@ -348,7 +153,10 @@ export function GitButton({ scope }: { scope: ReviewScope }) {
             {running ? (
               <Spinner className="size-3.5" />
             ) : (
-              <PrimaryIcon className="size-3.5" />
+              <GitActionIcon
+                action={primary.kind === 'run' ? primary.action : 'commit'}
+                className="size-3.5"
+              />
             )}
           </PopoverTrigger>
           <PopoverContent align="end" className="w-80">
@@ -411,17 +219,12 @@ export function GitButton({ scope }: { scope: ReviewScope }) {
               <Fragment key={group.id}>
                 <DropdownMenuGroup>
                   {group.actions.map((candidate) => {
-                    const network =
-                      candidate.id === 'fetch' ||
-                      candidate.id === 'pull' ||
-                      candidate.id === 'push';
                     const blocker =
-                      network && details.pending
+                      isNetworkAction(candidate.id) && details.pending
                         ? 'Reading the configured upstream.'
                         : gitActionBlocker(candidate.id, status);
                     const reason =
                       blocker ?? gitActionReason(candidate.id, status);
-                    const Icon = iconFor(candidate.id);
                     return (
                       <DropdownMenuItem
                         key={candidate.id}
@@ -429,7 +232,8 @@ export function GitButton({ scope }: { scope: ReviewScope }) {
                         onClick={() => choose(candidate.id)}
                         className="items-start"
                       >
-                        <Icon
+                        <GitActionIcon
+                          action={candidate.id}
                           className={
                             blocker != null ? 'mt-0.5 opacity-50' : 'mt-0.5'
                           }
@@ -473,7 +277,10 @@ export function GitButton({ scope }: { scope: ReviewScope }) {
                     return (
                       <DropdownMenuItem
                         key={item.oid}
-                        onClick={() => void restoreDiscarded(item)}
+                        onClick={() => {
+                          setMenuOpen(false);
+                          menu.restoreDiscarded(item);
+                        }}
                       >
                         <Undo2Icon />
                         <span className="flex min-w-0 flex-col">
@@ -495,6 +302,7 @@ export function GitButton({ scope }: { scope: ReviewScope }) {
       {action === 'switch-branch' || action === 'create-branch' ? (
         <BranchDialog
           scope={scope}
+          context={context}
           open
           mode={action === 'switch-branch' ? 'switch' : 'create'}
           status={{ ...status, branch: overview.changes.branch }}
@@ -526,41 +334,15 @@ export function GitButton({ scope }: { scope: ReviewScope }) {
             )}
             <GitActionInspection
               scope={scope}
+              context={context}
               entry={action}
               status={openedStatus ?? status}
               onBusy={setBusy}
-              onLookAgain={async () => {
-                const changes = await refreshLook();
-                setOpenedStatus({
-                  statusToken: changes.statusToken,
-                  headOid: changes.headOid,
-                  branch: changes.branch,
-                  inProgress: changes.inProgress,
-                  mergeHeadOid: changes.mergeHeadOid,
-                  changes: comparisons(changes),
-                  files: changes.changes.map(({ path, fingerprint }) => ({
-                    path,
-                    fingerprint,
-                  })),
-                });
-              }}
+              onLookAgain={menu.lookAgain}
             />
           </DialogContent>
         </Dialog>
       ) : null}
     </>
   );
-}
-
-function primaryTooltip(
-  primary: ReturnType<typeof primaryGitAction>,
-  status: Parameters<typeof primaryGitAction>[0],
-) {
-  if (primary.kind === 'hint') return primary.hint;
-  if (primary.kind === 'commit')
-    return `Commit ${plural(status.changes.length, 'changed file')}`;
-  const branch = branchStatus(status);
-  const upstream = branch?.upstream ?? 'the configured remote';
-  if (primary.action === 'pull') return `Pull from ${upstream}`;
-  return `Push ${plural(branch?.ahead ?? 0, 'commit')} to ${upstream}`;
 }

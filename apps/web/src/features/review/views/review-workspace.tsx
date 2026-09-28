@@ -49,6 +49,7 @@ import {
 import type { Project } from '@/features/projects/index';
 import {
   ConflictGuidance,
+  GitButton,
   InterruptedActionNotice,
 } from '@/features/git-actions/index';
 import { useConnectedContext } from '@/app/workspace-provider';
@@ -57,7 +58,6 @@ import { usePublishedReview } from '@/features/review/queries/published-review';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
 import { DocumentTabs } from './document-tabs';
 import { DocumentView } from './documents';
-import { GitButton } from './git-button';
 import { ReviewBoundary } from './review-boundary';
 import { ReviewSidebar } from './review-sidebar';
 import { type PaneIndex, useTabLayout } from './use-tab-layout';
@@ -165,7 +165,7 @@ export function ReviewWorkspace({
 
   const tabControls = (
     <>
-      <GitButton scope={scope} />
+      <GitButton scope={scope} context={gitContext} />
       <Button
         ref={desktopTrigger}
         className="hidden xl:inline-flex"
