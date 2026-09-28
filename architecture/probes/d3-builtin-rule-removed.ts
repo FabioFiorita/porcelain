@@ -3,19 +3,13 @@ import type { Probe } from '../probe.ts';
 export default {
   decision: 'P24',
   plants:
-    'typescript/no-explicit-any removed from .oxlintrc.json and architecture/lint-config.json alike, and a rule returning any',
+    'typescript/no-explicit-any removed from .oxlintrc.json, and a rule returning any',
   gate: 'lint',
-  rule: 'style(rule-list)',
+  rule: 'style(lint-config)',
   edits: [
     {
       kind: 'replace',
       path: '.oxlintrc.json',
-      old: '    "typescript/no-explicit-any": "error",\n',
-      new: '',
-    },
-    {
-      kind: 'replace',
-      path: 'architecture/lint-config.json',
       old: '    "typescript/no-explicit-any": "error",\n',
       new: '',
     },

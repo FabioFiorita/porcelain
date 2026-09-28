@@ -159,9 +159,7 @@ export async function liveRuleNames(root: string): Promise<RuleNames> {
     ),
   );
   const lint = lintRulesSchema.parse(
-    JSON.parse(
-      readFileSync(join(root, 'architecture', 'lint-config.json'), 'utf8'),
-    ),
+    JSON.parse(readFileSync(join(root, '.oxlintrc.json'), 'utf8')),
   );
   const sorted = (names: readonly string[]) =>
     names.toSorted((left, right) => left.localeCompare(right));

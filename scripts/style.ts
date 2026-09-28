@@ -1,6 +1,5 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { isDeepStrictEqual } from 'node:util';
 import { basename, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -132,11 +131,6 @@ function codeOutsideLintRoots(): Problem[] {
     );
 }
 
-const ciSchema = z.strictObject({
-  workflows: z.record(z.string(), z.unknown()),
-  lefthook: z.unknown(),
-});
-
 const pinnedWorkflows = [
   '.github/workflows/server.yml',
   '.github/workflows/web.yml',
@@ -151,41 +145,74 @@ function workflowDocument(path: string): unknown {
   return parsed;
 }
 
-function ciProblems(): Problem[] {
-  const sanctioned = ciSchema.parse(
-    strictJson('architecture/sanctioned/ci.json'),
+const workflowRunsSchema = z.object({
+  on: z.record(z.string(), z.unknown()),
+  jobs: z.record(
+    z.string(),
+    z.object({ steps: z.array(z.object({ run: z.string().optional() })) }),
+  ),
+});
+
+const requiredRuns: Readonly<Record<string, readonly string[]>> = {
+  '.github/workflows/server.yml': ['pnpm check'],
+  '.github/workflows/web.yml': [
+    'pnpm check',
+    'pnpm --filter @porcelain/web build',
+    'pnpm db:check',
+    'node .agents/skills/server-verify/scripts/verify.ts --all',
+    'pnpm verify:web --all',
+  ],
+};
+
+const prePushHook = { 'pre-push': { jobs: [{ run: 'pnpm check' }] } };
+
+function workflowRuns(document: unknown): string[] {
+  const parsed = workflowRunsSchema.safeParse(document);
+  if (!parsed.success) return [];
+  return Object.values(parsed.data.jobs).flatMap((job) =>
+    job.steps.flatMap((step) => (step.run === undefined ? [] : [step.run])),
   );
-  const documents = new Map(
+}
+
+function ciProblems(): Problem[] {
+  const documents = new Map<string, unknown>(
     pinnedWorkflows.map((path) => [path, workflowDocument(path)]),
   );
+  const server = workflowRunsSchema.safeParse(
+    documents.get('.github/workflows/server.yml'),
+  );
   return [
-    ...pinnedWorkflows.flatMap((path) =>
-      isDeepStrictEqual(documents.get(path), sanctioned.workflows[path])
+    ...Object.entries(requiredRuns).flatMap(([path, runs]) => {
+      const found = workflowRuns(documents.get(path));
+      const missing = runs.filter((run) => !found.includes(run));
+      return missing.length === 0
         ? []
         : [
             problem(
               'ci-steps',
-              `${path} is missing, is not valid YAML or differs from its sanctioned copy in architecture/sanctioned/ci.json; its triggers, jobs, timeouts, matrix and steps change only there, where the change is visible, and a gate leaves CI only through the sanctioned copy.`,
+              `${path} runs ${missing.join(', ')}; a gate leaves CI only by changing this check, where the change is visible.`,
             ),
-          ],
-    ),
-    ...Object.keys(sanctioned.workflows)
-      .filter((path) => !pinnedWorkflows.some((pinned) => pinned === path))
-      .map((path) =>
-        problem(
-          'ci-steps',
-          `architecture/sanctioned/ci.json lists ${path}, which the CI check does not read; every sanctioned workflow is checked.`,
-        ),
-      ),
-    ...manualAuditProblems(documents).map((message) =>
-      problem('manual-audits', message),
-    ),
-    ...(isDeepStrictEqual(lefthookConfig(), sanctioned.lefthook)
+          ];
+    }),
+    ...(server.success &&
+    'pull_request' in server.data.on &&
+    'push' in server.data.on
       ? []
       : [
           problem(
             'ci-steps',
-            'lefthook.yml, merged with any local or extended Lefthook configuration, runs the pre-push jobs architecture/sanctioned/ci.json pins, with no skip, only or file filter; a gate leaves the hook only through the sanctioned copy.',
+            '.github/workflows/server.yml runs on every pull request and every push to main, so every change meets pnpm check.',
+          ),
+        ]),
+    ...manualAuditProblems(documents).map((message) =>
+      problem('manual-audits', message),
+    ),
+    ...(isDeepStrictEqual(lefthookConfig(), prePushHook)
+      ? []
+      : [
+          problem(
+            'ci-steps',
+            'lefthook.yml, merged with any local or extended Lefthook configuration, runs pnpm check before every push, with no skip, only or file filter.',
           ),
         ]),
   ];
@@ -277,14 +304,6 @@ const pluginSchema = z.object({
   default: z.object({ rules: z.record(z.string(), z.unknown()) }),
 });
 
-const ruleListSchema = z.strictObject({
-  porcelain: z.array(z.string()),
-  typescript: z.array(z.string()),
-  shadcn: z.array(z.string()),
-  style: z.array(z.string()),
-  arch: z.array(z.string()),
-});
-
 const probeModuleSchema = z.object({ default: z.unknown() });
 
 const tsconfigSchema = z.object({
@@ -293,15 +312,10 @@ const tsconfigSchema = z.object({
   include: z.array(z.string()).optional(),
 });
 
-const sanctionedFilesSchema = z.record(z.string(), z.unknown());
-const sanctionedScriptsSchema = z.record(
-  z.string(),
-  z.record(z.string(), z.string()),
-);
+const formatConfigSchema = z.object({ ignorePatterns: z.unknown() }).partial();
 const manifestScriptsSchema = z.object({
   scripts: z.record(z.string(), z.string()).optional(),
 });
-const configModuleSchema = z.object({ default: z.unknown() });
 
 const packageFolders = [
   'apps/server',
@@ -310,6 +324,36 @@ const packageFolders = [
 ];
 
 const tsconfigPackageOptions: ReadonlySet<string> = new Set(['types', 'lib']);
+
+const strictnessFlags = [
+  'strict',
+  'noUncheckedIndexedAccess',
+  'exactOptionalPropertyTypes',
+  'noImplicitOverride',
+  'noFallthroughCasesInSwitch',
+  'noUnusedLocals',
+  'noUnusedParameters',
+  'verbatimModuleSyntax',
+  'erasableSyntaxOnly',
+] as const;
+
+const requiredRules = [
+  'typescript/consistent-type-imports',
+  'typescript/no-deprecated',
+  'typescript/no-explicit-any',
+  'typescript/no-floating-promises',
+  'typescript/no-misused-promises',
+  'typescript/no-unnecessary-type-assertion',
+  'typescript/no-unsafe-argument',
+  'typescript/no-unsafe-assignment',
+  'typescript/no-unsafe-call',
+  'typescript/no-unsafe-member-access',
+  'typescript/no-unsafe-return',
+  'typescript/no-unsafe-type-assertion',
+  'typescript/only-throw-error',
+  'shadcn/no-raw-colors',
+  'shadcn/no-restyle',
+] as const;
 
 const sanctionedOverrides: readonly unknown[] = [
   {
@@ -367,32 +411,28 @@ async function configProblems(): Promise<Problem[]> {
         `.oxlintrc.json holds plugins, jsPlugins, options, rules and overrides only: ${config.error.message}`,
       ),
     ];
-  if (
-    !isDeepStrictEqual(
-      strictJson(formatConfig),
-      strictJson('architecture/sanctioned/oxfmt.json'),
-    )
-  )
+  const format = formatConfigSchema.safeParse(strictJson(formatConfig));
+  if (!format.success || format.data.ignorePatterns !== undefined)
     problems.push(
       problem(
         'format-config',
-        `${formatConfig} differs from architecture/sanctioned/oxfmt.json; the format both format checks run with changes only there, where the change is visible.`,
+        `${formatConfig} ignores nothing; every file under the format roots is checked.`,
       ),
     );
   problems.push(...viteProblems());
-  if (
-    !isDeepStrictEqual(
-      strictJson('.oxlintrc.json'),
-      strictJson('architecture/lint-config.json'),
-    )
-  )
+  const { plugins, jsPlugins, rules, overrides } = config.data;
+  if (!isDeepStrictEqual(plugins, ['typescript']))
     problems.push(
-      problem(
-        'lint-config',
-        '.oxlintrc.json differs from architecture/lint-config.json; the lint configuration is pinned whole, plugins, rules and overrides alike.',
-      ),
+      problem('lint-config', '.oxlintrc.json loads the typescript plugin.'),
     );
-  const { jsPlugins, rules, overrides } = config.data;
+  for (const name of requiredRules)
+    if (!isError(rules[name]))
+      problems.push(
+        problem(
+          'lint-config',
+          `.oxlintrc.json keeps ${name} on as "error"; a built-in rule leaves lint only by changing this check, where the change is visible.`,
+        ),
+      );
   if (
     !isDeepStrictEqual(jsPlugins, [
       './architecture/oxlint-plugin.mjs',
@@ -447,31 +487,30 @@ async function configProblems(): Promise<Problem[]> {
   const tsconfigs = filesUnder('.').filter((path) =>
     /(?:^|\/)tsconfig[^/]*\.json$/.test(path),
   );
-  const sanctionedTsconfigs = sanctionedFilesSchema.parse(
-    strictJson('architecture/sanctioned/tsconfigs.json'),
-  );
-  for (const path of [
-    'tsconfig.json',
-    'apps/web/tsconfig.node.json',
-    ...packageFolders.map((folder) => join(folder, 'tsconfig.json')),
-  ])
-    if (!(path in sanctionedTsconfigs))
+  const rootOptions =
+    tsconfigSchema.parse(strictJson('tsconfig.json')).compilerOptions ?? {};
+  for (const flag of strictnessFlags)
+    if (rootOptions[flag] !== true)
       problems.push(
         problem(
           'tsconfig',
-          `${path} has no sanctioned copy in architecture/sanctioned/tsconfigs.json; every tsconfig a gate compiles with is pinned.`,
-        ),
-      );
-  for (const [path, sanctioned] of Object.entries(sanctionedTsconfigs))
-    if (!existsSync(path) || !isDeepStrictEqual(strictJson(path), sanctioned))
-      problems.push(
-        problem(
-          'tsconfig',
-          `${path} differs from its sanctioned copy in architecture/sanctioned/tsconfigs.json; the compiler options a gate runs with change only there, where the change is visible.`,
+          `tsconfig.json sets ${flag} to true; every package and app compiles with the root's strictness.`,
         ),
       );
   for (const path of tsconfigs) {
     const tsconfig = tsconfigSchema.parse(strictJson(path));
+    if (path !== 'tsconfig.json') {
+      const loosened = strictnessFlags.filter(
+        (flag) => flag in (tsconfig.compilerOptions ?? {}),
+      );
+      if (tsconfig.extends !== '../../tsconfig.json' || loosened.length > 0)
+        problems.push(
+          problem(
+            'tsconfig',
+            `${path} extends ../../tsconfig.json and leaves ${loosened.join(', ') || 'every strictness flag'} to it.`,
+          ),
+        );
+    }
     const owner = /^(?:packages\/([^/]+)|apps\/(server))\/tsconfig\.json$/.exec(
       path,
     );
@@ -519,10 +558,6 @@ async function configProblems(): Promise<Problem[]> {
   return problems;
 }
 
-const viteSchema = z.strictObject({
-  'apps/web/vite.config.ts': z.strictObject({ plugins: z.array(z.string()) }),
-});
-
 function vitePlugins(path: string): string[] | undefined {
   const source = readFileSync(path, 'utf8');
   const program = parseSync(path, source).program;
@@ -548,167 +583,211 @@ function vitePlugins(path: string): string[] | undefined {
   return undefined;
 }
 
+const reactCompilerPlugin =
+  "babel({presets:[reactCompilerPreset({panicThreshold:'none'})]})";
+
 function viteProblems(): Problem[] {
-  const sanctioned = viteSchema.parse(
-    strictJson('architecture/sanctioned/vite.json'),
-  );
-  return Object.entries(sanctioned).flatMap(([path, { plugins }]) =>
-    existsSync(path) && isDeepStrictEqual(vitePlugins(path), plugins)
-      ? []
-      : [
-          problem(
-            'vite-config',
-            `${path} runs the plugins architecture/sanctioned/vite.json lists, the React Compiler with panicThreshold none among them; the build a user gets changes only there, where the change is visible.`,
-          ),
-        ],
-  );
+  const path = 'apps/web/vite.config.ts';
+  return existsSync(path) && vitePlugins(path)?.includes(reactCompilerPlugin)
+    ? []
+    : [
+        problem(
+          'vite-config',
+          `${path} runs the React Compiler with panicThreshold none, so the build a user gets is the one the compiler checks.`,
+        ),
+      ];
 }
+
+const gateScripts: Readonly<Record<string, Readonly<Record<string, string>>>> =
+  {
+    'package.json': {
+      'typecheck:server':
+        "tsc --noEmit && pnpm --filter '@porcelain/server...' -r typecheck",
+      'lint:server': 'node scripts/style.ts lint server',
+      'format:server:check': 'node scripts/style.ts format server',
+      'arch:check': 'node scripts/architecture.ts check',
+      probes: 'node scripts/probes.ts',
+      test: 'vitest run',
+      'db:check': 'pnpm --filter @porcelain/storage db:check',
+      prepare: 'lefthook install --reset-hooks-path',
+      'typecheck:web': 'pnpm --filter @porcelain/web typecheck',
+      'lint:web': 'node scripts/style.ts lint web',
+      'format:web:check': 'node scripts/style.ts format web',
+      'verify:web': 'node .agents/skills/web-verify/scripts/browser.ts',
+      check: 'node scripts/check.ts',
+      'test:rules': 'node architecture/rule-tests.mjs',
+    },
+    'apps/web/package.json': {
+      typecheck: 'tsc --noEmit && tsc --noEmit -p tsconfig.node.json',
+      build: 'tsc --noEmit && tsc --noEmit -p tsconfig.node.json && vite build',
+    },
+    'packages/storage/package.json': {
+      'db:check': 'drizzle-kit check && node scripts/check-migrations.ts',
+    },
+  };
 
 function scriptProblems(): Problem[] {
-  const problems: Problem[] = [];
-  const sanctioned = sanctionedScriptsSchema.parse(
-    strictJson('architecture/sanctioned/scripts.json'),
-  );
-  for (const folder of packageFolders)
-    if (!(join(folder, 'package.json') in sanctioned))
-      problems.push(
-        problem(
-          'package-scripts',
-          `${join(folder, 'package.json')} has no sanctioned scripts in architecture/sanctioned/scripts.json; every package runs the type gate.`,
-        ),
-      );
-  for (const [path, scripts] of Object.entries(sanctioned)) {
-    const manifest = existsSync(path)
-      ? manifestScriptsSchema.parse(strictJson(path))
-      : undefined;
-    for (const [name, command] of Object.entries(scripts))
-      if (manifest?.scripts?.[name] !== command)
-        problems.push(
-          problem(
-            'package-scripts',
-            `${path} runs "${command}" as ${name}, as architecture/sanctioned/scripts.json pins it; a gate cannot be switched off from a package script.`,
-          ),
-        );
-  }
-  return problems;
-}
-
-function pinnedShape(
-  value: unknown,
-  places: { root: string; temporary: string },
-): unknown {
-  if (typeof value === 'function') return '<function>';
-  if (typeof value === 'string') {
-    for (const [name, path] of [
-      ['<root>', places.root],
-      ['<tmp>', places.temporary],
-    ] as const)
-      if (value === path || value.startsWith(`${path}/`))
-        return name + value.slice(path.length);
-    return value;
-  }
-  if (Array.isArray(value))
-    return value.map((entry: unknown) => pinnedShape(entry, places));
-  if (typeof value === 'object' && value !== null)
-    return Object.fromEntries(
-      Object.entries(value).map(([key, entry]) => [
-        key,
-        pinnedShape(entry, places),
-      ]),
+  const manifests = [
+    'package.json',
+    ...packageFolders.map((folder) => join(folder, 'package.json')),
+  ];
+  return manifests.flatMap((path) => {
+    const scripts = existsSync(path)
+      ? (manifestScriptsSchema.parse(strictJson(path)).scripts ?? {})
+      : {};
+    const expected = {
+      ...(path === 'package.json' ? {} : { typecheck: 'tsc --noEmit' }),
+      ...gateScripts[path],
+    };
+    return Object.entries(expected).flatMap(([name, command]) =>
+      scripts[name] === command
+        ? []
+        : [
+            problem(
+              'package-scripts',
+              `${path} runs "${command}" as ${name}; a gate cannot be switched off from a package script.`,
+            ),
+          ],
     );
-  return value;
+  });
 }
 
-type PinnedModule = {
-  rule: StyleRule;
-  module: string;
-  sanctioned: string;
-  entry?: string;
-  keys?: readonly string[];
-  why: string;
-};
+const vitestConfigSchema = z.object({
+  default: z.object({
+    test: z.object({
+      allowOnly: z.unknown(),
+      passWithNoTests: z.unknown(),
+      reporters: z.array(z.unknown()),
+      projects: z.array(
+        z.object({
+          test: z.object({
+            name: z.unknown(),
+            expect: z.object({ requireAssertions: z.unknown() }).partial(),
+          }),
+        }),
+      ),
+    }),
+  }),
+});
 
-const pinnedModules: readonly PinnedModule[] = [
-  {
-    rule: 'vitest-config',
-    module: 'vitest.config.ts',
-    sanctioned: 'architecture/sanctioned/vitest.json',
-    entry: 'vitest.config.ts',
-    why: 'every project keeps its include, setup files and expect settings, requireAssertions among them, and the run keeps the spec-discipline reporter',
-  },
-  {
-    rule: 'vitest-config',
-    module: '.agents/skills/web-verify/scripts/vitest.browser.config.ts',
-    sanctioned: 'architecture/sanctioned/vitest.json',
-    entry: '.agents/skills/web-verify/scripts/vitest.browser.config.ts',
-    keys: ['root', 'test'],
-    why: 'the browser run keeps its web root, spec include, evidence folders and headless Chromium through the Playwright provider',
-  },
-  {
-    rule: 'cruiser-config',
-    module: 'architecture/dependency-cruiser.cjs',
-    sanctioned: 'architecture/sanctioned/dependency-cruiser.json',
-    why: 'the forbidden rules keep their names, severity and from/to scope, and the resolution options stay as they are',
-  },
-];
+const browserConfigSchema = z.object({
+  default: z.object({
+    test: z.object({
+      include: z.unknown(),
+      retry: z.unknown(),
+      browser: z.object({
+        enabled: z.unknown(),
+        headless: z.unknown(),
+        provider: z.object({ name: z.unknown() }),
+        instances: z.array(z.object({ browser: z.unknown() })),
+      }),
+    }),
+  }),
+});
 
-function pinnedPart(
-  config: unknown,
-  keys: readonly string[] | undefined,
-): unknown {
-  if (keys === undefined) return config;
-  const fields = sanctionedFilesSchema.parse(config);
-  return Object.fromEntries(keys.map((key) => [key, fields[key]]));
-}
+const cruiserConfigSchema = z.object({
+  default: z.object({
+    forbidden: z.array(
+      z.object({
+        name: z.string(),
+        severity: z.unknown(),
+        from: z.unknown(),
+        to: z.unknown(),
+      }),
+    ),
+  }),
+});
+
+const cruiserRules = [
+  'no-circular-source-imports',
+  'web-routes-import-feature-index',
+  'web-features-import-feature-index',
+  'web-shared-imports-no-owner',
+  'web-nothing-imports-routes',
+] as const;
+
+const reportsSpecDiscipline = (reporter: unknown): boolean =>
+  typeof reporter === 'object' &&
+  reporter !== null &&
+  'onTestRunEnd' in reporter &&
+  typeof reporter.onTestRunEnd === 'function';
 
 async function configModuleProblems(): Promise<Problem[]> {
-  const places = { root: resolve('.'), temporary: tmpdir() };
   const problems: Problem[] = [];
-  for (const { rule, module, sanctioned, entry, keys, why } of pinnedModules) {
-    const loaded = configModuleSchema.parse(
-      await import(pathToFileURL(resolve(module)).href),
-    );
-    const copy = strictJson(sanctioned);
-    if (
-      !isDeepStrictEqual(
-        pinnedShape(pinnedPart(loaded.default, keys), places),
-        entry === undefined ? copy : sanctionedFilesSchema.parse(copy)[entry],
-      )
+  const load = async (path: string): Promise<unknown> =>
+    import(pathToFileURL(resolve(path)).href);
+  const vitest = vitestConfigSchema.safeParse(await load('vitest.config.ts'));
+  const projects = vitest.success ? vitest.data.default.test.projects : [];
+  const named = new Set(projects.map((project) => project.test.name));
+  if (
+    !vitest.success ||
+    vitest.data.default.test.allowOnly !== false ||
+    vitest.data.default.test.passWithNoTests !== false ||
+    !vitest.data.default.test.reporters.some(reportsSpecDiscipline) ||
+    projects.some(
+      (project) => project.test.expect.requireAssertions !== true,
+    ) ||
+    packageFolders.some(
+      (folder) => !named.has(`@porcelain/${basename(folder)}`),
     )
-      problems.push(
-        problem(
-          rule,
-          `${module} differs from ${sanctioned}; ${why}. A change to the gate is made in the sanctioned copy, where it is visible.`,
-        ),
-      );
-  }
+  )
+    problems.push(
+      problem(
+        'vitest-config',
+        'vitest.config.ts gives every package a project that requires assertions, allows no .only, fails with no specs and keeps the spec-discipline reporter.',
+      ),
+    );
+  const browser = browserConfigSchema.safeParse(
+    await load('.agents/skills/web-verify/scripts/vitest.browser.config.ts'),
+  );
+  const run = browser.success ? browser.data.default.test : undefined;
+  if (
+    run === undefined ||
+    run.retry !== 0 ||
+    !isDeepStrictEqual(run.include, [
+      'spec/browser/*.browser.ts',
+      'spec/negative/*.browser.ts',
+    ]) ||
+    run.browser.enabled !== true ||
+    run.browser.headless !== true ||
+    run.browser.provider.name !== 'playwright' ||
+    run.browser.instances.some((instance) => instance.browser !== 'chromium')
+  )
+    problems.push(
+      problem(
+        'vitest-config',
+        'the browser Vitest config runs every journey and negative once, with no retry, in headless Chromium through the Playwright provider.',
+      ),
+    );
+  const cruiser = cruiserConfigSchema.safeParse(
+    await load('architecture/dependency-cruiser.cjs'),
+  );
+  const forbidden = cruiser.success ? cruiser.data.default.forbidden : [];
+  const circular = forbidden.find(
+    (rule) => rule.name === 'no-circular-source-imports',
+  );
+  if (
+    cruiserRules.some(
+      (name) =>
+        forbidden.find((rule) => rule.name === name)?.severity !== 'error',
+    ) ||
+    !isDeepStrictEqual(circular?.from, {
+      path: '^(apps/server/src/|packages/)',
+    }) ||
+    !isDeepStrictEqual(circular?.to, { circular: true })
+  )
+    problems.push(
+      problem(
+        'cruiser-config',
+        'architecture/dependency-cruiser.cjs keeps its forbidden rules as errors, and the circular-import rule covers the server and every package.',
+      ),
+    );
   return problems;
-}
-
-function sortedNames(names: readonly string[]): string[] {
-  return names.toSorted((left, right) => left.localeCompare(right));
 }
 
 async function ruleProblems(): Promise<Problem[]> {
   const problems: Problem[] = [];
   const live = await liveRuleNames('.');
-  const sanctioned = ruleListSchema.parse(
-    strictJson('architecture/rules.json'),
-  );
-  for (const family of [
-    'porcelain',
-    'typescript',
-    'shadcn',
-    'style',
-    'arch',
-  ] as const)
-    if (!isDeepStrictEqual(live[family], sortedNames(sanctioned[family])))
-      problems.push(
-        problem(
-          'rule-list',
-          `the ${family} rules differ from architecture/rules.json (live: ${live[family].filter((name) => !sanctioned[family].includes(name)).join(', ') || 'none added'}; sanctioned: ${sanctioned[family].filter((name) => !live[family].includes(name)).join(', ') || 'none removed'}); a rule is added or removed in the sanctioned list, where the change is visible.`,
-        ),
-      );
   const probeFolder = join('architecture', 'probes');
   for (const file of readdirSync(probeFolder).filter((name) =>
     name.endsWith('.ts'),

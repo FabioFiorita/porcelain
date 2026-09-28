@@ -28,7 +28,7 @@ const journeyBaselineSchema = z
     'each route is listed once',
   );
 
-const ruleListSchema = z.record(z.string(), z.array(z.string()));
+const lintRulesSchema = z.object({ rules: z.record(z.string(), z.unknown()) });
 
 export type Baseline = z.output<typeof baselineSchema>;
 export type Located = { rule: string; file: string };
@@ -264,15 +264,19 @@ function shrinkOnlyProblems(root: string, ledger: ShrinkOnly): string[] {
 }
 
 function listedRules(root: string, commit: string): Set<string> | undefined {
-  const text = shown(root, commit, 'architecture/rules.json');
-  if (text === undefined) return undefined;
-  const read = ruleListSchema.safeParse(strictJson(text, commit).json);
+  const lint = shown(root, commit, '.oxlintrc.json');
+  const policy = shown(root, commit, 'architecture/policy.ts');
+  if (lint === undefined || policy === undefined) return undefined;
+  const read = lintRulesSchema.safeParse(strictJson(lint, commit).json);
   if (!read.success) return undefined;
-  return new Set(
-    Object.entries(read.data).flatMap(([family, names]) =>
-      names.map((name) => (family === 'arch' ? name : `${family}/${name}`)),
-    ),
+  const named = [...policy.matchAll(/'([a-z0-9]+(?:-[a-z0-9]+)*)'/g)].map(
+    (match) => match[1] ?? '',
   );
+  return new Set([
+    ...Object.keys(read.data.rules),
+    ...named,
+    ...named.map((name) => `style/${name}`),
+  ]);
 }
 
 export function baselineHistoryProblems(root: string): string[] {
