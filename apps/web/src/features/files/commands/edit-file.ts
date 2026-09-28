@@ -12,6 +12,7 @@ import { filesApi } from '../api';
 import { copyText } from '@/shared/workspace/copy';
 
 const parentOf = (path: string) => path.split('/').slice(0, -1).join('/');
+const withoutTrailingSlash = (path: string) => path.replace(/\/$/, '');
 
 async function reload(
   client: ReturnType<typeof useQueryClient>,
@@ -126,7 +127,35 @@ export function useEditFile(
   scope: FilesScope,
 ) {
   const write = useFileWriter(connection, scope);
-  return asMutation(useMutation({ mutationFn: write }));
+  const edit = asMutation(useMutation({ mutationFn: write }));
+  return {
+    ...edit,
+    create: async (
+      path: string,
+      entryKind: 'file' | 'directory',
+      onCreated: (path: string) => void,
+    ) => {
+      await edit.submit({
+        kind: 'create',
+        path: withoutTrailingSlash(path),
+        entryKind,
+      });
+      if (entryKind === 'file') onCreated(path);
+    },
+    move: async (path: string, destination: string) => {
+      await edit.submit({
+        kind: 'move',
+        path: withoutTrailingSlash(path),
+        destination: withoutTrailingSlash(destination),
+      });
+    },
+    trash: (path: string, onTrashed: () => void) => {
+      edit
+        .submit({ kind: 'trash', path: withoutTrailingSlash(path) })
+        .then(onTrashed)
+        .catch(() => undefined);
+    },
+  };
 }
 
 export function useFileDraft(

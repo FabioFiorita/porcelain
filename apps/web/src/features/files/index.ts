@@ -1,15 +1,7 @@
 export { FileTypeIcon, PierreIconSprite } from './views/file-type-icon';
 export { ImagePreview } from './views/image-preview';
 export { MarkdownView } from './views/markdown-view';
-export { QuickOpen } from './views/quick-open';
-export { PierreFileTree } from './adapters/pierre-file-tree';
-export { FileTreeMenu } from './views/file-tree-menu';
-export { runFileTreeAction } from './commands/tree-menu';
-export { treeActions } from './rules/tree-actions';
-export { fileTreeAncestors, mergeFileTreeEntries } from './rules/file-tree';
 export { isImagePath } from './rules/html-assets';
-export { fileErrorMessage } from './rules/error-message';
-export { useDirectory, useDirectories } from './queries/directory';
 export { useTextContents } from './queries/text';
-export { useEditFile } from './commands/edit-file';
 export { FileDocument } from './views/file-document';
+export { FileNavigation } from './views/file-navigation';

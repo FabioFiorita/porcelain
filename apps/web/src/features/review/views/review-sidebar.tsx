@@ -5,6 +5,7 @@ import {
   ListChecksIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { FileNavigation } from '@/features/files/index';
 import { HistoryNavigation } from '@/features/history/index';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -19,7 +20,6 @@ import {
   usePublishedReview,
   ReviewEmpty,
 } from '@/features/reviews/index';
-import { FileNavigation } from './file-navigation';
 import { ReviewBoundary } from './review-boundary';
 
 export function ReviewSidebar({

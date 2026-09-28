@@ -22,7 +22,6 @@
     "apps/web/src/shared/workspace/preferences.tsx": 1
   },
   "porcelain/web-no-manual-memo": {
-    "apps/web/src/features/review/views/file-navigation.tsx": 3,
     "apps/web/src/features/review/views/review-workspace.tsx": 2,
     "apps/web/src/shared/workspace/preferences.tsx": 2
   },
@@ -33,8 +32,7 @@
     "apps/web/src/shared/live/socket.ts": 2
   },
   "porcelain/web-views-no-await": {
-    "apps/web/src/app/workspace-provider.tsx": 1,
-    "apps/web/src/features/review/views/file-navigation.tsx": 2
+    "apps/web/src/app/workspace-provider.tsx": 1
   },
   "porcelain/web-views-no-direct-data": {
     "apps/web/src/app/views/connected-workspace.tsx": 1,
@@ -42,8 +40,7 @@
     "apps/web/src/features/review/views/review-workspace.tsx": 1
   },
   "porcelain/web-views-no-promise-chains": {
-    "apps/web/src/app/views/workspace-view.tsx": 1,
-    "apps/web/src/features/review/views/file-navigation.tsx": 2
+    "apps/web/src/app/views/workspace-view.tsx": 1
   },
   "porcelain/web-views-no-transport": {
     "apps/web/src/app/workspace-provider.tsx": 1
@@ -82,7 +79,6 @@
     "apps/web/src/features/review/api/review-request.ts": 1,
     "apps/web/src/features/review/index.ts": 1,
     "apps/web/src/features/review/queries/review.ts": 1,
-    "apps/web/src/features/review/views/file-navigation.tsx": 1,
     "apps/web/src/features/review/views/review-boundary.tsx": 1,
     "apps/web/src/features/review/views/review-shell.tsx": 1,
     "apps/web/src/features/review/views/review-sidebar.tsx": 1,

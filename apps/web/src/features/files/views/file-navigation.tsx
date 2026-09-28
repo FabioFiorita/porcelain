@@ -5,7 +5,7 @@ import {
   FilePlusIcon,
   FolderPlusIcon,
 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -17,37 +17,33 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/toast';
-import {
-  type DocumentRef,
-  changePath,
-  comparisons,
-  type ReviewScope,
-} from '@/features/reviews/index';
-import {
-  canonicalPreferencePath,
-  hiddenPathFor,
-  visibleFileTreePaths,
-} from '@/features/projects/index';
 import { useAccessStore } from '@/features/access/index';
 import { useReviewOverview } from '@/features/changes/index';
 import {
-  fileTreeAncestors,
-  mergeFileTreeEntries,
-  isImagePath,
-  useDirectories,
-  useDirectory,
-  fileErrorMessage,
-  PierreFileTree,
-  FileTreeMenu,
-  treeActions,
-  runFileTreeAction,
-} from '@/features/files/index';
-
+  canonicalPreferencePath,
+  hiddenPathFor,
+  useHiddenPaths,
+  useSetHidden,
+  visibleFileTreePaths,
+} from '@/features/projects/index';
+import {
+  changePath,
+  comparisons,
+  type DocumentRef,
+  reviewErrorMessage,
+  type ReviewScope,
+} from '@/features/reviews/index';
 import { discardRejection } from '@/shared/lib/submit-form';
-import { useHiddenPaths, useSetHidden } from '@/features/projects/index';
-import { useEditFile } from '@/features/files/index';
-import { reviewErrorMessage } from '@/features/reviews/index';
-import { QuickOpen } from '@/features/files/index';
+import { PierreFileTree } from '../adapters/pierre-file-tree';
+import { useEditFile } from '../commands/edit-file';
+import { runFileTreeAction } from '../commands/tree-menu';
+import { useDirectories, useDirectory } from '../queries/directory';
+import { fileErrorMessage } from '../rules/error-message';
+import { fileTreeAncestors, mergeFileTreeEntries } from '../rules/file-tree';
+import { isImagePath } from '../rules/html-assets';
+import { treeActions } from '../rules/tree-actions';
+import { FileTreeMenu } from './file-tree-menu';
+import { QuickOpen } from './quick-open';
 
 type Props = {
   scope: ReviewScope;
@@ -106,37 +102,28 @@ function ScopedFileNavigation({
     ...queries.flatMap((query) => (query.data ? [query.data] : [])),
   ];
   const entries = mergeFileTreeEntries(directories);
-  const paths = useStableList(entries.map((entry) => entry.path));
-  const visiblePaths = useStableList(
-    visibleFileTreePaths(paths, hidden, showHidden),
-  );
+  const paths = entries.map((entry) => entry.path);
+  const visiblePaths = visibleFileTreePaths(paths, hidden, showHidden);
   const kinds = new Map(entries.map((entry) => [entry.path, entry.kind]));
   const failed = queries.filter((query) => query.isError);
-  const gitStatus = useMemo<GitStatusEntry[]>(
-    () => [
-      ...entries
-        .filter((entry) => entry.ignored)
-        .map((entry) => ({ path: entry.path, status: 'ignored' as const })),
-      ...(overview ? comparisons(overview.changes) : []).map(
-        (change): GitStatusEntry => ({
-          path: changePath(change),
-          status:
-            change.scope === 'untracked'
-              ? 'untracked'
-              : change.scope === 'unmerged' || change.kind === 'type-changed'
-                ? 'modified'
-                : change.kind,
-        }),
-      ),
-    ],
-    [overview, entries],
-  );
-  const changed = useMemo(
-    () =>
-      new Set<string>(
-        (overview?.changes.changes ?? []).map((entry) => entry.path),
-      ),
-    [overview?.changes.changes],
+  const gitStatus: GitStatusEntry[] = [
+    ...entries
+      .filter((entry) => entry.ignored)
+      .map((entry) => ({ path: entry.path, status: 'ignored' as const })),
+    ...(overview ? comparisons(overview.changes) : []).map(
+      (change): GitStatusEntry => ({
+        path: changePath(change),
+        status:
+          change.scope === 'untracked'
+            ? 'untracked'
+            : change.scope === 'unmerged' || change.kind === 'type-changed'
+              ? 'modified'
+              : change.kind,
+      }),
+    ),
+  ];
+  const changed = new Set<string>(
+    (overview?.changes.changes ?? []).map((entry) => entry.path),
   );
   const openable = new Set(
     entries.filter((entry) => entry.kind === 'file').map((entry) => entry.path),
@@ -197,21 +184,12 @@ function ScopedFileNavigation({
           (entry) => entry.kind === 'symlink' || entry.kind === 'submodule',
         )}
         creating={creating}
-        onCreate={async (path, entryKind) => {
-          await edit.submit({
-            kind: 'create',
-            path: path.replace(/\/$/, ''),
-            entryKind,
-          });
-          if (entryKind === 'file') onOpen({ kind: 'file', path });
-        }}
-        onMove={async (path, destination) => {
-          await edit.submit({
-            kind: 'move',
-            path: path.replace(/\/$/, ''),
-            destination: destination.replace(/\/$/, ''),
-          });
-        }}
+        onCreate={(path, entryKind) =>
+          edit.create(path, entryKind, (created) =>
+            onOpen({ kind: 'file', path: created }),
+          )
+        }
+        onMove={edit.move}
         gitStatus={gitStatus}
         selected={selected}
         onInvalidName={(error) =>
@@ -307,14 +285,7 @@ function ScopedFileNavigation({
               variant="destructive"
               disabled={edit.isPending}
               onClick={() => {
-                if (deleting)
-                  void edit
-                    .submit({
-                      kind: 'trash',
-                      path: deleting.replace(/\/$/, ''),
-                    })
-                    .then(() => setDeleting(null))
-                    .catch(() => undefined);
+                if (deleting) edit.trash(deleting, () => setDeleting(null));
               }}
             >
               Move to trash
@@ -363,9 +334,4 @@ function union(left: readonly string[], right: readonly string[]) {
     merged.every((entry, index) => entry === left[index])
     ? left
     : merged;
-}
-
-function useStableList(value: readonly string[]) {
-  const key = value.join('\0');
-  return useMemo(() => value, [key]);
 }

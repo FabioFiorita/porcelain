@@ -186,10 +186,12 @@ export function PierreFileTree({
     });
   }, [creating, model]);
 
+  const pathsKey = paths.join('\0');
   useEffect(() => {
+    const shown = latest.current.paths;
     if (reveal.current.selected !== selected)
       reveal.current = { selected, complete: false };
-    const expanded = directoryPaths(latest.current.paths).filter((path) => {
+    const expanded = directoryPaths(shown).filter((path) => {
       const item = model.getItem(path);
       if (!item || !('isExpanded' in item)) return false;
       return item.isExpanded();
@@ -200,7 +202,7 @@ export function PierreFileTree({
         ? []
         : selectedDirectories(selected);
       model.resetPaths(
-        pendingCreate.current ? [...paths, pendingCreate.current.path] : paths,
+        pendingCreate.current ? [...shown, pendingCreate.current.path] : shown,
         {
           initialExpandedPaths: [
             ...new Set([
@@ -225,7 +227,7 @@ export function PierreFileTree({
       }
     }
     syncing.current = false;
-  }, [model, paths, selected]);
+  }, [model, pathsKey, selected]);
 
   useEffect(() => model.setGitStatus(gitStatus), [model, gitStatus]);
   useEffect(() => model.setIcons(treeIconsFor(links)), [model, links]);
