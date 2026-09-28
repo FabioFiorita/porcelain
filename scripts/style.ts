@@ -1,8 +1,18 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import {
+  cpSync,
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  statSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
 import { isDeepStrictEqual } from 'node:util';
-import { basename, join, resolve } from 'node:path';
+import { basename, join, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { Generator, getConfig } from '@tanstack/router-generator';
 import { parseSync } from 'oxc-parser';
 import { parseDocument } from 'yaml';
 import { z } from 'zod';
@@ -581,7 +591,10 @@ function vitePlugins(path: string): string[] | undefined {
         return property.value.elements.map((element) =>
           element === null
             ? ''
-            : source.slice(element.start, element.end).replace(/\s+/g, ''),
+            : source
+                .slice(element.start, element.end)
+                .replace(/\s+/g, '')
+                .replace(/,([}\]])/g, '$1'),
         );
   }
   return undefined;
@@ -589,17 +602,92 @@ function vitePlugins(path: string): string[] | undefined {
 
 const reactCompilerPlugin =
   "babel({presets:[reactCompilerPreset({panicThreshold:'none'})]})";
+const routeTreeOptions = {
+  target: 'react',
+  autoCodeSplitting: true,
+  routeTreeFileHeader: [],
+  semicolons: true,
+} as const;
+const routerPlugin =
+  "tanstackRouter({target:'react',autoCodeSplitting:true,routeTreeFileHeader:[],semicolons:true})";
 
 function viteProblems(): Problem[] {
   const path = 'apps/web/vite.config.ts';
-  return existsSync(path) && vitePlugins(path)?.includes(reactCompilerPlugin)
-    ? []
-    : [
+  const plugins = existsSync(path) ? vitePlugins(path) : undefined;
+  return [
+    ...(plugins?.includes(reactCompilerPlugin)
+      ? []
+      : [
+          problem(
+            'vite-config',
+            `${path} runs the React Compiler with panicThreshold none, so the build a user gets is the one the compiler checks.`,
+          ),
+        ]),
+    ...(plugins?.[0] === routerPlugin && plugins[1] === 'react()'
+      ? []
+      : [
+          problem(
+            'vite-config',
+            `${path} runs ${routerPlugin} first and react() right after it, so the route tree the build uses is the one scripts/style.ts regenerates and compares.`,
+          ),
+        ]),
+  ];
+}
+
+function filesOf(root: string): Map<string, string> {
+  return new Map(
+    filesUnder(root).map((file) => [
+      relative(root, file),
+      readFileSync(file, 'utf8'),
+    ]),
+  );
+}
+
+async function routeTreeProblems(): Promise<Problem[]> {
+  const web = 'apps/web';
+  const routes = join(web, 'src', 'routes');
+  const scratch = mkdtempSync(join(tmpdir(), 'porcelain-route-tree-'));
+  try {
+    cpSync(routes, join(scratch, 'src', 'routes'), { recursive: true });
+    const config = getConfig(
+      {
+        ...routeTreeOptions,
+        routeTreeFileHeader: [...routeTreeOptions.routeTreeFileHeader],
+        tmpDir: join(scratch, 'tmp'),
+        disableLogging: true,
+      },
+      scratch,
+    );
+    await new Generator({ config, root: scratch }).run();
+    const generated = join(scratch, 'src', 'routeTree.gen.ts');
+    const committed = existsSync(generatedRouteTree)
+      ? readFileSync(generatedRouteTree, 'utf8')
+      : undefined;
+    const rewritten = [...filesOf(join(scratch, 'src', 'routes'))].filter(
+      ([file, text]) => {
+        const path = join(routes, file);
+        return !existsSync(path) || readFileSync(path, 'utf8') !== text;
+      },
+    );
+    return [
+      ...(committed === readFileSync(generated, 'utf8')
+        ? []
+        : [
+            problem(
+              'route-tree',
+              `${generatedRouteTree} differs from what TanStack Router generates from ${routes}; it is generated, never edited: run the web build or dev server and commit the file it writes.`,
+            ),
+          ]),
+      ...rewritten.map(([file]) =>
         problem(
-          'vite-config',
-          `${path} runs the React Compiler with panicThreshold none, so the build a user gets is the one the compiler checks.`,
+          'route-tree',
+          `${join(routes, file)} is not what TanStack Router keeps it as; let the generator rewrite it through the web build or dev server and commit the result.`,
         ),
-      ];
+      ),
+    ];
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
 }
 
 const gateScripts: Readonly<Record<string, Readonly<Record<string, string>>>> =
@@ -941,6 +1029,7 @@ if (mode === 'format') {
       if (error instanceof StyleProblem) return [error.problem];
       throw error;
     })),
+    ...(target === 'web' ? await routeTreeProblems() : []),
   ];
   for (const { rule, message } of problems)
     process.stderr.write(`error style(${rule}): ${message}\n`);

@@ -336,6 +336,7 @@ export const styleRules = [
   'code-outside-lint-roots',
   'format-config',
   'vite-config',
+  'route-tree',
   'react-compiler',
   'web-baseline',
   'web-journey-baseline',
