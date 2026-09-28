@@ -8,3 +8,10 @@ export {
 export * from './rules/review';
 export { contextPatch, focusPatch, spansLabel } from './rules/patch-focus';
 export type { LineSpan } from './rules/patch-focus';
+export { useComments, usePrefetchComments } from './queries/comments';
+export {
+  useMarkCommentsSeen,
+  useCreateComment,
+  useReplyComment,
+  useResolveComment,
+} from './commands/comments';

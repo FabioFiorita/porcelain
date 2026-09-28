@@ -13,13 +13,11 @@
   },
   "porcelain/web-cache-writes-in-commands": {
     "apps/web/src/app/workspace-provider.tsx": 3,
-    "apps/web/src/features/review/queries/comments.ts": 4,
     "apps/web/src/features/review/queries/git-actions.ts": 1,
     "apps/web/src/features/review/queries/published-review.ts": 2,
     "apps/web/src/shared/query/live-updates.ts": 3
   },
   "porcelain/web-commands-own-writes": {
-    "apps/web/src/features/review/queries/comments.ts": 4,
     "apps/web/src/features/review/queries/git-actions.ts": 4,
     "apps/web/src/features/review/queries/published-review.ts": 1,
     "apps/web/src/features/review/queries/reviewed-mutations.ts": 3
@@ -100,7 +98,6 @@
     "apps/web/src/shared/workspace/preferences.tsx": 1
   },
   "porcelain/web-queries-export-reads": {
-    "apps/web/src/features/review/queries/comments.ts": 2,
     "apps/web/src/features/review/queries/review.ts": 1,
     "apps/web/src/features/review/queries/reviewed-mutations.ts": 2
   },
@@ -241,7 +238,6 @@
     "apps/web/src/features/review/api/review-request.ts": 1,
     "apps/web/src/features/review/api/reviewed-live.ts": 1,
     "apps/web/src/features/review/index.ts": 1,
-    "apps/web/src/features/review/queries/comments.ts": 1,
     "apps/web/src/features/review/queries/git-actions.ts": 1,
     "apps/web/src/features/review/queries/published-review.ts": 1,
     "apps/web/src/features/review/queries/review.ts": 1,
@@ -284,7 +280,6 @@
     "apps/web/src/features/review/views/use-tab-layout.ts": 1
   },
   "unused-export": {
-    "apps/web/src/features/review/queries/comments.ts": 2,
     "apps/web/src/features/review/queries/reviewed-mutations.ts": 1,
     "apps/web/src/features/review/views/document-tabs.tsx": 1,
     "apps/web/src/features/review/views/git-action-options.ts": 4,

@@ -1,3 +1,4 @@
+import { useConnectedContext } from '@/app/workspace-provider';
 import { formatDistanceToNowStrict } from 'date-fns';
 import { CheckIcon, RotateCcwIcon, SparklesIcon, UserIcon } from 'lucide-react';
 import { useRef, useState } from 'react';
@@ -24,10 +25,7 @@ import {
 } from '@/features/reviews/index';
 
 import { discardRejection } from '@/shared/lib/submit-form';
-import {
-  useReplyComment,
-  useResolveComment,
-} from '@/features/review/queries/comments';
+import { useReplyComment, useResolveComment } from '@/features/reviews/index';
 import { reviewErrorMessage } from '@/features/review/queries/review';
 
 const relative = (iso?: string) =>
@@ -149,8 +147,8 @@ export function ThreadCard({
   const pendingReply = useRef<{ body: string; messageId: string } | undefined>(
     undefined,
   );
-  const reply = useReplyComment(scope);
-  const resolve = useResolveComment(scope);
+  const reply = useReplyComment(scope, useConnectedContext());
+  const resolve = useResolveComment(scope, useConnectedContext());
   const state = threadState(thread);
   const listed = onReveal != null;
 

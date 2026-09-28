@@ -1,9 +1,10 @@
+import { useConnectedContext } from '@/app/workspace-provider';
 import { useId, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { type CommentAnchor, type ReviewScope } from '@/features/reviews/index';
 
-import { useCreateComment } from '@/features/review/queries/comments';
+import { useCreateComment } from '@/features/reviews/index';
 import { reviewErrorMessage } from '@/features/review/queries/review';
 import { anchorLabel } from './thread-card';
 
@@ -21,7 +22,7 @@ export function InlineComposer({
   const pending = useRef<
     { body: string; threadId: string; messageId: string } | undefined
   >(undefined);
-  const mutation = useCreateComment(scope);
+  const mutation = useCreateComment(scope, useConnectedContext());
   const valid = body.trim().length > 0 && !body.includes('\0');
   const submit = async () => {
     if (!valid || mutation.isPending) return;

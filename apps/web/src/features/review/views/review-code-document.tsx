@@ -1,3 +1,4 @@
+import { useConnectedContext } from '@/app/workspace-provider';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -19,7 +20,7 @@ import {
   orderReviewChanges,
 } from '@/features/reviews/index';
 
-import { useComments } from '@/features/review/queries/comments';
+import { useComments } from '@/features/reviews/index';
 import {
   useReviewChanges,
   useUntrackedContents,
@@ -330,7 +331,7 @@ function OmittedDiscussion({
   path: string;
   commentRequest?: number;
 }) {
-  const { threads } = useComments(scope);
+  const { threads } = useComments(scope, useConnectedContext());
   const [compose, setCompose] = useState(false);
   const handled = useRef<number | undefined>(undefined);
   useEffect(() => {

@@ -1,27 +1,22 @@
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { ConnectionError } from '@/shared/api/connection-error';
-import {
-  useMutation,
-  usePrefetchQuery,
-  useQueryClient,
-  useSuspenseQuery,
-} from '@tanstack/react-query';
-import {
-  type CommentResolution,
-  type CommentThread,
-  type NewComment,
-  type NewReply,
-  type ReviewScope,
-} from '@/features/reviews/index';
-
 import { queryKeys } from '@/shared/query/keys';
 import { asMutation } from '@/shared/query/mutation';
-import { useConnectedContext } from '@/app/workspace-provider';
+import { commentsQueryOptions } from '../queries/comments';
+import type {
+  CommentsContext,
+  CommentThread,
+  NewComment,
+  ReplyCommentInput,
+  ResolveCommentInput,
+} from '../rules/comments';
+import type { ReviewScope } from '../rules/review';
 
-function useCommentContext(scope: ReviewScope) {
-  const { api, connection } = useConnectedContext();
+function commentContext(scope: ReviewScope, context: CommentsContext) {
+  const { api, connection } = context;
   return {
     api: api.comments,
-    key: queryKeys.comments(connection.environmentId, scope),
+    key: commentsQueryOptions(scope, context).queryKey,
     connection,
     request: (signal?: AbortSignal) => ({
       ...scope,
@@ -61,7 +56,7 @@ type CommentQueue = { tail: Promise<void> };
 const commentQueues = new WeakMap<object, Map<string, CommentQueue>>();
 
 function enqueueComment<T>(
-  context: ReturnType<typeof useCommentContext>,
+  context: ReturnType<typeof commentContext>,
   operation: () => Promise<T>,
 ) {
   const queryHash = JSON.stringify(context.key) ?? '';
@@ -88,32 +83,11 @@ function enqueueComment<T>(
   return result;
 }
 
-function useCommentsOptions(scope: ReviewScope) {
-  const context = useCommentContext(scope);
-  return {
-    queryKey: context.key,
-    staleTime: 0,
-    refetchOnMount: true,
-    queryFn: async ({ signal }: { signal: AbortSignal }) => {
-      const request = context.request(signal);
-      const result = await context.api.list(request);
-      request.signal.throwIfAborted();
-      return assertCommentScope(result, scope.worktreeId);
-    },
-  };
-}
-
-export function useComments(scope: ReviewScope) {
-  const query = useSuspenseQuery(useCommentsOptions(scope));
-  return { threads: query.data, error: query.error };
-}
-
-export function usePrefetchComments(scope: ReviewScope) {
-  usePrefetchQuery(useCommentsOptions(scope));
-}
-
-export function useMarkCommentsSeen(scope: ReviewScope) {
-  const context = useCommentContext(scope);
+export function useMarkCommentsSeen(
+  scope: ReviewScope,
+  comments: CommentsContext,
+) {
+  const context = commentContext(scope, comments);
   const client = useQueryClient();
   return useMutation({
     mutationFn: async (throughRevision: number) => {
@@ -129,8 +103,11 @@ export function useMarkCommentsSeen(scope: ReviewScope) {
     },
   });
 }
-export function useCreateComment(scope: ReviewScope) {
-  const context = useCommentContext(scope);
+export function useCreateComment(
+  scope: ReviewScope,
+  comments: CommentsContext,
+) {
+  const context = commentContext(scope, comments);
   const client = useQueryClient();
   return asMutation(
     useMutation({
@@ -147,10 +124,8 @@ export function useCreateComment(scope: ReviewScope) {
   );
 }
 
-export type ReplyCommentInput = { threadId: string } & NewReply;
-
-export function useReplyComment(scope: ReviewScope) {
-  const context = useCommentContext(scope);
+export function useReplyComment(scope: ReviewScope, comments: CommentsContext) {
+  const context = commentContext(scope, comments);
   const client = useQueryClient();
   return asMutation(
     useMutation({
@@ -176,10 +151,11 @@ export function useReplyComment(scope: ReviewScope) {
   );
 }
 
-export type ResolveCommentInput = { threadId: string } & CommentResolution;
-
-export function useResolveComment(scope: ReviewScope) {
-  const context = useCommentContext(scope);
+export function useResolveComment(
+  scope: ReviewScope,
+  comments: CommentsContext,
+) {
+  const context = commentContext(scope, comments);
   const client = useQueryClient();
   return asMutation(
     useMutation({

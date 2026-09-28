@@ -1,3 +1,4 @@
+import { useConnectedContext } from '@/app/workspace-provider';
 import {
   CheckIcon,
   FileQuestionIcon,
@@ -38,7 +39,7 @@ import {
   useComments,
   useMarkCommentsSeen,
   usePrefetchComments,
-} from '@/features/review/queries/comments';
+} from '@/features/reviews/index';
 import { usePublishedReview } from '@/features/review/queries/published-review';
 import {
   usePrefetchReview,
@@ -61,11 +62,11 @@ export function ReviewIndex({ scope, activeEntry, onOpen }: Props) {
   const connection = useAccessStore((state) => state.connection);
   const [view, setView] = useState<'layers' | 'comments'>('layers');
   usePrefetchReview(scope);
-  usePrefetchComments(scope);
+  usePrefetchComments(scope, useConnectedContext());
   const { changes: list } = useChanges(scope, connection);
   const published = usePublishedReview(scope);
   const review = published.data?.active ? published.data : null;
-  const { threads } = useComments(scope);
+  const { threads } = useComments(scope, useConnectedContext());
   const changes = useReviewChanges(scope);
   const openComments = threads.filter((thread) => !thread.resolved).length;
 
@@ -317,7 +318,7 @@ function CommentsView({
     (top, thread) => Math.max(top, thread.revision),
     0,
   );
-  const markSeen = useMarkCommentsSeen(scope).mutate;
+  const markSeen = useMarkCommentsSeen(scope, useConnectedContext()).mutate;
   const shown = useRef({ snapshot: '', filters: new Set<string>() });
   useEffect(() => {
     if (shown.current.snapshot !== snapshot)

@@ -1,3 +1,4 @@
+import { useConnectedContext } from '@/app/workspace-provider';
 import type {
   CodeViewItem,
   CodeViewLineSelection,
@@ -37,7 +38,7 @@ import {
   PIERRE_SURFACE_CSS,
   PIERRE_THEME,
 } from '@/shared/lib/pierre';
-import { useComments } from '@/features/review/queries/comments';
+import { useComments } from '@/features/reviews/index';
 import { reviewErrorMessage } from '@/features/review/queries/review';
 import {
   useMarkReviewed,
@@ -108,7 +109,7 @@ export function CodeDocument(props: Props) {
   );
 }
 function ConnectedCodeDocument(props: Props & { scope: ReviewScope }) {
-  const { threads, error } = useComments(props.scope);
+  const { threads, error } = useComments(props.scope, useConnectedContext());
   const mark = useMarkReviewed(props.scope);
   const unmark = useUnmarkReviewed(props.scope);
   const toggle = (entry: CodeEntry) => {

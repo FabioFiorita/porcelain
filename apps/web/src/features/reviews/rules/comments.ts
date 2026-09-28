@@ -9,8 +9,40 @@ export type CommentAnchor = CommentThread['anchor'];
 export type CommentMessage = CommentThread['messages'][number];
 export type CommentAuthor = CommentMessage['author'];
 export type NewComment = CreateCommentThreadRequest;
-export type NewReply = ReplyToCommentRequest;
-export type CommentResolution = UpdateCommentThreadRequest;
+type NewReply = ReplyToCommentRequest;
+type CommentResolution = UpdateCommentThreadRequest;
+
+export type ReplyCommentInput = { threadId: string } & NewReply;
+export type ResolveCommentInput = { threadId: string } & CommentResolution;
+
+type CommentRequest = {
+  projectId: string;
+  worktreeId: string;
+  signal: AbortSignal;
+};
+export type CommentsPort = {
+  list: (request: CommentRequest) => Promise<CommentThread[]>;
+  create: (
+    request: CommentRequest & { input: NewComment },
+  ) => Promise<CommentThread[]>;
+  reply: (
+    request: CommentRequest & { threadId: string; input: NewReply },
+  ) => Promise<CommentThread[]>;
+  resolve: (
+    request: CommentRequest & { threadId: string; input: CommentResolution },
+  ) => Promise<CommentThread[]>;
+  seen: (
+    request: CommentRequest & { throughRevision: number },
+  ) => Promise<{ worktreeId: string; seenThrough: number }>;
+};
+
+export type CommentsContext = {
+  api: { comments: CommentsPort };
+  connection: {
+    environmentId: string;
+    request: (signal?: AbortSignal) => { signal: AbortSignal };
+  };
+};
 
 export type CommentTarget = Pick<
   CommentAnchor,
