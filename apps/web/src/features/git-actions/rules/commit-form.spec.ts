@@ -42,4 +42,25 @@ describe('draftIsStale', () => {
       draftIsStale(looked, [{ path: 'README.md', fingerprint: 'readme-seen' }]),
     ).toBe(false);
   });
+
+  it('ignores drafted files an earlier group already committed, which leave the look', () => {
+    expect([
+      draftIsStale(
+        looked,
+        [
+          { path: 'committed.md', fingerprint: 'print' },
+          { path: 'README.md', fingerprint: 'readme-seen' },
+        ],
+        new Set(['committed.md']),
+      ),
+      draftIsStale(
+        looked,
+        [
+          { path: 'committed.md', fingerprint: 'print' },
+          { path: 'notes.md', fingerprint: 'notes-drafted' },
+        ],
+        new Set(['committed.md']),
+      ),
+    ]).toEqual([false, true]);
+  });
 });

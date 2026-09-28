@@ -12,6 +12,7 @@ import {
   type CommitFormProps,
   type CommitMode,
   type DraftedFiles,
+  type Drafts,
   draftIsStale,
   type Group,
 } from '../rules/commit-form';
@@ -74,8 +75,10 @@ function useCommitFormState(
   const setOwnHead = (ownHead: string | null) => state.setState({ ownHead });
   const setBusy = (busy: boolean) => state.setState({ busy });
   const setError = (error: unknown) => state.setState({ error });
-  const setDrafted = (drafted: DraftedFiles | null) =>
-    state.setState({ drafted });
+  const setDrafted = (kind: keyof Drafts, files: DraftedFiles | null) =>
+    state.setState((current) => ({
+      drafted: { ...current.drafted, [kind]: files },
+    }));
   const commitAction: 'amend' | 'commit' =
     mode === 'amend' ? 'amend' : 'commit';
   const git = useGitAction(scope, commitAction, context);
@@ -103,11 +106,19 @@ function useCommitFormState(
   const receipt = git.operation?.receipt;
   const working = busy || generator.isPending;
 
+  const activeDraft = groups ? drafted.groups : drafted.message;
   const staleDraft =
     commitAction === 'commit' &&
-    drafted != null &&
-    done.size === 0 &&
-    draftIsStale(status, drafted);
+    activeDraft != null &&
+    draftIsStale(
+      status,
+      activeDraft,
+      new Set(
+        (groups ?? [])
+          .filter((group) => done.has(group.id))
+          .flatMap((group) => group.paths),
+      ),
+    );
   const leftUncommitted = groups
     ? files.filter(
         (file) => !groups.some((group) => group.paths.includes(file.path)),
@@ -207,7 +218,7 @@ async function generate(
       paths: selectedPaths,
       expectedStatusToken: status.statusToken,
     });
-    setDrafted(result.expectedFiles);
+    setDrafted(mode, result.expectedFiles);
     setDone(new Set());
     setActiveGroup(null);
     if (mode === 'message') {
@@ -265,7 +276,7 @@ async function commit(controls: ReturnType<typeof useCommitFormState>) {
       });
       text = result.groups[0]?.message ?? '';
       setMessage(text);
-      setDrafted(result.expectedFiles);
+      setDrafted('message', result.expectedFiles);
       if (draftIsStale(status, result.expectedFiles)) return;
     }
     const pending =
@@ -389,7 +400,7 @@ export function useCommitForm(
       setMode(value);
       if (value === 'single') {
         setGroups(null);
-        setDrafted(null);
+        setDrafted('groups', null);
       }
       if (value === 'groups' && groups === null && !working)
         void generate(controls, 'groups', commitPaths);
@@ -434,7 +445,7 @@ export function useCommitForm(
       ]),
     clearGroups: () => {
       setGroups(null);
-      setDrafted(null);
+      setDrafted('groups', null);
     },
   };
 }

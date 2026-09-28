@@ -1,7 +1,7 @@
 import { createStore } from 'zustand/vanilla';
 import { useStore } from 'zustand';
 import type { OperationStore } from '@/shared/query/operation-store';
-import type { DraftedFiles } from './rules/commit-form';
+import type { Drafts } from './rules/commit-form';
 
 export function useGitOperation(operations: OperationStore, key: string) {
   const snapshot = () => operations.get(key);
@@ -26,7 +26,7 @@ function createCommitState() {
     ownHead: string | null;
     busy: boolean;
     error: unknown;
-    drafted: DraftedFiles | null;
+    drafted: Drafts;
     editingFiles: boolean;
   }>(() => ({
     done: new Set(),
@@ -34,7 +34,7 @@ function createCommitState() {
     ownHead: null,
     busy: false,
     error: null,
-    drafted: null,
+    drafted: { message: null, groups: null },
     editingFiles: false,
   }));
 }

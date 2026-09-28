@@ -35,11 +35,20 @@ export function commitFormDefaults(
 }
 
 export type DraftedFiles = CommitDraft['expectedFiles'];
+export type Drafts = {
+  message: DraftedFiles | null;
+  groups: DraftedFiles | null;
+};
 
-export function draftIsStale(status: GitActionStatus, drafted: DraftedFiles) {
+export function draftIsStale(
+  status: GitActionStatus,
+  drafted: DraftedFiles,
+  committed: ReadonlySet<string> = new Set(),
+) {
   return drafted.some(
     (file) =>
+      !committed.has(file.path) &&
       status.files?.find((looked) => looked.path === file.path)?.fingerprint !==
-      file.fingerprint,
+        file.fingerprint,
   );
 }
