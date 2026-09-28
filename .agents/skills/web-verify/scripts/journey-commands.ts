@@ -165,6 +165,14 @@ const porcelainRepo: BrowserCommand<[RepoStep], string> = async (
     }
     if (step.kind === 'remote')
       return repository.git('remote', 'add', step.name, step.url);
+    if (step.kind === 'worktree')
+      return repository.git(
+        'worktree',
+        'add',
+        '-b',
+        step.name,
+        join(repository.projectHome, step.name),
+      );
     return repository.git('switch', step.name);
   })();
   await keepEvidence();

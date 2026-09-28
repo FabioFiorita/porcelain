@@ -138,6 +138,57 @@ async function reload() {
   await loaded(frame, () => current.location.reload());
 }
 
+const outageKey = 'porcelain-kit-session-outage';
+
+function failRestoreInFrame(name: string, key: string) {
+  if (window.name !== name) return;
+  const original = window.fetch.bind(window);
+  window.fetch = (input, init) => {
+    const path =
+      typeof input === 'string'
+        ? input
+        : input instanceof URL
+          ? input.href
+          : input.url;
+    const failing =
+      window.sessionStorage.getItem(key) !== null &&
+      new URL(path, window.location.href).pathname === '/api/inventory';
+    return failing
+      ? Promise.resolve(new Response(null, { status: 503 }))
+      : original(input, init);
+  };
+}
+
+async function failSessionRestore() {
+  const current = framed?.contentWindow;
+  if (current == null)
+    throw new Error(
+      'app.failSessionRestore() fails the session restore of the app that app.openReloadable opened in its frame.',
+    );
+  await hostCommands.porcelainInitScript(
+    `(${failRestoreInFrame.toString()})(${JSON.stringify(frameName)}, ${JSON.stringify(outageKey)})`,
+  );
+  current.sessionStorage.setItem(outageKey, 'down');
+  return {
+    end() {
+      const frame = framed?.contentWindow;
+      frame?.sessionStorage.removeItem(outageKey);
+      frame?.dispatchEvent(new Event('online'));
+    },
+  };
+}
+
+function visited() {
+  const current = framed?.contentWindow;
+  if (current == null)
+    throw new Error(
+      'app.visited() reads the history of the app that app.openReloadable opened in its frame.',
+    );
+  return current.navigation
+    .entries()
+    .map((entry) => new URL(entry.url ?? '', current.location.href).pathname);
+}
+
 function address() {
   const current = framed?.contentWindow?.location ?? location;
   return { path: current.pathname, fragment: current.hash };
@@ -157,6 +208,8 @@ export const app = {
   open,
   openReloadable,
   reload,
+  visited,
+  failSessionRestore,
   link,
   address,
 };

@@ -68,7 +68,8 @@ export type GitSubcommand =
   | 'rev-parse'
   | 'show'
   | 'stash'
-  | 'switch';
+  | 'switch'
+  | 'worktree';
 
 export type Session = {
   fixture: Fixture;
