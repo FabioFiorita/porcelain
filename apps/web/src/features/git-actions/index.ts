@@ -16,7 +16,8 @@ export {
 } from './rules/feedback';
 export { GitActionError, GitActionMessage } from './views/git-action-message';
 export { useGitAction } from './commands/run-action';
-export { useDismissInterrupted } from './commands/dismiss-interrupted';
+export { InterruptedActionNotice } from './views/interrupted-action-notice';
+export { ConflictGuidance } from './views/conflict-guidance';
 export { useCommitModels } from './queries/git-actions';
 export { useBranchForm } from './commands/branch-form';
 export { BranchForm } from './views/branch-form';

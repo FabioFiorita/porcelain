@@ -1,15 +1,20 @@
-import { useConnectedContext } from '@/app/workspace-provider';
 import { Button } from '@/components/ui/button';
 import { useAccessStore } from '@/features/access/index';
 import { useReviewOverview } from '@/features/changes/index';
 import type { ReviewScope } from '@/features/reviews/index';
-import { useDismissInterrupted } from '@/features/git-actions/index';
-import { gitErrorMessage } from '@/features/git-actions/index';
+import { useDismissInterrupted } from '../commands/dismiss-interrupted';
+import { gitErrorMessage } from '../rules/feedback';
 
-export function InterruptedActionNotice({ scope }: { scope: ReviewScope }) {
+export function InterruptedActionNotice({
+  scope,
+  context,
+}: {
+  scope: ReviewScope;
+  context: Parameters<typeof useDismissInterrupted>[1];
+}) {
   const connection = useAccessStore((state) => state.connection);
   const overview = useReviewOverview(scope, connection);
-  const dismiss = useDismissInterrupted(scope, useConnectedContext());
+  const dismiss = useDismissInterrupted(scope, context);
   const interrupted = overview?.changes.interrupted;
   if (!interrupted) return null;
   return (
@@ -35,9 +40,7 @@ export function InterruptedActionNotice({ scope }: { scope: ReviewScope }) {
         size="xs"
         variant="ghost"
         disabled={dismiss.isPending}
-        onClick={() =>
-          void dismiss.submit(interrupted.requestId).catch(() => {})
-        }
+        onClick={() => dismiss.dismiss(interrupted.requestId)}
       >
         Got it
       </Button>

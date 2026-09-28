@@ -47,14 +47,17 @@ import {
   type Surface,
 } from '@/features/reviews/index';
 import type { Project } from '@/features/projects/index';
+import {
+  ConflictGuidance,
+  InterruptedActionNotice,
+} from '@/features/git-actions/index';
+import { useConnectedContext } from '@/app/workspace-provider';
 
 import { usePublishedReview } from '@/features/review/queries/published-review';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
-import { ConflictGuidance } from './conflict-guidance';
 import { DocumentTabs } from './document-tabs';
 import { DocumentView } from './documents';
 import { GitButton } from './git-button';
-import { InterruptedActionNotice } from './interrupted-action-notice';
 import { ReviewBoundary } from './review-boundary';
 import { ReviewSidebar } from './review-sidebar';
 import { type PaneIndex, useTabLayout } from './use-tab-layout';
@@ -71,6 +74,7 @@ export function ReviewWorkspace({
   projectId: string;
   navigationTrigger: RefObject<HTMLButtonElement | null>;
 }) {
+  const gitContext = useConnectedContext();
   const search = useSearch({ from: '/' });
   const navigate = useNavigate({ from: '/' });
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -216,7 +220,7 @@ export function ReviewWorkspace({
           className="flex h-full min-w-0 flex-col overflow-hidden rounded-xl border bg-card"
         >
           <ReviewBoundary>
-            <InterruptedActionNotice scope={scope} />
+            <InterruptedActionNotice scope={scope} context={gitContext} />
             <ConflictGuidance scope={scope} onOpen={open} />
             <DocumentArea
               reveal={reveal}
