@@ -9,8 +9,8 @@ export default {
     {
       kind: 'replace',
       path: 'architecture/web-baseline.json',
-      old: '"web-nothing-imports-routes": {\n    "apps/web/src/main.tsx": 1',
-      new: '"web-nothing-imports-routes": {\n    "apps/web/src/main.tsx": 2',
+      old: '"unclassified-source": {\n    "apps/web/src/app/api.ts": 1',
+      new: '"unclassified-source": {\n    "apps/web/src/app/api.ts": 2',
     },
   ],
 } satisfies Probe;
