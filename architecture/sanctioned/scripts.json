@@ -11,7 +11,9 @@
     "typecheck:web": "pnpm --filter @porcelain/web typecheck",
     "lint:web": "node scripts/style.ts lint web",
     "format:web:check": "node scripts/style.ts format web",
-    "verify:web": "node .agents/skills/web-verify/scripts/browser.ts"
+    "verify:web": "node .agents/skills/web-verify/scripts/browser.ts",
+    "check": "node scripts/check.ts",
+    "test:rules": "node architecture/rule-tests.mjs"
   },
   "apps/server/package.json": {
     "typecheck": "tsc --noEmit"

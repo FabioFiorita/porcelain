@@ -5,7 +5,7 @@ export default {
   plants:
     'the pnpm probes step removed from the probe workflow and its sanctioned copy alike, so no CI job plants the probes',
   gate: 'lint',
-  rule: 'style(probe-shards)',
+  rule: 'style(manual-audits)',
   edits: [
     {
       kind: 'replace',

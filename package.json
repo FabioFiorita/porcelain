@@ -22,7 +22,9 @@
     "dev:web": "pnpm --filter @porcelain/web dev",
     "serve": "node scripts/serve.ts",
     "build:package": "node scripts/build-package.ts",
-    "prepare": "lefthook install --reset-hooks-path"
+    "prepare": "lefthook install --reset-hooks-path",
+    "check": "node scripts/check.ts",
+    "test:rules": "node architecture/rule-tests.mjs"
   },
   "devDependencies": {
     "@babel/core": "7.29.7",

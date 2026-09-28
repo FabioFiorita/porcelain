@@ -5,7 +5,7 @@ export default {
   plants:
     'the last shard dropped from the probe matrix in the workflow and its sanctioned copy alike, so a sixth of the probes never runs',
   gate: 'lint',
-  rule: 'style(probe-shards)',
+  rule: 'style(manual-audits)',
   edits: [
     {
       kind: 'replace',

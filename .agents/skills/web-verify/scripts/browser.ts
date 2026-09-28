@@ -1,11 +1,11 @@
-import { spawn, spawnSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { stripVTControlCharacters } from 'node:util';
-import { z } from 'zod';
+import { parseArgs } from 'node:util';
+import { startBrowser, type BrowserRunner } from './browser-runner.ts';
 import {
   journeyBaselineFile,
   readJourneyBaseline,
@@ -27,15 +27,9 @@ const repositoryRoot = resolve(
   dirname(fileURLToPath(import.meta.url)),
   '../../../..',
 );
-const config = resolve(
-  repositoryRoot,
-  '.agents/skills/web-verify/scripts/vitest.browser.config.ts',
-);
-const stabilityRepeats = 5;
-const repetitionBaseVariable = 'PORCELAIN_REPETITION_BASE';
 const browserLockVariable = 'PORCELAIN_BROWSER_LOCK_HELD';
 const usage =
-  'Usage: node .agents/skills/web-verify/scripts/browser.ts --list|--all|<journey>\n';
+  'Usage: pnpm verify:web --list|--all|<journey>... [--repeat <count>]\n';
 
 type Run = {
   passed: boolean;
@@ -44,157 +38,30 @@ type Run = {
   hits: Hit[];
 };
 
-type Stability = {
-  base: string;
-  source: string;
-  paths: Set<string>;
-};
-
 type Outcome = {
   runs: Run[];
   routes: Set<string>;
   problems: string[];
 };
 
-const reportSchema = z.object({
-  testResults: z.array(
-    z.object({
-      name: z.string(),
-      message: z.string().optional(),
-      assertionResults: z.array(
-        z.object({
-          title: z.string(),
-          status: z.string(),
-          failureMessages: z.array(z.string()),
-        }),
-      ),
-    }),
-  ),
-});
-
-function git(args: readonly string[]): string {
-  const result = spawnSync('git', args, {
-    cwd: repositoryRoot,
-    encoding: 'utf8',
-  });
-  if (result.error) throw result.error;
-  if (result.status !== 0)
-    throw new Error(`git ${args.join(' ')} failed: ${result.stderr}`);
-  return result.stdout;
-}
-
-function commitOf(revision: string): string | undefined {
-  const result = spawnSync(
-    'git',
-    [
-      'rev-parse',
-      '--verify',
-      '--quiet',
-      '--end-of-options',
-      `${revision}^{commit}`,
-    ],
-    { cwd: repositoryRoot, encoding: 'utf8' },
-  );
-  if (result.error) throw result.error;
-  return result.status === 0 ? result.stdout.trim() : undefined;
-}
-
-function stabilityBase(): Omit<Stability, 'paths'> {
-  const requested = process.env[repetitionBaseVariable] ?? '';
-  const ci = process.env.CI === 'true';
-  const base = requested === '' ? undefined : commitOf(requested);
-  if (base !== undefined)
-    return { base, source: `${repetitionBaseVariable}=${requested}` };
-  if (!ci && requested !== '')
-    throw new Error(
-      `${repetitionBaseVariable}=${requested} names no commit in this clone; set it to a commit to repeat the journeys changed since it, or unset it to run each journey once`,
-    );
-  if (!ci)
-    return {
-      base: '',
-      source: `no ${repetitionBaseVariable} outside CI; set it to a commit to repeat the journeys changed since it`,
-    };
-  const target = `origin/${process.env.GITHUB_BASE_REF || 'main'}`;
-  return {
-    base: git(['merge-base', 'HEAD', target]).trim(),
-    source: `${requested === '' ? `no ${repetitionBaseVariable}, as on an opened pull request` : `${repetitionBaseVariable}=${requested} is not a commit in this clone`}, so the merge base with ${target}`,
-  };
-}
-
-function changedSinceBase(): Stability {
-  const { base, source } = stabilityBase();
-  if (base === '') return { base, source, paths: new Set() };
-  const lines = [
-    ...git(['diff', '--name-only', base, '--']).split('\n'),
-    ...git(['ls-files', '--others', '--exclude-standard']).split('\n'),
-  ];
-  return { base, source, paths: new Set(lines.filter(Boolean)) };
-}
-
-function repetitions(journey: Journey, changed: ReadonlySet<string>): number {
-  const entry = `.agents/skills/web-verify/feature-map/${journey.feature}.ts`;
-  return changed.has(journey.spec) || changed.has(entry) ? stabilityRepeats : 1;
-}
-
-function firstLine(message: string): string {
-  return (
-    stripVTControlCharacters(message)
-      .split('\n')
-      .find((line) => line.trim() !== '') ?? ''
-  ).trim();
-}
-
 async function vitest(
   spec: string,
   server: IsolatedServer,
   evidence: string,
+  browser: BrowserRunner,
 ): Promise<{ code: number; failures: string[] }> {
   const report = join(evidence, 'vitest.json');
-  const code = await new Promise<number>((done, fail) => {
-    const child = spawn(
-      'pnpm',
-      [
-        'exec',
-        'vitest',
-        'run',
-        '--config',
-        config,
-        resolve(repositoryRoot, spec),
-        '--reporter=default',
-        '--reporter=json',
-        `--outputFile.json=${report}`,
-      ],
-      {
-        cwd: repositoryRoot,
-        env: {
-          ...process.env,
-          PORCELAIN_API_TARGET: server.address,
-          PORCELAIN_WEB_EVIDENCE: evidence,
-          PORCELAIN_WEB_MANIFEST: server.manifestPath,
-        },
-        stdio: 'inherit',
-      },
-    );
-    child.once('error', fail);
-    child.once('close', (status) => done(status ?? 1));
-  });
+  const { code, failures } = await browser.run(
+    spec,
+    server.address,
+    server.manifestPath,
+    evidence,
+  );
   if (!existsSync(report))
     return {
-      code,
+      code: 1,
       failures: ['Vitest wrote no report; read its output above'],
     };
-  const results = reportSchema.parse(
-    JSON.parse(await readFile(report, 'utf8')),
-  );
-  const failures = results.testResults.flatMap((file) => [
-    ...(file.message ? [firstLine(file.message)] : []),
-    ...file.assertionResults
-      .filter((result) => result.status !== 'passed')
-      .map(
-        (result) =>
-          `${result.title}: ${firstLine(result.failureMessages.join('\n')) || result.status}`,
-      ),
-  ]);
   return {
     code,
     failures:
@@ -209,13 +76,14 @@ async function run(
   build: string,
   evidence: string,
   registered: Set<string>,
+  browser: BrowserRunner,
 ): Promise<Run> {
   const started = performance.now();
   await mkdir(evidence, { recursive: true });
   const server = await IsolatedServer.start(repositoryRoot, build);
   try {
     for (const route of server.routes) registered.add(route);
-    const result = await vitest(spec, server, evidence);
+    const result = await vitest(spec, server, evidence, browser);
     const hits = await server.hits();
     await writeFile(
       join(evidence, 'server.json'),
@@ -247,17 +115,20 @@ async function journeyOutcome(
   build: string,
   evidence: string,
   registered: Set<string>,
+  browser: BrowserRunner,
 ): Promise<Outcome> {
   const runs: Run[] = [];
-  for (let repetition = 1; repetition <= times; repetition += 1)
-    runs.push(
-      await run(
-        journey.spec,
-        build,
-        join(evidence, journey.feature, `run-${repetition}`),
-        registered,
-      ),
+  for (let repetition = 1; repetition <= times; repetition += 1) {
+    const result = await run(
+      journey.spec,
+      build,
+      join(evidence, journey.feature, `run-${repetition}`),
+      registered,
+      browser,
     );
+    runs.push(result);
+    if (!result.passed) break;
+  }
   const routes = new Set(runs.flatMap((entry) => [...uiRoutes(entry.hits)]));
   const problems = [
     ...runs.flatMap((entry, index) =>
@@ -334,33 +205,44 @@ function list(journeys: readonly Journey[]) {
 async function main(): Promise<number> {
   const started = performance.now();
   const journeys = await loadJourneys();
-  const argument = process.argv[2];
-  if (argument === '--list' && process.argv.length === 3) {
+  const { values, positionals } = parseArgs({
+    args: process.argv.slice(2),
+    options: {
+      all: { type: 'boolean', default: false },
+      list: { type: 'boolean', default: false },
+      repeat: { type: 'string', default: '1' },
+    },
+    allowPositionals: true,
+  });
+  if (values.list && !values.all && positionals.length === 0) {
     list(journeys);
     return 0;
   }
-  const all = argument === '--all';
+  const all = values.all;
+  const times = Number(values.repeat);
   const selected = journeys.filter(
-    (journey) => all || journey.feature === argument,
+    (journey) => all || positionals.includes(journey.feature),
   );
   const negatives = negativeJourneys.filter(
-    (negative) => all || `negative.${negative.name}` === argument,
+    (negative) => all || positionals.includes(`negative.${negative.name}`),
   );
+  const known = new Set([
+    ...journeys.map((journey) => journey.feature),
+    ...negativeJourneys.map((negative) => `negative.${negative.name}`),
+  ]);
   if (
+    values.list ||
+    !Number.isSafeInteger(times) ||
+    times < 1 ||
+    (all && positionals.length > 0) ||
     (selected.length === 0 && negatives.length === 0) ||
-    process.argv.length !== 3
+    positionals.some((name) => !known.has(name))
   ) {
     process.stderr.write(usage);
     return 2;
   }
-  const changed = changedSinceBase();
-  const repeated = selected.filter(
-    (journey) => repetitions(journey, changed.paths) > 1,
-  );
   process.stdout.write(
-    changed.base === ''
-      ? `Stability: every journey runs once, ${selected.length} journey runs in all; ${changed.source}.\n`
-      : `Stability: ${repeated.length} of ${selected.length} journeys changed since ${changed.base.slice(0, 12)} and run ${stabilityRepeats} times each, ${repeated.length * stabilityRepeats + selected.length - repeated.length} journey runs in all; base: ${changed.source}.\n`,
+    `Selection: ${selected.length} journeys, ${times} run(s) each; stop on first failure.\n`,
   );
   const evidence = await mkdtemp(
     join(tmpdir(), 'porcelain-web-browser-evidence-'),
@@ -369,6 +251,7 @@ async function main(): Promise<number> {
   const registered = new Set<string>();
   const summary: Record<string, unknown>[] = [];
   let failed = false;
+  let browser: BrowserRunner | undefined;
   let buildMs = 0;
   let journeyMs = 0;
   let negativeMs = 0;
@@ -377,16 +260,17 @@ async function main(): Promise<number> {
     const buildStarted = performance.now();
     await buildIsolatedServer(build);
     buildMs = Math.round(performance.now() - buildStarted);
+    browser = await startBrowser(evidence);
     const covered = new Set<string>();
     for (const journey of selected) {
       const journeyStarted = performance.now();
-      const times = repetitions(journey, changed.paths);
       const outcome = await journeyOutcome(
         journey,
         times,
         build,
         evidence,
         registered,
+        browser,
       );
       const wallMs = Math.round(performance.now() - journeyStarted);
       journeyMs += wallMs;
@@ -394,7 +278,7 @@ async function main(): Promise<number> {
       const passed = outcome.problems.length === 0;
       if (!passed) failed = true;
       process.stdout.write(
-        `${passed ? 'PASS' : 'FAIL'} ${journey.feature} (${times === 1 ? 'once' : `${times} times, changed since ${changed.base.slice(0, 12)}`}; ${outcome.routes.size} routes through the UI; ${wallMs} ms)\n`,
+        `${passed ? 'PASS' : 'FAIL'} ${journey.feature} (${outcome.runs.length}/${times} runs; ${outcome.routes.size} routes through the UI; ${wallMs} ms)\n`,
       );
       for (const problem of outcome.problems)
         process.stdout.write(`  ${journey.feature}: ${problem}\n`);
@@ -412,21 +296,25 @@ async function main(): Promise<number> {
         join(evidence, `${journey.feature}.json`),
         `${JSON.stringify(record, null, 2)}\n`,
       );
+      if (!passed) break;
     }
     const rejected: Record<string, unknown>[] = [];
-    for (const negative of negatives) {
+    for (const negative of failed ? [] : negatives) {
       const negativeStarted = performance.now();
       const outcome = await run(
         negative.spec,
         build,
         join(evidence, `negative.${negative.name}`),
         registered,
+        browser,
       );
       negativeMs += Math.round(performance.now() - negativeStarted);
-      const reason = outcome.failures.find((failure) =>
-        negative.rejectedWhen.test(failure),
-      );
-      const verdict = !outcome.passed && reason !== undefined;
+      const verdict =
+        !outcome.passed &&
+        outcome.failures.length > 0 &&
+        outcome.failures.every((failure) =>
+          negative.rejectedWhen.test(failure),
+        );
       if (!verdict) failed = true;
       rejected.push({
         ...negative,
@@ -441,8 +329,9 @@ async function main(): Promise<number> {
         process.stdout.write(
           `  negative.${negative.name}: ${outcome.passed ? 'the planted journey passed' : `it failed for another reason: ${outcome.failures.join('; ')}`}; the runner must reject it for what it plants\n`,
         );
+      if (!verdict) break;
     }
-    if (all && rejected.length !== recordedNegatives) {
+    if (all && !failed && rejected.length !== recordedNegatives) {
       failed = true;
       process.stdout.write(
         `  negatives: ${rejected.length} ran where ${recordedNegatives} are recorded\n`,
@@ -450,17 +339,19 @@ async function main(): Promise<number> {
     }
     const report: Record<string, unknown> = {
       journeys: summary.length,
-      stability: {
-        base: changed.base,
-        source: changed.source,
-        repeats: stabilityRepeats,
-        repeated: repeated.map((journey) => journey.feature),
-      },
+      requestedJourneys: selected.map((journey) => journey.feature),
+      skippedJourneys: selected
+        .slice(summary.length)
+        .map((journey) => journey.feature),
+      skippedNegatives: negatives
+        .slice(rejected.length)
+        .map((negative) => negative.name),
+      repetitions: times,
       negatives: rejected,
       registered: [...registered].toSorted(),
     };
     const coverageStarted = performance.now();
-    if (all) {
+    if (all && !failed) {
       const result = coverage(covered, [...registered]);
       const reached = result.called.length - result.uncovered.length;
       process.stdout.write(
@@ -498,6 +389,13 @@ async function main(): Promise<number> {
       );
     } else process.stdout.write('Coverage is judged with --all.\n');
     coverageMs = Math.round(performance.now() - coverageStarted);
+    report.passed = !failed;
+    report.complete =
+      summary.length === selected.length &&
+      rejected.length === negatives.length &&
+      summary.every(
+        (record) => Array.isArray(record.runs) && record.runs.length === times,
+      );
     report.timings = {
       buildMs,
       journeyMs,
@@ -509,8 +407,32 @@ async function main(): Promise<number> {
       join(evidence, 'summary.json'),
       `${JSON.stringify(report, null, 2)}\n`,
     );
+  } catch (error) {
+    await writeFile(
+      join(evidence, 'summary.json'),
+      `${JSON.stringify(
+        {
+          passed: false,
+          complete: false,
+          error: error instanceof Error ? error.message : String(error),
+          results: summary,
+          requestedJourneys: selected.map((journey) => journey.feature),
+          skippedJourneys: selected
+            .slice(summary.length)
+            .map((journey) => journey.feature),
+        },
+        null,
+        2,
+      )}\n`,
+    );
+    process.stderr.write(`Partial browser evidence: ${evidence}\n`);
+    throw error;
   } finally {
-    await rm(build, { recursive: true, force: true });
+    try {
+      await browser?.close();
+    } finally {
+      await rm(build, { recursive: true, force: true });
+    }
   }
   process.stdout.write(
     `Browser time: build ${buildMs} ms; journeys ${journeyMs} ms; negatives ${negativeMs} ms; coverage ${coverageMs} ms; total ${Math.round(performance.now() - started)} ms.\n`,

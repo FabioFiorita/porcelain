@@ -1,9 +1,7 @@
-name: Web trust checks
+name: Runtime checkpoint
 
 on:
-  pull_request:
-  push:
-    branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -15,7 +13,7 @@ concurrency:
 jobs:
   web:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
         with:
@@ -26,16 +24,13 @@ jobs:
           cache: true
           require-lockfile: true
       - run: pnpm install --frozen-lockfile
-      - run: pnpm typecheck:web
-      - run: pnpm lint:web
-      - run: pnpm format:web:check
-      - run: pnpm arch:check
+      - run: pnpm check
       - run: pnpm --filter @porcelain/web build
       - run: pnpm exec playwright install --with-deps --only-shell chromium
       - run: sudo apt-get update && sudo apt-get install --yes bubblewrap
       - name: Allow unprivileged user namespaces, which Ubuntu 24.04 restricts through AppArmor and bwrap needs
         run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
       - run: bwrap --ro-bind / / --dev /dev --proc /proc --unshare-pid --unshare-ipc --unshare-net --new-session --die-with-parent -- true
+      - run: pnpm db:check
+      - run: node .agents/skills/server-verify/scripts/verify.ts --all
       - run: pnpm verify:web --all
-        env:
-          PORCELAIN_REPETITION_BASE: ${{ github.event.before }}

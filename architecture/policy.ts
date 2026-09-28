@@ -332,7 +332,7 @@ export const styleRules = [
   'vitest-config',
   'cruiser-config',
   'ci-steps',
-  'probe-shards',
+  'manual-audits',
   'pre-push-hook',
   'code-outside-lint-roots',
   'format-config',

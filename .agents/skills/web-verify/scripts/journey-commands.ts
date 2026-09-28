@@ -30,11 +30,20 @@ import { Recorder, ServerHandle } from '../../server-verify/scripts/session.ts';
 
 export const journeyHeader = { 'x-porcelain-journey': 'kit' };
 
-const recorder = new Recorder();
+let recorder = new Recorder();
 recorder.phase = 'follow-up';
 let attached: Promise<ServerHandle> | undefined;
+let evidenceFolder: string | undefined;
+
+export function setJourneyServer(manifest: string, evidence: string): void {
+  recorder = new Recorder();
+  recorder.phase = 'follow-up';
+  attached = ServerHandle.attach(manifest);
+  evidenceFolder = evidence;
+}
 
 function handle(): Promise<ServerHandle> {
+  if (attached !== undefined) return attached;
   const manifest = process.env.PORCELAIN_WEB_MANIFEST;
   if (manifest === undefined || manifest === '')
     throw new Error(
@@ -49,7 +58,7 @@ async function session() {
 }
 
 async function keepEvidence() {
-  const evidence = process.env.PORCELAIN_WEB_EVIDENCE;
+  const evidence = evidenceFolder ?? process.env.PORCELAIN_WEB_EVIDENCE;
   if (evidence === undefined || evidence === '') return;
   await writeFile(
     join(evidence, 'kit.json'),

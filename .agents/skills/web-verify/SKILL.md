@@ -5,13 +5,15 @@ description: Run Porcelain web journeys in Vitest Browser Mode with Chromium aga
 
 # Web verification
 
-A journey drives the real web app in Chromium through Vitest Browser Mode and its Playwright provider, against its own disposable server started by `scripts/dev-server.ts`. Vite proxies `/api` to that server. Nothing is mocked.
+A journey drives the real web app in Chromium through Vitest Browser Mode and its Playwright provider, against its own disposable server started by `scripts/dev-server.ts`. Vite proxies `/api` to that server. Nothing is mocked. One invocation keeps Vitest, Vite and Chromium alive across journeys, while each run gets Vitest's isolated test iframe and a disposable server. Between runs the runner clears cookies and browser storage and navigates the test iframe away before its server stops.
 
 The runner holds one browser verification slot per Linux host user with `flock`. Runs from other Porcelain worktrees on the same host wait for it, so concurrent workers do not overload Chromium. Separate CI hosts remain independent. The runner prints when it waits and how long acquiring the slot took.
 
 ```sh
 pnpm verify:web --list
 pnpm verify:web projects.rename
+pnpm verify:web projects.rename projects.remove
+pnpm verify:web files.edit --repeat 3
 pnpm verify:web negative.wrong-text
 pnpm verify:web --all
 ```
@@ -30,7 +32,7 @@ pnpm verify:web --all
    - `codingTool`: `codingTool.install()` puts the server fixture's fake coding tool on the server's PATH as `claude` and returns the replies it drafts (`message` for one commit, `groups` for several); until a journey installs it, the server has no coding command-line tool;
    - `failures`: declare a failure the journey expects, `failures.console(pattern)` or `failures.response('POST /api/…', status)`.
 4. Drive the page by role, label or text. Assert what the page shows with `await expect.element(locator)…` and what the server kept with `await expect.poll(() => server.…)…`. Name each case as a sentence of what the user does and sees.
-5. Run the journey, then `--all`. Lint states the journey rules in `architecture/web-rules.mjs`; read a rule's message when it blocks you.
+5. Run the affected journey once. Use `--all` for a cross-cutting checkpoint or release. Lint states the journey rules in `architecture/web-rules.mjs`; read a rule's message when it blocks you.
 
 A new route the web calls needs a journey that reaches it through the UI. When a journey starts reaching a route listed in `architecture/web-journey-baseline.json`, remove that route from the list in the same change.
 
@@ -38,9 +40,9 @@ A new route the web calls needs a journey that reaches it through the UI. When a
 
 Each journey runs against a fresh server. A journey fails on a failed assertion, a thrown error, and any console error, uncaught error, unhandled rejection or 5xx answer the journey did not declare through `failures`, or a declared one that never happened. The isolated server records every request it answered after its fixture was ready: the method, the route Fastify matched, the status, and whether the kit sent it. A journey fails when it claims a server feature none of whose routes it reached through the UI.
 
-A journey is proven stable when a push adds or changes it. The web workflow passes the commit the push replaced as `PORCELAIN_REPETITION_BASE`; a journey whose spec or map entry changed since that commit runs five times, each against a fresh server, and fails if any run fails; every other journey runs once. When CI has no such commit in the clone, as on an opened pull request or after a force push, the base is the merge base with the pull request's base branch. The run prints how many journeys repeat and where the base came from before the first journey starts. Outside CI every journey runs once unless `PORCELAIN_REPETITION_BASE` names a commit. There is no retry.
+The default is one run per selected journey. Use `--repeat <count>` explicitly when investigating a flaky case or when repeated evidence answers a concrete question. Each repetition gets a fresh server and isolated test iframe with cleared cookies and browser storage. There are no retries or automatic repetitions based on Git history. The runner stops at the first failed run, journey or unexpected negative result and preserves the evidence already collected. A partial run does not judge full coverage; the summary lists skipped journeys and negatives.
 
-For worker proof, run each journey affected by changed web behavior five clean times. If its spec or map entry changed, use `PORCELAIN_REPETITION_BASE=<commit-before-the-change> pnpm verify:web <journey>` and confirm the runner prints `5 times`. If only app code changed, the runner prints `once` even with a repetition base; run `pnpm verify:web <journey>` five times, stopping at the first failure. Each invocation starts a fresh server. The integrated candidate runs `pnpm verify:web --all` once; CI still repeats changed spec or map entries.
+For ordinary feature proof, run each affected journey once after `pnpm check`. A cross-cutting checkpoint runs `pnpm verify:web --all` once. Automatic CI runs fast checks; the runtime workflow is manual. Do not trigger hosted audits while Actions spending is blocked without Fabio's approval.
 
 `--all` also runs the negative journeys in `apps/web/spec/negative/`, planted journeys that must fail for what they plant: text the app never shows, a server state nobody saved, and a console error. The run prints `REJECTED` for each; their number is pinned in `scripts/catalogue.ts`.
 
@@ -77,4 +79,4 @@ pnpm dlx @puppeteer/browsers@3.2.3 install chrome@154.0.8037.57 --path "$HOME/.c
 
 Set `PORCELAIN_CHROME_PATH` to an existing Chrome executable for a different installation. On hosts where Chrome's sandbox cannot start, set `PORCELAIN_CHROME_NO_SANDBOX=1` for `pnpm devtools start`.
 
-Before reporting a web feature complete, follow the worker proof in `AGENTS.md`: affected journeys five times, web typecheck, lint and format checks, and `pnpm arch:check`. The integrated candidate runs `--all` once. Run the full local `pnpm probes` suite after changing web architecture policy or the verifier. A red result is a concrete refactor target; do not relax a guard to turn it green.
+Before reporting a web feature complete, follow `AGENTS.md`: `pnpm check` and affected journeys once. For an architecture or verifier change, run `pnpm probes --check`, affected native rule fixtures and named integration probes. The exhaustive probe suite is an explicit maintenance audit. A red result is a concrete refactor target; do not relax a guard to turn it green.

@@ -18,7 +18,7 @@ A feature is one route over one use case. Copy the nearest feature in the same a
 7. **Errors.** Give every new error class its status in `apps/server/src/http/status-policy.ts`; `status-policy.spec.ts` fails until it has one.
 8. **Spec.** Follow `server-spec` for each new service, rule, parser or sequencing use case.
 9. **Net case.** Follow `server-verify`: name the route in a feature's `reaches` under `.agents/skills/server-verify/feature-map/` and request it from a case. `verify.ts --all` fails while any registered route is in no feature's `reaches`.
-10. **Gates.** Run the worker proof for the affected feature in `AGENTS.md` and report each result. The integrated candidate runs the full gate list and HTTP net once.
+10. **Gates.** Run the worker proof for the affected feature in `AGENTS.md` and report each result. A cross-cutting checkpoint or release runs the full runtime proof once.
 
 ## Changing or removing one
 
@@ -26,4 +26,4 @@ Change the contract first; `pnpm typecheck:server` then leads through the route,
 
 ## When a guardrail changed
 
-A change to a lint, `architecture/policy.ts`, `architecture/type-rules.ts` or a gate's configuration is proved with the full local `pnpm probes` suite before push. It runs from a clean checkout; use a disposable worktree if the main checkout must remain uncommitted. A new guardrail adds a probe there, `<decision>-<what-it-plants>.ts`, shaped like its neighbours (`architecture/probe.ts`).
+A guardrail change runs `pnpm check`, read-only `pnpm probes --check`, affected native rule fixtures and named integration probes. Oxlint rules use `RuleTester` from `oxlint/plugins-dev` in `architecture/rule-tests.mjs`; test accepted code and the exact rejected diagnostic. An integration probe belongs in `architecture/probes/`, `<decision>-<what-it-plants>.ts`, shaped like its neighbours (`architecture/probe.ts`). Named integration probes run from a clean checkout and restore their changes. The full suite is an explicit maintenance audit, not a routine push requirement.

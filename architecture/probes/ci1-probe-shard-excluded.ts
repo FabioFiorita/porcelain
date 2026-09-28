@@ -5,7 +5,7 @@ export default {
   plants:
     'a matrix exclude that skips the third probe shard, in the workflow and its sanctioned copy alike, while the shard list still reads one to six',
   gate: 'lint',
-  rule: 'style(probe-shards)',
+  rule: 'style(manual-audits)',
   edits: [
     {
       kind: 'replace',

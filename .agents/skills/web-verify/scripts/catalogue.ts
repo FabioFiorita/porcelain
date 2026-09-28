@@ -78,7 +78,8 @@ export const negativeJourneys: readonly NegativeJourney[] = [
     name: 'console-error',
     spec: `${negativeFolder}/console-error.browser.ts`,
     plants: 'a journey during which the page reports a console error',
-    rejectedWhen: /did not declare[\s\S]*console error/,
+    rejectedWhen:
+      /did not declare[\s\S]*console error: A failure the journey never declared/,
   },
 ];
 

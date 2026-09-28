@@ -16,8 +16,8 @@ export default {
     {
       kind: 'replace',
       path: 'architecture/web-baseline.json',
-      old: '    "apps/web/src/features/review/views/commit-form.tsx": 1,\n    "apps/web/src/features/review/views/file-navigation.tsx": 1,\n    "apps/web/src/features/review/views/patch-focus.ts": 3,',
-      new: '    "apps/web/src/features/review/views/commit-form.tsx": 1,\n    "apps/web/src/features/files/views/file-editor.tsx": 1,\n    "apps/web/src/features/review/views/file-navigation.tsx": 1,\n    "apps/web/src/features/review/views/patch-focus.ts": 3,',
+      old: '"porcelain/web-views-no-loops": {',
+      new: '"porcelain/web-views-no-loops": {\n    "apps/web/src/features/files/views/file-editor.tsx": 1,',
     },
   ],
 } satisfies Probe;

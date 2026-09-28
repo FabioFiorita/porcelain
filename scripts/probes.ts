@@ -12,6 +12,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseArgs, stripVTControlCharacters } from 'node:util';
 import { z } from 'zod';
+import { edited, preflightAt } from '../architecture/probe-edits.ts';
 import {
   liveRuleNames,
   probeSchema,
@@ -26,7 +27,11 @@ type Planted = { touched: Set<string>; files: string[]; folders: string[] };
 type Verdict = 'rejected' | 'NOT REJECTED' | 'STALE';
 type Outcome = { verdict: Verdict; detail: string[] };
 type Shard = { index: number; count: number };
-type Selection = { named: readonly string[]; shard: Shard | undefined };
+type Selection = {
+  named: readonly string[];
+  shard: Shard | undefined;
+  check: boolean;
+};
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const probeFolder = join(root, 'architecture', 'probes');
@@ -124,7 +129,10 @@ function parsedShard(value: string): Shard {
 function selection(args: readonly string[]): Selection {
   const { values, positionals } = parseArgs({
     args: [...args],
-    options: { shard: { type: 'string', multiple: true } },
+    options: {
+      shard: { type: 'string', multiple: true },
+      check: { type: 'boolean', default: false },
+    },
     allowPositionals: true,
     strict: true,
   });
@@ -139,6 +147,7 @@ function selection(args: readonly string[]): Selection {
   return {
     named: positionals,
     shard: shard === undefined ? undefined : parsedShard(shard),
+    check: values.check,
   };
 }
 
@@ -203,19 +212,6 @@ function missingFolders(path: string): string[] {
   )
     folders.push(folder);
   return folders;
-}
-
-function edited(text: string, edit: ProbeEdit): string {
-  if (edit.kind === 'append') return text + edit.content;
-  if (edit.kind === 'prepend') return edit.content + text;
-  if (edit.kind !== 'replace') return text;
-  if (!text.includes(edit.old))
-    throw new Error(
-      `${edit.path} no longer holds the text the probe replaces: ${JSON.stringify(edit.old.slice(0, 80))}`,
-    );
-  return edit.all
-    ? text.replaceAll(edit.old, edit.new)
-    : text.replace(edit.old, edit.new);
 }
 
 function plant(edits: readonly ProbeEdit[], planted: Planted): void {
@@ -361,21 +357,41 @@ function table(probes: readonly LoadedProbe[]) {
 async function main(): Promise<number> {
   const started = performance.now();
   const selected = selection(process.argv.slice(2));
+  const { chosen: probes, scope } = chosenProbes(await loadProbes(), selected);
+  const stale = probes.flatMap((probe) => {
+    try {
+      preflightAt(root, probe.edits);
+      return [];
+    } catch (error) {
+      return [
+        `${probe.id}: ${error instanceof Error ? error.message : String(error)}`,
+      ];
+    }
+  });
+  if (stale.length > 0)
+    throw new Error(
+      `Probe preflight failed before running any gate:\n${stale.join('\n')}`,
+    );
+  process.stdout.write(
+    `Preflight: ${probes.length} fixtures ready (${Math.round(performance.now() - started)} ms).\n`,
+  );
+  if (selected.check) return 0;
   const pending = changedPaths();
   if (pending !== '')
     throw new Error(
       `Commit or discard every change first; the probes plant into this checkout and restore it with git checkout:\n${pending}`,
     );
-  const { chosen: probes, scope } = chosenProbes(await loadProbes(), selected);
   const { header, row } = table(probes);
   process.stdout.write(scope + header);
   let rejected = 0;
+  let attempted = 0;
   const gateTime = new Map<ProbeGate, { count: number; durationMs: number }>();
   for (const probe of probes) {
     if (interrupted) break;
     process.stdout.write(`RUN ${probe.id} (${probe.gate})\n`);
     const probeStarted = performance.now();
     const outcome = await attempt(probe);
+    attempted += 1;
     const durationMs = Math.round(performance.now() - probeStarted);
     const timed = gateTime.get(probe.gate) ?? { count: 0, durationMs: 0 };
     gateTime.set(probe.gate, {
@@ -387,6 +403,7 @@ async function main(): Promise<number> {
       row(probe, `${outcome.verdict} (${(durationMs / 1000).toFixed(1)} s)`),
     );
     for (const line of outcome.detail) process.stdout.write(`    ${line}\n`);
+    if (outcome.verdict !== 'rejected') break;
   }
   for (const [gate, timed] of [...gateTime].toSorted(
     (left, right) => right[1].durationMs - left[1].durationMs,
@@ -395,7 +412,7 @@ async function main(): Promise<number> {
       `Gate time: ${gate} ${(timed.durationMs / 1000).toFixed(1)} s across ${timed.count} probes.\n`,
     );
   process.stdout.write(
-    `${rejected} of ${probes.length} probes rejected${interrupted ? '; interrupted' : ''} in ${((performance.now() - started) / 1000).toFixed(1)} s.\n`,
+    `${rejected} of ${attempted} attempted probes rejected; ${probes.length - attempted} not run${interrupted ? '; interrupted' : ''} in ${((performance.now() - started) / 1000).toFixed(1)} s.\n`,
   );
   return interrupted || rejected !== probes.length ? 1 : 0;
 }

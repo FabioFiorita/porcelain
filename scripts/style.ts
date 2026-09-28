@@ -21,6 +21,7 @@ import {
   unknownRule,
 } from '../architecture/probe.ts';
 import { compilerFindings } from '../architecture/react-compiler.ts';
+import { manualAuditProblems } from '../architecture/ci-policy.ts';
 
 const [mode, target] = process.argv.slice(2);
 if (
@@ -142,63 +143,12 @@ const pinnedWorkflows = [
   '.github/workflows/probes.yml',
 ] as const;
 
-const workflowSchema = z.object({
-  jobs: z.record(
-    z.string(),
-    z.object({
-      strategy: z.object({ matrix: z.unknown() }).optional(),
-      steps: z.array(z.object({ run: z.string().optional() })),
-    }),
-  ),
-});
-
-const probeRun = /^pnpm probes(?:\s|$)/;
-const shardRun = /^pnpm probes --shard \$\{\{ matrix\.shard \}\}\/([1-9]\d*)$/;
-
 function workflowDocument(path: string): unknown {
   if (!existsSync(path)) return undefined;
   const document = parseDocument(readFileSync(path, 'utf8'));
   if (document.errors.length > 0) return undefined;
   const parsed: unknown = document.toJS();
   return parsed;
-}
-
-function probeShardProblems(
-  documents: ReadonlyMap<string, unknown>,
-): Problem[] {
-  const running = [...documents].flatMap(([path, document]) => {
-    const workflow = workflowSchema.safeParse(document);
-    if (!workflow.success) return [];
-    return Object.entries(workflow.data.jobs).flatMap(([name, job]) => {
-      const runs = job.steps.flatMap((step) =>
-        step.run !== undefined && probeRun.test(step.run) ? [step.run] : [],
-      );
-      return runs.length > 0
-        ? [{ where: `${path} job ${name}`, job, runs }]
-        : [];
-    });
-  });
-  const [only, ...others] = running;
-  if (only === undefined || others.length > 0)
-    return [
-      problem(
-        'probe-shards',
-        `${running.length === 0 ? 'no pinned workflow job runs' : `${running.map(({ where }) => where).join(', ')} all run`} pnpm probes; one CI job runs the probes as matrix shards, so every push plants every probe once within the job timeout.`,
-      ),
-    ];
-  const [run, ...extra] = only.runs;
-  const count = Number(shardRun.exec(run ?? '')?.[1] ?? 0);
-  const shards = Array.from({ length: count }, (_, index) => index + 1);
-  return count > 0 &&
-    extra.length === 0 &&
-    isDeepStrictEqual(only.job.strategy?.matrix, { shard: shards })
-    ? []
-    : [
-        problem(
-          'probe-shards',
-          `${only.where} runs ${JSON.stringify(only.runs)} over the matrix ${JSON.stringify(only.job.strategy?.matrix ?? null)}; the job runs one step, pnpm probes --shard \${{ matrix.shard }}/<N>, over the matrix shard: [1, ..., N] with nothing else, so the shards together plant every probe exactly once.`,
-        ),
-      ];
 }
 
 function ciProblems(): Problem[] {
@@ -227,7 +177,9 @@ function ciProblems(): Problem[] {
           `architecture/sanctioned/ci.json lists ${path}, which the CI check does not read; every sanctioned workflow is checked.`,
         ),
       ),
-    ...probeShardProblems(documents),
+    ...manualAuditProblems(documents).map((message) =>
+      problem('manual-audits', message),
+    ),
     ...(isDeepStrictEqual(lefthookConfig(), sanctioned.lefthook)
       ? []
       : [
