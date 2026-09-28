@@ -1,8 +1,12 @@
-import type { ErrorComponentProps } from '@tanstack/react-router';
+import { type ErrorComponentProps, useRouter } from '@tanstack/react-router';
 import { useWorkspaceRetry } from '@/features/access/index';
 
 export function WorkspaceError({ reset }: ErrorComponentProps) {
-  useWorkspaceRetry(reset);
+  const router = useRouter();
+  useWorkspaceRetry(() => {
+    reset();
+    void router.invalidate();
+  });
 
   return (
     <section role="alert" className="flex flex-col gap-3 p-6">

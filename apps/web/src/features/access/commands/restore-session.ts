@@ -8,23 +8,20 @@ export async function restoreSession(client: QueryClient) {
   if (restored) return true;
   const complete = useAccessStore.getState().beginConnection(true);
   if (!complete) return false;
-  try {
-    const inventory = await client.query({
-      ...sessionQueryOptions(),
-      staleTime: 'static',
+  const inventory = await client.query({
+    ...sessionQueryOptions(),
+    staleTime: 'static',
+  });
+  if (inventory === null) return false;
+  if (complete(inventory)) {
+    client.clear();
+    client.setQueryData(
+      queryKeys.inventory(inventory.environmentId),
+      inventory,
+    );
+    void client.invalidateQueries({
+      queryKey: queryKeys.inventory(inventory.environmentId),
     });
-    if (complete(inventory)) {
-      client.clear();
-      client.setQueryData(
-        queryKeys.inventory(inventory.environmentId),
-        inventory,
-      );
-      void client.invalidateQueries({
-        queryKey: queryKeys.inventory(inventory.environmentId),
-      });
-    }
-  } catch {
-    return false;
   }
   return useAccessStore.getState().connection !== null;
 }

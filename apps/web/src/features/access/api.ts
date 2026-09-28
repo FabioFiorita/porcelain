@@ -16,7 +16,7 @@ export type PairingPort = {
 };
 
 export type SessionPort = {
-  restore(signal: AbortSignal): Promise<ReadInventoryResponse>;
+  restore(signal: AbortSignal): Promise<ReadInventoryResponse | null>;
   disconnect(): Promise<void>;
 };
 
@@ -84,7 +84,11 @@ function createSessionApi(
         redirect: 'error',
         cache: 'no-store',
       });
-      if (!response.ok) throw new Error('No active browser session');
+      if (response.status === 401) return null;
+      if (!response.ok)
+        throw new ConnectionError(
+          'Could not reach Porcelain to restore this browser session.',
+        );
       return readInventoryResponseSchema.parse(await response.json());
     },
     async disconnect() {

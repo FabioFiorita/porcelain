@@ -8,6 +8,7 @@ import { useState } from 'react';
 import { restoreSession, useAccessStore } from '@/features/access/index';
 import { ProjectWorkspaceProvider } from '@/features/projects/index';
 import { ReviewShell } from '@/app/review-shell';
+import { WorkspaceError } from '@/app/workspace-error';
 import { WorkspacePending } from '@/app/workspace-pending';
 
 export const Route = createFileRoute('/_paired')({
@@ -18,6 +19,7 @@ export const Route = createFileRoute('/_paired')({
   pendingMs: 0,
   pendingMinMs: 0,
   pendingComponent: WorkspacePending,
+  errorComponent: WorkspaceError,
   component: PairedLayout,
 });
 
