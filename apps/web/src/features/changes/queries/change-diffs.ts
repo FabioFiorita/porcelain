@@ -1,4 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
+import { DIFFS_PER_REQUEST } from '@porcelain/contracts/shared';
+import { useQueries } from '@tanstack/react-query';
 import { queryKeys } from '@/shared/query/keys';
 import { changesApi, isWorktreeChangedError } from '../api';
 import {
@@ -10,6 +11,7 @@ import {
   type DiffContent,
   type ExpectedFile,
 } from '../rules/changes';
+import { diffBatches } from '../rules/diff-batches';
 import { useChangesStore } from '../store';
 
 export function useChangeDiffs(
@@ -29,48 +31,49 @@ export function useChangeDiffs(
   const recovering = useChangesStore(
     (state) => state.pending[key] === statusToken,
   );
-  const wanted = [...selections].sort((left, right) =>
-    selectionKey(left).localeCompare(selectionKey(right)),
-  );
-  const query = useQuery({
-    queryKey: queryKeys.reviewSurface(connection.environmentId, scope, [
-      'change-diffs',
-      statusToken,
-      [...expectedFiles]
-        .map((file) => `${file.path}:${file.fingerprint ?? ''}`)
-        .sort(),
-      wanted.map(selectionKey),
-    ]),
-    enabled: wanted.length > 0,
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
-    queryFn: async ({ signal }) => {
-      const request = connection.request(signal);
-      const data = await changesApi.diffs(request.signal, scope.worktreeId, {
-        expectedStatusToken: statusToken,
-        expectedFiles: [...expectedFiles].sort((left, right) =>
-          left.path.localeCompare(right.path),
+  const batches = diffBatches(expectedFiles, selections, DIFFS_PER_REQUEST);
+  const results = useQueries({
+    queries: batches.map((batch) => ({
+      queryKey: queryKeys.reviewSurface(connection.environmentId, scope, [
+        'change-diffs',
+        statusToken,
+        batch.expectedFiles.map(
+          (file) => `${file.path}:${file.fingerprint ?? ''}`,
         ),
-        selections: wanted,
-      });
-      request.signal.throwIfAborted();
-      return new Map(
-        data.diffs.map(({ selection, content }) => [
-          selectionKey(selection),
-          content,
-        ]),
-      );
-    },
-    retry: (_failureCount, error) => {
-      if (isWorktreeChangedError(error)) recover(statusToken);
-      return false;
-    },
-    throwOnError: false,
+        batch.selections.map(selectionKey),
+      ]),
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      queryFn: async ({ signal }: { signal: AbortSignal }) => {
+        const request = connection.request(signal);
+        const data = await changesApi.diffs(request.signal, scope.worktreeId, {
+          expectedStatusToken: statusToken,
+          expectedFiles: batch.expectedFiles,
+          selections: batch.selections,
+        });
+        request.signal.throwIfAborted();
+        return data.diffs.map(
+          ({ selection, content }) =>
+            [selectionKey(selection), content] as const,
+        );
+      },
+      retry: (_failureCount: number, error: Error) => {
+        if (isWorktreeChangedError(error)) recover(statusToken);
+        return false;
+      },
+      throwOnError: false,
+    })),
   });
   return {
-    diffs: query.data ?? new Map<string, DiffContent>(),
-    pending: (wanted.length > 0 && query.isPending) || recovering,
-    failed: query.isError && !recovering,
-    retry: () => void query.refetch(),
+    diffs: new Map<string, DiffContent>(
+      results.every((result) => result.data !== undefined)
+        ? results.flatMap((result) => result.data ?? [])
+        : [],
+    ),
+    pending: results.some((result) => result.isPending) || recovering,
+    failed: results.some((result) => result.isError) && !recovering,
+    retry: () => {
+      for (const result of results) if (result.isError) void result.refetch();
+    },
   };
 }
