@@ -3,7 +3,7 @@ module.exports = {
     {
       name: 'no-circular-source-imports',
       severity: 'error',
-      from: { path: '^(apps/server/src/|packages/)' },
+      from: { path: '^(apps/server/src/|apps/web/src/|packages/)' },
       to: { circular: true },
     },
     {

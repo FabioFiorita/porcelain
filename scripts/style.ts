@@ -864,14 +864,14 @@ async function configModuleProblems(): Promise<Problem[]> {
         forbidden.find((rule) => rule.name === name)?.severity !== 'error',
     ) ||
     !isDeepStrictEqual(circular?.from, {
-      path: '^(apps/server/src/|packages/)',
+      path: '^(apps/server/src/|apps/web/src/|packages/)',
     }) ||
     !isDeepStrictEqual(circular?.to, { circular: true })
   )
     problems.push(
       problem(
         'cruiser-config',
-        'architecture/dependency-cruiser.cjs keeps its forbidden rules as errors, and the circular-import rule covers the server and every package.',
+        'architecture/dependency-cruiser.cjs keeps its forbidden rules as errors, and the circular-import rule covers the server, the web and every package.',
       ),
     );
   return problems;
