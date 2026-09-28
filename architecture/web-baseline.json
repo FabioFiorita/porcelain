@@ -21,7 +21,6 @@
   "porcelain/web-no-empty-catch": {
     "apps/web/src/app/workspace-provider.tsx": 1,
     "apps/web/src/features/review/views/use-code-folds.ts": 1,
-    "apps/web/src/features/review/views/use-tab-layout.ts": 2,
     "apps/web/src/shared/workspace/preferences.tsx": 1
   },
   "porcelain/web-no-manual-memo": {
@@ -34,7 +33,6 @@
   },
   "porcelain/web-store-owns-storage": {
     "apps/web/src/features/review/views/use-code-folds.ts": 2,
-    "apps/web/src/features/review/views/use-tab-layout.ts": 4,
     "apps/web/src/shared/workspace/preferences.tsx": 2
   },
   "porcelain/web-timers-in-commands-and-store": {
@@ -60,13 +58,11 @@
   },
   "porcelain/web-views-no-try": {
     "apps/web/src/app/workspace-provider.tsx": 1,
-    "apps/web/src/features/review/views/use-code-folds.ts": 2,
-    "apps/web/src/features/review/views/use-tab-layout.ts": 4
+    "apps/web/src/features/review/views/use-code-folds.ts": 2
   },
   "style/react-compiler": {
     "apps/web/src/app/workspace-provider.tsx": 1,
-    "apps/web/src/features/review/views/published-layer.tsx": 1,
-    "apps/web/src/features/review/views/use-tab-layout.ts": 1
+    "apps/web/src/features/review/views/published-layer.tsx": 1
   },
   "typescript/no-deprecated": {
     "apps/web/src/app/workspace-provider.tsx": 2,
@@ -100,7 +96,6 @@
     "apps/web/src/features/review/views/commit-document.tsx": 1,
     "apps/web/src/features/review/views/diff-entries.ts": 1,
     "apps/web/src/features/review/views/document-interaction.tsx": 1,
-    "apps/web/src/features/review/views/document-tabs.tsx": 1,
     "apps/web/src/features/review/views/document-toolbar.tsx": 1,
     "apps/web/src/features/review/views/documents.tsx": 1,
     "apps/web/src/features/review/views/file-document.tsx": 1,
@@ -114,11 +109,9 @@
     "apps/web/src/features/review/views/review-sidebar.tsx": 1,
     "apps/web/src/features/review/views/review-workspace.tsx": 1,
     "apps/web/src/features/review/views/unexplained-document.tsx": 1,
-    "apps/web/src/features/review/views/use-code-folds.ts": 1,
-    "apps/web/src/features/review/views/use-tab-layout.ts": 1
+    "apps/web/src/features/review/views/use-code-folds.ts": 1
   },
   "unused-export": {
-    "apps/web/src/features/review/views/document-tabs.tsx": 1,
     "apps/web/src/shared/lib/pierre.ts": 1,
     "apps/web/src/shared/query/live-updates.ts": 2
   },

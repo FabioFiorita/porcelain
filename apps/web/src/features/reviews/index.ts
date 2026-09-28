@@ -22,3 +22,5 @@ export type { Graph } from './views/review-diagram';
 export { ReviewIndex } from './views/review-index';
 export { ThreadCard } from './views/thread-card';
 export { PierreWorkers } from './adapters/pierre-workers';
+export { useTabLayout, type PaneIndex } from './adapters/tab-layout';
+export { DocumentTabs } from './views/document-tabs';

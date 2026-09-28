@@ -46,6 +46,9 @@ import {
   type ReviewLayer,
   type Surface,
   usePublishedReview,
+  DocumentTabs,
+  type PaneIndex,
+  useTabLayout,
 } from '@/features/reviews/index';
 import type { Project } from '@/features/projects/index';
 import {
@@ -56,11 +59,9 @@ import {
 import { useConnectedContext } from '@/app/workspace-provider';
 
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
-import { DocumentTabs } from './document-tabs';
 import { DocumentView } from './documents';
 import { ReviewBoundary } from './review-boundary';
 import { ReviewSidebar } from './review-sidebar';
-import { type PaneIndex, useTabLayout } from './use-tab-layout';
 
 type Worktree = Project['worktrees'][number];
 const desktopReviewQuery = '(min-width: 1280px)';

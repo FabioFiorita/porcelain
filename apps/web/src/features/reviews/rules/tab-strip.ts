@@ -1,4 +1,4 @@
-import { withDocument } from './documents';
+import { parseEntry, withDocument } from './documents';
 
 export type Pane = { tabs: string[]; pinned: string[] };
 
@@ -63,4 +63,33 @@ export function neighbourAfterClose(
     ...order.slice(0, index).reverse(),
   ];
   return candidates.find((candidate) => remaining.has(candidate)) ?? null;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function knownEntries(entries: unknown): string[] {
+  return Array.isArray(entries)
+    ? entries.filter(
+        (entry): entry is string =>
+          typeof entry === 'string' && parseEntry(entry) != null,
+      )
+    : [];
+}
+
+export function parseTabLayout(value: unknown): Pane[] | null {
+  if (!isRecord(value) || !Array.isArray(value.panes)) return null;
+  const panes = value.panes
+    .map((pane: unknown) => {
+      const tabs = knownEntries(isRecord(pane) ? pane.tabs : undefined);
+      return {
+        tabs,
+        pinned: knownEntries(isRecord(pane) ? pane.pinned : undefined).filter(
+          (key) => tabs.includes(key),
+        ),
+      };
+    })
+    .filter((pane, index) => index === 0 || pane.tabs.length > 0);
+  return panes.length > 0 ? panes : null;
 }

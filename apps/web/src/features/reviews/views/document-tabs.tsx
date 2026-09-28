@@ -28,12 +28,8 @@ import {
 import { ScrollBar } from '@/components/ui/scroll-area';
 import { shortOid } from '@/features/history/index';
 import { cn } from '@/shared/lib/utils';
-import {
-  parseEntry,
-  basename,
-  type ReviewLayer,
-} from '@/features/reviews/index';
-
+import { parseEntry } from '../rules/documents';
+import { basename, type ReviewLayer } from '../rules/review';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
 import { FileTypeIcon } from '@/features/files/index';
 
@@ -94,7 +90,7 @@ function describeTab(key: string, layers: readonly Layer[]) {
   }
 }
 
-export type TabActions = {
+type TabActions = {
   onActivate: (key: string) => void;
   onClose: (key: string) => void;
   onCloseOthers: (key: string) => void;

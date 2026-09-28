@@ -1,5 +1,6 @@
 import { useNavigate } from '@tanstack/react-router';
 import { useEffect, useRef, useState } from 'react';
+import { parseEntry } from '../rules/documents';
 import {
   closeInPane,
   closeOthersInPane,
@@ -8,53 +9,13 @@ import {
   neighbourAfterClose,
   openInPane,
   orderedTabs,
-  parseEntry,
   type Pane,
   togglePinInPane,
-} from '@/features/reviews/index';
+} from '../rules/tab-strip';
+import { useTabLayoutStore } from '../store';
 
 export type PaneIndex = 0 | 1;
-type Stored = { panes: Pane[] };
-
-function hasStoredLayout(key: string) {
-  try {
-    return localStorage.getItem(key) != null;
-  } catch {
-    return false;
-  }
-}
-
-function readStored(key: string): Stored | null {
-  try {
-    const parsed: unknown = JSON.parse(localStorage.getItem(key) ?? 'null');
-    if (!isRecord(parsed) || !Array.isArray(parsed.panes)) return null;
-    const known = (entries: unknown) =>
-      Array.isArray(entries)
-        ? entries.filter(
-            (entry): entry is string =>
-              typeof entry === 'string' && parseEntry(entry) != null,
-          )
-        : [];
-    const panes = parsed.panes
-      .map((pane: unknown) => {
-        const tabs = known(isRecord(pane) ? pane.tabs : undefined);
-        return {
-          tabs,
-          pinned: known(isRecord(pane) ? pane.pinned : undefined).filter(
-            (key) => tabs.includes(key),
-          ),
-        };
-      })
-      .filter((pane, index) => index === 0 || pane.tabs.length > 0);
-    return panes.length > 0 ? { panes } : null;
-  } catch {
-    return null;
-  }
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
-}
+type Target = string | null | undefined;
 
 export function useTabLayout({
   worktreeId,
@@ -71,16 +32,17 @@ export function useTabLayout({
   focused: PaneIndex;
   setFocused: (pane: PaneIndex) => void;
 }) {
-  const storageKey = `porcelain.tabs.${worktreeId}`;
-  const [hadStoredLayout] = useState(() => hasStoredLayout(storageKey));
-  const [stored, setStored] = useState<Stored | null>(() =>
-    readStored(storageKey),
-  );
-  const lastActive = useRef<[string | null, string | null]>([null, null]);
+  const { panes: stored, saved, save } = useTabLayoutStore(worktreeId);
+  const [hadStoredLayout] = useState(saved);
+  const [pending, setPending] = useState<[Target, Target]>([
+    undefined,
+    undefined,
+  ]);
+  const [lastActive, setLastActive] = useState<[string | null, string | null]>([
+    null,
+    null,
+  ]);
   const fallbackHandled = useRef(false);
-  const pending = useRef<
-    [string | null | undefined, string | null | undefined]
-  >([undefined, undefined]);
   const navigate = useNavigate({ from: '/' });
   const urlActive: [string | undefined, string | undefined] = [
     entry != null && parseEntry(entry) != null ? entry : undefined,
@@ -103,11 +65,11 @@ export function useTabLayout({
   }, [entry, side, navigate]);
 
   const current = (index: PaneIndex): string | undefined => {
-    const target = pending.current[index];
+    const target = pending[index];
     return target === undefined ? urlActive[index] : (target ?? undefined);
   };
 
-  const base: Pane[] = stored?.panes ?? [
+  const base: Pane[] = stored ?? [
     fallback == null ? emptyPane() : { tabs: [fallback], pinned: [] },
   ];
   const actives: [string | null, string | null] = [
@@ -120,46 +82,35 @@ export function useTabLayout({
   ];
 
   const panes: Pane[] = [
-    openInPane(base[0] ?? emptyPane(), actives[0] ?? '', lastActive.current[0]),
+    openInPane(base[0] ?? emptyPane(), actives[0] ?? '', lastActive[0]),
   ];
   if (actives[0] == null) panes[0] = base[0] ?? emptyPane();
   if (actives[1] != null)
-    panes[1] = openInPane(
-      base[1] ?? emptyPane(),
-      actives[1],
-      lastActive.current[1],
-    );
+    panes[1] = openInPane(base[1] ?? emptyPane(), actives[1], lastActive[1]);
   else if (base[1]?.tabs.length) panes[1] = base[1];
-
-  const persist = (next: Stored) => {
-    try {
-      localStorage.setItem(storageKey, JSON.stringify(next));
-    } catch {}
-    setStored(next);
-  };
+  const split = panes.length > 1;
 
   useEffect(() => {
-    for (const index of [0, 1] as const) {
-      const target = pending.current[index];
-      if (
-        target !== undefined &&
-        (urlActive[index] ?? null) === (target ?? null)
-      )
-        pending.current[index] = undefined;
-    }
-    lastActive.current = actives;
-    if (focused === 1 && panes.length < 2) setFocused(0);
-    if (
-      stored != null &&
-      JSON.stringify(stored.panes) === JSON.stringify(panes)
-    )
+    const settled = pending.map((target, index) =>
+      target !== undefined && (urlActive[index] ?? null) === (target ?? null)
+        ? undefined
+        : target,
+    );
+    if (settled[0] !== pending[0] || settled[1] !== pending[1])
+      setPending([settled[0], settled[1]]);
+    if (lastActive[0] !== actives[0] || lastActive[1] !== actives[1])
+      setLastActive(actives);
+    if (focused === 1 && !split) setFocused(0);
+    if (stored != null && JSON.stringify(stored) === JSON.stringify(panes))
       return;
-    persist({ panes });
+    save(panes);
   });
 
   const go = (updates: { entry?: string | null; side?: string | null }) => {
-    if ('entry' in updates) pending.current[0] = updates.entry ?? null;
-    if ('side' in updates) pending.current[1] = updates.side ?? null;
+    setPending((previous) => [
+      'entry' in updates ? (updates.entry ?? null) : previous[0],
+      'side' in updates ? (updates.side ?? null) : previous[1],
+    ]);
     void navigate({
       search: (previous) => ({
         ...previous,
@@ -174,14 +125,14 @@ export function useTabLayout({
     panes.map((currentPane, i) => (i === index ? pane : currentPane));
 
   const settle = (index: PaneIndex, next: Pane, activeAfter: string | null) => {
-    if (panes.length === 2 && next.tabs.length === 0) {
+    if (split && next.tabs.length === 0) {
       const other: PaneIndex = index === 0 ? 1 : 0;
-      persist({ panes: [panes[other] ?? emptyPane()] });
+      save([panes[other] ?? emptyPane()]);
       setFocused(0);
       go({ entry: actives[other], side: null });
       return;
     }
-    persist({ panes: replacePane(index, next) });
+    save(replacePane(index, next));
     if (activeAfter !== actives[index]) goPane(index, activeAfter);
   };
 
@@ -195,20 +146,16 @@ export function useTabLayout({
     )
       return;
     fallbackHandled.current = true;
-    const next = { panes: [{ tabs: [fallback], pinned: [] }] };
-    try {
-      localStorage.setItem(storageKey, JSON.stringify(next));
-    } catch {}
-    setStored(next);
-    pending.current[0] = fallback;
+    save([{ tabs: [fallback], pinned: [] }]);
+    setPending((previous) => [fallback, previous[1]]);
     void navigate({
       search: (previous) => ({ ...previous, entry: fallback }),
       replace: true,
     });
-  }, [entry, fallback, hadStoredLayout, navigate, side, storageKey]);
+  }, [entry, fallback, hadStoredLayout, navigate, side, save]);
 
   return {
-    split: panes.length === 2,
+    split,
     panes: panes.map((pane, index) => ({
       tabs: orderedTabs(pane),
       pinned: pane.pinned,
@@ -244,12 +191,9 @@ export function useTabLayout({
       );
     },
     togglePin(index: PaneIndex, key: string) {
-      persist({
-        panes: replacePane(
-          index,
-          togglePinInPane(panes[index] ?? emptyPane(), key),
-        ),
-      });
+      save(
+        replacePane(index, togglePinInPane(panes[index] ?? emptyPane(), key)),
+      );
     },
     openToSide(index: PaneIndex, key: string) {
       const target: PaneIndex = index === 0 ? 1 : 0;
@@ -259,7 +203,7 @@ export function useTabLayout({
         key,
         actives[target],
       );
-      persist({ panes: next });
+      save(next);
       setFocused(target);
       goPane(target, key);
     },
