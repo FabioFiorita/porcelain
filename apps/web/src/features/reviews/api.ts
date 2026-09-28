@@ -3,6 +3,8 @@ import {
   listReviewedLayersResponseSchema,
   readPublishedReviewResponseSchema,
   removeReviewedFileResponseSchema,
+  removeReviewedFilesRequestSchema,
+  removeReviewedFilesResponseSchema,
   removeReviewedLayerResponseSchema,
   setReviewedFileRequestSchema,
   setReviewedFileResponseSchema,
@@ -149,6 +151,17 @@ export function createReviewsLive(transport: typeof fetch): ReviewsPort {
           `${reviewed(worktreeId)}?${new URLSearchParams({ path })}`,
           removeReviewedFileResponseSchema,
           { method: 'DELETE', signal },
+        ),
+      removeAll: ({ worktreeId, signal, paths }) =>
+        requestJson(
+          transport,
+          `${worktreePath(worktreeId)}/reviewed-bulk`,
+          removeReviewedFilesResponseSchema,
+          {
+            method: 'DELETE',
+            ...json(removeReviewedFilesRequestSchema.parse({ paths })),
+            signal,
+          },
         ),
     },
     reviewedLayers: {

@@ -30,6 +30,9 @@ export type ReviewsPort = {
     remove: (
       request: ReviewRequest & { path: string },
     ) => Promise<ReviewedMarksResponse>;
+    removeAll: (
+      request: ReviewRequest & { paths: readonly string[] },
+    ) => Promise<ReviewedMarksResponse>;
   };
   reviewedLayers: {
     list: (request: ReviewRequest) => Promise<ListReviewedLayersResponse>;

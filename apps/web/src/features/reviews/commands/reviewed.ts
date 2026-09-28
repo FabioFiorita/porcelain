@@ -79,7 +79,6 @@ export function useMarkAllReviewed(
 ) {
   const reviewed = reviewedContext(scope, context);
   const client = useQueryClient();
-  const unmarkOne = useUnmarkOne(scope, context);
   const bulk = useMutation({
     mutationFn: async (entries: readonly ReviewChangeItem[]) => {
       const { report, files } = bulkMarkPlan(entries);
@@ -102,9 +101,18 @@ export function useMarkAllReviewed(
     },
   });
   const unmark = useMutation({
-    mutationFn: async (paths: readonly string[]) => {
-      for (const path of paths) await unmarkOne(path);
-    },
+    mutationFn: (paths: readonly string[]) =>
+      enqueueReviewedMany(
+        reviewed,
+        client,
+        paths.map((path) => ({ path })),
+        async () => {
+          const request = reviewed.request();
+          const result = await reviewed.api.removeAll({ ...request, paths });
+          request.signal.throwIfAborted();
+          return result;
+        },
+      ),
   });
   return {
     report: visibleBulkReport(
