@@ -79,4 +79,4 @@ pnpm dlx @puppeteer/browsers@3.2.3 install chrome@154.0.8037.57 --path "$HOME/.c
 
 Set `PORCELAIN_CHROME_PATH` to an existing Chrome executable for a different installation. On hosts where Chrome's sandbox cannot start, set `PORCELAIN_CHROME_NO_SANDBOX=1` for `pnpm devtools start`.
 
-Before reporting a web feature complete, follow `AGENTS.md`: `pnpm check` and affected journeys once. For an architecture or verifier change, run `pnpm probes --check`, affected native rule fixtures and named integration probes. The exhaustive probe suite is an explicit maintenance audit. A red result is a concrete refactor target; do not relax a guard to turn it green.
+Before reporting a web feature complete, follow `AGENTS.md`: `pnpm check` and affected journeys once. For an architecture or verifier change, follow the guardrail stage in `AGENTS.md`: lint rules prove themselves with fixtures in `architecture/rule-cases.mjs`, the rest with the probes you touched by name. The exhaustive probe suite is an explicit maintenance audit. A red result is a concrete refactor target; do not relax a guard to turn it green.

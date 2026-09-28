@@ -2,8 +2,10 @@ import { fileURLToPath } from 'node:url';
 import { deepStrictEqual, throws } from 'node:assert/strict';
 import { RuleTester } from 'oxlint/plugins-dev';
 import plugin from './oxlint-plugin.mjs';
+import ruleCases from './rule-cases.mjs';
 import { manualAuditProblems } from './ci-policy.ts';
 import { preflightEdits } from './probe-edits.ts';
+import { settleBaseline } from './baseline.ts';
 
 const root = new URL('../', import.meta.url);
 const filename = fileURLToPath(
@@ -124,17 +126,40 @@ const cases = [
   },
 ];
 const started = performance.now();
-for (const entry of cases) {
+for (const entry of cases)
   tester.run(entry.rule, plugin.rules[entry.rule], {
     valid: [{ filename: entry.allowed ?? filename, code: entry.valid }],
     invalid: [
       { filename, code: entry.invalid, errors: [{ message: entry.message }] },
     ],
   });
-  process.stdout.write(`PASS ${entry.rule}: valid and invalid fixtures\n`);
+for (const entry of ruleCases) {
+  const at = fileURLToPath(new URL(entry.path, root));
+  try {
+    tester.run(entry.rule, plugin.rules[entry.rule], {
+      valid:
+        entry.valid === undefined ? [] : [{ filename: at, code: entry.valid }],
+      invalid: [{ filename: at, code: entry.invalid, errors: entry.errors }],
+    });
+  } catch (error) {
+    throw new Error(`${entry.rule} fixture at ${entry.path}`, {
+      cause: error,
+    });
+  }
 }
+const fixtured = new Set([
+  ...cases.map((entry) => entry.rule),
+  ...ruleCases.map((entry) => entry.rule),
+]);
+const unfixtured = Object.keys(plugin.rules).filter(
+  (rule) => !fixtured.has(rule),
+);
+if (unfixtured.length > 0)
+  throw new Error(
+    `Every porcelain rule has a fixture its rule rejects in architecture/rule-cases.mjs; these have none: ${unfixtured.join(', ')}`,
+  );
 process.stdout.write(
-  `Rule fixtures: ${Math.round(performance.now() - started)} ms.\n`,
+  `PASS ${fixtured.size} rules, ${cases.length + ruleCases.length} fixtures (${Math.round(performance.now() - started)} ms)\n`,
 );
 
 const path = '.github/workflows/probes.yml';
@@ -230,3 +255,49 @@ throws(
 process.stdout.write(
   'PASS manual audit policy and read-only fixture preflight\n',
 );
+const held = 'apps/web/src/features/files/views/held.tsx';
+const rule = 'porcelain/web-no-empty-catch';
+const settled = (files) =>
+  settleBaseline(
+    { baseline: { [rule]: { [held]: 2 } }, problems: [] },
+    (name) => name.includes('/'),
+    Object.entries(files).flatMap(([file, count]) =>
+      Array.from({ length: count }, () => ({ rule, file })),
+    ),
+  );
+const summary = ({ reported, held: count, problems }) => ({
+  reported: reported.length,
+  held: count,
+  problems: problems.map((found) => /holds|down to|is fixed/.exec(found)?.[0]),
+});
+deepStrictEqual(summary(settled({ [held]: 2 })), {
+  reported: 0,
+  held: 2,
+  problems: [],
+});
+deepStrictEqual(summary(settled({ [held]: 3 })), {
+  reported: 3,
+  held: 0,
+  problems: ['holds'],
+});
+deepStrictEqual(summary(settled({ [held]: 1 })), {
+  reported: 0,
+  held: 1,
+  problems: ['down to'],
+});
+deepStrictEqual(summary(settled({})), {
+  reported: 0,
+  held: 0,
+  problems: ['is fixed'],
+});
+deepStrictEqual(
+  summary(
+    settled({
+      [held]: 2,
+      'apps/web/src/features/files/views/new.tsx': 1,
+      'packages/files/src/services/list.ts': 1,
+    }),
+  ),
+  { reported: 2, held: 2, problems: [] },
+);
+process.stdout.write('PASS shrink-only baseline settlement\n');

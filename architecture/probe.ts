@@ -223,9 +223,7 @@ export function unprobedRules(
       return named ? [`${named.family} ${named.name}`] : [];
     }),
   );
-  return (
-    ['porcelain', 'typescript', 'shadcn', 'style', 'arch'] as const
-  ).flatMap((family) =>
+  return (['style', 'arch'] as const).flatMap((family) =>
     names[family]
       .filter((name) => !probed.has(`${family} ${name}`))
       .map((name) => (family === 'arch' ? `${name}:` : `${family}(${name})`)),

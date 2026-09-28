@@ -110,7 +110,7 @@ async function loadProbes(): Promise<LoadedProbe[]> {
   const unprobed = unprobedRules(probes, names);
   if (unprobed.length > 0)
     throw new Error(
-      `Every rule has a probe that plants its violation; these have none: ${unprobed.join(', ')}`,
+      `Every architecture and style rule has a probe that plants its violation; these have none: ${unprobed.join(', ')}`,
     );
   return probes;
 }
