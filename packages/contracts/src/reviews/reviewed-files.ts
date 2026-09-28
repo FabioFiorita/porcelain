@@ -51,6 +51,12 @@ export const removeReviewedFileQuerySchema = z.strictObject({
 });
 export const removeReviewedFileResponseSchema = listReviewedFilesResponseSchema;
 
+export const removeReviewedFilesRequestSchema = z.strictObject({
+  paths: z.array(relativePathSchema).min(1).max(REVIEWED_FILE_MARKS),
+});
+export const removeReviewedFilesResponseSchema =
+  listReviewedFilesResponseSchema;
+
 const reviewedLayerMarkSchema = z.object({
   layerId: z.uuid(),
   fingerprint: fingerprintSchema,
@@ -92,8 +98,11 @@ export type SetReviewedFilesResponse = z.output<
 export type RemoveReviewedFileQuery = z.output<
   typeof removeReviewedFileQuerySchema
 >;
-export type RemoveReviewedFileResponse = z.output<
-  typeof removeReviewedFileResponseSchema
+export type RemoveReviewedFilesRequest = z.output<
+  typeof removeReviewedFilesRequestSchema
+>;
+export type RemoveReviewedFilesResponse = z.output<
+  typeof removeReviewedFilesResponseSchema
 >;
 export type ListReviewedLayersResponse = z.output<
   typeof listReviewedLayersResponseSchema

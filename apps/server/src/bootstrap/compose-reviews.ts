@@ -8,7 +8,7 @@ import {
   PublishReviewService,
   ReadReviewLayerService,
   ReadReviewSummaryService,
-  RemoveReviewedFileService,
+  RemoveReviewedFilesService,
   RemoveReviewedLayerService,
   ReplyToCommentService,
   SetReviewedFilesService,
@@ -27,7 +27,7 @@ import { MarkCommentsSeenUseCase } from '../use-cases/reviews/mark-comments-seen
 import { PublishReviewUseCase } from '../use-cases/reviews/publish-review.ts';
 import { ReadPublishedReviewUseCase } from '../use-cases/reviews/read-published-review.ts';
 import { ReadReviewSummaryUseCase } from '../use-cases/reviews/read-review-summary.ts';
-import { RemoveReviewedFileUseCase } from '../use-cases/reviews/remove-reviewed-file.ts';
+import { RemoveReviewedFilesUseCase } from '../use-cases/reviews/remove-reviewed-files.ts';
 import { RemoveReviewedLayerUseCase } from '../use-cases/reviews/remove-reviewed-layer.ts';
 import { RefreshReviewActivityUseCase } from '../use-cases/reviews/refresh-review-activity.ts';
 import { RefreshWorktreeReviewUseCase } from '../use-cases/reviews/refresh-worktree-review.ts';
@@ -212,9 +212,9 @@ export function composeReviews(
       laneKeys,
       events,
     ),
-    removeReviewedFile: new RemoveReviewedFileUseCase(
+    removeReviewedFiles: new RemoveReviewedFilesUseCase(
       checkWorktree,
-      new RemoveReviewedFileService(reviewedFileStore),
+      new RemoveReviewedFilesService(reviewedFileStore),
       lanes,
       laneKeys,
       events,

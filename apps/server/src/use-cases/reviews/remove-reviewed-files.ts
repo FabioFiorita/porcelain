@@ -1,40 +1,42 @@
 import type {
   RemoveReviewedFileQuery,
-  RemoveReviewedFileResponse,
+  RemoveReviewedFilesRequest,
+  RemoveReviewedFilesResponse,
 } from '@porcelain/contracts/reviews';
 import type { WorktreeParams } from '@porcelain/contracts/shared';
-import type { RemoveReviewedFileService } from '@porcelain/reviews/services';
+import type { RemoveReviewedFilesService } from '@porcelain/reviews/services';
 import type { EventPublisher } from '../../ports/event-publisher.ts';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
 import type { OperationContext } from '../../ports/operation-context.ts';
 import type { CheckWorktreeUseCasePort } from '../../ports/check-worktree-use-case-port.ts';
 
-export class RemoveReviewedFileUseCase {
+export class RemoveReviewedFilesUseCase {
   private readonly checkWorktree: CheckWorktreeUseCasePort;
-  private readonly removeReviewedFile: RemoveReviewedFileService;
+  private readonly removeReviewedFiles: RemoveReviewedFilesService;
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
   private readonly events: EventPublisher;
 
   constructor(
     checkWorktree: CheckWorktreeUseCasePort,
-    removeReviewedFile: RemoveReviewedFileService,
+    removeReviewedFiles: RemoveReviewedFilesService,
     lanes: Lanes,
     laneKeys: LaneKeys,
     events: EventPublisher,
   ) {
     this.checkWorktree = checkWorktree;
-    this.removeReviewedFile = removeReviewedFile;
+    this.removeReviewedFiles = removeReviewedFiles;
     this.lanes = lanes;
     this.laneKeys = laneKeys;
     this.events = events;
   }
 
   async execute(
-    input: WorktreeParams & RemoveReviewedFileQuery,
+    input: WorktreeParams &
+      (RemoveReviewedFileQuery | RemoveReviewedFilesRequest),
     context: OperationContext,
-  ): Promise<RemoveReviewedFileResponse> {
+  ): Promise<RemoveReviewedFilesResponse> {
     const { worktreeId } = input;
     const worktree = await this.checkWorktree.execute(
       { worktreeId, requireAvailableProject: false },
@@ -43,7 +45,11 @@ export class RemoveReviewedFileUseCase {
     const result = await this.lanes.run(
       this.laneKeys.reviews(worktree),
       'write',
-      async () => this.removeReviewedFile.execute(input),
+      async () =>
+        this.removeReviewedFiles.execute({
+          worktreeId,
+          paths: 'paths' in input ? input.paths : [input.path],
+        }),
       { callerSignal: context.signal },
     );
     const { removed, ...response } = result;

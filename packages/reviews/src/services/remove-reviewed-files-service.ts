@@ -1,27 +1,29 @@
 import type {
-  RemoveReviewedFileInput,
-  RemoveReviewedFileResult,
-} from '../models/remove-reviewed-file.ts';
+  RemoveReviewedFilesInput,
+  RemoveReviewedFilesResult,
+} from '../models/remove-reviewed-files.ts';
 import type { ReviewedFileStore } from '../ports/reviewed-file-store.ts';
 import { reviewedMarks } from '../rules/reviewed-marks.ts';
 
-export class RemoveReviewedFileService {
+export class RemoveReviewedFilesService {
   private readonly reviewedFiles: ReviewedFileStore;
 
   constructor(reviewedFiles: ReviewedFileStore) {
     this.reviewedFiles = reviewedFiles;
   }
 
-  execute(input: RemoveReviewedFileInput): RemoveReviewedFileResult {
+  execute(input: RemoveReviewedFilesInput): RemoveReviewedFilesResult {
     const { worktreeId } = input;
+    const wanted = new Set(input.paths);
     const removed = this.reviewedFiles
       .list({ worktreeId })
-      .some((mark) => mark.path === input.path);
-    if (removed) this.reviewedFiles.remove({ worktreeId, paths: [input.path] });
+      .filter((mark) => wanted.has(mark.path))
+      .map((mark) => mark.path);
+    this.reviewedFiles.remove({ worktreeId, paths: removed });
     return {
       worktreeId,
       marks: reviewedMarks(this.reviewedFiles.list({ worktreeId })),
-      removed,
+      removed: removed.length > 0,
     };
   }
 }

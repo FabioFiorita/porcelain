@@ -1,5 +1,6 @@
 import {
   listReviewedFilesResponseSchema,
+  removeReviewedFilesResponseSchema,
   setReviewedFilesResponseSchema,
 } from '@porcelain/contracts/reviews';
 import {
@@ -36,11 +37,12 @@ export default defineFeature({
     'PUT /api/worktrees/:worktreeId/reviewed',
     'PUT /api/worktrees/:worktreeId/reviewed-bulk',
     'DELETE /api/worktrees/:worktreeId/reviewed',
+    'DELETE /api/worktrees/:worktreeId/reviewed-bulk',
   ],
   paired: true,
   intent: 'observed',
   behaviour:
-    "A reviewer marks changed files as reviewed at the fingerprint they looked at. A single mark for a fingerprint that is no longer the file's, or for a file that is not a change, is a conflict. Marking many at once marks what still matches and reports each other file as stale or missing instead of failing. Unmarking is idempotent. Every answer is the worktree's full list of marks.",
+    "A reviewer marks changed files as reviewed at the fingerprint they looked at. A single mark for a fingerprint that is no longer the file's, or for a file that is not a change, is a conflict. Marking many at once marks what still matches and reports each other file as stale or missing instead of failing. Unmarking one file or many at once is idempotent, and unmarking many removes each listed mark in one write. Every answer is the worktree's full list of marks.",
   cases: [
     defineCase({
       name: 'no marks yet',
@@ -197,6 +199,110 @@ export default defineFeature({
             { worktreeId: session.worktreeId, marks: [] },
             { worktreeId: session.worktreeId, marks: [] },
           ],
+          responses.map((entry) => entry.body),
+        );
+      },
+    }),
+    defineCase({
+      name: 'unmark many at once',
+      async setup(session) {
+        await session.writeFile('more.txt', 'untracked too\n');
+        const [notes, more] = [
+          await fingerprintOf(session, 'notes.txt'),
+          await fingerprintOf(session, 'more.txt'),
+        ];
+        return read(session, {
+          method: 'PUT',
+          path: worktreePath(session, '/reviewed-bulk'),
+          body: {
+            files: [
+              { path: 'notes.txt', fingerprint: notes },
+              { path: 'more.txt', fingerprint: more },
+            ],
+          },
+        });
+      },
+      request: (session) => [
+        {
+          method: 'DELETE',
+          path: worktreePath(session, '/reviewed-bulk'),
+          body: { paths: ['notes.txt', 'missing.md'] },
+        },
+        {
+          method: 'DELETE',
+          path: worktreePath(session, '/reviewed-bulk'),
+          body: { paths: ['notes.txt', 'more.txt'] },
+        },
+        {
+          method: 'DELETE',
+          path: worktreePath(session, '/reviewed-bulk'),
+          body: { paths: ['notes.txt', 'more.txt'] },
+        },
+      ],
+      async expect({ responses, state, session, check, checkContract }) {
+        check(
+          'both files were marked',
+          ['more.txt', 'notes.txt'],
+          paths(state),
+        );
+        check(
+          'statuses',
+          [200, 200, 200],
+          responses.map((entry) => entry.status),
+        );
+        checkContract(
+          'contract',
+          removeReviewedFilesResponseSchema,
+          responses[0]?.body,
+        );
+        check(
+          'the listed mark goes and the unlisted one stays',
+          ['more.txt'],
+          paths(responses[0]?.body),
+        );
+        check(
+          'the rest go, and unmarking them again answers the same',
+          [
+            { worktreeId: session.worktreeId, marks: [] },
+            { worktreeId: session.worktreeId, marks: [] },
+          ],
+          responses.slice(1).map((entry) => entry.body),
+        );
+        check(
+          'list reads the same',
+          { worktreeId: session.worktreeId, marks: [] },
+          await read(session, { method: 'GET', path: reviewed(session) }),
+        );
+      },
+    }),
+    defineCase({
+      name: 'invalid or unknown bulk unmark',
+      request: (session) => [
+        {
+          method: 'DELETE',
+          path: worktreePath(session, '/reviewed-bulk'),
+          body: { paths: [] },
+        },
+        {
+          method: 'DELETE',
+          path: worktreePath(session, '/reviewed-bulk'),
+          body: { paths: ['../outside'] },
+        },
+        {
+          method: 'DELETE',
+          path: `/api/worktrees/${unknownWorktreeId}/reviewed-bulk`,
+          body: { paths: ['README.md'] },
+        },
+      ],
+      expect({ responses, check }) {
+        check(
+          'statuses',
+          [400, 400, 404],
+          responses.map((entry) => entry.status),
+        );
+        check(
+          'error bodies',
+          [invalidRequest, invalidRequest, worktreeNotFound],
           responses.map((entry) => entry.body),
         );
       },

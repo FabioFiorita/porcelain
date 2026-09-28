@@ -12,7 +12,7 @@ export { ReadReviewBadgesService } from './read-review-badges-service.ts';
 export { ReadReviewLayerService } from './read-review-layer-service.ts';
 export { ReadReviewSummaryService } from './read-review-summary-service.ts';
 export { RecordReviewActivityService } from './record-review-activity-service.ts';
-export { RemoveReviewedFileService } from './remove-reviewed-file-service.ts';
+export { RemoveReviewedFilesService } from './remove-reviewed-files-service.ts';
 export { RemoveReviewedLayerService } from './remove-reviewed-layer-service.ts';
 export { ReplyToCommentService } from './reply-to-comment-service.ts';
 export { SetReviewedFilesService } from './set-reviewed-files-service.ts';

@@ -31,7 +31,7 @@ import type { ReadPublishedReviewUseCase } from '../../use-cases/reviews/read-pu
 import type { ReadTextFileUseCase } from '../../use-cases/files/read-text-file.ts';
 import type { RegisterProjectUseCase } from '../../use-cases/projects/register-project.ts';
 import type { RemoveProjectUseCase } from '../../use-cases/projects/remove-project.ts';
-import type { RemoveReviewedFileUseCase } from '../../use-cases/reviews/remove-reviewed-file.ts';
+import type { RemoveReviewedFilesUseCase } from '../../use-cases/reviews/remove-reviewed-files.ts';
 import type { RemoveReviewedLayerUseCase } from '../../use-cases/reviews/remove-reviewed-layer.ts';
 import type { RenameProjectUseCase } from '../../use-cases/projects/rename-project.ts';
 import type { ReplyToCommentUseCase } from '../../use-cases/reviews/reply-to-comment.ts';
@@ -79,6 +79,7 @@ import { readPublishedReview } from '../routes/reviews/read-published-review.ts'
 import { listReviewedFiles } from '../routes/reviews/list-reviewed-files.ts';
 import { listReviewedLayers } from '../routes/reviews/list-reviewed-layers.ts';
 import { removeReviewedFile } from '../routes/reviews/remove-reviewed-file.ts';
+import { removeReviewedFiles } from '../routes/reviews/remove-reviewed-files.ts';
 import { removeReviewedLayer } from '../routes/reviews/remove-reviewed-layer.ts';
 import { replyToComment } from '../routes/reviews/reply-to-comment.ts';
 import { updateCommentThread } from '../routes/reviews/update-comment-thread.ts';
@@ -122,7 +123,7 @@ export type PairedUseCases = {
     markCommentsSeen: Pick<MarkCommentsSeenUseCase, 'execute'>;
     publishReview: Pick<PublishReviewUseCase, 'execute'>;
     readPublishedReview: Pick<ReadPublishedReviewUseCase, 'execute'>;
-    removeReviewedFile: Pick<RemoveReviewedFileUseCase, 'execute'>;
+    removeReviewedFiles: Pick<RemoveReviewedFilesUseCase, 'execute'>;
     removeReviewedLayer: Pick<RemoveReviewedLayerUseCase, 'execute'>;
     replyToComment: Pick<ReplyToCommentUseCase, 'execute'>;
     updateCommentThread: Pick<UpdateCommentThreadUseCase, 'execute'>;
@@ -195,7 +196,10 @@ export async function pairedScope(
     useCase: options.application.reviews.setReviewedFiles,
   });
   server.register(removeReviewedFile, {
-    useCase: options.application.reviews.removeReviewedFile,
+    useCase: options.application.reviews.removeReviewedFiles,
+  });
+  server.register(removeReviewedFiles, {
+    useCase: options.application.reviews.removeReviewedFiles,
   });
   server.register(listReviewedLayers, {
     useCase: options.application.reviews.listReviewedLayers,
