@@ -1,9 +1,6 @@
 import type {
-  ReadChangeDiffsRequest,
   ReadChangeDiffsResponse,
-  ReadChangeLinesResponse,
   ReadChangesResponse,
-  ReadGitStatusResponse,
 } from '@porcelain/contracts/changes';
 import type {
   ListReviewedFilesResponse,
@@ -13,13 +10,10 @@ import type {
   SetReviewedFilesResponse,
 } from '@porcelain/contracts/reviews';
 
-export type Status = ReadGitStatusResponse;
 export type ChangeList = ReadChangesResponse;
 type FileChange = ChangeList['changes'][number];
 export type Change = FileChange['comparisons'][number];
-export type ChangeDiffs = ReadChangeDiffsResponse;
-export type ChangeDiffsRequest = ReadChangeDiffsRequest;
-export type ChangeLines = ReadChangeLinesResponse;
+type ChangeDiffs = ReadChangeDiffsResponse;
 export type DiffContent = ChangeDiffs['diffs'][number]['content'];
 export type ChangeSelection = ChangeDiffs['diffs'][number]['selection'];
 type ReviewedMark = ListReviewedFilesResponse['marks'][number];
