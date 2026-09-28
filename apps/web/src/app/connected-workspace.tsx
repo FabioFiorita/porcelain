@@ -43,13 +43,15 @@ export function ConnectedWorkspace({ review }: { review?: Review }) {
   const connection = useAccessStore((state) => state.connection);
   const inventory = useInventory(connection);
   const selectedWorktreeId = review?.selection.worktree.id;
+  const openWorktree = (projectId: string, worktreeId: string) =>
+    navigate({
+      to: '/$projectId/$worktreeId',
+      params: { projectId, worktreeId },
+      replace: review === undefined,
+    });
   const selectWorktree = (id: string) => {
     const target = selectedWorktreeInProject(inventory, id);
-    if (target)
-      void navigate({
-        to: '/$projectId/$worktreeId',
-        params: { projectId: target.projectId, worktreeId: target.worktree.id },
-      });
+    if (target) void openWorktree(target.projectId, target.worktree.id);
   };
   const navigator = {
     inventory,
@@ -102,7 +104,7 @@ export function ConnectedWorkspace({ review }: { review?: Review }) {
         />
       </ProjectWorkspace>
 
-      <OpenProjectDialog />
+      <OpenProjectDialog onOpened={openWorktree} />
       <SettingsDialog open={settings} onOpenChange={setSettings} />
       <ShortcutsDialog open={shortcuts} onOpenChange={setShortcuts} />
     </>

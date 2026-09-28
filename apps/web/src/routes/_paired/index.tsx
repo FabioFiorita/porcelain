@@ -1,4 +1,8 @@
-import { createFileRoute, Navigate } from '@tanstack/react-router';
+import {
+  createFileRoute,
+  Navigate,
+  useRouterState,
+} from '@tanstack/react-router';
 import { z } from 'zod';
 import { useAccessStore } from '@/features/access/index';
 import {
@@ -22,13 +26,17 @@ export const Route = createFileRoute('/_paired/')({
 
 function WorkspaceIndex() {
   const { worktree, ...search } = Route.useSearch();
+  const settled = useRouterState({
+    select: (state) =>
+      state.status === 'idle' && state.location.pathname === '/',
+  });
   const connection = useAccessStore((state) => state.connection);
   const inventory = useInventory(connection);
   const requested = selectedWorktreeInProject(inventory, worktree);
   const target =
     requested ??
     selectedWorktreeInProject(inventory, firstWaitingWorktree(inventory)?.id);
-  if (target)
+  if (target && settled)
     return (
       <Navigate
         to="/$projectId/$worktreeId"
@@ -37,6 +45,6 @@ function WorkspaceIndex() {
         replace
       />
     );
-  if (worktree !== undefined) return <Navigate to="/" replace />;
+  if (worktree !== undefined && settled) return <Navigate to="/" replace />;
   return <ConnectedWorkspace />;
 }

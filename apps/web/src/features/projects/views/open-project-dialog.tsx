@@ -1,6 +1,5 @@
 import { Dialog as DialogPrimitive } from '@base-ui/react/dialog';
 import { FolderGit2Icon } from 'lucide-react';
-import { useNavigate } from '@tanstack/react-router';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   DialogContent,
@@ -19,17 +18,16 @@ import { OpenProjectPathForm } from './open-project-path-form';
 import { ProjectDiscovery } from './project-discovery';
 import { ProjectFolderPicker } from './project-folder-picker';
 
-export function OpenProjectDialog() {
+export function OpenProjectDialog({
+  onOpened,
+}: {
+  onOpened: (projectId: string, worktreeId: string) => Promise<void>;
+}) {
   const connection = useAccessStore((state) => state.connection);
-  const navigate = useNavigate();
   const opening = useOpenProject(
     connection,
     () => openProjectDialog.close(),
-    (projectId, worktreeId) =>
-      navigate({
-        to: '/$projectId/$worktreeId',
-        params: { projectId, worktreeId },
-      }),
+    onOpened,
   );
   return (
     <DialogPrimitive.Root
