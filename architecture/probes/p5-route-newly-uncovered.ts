@@ -8,10 +8,10 @@ export default {
   rule: 'coverage: PUT /api/worktrees/:worktreeId/review: the web calls it',
   edits: [
     {
-      kind: 'create',
-      path: 'apps/web/src/features/review/api/probe-live.ts',
+      kind: 'append',
+      path: 'apps/web/src/features/reviews/api.ts',
       content:
-        "import { requestJson } from '@/shared/api/request';\nimport { worktreePath } from './review-request';\n\nexport function probePublish(transport: typeof fetch, worktreeId: string) {\n  return requestJson(transport, `${worktreePath(worktreeId)}/review`, { parse: (value: unknown) => value }, { method: 'PUT' });\n}\n",
+        "\nexport function probePublish(transport: typeof fetch, worktreeId: string) {\n  return requestJson(transport, `${worktreePath(worktreeId)}/review`, { parse: (value: unknown) => value }, { method: 'PUT' });\n}\n",
     },
   ],
 } satisfies Probe;

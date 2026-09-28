@@ -9,8 +9,8 @@ export default {
     {
       kind: 'replace',
       path: 'architecture/web-baseline.json',
-      old: '"apps/web/src/features/review/views/git-action-options.ts": 2',
-      new: '"apps/web/src/features/review/views/git-action-options.ts": 3',
+      old: '"web-nothing-imports-routes": {\n    "apps/web/src/main.tsx": 1',
+      new: '"web-nothing-imports-routes": {\n    "apps/web/src/main.tsx": 2',
     },
   ],
 } satisfies Probe;

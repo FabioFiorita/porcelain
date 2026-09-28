@@ -9,15 +9,15 @@ export default {
   edits: [
     {
       kind: 'append',
-      path: 'apps/web/src/features/review/views/inline-composer.tsx',
+      path: 'apps/web/src/app/workspace-provider.tsx',
       content:
         '\nexport function probeSwallow(run: () => void) {\n  try {\n    run();\n  } catch {}\n}\n',
     },
     {
       kind: 'replace',
       path: 'architecture/web-baseline.json',
-      old: '  "porcelain/web-no-empty-catch": {\n    "apps/web/src/app/workspace-provider.tsx": 1,\n    "apps/web/src/features/review/views/inline-composer.tsx": 1,\n',
-      new: '  "porcelain/web-no-empty-catch": {\n    "apps/web/src/app/workspace-provider.tsx": 1,\n    "apps/web/src/features/review/views/inline-composer.tsx": 2,\n',
+      old: '  "porcelain/web-no-empty-catch": {\n    "apps/web/src/app/workspace-provider.tsx": 1,\n',
+      new: '  "porcelain/web-no-empty-catch": {\n    "apps/web/src/app/workspace-provider.tsx": 2,\n',
     },
   ],
 } satisfies Probe;
