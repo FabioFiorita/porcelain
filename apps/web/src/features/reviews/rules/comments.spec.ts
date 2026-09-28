@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { commentsSeenThrough, retainIntent } from './comments.ts';
+import {
+  commentBodyValid,
+  commentsSeenThrough,
+  retainIntent,
+} from './comments.ts';
 
 describe('retainIntent', () => {
   it('reuses the ids of a failed attempt when the same text is sent again', () => {
@@ -52,5 +56,31 @@ describe('commentsSeenThrough', () => {
         new Set(['open', 'resolved']),
       ),
     ).toBe(null);
+  });
+});
+
+describe('commentBodyValid', () => {
+  it('accepts written text', () => {
+    expect(commentBodyValid('Please rename this')).toBe(true);
+  });
+
+  it('rejects an empty body', () => {
+    expect(commentBodyValid('')).toBe(false);
+  });
+
+  it('rejects a body of only whitespace', () => {
+    expect(commentBodyValid(' \n\t ')).toBe(false);
+  });
+
+  it('rejects a body holding a NUL character', () => {
+    expect(commentBodyValid('before\0after')).toBe(false);
+  });
+
+  it('accepts a body at the server limit of 16000 characters', () => {
+    expect(commentBodyValid('a'.repeat(16_000))).toBe(true);
+  });
+
+  it('rejects a body one character past the server limit', () => {
+    expect(commentBodyValid('a'.repeat(16_001))).toBe(false);
   });
 });

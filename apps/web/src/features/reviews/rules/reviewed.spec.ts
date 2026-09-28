@@ -5,6 +5,7 @@ import {
   bulkReportText,
   layerReviewState,
   markAllPlan,
+  visibleBulkReport,
 } from './reviewed.ts';
 
 const entry = (
@@ -206,5 +207,23 @@ describe('layerReviewState', () => {
       reviewed: false,
       label: 'Mark layer reviewed',
     });
+  });
+});
+
+describe('visibleBulkReport', () => {
+  const report = { marked: ['a.ts'], skipped: [], failed: [] };
+
+  it('shows the report of the latest mark-all', () => {
+    expect(visibleBulkReport({ report, submittedAt: 20 }, 10)).toEqual(report);
+  });
+
+  it('hides the report once an unmark-all started after it', () => {
+    expect(visibleBulkReport({ report, submittedAt: 20 }, 30)).toBe(null);
+  });
+
+  it('shows nothing while a mark-all has no result yet', () => {
+    expect(visibleBulkReport({ report: undefined, submittedAt: 20 }, 0)).toBe(
+      null,
+    );
   });
 });
