@@ -25,17 +25,13 @@ export async function readWorktreeFiles(
   const wanted = [...new Set(paths)];
   let next = 0;
   const worker = async () => {
+    const buffer = Buffer.alloc(options.chunkBytes);
     while (next < wanted.length) {
       const path = wanted[next];
       next += 1;
       if (path === undefined) continue;
       try {
-        const entry = await readEntry(
-          root,
-          path,
-          maxDigestBytes,
-          options.chunkBytes,
-        );
+        const entry = await readEntry(root, path, maxDigestBytes, buffer);
         if (entry) entries.set(path, entry);
       } catch (error) {
         if (readFailure(error) !== 'missing')
@@ -56,7 +52,7 @@ async function readEntry(
   root: string,
   path: string,
   maxDigestBytes: number,
-  chunkBytes: number,
+  buffer: Buffer,
 ): Promise<WorktreeEntry | undefined> {
   const parent = dirname(path);
   const target = { root, path: parent === '.' ? '' : parent };
@@ -71,7 +67,7 @@ async function readEntry(
     return { kind: 'symlink', target: link, stamp: fileIdentity(info) };
   }
   if (!info.isFile()) return { kind: 'other' };
-  const read = await digestFile(full, info, maxDigestBytes, chunkBytes);
+  const read = await digestFile(full, info, maxDigestBytes, buffer);
   if (read.kind === 'file') await verifyPath(before, target);
   return read;
 }
@@ -88,7 +84,7 @@ async function digestFile(
   full: string,
   classified: BigIntStats,
   maxBytes: number,
-  chunkBytes: number,
+  buffer: Buffer,
 ): Promise<WorktreeEntry> {
   const handle = await open(
     full,
@@ -100,7 +96,6 @@ async function digestFile(
       return { kind: 'other' };
     if (opened.size > BigInt(maxBytes)) return { kind: 'too-large' };
     const hash = createHash('sha256');
-    const buffer = Buffer.alloc(chunkBytes);
     let read = 0;
     while (true) {
       const { bytesRead } = await handle.read(buffer, 0, buffer.length, read);
