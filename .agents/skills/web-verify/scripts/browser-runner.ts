@@ -117,7 +117,7 @@ export async function startBrowser(evidence: string) {
               await Promise.all(
                 page
                   .frames()
-                  .filter((frame) => frame !== page.mainFrame())
+                  .filter((frame) => frame.parentFrame() === page.mainFrame())
                   .map((frame) => frame.goto('about:blank')),
               );
               await page.evaluate(() => {

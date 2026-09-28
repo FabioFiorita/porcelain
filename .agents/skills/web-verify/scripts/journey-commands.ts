@@ -227,6 +227,19 @@ const porcelainCodingTool: BrowserCommand<[], CodingToolReplies> = async () => {
   return { message, groups };
 };
 
+const initScripts = new WeakMap<object, Set<string>>();
+
+const porcelainInitScript: BrowserCommand<[string], void> = async (
+  context,
+  content,
+) => {
+  const added = initScripts.get(context.page) ?? new Set<string>();
+  initScripts.set(context.page, added);
+  if (added.has(content)) return;
+  added.add(content);
+  await context.page.addInitScript({ content });
+};
+
 export const journeyCommands = {
   porcelainRead,
   porcelainRepo,
@@ -235,4 +248,5 @@ export const journeyCommands = {
   porcelainHits,
   porcelainProjectHome,
   porcelainCodingTool,
+  porcelainInitScript,
 };

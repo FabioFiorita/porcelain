@@ -19,6 +19,7 @@ declare module 'vitest/browser' {
     porcelainHits: (since: number) => Promise<ServerHit[]>;
     porcelainProjectHome: (step: ProjectHomeStep) => Promise<string>;
     porcelainCodingTool: () => Promise<CodingToolReplies>;
+    porcelainInitScript: (content: string) => Promise<void>;
   }
 }
 
