@@ -43,3 +43,11 @@ export function gitErrorMessage(error: unknown) {
     ? error.message
     : 'Git could not complete this action. Check the current state and try again.';
 }
+
+export type GitNotice = {
+  title: string;
+  description?: string | undefined;
+  type: 'success' | 'error' | 'info';
+  timeout?: number;
+  actionProps?: { children: string; onClick: () => void };
+};

@@ -7,6 +7,7 @@ import type { ActionInput, GitScope } from '../rules/git-action';
 import {
   expectationFor,
   gitErrorMessage,
+  type GitNotice,
   receiptFailed,
   receiptWords,
 } from '../rules/feedback';
@@ -17,13 +18,8 @@ import {
   networkTitle,
 } from '../rules/network';
 import { type GitActionStatus, statusFromChanges } from '../rules/status';
+import { restoreStash } from './restore-stash';
 import { useGitAction } from './run-action';
-
-type MenuNotice = {
-  title: string;
-  description?: string | undefined;
-  type: 'success' | 'error';
-};
 
 type DiscardedItem = { oid: string; path: string; kind: 'hunk' | 'rename' };
 
@@ -34,7 +30,7 @@ type Menu = {
   };
   enableDetails: () => void;
   pullStrategy: 'merge' | 'rebase';
-  notify: (notice: MenuNotice) => void;
+  notify: (notice: GitNotice) => void;
   onProgress: (open: boolean) => void;
 };
 
@@ -118,29 +114,16 @@ async function restoreDiscarded(
   }
   const label =
     item.kind === 'rename' ? `rename of ${item.path}` : `hunk of ${item.path}`;
-  try {
-    const receipt = await runner.run(
-      {
-        action: 'stash-apply',
-        stashOid: item.oid,
-        restoreIndex: item.kind === 'rename',
-      },
-      expectationFor(looked, [item.path], undefined, true),
-    );
-    notify({
-      title: receiptFailed(receipt)
-        ? `Could not restore the discarded ${label}`
-        : `Restored the discarded ${label}`,
-      description: receiptFailed(receipt) ? receiptWords(receipt) : undefined,
-      type: receiptFailed(receipt) ? 'error' : 'success',
-    });
-  } catch (error) {
-    notify({
-      title: `Could not restore the discarded ${label}`,
-      description: gitErrorMessage(error),
-      type: 'error',
-    });
-  }
+  await restoreStash(
+    runner,
+    { stashOid: item.oid, restoreIndex: item.kind === 'rename' },
+    expectationFor(looked, [item.path], undefined, true),
+    notify,
+    {
+      restored: `Restored the discarded ${label}`,
+      failed: `Could not restore the discarded ${label}`,
+    },
+  );
 }
 
 export function useGitMenu(

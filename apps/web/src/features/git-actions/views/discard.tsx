@@ -57,7 +57,8 @@ export function DiscardButton({
     what,
     look: candidate,
     readChanges,
-    toasts: toast,
+    notify: (notice) => toast.add(notice),
+    dismissNotice: (id) => toast.close(id),
     close: () => setOpen(false),
   });
   if (!candidate || (!file && !open)) return null;

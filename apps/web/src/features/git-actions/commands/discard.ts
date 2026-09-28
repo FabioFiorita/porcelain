@@ -6,11 +6,13 @@ import {
   changedSinceLooked,
   expectationFor,
   gitErrorMessage,
+  type GitNotice,
   receiptFailed,
   receiptWords,
 } from '../rules/feedback';
 import { type GitActionStatus, statusFromChanges } from '../rules/status';
 import { DISCARD_RESTORE_TOAST_MS } from '@/config/limits';
+import { restoreStash } from './restore-stash';
 import { useGitAction } from './run-action';
 
 type Hunk = {
@@ -19,40 +21,28 @@ type Hunk = {
   endLine: number;
 };
 
-type DiscardNotice = {
-  title: string;
-  description?: string;
-  type: 'success' | 'error' | 'info';
-  timeout?: number;
-  actionProps?: { children: string; onClick: () => void };
-};
-
-type DiscardToasts = {
-  add: (notice: DiscardNotice) => string;
-  close: (id: string) => void;
-};
-
 type DiscardFailure = { text: string; moved: boolean };
 
 type Discarding = {
   what: string;
   readChanges: () => Promise<ReadChangesResponse>;
-  toasts: DiscardToasts;
+  notify: (notice: GitNotice) => string;
+  dismissNotice: (id: string) => void;
   close: () => void;
   restore: ReturnType<typeof useGitAction>;
 };
 
 async function restoreDiscarded(
-  { what, readChanges, toasts, restore }: Discarding,
+  { what, readChanges, notify, dismissNotice, restore }: Discarding,
   stashOid: string,
   restoreIndex: boolean,
-  toastId: string,
+  noticeId: string,
 ) {
   let restoreLook: GitActionStatus;
   try {
     restoreLook = statusFromChanges(await readChanges());
   } catch (cause) {
-    toasts.add({
+    notify({
       title: `Could not restore ${what}`,
       description: gitErrorMessage(cause),
       type: 'error',
@@ -63,25 +53,13 @@ async function restoreDiscarded(
     restoreLook.files
       ?.filter((entry) => entry.fingerprint != null)
       .map((entry) => entry.path) ?? [];
-  toasts.close(toastId);
-  let failure: string | null;
-  try {
-    const result = await restore.run(
-      { action: 'stash-apply', stashOid, restoreIndex },
-      expectationFor(restoreLook, currentPaths, undefined, true),
-    );
-    failure = receiptFailed(result) ? receiptWords(result) : null;
-  } catch (cause) {
-    failure = gitErrorMessage(cause);
-  }
-  toasts.add(
-    failure === null
-      ? { title: `Restored ${what}`, type: 'success' }
-      : {
-          title: `Could not restore ${what}`,
-          description: failure,
-          type: 'error',
-        },
+  dismissNotice(noticeId);
+  await restoreStash(
+    restore,
+    { stashOid, restoreIndex },
+    expectationFor(restoreLook, currentPaths, undefined, true),
+    notify,
+    { restored: `Restored ${what}`, failed: `Could not restore ${what}` },
   );
 }
 
@@ -89,13 +67,13 @@ function finish(
   discarding: Discarding,
   receipt: Receipt,
 ): DiscardFailure | null {
-  const { what, toasts, close } = discarding;
+  const { what, notify, close } = discarding;
   if (receiptFailed(receipt))
     return { text: receiptWords(receipt), moved: changedSinceLooked(receipt) };
   close();
   const stashOid = receipt.result?.restoreStashOid;
   if (receipt.state === 'no-change') {
-    toasts.add({
+    notify({
       title: 'Nothing to discard',
       description: `${what} already matches the last commit.`,
       type: 'info',
@@ -103,7 +81,7 @@ function finish(
     return null;
   }
   const restoreIndex = receipt.result?.restoreIndex ?? false;
-  const toastId: string = toasts.add({
+  const noticeId: string = notify({
     title: `Discarded ${what}`,
     type: 'success',
     timeout: DISCARD_RESTORE_TOAST_MS,
@@ -116,7 +94,7 @@ function finish(
                 discarding,
                 stashOid,
                 restoreIndex,
-                toastId,
+                noticeId,
               ),
           },
         }
@@ -134,7 +112,8 @@ export function useDiscard(
     what,
     look,
     readChanges,
-    toasts,
+    notify,
+    dismissNotice,
     close,
   }: {
     path: string;
@@ -142,14 +121,22 @@ export function useDiscard(
     what: string;
     look: GitActionStatus | null;
     readChanges: () => Promise<ReadChangesResponse>;
-    toasts: DiscardToasts;
+    notify: (notice: GitNotice) => string;
+    dismissNotice: (id: string) => void;
     close: () => void;
   },
 ) {
   const discard = useGitAction(scope, 'discard', context);
   const restore = useGitAction(scope, 'stash-apply', context);
   const uncertain = Boolean(discard.operation && !discard.canStartNew);
-  const discarding = { what, readChanges, toasts, close, restore };
+  const discarding = {
+    what,
+    readChanges,
+    notify,
+    dismissNotice,
+    close,
+    restore,
+  };
 
   const submit = useMutation({
     mutationFn: async (looked: GitActionStatus) =>
