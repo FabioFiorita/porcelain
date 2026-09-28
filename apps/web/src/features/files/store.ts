@@ -13,7 +13,7 @@ export type FileDraftState = {
   saving: boolean;
   owner: string | null;
   error: unknown;
-  diskChanged: boolean;
+  diskChanged: ReadonlySet<string>;
 };
 
 export class FileDraft {
@@ -28,6 +28,10 @@ export class FileDraft {
   >();
   lastWrittenFingerprint: string | null = null;
   private pending: Promise<boolean> | undefined;
+  private readonly diskNotices = new Map<
+    string,
+    ReturnType<typeof setTimeout>
+  >();
   private readonly write: (
     text: string,
     expectedFingerprint: string,
@@ -52,7 +56,7 @@ export class FileDraft {
       saving: false,
       owner: null,
       error: null,
-      diskChanged: false,
+      diskChanged: new Set(),
     }));
     this.write = write;
     this.isBlockedError = isBlockedError;
@@ -102,20 +106,32 @@ export class FileDraft {
         });
     });
   }
-  noticeDiskChange(fingerprint: string | undefined) {
+  noticeDiskChange(viewer: string, fingerprint: string | undefined) {
     const state = this.snapshot();
     if (
       state.saving ||
       state.owner !== null ||
-      state.diskChanged ||
+      this.diskNotices.has(viewer) ||
       this.lastWrittenFingerprint === fingerprint
     )
       return;
-    this.update({ diskChanged: true });
-    setTimeout(
-      () => this.update({ diskChanged: false }),
-      FILE_DISK_CHANGE_NOTICE_MS,
+    this.diskNotices.set(
+      viewer,
+      setTimeout(
+        () => this.forgetDiskChange(viewer),
+        FILE_DISK_CHANGE_NOTICE_MS,
+      ),
     );
+    this.update({ diskChanged: new Set([...state.diskChanged, viewer]) });
+  }
+  forgetDiskChange(viewer: string) {
+    clearTimeout(this.diskNotices.get(viewer));
+    this.diskNotices.delete(viewer);
+    const { diskChanged } = this.snapshot();
+    if (!diskChanged.has(viewer)) return;
+    const next = new Set(diskChanged);
+    next.delete(viewer);
+    this.update({ diskChanged: next });
   }
   change(text: string) {
     if (this.snapshot().text === text) return;

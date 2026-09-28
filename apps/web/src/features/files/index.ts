@@ -10,3 +10,4 @@ export { useTextFile } from './queries/text';
 export { useFileDraft } from './commands/edit-file';
 export type { FileDraft, FileDraftState } from './store';
 export { FileNavigation } from './views/file-navigation';
+export { useDiskChangeNotice } from './adapters/disk-change';

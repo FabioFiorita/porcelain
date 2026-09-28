@@ -4,7 +4,7 @@ import {
   MessageSquarePlusIcon,
   PencilIcon,
 } from 'lucide-react';
-import { type ReactNode, useEffect, useId, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useId, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAccessStore } from '@/features/access/index';
@@ -21,6 +21,7 @@ import {
   isImagePath,
   MarkdownView,
   useDirectory,
+  useDiskChangeNotice,
   useFileDraft,
   useTextFile,
 } from '@/features/files/index';
@@ -164,12 +165,7 @@ function ReadableFileDocument({
   const [editing, setEditing] = useState(false);
   const [commentRequest, setCommentRequest] = useState<number>();
   const editorId = useId();
-  const previousFingerprint = useRef(contentFingerprint);
-  useEffect(() => {
-    if (previousFingerprint.current === contentFingerprint) return;
-    previousFingerprint.current = contentFingerprint;
-    draft.noticeDiskChange(contentFingerprint);
-  }, [contentFingerprint, draft]);
+  useDiskChangeNotice(draft, editorId, contentFingerprint);
 
   const showingSource = kind === 'code' || mode === 'source';
   const actions = (
@@ -178,7 +174,7 @@ function ReadableFileDocument({
         aria-live="polite"
         className="hidden text-xs text-muted-foreground xl:inline"
       >
-        {draftState.diskChanged ? 'Changed on disk just now' : ''}
+        {draftState.diskChanged.has(editorId) ? 'Changed on disk just now' : ''}
       </span>
       {kind !== 'code' && (
         <Tabs
