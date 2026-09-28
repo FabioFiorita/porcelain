@@ -41,11 +41,6 @@ export type Surface = (typeof SURFACES)[number];
 export function isSurface(value: unknown): value is Surface {
   return SURFACES.some((surface) => surface === value);
 }
-export function changePath(change: Change) {
-  return 'path' in change
-    ? change.path
-    : (change.newPath ?? change.oldPath ?? '');
-}
 export function orderReviewChanges<T extends { path: string }>(
   changes: readonly T[],
   files: readonly { path: string }[],
@@ -110,10 +105,6 @@ export function isFingerprintable<
   T extends { fingerprint: string | null | undefined },
 >(change: T): change is T & { fingerprint: string } {
   return change.fingerprint != null;
-}
-
-export function comparisons(list: ChangeList): Change[] {
-  return list.changes.flatMap((entry) => entry.comparisons);
 }
 
 export function basename(path: string) {

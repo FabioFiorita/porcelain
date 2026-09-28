@@ -18,7 +18,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/toast';
 import { useAccessStore } from '@/features/access/index';
-import { useReviewOverview } from '@/features/changes/index';
+import { changePath, useReviewOverview } from '@/features/changes/index';
 import {
   canonicalPreferencePath,
   hiddenPathFor,
@@ -26,30 +26,24 @@ import {
   useSetHidden,
   visibleFileTreePaths,
 } from '@/features/projects/index';
-import {
-  changePath,
-  comparisons,
-  type DocumentRef,
-  reviewErrorMessage,
-  type ReviewScope,
-} from '@/features/reviews/index';
 import { discardRejection } from '@/shared/lib/submit-form';
 import { PierreFileTree } from '../adapters/pierre-file-tree';
 import { useEditFile } from '../commands/edit-file';
 import { runFileTreeAction } from '../commands/tree-menu';
 import { useDirectories, useDirectory } from '../queries/directory';
-import { fileErrorMessage } from '../rules/error-message';
+import { fileErrorMessage, surfaceErrorMessage } from '../rules/error-message';
 import { fileTreeAncestors, mergeFileTreeEntries } from '../rules/file-tree';
 import { isImagePath } from '../rules/html-assets';
+import type { FilesScope } from '../rules/scope';
 import { treeActions } from '../rules/tree-actions';
 import { FileTreeMenu } from './file-tree-menu';
 import { QuickOpen } from './quick-open';
 
 type Props = {
-  scope: ReviewScope;
+  scope: FilesScope;
   worktreePath: string;
   selected: string;
-  onOpen: (document: DocumentRef) => void;
+  onOpen: (document: { kind: 'file' | 'change'; path: string }) => void;
 };
 
 export function FileNavigation({
@@ -110,8 +104,9 @@ function ScopedFileNavigation({
     ...entries
       .filter((entry) => entry.ignored)
       .map((entry) => ({ path: entry.path, status: 'ignored' as const })),
-    ...(overview ? comparisons(overview.changes) : []).map(
-      (change): GitStatusEntry => ({
+    ...(overview?.changes.changes ?? [])
+      .flatMap((entry) => entry.comparisons)
+      .map((change): GitStatusEntry => ({
         path: changePath(change),
         status:
           change.scope === 'untracked'
@@ -119,8 +114,7 @@ function ScopedFileNavigation({
             : change.scope === 'unmerged' || change.kind === 'type-changed'
               ? 'modified'
               : change.kind,
-      }),
-    ),
+      })),
   ];
   const changed = new Set<string>(
     (overview?.changes.changes ?? []).map((entry) => entry.path),
@@ -305,7 +299,7 @@ function ScopedFileNavigation({
       )}
       {setHidden.error && (
         <p role="alert" className="border-t px-3 py-2 text-xs text-destructive">
-          {reviewErrorMessage(setHidden.error)}
+          {surfaceErrorMessage(setHidden.error)}
         </p>
       )}
       {failed.length > 0 && (

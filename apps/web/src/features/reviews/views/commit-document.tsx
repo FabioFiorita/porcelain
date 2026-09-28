@@ -6,19 +6,20 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAccessStore } from '@/features/access/index';
 import { commitEntry } from '@/features/changes/index';
-import {
-  CodeDocument,
-  type DiffContent,
-  type DocumentContext,
-  type DocumentInteraction,
-  DocumentToolbar,
-  type ReviewScope,
-} from '@/features/reviews/index';
 import { copyText } from '@/shared/workspace/copy';
-import { useCommit } from '../queries/commit';
-import { useCommitDiffs } from '../queries/commit-diffs';
-import type { CommitFile, CommitFiles } from '../rules/commit';
-import { historyRefLabel, ordinal, shortOid } from '../rules/graph';
+import {
+  type CommitFile,
+  type CommitFiles,
+  historyRefLabel,
+  ordinal,
+  shortOid,
+  useCommit,
+  useCommitDiffs,
+} from '@/features/history/index';
+import type { DocumentInteraction } from '../rules/documents';
+import type { DiffContent, ReviewScope } from '../rules/review';
+import { CodeDocument, type DocumentContext } from './code-document';
+import { DocumentToolbar } from './document-toolbar';
 
 const SHOWN_STEP = 25;
 

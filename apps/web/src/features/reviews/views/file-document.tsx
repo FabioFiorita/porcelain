@@ -9,28 +9,27 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAccessStore } from '@/features/access/index';
 import { useChanges } from '@/features/changes/index';
-import {
-  CodeDocument,
-  type DocumentContext,
-  type DocumentInteraction,
-  DocumentToolbar,
-  fileEntry,
-  type OpenDocument,
-  ReviewEmpty,
-  type ReviewScope,
-} from '@/features/reviews/index';
 import { copyText } from '@/shared/workspace/copy';
 import { usePreferences } from '@/shared/workspace/preferences';
-import { useFileDraft } from '../commands/edit-file';
-import { useDirectory } from '../queries/directory';
-import { useTextFile } from '../queries/text';
-import { isImagePath } from '../rules/html-assets';
-import type { FileDraft, FileDraftState } from '../store';
-import { FileEditor } from './file-editor';
-import { FileTypeIcon } from './file-type-icon';
-import { HtmlPreview } from './html-preview';
-import { ImagePreview } from './image-preview';
-import { MarkdownView } from './markdown-view';
+import {
+  type FileDraft,
+  type FileDraftState,
+  FileEditor,
+  FileTypeIcon,
+  HtmlPreview,
+  ImagePreview,
+  isImagePath,
+  MarkdownView,
+  useDirectory,
+  useFileDraft,
+  useTextFile,
+} from '@/features/files/index';
+import { fileEntry } from '../adapters/code-entries';
+import type { DocumentInteraction, OpenDocument } from '../rules/documents';
+import type { ReviewScope } from '../rules/review';
+import { CodeDocument, type DocumentContext } from './code-document';
+import { DocumentToolbar } from './document-toolbar';
+import { ReviewEmpty } from './review-empty';
 
 type FileDocumentProps = {
   scope: ReviewScope;

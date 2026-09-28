@@ -1,7 +1,5 @@
 import { Button } from '@/components/ui/button';
 import { DiscardButton } from '@/features/git-actions/index';
-import { CommitDocument } from '@/features/history/index';
-import { FileDocument } from '@/features/files/index';
 import { useAccessStore } from '@/features/access/index';
 import { useChanges } from '@/features/changes/index';
 import { usePublishedReview } from '../queries/published-review';
@@ -15,7 +13,9 @@ import {
 } from '../rules/documents';
 import type { ReviewScope } from '../rules/review';
 import type { DocumentContext } from './code-document';
+import { CommitDocument } from './commit-document';
 import { DocumentToolbar } from './document-toolbar';
+import { FileDocument } from './file-document';
 import { PublishedLayer } from './published-layer';
 import { PublishedOverview } from './published-overview';
 import { ReviewCodeDocument } from './review-code-document';
