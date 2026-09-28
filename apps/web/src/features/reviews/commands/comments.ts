@@ -88,13 +88,13 @@ function enqueueComment<T>(
   return result;
 }
 
-function withRun<TData, TVariables>(
+function withSend<TData, TVariables>(
   mutation: UseMutationResult<TData, Error, TVariables>,
 ) {
   return {
     ...asMutation(mutation),
-    run: (input: TVariables, onDone?: () => void) => {
-      void mutation.mutateAsync(input).then(onDone, () => undefined);
+    send: (input: TVariables, onSent?: () => void) => {
+      void mutation.mutateAsync(input).then(onSent, () => undefined);
     },
   };
 }
@@ -125,7 +125,7 @@ export function useCreateComment(
 ) {
   const context = commentContext(scope, comments);
   const client = useQueryClient();
-  const create = withRun(
+  const create = withSend(
     useMutation({
       mutationFn: (input: NewComment) =>
         enqueueComment(context, async () => {
@@ -144,7 +144,7 @@ export function useCreateComment(
 export function useReplyComment(scope: ReviewScope, comments: CommentsContext) {
   const context = commentContext(scope, comments);
   const client = useQueryClient();
-  const reply = withRun(
+  const reply = withSend(
     useMutation({
       mutationFn: ({ threadId, body, messageId }: ReplyCommentInput) =>
         enqueueComment(context, async () => {
@@ -175,7 +175,7 @@ export function useResolveComment(
 ) {
   const context = commentContext(scope, comments);
   const client = useQueryClient();
-  return withRun(
+  return withSend(
     useMutation({
       mutationFn: ({ threadId, resolved }: ResolveCommentInput) =>
         enqueueComment(context, async () => {

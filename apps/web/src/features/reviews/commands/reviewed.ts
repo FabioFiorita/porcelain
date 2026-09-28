@@ -7,6 +7,7 @@ import {
   bulkMarkReport,
   type MarkReviewedInput,
   type ReviewsContext,
+  visibleBulkReport,
 } from '../rules/reviewed';
 import { enqueueReviewed, enqueueReviewedMany } from './reviewed-queue';
 
@@ -50,13 +51,19 @@ export function useMarkReviewed(scope: ReviewScope, context: ReviewsContext) {
         return result;
       }),
   });
-  return { ...asMutation(mutation), run: mutation.mutate };
+  return {
+    ...asMutation(mutation),
+    start: (input: MarkReviewedInput) => mutation.mutate(input),
+  };
 }
 
 export function useUnmarkReviewed(scope: ReviewScope, context: ReviewsContext) {
   const unmarkOne = useUnmarkOne(scope, context);
   const mutation = useMutation({ mutationFn: unmarkOne });
-  return { ...asMutation(mutation), run: mutation.mutate };
+  return {
+    ...asMutation(mutation),
+    start: (path: string) => mutation.mutate(path),
+  };
 }
 
 export function useMarkAllReviewed(
@@ -93,7 +100,10 @@ export function useMarkAllReviewed(
     },
   });
   return {
-    report: bulk.submittedAt >= unmark.submittedAt ? (bulk.data ?? null) : null,
+    report: visibleBulkReport(
+      { report: bulk.data, submittedAt: bulk.submittedAt },
+      unmark.submittedAt,
+    ),
     isPending: bulk.isPending || unmark.isPending,
     error: bulk.error ?? unmark.error,
     markAll: (entries: readonly ReviewChangeItem[]) => bulk.mutate(entries),

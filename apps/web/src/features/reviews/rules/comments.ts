@@ -1,3 +1,4 @@
+import { COMMENT_BODY_LENGTH } from '@porcelain/contracts/shared';
 import type {
   CreateCommentThreadRequest,
   CreateCommentThreadResponse,
@@ -140,7 +141,11 @@ export function threadStateLabel(thread: CommentThread): string {
 }
 
 export function commentBodyValid(body: string) {
-  return body.trim().length > 0 && !body.includes('\0');
+  return (
+    body.trim().length > 0 &&
+    !body.includes('\0') &&
+    body.length <= COMMENT_BODY_LENGTH
+  );
 }
 
 export function retainIntent<T extends { body: string }>(

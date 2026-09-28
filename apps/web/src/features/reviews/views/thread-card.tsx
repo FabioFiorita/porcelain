@@ -154,7 +154,7 @@ export function ThreadCard({
       className="h-6"
       disabled={resolve.isPending}
       onClick={() =>
-        resolve.run({ threadId: thread.id, resolved: !thread.resolved })
+        resolve.send({ threadId: thread.id, resolved: !thread.resolved })
       }
     >
       {thread.resolved ? (
@@ -188,7 +188,7 @@ export function ThreadCard({
           messageId: crypto.randomUUID(),
         }));
         pendingReply.current = intent;
-        reply.run(
+        reply.send(
           { threadId: thread.id, body, messageId: intent.messageId },
           () => {
             pendingReply.current = undefined;

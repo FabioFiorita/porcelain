@@ -71,8 +71,8 @@ export function ReviewedControl({
         aria-label={label}
         title={label}
         onClick={() => {
-          if (reviewed) unmark.run(path);
-          else mark.run({ path, fingerprint });
+          if (reviewed) unmark.start(path);
+          else mark.start({ path, fingerprint });
         }}
       >
         {pending ? (

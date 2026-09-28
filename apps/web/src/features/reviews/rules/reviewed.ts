@@ -107,6 +107,13 @@ export function bulkMarkReport(
   };
 }
 
+export function visibleBulkReport(
+  bulk: { report: BulkReviewReport | undefined; submittedAt: number },
+  unmarkSubmittedAt: number,
+): BulkReviewReport | null {
+  return bulk.submittedAt >= unmarkSubmittedAt ? (bulk.report ?? null) : null;
+}
+
 export function bulkReportText(report: BulkReviewReport) {
   const failed = report.failed.length;
   const skipped = report.skipped.length;

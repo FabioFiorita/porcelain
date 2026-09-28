@@ -37,7 +37,7 @@ export function InlineComposer({
       messageId: crypto.randomUUID(),
     }));
     pending.current = intent;
-    mutation.run(
+    mutation.send(
       {
         anchor,
         body,
