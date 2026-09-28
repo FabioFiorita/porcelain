@@ -1,4 +1,6 @@
+import { useConnectedContext } from '@/app/workspace-provider';
 import { Button } from '@/components/ui/button';
+import { DiscardButton } from '@/features/git-actions/index';
 import {
   type DocumentRef,
   entryKey,
@@ -10,7 +12,6 @@ import {
 import { usePublishedReview } from '@/features/review/queries/published-review';
 import { useReviewChanges } from '@/features/review/queries/review';
 import { CommitDocument } from './commit-document';
-import { DiscardButton } from './discard';
 import { DocumentInteraction } from './document-interaction';
 import { DocumentToolbar } from './document-toolbar';
 import { FileDocument } from './file-document';
@@ -156,6 +157,7 @@ function LayerDocument({
 }
 
 function ChangeDocument({ scope, path }: { scope: ReviewScope; path: string }) {
+  const gitContext = useConnectedContext();
   const change = useReviewChanges(scope, [path]).find(
     (entry) => entry.path === path,
   );
@@ -175,7 +177,7 @@ function ChangeDocument({ scope, path }: { scope: ReviewScope; path: string }) {
             title={path.slice(path.lastIndexOf('/') + 1)}
             subtitle={path}
           >
-            <DiscardButton scope={scope} path={path} />
+            <DiscardButton scope={scope} context={gitContext} path={path} />
             <ReviewedControl
               scope={scope}
               path={path}

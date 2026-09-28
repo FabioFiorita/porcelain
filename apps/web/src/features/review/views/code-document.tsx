@@ -47,7 +47,7 @@ import {
 import { usePreferences } from '@/shared/workspace/preferences';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
 import { useTheme } from '@/shared/workspace/theme';
-import { DiscardButton } from './discard';
+import { DiscardButton } from '@/features/git-actions/index';
 import { useDocumentInteraction } from './document-interaction';
 import { InlineComposer } from './inline-composer';
 import { anchorLabel, ThreadCard } from './thread-card';
@@ -109,7 +109,8 @@ export function CodeDocument(props: Props) {
   );
 }
 function ConnectedCodeDocument(props: Props & { scope: ReviewScope }) {
-  const { threads, error } = useComments(props.scope, useConnectedContext());
+  const gitContext = useConnectedContext();
+  const { threads, error } = useComments(props.scope, gitContext);
   const mark = useMarkReviewed(props.scope);
   const unmark = useUnmarkReviewed(props.scope);
   const toggle = (entry: CodeEntry) => {
@@ -133,7 +134,12 @@ function ConnectedCodeDocument(props: Props & { scope: ReviewScope }) {
           Comments could not be refreshed.
         </p>
       )}
-      <CodeSurface {...props} threads={threads} onToggleReviewed={toggle} />
+      <CodeSurface
+        {...props}
+        threads={threads}
+        gitContext={gitContext}
+        onToggleReviewed={toggle}
+      />
     </>
   );
 }
@@ -148,7 +154,11 @@ function CodeSurface({
   fullHeight = false,
   headerActions,
   onToggleReviewed,
-}: Props & { threads: readonly CommentThread[] }) {
+  gitContext,
+}: Props & {
+  threads: readonly CommentThread[];
+  gitContext?: ReturnType<typeof useConnectedContext>;
+}) {
   const { dark } = useTheme();
   const { preferences } = usePreferences();
   const interaction = useDocumentInteraction();
@@ -435,6 +445,7 @@ function CodeSurface({
               {anchorLabel(selectionAnchor)}
             </span>
             {scope &&
+              gitContext &&
               selectionAnchor.kind === 'codeRange' &&
               selectionAnchor.comparison?.kind === 'worktree' &&
               selectionAnchor.side !== 'deletions' &&
@@ -443,6 +454,7 @@ function CodeSurface({
                 <span className="pointer-events-auto">
                   <DiscardButton
                     scope={scope}
+                    context={gitContext}
                     path={selectionAnchor.filePath}
                     hunk={{
                       scope: selectionAnchor.comparison.scope,

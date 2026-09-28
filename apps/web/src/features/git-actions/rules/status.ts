@@ -26,6 +26,23 @@ export type GitActionStatus = {
   branch?: GitBranchStatus | null | undefined;
 };
 
+export function statusFromChanges(
+  changes: ReadChangesResponse,
+): GitActionStatus {
+  return {
+    statusToken: changes.statusToken,
+    inProgress: changes.inProgress,
+    mergeHeadOid: changes.mergeHeadOid,
+    headOid: changes.headOid,
+    branch: changes.branch,
+    changes: changes.changes.flatMap((entry) => entry.comparisons),
+    files: changes.changes.map(({ path, fingerprint }) => ({
+      path,
+      fingerprint,
+    })),
+  };
+}
+
 export function branchStatus(status: GitActionStatus): GitBranchStatus | null {
   return status.branch ?? null;
 }

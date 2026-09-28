@@ -1,5 +1,5 @@
 export { groupedCommitModels, resolveCommitModel } from './rules/commit-model';
-export type { ActionInput, GitAction, Receipt } from './rules/git-action';
+export type { ActionInput, GitAction } from './rules/git-action';
 export type { GitActionStatus } from './rules/status';
 export {
   branchStatus,
@@ -23,3 +23,4 @@ export { useBranchForm } from './commands/branch-form';
 export { BranchForm } from './views/branch-form';
 export { CommitForm } from './views/commit-form';
 export type { CommitFormProps } from './rules/commit-form';
+export { DiscardButton } from './views/discard';
