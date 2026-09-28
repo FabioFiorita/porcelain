@@ -7,6 +7,7 @@ import {
   selectionKey,
   useChangeDiffs,
   useChangeLines,
+  useChanges,
   useRecoverChangedDiffs,
 } from '@/features/changes/index';
 import { MarkdownView } from '@/features/files/index';
@@ -14,6 +15,7 @@ import { contentVersion } from '@/shared/lib/pierre';
 import type { CodeEntry } from '../adapters/code-entries';
 import { useToggleLayerMark } from '../commands/layer-marks';
 import { useLayerMarks } from '../queries/published-review';
+import { usePrefetchReviewed, useReviewChangeItems } from '../queries/reviewed';
 import type { DocumentInteraction, OpenDocument } from '../rules/documents';
 import { contextPatch, focusPatch } from '../rules/patch-focus';
 import type {
@@ -27,7 +29,6 @@ import { layerReviewState } from '../rules/reviewed';
 import { CodeDocument, type DocumentContext } from './code-document';
 import { DocumentToolbar } from './document-toolbar';
 import { type Graph, ReviewDiagram } from './review-diagram';
-import { useReviewChanges } from './review-code-document';
 
 type LayerProps = {
   scope: ReviewScope;
@@ -179,9 +180,12 @@ function LayerSteps({
   const { scope, context } = props;
   const connection = useAccessStore((state) => state.connection);
   const recover = useRecoverChangedDiffs(scope, connection);
-  const items = useReviewChanges(
+  usePrefetchReviewed(scope, context);
+  const { changes } = useChanges(scope, connection);
+  const items = useReviewChangeItems(
     scope,
     context,
+    changes,
     steps.map((step) => step.pointer.path),
   );
   const selections = items.flatMap((item) =>

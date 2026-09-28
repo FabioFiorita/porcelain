@@ -23,7 +23,7 @@ import { FileTypeIcon } from '@/features/files/index';
 import { useMarkCommentsSeen } from '../commands/comments';
 import { useComments, usePrefetchComments } from '../queries/comments';
 import { usePublishedReview } from '../queries/published-review';
-import { usePrefetchReviewed, useReviewedMarks } from '../queries/reviewed';
+import { usePrefetchReviewed, useReviewChangeItems } from '../queries/reviewed';
 import {
   type CommentAnchor,
   commentsSeenThrough,
@@ -33,7 +33,6 @@ import { type DocumentRef, entryKey, UNEXPLAINED } from '../rules/documents';
 import {
   basename,
   type ChangeList,
-  mergeReviewChanges,
   notExplainedLabel,
   type ReviewChangeItem,
   type ReviewResponse,
@@ -63,7 +62,7 @@ export function ReviewIndex({ scope, context, activeEntry, onOpen }: Props) {
   const published = usePublishedReview(scope, context);
   const review = published.data?.active ? published.data : null;
   const { threads } = useComments(scope, context);
-  const changes = mergeReviewChanges(list, useReviewedMarks(scope, context));
+  const changes = useReviewChangeItems(scope, context, list);
   const openComments = threads.filter((thread) => !thread.resolved).length;
 
   return (

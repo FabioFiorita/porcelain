@@ -17,14 +17,13 @@ import {
 } from '@/features/files/index';
 import { type CodeEntry, fileEntry } from '../adapters/code-entries';
 import { useComments } from '../queries/comments';
-import { usePrefetchReviewed, useReviewedMarks } from '../queries/reviewed';
+import { usePrefetchReviewed, useReviewChangeItems } from '../queries/reviewed';
 import type { DocumentInteraction } from '../rules/documents';
 import { focusPatch, type LineSpan } from '../rules/patch-focus';
 import {
   type Change,
   type ChangeSelection,
   type DiffContent,
-  mergeReviewChanges,
   orderReviewChanges,
   type ReviewChangeItem,
   type ReviewScope,
@@ -34,17 +33,6 @@ import { CodeDocument, type DocumentContext } from './code-document';
 import { InlineComposer } from './inline-composer';
 import { ReviewedControl } from './reviewed-control';
 import { ThreadCard } from './thread-card';
-
-export function useReviewChanges(
-  scope: ReviewScope,
-  context: ReviewsContext,
-  paths?: readonly string[],
-): ReviewChangeItem[] {
-  const connection = useAccessStore((state) => state.connection);
-  usePrefetchReviewed(scope, context);
-  const { changes } = useChanges(scope, connection);
-  return mergeReviewChanges(changes, useReviewedMarks(scope, context), paths);
-}
 
 export function ReviewCodeDocument({
   scope,
@@ -69,8 +57,10 @@ export function ReviewCodeDocument({
 }) {
   const connection = useAccessStore((state) => state.connection);
   const recover = useRecoverChangedDiffs(scope, connection);
+  usePrefetchReviewed(scope, context);
+  const { changes } = useChanges(scope, connection);
   const items = orderReviewChanges(
-    useReviewChanges(scope, context, paths),
+    useReviewChangeItems(scope, context, changes, paths),
     files,
   );
   const statusToken = items[0]?.statusToken ?? '';

@@ -2,7 +2,10 @@ import { Button } from '@/components/ui/button';
 import { DiscardButton } from '@/features/git-actions/index';
 import { CommitDocument } from '@/features/history/index';
 import { FileDocument } from '@/features/files/index';
+import { useAccessStore } from '@/features/access/index';
+import { useChanges } from '@/features/changes/index';
 import { usePublishedReview } from '../queries/published-review';
+import { usePrefetchReviewed, useReviewChangeItems } from '../queries/reviewed';
 import type { RevealComment } from '../rules/comments';
 import {
   type DocumentInteraction,
@@ -15,7 +18,7 @@ import type { DocumentContext } from './code-document';
 import { DocumentToolbar } from './document-toolbar';
 import { PublishedLayer } from './published-layer';
 import { PublishedOverview } from './published-overview';
-import { ReviewCodeDocument, useReviewChanges } from './review-code-document';
+import { ReviewCodeDocument } from './review-code-document';
 import { MarkAllReviewed, ReviewedControl } from './reviewed-control';
 import { ReviewEmpty } from './review-empty';
 import { UnexplainedDocument } from './unexplained-document';
@@ -85,7 +88,10 @@ function HandoffDocument(props: DocumentProps) {
 }
 
 function PlainChangesDocument({ scope, context, interaction }: DocumentProps) {
-  const changes = useReviewChanges(scope, context);
+  const connection = useAccessStore((state) => state.connection);
+  usePrefetchReviewed(scope, context);
+  const list = useChanges(scope, connection).changes;
+  const changes = useReviewChangeItems(scope, context, list);
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <ReviewCodeDocument
@@ -145,7 +151,10 @@ function ChangeDocument({
   interaction,
   path,
 }: DocumentProps & { path: string }) {
-  const change = useReviewChanges(scope, context, [path]).find(
+  const connection = useAccessStore((state) => state.connection);
+  usePrefetchReviewed(scope, context);
+  const list = useChanges(scope, connection).changes;
+  const change = useReviewChangeItems(scope, context, list, [path]).find(
     (entry) => entry.path === path,
   );
   if (!change)

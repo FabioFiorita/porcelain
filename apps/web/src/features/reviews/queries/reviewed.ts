@@ -4,7 +4,11 @@ import {
   useSuspenseQuery,
 } from '@tanstack/react-query';
 import { queryKeys } from '@/shared/query/keys';
-import type { ReviewScope } from '../rules/review';
+import {
+  type ChangeList,
+  mergeReviewChanges,
+  type ReviewScope,
+} from '../rules/review';
 import type { ReviewsContext } from '../rules/reviewed';
 
 export function reviewedQueryOptions(
@@ -25,7 +29,7 @@ export function reviewedQueryOptions(
   });
 }
 
-export function useReviewedMarks(scope: ReviewScope, context: ReviewsContext) {
+function useReviewedMarks(scope: ReviewScope, context: ReviewsContext) {
   return useSuspenseQuery(reviewedQueryOptions(scope, context)).data;
 }
 
@@ -34,4 +38,13 @@ export function usePrefetchReviewed(
   context: ReviewsContext,
 ) {
   usePrefetchQuery(reviewedQueryOptions(scope, context));
+}
+
+export function useReviewChangeItems(
+  scope: ReviewScope,
+  context: ReviewsContext,
+  changes: ChangeList,
+  paths?: readonly string[],
+) {
+  return mergeReviewChanges(changes, useReviewedMarks(scope, context), paths);
 }
