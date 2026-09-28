@@ -1,4 +1,3 @@
-import { useNavigate } from '@tanstack/react-router';
 import { useEffect, useRef, useState } from 'react';
 import { parseEntry } from '../rules/documents';
 import {
@@ -13,6 +12,7 @@ import {
   togglePinInPane,
 } from '../rules/tab-strip';
 import { useTabLayoutStore } from '../store';
+import type { SetWorkspaceSearch } from '@/shared/workspace/search';
 
 export type PaneIndex = 0 | 1;
 type Target = string | null | undefined;
@@ -21,6 +21,7 @@ export function useTabLayout({
   worktreeId,
   entry,
   side,
+  onSearch,
   fallback,
   focused,
   setFocused,
@@ -28,6 +29,7 @@ export function useTabLayout({
   worktreeId: string;
   entry: string | undefined;
   side: string | undefined;
+  onSearch: SetWorkspaceSearch;
   fallback: string | null;
   focused: PaneIndex;
   setFocused: (pane: PaneIndex) => void;
@@ -43,26 +45,17 @@ export function useTabLayout({
     null,
   ]);
   const fallbackHandled = useRef(false);
-  const navigate = useNavigate({ from: '/' });
   const urlActive: [string | undefined, string | undefined] = [
     entry != null && parseEntry(entry) != null ? entry : undefined,
     side != null && parseEntry(side) != null ? side : undefined,
   ];
 
   useEffect(() => {
-    if (entry != null && parseEntry(entry) == null) {
-      void navigate({
-        search: (previous) => ({ ...previous, entry: undefined }),
-        replace: true,
-      });
-    }
-    if (side != null && parseEntry(side) == null) {
-      void navigate({
-        search: (previous) => ({ ...previous, side: undefined }),
-        replace: true,
-      });
-    }
-  }, [entry, side, navigate]);
+    if (entry != null && parseEntry(entry) == null)
+      onSearch({ entry: undefined }, { replace: true });
+    if (side != null && parseEntry(side) == null)
+      onSearch({ side: undefined }, { replace: true });
+  }, [entry, side, onSearch]);
 
   const current = (index: PaneIndex): string | undefined => {
     const target = pending[index];
@@ -111,12 +104,9 @@ export function useTabLayout({
       'entry' in updates ? (updates.entry ?? null) : previous[0],
       'side' in updates ? (updates.side ?? null) : previous[1],
     ]);
-    void navigate({
-      search: (previous) => ({
-        ...previous,
-        ...('entry' in updates ? { entry: updates.entry ?? undefined } : {}),
-        ...('side' in updates ? { side: updates.side ?? undefined } : {}),
-      }),
+    onSearch({
+      ...('entry' in updates ? { entry: updates.entry ?? undefined } : {}),
+      ...('side' in updates ? { side: updates.side ?? undefined } : {}),
     });
   };
   const goPane = (index: PaneIndex, key: string | null) =>
@@ -148,11 +138,8 @@ export function useTabLayout({
     fallbackHandled.current = true;
     save([{ tabs: [fallback], pinned: [] }]);
     setPending((previous) => [fallback, previous[1]]);
-    void navigate({
-      search: (previous) => ({ ...previous, entry: fallback }),
-      replace: true,
-    });
-  }, [entry, fallback, hadStoredLayout, navigate, side, save]);
+    onSearch({ entry: fallback }, { replace: true });
+  }, [entry, fallback, hadStoredLayout, onSearch, side, save]);
 
   return {
     split,

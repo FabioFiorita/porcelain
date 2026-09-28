@@ -2,7 +2,7 @@ import type { Probe } from '../probe.ts';
 
 export default {
   decision: 'P4',
-  plants: 'shared code imports the router module from routes/',
+  plants: 'shared code imports the pair route from routes/',
   gate: 'arch',
   rule: 'web-nothing-imports-routes:',
   edits: [
@@ -10,7 +10,7 @@ export default {
       kind: 'create',
       path: 'apps/web/src/shared/probe-router.ts',
       content:
-        "import { createAppRouter } from '../routes/router';\n\nexport const probeRouter = createAppRouter;\n",
+        "import { Route } from '../routes/pair';\n\nexport const probeRoute = Route;\n",
     },
   ],
 } satisfies Probe;

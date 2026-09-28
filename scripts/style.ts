@@ -13,7 +13,11 @@ import {
   readJourneyBaseline,
   settleBaseline,
 } from '../architecture/baseline.ts';
-import { domainPackages, type StyleRule } from '../architecture/policy.ts';
+import {
+  domainPackages,
+  generatedRouteTree,
+  type StyleRule,
+} from '../architecture/policy.ts';
 import {
   liveRuleNames,
   probeSchema,
@@ -848,7 +852,7 @@ function webSources(): string[] {
 async function lint(): Promise<number> {
   const files = roots
     .flatMap(filesUnder)
-    .filter((path) => lintedFile.test(path));
+    .filter((path) => lintedFile.test(path) && path !== generatedRouteTree);
   const result = spawnSync(
     join('node_modules', '.bin', 'oxlint'),
     [

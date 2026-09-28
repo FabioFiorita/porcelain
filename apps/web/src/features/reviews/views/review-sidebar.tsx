@@ -14,7 +14,8 @@ import {
   usePublishedReview,
 } from '../queries/published-review';
 import type { OpenDocument } from '../rules/documents';
-import { isSurface, type ReviewScope, type Surface } from '../rules/review';
+import type { ReviewScope } from '../rules/review';
+import { isSurface, type Surface } from '@/shared/workspace/search';
 import type { ReviewsContext } from '../rules/reviewed';
 import { ReviewBoundary } from './review-boundary';
 import { ReviewEmpty } from './review-empty';

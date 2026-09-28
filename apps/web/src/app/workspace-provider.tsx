@@ -2,9 +2,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import { createContext, type ReactNode, useContext, useEffect } from 'react';
 import type { Api } from './api';
 import { onUnauthorized } from '../shared/api/unauthorized';
-import { sessionQueryOptions, useAccessStore } from '@/features/access/index';
+import { useAccessStore } from '@/features/access/index';
 import { retainedFileDrafts } from '@/shared/query/file-drafts';
-import { queryKeys } from '@/shared/query/keys';
 import { connectLiveQueries } from '@/shared/query/live-updates';
 
 type WorkspaceContext = {
@@ -51,37 +50,6 @@ export function WorkspaceProvider({
       }),
     [queryClient],
   );
-  useEffect(() => {
-    if (window.location.pathname === '/pair') {
-      useAccessStore.getState().setRestoring(false);
-      return;
-    }
-    const complete = useAccessStore.getState().beginConnection(true);
-    if (!complete) return;
-    const controller = new AbortController();
-    const restore = async () => {
-      try {
-        const inventory = await queryClient.ensureQueryData(
-          sessionQueryOptions(),
-        );
-        if (controller.signal.aborted || !complete(inventory)) return;
-        queryClient.clear();
-        queryClient.setQueryData(
-          queryKeys.inventory(inventory.environmentId),
-          inventory,
-        );
-        void queryClient.invalidateQueries({
-          queryKey: queryKeys.inventory(inventory.environmentId),
-        });
-      } catch {
-      } finally {
-        if (!controller.signal.aborted)
-          useAccessStore.getState().setRestoring(false);
-      }
-    };
-    void restore();
-    return () => controller.abort();
-  }, [queryClient]);
   return <Context value={{ api, connection }}>{children}</Context>;
 }
 

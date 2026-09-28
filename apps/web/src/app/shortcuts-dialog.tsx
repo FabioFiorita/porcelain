@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/dialog';
 import { Kbd, KbdGroup } from '@/components/ui/kbd';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { DialogIcon } from '@/app/views/dialog-icon';
+import { DialogIcon } from '@/app/dialog-icon';
 import { SHORTCUT_GROUPS } from '@/shared/workspace/shortcuts';
 
 function Keys({ keys }: { keys: string }) {

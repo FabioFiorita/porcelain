@@ -30,11 +30,6 @@ export type ReviewChangeItem = FileChange & {
   mark?: ReviewedMark;
 };
 export type ReviewScope = { projectId: string; worktreeId: string };
-const SURFACES = ['changes', 'files', 'history'] as const;
-export type Surface = (typeof SURFACES)[number];
-export function isSurface(value: unknown): value is Surface {
-  return SURFACES.some((surface) => surface === value);
-}
 export function orderReviewChanges<T extends { path: string }>(
   changes: readonly T[],
   files: readonly { path: string }[],

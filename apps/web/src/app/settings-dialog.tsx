@@ -11,10 +11,10 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { CommitModelSetting } from '@/app/views/commit-model-setting';
+import { CommitModelSetting } from '@/app/commit-model-setting';
 import { DisconnectBrowser } from '@/features/access/index';
 import { copyText } from '@/shared/workspace/copy';
-import { DialogIcon } from '@/app/views/dialog-icon';
+import { DialogIcon } from '@/app/dialog-icon';
 import type { Preferences } from '@/shared/workspace/preferences';
 import { usePreferences } from '@/shared/workspace/preferences';
 

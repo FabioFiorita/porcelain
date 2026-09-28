@@ -21,11 +21,15 @@ import { ProjectFolderPicker } from './project-folder-picker';
 
 export function OpenProjectDialog() {
   const connection = useAccessStore((state) => state.connection);
-  const navigate = useNavigate({ from: '/' });
+  const navigate = useNavigate();
   const opening = useOpenProject(
     connection,
     () => openProjectDialog.close(),
-    (id) => navigate({ search: { worktree: id } }),
+    (projectId, worktreeId) =>
+      navigate({
+        to: '/$projectId/$worktreeId',
+        params: { projectId, worktreeId },
+      }),
   );
   return (
     <DialogPrimitive.Root

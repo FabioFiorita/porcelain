@@ -16,6 +16,7 @@ import {
   archRules,
   classify,
   domainPackages,
+  entryImportsRouteTree,
   forbiddenExternal,
   gitCapabilityViolation,
   helpersFolderViolation,
@@ -452,13 +453,14 @@ function dependencyFindings(
             from: module.source,
             to: dependency.resolved,
           });
-        const rule = allowedContractType(
-          module.source,
-          to,
-          dependency.dependencyTypes.includes('type-only'),
-        )
-          ? undefined
-          : violation(from, to);
+        const rule =
+          allowedContractType(
+            module.source,
+            to,
+            dependency.dependencyTypes.includes('type-only'),
+          ) || entryImportsRouteTree(module.source, dependency.resolved)
+            ? undefined
+            : violation(from, to);
         if (rule)
           result.push({ rule, from: module.source, to: dependency.resolved });
       } else if (

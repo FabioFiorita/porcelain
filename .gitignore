@@ -9,3 +9,4 @@ dist/
 .turbo/
 
 /dist-porcelain/
+.tanstack/

@@ -26,7 +26,7 @@ import {
   isVariableStatement,
 } from 'typescript/unstable/ast/is';
 import { z } from 'zod';
-import type { ArchRule } from './policy.ts';
+import { generatedRouteTree, type ArchRule } from './policy.ts';
 
 export type UnusedExportFinding = { rule: ArchRule; from: string; to: string };
 
@@ -265,7 +265,12 @@ export function unusedExportFindings(root: string): UnusedExportFinding[] {
     }
     const findings: UnusedExportFinding[] = [];
     for (const [file, shape] of shapes) {
-      if (!checkedFile.test(file) || skippedFile.test(file)) continue;
+      if (
+        !checkedFile.test(file) ||
+        skippedFile.test(file) ||
+        file === generatedRouteTree
+      )
+        continue;
       const names = used.get(file) ?? new Set<string>();
       for (const name of [...shape.local, ...shape.forwarded.keys()])
         if (!names.has(name))

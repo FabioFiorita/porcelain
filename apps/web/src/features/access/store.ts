@@ -16,12 +16,10 @@ type Connection = {
 type AccessState = {
   connection: Connection | null;
   generation: number;
-  restoring: boolean;
   connect: (environmentId: string) => Connection;
   beginConnection: (
     automatic?: boolean,
   ) => ((inventory: ReadInventoryResponse) => boolean) | null;
-  setRestoring: (restoring: boolean) => void;
   clear: () => void;
 };
 
@@ -54,14 +52,13 @@ function createConnection(environmentId: string): Connection {
 export const useAccessStore = create<AccessState>()((set, get) => ({
   connection: null,
   generation: 0,
-  restoring: true,
   connect(environmentId) {
     const current = get().connection;
     if (current?.environmentId === environmentId) return current;
     current?.operations.clear();
     current?.controller.abort();
     const connection = createConnection(environmentId);
-    set({ connection, restoring: false });
+    set({ connection });
     return connection;
   },
   beginConnection(automatic = false) {
@@ -74,9 +71,6 @@ export const useAccessStore = create<AccessState>()((set, get) => ({
       return true;
     };
   },
-  setRestoring(restoring) {
-    set({ restoring });
-  },
   clear() {
     const current = get().connection;
     current?.operations.clear();
@@ -84,13 +78,6 @@ export const useAccessStore = create<AccessState>()((set, get) => ({
     set((state) => ({
       connection: null,
       generation: state.generation + 1,
-      restoring: false,
     }));
   },
 }));
-
-export function useConnection() {
-  const connected = useAccessStore((state) => state.connection !== null);
-  const restoring = useAccessStore((state) => state.restoring);
-  return { connected, restoring };
-}

@@ -15,3 +15,7 @@ export {
 } from './rules/inventory';
 export { OpenProjectDialog } from './views/open-project-dialog';
 export { ProjectNavigator } from './views/project-navigator';
+export {
+  ProjectWorkspace,
+  ProjectWorkspaceProvider,
+} from './views/project-workspace';

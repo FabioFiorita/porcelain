@@ -343,6 +343,12 @@ export const styleRules = [
 
 export type StyleRule = (typeof styleRules)[number];
 
+export const generatedRouteTree = 'apps/web/src/routeTree.gen.ts';
+
+export function entryImportsRouteTree(from: string, to: string): boolean {
+  return from === 'apps/web/src/main.tsx' && to === generatedRouteTree;
+}
+
 export type Classification = { role: Role; owner: string };
 
 const domainSet = new Set<string>(domainPackages);
@@ -543,8 +549,7 @@ export function webPart(path: string): Role | undefined {
   const inside = path.slice('apps/web/src/'.length);
   const parts = inside.split('/');
   const top = parts[0] ?? '';
-  if (inside === 'main.tsx' || inside === 'routeTree.gen.ts')
-    return 'web-entry';
+  if (inside === 'main.tsx' || path === generatedRouteTree) return 'web-entry';
   if (inside === 'config/limits.ts') return 'web-limits';
   if (top === 'routes') return 'route';
   if (top === 'app') return inside.endsWith('.tsx') ? 'shell' : undefined;

@@ -3,7 +3,6 @@ import {
   formatForDisplay,
   useHotkey,
 } from '@tanstack/react-hotkeys';
-import { useNavigate } from '@tanstack/react-router';
 import { PanelRightIcon, LayersIcon as ReviewLayersIcon } from 'lucide-react';
 import {
   type ComponentProps,
@@ -44,12 +43,17 @@ import {
   InterruptedActionNotice,
 } from '@/features/git-actions/index';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
+import type {
+  SetWorkspaceSearch,
+  Surface,
+  WorkspaceSearch,
+} from '@/shared/workspace/search';
 import { useDesktopReview } from '../adapters/desktop-review';
 import { type PaneIndex, useTabLayout } from '../adapters/tab-layout';
 import { usePublishedReview } from '../queries/published-review';
 import type { RevealComment } from '../rules/comments';
 import { entryKey, type OpenDocument, parseEntry } from '../rules/documents';
-import type { ReviewLayer, Surface } from '../rules/review';
+import type { ReviewLayer } from '../rules/review';
 import type { DocumentContext } from './code-document';
 import { DocumentTabs } from './document-tabs';
 import { DocumentView } from './documents';
@@ -64,20 +68,17 @@ export function ReviewWorkspace({
   worktree,
   projectId,
   search,
+  onSearch,
   context,
   navigationTrigger,
 }: {
   worktree: Worktree;
   projectId: string;
   context: WorkspaceContext;
-  search: {
-    surface: Surface | undefined;
-    entry: string | undefined;
-    side: string | undefined;
-  };
+  search: WorkspaceSearch;
+  onSearch: SetWorkspaceSearch;
   navigationTrigger: RefObject<HTMLButtonElement | null>;
 }) {
-  const navigate = useNavigate({ from: '/' });
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
   const desktop = useDesktopReview();
@@ -115,18 +116,11 @@ export function ReviewWorkspace({
         ? { anchor, nonce: Date.now(), pane: focusedPane, key }
         : undefined,
     );
-    void navigate({
-      search: (previous) =>
-        focusedPane === 1
-          ? { ...previous, side: key }
-          : { ...previous, entry: key },
-    });
+    onSearch(focusedPane === 1 ? { side: key } : { entry: key });
     setMobileOpen(false);
   };
   const setSurface = (next: Surface) => {
-    void navigate({
-      search: (previous) => ({ ...previous, surface: next }),
-    });
+    onSearch({ surface: next });
   };
   useHotkey(SHORTCUTS.surfaceReview, () => setSurface('changes'), {
     ignoreInputs: true,
@@ -216,6 +210,7 @@ export function ReviewWorkspace({
               worktreeId={worktree.id}
               entry={search.entry}
               side={search.side}
+              onSearch={onSearch}
               focused={focusedPane}
               setFocused={setFocusedPane}
               onOpen={open}
@@ -252,6 +247,7 @@ function DocumentArea({
   worktreeId,
   entry,
   side,
+  onSearch,
   focused,
   setFocused,
   onOpen,
@@ -266,6 +262,7 @@ function DocumentArea({
   worktreeId: string;
   entry: string | undefined;
   side: string | undefined;
+  onSearch: SetWorkspaceSearch;
   focused: PaneIndex;
   setFocused: (pane: PaneIndex) => void;
   onOpen: OpenDocument;
@@ -287,6 +284,7 @@ function DocumentArea({
     worktreeId,
     entry,
     side,
+    onSearch,
     fallback: hasHandoff ? entryKey({ kind: 'handoff' }) : null,
     focused,
     setFocused,

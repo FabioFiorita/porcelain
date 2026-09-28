@@ -1,6 +1,5 @@
 {
   "porcelain/no-number-outside-limits": {
-    "apps/web/src/routes/router.tsx": 2,
     "apps/web/src/shared/api/request-timeout.ts": 1,
     "apps/web/src/shared/hooks/use-mobile.ts": 1,
     "apps/web/src/shared/lib/id.ts": 7,
@@ -10,7 +9,7 @@
     "apps/web/src/shared/workspace/preferences.tsx": 1
   },
   "porcelain/web-cache-writes-in-commands": {
-    "apps/web/src/app/workspace-provider.tsx": 3,
+    "apps/web/src/app/workspace-provider.tsx": 1,
     "apps/web/src/shared/query/live-updates.ts": 3
   },
   "porcelain/web-no-context": {
@@ -18,7 +17,6 @@
     "apps/web/src/shared/workspace/preferences.tsx": 2
   },
   "porcelain/web-no-empty-catch": {
-    "apps/web/src/app/workspace-provider.tsx": 1,
     "apps/web/src/shared/workspace/preferences.tsx": 1
   },
   "porcelain/web-no-manual-memo": {
@@ -30,27 +28,14 @@
   "porcelain/web-timers-in-commands-and-store": {
     "apps/web/src/shared/live/socket.ts": 2
   },
-  "porcelain/web-views-no-await": {
-    "apps/web/src/app/workspace-provider.tsx": 1
-  },
   "porcelain/web-views-no-direct-data": {
-    "apps/web/src/app/views/connected-workspace.tsx": 1,
-    "apps/web/src/app/workspace-provider.tsx": 4
-  },
-  "porcelain/web-views-no-promise-chains": {
-    "apps/web/src/app/views/workspace-view.tsx": 1
+    "apps/web/src/app/workspace-provider.tsx": 3
   },
   "porcelain/web-views-no-transport": {
     "apps/web/src/app/workspace-provider.tsx": 1
   },
-  "porcelain/web-views-no-try": {
-    "apps/web/src/app/workspace-provider.tsx": 1
-  },
-  "style/react-compiler": {
-    "apps/web/src/app/workspace-provider.tsx": 1
-  },
   "typescript/no-deprecated": {
-    "apps/web/src/app/workspace-provider.tsx": 2,
+    "apps/web/src/app/workspace-provider.tsx": 1,
     "apps/web/src/features/changes/commands/read-current-changes.ts": 1,
     "apps/web/src/shared/lib/submit-form.ts": 1,
     "apps/web/src/shared/workspace/copy.ts": 1
@@ -58,25 +43,15 @@
   "unclassified-import-target": {
     "apps/web/src/app/workspace-provider.tsx": 1,
     "apps/web/src/main.tsx": 1,
-    "apps/web/src/routes/router.tsx": 1,
     "apps/web/src/shared/query/live-updates.ts": 1
   },
   "unclassified-source": {
     "apps/web/src/app/api.ts": 1,
-    "apps/web/src/app/boot.ts": 1,
-    "apps/web/src/app/views/commit-model-setting.tsx": 1,
-    "apps/web/src/app/views/connected-workspace.tsx": 1,
-    "apps/web/src/app/views/dialog-icon.tsx": 1,
-    "apps/web/src/app/views/settings-dialog.tsx": 1,
-    "apps/web/src/app/views/shortcuts-dialog.tsx": 1,
-    "apps/web/src/app/views/workspace-view.tsx": 1
+    "apps/web/src/app/boot.ts": 1
   },
   "unused-export": {
     "apps/web/src/shared/lib/pierre.ts": 1,
     "apps/web/src/shared/query/live-updates.ts": 2
-  },
-  "web-nothing-imports-routes": {
-    "apps/web/src/main.tsx": 1
   },
   "web-shared-cannot-import-ui": {
     "apps/web/src/shared/workspace/copy.ts": 1

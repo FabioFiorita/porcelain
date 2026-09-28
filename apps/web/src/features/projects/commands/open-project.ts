@@ -5,7 +5,7 @@ import { useRegisterProject } from './register-project';
 export function useOpenProject(
   connection: ProjectConnection | null,
   close: () => void,
-  selectWorktree: (id: string) => Promise<void>,
+  selectWorktree: (projectId: string, worktreeId: string) => Promise<void>,
 ) {
   const register = useRegisterProject(connection);
   const reset = () => {
@@ -29,7 +29,7 @@ export function useOpenProject(
       const worktree = project.worktrees.find((entry) => entry.available);
       reset();
       close();
-      if (worktree) await selectWorktree(worktree.id);
+      if (worktree) await selectWorktree(project.id, worktree.id);
     },
   };
 }
