@@ -134,3 +134,4 @@ export function FileEditor({
     </div>
   );
 }
+export default FileEditor;

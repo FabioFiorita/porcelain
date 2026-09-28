@@ -458,3 +458,4 @@ function Canvas({
     </div>
   );
 }
+export default ReviewDiagram;

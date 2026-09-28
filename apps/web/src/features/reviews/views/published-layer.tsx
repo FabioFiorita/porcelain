@@ -27,7 +27,8 @@ import type {
 } from '../rules/review';
 import { CodeDocument, type DocumentContext } from './code-document';
 import { DocumentToolbar } from './document-toolbar';
-import { type Graph, ReviewDiagram } from './review-diagram';
+import type { Graph } from './review-diagram';
+import { ReviewDiagram } from './lazy-review-diagram';
 
 type LayerProps = {
   scope: ReviewScope;

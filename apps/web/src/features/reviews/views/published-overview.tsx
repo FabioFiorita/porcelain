@@ -5,7 +5,8 @@ import { useSummaryLayerRequests } from '../adapters/summary-messages';
 import type { OpenDocument } from '../rules/documents';
 import { type ReviewResponse, reviewSummaryUrl } from '../rules/review';
 import { DocumentToolbar } from './document-toolbar';
-import { type Graph, ReviewDiagram } from './review-diagram';
+import type { Graph } from './review-diagram';
+import { ReviewDiagram } from './lazy-review-diagram';
 
 export function PublishedOverview({
   review,

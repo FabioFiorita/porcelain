@@ -3,7 +3,7 @@ export { ImagePreview } from './views/image-preview';
 export { MarkdownView } from './views/markdown-view';
 export { isImagePath } from './rules/html-assets';
 export { useTextContents } from './queries/text';
-export { FileEditor } from './views/file-editor';
+export { FileEditor } from './views/lazy-file-editor';
 export { HtmlPreview } from './views/html-preview';
 export { useDirectory } from './queries/directory';
 export { useTextFile } from './queries/text';
