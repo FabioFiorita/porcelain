@@ -155,12 +155,7 @@ export function useGitMenu(
     restoreDiscarded: (item: DiscardedItem) =>
       void restoreDiscarded(menu, restoreAction, item),
     lookAgain: async () => {
-      const changes = await menu.refreshLook();
-      const details = await menu.details.read();
-      menu.onLooked({
-        ...statusFromChanges(changes),
-        branch: details?.branch ?? changes.branch,
-      });
+      menu.onLooked(statusFromChanges(await menu.refreshLook()));
     },
   };
 }
