@@ -290,6 +290,31 @@ function DocumentArea({
     setFocused,
   });
 
+  const focusedPane = layout.panes[focused] ?? {
+    tabs: [],
+    pinned: [],
+    active: null,
+  };
+  const shortcuts = {
+    ignoreInputs: true,
+    enabled: layout.split || focused === 0,
+  };
+  useHotkey(SHORTCUTS.nextTab, () => layout.step(focused, 1), shortcuts);
+  useHotkey(SHORTCUTS.previousTab, () => layout.step(focused, -1), shortcuts);
+  useHotkey(
+    SHORTCUTS.closeTab,
+    () =>
+      focusedPane.active != null && layout.close(focused, focusedPane.active),
+    shortcuts,
+  );
+  useHotkey(
+    SHORTCUTS.openToSide,
+    () =>
+      focusedPane.active != null &&
+      layout.openToSide(focused, focusedPane.active),
+    shortcuts,
+  );
+
   const paneProps = (index: PaneIndex) => ({
     reveal,
     index,
@@ -360,24 +385,6 @@ function PaneView({
 }) {
   const pane = layout.panes[index] ?? { tabs: [], pinned: [], active: null };
   const document = parseEntry(pane.active ?? undefined);
-  useHotkey(SHORTCUTS.nextTab, () => layout.step(index, 1), {
-    ignoreInputs: true,
-    enabled: focused,
-  });
-  useHotkey(SHORTCUTS.previousTab, () => layout.step(index, -1), {
-    ignoreInputs: true,
-    enabled: focused,
-  });
-  useHotkey(
-    SHORTCUTS.closeTab,
-    () => pane.active != null && layout.close(index, pane.active),
-    { ignoreInputs: true, enabled: focused },
-  );
-  useHotkey(
-    SHORTCUTS.openToSide,
-    () => pane.active != null && layout.openToSide(index, pane.active),
-    { ignoreInputs: true, enabled: focused },
-  );
 
   return (
     <section
