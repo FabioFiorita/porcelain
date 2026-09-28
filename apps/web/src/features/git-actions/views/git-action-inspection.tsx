@@ -217,7 +217,6 @@ function ActionForm({
   const [stashOid, setStash] = useState(branch?.stashes?.[0]?.oid ?? '');
   const [option, setOption] = useState(action === 'stash-create');
   const git = useActionForm(scope, action, context, {
-    status,
     expectedStatus,
     onBusy,
     onLookAgain,

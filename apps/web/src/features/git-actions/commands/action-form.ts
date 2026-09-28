@@ -12,12 +12,10 @@ export function useActionForm(
   action: FormAction,
   context: GitContext,
   {
-    status,
     expectedStatus,
     onBusy,
     onLookAgain,
   }: {
-    status: GitActionStatus;
     expectedStatus: GitActionStatus;
     onBusy: (busy: boolean) => void;
     onLookAgain?: (() => Promise<void>) | undefined;
@@ -33,7 +31,7 @@ export function useActionForm(
         expectationFor(
           expectedStatus,
           stash ? (expectedStatus.files?.map((file) => file.path) ?? []) : [],
-          remote ? (status.branch?.upstreamOid ?? null) : undefined,
+          remote ? (expectedStatus.branch?.upstreamOid ?? null) : undefined,
           stash,
         ),
       ),
