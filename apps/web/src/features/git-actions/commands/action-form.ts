@@ -22,17 +22,15 @@ export function useActionForm(
   },
 ) {
   const git = useGitAction(scope, action, context);
-  const remote = action === 'push' || action === 'pull' || action === 'fetch';
-  const stash = action.startsWith('stash-');
   const submit = useMutation({
     mutationFn: (input: ActionInput) =>
       git.run(
         input,
         expectationFor(
           expectedStatus,
-          stash ? (expectedStatus.files?.map((file) => file.path) ?? []) : [],
-          remote ? (expectedStatus.branch?.upstreamOid ?? null) : undefined,
-          stash,
+          expectedStatus.files?.map((file) => file.path) ?? [],
+          undefined,
+          true,
         ),
       ),
     onSettled: () => onBusy(false),
@@ -48,7 +46,6 @@ export function useActionForm(
   const uncertain = Boolean(git.operation && !git.canStartNew);
   return {
     operation: git.operation,
-    remote,
     messageLimit: COMMIT_MESSAGE_BYTES,
     outcome: git.operation?.receipt,
     busy,

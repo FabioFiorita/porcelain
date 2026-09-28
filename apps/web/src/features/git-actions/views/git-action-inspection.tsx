@@ -14,7 +14,6 @@ import {
   NativeSelectOption,
 } from '@/components/ui/native-select';
 import { Textarea } from '@/components/ui/textarea';
-import { usePreferences } from '@/shared/workspace/preferences';
 import { HISTORY_OID_LENGTH } from '@/config/limits';
 import { useActionForm } from '../commands/action-form';
 import { actionFormInput, type FormAction } from '../rules/action-form';
@@ -49,7 +48,10 @@ export function GitActionInspection({
   if (
     entry === 'switch-branch' ||
     entry === 'create-branch' ||
-    entry === 'discard'
+    entry === 'discard' ||
+    entry === 'fetch' ||
+    entry === 'pull' ||
+    entry === 'push'
   )
     return null;
   if (entry === 'commit' || entry === 'amend')
@@ -64,7 +66,7 @@ export function GitActionInspection({
       />
     );
   return (
-    <RemoteActionForm
+    <StashActionForm
       key={entry}
       scope={scope}
       context={context}
@@ -149,7 +151,7 @@ function CommitInspectionHeader({ action }: { action: 'commit' | 'amend' }) {
   );
 }
 
-function RemoteActionForm({
+function StashActionForm({
   scope,
   context,
   action,
@@ -205,15 +207,8 @@ function ActionForm({
   onBusy: (busy: boolean) => void;
   onLookAgain?: (() => Promise<void>) | undefined;
 }) {
-  const { preferences } = usePreferences();
-  const [strategy] = useState(preferences.pullStrategy);
   const branch = status.branch;
   const [message, setMessage] = useState('Porcelain review');
-  const [remoteName, setRemote] = useState(branch?.remoteName ?? 'origin');
-  const [ref, setRef] = useState(
-    branch?.sourceRef ??
-      `refs/heads/${branch?.name?.replace(/^refs\/heads\//, '') ?? 'main'}`,
-  );
   const [stashOid, setStash] = useState(branch?.stashes?.[0]?.oid ?? '');
   const [option, setOption] = useState(action === 'stash-create');
   const git = useActionForm(scope, action, context, {
@@ -221,22 +216,13 @@ function ActionForm({
     onBusy,
     onLookAgain,
   });
-  const { busy, uncertain, outcome, error, remote } = git;
+  const { busy, uncertain, outcome, error } = git;
   return (
     <form
       className="flex min-w-0 flex-col gap-4"
       onSubmit={(event) => {
         event.preventDefault();
-        git.submit(
-          actionFormInput(action, {
-            message,
-            remoteName,
-            ref,
-            stashOid,
-            option,
-            strategy,
-          }),
-        );
+        git.submit(actionFormInput(action, { message, stashOid, option }));
       }}
     >
       <fieldset
@@ -261,29 +247,6 @@ function ActionForm({
               maxLength={git.messageLimit}
             />
           </Field>
-        )}
-        {remote && (
-          <>
-            <Field>
-              <FieldLabel htmlFor="git-remote">Remote</FieldLabel>
-              <Input
-                id="git-remote"
-                value={remoteName}
-                onChange={(event) => setRemote(event.target.value)}
-                required
-              />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="git-ref">Branch ref</FieldLabel>
-              <Input
-                id="git-ref"
-                value={ref}
-                onChange={(event) => setRef(event.target.value)}
-                pattern="refs/heads/.+"
-                required
-              />
-            </Field>
-          </>
         )}
         {(action === 'stash-apply' || action === 'stash-pop') && (
           <Field>
@@ -311,30 +274,17 @@ function ActionForm({
             )}
           </Field>
         )}
-        {!['fetch', 'pull'].includes(action) && (
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={option}
-              onChange={(event) => setOption(event.target.checked)}
-            />
-            {action === 'push'
-              ? 'Create the remote branch if needed'
-              : action === 'stash-create'
-                ? 'Include untracked files'
-                : 'Restore staged changes'}
-          </label>
-        )}
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={option}
+            onChange={(event) => setOption(event.target.checked)}
+          />
+          {action === 'stash-create'
+            ? 'Include untracked files'
+            : 'Restore staged changes'}
+        </label>
       </fieldset>
-      {action === 'pull' && (
-        <p className="text-xs text-muted-foreground">
-          {strategy === 'merge'
-            ? 'Pull merges upstream changes into this branch.'
-            : strategy === 'rebase'
-              ? 'Pull rebases local commits onto upstream, rewriting their commit IDs.'
-              : 'Pull only moves forward when there are no diverging local commits.'}
-        </p>
-      )}
       {outcome?.message &&
       receiptFailed(outcome) &&
       outcome.state !== 'conflicted' ? (
@@ -349,15 +299,6 @@ function ActionForm({
               : ''}
         </p>
       ) : null}
-      {action === 'pull' && outcome?.state === 'conflicted' && (
-        <p role="alert" className="text-sm">
-          Pull stopped with conflicts. In this worktree, run{' '}
-          <code>git status</code> and follow its instructions to resolve and
-          continue. To undo the pull, run <code>git merge --abort</code> for a
-          merge or <code>git rebase --abort</code> for a rebase. Finish or abort
-          before starting another Git action.
-        </p>
-      )}
       {uncertain && !outcome && <p role="status">Outcome not yet confirmed</p>}
       {error ? <GitActionError text={gitErrorMessage(error)} /> : null}
       {outcome && changedSinceLooked(outcome) && onLookAgain && (
