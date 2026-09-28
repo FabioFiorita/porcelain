@@ -11,6 +11,8 @@ import {
   commitFormDefaults,
   type CommitFormProps,
   type CommitMode,
+  type DraftedFiles,
+  draftIsStale,
   type Group,
 } from '../rules/commit-form';
 import { gitActionBlocker } from '../rules/status';
@@ -47,7 +49,7 @@ function useCommitFormState(
     form.store,
     (state) => state.values,
   );
-  const { done, activeGroup, ownHead, busy, error, draftToken, editingFiles } =
+  const { done, activeGroup, ownHead, busy, error, drafted, editingFiles } =
     useCommitState(state);
   const setMode = (value: CommitMode) => form.setFieldValue('mode', value);
   const setMessage = (value: string) => form.setFieldValue('message', value);
@@ -72,8 +74,8 @@ function useCommitFormState(
   const setOwnHead = (ownHead: string | null) => state.setState({ ownHead });
   const setBusy = (busy: boolean) => state.setState({ busy });
   const setError = (error: unknown) => state.setState({ error });
-  const setDraftToken = (draftToken: string | null) =>
-    state.setState({ draftToken });
+  const setDrafted = (drafted: DraftedFiles | null) =>
+    state.setState({ drafted });
   const commitAction: 'amend' | 'commit' =
     mode === 'amend' ? 'amend' : 'commit';
   const git = useGitAction(scope, commitAction, context);
@@ -103,9 +105,9 @@ function useCommitFormState(
 
   const staleDraft =
     commitAction === 'commit' &&
-    draftToken != null &&
+    drafted != null &&
     done.size === 0 &&
-    draftToken !== status.statusToken;
+    draftIsStale(status, drafted);
   const leftUncommitted = groups
     ? files.filter(
         (file) => !groups.some((group) => group.paths.includes(file.path)),
@@ -146,7 +148,7 @@ function useCommitFormState(
     ownHead,
     busy,
     error,
-    draftToken,
+    drafted,
     files,
     commitPaths,
     paths,
@@ -172,7 +174,7 @@ function useCommitFormState(
     setOwnHead,
     setBusy,
     setError,
-    setDraftToken,
+    setDrafted,
     state,
   };
 }
@@ -189,7 +191,7 @@ async function generate(
     setError,
     generator,
     status,
-    setDraftToken,
+    setDrafted,
     setDone,
     setActiveGroup,
     setMessage,
@@ -205,7 +207,7 @@ async function generate(
       paths: selectedPaths,
       expectedStatusToken: status.statusToken,
     });
-    setDraftToken(status.statusToken);
+    setDrafted(result.expectedFiles);
     setDone(new Set());
     setActiveGroup(null);
     if (mode === 'message') {
@@ -234,7 +236,7 @@ async function commit(controls: ReturnType<typeof useCommitFormState>) {
     generator,
     status,
     setMessage,
-    setDraftToken,
+    setDrafted,
     groups,
     done,
     ownHead,
@@ -263,7 +265,8 @@ async function commit(controls: ReturnType<typeof useCommitFormState>) {
       });
       text = result.groups[0]?.message ?? '';
       setMessage(text);
-      setDraftToken(status.statusToken);
+      setDrafted(result.expectedFiles);
+      if (draftIsStale(status, result.expectedFiles)) return;
     }
     const pending =
       commitAction === 'amend'
@@ -315,15 +318,7 @@ async function commit(controls: ReturnType<typeof useCommitFormState>) {
 }
 
 async function lookAgain(controls: ReturnType<typeof useCommitFormState>) {
-  const {
-    onLookAgain,
-    working,
-    setBusy,
-    setError,
-    git,
-    setOwnHead,
-    setDraftToken,
-  } = controls;
+  const { onLookAgain, working, setBusy, setError, git, setOwnHead } = controls;
   if (!onLookAgain || working) return;
   setBusy(true);
   setError(null);
@@ -331,7 +326,6 @@ async function lookAgain(controls: ReturnType<typeof useCommitFormState>) {
     await onLookAgain();
     git.startNew();
     setOwnHead(null);
-    setDraftToken(null);
   } catch (error) {
     setError(error);
   } finally {
@@ -367,7 +361,7 @@ export function useCommitForm(
     working,
     setMode,
     setGroups,
-    setDraftToken,
+    setDrafted,
     commitPaths,
     setAmendMessage,
     setMessage,
@@ -395,7 +389,7 @@ export function useCommitForm(
       setMode(value);
       if (value === 'single') {
         setGroups(null);
-        setDraftToken(null);
+        setDrafted(null);
       }
       if (value === 'groups' && groups === null && !working)
         void generate(controls, 'groups', commitPaths);
@@ -440,7 +434,7 @@ export function useCommitForm(
       ]),
     clearGroups: () => {
       setGroups(null);
-      setDraftToken(null);
+      setDrafted(null);
     },
   };
 }

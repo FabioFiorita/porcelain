@@ -33,3 +33,13 @@ export function commitFormDefaults(
     groups: null,
   };
 }
+
+export type DraftedFiles = CommitDraft['expectedFiles'];
+
+export function draftIsStale(status: GitActionStatus, drafted: DraftedFiles) {
+  return drafted.some(
+    (file) =>
+      status.files?.find((looked) => looked.path === file.path)?.fingerprint !==
+      file.fingerprint,
+  );
+}

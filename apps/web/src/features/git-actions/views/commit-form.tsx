@@ -415,16 +415,17 @@ export function CommitForm(
       )}
       {uncertain && !receipt && <p role="status">Outcome not yet confirmed</p>}
       {error ? <GitActionError text={gitErrorMessage(error)} /> : null}
-      {receipt && changedSinceLooked(receipt) && onLookAgain && (
-        <Button
-          type="button"
-          variant="outline"
-          disabled={working}
-          onClick={form.lookAgain}
-        >
-          Look again
-        </Button>
-      )}
+      {(staleDraft || (receipt && changedSinceLooked(receipt))) &&
+        onLookAgain && (
+          <Button
+            type="button"
+            variant="outline"
+            disabled={working}
+            onClick={form.lookAgain}
+          >
+            Look again
+          </Button>
+        )}
       {git.operation && !working && (
         <Button type="button" variant="outline" onClick={form.checkOutcome}>
           Check outcome
