@@ -13,6 +13,7 @@ import {
 import {
   type NetworkAction,
   networkInput,
+  networkTarget,
   networkTitle,
 } from '../rules/network';
 import { type GitActionStatus, statusFromChanges } from '../rules/status';
@@ -47,31 +48,22 @@ async function runNetwork(
 ) {
   const { details, notify } = menu;
   const label = networkTitle(next);
-  let looked = details.status;
-  if (!looked) {
-    menu.enableDetails();
-    looked = await details.read();
-    if (
-      looked &&
-      (looked.branch?.name !== displayedBranch?.name ||
-        looked.branch?.upstream !== displayedBranch?.upstream)
-    ) {
-      notify({
-        title: `${label} did not run`,
-        description: 'The branch target changed. Review it and try again.',
-        type: 'error',
-      });
-      return;
-    }
-  }
-  if (!looked) {
+  const freshlyRead = !details.status;
+  if (freshlyRead) menu.enableDetails();
+  const target = networkTarget(
+    details.status ?? (await details.read()),
+    displayedBranch,
+    freshlyRead,
+  );
+  if (!target.ready) {
     notify({
       title: `${label} did not run`,
-      description: 'The branch target is still loading. Try again.',
+      description: target.reason,
       type: 'error',
     });
     return;
   }
+  const { looked } = target;
   let input: ActionInput;
   try {
     input = networkInput(next, looked.branch, menu.pullStrategy);

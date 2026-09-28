@@ -1,13 +1,43 @@
 import type { ReadGitStatusResponse } from '@porcelain/contracts/changes';
 import type { ActionInput } from './git-action';
-import { branchStatus, type GitActionStatus } from './status';
-import type { primaryGitAction } from './status';
+import {
+  branchStatus,
+  type GitActionStatus,
+  type primaryGitAction,
+} from './status';
 
 export type NetworkAction = 'fetch' | 'pull' | 'push';
 type LookedBranch = ReadGitStatusResponse['branch'];
 
 export function isNetworkAction(action: string): action is NetworkAction {
   return action === 'fetch' || action === 'pull' || action === 'push';
+}
+
+type BranchTarget =
+  | { name?: string | null | undefined; upstream?: string | null | undefined }
+  | null
+  | undefined;
+
+export function networkTarget<Looked extends { branch?: BranchTarget }>(
+  looked: Looked | undefined,
+  displayedBranch: BranchTarget,
+  freshlyRead: boolean,
+): { ready: true; looked: Looked } | { ready: false; reason: string } {
+  if (!looked)
+    return {
+      ready: false,
+      reason: 'The branch target is still loading. Try again.',
+    };
+  if (
+    freshlyRead &&
+    (looked.branch?.name !== displayedBranch?.name ||
+      looked.branch?.upstream !== displayedBranch?.upstream)
+  )
+    return {
+      ready: false,
+      reason: 'The branch target changed. Review it and try again.',
+    };
+  return { ready: true, looked };
 }
 
 export function networkInput(
