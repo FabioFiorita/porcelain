@@ -1,43 +1,9 @@
 import { useStore } from 'zustand';
-import { persist, type PersistStorage } from 'zustand/middleware';
+import { persist } from 'zustand/middleware';
 import { createStore, type StoreApi } from 'zustand/vanilla';
 import { type CodeFolds, parseCodeFolds, withFolds } from './rules/code-folds';
+import { savedJson } from '@/shared/lib/saved-json';
 import { type Pane, parseTabLayout } from './rules/tab-strip';
-
-function savedJson<S>(read: (saved: unknown) => S): PersistStorage<S> {
-  return {
-    getItem(name) {
-      let raw: string | null;
-      try {
-        raw = localStorage.getItem(name);
-      } catch {
-        return null;
-      }
-      if (raw == null) return null;
-      let saved: unknown;
-      try {
-        saved = JSON.parse(raw);
-      } catch {
-        saved = null;
-      }
-      return { state: read(saved) };
-    },
-    setItem(name, value) {
-      try {
-        localStorage.setItem(name, JSON.stringify(value.state));
-      } catch {
-        return;
-      }
-    },
-    removeItem(name) {
-      try {
-        localStorage.removeItem(name);
-      } catch {
-        return;
-      }
-    },
-  };
-}
 
 type TabLayoutState = {
   panes: Pane[] | null;
@@ -60,10 +26,10 @@ function tabLayout(worktreeId: string) {
       }),
       {
         name: `porcelain.tabs.${worktreeId}`,
-        storage: savedJson<SavedTabLayout>((saved) => ({
-          panes: parseTabLayout(saved),
-          saved: true,
-        })),
+        storage: savedJson<SavedTabLayout>(
+          () => localStorage,
+          (saved) => ({ panes: parseTabLayout(saved), saved: true }),
+        ),
         partialize: (state) => ({ panes: state.panes }),
       },
     ),
@@ -98,7 +64,7 @@ function foldsOf(worktreeId: string, entry: string) {
       }),
       {
         name,
-        storage: savedJson(parseCodeFolds),
+        storage: savedJson(() => localStorage, parseCodeFolds),
         partialize: ({ folded, expanded }) => ({ folded, expanded }),
       },
     ),
