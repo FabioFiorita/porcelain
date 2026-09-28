@@ -35,7 +35,7 @@ import {
 import { usePreferences } from '@/shared/workspace/preferences';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
 import { useTheme } from '@/shared/workspace/theme';
-import type { CodeEntry } from '../adapters/code-entries';
+import { type CodeEntry, codeTarget } from '../adapters/code-entries';
 import { useToggleReviewed } from '../commands/reviewed';
 import { useComments } from '../queries/comments';
 import { isFolded } from '../rules/code-folds';
@@ -265,13 +265,7 @@ function CodeSurface({
       ),
       annotations,
     };
-    return entry.kind === 'diff'
-      ? { ...shared, type: 'diff', fileDiff: entry.fileDiff }
-      : {
-          ...shared,
-          type: 'file',
-          file: { name: entry.path, contents: entry.contents },
-        };
+    return { ...shared, ...codeTarget(entry) };
   });
   const firstReviewEntryByPath = new Map<string, string>();
   for (const entry of entries) {
