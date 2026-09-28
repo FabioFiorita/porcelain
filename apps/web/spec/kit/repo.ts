@@ -1,9 +1,11 @@
 import { hostCommands } from './commands';
 
 export async function sampleRepository() {
-  const fixture = await hostCommands.porcelainFixture();
+  const { branch: initialBranch, ...fixture } =
+    await hostCommands.porcelainFixture();
   return {
     ...fixture,
+    initialBranch,
     write: (path: string, text: string) =>
       hostCommands.porcelainRepo({ kind: 'write', path, text }),
     remove: (path: string) =>
