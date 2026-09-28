@@ -16,7 +16,7 @@ import {
   useReadCurrentChanges,
   useReviewOverview,
 } from '@/features/changes/index';
-import { basename, type ReviewScope } from '@/features/reviews/index';
+import { fileName, type GitScope } from '../rules/git-action';
 import { useDiscard } from '../commands/discard';
 import { type GitActionStatus, statusFromChanges } from '../rules/status';
 import { GitActionError } from './git-action-message';
@@ -28,7 +28,7 @@ export function DiscardButton({
   hunk,
   variant = 'button',
 }: {
-  scope: ReviewScope;
+  scope: GitScope;
   context: Parameters<typeof useDiscard>[1];
   path: string;
   hunk?: { scope: 'staged' | 'unstaged'; startLine: number; endLine: number };
@@ -50,7 +50,7 @@ export function DiscardButton({
       ? `line ${hunk.startLine}`
       : `lines ${hunk.startLine}–${hunk.endLine}`
     : null;
-  const what = lines ? `${lines} of ${basename(path)}` : basename(path);
+  const what = lines ? `${lines} of ${fileName(path)}` : fileName(path);
   const discard = useDiscard(scope, context, {
     path,
     hunk,
@@ -71,8 +71,8 @@ export function DiscardButton({
         variant={variant === 'compact' ? 'ghost' : 'destructive'}
         aria-label={
           hunk
-            ? `Discard ${lines} of ${basename(path)}`
-            : `Discard changes to ${basename(path)}`
+            ? `Discard ${lines} of ${fileName(path)}`
+            : `Discard changes to ${fileName(path)}`
         }
         onClick={() => {
           discard.reset();

@@ -1,5 +1,5 @@
 import { Dialog } from '@/components/ui/dialog';
-import type { ReviewScope } from '@/features/reviews/index';
+import type { GitScope } from '../rules/git-action';
 import { useBranchForm } from '../commands/branch-form';
 import type { GitActionStatus } from '../rules/status';
 import { BranchForm } from './branch-form';
@@ -12,7 +12,7 @@ export function BranchDialog({
   status,
   onOpenChange,
 }: {
-  scope: ReviewScope;
+  scope: GitScope;
   context: Parameters<typeof useBranchForm>[3];
   open: boolean;
   mode: 'switch' | 'create';

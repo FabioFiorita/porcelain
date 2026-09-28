@@ -43,3 +43,7 @@ export type GitActionsPort = {
 };
 
 export type GitScope = { projectId: string; worktreeId: string };
+
+export function fileName(path: string) {
+  return path.split('/').at(-1) ?? path;
+}

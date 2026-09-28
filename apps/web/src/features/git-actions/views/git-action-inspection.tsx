@@ -14,12 +14,11 @@ import {
   NativeSelectOption,
 } from '@/components/ui/native-select';
 import { Textarea } from '@/components/ui/textarea';
-import type { ReviewScope } from '@/features/reviews/index';
 import { usePreferences } from '@/shared/workspace/preferences';
 import { HISTORY_OID_LENGTH } from '@/config/limits';
 import { useActionForm } from '../commands/action-form';
 import { actionFormInput, type FormAction } from '../rules/action-form';
-import type { GitAction } from '../rules/git-action';
+import type { GitAction, GitScope } from '../rules/git-action';
 import { gitActionLabel } from '../rules/git-action-options';
 import {
   changedSinceLooked,
@@ -40,7 +39,7 @@ export function GitActionInspection({
   onBusy,
   onLookAgain,
 }: {
-  scope: ReviewScope;
+  scope: GitScope;
   context: GitContext;
   entry: GitAction;
   status: GitActionStatus;
@@ -85,7 +84,7 @@ function CommitActionForm({
   onBusy,
   onLookAgain,
 }: {
-  scope: ReviewScope;
+  scope: GitScope;
   context: GitContext;
   action: 'commit' | 'amend';
   status: GitActionStatus;
@@ -158,7 +157,7 @@ function RemoteActionForm({
   onBusy,
   onLookAgain,
 }: {
-  scope: ReviewScope;
+  scope: GitScope;
   context: GitContext;
   action: FormAction;
   status: GitActionStatus;
@@ -198,7 +197,7 @@ function ActionForm({
   onBusy,
   onLookAgain,
 }: {
-  scope: ReviewScope;
+  scope: GitScope;
   context: GitContext;
   action: FormAction;
   status: GitActionStatus;

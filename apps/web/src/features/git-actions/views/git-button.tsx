@@ -31,10 +31,9 @@ import {
 } from '@/components/ui/popover';
 import { Spinner } from '@/components/ui/spinner';
 import { toast } from '@/components/ui/toast';
-import type { ReviewScope } from '@/features/reviews/index';
 import { usePreferences } from '@/shared/workspace/preferences';
 import { useGitMenu } from '../commands/git-menu';
-import type { GitAction } from '../rules/git-action';
+import type { GitAction, GitScope } from '../rules/git-action';
 import { gitActionGroups, gitActions } from '../rules/git-action-options';
 import {
   isNetworkAction,
@@ -58,7 +57,7 @@ export function GitButton({
   scope,
   context,
 }: {
-  scope: ReviewScope;
+  scope: GitScope;
   context: Parameters<typeof useGitMenu>[1];
 }) {
   const connection = useAccessStore((state) => state.connection);
