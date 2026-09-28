@@ -9,21 +9,20 @@ import { FileNavigation } from '@/features/files/index';
 import { HistoryNavigation } from '@/features/history/index';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useConnectedContext } from '@/app/workspace-provider';
 import {
-  type OpenDocument,
-  isSurface,
-  ReviewIndex,
-  type ReviewScope,
-  type Surface,
   useHasReviewLayers,
   usePublishedReview,
-  ReviewEmpty,
-  ReviewBoundary,
-} from '@/features/reviews/index';
+} from '../queries/published-review';
+import type { OpenDocument } from '../rules/documents';
+import { isSurface, type ReviewScope, type Surface } from '../rules/review';
+import type { ReviewsContext } from '../rules/reviewed';
+import { ReviewBoundary } from './review-boundary';
+import { ReviewEmpty } from './review-empty';
+import { ReviewIndex } from './review-index';
 
 export function ReviewSidebar({
   scope,
+  context,
   worktreePath,
   surface,
   activeEntry,
@@ -32,6 +31,7 @@ export function ReviewSidebar({
   onOpen,
 }: {
   scope: ReviewScope;
+  context: ReviewsContext;
   worktreePath: string;
   surface: Surface;
   activeEntry: string | undefined;
@@ -55,7 +55,7 @@ export function ReviewSidebar({
         <div className="shrink-0 p-1.5">
           <TabsList className="h-8 w-full">
             <TabsTrigger value="changes" className="min-w-0">
-              <ChangesSurfaceLabel scope={scope} />
+              <ChangesSurfaceLabel scope={scope} context={context} />
             </TabsTrigger>
             <TabsTrigger value="files" className="min-w-0">
               <FilesIcon className="size-3.5" />
@@ -70,6 +70,7 @@ export function ReviewSidebar({
         <TabsContent value="changes" className="min-h-0 overflow-hidden">
           <SidebarSurface
             scope={scope}
+            context={context}
             worktreePath={worktreePath}
             surface="changes"
             activeEntry={activeEntry}
@@ -80,6 +81,7 @@ export function ReviewSidebar({
         <TabsContent value="files" className="min-h-0 overflow-hidden">
           <SidebarSurface
             scope={scope}
+            context={context}
             worktreePath={worktreePath}
             surface="files"
             activeEntry={activeEntry}
@@ -90,6 +92,7 @@ export function ReviewSidebar({
         <TabsContent value="history" className="min-h-0 overflow-hidden">
           <SidebarSurface
             scope={scope}
+            context={context}
             worktreePath={worktreePath}
             surface="history"
             activeEntry={activeEntry}
@@ -102,8 +105,14 @@ export function ReviewSidebar({
   );
 }
 
-function ChangesSurfaceLabel({ scope }: { scope: ReviewScope }) {
-  const hasReview = useHasReviewLayers(scope, useConnectedContext()) === true;
+function ChangesSurfaceLabel({
+  scope,
+  context,
+}: {
+  scope: ReviewScope;
+  context: ReviewsContext;
+}) {
+  const hasReview = useHasReviewLayers(scope, context) === true;
   const Icon = hasReview ? ListChecksIcon : FileDiffIcon;
   return (
     <>
@@ -115,6 +124,7 @@ function ChangesSurfaceLabel({ scope }: { scope: ReviewScope }) {
 
 function SidebarSurface({
   scope,
+  context,
   worktreePath,
   surface,
   activeEntry,
@@ -122,13 +132,13 @@ function SidebarSurface({
   onOpen,
 }: {
   scope: ReviewScope;
+  context: ReviewsContext;
   worktreePath: string;
   surface: Surface;
   activeEntry: string | undefined;
   available: boolean;
   onOpen: OpenDocument;
 }) {
-  const context = useConnectedContext();
   const published = usePublishedReview(scope, context);
   if (!available)
     return (

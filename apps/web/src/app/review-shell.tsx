@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import '../../../pierre.css';
+import '../pierre.css';
 import { PierreIconSprite } from '@/features/files/index';
 import { PierreWorkers } from '@/features/reviews/index';
 

@@ -3,13 +3,12 @@ import {
   formatForDisplay,
   useHotkey,
 } from '@tanstack/react-hotkeys';
-import { useNavigate, useSearch } from '@tanstack/react-router';
+import { useNavigate } from '@tanstack/react-router';
 import { PanelRightIcon, LayersIcon as ReviewLayersIcon } from 'lucide-react';
 import {
+  type ComponentProps,
   type ReactNode,
   type RefObject,
-  useCallback,
-  useEffect,
   useRef,
   useState,
 } from 'react';
@@ -38,51 +37,50 @@ import { SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
 import { cn } from '@/shared/lib/utils';
 import { useAccessStore } from '@/features/access/index';
 import { useReviewOverview } from '@/features/changes/index';
-import {
-  entryKey,
-  type OpenDocument,
-  parseEntry,
-  type RevealComment,
-  type ReviewLayer,
-  type Surface,
-  usePublishedReview,
-  DocumentTabs,
-  DocumentView,
-  type PaneIndex,
-  useTabLayout,
-  ReviewBoundary,
-} from '@/features/reviews/index';
 import type { Project } from '@/features/projects/index';
 import {
   ConflictGuidance,
   GitButton,
   InterruptedActionNotice,
 } from '@/features/git-actions/index';
-import { useConnectedContext } from '@/app/workspace-provider';
-
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
+import { useDesktopReview } from '../adapters/desktop-review';
+import { type PaneIndex, useTabLayout } from '../adapters/tab-layout';
+import { usePublishedReview } from '../queries/published-review';
+import type { RevealComment } from '../rules/comments';
+import { entryKey, type OpenDocument, parseEntry } from '../rules/documents';
+import type { ReviewLayer, Surface } from '../rules/review';
+import type { DocumentContext } from './code-document';
+import { DocumentTabs } from './document-tabs';
+import { DocumentView } from './documents';
+import { ReviewBoundary } from './review-boundary';
 import { ReviewSidebar } from './review-sidebar';
 
 type Worktree = Project['worktrees'][number];
-const desktopReviewQuery = '(min-width: 1280px)';
+type WorkspaceContext = DocumentContext &
+  ComponentProps<typeof GitButton>['context'];
 
 export function ReviewWorkspace({
   worktree,
   projectId,
+  search,
+  context,
   navigationTrigger,
 }: {
   worktree: Worktree;
   projectId: string;
+  context: WorkspaceContext;
+  search: {
+    surface: Surface | undefined;
+    entry: string | undefined;
+    side: string | undefined;
+  };
   navigationTrigger: RefObject<HTMLButtonElement | null>;
 }) {
-  const gitContext = useConnectedContext();
-  const search = useSearch({ from: '/' });
   const navigate = useNavigate({ from: '/' });
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [desktop, setDesktop] = useState(
-    () => window.matchMedia(desktopReviewQuery).matches,
-  );
+  const desktop = useDesktopReview();
   const [focusedPane, setFocusedPane] = useState<PaneIndex>(0);
   const desktopTrigger = useRef<HTMLButtonElement>(null);
   const mobileTrigger = useRef<HTMLButtonElement>(null);
@@ -93,13 +91,6 @@ export function ReviewWorkspace({
   } = useSidebar();
   const surface = search.surface ?? 'changes';
   const scope = { projectId, worktreeId: worktree.id };
-
-  useEffect(() => {
-    const media = window.matchMedia(desktopReviewQuery);
-    const update = () => setDesktop(media.matches);
-    media.addEventListener('change', update);
-    return () => media.removeEventListener('change', update);
-  }, []);
 
   const toggleSidebar = () => {
     if (sidebarOpen) desktopTrigger.current?.focus();
@@ -117,32 +108,26 @@ export function ReviewWorkspace({
   const [reveal, setReveal] = useState<
     (RevealComment & { pane: PaneIndex; key: string }) | undefined
   >();
-  const open = useCallback<OpenDocument>(
-    (ref, anchor) => {
-      const key = entryKey(ref);
-      setReveal(
-        anchor
-          ? { anchor, nonce: Date.now(), pane: focusedPane, key }
-          : undefined,
-      );
-      void navigate({
-        search: (previous) =>
-          focusedPane === 1
-            ? { ...previous, side: key }
-            : { ...previous, entry: key },
-      });
-      setMobileOpen(false);
-    },
-    [focusedPane, navigate],
-  );
-  const setSurface = useCallback(
-    (next: Surface) => {
-      void navigate({
-        search: (previous) => ({ ...previous, surface: next }),
-      });
-    },
-    [navigate],
-  );
+  const open: OpenDocument = (ref, anchor) => {
+    const key = entryKey(ref);
+    setReveal(
+      anchor
+        ? { anchor, nonce: Date.now(), pane: focusedPane, key }
+        : undefined,
+    );
+    void navigate({
+      search: (previous) =>
+        focusedPane === 1
+          ? { ...previous, side: key }
+          : { ...previous, entry: key },
+    });
+    setMobileOpen(false);
+  };
+  const setSurface = (next: Surface) => {
+    void navigate({
+      search: (previous) => ({ ...previous, surface: next }),
+    });
+  };
   useHotkey(SHORTCUTS.surfaceReview, () => setSurface('changes'), {
     ignoreInputs: true,
   });
@@ -155,6 +140,7 @@ export function ReviewWorkspace({
   const sidebar = (
     <ReviewSidebar
       scope={scope}
+      context={context}
       worktreePath={worktree.path}
       surface={surface}
       activeEntry={focusedPane === 1 ? search.side : search.entry}
@@ -166,7 +152,7 @@ export function ReviewWorkspace({
 
   const tabControls = (
     <>
-      <GitButton scope={scope} context={gitContext} />
+      <GitButton scope={scope} context={context} />
       <Button
         ref={desktopTrigger}
         className="hidden xl:inline-flex"
@@ -221,11 +207,12 @@ export function ReviewWorkspace({
           className="flex h-full min-w-0 flex-col overflow-hidden rounded-xl border bg-card"
         >
           <ReviewBoundary>
-            <InterruptedActionNotice scope={scope} context={gitContext} />
+            <InterruptedActionNotice scope={scope} context={context} />
             <ConflictGuidance scope={scope} onOpen={open} />
             <DocumentArea
               reveal={reveal}
               scope={scope}
+              context={context}
               worktreeId={worktree.id}
               entry={search.entry}
               side={search.side}
@@ -261,6 +248,7 @@ export function ReviewWorkspace({
 function DocumentArea({
   reveal,
   scope,
+  context,
   worktreeId,
   entry,
   side,
@@ -274,6 +262,7 @@ function DocumentArea({
   tabControls,
 }: {
   scope: { projectId: string; worktreeId: string };
+  context: WorkspaceContext;
   worktreeId: string;
   entry: string | undefined;
   side: string | undefined;
@@ -289,7 +278,6 @@ function DocumentArea({
 }) {
   const connection = useAccessStore((state) => state.connection);
   const overview = useReviewOverview(scope, connection);
-  const context = useConnectedContext();
   const published = usePublishedReview(scope, context);
   const layers = published.data?.active ? published.data.layers : [];
   const hasHandoff =
@@ -356,7 +344,7 @@ function PaneView({
   tabControls,
 }: {
   index: PaneIndex;
-  context: ReturnType<typeof useConnectedContext>;
+  context: WorkspaceContext;
   layout: ReturnType<typeof useTabLayout>;
   split: boolean;
   focused: boolean;

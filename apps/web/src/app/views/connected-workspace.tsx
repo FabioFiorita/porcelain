@@ -1,7 +1,7 @@
 import { detectPlatform, useHotkey } from '@tanstack/react-hotkeys';
 import { useAccessStore } from '@/features/access/index';
 import { useNavigate, useSearch } from '@tanstack/react-router';
-import { useEffect, useRef, useState } from 'react';
+import { type ComponentProps, useEffect, useRef, useState } from 'react';
 import {
   Empty,
   EmptyDescription,
@@ -26,21 +26,25 @@ import {
   selectedWorktreeInProject,
 } from '@/features/projects/index';
 import { useInventory } from '@/features/projects/index';
-import { ReviewWorkspace } from '@/features/review/index';
 import { OpenProjectDialog, ProjectNavigator } from '@/features/projects/index';
+import { ReviewWorkspace } from '@/features/reviews/index';
+import { useConnectedContext } from '@/app/workspace-provider';
 import { SettingsDialog } from '@/app/views/settings-dialog';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
 import { ShortcutsDialog } from '@/app/views/shortcuts-dialog';
+import { ReviewShell } from '@/app/review-shell';
 
 export function ConnectedWorkspace() {
   const [navigatorOpen, setNavigatorOpen] = useState(true);
 
   return (
-    <TooltipProvider delay={400}>
-      <SidebarProvider open={navigatorOpen} onOpenChange={setNavigatorOpen}>
-        <WorkspaceNavigation />
-      </SidebarProvider>
-    </TooltipProvider>
+    <ReviewShell>
+      <TooltipProvider delay={400}>
+        <SidebarProvider open={navigatorOpen} onOpenChange={setNavigatorOpen}>
+          <WorkspaceNavigation />
+        </SidebarProvider>
+      </TooltipProvider>
+    </ReviewShell>
   );
 }
 
@@ -50,7 +54,7 @@ function WorkspaceNavigation() {
   const [shortcuts, setShortcuts] = useState(false);
   const { setOpenMobile, isMobile, open, openMobile, toggleSidebar } =
     useSidebar();
-  const { worktree: selected } = useSearch({ from: '/' });
+  const { worktree: selected, surface, entry, side } = useSearch({ from: '/' });
   const navigate = useNavigate({ from: '/' });
   const connection = useAccessStore((state) => state.connection);
   const inventory = useInventory(connection);
@@ -100,6 +104,7 @@ function WorkspaceNavigation() {
       <WorkspaceShell
         navigationTrigger={navigationTrigger}
         selection={selection}
+        search={{ surface, entry, side }}
         selectedWorktreeId={selected}
         inventory={inventory}
         isMobile={isMobile}
@@ -124,6 +129,7 @@ type Selection = ReturnType<typeof selectedWorktreeInProject>;
 type NavigationProps = {
   navigationTrigger: React.RefObject<HTMLButtonElement | null>;
   selection: Selection;
+  search: ComponentProps<typeof ReviewWorkspace>['search'];
   selectedWorktreeId: string | undefined;
   inventory: ReturnType<typeof useInventory>;
   isMobile: boolean;
@@ -174,6 +180,7 @@ function MobileNavigation({
 function WorkspaceShell({
   navigationTrigger,
   selection,
+  search,
   selectedWorktreeId,
   inventory,
   isMobile,
@@ -214,6 +221,7 @@ function WorkspaceShell({
             <WorkspaceDocument
               navigationTrigger={navigationTrigger}
               selection={selection}
+              search={search}
               isMobile={isMobile}
               open={open}
               openMobile={openMobile}
@@ -228,13 +236,20 @@ function WorkspaceShell({
 function WorkspaceDocument({
   navigationTrigger,
   selection,
+  search,
   isMobile,
   open,
   openMobile,
 }: Pick<
   NavigationProps,
-  'navigationTrigger' | 'selection' | 'isMobile' | 'open' | 'openMobile'
+  | 'navigationTrigger'
+  | 'selection'
+  | 'search'
+  | 'isMobile'
+  | 'open'
+  | 'openMobile'
 >) {
+  const context = useConnectedContext();
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col">
       {selection ? (
@@ -243,6 +258,8 @@ function WorkspaceDocument({
           navigationTrigger={navigationTrigger}
           worktree={selection.worktree}
           projectId={selection.projectId}
+          search={search}
+          context={context}
         />
       ) : (
         <div className="relative grid h-full min-h-0 place-items-center rounded-xl border bg-card p-8">

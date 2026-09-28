@@ -4,7 +4,6 @@ import {
   NotPaired,
   useConnection,
 } from '@/features/access/index';
-import { ReviewShell } from '@/features/review/index';
 import { WorkspacePending } from '@/app/workspace-pending';
 
 const ConnectedWorkspace = lazy(() =>
@@ -18,9 +17,7 @@ export function WorkspaceView() {
   const body = (
     <Suspense fallback={<WorkspacePending />}>
       {connected ? (
-        <ReviewShell>
-          <ConnectedWorkspace />
-        </ReviewShell>
+        <ConnectedWorkspace />
       ) : restoring ? (
         <WorkspacePending />
       ) : (
