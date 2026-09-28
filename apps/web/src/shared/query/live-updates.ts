@@ -106,18 +106,14 @@ const FILE_SURFACES = new Set([
   'git-status',
   'asset',
   'html-preview',
-  'review',
   'step-lines',
-  'reviewed-layers',
 ]);
 const GIT_SURFACES = new Set([
   'changes',
   'git-status',
   'branches',
   'paths',
-  'review',
   'step-lines',
-  'reviewed-layers',
 ]);
 
 async function refreshActionQueries(
@@ -234,13 +230,6 @@ export async function applyLiveNotice(
     await notifyFeatures(client, environmentId, notice);
     return;
   }
-  const surfaces =
-    notice.change === 'reviewed'
-      ? new Set(['reviewed', 'reviewed-layers'])
-      : notice.change === 'comments'
-        ? new Set(['comments'])
-        : new Set(['review', 'reviewed-layers']);
-  await invalidateSurfaces(client, environmentId, notice, surfaces);
   await notifyFeatures(client, environmentId, notice);
 }
 
