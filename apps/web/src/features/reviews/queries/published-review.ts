@@ -2,8 +2,8 @@ import { queryOptions, useQuery } from '@tanstack/react-query';
 import { ConnectionError } from '@/shared/api/connection-error';
 import { queryKeys } from '@/shared/query/keys';
 import { PUBLISHED_REVIEW_REFRESH_MS } from '@/config/limits';
-import type { ReviewScope } from '../rules/review';
-import type { ReviewsContext } from '../rules/reviewed';
+import type { ReviewLayer, ReviewScope } from '../rules/review';
+import { layerReviewState, type ReviewsContext } from '../rules/reviewed';
 
 function publishedReviewQueryOptions(
   scope: ReviewScope,
@@ -72,9 +72,19 @@ export function layerMarksQueryOptions(
   });
 }
 
-export function useLayerMarks(scope: ReviewScope, context: ReviewsContext) {
-  return useQuery({
+export function useLayerMark(
+  scope: ReviewScope,
+  context: ReviewsContext,
+  layer: Pick<ReviewLayer, 'id' | 'fingerprint'>,
+) {
+  const published = usePublishedReview(scope, context);
+  const marks = useQuery({
     ...layerMarksQueryOptions(scope, context),
     throwOnError: false,
   });
+  return {
+    ...layerReviewState(marks.data, layer),
+    settled: marks.isSuccess && !marks.isFetching && !published.isFetching,
+    failed: marks.isError,
+  };
 }

@@ -14,7 +14,7 @@ import { MarkdownView } from '@/features/files/index';
 import { contentVersion } from '@/shared/lib/pierre';
 import type { CodeEntry } from '../adapters/code-entries';
 import { useToggleLayerMark } from '../commands/layer-marks';
-import { useLayerMarks } from '../queries/published-review';
+import { useLayerMark } from '../queries/published-review';
 import { usePrefetchReviewed, useReviewChangeItems } from '../queries/reviewed';
 import type { DocumentInteraction, OpenDocument } from '../rules/documents';
 import { contextPatch, focusPatch } from '../rules/patch-focus';
@@ -25,7 +25,6 @@ import type {
   ReviewScope,
   ReviewStep,
 } from '../rules/review';
-import { layerReviewState } from '../rules/reviewed';
 import { CodeDocument, type DocumentContext } from './code-document';
 import { DocumentToolbar } from './document-toolbar';
 import { type Graph, ReviewDiagram } from './review-diagram';
@@ -42,9 +41,9 @@ export function PublishedLayer({
   ...props
 }: LayerProps & { layer: ReviewLayer }) {
   const { scope, context } = props;
-  const marks = useLayerMarks(scope, context);
+  const mark = useLayerMark(scope, context, layer);
   const toggle = useToggleLayerMark(scope, context);
-  const { reviewed, label } = layerReviewState(marks.data, layer);
+  const { reviewed, label } = mark;
   const [view, setView] = useState('code');
   const [shown, setShown] = useState(10);
   const [focus, setFocus] = useState<string>();
@@ -86,7 +85,7 @@ export function PublishedLayer({
           variant="ghost"
           size="sm"
           aria-pressed={reviewed}
-          disabled={toggle.isPending || marks.isPending || marks.isError}
+          disabled={toggle.isPending || !mark.settled}
           onClick={() =>
             toggle.toggle({
               layerId: layer.id,
@@ -108,7 +107,7 @@ export function PublishedLayer({
           </TabsList>
         </Tabs>
       </DocumentToolbar>
-      {(toggle.isError || marks.isError) && (
+      {(toggle.isError || mark.failed) && (
         <p role="alert" className="px-4 text-sm text-destructive">
           The layer mark could not be updated. Try again.
         </p>
