@@ -82,8 +82,8 @@ export function createFetchGate(filePath: string) {
       const original = window.fetch;
       let releaseRequest = () => {};
       let markRequested = () => {};
-      let held = false;
       let armed = false;
+      let open = false;
       const requested = new Promise<void>((resolve) => {
         markRequested = resolve;
       });
@@ -99,18 +99,21 @@ export function createFetchGate(filePath: string) {
               : input.url;
         if (
           armed &&
-          !held &&
+          !open &&
           (init?.method ?? 'GET') === 'GET' &&
           new URL(path, location.href).pathname.endsWith('/review')
         ) {
-          held = true;
           markRequested();
           await released;
         }
         return original(input, init);
       };
-      restore = () => {
+      const release = () => {
+        open = true;
         releaseRequest();
+      };
+      restore = () => {
+        release();
         window.fetch = original;
       };
       return {
@@ -118,7 +121,7 @@ export function createFetchGate(filePath: string) {
         arm() {
           armed = true;
         },
-        release: releaseRequest,
+        release,
       };
     },
     restore() {
