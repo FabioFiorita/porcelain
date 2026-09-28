@@ -1,5 +1,5 @@
 import type { LiveNotice } from '@porcelain/contracts/access';
-import type { QueryClient } from '@tanstack/react-query';
+import type { QueryClient, QueryFilters } from '@tanstack/react-query';
 import type { ReadInventoryResponse } from '@porcelain/contracts/projects';
 
 function isInventoryQuery(key: readonly unknown[], environmentId: string) {
@@ -28,26 +28,10 @@ function subscriptionProjects(client: QueryClient, environmentId: string) {
   return data?.projects.map((project) => project.id) ?? [];
 }
 
-async function onGitReceipt(client: QueryClient, environmentId: string) {
-  const filters = {
-    predicate: (query: { queryKey: readonly unknown[] }) =>
-      isInventoryQuery(query.queryKey, environmentId),
+function gitReceiptFilters(environmentId: string): QueryFilters {
+  return {
+    predicate: (query) => isInventoryQuery(query.queryKey, environmentId),
   };
-  const active = client
-    .getQueryCache()
-    .findAll(filters)
-    .filter((query) => query.isActive());
-  await client.invalidateQueries(filters);
-  await Promise.all(
-    active.map(async (query) => {
-      if (query.state.isInvalidated && query.state.status === 'success')
-        await query.fetch().catch(() => undefined);
-      if (query.state.isInvalidated && query.state.status === 'success')
-        throw new Error(
-          'Git state refresh was interrupted. Check the action again.',
-        );
-    }),
-  );
 }
 
 async function onNotice(
@@ -74,4 +58,4 @@ async function onNotice(
   });
 }
 
-export default { subscriptionProjects, onNotice, onGitReceipt };
+export default { subscriptionProjects, onNotice, gitReceiptFilters };

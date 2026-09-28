@@ -79,7 +79,7 @@
     "apps/web/src/main.tsx": 1,
     "apps/web/src/routes/router.tsx": 2,
     "apps/web/src/shared/query/keys.ts": 1,
-    "apps/web/src/shared/query/live-updates.ts": 2
+    "apps/web/src/shared/query/live-updates.ts": 1
   },
   "unclassified-source": {
     "apps/web/src/app/api.ts": 1,
@@ -131,6 +131,6 @@
   },
   "web-shared-imports-no-owner": {
     "apps/web/src/shared/query/keys.ts": 1,
-    "apps/web/src/shared/query/live-updates.ts": 2
+    "apps/web/src/shared/query/live-updates.ts": 1
   }
 }

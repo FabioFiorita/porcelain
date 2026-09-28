@@ -1,3 +1,4 @@
+import type { QueryFilters } from '@tanstack/react-query';
 import type { ReviewScope } from '@/features/review/index';
 
 export const queryKeys = {
@@ -19,3 +20,15 @@ export const queryKeys = {
   comments: (environmentId: string, scope: ReviewScope) =>
     queryKeys.reviewSurface(environmentId, scope, ['comments']),
 };
+
+export function reviewSurfaceFilters(
+  environmentId: string,
+  scope: ReviewScope,
+  surfaces: ReadonlySet<string>,
+): QueryFilters {
+  const prefix = queryKeys.review(environmentId, scope);
+  return {
+    queryKey: prefix,
+    predicate: (query) => surfaces.has(String(query.queryKey[prefix.length])),
+  };
+}

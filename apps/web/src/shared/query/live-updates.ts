@@ -2,8 +2,7 @@ import type { LiveNotice } from '@porcelain/contracts/access';
 import type { RunGitActionResponse } from '@porcelain/contracts/git-actions';
 import type { QueryClient, QueryFilters } from '@tanstack/react-query';
 import type { Api } from '@/app/api';
-import type { ReviewScope } from '@/features/review/index';
-import { queryKeys } from '@/shared/query/keys';
+import { reviewSurfaceFilters } from '@/shared/query/keys';
 import {
   isTerminal,
   type OperationStore,
@@ -28,11 +27,10 @@ type FeatureLive = {
     environmentId: string,
     notice: LiveNotice,
   ) => Promise<void>;
-  onGitReceipt?: (
-    client: QueryClient,
+  gitReceiptFilters?: (
     environmentId: string,
     receipt: Receipt,
-  ) => Promise<void>;
+  ) => QueryFilters | null;
 };
 const featureLives = Object.values(
   import.meta.glob<{ default: FeatureLive }>('../../features/*/live.ts', {
@@ -116,7 +114,7 @@ const GIT_SURFACES = new Set([
   'step-lines',
 ]);
 
-async function refreshActionQueries(
+async function refreshActiveQueries(
   client: QueryClient,
   filters: QueryFilters,
 ) {
@@ -140,14 +138,12 @@ async function refreshActionQueries(
 async function invalidateSurfaces(
   client: QueryClient,
   environmentId: string,
-  notice: ReviewScope,
+  notice: { projectId: string; worktreeId: string },
   surfaces: ReadonlySet<string>,
 ) {
-  const prefix = queryKeys.review(environmentId, notice);
-  await client.invalidateQueries({
-    queryKey: prefix,
-    predicate: (query) => surfaces.has(String(query.queryKey[prefix.length])),
-  });
+  await client.invalidateQueries(
+    reviewSurfaceFilters(environmentId, notice, surfaces),
+  );
 }
 
 const receiptRefreshes = new WeakMap<QueryClient, Map<string, Promise<void>>>();
@@ -181,18 +177,19 @@ export async function refreshGitReceipt(
       receipt.action === 'fetch' || receipt.action === 'push'
         ? new Set(['git-status', 'changes', 'branches'])
         : new Set([...GIT_SURFACES, ...FILE_SURFACES]);
-    const prefix = queryKeys.review(environmentId, receipt);
-    await refreshActionQueries(client, {
-      queryKey: prefix,
-      predicate: (query) => surfaces.has(String(query.queryKey[prefix.length])),
-    });
-    await Promise.all(
-      featureLives.flatMap((feature) =>
-        feature.onGitReceipt
-          ? [feature.onGitReceipt(client, environmentId, receipt)]
-          : [],
-      ),
+    const refreshes = await Promise.allSettled(
+      [
+        reviewSurfaceFilters(environmentId, receipt, surfaces),
+        ...featureLives.flatMap(
+          (feature) =>
+            feature.gitReceiptFilters?.(environmentId, receipt) ?? [],
+        ),
+      ].map((filters) => refreshActiveQueries(client, filters)),
     );
+    const failed = refreshes.find(
+      (result): result is PromiseRejectedResult => result.status === 'rejected',
+    );
+    if (failed) throw failed.reason;
   })();
   pending.set(key, refresh);
   try {

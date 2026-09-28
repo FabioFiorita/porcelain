@@ -1,6 +1,6 @@
 import type { LiveNotice } from '@porcelain/contracts/access';
 import type { RunGitActionResponse } from '@porcelain/contracts/git-actions';
-import type { QueryClient } from '@tanstack/react-query';
+import type { QueryClient, QueryFilters } from '@tanstack/react-query';
 
 function isHistoryQuery(
   key: readonly unknown[],
@@ -34,13 +34,12 @@ async function onNotice(
   });
 }
 
-async function onGitReceipt(
-  client: QueryClient,
+function gitReceiptFilters(
   environmentId: string,
   receipt: RunGitActionResponse,
-) {
-  const filters = {
-    predicate: (query: { queryKey: readonly unknown[] }) =>
+): QueryFilters {
+  return {
+    predicate: (query) =>
       isHistoryQuery(
         query.queryKey,
         environmentId,
@@ -48,21 +47,6 @@ async function onGitReceipt(
         receipt.worktreeId,
       ),
   };
-  const active = client
-    .getQueryCache()
-    .findAll(filters)
-    .filter((query) => query.isActive());
-  await client.invalidateQueries(filters);
-  await Promise.all(
-    active.map(async (query) => {
-      if (query.state.isInvalidated && query.state.status === 'success')
-        await query.fetch().catch(() => undefined);
-      if (query.state.isInvalidated && query.state.status === 'success')
-        throw new Error(
-          'Git state refresh was interrupted. Check the action again.',
-        );
-    }),
-  );
 }
 
-export default { onNotice, onGitReceipt };
+export default { onNotice, gitReceiptFilters };
