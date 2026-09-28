@@ -74,8 +74,6 @@
     "apps/web/src/app/views/shortcuts-dialog.tsx": 1,
     "apps/web/src/app/views/workspace-view.tsx": 1,
     "apps/web/src/features/review/index.ts": 1,
-    "apps/web/src/features/review/queries/review.ts": 1,
-    "apps/web/src/features/review/views/review-boundary.tsx": 1,
     "apps/web/src/features/review/views/review-shell.tsx": 1,
     "apps/web/src/features/review/views/review-sidebar.tsx": 1,
     "apps/web/src/features/review/views/review-workspace.tsx": 1

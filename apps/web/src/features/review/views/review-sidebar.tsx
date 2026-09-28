@@ -19,8 +19,8 @@ import {
   useHasReviewLayers,
   usePublishedReview,
   ReviewEmpty,
+  ReviewBoundary,
 } from '@/features/reviews/index';
-import { ReviewBoundary } from './review-boundary';
 
 export function ReviewSidebar({
   scope,

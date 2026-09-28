@@ -50,6 +50,7 @@ import {
   DocumentView,
   type PaneIndex,
   useTabLayout,
+  ReviewBoundary,
 } from '@/features/reviews/index';
 import type { Project } from '@/features/projects/index';
 import {
@@ -60,7 +61,6 @@ import {
 import { useConnectedContext } from '@/app/workspace-provider';
 
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
-import { ReviewBoundary } from './review-boundary';
 import { ReviewSidebar } from './review-sidebar';
 
 type Worktree = Project['worktrees'][number];

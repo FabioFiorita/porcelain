@@ -2,8 +2,8 @@ import { Component, type ReactNode, Suspense } from 'react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { reviewErrorMessage } from '@/features/reviews/index';
-import { useReviewReset } from '@/features/review/queries/review';
+import { reviewErrorMessage } from '../rules/review';
+import { useReviewReset } from '../queries/review-reset';
 
 class ReviewErrorBoundary extends Component<
   { children: ReactNode; reset: () => void },
