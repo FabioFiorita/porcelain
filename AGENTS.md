@@ -8,14 +8,18 @@ TypeScript, the architecture check, Oxlint and Oxfmt are the rules; the codebase
 
 Copy the nearest feature's shape. Every lint message says why its rule exists; read the message before working around it.
 
+A new rule needs a reason: a pattern that has already repeated, or a defect it would have caught. Ship it with Oxlint RuleTester valid and invalid examples. When an agent routes around a rule, fix the example code or the architecture before adding another rule; every rule is paid for by every future change.
+
 ## Proof at each stage
 
 Run commands from the repository root and report every result honestly.
 
-- **Ordinary change:** run `pnpm check` once at completion. It runs typecheck, lint, format, architecture, unit tests, Oxlint RuleTester fixtures and read-only probe preflight. For server behavior, run the affected HTTP features with `node .agents/skills/server-verify/scripts/verify.ts <feature>` and `pnpm db:check` if storage changed. For web behavior, run the affected browser journeys once. Broaden the affected set for shared code or uncertain impact. Do not call a feature done without its focused proof. Aim for task verification under two minutes.
+- **Ordinary change:** run `pnpm check` once at completion. It runs typecheck, lint, format, architecture, unit tests, Oxlint RuleTester fixtures and read-only probe preflight. For server behavior, run the affected HTTP features with `node .agents/skills/server-verify/scripts/verify.ts <feature>` and `pnpm db:check` if storage changed. For web behavior, run the affected browser journeys once. Broaden the affected set for shared code or uncertain impact. Do not call a feature done without its focused proof.
 - **Race or flaky-test investigation:** request repetitions explicitly with `pnpm verify:web <journey> --repeat <count>`. Each repetition gets fresh state. Stop at the first failure and preserve the evidence. Repetition is an investigation tool, not a requirement for every change.
 - **Guardrail or verifier change:** run `pnpm check`, `pnpm probes --check`, the affected rule fixtures and named integration probes. Custom lint rules use Oxlint's built-in RuleTester with valid and invalid examples. Keep a focused integration probe for gate wiring. The full mutation suite is an explicit maintenance audit, never a requirement for an ordinary edit or push.
 - **Completed cross-cutting migration or release:** run `pnpm check`, `pnpm db:check`, the full HTTP net, the web build and `pnpm verify:web --all` once. Use this checkpoint for shared infrastructure or contracts changes whose impact cannot be bounded. Stop the checkpoint at a failed stage and report incomplete coverage honestly. Browser and probe audits stop at the first failure and keep partial evidence.
+
+Budgets: `pnpm check` under 30 seconds, an ordinary task's proof under two minutes, a full checkpoint under five minutes. A check that breaks its budget is a tooling defect: fix or remove it in its own change, never skip it silently.
 
 Lefthook's pre-push runs `pnpm check`; when pushing, use that as the final fast check instead of manually running it immediately beforehand. Automatic CI runs only `pnpm check`. The runtime checkpoint and probe audit workflows run only on explicit dispatch. Porcelain is a solo developer project with no external users: keep proof proportional to the change and prioritize product progress. Hosted Actions require Fabio's approval while spending is blocked.
 
@@ -23,7 +27,7 @@ A change to server behaviour is not done until a behaviour spec states its promi
 
 ## Web rebuild
 
-Keep existing web behavior while moving each file to its app, feature or shared owner. The server contract stays the server's contract.
+Move a web file to its app, feature or shared owner when a change touches it, keeping its behavior. The baseline cleanup is not a goal of its own. The server contract stays the server's contract.
 
 Views render feature data and forward events; they hold no state, effects, refs, awaits or try blocks. A feature's `api.ts` talks to the server, `queries/` and `commands/` own reads, writes and the cache, `store.ts` owns client state, `overlays.ts` owns Base UI handles, `rules/` holds pure functions, and `adapters/` is the only home for effects, refs and DOM listeners. The React Compiler memoizes; write no `useMemo` or `useCallback`.
 
