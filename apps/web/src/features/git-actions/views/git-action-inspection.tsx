@@ -16,6 +16,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import type { ReviewScope } from '@/features/reviews/index';
 import { usePreferences } from '@/shared/workspace/preferences';
+import { HISTORY_OID_LENGTH } from '@/config/limits';
 import { useActionForm } from '../commands/action-form';
 import { actionFormInput, type FormAction } from '../rules/action-form';
 import type { GitAction } from '../rules/git-action';
@@ -222,8 +223,7 @@ function ActionForm({
     onBusy,
     onLookAgain,
   });
-  const { busy, uncertain, outcome, error } = git;
-  const remote = action === 'push' || action === 'pull' || action === 'fetch';
+  const { busy, uncertain, outcome, error, remote } = git;
   return (
     <form
       className="flex min-w-0 flex-col gap-4"
@@ -260,7 +260,7 @@ function ActionForm({
               value={message}
               onChange={(event) => setMessage(event.target.value)}
               required
-              maxLength={16384}
+              maxLength={git.messageLimit}
             />
           </Field>
         )}
@@ -298,7 +298,7 @@ function ActionForm({
               >
                 {branch.stashes.map((stash) => (
                   <NativeSelectOption key={stash.oid} value={stash.oid}>
-                    {stash.message} · {stash.oid.slice(0, 7)}
+                    {stash.message} · {stash.oid.slice(0, HISTORY_OID_LENGTH)}
                   </NativeSelectOption>
                 ))}
               </NativeSelect>

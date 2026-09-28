@@ -1,3 +1,4 @@
+import { COMMIT_MESSAGE_BYTES } from '@porcelain/contracts/shared';
 import { useMutation } from '@tanstack/react-query';
 import type { GitContext } from '../api';
 import type { FormAction } from '../rules/action-form';
@@ -49,6 +50,8 @@ export function useActionForm(
   const uncertain = Boolean(git.operation && !git.canStartNew);
   return {
     operation: git.operation,
+    remote,
+    messageLimit: COMMIT_MESSAGE_BYTES,
     outcome: git.operation?.receipt,
     busy,
     uncertain,
