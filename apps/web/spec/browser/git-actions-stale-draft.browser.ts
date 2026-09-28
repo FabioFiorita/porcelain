@@ -12,7 +12,6 @@ test('a draft the worktree moved past is refused, and after looking again the di
   server,
 }) => {
   const drafted = (await codingTool.install()).message.message;
-  await repo.write(repo.readme.path, 'Drafted content\n');
   await pairedPage.getByRole('button', { name: 'Commit', exact: true }).click();
   const dialog = pairedPage.getByRole('dialog', { name: 'Commit changes' });
   const generate = dialog.getByRole('button', { name: 'Generate with AI' });
