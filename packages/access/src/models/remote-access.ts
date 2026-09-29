@@ -1,6 +1,11 @@
 export type ListenedRoute = 'lan' | 'tailnet';
 
-export type LocalNetwork = { interfaceName: string; subnet: string };
+export type LocalNetwork = {
+  interfaceName: string;
+  subnet: string;
+  gateway: string;
+  gatewayHardware?: string | undefined;
+};
 
 export type LocalNetworkAddress = LocalNetwork & { address: string };
 
@@ -86,7 +91,11 @@ export type NetworkAddress = {
   cidr?: string | undefined;
 };
 
-export type DefaultRoute = { interfaceName: string; metric: number };
+export type DefaultRoute = {
+  interfaceName: string;
+  metric: number;
+  gateway: string;
+};
 
 export type RouteAddresses = {
   route: ListenedRoute;
@@ -152,7 +161,8 @@ export type RemoteAccessOptions = { hostnameLength: number };
 export type RemoteAccessProblem =
   | { kind: 'invalid-hostname' }
   | { kind: 'missing-hostname' }
-  | { kind: 'no-local-network' };
+  | { kind: 'no-local-network' }
+  | { kind: 'unidentified-local-network' };
 
 export type RemoteAccessDecision =
   | { kind: 'settings'; settings: RemoteAccessSettings }

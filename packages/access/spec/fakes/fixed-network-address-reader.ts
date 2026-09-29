@@ -4,10 +4,12 @@ import type { NetworkAddressReader } from '../../src/ports/network-address-reade
 export class FixedNetworkAddressReader implements NetworkAddressReader {
   private addresses: NetworkAddress[];
   private table: string;
+  private neighbours: string;
 
-  constructor(addresses: NetworkAddress[], table = '') {
+  constructor(addresses: NetworkAddress[], table: string, neighbours: string) {
     this.addresses = addresses;
     this.table = table;
+    this.neighbours = neighbours;
   }
 
   list(): NetworkAddress[] {
@@ -18,8 +20,17 @@ export class FixedNetworkAddressReader implements NetworkAddressReader {
     return this.table;
   }
 
-  replace(addresses: NetworkAddress[], table = this.table): void {
+  neighbourTable(): string {
+    return this.neighbours;
+  }
+
+  replace(
+    addresses: NetworkAddress[],
+    table = this.table,
+    neighbours = this.neighbours,
+  ): void {
     this.addresses = addresses;
     this.table = table;
+    this.neighbours = neighbours;
   }
 }

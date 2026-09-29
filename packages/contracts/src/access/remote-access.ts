@@ -28,6 +28,8 @@ const routeStateSchema = z.discriminatedUnion('kind', [
 const localNetworkSchema = z.object({
   interfaceName: z.string(),
   subnet: z.string(),
+  gateway: z.string(),
+  gatewayHardware: z.string().optional(),
 });
 
 const routeSchema = z.object({

@@ -14,7 +14,11 @@ import { FixedTailnetServeRunner } from '../../spec/fakes/fixed-tailnet-serve-ru
 import { FixedTailnetStatusReader } from '../../spec/fakes/fixed-tailnet-status-reader.ts';
 import { InMemoryTailnet } from '../../spec/fakes/in-memory-tailnet.ts';
 import { FixedRouteListenerRunner } from '../../spec/fakes/fixed-route-listener-runner.ts';
-import { routeTableVia } from '../../spec/fixtures/route-table.ts';
+import {
+  laptopNeighbourTable,
+  neighbourTableWith,
+  routeTableVia,
+} from '../../spec/fixtures/route-table.ts';
 import { OpenRemoteRoutesService } from './open-remote-routes-service.ts';
 
 const environmentId = 'environment-here';
@@ -44,7 +48,12 @@ const machine = [
   address('tun0', '10.8.0.51/24'),
   address('tailscale0', '100.64.0.9/32'),
 ];
-const home = { interfaceName: 'wlp2s0', subnet: '192.168.1.0/24' };
+const home = {
+  interfaceName: 'wlp2s0',
+  subnet: '192.168.1.0/24',
+  gateway: '192.168.1.1',
+  gatewayHardware: 'a4:91:b1:0c:7e:11',
+};
 const lanAtHome = {
   lan: true,
   lanNetwork: home,
@@ -67,6 +76,7 @@ function setup(
   const addresses = new FixedNetworkAddressReader(
     options.addresses ?? machine,
     routeTableVia('wlp2s0'),
+    laptopNeighbourTable,
   );
   const listeners = new InMemoryRouteListenerRunner(
     4173,
@@ -492,6 +502,30 @@ describe('OpenRemoteRoutesService', () => {
       [address('enp3s0', '192.168.1.20/24', true)],
       routeTableVia('enp3s0'),
     );
+    await open();
+
+    expect(listeners.bound({ route: 'lan' })).toEqual([]);
+    expect(routes.read().states.lan).toEqual({ kind: 'paused' });
+  });
+
+  it('pauses on a café network with the same interface, subnet and router address but another router', async () => {
+    const { settings, routes, addresses, listeners, open } = setup();
+    settings.save(lanAtHome);
+    addresses.replace(
+      machine,
+      routeTableVia('wlp2s0'),
+      neighbourTableWith('192.168.1.1', '10:20:30:40:50:60', 'wlp2s0'),
+    );
+    await open();
+
+    expect(listeners.bound({ route: 'lan' })).toEqual([]);
+    expect(routes.read().states.lan).toEqual({ kind: 'paused' });
+  });
+
+  it('pauses while it cannot read the hardware address of the router, rather than guess the network', async () => {
+    const { settings, routes, addresses, listeners, open } = setup();
+    settings.save(lanAtHome);
+    addresses.replace(machine, routeTableVia('wlp2s0'), '');
     await open();
 
     expect(listeners.bound({ route: 'lan' })).toEqual([]);

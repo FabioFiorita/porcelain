@@ -8,6 +8,8 @@ export const remoteAccess = sqliteTable(
     lan: integer('lan', { mode: 'boolean' }).notNull(),
     lanInterface: text('lan_interface'),
     lanSubnet: text('lan_subnet'),
+    lanGateway: text('lan_gateway'),
+    lanGatewayHardware: text('lan_gateway_hardware'),
     tailnet: integer('tailnet', { mode: 'boolean' }).notNull(),
     tailnetServeTarget: text('tailnet_serve_target'),
     cloudflare: integer('cloudflare', { mode: 'boolean' }).notNull(),

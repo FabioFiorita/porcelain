@@ -45,7 +45,12 @@ export function remoteAccessStoreContract(
     });
 
     it('reads back the network the local network was turned on for, and forgets it when a save leaves it out', () => {
-      const lanNetwork = { interfaceName: 'wlp2s0', subnet: '192.168.1.0/24' };
+      const lanNetwork = {
+        interfaceName: 'wlp2s0',
+        subnet: '192.168.1.0/24',
+        gateway: '192.168.1.1',
+        gatewayHardware: 'a4:91:b1:0c:7e:11',
+      };
       opened.store.save({
         lan: true,
         lanNetwork,

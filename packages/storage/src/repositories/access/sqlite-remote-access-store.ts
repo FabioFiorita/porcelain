@@ -15,12 +15,18 @@ export class SqliteRemoteAccessStore implements RemoteAccessStore {
     if (!row) return { lan: false, tailnet: false, cloudflare: false };
     return {
       lan: row.lan,
-      ...(row.lanInterface === null || row.lanSubnet === null
+      ...(row.lanInterface === null ||
+      row.lanSubnet === null ||
+      row.lanGateway === null
         ? {}
         : {
             lanNetwork: {
               interfaceName: row.lanInterface,
               subnet: row.lanSubnet,
+              gateway: row.lanGateway,
+              ...(row.lanGatewayHardware === null
+                ? {}
+                : { gatewayHardware: row.lanGatewayHardware }),
             },
           }),
       tailnet: row.tailnet,
@@ -39,6 +45,8 @@ export class SqliteRemoteAccessStore implements RemoteAccessStore {
       lan: input.lan,
       lanInterface: input.lanNetwork?.interfaceName ?? null,
       lanSubnet: input.lanNetwork?.subnet ?? null,
+      lanGateway: input.lanNetwork?.gateway ?? null,
+      lanGatewayHardware: input.lanNetwork?.gatewayHardware ?? null,
       tailnet: input.tailnet,
       tailnetServeTarget: input.tailnetServeTarget ?? null,
       cloudflare: input.cloudflare,

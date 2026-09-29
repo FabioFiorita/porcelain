@@ -169,6 +169,13 @@
       "when": 1790701825798,
       "tag": "0023_tailnet_serve_target",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "6",
+      "when": 1790704272855,
+      "tag": "0024_lan_router",
+      "breakpoints": true
     }
   ]
 }

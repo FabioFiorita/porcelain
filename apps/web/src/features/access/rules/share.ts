@@ -48,10 +48,14 @@ export function localNetworkNote(remote: RemoteAccess): string {
   const { lan } = remote.routes;
   const here = remote.localNetwork;
   const chosen = remote.lanNetwork;
-  if (!lan.enabled)
-    return here
+  const unidentified =
+    'Porcelain cannot tell this network from another one yet, because the hardware address of its router is not known.';
+  if (!lan.enabled) {
+    if (!here) return 'This computer is not on a local network right now.';
+    return here.gatewayHardware
       ? `Turning it on listens on ${networkName(here)} only, and pauses on any other network.`
-      : 'This computer is not on a local network right now.';
+      : `${unidentified} Try again in a moment.`;
+  }
   if (lan.status.kind !== 'paused')
     return chosen
       ? `Listening on ${networkName(chosen)} only.`
@@ -60,9 +64,12 @@ export function localNetworkNote(remote: RemoteAccess): string {
     return chosen
       ? `Paused: this computer is not on a local network. Porcelain listens again when it is back on ${networkName(chosen)}.`
       : 'Paused: this computer is not on a local network.';
-  return chosen
-    ? `Paused on this network. It was turned on for ${networkName(chosen)}, and listens again there, or here once you turn it on for this network.`
-    : 'Paused on this network. It was turned on before Porcelain kept the network it was turned on for; turn it on for this network to listen here.';
+  if (!here.gatewayHardware) return `Paused. ${unidentified}`;
+  if (!chosen)
+    return 'Paused on this network. It was turned on before Porcelain kept the network it was turned on for; turn it on for this network to listen here.';
+  if (networkName(chosen) === networkName(here))
+    return `Paused on this network. It looks like ${networkName(chosen)}, but its router is another one, so this is another network; turn it on for this network to listen here.`;
+  return `Paused on this network. It was turned on for ${networkName(chosen)}, and listens again there, or here once you turn it on for this network.`;
 }
 
 export function routesSettling(

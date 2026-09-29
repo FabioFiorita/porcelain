@@ -6,6 +6,7 @@ export { TooManyPairingAttemptsError } from './too-many-pairing-attempts-error.t
 export { InvalidTunnelHostnameError } from './invalid-tunnel-hostname-error.ts';
 export { MissingTunnelHostnameError } from './missing-tunnel-hostname-error.ts';
 export { NoLocalNetworkError } from './no-local-network-error.ts';
+export { UnidentifiedLocalNetworkError } from './unidentified-local-network-error.ts';
 export { ServiceNotManagedError } from './service-not-managed-error.ts';
 export { ServiceUpdateNotOfferedError } from './service-update-not-offered-error.ts';
 export { ServiceUpdateRunningError } from './service-update-running-error.ts';

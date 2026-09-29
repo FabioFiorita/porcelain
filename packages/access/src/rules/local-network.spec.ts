@@ -2,10 +2,12 @@ import { describe, expect, it } from 'vitest';
 import type { NetworkAddress } from '@porcelain/access/models';
 import {
   fullTunnelVpnRouteTable,
+  laptopNeighbourTable,
   laptopRouteTable,
 } from '../../spec/fixtures/route-table.ts';
 import {
   defaultRoutes,
+  gatewayHardware,
   localNetwork,
   sameNetwork,
   subnetOf,
@@ -50,14 +52,14 @@ const laptop = [
 describe('defaultRoutes', () => {
   it('finds the default route of a laptop with Wi-Fi, a VPN, Docker and libvirt, and none of their own networks', () => {
     expect(defaultRoutes(laptopRouteTable)).toEqual([
-      { interfaceName: 'wlp2s0', metric: 600 },
+      { interfaceName: 'wlp2s0', metric: 600, gateway: '192.168.1.1' },
     ]);
   });
 
   it('lists every default route, the preferred one first, when a VPN takes the default route', () => {
     expect(defaultRoutes(fullTunnelVpnRouteTable)).toEqual([
-      { interfaceName: 'tun0', metric: 50 },
-      { interfaceName: 'wlp2s0', metric: 600 },
+      { interfaceName: 'tun0', metric: 50, gateway: '10.8.0.1' },
+      { interfaceName: 'wlp2s0', metric: 600, gateway: '192.168.1.1' },
     ]);
   });
 
@@ -72,6 +74,28 @@ describe('defaultRoutes', () => {
       'wlp2s0\t00000000\t0101A8C0\t0002',
     );
     expect(defaultRoutes(down)).toEqual([]);
+  });
+});
+
+describe('gatewayHardware', () => {
+  it('finds the hardware address of the router in the neighbour table, in lower case', () => {
+    expect(gatewayHardware(laptopNeighbourTable, '192.168.1.1', 'wlp2s0')).toBe(
+      'a4:91:b1:0c:7e:11',
+    );
+  });
+
+  it.each([
+    ['a router the table does not list', '192.168.1.254', 'wlp2s0'],
+    ['the router seen on another interface', '192.168.1.1', 'enp3s0'],
+    ['an entry still being resolved', '192.168.1.60', 'wlp2s0'],
+  ])('finds nothing for %s', (_, gateway, interfaceName) => {
+    expect(
+      gatewayHardware(laptopNeighbourTable, gateway, interfaceName),
+    ).toBeUndefined();
+  });
+
+  it('finds nothing in an empty table', () => {
+    expect(gatewayHardware('', '192.168.1.1', 'wlp2s0')).toBeUndefined();
   });
 });
 
@@ -98,13 +122,28 @@ describe('subnetOf', () => {
   });
 });
 
+const wifiRoute = {
+  interfaceName: 'wlp2s0',
+  metric: 600,
+  gateway: '192.168.1.1',
+};
+
 describe('localNetwork', () => {
-  it('is the private IPv4 network of the physical interface that carries the default route', () => {
-    expect(
-      localNetwork(laptop, [{ interfaceName: 'wlp2s0', metric: 600 }]),
-    ).toEqual({
+  it('is the private IPv4 network of the physical interface that carries the default route, with its router', () => {
+    expect(localNetwork(laptop, [wifiRoute], laptopNeighbourTable)).toEqual({
       interfaceName: 'wlp2s0',
       subnet: '192.168.1.0/24',
+      gateway: '192.168.1.1',
+      gatewayHardware: 'a4:91:b1:0c:7e:11',
+      address: '192.168.1.20',
+    });
+  });
+
+  it('leaves the router hardware unknown when the neighbour table does not have it yet', () => {
+    expect(localNetwork(laptop, [wifiRoute], '')).toEqual({
+      interfaceName: 'wlp2s0',
+      subnet: '192.168.1.0/24',
+      gateway: '192.168.1.1',
       address: '192.168.1.20',
     });
   });
@@ -112,30 +151,36 @@ describe('localNetwork', () => {
   it.each(['tun0', 'docker0', 'br-5c1e0d2a9f3b', 'virbr0', 'tailscale0'])(
     'is never the network of the virtual interface %s, even when it carries the default route',
     (interfaceName) => {
-      expect(localNetwork(laptop, [{ interfaceName, metric: 0 }])).toBe(
-        undefined,
-      );
+      expect(
+        localNetwork(
+          laptop,
+          [{ interfaceName, metric: 0, gateway: '10.8.0.1' }],
+          laptopNeighbourTable,
+        ),
+      ).toBeUndefined();
     },
   );
 
   it('passes over a VPN that takes the default route to the physical network behind it', () => {
     expect(
-      localNetwork(laptop, [
-        { interfaceName: 'tun0', metric: 50 },
-        { interfaceName: 'wlp2s0', metric: 600 },
-      ])?.interfaceName,
+      localNetwork(
+        laptop,
+        [{ interfaceName: 'tun0', metric: 50, gateway: '10.8.0.1' }, wifiRoute],
+        laptopNeighbourTable,
+      )?.interfaceName,
     ).toBe('wlp2s0');
   });
 
   it('is nothing without a default route', () => {
-    expect(localNetwork(laptop, [])).toBeUndefined();
+    expect(localNetwork(laptop, [], laptopNeighbourTable)).toBeUndefined();
   });
 
   it('is nothing when the default route leads to a public address', () => {
     expect(
       localNetwork(
         [address('eth0', '203.0.113.5/24', { physical: true })],
-        [{ interfaceName: 'eth0', metric: 100 }],
+        [{ interfaceName: 'eth0', metric: 100, gateway: '203.0.113.1' }],
+        '',
       ),
     ).toBeUndefined();
   });
@@ -144,25 +189,49 @@ describe('localNetwork', () => {
     expect(
       localNetwork(
         [address('eth0', '192.168.1.20', { physical: true, cidr: undefined })],
-        [{ interfaceName: 'eth0', metric: 100 }],
+        [{ interfaceName: 'eth0', metric: 100, gateway: '192.168.1.1' }],
+        '',
       ),
     ).toBeUndefined();
   });
 });
 
 describe('sameNetwork', () => {
-  const home = { interfaceName: 'wlp2s0', subnet: '192.168.1.0/24' };
+  const home = {
+    interfaceName: 'wlp2s0',
+    subnet: '192.168.1.0/24',
+    gateway: '192.168.1.1',
+    gatewayHardware: 'a4:91:b1:0c:7e:11',
+  };
 
-  it('is the same network when the interface and the subnet match', () => {
+  it('is the same network when the interface, the subnet and the router match', () => {
     const here = { ...home, address: '192.168.1.44' };
     expect(sameNetwork(home, here)).toBe(true);
   });
 
   it.each([
-    { interfaceName: 'wlp2s0', subnet: '192.168.0.0/24' },
-    { interfaceName: 'enp3s0', subnet: '192.168.1.0/24' },
-    undefined,
-  ])('is another network for %j', (other) => {
+    [
+      'a café Wi-Fi with the same subnet and router address but another router',
+      { ...home, gatewayHardware: '10:20:30:40:50:60' },
+    ],
+    ['another subnet', { ...home, subnet: '192.168.0.0/24' }],
+    ['another interface', { ...home, interfaceName: 'enp3s0' }],
+    ['another router address', { ...home, gateway: '192.168.1.254' }],
+    [
+      'a router whose hardware is not known',
+      { ...home, gatewayHardware: undefined },
+    ],
+  ])('is another network for %s', (_, other) => {
     expect(sameNetwork(home, other)).toBe(false);
+  });
+
+  it('is never the same network when the recorded one has no router hardware', () => {
+    const recorded = { ...home, gatewayHardware: undefined };
+    expect(sameNetwork(recorded, recorded)).toBe(false);
+  });
+
+  it('is another network when nothing is recorded or the computer is on none', () => {
+    expect(sameNetwork(home, undefined)).toBe(false);
+    expect(sameNetwork(undefined, home)).toBe(false);
   });
 });

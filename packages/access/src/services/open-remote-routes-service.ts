@@ -107,6 +107,7 @@ export class OpenRemoteRoutesService {
     const here = localNetwork(
       found,
       defaultRoutes(this.networkAddresses.routeTable()),
+      this.networkAddresses.neighbourTable(),
     );
     if (!settings.lan || !sameNetwork(here, settings.lanNetwork)) {
       await this.routeListeners.close({ route: 'lan' });

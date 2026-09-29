@@ -3,17 +3,22 @@ import {
   InvalidTunnelHostnameError,
   MissingTunnelHostnameError,
   NoLocalNetworkError,
+  UnidentifiedLocalNetworkError,
 } from '@porcelain/access/errors';
 import { FixedNetworkAddressReader } from '../../spec/fakes/fixed-network-address-reader.ts';
 import { FixedRuntimeStatusReader } from '../../spec/fakes/fixed-runtime-status-reader.ts';
 import { InMemoryRemoteAccessStore } from '../../spec/fakes/in-memory-remote-access-store.ts';
 import { InMemoryRouteStateStore } from '../../spec/fakes/in-memory-route-state-store.ts';
-import { routeTableVia } from '../../spec/fixtures/route-table.ts';
+import {
+  laptopNeighbourTable,
+  routeTableVia,
+} from '../../spec/fixtures/route-table.ts';
 import { SetRemoteAccessService } from './set-remote-access-service.ts';
 
 const serviceUrl = 'http://127.0.0.1:4173';
-const home = { interfaceName: 'wlp2s0', subnet: '192.168.1.0/24' };
-const office = { interfaceName: 'wlp2s0', subnet: '10.20.0.0/16' };
+const router = { gateway: '192.168.1.1', gatewayHardware: 'a4:91:b1:0c:7e:11' };
+const home = { interfaceName: 'wlp2s0', subnet: '192.168.1.0/24', ...router };
+const office = { interfaceName: 'wlp2s0', subnet: '10.20.0.0/16', ...router };
 
 function wifi(cidr: string) {
   const [address = ''] = cidr.split('/');
@@ -34,6 +39,7 @@ function setup() {
   const network = new FixedNetworkAddressReader(
     [wifi('192.168.1.20/24')],
     routeTableVia('wlp2s0'),
+    laptopNeighbourTable,
   );
   const service = new SetRemoteAccessService(
     settings,
@@ -95,6 +101,20 @@ describe('SetRemoteAccessService', () => {
 
     expect(view.lanNetwork).toBeUndefined();
     expect(view.localNetwork).toEqual(home);
+    expect(settings.read()).toEqual({
+      lan: false,
+      tailnet: false,
+      cloudflare: false,
+    });
+  });
+
+  it('refuses to turn the local network on while it cannot read the hardware address of the router, and changes nothing', () => {
+    const { settings, network, service } = setup();
+    network.replace([wifi('192.168.1.20/24')], routeTableVia('wlp2s0'), '');
+
+    expect(() => service.execute({ lan: true })).toThrow(
+      UnidentifiedLocalNetworkError,
+    );
     expect(settings.read()).toEqual({
       lan: false,
       tailnet: false,

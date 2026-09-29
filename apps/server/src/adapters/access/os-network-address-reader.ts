@@ -4,10 +4,19 @@ import type { NetworkAddress } from '@porcelain/access/models';
 import type { NetworkAddressReader } from '@porcelain/access/ports';
 
 const ROUTE_TABLE = '/proc/net/route';
+const NEIGHBOUR_TABLE = '/proc/net/arp';
 const INTERFACES = '/sys/class/net';
 
 function physical(name: string): boolean {
   return !name.includes('/') && existsSync(`${INTERFACES}/${name}/device`);
+}
+
+function kernelTable(path: string): string {
+  try {
+    return readFileSync(path, 'utf8');
+  } catch {
+    return '';
+  }
 }
 
 export class OsNetworkAddressReader implements NetworkAddressReader {
@@ -27,10 +36,10 @@ export class OsNetworkAddressReader implements NetworkAddressReader {
   }
 
   routeTable(): string {
-    try {
-      return readFileSync(ROUTE_TABLE, 'utf8');
-    } catch {
-      return '';
-    }
+    return kernelTable(ROUTE_TABLE);
+  }
+
+  neighbourTable(): string {
+    return kernelTable(NEIGHBOUR_TABLE);
   }
 }

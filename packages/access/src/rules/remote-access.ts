@@ -5,6 +5,7 @@ import type {
   RemoteAccess,
   RemoteAccessChange,
   RemoteAccessDecision,
+  RemoteAccessProblem,
   RemoteAccessSettings,
   RouteState,
   RouteStates,
@@ -123,22 +124,33 @@ export function reachableOrigins(states: RouteStates): string[] {
   );
 }
 
+function networkOnly(network: LocalNetwork): LocalNetwork {
+  return {
+    interfaceName: network.interfaceName,
+    subnet: network.subnet,
+    gateway: network.gateway,
+    ...(network.gatewayHardware === undefined
+      ? {}
+      : { gatewayHardware: network.gatewayHardware }),
+  };
+}
+
+type LanChange =
+  | { kind: 'lan'; lan: boolean; lanNetwork?: LocalNetwork | undefined }
+  | RemoteAccessProblem;
+
 function lanChange(
   current: RemoteAccessSettings,
   change: RemoteAccessChange,
   network: LocalNetwork | undefined,
-): Pick<RemoteAccessSettings, 'lan' | 'lanNetwork'> | undefined {
-  if (change.lan === false) return { lan: false };
+): LanChange {
+  if (change.lan === false) return { kind: 'lan', lan: false };
   if (change.lan === undefined)
-    return { lan: current.lan, lanNetwork: current.lanNetwork };
-  if (network === undefined) return undefined;
-  return {
-    lan: true,
-    lanNetwork: {
-      interfaceName: network.interfaceName,
-      subnet: network.subnet,
-    },
-  };
+    return { kind: 'lan', lan: current.lan, lanNetwork: current.lanNetwork };
+  if (network === undefined) return { kind: 'no-local-network' };
+  if (network.gatewayHardware === undefined)
+    return { kind: 'unidentified-local-network' };
+  return { kind: 'lan', lan: true, lanNetwork: networkOnly(network) };
 }
 
 export function changedRemoteAccess(
@@ -156,7 +168,7 @@ export function changedRemoteAccess(
   const cloudflare = change.cloudflare ?? current.cloudflare;
   if (cloudflare && hostname === undefined) return { kind: 'missing-hostname' };
   const lan = lanChange(current, change, network);
-  if (lan === undefined) return { kind: 'no-local-network' };
+  if (lan.kind !== 'lan') return lan;
   return {
     kind: 'settings',
     settings: {
@@ -187,10 +199,6 @@ export function requestedStates(
         ? starting
         : states.cloudflare,
   };
-}
-
-function networkOnly(network: LocalNetwork): LocalNetwork {
-  return { interfaceName: network.interfaceName, subnet: network.subnet };
 }
 
 export function remoteAccessView(

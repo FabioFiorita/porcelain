@@ -32,6 +32,7 @@ export class ReadRemoteAccessService {
       localNetwork(
         this.networkAddresses.list(),
         defaultRoutes(this.networkAddresses.routeTable()),
+        this.networkAddresses.neighbourTable(),
       ),
     );
   }

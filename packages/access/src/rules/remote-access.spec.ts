@@ -45,12 +45,13 @@ describe('tunnelHostname', () => {
 describe('changedRemoteAccess', () => {
   const off = { lan: false, tailnet: false, cloudflare: false };
 
-  const here = {
+  const home = {
     interfaceName: 'wlp2s0',
     subnet: '192.168.1.0/24',
-    address: '192.168.1.20',
+    gateway: '192.168.1.1',
+    gatewayHardware: 'a4:91:b1:0c:7e:11',
   };
-  const home = { interfaceName: 'wlp2s0', subnet: '192.168.1.0/24' };
+  const here = { ...home, address: '192.168.1.20' };
 
   it('changes only the routes the request names', () => {
     expect(
@@ -97,6 +98,13 @@ describe('changedRemoteAccess', () => {
     ).toEqual({
       kind: 'settings',
       settings: { ...off, tailnetServeTarget: target },
+    });
+  });
+
+  it('refuses to turn the local network on for a network whose router it cannot identify', () => {
+    const { gatewayHardware: _, ...unidentified } = here;
+    expect(changedRemoteAccess(off, { lan: true }, 253, unidentified)).toEqual({
+      kind: 'unidentified-local-network',
     });
   });
 

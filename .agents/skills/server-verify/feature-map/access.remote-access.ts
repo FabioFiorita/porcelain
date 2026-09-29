@@ -26,7 +26,12 @@ const notAnswered = apiError(
   `This server does not answer to the host ${tunnelHost}`,
 );
 const remoteAccess = { method: 'GET', path: '/api/remote-access' } as const;
-const fixtureNetwork = { interfaceName: 'eth0', subnet: '192.168.1.0/24' };
+const fixtureNetwork = {
+  interfaceName: 'eth0',
+  subnet: '192.168.1.0/24',
+  gateway: '192.168.1.1',
+  gatewayHardware: '02:00:5e:10:00:01',
+};
 const tailnetHost = 'porcelain.tail0000.ts.net';
 const throughTailnet = {
   method: 'GET',
@@ -62,7 +67,7 @@ export default defineFeature({
   paired: true,
   intent: 'intended',
   behaviour:
-    "A paired browser on the computer that runs Porcelain turns the ways in on and off: the local network, the Tailscale tailnet and the user's own Cloudflare tunnel with its public hostname. The choice is saved; each route reports whether it is off, starting, on with the addresses it serves, or failed with a reason. Turning the local network on records the network the computer is on, the private IPv4 network of the physical interface that carries the default route, and the server listens there only, never on Docker, libvirt or VPN interfaces, and pauses on any other network (the fixture's computer is on 192.168.1.0/24 through eth0 at 192.168.1.20, with a Docker bridge and a VPN beside it, and has no tailnet); Turning the tailnet on has Tailscale Serve the server over HTTPS at the computer's MagicDNS name through a loopback listener of its own (the fixture's Tailscale runs with HTTPS certificates as porcelain.tail0000.ts.net and serves what it is asked to), and the server answers to that name while it is served, and it answers to the tunnel hostname only while Cloudflare is on; it checks the tunnel by asking its own health through the hostname (the fixture's tunnel reaches this server for any hostname except one under .invalid, which nothing answers). An address that a route serves can be named in a pairing link. Turning Cloudflare on needs a readable public HTTPS hostname. As with pairing, only a request from this computer's loopback listener may change them, so a device that came in through a route cannot.",
+    "A paired browser on the computer that runs Porcelain turns the ways in on and off: the local network, the Tailscale tailnet and the user's own Cloudflare tunnel with its public hostname. The choice is saved; each route reports whether it is off, starting, on with the addresses it serves, or failed with a reason. Turning the local network on records the network the computer is on, the private IPv4 network of the physical interface that carries the default route with the address and hardware address of its router, and the server listens there only, never on Docker, libvirt or VPN interfaces, and pauses on any other network (the fixture's computer is on 192.168.1.0/24 through eth0 at 192.168.1.20 behind the router 192.168.1.1 at 02:00:5e:10:00:01, with a Docker bridge and a VPN beside it, and has no tailnet); Turning the tailnet on has Tailscale Serve the server over HTTPS at the computer's MagicDNS name through a loopback listener of its own (the fixture's Tailscale runs with HTTPS certificates as porcelain.tail0000.ts.net and serves what it is asked to), and the server answers to that name while it is served, and it answers to the tunnel hostname only while Cloudflare is on; it checks the tunnel by asking its own health through the hostname (the fixture's tunnel reaches this server for any hostname except one under .invalid, which nothing answers). An address that a route serves can be named in a pairing link. Turning Cloudflare on needs a readable public HTTPS hostname. As with pairing, only a request from this computer's loopback listener may change them, so a device that came in through a route cannot.",
   cases: [
     defineCase({
       name: 'every route is off at first',

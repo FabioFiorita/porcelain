@@ -1,8 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import { localNetworkNote, type RemoteAccess } from './share.ts';
 
-const home = { interfaceName: 'wlp2s0', subnet: '192.168.1.0/24' };
-const cafe = { interfaceName: 'wlp2s0', subnet: '10.20.0.0/16' };
+const home = {
+  interfaceName: 'wlp2s0',
+  subnet: '192.168.1.0/24',
+  gateway: '192.168.1.1',
+  gatewayHardware: 'a4:91:b1:0c:7e:11',
+};
+const cafe = {
+  interfaceName: 'wlp2s0',
+  subnet: '10.20.0.0/16',
+  gateway: '10.20.0.1',
+  gatewayHardware: '10:20:30:40:50:60',
+};
 
 function remote(
   lan: RemoteAccess['routes']['lan'],
@@ -71,6 +81,44 @@ describe('localNetworkNote', () => {
   it('explains the pause of a local network turned on before its network was kept', () => {
     expect(localNetworkNote(remote(paused, { localNetwork: cafe }))).toBe(
       'Paused on this network. It was turned on before Porcelain kept the network it was turned on for; turn it on for this network to listen here.',
+    );
+  });
+
+  it('explains a pause on a network that looks like its own but has another router', () => {
+    expect(
+      localNetworkNote(
+        remote(paused, {
+          lanNetwork: home,
+          localNetwork: { ...home, gatewayHardware: '10:20:30:40:50:60' },
+        }),
+      ),
+    ).toBe(
+      'Paused on this network. It looks like 192.168.1.0/24 on wlp2s0, but its router is another one, so this is another network; turn it on for this network to listen here.',
+    );
+  });
+
+  it('explains a pause while the router of this network cannot be identified', () => {
+    const { gatewayHardware: _, ...unknownRouter } = home;
+    expect(
+      localNetworkNote(
+        remote(paused, { lanNetwork: home, localNetwork: unknownRouter }),
+      ),
+    ).toBe(
+      'Paused. Porcelain cannot tell this network from another one yet, because the hardware address of its router is not known.',
+    );
+  });
+
+  it('says why it cannot be turned on while the router of this network cannot be identified', () => {
+    const { gatewayHardware: _, ...unknownRouter } = home;
+    expect(
+      localNetworkNote(
+        remote(
+          { enabled: false, status: { kind: 'off' } },
+          { localNetwork: unknownRouter },
+        ),
+      ),
+    ).toBe(
+      'Porcelain cannot tell this network from another one yet, because the hardware address of its router is not known. Try again in a moment.',
     );
   });
 });

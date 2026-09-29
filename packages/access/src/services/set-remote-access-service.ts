@@ -1,6 +1,7 @@
 import { InvalidTunnelHostnameError } from '../errors/invalid-tunnel-hostname-error.ts';
 import { MissingTunnelHostnameError } from '../errors/missing-tunnel-hostname-error.ts';
 import { NoLocalNetworkError } from '../errors/no-local-network-error.ts';
+import { UnidentifiedLocalNetworkError } from '../errors/unidentified-local-network-error.ts';
 import type {
   RemoteAccess,
   RemoteAccessChange,
@@ -44,6 +45,7 @@ export class SetRemoteAccessService {
     const here = localNetwork(
       this.networkAddresses.list(),
       defaultRoutes(this.networkAddresses.routeTable()),
+      this.networkAddresses.neighbourTable(),
     );
     const decision = changedRemoteAccess(
       this.remoteAccess.read(),
@@ -76,6 +78,8 @@ export class SetRemoteAccessService {
         return new MissingTunnelHostnameError();
       case 'no-local-network':
         return new NoLocalNetworkError();
+      case 'unidentified-local-network':
+        return new UnidentifiedLocalNetworkError();
     }
   }
 }
