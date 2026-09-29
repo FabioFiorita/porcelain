@@ -8,7 +8,7 @@ type CommandResult = { code: number; stdout: string; stderr: string };
 export type CommandRunner = (
   command: string,
   args: readonly string[],
-  options?: { cwd?: string | undefined },
+  options?: { cwd?: string | undefined; signal?: AbortSignal | undefined },
 ) => Promise<CommandResult>;
 
 export function commandRunner(limits: {
@@ -18,14 +18,17 @@ export function commandRunner(limits: {
 }): CommandRunner {
   return async (command, args, options) => {
     try {
-      const output = await runProcess({
-        command,
-        args,
-        cwd: options?.cwd,
-        timeoutMs: limits.timeoutMs,
-        maxBytes: limits.maxBytes,
-        processGroup: limits.processGroup,
-      });
+      const output = await runProcess(
+        {
+          command,
+          args,
+          cwd: options?.cwd,
+          timeoutMs: limits.timeoutMs,
+          maxBytes: limits.maxBytes,
+          processGroup: limits.processGroup,
+        },
+        options?.signal,
+      );
       const stdout = output.stdout.toString('utf8');
       const stderr = output.stderr.toString('utf8');
       const completed =

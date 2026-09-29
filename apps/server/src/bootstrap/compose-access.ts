@@ -14,6 +14,7 @@ import {
   ReadRemoteAccessService,
   RenameEnvironmentService,
   CheckServiceUpdateService,
+  PlanServiceUpdateCheckService,
   SetRemoteAccessService,
   AuthenticateDeviceService,
   FlushDeviceActivityService,
@@ -92,6 +93,10 @@ export function composeAccess(
   const deviceSightingStore = stores.deviceSightings;
   const { pairingGrants, pairingAttempts } = stores;
   const secretSource = new RandomSecretSource(limits.credentials);
+  const planServiceUpdateCheck = new PlanServiceUpdateCheckService(
+    clock,
+    limits.serviceUpdate,
+  );
   return {
     authenticateDevice: new AuthenticateDeviceUseCase(
       new AuthenticateDeviceService(
@@ -118,12 +123,14 @@ export function composeAccess(
     ),
     readServiceUpdate: new ReadServiceUpdateUseCase(
       dependencies.serviceUpdateRunner,
+      planServiceUpdateCheck,
       lanes,
       laneKeys,
     ),
     startServiceUpdate: new StartServiceUpdateUseCase(
       dependencies.serviceUpdateRunner,
       new CheckServiceUpdateService(),
+      planServiceUpdateCheck,
       lanes,
       laneKeys,
     ),

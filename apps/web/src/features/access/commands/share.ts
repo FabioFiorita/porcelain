@@ -102,6 +102,7 @@ export function useStartServiceUpdate(connection: ShareConnection) {
       await client.cancelQueries({ queryKey: key });
       client.setQueryData(key, state);
     },
+    onError: () => client.invalidateQueries({ queryKey: key }),
   });
   return {
     submit: mutation.mutate,

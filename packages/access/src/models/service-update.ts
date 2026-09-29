@@ -21,6 +21,11 @@ export type ServiceUpdateState = {
   last: ServiceUpdateRecord | undefined;
 };
 
+export type ServiceUpdateCheck = {
+  now: string;
+  staleBefore: string;
+};
+
 export type ServiceUpdateTarget = {
   version: string;
 };

@@ -83,7 +83,7 @@ export async function runCommand(
             homeDirectory: context.homeDirectory,
             packageRoot: cliPackageRoot(),
             searchPath: context.searchPath,
-            limits: context.limits,
+            command: context.limits.installer.command,
           }),
         },
         output: (message) => context.stdout(`${message}\n`),

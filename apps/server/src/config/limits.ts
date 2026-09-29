@@ -43,6 +43,7 @@ export type Limits = {
     device: { unusedLifetimeMs: number; cookieMaxAgeSeconds: number };
     deviceDetails: { labelLength: number; platformLength: number };
     credentials: { secretBytes: number };
+    serviceUpdate: { latestVersionTtlMs: number };
     remoteAccess: {
       hostnameLength: number;
       probeTimeoutMs: number;
@@ -227,6 +228,7 @@ export const LIMITS: Limits = {
       platformLength: DEVICE_PLATFORM_LENGTH,
     },
     credentials: { secretBytes: 32 },
+    serviceUpdate: { latestVersionTtlMs: 10 * MINUTE_MS },
     remoteAccess: {
       hostnameLength: TUNNEL_HOSTNAME_LENGTH,
       probeTimeoutMs: 5 * SECOND_MS,

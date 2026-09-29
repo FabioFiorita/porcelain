@@ -1,5 +1,4 @@
 import { join } from 'node:path';
-import type { Limits } from '../config/limits.ts';
 import type { ServiceUpdateRunner } from '../ports/service-update-runner.ts';
 import { commandRunner, type CommandRunner } from './command-runner.ts';
 import { UpdateHandOffError } from './errors/update-hand-off-error.ts';
@@ -21,13 +20,14 @@ import { compareVersions } from './version-policy.ts';
 import { NotPackagedCliError } from './errors/not-packaged-cli-error.ts';
 
 type ServiceUpdateState = Awaited<ReturnType<ServiceUpdateRunner['read']>>;
+type ServiceUpdateCheck = Parameters<ServiceUpdateRunner['read']>[0];
 type ServiceUpdateTarget = Parameters<ServiceUpdateRunner['start']>[0];
 
 type ServiceUpdateRunnerOptions = {
   homeDirectory: string;
   packageRoot: string;
   searchPath: string;
-  limits: Limits;
+  command: Parameters<typeof commandRunner>[0];
   nodeExecutable?: string | undefined;
   runner?: CommandRunner | undefined;
 };
@@ -45,22 +45,28 @@ class InstalledServiceUpdateRunner implements ServiceUpdateRunner {
   private readonly options: ServiceUpdateRunnerOptions;
   private readonly runner: CommandRunner;
   private readonly nodeExecutable: string;
-  private latest: string | undefined;
+  private latest:
+    | { version: string | undefined; checkedAt: string }
+    | undefined;
   private preparing = false;
 
   constructor(options: ServiceUpdateRunnerOptions) {
     this.options = options;
     this.paths = servicePaths(options.homeDirectory);
-    this.runner =
-      options.runner ?? commandRunner(options.limits.installer.command);
+    this.runner = options.runner ?? commandRunner(options.command);
     this.nodeExecutable = options.nodeExecutable ?? process.execPath;
   }
 
-  async read(): Promise<ServiceUpdateState> {
+  async read(
+    input: ServiceUpdateCheck,
+    signal?: AbortSignal,
+  ): Promise<ServiceUpdateState> {
     const version = await this.runningVersion();
     const managed = version !== undefined && (await this.managed());
     const running = this.preparing || (managed && (await this.updaterActive()));
-    const latest = managed ? await this.latestVersion(running) : undefined;
+    const latest = managed
+      ? await this.latestVersion(input, running, signal)
+      : undefined;
     return {
       managed,
       version,
@@ -74,9 +80,13 @@ class InstalledServiceUpdateRunner implements ServiceUpdateRunner {
     };
   }
 
-  async start(input: ServiceUpdateTarget): Promise<void> {
-    const from = await this.runningVersion();
+  async start(input: ServiceUpdateTarget, signal?: AbortSignal): Promise<void> {
+    signal?.throwIfAborted();
     this.preparing = true;
+    const from = await this.runningVersion().catch((error: unknown) => {
+      this.preparing = false;
+      throw error;
+    });
     const progress = { from: from ?? '', target: input.version };
     try {
       await writeJsonFile(this.paths.updateRecord, {
@@ -141,17 +151,28 @@ class InstalledServiceUpdateRunner implements ServiceUpdateRunner {
     );
   }
 
-  private async latestVersion(running: boolean): Promise<string | undefined> {
-    if (running) return this.latest;
-    const viewed = await this.runner('npm', [
-      'view',
-      PACKAGE_NAME,
-      'version',
-      '--json',
-    ]);
-    this.latest =
+  private async latestVersion(
+    input: ServiceUpdateCheck,
+    running: boolean,
+    signal?: AbortSignal,
+  ): Promise<string | undefined> {
+    const known = this.latest;
+    if (
+      known !== undefined &&
+      (running || known.checkedAt >= input.staleBefore)
+    )
+      return known.version;
+    if (running) return undefined;
+    const viewed = await this.runner(
+      'npm',
+      ['view', PACKAGE_NAME, 'version', '--json'],
+      { signal },
+    );
+    signal?.throwIfAborted();
+    const version =
       viewed.code === 0 ? publishedVersion(viewed.stdout) : undefined;
-    return this.latest;
+    this.latest = { version, checkedAt: input.now };
+    return version;
   }
 
   private async updaterActive(): Promise<boolean> {

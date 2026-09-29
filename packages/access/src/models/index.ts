@@ -9,6 +9,7 @@ export type {
 export type { StoredDevice } from './device.ts';
 export type { ChosenEnvironmentName } from './environment-name.ts';
 export type {
+  ServiceUpdateCheck,
   ServiceUpdateState,
   ServiceUpdateTarget,
 } from './service-update.ts';

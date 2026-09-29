@@ -19,3 +19,4 @@ export { SetRemoteAccessService } from './set-remote-access-service.ts';
 export { IdentifyRequestClientService } from './identify-request-client-service.ts';
 export { CloseTunnelConnectionsService } from './close-tunnel-connections-service.ts';
 export { CheckServiceUpdateService } from './check-service-update-service.ts';
+export { PlanServiceUpdateCheckService } from './plan-service-update-check-service.ts';
