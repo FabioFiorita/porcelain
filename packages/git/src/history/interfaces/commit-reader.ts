@@ -1,4 +1,11 @@
 import type {
+  BranchBases,
+  BranchDiffs,
+  BranchDiffsRequest,
+  BranchRange,
+  BranchRangeRequest,
+} from '../dtos/branch-range.ts';
+import type {
   CommitDiffsRequest,
   CommitFiles,
   CommitFilesRequest,
@@ -21,6 +28,15 @@ export interface CommitReader {
     request: CommitDiffsRequest,
     signal?: AbortSignal,
   ): Promise<Map<string, GitDiffResult> | null>;
+  readBranchRange(
+    request: BranchRangeRequest,
+    signal?: AbortSignal,
+  ): Promise<BranchRange>;
+  readBranchDiffs(
+    request: BranchDiffsRequest,
+    signal?: AbortSignal,
+  ): Promise<BranchDiffs>;
+  listBranchBases(signal?: AbortSignal): Promise<BranchBases>;
 }
 export interface CommitReaderFactory {
   (checkout: HistoryCheckout): CommitReader;

@@ -34,6 +34,21 @@ export async function askHistory(
   }
 }
 
+export async function readHistoryAnswer(
+  checkout: string,
+  args: readonly string[],
+  limits: GitLimits,
+  signal: AbortSignal | undefined,
+  answersNone: (failure: GitCommandError) => boolean,
+): Promise<Buffer | null> {
+  try {
+    return await read(checkout, args, limits, signal);
+  } catch (cause) {
+    if (cause instanceof GitCommandError && answersNone(cause)) return null;
+    throw historyFailure(cause);
+  }
+}
+
 function read(
   checkout: string,
   args: readonly string[],

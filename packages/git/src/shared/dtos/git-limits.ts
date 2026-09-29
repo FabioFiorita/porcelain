@@ -34,6 +34,7 @@ export type GitLimits = {
     maxCommits: number;
     maxFrontier: number;
     maxCommitFiles: number;
+    maxBranchBases: number;
     subjectBytes: number;
     bodyBytes: number;
   };

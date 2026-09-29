@@ -31,6 +31,19 @@ export function shortBranchName(ref: string): string {
   return ref.startsWith('refs/heads/') ? ref.slice('refs/heads/'.length) : ref;
 }
 
+const BRANCH_REF =
+  /^refs\/(?:heads|remotes)\/(?!\.|.*(?:\.\.|@\{|\/\/|\/\.|\.lock\/|\.lock$))[^\0- ~^:?*[\\\x7f]+$/u;
+
+export function isBranchRef(ref: string): boolean {
+  return BRANCH_REF.test(ref) && !ref.endsWith('/') && !ref.endsWith('.');
+}
+
+export function branchRefName(ref: string): string {
+  if (ref.startsWith('refs/heads/')) return ref.slice('refs/heads/'.length);
+  if (ref.startsWith('refs/remotes/')) return ref.slice('refs/remotes/'.length);
+  return ref;
+}
+
 export function parseHeadFile(text: string): HeadState | undefined {
   const head = text.trim();
   const ref = /^ref: (refs\/\S+)$/u.exec(head)?.[1];

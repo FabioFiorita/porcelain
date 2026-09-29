@@ -18,6 +18,7 @@ export const ERROR_STATUS_MAX = 599;
 export const LINE_NUMBER_MAX = 2_147_483_647;
 export const COMMIT_PARENTS = 1000;
 export const COMMIT_FILES = 10_000;
+export const BRANCH_BASES = 500;
 export const PATHS_PER_CHANGE = 2;
 export const DIFFS_PER_REQUEST = 200;
 export const COMMITS_PER_PAGE = 100;

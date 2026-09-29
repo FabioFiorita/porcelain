@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  branchRefName,
+  isBranchRef,
   parseHeadFile,
   parseStashList,
   parseSymbolicRef,
@@ -85,5 +87,45 @@ describe('parseStashList', () => {
 
   it('reads an empty stash as no entries', () => {
     expect(parseStashList('')).toEqual([]);
+  });
+});
+
+describe('isBranchRef', () => {
+  it.each([
+    'refs/heads/main',
+    'refs/heads/feature/review-branch',
+    'refs/remotes/origin/main',
+  ])('accepts the full branch ref %s', (ref) => {
+    expect(isBranchRef(ref)).toBe(true);
+  });
+
+  it.each([
+    'main',
+    'origin/main',
+    'refs/tags/v1.0',
+    'refs/heads/',
+    'refs/heads/main~1',
+    'refs/heads/main^',
+    'refs/heads/main^{tree}',
+    'refs/heads/main@{1}',
+    'refs/heads/a..b',
+    'refs/heads/a b',
+    'refs/heads/a:b',
+    'refs/heads/topic.lock',
+    'refs/heads/a//b',
+    'refs/heads/.hidden',
+    'refs/heads/main.',
+  ])('refuses %s, which is not a plain branch ref', (ref) => {
+    expect(isBranchRef(ref)).toBe(false);
+  });
+});
+
+describe('branchRefName', () => {
+  it('names a local branch without its namespace', () => {
+    expect(branchRefName('refs/heads/feature/x')).toBe('feature/x');
+  });
+
+  it('names a remote branch with its remote', () => {
+    expect(branchRefName('refs/remotes/origin/main')).toBe('origin/main');
   });
 });

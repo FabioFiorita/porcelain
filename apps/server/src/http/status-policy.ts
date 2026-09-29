@@ -10,10 +10,13 @@ import {
   TooManyPairingAttemptsError,
 } from '@porcelain/access/errors';
 import {
+  BranchBaseNotFoundError,
   CommitNotFoundError,
   IncompleteDiffReadError,
   SelectionMismatchError,
+  UnbornBranchError,
   UnnamedDiffSelectionError,
+  UnrelatedBranchError,
 } from '@porcelain/changes/errors';
 import type { RunGitActionResponse } from '@porcelain/contracts/git-actions';
 import type { ApiError, ApiErrorCode } from '@porcelain/contracts/shared';
@@ -166,6 +169,7 @@ const rules: readonly StatusRule[] = [
       ReviewLayerNotFoundError,
       ProjectNotFoundError,
       CommitNotFoundError,
+      BranchBaseNotFoundError,
       PathNotFoundError,
       FolderNotFoundError,
       GitActionNotFoundError,
@@ -191,6 +195,8 @@ const rules: readonly StatusRule[] = [
       EntryExistsError,
       CommentIdentityConflictError,
       ReviewedMarkConflictError,
+      UnrelatedBranchError,
+      UnbornBranchError,
     ],
     statusCode: 409,
   },

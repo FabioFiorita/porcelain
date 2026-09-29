@@ -26,7 +26,7 @@ import {
 } from './inspect-history-checkout.ts';
 import { runHistory } from './run-history.ts';
 
-const DIFF_FLAGS = [
+export const DIFF_FLAGS = [
   '--no-textconv',
   '--no-ext-diff',
   '--no-color',
@@ -125,7 +125,7 @@ function parseFiles(
   });
 }
 
-function fileStatus(code: string): CommitFile['status'] {
+export function fileStatus(code: string): CommitFile['status'] {
   switch (code) {
     case 'A':
       return 'added';

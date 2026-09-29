@@ -2,8 +2,15 @@ import { readCommitDiffs } from '../inspection/index.ts';
 import type { GitLimits } from '../shared/dtos/git-limits.ts';
 import { isOid } from '../shared/parsers/oid.ts';
 import { confirmHistoryCheckout } from './commands/inspect-history-checkout.ts';
+import { listBranchBases } from './commands/list-branch-bases.ts';
+import { readBranchDiffs } from './commands/read-branch-diffs.ts';
+import { readBranchRange } from './commands/read-branch-range.ts';
 import { listCommits } from './commands/list-commits.ts';
 import { readCommitFiles } from './commands/read-commit-files.ts';
+import type {
+  BranchDiffsRequest,
+  BranchRangeRequest,
+} from './dtos/branch-range.ts';
 import type {
   CommitDiffsRequest,
   CommitFilesRequest,
@@ -68,5 +75,23 @@ export class HistoryGit implements CommitReader {
     );
     await confirmHistoryCheckout(this.checkout);
     return diffs;
+  }
+
+  readBranchRange(request: BranchRangeRequest, signal?: AbortSignal) {
+    return readBranchRange(
+      this.checkout,
+      this.gitVersion,
+      request,
+      this.limits,
+      signal,
+    );
+  }
+
+  readBranchDiffs(request: BranchDiffsRequest, signal?: AbortSignal) {
+    return readBranchDiffs(this.checkout, request, this.limits, signal);
+  }
+
+  listBranchBases(signal?: AbortSignal) {
+    return listBranchBases(this.checkout, this.gitVersion, this.limits, signal);
   }
 }

@@ -25,6 +25,9 @@ import type { ReadCommitFilesUseCase } from '../../use-cases/changes/read-commit
 import type { ReadFileAssetUseCase } from '../../use-cases/files/read-file-asset.ts';
 import type { ReadGitActionReceiptUseCase } from '../../use-cases/git-actions/read-git-action-receipt.ts';
 import type { ReadGitStatusUseCase } from '../../use-cases/changes/read-git-status.ts';
+import type { ListBranchBasesUseCase } from '../../use-cases/changes/list-branch-bases.ts';
+import type { ReadBranchChangesUseCase } from '../../use-cases/changes/read-branch-changes.ts';
+import type { ReadBranchDiffsUseCase } from '../../use-cases/changes/read-branch-diffs.ts';
 import type { ReadInventoryUseCase } from '../../use-cases/projects/read-inventory.ts';
 import type { ReadPreviewAssetsUseCase } from '../../use-cases/files/read-preview-assets.ts';
 import type { ReadPublishedReviewUseCase } from '../../use-cases/reviews/read-published-review.ts';
@@ -47,6 +50,9 @@ import {
 import { listCommits } from '../routes/changes/list-commits.ts';
 import { readCommitFiles } from '../routes/changes/read-commit-files.ts';
 import { readCommitDiffs } from '../routes/changes/read-commit-diffs.ts';
+import { listBranchBases } from '../routes/changes/list-branch-bases.ts';
+import { readBranchChanges } from '../routes/changes/read-branch-changes.ts';
+import { readBranchDiffs } from '../routes/changes/read-branch-diffs.ts';
 import { editFile } from '../routes/files/edit-file.ts';
 import { listDirectory } from '../routes/files/list-directory.ts';
 import { listWorktreePaths } from '../routes/files/list-worktree-paths.ts';
@@ -107,7 +113,10 @@ export type PairedUseCases = {
     readTextFile: Pick<ReadTextFileUseCase, 'execute'>;
   };
   changes: {
+    listBranchBases: Pick<ListBranchBasesUseCase, 'execute'>;
     listCommits: Pick<ListCommitsUseCase, 'execute'>;
+    readBranchChanges: Pick<ReadBranchChangesUseCase, 'execute'>;
+    readBranchDiffs: Pick<ReadBranchDiffsUseCase, 'execute'>;
     readChangeDiffs: Pick<ReadChangeDiffsUseCase, 'execute'>;
     readChangeLines: Pick<ReadChangeLinesUseCase, 'execute'>;
     readChanges: Pick<ReadChangesUseCase, 'execute'>;
@@ -283,5 +292,14 @@ export async function pairedScope(
   });
   server.register(readCommitDiffs, {
     useCase: options.application.changes.readCommitDiffs,
+  });
+  server.register(readBranchChanges, {
+    useCase: options.application.changes.readBranchChanges,
+  });
+  server.register(readBranchDiffs, {
+    useCase: options.application.changes.readBranchDiffs,
+  });
+  server.register(listBranchBases, {
+    useCase: options.application.changes.listBranchBases,
   });
 }

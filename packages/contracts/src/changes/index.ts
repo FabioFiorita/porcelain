@@ -1,4 +1,16 @@
 export {
+  listBranchBasesResponseSchema,
+  readBranchChangesQuerySchema,
+  readBranchChangesResponseSchema,
+  readBranchDiffsRequestSchema,
+  readBranchDiffsResponseSchema,
+  type ListBranchBasesResponse,
+  type ReadBranchChangesQuery,
+  type ReadBranchChangesResponse,
+  type ReadBranchDiffsRequest,
+  type ReadBranchDiffsResponse,
+} from './branch-changes.ts';
+export {
   readChangeDiffsRequestSchema,
   readChangeDiffsResponseSchema,
   readChangeLinesQuerySchema,

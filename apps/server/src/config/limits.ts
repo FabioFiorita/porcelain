@@ -1,4 +1,5 @@
 import {
+  BRANCH_BASES,
   CHANGED_PATHS,
   COMMIT_FILES,
   COMMIT_GROUPS,
@@ -131,6 +132,7 @@ export type Limits = {
       maxCommits: number;
       maxFrontier: number;
       maxCommitFiles: number;
+      maxBranchBases: number;
       subjectBytes: number;
       bodyBytes: number;
     };
@@ -313,6 +315,7 @@ export const LIMITS: Limits = {
       maxCommits: COMMITS_PER_PAGE,
       maxFrontier: HISTORY_FRONTIER,
       maxCommitFiles: COMMIT_FILES,
+      maxBranchBases: BRANCH_BASES,
       subjectBytes: 512,
       bodyBytes: 4096,
     },

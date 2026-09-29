@@ -1,5 +1,8 @@
 import {
   CheckCommitService,
+  ListBranchBasesService,
+  ReadBranchChangesService,
+  ReadBranchDiffsService,
   CheckDiffSelectionService,
   ConfirmDiffObservationService,
   ReadChangeLinesService,
@@ -8,7 +11,11 @@ import {
   ReadCommitDiffsService,
   ReadCommitFilesService,
 } from '@porcelain/changes/services';
+import { GitBranchRangeReader } from '../adapters/changes/git-branch-range-reader.ts';
 import { GitCommitHistoryReader } from '../adapters/changes/git-commit-history-reader.ts';
+import { ListBranchBasesUseCase } from '../use-cases/changes/list-branch-bases.ts';
+import { ReadBranchChangesUseCase } from '../use-cases/changes/read-branch-changes.ts';
+import { ReadBranchDiffsUseCase } from '../use-cases/changes/read-branch-diffs.ts';
 import { ListCommitsUseCase } from '../use-cases/changes/list-commits.ts';
 import { ReadChangeDiffsUseCase } from '../use-cases/changes/read-change-diffs.ts';
 import { ReadChangeLinesUseCase } from '../use-cases/changes/read-change-lines.ts';
@@ -44,6 +51,10 @@ export function composeChanges(
     shared.worktreeAccess,
     shared.commitGit,
   );
+  const branchRangeReader = new GitBranchRangeReader(
+    shared.worktreeAccess,
+    shared.commitGit,
+  );
   const readBranchDetails = new ReadBranchDetailsService(
     shared.changeStatusReader,
   );
@@ -52,6 +63,24 @@ export function composeChanges(
   const checkCommit = new CheckCommitService(commitHistoryReader);
   const readCommitDiffs = new ReadCommitDiffsService(commitHistoryReader);
   return {
+    readBranchChanges: new ReadBranchChangesUseCase(
+      checkWorktree,
+      new ReadBranchChangesService(branchRangeReader),
+      lanes,
+      laneKeys,
+    ),
+    readBranchDiffs: new ReadBranchDiffsUseCase(
+      checkWorktree,
+      new ReadBranchDiffsService(branchRangeReader),
+      lanes,
+      laneKeys,
+    ),
+    listBranchBases: new ListBranchBasesUseCase(
+      checkWorktree,
+      new ListBranchBasesService(branchRangeReader),
+      lanes,
+      laneKeys,
+    ),
     readChanges: new ReadChangesUseCase(
       checkWorktree,
       readWorktreeStatus,

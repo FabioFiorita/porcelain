@@ -343,6 +343,46 @@ function captureFilters(): void {
   );
 }
 
+function captureBranchRange(): void {
+  const checkout = repository('range');
+  put(checkout, 'a.txt', 'one\ntwo\n');
+  put(checkout, 'gone.txt', 'gone\n');
+  put(checkout, 'old name.txt', 'moved\nunchanged\ncontent\n');
+  put(checkout, 'shared.txt', 'shared\n');
+  commit(checkout, 'base');
+  git(checkout, ['checkout', '-q', '-b', 'feature']);
+  put(checkout, 'a.txt', 'one\ntwo\nthree\n');
+  put(checkout, 'new.txt', 'new\n');
+  rmSync(join(checkout, 'gone.txt'));
+  git(checkout, ['mv', 'old name.txt', 'new name.txt']);
+  commit(checkout, 'feature');
+  git(checkout, ['checkout', '-q', 'main']);
+  put(checkout, 'shared.txt', 'shared\nmain moved on\n');
+  commit(checkout, 'main moves');
+  const base = read(checkout, ['merge-base', 'main', 'feature'])
+    .toString('utf8')
+    .trim();
+  const range = read(checkout, [
+    'diff-tree',
+    '-r',
+    '--raw',
+    '-z',
+    '--no-abbrev',
+    '--no-textconv',
+    '--no-ext-diff',
+    '--no-color',
+    '--find-renames=50%',
+    base,
+    'feature',
+    '--',
+  ]);
+  save('history/range-files.txt', range);
+  save(
+    'history/range-files-truncated.txt',
+    range.subarray(0, nulOffset(range, 1) - 4),
+  );
+}
+
 rmSync(ROOT, { recursive: true, force: true });
 mkdirSync(ROOT, { recursive: true });
 try {
@@ -351,6 +391,7 @@ try {
   captureSubmodule();
   captureEmptyAndBare();
   captureFilters();
+  captureBranchRange();
 } finally {
   rmSync(ROOT, { recursive: true, force: true });
 }

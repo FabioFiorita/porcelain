@@ -10,7 +10,8 @@ import { runInspection } from './run-inspection.ts';
 type DiffComparison =
   | { kind: 'staged' }
   | { kind: 'unstaged' }
-  | { kind: 'commit'; oid: string; parent: number };
+  | { kind: 'commit'; oid: string; parent: number }
+  | { kind: 'range'; from: string; to: string };
 
 type Sections = Map<string, GitDiffResult> | null;
 
@@ -44,6 +45,24 @@ export function readCommitDiffs(
   return readSections(
     checkout,
     { kind: 'commit', oid, parent },
+    paths,
+    [],
+    limits,
+    signal,
+  );
+}
+
+export function readRangeDiffs(
+  checkout: string,
+  from: string,
+  to: string,
+  paths: readonly string[],
+  limits: GitLimits,
+  signal?: AbortSignal,
+): Promise<Sections> {
+  return readSections(
+    checkout,
+    { kind: 'range', from, to },
     paths,
     [],
     limits,
@@ -152,7 +171,9 @@ function diffArguments(
             ? ['--root', '--diff-merges=first-parent']
             : []),
         ]
-      : ['diff', ...(comparison.kind === 'staged' ? ['--cached'] : [])]),
+      : comparison.kind === 'range'
+        ? ['diff-tree', '--no-commit-id', '-r']
+        : ['diff', ...(comparison.kind === 'staged' ? ['--cached'] : [])]),
     '--no-ext-diff',
     '--no-textconv',
     '--no-color',
@@ -170,7 +191,9 @@ function diffArguments(
       ? comparison.parent === 1
         ? [comparison.oid]
         : [`${comparison.oid}^${comparison.parent}`, comparison.oid]
-      : []),
+      : comparison.kind === 'range'
+        ? [comparison.from, comparison.to]
+        : []),
     '--',
     ...pathspecs,
   ];

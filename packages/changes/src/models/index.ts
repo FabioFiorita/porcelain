@@ -1,3 +1,10 @@
+export type {
+  BranchBases,
+  BranchPatches,
+  BranchPatchesRequest,
+  BranchRangeLookup,
+  BranchRangeRequest,
+} from './branch-changes.ts';
 export type { ChangeDiffContent } from './change-diff.ts';
 export type {
   BranchDetails,
@@ -11,6 +18,7 @@ export type {
   CommitPatchesRequest,
   CommitSummary,
 } from './commit-history.ts';
+export type { ListBranchBasesInput } from './list-branch-bases.ts';
 export type { ListCommitsInput } from './list-commits.ts';
 export type { ReadChangeDiffsInput } from './read-change-diffs.ts';
 export type { ReadCommitFilesInput } from './read-commit-files.ts';

@@ -4,5 +4,10 @@ export { HistoryWorktreeUnavailableError } from './errors/history-worktree-unava
 export { InvalidHistoryRequestError } from './errors/invalid-history-request-error.ts';
 export { ReadLimitExceededError } from './errors/read-limit-exceeded-error.ts';
 export { UnsupportedHistoryDataError } from './errors/unsupported-history-data-error.ts';
+export type {
+  BranchBases,
+  BranchFile,
+  BranchRange,
+} from './dtos/branch-range.ts';
 export type { CommitSummary } from './dtos/commit-history.ts';
 export type { CommitReaderFactory } from './interfaces/commit-reader.ts';

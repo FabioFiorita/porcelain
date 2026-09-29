@@ -35,6 +35,7 @@ export const gitLimits = {
     maxCommits: 100,
     maxFrontier: 100,
     maxCommitFiles: 10_000,
+    maxBranchBases: 500,
     subjectBytes: 512,
     bodyBytes: 4096,
   },
