@@ -125,8 +125,10 @@ async function refreshActiveQueries(
   await client.invalidateQueries(filters);
   await Promise.all(
     active.map(async (query) => {
-      if (query.state.isInvalidated && query.state.status === 'success')
+      while (query.state.isInvalidated && query.state.status === 'success') {
         await query.fetch().catch(() => undefined);
+        if (query.state.fetchStatus === 'idle') break;
+      }
       if (query.state.isInvalidated && query.state.status === 'success')
         throw new Error(
           'Git state refresh was interrupted. Check the action again.',
@@ -277,6 +279,7 @@ export function connectLiveQueries(
           )
             connection.operations?.accept(notice.receipt);
         },
+        () => recoverPending(),
       );
     },
     onReconnect: () => {
