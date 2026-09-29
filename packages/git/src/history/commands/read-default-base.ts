@@ -6,7 +6,11 @@ import { readHistoryAnswer, runHistory } from './run-history.ts';
 const ABSENT = 1;
 const REMOTE_HEAD = 'refs/remotes/origin/HEAD';
 const REMOTE_PREFIX = 'refs/remotes/origin/';
-const FALLBACKS = ['refs/heads/main', 'refs/heads/master'];
+const REMOTE_FALLBACKS = [
+  'refs/remotes/origin/main',
+  'refs/remotes/origin/master',
+];
+const LOCAL_FALLBACKS = ['refs/heads/main', 'refs/heads/master'];
 
 export async function readDefaultBase(
   path: string,
@@ -25,10 +29,9 @@ export async function readDefaultBase(
     ?.toString('utf8')
     .trim();
   const candidates = [
-    ...(remoteHead?.startsWith(REMOTE_PREFIX)
-      ? [`refs/heads/${remoteHead.slice(REMOTE_PREFIX.length)}`, remoteHead]
-      : []),
-    ...FALLBACKS,
+    ...(remoteHead?.startsWith(REMOTE_PREFIX) ? [remoteHead] : []),
+    ...REMOTE_FALLBACKS,
+    ...LOCAL_FALLBACKS,
   ].filter(isBranchRef);
   const found = await lookupBranchRefs(path, candidates, limits, signal);
   for (const ref of candidates) {

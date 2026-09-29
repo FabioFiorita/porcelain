@@ -86,7 +86,7 @@ describe('listBranchBases', () => {
     git('update-ref', 'refs/remotes/origin/main', fork);
     git('symbolic-ref', 'refs/remotes/origin/HEAD', 'refs/remotes/origin/main');
     const listed = await list();
-    expect(listed.defaultRef).toBe('refs/heads/main');
+    expect(listed.defaultRef).toBe('refs/remotes/origin/main');
     expect(listed.bases).toEqual(
       expect.arrayContaining([
         { ref: 'refs/heads/main', name: 'main', remote: false },

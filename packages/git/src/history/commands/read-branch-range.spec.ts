@@ -139,7 +139,7 @@ describe('readBranchRange', () => {
     ).not.toContain('shared.txt');
   });
 
-  it('prefers the local branch the remote names as its default', async () => {
+  it('prefers the remote default branch over a stale local branch of the same name', async () => {
     const { fork, main } = forkFeature();
     git('branch', 'trunk', fork);
     git('update-ref', 'refs/remotes/origin/trunk', main);
@@ -151,7 +151,34 @@ describe('readBranchRange', () => {
     const range = await read({});
     expect(range).toMatchObject({
       kind: 'found',
-      base: { ref: 'refs/heads/trunk', oid: fork },
+      base: { ref: 'refs/remotes/origin/trunk', oid: main },
+    });
+  });
+
+  it('prefers the remote main over the local one when the remote names no default', async () => {
+    const { fork } = forkFeature();
+    git('update-ref', 'refs/remotes/origin/main', fork);
+    expect(await read({})).toMatchObject({
+      base: { ref: 'refs/remotes/origin/main', oid: fork },
+    });
+  });
+
+  it('shows the unpushed commits of the local default branch against its remote', async () => {
+    const { fork, main } = forkFeature();
+    git('update-ref', 'refs/remotes/origin/main', fork);
+    git('symbolic-ref', 'refs/remotes/origin/HEAD', 'refs/remotes/origin/main');
+    git('switch', '-q', 'main');
+    expect(await read({})).toMatchObject({
+      head: { oid: main, ref: 'refs/heads/main' },
+      mergeBaseOid: fork,
+      commits: 1,
+    });
+  });
+
+  it('falls back to the local main when there is no remote', async () => {
+    const { main } = forkFeature();
+    expect(await read({})).toMatchObject({
+      base: { ref: 'refs/heads/main', oid: main },
     });
   });
 
