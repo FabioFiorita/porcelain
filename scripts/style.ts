@@ -56,6 +56,8 @@ const packages = packageNames.flatMap((name) => [
 ]);
 
 const serverRoots = [
+  'apps/desktop/src',
+  'apps/desktop/spec',
   'apps/server/src',
   'apps/server/spec',
   ...packages,
@@ -332,6 +334,7 @@ const manifestScriptsSchema = z.object({
 });
 
 const packageFolders = [
+  'apps/desktop',
   'apps/server',
   'apps/web',
   ...packageNames.map((name) => join('packages', name)),
@@ -525,9 +528,10 @@ async function configProblems(): Promise<Problem[]> {
           ),
         );
     }
-    const owner = /^(?:packages\/([^/]+)|apps\/(server))\/tsconfig\.json$/.exec(
-      path,
-    );
+    const owner =
+      /^(?:packages\/([^/]+)|apps\/(server|desktop))\/tsconfig\.json$/.exec(
+        path,
+      );
     const name = owner?.[1] ?? owner?.[2];
     if (name === undefined) continue;
     for (const pattern of ['src/**/*.ts', 'spec/**/*.ts'])
@@ -702,6 +706,7 @@ const gateScripts: Readonly<Record<string, Readonly<Record<string, string>>>> =
       test: 'vitest run',
       'db:check': 'pnpm --filter @porcelain/storage db:check',
       prepare: 'lefthook install --reset-hooks-path',
+      'typecheck:desktop': 'pnpm --filter @porcelain/desktop typecheck',
       'typecheck:web': 'pnpm --filter @porcelain/web typecheck',
       'lint:web': 'node scripts/style.ts lint web',
       'format:web:check': 'node scripts/style.ts format web',
@@ -864,14 +869,14 @@ async function configModuleProblems(): Promise<Problem[]> {
         forbidden.find((rule) => rule.name === name)?.severity !== 'error',
     ) ||
     !isDeepStrictEqual(circular?.from, {
-      path: '^(apps/server/src/|apps/web/src/|packages/)',
+      path: '^(apps/server/src/|apps/web/src/|apps/desktop/src/|packages/)',
     }) ||
     !isDeepStrictEqual(circular?.to, { circular: true })
   )
     problems.push(
       problem(
         'cruiser-config',
-        'architecture/dependency-cruiser.cjs keeps its forbidden rules as errors, and the circular-import rule covers the server, the web and every package.',
+        'architecture/dependency-cruiser.cjs keeps its forbidden rules as errors, and the circular-import rule covers the server, web, desktop and every package.',
       ),
     );
   return problems;

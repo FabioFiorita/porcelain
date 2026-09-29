@@ -26,6 +26,7 @@ function decides(name: string): boolean {
 }
 
 const required = [
+  '@porcelain/desktop',
   '@porcelain/server',
   ...packages.filter(decides).map((name) => `@porcelain/${name}`),
 ];
@@ -66,6 +67,14 @@ export default defineConfig({
     allowOnly: false,
     reporters: ['default', specDiscipline],
     projects: [
+      {
+        test: {
+          name: '@porcelain/desktop',
+          root,
+          include: ['apps/desktop/src/**/*.spec.ts'],
+          expect: { requireAssertions: true },
+        },
+      },
       {
         test: {
           name: '@porcelain/server',

@@ -93,6 +93,8 @@ export const requiredServerFiles: readonly string[] = [
 ];
 
 export const roles = [
+  'desktop',
+  'desktop-server-api',
   'transport',
   'status-policy',
   'use-case',
@@ -653,6 +655,17 @@ export function classify(path: string): Classification | undefined {
   const packageFile = /^packages\/([^/]+)\/src\/(.+)$/.exec(path);
   if (packageFile)
     return classifyPackage(packageFile[1] ?? '', packageFile[2] ?? '');
+  if (
+    path === 'apps/server/src/bootstrap/desktop.ts' ||
+    path === 'apps/server/src/config/desktop-settings.ts'
+  )
+    return classified('desktop-server-api', 'server');
+  if (path.startsWith('apps/desktop/src/')) {
+    if (path.endsWith('.spec.ts')) return classified('test', 'desktop');
+    if (path.startsWith('apps/desktop/src/rules/'))
+      return classified('rule', 'desktop');
+    return classified('desktop', 'desktop');
+  }
   if (path.startsWith('apps/server/src/'))
     return classifyServer(path.slice('apps/server/src/'.length));
   if (path.startsWith('apps/web/')) return classifyWeb(path);
@@ -668,6 +681,8 @@ const domainInternal: readonly Role[] = [
 ];
 
 const everything: readonly Role[] = [
+  'desktop',
+  'desktop-server-api',
   'transport',
   'status-policy',
   'use-case',
@@ -691,6 +706,13 @@ const everything: readonly Role[] = [
 ];
 
 export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
+  desktop: new Set(['desktop', 'rule', 'contract', 'desktop-server-api']),
+  'desktop-server-api': new Set([
+    'bootstrap',
+    'config',
+    'transport',
+    'installer-api',
+  ]),
   transport: new Set([
     'kernel',
     'installer-api',
@@ -928,7 +950,11 @@ function testViolation(
     from.owner !== 'server'
   )
     return 'store-contract-runs-against-its-fake-storage-and-server-adapters-only';
-  if (from.owner !== 'server' && to.owner === 'server')
+  if (
+    from.owner !== 'server' &&
+    to.owner === 'server' &&
+    !(from.owner === 'desktop' && to.role === 'desktop-server-api')
+  )
     return 'package-cannot-import-server';
   if (!allowedTargets.test.has(to.role)) return `test-cannot-import-${to.role}`;
   return;
@@ -952,7 +978,11 @@ export function violation(
     !(to.owner === 'kernel' && to.role === 'kernel')
   )
     return 'fixture-imports-own-package-models-only';
-  if (from.owner !== 'server' && to.owner === 'server')
+  if (
+    from.owner !== 'server' &&
+    to.owner === 'server' &&
+    !(from.owner === 'desktop' && to.role === 'desktop-server-api')
+  )
     return 'package-cannot-import-server';
   if (from.owner === 'git' && domainSet.has(to.owner))
     return 'git-cannot-import-domain';
@@ -1041,6 +1071,7 @@ export function allowedProcessImport(
 }
 
 export const nodeGlobalRoles: ReadonlySet<Role> = new Set<Role>([
+  'desktop',
   'gateway',
   'gateway-api',
   'repository',
@@ -1056,6 +1087,8 @@ const typedRoles = new Set<Role>([
   'server-port',
 ]);
 const boundaryRoles = new Set<Role>([
+  'desktop',
+  'desktop-server-api',
   'transport',
   'status-policy',
   'contract',
@@ -1067,6 +1100,8 @@ const nodeModules = new Set(
 const storageEngineModule = /^(?:fs|child_process)(?:\/|$)/;
 
 export const externalPackages: Record<Role, readonly string[]> = {
+  desktop: ['electron', 'fix-path', 'zod'],
+  'desktop-server-api': [],
   transport: [
     'fastify',
     '@fastify/*',

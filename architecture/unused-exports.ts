@@ -41,7 +41,7 @@ type ModuleShape = {
 };
 
 const checkedFile =
-  /^(?:(?:packages\/[^/]+|apps\/server)\/src\/.+\.ts|apps\/web\/src\/.+\.tsx?)$/;
+  /^(?:(?:packages\/[^/]+|apps\/(?:server|desktop))\/src\/.+\.ts|apps\/web\/src\/.+\.tsx?)$/;
 const skippedFile = /(?:\.spec|\.d)\.ts$|^apps\/web\/src\/components\/ui\//;
 const webSource = 'apps/web/src';
 const webCandidates = ['', '.ts', '.tsx', '/index.ts', '/index.tsx'];
@@ -85,7 +85,12 @@ function manifestExports(
 ): Record<string, string> {
   const cached = cache.get(name);
   if (cached) return cached;
-  const path = join(root, 'packages', name, 'package.json');
+  const path = join(
+    root,
+    name === 'server' || name === 'desktop' ? 'apps' : 'packages',
+    name,
+    'package.json',
+  );
   const exports = existsSync(path)
     ? (manifestSchema.parse(JSON.parse(readFileSync(path, 'utf8'))).exports ??
       {})
@@ -119,7 +124,15 @@ function resolveModule(
   ];
   return target === undefined
     ? undefined
-    : relative(root, join(root, 'packages', name, target));
+    : relative(
+        root,
+        join(
+          root,
+          name === 'server' || name === 'desktop' ? 'apps' : 'packages',
+          name,
+          target,
+        ),
+      );
 }
 
 function shapeOf(
@@ -210,6 +223,7 @@ function projectConfigs(root: string): string[] {
     .map((entry) => join(root, 'packages', entry.name, 'tsconfig.json'));
   return [
     join(root, 'tsconfig.json'),
+    join(root, 'apps/desktop/tsconfig.json'),
     join(root, 'apps/server/tsconfig.json'),
     join(root, 'apps/web/tsconfig.json'),
     join(root, 'apps/web/tsconfig.node.json'),

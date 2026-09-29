@@ -24,10 +24,14 @@
     "build:package": "node scripts/build-package.ts",
     "prepare": "lefthook install --reset-hooks-path",
     "check": "node scripts/check.ts",
-    "test:rules": "node architecture/rule-tests.mjs"
+    "test:rules": "node architecture/rule-tests.mjs",
+    "typecheck:desktop": "pnpm --filter @porcelain/desktop typecheck",
+    "desktop:build": "node scripts/build-desktop.ts"
   },
   "devDependencies": {
     "@babel/core": "7.29.7",
+    "@electron/packager": "20.3.0",
+    "@electron/rebuild": "4.2.0",
     "@porcelain/contracts": "workspace:*",
     "@shadcn/lint": "0.2.0",
     "@tanstack/router-generator": "1.167.34",
