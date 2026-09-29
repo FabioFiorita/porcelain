@@ -5,6 +5,7 @@ import {
 } from '@porcelain/contracts/access';
 import {
   listCommitsResponseSchema,
+  readBranchChangesResponseSchema,
   readChangesResponseSchema,
   readCommitFilesResponseSchema,
   readGitStatusResponseSchema,
@@ -120,8 +121,16 @@ export const server = {
     ),
   paths: async () =>
     read(listWorktreePathsResponseSchema, await worktreePath('/paths')),
-  reviewedFiles: async () =>
-    read(listReviewedFilesResponseSchema, await worktreePath('/reviewed')),
+  reviewedFiles: async (scope?: 'branch') =>
+    read(
+      listReviewedFilesResponseSchema,
+      await worktreePath(`/reviewed${scope ? query({ scope }) : ''}`),
+    ),
+  branchChanges: async (base?: string) =>
+    read(
+      readBranchChangesResponseSchema,
+      await worktreePath(`/branch-changes${base ? query({ base }) : ''}`),
+    ),
   reviewedLayers: async () =>
     read(
       listReviewedLayersResponseSchema,

@@ -5,9 +5,12 @@ export type DocumentRef =
   | { kind: 'unexplained' }
   | { kind: 'change'; path: string }
   | { kind: 'file'; path: string }
-  | { kind: 'commit'; oid: string };
+  | { kind: 'commit'; oid: string }
+  | { kind: 'branch' }
+  | { kind: 'branch-file'; path: string };
 
 const HANDOFF: DocumentRef = { kind: 'handoff' };
+export const BRANCH: DocumentRef = { kind: 'branch' };
 export const UNEXPLAINED: DocumentRef = { kind: 'unexplained' };
 
 export function entryKey(ref: DocumentRef): string {
@@ -24,6 +27,10 @@ export function entryKey(ref: DocumentRef): string {
       return `file:${ref.path}`;
     case 'commit':
       return `commit:${ref.oid}`;
+    case 'branch':
+      return 'branch';
+    case 'branch-file':
+      return `branch:${ref.path}`;
   }
 }
 
@@ -31,6 +38,7 @@ export function parseEntry(entry: string | undefined): DocumentRef | null {
   if (entry == null || entry === '') return null;
   if (entry === 'handoff') return HANDOFF;
   if (entry === 'unexplained') return UNEXPLAINED;
+  if (entry === 'branch') return BRANCH;
 
   const separator = entry.indexOf(':');
   if (separator <= 0) return null;
@@ -44,6 +52,8 @@ export function parseEntry(entry: string | undefined): DocumentRef | null {
     case 'change':
     case 'file':
       return { kind, path: value };
+    case 'branch':
+      return { kind: 'branch-file', path: value };
     case 'commit':
       return /^[0-9a-f]{4,64}$/.test(value) ? { kind, oid: value } : null;
     default:

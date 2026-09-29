@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  mergeBranchChanges,
   mergeReviewChanges,
   reviewErrorMessage,
   summaryLayerNumber,
@@ -101,5 +102,59 @@ describe('summaryLayerNumber', () => {
       summaryLayerNumber('porcelain-summary'),
       summaryLayerNumber(null),
     ]).toEqual([null, null, null, null, null, null]);
+  });
+});
+
+describe('mergeBranchChanges', () => {
+  const file = (path: string, fingerprint: string) => ({
+    path,
+    oldPath: path,
+    newPath: path,
+    status: 'modified' as const,
+    oldMode: '100644',
+    newMode: '100644',
+    fingerprint,
+  });
+  const marks = {
+    worktreeId: 'w'.repeat(32),
+    marks: [
+      {
+        path: 'same.ts',
+        fingerprint: 'f1',
+        reviewedAt: '2026-09-01T00:00:00Z',
+      },
+      {
+        path: 'moved.ts',
+        fingerprint: 'old',
+        reviewedAt: '2026-09-01T00:00:00Z',
+      },
+    ],
+  };
+
+  it('reads each branch file as reviewed, changed since reviewed or not reviewed', () => {
+    expect(
+      mergeBranchChanges(
+        [
+          file('same.ts', 'f1'),
+          file('moved.ts', 'new'),
+          file('fresh.ts', 'f3'),
+        ],
+        marks,
+      ).map((item) => [item.path, item.reviewStatus]),
+    ).toEqual([
+      ['same.ts', 'reviewed'],
+      ['moved.ts', 'stale'],
+      ['fresh.ts', 'unreviewed'],
+    ]);
+  });
+
+  it('keeps only the asked paths', () => {
+    expect(
+      mergeBranchChanges(
+        [file('same.ts', 'f1'), file('fresh.ts', 'f3')],
+        marks,
+        ['fresh.ts'],
+      ).map((item) => item.path),
+    ).toEqual(['fresh.ts']);
   });
 });

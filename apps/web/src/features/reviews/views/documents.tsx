@@ -13,6 +13,7 @@ import {
 } from '../rules/documents';
 import type { ReviewScope } from '../rules/review';
 import type { DocumentContext } from './code-document';
+import { BranchDocument, BranchFileDocument } from './branch-document';
 import { CommitDocument } from './commit-document';
 import { DocumentToolbar } from './document-toolbar';
 import { FileDocument } from './file-document';
@@ -37,6 +38,7 @@ export function DocumentView({
   onOpen,
   active = false,
   reveal,
+  base,
 }: {
   scope: ReviewScope;
   context: DocumentContext;
@@ -44,6 +46,7 @@ export function DocumentView({
   onOpen: OpenDocument;
   active?: boolean;
   reveal?: RevealComment | undefined;
+  base?: string | undefined;
 }) {
   const props = {
     scope,
@@ -69,6 +72,10 @@ export function DocumentView({
       return <FileDocument {...props} path={document.path} />;
     case 'commit':
       return <CommitDocument {...props} oid={document.oid} />;
+    case 'branch':
+      return <BranchDocument {...props} base={base} />;
+    case 'branch-file':
+      return <BranchFileDocument {...props} base={base} path={document.path} />;
   }
 }
 

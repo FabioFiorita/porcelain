@@ -11,3 +11,15 @@ export {
   useRefreshGitLook,
 } from './commands/read-current-changes';
 export { commitFiles } from './rules/commit-files';
+export {
+  useBranchBases,
+  useBranchChanges,
+  useBranchDiffs,
+} from './queries/branch';
+export {
+  branchErrorMessage,
+  branchFilePaths,
+  branchName,
+  branchRange,
+  type BranchFile,
+} from './rules/branch';

@@ -191,7 +191,11 @@ function visited() {
 
 function address() {
   const current = framed?.contentWindow?.location ?? location;
-  return { path: current.pathname, fragment: current.hash };
+  return {
+    path: current.pathname,
+    query: current.search,
+    fragment: current.hash,
+  };
 }
 
 async function link(installation: 'this' | 'another') {

@@ -79,11 +79,10 @@ export function matchesCommentTarget(
   anchor: CommentAnchor,
   target: CommentTarget,
 ) {
-  if (
-    anchor.filePath !== target.filePath ||
-    anchor.revision !== target.revision
-  )
-    return false;
+  if (anchor.filePath !== target.filePath) return false;
+  if (anchor.comparison?.kind === 'branch')
+    return target.comparison?.kind === 'branch';
+  if (anchor.revision !== target.revision) return false;
   if (!anchor.comparison) {
     return (
       anchor.kind === 'file' ||

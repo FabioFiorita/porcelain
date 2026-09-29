@@ -6,6 +6,7 @@ import {
   FileDiffIcon,
   FileQuestionIcon,
   FileTextIcon,
+  GitBranchIcon,
   GitCommitHorizontalIcon,
   LayersIcon,
   ListXIcon,
@@ -84,6 +85,18 @@ function describeTab(key: string, layers: readonly Layer[]) {
         Icon: GitCommitHorizontalIcon,
         title: shortOid(ref.oid),
         hint: `Commit ${ref.oid}`,
+      };
+    case 'branch':
+      return {
+        Icon: GitBranchIcon,
+        title: 'Branch',
+        hint: 'Every change on the branch',
+      };
+    case 'branch-file':
+      return {
+        Icon: fileTypeIcon(ref.path),
+        title: basename(ref.path),
+        hint: `${ref.path} · branch`,
       };
     default:
       return { Icon: FileTextIcon, title: key, hint: key };

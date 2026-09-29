@@ -15,11 +15,22 @@ import {
 } from '../queries/published-review';
 import type { OpenDocument } from '../rules/documents';
 import type { ReviewScope } from '../rules/review';
-import { isSurface, type Surface } from '@/shared/workspace/search';
+import {
+  type ChangeScope,
+  isSurface,
+  type Surface,
+} from '@/shared/workspace/search';
 import type { ReviewsContext } from '../rules/reviewed';
 import { ReviewBoundary } from './review-boundary';
 import { ReviewEmpty } from './review-empty';
 import { ReviewIndex } from './review-index';
+
+type ChangesScope = {
+  scope: ChangeScope;
+  base: string | undefined;
+  onScope: (scope: ChangeScope) => void;
+  onBase: (base: string | undefined) => void;
+};
 
 export function ReviewSidebar({
   scope,
@@ -30,6 +41,7 @@ export function ReviewSidebar({
   available,
   onSurface,
   onOpen,
+  changes,
 }: {
   scope: ReviewScope;
   context: ReviewsContext;
@@ -39,6 +51,7 @@ export function ReviewSidebar({
   available: boolean;
   onSurface: (surface: Surface) => void;
   onOpen: OpenDocument;
+  changes: ChangesScope;
 }) {
   return (
     <aside
@@ -77,6 +90,7 @@ export function ReviewSidebar({
             activeEntry={activeEntry}
             available={available}
             onOpen={onOpen}
+            changes={changes}
           />
         </TabsContent>
         <TabsContent value="files" className="min-h-0 overflow-hidden">
@@ -88,6 +102,7 @@ export function ReviewSidebar({
             activeEntry={activeEntry}
             available={available}
             onOpen={onOpen}
+            changes={changes}
           />
         </TabsContent>
         <TabsContent value="history" className="min-h-0 overflow-hidden">
@@ -99,6 +114,7 @@ export function ReviewSidebar({
             activeEntry={activeEntry}
             available={available}
             onOpen={onOpen}
+            changes={changes}
           />
         </TabsContent>
       </Tabs>
@@ -131,6 +147,7 @@ function SidebarSurface({
   activeEntry,
   available,
   onOpen,
+  changes,
 }: {
   scope: ReviewScope;
   context: ReviewsContext;
@@ -139,6 +156,7 @@ function SidebarSurface({
   activeEntry: string | undefined;
   available: boolean;
   onOpen: OpenDocument;
+  changes: ChangesScope;
 }) {
   const published = usePublishedReview(scope, context);
   if (!available)
@@ -164,6 +182,10 @@ function SidebarSurface({
           context={context}
           activeEntry={activeEntry}
           onOpen={onOpen}
+          changeScope={changes.scope}
+          base={changes.base}
+          onChangeScope={changes.onScope}
+          onBase={changes.onBase}
         />
       )}
       {surface === 'files' && (

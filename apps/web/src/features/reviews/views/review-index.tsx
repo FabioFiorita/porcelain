@@ -1,9 +1,4 @@
-import {
-  CheckIcon,
-  FileQuestionIcon,
-  MessageSquareIcon,
-  RotateCcwIcon,
-} from 'lucide-react';
+import { FileQuestionIcon } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -17,9 +12,9 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/shared/lib/utils';
+import { type ChangeScope, isChangeScope } from '@/shared/workspace/search';
 import { useAccessStore } from '@/features/access/index';
 import { useChanges } from '@/features/changes/index';
-import { FileTypeIcon } from '@/features/files/index';
 import { useMarkCommentsSeen } from '../commands/comments';
 import { useComments, usePrefetchComments } from '../queries/comments';
 import { usePublishedReview } from '../queries/published-review';
@@ -31,15 +26,15 @@ import {
 } from '../rules/comments';
 import { type DocumentRef, entryKey, UNEXPLAINED } from '../rules/documents';
 import {
-  basename,
   type ChangeList,
   notExplainedLabel,
   type ReviewChangeItem,
   type ReviewResponse,
   type ReviewScope,
-  type ReviewStatus,
 } from '../rules/review';
 import type { ReviewsContext } from '../rules/reviewed';
+import { BranchIndex } from './branch-index';
+import { ChangeRow, ROW } from './change-row';
 import { ThreadCard } from './thread-card';
 
 type OpenDocument = (ref: DocumentRef, anchor?: CommentAnchor) => void;
@@ -49,11 +44,23 @@ type Props = {
   activeEntry: string | undefined;
   onOpen: OpenDocument;
 };
+type ScopeProps = {
+  changeScope: ChangeScope;
+  base: string | undefined;
+  onChangeScope: (scope: ChangeScope) => void;
+  onBase: (base: string | undefined) => void;
+};
 
-const ROW =
-  'flex w-full min-w-0 items-center gap-1.5 rounded-lg px-2 py-1 text-left text-[12.5px] transition-colors hover:bg-accent';
-
-export function ReviewIndex({ scope, context, activeEntry, onOpen }: Props) {
+export function ReviewIndex({
+  scope,
+  context,
+  activeEntry,
+  onOpen,
+  changeScope,
+  base,
+  onChangeScope,
+  onBase,
+}: Props & ScopeProps) {
   const connection = useAccessStore((state) => state.connection);
   const [view, setView] = useState<'layers' | 'comments'>('layers');
   usePrefetchReviewed(scope, context);
@@ -65,8 +72,30 @@ export function ReviewIndex({ scope, context, activeEntry, onOpen }: Props) {
   const changes = useReviewChangeItems(scope, context, list);
   const openComments = threads.filter((thread) => !thread.resolved).length;
 
+  const branch = changeScope === 'branch';
   return (
     <div className="flex min-h-0 flex-1 flex-col">
+      <div className="shrink-0 px-2">
+        <Tabs
+          value={changeScope}
+          onValueChange={(value: unknown) => {
+            if (isChangeScope(value)) onChangeScope(value);
+          }}
+        >
+          <TabsList
+            variant="line"
+            className="w-full"
+            aria-label="Changes to review"
+          >
+            <TabsTrigger value="uncommitted" className="flex-1">
+              Uncommitted
+            </TabsTrigger>
+            <TabsTrigger value="branch" className="flex-1">
+              Branch
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
       <div className="shrink-0 px-2 pt-2">
         <Tabs
           value={view}
@@ -77,7 +106,7 @@ export function ReviewIndex({ scope, context, activeEntry, onOpen }: Props) {
         >
           <TabsList className="h-8 w-full">
             <TabsTrigger value="layers" className="flex-1">
-              {review ? 'Layers' : 'Changed files'}
+              {review && !branch ? 'Layers' : 'Changed files'}
             </TabsTrigger>
             <TabsTrigger value="comments" className="flex-1">
               Comments
@@ -90,7 +119,17 @@ export function ReviewIndex({ scope, context, activeEntry, onOpen }: Props) {
           </TabsList>
         </Tabs>
       </div>
-      {view === 'layers' ? (
+      {view === 'layers' && branch ? (
+        <BranchIndex
+          scope={scope}
+          context={context}
+          base={base}
+          activeEntry={activeEntry}
+          threads={threads}
+          onOpen={onOpen}
+          onBase={onBase}
+        />
+      ) : view === 'layers' ? (
         <LayersView
           scope={scope}
           context={context}
@@ -181,6 +220,7 @@ function LayersView({
           <ChangeRow
             key={path}
             path={path}
+            document={{ kind: 'change', path }}
             note={undefined}
             scopes={[
               ...new Set(
@@ -202,85 +242,6 @@ function LayersView({
       </div>
     </ScrollArea>
   );
-}
-
-function ChangeRow({
-  path,
-  note,
-  scopes,
-  reviewStatus,
-  commentCount,
-  active,
-  onOpen,
-  indented = false,
-}: {
-  path: string;
-  note: string | undefined;
-  scopes: readonly string[];
-  reviewStatus: ReviewStatus | undefined;
-  commentCount: number;
-  active: boolean;
-  onOpen: OpenDocument;
-  indented?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      aria-pressed={active}
-      aria-label={`${basename(path)}${scopes.length > 0 ? ` · ${scopes.join(' + ')}` : ''}`}
-      title={note == null ? path : `${path}\n${note}`}
-      className={cn(
-        ROW,
-        'text-muted-foreground',
-        indented && 'pl-7',
-        active && 'bg-accent font-medium text-foreground',
-      )}
-      onClick={() => onOpen({ kind: 'change', path })}
-    >
-      <ReviewStatusIcon status={reviewStatus} />
-      <FileTypeIcon path={path} className="size-3.5 shrink-0" />
-      <span
-        className={cn(
-          'min-w-0 flex-1 truncate',
-          reviewStatus === 'reviewed' &&
-            'line-through decoration-muted-foreground/40',
-        )}
-      >
-        {basename(path)}
-      </span>
-      {commentCount > 0 && (
-        <span className="flex shrink-0 items-center gap-0.5 text-[10.5px]">
-          <MessageSquareIcon className="size-3" />
-          {commentCount}
-        </span>
-      )}
-    </button>
-  );
-}
-
-function ReviewStatusIcon({ status }: { status: ReviewStatus | undefined }) {
-  const normalized = status ?? 'unreviewed';
-  return (
-    <span
-      className="grid w-3.5 shrink-0 place-items-center"
-      data-review-state={normalized}
-      title={reviewStatusLabel(status)}
-    >
-      {normalized === 'reviewed' ? (
-        <CheckIcon className="size-3.5 text-graph-2" />
-      ) : normalized === 'stale' ? (
-        <RotateCcwIcon className="size-3 text-graph-4" />
-      ) : (
-        <span className="size-1.5 rounded-full bg-muted-foreground/60" />
-      )}
-    </span>
-  );
-}
-
-function reviewStatusLabel(status: ReviewStatus | undefined) {
-  if (status === 'reviewed') return 'Reviewed';
-  if (status === 'stale') return 'Changed since review';
-  return 'Not reviewed';
 }
 
 function CommentsView({
@@ -332,11 +293,13 @@ function CommentsView({
 
   const reveal = (anchor: CommentAnchor) => {
     const ref: DocumentRef =
-      anchor.revision != null
-        ? { kind: 'commit', oid: anchor.revision }
-        : anchor.comparison?.kind !== 'file' && changed.has(anchor.filePath)
-          ? { kind: 'change', path: anchor.filePath }
-          : { kind: 'file', path: anchor.filePath };
+      anchor.comparison?.kind === 'branch'
+        ? { kind: 'branch-file', path: anchor.filePath }
+        : anchor.revision != null
+          ? { kind: 'commit', oid: anchor.revision }
+          : anchor.comparison?.kind !== 'file' && changed.has(anchor.filePath)
+            ? { kind: 'change', path: anchor.filePath }
+            : { kind: 'file', path: anchor.filePath };
     onOpen(ref, anchor);
   };
 

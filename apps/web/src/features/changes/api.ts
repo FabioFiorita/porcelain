@@ -1,9 +1,14 @@
 import {
+  listBranchBasesResponseSchema,
+  readBranchChangesResponseSchema,
+  readBranchDiffsRequestSchema,
+  readBranchDiffsResponseSchema,
   readChangeDiffsRequestSchema,
   readChangeDiffsResponseSchema,
   readChangeLinesResponseSchema,
   readChangesResponseSchema,
   readGitStatusResponseSchema,
+  type ReadBranchDiffsRequest,
   type ReadChangeDiffsRequest,
 } from '@porcelain/contracts/changes';
 import { RequestError, requestJson } from '@/shared/api/request';
@@ -48,6 +53,36 @@ function createChangesApi(transport: typeof fetch) {
         transport,
         `${worktreePath(worktreeId)}/changes/lines?${new URLSearchParams({ path, from: String(from), to: String(to), at })}`,
         readChangeLinesResponseSchema,
+        { signal },
+      ),
+    branch: (signal: AbortSignal, worktreeId: string, base?: string) =>
+      requestJson(
+        transport,
+        `${worktreePath(worktreeId)}/branch-changes${base === undefined ? '' : `?${new URLSearchParams({ base })}`}`,
+        readBranchChangesResponseSchema,
+        { signal },
+      ),
+    branchDiffs: (
+      signal: AbortSignal,
+      worktreeId: string,
+      input: ReadBranchDiffsRequest,
+    ) =>
+      requestJson(
+        transport,
+        `${worktreePath(worktreeId)}/branch-changes/diffs`,
+        readBranchDiffsResponseSchema,
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(readBranchDiffsRequestSchema.parse(input)),
+          signal,
+        },
+      ),
+    branchBases: (signal: AbortSignal, worktreeId: string) =>
+      requestJson(
+        transport,
+        `${worktreePath(worktreeId)}/branch-bases`,
+        listBranchBasesResponseSchema,
         { signal },
       ),
     status: (signal: AbortSignal, worktreeId: string) =>

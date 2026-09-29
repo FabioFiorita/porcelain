@@ -141,6 +141,13 @@ export function ReviewWorkspace({
       available={worktree.available}
       onSurface={setSurface}
       onOpen={open}
+      changes={{
+        scope: search.scope ?? 'uncommitted',
+        base: search.base,
+        onScope: (next) =>
+          onSearch({ scope: next === 'branch' ? next : undefined }),
+        onBase: (next) => onSearch({ base: next }),
+      }}
     />
   );
 
@@ -210,6 +217,7 @@ export function ReviewWorkspace({
               worktreeId={worktree.id}
               entry={search.entry}
               side={search.side}
+              base={search.base}
               onSearch={onSearch}
               focused={focusedPane}
               setFocused={setFocusedPane}
@@ -247,6 +255,7 @@ function DocumentArea({
   worktreeId,
   entry,
   side,
+  base,
   onSearch,
   focused,
   setFocused,
@@ -262,6 +271,7 @@ function DocumentArea({
   worktreeId: string;
   entry: string | undefined;
   side: string | undefined;
+  base: string | undefined;
   onSearch: SetWorkspaceSearch;
   focused: PaneIndex;
   setFocused: (pane: PaneIndex) => void;
@@ -326,6 +336,7 @@ function DocumentArea({
     context,
     layers,
     hasHandoff,
+    base,
     onOpen,
     navigationTrigger,
     navigatorIsMobile,
@@ -359,6 +370,7 @@ function PaneView({
   context,
   layers,
   hasHandoff,
+  base,
   onOpen,
   navigationTrigger,
   navigatorIsMobile,
@@ -367,6 +379,7 @@ function PaneView({
   tabControls,
 }: {
   index: PaneIndex;
+  base: string | undefined;
   context: WorkspaceContext;
   layout: ReturnType<typeof useTabLayout>;
   split: boolean;
@@ -443,6 +456,7 @@ function PaneView({
               scope={scope}
               context={context}
               document={document}
+              base={base}
               onOpen={onOpen}
               active={focused}
               reveal={

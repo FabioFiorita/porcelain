@@ -49,7 +49,7 @@ import {
 } from '../rules/comments';
 import type { DocumentInteraction } from '../rules/documents';
 import { basename, type ReviewScope } from '../rules/review';
-import type { ReviewsContext } from '../rules/reviewed';
+import type { ReviewRange, ReviewsContext } from '../rules/reviewed';
 import { useCodeFolds } from '../store';
 import { InlineComposer } from './inline-composer';
 import { ThreadCard } from './thread-card';
@@ -70,11 +70,15 @@ type Props = {
   commentRequest?: number;
   disableFileHeader?: boolean;
   fullHeight?: boolean;
+  range?: ReviewRange;
 };
 export function CodeDocument(props: Props) {
   const { threads, error } = useComments(props.scope, props.context);
-  const review = useToggleReviewed(props.scope, props.context, (notice) =>
-    toast.add(notice),
+  const review = useToggleReviewed(
+    props.scope,
+    props.context,
+    (notice) => toast.add(notice),
+    props.range,
   );
   return (
     <>

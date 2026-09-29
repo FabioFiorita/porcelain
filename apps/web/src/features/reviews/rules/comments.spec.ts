@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   commentBodyValid,
+  commentIsStale,
   commentsSeenThrough,
+  matchesCommentTarget,
   retainIntent,
 } from './comments.ts';
 
@@ -82,5 +84,66 @@ describe('commentBodyValid', () => {
 
   it('rejects a body one character past the server limit', () => {
     expect(commentBodyValid('a'.repeat(16_001))).toBe(false);
+  });
+});
+
+describe('matchesCommentTarget on the branch review', () => {
+  const branchAnchor = {
+    kind: 'codeRange' as const,
+    filePath: 'notes.md',
+    startLine: 2,
+    endLine: 2,
+    side: 'additions' as const,
+    comparison: { kind: 'branch' as const, base: 'refs/heads/main' },
+    revision: 'a'.repeat(40),
+    contentFingerprint: 'f'.repeat(64),
+  };
+
+  it('keeps a branch comment on its file after new commits move the tip', () => {
+    expect(
+      matchesCommentTarget(branchAnchor, {
+        filePath: 'notes.md',
+        comparison: { kind: 'branch', base: 'refs/heads/main' },
+        revision: 'b'.repeat(40),
+        contentFingerprint: 'f'.repeat(64),
+      }),
+    ).toBe(true);
+  });
+
+  it('does not show a branch comment on the uncommitted change of the same file', () => {
+    expect(
+      matchesCommentTarget(branchAnchor, {
+        filePath: 'notes.md',
+        comparison: { kind: 'worktree', scope: 'unstaged' },
+      }),
+    ).toBe(false);
+  });
+
+  it('does not show an uncommitted comment on the branch review', () => {
+    expect(
+      matchesCommentTarget(
+        {
+          kind: 'file',
+          filePath: 'notes.md',
+          comparison: { kind: 'worktree', scope: 'unstaged' },
+        },
+        {
+          filePath: 'notes.md',
+          comparison: { kind: 'branch', base: 'refs/heads/main' },
+          revision: 'a'.repeat(40),
+        },
+      ),
+    ).toBe(false);
+  });
+
+  it('marks a branch comment stale once a commit changed the file', () => {
+    expect(
+      commentIsStale(branchAnchor, {
+        filePath: 'notes.md',
+        comparison: { kind: 'branch', base: 'refs/heads/main' },
+        revision: 'b'.repeat(40),
+        contentFingerprint: 'e'.repeat(64),
+      }),
+    ).toBe(true);
   });
 });

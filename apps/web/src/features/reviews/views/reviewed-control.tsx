@@ -13,7 +13,6 @@ import {
   useUnmarkReviewed,
 } from '../commands/reviewed';
 import {
-  type ReviewChangeItem,
   reviewErrorMessage,
   type ReviewScope,
   type ReviewStatus,
@@ -22,8 +21,11 @@ import {
   type BulkReviewReport,
   bulkReportText,
   markAllPlan,
+  type ReviewableItem,
   reviewedControlLabel,
+  type ReviewRange,
   type ReviewsContext,
+  WORKTREE_RANGE,
 } from '../rules/reviewed';
 
 export function ReviewedControl({
@@ -33,6 +35,7 @@ export function ReviewedControl({
   fingerprint,
   status,
   compact = false,
+  range = WORKTREE_RANGE,
 }: {
   scope: ReviewScope;
   context: ReviewsContext;
@@ -40,9 +43,10 @@ export function ReviewedControl({
   fingerprint: string | null | undefined;
   status: ReviewStatus;
   compact?: boolean;
+  range?: ReviewRange;
 }) {
-  const mark = useMarkReviewed(scope, context);
-  const unmark = useUnmarkReviewed(scope, context);
+  const mark = useMarkReviewed(scope, context, range);
+  const unmark = useUnmarkReviewed(scope, context, range);
   const pending = mark.isPending || unmark.isPending;
   const error = mark.error ?? unmark.error;
 
@@ -109,14 +113,16 @@ export function MarkAllReviewed({
   entries,
   compact = false,
   kind = 'all',
+  range = WORKTREE_RANGE,
 }: {
   scope: ReviewScope;
   context: ReviewsContext;
-  entries: readonly ReviewChangeItem[];
+  entries: readonly ReviewableItem[];
   compact?: boolean;
   kind?: 'all' | 'layer';
+  range?: ReviewRange;
 }) {
-  const bulk = useMarkAllReviewed(scope, context);
+  const bulk = useMarkAllReviewed(scope, context, range);
   const plan = markAllPlan(entries, kind);
   const pending = bulk.isPending;
   const disabled = plan.blocked || pending;

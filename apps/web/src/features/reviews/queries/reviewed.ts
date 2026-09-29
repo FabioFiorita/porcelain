@@ -9,35 +9,52 @@ import {
   mergeReviewChanges,
   type ReviewScope,
 } from '../rules/review';
-import type { ReviewsContext } from '../rules/reviewed';
+import {
+  type ReviewRange,
+  reviewedScopeKey,
+  type ReviewsContext,
+  WORKTREE_RANGE,
+} from '../rules/reviewed';
 
 export function reviewedQueryOptions(
   scope: ReviewScope,
   context: ReviewsContext,
+  range: ReviewRange = WORKTREE_RANGE,
 ) {
   const { api, connection } = context;
   return queryOptions({
-    queryKey: queryKeys.reviewSurface(connection.environmentId, scope, [
-      'reviewed',
-    ]),
+    queryKey: queryKeys.reviewSurface(
+      connection.environmentId,
+      scope,
+      reviewedScopeKey(range),
+    ),
     queryFn: async ({ signal }) => {
       const request = connection.request(signal);
-      const data = await api.reviews.reviewed.list({ ...scope, ...request });
+      const data = await api.reviews.reviewed.list({
+        ...scope,
+        ...request,
+        range,
+      });
       request.signal.throwIfAborted();
       return data;
     },
   });
 }
 
-function useReviewedMarks(scope: ReviewScope, context: ReviewsContext) {
-  return useSuspenseQuery(reviewedQueryOptions(scope, context)).data;
+export function useReviewedMarks(
+  scope: ReviewScope,
+  context: ReviewsContext,
+  range: ReviewRange = WORKTREE_RANGE,
+) {
+  return useSuspenseQuery(reviewedQueryOptions(scope, context, range)).data;
 }
 
 export function usePrefetchReviewed(
   scope: ReviewScope,
   context: ReviewsContext,
+  range: ReviewRange = WORKTREE_RANGE,
 ) {
-  usePrefetchQuery(reviewedQueryOptions(scope, context));
+  usePrefetchQuery(reviewedQueryOptions(scope, context, range));
 }
 
 export function useReviewChangeItems(

@@ -1,4 +1,5 @@
 import type {
+  ReadBranchChangesResponse,
   ReadChangeDiffsResponse,
   ReadChangesResponse,
 } from '@porcelain/contracts/changes';
@@ -30,6 +31,11 @@ export type ReviewChangeItem = FileChange & {
   mark?: ReviewedMark;
 };
 export type ReviewScope = { projectId: string; worktreeId: string };
+type BranchFile = ReadBranchChangesResponse['files'][number];
+export type BranchChangeItem = BranchFile & {
+  reviewStatus: ReviewStatus;
+  mark?: ReviewedMark;
+};
 export function orderReviewChanges<T extends { path: string }>(
   changes: readonly T[],
   files: readonly { path: string }[],
@@ -78,6 +84,25 @@ export function mergeReviewChanges(
         worktreeId: list.worktreeId,
         statusToken: list.statusToken,
         reviewStatus: reviewStatus(entry, reviewed.marks),
+        ...(mark ? { mark } : {}),
+      },
+    ];
+  });
+}
+
+export function mergeBranchChanges(
+  files: readonly BranchFile[],
+  reviewed: ReviewedMarksResponse,
+  paths?: readonly string[],
+): BranchChangeItem[] {
+  const selected = paths == null ? null : new Set(paths);
+  return files.flatMap((file) => {
+    if (selected && !selected.has(file.path)) return [];
+    const mark = reviewMark(file, reviewed.marks);
+    return [
+      {
+        ...file,
+        reviewStatus: reviewStatus(file, reviewed.marks),
         ...(mark ? { mark } : {}),
       },
     ];

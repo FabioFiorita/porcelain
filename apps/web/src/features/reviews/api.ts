@@ -23,12 +23,18 @@ import {
 } from '@porcelain/contracts/reviews';
 import { requestJson } from '@/shared/api/request';
 import type { CommentsPort } from './rules/comments';
-import type { ReviewsPort } from './rules/reviewed';
+import type { ReviewRange, ReviewsPort } from './rules/reviewed';
 export type { CommentsPort } from './rules/comments';
 export type { ReviewsPort } from './rules/reviewed';
 
 function worktreePath(worktreeId: string) {
   return `/api/worktrees/${encodeURIComponent(worktreeId)}`;
+}
+
+function inRange(range: ReviewRange) {
+  return range.kind === 'branch'
+    ? { scope: 'branch' as const, base: range.base }
+    : {};
 }
 
 function json(body: unknown) {
@@ -116,50 +122,69 @@ export function createReviewsLive(transport: typeof fetch): ReviewsPort {
         )
       ).review ?? null,
     reviewed: {
-      list: ({ worktreeId, signal }) =>
+      list: ({ worktreeId, signal, range }) =>
         requestJson(
           transport,
-          reviewed(worktreeId),
+          `${reviewed(worktreeId)}${range.kind === 'branch' ? `?${new URLSearchParams({ scope: 'branch' })}` : ''}`,
           listReviewedFilesResponseSchema,
           { signal },
         ),
-      set: ({ worktreeId, signal, input }) =>
+      set: ({ worktreeId, signal, range, input }) =>
         requestJson(
           transport,
           reviewed(worktreeId),
           setReviewedFileResponseSchema,
           {
             method: 'PUT',
-            ...json(setReviewedFileRequestSchema.parse(input)),
+            ...json(
+              setReviewedFileRequestSchema.parse({
+                ...input,
+                reviewed: true,
+                ...inRange(range),
+              }),
+            ),
             signal,
           },
         ),
-      setAll: ({ worktreeId, signal, input }) =>
+      setAll: ({ worktreeId, signal, range, input }) =>
         requestJson(
           transport,
           `${worktreePath(worktreeId)}/reviewed-bulk`,
           setReviewedFilesResponseSchema,
           {
             method: 'PUT',
-            ...json(setReviewedFilesRequestSchema.parse(input)),
+            ...json(
+              setReviewedFilesRequestSchema.parse({
+                ...input,
+                ...inRange(range),
+              }),
+            ),
             signal,
           },
         ),
-      remove: ({ worktreeId, signal, path }) =>
+      remove: ({ worktreeId, signal, range, path }) =>
         requestJson(
           transport,
-          `${reviewed(worktreeId)}?${new URLSearchParams({ path })}`,
+          `${reviewed(worktreeId)}?${new URLSearchParams(
+            range.kind === 'branch' ? { path, scope: 'branch' } : { path },
+          )}`,
           removeReviewedFileResponseSchema,
           { method: 'DELETE', signal },
         ),
-      removeAll: ({ worktreeId, signal, paths }) =>
+      removeAll: ({ worktreeId, signal, range, paths }) =>
         requestJson(
           transport,
           `${worktreePath(worktreeId)}/reviewed-bulk`,
           removeReviewedFilesResponseSchema,
           {
             method: 'DELETE',
-            ...json(removeReviewedFilesRequestSchema.parse({ paths })),
+            ...json(
+              removeReviewedFilesRequestSchema.parse(
+                range.kind === 'branch'
+                  ? { paths, scope: 'branch' }
+                  : { paths },
+              ),
+            ),
             signal,
           },
         ),

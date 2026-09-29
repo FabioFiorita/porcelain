@@ -16,22 +16,35 @@ import {
 } from './review';
 
 type ReviewRequest = ReviewScope & { signal: AbortSignal };
+type ReviewedRequest = ReviewRequest & { range: ReviewRange };
+
+export type ReviewRange =
+  | { kind: 'worktree' }
+  | { kind: 'branch'; base: string };
+
+export const WORKTREE_RANGE: ReviewRange = { kind: 'worktree' };
+
+export function branchReviewRange(base: string | undefined): ReviewRange {
+  return { kind: 'branch', base: base ?? '' };
+}
 
 export type ReviewsPort = {
   review: (request: ReviewRequest) => Promise<ReviewResponse | null>;
   reviewed: {
-    list: (request: ReviewRequest) => Promise<ReviewedMarksResponse>;
+    list: (request: ReviewedRequest) => Promise<ReviewedMarksResponse>;
     set: (
-      request: ReviewRequest & { input: SetReviewedRequest },
+      request: ReviewedRequest & { input: MarkReviewedInput },
     ) => Promise<ReviewedMarksResponse>;
     setAll: (
-      request: ReviewRequest & { input: SetReviewedBulkRequest },
+      request: ReviewedRequest & {
+        input: Pick<SetReviewedBulkRequest, 'files'>;
+      },
     ) => Promise<SetReviewedBulkResponse>;
     remove: (
-      request: ReviewRequest & { path: string },
+      request: ReviewedRequest & { path: string },
     ) => Promise<ReviewedMarksResponse>;
     removeAll: (
-      request: ReviewRequest & { paths: readonly string[] },
+      request: ReviewedRequest & { paths: readonly string[] },
     ) => Promise<ReviewedMarksResponse>;
   };
   reviewedLayers: {
@@ -72,7 +85,16 @@ function uniqueByPath<T extends { path: string }>(entries: readonly T[]): T[] {
   return [...new Map(entries.map((entry) => [entry.path, entry])).values()];
 }
 
-export function bulkMarkPlan(entries: readonly ReviewChangeItem[]) {
+export type ReviewableItem = Pick<
+  ReviewChangeItem,
+  'path' | 'fingerprint' | 'reviewStatus'
+>;
+
+export function reviewedScopeKey(range: ReviewRange): string[] {
+  return range.kind === 'branch' ? ['reviewed', 'branch'] : ['reviewed'];
+}
+
+export function bulkMarkPlan(entries: readonly ReviewableItem[]) {
   const report: BulkReviewReport = { marked: [], skipped: [], failed: [] };
   const files: { path: string; fingerprint: string }[] = [];
   for (const entry of uniqueByPath(entries)) {
@@ -132,7 +154,7 @@ export function bulkReportText(report: BulkReviewReport) {
 }
 
 export function markAllPlan(
-  entries: readonly ReviewChangeItem[],
+  entries: readonly ReviewableItem[],
   kind: 'all' | 'layer',
 ) {
   const unique = uniqueByPath(entries);
