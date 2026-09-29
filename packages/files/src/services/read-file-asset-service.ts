@@ -7,7 +7,7 @@ import type {
 } from '../models/read-file-asset.ts';
 import type { FileReader } from '../ports/file-reader.ts';
 import { assetMediaType } from '../rules/asset-media-type.ts';
-import { encodeBase64 } from '../rules/encode-base64.ts';
+import { encodeBase64 } from '@porcelain/kernel/rules';
 import { PathNotFoundError } from '../errors/path-not-found-error.ts';
 import { PathNotReadableError } from '../errors/path-not-readable-error.ts';
 import { ContentChangedError } from '../errors/content-changed-error.ts';

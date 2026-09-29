@@ -8,7 +8,7 @@ import type {
 } from '../models/read-preview-assets.ts';
 import type { FileReader } from '../ports/file-reader.ts';
 import { assetMediaType } from '../rules/asset-media-type.ts';
-import { encodeBase64 } from '../rules/encode-base64.ts';
+import { encodeBase64 } from '@porcelain/kernel/rules';
 
 export class ReadPreviewAssetsService {
   private readonly fileReader: FileReader;

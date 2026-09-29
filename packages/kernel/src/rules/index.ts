@@ -1,4 +1,5 @@
 export { constantTimeEquals } from './constant-time-equals.ts';
+export { encodeBase64 } from './encode-base64.ts';
 export { gitDirectoryName } from './git-directory-name.ts';
 export { expectationHolds } from './expectation-holds.ts';
 export { instantAfter } from './instant-after.ts';
