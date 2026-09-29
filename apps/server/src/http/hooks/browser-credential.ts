@@ -33,7 +33,7 @@ export function deliverBrowserCredential(cookie: {
     setDeviceCookie(
       reply,
       split.credential,
-      request.protocol === 'https',
+      request.client.secure,
       cookie.cookieMaxAgeSeconds,
     );
     return split.rest;

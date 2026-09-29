@@ -32,3 +32,7 @@ export type {
   TunnelAnswer,
   TunnelTarget,
 } from './remote-access.ts';
+export type {
+  IdentifyRequestClientInput,
+  RequestClient,
+} from './identify-request-client.ts';

@@ -14,3 +14,4 @@ export { CheckLocalRequestService } from './check-local-request-service.ts';
 export { OpenRemoteRoutesService } from './open-remote-routes-service.ts';
 export { ReadRemoteAccessService } from './read-remote-access-service.ts';
 export { SetRemoteAccessService } from './set-remote-access-service.ts';
+export { IdentifyRequestClientService } from './identify-request-client-service.ts';

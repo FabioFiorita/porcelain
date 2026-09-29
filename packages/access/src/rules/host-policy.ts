@@ -35,6 +35,14 @@ function canonicalList(values: readonly string[]): string[] {
     .filter((value): value is string => value !== undefined);
 }
 
+export function ipAddress(value: string): string | undefined {
+  const hostname = canonicalHostname(value);
+  return hostname !== undefined &&
+    (IPV4.test(hostname) || hostname.includes(':'))
+    ? hostname
+    : undefined;
+}
+
 export function isLoopbackHostname(hostname: string): boolean {
   if (hostname === 'localhost' || hostname === '::1') return true;
   return IPV4.test(hostname) && hostname.startsWith('127.');

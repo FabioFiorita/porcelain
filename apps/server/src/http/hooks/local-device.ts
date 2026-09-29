@@ -1,14 +1,11 @@
 import { httpErrors } from '@fastify/sensible';
 import type { FastifyRequest } from 'fastify';
 import type { CheckLocalRequestUseCasePort } from '../../ports/check-local-request-use-case-port.ts';
+import { headerValue } from './header-value.ts';
 
 export type LocalDeviceOptions = {
   access: { checkLocalRequest: CheckLocalRequestUseCasePort };
 };
-
-function headerValue(value: string | string[] | undefined) {
-  return Array.isArray(value) ? value.join(', ') : value;
-}
 
 export function requireLocalDevice(options: LocalDeviceOptions) {
   return async (request: FastifyRequest) => {

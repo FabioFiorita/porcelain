@@ -8,6 +8,7 @@ import type {
 import {
   CheckLocalRequestService,
   CheckRequestOriginService,
+  IdentifyRequestClientService,
   OpenRemoteRoutesService,
   ReadRemoteAccessService,
   SetRemoteAccessService,
@@ -27,6 +28,7 @@ import type { DeviceConnectionStore } from '../ports/device-connection-store.ts'
 import { AuthenticateDeviceUseCase } from '../use-cases/access/authenticate-device.ts';
 import { CheckLocalRequestUseCase } from '../use-cases/access/check-local-request.ts';
 import { CheckRequestOriginUseCase } from '../use-cases/access/check-request-origin.ts';
+import { IdentifyRequestClientUseCase } from '../use-cases/access/identify-request-client.ts';
 import { OpenRemoteRoutesUseCase } from '../use-cases/access/open-remote-routes.ts';
 import { ReadRemoteAccessUseCase } from '../use-cases/access/read-remote-access.ts';
 import { SetRemoteAccessUseCase } from '../use-cases/access/set-remote-access.ts';
@@ -89,6 +91,10 @@ export function composeAccess(
     clearBrowserSession: new ClearBrowserSessionUseCase(lanes),
     checkRequestOrigin: new CheckRequestOriginUseCase(
       new CheckRequestOriginService(remoteAccess, routeStates),
+      lanes,
+    ),
+    identifyRequestClient: new IdentifyRequestClientUseCase(
+      new IdentifyRequestClientService(remoteAccess, routeStates),
       lanes,
     ),
     checkLocalRequest: new CheckLocalRequestUseCase(

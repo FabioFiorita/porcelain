@@ -23,6 +23,7 @@ const SECOND_MS = 1000;
 export const MINUTE_MS = 60 * SECOND_MS;
 const HOUR_MS = 60 * MINUTE_MS;
 const DAY_MS = 24 * HOUR_MS;
+const YEAR_MS = 365 * DAY_MS;
 const KIBIBYTE = 1024;
 const MEBIBYTE = 1024 * KIBIBYTE;
 const JSON_ESCAPE_FACTOR = 6;
@@ -37,7 +38,11 @@ export type Limits = {
     device: { unusedLifetimeMs: number; cookieMaxAgeSeconds: number };
     deviceDetails: { labelLength: number; platformLength: number };
     credentials: { secretBytes: number };
-    remoteAccess: { hostnameLength: number; probeTimeoutMs: number };
+    remoteAccess: {
+      hostnameLength: number;
+      probeTimeoutMs: number;
+      strictTransportMaxAgeSeconds: number;
+    };
     pairingAttempts: {
       windowMs: number;
       attemptsPerPeer: number;
@@ -214,6 +219,7 @@ export const LIMITS: Limits = {
     remoteAccess: {
       hostnameLength: TUNNEL_HOSTNAME_LENGTH,
       probeTimeoutMs: 5 * SECOND_MS,
+      strictTransportMaxAgeSeconds: YEAR_MS / SECOND_MS,
     },
     pairingAttempts: {
       windowMs: MINUTE_MS,
