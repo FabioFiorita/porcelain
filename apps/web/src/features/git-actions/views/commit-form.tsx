@@ -29,7 +29,7 @@ import { commitFiles } from '@/features/changes/index';
 export function CommitForm(
   props: CommitFormProps & { context: Parameters<typeof useCommitForm>[1] },
 ) {
-  const { status, onLookAgain, replacedSubject } = props;
+  const { status, liveBranch, onLookAgain, replacedSubject } = props;
   const form = useCommitForm(
     props,
     props.context,
@@ -90,12 +90,11 @@ export function CommitForm(
       <div className="flex items-center gap-2 rounded-xl bg-muted/50 px-3 py-2 text-[12.5px]">
         <GitBranchIcon className="size-3.5 shrink-0 text-muted-foreground" />
         <span className="truncate font-medium">
-          {status.branch?.name?.replace(/^refs\/heads\//, '') ??
-            'Detached HEAD'}
+          {liveBranch?.name?.replace(/^refs\/heads\//, '') ?? 'Detached HEAD'}
         </span>
-        {status.branch?.upstream != null && (
+        {liveBranch?.upstream != null && (
           <span className="ml-auto shrink-0 text-muted-foreground">
-            {status.branch.ahead} ahead · {status.branch.behind} behind
+            {liveBranch.ahead} ahead · {liveBranch.behind} behind
           </span>
         )}
       </div>
@@ -398,7 +397,7 @@ export function CommitForm(
       )}
       <p className="text-xs text-muted-foreground">
         {commitAction === 'amend'
-          ? `Amending replaces the last commit${replacedSubject ? `: ${replacedSubject}` : ''}. ${status.branch?.upstream && status.branch.ahead === 0 ? 'This commit is already on the known upstream; amending rewrites shared history.' : 'Unselected staged changes stay staged.'}`
+          ? `Amending replaces the last commit${replacedSubject ? `: ${replacedSubject}` : ''}. ${liveBranch?.upstream && liveBranch.ahead === 0 ? 'This commit is already on the known upstream; amending rewrites shared history.' : 'Unselected staged changes stay staged.'}`
           : status.inProgress === 'merge'
             ? 'This finishes the merge and commits every staged resolution, including staged files outside your selection.'
             : 'Selected files use their current contents. Other staged files stay staged.'}

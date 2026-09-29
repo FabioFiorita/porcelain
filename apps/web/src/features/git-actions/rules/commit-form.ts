@@ -5,6 +5,7 @@ export type CommitMode = 'single' | 'amend' | 'groups';
 export type CommitFormProps = {
   scope: GitScope;
   status: GitActionStatus;
+  liveBranch: GitActionStatus['branch'];
   action?: 'commit' | 'amend';
   initialMessage?: string;
   lastCommitMessage?: string;

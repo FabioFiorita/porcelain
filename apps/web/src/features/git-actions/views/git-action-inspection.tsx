@@ -117,10 +117,8 @@ function CommitActionForm({
       scope={scope}
       context={context}
       action={action}
-      status={{
-        ...status,
-        branch: details.status?.branch ?? status.branch,
-      }}
+      status={status}
+      liveBranch={details.status?.branch ?? status.branch}
       initialMessage={
         action === 'amend' && head
           ? [head.subject, head.body].filter(Boolean).join('\n\n')
