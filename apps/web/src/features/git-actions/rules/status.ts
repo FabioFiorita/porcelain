@@ -43,6 +43,31 @@ export function statusFromChanges(
   };
 }
 
+type ListedBranch = Pick<
+  GitBranchStatus,
+  'name' | 'upstream' | 'ahead' | 'behind'
+>;
+
+export function shownBranch(
+  listed: ListedBranch | null | undefined,
+  looked: GitBranchStatus | null | undefined,
+): GitBranchStatus | null | undefined {
+  if (listed == null) return looked;
+  if (
+    looked == null ||
+    looked.name !== listed.name ||
+    looked.upstream !== listed.upstream
+  )
+    return listed;
+  return {
+    ...looked,
+    name: listed.name,
+    upstream: listed.upstream,
+    ahead: listed.ahead,
+    behind: listed.behind,
+  };
+}
+
 export function branchStatus(status: GitActionStatus): GitBranchStatus | null {
   return status.branch ?? null;
 }

@@ -46,6 +46,7 @@ import {
   gitActionBlocker,
   gitActionReason,
   primaryGitAction,
+  shownBranch,
   statusFromChanges,
   suggestedCount,
 } from '../rules/status';
@@ -68,7 +69,8 @@ export function GitButton({
   const settled =
     overview != null &&
     primaryGitAction(statusFromChanges(overview.changes)).kind === 'hint';
-  const details = useGitStatus(scope, connection, detailsEnabled || settled);
+  const detailsLive = detailsEnabled || settled;
+  const details = useGitStatus(scope, connection, detailsLive);
   const refreshLook = useRefreshGitLook(scope, connection);
   const { preferences } = usePreferences();
   const [busy, setBusy] = useState(false);
@@ -97,7 +99,10 @@ export function GitButton({
   if (overview == null) return null;
   const status = {
     ...statusFromChanges(overview.changes),
-    branch: details.status?.branch ?? overview.changes.branch,
+    branch: shownBranch(
+      overview.changes.branch,
+      detailsLive ? details.status?.branch : undefined,
+    ),
   };
   const selected = gitActions.find((candidate) => candidate.id === action);
   const primary = primaryGitAction(status);

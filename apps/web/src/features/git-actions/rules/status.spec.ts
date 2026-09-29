@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   primaryGitAction,
+  shownBranch,
   statusFromChanges,
   suggestedCount,
 } from './status.ts';
@@ -104,5 +105,63 @@ describe('primaryGitAction', () => {
     });
     expect(primary.kind).toBe('hint');
     expect(suggestedCount(primary, clean)).toBeNull();
+  });
+});
+
+describe('shownBranch', () => {
+  const looked = {
+    name: 'refs/heads/main',
+    upstream: 'origin/main',
+    ahead: 1,
+    behind: 0,
+    remoteName: 'origin',
+    sourceRef: 'refs/heads/main',
+    upstreamOid: undefined,
+    stashes: [{ oid: 'a'.repeat(40), message: 'On main: wip' }],
+    discarded: [],
+  };
+
+  it('counts ahead and behind from the live change list, not an older detailed read', () => {
+    const branch = shownBranch(
+      { name: 'refs/heads/main', upstream: 'origin/main', ahead: 0, behind: 3 },
+      looked,
+    );
+    expect(branch).toMatchObject({
+      ahead: 0,
+      behind: 3,
+      stashes: looked.stashes,
+    });
+    expect(
+      primaryGitAction({ statusToken: 'token', changes: [], branch }),
+    ).toEqual({ kind: 'run', action: 'pull', label: 'Pull' });
+  });
+
+  it('suggests pushing as many commits as the change list says are ahead', () => {
+    const branch = shownBranch(
+      { name: 'refs/heads/main', upstream: 'origin/main', ahead: 2, behind: 0 },
+      looked,
+    );
+    const status = { statusToken: 'token', changes: [], branch };
+    expect(suggestedCount(primaryGitAction(status), status)).toBe(2);
+  });
+
+  it('ignores a detailed read of another branch or upstream', () => {
+    const overview = {
+      name: 'refs/heads/feature',
+      upstream: undefined,
+      ahead: 0,
+      behind: 0,
+    };
+    expect(shownBranch(overview, looked)).toEqual(overview);
+  });
+
+  it('uses the change list alone without a detailed read', () => {
+    const overview = {
+      name: 'refs/heads/main',
+      upstream: 'origin/main',
+      ahead: 0,
+      behind: 0,
+    };
+    expect(shownBranch(overview, undefined)).toEqual(overview);
   });
 });
