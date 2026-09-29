@@ -1,11 +1,11 @@
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import type { Logger } from '../ports/logger.ts';
-import { toStatusResponse } from './status-policy.ts';
+import { failureWorthLogging, toStatusResponse } from './status-policy.ts';
 
 export function errorHandler(logger: Logger) {
   return (error: unknown, request: FastifyRequest, reply: FastifyReply) => {
     const { statusCode, body } = toStatusResponse(error);
-    if (statusCode >= 500)
+    if (failureWorthLogging(error, request.disconnected.aborted))
       logger.failure({
         kind: 'request',
         requestId: request.id,
