@@ -5,15 +5,16 @@ description: Run Porcelain web journeys in Vitest Browser Mode with Chromium aga
 
 # Web verification
 
-A journey drives the real web app in Chromium through Vitest Browser Mode and its Playwright provider, against its own disposable server started by `scripts/dev-server.ts`. Vite proxies `/api` to that server. Nothing is mocked. One invocation keeps Vitest, Vite and Chromium alive across journeys, while each run gets Vitest's isolated test iframe and a disposable server. Between runs the runner clears cookies and browser storage and navigates the test iframe away before its server stops.
+A journey drives the real web app in Chromium through Vitest Browser Mode and its Playwright provider, against its own disposable server started by `scripts/dev-server.ts`. Vite proxies `/api` to that server. Nothing is mocked. One invocation runs journeys in parallel across up to four browsers, one per four cores of the host; `--browsers <count>` sets another number, and `--browsers 1` runs one journey at a time. Each browser is its own worker process with its own Vitest, Vite origin and Chromium, kept alive across the journeys it runs, and runs one journey at a time against that journey's own server. Each run gets Vitest's isolated test iframe and a disposable server. Between runs the worker clears cookies and browser storage and navigates the test iframe away before its server stops.
 
-The runner holds one browser verification slot per Linux host user with `flock`. Runs from other Porcelain worktrees on the same host wait for it, so concurrent workers do not overload Chromium. Separate CI hosts remain independent. The runner prints when it waits and how long acquiring the slot took.
+The runner holds one browser verification slot per Linux host user with `flock`. Runs from other Porcelain worktrees on the same host wait for it, so one suite at a time spreads its journeys over the host's browsers. Separate CI hosts remain independent. The runner prints when it waits and how long acquiring the slot took.
 
 ```sh
 pnpm verify:web --list
 pnpm verify:web projects.rename
 pnpm verify:web projects.rename projects.remove
 pnpm verify:web files.edit --repeat 3
+pnpm verify:web --all --browsers 1
 pnpm verify:web negative.wrong-text
 pnpm verify:web --all
 ```
@@ -40,7 +41,7 @@ A new route the web calls needs a journey that reaches it through the UI. When a
 
 Each journey runs against a fresh server. A journey fails on a failed assertion, a thrown error, and any console error, uncaught error, unhandled rejection or 5xx answer the journey did not declare through `failures`, or a declared one that never happened. The isolated server records every request it answered after its fixture was ready: the method, the route Fastify matched, the status, and whether the kit sent it. A journey fails when it claims a server feature none of whose routes it reached through the UI.
 
-The default is one run per selected journey. Use `--repeat <count>` explicitly when investigating a flaky case or when repeated evidence answers a concrete question. Each repetition gets a fresh server and isolated test iframe with cleared cookies and browser storage. There are no retries or automatic repetitions based on Git history. The runner stops at the first failed run, journey or unexpected negative result and preserves the evidence already collected. A partial run does not judge full coverage; the summary lists skipped journeys and negatives.
+The default is one run per selected journey. Use `--repeat <count>` explicitly when investigating a flaky case or when repeated evidence answers a concrete question. Each repetition gets a fresh server and isolated test iframe with cleared cookies and browser storage. The repetitions of one journey run one after another in the same browser. There are no retries or automatic repetitions based on Git history. The runner stops at the first failed run, journey or unexpected negative result: no further journey starts, journeys already running in other browsers finish, and the evidence already collected stays. A partial run does not judge full coverage; the summary lists skipped journeys and negatives.
 
 For ordinary feature proof, run each affected journey once after `pnpm check`. A cross-cutting checkpoint runs `pnpm verify:web --all` once. Automatic CI runs fast checks; the runtime workflow is manual. Do not trigger hosted audits while Actions spending is blocked without Fabio's approval.
 
@@ -48,7 +49,7 @@ For ordinary feature proof, run each affected journey once after `pnpm check`. A
 
 `--all` then judges coverage. `scripts/web-routes.ts` reads the routes the web calls from the api layer (`features/*/api`, `shared/api`, `shared/live`) and matches them to the routes the server registers. A route the web calls that no journey reached through the UI fails the run unless `architecture/web-journey-baseline.json` holds it; that list only shrinks, and a listed route a journey now reaches, or one the web no longer calls, fails the run until it is removed. A named journey checks whether a route it reached is still listed in that baseline; discovering a newly uncovered route still requires `--all`.
 
-The run prints one line per journey with its wall time and the evidence folder. `<folder>/<journey>.json` holds the map entry, each run's failures, duration and the requests the server answered; `<folder>/<journey>/run-<n>/` holds the Vitest report, the server's hits and logs, the kit's exchanges and failure screenshots. `<folder>/summary.json` holds stage timings, the negatives, the registered routes and the coverage: the routes the web calls, those reached and those not yet reached.
+The run prints one line per journey as it finishes, with its wall time, then the evidence folder; a failed run's Vitest output is printed above its line. `<folder>/<journey>.json` holds the map entry, each run's failures, duration and the requests the server answered; `<folder>/<journey>/run-<n>/` holds the Vitest report and output (`vitest.log`), the server's hits and logs, the kit's exchanges and failure screenshots. `<folder>/summary.json` holds stage timings, the number of browsers, the negatives, the registered routes and the coverage: the routes the web calls, those reached and those not yet reached.
 
 ## Unit specs for web rules
 

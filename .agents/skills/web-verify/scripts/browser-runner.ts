@@ -1,8 +1,50 @@
-import { join, resolve } from 'node:path';
+import { existsSync } from 'node:fs';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { dirname, join, resolve } from 'node:path';
+import { Writable } from 'node:stream';
 import { fileURLToPath } from 'node:url';
 import { createVitest } from 'vitest/node';
 import { PlaywrightBrowserProvider } from '@vitest/browser-playwright';
+import { z } from 'zod';
+import { IsolatedServer } from '../../server-verify/scripts/session.ts';
 import { journeyCommands, setJourneyServer } from './journey-commands.ts';
+
+const repositoryRoot = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  '../../../..',
+);
+
+export const runRequestSchema = z.strictObject({
+  spec: z.string(),
+  folder: z.string(),
+});
+
+export type RunRequest = z.output<typeof runRequestSchema>;
+
+export const runSchema = z.strictObject({
+  passed: z.boolean(),
+  failures: z.array(z.string()),
+  durationMs: z.number(),
+  hits: z.array(
+    z.strictObject({
+      method: z.string(),
+      route: z.string().or(z.undefined()),
+      path: z.string(),
+      kit: z.boolean(),
+      status: z.number().or(z.undefined()),
+    }),
+  ),
+  registered: z.array(z.string()),
+  output: z.string(),
+});
+
+export type Run = z.output<typeof runSchema>;
+
+export const workerMessageSchema = z.discriminatedUnion('kind', [
+  z.strictObject({ kind: z.literal('ready') }),
+  z.strictObject({ kind: z.literal('ran'), run: runSchema }),
+  z.strictObject({ kind: z.literal('broken'), message: z.string() }),
+]);
 
 function errorMessage(error: unknown): string {
   if (
@@ -18,7 +60,7 @@ function errorMessage(error: unknown): string {
     : `${error.message}\nCaused by: ${errorMessage(cause)}`;
 }
 
-export async function startBrowser(evidence: string) {
+export async function startBrowser(evidence: string, output: Writable) {
   const config = fileURLToPath(
     new URL('./vitest.browser.config.ts', import.meta.url),
   );
@@ -56,6 +98,7 @@ export async function startBrowser(evidence: string) {
         },
       },
     },
+    { stdout: output, stderr: output },
   );
   try {
     await runner.standalone();
@@ -138,4 +181,100 @@ export async function startBrowser(evidence: string) {
   };
 }
 
-export type BrowserRunner = Awaited<ReturnType<typeof startBrowser>>;
+type BrowserRunner = Awaited<ReturnType<typeof startBrowser>>;
+
+async function runOnce(
+  { spec, folder }: RunRequest,
+  build: string,
+  browser: BrowserRunner,
+  output: { text: string },
+): Promise<Run> {
+  const started = performance.now();
+  output.text = '';
+  await mkdir(folder, { recursive: true });
+  const server = await IsolatedServer.start(repositoryRoot, build);
+  try {
+    const result = await browser.run(
+      spec,
+      server.address,
+      server.manifestPath,
+      folder,
+    );
+    const reported = existsSync(join(folder, 'vitest.json'));
+    const hits = await server.hits();
+    await writeFile(
+      join(folder, 'server.json'),
+      `${JSON.stringify({ hits, logs: server.logs() }, null, 2)}\n`,
+    );
+    return {
+      passed: reported && result.code === 0,
+      failures: !reported
+        ? ['Vitest wrote no report; read its output above']
+        : result.code !== 0 && result.failures.length === 0
+          ? [`Vitest exited with ${result.code}; read its output above`]
+          : result.failures,
+      durationMs: Math.round(performance.now() - started),
+      hits,
+      registered: [...server.routes],
+      output: output.text,
+    };
+  } finally {
+    const stopped = await server.stop();
+    if (stopped !== undefined) output.text += `${stopped}\n`;
+    await writeFile(join(folder, 'vitest.log'), output.text);
+  }
+}
+
+function send(message: z.input<typeof workerMessageSchema>): Promise<void> {
+  return new Promise((done, fail) => {
+    if (process.send === undefined) {
+      fail(new Error('The browser worker runs as a child of verify:web.'));
+      return;
+    }
+    process.send(message, (error: Error | null) => {
+      if (error === null) done();
+      else fail(error);
+    });
+  });
+}
+
+async function serve(build: string, evidence: string) {
+  const output = { text: '' };
+  const sink = new Writable({
+    write(chunk: Buffer | string, _encoding, done) {
+      output.text += chunk.toString();
+      done();
+    },
+  });
+  const browser = await startBrowser(evidence, sink);
+  let queue = Promise.resolve();
+  process.on('message', (message: unknown) => {
+    const request = runRequestSchema.parse(message);
+    queue = queue.then(async () => {
+      try {
+        await send({
+          kind: 'ran',
+          run: await runOnce(request, build, browser, output),
+        });
+      } catch (error) {
+        await send({ kind: 'broken', message: errorMessage(error) });
+      }
+    });
+  });
+  process.once('disconnect', () => {
+    void queue.then(() => browser.close()).finally(() => process.exit());
+  });
+  await send({ kind: 'ready' });
+}
+
+if (import.meta.main) {
+  const [build, evidence] = process.argv.slice(2);
+  if (build === undefined || evidence === undefined)
+    throw new Error('Usage: browser-runner.ts <server build> <evidence>');
+  try {
+    await serve(build, evidence);
+  } catch (error) {
+    await send({ kind: 'broken', message: errorMessage(error) });
+    process.exit(1);
+  }
+}

@@ -1,20 +1,21 @@
-import { spawn } from 'node:child_process';
-import { existsSync } from 'node:fs';
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { fork, spawn } from 'node:child_process';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { availableParallelism, tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
-import { startBrowser, type BrowserRunner } from './browser-runner.ts';
+import type { z } from 'zod';
+import {
+  workerMessageSchema,
+  type Run,
+  type RunRequest,
+} from './browser-runner.ts';
 import {
   journeyBaselineFile,
   readJourneyBaseline,
 } from '../../../../architecture/baseline.ts';
 import { buildIsolatedServer } from '../../../../scripts/dev-server.ts';
-import {
-  IsolatedServer,
-  type Hit,
-} from '../../server-verify/scripts/session.ts';
+import type { Hit } from '../../server-verify/scripts/session.ts';
 import {
   loadJourneys,
   negativeJourneys,
@@ -23,20 +24,25 @@ import {
 } from './catalogue.ts';
 import { calledRoutes, webCalls } from './web-routes.ts';
 
+type WorkerMessage = z.output<typeof workerMessageSchema>;
+
 const repositoryRoot = resolve(
   dirname(fileURLToPath(import.meta.url)),
   '../../../..',
 );
+const runnerFile = fileURLToPath(
+  new URL('./browser-runner.ts', import.meta.url),
+);
 const browserLockVariable = 'PORCELAIN_BROWSER_LOCK_HELD';
+const coresPerBrowser = 4;
+const mostBrowsers = 4;
+const defaultBrowsers = Math.max(
+  1,
+  Math.min(mostBrowsers, Math.floor(availableParallelism() / coresPerBrowser)),
+);
+const workerStopMs = 10_000;
 const usage =
-  'Usage: pnpm verify:web --list|--all|<journey>... [--repeat <count>]\n';
-
-type Run = {
-  passed: boolean;
-  failures: string[];
-  durationMs: number;
-  hits: Hit[];
-};
+  'Usage: pnpm verify:web --list|--all|<journey>... [--repeat <count>] [--browsers <count>]\n';
 
 type Outcome = {
   runs: Run[];
@@ -44,61 +50,134 @@ type Outcome = {
   problems: string[];
 };
 
-async function vitest(
-  spec: string,
-  server: IsolatedServer,
+type BrowserWorker = {
+  run: (request: RunRequest) => Promise<Run>;
+  close: () => Promise<void>;
+};
+
+async function startWorker(
+  build: string,
   evidence: string,
-  browser: BrowserRunner,
-): Promise<{ code: number; failures: string[] }> {
-  const report = join(evidence, 'vitest.json');
-  const { code, failures } = await browser.run(
-    spec,
-    server.address,
-    server.manifestPath,
-    evidence,
-  );
-  if (!existsSync(report))
-    return {
-      code: 1,
-      failures: ['Vitest wrote no report; read its output above'],
-    };
+): Promise<BrowserWorker> {
+  const child = fork(runnerFile, [build, evidence], {
+    cwd: repositoryRoot,
+    serialization: 'advanced',
+    stdio: ['ignore', 'inherit', 'inherit', 'ipc'],
+  });
+  const waiting: {
+    done: (message: WorkerMessage) => void;
+    fail: (error: Error) => void;
+  }[] = [];
+  let gone: Error | undefined;
+  const exited = new Promise<void>((done) => {
+    child.once('exit', (code, signal) => {
+      gone = new Error(
+        `A browser worker stopped (${code ?? signal ?? 'unknown'})`,
+      );
+      for (const waiter of waiting.splice(0)) waiter.fail(gone);
+      done();
+    });
+  });
+  child.on('message', (message: unknown) => {
+    const waiter = waiting.shift();
+    const parsed = workerMessageSchema.safeParse(message);
+    if (parsed.success) waiter?.done(parsed.data);
+    else
+      waiter?.fail(
+        new Error(`A browser worker sent ${JSON.stringify(message)}`),
+      );
+  });
+  const next = () =>
+    new Promise<WorkerMessage>((done, fail) => {
+      if (gone === undefined) waiting.push({ done, fail });
+      else fail(gone);
+    });
+  const close = async () => {
+    if (gone !== undefined) return;
+    const timer = setTimeout(() => child.kill('SIGKILL'), workerStopMs);
+    if (child.connected) child.disconnect();
+    await exited;
+    clearTimeout(timer);
+  };
+  const ready = await next().catch(async (error: unknown) => {
+    await close();
+    throw error;
+  });
+  if (ready.kind !== 'ready') {
+    await close();
+    throw new Error(
+      `A browser worker did not start: ${ready.kind === 'broken' ? ready.message : ready.kind}`,
+    );
+  }
   return {
-    code,
-    failures:
-      code !== 0 && failures.length === 0
-        ? [`Vitest exited with ${code}; read its output above`]
-        : failures,
+    async run(request) {
+      const answer = next();
+      child.send(request);
+      const message = await answer;
+      if (message.kind === 'ran') return message.run;
+      throw new Error(
+        message.kind === 'broken'
+          ? message.message
+          : 'A browser worker answered a run with ready',
+      );
+    },
+    close,
   };
 }
 
-async function run(
-  spec: string,
+async function startWorkers(
+  count: number,
   build: string,
   evidence: string,
-  registered: Set<string>,
-  browser: BrowserRunner,
-): Promise<Run> {
-  const started = performance.now();
-  await mkdir(evidence, { recursive: true });
-  const server = await IsolatedServer.start(repositoryRoot, build);
-  try {
-    for (const route of server.routes) registered.add(route);
-    const result = await vitest(spec, server, evidence, browser);
-    const hits = await server.hits();
-    await writeFile(
-      join(evidence, 'server.json'),
-      `${JSON.stringify({ hits, logs: server.logs() }, null, 2)}\n`,
-    );
-    return {
-      passed: result.code === 0,
-      failures: result.failures,
-      durationMs: Math.round(performance.now() - started),
-      hits,
-    };
-  } finally {
-    const stopped = await server.stop();
-    if (stopped !== undefined) process.stderr.write(`${stopped}\n`);
-  }
+): Promise<BrowserWorker[]> {
+  const started = await Promise.allSettled(
+    Array.from({ length: count }, () => startWorker(build, evidence)),
+  );
+  const workers = started.flatMap((entry) =>
+    entry.status === 'fulfilled' ? [entry.value] : [],
+  );
+  const failed = started.find((entry) => entry.status === 'rejected');
+  if (failed === undefined) return workers;
+  await Promise.all(workers.map((worker) => worker.close()));
+  throw failed.reason;
+}
+
+async function drain<T>(
+  items: readonly T[],
+  workers: readonly BrowserWorker[],
+  work: (item: T, worker: BrowserWorker) => Promise<boolean>,
+): Promise<void> {
+  const queue = [...items];
+  let stopped = false;
+  const lanes = await Promise.allSettled(
+    workers.map(async (worker) => {
+      while (!stopped) {
+        const item = queue.shift();
+        if (item === undefined) return;
+        const carryOn = await work(item, worker).catch((error: unknown) => {
+          stopped = true;
+          throw error;
+        });
+        if (!carryOn) stopped = true;
+      }
+    }),
+  );
+  const broken = lanes.find((lane) => lane.status === 'rejected');
+  if (broken !== undefined) throw broken.reason;
+}
+
+function writeOutput(runs: readonly Run[]) {
+  for (const entry of runs)
+    if (!entry.passed) process.stdout.write(entry.output);
+}
+
+function evidenceOf(entry: Run) {
+  return {
+    passed: entry.passed,
+    failures: entry.failures,
+    durationMs: entry.durationMs,
+    hits: entry.hits,
+  };
 }
 
 function uiRoutes(hits: readonly Hit[]): Set<string> {
@@ -112,20 +191,15 @@ function uiRoutes(hits: readonly Hit[]): Set<string> {
 async function journeyOutcome(
   journey: Journey,
   times: number,
-  build: string,
   evidence: string,
-  registered: Set<string>,
-  browser: BrowserRunner,
+  worker: BrowserWorker,
 ): Promise<Outcome> {
   const runs: Run[] = [];
   for (let repetition = 1; repetition <= times; repetition += 1) {
-    const result = await run(
-      journey.spec,
-      build,
-      join(evidence, journey.feature, `run-${repetition}`),
-      registered,
-      browser,
-    );
+    const result = await worker.run({
+      spec: journey.spec,
+      folder: join(evidence, journey.feature, `run-${repetition}`),
+    });
     runs.push(result);
     if (!result.passed) break;
   }
@@ -211,6 +285,7 @@ async function main(): Promise<number> {
       all: { type: 'boolean', default: false },
       list: { type: 'boolean', default: false },
       repeat: { type: 'string', default: '1' },
+      browsers: { type: 'string', default: String(defaultBrowsers) },
     },
     allowPositionals: true,
   });
@@ -220,6 +295,7 @@ async function main(): Promise<number> {
   }
   const all = values.all;
   const times = Number(values.repeat);
+  const browsers = Number(values.browsers);
   const selected = journeys.filter(
     (journey) => all || positionals.includes(journey.feature),
   );
@@ -234,6 +310,8 @@ async function main(): Promise<number> {
     values.list ||
     !Number.isSafeInteger(times) ||
     times < 1 ||
+    !Number.isSafeInteger(browsers) ||
+    browsers < 1 ||
     (all && positionals.length > 0) ||
     (selected.length === 0 && negatives.length === 0) ||
     positionals.some((name) => !known.has(name))
@@ -241,42 +319,49 @@ async function main(): Promise<number> {
     process.stderr.write(usage);
     return 2;
   }
+  const lanes = Math.min(browsers, Math.max(selected.length, negatives.length));
   process.stdout.write(
-    `Selection: ${selected.length} journeys, ${times} run(s) each; stop on first failure.\n`,
+    `Selection: ${selected.length} journeys, ${times} run(s) each, ${lanes} at a time; stop on first failure.\n`,
   );
   const evidence = await mkdtemp(
     join(tmpdir(), 'porcelain-web-browser-evidence-'),
   );
   const build = await mkdtemp(join(tmpdir(), 'porcelain-web-server-'));
   const registered = new Set<string>();
-  const summary: Record<string, unknown>[] = [];
+  const records = new Map<string, Record<string, unknown>>();
+  const summary = () =>
+    selected.flatMap((journey) => {
+      const record = records.get(journey.feature);
+      return record === undefined ? [] : [record];
+    });
   let failed = false;
-  let browser: BrowserRunner | undefined;
+  let workers: BrowserWorker[] = [];
   let buildMs = 0;
+  let workerMs = 0;
   let journeyMs = 0;
+  let journeyRunMs = 0;
   let negativeMs = 0;
   let coverageMs = 0;
   try {
     const buildStarted = performance.now();
     await buildIsolatedServer(build);
     buildMs = Math.round(performance.now() - buildStarted);
-    browser = await startBrowser(evidence);
+    const workersStarted = performance.now();
+    workers = await startWorkers(lanes, build, evidence);
+    workerMs = Math.round(performance.now() - workersStarted);
     const covered = new Set<string>();
-    for (const journey of selected) {
+    const journeysStarted = performance.now();
+    await drain(selected, workers, async (journey, worker) => {
       const journeyStarted = performance.now();
-      const outcome = await journeyOutcome(
-        journey,
-        times,
-        build,
-        evidence,
-        registered,
-        browser,
-      );
+      const outcome = await journeyOutcome(journey, times, evidence, worker);
       const wallMs = Math.round(performance.now() - journeyStarted);
-      journeyMs += wallMs;
+      journeyRunMs += wallMs;
+      for (const entry of outcome.runs)
+        for (const route of entry.registered) registered.add(route);
       for (const route of outcome.routes) covered.add(route);
       const passed = outcome.problems.length === 0;
       if (!passed) failed = true;
+      writeOutput(outcome.runs);
       process.stdout.write(
         `${passed ? 'PASS' : 'FAIL'} ${journey.feature} (${outcome.runs.length}/${times} runs; ${outcome.routes.size} routes through the UI; ${wallMs} ms)\n`,
       );
@@ -289,26 +374,24 @@ async function main(): Promise<number> {
         problems: outcome.problems,
         routes: [...outcome.routes].toSorted(),
         wallMs,
-        runs: outcome.runs,
+        runs: outcome.runs.map(evidenceOf),
       };
-      summary.push(record);
+      records.set(journey.feature, record);
       await writeFile(
         join(evidence, `${journey.feature}.json`),
         `${JSON.stringify(record, null, 2)}\n`,
       );
-      if (!passed) break;
-    }
-    const rejected: Record<string, unknown>[] = [];
-    for (const negative of failed ? [] : negatives) {
-      const negativeStarted = performance.now();
-      const outcome = await run(
-        negative.spec,
-        build,
-        join(evidence, `negative.${negative.name}`),
-        registered,
-        browser,
-      );
-      negativeMs += Math.round(performance.now() - negativeStarted);
+      return passed;
+    });
+    journeyMs = Math.round(performance.now() - journeysStarted);
+    const verdicts = new Map<string, Record<string, unknown>>();
+    const negativesStarted = performance.now();
+    await drain(failed ? [] : negatives, workers, async (negative, worker) => {
+      const outcome = await worker.run({
+        spec: negative.spec,
+        folder: join(evidence, `negative.${negative.name}`),
+      });
+      for (const route of outcome.registered) registered.add(route);
       const verdict =
         !outcome.passed &&
         outcome.failures.length > 0 &&
@@ -316,12 +399,13 @@ async function main(): Promise<number> {
           negative.rejectedWhen.test(failure),
         );
       if (!verdict) failed = true;
-      rejected.push({
+      verdicts.set(negative.name, {
         ...negative,
         rejectedWhen: String(negative.rejectedWhen),
         rejected: verdict,
-        outcome,
+        outcome: evidenceOf(outcome),
       });
+      if (!verdict) writeOutput([outcome]);
       process.stdout.write(
         `${verdict ? 'REJECTED' : 'NOT REJECTED'} negative.${negative.name} (${negative.plants})\n`,
       );
@@ -329,8 +413,13 @@ async function main(): Promise<number> {
         process.stdout.write(
           `  negative.${negative.name}: ${outcome.passed ? 'the planted journey passed' : `it failed for another reason: ${outcome.failures.join('; ')}`}; the runner must reject it for what it plants\n`,
         );
-      if (!verdict) break;
-    }
+      return verdict;
+    });
+    negativeMs = Math.round(performance.now() - negativesStarted);
+    const rejected = negatives.flatMap((negative) => {
+      const verdict = verdicts.get(negative.name);
+      return verdict === undefined ? [] : [verdict];
+    });
     if (all && !failed && rejected.length !== recordedNegatives) {
       failed = true;
       process.stdout.write(
@@ -338,15 +427,16 @@ async function main(): Promise<number> {
       );
     }
     const report: Record<string, unknown> = {
-      journeys: summary.length,
+      journeys: records.size,
       requestedJourneys: selected.map((journey) => journey.feature),
       skippedJourneys: selected
-        .slice(summary.length)
+        .filter((journey) => !records.has(journey.feature))
         .map((journey) => journey.feature),
       skippedNegatives: negatives
-        .slice(rejected.length)
+        .filter((negative) => !verdicts.has(negative.name))
         .map((negative) => negative.name),
       repetitions: times,
+      workers: lanes,
       negatives: rejected,
       registered: [...registered].toSorted(),
     };
@@ -391,14 +481,16 @@ async function main(): Promise<number> {
     coverageMs = Math.round(performance.now() - coverageStarted);
     report.passed = !failed;
     report.complete =
-      summary.length === selected.length &&
+      records.size === selected.length &&
       rejected.length === negatives.length &&
-      summary.every(
+      summary().every(
         (record) => Array.isArray(record.runs) && record.runs.length === times,
       );
     report.timings = {
       buildMs,
+      workerMs,
       journeyMs,
+      journeyRunMs,
       negativeMs,
       coverageMs,
       totalMs: Math.round(performance.now() - started),
@@ -415,10 +507,10 @@ async function main(): Promise<number> {
           passed: false,
           complete: false,
           error: error instanceof Error ? error.message : String(error),
-          results: summary,
+          results: summary(),
           requestedJourneys: selected.map((journey) => journey.feature),
           skippedJourneys: selected
-            .slice(summary.length)
+            .filter((journey) => !records.has(journey.feature))
             .map((journey) => journey.feature),
         },
         null,
@@ -429,13 +521,13 @@ async function main(): Promise<number> {
     throw error;
   } finally {
     try {
-      await browser?.close();
+      await Promise.all(workers.map((worker) => worker.close()));
     } finally {
       await rm(build, { recursive: true, force: true });
     }
   }
   process.stdout.write(
-    `Browser time: build ${buildMs} ms; journeys ${journeyMs} ms; negatives ${negativeMs} ms; coverage ${coverageMs} ms; total ${Math.round(performance.now() - started)} ms.\n`,
+    `Browser time: build ${buildMs} ms; ${lanes} browsers started in ${workerMs} ms; journeys ${journeyMs} ms (${journeyRunMs} ms of journey time); negatives ${negativeMs} ms; coverage ${coverageMs} ms; total ${Math.round(performance.now() - started)} ms.\n`,
   );
   process.stdout.write(`Browser evidence: ${evidence}\n`);
   return failed ? 1 : 0;
