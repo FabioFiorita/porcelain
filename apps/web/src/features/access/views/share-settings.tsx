@@ -1,6 +1,7 @@
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import { Spinner } from '@/components/ui/spinner';
+import { desktopShell } from '@/shared/shell';
 import { useRemoteAccess } from '../queries/share';
 import { connectionErrorMessage } from '../rules/connection-error-message';
 import type { Environment, ShareConnection } from '../rules/share';
@@ -57,6 +58,7 @@ function ShareContent({
 export function ShareSettings({ environment }: { environment: Environment }) {
   const connection = useAccessStore((state) => state.connection);
   return (
+    desktopShell &&
     connection && (
       <ShareContent connection={connection} environment={environment} />
     )
