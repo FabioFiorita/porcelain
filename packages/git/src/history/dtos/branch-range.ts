@@ -32,7 +32,7 @@ export type BranchRange =
 export type BranchDiffsRequest = {
   baseOid: string;
   headOid: string;
-  paths: string[];
+  paths: readonly (readonly string[])[];
 };
 
 type BranchBase = {

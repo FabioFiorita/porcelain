@@ -53,7 +53,7 @@ export type CommitFiles = {
 export type CommitDiffsRequest = {
   oid: string;
   parent?: number;
-  paths: string[];
+  paths: readonly (readonly string[])[];
 };
 export type HistoryCheckout = {
   path: string;

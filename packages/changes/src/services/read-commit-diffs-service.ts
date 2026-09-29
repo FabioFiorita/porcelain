@@ -24,7 +24,7 @@ export class ReadCommitDiffsService {
         worktreeId: input.worktreeId,
         oid: input.oid,
         parent: input.parent,
-        paths: input.paths.flat(),
+        paths: input.paths,
       },
       signal,
     );

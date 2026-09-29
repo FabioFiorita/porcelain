@@ -1,4 +1,5 @@
 import { CommitNotFoundError } from '../errors/commit-not-found-error.ts';
+import { IncompleteDiffReadError } from '../errors/incomplete-diff-read-error.ts';
 import type { ChangeDiffContent } from '../models/change-diff.ts';
 import type {
   ReadBranchDiffsInput,
@@ -6,7 +7,6 @@ import type {
 } from '../models/read-branch-diffs.ts';
 import type { BranchRangeReader } from '../ports/branch-range-reader.ts';
 
-const UNTOUCHED: ChangeDiffContent = { kind: 'metadata-only', patch: '' };
 const OVER_LIMIT: ChangeDiffContent = { kind: 'omitted', reason: 'size-limit' };
 
 export class ReadBranchDiffsService {
@@ -25,7 +25,7 @@ export class ReadBranchDiffsService {
         worktreeId: input.worktreeId,
         baseOid: input.baseOid,
         headOid: input.headOid,
-        paths: input.paths.flat(),
+        paths: input.paths,
       },
       signal,
     );
@@ -36,13 +36,13 @@ export class ReadBranchDiffsService {
         : [],
     );
     return {
-      diffs: input.paths.map((paths) => ({
-        paths: [...paths],
-        content:
-          read.kind === 'over-limit'
-            ? OVER_LIMIT
-            : (patches.get(paths.join('\0')) ?? UNTOUCHED),
-      })),
+      diffs: input.paths.map((paths) => {
+        if (read.kind === 'over-limit')
+          return { paths: [...paths], content: OVER_LIMIT };
+        const content = patches.get(paths.join('\0'));
+        if (content === undefined) throw new IncompleteDiffReadError();
+        return { paths: [...paths], content };
+      }),
     };
   }
 }

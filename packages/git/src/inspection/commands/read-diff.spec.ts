@@ -3,7 +3,12 @@ import { chmodSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { readCommitDiffs, readDiff, readDiffs } from './read-diff.ts';
+import {
+  readCommitDiffs,
+  readDiff,
+  readDiffs,
+  readRangeDiffs,
+} from './read-diff.ts';
 import { gitLimits } from '../../../spec/fixtures/git-limits.ts';
 
 type Change = Parameters<typeof readDiff>[1];
@@ -297,4 +302,80 @@ describe('readCommitDiffs', () => {
       ]).toEqual(paths);
     },
   );
+});
+
+describe('reading files the way their listing paired them', () => {
+  const moveWithEdit = () => {
+    git('mv', 'a.txt', 'moved.txt');
+    write('moved.txt', 'one\ntwo\nthree\nfour\n');
+  };
+  const keys = (sections: Map<string, unknown> | null): string[] =>
+    sections === null ? [] : [...sections.keys()];
+
+  it('reads a staged deletion and addition alone when the status listed them apart', async () => {
+    moveWithEdit();
+    git('add', '--all');
+    const [deleted, added] = await readDiffs(
+      session(),
+      [
+        change('staged', 'a.txt', { kind: 'deleted', newPath: null }),
+        change('staged', 'moved.txt', { kind: 'added', oldPath: null }),
+      ],
+      gitLimits,
+    );
+    const patch = (content: typeof deleted) =>
+      content?.kind === 'text' ? content.patch : '';
+    expect(patch(deleted)).toMatch(/^deleted file mode/mu);
+    expect(patch(added)).toMatch(/^\+four$/mu);
+  });
+
+  it("reads a commit's deletion and addition alone when they are asked for alone", async () => {
+    moveWithEdit();
+    const oid = commit('move');
+    expect(
+      keys(
+        await readCommitDiffs(
+          checkout,
+          oid,
+          1,
+          ['a.txt', 'moved.txt'],
+          gitLimits,
+        ),
+      ),
+    ).toEqual(['a.txt', 'moved.txt']);
+  });
+
+  it("reads a range's rename under both of its paths when asked for as a pair", async () => {
+    const base = git('rev-parse', 'HEAD');
+    moveWithEdit();
+    const tip = commit('move');
+    expect(
+      keys(
+        await readRangeDiffs(
+          checkout,
+          base,
+          tip,
+          [['a.txt', 'moved.txt']],
+          gitLimits,
+        ),
+      ),
+    ).toEqual(['a.txt\0moved.txt']);
+  });
+
+  it("reads a range's deletion and addition alone when they are asked for alone", async () => {
+    const base = git('rev-parse', 'HEAD');
+    moveWithEdit();
+    const tip = commit('move');
+    expect(
+      keys(
+        await readRangeDiffs(
+          checkout,
+          base,
+          tip,
+          ['a.txt', 'moved.txt'],
+          gitLimits,
+        ),
+      ),
+    ).toEqual(['a.txt', 'moved.txt']);
+  });
 });

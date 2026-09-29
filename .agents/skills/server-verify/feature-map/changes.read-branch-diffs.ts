@@ -22,7 +22,7 @@ export default defineFeature({
   paired: true,
   intent: 'intended',
   behaviour:
-    'A reviewer reads the diffs of chosen paths between the merge base and the branch tip they were shown, each path alone or as an old and new pair for a rename, and gets the patch Git reports between those two commits whatever the worktree holds now. A path the branch did not touch has an empty metadata-only patch. A commit the repository does not have is not found.',
+    'A reviewer reads the diffs of chosen paths between the merge base and the branch tip they were shown, each path alone or as an old and new pair for a rename, and gets the patch Git reports between those two commits whatever the worktree holds now. Each path is read the way the branch listing paired it, a rename as its old and new path and anything else alone, and a path Git produced no patch for is refused rather than shown as unchanged. A commit the repository does not have is not found.',
   cases: [
     defineCase({
       name: 'patches between the fork point and the tip',
@@ -55,11 +55,7 @@ export default defineFeature({
         diffs(session, {
           baseOid: state.fork,
           headOid: state.tip,
-          paths: [
-            [session.fixture.readme.path, 'GUIDE.md'],
-            ['notes.md'],
-            ['untouched.md'],
-          ],
+          paths: [[session.fixture.readme.path, 'GUIDE.md'], ['notes.md']],
         }),
       expect({ response, state, session, check, checkContract }) {
         check('status', 200, response.status);
@@ -76,12 +72,87 @@ export default defineFeature({
                 paths: ['notes.md'],
                 content: { kind: 'text', patch: state.added },
               },
+            ],
+          },
+          response.body,
+        );
+      },
+    }),
+    defineCase({
+      name: 'a rename the listing reported apart',
+      async setup(session) {
+        const fork = (await session.git('rev-parse', 'feature~2')).trim();
+        const tip = await head(session);
+        return {
+          fork,
+          tip,
+          deleted: await session.git(
+            'diff',
+            '--no-renames',
+            fork,
+            tip,
+            '--',
+            session.fixture.readme.path,
+          ),
+          added: await session.git(
+            'diff',
+            '--no-renames',
+            fork,
+            tip,
+            '--',
+            'GUIDE.md',
+          ),
+        };
+      },
+      request: (session, state) =>
+        diffs(session, {
+          baseOid: state.fork,
+          headOid: state.tip,
+          paths: [[session.fixture.readme.path], ['GUIDE.md']],
+        }),
+      expect({ response, state, session, check }) {
+        check('status', 200, response.status);
+        check(
+          'a deletion and an addition, each under its own path',
+          {
+            diffs: [
               {
-                paths: ['untouched.md'],
-                content: { kind: 'metadata-only', patch: '' },
+                paths: [session.fixture.readme.path],
+                content: { kind: 'text', patch: state.deleted },
+              },
+              {
+                paths: ['GUIDE.md'],
+                content: { kind: 'text', patch: state.added },
               },
             ],
           },
+          response.body,
+        );
+      },
+    }),
+    defineCase({
+      name: 'a path the branch did not change',
+      async setup(session) {
+        return {
+          fork: (await session.git('rev-parse', 'feature~2')).trim(),
+          tip: await head(session),
+        };
+      },
+      request: (session, state) =>
+        diffs(session, {
+          baseOid: state.fork,
+          headOid: state.tip,
+          paths: [['notes.md'], ['untouched.md']],
+        }),
+      expect({ response, check }) {
+        check('status', 422, response.status);
+        check(
+          'error body',
+          apiError(
+            422,
+            'Unprocessable Entity',
+            'Diff read returned fewer results than requested',
+          ),
           response.body,
         );
       },

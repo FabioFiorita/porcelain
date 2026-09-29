@@ -94,7 +94,7 @@ describe('readBranchDiffs', () => {
     const read = await readDiffs({
       baseOid: fork,
       headOid: tip,
-      paths: ['new.txt', 'a.txt'],
+      paths: [['new.txt'], ['a.txt']],
     });
     expect(patchOf(read, 'a.txt')).toMatch(/^\+three$/mu);
     expect(patchOf(read, 'new.txt')).toMatch(/^\+again$/mu);
@@ -105,7 +105,7 @@ describe('readBranchDiffs', () => {
     const read = await readDiffs({
       baseOid: fork,
       headOid: tip,
-      paths: ['old name.txt', 'new name.txt'],
+      paths: [['old name.txt', 'new name.txt']],
     });
     expect(
       read.kind === 'read' && read.sections?.get('old name.txt\0new name.txt'),
@@ -118,7 +118,7 @@ describe('readBranchDiffs', () => {
       await readDiffs({
         baseOid: '1'.repeat(40),
         headOid: tip,
-        paths: ['a.txt'],
+        paths: [['a.txt']],
       }),
     ).toEqual({ kind: 'missing' });
   });

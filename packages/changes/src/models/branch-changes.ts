@@ -51,7 +51,7 @@ export type BranchPatchesRequest = {
   worktreeId: string;
   baseOid: string;
   headOid: string;
-  paths: string[];
+  paths: string[][];
 };
 
 type BranchPatch = { paths: string[]; content: ChangeDiffContent };

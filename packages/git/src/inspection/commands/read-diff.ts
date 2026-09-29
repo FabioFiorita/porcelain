@@ -15,6 +15,8 @@ type DiffComparison =
 
 type Sections = Map<string, GitDiffResult> | null;
 
+export type PathGroup = string | readonly string[];
+
 export async function readDiff(
   session: CheckoutSession,
   change: GitOrdinaryChange,
@@ -38,7 +40,7 @@ export function readCommitDiffs(
   checkout: string,
   oid: string,
   parent: number,
-  paths: readonly string[],
+  paths: readonly PathGroup[],
   limits: GitLimits,
   signal?: AbortSignal,
 ): Promise<Sections> {
@@ -56,7 +58,7 @@ export function readRangeDiffs(
   checkout: string,
   from: string,
   to: string,
-  paths: readonly string[],
+  paths: readonly PathGroup[],
   limits: GitLimits,
   signal?: AbortSignal,
 ): Promise<Sections> {
@@ -90,7 +92,7 @@ async function readScopes(
         ? await readSections(
             session.path,
             { kind: 'staged' },
-            staged.flatMap(changePaths),
+            staged.map(changePaths),
             [],
             limits,
             signal,
@@ -101,7 +103,7 @@ async function readScopes(
         ? await readSections(
             session.path,
             { kind: 'unstaged' },
-            unstaged.flatMap(changePaths),
+            unstaged.map(changePaths),
             filters,
             limits,
             signal,
@@ -135,17 +137,53 @@ function changePaths(change: GitOrdinaryChange): string[] {
 async function readSections(
   checkout: string,
   comparison: DiffComparison,
-  paths: readonly string[],
+  paths: readonly PathGroup[],
   config: readonly string[],
   limits: GitLimits,
   signal?: AbortSignal,
 ): Promise<Sections> {
+  const groups = paths.map((group) =>
+    typeof group === 'string' ? [group] : [...new Set(group)],
+  );
+  const alone = await readPaths(
+    checkout,
+    comparison,
+    groups.filter((group) => group.length === 1).flat(),
+    false,
+    config,
+    limits,
+    signal,
+  );
+  const paired = await readPaths(
+    checkout,
+    comparison,
+    groups.filter((group) => group.length > 1).flat(),
+    true,
+    config,
+    limits,
+    signal,
+  );
+  return alone === null || paired === null
+    ? null
+    : new Map([...alone, ...paired]);
+}
+
+async function readPaths(
+  checkout: string,
+  comparison: DiffComparison,
+  paths: readonly string[],
+  renames: boolean,
+  config: readonly string[],
+  limits: GitLimits,
+  signal?: AbortSignal,
+): Promise<Sections> {
+  if (paths.length === 0) return new Map();
   const pathspecs = [...new Set(paths)].map((path) => `:(top,literal)${path}`);
   let output: Buffer;
   try {
     output = await runInspection(
       checkout,
-      diffArguments(comparison, pathspecs),
+      diffArguments(comparison, pathspecs, renames),
       limits,
       signal,
       { maxBytes: limits.inspection.diffBatchBytes, config },
@@ -160,6 +198,7 @@ async function readSections(
 function diffArguments(
   comparison: DiffComparison,
   pathspecs: readonly string[],
+  renames: boolean,
 ): string[] {
   return [
     ...(comparison.kind === 'commit'
@@ -177,7 +216,7 @@ function diffArguments(
     '--no-ext-diff',
     '--no-textconv',
     '--no-color',
-    '--find-renames=50%',
+    renames ? '--find-renames=50%' : '--no-renames',
     '--diff-algorithm=myers',
     '--no-indent-heuristic',
     '--unified=3',

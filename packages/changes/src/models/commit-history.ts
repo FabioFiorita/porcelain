@@ -57,7 +57,7 @@ export type CommitPatchesRequest = {
   worktreeId: string;
   oid: string;
   parent: number | undefined;
-  paths: string[];
+  paths: string[][];
 };
 
 type CommitPatch = { paths: string[]; content: ChangeDiffContent };

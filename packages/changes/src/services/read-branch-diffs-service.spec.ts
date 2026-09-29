@@ -29,7 +29,7 @@ describe('ReadBranchDiffsService', () => {
         worktreeId: 'w',
         baseOid,
         headOid,
-        paths: [['a.md'], ['old.md', 'new.md'], ['untouched.md']],
+        paths: [['a.md'], ['old.md', 'new.md']],
       }),
     ).toEqual({
       diffs: [
@@ -38,12 +38,34 @@ describe('ReadBranchDiffsService', () => {
           paths: ['old.md', 'new.md'],
           content: { kind: 'metadata-only', patch: 'rename' },
         },
-        {
-          paths: ['untouched.md'],
-          content: { kind: 'metadata-only', patch: '' },
-        },
       ],
     });
+  });
+
+  it('refuses to answer a file Git read no patch for instead of calling it unchanged', async () => {
+    const read = new ReadBranchDiffsService(
+      new InMemoryBranchRangeReader({
+        patches: {
+          [range]: {
+            kind: 'within-limit',
+            patches: [
+              {
+                paths: ['old.md', 'new.md'],
+                content: { kind: 'metadata-only', patch: 'rename' },
+              },
+            ],
+          },
+        },
+      }),
+    );
+    await expect(
+      read.execute({
+        worktreeId: 'w',
+        baseOid,
+        headOid,
+        paths: [['old.md'], ['new.md']],
+      }),
+    ).rejects.toMatchObject({ name: 'IncompleteDiffReadError' });
   });
 
   it('omits every diff when the range is over the read limit', async () => {
