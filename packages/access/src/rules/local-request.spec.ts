@@ -65,4 +65,41 @@ describe('localRequest', () => {
     expect(request({ host: undefined })).toBe(false);
     expect(request({ host: 'local\0host' })).toBe(false);
   });
+
+  it('is local when the host browser names its own loopback page as origin and referrer', () => {
+    expect(
+      request({
+        origin: 'http://127.0.0.1:4173',
+        referer: 'http://127.0.0.1:4173/settings/sharing',
+        fetchSite: 'same-origin',
+      }),
+    ).toBe(true);
+  });
+
+  it.each([
+    ['a tunnel page', 'https://porcelain.example.com'],
+    ['a page on the local network', 'http://192.168.1.20:4173'],
+    ['a loopback page of another server', 'http://127.0.0.1:5173'],
+    ['a loopback page over another scheme', 'https://127.0.0.1:4173'],
+    ['an opaque origin', 'null'],
+    ['an unreadable origin', 'not an origin'],
+  ])(
+    'is not local when a browser sent it from %s, as one a proxy on this machine relayed without saying so',
+    (_page, origin) => {
+      expect(request({ origin })).toBe(false);
+    },
+  );
+
+  it('is not local when the browser page that asked is elsewhere', () => {
+    expect(
+      request({ referer: 'https://porcelain.example.com/settings/sharing' }),
+    ).toBe(false);
+  });
+
+  it.each(['cross-site', 'same-site', 'none'])(
+    'is not local when the browser says the request is %s',
+    (fetchSite) => {
+      expect(request({ fetchSite })).toBe(false);
+    },
+  );
 });

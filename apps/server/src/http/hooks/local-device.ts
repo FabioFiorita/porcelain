@@ -6,6 +6,10 @@ export type LocalDeviceOptions = {
   access: { checkLocalRequest: CheckLocalRequestUseCasePort };
 };
 
+function headerValue(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value.join(', ') : value;
+}
+
 export function requireLocalDevice(options: LocalDeviceOptions) {
   return async (request: FastifyRequest) => {
     const verdict = await options.access.checkLocalRequest.execute(
@@ -14,6 +18,9 @@ export function requireLocalDevice(options: LocalDeviceOptions) {
         remoteAddress: request.socket.remoteAddress,
         localAddress: request.socket.localAddress,
         headers: Object.keys(request.headers),
+        origin: request.headers.origin,
+        referer: request.headers.referer,
+        fetchSite: headerValue(request.headers['sec-fetch-site']),
       },
       { signal: request.disconnected },
     );
