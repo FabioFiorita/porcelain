@@ -11,7 +11,7 @@ test('turning the ways in on and off from Settings shows each one starting, then
   const lan = settings.getByRole('switch', { name: 'Local network' });
   await expect.element(lan).not.toBeChecked();
   await expect
-    .element(settings.getByRole('alert').filter({ hasText: 'Not encrypted' }))
+    .element(settings.getByRole('note', { name: 'Local network warning' }))
     .toMatchTextContent(
       'Not encryptedAnyone on the same network can read what Porcelain shows and the device credentials it sends. For an encrypted connection, use Tailscale.',
     );

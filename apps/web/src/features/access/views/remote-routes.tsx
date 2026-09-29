@@ -146,7 +146,7 @@ function LocalNetworkSettings({
       <p className="text-xs text-muted-foreground">
         {localNetworkNote(remote)}
       </p>
-      <Alert>
+      <Alert role="note" aria-label="Local network warning">
         <ShieldAlertIcon />
         <AlertTitle>Not encrypted</AlertTitle>
         <AlertDescription>
