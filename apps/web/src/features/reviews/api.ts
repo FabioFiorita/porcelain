@@ -14,6 +14,9 @@ import {
   setReviewedLayerResponseSchema,
   createCommentThreadRequestSchema,
   createCommentThreadResponseSchema,
+  deleteCommentMessageResponseSchema,
+  editCommentMessageRequestSchema,
+  editCommentMessageResponseSchema,
   listCommentThreadsResponseSchema,
   markCommentsSeenResponseSchema,
   replyToCommentRequestSchema,
@@ -92,6 +95,25 @@ export function createCommentsLive(transport: typeof fetch): CommentsPort {
         },
       ),
     ],
+    edit: async ({ worktreeId, threadId, messageId, body, signal }) => [
+      await requestJson(
+        transport,
+        `${threadPath(worktreeId, threadId)}/messages/${encodeURIComponent(messageId)}`,
+        editCommentMessageResponseSchema,
+        {
+          method: 'PATCH',
+          ...json(editCommentMessageRequestSchema.parse({ body })),
+          signal,
+        },
+      ),
+    ],
+    remove: ({ worktreeId, threadId, messageId, signal }) =>
+      requestJson(
+        transport,
+        `${threadPath(worktreeId, threadId)}/messages/${encodeURIComponent(messageId)}`,
+        deleteCommentMessageResponseSchema,
+        { method: 'DELETE', signal },
+      ),
     seen: ({ worktreeId, throughRevision, signal }) =>
       requestJson(
         transport,

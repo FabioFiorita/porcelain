@@ -1,4 +1,4 @@
-import { asc, count, eq, inArray, max, sql, sum } from 'drizzle-orm';
+import { and, asc, count, eq, inArray, max, sql, sum } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { commentRevision } from '../../db/schema/comment-revision.ts';
 import {
@@ -7,7 +7,9 @@ import {
 } from '../../db/schema/comment-threads.ts';
 import type {
   AgentReply,
+  CommentEdit,
   CommentMessage,
+  CommentRemoval,
   CommentReply,
   CommentResolution,
   CommentThread,
@@ -29,6 +31,7 @@ function messageFromRow(row: MessageRow): CommentMessage {
     body: row.body,
     author: row.author,
     ...(row.createdAt === null ? {} : { createdAt: row.createdAt }),
+    ...(row.editedAt === null ? {} : { editedAt: row.editedAt }),
   };
 }
 
@@ -238,5 +241,77 @@ export class SqliteCommentStore implements CommentStore {
       },
       { behavior: 'immediate' },
     );
+  }
+
+  edit(input: CommentEdit): CommentThread {
+    const { thread } = input;
+    return this.db.transaction(
+      (tx) => {
+        const revision = nextRevision(tx);
+        tx.update(commentMessages)
+          .set({ body: input.body, editedAt: input.editedAt })
+          .where(
+            and(
+              eq(commentMessages.threadId, thread.id),
+              eq(commentMessages.id, input.messageId),
+            ),
+          )
+          .run();
+        tx.update(commentThreads)
+          .set({ revision, sizeBytes: input.sizeBytes })
+          .where(eq(commentThreads.id, thread.id))
+          .run();
+        return {
+          ...structuredClone(thread),
+          messages: thread.messages.map((message) =>
+            message.id === input.messageId
+              ? { ...message, body: input.body, editedAt: input.editedAt }
+              : structuredClone(message),
+          ),
+          revision,
+        };
+      },
+      { behavior: 'immediate' },
+    );
+  }
+
+  removeMessage(input: CommentRemoval): CommentThread {
+    const { thread } = input;
+    return this.db.transaction(
+      (tx) => {
+        tx.delete(commentMessages)
+          .where(
+            and(
+              eq(commentMessages.threadId, thread.id),
+              eq(commentMessages.id, input.messageId),
+            ),
+          )
+          .run();
+        const remaining = tx
+          .select()
+          .from(commentMessages)
+          .where(eq(commentMessages.threadId, thread.id))
+          .orderBy(asc(commentMessages.sequence))
+          .all();
+        const revision = nextRevision(tx);
+        tx.update(commentThreads)
+          .set({ revision, sizeBytes: input.sizeBytes })
+          .where(eq(commentThreads.id, thread.id))
+          .run();
+        return {
+          ...structuredClone(thread),
+          messages: remaining.map(messageFromRow),
+          revision,
+        };
+      },
+      { behavior: 'immediate' },
+    );
+  }
+
+  remove(input: { threadId: string }): void {
+    this.db
+      .delete(commentThreads)
+      .where(eq(commentThreads.id, input.threadId))
+      .run();
   }
 }

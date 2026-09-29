@@ -1,5 +1,7 @@
 import {
   CreateCommentThreadService,
+  DeleteCommentMessageService,
+  EditCommentMessageService,
   ResolvePublishedReviewService,
   ListCommentThreadsService,
   ListReviewedFilesService,
@@ -19,6 +21,8 @@ import { HmacSignatureSource } from '../adapters/reviews/hmac-signature-source.t
 import { RandomSecretSource } from '../adapters/runtime/random-secret-source.ts';
 import { AtWorktreePathUseCase } from '../use-cases/reviews/at-worktree-path.ts';
 import { CreateCommentThreadUseCase } from '../use-cases/reviews/create-comment-thread.ts';
+import { DeleteCommentMessageUseCase } from '../use-cases/reviews/delete-comment-message.ts';
+import { EditCommentMessageUseCase } from '../use-cases/reviews/edit-comment-message.ts';
 import { InvalidateReviewedMarksUseCase } from '../use-cases/reviews/invalidate-reviewed-marks.ts';
 import { ListCommentThreadsUseCase } from '../use-cases/reviews/list-comment-threads.ts';
 import { ListReviewedFilesUseCase } from '../use-cases/reviews/list-reviewed-files.ts';
@@ -183,6 +187,20 @@ export function composeReviews(
     createCommentThread,
     replyToComment,
     updateCommentThread,
+    editCommentMessage: new EditCommentMessageUseCase(
+      checkWorktree,
+      new EditCommentMessageService(commentStore, clock, limits.comments),
+      lanes,
+      laneKeys,
+      events,
+    ),
+    deleteCommentMessage: new DeleteCommentMessageUseCase(
+      checkWorktree,
+      new DeleteCommentMessageService(commentStore),
+      lanes,
+      laneKeys,
+      events,
+    ),
     markCommentsSeen: new MarkCommentsSeenUseCase(
       checkWorktree,
       new MarkCommentsSeenService(stores.commentsSeen, commentStore),

@@ -44,6 +44,7 @@ export const commentMessages = sqliteTable(
     body: text('body').notNull(),
     author: text('author').$type<'reviewer' | 'agent'>().notNull(),
     createdAt: text('created_at'),
+    editedAt: text('edited_at'),
   },
   (table) => [
     index('comment_messages_id').on(table.id),

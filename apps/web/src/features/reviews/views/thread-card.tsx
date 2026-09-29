@@ -1,9 +1,23 @@
 import { formatDistanceToNowStrict } from 'date-fns';
-import { CheckIcon, RotateCcwIcon, SparklesIcon, UserIcon } from 'lucide-react';
+import {
+  CheckIcon,
+  EllipsisIcon,
+  PencilIcon,
+  RotateCcwIcon,
+  SparklesIcon,
+  Trash2Icon,
+  UserIcon,
+} from 'lucide-react';
 import { useRef, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Bubble, BubbleContent } from '@/components/ui/bubble';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
 import {
   Message,
@@ -14,7 +28,12 @@ import {
 } from '@/components/ui/message';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/shared/lib/utils';
-import { useReplyComment, useResolveComment } from '../commands/comments';
+import {
+  useDeleteComment,
+  useEditComment,
+  useReplyComment,
+  useResolveComment,
+} from '../commands/comments';
 import {
   anchorLabel,
   type CommentAuthor,
@@ -70,13 +89,131 @@ function ThreadStarter({ thread }: { thread: CommentThread }) {
   );
 }
 
+type MessageOwner = {
+  scope: ReviewScope;
+  context: ReviewsContext;
+  threadId: string;
+};
+
+function MessageMenu({
+  owner,
+  messageId,
+  onEdit,
+}: {
+  owner: MessageOwner;
+  messageId: string;
+  onEdit: () => void;
+}) {
+  const remove = useDeleteComment(owner.scope, owner.context);
+  return (
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              aria-label="Comment actions"
+              disabled={remove.isPending}
+            />
+          }
+        >
+          <EllipsisIcon />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onClick={onEdit}>
+            <PencilIcon />
+            Edit
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            variant="destructive"
+            onClick={() => remove.send({ threadId: owner.threadId, messageId })}
+          >
+            <Trash2Icon />
+            Delete
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      {remove.error != null && (
+        <span role="alert" className="font-normal text-destructive">
+          {reviewErrorMessage(remove.error)}
+        </span>
+      )}
+    </>
+  );
+}
+
+function MessageEditor({
+  owner,
+  message,
+  onDone,
+}: {
+  owner: MessageOwner;
+  message: Pick<CommentMessage, 'id' | 'body'>;
+  onDone: () => void;
+}) {
+  const [body, setBody] = useState(message.body);
+  const edit = useEditComment(owner.scope, owner.context);
+  const valid = commentBodyValid(body);
+  return (
+    <form
+      className="flex w-full flex-col gap-2"
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (!valid || edit.isPending) return;
+        edit.send(
+          { threadId: owner.threadId, messageId: message.id, body },
+          onDone,
+        );
+      }}
+    >
+      <Textarea
+        autoFocus
+        aria-label="Edit comment"
+        value={body}
+        maxLength={edit.bodyLimit}
+        disabled={edit.isPending}
+        onChange={(event) => setBody(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape') onDone();
+        }}
+      />
+      {edit.error != null && (
+        <p role="alert" className="text-[11px] text-destructive">
+          {reviewErrorMessage(edit.error)}
+        </p>
+      )}
+      <div className="flex items-center justify-end gap-1">
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          disabled={edit.isPending}
+          onClick={onDone}
+        >
+          Cancel
+        </Button>
+        <Button type="submit" size="sm" disabled={edit.isPending || !valid}>
+          {edit.isPending ? 'Saving…' : 'Save'}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
 function ThreadMessage({
   message,
+  owner,
   wide = false,
 }: {
-  message: Pick<CommentMessage, 'author' | 'body' | 'createdAt'>;
+  message: Pick<
+    CommentMessage,
+    'id' | 'author' | 'body' | 'createdAt' | 'editedAt'
+  >;
+  owner: MessageOwner;
   wide?: boolean;
 }) {
+  const [editing, setEditing] = useState(false);
   const mine = message.author !== 'agent';
   const timestamp = relative(message.createdAt);
   return (
@@ -88,16 +225,34 @@ function ThreadMessage({
           {timestamp != null && (
             <span className="font-normal">{timestamp}</span>
           )}
+          {message.editedAt != null && (
+            <span className="font-normal">edited</span>
+          )}
+          {mine && !editing && (
+            <MessageMenu
+              owner={owner}
+              messageId={message.id}
+              onEdit={() => setEditing(true)}
+            />
+          )}
         </MessageHeader>
-        <Bubble
-          variant={mine ? 'tinted' : 'muted'}
-          align={mine ? 'end' : 'start'}
-          className={wide ? 'max-w-full' : 'max-w-[85%]'}
-        >
-          <BubbleContent className="whitespace-pre-wrap">
-            {message.body}
-          </BubbleContent>
-        </Bubble>
+        {editing ? (
+          <MessageEditor
+            owner={owner}
+            message={message}
+            onDone={() => setEditing(false)}
+          />
+        ) : (
+          <Bubble
+            variant={mine ? 'tinted' : 'muted'}
+            align={mine ? 'end' : 'start'}
+            className={wide ? 'max-w-full' : 'max-w-[85%]'}
+          >
+            <BubbleContent className="whitespace-pre-wrap">
+              {message.body}
+            </BubbleContent>
+          </Bubble>
+        )}
       </MessageContent>
     </Message>
   );
@@ -124,6 +279,7 @@ export function ThreadCard({
   const resolve = useResolveComment(scope, context);
   const state = threadState(thread);
   const listed = onReveal != null;
+  const owner = { scope, context, threadId: thread.id };
 
   const where = listed ? (
     <button
@@ -264,7 +420,12 @@ export function ThreadCard({
         <MessageGroup>
           {(expanded ? thread.messages : thread.messages.slice(-1)).map(
             (message) => (
-              <ThreadMessage key={message.id} message={message} wide />
+              <ThreadMessage
+                key={message.id}
+                message={message}
+                owner={owner}
+                wide
+              />
             ),
           )}
         </MessageGroup>
@@ -339,7 +500,7 @@ export function ThreadCard({
       </div>
       <MessageGroup>
         {thread.messages.map((message) => (
-          <ThreadMessage key={message.id} message={message} />
+          <ThreadMessage key={message.id} message={message} owner={owner} />
         ))}
       </MessageGroup>
       {replyForm}

@@ -11,6 +11,8 @@ import { commentsQueryOptions } from '../queries/comments';
 import type {
   CommentsContext,
   CommentThread,
+  DeleteCommentInput,
+  EditCommentInput,
   NewComment,
   ReplyCommentInput,
   ResolveCommentInput,
@@ -46,12 +48,13 @@ async function mergeCommentThreads(
   key: readonly unknown[],
   updated: CommentThread[],
   inventoryKey?: readonly unknown[],
+  removed: readonly string[] = [],
 ) {
   await client.cancelQueries({ queryKey: key, exact: true });
   client.setQueryData<CommentThread[]>(key, (current) => {
-    if (!current) return [...updated];
-    const byId = new Map(current.map((thread) => [thread.id, thread]));
+    const byId = new Map((current ?? []).map((thread) => [thread.id, thread]));
     for (const thread of updated) byId.set(thread.id, thread);
+    for (const threadId of removed) byId.delete(threadId);
     return [...byId.values()];
   });
   if (inventoryKey) void client.invalidateQueries({ queryKey: inventoryKey });
@@ -189,6 +192,55 @@ export function useResolveComment(
           const scoped = assertCommentScope(result, scope.worktreeId);
           await mergeCommentThreads(client, context.key, scoped);
           return scoped;
+        }),
+    }),
+  );
+}
+
+export function useEditComment(scope: ReviewScope, comments: CommentsContext) {
+  const context = commentContext(scope, comments);
+  const client = useQueryClient();
+  const edit = withSend(
+    useMutation({
+      mutationFn: (input: EditCommentInput) =>
+        enqueueComment(context, async () => {
+          const request = context.request();
+          const result = await context.api.edit({ ...request, ...input });
+          request.signal.throwIfAborted();
+          const scoped = assertCommentScope(result, scope.worktreeId);
+          await mergeCommentThreads(client, context.key, scoped);
+          return scoped;
+        }),
+    }),
+  );
+  return { ...edit, bodyLimit: COMMENT_BODY_LENGTH };
+}
+
+export function useDeleteComment(
+  scope: ReviewScope,
+  comments: CommentsContext,
+) {
+  const context = commentContext(scope, comments);
+  const client = useQueryClient();
+  return withSend(
+    useMutation({
+      mutationFn: (input: DeleteCommentInput) =>
+        enqueueComment(context, async () => {
+          const request = context.request();
+          const result = await context.api.remove({ ...request, ...input });
+          request.signal.throwIfAborted();
+          const kept = assertCommentScope(
+            result.thread ? [result.thread] : [],
+            scope.worktreeId,
+          );
+          await mergeCommentThreads(
+            client,
+            context.key,
+            kept,
+            queryKeys.inventory(context.connection.environmentId),
+            result.thread ? [] : [result.threadId],
+          );
+          return result;
         }),
     }),
   );

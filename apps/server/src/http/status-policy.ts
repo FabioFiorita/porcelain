@@ -87,6 +87,7 @@ import {
 } from '@porcelain/projects/errors';
 import {
   BoxLaneOutOfRangeError,
+  CommentAuthorMismatchError,
   CommentIdentityConflictError,
   CommentLimitExceededError,
   CommentRevisionMismatchError,
@@ -163,6 +164,7 @@ const rules: readonly StatusRule[] = [
     message: INVALID_REQUEST,
   },
   { errors: [InvalidPairingError], statusCode: 401 },
+  { errors: [CommentAuthorMismatchError], statusCode: 403 },
   {
     errors: [
       WorktreeNotFoundError,

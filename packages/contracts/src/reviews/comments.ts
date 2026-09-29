@@ -5,6 +5,7 @@ import {
   EVIDENCE_TOKEN_LENGTH,
   LINE_NUMBER_MAX,
 } from '../shared/limits.ts';
+import { absentAsNull } from '../shared/absent-as-null.ts';
 import { branchRefSchema } from '../shared/branch-ref.ts';
 import { relativePathSchema } from '../shared/relative-path.ts';
 import { worktreeIdSchema } from '../shared/worktree-params.ts';
@@ -55,6 +56,7 @@ const commentMessageSchema = z.object({
   body: bodySchema,
   author: commentAuthorSchema,
   createdAt: z.iso.datetime().optional(),
+  editedAt: z.iso.datetime().optional(),
 });
 
 const commentThreadSchema = z.object({
@@ -99,6 +101,18 @@ export const updateCommentThreadRequestSchema = z.strictObject({
 });
 export const updateCommentThreadResponseSchema = commentThreadSchema;
 
+export const commentMessageParamsSchema = commentThreadParamsSchema.extend({
+  messageId: z.uuid(),
+});
+export const editCommentMessageRequestSchema = z.strictObject({
+  body: bodySchema,
+});
+export const editCommentMessageResponseSchema = commentThreadSchema;
+export const deleteCommentMessageResponseSchema = z.object({
+  threadId: z.uuid(),
+  thread: absentAsNull(commentThreadSchema),
+});
+
 export const markCommentsSeenRequestSchema = z.strictObject({
   throughRevision: z.number().int().nonnegative(),
 });
@@ -133,6 +147,16 @@ export type UpdateCommentThreadRequest = z.output<
 >;
 export type UpdateCommentThreadResponse = z.output<
   typeof updateCommentThreadResponseSchema
+>;
+export type CommentMessageParams = z.output<typeof commentMessageParamsSchema>;
+export type EditCommentMessageRequest = z.output<
+  typeof editCommentMessageRequestSchema
+>;
+export type EditCommentMessageResponse = z.output<
+  typeof editCommentMessageResponseSchema
+>;
+export type DeleteCommentMessageResponse = z.output<
+  typeof deleteCommentMessageResponseSchema
 >;
 export type MarkCommentsSeenRequest = z.output<
   typeof markCommentsSeenRequestSchema

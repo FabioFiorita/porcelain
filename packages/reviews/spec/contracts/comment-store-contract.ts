@@ -323,6 +323,74 @@ export function commentStoreContract(
       ]);
     });
 
+    it('rewrites one message with its edit time at the next revision and the size given', () => {
+      const thread = reply(store, open(store, 'thread'), 'answer');
+      open(store, 'other', first, { sizeBytes: 50 });
+      const edited = store.edit({
+        thread,
+        messageId: 'thread-opening',
+        body: 'Rewritten',
+        editedAt: '2026-09-25T10:00:00.000Z',
+        sizeBytes: 90,
+      });
+      expect(edited).toEqual({
+        ...thread,
+        messages: [
+          {
+            ...message('thread-opening'),
+            body: 'Rewritten',
+            editedAt: '2026-09-25T10:00:00.000Z',
+          },
+          message('answer'),
+        ],
+        revision: 4,
+      });
+      expect(store.find({ threadId: 'thread' })).toEqual(edited);
+      expect(store.findMessage({ messageId: 'thread-opening' })).toMatchObject({
+        body: 'Rewritten',
+        editedAt: '2026-09-25T10:00:00.000Z',
+      });
+      expect(store.usage({ worktreeId: first })).toEqual({
+        threads: 2,
+        bytes: 140,
+      });
+    });
+
+    it('removes one message and keeps the rest of the thread at the next revision', () => {
+      const thread = reply(store, open(store, 'thread'), 'answer');
+      const kept = store.removeMessage({
+        thread,
+        messageId: 'thread-opening',
+        sizeBytes: 60,
+      });
+      expect(kept).toEqual({
+        ...thread,
+        messages: [message('answer')],
+        revision: 3,
+      });
+      expect(store.find({ threadId: 'thread' })).toEqual(kept);
+      expect(
+        store.findMessage({ messageId: 'thread-opening' }),
+      ).toBeUndefined();
+      expect(store.usage({ worktreeId: first })).toEqual({
+        threads: 1,
+        bytes: 60,
+      });
+    });
+
+    it('removes a thread with its messages', () => {
+      const thread = reply(store, open(store, 'thread'), 'answer');
+      const other = open(store, 'other');
+      store.remove({ threadId: thread.id });
+      expect(store.find({ threadId: 'thread' })).toBeUndefined();
+      expect(store.findMessage({ messageId: 'answer' })).toBeUndefined();
+      expect(store.list({ worktreeId: first })).toEqual([other]);
+      expect(store.usage({ worktreeId: first })).toEqual({
+        threads: 1,
+        bytes: 100,
+      });
+    });
+
     it('hands out copies, so changing a returned thread leaves the stored one unchanged', () => {
       open(store, 'thread').messages.push(message('intruder'));
       store.find({ threadId: 'thread' })?.messages.push(message('intruder'));

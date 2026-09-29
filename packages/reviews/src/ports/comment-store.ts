@@ -1,7 +1,9 @@
 import type { WorktreeKey, WorktreeKeys } from '@porcelain/kernel/models';
 import type {
   AgentReply,
+  CommentEdit,
   CommentMessageKey,
+  CommentRemoval,
   CommentReply,
   CommentResolution,
   CommentThread,
@@ -21,4 +23,7 @@ export interface CommentStore {
   insert(input: NewCommentThread): CommentThread;
   append(input: CommentReply): CommentThread;
   resolve(input: CommentResolution): CommentThread;
+  edit(input: CommentEdit): CommentThread;
+  removeMessage(input: CommentRemoval): CommentThread;
+  remove(input: CommentThreadKey): void;
 }

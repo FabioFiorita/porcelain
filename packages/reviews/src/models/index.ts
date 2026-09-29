@@ -2,7 +2,9 @@ export type {
   AgentReply,
   CommentAnchor,
   CommentAuthor,
+  CommentEdit,
   CommentMessage,
+  CommentRemoval,
   CommentReply,
   CommentResolution,
   CommentSeenMark,
@@ -12,6 +14,8 @@ export type {
   PostedCommentMessage,
 } from './comment-thread.ts';
 export type { CreateCommentThreadInput } from './create-comment-thread.ts';
+export type { DeleteCommentMessageInput } from './delete-comment-message.ts';
+export type { EditCommentMessageInput } from './edit-comment-message.ts';
 export type { InvalidateReviewedMarksInput } from './invalidate-reviewed-marks.ts';
 export type { ReadReviewEvidenceInput } from './read-review-evidence.ts';
 export type { ReplyToCommentInput } from './reply-to-comment.ts';

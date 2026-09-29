@@ -66,6 +66,17 @@ export function replyFits(
   );
 }
 
+export function rewriteFits(
+  thread: CommentThread,
+  usage: CommentUsage,
+  sizeBytes: number,
+  bytesPerWorktree: number,
+): boolean {
+  return (
+    usage.bytes - commentStorageSize(thread) + sizeBytes <= bytesPerWorktree
+  );
+}
+
 function sameComparison(
   left: CommentAnchor['comparison'],
   right: CommentAnchor['comparison'],

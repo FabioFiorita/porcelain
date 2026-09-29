@@ -1,4 +1,5 @@
 export { BoxLaneOutOfRangeError } from './box-lane-out-of-range-error.ts';
+export { CommentAuthorMismatchError } from './comment-author-mismatch-error.ts';
 export { CommentIdentityConflictError } from './comment-identity-conflict-error.ts';
 export { CommentLimitExceededError } from './comment-limit-exceeded-error.ts';
 export { CommentRevisionMismatchError } from './comment-revision-mismatch-error.ts';

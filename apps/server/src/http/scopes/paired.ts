@@ -2,6 +2,8 @@ import type { Limits } from '../../config/limits.ts';
 import type { FastifyInstance } from 'fastify';
 import type { BrowseProjectFoldersUseCase } from '../../use-cases/projects/browse-project-folders.ts';
 import type { CreateCommentThreadUseCase } from '../../use-cases/reviews/create-comment-thread.ts';
+import type { DeleteCommentMessageUseCase } from '../../use-cases/reviews/delete-comment-message.ts';
+import type { EditCommentMessageUseCase } from '../../use-cases/reviews/edit-comment-message.ts';
 import type { DiscoverProjectsUseCase } from '../../use-cases/projects/discover-projects.ts';
 import type { DismissInterruptedGitActionUseCase } from '../../use-cases/git-actions/dismiss-interrupted-git-action.ts';
 import type { EditFileUseCase } from '../../use-cases/files/edit-file.ts';
@@ -78,6 +80,8 @@ import { removeProject } from '../routes/projects/remove-project.ts';
 import { renameProject } from '../routes/projects/rename-project.ts';
 import { setFilePreference } from '../routes/projects/set-file-preference.ts';
 import { createCommentThread } from '../routes/reviews/create-comment-thread.ts';
+import { deleteCommentMessage } from '../routes/reviews/delete-comment-message.ts';
+import { editCommentMessage } from '../routes/reviews/edit-comment-message.ts';
 import { listCommentThreads } from '../routes/reviews/list-comment-threads.ts';
 import { markCommentsSeen } from '../routes/reviews/mark-comments-seen.ts';
 import { publishReview } from '../routes/reviews/publish-review.ts';
@@ -126,6 +130,8 @@ export type PairedUseCases = {
   };
   reviews: {
     createCommentThread: Pick<CreateCommentThreadUseCase, 'execute'>;
+    deleteCommentMessage: Pick<DeleteCommentMessageUseCase, 'execute'>;
+    editCommentMessage: Pick<EditCommentMessageUseCase, 'execute'>;
     listCommentThreads: Pick<ListCommentThreadsUseCase, 'execute'>;
     listReviewedFiles: Pick<ListReviewedFilesUseCase, 'execute'>;
     listReviewedLayers: Pick<ListReviewedLayersUseCase, 'execute'>;
@@ -237,6 +243,12 @@ export async function pairedScope(
   });
   server.register(updateCommentThread, {
     useCase: options.application.reviews.updateCommentThread,
+  });
+  server.register(editCommentMessage, {
+    useCase: options.application.reviews.editCommentMessage,
+  });
+  server.register(deleteCommentMessage, {
+    useCase: options.application.reviews.deleteCommentMessage,
   });
   server.register(markCommentsSeen, {
     useCase: options.application.reviews.markCommentsSeen,

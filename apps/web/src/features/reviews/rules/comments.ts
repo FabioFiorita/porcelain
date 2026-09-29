@@ -2,6 +2,8 @@ import { COMMENT_BODY_LENGTH } from '@porcelain/contracts/shared';
 import type {
   CreateCommentThreadRequest,
   CreateCommentThreadResponse,
+  DeleteCommentMessageResponse,
+  EditCommentMessageRequest,
   ReplyToCommentRequest,
   UpdateCommentThreadRequest,
 } from '@porcelain/contracts/reviews';
@@ -15,6 +17,11 @@ type CommentResolution = UpdateCommentThreadRequest;
 
 export type ReplyCommentInput = { threadId: string } & NewReply;
 export type ResolveCommentInput = { threadId: string } & CommentResolution;
+export type EditCommentInput = {
+  threadId: string;
+  messageId: string;
+} & EditCommentMessageRequest;
+export type DeleteCommentInput = { threadId: string; messageId: string };
 
 type CommentRequest = {
   projectId: string;
@@ -32,6 +39,12 @@ export type CommentsPort = {
   resolve: (
     request: CommentRequest & { threadId: string; input: CommentResolution },
   ) => Promise<CommentThread[]>;
+  edit: (
+    request: CommentRequest & EditCommentInput,
+  ) => Promise<CommentThread[]>;
+  remove: (
+    request: CommentRequest & DeleteCommentInput,
+  ) => Promise<DeleteCommentMessageResponse>;
   seen: (
     request: CommentRequest & { throughRevision: number },
   ) => Promise<{ worktreeId: string; seenThrough: number }>;

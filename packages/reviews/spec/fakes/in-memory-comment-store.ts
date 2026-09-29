@@ -1,5 +1,7 @@
 import type {
   AgentReply,
+  CommentEdit,
+  CommentRemoval,
   CommentReply,
   CommentResolution,
   CommentThread,
@@ -25,6 +27,11 @@ export class InMemoryCommentStore implements CommentStore {
   private readonly writes = new Map<string, Write>();
   private readonly resolutions = new Map<string, boolean>();
   private readonly revisions = new Map<string, number>();
+  private readonly edits = new Map<
+    string,
+    Pick<CommentMessage, 'body' | 'editedAt'>
+  >();
+  private readonly removedMessages = new Set<string>();
 
   list(input: { worktreeId: string }): CommentThread[] {
     return this.stored()
@@ -126,6 +133,47 @@ export class InMemoryCommentStore implements CommentStore {
     });
   }
 
+  edit(input: CommentEdit): CommentThread {
+    const revision = this.nextRevision();
+    const threadId = input.thread.id;
+    this.edits.set(input.messageId, {
+      body: input.body,
+      editedAt: input.editedAt,
+    });
+    this.writes.set(threadId, {
+      ...this.writtenBy(threadId),
+      sizeBytes: input.sizeBytes,
+    });
+    this.revisions.set(threadId, revision);
+    return this.find({ threadId }) ?? structuredClone(input.thread);
+  }
+
+  removeMessage(input: CommentRemoval): CommentThread {
+    const threadId = input.thread.id;
+    this.removedMessages.add(input.messageId);
+    const revision = this.nextRevision();
+    this.writes.set(threadId, {
+      ...this.writtenBy(threadId),
+      sizeBytes: input.sizeBytes,
+    });
+    this.revisions.set(threadId, revision);
+    return this.find({ threadId }) ?? structuredClone(input.thread);
+  }
+
+  remove(input: { threadId: string }): void {
+    this.rows.delete(input.threadId);
+  }
+
+  private writtenBy(threadId: string): Write {
+    const row = this.rows.get(threadId);
+    const current = row && this.current(row);
+    return {
+      sizeBytes: current?.sizeBytes ?? 0,
+      writtenByAgent: current?.writtenByAgent ?? false,
+      agentRevision: current?.agentRevision ?? 0,
+    };
+  }
+
   private stored(): Row[] {
     return [...this.rows.values()].map((row) => this.current(row));
   }
@@ -140,7 +188,9 @@ export class InMemoryCommentStore implements CommentStore {
         messages: [
           ...row.thread.messages,
           ...(this.replies.get(threadId) ?? []),
-        ],
+        ]
+          .filter((message) => !this.removedMessages.has(message.id))
+          .map((message) => ({ ...message, ...this.edits.get(message.id) })),
         resolved: this.resolutions.get(threadId) ?? row.thread.resolved,
         revision: this.revisions.get(threadId) ?? row.thread.revision,
       },

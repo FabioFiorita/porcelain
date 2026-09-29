@@ -32,6 +32,7 @@ export type CommentMessage = {
   body: string;
   author: CommentAuthor;
   createdAt?: string | undefined;
+  editedAt?: string | undefined;
 };
 
 export type CommentThread = {
@@ -75,6 +76,20 @@ export type CommentReply = {
   message: CommentMessage;
   sizeBytes: number;
   writtenByAgent: boolean;
+};
+
+export type CommentEdit = {
+  thread: CommentThread;
+  messageId: string;
+  body: string;
+  editedAt: string;
+  sizeBytes: number;
+};
+
+export type CommentRemoval = {
+  thread: CommentThread;
+  messageId: string;
+  sizeBytes: number;
 };
 
 export type CommentResolution = {

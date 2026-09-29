@@ -1,0 +1,1 @@
+ALTER TABLE `comment_messages` ADD `edited_at` text;
