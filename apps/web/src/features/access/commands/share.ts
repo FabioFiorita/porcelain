@@ -5,6 +5,7 @@ import { shareApi } from '../api';
 import {
   pairedAccessQueryOptions,
   remoteAccessQueryOptions,
+  serviceUpdateQueryOptions,
 } from '../queries/share';
 import { issuedLink, type ShareConnection } from '../rules/share';
 
@@ -86,6 +87,25 @@ export function useRenameEnvironment(connection: ShareConnection) {
     submit: mutation.mutateAsync,
     isPending: mutation.isPending,
     isSuccess: mutation.isSuccess,
+    error: mutation.error,
+  };
+}
+
+export function useStartServiceUpdate(connection: ShareConnection) {
+  const client = useQueryClient();
+  const key = serviceUpdateQueryOptions(connection).queryKey;
+  const mutation = useMutation({
+    scope: { id: `service-update:${connection.environmentId}` },
+    mutationFn: (version: string) =>
+      shareApi.startServiceUpdate(connection.request().signal, version),
+    onSuccess: async (state) => {
+      await client.cancelQueries({ queryKey: key });
+      client.setQueryData(key, state);
+    },
+  });
+  return {
+    submit: mutation.mutate,
+    isPending: mutation.isPending,
     error: mutation.error,
   };
 }

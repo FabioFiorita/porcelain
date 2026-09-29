@@ -8,6 +8,7 @@ import { promisify } from 'node:util';
 import { z } from 'zod';
 import { FixedNetworkAddressReader } from '../apps/server/spec/fakes/fixed-network-address-reader.ts';
 import { InMemoryRouteListenerRunner } from '../apps/server/spec/fakes/in-memory-route-listener-runner.ts';
+import { ScriptedServiceUpdateRunner } from '../apps/server/spec/fakes/scripted-service-update-runner.ts';
 import { ScriptedTunnelProbe } from '../apps/server/spec/fakes/scripted-tunnel-probe.ts';
 import { composeServer } from '../apps/server/src/bootstrap/compose-server.ts';
 import { askOwner } from '../apps/server/src/cli/owner-client.ts';
@@ -180,7 +181,68 @@ const fixture = {
   gitActionDeadlineMs: 1500,
   inventoryStaleAfterMs: 200,
   codingTool,
+  serviceUpdate: {
+    version: '1.0.0',
+    latest: '1.1.0',
+    failure:
+      'Could not install the persistent runtime: npm could not reach the registry',
+    stepMs: 400,
+  },
 };
+
+const offered = {
+  managed: true,
+  version: fixture.serviceUpdate.version,
+  latest: fixture.serviceUpdate.latest,
+  available: true,
+  running: false,
+  last: undefined,
+};
+const attempt = (stage: 'downloading' | 'installing' | 'restarting') => ({
+  ...offered,
+  running: true,
+  last: {
+    from: fixture.serviceUpdate.version,
+    target: fixture.serviceUpdate.latest,
+    stage,
+    reason: undefined,
+  },
+});
+const serviceUpdateRunner = new ScriptedServiceUpdateRunner(
+  offered,
+  [
+    [
+      attempt('downloading'),
+      attempt('installing'),
+      {
+        ...offered,
+        last: {
+          from: fixture.serviceUpdate.version,
+          target: fixture.serviceUpdate.latest,
+          stage: 'failed',
+          reason: fixture.serviceUpdate.failure,
+        },
+      },
+    ],
+    [
+      attempt('downloading'),
+      attempt('installing'),
+      attempt('restarting'),
+      {
+        ...offered,
+        version: fixture.serviceUpdate.latest,
+        available: false,
+        last: {
+          from: fixture.serviceUpdate.version,
+          target: fixture.serviceUpdate.latest,
+          stage: 'updated',
+          reason: undefined,
+        },
+      },
+    ],
+  ],
+  fixture.serviceUpdate.stepMs,
+);
 
 try {
   const home = join(root, fixture.folders.home);
@@ -251,6 +313,7 @@ try {
       },
     },
     shutdown.signal,
+    { serviceUpdateRunner },
   );
   const [grant] = issuedPairingSchema.parse(
     await askOwner(

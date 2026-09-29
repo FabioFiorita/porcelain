@@ -6,6 +6,8 @@ export type ServicePaths = {
   nextRuntime: string;
   previousRuntime: string;
   updateJournal: string;
+  updateRecord: string;
+  updater: string;
   installed: string;
   configuration: string;
   backups: string;
@@ -21,6 +23,8 @@ export function servicePaths(homeDirectory: string): ServicePaths {
     nextRuntime: join(root, 'runtime.next'),
     previousRuntime: join(root, 'runtime.previous'),
     updateJournal: join(root, 'update.json'),
+    updateRecord: join(root, 'update-record.json'),
+    updater: join(root, 'updater'),
     installed: join(root, 'installed.json'),
     configuration: join(root, 'config.json'),
     backups: join(root, 'database-backups'),

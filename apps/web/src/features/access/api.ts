@@ -4,6 +4,9 @@ import {
   listAccessResponseSchema,
   readHealthResponseSchema,
   readRemoteAccessResponseSchema,
+  readServiceUpdateResponseSchema,
+  startServiceUpdateRequestSchema,
+  startServiceUpdateResponseSchema,
   renameEnvironmentRequestSchema,
   renameEnvironmentResponseSchema,
   revokeAccessRequestSchema,
@@ -153,6 +156,27 @@ function createShareApi(transport: typeof fetch) {
         throw error;
       }
     },
+    serviceUpdate: (signal: AbortSignal) =>
+      requestJson(
+        transport,
+        '/api/service/update',
+        readServiceUpdateResponseSchema,
+        { signal },
+      ),
+    startServiceUpdate: (signal: AbortSignal, version: string) =>
+      requestJson(
+        transport,
+        '/api/service/update',
+        startServiceUpdateResponseSchema,
+        {
+          method: 'POST',
+          headers: json,
+          body: JSON.stringify(
+            startServiceUpdateRequestSchema.parse({ version }),
+          ),
+          signal,
+        },
+      ),
     rename: (signal: AbortSignal, name: string | null) =>
       requestJson(
         transport,

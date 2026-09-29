@@ -13,6 +13,7 @@ import {
   OpenRemoteRoutesService,
   ReadRemoteAccessService,
   RenameEnvironmentService,
+  CheckServiceUpdateService,
   SetRemoteAccessService,
   AuthenticateDeviceService,
   FlushDeviceActivityService,
@@ -36,6 +37,9 @@ import { OpenRemoteRoutesUseCase } from '../use-cases/access/open-remote-routes.
 import { ReadRemoteAccessUseCase } from '../use-cases/access/read-remote-access.ts';
 import { SetRemoteAccessUseCase } from '../use-cases/access/set-remote-access.ts';
 import { RenameEnvironmentUseCase } from '../use-cases/access/rename-environment.ts';
+import { ReadServiceUpdateUseCase } from '../use-cases/access/read-service-update.ts';
+import { StartServiceUpdateUseCase } from '../use-cases/access/start-service-update.ts';
+import type { ServiceUpdateRunner } from '../ports/service-update-runner.ts';
 import { ClearBrowserSessionUseCase } from '../use-cases/access/clear-browser-session.ts';
 import { FlushDeviceActivityUseCase } from '../use-cases/access/flush-device-activity.ts';
 import { IssuePairingUseCase } from '../use-cases/access/issue-pairing.ts';
@@ -57,6 +61,7 @@ type AccessDependencies = {
   tunnelConnections: TunnelConnectionStore;
   pairingReachReader: PairingReachReader;
   runtimeStatusReader: RuntimeStatusReader;
+  serviceUpdateRunner: ServiceUpdateRunner;
   networkAddressReader: NetworkAddressReader;
   routeListenerRunner: RouteListenerRunner;
   tunnelProbe: TunnelProbe;
@@ -110,6 +115,17 @@ export function composeAccess(
     checkLocalRequest: new CheckLocalRequestUseCase(
       new CheckLocalRequestService(),
       lanes,
+    ),
+    readServiceUpdate: new ReadServiceUpdateUseCase(
+      dependencies.serviceUpdateRunner,
+      lanes,
+      laneKeys,
+    ),
+    startServiceUpdate: new StartServiceUpdateUseCase(
+      dependencies.serviceUpdateRunner,
+      new CheckServiceUpdateService(),
+      lanes,
+      laneKeys,
     ),
     renameEnvironment: new RenameEnvironmentUseCase(
       new RenameEnvironmentService(

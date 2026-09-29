@@ -43,6 +43,7 @@ import {
 import { WatchWorktrees } from '../runtime/live-updates/watch-worktrees.ts';
 import { AnnounceWorktreeChangeUseCase } from '../use-cases/files/announce-worktree-change.ts';
 import type { StartServer } from '../cli/launcher.ts';
+import type { ServerHost } from '../ports/server-host.ts';
 import {
   startApplication,
   type OpenServer,
@@ -64,7 +65,7 @@ type RemoteRouteAdapters = {
 };
 
 const openServerWith =
-  (adapters: RemoteRouteAdapters): OpenServer =>
+  (adapters: RemoteRouteAdapters, host: ServerHost): OpenServer =>
   async (input) => {
     const { settings } = input;
     const { limits } = settings;
@@ -123,6 +124,7 @@ const openServerWith =
         stores.routeStates,
       ),
       runtimeStatusReader: new ProcessRuntimeStatusReader(input.runtimeStatus),
+      serviceUpdateRunner: host.serviceUpdateRunner,
       networkAddressReader: adapters.networkAddressReader,
       routeListenerRunner,
       tunnelProbe: adapters.tunnelProbe({
@@ -253,9 +255,9 @@ const openServerWith =
 
 export const composeServer =
   (adapters: RemoteRouteAdapters): StartServer =>
-  (settings, signal) =>
+  (settings, signal, host) =>
     startApplication(settings, signal, {
-      openServer: openServerWith(adapters),
+      openServer: openServerWith(adapters, host),
       ownerProbe: new SocketOwnerProbe(),
       clock: new SystemClock(),
     });

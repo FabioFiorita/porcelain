@@ -6,7 +6,8 @@ import type { CliCommand } from './arguments.ts';
 import { serveHelp } from './help.ts';
 import { runLocalServer, type StartServer } from './launcher.ts';
 import { runMcpBridge } from './mcp-bridge.ts';
-import { runServiceCommand } from './service.ts';
+import { openServiceUpdateRunner } from '../installer/index.ts';
+import { cliPackageRoot, runServiceCommand } from './service.ts';
 import { reportStatus } from './status.ts';
 
 type CommandContext = {
@@ -77,6 +78,14 @@ export async function runCommand(
     case 'serve':
       await runLocalServer(command.settings, context.signal, {
         startServer: context.startServer,
+        host: {
+          serviceUpdateRunner: openServiceUpdateRunner({
+            homeDirectory: context.homeDirectory,
+            packageRoot: cliPackageRoot(),
+            searchPath: context.searchPath,
+            limits: context.limits,
+          }),
+        },
         output: (message) => context.stdout(`${message}\n`),
       });
       return 0;

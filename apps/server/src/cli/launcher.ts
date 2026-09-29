@@ -1,13 +1,16 @@
 import type { ServerSettings } from '../config/server-settings.ts';
 import type { Runtime } from '../ports/runtime.ts';
+import type { ServerHost } from '../ports/server-host.ts';
 
 export type StartServer = (
   settings: ServerSettings,
   signal: AbortSignal,
+  host: ServerHost,
 ) => Promise<Runtime>;
 
 type LauncherDependencies = {
   startServer: StartServer;
+  host: ServerHost;
   output: (message: string) => void;
 };
 
@@ -25,7 +28,11 @@ export async function runLocalServer(
 ): Promise<void> {
   const { output } = dependencies;
   signal.throwIfAborted();
-  const server = await dependencies.startServer(settings, signal);
+  const server = await dependencies.startServer(
+    settings,
+    signal,
+    dependencies.host,
+  );
   try {
     if (signal.aborted) return;
     output(`Porcelain listening at ${server.address}`);

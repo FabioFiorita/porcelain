@@ -45,6 +45,10 @@ export function compareVersions(left: string, right: string): number {
   return 0;
 }
 
+export function isVersion(value: string): boolean {
+  return versionPattern.test(value);
+}
+
 export function isDowngrade(candidate: string, installed: string): boolean {
   return compareVersions(candidate, installed) < 0;
 }

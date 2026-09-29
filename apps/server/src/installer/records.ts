@@ -13,13 +13,27 @@ const serviceConfigurationSchema = z.object({
 export type ServiceConfiguration = z.output<typeof serviceConfigurationSchema>;
 
 const installedRecordSchema = z.object({ version: z.string() });
-type InstalledRecord = z.output<typeof installedRecordSchema>;
+export type InstalledRecord = z.output<typeof installedRecordSchema>;
 
 const updateJournalSchema = z.object({
   installed: installedRecordSchema,
   backup: z.string(),
 });
 export type UpdateJournal = z.output<typeof updateJournalSchema>;
+
+const updateRecordSchema = z.object({
+  from: z.string(),
+  target: z.string(),
+  stage: z.enum([
+    'downloading',
+    'installing',
+    'restarting',
+    'updated',
+    'failed',
+  ]),
+  reason: z.string().optional(),
+});
+export type UpdateRecord = z.output<typeof updateRecordSchema>;
 
 export const packageManifestSchema = z.object({
   name: z.string().optional(),
@@ -40,6 +54,13 @@ export async function readServiceConfiguration(
   const file = await readJsonFile(path, serviceConfigurationSchema);
   if (file.kind !== 'value') throw new InvalidServiceConfigurationError();
   return file.value;
+}
+
+export async function readUpdateRecord(
+  path: string,
+): Promise<UpdateRecord | undefined> {
+  const file = await readJsonFile(path, updateRecordSchema);
+  return file.kind === 'value' ? file.value : undefined;
 }
 
 export async function readUpdateJournal(

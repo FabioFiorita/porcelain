@@ -1,3 +1,4 @@
+import type { ReadServiceUpdateUseCase } from '../../use-cases/access/read-service-update.ts';
 import type { Limits } from '../../config/limits.ts';
 import type { FastifyInstance } from 'fastify';
 import type { BrowseProjectFoldersUseCase } from '../../use-cases/projects/browse-project-folders.ts';
@@ -97,6 +98,7 @@ import { listReviewedLayers } from '../routes/reviews/list-reviewed-layers.ts';
 import { removeReviewedFile } from '../routes/reviews/remove-reviewed-file.ts';
 import { removeReviewedFiles } from '../routes/reviews/remove-reviewed-files.ts';
 import { removeReviewedLayer } from '../routes/reviews/remove-reviewed-layer.ts';
+import { readServiceUpdate } from '../routes/access/read-service-update.ts';
 import { replyToComment } from '../routes/reviews/reply-to-comment.ts';
 import { updateCommentThread } from '../routes/reviews/update-comment-thread.ts';
 import { setReviewedFile } from '../routes/reviews/set-reviewed-file.ts';
@@ -104,6 +106,9 @@ import { setReviewedFiles } from '../routes/reviews/set-reviewed-files.ts';
 import { setReviewedLayer } from '../routes/reviews/set-reviewed-layer.ts';
 
 export type PairedUseCases = {
+  access: {
+    readServiceUpdate: Pick<ReadServiceUpdateUseCase, 'execute'>;
+  };
   projects: {
     browseProjectFolders: Pick<BrowseProjectFoldersUseCase, 'execute'>;
     discoverProjects: Pick<DiscoverProjectsUseCase, 'execute'>;
@@ -180,6 +185,9 @@ export async function pairedScope(
       cookieMaxAgeSeconds: options.limits.access.device.cookieMaxAgeSeconds,
     }),
   );
+  server.register(readServiceUpdate, {
+    useCase: options.application.access.readServiceUpdate,
+  });
   server.register(runGitAction, {
     useCase: options.application.gitActions.runGitAction,
   });

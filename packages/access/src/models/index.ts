@@ -8,6 +8,10 @@ export type {
 } from './check-request-origin.ts';
 export type { StoredDevice } from './device.ts';
 export type { ChosenEnvironmentName } from './environment-name.ts';
+export type {
+  ServiceUpdateState,
+  ServiceUpdateTarget,
+} from './service-update.ts';
 export type { HostPolicy } from './host-policy.ts';
 export type { PairingRedemption, StoredPairingGrant } from './pairing-grant.ts';
 export type {

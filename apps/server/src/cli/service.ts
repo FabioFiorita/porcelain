@@ -21,6 +21,10 @@ type ServiceCommandDependencies = {
   stdout: (message: string) => void;
 };
 
+export function cliPackageRoot(moduleUrl: string = import.meta.url): string {
+  return resolve(dirname(fileURLToPath(moduleUrl)), '../../..');
+}
+
 export function isServiceFailure(error: unknown): boolean {
   return (
     error instanceof InstallerError || error instanceof ServiceCommandError
@@ -60,9 +64,7 @@ async function runService(
   dependencies: ServiceCommandDependencies,
   moduleUrl: string,
 ): Promise<void> {
-  const identity = await readPackageIdentity(
-    resolve(dirname(fileURLToPath(moduleUrl)), '../../..'),
-  );
+  const identity = await readPackageIdentity(cliPackageRoot(moduleUrl));
   const installer = openInstaller({
     homeDirectory: dependencies.homeDirectory,
     packageRoot: identity.packageRoot,

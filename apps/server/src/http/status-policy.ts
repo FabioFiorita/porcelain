@@ -7,6 +7,9 @@ import {
   InvalidTunnelHostnameError,
   MissingEnvironmentIdentityError,
   MissingTunnelHostnameError,
+  ServiceNotManagedError,
+  ServiceUpdateNotOfferedError,
+  ServiceUpdateRunningError,
   TooManyPairingAttemptsError,
 } from '@porcelain/access/errors';
 import {
@@ -209,6 +212,9 @@ const rules: readonly StatusRule[] = [
       ReviewedMarkConflictError,
       UnrelatedBranchError,
       UnbornBranchError,
+      ServiceNotManagedError,
+      ServiceUpdateNotOfferedError,
+      ServiceUpdateRunningError,
     ],
     statusCode: 409,
   },

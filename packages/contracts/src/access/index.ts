@@ -35,6 +35,14 @@ export {
 } from './pairing.ts';
 export type { Principal } from './principal.ts';
 export {
+  readServiceUpdateResponseSchema,
+  startServiceUpdateRequestSchema,
+  startServiceUpdateResponseSchema,
+  type ReadServiceUpdateResponse,
+  type StartServiceUpdateRequest,
+  type StartServiceUpdateResponse,
+} from './service-update.ts';
+export {
   readRemoteAccessResponseSchema,
   setRemoteAccessRequestSchema,
   setRemoteAccessResponseSchema,

@@ -3,6 +3,7 @@ import type { ListableProject } from '@porcelain/projects/models';
 
 const ACCESS = 'access';
 const REMOTE_ACCESS = 'remote-access';
+const SERVICE_UPDATE = 'service-update';
 const INVENTORY = 'inventory';
 const FILESYSTEM = 'filesystem';
 
@@ -13,6 +14,10 @@ export class LaneKeys {
 
   remoteAccess(): string {
     return REMOTE_ACCESS;
+  }
+
+  serviceUpdate(): string {
+    return SERVICE_UPDATE;
   }
 
   inventory(): string {

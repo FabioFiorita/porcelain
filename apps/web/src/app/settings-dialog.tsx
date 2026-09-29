@@ -14,6 +14,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CommitModelSetting } from '@/app/commit-model-setting';
 import {
   DisconnectBrowser,
+  ServiceUpdateSettings,
   ShareSettings,
   useAccessStore,
 } from '@/features/access/index';
@@ -207,6 +208,12 @@ export function SettingsDialog({
 
             <Section title="Sharing">
               <SharingSection />
+            </Section>
+
+            <Separator />
+
+            <Section title="Updates">
+              <ServiceUpdateSettings />
             </Section>
 
             <Separator />

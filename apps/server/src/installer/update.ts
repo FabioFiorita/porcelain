@@ -17,7 +17,12 @@ import { UpdateRestartError } from './errors/update-restart-error.ts';
 import { failureDetail } from './failure-detail.ts';
 import { exists, writeJsonFile } from './json-file.ts';
 import { installRuntime } from './persistent-runtime.ts';
-import { readInstalledRecord, readServiceConfiguration } from './records.ts';
+import {
+  readInstalledRecord,
+  readServiceConfiguration,
+  type InstalledRecord,
+  type ServiceConfiguration,
+} from './records.ts';
 import { recoverInterruptedUpdate } from './recover-interrupted-update.ts';
 import { isDowngrade } from './version-policy.ts';
 
@@ -36,13 +41,42 @@ export async function update(
   context: InstallerContext,
   allowDowngrade: boolean,
 ): Promise<UpdateOutcome> {
-  const { paths, systemd, runner } = context;
+  const { paths } = context;
   await recoverInterruptedUpdate(context);
   const installed = await readInstalledRecord(paths.installed);
   if (installed === undefined) throw new NotInstalledError();
   if (!allowDowngrade && isDowngrade(context.packageVersion, installed.version))
     throw new ServiceDowngradeError(installed.version, context.packageVersion);
   const configuration = await readServiceConfiguration(paths.configuration);
+  const progress = { from: installed.version, target: context.packageVersion };
+  await writeJsonFile(paths.updateRecord, { ...progress, stage: 'installing' });
+  try {
+    const outcome = await replaceRuntime(
+      context,
+      configuration,
+      installed,
+      () =>
+        writeJsonFile(paths.updateRecord, { ...progress, stage: 'restarting' }),
+    );
+    await writeJsonFile(paths.updateRecord, { ...progress, stage: 'updated' });
+    return outcome;
+  } catch (error) {
+    await writeJsonFile(paths.updateRecord, {
+      ...progress,
+      stage: 'failed',
+      reason: failureDetail(error),
+    });
+    throw error;
+  }
+}
+
+async function replaceRuntime(
+  context: InstallerContext,
+  configuration: ServiceConfiguration,
+  installed: InstalledRecord,
+  restarting: () => Promise<void>,
+): Promise<UpdateOutcome> {
+  const { paths, systemd, runner } = context;
   const staging = paths.nextRuntime;
   const previous = paths.previousRuntime;
   const backup = backupLocation(
@@ -59,6 +93,7 @@ export async function update(
   let stopped = false;
   let replaced = false;
   try {
+    await restarting();
     await systemd.stop();
     stopped = true;
     const socket = await context.ownerProbe.probe({
