@@ -1,5 +1,6 @@
 import { useId, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { HISTORY_OID_LENGTH } from '@/config/limits';
 import { Textarea } from '@/components/ui/textarea';
 import { useCreateComment } from '../commands/comments';
 import {
@@ -26,17 +27,24 @@ export function InlineComposer({
   const id = useId();
   const [body, setBody] = useState('');
   const pending = useRef<
-    { body: string; threadId: string; messageId: string } | undefined
+    | { body: string; anchor: string; threadId: string; messageId: string }
+    | undefined
   >(undefined);
+  const anchorKey = JSON.stringify(anchor);
   const mutation = useCreateComment(scope, context);
   const valid = commentBodyValid(body);
   const submit = () => {
     if (!valid || mutation.isPending) return;
-    const intent = retainIntent(pending.current, body, () => ({
+    const intent = retainIntent(
+      pending.current?.anchor === anchorKey ? pending.current : undefined,
       body,
-      threadId: crypto.randomUUID(),
-      messageId: crypto.randomUUID(),
-    }));
+      () => ({
+        body,
+        anchor: anchorKey,
+        threadId: crypto.randomUUID(),
+        messageId: crypto.randomUUID(),
+      }),
+    );
     pending.current = intent;
     mutation.send(
       {
@@ -60,7 +68,13 @@ export function InlineComposer({
       }}
     >
       <label htmlFor={id} className="text-xs text-muted-foreground">
-        {[anchorPath(anchor), anchorLabel(anchor)]
+        {[
+          anchorPath(anchor),
+          anchorLabel(anchor),
+          anchor.kind === 'change' && anchor.revision != null
+            ? `at ${anchor.revision.slice(0, HISTORY_OID_LENGTH)}`
+            : undefined,
+        ]
           .filter((part) => part != null)
           .join(' · ')}
       </label>

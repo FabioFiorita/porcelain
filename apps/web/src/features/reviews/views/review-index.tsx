@@ -308,7 +308,6 @@ function BranchChangeComment({
   const tip = changes.data?.head.oid;
   return (
     <ChangeComment
-      key={`${ref}:${tip}`}
       scope={scope}
       context={context}
       anchor={
