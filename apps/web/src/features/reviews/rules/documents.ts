@@ -127,10 +127,12 @@ export function workspaceTitle(input: {
   entry: string | undefined;
   surface: Surface | undefined;
   project: string | undefined;
+  environment?: string | undefined;
 }): string {
   const ref = parseEntry(input.entry);
   const shown = ref
     ? documentTitle(ref)
     : surfaceTitles[input.surface ?? 'changes'];
-  return input.project ? `${shown} — ${input.project}` : shown;
+  const titled = input.project ? `${shown} — ${input.project}` : shown;
+  return input.environment ? `${titled} · ${input.environment}` : titled;
 }

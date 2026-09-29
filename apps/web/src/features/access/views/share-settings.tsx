@@ -3,13 +3,20 @@ import { Separator } from '@/components/ui/separator';
 import { Spinner } from '@/components/ui/spinner';
 import { useRemoteAccess } from '../queries/share';
 import { connectionErrorMessage } from '../rules/connection-error-message';
-import type { ShareConnection } from '../rules/share';
+import type { Environment, ShareConnection } from '../rules/share';
 import { useAccessStore } from '../store';
+import { EnvironmentName } from './environment-name';
 import { PairDevice } from './pair-device';
 import { PairedDevices } from './paired-devices';
 import { RemoteRoutes } from './remote-routes';
 
-function ShareContent({ connection }: { connection: ShareConnection }) {
+function ShareContent({
+  connection,
+  environment,
+}: {
+  connection: ShareConnection;
+  environment: Environment;
+}) {
   const remote = useRemoteAccess(connection);
   if (remote.managedElsewhere)
     return (
@@ -28,13 +35,15 @@ function ShareContent({ connection }: { connection: ShareConnection }) {
   if (!remote.data) return <Spinner />;
   return (
     <div className="flex flex-col gap-4">
+      <EnvironmentName connection={connection} environment={environment} />
+      <Separator />
       <RemoteRoutes connection={connection} remote={remote.data} />
       <Separator />
       <div className="flex flex-col gap-1">
         <p className="text-sm font-medium">Pair a device</p>
         <p className="text-xs text-muted-foreground">
-          Open the link or scan the code on the other device. Each link works
-          once, for a few minutes.
+          Open the link or scan the code on the other device to connect it to{' '}
+          {environment.name}. Each link works once, for a few minutes.
         </p>
       </div>
       <PairDevice connection={connection} remote={remote.data} />
@@ -45,7 +54,11 @@ function ShareContent({ connection }: { connection: ShareConnection }) {
   );
 }
 
-export function ShareSettings() {
+export function ShareSettings({ environment }: { environment: Environment }) {
   const connection = useAccessStore((state) => state.connection);
-  return connection && <ShareContent connection={connection} />;
+  return (
+    connection && (
+      <ShareContent connection={connection} environment={environment} />
+    )
+  );
 }

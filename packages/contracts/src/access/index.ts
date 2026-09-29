@@ -1,3 +1,9 @@
+export {
+  renameEnvironmentRequestSchema,
+  renameEnvironmentResponseSchema,
+  type RenameEnvironmentRequest,
+  type RenameEnvironmentResponse,
+} from './environment.ts';
 export { readHealthResponseSchema, type ReadHealthResponse } from './health.ts';
 export {
   liveNoticeSchema,

@@ -93,6 +93,7 @@ export function composeProjects(
       shared.listReviewedLayerPaths,
       shared.readTextFiles,
       shared.readEnvironment,
+      shared.readEnvironmentName,
       lanes,
       laneKeys,
     ),

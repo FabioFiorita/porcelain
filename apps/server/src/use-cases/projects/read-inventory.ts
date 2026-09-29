@@ -1,4 +1,7 @@
-import type { ReadEnvironmentService } from '@porcelain/access/services';
+import type {
+  ReadEnvironmentNameService,
+  ReadEnvironmentService,
+} from '@porcelain/access/services';
 import type { ReadInventoryResponse } from '@porcelain/contracts/projects';
 import type { ReviewBadges } from '@porcelain/kernel/models';
 import type { ProjectWorktrees } from '@porcelain/projects/models';
@@ -24,6 +27,7 @@ export class ReadInventoryUseCase {
   private readonly listReviewedLayerPaths: ListReviewedLayerPathsService;
   private readonly readTextFiles: ReadTextFilesService;
   private readonly readEnvironment: ReadEnvironmentService;
+  private readonly readEnvironmentName: ReadEnvironmentNameService;
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
 
@@ -34,6 +38,7 @@ export class ReadInventoryUseCase {
     listReviewedLayerPaths: ListReviewedLayerPathsService,
     readTextFiles: ReadTextFilesService,
     readEnvironment: ReadEnvironmentService,
+    readEnvironmentName: ReadEnvironmentNameService,
     lanes: Lanes,
     laneKeys: LaneKeys,
   ) {
@@ -43,6 +48,7 @@ export class ReadInventoryUseCase {
     this.listReviewedLayerPaths = listReviewedLayerPaths;
     this.readTextFiles = readTextFiles;
     this.readEnvironment = readEnvironment;
+    this.readEnvironmentName = readEnvironmentName;
     this.lanes = lanes;
     this.laneKeys = laneKeys;
   }
@@ -62,7 +68,10 @@ export class ReadInventoryUseCase {
     );
     const statuses = await this.reviewBadges(listings, context);
     const { environmentId } = this.readEnvironment.execute();
-    return inventoryReport(environmentId, inventory, listings, statuses);
+    return {
+      ...inventoryReport(environmentId, inventory, listings, statuses),
+      environment: this.readEnvironmentName.execute(),
+    };
   }
 
   private async reviewBadges(

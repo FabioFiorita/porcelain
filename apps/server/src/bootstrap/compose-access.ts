@@ -12,6 +12,7 @@ import {
   IdentifyRequestClientService,
   OpenRemoteRoutesService,
   ReadRemoteAccessService,
+  RenameEnvironmentService,
   SetRemoteAccessService,
   AuthenticateDeviceService,
   FlushDeviceActivityService,
@@ -34,6 +35,7 @@ import { IdentifyRequestClientUseCase } from '../use-cases/access/identify-reque
 import { OpenRemoteRoutesUseCase } from '../use-cases/access/open-remote-routes.ts';
 import { ReadRemoteAccessUseCase } from '../use-cases/access/read-remote-access.ts';
 import { SetRemoteAccessUseCase } from '../use-cases/access/set-remote-access.ts';
+import { RenameEnvironmentUseCase } from '../use-cases/access/rename-environment.ts';
 import { ClearBrowserSessionUseCase } from '../use-cases/access/clear-browser-session.ts';
 import { FlushDeviceActivityUseCase } from '../use-cases/access/flush-device-activity.ts';
 import { IssuePairingUseCase } from '../use-cases/access/issue-pairing.ts';
@@ -108,6 +110,15 @@ export function composeAccess(
     checkLocalRequest: new CheckLocalRequestUseCase(
       new CheckLocalRequestService(),
       lanes,
+    ),
+    renameEnvironment: new RenameEnvironmentUseCase(
+      new RenameEnvironmentService(
+        stores.environmentName,
+        dependencies.shared.hostNames,
+      ),
+      lanes,
+      laneKeys,
+      context.events,
     ),
     readRemoteAccess: new ReadRemoteAccessUseCase(
       new ReadRemoteAccessService(

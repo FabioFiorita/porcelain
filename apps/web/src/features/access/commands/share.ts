@@ -1,5 +1,6 @@
 import type { SetRemoteAccessRequest } from '@porcelain/contracts/access';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '@/shared/query/keys';
 import { shareApi } from '../api';
 import {
   pairedAccessQueryOptions,
@@ -66,6 +67,25 @@ export function useSetRemoteAccess(connection: ShareConnection) {
   return {
     submit: mutation.mutate,
     isPending: mutation.isPending,
+    error: mutation.error,
+  };
+}
+
+export function useRenameEnvironment(connection: ShareConnection) {
+  const client = useQueryClient();
+  const mutation = useMutation({
+    scope: { id: `environment-name:${connection.environmentId}` },
+    mutationFn: (name: string | null) =>
+      shareApi.rename(connection.request().signal, name),
+    onSuccess: () =>
+      client.invalidateQueries({
+        queryKey: queryKeys.inventory(connection.environmentId),
+      }),
+  });
+  return {
+    submit: mutation.mutateAsync,
+    isPending: mutation.isPending,
+    isSuccess: mutation.isSuccess,
     error: mutation.error,
   };
 }

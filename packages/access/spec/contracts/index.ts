@@ -8,6 +8,10 @@ export {
   type EnvironmentIdentityReaderSubject,
 } from './environment-identity-reader-contract.ts';
 export {
+  environmentNameStoreContract,
+  type EnvironmentNameStoreSubject,
+} from './environment-name-store-contract.ts';
+export {
   pairingGrantStoreContract,
   type PairingGrantStoreSubject,
 } from './pairing-grant-store-contract.ts';

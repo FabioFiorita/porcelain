@@ -57,4 +57,15 @@ describe('workspaceTitle', () => {
       }),
     ).toBe('Changes');
   });
+
+  it('ends with the name the owner gave this computer', () => {
+    expect(
+      workspaceTitle({
+        entry: 'file:src/app.ts',
+        surface: undefined,
+        project: 'p',
+        environment: 'Workstation',
+      }),
+    ).toBe('app.ts — p · Workstation');
+  });
 });

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { absentAsNull } from '../shared/absent-as-null.ts';
+import { environmentSchema } from '../shared/environment.ts';
 import { worktreeIdSchema } from '../shared/worktree-params.ts';
 import { PATH_LENGTH, PROJECT_NAME_LENGTH } from '../shared/limits.ts';
 
@@ -37,6 +38,7 @@ export const setFilePreferenceParamsSchema = projectParamsSchema;
 
 export const readInventoryResponseSchema = z.object({
   environmentId: z.uuid(),
+  environment: environmentSchema,
   projects: z.array(projectSchema),
 });
 

@@ -52,6 +52,9 @@ export function ConnectedWorkspace({ review }: { review?: Review }) {
           project: inventory.projects.find(
             (project) => project.id === review.selection.projectId,
           )?.name,
+          environment: inventory.environment.custom
+            ? inventory.environment.name
+            : undefined,
         })
       : 'Porcelain',
   );

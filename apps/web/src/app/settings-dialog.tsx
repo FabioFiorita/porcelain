@@ -12,7 +12,12 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CommitModelSetting } from '@/app/commit-model-setting';
-import { DisconnectBrowser, ShareSettings } from '@/features/access/index';
+import {
+  DisconnectBrowser,
+  ShareSettings,
+  useAccessStore,
+} from '@/features/access/index';
+import { useInventory } from '@/features/projects/index';
 import { copyText } from '@/shared/workspace/copy';
 import { DialogIcon } from '@/app/dialog-icon';
 import type { Preferences } from '@/shared/workspace/preferences';
@@ -71,6 +76,12 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
       {children}
     </section>
   );
+}
+
+function SharingSection() {
+  const connection = useAccessStore((state) => state.connection);
+  const { environment } = useInventory(connection);
+  return <ShareSettings environment={environment} />;
 }
 
 export function SettingsDialog({
@@ -195,7 +206,7 @@ export function SettingsDialog({
             <Separator />
 
             <Section title="Sharing">
-              <ShareSettings />
+              <SharingSection />
             </Section>
 
             <Separator />

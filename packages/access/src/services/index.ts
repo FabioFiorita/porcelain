@@ -4,6 +4,8 @@ export { FlushDeviceActivityService } from './flush-device-activity-service.ts';
 export { IssuePairingService } from './issue-pairing-service.ts';
 export { ListAccessService } from './list-access-service.ts';
 export { ReadEnvironmentService } from './read-environment-service.ts';
+export { ReadEnvironmentNameService } from './read-environment-name-service.ts';
+export { RenameEnvironmentService } from './rename-environment-service.ts';
 export { ReadOwnerStatusService } from './read-owner-status-service.ts';
 export { RedeemPairingService } from './redeem-pairing-service.ts';
 export { RefundPairingAttemptService } from './refund-pairing-attempt-service.ts';

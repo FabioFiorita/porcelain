@@ -2,6 +2,7 @@ import type { StorageSession } from '@porcelain/storage';
 import {
   createDeviceStore,
   createEnvironmentIdentityReader,
+  createEnvironmentNameStore,
   createPairingGrantStore,
   createRemoteAccessStore,
 } from '@porcelain/storage/access';
@@ -32,6 +33,7 @@ export function composeStores(session: StorageSession) {
     worktreePresence: createWorktreePresenceStore(session),
     filePreferences: createFilePreferenceStore(session),
     environmentIdentity: createEnvironmentIdentityReader(session),
+    environmentName: createEnvironmentNameStore(session),
     devices: new CachedDeviceStore(createDeviceStore(session)),
     deviceSightings: new InMemoryDeviceSightingStore(),
     pairingGrants: createPairingGrantStore(session),

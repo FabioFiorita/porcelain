@@ -52,6 +52,7 @@ export const REVIEW_STEP_ARROWS = 500;
 export const DIAGRAM_BOXES = 500;
 export const DIAGRAM_ARROWS = 1000;
 export const TUNNEL_HOSTNAME_LENGTH = 253;
+export const ENVIRONMENT_NAME_LENGTH = 64;
 export const REVIEW_PROOF_CHECKS = 100;
 export const REVIEW_PROOF_ASSETS = 20;
 export const REVIEW_PROOF_OUTPUT_LENGTH = 4000;

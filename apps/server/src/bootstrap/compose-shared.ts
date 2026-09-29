@@ -1,5 +1,9 @@
-import { ReadEnvironmentService } from '@porcelain/access/services';
+import {
+  ReadEnvironmentNameService,
+  ReadEnvironmentService,
+} from '@porcelain/access/services';
 import type { Clock } from '@porcelain/kernel/ports';
+import { OsHostNameReader } from '../adapters/access/os-host-name-reader.ts';
 import {
   ReadBranchChangesService,
   ReadChangeDiffsService,
@@ -72,6 +76,7 @@ type SharedDependencies = {
 export function composeShared(dependencies: SharedDependencies) {
   const { stores, catalog, gitVersion } = dependencies;
   const { limits } = dependencies.settings;
+  const hostNames = new OsHostNameReader();
   const git: GitFactory = (checkout) => new DiscoveryGit(checkout, limits.git);
   const actionGit: GitActionWriterFactory = (checkout) =>
     new ActionsGit(checkout, limits.git);
@@ -139,6 +144,11 @@ export function composeShared(dependencies: SharedDependencies) {
       staleness,
     ),
     readEnvironment: new ReadEnvironmentService(stores.environmentIdentity),
+    readEnvironmentName: new ReadEnvironmentNameService(
+      stores.environmentName,
+      hostNames,
+    ),
+    hostNames,
     readTextFile,
     readWorktreeStatus,
     readChangeFingerprints,

@@ -3,6 +3,7 @@ import type { FastifyInstance } from 'fastify';
 import type { IssuePairingUseCase } from '../../use-cases/access/issue-pairing.ts';
 import type { ListAccessUseCase } from '../../use-cases/access/list-access.ts';
 import type { ReadRemoteAccessUseCase } from '../../use-cases/access/read-remote-access.ts';
+import type { RenameEnvironmentUseCase } from '../../use-cases/access/rename-environment.ts';
 import type { RevokeAccessUseCase } from '../../use-cases/access/revoke-access.ts';
 import type { SetRemoteAccessUseCase } from '../../use-cases/access/set-remote-access.ts';
 import {
@@ -16,6 +17,7 @@ import {
 import { issuePairing } from '../routes/access/issue-pairing.ts';
 import { listAccess } from '../routes/access/list-access.ts';
 import { readRemoteAccess } from '../routes/access/read-remote-access.ts';
+import { renameEnvironment } from '../routes/access/rename-environment.ts';
 import { revokeAccess } from '../routes/access/revoke-access.ts';
 import { setRemoteAccess } from '../routes/access/set-remote-access.ts';
 
@@ -24,6 +26,7 @@ export type HostUseCases = {
     issuePairing: Pick<IssuePairingUseCase, 'execute'>;
     listAccess: Pick<ListAccessUseCase, 'execute'>;
     readRemoteAccess: Pick<ReadRemoteAccessUseCase, 'execute'>;
+    renameEnvironment: Pick<RenameEnvironmentUseCase, 'execute'>;
     revokeAccess: Pick<RevokeAccessUseCase, 'execute'>;
     setRemoteAccess: Pick<SetRemoteAccessUseCase, 'execute'>;
   };
@@ -52,5 +55,8 @@ export async function hostScope(
   });
   server.register(setRemoteAccess, {
     useCase: application.access.setRemoteAccess,
+  });
+  server.register(renameEnvironment, {
+    useCase: application.access.renameEnvironment,
   });
 }

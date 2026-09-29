@@ -4,6 +4,8 @@ import {
   listAccessResponseSchema,
   readHealthResponseSchema,
   readRemoteAccessResponseSchema,
+  renameEnvironmentRequestSchema,
+  renameEnvironmentResponseSchema,
   revokeAccessRequestSchema,
   revokeAccessResponseSchema,
   setRemoteAccessRequestSchema,
@@ -151,6 +153,18 @@ function createShareApi(transport: typeof fetch) {
         throw error;
       }
     },
+    rename: (signal: AbortSignal, name: string | null) =>
+      requestJson(
+        transport,
+        '/api/environment/name',
+        renameEnvironmentResponseSchema,
+        {
+          method: 'PUT',
+          headers: json,
+          body: JSON.stringify(renameEnvironmentRequestSchema.parse({ name })),
+          signal,
+        },
+      ),
     setRemote: (signal: AbortSignal, change: SetRemoteAccessRequest) =>
       requestJson(
         transport,

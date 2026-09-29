@@ -43,6 +43,7 @@ const project: Project = {
 
 const inventory: Inventory = {
   environmentId: 'environment',
+  environment: { name: 'host', custom: false },
   projects: [project],
 };
 

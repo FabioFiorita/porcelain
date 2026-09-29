@@ -46,7 +46,15 @@ export function ProjectNavigator({
           draggable={false}
           className="size-6 shrink-0 rounded-md"
         />
-        <span className="text-sm font-semibold">Porcelain</span>
+        <div className="flex min-w-0 flex-col leading-tight">
+          <span className="text-sm font-semibold">Porcelain</span>
+          <span
+            className="truncate text-[11px] text-muted-foreground"
+            title={`Connected to ${inventory.environment.name}`}
+          >
+            {inventory.environment.name}
+          </span>
+        </div>
         <Button
           variant="ghost"
           size="icon-sm"

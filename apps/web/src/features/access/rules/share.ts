@@ -2,6 +2,7 @@ import {
   pairingLink,
   type IssuePairingResponse,
   type ReadRemoteAccessResponse,
+  type RenameEnvironmentResponse,
 } from '@porcelain/contracts/access';
 
 export type ShareConnection = {
@@ -10,6 +11,7 @@ export type ShareConnection = {
 };
 
 export type RemoteAccess = ReadRemoteAccessResponse;
+export type Environment = RenameEnvironmentResponse;
 export type RemoteRouteName = keyof RemoteAccess['routes'];
 export type RemoteRoute = RemoteAccess['routes'][RemoteRouteName];
 type PairingAddress = { route: RemoteRouteName; url: string };
