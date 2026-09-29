@@ -242,18 +242,19 @@ function ScopedFileNavigation({
         />
         {hidden.size > 0 && (
           <Button
-            size="sm"
+            size="icon-sm"
             variant={showHidden ? 'secondary' : 'ghost'}
             aria-pressed={showHidden}
-            className="h-6"
+            aria-label={
+              showHidden ? 'Showing hidden' : `Hidden (${hidden.size})`
+            }
             onClick={() => setShowHidden((current) => !current)}
           >
             {showHidden ? (
-              <EyeIcon className="size-3.5" />
+              <EyeIcon className="text-muted-foreground" />
             ) : (
-              <EyeOffIcon className="size-3.5" />
+              <EyeOffIcon className="text-muted-foreground" />
             )}
-            {showHidden ? 'Showing hidden' : `Hidden (${hidden.size})`}
           </Button>
         )}
         <Button
