@@ -7,6 +7,7 @@ import {
   useReviewOverview,
 } from '@/features/changes/index';
 import { Button } from '@/components/ui/button';
+import { ButtonGroup } from '@/components/ui/button-group';
 import {
   Dialog,
   DialogContent,
@@ -123,10 +124,7 @@ export function GitButton({
 
   return (
     <>
-      <fieldset
-        aria-label="Git controls"
-        className="m-0 flex shrink-0 border-0 p-0"
-      >
+      <ButtonGroup aria-label="Git controls" className="shrink-0">
         <Popover
           open={running != null && progressOpen}
           onOpenChange={(open) => {
@@ -320,7 +318,7 @@ export function GitButton({
             )}
           </DropdownMenuContent>
         </DropdownMenu>
-      </fieldset>
+      </ButtonGroup>
 
       {action === 'switch-branch' || action === 'create-branch' ? (
         <BranchDialog
