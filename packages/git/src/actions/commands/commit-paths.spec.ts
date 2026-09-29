@@ -109,7 +109,12 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  rmSync(checkout, { recursive: true, force: true });
+  rmSync(checkout, {
+    recursive: true,
+    force: true,
+    maxRetries: 3,
+    retryDelay: 10,
+  });
 });
 
 describe('commitPaths', () => {
