@@ -14,7 +14,6 @@ import {
 } from '@/features/access/index';
 import { useOpenProject } from '../commands/open-project';
 import { openProjectDialog } from '../overlays';
-import { OpenProjectPathForm } from './open-project-path-form';
 import { ProjectDiscovery } from './project-discovery';
 import { ProjectFolderPicker } from './project-folder-picker';
 
@@ -65,10 +64,6 @@ export function OpenProjectDialog({
                 </AlertDescription>
               </Alert>
             )}
-            <OpenProjectPathForm
-              disabled={opening.isPending}
-              onOpen={(path) => void opening.submit(path)}
-            />
           </div>
         </ScrollArea>
       </DialogContent>

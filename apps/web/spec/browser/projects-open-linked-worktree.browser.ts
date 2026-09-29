@@ -35,11 +35,16 @@ test('opening a repository with a linked worktree from the empty workspace after
   await opened.getByRole('button', { name: 'Toggle Sidebar' }).click();
   await opened.getByRole('button', { name: 'Open project' }).click();
   const dialog = opened.getByRole('dialog', { name: 'Open project' });
-  await dialog.getByRole('button', { name: 'Enter a path' }).click();
+  await expect
+    .element(dialog.getByRole('navigation', { name: 'Folder path' }))
+    .toBeVisible();
+  for (const name of main.path.split('/').filter(Boolean))
+    await dialog.getByRole('button', { name, exact: true }).click();
   await dialog
-    .getByRole('textbox', { name: 'Repository path' })
-    .fill(main.path);
-  await dialog.getByRole('button', { name: 'Open project' }).click();
+    .getByRole('button', {
+      name: `Open ${main.path.split('/').filter(Boolean).at(-1) ?? 'folder'}`,
+    })
+    .click();
   await expect.element(dialog).not.toBeInTheDocument();
 
   const reopened = async () =>
