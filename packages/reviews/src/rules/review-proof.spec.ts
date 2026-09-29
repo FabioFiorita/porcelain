@@ -21,6 +21,8 @@ describe('proofMediaType', () => {
     { mediaType: 'image/gif', content: bytes('GIF89a', 1) },
     { mediaType: 'image/webp', content: bytes('RIFF', 0, 0, 0, 0, 'WEBPVP8') },
     { mediaType: 'video/mp4', content: bytes(0, 0, 0, 0x20, 'ftypisom') },
+    { mediaType: 'video/mp4', content: bytes(0, 0, 0, 0x1c, 'ftypmp42') },
+    { mediaType: 'video/mp4', content: bytes(0, 0, 0, 0x20, 'ftypavc1') },
     { mediaType: 'video/webm', content: bytes(0x1a, 0x45, 0xdf, 0xa3, 0) },
   ])('names $mediaType from the file signature', ({ mediaType, content }) => {
     expect(proofMediaType(content)).toBe(mediaType);
@@ -34,6 +36,11 @@ describe('proofMediaType', () => {
       content: bytes('RIFF', 0, 0, 0, 0, 'WAVE'),
     },
     { name: 'a PNG signature cut short', content: bytes(0x89, 'PNG') },
+    { name: 'a HEIC photo', content: bytes(0, 0, 0, 0x18, 'ftypheic') },
+    { name: 'an AVIF image', content: bytes(0, 0, 0, 0x1c, 'ftypavif') },
+    { name: 'a QuickTime movie', content: bytes(0, 0, 0, 0x14, 'ftypqt  ') },
+    { name: 'a 3GP video', content: bytes(0, 0, 0, 0x18, 'ftyp3gp4') },
+    { name: 'an ftyp box without a brand', content: bytes(0, 0, 0, 8, 'ftyp') },
     { name: 'no bytes', content: bytes() },
   ])('names nothing for $name', ({ content }) => {
     expect(proofMediaType(content)).toBeUndefined();
