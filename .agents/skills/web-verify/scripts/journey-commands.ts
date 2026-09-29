@@ -29,6 +29,11 @@ import {
 import { Recorder, ServerHandle } from '../../server-verify/scripts/session.ts';
 
 export const journeyHeader = { 'x-porcelain-journey': 'kit' };
+const proofScreenshot = 'proof-screenshot.png';
+const onePixelPng = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+  'base64',
+);
 
 let recorder = new Recorder();
 recorder.phase = 'follow-up';
@@ -106,6 +111,18 @@ async function agentRequest(
       path: `/api/worktrees/${encodeURIComponent(await mainWorktree(agent))}/files`,
       body: editFileRequestSchema.parse(action.edit),
     };
+  if (action.kind === 'publish-proof') {
+    const layerId = randomUUID();
+    return toolCall(agent, 1, 'publish_review', {
+      ...sampleReview(agent, 0, layerId, randomUUID(), { title: action.title }),
+      proof: {
+        checks: action.checks.map((check) => ({ ...check, layerId })),
+        assets: [
+          { kind: 'image', title: action.screenshot, path: proofScreenshot },
+        ],
+      },
+    });
+  }
   return action.kind === 'publish-review'
     ? toolCall(
         agent,
@@ -124,10 +141,13 @@ async function agentRequest(
 
 async function agentActs(agent: Session, action: AgentAction) {
   const request = await agentRequest(agent, action);
+  if (action.kind === 'publish-proof')
+    await agent.writeFile(proofScreenshot, onePixelPng);
   const response = await agent.send({
     ...request,
     headers: { ...request.headers, ...journeyHeader },
   });
+  if (action.kind === 'publish-proof') await agent.remove(proofScreenshot);
   if (
     response.status !== 200 ||
     (action.kind !== 'edit-file' && toolResult(response.body).isError === true)

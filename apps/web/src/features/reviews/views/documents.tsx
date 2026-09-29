@@ -11,6 +11,7 @@ import {
   entryKey,
   type OpenDocument,
 } from '../rules/documents';
+import { proofOnLayer } from '../rules/proof';
 import type { ReviewScope } from '../rules/review';
 import type { DocumentContext } from './code-document';
 import { BranchDocument, BranchFileDocument } from './branch-document';
@@ -18,6 +19,7 @@ import { CommitDocument } from './commit-document';
 import { DocumentToolbar } from './document-toolbar';
 import { FileDocument } from './file-document';
 import { PublishedLayer } from './published-layer';
+import { ProofDocument } from './proof-document';
 import { PublishedOverview } from './published-overview';
 import { ReviewCodeDocument } from './review-code-document';
 import { MarkAllReviewed, ReviewedControl } from './reviewed-control';
@@ -66,6 +68,8 @@ export function DocumentView({
       return <LayerDocument {...props} layerId={document.layerId} />;
     case 'unexplained':
       return <UnexplainedDocument {...props} />;
+    case 'proof':
+      return <ProofDocument scope={scope} context={context} />;
     case 'change':
       return <ChangeDocument {...props} path={document.path} />;
     case 'file':
@@ -148,6 +152,7 @@ function LayerDocument({
       key={`${layerId}:${published.data?.revision}`}
       {...props}
       layer={layer}
+      proof={proofOnLayer(published.data?.proof, layerId)}
     />
   );
 }

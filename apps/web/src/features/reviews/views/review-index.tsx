@@ -1,4 +1,8 @@
-import { FileQuestionIcon, MessageSquarePlusIcon } from 'lucide-react';
+import {
+  FileQuestionIcon,
+  FlaskConicalIcon,
+  MessageSquarePlusIcon,
+} from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -31,8 +35,11 @@ import {
   BRANCH,
   type DocumentRef,
   entryKey,
+  PROOF,
   UNEXPLAINED,
 } from '../rules/documents';
+import { proofLabel, proofStatus } from '../rules/proof';
+import type { ReadinessKey } from '../rules/readiness';
 import {
   type ChangeList,
   notExplainedLabel,
@@ -44,6 +51,7 @@ import type { ReviewsContext } from '../rules/reviewed';
 import { BranchIndex } from './branch-index';
 import { ChangeRow, ROW } from './change-row';
 import { InlineComposer } from './inline-composer';
+import { BranchReadiness, ChangeReadiness } from './readiness-panel';
 import { ThreadCard } from './thread-card';
 
 type OpenDocument = (ref: DocumentRef, anchor?: CommentAnchor) => void;
@@ -82,6 +90,26 @@ export function ReviewIndex({
   const openComments = threads.filter((thread) => !thread.resolved).length;
 
   const branch = changeScope === 'branch';
+  const selectReadiness = (
+    key: ReadinessKey,
+    firstStale: string | undefined,
+  ) => {
+    if (key === 'comments') {
+      setView('comments');
+      return;
+    }
+    setView('layers');
+    if (key === 'checks') onOpen(PROOF);
+    if (key === 'unexplained')
+      onOpen(review ? UNEXPLAINED : { kind: 'handoff' });
+    if (key === 'files') onOpen(branch ? BRANCH : { kind: 'handoff' });
+    if (key === 'stale' && firstStale !== undefined)
+      onOpen(
+        branch
+          ? { kind: 'branch-file', path: firstStale }
+          : { kind: 'change', path: firstStale },
+      );
+  };
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="shrink-0 px-2">
@@ -105,6 +133,23 @@ export function ReviewIndex({
           </TabsList>
         </Tabs>
       </div>
+      {branch ? (
+        <BranchReadiness
+          scope={scope}
+          context={context}
+          base={base}
+          review={review}
+          threads={threads}
+          onSelect={selectReadiness}
+        />
+      ) : (
+        <ChangeReadiness
+          files={changes}
+          review={review}
+          threads={threads}
+          onSelect={selectReadiness}
+        />
+      )}
       <div className="shrink-0 px-2 pt-2">
         <Tabs
           value={view}
@@ -220,6 +265,13 @@ function LayersView({
           </button>
         )}
         {review && (
+          <ProofRow
+            review={review}
+            active={activeEntry === entryKey(PROOF)}
+            onOpen={onOpen}
+          />
+        )}
+        {review && (
           <p className="px-2 pt-4 pb-1 text-xs text-muted-foreground">
             Changed files
           </p>
@@ -253,6 +305,45 @@ function LayersView({
         ))}
       </div>
     </ScrollArea>
+  );
+}
+
+function ProofRow({
+  review,
+  active,
+  onOpen,
+}: {
+  review: ReviewResponse;
+  active: boolean;
+  onOpen: OpenDocument;
+}) {
+  const status = proofStatus(review.proof);
+  return (
+    <button
+      type="button"
+      className={ROW}
+      aria-pressed={active}
+      onClick={() => onOpen(PROOF)}
+    >
+      <FlaskConicalIcon
+        className={cn(
+          'size-3.5 shrink-0 text-muted-foreground',
+          status.failing > 0 && 'text-destructive',
+        )}
+      />
+      <span className="min-w-0 truncate">
+        Proof
+        <span
+          className={cn(
+            'text-muted-foreground',
+            status.failing > 0 && 'font-medium text-destructive',
+          )}
+        >
+          {' · '}
+          {proofLabel(status)}
+        </span>
+      </span>
+    </button>
   );
 }
 

@@ -3,6 +3,7 @@ import type {
   SetReviewedLayerRequest,
 } from '@porcelain/contracts/reviews';
 import type { CommentsPort } from './comments';
+import type { ProofFile } from './proof';
 import {
   isFingerprintable,
   type ReviewChangeItem,
@@ -48,6 +49,9 @@ export function inChunks<T>(items: readonly T[], size: number): T[][] {
 
 export type ReviewsPort = {
   review: (request: ReviewRequest) => Promise<ReviewResponse | null>;
+  proofFile: (
+    request: ReviewRequest & { proofId: string },
+  ) => Promise<ProofFile>;
   reviewed: {
     list: (request: ReviewedRequest) => Promise<ReviewedMarksResponse>;
     set: (

@@ -4,6 +4,7 @@ export type DocumentRef =
   | { kind: 'handoff' }
   | { kind: 'layer'; layerId: string }
   | { kind: 'unexplained' }
+  | { kind: 'proof' }
   | { kind: 'change'; path: string }
   | { kind: 'file'; path: string }
   | { kind: 'commit'; oid: string }
@@ -13,6 +14,7 @@ export type DocumentRef =
 const HANDOFF: DocumentRef = { kind: 'handoff' };
 export const BRANCH: DocumentRef = { kind: 'branch' };
 export const UNEXPLAINED: DocumentRef = { kind: 'unexplained' };
+export const PROOF: DocumentRef = { kind: 'proof' };
 
 export function entryKey(ref: DocumentRef): string {
   switch (ref.kind) {
@@ -20,6 +22,8 @@ export function entryKey(ref: DocumentRef): string {
       return 'handoff';
     case 'unexplained':
       return 'unexplained';
+    case 'proof':
+      return 'proof';
     case 'layer':
       return `layer:${ref.layerId}`;
     case 'change':
@@ -39,6 +43,7 @@ export function parseEntry(entry: string | undefined): DocumentRef | null {
   if (entry == null || entry === '') return null;
   if (entry === 'handoff') return HANDOFF;
   if (entry === 'unexplained') return UNEXPLAINED;
+  if (entry === 'proof') return PROOF;
   if (entry === 'branch') return BRANCH;
 
   const separator = entry.indexOf(':');
@@ -97,6 +102,8 @@ function documentTitle(ref: DocumentRef): string {
       return 'Changes';
     case 'unexplained':
       return 'Not explained';
+    case 'proof':
+      return 'Proof';
     case 'layer':
       return 'Review';
     case 'branch':

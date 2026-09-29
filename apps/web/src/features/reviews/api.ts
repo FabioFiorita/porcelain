@@ -1,6 +1,7 @@
 import {
   listReviewedFilesResponseSchema,
   listReviewedLayersResponseSchema,
+  readProofFileResponseSchema,
   readPublishedReviewResponseSchema,
   removeReviewedFileResponseSchema,
   removeReviewedFilesRequestSchema,
@@ -147,6 +148,13 @@ export function createReviewsLive(transport: typeof fetch): ReviewsPort {
           { signal },
         )
       ).review ?? null,
+    proofFile: ({ worktreeId, proofId, signal }) =>
+      requestJson(
+        transport,
+        `${worktreePath(worktreeId)}/review/proof?${new URLSearchParams({ proofId })}`,
+        readProofFileResponseSchema,
+        { signal },
+      ),
     reviewed: {
       list: ({ worktreeId, signal, range }) =>
         requestJson(

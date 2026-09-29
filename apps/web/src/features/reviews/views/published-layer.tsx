@@ -18,6 +18,7 @@ import { useLayerMark } from '../queries/published-review';
 import { usePrefetchReviewed, useReviewChangeItems } from '../queries/reviewed';
 import type { DocumentInteraction, OpenDocument } from '../rules/documents';
 import { contextPatch, focusPatch } from '../rules/patch-focus';
+import type { ReviewProof } from '../rules/proof';
 import type {
   ChangeSelection,
   ReviewChangeItem,
@@ -27,6 +28,7 @@ import type {
 } from '../rules/review';
 import { CodeDocument, type DocumentContext } from './code-document';
 import { DocumentToolbar } from './document-toolbar';
+import { ProofList } from './proof-list';
 import type { Graph } from './review-diagram';
 import { ReviewDiagram } from './lazy-review-diagram';
 
@@ -39,8 +41,9 @@ type LayerProps = {
 
 export function PublishedLayer({
   layer,
+  proof,
   ...props
-}: LayerProps & { layer: ReviewLayer }) {
+}: LayerProps & { layer: ReviewLayer; proof: ReviewProof }) {
   const { scope, context } = props;
   const mark = useLayerMark(scope, context, layer);
   const toggle = useToggleLayerMark(scope, context);
@@ -151,6 +154,17 @@ export function PublishedLayer({
             text={layer.summary}
             className="mb-5 max-w-3xl text-sm text-muted-foreground"
           />
+          {(proof.checks.length > 0 || proof.assets.length > 0) && (
+            <div className="mb-6 max-w-3xl">
+              <ProofList
+                scope={props.scope}
+                context={props.context}
+                proof={proof}
+                layers={[layer]}
+                inLayer
+              />
+            </div>
+          )}
           <LayerSteps {...props} layer={layer} steps={steps} focus={focus} />
           {shown < layer.steps.length && (
             <Button

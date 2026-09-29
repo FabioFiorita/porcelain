@@ -16,8 +16,20 @@ export type RepoStep =
   | { kind: 'remote'; name: string; url: string }
   | { kind: 'agent'; action: AgentAction };
 
+export type ProofCheckStep = {
+  name: string;
+  result: 'pass' | 'fail' | 'skipped';
+  output?: string;
+};
+
 export type AgentAction =
   | { kind: 'publish-review'; title: string; step: 'changed' | 'context' }
+  | {
+      kind: 'publish-proof';
+      title: string;
+      checks: ProofCheckStep[];
+      screenshot: string;
+    }
   | { kind: 'comment'; path: string; body: string }
   | { kind: 'edit-file'; edit: EditFileRequest };
 

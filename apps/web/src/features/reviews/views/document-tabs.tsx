@@ -6,6 +6,7 @@ import {
   FileDiffIcon,
   FileQuestionIcon,
   FileTextIcon,
+  FlaskConicalIcon,
   GitBranchIcon,
   GitCommitHorizontalIcon,
   LayersIcon,
@@ -58,6 +59,12 @@ function describeTab(key: string, layers: readonly Layer[]) {
         Icon: FileQuestionIcon,
         title: 'Not explained',
         hint: 'Changes outside the review',
+      };
+    case 'proof':
+      return {
+        Icon: FlaskConicalIcon,
+        title: 'Proof',
+        hint: 'Checks and attachments the agent published',
       };
     case 'layer': {
       const index = layers.findIndex((layer) => layer.id === ref.layerId);
