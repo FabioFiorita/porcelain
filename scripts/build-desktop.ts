@@ -148,6 +148,15 @@ export async function buildDesktop(): Promise<string> {
     js: "import { createRequire as porcelainRequire } from 'node:module'; const require = porcelainRequire(import.meta.url);",
   };
   await build({
+    entryPoints: [join(root, 'apps/desktop/src/preload.ts')],
+    outfile: join(stage, 'desktop/preload.cjs'),
+    bundle: true,
+    format: 'cjs',
+    platform: 'node',
+    target: 'node24',
+    external: ['electron'],
+  });
+  await build({
     entryPoints: [join(root, 'apps/desktop/src/main.ts')],
     outfile: join(stage, 'desktop/main.mjs'),
     bundle: true,

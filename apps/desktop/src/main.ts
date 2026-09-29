@@ -1,9 +1,32 @@
-import { app, BrowserWindow, dialog, Menu, shell } from 'electron';
+import {
+  app,
+  BrowserWindow,
+  dialog,
+  ipcMain,
+  Menu,
+  nativeTheme,
+  screen,
+  session,
+  shell,
+} from 'electron';
+import { join } from 'node:path';
+import {
+  desktopAppearanceSchema,
+  type DesktopAction,
+} from '@porcelain/contracts/desktop';
+import { WindowState } from './adapters/window-state.ts';
+import { restoreWindowBounds } from './rules/window-bounds.ts';
+import {
+  desktopAddress,
+  registerDesktopScheme,
+  serveDesktop,
+} from './app-protocol.ts';
 import fixPath from 'fix-path';
 import { desktopSettings } from './settings.ts';
 import { startLocalServer } from './server-host.ts';
 import { localNavigation, externalNavigation } from './rules/navigation.ts';
 
+registerDesktopScheme();
 app.setName('Porcelain');
 const settings = desktopSettings(app.getPath('userData'), app.getAppPath());
 app.setPath('userData', settings.profile);
@@ -11,7 +34,10 @@ let server: Awaited<ReturnType<typeof startLocalServer>> | undefined;
 let window: BrowserWindow | undefined;
 let quitting = false;
 let closed = false;
-let pairing = false;
+let actionsReady = false;
+let pendingAction: DesktopAction | undefined;
+let stopServing: (() => void) | undefined;
+const savedWindow = new WindowState(settings.profile);
 
 function failure(error: unknown) {
   process.stderr.write(
@@ -33,15 +59,31 @@ async function openWindow() {
     window.focus();
     return;
   }
-  const origin = new URL(local.address).origin;
+  const origin = desktopAddress;
+  const restored = restoreWindowBounds(
+    savedWindow.read(),
+    screen.getAllDisplays().map((display) => display.workArea),
+    {
+      width: settings.limits.desktop.minWidth,
+      height: settings.limits.desktop.minHeight,
+    },
+  );
   const view = new BrowserWindow({
     width: settings.limits.desktop.windowWidth,
     height: settings.limits.desktop.windowHeight,
     minWidth: settings.limits.desktop.minWidth,
     minHeight: settings.limits.desktop.minHeight,
+    ...(restored?.bounds ?? {}),
     title: 'Porcelain',
+    titleBarStyle: 'hiddenInset',
+    trafficLightPosition: { x: 16, y: 18 },
+    backgroundColor: nativeTheme.shouldUseDarkColors ? '#171717' : '#fafafa',
     show: false,
     webPreferences: {
+      preload: join(settings.packageRoot, 'desktop/preload.cjs'),
+      additionalArguments: [
+        `--porcelain-live=${local.address.replace('http:', 'ws:')}/api/live`,
+      ],
       sandbox: true,
       contextIsolation: true,
       nodeIntegration: false,
@@ -49,8 +91,34 @@ async function openWindow() {
     },
   });
   window = view;
+  actionsReady = false;
+  view.webContents.on(
+    'did-start-navigation',
+    (_event, _url, inPlace, mainFrame) => {
+      if (mainFrame && !inPlace) actionsReady = false;
+    },
+  );
+  const save = () => {
+    if (!view.isDestroyed() && !view.isFullScreen())
+      savedWindow.write({
+        bounds: view.getNormalBounds(),
+        maximized: view.isMaximized(),
+      });
+  };
+  view.on('close', save);
+  view.on('resize', save);
+  view.on('move', save);
+  view.on('maximize', save);
+  view.on('unmaximize', save);
+  const fullscreen = () =>
+    view.webContents.send('porcelain:fullscreen', view.isFullScreen());
+  view.on('enter-full-screen', fullscreen);
+  view.on('leave-full-screen', fullscreen);
+  view.webContents.on('did-finish-load', fullscreen);
+  if (restored?.maximized) view.maximize();
   view.once('closed', () => {
     window = undefined;
+    actionsReady = false;
   });
   view.once('ready-to-show', () => view.show());
   view.webContents.session.setPermissionRequestHandler(
@@ -64,34 +132,27 @@ async function openWindow() {
   view.webContents.on('will-redirect', (event, url) => {
     if (!localNavigation(url, origin)) event.preventDefault();
   });
+  view.webContents.on('context-menu', (_event, params) => {
+    if (params.isEditable)
+      Menu.buildFromTemplate([
+        { role: 'undo' },
+        { role: 'redo' },
+        { type: 'separator' },
+        { role: 'cut' },
+        { role: 'copy' },
+        { role: 'paste' },
+        { role: 'selectAll' },
+      ]).popup({ window: view });
+    else if (params.selectionText)
+      Menu.buildFromTemplate([{ role: 'copy' }, { role: 'selectAll' }]).popup({
+        window: view,
+      });
+  });
   view.webContents.setWindowOpenHandler(({ url }) => {
     if (externalNavigation(url)) void shell.openExternal(url).catch(failure);
     return { action: 'deny' };
   });
-  const pair = (url: string) => {
-    if (
-      !localNavigation(url, origin) ||
-      new URL(url).pathname !== '/pair' ||
-      new URL(url).hash !== '' ||
-      pairing
-    )
-      return;
-    pairing = true;
-    void local
-      .pairingLink()
-      .then((link) => {
-        if (!localNavigation(link, origin))
-          throw new Error('The pairing link left the local server');
-        if (!view.isDestroyed()) return view.loadURL(link);
-      })
-      .catch(failure)
-      .finally(() => {
-        pairing = false;
-      });
-  };
-  view.webContents.on('did-navigate', (_event, url) => pair(url));
-  view.webContents.on('did-navigate-in-page', (_event, url) => pair(url));
-  await view.loadURL(local.address);
+  await view.loadURL(desktopAddress);
 }
 
 app.on('window-all-closed', () => {
@@ -108,8 +169,16 @@ app.on('before-quit', (event) => {
   event.preventDefault();
   if (quitting) return;
   quitting = true;
+  stopServing?.();
   process.stderr.write('Porcelain: stopping server\n');
-  for (const view of BrowserWindow.getAllWindows()) view.destroy();
+  for (const view of BrowserWindow.getAllWindows()) {
+    if (!view.isFullScreen())
+      savedWindow.write({
+        bounds: view.getNormalBounds(),
+        maximized: view.isMaximized(),
+      });
+    view.destroy();
+  }
   void (server?.close() ?? Promise.resolve())
     .catch((error: unknown) => {
       process.stderr.write(
@@ -119,16 +188,63 @@ app.on('before-quit', (event) => {
     .finally(() => {
       closed = true;
       process.stderr.write('Porcelain: server stopped, exiting app\n');
-      app.exit();
+      app.quit();
     });
 });
+
+async function dispatch(action: DesktopAction) {
+  try {
+    await openWindow();
+    if (actionsReady) window?.webContents.send('porcelain:action', action);
+    else pendingAction = action;
+  } catch (error) {
+    failure(error);
+  }
+}
 
 async function start() {
   await app.whenReady();
   fixPath();
   Menu.setApplicationMenu(
     Menu.buildFromTemplate([
-      { role: 'appMenu' },
+      {
+        label: 'Porcelain',
+        submenu: [
+          { role: 'about' },
+          { type: 'separator' },
+          {
+            id: 'open-settings',
+            label: 'Settings…',
+            accelerator: 'CommandOrControl+,',
+            click: () => {
+              void dispatch('open-settings');
+            },
+          },
+          { type: 'separator' },
+          { role: 'services' },
+          { type: 'separator' },
+          { role: 'hide' },
+          { role: 'hideOthers' },
+          { role: 'unhide' },
+          { type: 'separator' },
+          { role: 'quit' },
+        ],
+      },
+      {
+        label: 'File',
+        submenu: [
+          {
+            id: 'open-project',
+            label: 'Open Project…',
+            accelerator: 'CommandOrControl+O',
+            click: () => {
+              void dispatch('open-project');
+            },
+          },
+          { type: 'separator' },
+          { role: 'close' },
+        ],
+      },
       { role: 'editMenu' },
       { role: 'viewMenu' },
       { role: 'windowMenu' },
@@ -139,6 +255,65 @@ async function start() {
     if (!quitting)
       failure(new Error('The Porcelain server stopped unexpectedly'));
   });
+  stopServing = serveDesktop(server);
+  session.defaultSession.webRequest.onBeforeSendHeaders(
+    { urls: [`${server.address.replace('http:', 'ws:')}/api/live`] },
+    (details, callback) => {
+      const local = server;
+      if (
+        local === undefined ||
+        window === undefined ||
+        details.webContentsId !== window.webContents.id ||
+        details.frame !== window.webContents.mainFrame ||
+        details.initiatorOrigin !== desktopAddress ||
+        !localNavigation(window.webContents.getURL(), desktopAddress)
+      ) {
+        callback({ cancel: true });
+        return;
+      }
+      callback({
+        requestHeaders: {
+          ...details.requestHeaders,
+          Authorization: `Bearer ${local.credential}`,
+          Origin: new URL(local.address).origin,
+        },
+      });
+    },
+  );
+  ipcMain.on('porcelain:appearance', (event, value: unknown) => {
+    const appearance = desktopAppearanceSchema.safeParse(value);
+    if (
+      window === undefined ||
+      event.sender !== window.webContents ||
+      event.senderFrame !== window.webContents.mainFrame ||
+      !localNavigation(event.senderFrame.url, desktopAddress) ||
+      !appearance.success
+    )
+      return;
+    nativeTheme.themeSource = appearance.data;
+    window.setBackgroundColor(
+      nativeTheme.shouldUseDarkColors ? '#171717' : '#fafafa',
+    );
+  });
+  ipcMain.on('porcelain:actions-ready', (event) => {
+    if (
+      window === undefined ||
+      event.sender !== window.webContents ||
+      event.senderFrame !== window.webContents.mainFrame ||
+      !localNavigation(event.senderFrame.url, desktopAddress)
+    )
+      return;
+    actionsReady = true;
+    if (pendingAction !== undefined) {
+      window.webContents.send('porcelain:action', pendingAction);
+      pendingAction = undefined;
+    }
+  });
+  nativeTheme.on('updated', () =>
+    window?.setBackgroundColor(
+      nativeTheme.shouldUseDarkColors ? '#171717' : '#fafafa',
+    ),
+  );
   await openWindow();
 }
 

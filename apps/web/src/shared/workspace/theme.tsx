@@ -1,5 +1,9 @@
 import { useHotkey } from '@tanstack/react-hotkeys';
-import type { ReactNode } from 'react';
+import { type ReactNode, useEffect } from 'react';
+import {
+  connectDesktopChrome,
+  setDesktopAppearance,
+} from '@/shared/adapters/desktop';
 import { cn } from '@/shared/lib/utils';
 import {
   PreferencesProvider,
@@ -17,6 +21,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
 function ThemeSurface({ children }: { children: ReactNode }) {
   const { preferences, resolvedTheme, setPreference } = usePreferences();
+  useEffect(connectDesktopChrome, []);
+  useEffect(
+    () => setDesktopAppearance(preferences.appearance),
+    [preferences.appearance],
+  );
   useHotkey(
     SHORTCUTS.cycleAppearance,
     () => {

@@ -20,3 +20,4 @@ export { IdentifyRequestClientService } from './identify-request-client-service.
 export { CloseTunnelConnectionsService } from './close-tunnel-connections-service.ts';
 export { CheckServiceUpdateService } from './check-service-update-service.ts';
 export { PlanServiceUpdateCheckService } from './plan-service-update-check-service.ts';
+export { AuthenticateDesktopSessionService } from './authenticate-desktop-session-service.ts';

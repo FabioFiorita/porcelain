@@ -1,6 +1,7 @@
 import { detectPlatform, useHotkey } from '@tanstack/react-hotkeys';
 import { useNavigate } from '@tanstack/react-router';
-import { type RefObject, useRef, useState } from 'react';
+import { type RefObject, useEffect, useRef, useState } from 'react';
+import { onDesktopAction } from '@/shared/adapters/desktop';
 import {
   Empty,
   EmptyDescription,
@@ -38,6 +39,14 @@ export function ConnectedWorkspace({ review }: { review?: Review }) {
   const navigationTrigger = useRef<HTMLButtonElement>(null);
   const [settings, setSettings] = useState(false);
   const [shortcuts, setShortcuts] = useState(false);
+  useEffect(
+    () =>
+      onDesktopAction((action) => {
+        if (action === 'open-settings') setSettings(true);
+        else openProjectDialog.open(null);
+      }),
+    [],
+  );
   const { setOpenMobile, isMobile, open, openMobile, toggleSidebar } =
     useSidebar();
   const navigate = useNavigate();

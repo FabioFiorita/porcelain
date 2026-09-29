@@ -42,6 +42,7 @@ export const targetPackageExports: Record<string, Record<string, string>> = {
     ]),
   ),
   contracts: {
+    './desktop': './src/desktop/index.ts',
     './shared': './src/shared/index.ts',
     ...Object.fromEntries(
       domainPackages.map((name) => [`./${name}`, `./src/${name}/index.ts`]),
@@ -94,6 +95,7 @@ export const requiredServerFiles: readonly string[] = [
 
 export const roles = [
   'desktop',
+  'desktop-gateway',
   'desktop-server-api',
   'transport',
   'status-policy',
@@ -482,7 +484,7 @@ function classifyPackage(name: string, inside: string) {
     return;
   }
   if (name === 'contracts') {
-    if (domainSet.has(section) || section === 'shared')
+    if (domainSet.has(section) || section === 'shared' || section === 'desktop')
       return classified('contract', name);
     return;
   }
@@ -662,6 +664,8 @@ export function classify(path: string): Classification | undefined {
     return classified('desktop-server-api', 'server');
   if (path.startsWith('apps/desktop/src/')) {
     if (path.endsWith('.spec.ts')) return classified('test', 'desktop');
+    if (path.startsWith('apps/desktop/src/adapters/'))
+      return classified('desktop-gateway', 'desktop');
     if (path.startsWith('apps/desktop/src/rules/'))
       return classified('rule', 'desktop');
     return classified('desktop', 'desktop');
@@ -706,7 +710,14 @@ const everything: readonly Role[] = [
 ];
 
 export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
-  desktop: new Set(['desktop', 'rule', 'contract', 'desktop-server-api']),
+  desktop: new Set([
+    'desktop',
+    'desktop-gateway',
+    'rule',
+    'contract',
+    'desktop-server-api',
+  ]),
+  'desktop-gateway': new Set(['contract']),
   'desktop-server-api': new Set([
     'bootstrap',
     'config',
@@ -1072,6 +1083,7 @@ export function allowedProcessImport(
 
 export const nodeGlobalRoles: ReadonlySet<Role> = new Set<Role>([
   'desktop',
+  'desktop-gateway',
   'gateway',
   'gateway-api',
   'repository',
@@ -1101,6 +1113,7 @@ const storageEngineModule = /^(?:fs|child_process)(?:\/|$)/;
 
 export const externalPackages: Record<Role, readonly string[]> = {
   desktop: ['electron', 'fix-path', 'zod'],
+  'desktop-gateway': [],
   'desktop-server-api': [],
   transport: [
     'fastify',

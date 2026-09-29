@@ -7,6 +7,7 @@ import {
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { ProjectNavigator } from './project-navigator';
+import { cn } from '@/shared/lib/utils';
 
 export function ProjectWorkspaceProvider({
   open,
@@ -38,7 +39,12 @@ export function ProjectWorkspace({
   children: ReactNode;
 }) {
   return (
-    <div className="h-svh min-w-0 flex-1 bg-muted p-2 text-[13px] text-foreground">
+    <div
+      className={cn(
+        'h-svh min-w-0 flex-1 bg-muted p-2 text-[13px] text-foreground',
+        (isMobile || !open) && 'desktop-workspace-without-navigator',
+      )}
+    >
       <ResizablePanelGroup orientation="horizontal">
         {!isMobile && open && (
           <>

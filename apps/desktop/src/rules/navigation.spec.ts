@@ -2,6 +2,21 @@ import { describe, expect, it } from 'vitest';
 import { localNavigation, externalNavigation } from './navigation.ts';
 
 describe('desktop navigation', () => {
+  it('recognises the desktop origin even though Node represents custom origins as opaque', () => {
+    expect(
+      localNavigation('porcelain://app/project#review', 'porcelain://app'),
+    ).toBe(true);
+  });
+  it.each([
+    'porcelain://elsewhere/',
+    'file:///app',
+    'porcelain://app:3000/',
+    'porcelain://owner:secret@app/',
+    'https://app/',
+    'porcelain://app.evil/',
+  ])('refuses a different desktop authority: %s', (url) => {
+    expect(localNavigation(url, 'porcelain://app')).toBe(false);
+  });
   it('keeps the window inside its own local server origin', () => {
     expect(
       localNavigation(

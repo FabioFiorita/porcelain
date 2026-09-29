@@ -1,8 +1,10 @@
 export function localNavigation(url: string, origin: string): boolean {
   try {
     const target = new URL(url);
+    const expected = new URL(origin);
     return (
-      target.origin === origin &&
+      target.protocol === expected.protocol &&
+      target.host === expected.host &&
       target.username === '' &&
       target.password === ''
     );

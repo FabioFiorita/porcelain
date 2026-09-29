@@ -1,3 +1,4 @@
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { utilityProcess } from 'electron';
 import type { desktopSettings } from './settings.ts';
 import { serverMessage } from './protocol.ts';
@@ -5,15 +6,14 @@ import { serverMessage } from './protocol.ts';
 export async function startLocalServer(
   settings: ReturnType<typeof desktopSettings>,
 ) {
-  const child = utilityProcess.fork(
-    settings.serverEntry,
-    [settings.profile, settings.projectHome, settings.packageRoot],
-    {
-      serviceName: 'Porcelain Server',
-      stdio: 'pipe',
-      cwd: settings.projectHome,
-    },
-  );
+  const credential = randomBytes(
+    settings.limits.credentials.secretBytes,
+  ).toString('base64url');
+  const child = utilityProcess.fork(settings.serverEntry, [], {
+    serviceName: 'Porcelain Server',
+    stdio: 'pipe',
+    cwd: settings.projectHome,
+  });
   child.stdout?.on('data', (chunk: Buffer) => process.stdout.write(chunk));
   child.stderr?.on('data', (chunk: Buffer) => process.stderr.write(chunk));
   const exited = new Promise<number>((resolveExit) =>
@@ -23,9 +23,6 @@ export async function startLocalServer(
     }),
   );
   let stopping = false;
-  let pairAnswer:
-    | { resolve: (link: string) => void; reject: (error: Error) => void }
-    | undefined;
   const address = await new Promise<string>((resolveReady, rejectReady) => {
     const timeout = AbortSignal.timeout(settings.limits.desktop.startupMs);
     const expired = () => {
@@ -40,32 +37,33 @@ export async function startLocalServer(
       if (answer.kind === 'ready') {
         timeout.removeEventListener('abort', expired);
         resolveReady(answer.address);
-      } else if (answer.kind === 'paired') {
-        pairAnswer?.resolve(answer.link);
-        pairAnswer = undefined;
       } else {
         const error = new Error(answer.message);
         rejectReady(error);
-        pairAnswer?.reject(error);
-        pairAnswer = undefined;
       }
     });
+    child.once('spawn', () =>
+      child.postMessage({
+        kind: 'start',
+        profile: settings.profile,
+        projectHome: settings.projectHome,
+        packageRoot: settings.packageRoot,
+        session: {
+          deviceId: randomUUID(),
+          secretHash: createHash('sha256').update(credential).digest('hex'),
+        },
+      }),
+    );
     child.once('exit', (code) => {
       timeout.removeEventListener('abort', expired);
       const error = new Error(`The local server exited (${code})`);
       rejectReady(error);
-      pairAnswer?.reject(error);
-      pairAnswer = undefined;
     });
   });
   return {
     address,
     exited,
-    pairingLink: () =>
-      new Promise<string>((resolvePair, rejectPair) => {
-        pairAnswer = { resolve: resolvePair, reject: rejectPair };
-        child.postMessage({ kind: 'pair' });
-      }),
+    credential,
     close: async () => {
       if (child.pid === undefined) return;
       if (!stopping) {

@@ -39,7 +39,7 @@ export function ProjectNavigator({
       aria-label="Projects and worktrees"
       className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border bg-card text-[13px]"
     >
-      <header className="flex h-11 shrink-0 items-center gap-2 border-b px-3">
+      <header className="desktop-sidebar-header flex h-11 shrink-0 items-center gap-2 border-b px-3">
         <img
           src={logo}
           alt=""

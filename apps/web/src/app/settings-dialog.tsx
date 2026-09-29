@@ -102,7 +102,7 @@ export function SettingsDialog({
             <DialogTitle>Settings</DialogTitle>
             <DialogDescription>
               {desktopShell
-                ? 'Preferences stay in this browser. Sharing changes Porcelain for every device.'
+                ? 'Preferences stay in this app. Sharing changes Porcelain for every device.'
                 : 'Preferences stay in this browser.'}
             </DialogDescription>
           </div>
@@ -218,15 +218,17 @@ export function SettingsDialog({
               </>
             )}
 
-            <Section title="Updates">
-              <ServiceUpdateSettings />
-            </Section>
-
-            <Separator />
-
-            <Section title="Connection">
-              <DisconnectBrowser />
-            </Section>
+            {!desktopShell && (
+              <>
+                <Section title="Updates">
+                  <ServiceUpdateSettings />
+                </Section>
+                <Separator />
+                <Section title="Connection">
+                  <DisconnectBrowser />
+                </Section>
+              </>
+            )}
           </div>
         </ScrollArea>
       </DialogContent>

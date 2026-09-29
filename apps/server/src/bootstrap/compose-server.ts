@@ -128,6 +128,7 @@ const openServerWith =
       () => network.server,
     );
     const access = composeAccess(context, {
+      desktopSession: host.desktopSession,
       stores,
       shared,
       deviceConnections,
