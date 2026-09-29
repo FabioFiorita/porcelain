@@ -5,3 +5,8 @@ export type { PairingAttemptStore } from './pairing-attempt-store.ts';
 export type { PairingGrantStore } from './pairing-grant-store.ts';
 export type { PairingReachReader } from './pairing-reach-reader.ts';
 export type { RuntimeStatusReader } from './runtime-status-reader.ts';
+export type { NetworkAddressReader } from './network-address-reader.ts';
+export type { RemoteAccessStore } from './remote-access-store.ts';
+export type { RouteListenerRunner } from './route-listener-runner.ts';
+export type { RouteStateStore } from './route-state-store.ts';
+export type { TunnelProbe } from './tunnel-probe.ts';

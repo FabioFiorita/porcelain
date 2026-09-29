@@ -35,7 +35,7 @@ function canonicalList(values: readonly string[]): string[] {
     .filter((value): value is string => value !== undefined);
 }
 
-function isLoopbackHostname(hostname: string): boolean {
+export function isLoopbackHostname(hostname: string): boolean {
   if (hostname === 'localhost' || hostname === '::1') return true;
   return IPV4.test(hostname) && hostname.startsWith('127.');
 }
@@ -63,6 +63,7 @@ export function pairingAddressReachable(
   const url = URL.parse(address);
   if (!url) return false;
   if (url.protocol !== 'http:' && url.protocol !== 'https:') return false;
+  if (reach.origins?.includes(url.origin)) return true;
   const defaultPort = url.protocol === 'http:' ? '80' : '443';
   if ((url.port || defaultPort) !== String(reach.port)) return false;
   const hostname = canonicalHostname(url.hostname);

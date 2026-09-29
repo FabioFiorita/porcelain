@@ -49,3 +49,4 @@ export const REVIEW_STEPS = 500;
 export const REVIEW_STEP_ARROWS = 500;
 export const DIAGRAM_BOXES = 500;
 export const DIAGRAM_ARROWS = 1000;
+export const TUNNEL_HOSTNAME_LENGTH = 253;

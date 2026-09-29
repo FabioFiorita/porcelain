@@ -2,12 +2,17 @@ import type { Worktree } from '@porcelain/kernel/models';
 import type { ListableProject } from '@porcelain/projects/models';
 
 const ACCESS = 'access';
+const REMOTE_ACCESS = 'remote-access';
 const INVENTORY = 'inventory';
 const FILESYSTEM = 'filesystem';
 
 export class LaneKeys {
   access(): string {
     return ACCESS;
+  }
+
+  remoteAccess(): string {
+    return REMOTE_ACCESS;
   }
 
   inventory(): string {

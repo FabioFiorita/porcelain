@@ -3,6 +3,7 @@ import {
   createDeviceStore,
   createEnvironmentIdentityReader,
   createPairingGrantStore,
+  createRemoteAccessStore,
 } from '@porcelain/storage/access';
 import { createGitActionReceiptStore } from '@porcelain/storage/git-actions';
 import {
@@ -20,6 +21,8 @@ import {
 import { CachedDeviceStore } from '../adapters/access/cached-device-store.ts';
 import { InMemoryDeviceSightingStore } from '../adapters/access/in-memory-device-sighting-store.ts';
 import { InMemoryPairingAttemptStore } from '../adapters/access/in-memory-pairing-attempt-store.ts';
+import { CachedRemoteAccessStore } from '../adapters/access/cached-remote-access-store.ts';
+import { InMemoryRouteStateStore } from '../adapters/access/in-memory-route-state-store.ts';
 
 export type Stores = ReturnType<typeof composeStores>;
 
@@ -33,6 +36,8 @@ export function composeStores(session: StorageSession) {
     deviceSightings: new InMemoryDeviceSightingStore(),
     pairingGrants: createPairingGrantStore(session),
     pairingAttempts: new InMemoryPairingAttemptStore(),
+    remoteAccess: new CachedRemoteAccessStore(createRemoteAccessStore(session)),
+    routeStates: new InMemoryRouteStateStore(),
     gitActions: createGitActionReceiptStore(session),
     reviews: createReviewStore(session),
     reviewedFiles: createReviewedFileStore(session),

@@ -105,4 +105,19 @@ describe('ListAccessService', () => {
   it('lists nothing when nothing was ever paired', () => {
     expect(setup().service.execute()).toEqual({ grants: [], devices: [] });
   });
+
+  it('marks the device that asks as the current one and no other', () => {
+    const { devices, service } = setup();
+    devices.add(device('1'));
+    devices.add(device('2'));
+
+    expect(
+      service
+        .execute({ viewerDeviceId: '2' })
+        .devices.map(({ id, current }) => ({ id, current })),
+    ).toEqual([
+      { id: '1', current: undefined },
+      { id: '2', current: true },
+    ]);
+  });
 });

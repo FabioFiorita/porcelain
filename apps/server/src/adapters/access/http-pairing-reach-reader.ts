@@ -1,14 +1,19 @@
 import type { PairingReach } from '@porcelain/access/models';
-import type { PairingReachReader } from '@porcelain/access/ports';
+import type {
+  PairingReachReader,
+  RouteStateStore,
+} from '@porcelain/access/ports';
 
 export class HttpPairingReachReader implements PairingReachReader {
   private readonly reach: () => PairingReach;
+  private readonly routeStates: RouteStateStore;
 
-  constructor(reach: () => PairingReach) {
+  constructor(reach: () => PairingReach, routeStates: RouteStateStore) {
     this.reach = reach;
+    this.routeStates = routeStates;
   }
 
   current(): PairingReach {
-    return this.reach();
+    return { ...this.reach(), origins: this.routeStates.read().origins };
   }
 }

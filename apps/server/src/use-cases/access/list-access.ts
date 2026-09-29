@@ -1,5 +1,8 @@
 import type { ListAccessService } from '@porcelain/access/services';
-import type { ListAccessResponse } from '@porcelain/contracts/access';
+import type {
+  ListAccessRequest,
+  ListAccessResponse,
+} from '@porcelain/contracts/access';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
 import type { OperationContext } from '../../ports/operation-context.ts';
@@ -15,11 +18,19 @@ export class ListAccessUseCase {
     this.laneKeys = laneKeys;
   }
 
-  execute(context: OperationContext): Promise<ListAccessResponse> {
+  execute(
+    input: ListAccessRequest,
+    context: OperationContext,
+  ): Promise<ListAccessResponse> {
+    const { viewer } = input;
     return this.lanes.run(
       this.laneKeys.access(),
       'read',
-      async () => this.listAccess.execute(),
+      async () =>
+        this.listAccess.execute({
+          viewerDeviceId:
+            viewer.kind === 'device' ? viewer.deviceId : undefined,
+        }),
       { callerSignal: context.signal },
     );
   }

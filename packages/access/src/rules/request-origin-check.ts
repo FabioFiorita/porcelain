@@ -14,12 +14,14 @@ function refused(refusal: RequestOriginRefusal): CheckRequestOriginResult {
 
 export function requestOriginCheck(
   input: CheckRequestOriginInput,
+  tunnelHosts: readonly string[] = [],
 ): CheckRequestOriginResult {
   const authority =
     input.host === undefined ? undefined : requestAuthority(input.host);
   if (authority === undefined) return refused({ kind: 'host-malformed' });
+  const tunnel = tunnelHosts.includes(authority.hostname);
   const policy = {
-    allowedHosts: input.allowedHosts,
+    allowedHosts: [...input.allowedHosts, ...tunnelHosts],
     localAddresses:
       input.localAddress === undefined ? [] : [input.localAddress],
   };
@@ -35,11 +37,12 @@ export function requestOriginCheck(
   const origin = URL.parse(input.origin);
   if (!origin) return refused({ kind: 'origin-malformed' });
   const scheme = origin.protocol.replace(/:$/, '');
+  const requestScheme = tunnel ? 'https' : input.scheme;
   const sameOrigin =
-    scheme === input.scheme &&
+    scheme === requestScheme &&
     canonicalHostname(origin.hostname) === authority.hostname &&
     effectivePort(scheme, origin.port === '' ? undefined : origin.port) ===
-      effectivePort(input.scheme, authority.port);
+      effectivePort(requestScheme, authority.port);
   return sameOrigin
     ? { kind: 'allowed' }
     : refused({ kind: 'cross-origin', origin: input.origin });

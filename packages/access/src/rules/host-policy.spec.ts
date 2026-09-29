@@ -116,4 +116,17 @@ describe('pairingAddressReachable', () => {
     expect(pairingAddressReachable('http://10.0.0.1:4173', reach)).toBe(false);
     expect(pairingAddressReachable('192.168.1.20:4173', reach)).toBe(false);
   });
+
+  it('accepts exactly an origin a remote route serves, on any port', () => {
+    const routed = { ...reach, origins: ['https://porcelain.example.com'] };
+    expect(
+      pairingAddressReachable('https://porcelain.example.com', routed),
+    ).toBe(true);
+    expect(
+      pairingAddressReachable('http://porcelain.example.com', routed),
+    ).toBe(false);
+    expect(pairingAddressReachable('https://other.example.com', routed)).toBe(
+      false,
+    );
+  });
 });

@@ -6,6 +6,7 @@ import {
   checkRequestOrigin,
   type RequestOriginOptions,
 } from '../hooks/request-origin.ts';
+import { hostScope, type HostUseCases } from './host.ts';
 import { liveScope, type LiveUseCases } from './live.ts';
 import { pairedScope, type PairedUseCases } from './paired.ts';
 import { publicScope, type PublicUseCases } from './public.ts';
@@ -13,7 +14,9 @@ import { publicScope, type PublicUseCases } from './public.ts';
 export type ApiUseCases = LiveUseCases &
   PairedUseCases &
   AuthenticateOptions & {
-    access: PublicUseCases['access'] & RequestOriginOptions['access'];
+    access: PublicUseCases['access'] &
+      RequestOriginOptions['access'] &
+      HostUseCases['access'];
   };
 
 export async function apiScope(
@@ -34,5 +37,6 @@ export async function apiScope(
     );
     http.register(publicScope, { application, limits });
     http.register(pairedScope, { application, limits });
+    http.register(hostScope, { application, limits });
   });
 }

@@ -1,3 +1,9 @@
+import type { Server } from 'node:http';
+import type {
+  NetworkAddressReader,
+  RouteListenerRunner,
+  TunnelProbe,
+} from '@porcelain/access/ports';
 import { createCommitPlanner } from '@porcelain/agents/commit-planning';
 import { readGitVersion } from '@porcelain/git/discovery';
 import { ConfirmWorktreeService } from '@porcelain/projects/services';
@@ -7,6 +13,9 @@ import { openStorageSession } from '@porcelain/storage';
 import { SocketOwnerProbe } from '../adapters/access/socket-owner-probe.ts';
 import { InMemoryDeviceConnectionStore } from '../adapters/access/in-memory-device-connection-store.ts';
 import { HttpPairingReachReader } from '../adapters/access/http-pairing-reach-reader.ts';
+import { HttpRouteListenerRunner } from '../adapters/access/http-route-listener-runner.ts';
+import { HttpTunnelProbe } from '../adapters/access/http-tunnel-probe.ts';
+import { OsNetworkAddressReader } from '../adapters/access/os-network-address-reader.ts';
 import { ProcessRuntimeStatusReader } from '../adapters/access/process-runtime-status-reader.ts';
 import { ParcelWorktreeWatcher } from '../adapters/events/parcel-worktree-watcher.ts';
 import { WebSocketEventPublisher } from '../adapters/events/web-socket-event-publisher.ts';
@@ -47,149 +56,172 @@ import { composeReviews } from './compose-reviews.ts';
 import { composeShared } from './compose-shared.ts';
 import { composeStores } from './compose-stores.ts';
 
-const openServer: OpenServer = async (input) => {
-  const { settings } = input;
-  const { limits } = settings;
-  const worktreeId = (projectId: string, metadataIdentity: string) =>
-    deriveWorktreeId(
-      projectId,
-      metadataIdentity,
-      limits.projects.worktreeIds.length,
-    );
-  const gitVersion = await readGitVersion(limits.git, input.signal);
-  const session = openStorageSession(settings.dataDirectory, {
-    worktreeIdLength: limits.projects.worktreeIds.length,
-  });
-  const stores = composeStores(session);
-  const catalog = new InMemoryWorktreeCatalogStore();
-  const clock = new SystemClock();
-  const lanes = new Lanes({
-    deadlineMs: () =>
-      operationDeadlineMs(catalog.listObservations().length, limits),
-    readCapacity: limits.lanes.readCapacity,
-    consistency: new ConfirmWorktreeService(catalog),
-    closeResources: () => session.close(),
-  });
-  const logger = new StderrLogger(clock);
-  const liveConnections = new LiveConnections();
-  const events = new WebSocketEventPublisher(liveConnections);
-  const shared = composeShared({
-    settings,
-    stores,
-    catalog,
-    gitVersion,
-    worktreeId,
-    clock,
-  });
-  const context: ComposeContext = {
-    lanes,
-    laneKeys: new LaneKeys(),
-    events,
-    settings,
-    clock,
-    ids: new RandomIdSource(),
-    logger,
-  };
-  const deviceConnections = new InMemoryDeviceConnectionStore();
-  const access = composeAccess(context, {
-    stores,
-    shared,
-    deviceConnections,
-    pairingReachReader: new HttpPairingReachReader(input.pairingReach),
-    runtimeStatusReader: new ProcessRuntimeStatusReader(input.runtimeStatus),
-  });
-  const projects = composeProjects(context, {
-    stores,
-    shared,
-    projectFolderReader: new FilesystemProjectFolderReader({
-      gitDirectory: gitDirectoryName(),
-    }),
-  });
-  const { checkWorktree } = projects;
-  const changes = composeChanges(context, { shared, checkWorktree });
-  const reviews = composeReviews(context, {
-    stores,
-    shared,
-    checkWorktree,
-    findWorktreeByPath: projects.findWorktreeByPath,
-  });
-  const worktreeWatches = new WatchWorktrees(
-    new AnnounceWorktreeChangeUseCase(
-      reviews.invalidateReviewedMarks,
+type RemoteRouteAdapters = {
+  networkAddressReader: NetworkAddressReader;
+  routeListenerRunner: (target: () => Server) => RouteListenerRunner;
+  tunnelProbe: (options: { timeoutMs: number }) => TunnelProbe;
+};
+
+const openServerWith =
+  (adapters: RemoteRouteAdapters): OpenServer =>
+  async (input) => {
+    const { settings } = input;
+    const { limits } = settings;
+    const worktreeId = (projectId: string, metadataIdentity: string) =>
+      deriveWorktreeId(
+        projectId,
+        metadataIdentity,
+        limits.projects.worktreeIds.length,
+      );
+    const gitVersion = await readGitVersion(limits.git, input.signal);
+    const session = openStorageSession(settings.dataDirectory, {
+      worktreeIdLength: limits.projects.worktreeIds.length,
+    });
+    const stores = composeStores(session);
+    const catalog = new InMemoryWorktreeCatalogStore();
+    const clock = new SystemClock();
+    const lanes = new Lanes({
+      deadlineMs: () =>
+        operationDeadlineMs(catalog.listObservations().length, limits),
+      readCapacity: limits.lanes.readCapacity,
+      consistency: new ConfirmWorktreeService(catalog),
+      closeResources: () => session.close(),
+    });
+    const logger = new StderrLogger(clock);
+    const liveConnections = new LiveConnections();
+    const events = new WebSocketEventPublisher(liveConnections);
+    const shared = composeShared({
+      settings,
+      stores,
+      catalog,
+      gitVersion,
+      worktreeId,
+      clock,
+    });
+    const context: ComposeContext = {
+      lanes,
+      laneKeys: new LaneKeys(),
       events,
+      settings,
+      clock,
+      ids: new RandomIdSource(),
       logger,
-    ),
-    projects.refreshInventory,
-    new ParcelWorktreeWatcher({
-      worktrees: shared.worktreeAccess,
-      projects: () => catalog.listObservations(),
-      gitDirectory: gitDirectoryName(),
-      isTemporaryWrite,
-      limits: limits.git,
-    }),
-    logger,
-    limits.liveUpdates,
-  );
-  const files = composeFiles(context, {
-    shared,
-    checkWorktree,
-    invalidateReviewedMarks: reviews.invalidateReviewedMarks,
-    editAnnouncements: worktreeWatches,
-  });
-  const commitPlanner = createCommitPlanner(limits.agents);
-  const gitActions = composeGitActions(context, {
-    stores,
-    shared,
-    checkWorktree,
-    refreshWorktreeReview: reviews.refreshWorktreeReview,
-    commitDraftSource: new ProcessCommitDraftSource(commitPlanner),
-    commitModelReader: new ProcessCommitModelReader(commitPlanner),
-  });
-  const jobs: readonly Job[] = [
-    new IntervalJob(
-      'recover-interrupted-git-actions',
-      gitActions.recoverInterruptedGitActions,
-      { atStart: true },
+    };
+    const deviceConnections = new InMemoryDeviceConnectionStore();
+    const routeListenerRunner = adapters.routeListenerRunner(
+      () => network.server,
+    );
+    const access = composeAccess(context, {
+      stores,
+      shared,
+      deviceConnections,
+      pairingReachReader: new HttpPairingReachReader(
+        input.pairingReach,
+        stores.routeStates,
+      ),
+      runtimeStatusReader: new ProcessRuntimeStatusReader(input.runtimeStatus),
+      networkAddressReader: adapters.networkAddressReader,
+      routeListenerRunner,
+      tunnelProbe: adapters.tunnelProbe({
+        timeoutMs: limits.access.remoteAccess.probeTimeoutMs,
+      }),
+    });
+    const projects = composeProjects(context, {
+      stores,
+      shared,
+      projectFolderReader: new FilesystemProjectFolderReader({
+        gitDirectory: gitDirectoryName(),
+      }),
+    });
+    const { checkWorktree } = projects;
+    const changes = composeChanges(context, { shared, checkWorktree });
+    const reviews = composeReviews(context, {
+      stores,
+      shared,
+      checkWorktree,
+      findWorktreeByPath: projects.findWorktreeByPath,
+    });
+    const worktreeWatches = new WatchWorktrees(
+      new AnnounceWorktreeChangeUseCase(
+        reviews.invalidateReviewedMarks,
+        events,
+        logger,
+      ),
+      projects.refreshInventory,
+      new ParcelWorktreeWatcher({
+        worktrees: shared.worktreeAccess,
+        projects: () => catalog.listObservations(),
+        gitDirectory: gitDirectoryName(),
+        isTemporaryWrite,
+        limits: limits.git,
+      }),
       logger,
-    ),
-    new IntervalJob(
-      'refresh-inventory',
-      new JobSequence([
-        projects.refreshInventory,
-        reviews.refreshReviewActivity,
-      ]),
-      { atStart: true, everyMs: limits.jobs.refreshInventoryMs },
-      logger,
-    ),
-    new IntervalJob(
-      'collect-absent-worktrees',
-      projects.collectAbsentWorktrees,
-      { everyMs: limits.jobs.collectAbsentWorktreesMs },
-      logger,
-    ),
-    new IntervalJob(
-      'flush-device-activity',
-      access.flushDeviceActivity,
-      { everyMs: limits.jobs.flushDeviceActivityMs, atStop: true },
-      logger,
-    ),
-    new IntervalJob(
-      'heartbeat',
-      new LiveHeartbeat(liveConnections),
-      { everyMs: limits.liveUpdates.heartbeatMs },
-      logger,
-    ),
-    new IntervalJob(
-      'ping-live-clients',
-      new LivePing(liveConnections),
-      { everyMs: limits.liveUpdates.pingMs },
-      logger,
-    ),
-  ];
-  const useCases = { access, projects, files, changes, reviews, gitActions };
-  return {
-    jobs,
-    network: createNetworkServer({
+      limits.liveUpdates,
+    );
+    const files = composeFiles(context, {
+      shared,
+      checkWorktree,
+      invalidateReviewedMarks: reviews.invalidateReviewedMarks,
+      editAnnouncements: worktreeWatches,
+    });
+    const commitPlanner = createCommitPlanner(limits.agents);
+    const gitActions = composeGitActions(context, {
+      stores,
+      shared,
+      checkWorktree,
+      refreshWorktreeReview: reviews.refreshWorktreeReview,
+      commitDraftSource: new ProcessCommitDraftSource(commitPlanner),
+      commitModelReader: new ProcessCommitModelReader(commitPlanner),
+    });
+    const jobs: readonly Job[] = [
+      new IntervalJob(
+        'recover-interrupted-git-actions',
+        gitActions.recoverInterruptedGitActions,
+        { atStart: true },
+        logger,
+      ),
+      new IntervalJob(
+        'refresh-inventory',
+        new JobSequence([
+          projects.refreshInventory,
+          reviews.refreshReviewActivity,
+        ]),
+        { atStart: true, everyMs: limits.jobs.refreshInventoryMs },
+        logger,
+      ),
+      new IntervalJob(
+        'collect-absent-worktrees',
+        projects.collectAbsentWorktrees,
+        { everyMs: limits.jobs.collectAbsentWorktreesMs },
+        logger,
+      ),
+      new IntervalJob(
+        'flush-device-activity',
+        access.flushDeviceActivity,
+        { everyMs: limits.jobs.flushDeviceActivityMs, atStop: true },
+        logger,
+      ),
+      new IntervalJob(
+        'open-remote-routes',
+        access.openRemoteRoutes,
+        { atStart: true, everyMs: limits.jobs.openRemoteRoutesMs },
+        logger,
+      ),
+      new IntervalJob(
+        'heartbeat',
+        new LiveHeartbeat(liveConnections),
+        { everyMs: limits.liveUpdates.heartbeatMs },
+        logger,
+      ),
+      new IntervalJob(
+        'ping-live-clients',
+        new LivePing(liveConnections),
+        { everyMs: limits.liveUpdates.pingMs },
+        logger,
+      ),
+    ];
+    const useCases = { access, projects, files, changes, reviews, gitActions };
+    const network = createNetworkServer({
       application: {
         ...useCases,
         liveUpdates: liveConnections,
@@ -200,19 +232,32 @@ const openServer: OpenServer = async (input) => {
       settings,
       files: new FilesystemWebRootReader(settings.webRoot),
       logger,
-    }),
-    owner: createOwnerServer({ application: useCases, logger, limits }),
-    close: async () => {
-      await worktreeWatches.close();
-      liveConnections.close();
-      await lanes.close();
-    },
+    });
+    return {
+      jobs,
+      network,
+      owner: createOwnerServer({ application: useCases, logger, limits }),
+      close: async () => {
+        await routeListenerRunner.close({ route: 'lan' });
+        await routeListenerRunner.close({ route: 'tailnet' });
+        await worktreeWatches.close();
+        liveConnections.close();
+        await lanes.close();
+      },
+    };
   };
-};
 
-export const startServer: StartServer = (settings, signal) =>
-  startApplication(settings, signal, {
-    openServer,
-    ownerProbe: new SocketOwnerProbe(),
-    clock: new SystemClock(),
-  });
+export const composeServer =
+  (adapters: RemoteRouteAdapters): StartServer =>
+  (settings, signal) =>
+    startApplication(settings, signal, {
+      openServer: openServerWith(adapters),
+      ownerProbe: new SocketOwnerProbe(),
+      clock: new SystemClock(),
+    });
+
+export const startServer: StartServer = composeServer({
+  networkAddressReader: new OsNetworkAddressReader(),
+  routeListenerRunner: (target) => new HttpRouteListenerRunner(target),
+  tunnelProbe: (options) => new HttpTunnelProbe(options),
+});

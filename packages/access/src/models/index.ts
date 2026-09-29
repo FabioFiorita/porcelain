@@ -16,3 +16,18 @@ export type {
 export type { PairingReach } from './pairing-reach.ts';
 export type { RefundPairingAttemptInput } from './refund-pairing-attempt.ts';
 export type { TakePairingAttemptInput } from './take-pairing-attempt.ts';
+export type {
+  CheckLocalRequestInput,
+  CheckLocalRequestResult,
+} from './check-local-request.ts';
+export type {
+  ListenedRoute,
+  ListenOutcome,
+  NetworkAddress,
+  RemoteAccessSettings,
+  RemoteRoutes,
+  RouteAddresses,
+  RouteKey,
+  TunnelAnswer,
+  TunnelTarget,
+} from './remote-access.ts';

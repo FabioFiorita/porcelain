@@ -115,4 +115,47 @@ describe('requestOriginCheck', () => {
       check({ requireSameOrigin: true, origin: 'http://127.0.0.1:4173' }),
     ).toEqual({ kind: 'allowed' });
   });
+
+  it('answers to a tunnel hostname only while it is a tunnel host', () => {
+    const host = 'porcelain.example.com';
+    expect(check({ host })).toEqual({
+      kind: 'refused',
+      refusal: { kind: 'host-not-allowed', hostname: host },
+    });
+    expect(
+      requestOriginCheck(
+        {
+          host,
+          origin: undefined,
+          method: 'GET',
+          scheme: 'http',
+          localAddress: '127.0.0.1',
+          allowedHosts: [],
+          requireSameOrigin: false,
+        },
+        [host],
+      ),
+    ).toEqual({ kind: 'allowed' });
+  });
+
+  it('treats a tunnel host as reached over HTTPS, whatever scheme the tunnel spoke to the server', () => {
+    const host = 'porcelain.example.com';
+    const write = {
+      host,
+      method: 'POST',
+      scheme: 'http',
+      localAddress: '127.0.0.1',
+      allowedHosts: [],
+      requireSameOrigin: false,
+    };
+    expect(
+      requestOriginCheck({ ...write, origin: `https://${host}` }, [host]),
+    ).toEqual({ kind: 'allowed' });
+    expect(
+      requestOriginCheck({ ...write, origin: `http://${host}` }, [host]),
+    ).toEqual({
+      kind: 'refused',
+      refusal: { kind: 'cross-origin', origin: `http://${host}` },
+    });
+  });
 });

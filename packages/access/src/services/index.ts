@@ -10,3 +10,7 @@ export { RefundPairingAttemptService } from './refund-pairing-attempt-service.ts
 export { RevokeDeviceService } from './revoke-device-service.ts';
 export { RevokePairingGrantService } from './revoke-pairing-grant-service.ts';
 export { TakePairingAttemptService } from './take-pairing-attempt-service.ts';
+export { CheckLocalRequestService } from './check-local-request-service.ts';
+export { OpenRemoteRoutesService } from './open-remote-routes-service.ts';
+export { ReadRemoteAccessService } from './read-remote-access-service.ts';
+export { SetRemoteAccessService } from './set-remote-access-service.ts';

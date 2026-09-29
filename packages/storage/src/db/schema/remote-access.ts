@@ -1,0 +1,20 @@
+import { sql } from 'drizzle-orm';
+import { check, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+
+export const remoteAccess = sqliteTable(
+  'remote_access',
+  {
+    singleton: integer('singleton').primaryKey(),
+    lan: integer('lan', { mode: 'boolean' }).notNull(),
+    tailnet: integer('tailnet', { mode: 'boolean' }).notNull(),
+    cloudflare: integer('cloudflare', { mode: 'boolean' }).notNull(),
+    cloudflareHostname: text('cloudflare_hostname'),
+  },
+  (table) => [
+    check('remote_access_singleton', sql`${table.singleton} = 1`),
+    check(
+      'remote_access_cloudflare_hostname',
+      sql`${table.cloudflare} = 0 OR ${table.cloudflareHostname} IS NOT NULL`,
+    ),
+  ],
+);

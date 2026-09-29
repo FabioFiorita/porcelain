@@ -4,7 +4,9 @@ import {
   InvalidDeviceDetailsError,
   InvalidPairingAddressError,
   InvalidPairingError,
+  InvalidTunnelHostnameError,
   MissingEnvironmentIdentityError,
+  MissingTunnelHostnameError,
   TooManyPairingAttemptsError,
 } from '@porcelain/access/errors';
 import {
@@ -123,6 +125,8 @@ const rules: readonly StatusRule[] = [
     errors: [
       InvalidPairingAddressError,
       InvalidDeviceDetailsError,
+      InvalidTunnelHostnameError,
+      MissingTunnelHostnameError,
       InvalidHistoryRequestError,
     ],
     statusCode: 400,

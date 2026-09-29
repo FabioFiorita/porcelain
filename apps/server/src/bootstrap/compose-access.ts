@@ -1,9 +1,16 @@
 import type {
+  NetworkAddressReader,
   PairingReachReader,
+  RouteListenerRunner,
   RuntimeStatusReader,
+  TunnelProbe,
 } from '@porcelain/access/ports';
 import {
+  CheckLocalRequestService,
   CheckRequestOriginService,
+  OpenRemoteRoutesService,
+  ReadRemoteAccessService,
+  SetRemoteAccessService,
   AuthenticateDeviceService,
   FlushDeviceActivityService,
   IssuePairingService,
@@ -18,7 +25,11 @@ import {
 import { RandomSecretSource } from '../adapters/runtime/random-secret-source.ts';
 import type { DeviceConnectionStore } from '../ports/device-connection-store.ts';
 import { AuthenticateDeviceUseCase } from '../use-cases/access/authenticate-device.ts';
+import { CheckLocalRequestUseCase } from '../use-cases/access/check-local-request.ts';
 import { CheckRequestOriginUseCase } from '../use-cases/access/check-request-origin.ts';
+import { OpenRemoteRoutesUseCase } from '../use-cases/access/open-remote-routes.ts';
+import { ReadRemoteAccessUseCase } from '../use-cases/access/read-remote-access.ts';
+import { SetRemoteAccessUseCase } from '../use-cases/access/set-remote-access.ts';
 import { ClearBrowserSessionUseCase } from '../use-cases/access/clear-browser-session.ts';
 import { FlushDeviceActivityUseCase } from '../use-cases/access/flush-device-activity.ts';
 import { IssuePairingUseCase } from '../use-cases/access/issue-pairing.ts';
@@ -39,14 +50,25 @@ type AccessDependencies = {
   deviceConnections: DeviceConnectionStore;
   pairingReachReader: PairingReachReader;
   runtimeStatusReader: RuntimeStatusReader;
+  networkAddressReader: NetworkAddressReader;
+  routeListenerRunner: RouteListenerRunner;
+  tunnelProbe: TunnelProbe;
 };
 
 export function composeAccess(
   context: ComposeContext,
   dependencies: AccessDependencies,
 ) {
-  const { lanes, laneKeys, clock, ids } = context;
+  const { lanes, laneKeys, clock, ids, logger } = context;
   const { stores } = dependencies;
+  const { remoteAccess, routeStates } = stores;
+  const openRemoteRoutes = new OpenRemoteRoutesService(
+    remoteAccess,
+    routeStates,
+    dependencies.networkAddressReader,
+    dependencies.routeListenerRunner,
+    dependencies.tunnelProbe,
+  );
   const { readEnvironment } = dependencies.shared;
   const limits = context.settings.limits.access;
   const deviceStore = stores.devices;
@@ -66,8 +88,40 @@ export function composeAccess(
     ),
     clearBrowserSession: new ClearBrowserSessionUseCase(lanes),
     checkRequestOrigin: new CheckRequestOriginUseCase(
-      new CheckRequestOriginService(),
+      new CheckRequestOriginService(remoteAccess),
       lanes,
+    ),
+    checkLocalRequest: new CheckLocalRequestUseCase(
+      new CheckLocalRequestService(),
+      lanes,
+    ),
+    readRemoteAccess: new ReadRemoteAccessUseCase(
+      new ReadRemoteAccessService(
+        remoteAccess,
+        routeStates,
+        dependencies.runtimeStatusReader,
+      ),
+      lanes,
+      laneKeys,
+    ),
+    setRemoteAccess: new SetRemoteAccessUseCase(
+      new SetRemoteAccessService(
+        remoteAccess,
+        routeStates,
+        dependencies.runtimeStatusReader,
+        { hostnameLength: limits.remoteAccess.hostnameLength },
+      ),
+      openRemoteRoutes,
+      readEnvironment,
+      lanes,
+      laneKeys,
+      logger,
+    ),
+    openRemoteRoutes: new OpenRemoteRoutesUseCase(
+      openRemoteRoutes,
+      readEnvironment,
+      lanes,
+      laneKeys,
     ),
     flushDeviceActivity: new FlushDeviceActivityUseCase(
       new FlushDeviceActivityService(deviceSightingStore, deviceStore),

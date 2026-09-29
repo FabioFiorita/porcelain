@@ -16,6 +16,10 @@ export function listAccess(
         response: { ...errorResponses, 200: listAccessResponseSchema },
       },
     },
-    (request) => options.useCase.execute({ signal: request.disconnected }),
+    (request) =>
+      options.useCase.execute(
+        { viewer: request.caller },
+        { signal: request.disconnected },
+      ),
   );
 }

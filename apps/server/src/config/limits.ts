@@ -10,6 +10,7 @@ import {
   DEVICE_PLATFORM_LENGTH,
   DIRECTORY_ENTRIES,
   PATH_LENGTH,
+  TUNNEL_HOSTNAME_LENGTH,
   REVIEW_SUMMARY_BYTES,
   REVIEWED_FILE_MARKS,
   TEXT_BYTES,
@@ -35,6 +36,7 @@ export type Limits = {
     device: { unusedLifetimeMs: number; cookieMaxAgeSeconds: number };
     deviceDetails: { labelLength: number; platformLength: number };
     credentials: { secretBytes: number };
+    remoteAccess: { hostnameLength: number; probeTimeoutMs: number };
     pairingAttempts: {
       windowMs: number;
       attemptsPerPeer: number;
@@ -153,6 +155,7 @@ export type Limits = {
     refreshInventoryMs: number;
     collectAbsentWorktreesMs: number;
     flushDeviceActivityMs: number;
+    openRemoteRoutesMs: number;
   };
   http: { reviewBodyBytes: number; editFileBodyBytes: number };
   locks: { startupWaitMs: number; pollMs: number; staleTakeovers: number };
@@ -206,6 +209,10 @@ export const LIMITS: Limits = {
       platformLength: DEVICE_PLATFORM_LENGTH,
     },
     credentials: { secretBytes: 32 },
+    remoteAccess: {
+      hostnameLength: TUNNEL_HOSTNAME_LENGTH,
+      probeTimeoutMs: 5 * SECOND_MS,
+    },
     pairingAttempts: {
       windowMs: MINUTE_MS,
       attemptsPerPeer: 10,
@@ -334,6 +341,7 @@ export const LIMITS: Limits = {
     refreshInventoryMs: 30 * SECOND_MS,
     collectAbsentWorktreesMs: HOUR_MS,
     flushDeviceActivityMs: MINUTE_MS,
+    openRemoteRoutesMs: 5 * SECOND_MS,
   },
   http: {
     reviewBodyBytes: JSON_ESCAPE_FACTOR * REVIEW_SUMMARY_BYTES + MEBIBYTE,

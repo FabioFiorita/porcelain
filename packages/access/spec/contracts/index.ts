@@ -11,3 +11,7 @@ export {
   pairingGrantStoreContract,
   type PairingGrantStoreSubject,
 } from './pairing-grant-store-contract.ts';
+export {
+  remoteAccessStoreContract,
+  type RemoteAccessStoreSubject,
+} from './remote-access-store-contract.ts';

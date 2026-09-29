@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { pairingLinkSchema } from './pairing-link.ts';
+import type { Principal } from './principal.ts';
 import {
   DEVICE_LABEL_LENGTH,
   DEVICE_PLATFORM_LENGTH,
@@ -37,6 +38,7 @@ const deviceSchema = z.object({
   createdAt: z.string(),
   lastSeenAt: z.string(),
   lastSeenAddress: z.string().optional(),
+  current: z.boolean().optional(),
 });
 
 export const listAccessResponseSchema = z.object({
@@ -75,6 +77,7 @@ export type RedeemPairingRequest = z.output<typeof redeemPairingRequestSchema>;
 export type RedeemPairingResponse = z.output<
   typeof redeemPairingResponseSchema
 >;
+export type ListAccessRequest = { viewer: Principal };
 export type ListAccessResponse = z.output<typeof listAccessResponseSchema>;
 export type IssuePairingRequest = z.output<typeof issuePairingRequestSchema>;
 export type IssuePairingResponse = z.output<typeof issuePairingResponseSchema>;

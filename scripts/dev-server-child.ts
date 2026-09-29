@@ -6,7 +6,10 @@ import { connect, createServer } from 'node:net';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { z } from 'zod';
-import { startServer } from '../apps/server/src/bootstrap/compose-server.ts';
+import { FixedNetworkAddressReader } from '../apps/server/spec/fakes/fixed-network-address-reader.ts';
+import { InMemoryRouteListenerRunner } from '../apps/server/spec/fakes/in-memory-route-listener-runner.ts';
+import { ScriptedTunnelProbe } from '../apps/server/spec/fakes/scripted-tunnel-probe.ts';
+import { composeServer } from '../apps/server/src/bootstrap/compose-server.ts';
 import { askOwner } from '../apps/server/src/cli/owner-client.ts';
 import { readServerSettings } from '../apps/server/src/config/server-settings.ts';
 import type { Runtime } from '../apps/server/src/ports/runtime.ts';
@@ -16,6 +19,7 @@ const issuedPairingSchema = z.object({
   grants: z.array(z.object({ code: z.string() })),
 });
 const redeemedPairingSchema = z.object({ credential: z.string().optional() });
+const healthSchema = z.object({ environmentId: z.string() });
 
 const execute = promisify(execFile);
 const shutdown = new AbortController();
@@ -31,6 +35,35 @@ const port = Number(process.env.PORCELAIN_DEV_PORT ?? '0');
 const bin = process.env.PORCELAIN_DEV_BIN;
 if (!bin) throw new Error('Missing development PATH folder');
 let server: Runtime | undefined;
+const listeningPort = () =>
+  Number(new URL(server?.address ?? 'http://127.0.0.1:0').port);
+const startServer = composeServer({
+  networkAddressReader: new FixedNetworkAddressReader([
+    {
+      interfaceName: 'lo',
+      address: '127.0.0.1',
+      family: 'IPv4',
+      internal: true,
+    },
+    {
+      interfaceName: 'eth0',
+      address: '192.168.1.20',
+      family: 'IPv4',
+      internal: false,
+    },
+  ]),
+  routeListenerRunner: () => new InMemoryRouteListenerRunner(listeningPort),
+  tunnelProbe: () =>
+    new ScriptedTunnelProbe(async ({ origin }) => {
+      if (new URL(origin).hostname.endsWith('.invalid'))
+        return { kind: 'unreachable' };
+      const health = await fetch(`${server?.address ?? ''}/api/health`);
+      return {
+        kind: 'answered',
+        environmentId: healthSchema.parse(await health.json()).environmentId,
+      };
+    }),
+});
 const relay = createServer((incoming) => {
   const address = new URL(server?.address ?? 'http://127.0.0.1:0');
   const outgoing = connect(Number(address.port), address.hostname);
