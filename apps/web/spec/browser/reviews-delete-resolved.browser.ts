@@ -26,8 +26,12 @@ test("the reviewer deletes the resolved threads they started after confirming, a
   await comments.getByRole('textbox', { name: 'Comment' }).fill(mine);
   await comments.getByRole('button', { name: 'Comment', exact: true }).click();
   await expect.element(comments.getByText(mine)).toBeVisible();
-  await comments.getByRole('button', { name: 'Resolve' }).first().click();
-  await comments.getByRole('button', { name: 'Resolve' }).click();
+  const openThread = (body: string) =>
+    comments
+      .getByRole('article', { name: 'Comment thread', exact: true })
+      .filter({ hasText: body });
+  await openThread(fromAgent).getByRole('button', { name: 'Resolve' }).click();
+  await openThread(mine).getByRole('button', { name: 'Resolve' }).click();
   await expect
     .element(comments.getByText('No open comments yet.'))
     .toBeVisible();
