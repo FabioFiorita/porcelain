@@ -8,7 +8,7 @@ const timeline = fixture('log/file-timeline.txt');
 describe('parseFileCommits', () => {
   it('reads each commit that touched the file with the path it had there, newest first', () => {
     expect(
-      parseFileCommits(timeline, gitLimits).map((entry) => ({
+      parseFileCommits(timeline, 'docs name.txt', gitLimits).map((entry) => ({
         subject: entry.commit.subject,
         path: entry.path,
         previousPath: entry.previousPath,
@@ -43,7 +43,11 @@ describe('parseFileCommits', () => {
   });
 
   it('keeps the whole commit summary of each entry', () => {
-    const [newest, , extended] = parseFileCommits(timeline, gitLimits);
+    const [newest, , extended] = parseFileCommits(
+      timeline,
+      'docs name.txt',
+      gitLimits,
+    );
     expect(newest?.commit).toEqual({
       oid: '09e1f2867a2b75c13619abd29fdfe4dc730d133e',
       parentOids: ['72f1cdb4e30dbb6fc6b44b7602e442196ba5be02'],
@@ -58,12 +62,46 @@ describe('parseFileCommits', () => {
   });
 
   it('reads no commits from empty output', () => {
-    expect(parseFileCommits(Buffer.alloc(0), gitLimits)).toEqual([]);
+    expect(parseFileCommits(Buffer.alloc(0), 'notes.txt', gitLimits)).toEqual(
+      [],
+    );
   });
 
   it('refuses output cut inside a commit', () => {
     expect(() =>
-      parseFileCommits(fixture('log/file-timeline-truncated.txt'), gitLimits),
+      parseFileCommits(
+        fixture('log/file-timeline-truncated.txt'),
+        'docs name.txt',
+        gitLimits,
+      ),
     ).toThrow('History contains unsupported data');
+  });
+
+  it('ends at the commit that added the file when the path was a folder before', () => {
+    expect(
+      parseFileCommits(
+        fixture('log/file-timeline-folder.txt'),
+        'cfg',
+        gitLimits,
+      ).map((entry) => [entry.commit.subject, entry.path, entry.status]),
+    ).toEqual([
+      ['change the cfg file', 'cfg', 'modified'],
+      ['replace the cfg folder with a file', 'cfg', 'added'],
+    ]);
+  });
+
+  it('lists a merge whose result changed the file, as its change from the first parent', () => {
+    expect(
+      parseFileCommits(
+        fixture('log/file-timeline-merge.txt'),
+        'notes.txt',
+        gitLimits,
+      ).map((entry) => [entry.commit.subject, entry.status]),
+    ).toEqual([
+      ['merge side', 'modified'],
+      ['main notes', 'modified'],
+      ['side notes', 'modified'],
+      ['add notes', 'added'],
+    ]);
   });
 });

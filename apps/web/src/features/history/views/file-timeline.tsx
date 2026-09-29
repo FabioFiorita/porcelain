@@ -49,10 +49,13 @@ export function FileTimeline({
           </CommitRow>
         </li>
       ))}
-      <li className="px-2 py-3 text-[11px] text-muted-foreground">
-        {timeline.more
-          ? `Showing the latest ${timeline.commits.length} commits.`
-          : 'Start of this file’s history.'}
+      <li className="flex flex-col gap-1 px-2 py-3 text-[11px] text-muted-foreground">
+        <span>
+          {timeline.more
+            ? `Showing the latest ${timeline.commits.length} commits.`
+            : 'Start of this file’s history.'}
+        </span>
+        <span>A merge appears only when its own result changed the file.</span>
       </li>
     </ol>
   );

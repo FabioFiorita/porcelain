@@ -383,6 +383,60 @@ function captureBranchRange(): void {
   );
 }
 
+function fileTimelineArguments(path: string): string[] {
+  return [
+    '--literal-pathspecs',
+    'log',
+    '-z',
+    '--raw',
+    '--no-textconv',
+    '--no-ext-diff',
+    '--no-color',
+    '--find-renames=50%',
+    '--diff-merges=first-parent',
+    '--follow',
+    '--max-count=6',
+    '--decorate-refs=refs/*',
+    `--format=${COMMIT_FORMAT}`,
+    'HEAD',
+    '--',
+    path,
+  ];
+}
+
+function captureFileTimelineAcrossShapes(): void {
+  const folder = repository('timeline-folder');
+  put(folder, 'cfg/a.txt', 'a\n');
+  put(folder, 'cfg/b.txt', 'b\n');
+  commit(folder, 'add a cfg folder');
+  git(folder, ['rm', '-q', '-r', 'cfg']);
+  put(folder, 'cfg', 'setting = 1\n');
+  commit(folder, 'replace the cfg folder with a file');
+  put(folder, 'cfg', 'setting = 2\n');
+  commit(folder, 'change the cfg file');
+  save(
+    'log/file-timeline-folder.txt',
+    read(folder, fileTimelineArguments('cfg')),
+  );
+
+  const merged = repository('timeline-merge');
+  put(merged, 'notes.txt', 'one\ntwo\n');
+  commit(merged, 'add notes');
+  git(merged, ['checkout', '-q', '-b', 'side']);
+  put(merged, 'notes.txt', 'one\nside\n');
+  commit(merged, 'side notes');
+  git(merged, ['checkout', '-q', 'main']);
+  put(merged, 'notes.txt', 'one\nmain\n');
+  commit(merged, 'main notes');
+  conflictingMerge(merged, 'side');
+  put(merged, 'notes.txt', 'one\nmain and side\n');
+  commit(merged, 'merge side');
+  save(
+    'log/file-timeline-merge.txt',
+    read(merged, fileTimelineArguments('notes.txt')),
+  );
+}
+
 function captureFileTimeline(): void {
   const checkout = repository('timeline');
   put(checkout, 'notes.txt', 'one\ntwo\nthree\nfour\n');
@@ -396,23 +450,7 @@ function captureFileTimeline(): void {
   commit(checkout, 'touch other');
   put(checkout, 'docs name.txt', 'one\ntwo\nthree\nfour\nfive\nsix\n');
   commit(checkout, 'extend docs');
-  const timeline = read(checkout, [
-    '--literal-pathspecs',
-    'log',
-    '-z',
-    '--raw',
-    '--no-textconv',
-    '--no-ext-diff',
-    '--no-color',
-    '--find-renames=50%',
-    '--follow',
-    '--max-count=6',
-    '--decorate-refs=refs/*',
-    `--format=${COMMIT_FORMAT}`,
-    'HEAD',
-    '--',
-    'docs name.txt',
-  ]);
+  const timeline = read(checkout, fileTimelineArguments('docs name.txt'));
   save('log/file-timeline.txt', timeline);
   save(
     'log/file-timeline-truncated.txt',
@@ -430,6 +468,7 @@ try {
   captureFilters();
   captureBranchRange();
   captureFileTimeline();
+  captureFileTimelineAcrossShapes();
 } finally {
   rmSync(ROOT, { recursive: true, force: true });
 }

@@ -15,9 +15,11 @@ const STATUSES: Record<string, CommitFile['status']> = {
 
 export function parseFileCommits(
   output: Buffer,
+  path: string,
   limits: GitLimits,
 ): FileCommit[] {
   const commits: FileCommit[] = [];
+  let followed = path;
   let at = 0;
   while (at < output.length) {
     const fields: string[] = [];
@@ -30,16 +32,21 @@ export function parseFileCommits(
     const commit = parseCommitRecord(fields, limits);
     const { entries, end } = readEntries(output, at);
     at = end;
-    const [entry, ...others] = entries;
-    const status = STATUSES[entry?.status ?? ''];
-    if (entry === undefined || others.length > 0 || status === undefined)
-      throw new UnsupportedHistoryDataError();
+    const entry = entries.find(
+      (candidate) =>
+        candidate.newPath === followed || candidate.oldPath === followed,
+    );
+    if (entry === undefined) continue;
+    const status = STATUSES[entry.status];
+    if (status === undefined) throw new UnsupportedHistoryDataError();
     commits.push({
       commit,
       path: status === 'deleted' ? entry.oldPath : entry.newPath,
       previousPath: status === 'renamed' ? entry.oldPath : null,
       status,
     });
+    if (status === 'added') break;
+    followed = entry.oldPath;
   }
   return commits;
 }

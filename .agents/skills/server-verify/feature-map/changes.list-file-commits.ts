@@ -7,6 +7,7 @@ import {
   type Session,
 } from '../scripts/feature.ts';
 import {
+  read,
   threeCommits,
   worktreeNotFound,
   worktreePath,
@@ -27,7 +28,7 @@ export default defineFeature({
   paired: true,
   intent: 'intended',
   behaviour:
-    'A reviewer reads the timeline of one file: the commits reachable from the head that touched it, newest first, following it back across renames. Each entry carries the commit, the path the file had in it, the path it was renamed from, and how the commit changed it. The timeline holds at most the requested number of commits and says whether older ones exist. A path no commit touched has an empty timeline, and an invalid path or limit or an unknown worktree is refused.',
+    'A reviewer reads the timeline of one file: the commits reachable from the head that touched it, newest first, following it back across renames. Each entry carries the commit, the path the file had in it, the path it was renamed from, and how the commit changed it. The timeline holds at most the requested number of commits and says whether older ones exist. A merge appears only when its own result changed the file, as its change from the first parent. When the path was a folder before the file was added, the timeline ends at the commit that added the file. A path no commit touched has an empty timeline, and an invalid path or limit or an unknown worktree is refused.',
   cases: [
     defineCase({
       name: 'the timeline follows the file back across its rename',
@@ -83,6 +84,39 @@ export default defineFeature({
           {
             commits: [{ commit: { oid: rename } }, { commit: { oid: second } }],
             more: true,
+          },
+          response.body,
+        );
+      },
+    }),
+    defineCase({
+      name: 'a file that replaced a folder of the same name ends where it was added',
+      async setup(session) {
+        await read(session, {
+          method: 'POST',
+          path: worktreePath(session, '/files'),
+          body: { kind: 'create', path: 'cfg', entryKind: 'directory' },
+        });
+        await session.writeFile('cfg/a.txt', 'a\n');
+        await session.git('add', 'cfg');
+        await session.git('commit', '-m', 'Add a cfg folder');
+        await session.rename(
+          `${session.repository}/cfg`,
+          `${session.repository}/old-cfg`,
+        );
+        await session.writeFile('cfg', 'setting = 1\n');
+        await session.git('add', 'cfg');
+        await session.git('commit', '-m', 'Replace the folder with a file');
+        return (await session.git('rev-parse', 'HEAD')).trim();
+      },
+      request: (session) => fileCommits(session, { path: 'cfg' }),
+      expect({ response, state, check, checkPartial }) {
+        check('status', 200, response.status);
+        checkPartial(
+          'only the file',
+          {
+            commits: [{ commit: { oid: state }, path: 'cfg', status: 'added' }],
+            more: false,
           },
           response.body,
         );

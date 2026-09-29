@@ -137,6 +137,33 @@ describe('listFileCommits', () => {
     expect(listed.more).toBe(true);
   });
 
+  it('lists the file that replaced a folder of the same name, ending where it was added', async () => {
+    write('cfg/a.txt', 'a\n');
+    write('cfg/b.txt', 'b\n');
+    commitAll('add a cfg folder');
+    git('rm', '-q', '-r', 'cfg');
+    write('cfg', 'setting = 1\n');
+    commitAll('replace the folder with a file');
+    expect(await subjects({ path: 'cfg' })).toEqual([
+      'replace the folder with a file',
+    ]);
+  });
+
+  it('includes a merge whose resolution changed the file', async () => {
+    write('notes.txt', 'one\ntwo\n');
+    commitAll('add notes');
+    git('switch', '-q', '-c', 'side');
+    write('notes.txt', 'one\nside\n');
+    commitAll('side notes');
+    git('switch', '-q', 'main');
+    write('notes.txt', 'one\nmain\n');
+    commitAll('main notes');
+    expect(() => git('merge', '-q', 'side')).toThrow();
+    write('notes.txt', 'one\nmain and side\n');
+    commitAll('merge side');
+    expect((await subjects({ path: 'notes.txt' }))[0]).toBe('merge side');
+  });
+
   it('lists nothing for a path no commit touched', async () => {
     renamedFile();
     expect(await list({ path: 'never.txt' })).toEqual({

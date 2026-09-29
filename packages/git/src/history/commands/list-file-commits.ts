@@ -47,6 +47,7 @@ export async function listFileCommits(
               '-z',
               '--raw',
               ...DIFF_FLAGS,
+              '--diff-merges=first-parent',
               '--follow',
               `--max-count=${limit + 1}`,
               '--decorate-refs=refs/*',
@@ -58,6 +59,7 @@ export async function listFileCommits(
             limits,
             signal,
           ),
+          request.path,
           limits,
         );
   await confirmHistoryCheckout(checkout, signal);
