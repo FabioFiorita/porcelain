@@ -18,11 +18,11 @@ export function DocumentToolbar({
     <header
       data-testid="document-toolbar"
       className={cn(
-        'flex h-11 shrink-0 items-center gap-2.5 border-b px-3.5',
+        'flex min-h-11 shrink-0 flex-wrap items-center gap-x-2.5 gap-y-1 border-b px-3.5',
         className,
       )}
     >
-      <div className="flex min-w-0 flex-col">
+      <div className="flex min-w-0 flex-auto flex-col">
         <h1
           aria-label={titleLabel}
           className="truncate text-[13px] leading-tight font-semibold"
@@ -35,7 +35,7 @@ export function DocumentToolbar({
           </p>
         )}
       </div>
-      <div className="ml-auto flex shrink-0 items-center gap-1.5">
+      <div className="ml-auto flex max-w-full shrink-0 flex-wrap items-center justify-end gap-1.5">
         {children}
       </div>
     </header>

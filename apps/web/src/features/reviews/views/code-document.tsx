@@ -24,11 +24,13 @@ import {
   useState,
 } from 'react';
 import { Button } from '@/components/ui/button';
+import { ButtonGroup } from '@/components/ui/button-group';
 import { toast } from '@/components/ui/toast';
 import { DiscardButton } from '@/features/git-actions/index';
 import {
   contentVersion,
   PIERRE_COMMENT_CSS,
+  PIERRE_HEADER_CSS,
   PIERRE_SURFACE_CSS,
   PIERRE_THEME,
 } from '@/shared/lib/pierre';
@@ -66,6 +68,8 @@ type Props = {
   context: DocumentContext;
   interaction: DocumentInteraction;
   header?: () => ReactNode;
+  headerLeading?: ReactNode;
+  headerActions?: ReactNode;
   toolbar?: (collapseControl: ReactNode) => ReactNode;
   commentRequest?: number;
   foundLine?: { line: number; nonce: number };
@@ -102,6 +106,8 @@ function CodeSurface({
   context: gitContext,
   interaction,
   header,
+  headerLeading,
+  headerActions,
   toolbar,
   threads,
   commentRequest,
@@ -322,7 +328,7 @@ function CodeSurface({
       setSelection({ id: entry.id, range });
     },
     lineHoverHighlight: 'number',
-    unsafeCSS: `${PIERRE_SURFACE_CSS}${PIERRE_COMMENT_CSS}${disableFileHeader ? '[data-code] { padding-top: 0 !important; }' : ''}`,
+    unsafeCSS: `${PIERRE_SURFACE_CSS}${PIERRE_COMMENT_CSS}${disableFileHeader ? '[data-code] { padding-top: 0 !important; }' : PIERRE_HEADER_CSS}`,
     ...(disableFileHeader ? { itemMetrics: { paddingTop: 0 } } : {}),
     layout: {
       paddingTop: disableFileHeader ? 0 : 12,
@@ -418,12 +424,17 @@ function CodeSurface({
               {collapseControl}
             </div>
           )}
-      {entries.length === 0 && header && (
+      {entries.length === 0 && (header || headerActions) && (
         <div
           className="min-h-0 flex-1 overflow-auto"
           data-testid="empty-code-document"
         >
-          {header()}
+          {header?.()}
+          {headerActions && (
+            <div className="flex justify-end px-3.5 py-2">
+              <ButtonGroup>{headerActions}</ButtonGroup>
+            </div>
+          )}
         </div>
       )}
       {entries.length > 0 && (
@@ -465,25 +476,36 @@ function CodeSurface({
           }}
           renderHeaderMetadata={(item) => {
             const entry = byId.get(item.id);
-            if (disableFileHeader) return null;
+            if (disableFileHeader || !entry) return null;
+            const actions = item.id === entries[0]?.id ? headerActions : null;
+            const leading = item.id === entries[0]?.id ? headerLeading : null;
+            const stale = entry.review?.stale ? (
+              <span className="rounded-md bg-graph-4/15 px-1.5 py-0.5 font-sans text-[10.5px] text-graph-4">
+                Changed since reviewed
+              </span>
+            ) : null;
+            const comment = entry.comment ? (
+              <Button
+                variant="quiet"
+                size="quiet"
+                aria-label={`Comment on ${entry.path} (${entry.kind === 'diff' ? (entry.note ?? 'diff') : 'file'})`}
+                onClick={() => openFileComment(entry)}
+              >
+                <MessageSquarePlusIcon />
+                <span className="max-[720px]:sr-only">Comment</span>
+              </Button>
+            ) : null;
+            if (!stale && !leading && !actions && !comment) return null;
             return (
-              <div className="flex items-center gap-2">
-                {entry?.review?.stale && (
-                  <span className="rounded-md bg-graph-4/15 px-1.5 py-0.5 font-sans text-[10.5px] text-graph-4">
-                    Changed since reviewed
-                  </span>
+              <div className="flex max-w-full flex-wrap items-center justify-end gap-1.5">
+                {stale}
+                {leading}
+                {(actions || comment) && (
+                  <ButtonGroup>
+                    {actions}
+                    {comment}
+                  </ButtonGroup>
                 )}
-                {entry?.comment ? (
-                  <button
-                    type="button"
-                    aria-label={`Comment on ${entry.path} (${entry.kind === 'diff' ? (entry.note ?? 'diff') : 'file'})`}
-                    className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 font-sans text-xs text-muted-foreground hover:bg-accent"
-                    onClick={() => openFileComment(entry)}
-                  >
-                    <MessageSquarePlusIcon className="size-3.5" />
-                    Comment
-                  </button>
-                ) : null}
               </div>
             );
           }}

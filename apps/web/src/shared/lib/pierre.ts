@@ -5,6 +5,21 @@ export const PIERRE_THEME: ThemesType = {
   dark: 'pierre-dark',
 };
 
+export const PIERRE_HEADER_CSS = `
+@media (max-width: 720px) {
+  [data-header-content] {
+    flex: 1 1 auto;
+    min-width: 6rem;
+    overflow: hidden;
+  }
+  [data-metadata] {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+  }
+}
+`;
+
 export const PIERRE_SURFACE_CSS = `
 :host {
   --diffs-light-bg: var(--card) !important;

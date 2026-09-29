@@ -42,6 +42,7 @@ export function ReviewCodeDocument({
   files = [],
   focus,
   header,
+  headerActions,
   commentRequest,
   toolbar,
 }: {
@@ -52,6 +53,7 @@ export function ReviewCodeDocument({
   files?: readonly { path: string; note?: string }[];
   focus?: Readonly<Record<string, readonly LineSpan[]>>;
   header?: () => ReactNode;
+  headerActions?: ReactNode;
   commentRequest?: number;
   toolbar?: (collapseControl: ReactNode) => ReactNode;
 }) {
@@ -194,6 +196,7 @@ export function ReviewCodeDocument({
       {...(commentRequest !== undefined ? { commentRequest } : {})}
       entries={entries}
       {...(documentHeader ? { header: documentHeader } : {})}
+      {...(headerActions ? { headerActions } : {})}
       {...(toolbar ? { toolbar } : {})}
     />
   );
