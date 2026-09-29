@@ -4,6 +4,7 @@ import {
   MessageSquarePlusIcon,
   PencilIcon,
 } from 'lucide-react';
+import { useHotkey } from '@tanstack/react-hotkeys';
 import { type ReactNode, useEffect, useId, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -11,6 +12,7 @@ import { useAccessStore } from '@/features/access/index';
 import { useChanges } from '@/features/changes/index';
 import { copyText } from '@/shared/workspace/copy';
 import { usePreferences } from '@/shared/workspace/preferences';
+import { SHORTCUTS } from '@/shared/workspace/shortcuts';
 import {
   type FileDraft,
   type FileDraftState,
@@ -30,6 +32,7 @@ import type { DocumentInteraction, OpenDocument } from '../rules/documents';
 import type { ReviewScope } from '../rules/review';
 import { CodeDocument, type DocumentContext } from './code-document';
 import { DocumentToolbar } from './document-toolbar';
+import { FindBar } from './find-bar';
 import { ReviewEmpty } from './review-empty';
 
 type FileDocumentProps = {
@@ -164,10 +167,16 @@ function ReadableFileDocument({
   }, [reveal, path]);
   const [editing, setEditing] = useState(false);
   const [commentRequest, setCommentRequest] = useState<number>();
+  const [finding, setFinding] = useState<number>();
+  const [foundLine, setFoundLine] = useState<{ line: number; nonce: number }>();
   const editorId = useId();
   useDiskChangeNotice(draft, editorId, contentFingerprint);
 
   const showingSource = kind === 'code' || mode === 'source';
+  useHotkey(SHORTCUTS.findInFile, () => setFinding(Date.now()), {
+    enabled: active && showingSource && !editing,
+    ignoreInputs: false,
+  });
   const actions = (
     <>
       <span
@@ -273,23 +282,34 @@ function ReadableFileDocument({
           <HtmlPreview scope={scope} path={path} html={text} />
         </div>
       ) : (
-        <CodeDocument
-          scope={scope}
-          context={context}
-          interaction={interaction}
-          disableFileHeader
-          {...(commentRequest !== undefined ? { commentRequest } : {})}
-          entries={[
-            {
-              ...fileEntry(`file:${path}`, path, text),
-              comment: {
-                filePath: path,
-                comparison: { kind: 'file' },
-                ...(contentFingerprint ? { contentFingerprint } : {}),
+        <div className="flex min-h-0 flex-1 flex-col">
+          {finding !== undefined && (
+            <FindBar
+              text={text}
+              focusRequest={finding}
+              onReveal={(line) => setFoundLine({ line, nonce: Date.now() })}
+              onClose={() => setFinding(undefined)}
+            />
+          )}
+          <CodeDocument
+            scope={scope}
+            context={context}
+            interaction={interaction}
+            disableFileHeader
+            {...(commentRequest !== undefined ? { commentRequest } : {})}
+            {...(foundLine !== undefined ? { foundLine } : {})}
+            entries={[
+              {
+                ...fileEntry(`file:${path}`, path, text),
+                comment: {
+                  filePath: path,
+                  comparison: { kind: 'file' },
+                  ...(contentFingerprint ? { contentFingerprint } : {}),
+                },
               },
-            },
-          ]}
-        />
+            ]}
+          />
+        </div>
       )}
     </div>
   );

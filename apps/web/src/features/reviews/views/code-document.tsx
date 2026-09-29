@@ -68,6 +68,7 @@ type Props = {
   header?: () => ReactNode;
   toolbar?: (collapseControl: ReactNode) => ReactNode;
   commentRequest?: number;
+  foundLine?: { line: number; nonce: number };
   disableFileHeader?: boolean;
   fullHeight?: boolean;
   range?: ReviewRange;
@@ -104,6 +105,7 @@ function CodeSurface({
   toolbar,
   threads,
   commentRequest,
+  foundLine,
   disableFileHeader = false,
   fullHeight = false,
   onToggleReviewed,
@@ -156,6 +158,21 @@ function CodeSurface({
       return;
     handledComment.current = commentRequest;
     openFileComment(entries[0]);
+  });
+  const handledFound = useRef<number | undefined>(undefined);
+  useEffect(() => {
+    const entry = entries[0];
+    if (!foundLine || !entry || handledFound.current === foundLine.nonce)
+      return;
+    handledFound.current = foundLine.nonce;
+    const range = { start: foundLine.line, end: foundLine.line };
+    setSelection({ id: entry.id, range });
+    viewer.current?.scrollTo({
+      type: 'line',
+      id: entry.id,
+      lineNumber: foundLine.line,
+      align: 'center',
+    });
   });
   const handledReveal = useRef<number | undefined>(undefined);
   const reveal = interaction.reveal;
