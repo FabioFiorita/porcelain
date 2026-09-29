@@ -17,7 +17,8 @@ import {
   selectedWorktreeInProject,
   useInventory,
 } from '@/features/projects/index';
-import { ReviewWorkspace } from '@/features/reviews/index';
+import { ReviewWorkspace, workspaceTitle } from '@/features/reviews/index';
+import { useDocumentTitle } from '@/shared/hooks/use-document-title';
 import { useConnectedContext } from '@/app/workspace-provider';
 import { SettingsDialog } from '@/app/settings-dialog';
 import { ShortcutsDialog } from '@/app/shortcuts-dialog';
@@ -43,6 +44,17 @@ export function ConnectedWorkspace({ review }: { review?: Review }) {
   const connection = useAccessStore((state) => state.connection);
   const inventory = useInventory(connection);
   const selectedWorktreeId = review?.selection.worktree.id;
+  useDocumentTitle(
+    review
+      ? workspaceTitle({
+          entry: review.search.entry,
+          surface: review.search.surface,
+          project: inventory.projects.find(
+            (project) => project.id === review.selection.projectId,
+          )?.name,
+        })
+      : 'Porcelain',
+  );
   const openWorktree = (projectId: string, worktreeId: string) =>
     navigate({
       to: '/$projectId/$worktreeId',

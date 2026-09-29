@@ -198,6 +198,10 @@ function address() {
   };
 }
 
+function title() {
+  return (framed?.contentDocument ?? document).title;
+}
+
 async function link(installation: 'this' | 'another') {
   const issued = await hostCommands.porcelainPairingLink('Journey browser');
   return pairingLink({
@@ -216,4 +220,5 @@ export const app = {
   failSessionRestore,
   link,
   address,
+  title,
 };

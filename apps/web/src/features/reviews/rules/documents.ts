@@ -1,3 +1,4 @@
+import { HISTORY_OID_LENGTH } from '@/config/limits';
 import type { CommentAnchor, RevealComment } from './comments';
 export type DocumentRef =
   | { kind: 'handoff' }
@@ -81,3 +82,42 @@ export type DocumentInteraction = {
   entry: string;
   reveal?: RevealComment | undefined;
 };
+
+type Surface = 'changes' | 'files' | 'history';
+
+const surfaceTitles: Record<Surface, string> = {
+  changes: 'Changes',
+  files: 'Files',
+  history: 'History',
+};
+
+function documentTitle(ref: DocumentRef): string {
+  switch (ref.kind) {
+    case 'handoff':
+      return 'Changes';
+    case 'unexplained':
+      return 'Not explained';
+    case 'layer':
+      return 'Review';
+    case 'branch':
+      return 'Branch changes';
+    case 'commit':
+      return ref.oid.slice(0, HISTORY_OID_LENGTH);
+    case 'change':
+    case 'file':
+    case 'branch-file':
+      return ref.path.split('/').at(-1) ?? ref.path;
+  }
+}
+
+export function workspaceTitle(input: {
+  entry: string | undefined;
+  surface: Surface | undefined;
+  project: string | undefined;
+}): string {
+  const ref = parseEntry(input.entry);
+  const shown = ref
+    ? documentTitle(ref)
+    : surfaceTitles[input.surface ?? 'changes'];
+  return input.project ? `${shown} — ${input.project}` : shown;
+}
