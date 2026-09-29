@@ -262,6 +262,24 @@ describe('httpsHosts', () => {
     ).toEqual(['porcelain.example.com', 'laptop.tail0000.ts.net']);
   });
 
+  it('names no tailnet host while Porcelain only holds the Serve listener without serving through it', () => {
+    expect(
+      httpsHosts(settings, {
+        states: {
+          lan: { kind: 'off' },
+          tailnet: { kind: 'failed', reason: 'serve-still-on' },
+          cloudflare: on,
+        },
+        origins: [],
+        tailnetProxy: {
+          hostname: 'laptop.tail0000.ts.net',
+          address: '127.0.0.1',
+          port: 41000,
+        },
+      }),
+    ).toEqual(['porcelain.example.com']);
+  });
+
   it('names no tailnet host while nothing serves the tailnet', () => {
     expect(
       httpsHosts(settings, {

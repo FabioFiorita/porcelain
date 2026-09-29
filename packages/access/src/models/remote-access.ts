@@ -21,6 +21,7 @@ export type RemoteAccessChange = {
 };
 
 export type TailnetFailure =
+  | 'serve-still-on'
   | 'tailscale-missing'
   | 'tailscale-unavailable'
   | 'tailscale-stopped'
@@ -49,7 +50,11 @@ export type RouteStates = {
   cloudflare: RouteState;
 };
 
-export type TailnetProxy = { hostname: string; address: string; port: number };
+export type TailnetProxy = {
+  address: string;
+  port: number;
+  hostname?: string | undefined;
+};
 
 export type RemoteRoutes = {
   states: RouteStates;
@@ -86,7 +91,7 @@ export type DefaultRoute = { interfaceName: string; metric: number };
 export type RouteAddresses = {
   route: ListenedRoute;
   addresses: string[];
-  port: 'server' | 'own';
+  port: 'server' | 'own' | number;
 };
 
 export type RouteKey = { route: ListenedRoute };

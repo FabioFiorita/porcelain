@@ -126,6 +126,8 @@ export function routeFailure(
       return 'Tailscale does not let Porcelain change Serve. Run sudo tailscale set --operator=$USER once on this computer.';
     case 'serve-taken':
       return 'Tailscale Serve already shares something else on HTTPS port 443 of this computer. Remove it with tailscale serve --https=443 off to share Porcelain there.';
+    case 'serve-still-on':
+      return 'Porcelain could not confirm that Tailscale stopped serving it, so it keeps holding the port Tailscale forwards to and tries again. Check tailscale serve status, or run tailscale serve --https=443 off.';
     case 'serve-failed':
       return 'Tailscale could not start serving Porcelain. Check tailscale serve status on this computer.';
   }

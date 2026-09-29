@@ -6,6 +6,7 @@ import {
   tailnetServedByUs,
   tailnetServeFailure,
   tailnetServePlan,
+  tailnetServePort,
 } from './tailnet.ts';
 
 const ready: TailnetReport = {
@@ -127,4 +128,17 @@ describe('tailnetServeFailure', () => {
     expect(tailnetServeFailure({ kind: 'denied' })).toBe('serve-denied');
     expect(tailnetServeFailure({ kind: 'failed' })).toBe('serve-failed');
   });
+});
+
+describe('tailnetServePort', () => {
+  it('reads the loopback port a recorded Serve target forwards to', () => {
+    expect(tailnetServePort('http://127.0.0.1:41000')).toBe(41000);
+  });
+
+  it.each(['http://127.0.0.1', 'https://127.0.0.1:41000', 'not a target'])(
+    'reads no port from %j',
+    (target) => {
+      expect(tailnetServePort(target)).toBeUndefined();
+    },
+  );
 });

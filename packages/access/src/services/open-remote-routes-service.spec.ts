@@ -59,6 +59,7 @@ function setup(
     serving?: TailnetServing;
     report?: TailnetReport;
     outcome?: TailnetServeOutcome;
+    taken?: number[];
   } = {},
 ) {
   const settings = new InMemoryRemoteAccessStore();
@@ -67,7 +68,11 @@ function setup(
     options.addresses ?? machine,
     routeTableVia('wlp2s0'),
   );
-  const listeners = new InMemoryRouteListenerRunner(4173, 41000);
+  const listeners = new InMemoryRouteListenerRunner(
+    4173,
+    41000,
+    options.taken ?? [],
+  );
   const tailnet = new InMemoryTailnet(
     'Laptop.tail0000.ts.net.',
     options.serving,
@@ -87,7 +92,22 @@ function setup(
   );
   const open = () => service.execute({ environmentId }, signal);
   const close = () => service.execute({ environmentId, closing: true }, signal);
+  const openWith = (
+    status: FixedTailnetStatusReader | InMemoryTailnet,
+    serve: FixedTailnetServeRunner | InMemoryTailnet,
+  ) =>
+    new OpenRemoteRoutesService(
+      settings,
+      routes,
+      addresses,
+      listeners,
+      status,
+      serve,
+      probe,
+      { loopbackAddress: '127.0.0.1' },
+    ).execute({ environmentId }, signal);
   return {
+    openWith,
     settings,
     routes,
     addresses,
@@ -178,7 +198,7 @@ describe('OpenRemoteRoutesService', () => {
     });
   });
 
-  it('does not ask Tailscale to serve again while it already serves this listener', async () => {
+  it('does not ask Tailscale to serve again while it already serves this listener, and records it as its own', async () => {
     const { settings, routes, open } = setup({
       report: nodeReport({ serving: { kind: 'proxy', target: ownListener } }),
       outcome: { kind: 'failed' },
@@ -190,6 +210,7 @@ describe('OpenRemoteRoutesService', () => {
       kind: 'on',
       urls: [`https://${tailnetName}`],
     });
+    expect(settings.read().tailnetServeTarget).toBe(ownListener);
   });
 
   it.each([
@@ -223,9 +244,9 @@ describe('OpenRemoteRoutesService', () => {
     ['denied', 'serve-denied'],
     ['failed', 'serve-failed'],
   ] as const)(
-    'fails the tailnet when Tailscale Serve is %s, and records no target',
+    'fails the tailnet when Tailscale Serve is %s, recording the target it asked for and keeping its listener, since Serve may have taken it',
     async (outcome, reason) => {
-      const { settings, routes, open } = setup({
+      const { settings, routes, listeners, open } = setup({
         report: nodeReport(),
         outcome: { kind: outcome },
       });
@@ -233,10 +254,32 @@ describe('OpenRemoteRoutesService', () => {
       await open();
 
       expect(routes.read().states.tailnet).toEqual({ kind: 'failed', reason });
-      expect(routes.read().tailnetProxy).toBeUndefined();
-      expect(settings.read().tailnetServeTarget).toBeUndefined();
+      expect(settings.read().tailnetServeTarget).toBe(ownListener);
+      expect(listeners.bound({ route: 'tailnet' })).toEqual(['127.0.0.1']);
+      expect(routes.read().tailnetProxy).toEqual({
+        address: '127.0.0.1',
+        port: 41000,
+      });
     },
   );
+
+  it('keeps the Serve listener and its port while Tailscale cannot be asked, since Serve may still forward there', async () => {
+    const { settings, routes, listeners, tailnet, open, openWith } = setup();
+    settings.save(tailnetOnly);
+    await open();
+    await openWith(
+      new FixedTailnetStatusReader({ kind: 'unavailable' }),
+      tailnet,
+    );
+
+    expect(listeners.bound({ route: 'tailnet' })).toEqual(['127.0.0.1']);
+    expect(settings.read().tailnetServeTarget).toBe(ownListener);
+    expect(routes.read()).toMatchObject({
+      states: { tailnet: { kind: 'failed', reason: 'tailscale-unavailable' } },
+      origins: [],
+      tailnetProxy: { address: '127.0.0.1', port: 41000 },
+    });
+  });
 
   it('turns the tailnet on by itself once Tailscale is fixed', async () => {
     const { settings, routes, tailnet, open } = setup();
@@ -254,7 +297,9 @@ describe('OpenRemoteRoutesService', () => {
 
   it('leaves alone what someone else serves on the HTTPS port', async () => {
     const theirs = { kind: 'proxy' as const, target: 'http://127.0.0.1:3000' };
-    const { settings, routes, tailnet, open } = setup({ serving: theirs });
+    const { settings, routes, listeners, tailnet, open } = setup({
+      serving: theirs,
+    });
     settings.save(tailnetOnly);
     await open();
 
@@ -263,12 +308,32 @@ describe('OpenRemoteRoutesService', () => {
       reason: 'serve-taken',
     });
     expect(await servingOf(tailnet)).toEqual(theirs);
+    expect(listeners.bound({ route: 'tailnet' })).toEqual([]);
+    expect(settings.read().tailnetServeTarget).toBeUndefined();
   });
 
-  it('replaces what it served before it restarted with its new listener', async () => {
+  it('listens again on the port Serve forwards to after a restart, so the forward stays its own', async () => {
     const before = 'http://127.0.0.1:39000';
-    const { settings, tailnet, open } = setup({
+    const { settings, routes, tailnet, open } = setup({
       serving: { kind: 'proxy', target: before },
+    });
+    settings.save({ ...tailnetOnly, tailnetServeTarget: before });
+    await open();
+
+    expect(await servingOf(tailnet)).toEqual({ kind: 'proxy', target: before });
+    expect(settings.read().tailnetServeTarget).toBe(before);
+    expect(routes.read().tailnetProxy).toEqual({
+      hostname: tailnetName,
+      address: '127.0.0.1',
+      port: 39000,
+    });
+  });
+
+  it('turns Serve off its old port when another program took that port, and only then serves a new one', async () => {
+    const before = 'http://127.0.0.1:39000';
+    const { settings, routes, tailnet, open } = setup({
+      serving: { kind: 'proxy', target: before },
+      taken: [39000],
     });
     settings.save({ ...tailnetOnly, tailnetServeTarget: before });
     await open();
@@ -278,9 +343,31 @@ describe('OpenRemoteRoutesService', () => {
       target: ownListener,
     });
     expect(settings.read().tailnetServeTarget).toBe(ownListener);
+    expect(routes.read().states.tailnet).toEqual({
+      kind: 'on',
+      urls: [`https://${tailnetName}`],
+    });
   });
 
-  it('stops serving and forgets its target when the tailnet is turned off', async () => {
+  it('serves nothing new and says so when Serve cannot be turned off a port another program took', async () => {
+    const before = 'http://127.0.0.1:39000';
+    const { settings, routes, listeners, open } = setup({
+      report: nodeReport({ serving: { kind: 'proxy', target: before } }),
+      outcome: { kind: 'failed' },
+      taken: [39000],
+    });
+    settings.save({ ...tailnetOnly, tailnetServeTarget: before });
+    await open();
+
+    expect(routes.read().states.tailnet).toEqual({
+      kind: 'failed',
+      reason: 'serve-still-on',
+    });
+    expect(settings.read().tailnetServeTarget).toBe(before);
+    expect(listeners.bound({ route: 'tailnet' })).toEqual([]);
+  });
+
+  it('turns Serve off and confirms it before letting go of the listener when the tailnet is turned off', async () => {
     const { settings, routes, listeners, tailnet, open } = setup();
     settings.save(tailnetOnly);
     await open();
@@ -305,7 +392,7 @@ describe('OpenRemoteRoutesService', () => {
   });
 
   it('forgets its target without stopping what someone else now serves when the tailnet is turned off', async () => {
-    const { settings, open } = setup({
+    const { settings, listeners, open } = setup({
       report: nodeReport({
         serving: { kind: 'proxy', target: 'http://127.0.0.1:3000' },
       }),
@@ -319,31 +406,37 @@ describe('OpenRemoteRoutesService', () => {
     await open();
 
     expect(settings.read().tailnetServeTarget).toBeUndefined();
+    expect(listeners.bound({ route: 'tailnet' })).toEqual([]);
   });
 
   it.each([
+    ['cannot be asked', new FixedTailnetStatusReader({ kind: 'unavailable' })],
     [
-      'cannot be asked',
-      { kind: 'unavailable' } as const,
-      { kind: 'done' } as const,
-    ],
-    [
-      'fails to stop',
-      nodeReport({ serving: { kind: 'proxy', target: ownListener } }),
-      { kind: 'failed' } as const,
+      'still forwards after being asked to stop',
+      new FixedTailnetStatusReader(
+        nodeReport({ serving: { kind: 'proxy', target: ownListener } }),
+      ),
     ],
   ])(
-    'keeps its target to stop later when Tailscale %s as the tailnet is turned off',
-    async (_, report, outcome) => {
-      const { settings, open } = setup({ report, outcome });
-      settings.save({
-        ...tailnetOnly,
-        tailnet: false,
-        tailnetServeTarget: ownListener,
-      });
+    'keeps holding the Serve listener and its target, and says Serve may still be on, when Tailscale %s as the tailnet is turned off',
+    async (_, status) => {
+      const { settings, routes, listeners, open, openWith } = setup();
+      settings.save(tailnetOnly);
       await open();
+      settings.save({ ...settings.read(), tailnet: false });
+      await openWith(status, new FixedTailnetServeRunner({ kind: 'done' }));
 
       expect(settings.read().tailnetServeTarget).toBe(ownListener);
+      expect(listeners.bound({ route: 'tailnet' })).toEqual(['127.0.0.1']);
+      expect(routes.read()).toEqual({
+        states: {
+          lan: { kind: 'off' },
+          tailnet: { kind: 'failed', reason: 'serve-still-on' },
+          cloudflare: { kind: 'off' },
+        },
+        origins: [],
+        tailnetProxy: { address: '127.0.0.1', port: 41000 },
+      });
     },
   );
 

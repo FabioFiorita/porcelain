@@ -32,11 +32,14 @@ export class HttpRouteListenerRunner implements RouteListenerRunner {
     input: RouteAddresses,
     signal: AbortSignal,
   ): Promise<ListenOutcome> {
-    const shared = input.port === 'server' ? await this.port(signal) : 0;
+    const shared = await this.wantedPort(input.port, signal);
     const open = this.routes.get(input.route) ?? new Map<string, Bound>();
     this.routes.set(input.route, open);
     for (const [address, bound] of open)
-      if (!input.addresses.includes(address)) {
+      if (
+        !input.addresses.includes(address) ||
+        (shared !== 0 && listeningPort(bound) !== shared)
+      ) {
         open.delete(address);
         await this.stop(bound);
       }
@@ -65,6 +68,14 @@ export class HttpRouteListenerRunner implements RouteListenerRunner {
     await Promise.all(
       [...(open?.values() ?? [])].map((bound) => this.stop(bound)),
     );
+  }
+
+  private async wantedPort(
+    port: RouteAddresses['port'],
+    signal: AbortSignal | undefined,
+  ): Promise<number> {
+    if (port === 'server') return this.port(signal);
+    return port === 'own' ? 0 : port;
   }
 
   private async port(signal: AbortSignal | undefined): Promise<number> {

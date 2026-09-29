@@ -92,11 +92,12 @@ export function httpsHosts(
   settings: RemoteAccessSettings,
   routes: RemoteRoutes,
 ): string[] {
+  const tailnet = routes.tailnetProxy?.hostname;
   return [
     ...answeredTunnelHosts(settings, routes.states),
-    ...(routes.tailnetProxy === undefined
+    ...(tailnet === undefined || routes.states.tailnet.kind !== 'on'
       ? []
-      : [routes.tailnetProxy.hostname]),
+      : [tailnet]),
   ];
 }
 

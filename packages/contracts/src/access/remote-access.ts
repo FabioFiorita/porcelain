@@ -20,6 +20,7 @@ const routeStateSchema = z.discriminatedUnion('kind', [
       'serve-denied',
       'serve-taken',
       'serve-failed',
+      'serve-still-on',
     ]),
   }),
 ]);

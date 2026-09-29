@@ -6,7 +6,7 @@ import type {
 import type { RouteListenerRunner } from '@porcelain/access/ports';
 
 export class InMemoryRouteListenerRunner implements RouteListenerRunner {
-  private readonly ports: Record<RouteAddresses['port'], () => number>;
+  private readonly ports: Record<string, () => number>;
   private readonly listening = new Map<string, string[]>();
 
   constructor(serverPort: () => number, ownPort: () => number) {
@@ -15,7 +15,10 @@ export class InMemoryRouteListenerRunner implements RouteListenerRunner {
 
   async listen(input: RouteAddresses): Promise<ListenOutcome> {
     this.listening.set(input.route, [...input.addresses]);
-    return { port: this.ports[input.port](), bound: [...input.addresses] };
+    return {
+      port: this.ports[String(input.port)]?.() ?? Number(input.port),
+      bound: [...input.addresses],
+    };
   }
 
   async close(input: RouteKey): Promise<void> {

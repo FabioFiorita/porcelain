@@ -67,6 +67,14 @@ export function tailnetServeFailure(
   }
 }
 
+export function tailnetServePort(target: string): number | undefined {
+  const url = URL.parse(target);
+  const port = Number(url?.port);
+  return url?.protocol === 'http:' && Number.isInteger(port) && port > 0
+    ? port
+    : undefined;
+}
+
 export function tailnetTarget(address: string, port: number): string {
   return `http://${address}:${port}`;
 }

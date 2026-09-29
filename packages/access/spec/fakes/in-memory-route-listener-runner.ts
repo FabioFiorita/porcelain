@@ -6,16 +6,23 @@ import type {
 import type { RouteListenerRunner } from '../../src/ports/route-listener-runner.ts';
 
 export class InMemoryRouteListenerRunner implements RouteListenerRunner {
-  private readonly ports: Record<RouteAddresses['port'], number>;
-  private readonly listening = new Map<string, RouteAddresses>();
+  private readonly ports: Record<string, number>;
+  private readonly taken: readonly number[];
+  private readonly listening = new Map<
+    string,
+    { addresses: string[]; port: number }
+  >();
 
-  constructor(serverPort: number, ownPort: number) {
+  constructor(serverPort: number, ownPort: number, taken: readonly number[]) {
     this.ports = { server: serverPort, own: ownPort };
+    this.taken = taken;
   }
 
   async listen(input: RouteAddresses): Promise<ListenOutcome> {
-    this.listening.set(input.route, input);
-    return { port: this.ports[input.port], bound: [...input.addresses] };
+    const port = this.ports[String(input.port)] ?? Number(input.port);
+    const bound = input.addresses.filter(() => !this.taken.includes(port));
+    this.listening.set(input.route, { addresses: bound, port });
+    return { port, bound };
   }
 
   async close(input: RouteKey): Promise<void> {

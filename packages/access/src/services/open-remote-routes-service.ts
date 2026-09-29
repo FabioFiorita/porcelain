@@ -6,6 +6,7 @@ import type {
   RouteState,
   RouteStates,
   TailnetProxy,
+  TailnetReport,
 } from '../models/remote-access.ts';
 import type { NetworkAddressReader } from '../ports/network-address-reader.ts';
 import type { RemoteAccessStore } from '../ports/remote-access-store.ts';
@@ -32,6 +33,7 @@ import {
   tailnetServedByUs,
   tailnetServeFailure,
   tailnetServePlan,
+  tailnetServePort,
   tailnetTarget,
 } from '../rules/tailnet.ts';
 
@@ -122,62 +124,108 @@ export class OpenRemoteRoutesService {
     settings: RemoteAccessSettings,
     signal: AbortSignal | undefined,
   ): Promise<TailnetOpening> {
-    if (!settings.tailnet) {
-      await this.routeListeners.close({ route: 'tailnet' });
-      await this.stopServing(settings, signal);
-      return { state: { kind: 'off' } };
+    const previous = settings.tailnetServeTarget;
+    const recordedPort =
+      previous === undefined ? undefined : tailnetServePort(previous);
+    const held =
+      recordedPort === undefined
+        ? undefined
+        : await this.holdServePort(recordedPort, signal);
+    const report = await this.tailnetStatus.read();
+    if (!settings.tailnet) return this.release(report, previous, held, signal);
+    if (previous !== undefined && held === undefined) {
+      const released = await this.release(report, previous, held, signal);
+      if (released.state.kind === 'failed') return released;
     }
-    const readiness = tailnetReadiness(await this.tailnetStatus.read());
-    if (readiness.kind === 'failed') {
-      await this.routeListeners.close({ route: 'tailnet' });
-      return { state: readiness };
-    }
-    const address = this.options.loopbackAddress;
-    const listened = await this.routeListeners.listen(
-      { route: 'tailnet', addresses: [address], port: 'own' },
-      signal,
+    const readiness = tailnetReadiness(
+      previous !== undefined && held === undefined
+        ? await this.tailnetStatus.read()
+        : report,
     );
-    if (listened.bound.length === 0) return { state: listenedState(listened) };
-    const target = tailnetTarget(address, listened.port);
+    if (readiness.kind === 'failed') return this.holding(held, readiness);
+    const port = held ?? (await this.holdServePort('own', signal));
+    if (port === undefined)
+      return this.holding(port, {
+        kind: 'failed',
+        reason: 'address-unavailable',
+      });
+    const target = tailnetTarget(this.options.loopbackAddress, port);
     const plan = tailnetServePlan(
       readiness.serving,
       target,
-      settings.tailnetServeTarget,
+      held === undefined ? undefined : previous,
     );
-    if (plan === 'taken')
-      return { state: { kind: 'failed', reason: 'serve-taken' } };
+    if (plan === 'taken') {
+      this.forgetServeTarget();
+      return this.holding(undefined, { kind: 'failed', reason: 'serve-taken' });
+    }
+    this.recordServeTarget(target);
     if (plan === 'serve') {
       const failure = tailnetServeFailure(
         await this.tailnetServe.serve({ target }, signal),
       );
       if (failure !== undefined)
-        return { state: { kind: 'failed', reason: failure } };
-      this.remoteAccess.save({
-        ...this.remoteAccess.read(),
-        tailnetServeTarget: target,
-      });
+        return this.holding(port, { kind: 'failed', reason: failure });
     }
     return {
       state: { kind: 'on', urls: [tailnetOrigin(readiness.hostname)] },
-      proxy: { hostname: readiness.hostname, address, port: listened.port },
+      proxy: {
+        hostname: readiness.hostname,
+        address: this.options.loopbackAddress,
+        port,
+      },
     };
   }
 
-  private async stopServing(
-    settings: RemoteAccessSettings,
+  private async release(
+    report: TailnetReport,
+    previous: string | undefined,
+    held: number | undefined,
     signal: AbortSignal | undefined,
-  ): Promise<void> {
-    const previous = settings.tailnetServeTarget;
-    if (previous === undefined) return;
-    const report = await this.tailnetStatus.read();
-    if (report.kind !== 'status') return;
-    if (
-      tailnetServedByUs(report, previous) &&
-      tailnetServeFailure(
-        await this.tailnetServe.stop({ target: previous }, signal),
-      ) !== undefined
-    )
-      return;
+  ): Promise<TailnetOpening> {
+    const stillOn: RouteState = { kind: 'failed', reason: 'serve-still-on' };
+    if (previous === undefined) return this.holding(undefined, { kind: 'off' });
+    if (report.kind !== 'status') return this.holding(held, stillOn);
+    if (tailnetServedByUs(report, previous)) {
+      await this.tailnetServe.stop({ target: previous }, signal);
+      const after = await this.tailnetStatus.read();
+      if (after.kind !== 'status' || tailnetServedByUs(after, previous))
+        return this.holding(held, stillOn);
+    }
+    this.forgetServeTarget();
+    return this.holding(undefined, { kind: 'off' });
+  }
+
+  private async holding(
+    port: number | undefined,
+    state: RouteState,
+  ): Promise<TailnetOpening> {
+    if (port === undefined) {
+      await this.routeListeners.close({ route: 'tailnet' });
+      return { state };
+    }
+    return { state, proxy: { address: this.options.loopbackAddress, port } };
+  }
+
+  private async holdServePort(
+    port: number | 'own',
+    signal: AbortSignal | undefined,
+  ): Promise<number | undefined> {
+    const outcome = await this.routeListeners.listen(
+      { route: 'tailnet', addresses: [this.options.loopbackAddress], port },
+      signal,
+    );
+    return outcome.bound.length === 0 ? undefined : outcome.port;
+  }
+
+  private recordServeTarget(target: string): void {
+    this.remoteAccess.save({
+      ...this.remoteAccess.read(),
+      tailnetServeTarget: target,
+    });
+  }
+
+  private forgetServeTarget(): void {
     const { tailnetServeTarget: _, ...rest } = this.remoteAccess.read();
     this.remoteAccess.save(rest);
   }
