@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { FileChange, TrackedComparison } from '@porcelain/kernel/models';
 import { FixedClock } from '@porcelain/kernel/fakes';
 import type { Review, ReviewDiff, ReviewStep } from '@porcelain/reviews/models';
+import { changesDigest } from '@porcelain/reviews/rules';
 import { ScriptedSignatureSource } from '../../spec/fakes/scripted-signature-source.ts';
 import { ResolvePublishedReviewService } from './resolve-published-review-service.ts';
 
@@ -212,5 +213,79 @@ describe('ResolvePublishedReviewService', () => {
 
   it('measures the summary in UTF-8 bytes', () => {
     expect(generate(stillChanged).summary.byteLength).toBe(17);
+  });
+
+  it('calls the proof current only while the changes are the ones it was published against', () => {
+    const proven = (changes: FileChange[]) =>
+      service.execute({
+        environmentId,
+        review: {
+          ...review(),
+          proof: {
+            checks: [{ name: 'Tests', result: 'pass' }],
+            assets: [],
+            baseline: {
+              digest: changesDigest([changed('README.md')], []),
+              proofPaths: [],
+            },
+          },
+        },
+        evidence: {
+          changes,
+          texts: new Map([text('README.md', readme)]),
+          diffs: [],
+        },
+      }).proof;
+    expect(proven([changed('README.md')])).toEqual({
+      checks: [{ name: 'Tests', result: 'pass' }],
+      assets: [],
+      current: true,
+    });
+    expect(
+      proven([{ ...changed('README.md'), fingerprint: 'g' }]).current,
+    ).toBe(false);
+    expect(proven([changed('README.md'), changed('b.md')]).current).toBe(false);
+    expect(proven([]).current).toBe(false);
+  });
+
+  it('calls a review without proof current, with nothing to prove', () => {
+    expect(generate(stillChanged).proof).toEqual({
+      checks: [],
+      assets: [],
+      current: true,
+    });
+  });
+
+  it('leaves the proof current when only its own screenshot came or went', () => {
+    const screenshot: FileChange = {
+      path: 'shot.png',
+      fingerprint: 's',
+      comparisons: [{ scope: 'untracked', path: 'shot.png' }],
+    };
+    const proofWith = (changes: FileChange[]) =>
+      service.execute({
+        environmentId,
+        review: {
+          ...review(),
+          proof: {
+            checks: [{ name: 'Tests', result: 'pass' }],
+            assets: [],
+            baseline: {
+              digest: changesDigest(
+                [changed('README.md'), screenshot],
+                ['shot.png'],
+              ),
+              proofPaths: ['shot.png'],
+            },
+          },
+        },
+        evidence: {
+          changes,
+          texts: new Map([text('README.md', readme)]),
+          diffs: [],
+        },
+      }).proof.current;
+    expect(proofWith([changed('README.md')])).toBe(true);
+    expect(proofWith([changed('README.md'), screenshot])).toBe(true);
   });
 });

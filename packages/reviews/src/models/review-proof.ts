@@ -54,6 +54,18 @@ export type ProofAsset = ProofFileAsset | ProofLinkAsset;
 export type ReviewProof = {
   checks: ProofCheck[];
   assets: ProofAsset[];
+  baseline?: ProofBaseline | undefined;
+};
+
+type ProofBaseline = {
+  digest: string;
+  proofPaths: string[];
+};
+
+export type ResolvedProof = {
+  checks: ProofCheck[];
+  assets: ProofAsset[];
+  current: boolean;
 };
 
 export type ProofFile = {

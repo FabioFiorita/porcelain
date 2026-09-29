@@ -1,5 +1,5 @@
 import type { ReviewChange, ReviewDiagnostics } from './review-evidence.ts';
-import type { ReviewProof } from './review-proof.ts';
+import type { ResolvedProof } from './review-proof.ts';
 import type {
   CodePointer,
   ReviewDiagram,
@@ -49,7 +49,7 @@ export type ResolvedReview = {
   diagram?: ReviewDiagram | undefined;
   layers: ResolvedLayer[];
   notExplained: UnexplainedChange[];
-  proof: ReviewProof;
+  proof: ResolvedProof;
 };
 
 export type ReviewResolution = {

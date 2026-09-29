@@ -78,7 +78,7 @@ Attach proof that the work is done in \`proof\`. Porcelain shows it beside the r
 }
 \`\`\`
 
-Publishing replaces the proof with the one you send. When you republish, send every check again, and every asset you want to keep: a new file by \`path\`, and an image or video already published by \`proofId\`, its \`id\` from \`read_review\`, in place of \`path\`. Porcelain reuses its copy, so the file does not need to exist any more. Name either \`path\` or \`proofId\`, never both.
+Proof describes the changes as they were when you published it. Once they change, Porcelain shows the checks as out of date until you run them and publish again; your own proof files coming or going do not count. Publishing replaces the proof with the one you send. When you republish, send every check again, and every asset you want to keep: a new file by \`path\`, and an image or video already published by \`proofId\`, its \`id\` from \`read_review\`, in place of \`path\`. Porcelain reuses its copy, so the file does not need to exist any more. Name either \`path\` or \`proofId\`, never both.
 
 ## Repair gaps before handing the review off
 

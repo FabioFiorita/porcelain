@@ -27,6 +27,7 @@ import type {
   ReviewDraft,
   ReviewEvidence,
 } from '@porcelain/reviews/models';
+import { changesDigest } from '@porcelain/reviews/rules';
 import { InMemoryReviewStore } from '../../spec/fakes/in-memory-review-store.ts';
 import { PublishReviewService } from './publish-review-service.ts';
 
@@ -417,6 +418,10 @@ describe('PublishReviewService', () => {
           url: 'https://ci.example/run/1',
         },
       ],
+      baseline: {
+        digest: changesDigest([], ['shot.png', 'run.webm']),
+        proofPaths: ['shot.png', 'run.webm'],
+      },
     });
     expect(new Set([image?.id, video?.id, link?.id]).size).toBe(3);
     expect(store.read({ worktreeId })?.proof).toEqual(review.proof);

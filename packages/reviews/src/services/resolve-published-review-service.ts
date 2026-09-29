@@ -7,6 +7,7 @@ import type {
 } from '../models/resolve-published-review.ts';
 
 import type { SignatureSource } from '../ports/signature-source.ts';
+import { changesDigest } from '../rules/review-proof.ts';
 import {
   resolveReview,
   reviewIsActive,
@@ -60,7 +61,17 @@ export class ResolvePublishedReviewService {
         diagnostics,
         layers,
       ),
-      proof: structuredClone(review.proof ?? { checks: [], assets: [] }),
+      proof: {
+        checks: structuredClone(review.proof?.checks ?? []),
+        assets: structuredClone(review.proof?.assets ?? []),
+        current:
+          review.proof === undefined ||
+          review.proof.baseline?.digest ===
+            changesDigest(
+              evidence.changes,
+              review.proof.baseline?.proofPaths ?? [],
+            ),
+      },
     };
   }
 }

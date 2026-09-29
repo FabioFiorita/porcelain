@@ -35,7 +35,12 @@ import { publishedLayerFingerprint } from '../rules/resolve-review.ts';
 import { reviewDraftProblem } from '../rules/review-draft.ts';
 import { reviewActivity } from '../rules/review-activity.ts';
 import { publishedLines } from '../rules/review-evidence.ts';
-import { proofFileKind, proofMediaType } from '../rules/review-proof.ts';
+import {
+  changesDigest,
+  proofFileKind,
+  proofFilePaths,
+  proofMediaType,
+} from '../rules/review-proof.ts';
 import { summaryStyleWarnings } from '../rules/summary-style.ts';
 
 export class PublishReviewService {
@@ -71,6 +76,17 @@ export class PublishReviewService {
       draft.proof,
       input.proofFiles,
     );
+    const proofPaths = proofFilePaths(draft.proof);
+    const proven =
+      proof === undefined
+        ? undefined
+        : {
+            ...proof,
+            baseline: {
+              digest: changesDigest(input.evidence.changes, proofPaths),
+              proofPaths,
+            },
+          };
     const files = input.evidence.texts;
     const layers = draft.layers.map((layer): ReviewLayer => {
       const steps = layer.steps.map((step) => ({
@@ -95,7 +111,7 @@ export class PublishReviewService {
         ? {}
         : { diagram: structuredClone(draft.diagram) }),
       layers,
-      ...(proof === undefined ? {} : { proof }),
+      ...(proven === undefined ? {} : { proof: proven }),
     };
     this.reviews.save({ ...review, proofFiles });
     return { review, warnings: summaryStyleWarnings(draft.summaryHtml) };

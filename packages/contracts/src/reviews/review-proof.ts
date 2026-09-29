@@ -86,6 +86,7 @@ const publishedAssetSchema = z.discriminatedUnion('kind', [
 export const publishedProofSchema = z.object({
   checks: z.array(proofCheckSchema).max(REVIEW_PROOF_CHECKS),
   assets: z.array(publishedAssetSchema).max(REVIEW_PROOF_ASSETS),
+  current: z.boolean(),
 });
 
 export const readProofFileQuerySchema = z.strictObject({

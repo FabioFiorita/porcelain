@@ -1,4 +1,4 @@
 export { currentLayerFingerprint } from './resolve-review.ts';
 export { reviewPaths, trackedComparisons } from './review-evidence.ts';
 export { reviewedLayerMarks } from './reviewed-marks.ts';
-export { proofFilePaths } from './review-proof.ts';
+export { changesDigest, proofFilePaths } from './review-proof.ts';

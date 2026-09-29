@@ -4,6 +4,8 @@ import type {
   ProofMediaType,
   ProofTarget,
 } from '../models/review-proof.ts';
+import type { FileChange } from '@porcelain/kernel/models';
+import { sha256Hex } from '@porcelain/kernel/rules';
 import type { LayerDraft } from '../models/review.ts';
 
 const signatures: readonly {
@@ -56,4 +58,18 @@ export function proofTargetsKnown(
     );
   };
   return [...(proof?.checks ?? []), ...(proof?.assets ?? [])].every(known);
+}
+
+export function changesDigest(
+  changes: readonly FileChange[],
+  ignoredPaths: readonly string[],
+): string {
+  const ignored = new Set(ignoredPaths);
+  return sha256Hex(
+    changes
+      .filter((change) => !ignored.has(change.path))
+      .map((change) => `${change.path}\0${change.fingerprint ?? ''}`)
+      .toSorted()
+      .join('\n'),
+  );
 }
