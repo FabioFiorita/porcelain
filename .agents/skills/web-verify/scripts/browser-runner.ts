@@ -7,6 +7,7 @@ import { createVitest, type Vite } from 'vitest/node';
 import { PlaywrightBrowserProvider } from '@vitest/browser-playwright';
 import { z } from 'zod';
 import { IsolatedServer } from '../../server-verify/scripts/session.ts';
+import { shellSchema, type Shell } from './catalogue.ts';
 import { journeyCommands, setJourneyServer } from './journey-commands.ts';
 
 const repositoryRoot = resolve(
@@ -15,10 +16,12 @@ const repositoryRoot = resolve(
 );
 const appSource = '/src/';
 const appEntry = `${appSource}main.tsx`;
+const viteModes: Record<Shell, string> = { web: 'test', desktop: 'desktop' };
 
 export const runRequestSchema = z.strictObject({
   spec: z.string(),
   folder: z.string(),
+  shell: shellSchema,
 });
 
 export type RunRequest = z.output<typeof runRequestSchema>;
@@ -79,7 +82,11 @@ async function transformApp(
   );
 }
 
-export async function startBrowser(evidence: string, output: Writable) {
+export async function startBrowser(
+  evidence: string,
+  output: Writable,
+  shell: Shell,
+) {
   const config = fileURLToPath(
     new URL('./vitest.browser.config.ts', import.meta.url),
   );
@@ -88,6 +95,7 @@ export async function startBrowser(evidence: string, output: Writable) {
   const runner = await createVitest(
     {
       config,
+      mode: viteModes[shell],
       watch: false,
       reporters: ['default', 'json'],
       outputFile: { json: join(evidence, 'vitest.json') },
@@ -260,7 +268,7 @@ function send(message: z.input<typeof workerMessageSchema>): Promise<void> {
   });
 }
 
-async function serve(build: string, evidence: string) {
+async function serve(build: string, evidence: string, shell: Shell) {
   const output = { text: '' };
   const sink = new Writable({
     write(chunk: Buffer | string, _encoding, done) {
@@ -268,15 +276,22 @@ async function serve(build: string, evidence: string) {
       done();
     },
   });
-  const browser = await startBrowser(evidence, sink);
+  let current = { shell, browser: await startBrowser(evidence, sink, shell) };
   let queue = Promise.resolve();
   process.on('message', (message: unknown) => {
     const request = runRequestSchema.parse(message);
     queue = queue.then(async () => {
       try {
+        if (request.shell !== current.shell) {
+          await current.browser.close();
+          current = {
+            shell: request.shell,
+            browser: await startBrowser(evidence, sink, request.shell),
+          };
+        }
         await send({
           kind: 'ran',
-          run: await runOnce(request, build, browser, output),
+          run: await runOnce(request, build, current.browser, output),
         });
       } catch (error) {
         await send({ kind: 'broken', message: errorMessage(error) });
@@ -284,17 +299,21 @@ async function serve(build: string, evidence: string) {
     });
   });
   process.once('disconnect', () => {
-    void queue.then(() => browser.close()).finally(() => process.exit());
+    void queue
+      .then(() => current.browser.close())
+      .finally(() => process.exit());
   });
   await send({ kind: 'ready' });
 }
 
 if (import.meta.main) {
-  const [build, evidence] = process.argv.slice(2);
+  const [build, evidence, shell] = process.argv.slice(2);
   if (build === undefined || evidence === undefined)
-    throw new Error('Usage: browser-runner.ts <server build> <evidence>');
+    throw new Error(
+      'Usage: browser-runner.ts <server build> <evidence> <web|desktop>',
+    );
   try {
-    await serve(build, evidence);
+    await serve(build, evidence, shellSchema.parse(shell));
   } catch (error) {
     await send({ kind: 'broken', message: errorMessage(error) });
     process.exit(1);

@@ -20,6 +20,10 @@ const journeyDomains = [...webDomains, 'app'];
 const journeyFolder = 'apps/web/spec/browser';
 const negativeFolder = 'apps/web/spec/negative';
 
+export const shellSchema = z.enum(['web', 'desktop']);
+
+export type Shell = z.output<typeof shellSchema>;
+
 const journeySchema = z.strictObject({
   feature: z
     .string()
@@ -30,6 +34,7 @@ const journeySchema = z.strictObject({
   route: z.string().startsWith('/'),
   reach: z.string().min(1),
   shortcut: z.string().min(1).optional(),
+  shell: shellSchema.default('web'),
   behaviour: z
     .string()
     .regex(

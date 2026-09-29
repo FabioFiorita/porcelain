@@ -21,6 +21,7 @@ import {
   negativeJourneys,
   recordedNegatives,
   type Journey,
+  type Shell,
 } from './catalogue.ts';
 import { calledRoutes, webCalls } from './web-routes.ts';
 
@@ -58,8 +59,9 @@ type BrowserWorker = {
 async function startWorker(
   build: string,
   evidence: string,
+  shell: Shell,
 ): Promise<BrowserWorker> {
-  const child = fork(runnerFile, [build, evidence], {
+  const child = fork(runnerFile, [build, evidence, shell], {
     cwd: repositoryRoot,
     serialization: 'advanced',
     stdio: ['ignore', 'inherit', 'inherit', 'ipc'],
@@ -129,9 +131,10 @@ async function startWorkers(
   count: number,
   build: string,
   evidence: string,
+  shell: Shell,
 ): Promise<BrowserWorker[]> {
   const started = await Promise.allSettled(
-    Array.from({ length: count }, () => startWorker(build, evidence)),
+    Array.from({ length: count }, () => startWorker(build, evidence, shell)),
   );
   const workers = started.flatMap((entry) =>
     entry.status === 'fulfilled' ? [entry.value] : [],
@@ -199,6 +202,7 @@ async function journeyOutcome(
     const result = await worker.run({
       spec: journey.spec,
       folder: join(evidence, journey.feature, `run-${repetition}`),
+      shell: journey.shell,
     });
     runs.push(result);
     if (!result.passed) break;
@@ -270,7 +274,7 @@ function coverage(
 function list(journeys: readonly Journey[]) {
   for (const journey of journeys)
     process.stdout.write(
-      `${journey.feature} ${journey.route}${journey.shortcut ? ` [${journey.shortcut}]` : ''}\n  reach: ${journey.reach}\n  ${journey.behaviour}\n  server: ${journey.server.join(', ')}\n`,
+      `${journey.feature} ${journey.route}${journey.shortcut ? ` [${journey.shortcut}]` : ''}${journey.shell === 'desktop' ? ' (desktop web)' : ''}\n  reach: ${journey.reach}\n  ${journey.behaviour}\n  server: ${journey.server.join(', ')}\n`,
     );
   for (const negative of negativeJourneys)
     process.stdout.write(`negative.${negative.name}: ${negative.plants}\n`);
@@ -298,6 +302,10 @@ async function main(): Promise<number> {
   const browsers = Number(values.browsers);
   const selected = journeys.filter(
     (journey) => all || positionals.includes(journey.feature),
+  );
+  const queue = selected.toSorted(
+    (first, second) =>
+      Number(first.shell === 'desktop') - Number(second.shell === 'desktop'),
   );
   const negatives = negativeJourneys.filter(
     (negative) => all || positionals.includes(`negative.${negative.name}`),
@@ -347,11 +355,16 @@ async function main(): Promise<number> {
     await buildIsolatedServer(build);
     buildMs = Math.round(performance.now() - buildStarted);
     const workersStarted = performance.now();
-    workers = await startWorkers(lanes, build, evidence);
+    workers = await startWorkers(
+      lanes,
+      build,
+      evidence,
+      queue[0]?.shell ?? 'web',
+    );
     workerMs = Math.round(performance.now() - workersStarted);
     const covered = new Set<string>();
     const journeysStarted = performance.now();
-    await drain(selected, workers, async (journey, worker) => {
+    await drain(queue, workers, async (journey, worker) => {
       const journeyStarted = performance.now();
       const outcome = await journeyOutcome(journey, times, evidence, worker);
       const wallMs = Math.round(performance.now() - journeyStarted);
@@ -390,6 +403,7 @@ async function main(): Promise<number> {
       const outcome = await worker.run({
         spec: negative.spec,
         folder: join(evidence, `negative.${negative.name}`),
+        shell: 'web',
       });
       for (const route of outcome.registered) registered.add(route);
       const verdict =
