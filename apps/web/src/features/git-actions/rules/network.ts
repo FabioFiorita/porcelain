@@ -96,6 +96,10 @@ export function primaryTooltip(
   if (primary.kind === 'commit')
     return `Commit ${plural(status.changes.length, 'changed file')}`;
   const branch = branchStatus(status);
+  if (primary.kind === 'stash') {
+    const latest = branch?.stashes?.[0]?.message;
+    return latest ? `Apply the stash “${latest}”` : 'Apply the latest stash';
+  }
   const upstream = branch?.upstream ?? 'the configured remote';
   if (primary.action === 'pull') return `Pull from ${upstream}`;
   return `Push ${plural(branch?.ahead ?? 0, 'commit')} to ${upstream}`;

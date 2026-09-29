@@ -148,7 +148,17 @@ export function gitActionReason(
 type PrimaryGitAction =
   | { kind: 'commit'; label: string }
   | { kind: 'run'; action: 'push' | 'pull'; label: string }
+  | { kind: 'stash'; label: string }
   | { kind: 'hint'; label: string; hint: string };
+
+export function suggestedCount(
+  primary: PrimaryGitAction,
+  status: GitActionStatus,
+): number | null {
+  const branch = branchStatus(status);
+  if (primary.kind !== 'run' || branch == null) return null;
+  return primary.action === 'pull' ? branch.behind : branch.ahead;
+}
 
 export function primaryGitAction(status: GitActionStatus): PrimaryGitAction {
   if (
@@ -183,6 +193,8 @@ export function primaryGitAction(status: GitActionStatus): PrimaryGitAction {
       label: 'Pull',
     };
   if (branch.ahead > 0) return { kind: 'run', action: 'push', label: 'Push' };
+  if ((branch.stashes?.length ?? 0) > 0)
+    return { kind: 'stash', label: 'Apply stash' };
   return {
     kind: 'hint',
     label: 'Commit',

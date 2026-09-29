@@ -47,6 +47,7 @@ import {
   gitActionReason,
   primaryGitAction,
   statusFromChanges,
+  suggestedCount,
 } from '../rules/status';
 import { BranchDialog } from './branch-dialog';
 import { GitActionIcon } from './git-action-icon';
@@ -64,7 +65,10 @@ export function GitButton({
   const overview = useReviewOverview(scope, connection);
   const [detailsEnabled, setDetailsEnabled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const details = useGitStatus(scope, connection, detailsEnabled);
+  const settled =
+    overview != null &&
+    primaryGitAction(statusFromChanges(overview.changes)).kind === 'hint';
+  const details = useGitStatus(scope, connection, detailsEnabled || settled);
   const refreshLook = useRefreshGitLook(scope, connection);
   const { preferences } = usePreferences();
   const [busy, setBusy] = useState(false);
@@ -98,6 +102,8 @@ export function GitButton({
   const selected = gitActions.find((candidate) => candidate.id === action);
   const primary = primaryGitAction(status);
   const primaryTip = primaryTooltip(primary, status);
+  const suggested = primary.kind === 'run' || primary.kind === 'stash';
+  const count = suggestedCount(primary, status);
   const branch = branchStatus(status);
   const running = menu.running;
 
@@ -126,7 +132,7 @@ export function GitButton({
             render={
               <Button
                 variant="outline"
-                size="icon-sm"
+                size={suggested && !running ? 'sm' : 'icon-sm'}
                 aria-label={
                   running
                     ? `${networkLabel(running.name)} in progress: show progress`
@@ -143,6 +149,7 @@ export function GitButton({
                 onClick={() => {
                   if (running) return;
                   if (primary.kind === 'commit') choose('commit');
+                  else if (primary.kind === 'stash') choose('stash-apply');
                   else if (primary.kind === 'run')
                     menu.runNetwork(primary.action, status.branch);
                 }}
@@ -153,9 +160,21 @@ export function GitButton({
               <Spinner className="size-3.5" />
             ) : (
               <GitActionIcon
-                action={primary.kind === 'run' ? primary.action : 'commit'}
+                action={
+                  primary.kind === 'run'
+                    ? primary.action
+                    : primary.kind === 'stash'
+                      ? 'stash-apply'
+                      : 'commit'
+                }
                 className="size-3.5"
               />
+            )}
+            {suggested && !running && (
+              <span aria-hidden="true">
+                {primary.label}
+                {count != null && ` ${count}`}
+              </span>
             )}
           </PopoverTrigger>
           <PopoverContent align="end" className="w-80">
