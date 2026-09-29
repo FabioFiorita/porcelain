@@ -87,7 +87,10 @@ export function SettingsDialog({
           <DialogIcon icon={Settings} />
           <div className="flex flex-col gap-0.5">
             <DialogTitle>Settings</DialogTitle>
-            <DialogDescription>Stored on this device.</DialogDescription>
+            <DialogDescription>
+              Preferences stay in this browser. Sharing changes Porcelain for
+              every device.
+            </DialogDescription>
           </div>
         </DialogHeader>
 
