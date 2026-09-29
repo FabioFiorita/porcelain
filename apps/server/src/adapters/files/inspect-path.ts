@@ -35,6 +35,7 @@ const unreadableCodes = new Set([
   'ENOTDIR',
   'EISDIR',
   'ENXIO',
+  'ENAMETOOLONG',
 ]);
 const vanishedCodes = new Set([
   'ENOENT',
