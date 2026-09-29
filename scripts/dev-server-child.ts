@@ -1,9 +1,9 @@
 import { execFile } from 'node:child_process';
 import { subscribe } from 'node:diagnostics_channel';
 import { appendFileSync } from 'node:fs';
-import { mkdir, symlink, writeFile } from 'node:fs/promises';
+import { mkdir, symlink, unlink, writeFile } from 'node:fs/promises';
 import { connect, createServer } from 'node:net';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { promisify } from 'node:util';
 import { z } from 'zod';
 import { FixedNetworkAddressReader } from '../apps/server/spec/fakes/fixed-network-address-reader.ts';
@@ -290,6 +290,127 @@ const serviceUpdateRunner = new ScriptedServiceUpdateRunner(
   fixture.serviceUpdate.stepMs,
 );
 
+async function seedReviewSample(repository: string) {
+  const write = async (path: string, text: string) => {
+    const file = join(repository, path);
+    await mkdir(dirname(file), { recursive: true });
+    await writeFile(file, text);
+  };
+  const at = async (date: string, args: readonly string[]) => {
+    await execute('git', [...args], {
+      cwd: repository,
+      env: {
+        ...process.env,
+        GIT_AUTHOR_DATE: date,
+        GIT_COMMITTER_DATE: date,
+      },
+    });
+  };
+  const commit = async (message: string, date: string) => {
+    await execute('git', ['add', '-A'], { cwd: repository, env: process.env });
+    await at(date, ['commit', '-m', message]);
+  };
+
+  await at('2026-09-01T09:00:00', [
+    'commit',
+    '--amend',
+    '--no-edit',
+    '--reset-author',
+  ]);
+  await write(
+    'src/parse.ts',
+    "export type Note = { title: string; body: string };\n\nexport function parseNote(text: string): Note {\n  const [title = '', ...rest] = text.split('\\n');\n  return { title: title.replace(/^# /, ''), body: rest.join('\\n').trim() };\n}\n",
+  );
+  await write(
+    'src/notes/store.ts',
+    "import type { Note } from '../parse.ts';\n\nconst notes: Note[] = [];\n\nexport function saveNote(note: Note) {\n  notes.push(note);\n}\n\nexport function listNotes() {\n  return notes;\n}\n",
+  );
+  await commit('Add the note parser', '2026-09-03T10:00:00');
+  await write(
+    'src/app.ts',
+    "import { parseNote } from './parse.ts';\nimport { saveNote } from './notes/store.ts';\n\nconst form = document.querySelector('form');\nform?.addEventListener('submit', (event) => {\n  event.preventDefault();\n  const data = new FormData(form);\n  saveNote(parseNote(String(data.get('note') ?? '')));\n});\n",
+  );
+  await write(
+    'src/style.css',
+    'body {\n  font: 16px/1.5 sans-serif;\n  margin: 2rem;\n}\n\nform {\n  display: grid;\n  gap: 0.75rem;\n}\n',
+  );
+  await write(
+    'src/legacy.ts',
+    'export function readLegacyNote(text: string) {\n  return text.trim();\n}\n',
+  );
+  await commit('Show a note on the page', '2026-09-08T11:00:00');
+  await write(
+    'docs/guide.md',
+    '# Notes\n\nA note starts with a heading line, then the body.\n\n# Grocery\n\nMilk\nBread\n',
+  );
+  await commit('Explain the note format', '2026-09-14T09:30:00');
+  await write(
+    'tests/parse.test.ts',
+    "import { parseNote } from '../src/parse.ts';\n\nconst note = parseNote('\\n');\nif (note.title !== '' || note.body !== '') throw new Error('empty note');\n",
+  );
+  await commit('Cover an empty note', '2026-09-18T15:00:00');
+  await write(
+    'assets/mark.svg',
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">\n  <circle cx="8" cy="8" r="6" />\n</svg>\n',
+  );
+  await commit('Add the mark', '2026-09-22T16:00:00');
+  await execute('git', ['checkout', '-b', 'wip-outline'], {
+    cwd: repository,
+    env: process.env,
+  });
+  await write(
+    'docs/outline.md',
+    '# Next guide\n\n- Saving a note\n- Finding a note by title\n',
+  );
+  await commit('Outline the next guide', '2026-09-24T10:00:00');
+  await execute('git', ['checkout', 'main'], {
+    cwd: repository,
+    env: process.env,
+  });
+  await at('2026-09-25T09:00:00', [
+    'merge',
+    '--no-ff',
+    '-m',
+    'Merge the guide outline',
+    'wip-outline',
+  ]);
+  await execute('git', ['checkout', '-b', 'wip-search'], {
+    cwd: repository,
+    env: process.env,
+  });
+  await write(
+    'src/search.ts',
+    "import type { Note } from './parse.ts';\n\nexport function findNotes(notes: readonly Note[], query: string) {\n  const needle = query.toLowerCase();\n  return notes.filter((note) => note.title.toLowerCase().includes(needle));\n}\n",
+  );
+  await commit('Search notes by title', '2026-09-26T12:00:00');
+  await execute('git', ['checkout', 'main'], {
+    cwd: repository,
+    env: process.env,
+  });
+  await write(
+    'src/app.ts',
+    "import { parseNote } from './parse.ts';\nimport { listNotes, saveNote } from './notes/store.ts';\n\nconst form = document.querySelector('form');\nform?.addEventListener('submit', (event) => {\n  event.preventDefault();\n  const data = new FormData(form);\n  const note = parseNote(String(data.get('note') ?? ''));\n  saveNote(note);\n  document.querySelector('output')?.replaceChildren(\n    listNotes()\n      .map((item) => item.title)\n      .join('\\n'),\n  );\n});\n",
+  );
+  await write(
+    'src/format.ts',
+    "export function noteTitle(title: string) {\n  return title.trim() || 'Untitled';\n}\n",
+  );
+  await execute('git', ['add', 'src/app.ts', 'src/format.ts'], {
+    cwd: repository,
+    env: process.env,
+  });
+  await write(
+    'src/parse.ts',
+    "export type Note = { title: string; body: string };\n\nexport function parseNote(text: string): Note {\n  const [first = '', ...rest] = text.split('\\n');\n  const title = first.startsWith('# ') ? first.slice(2) : first;\n  return { title, body: rest.join('\\n').trim() };\n}\n",
+  );
+  await unlink(join(repository, 'src/legacy.ts'));
+  await write('src/config.ts', "export const pageTitle = 'Notes';\n");
+  await write(
+    'docs/draft.md',
+    '# Draft\n\nHow search should treat an empty query.\n',
+  );
+}
+
 try {
   const home = join(root, fixture.folders.home);
   const repository = join(root, fixture.folders.repository);
@@ -321,6 +442,8 @@ try {
   await writeFile(readme, fixture.readme.committed);
   await git('add', fixture.readme.path);
   await git('commit', '-m', fixture.initialCommit);
+  if (process.env.PORCELAIN_DEV_SAMPLE === 'review')
+    await seedReviewSample(repository);
   await writeFile(readme, fixture.readme.changed);
 
   const web = join(root, fixture.folders.web);

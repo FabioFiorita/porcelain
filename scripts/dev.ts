@@ -30,6 +30,7 @@ async function main(): Promise<void> {
     {
       cwd: root,
       detached: true,
+      env: { ...process.env, PORCELAIN_DEV_SAMPLE: 'review' },
       stdio: ['inherit', 'pipe', 'inherit'],
     },
   );
