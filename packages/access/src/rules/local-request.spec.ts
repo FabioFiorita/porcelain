@@ -5,6 +5,7 @@ import { localRequest } from './local-request.ts';
 function request(extra: Partial<CheckLocalRequestInput> = {}) {
   return localRequest({
     host: '127.0.0.1:4173',
+    route: 'loopback',
     remoteAddress: '127.0.0.1',
     localAddress: '127.0.0.1',
     headers: ['host', 'accept'],
@@ -28,6 +29,13 @@ describe('localRequest', () => {
       }),
     ).toBe(true);
   });
+
+  it.each(['tailnet', 'tunnel', 'lan'] as const)(
+    'is not local when it came over the %s route, even with loopback addresses, a loopback host and no forwarding header',
+    (route) => {
+      expect(request({ route })).toBe(false);
+    },
+  );
 
   it('is not local when the request names a public hostname, as one relayed by a tunnel does', () => {
     expect(request({ host: 'porcelain.example.com' })).toBe(false);

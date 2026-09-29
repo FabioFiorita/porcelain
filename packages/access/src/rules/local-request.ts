@@ -50,6 +50,7 @@ export function localRequest(input: CheckLocalRequestInput): boolean {
   const authority =
     input.host === undefined ? undefined : requestAuthority(input.host);
   return (
+    input.route === 'loopback' &&
     authority !== undefined &&
     isLoopbackHostname(authority.hostname) &&
     loopbackAddress(input.remoteAddress) &&

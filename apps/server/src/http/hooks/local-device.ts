@@ -12,6 +12,7 @@ export function requireLocalDevice(options: LocalDeviceOptions) {
     const verdict = await options.access.checkLocalRequest.execute(
       {
         host: request.headers.host,
+        route: request.client.route,
         remoteAddress: request.socket.remoteAddress,
         localAddress: request.socket.localAddress,
         headers: Object.keys(request.headers),
