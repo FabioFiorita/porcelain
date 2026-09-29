@@ -8,6 +8,7 @@ import { useAccessStore } from '@/features/access/index';
 import { commitEntry } from '@/features/changes/index';
 import { copyText } from '@/shared/workspace/copy';
 import {
+  commitMessage,
   type CommitFile,
   type CommitFiles,
   historyRefLabel,
@@ -124,6 +125,16 @@ export function CommitDocument({
             >
               <CopyIcon className="size-3.5" />
               Copy id
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() =>
+                copyText(commitMessage(commit.commit), 'commit message')
+              }
+            >
+              <CopyIcon className="size-3.5" />
+              Copy message
             </Button>
             {collapseControl}
           </DocumentToolbar>

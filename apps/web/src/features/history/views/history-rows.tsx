@@ -1,9 +1,18 @@
 import { formatDistanceToNowStrict } from 'date-fns';
+import { CopyIcon } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from '@/components/ui/context-menu';
 import { Spinner } from '@/components/ui/spinner';
 import { HISTORY_ROW_HEIGHT } from '@/config/limits';
 import { cn } from '@/shared/lib/utils';
+import { copyText } from '@/shared/workspace/copy';
+import { commitMessage } from '../rules/commit';
 import { HistorySentinel } from '../adapters/history-sentinel';
 import {
   historyGraphWidth,
@@ -39,46 +48,70 @@ export function HistoryRows({
       <HistoryGraph rows={rows} width={historyGraphWidth(rows)} />
       <div className="min-w-0 flex-1">
         {rows.map(({ commit }) => (
-          <button
-            type="button"
-            key={commit.oid}
-            style={{ height: HISTORY_ROW_HEIGHT }}
-            aria-pressed={selected === commit.oid}
-            title={commit.subject}
-            onClick={() => onSelect(commit.oid)}
-            className={cn(
-              'flex w-full flex-col justify-center gap-0.5 rounded-lg px-2 text-left transition-colors hover:bg-accent',
-              selected === commit.oid && 'bg-accent',
-            )}
-          >
-            <span className="truncate text-[12.5px] leading-tight">
-              {commit.subject}
-            </span>
-            <span className="flex gap-1.5 text-[10.5px] text-muted-foreground">
-              <code className="font-mono">{shortOid(commit.oid)}</code>
-              <span className="truncate">{commit.author.name}</span>
-              <span aria-hidden="true">·</span>
-              <span className="shrink-0">
-                {formatDistanceToNowStrict(new Date(commit.author.timestamp), {
-                  addSuffix: true,
-                })}
+          <ContextMenu key={commit.oid}>
+            <ContextMenuTrigger
+              render={
+                <button
+                  type="button"
+                  style={{ height: HISTORY_ROW_HEIGHT }}
+                  aria-pressed={selected === commit.oid}
+                  title={commit.subject}
+                  onClick={() => onSelect(commit.oid)}
+                  className={cn(
+                    'flex w-full flex-col justify-center gap-0.5 rounded-lg px-2 text-left transition-colors hover:bg-accent',
+                    selected === commit.oid && 'bg-accent',
+                  )}
+                />
+              }
+            >
+              <span className="truncate text-[12.5px] leading-tight">
+                {commit.subject}
               </span>
-            </span>
-            {commit.refs.length > 0 && (
-              <span className="flex gap-1 overflow-hidden">
-                {commit.refs.map((ref) => (
-                  <Badge
-                    key={ref}
-                    title={ref}
-                    variant="secondary"
-                    className="h-4 shrink-0"
-                  >
-                    {historyRefLabel(ref)}
-                  </Badge>
-                ))}
+              <span className="flex gap-1.5 text-[10.5px] text-muted-foreground">
+                <code className="font-mono">{shortOid(commit.oid)}</code>
+                <span className="truncate">{commit.author.name}</span>
+                <span aria-hidden="true">·</span>
+                <span className="shrink-0">
+                  {formatDistanceToNowStrict(
+                    new Date(commit.author.timestamp),
+                    {
+                      addSuffix: true,
+                    },
+                  )}
+                </span>
               </span>
-            )}
-          </button>
+              {commit.refs.length > 0 && (
+                <span className="flex gap-1 overflow-hidden">
+                  {commit.refs.map((ref) => (
+                    <Badge
+                      key={ref}
+                      title={ref}
+                      variant="secondary"
+                      className="h-4 shrink-0"
+                    >
+                      {historyRefLabel(ref)}
+                    </Badge>
+                  ))}
+                </span>
+              )}
+            </ContextMenuTrigger>
+            <ContextMenuContent>
+              <ContextMenuItem
+                onClick={() => copyText(commit.oid, 'commit id')}
+              >
+                <CopyIcon />
+                Copy commit id
+              </ContextMenuItem>
+              <ContextMenuItem
+                onClick={() =>
+                  copyText(commitMessage(commit), 'commit message')
+                }
+              >
+                <CopyIcon />
+                Copy message
+              </ContextMenuItem>
+            </ContextMenuContent>
+          </ContextMenu>
         ))}
         {loading ? (
           <p className="flex items-center gap-2 px-2 py-3 text-[11px] text-muted-foreground">
