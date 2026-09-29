@@ -17,6 +17,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { toast } from '@/components/ui/toast';
 import { useAccessStore } from '@/features/access/index';
 import { changePath, useReviewOverview } from '@/features/changes/index';
@@ -97,6 +98,7 @@ function ScopedFileNavigation({
   const pinned = usePinnedPaths(connection, scope.projectId);
   const setPinned = useSetPinned(connection, scope.projectId);
   const [showHidden, setShowHidden] = useState(false);
+  const [fileQuery, setFileQuery] = useState('');
   const [requested, setRequested] = useState<readonly string[]>(() =>
     fileTreeAncestors(selected),
   );
@@ -223,13 +225,20 @@ function ScopedFileNavigation({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex shrink-0 items-center gap-1 px-2 pt-2 pb-1">
-        <QuickOpen
-          scope={scope}
-          onOpen={(path) => {
-            setRequested((current) => union(current, fileTreeAncestors(path)));
-            onOpen({ kind: 'file', path });
-          }}
+      <QuickOpen
+        scope={scope}
+        onOpen={(path) => {
+          setRequested((current) => union(current, fileTreeAncestors(path)));
+          onOpen({ kind: 'file', path });
+        }}
+      />
+      <div className="flex shrink-0 items-center gap-1 px-2 pt-2">
+        <Input
+          aria-label="Search files"
+          placeholder="Search..."
+          value={fileQuery}
+          onChange={(event) => setFileQuery(event.target.value)}
+          className="h-7 w-auto min-w-0 flex-1"
         />
         {hidden.size > 0 && (
           <Button
@@ -291,53 +300,63 @@ function ScopedFileNavigation({
           };
         }}
       />
-      <PierreFileTree
-        paths={visiblePaths}
-        links={entries.filter(
-          (entry) => entry.kind === 'symlink' || entry.kind === 'submodule',
-        )}
-        creating={creating}
-        onCreate={(path, entryKind) =>
-          edit.create(path, entryKind, (created) =>
-            onOpen({ kind: 'file', path: created }),
-          )
-        }
-        onMove={edit.move}
-        gitStatus={gitStatus}
-        selected={selected}
-        bindRename={bindRename}
-        onInvalidName={(error) =>
-          toast.add({
-            title: 'Invalid name',
-            description: error,
-            type: 'error',
-          })
-        }
-        renderMenu={(item, context, rename, onMenuKeyDown) => {
-          const folder = item.kind === 'directory';
-          const path =
-            folder && !item.path.endsWith('/') ? `${item.path}/` : item.path;
-          const menu = menuFor(path, folder);
-          return (
-            <FileTreeMenu
-              path={path}
-              anchor={context.anchorElement}
-              actions={menu.actions}
-              hidden={menu.hidden}
-              onMenuKeyDown={onMenuKeyDown}
-              onAction={(id) =>
-                menu.run(
-                  id,
-                  (restoreFocus) => context.close({ restoreFocus }),
-                  rename,
-                )
-              }
-            />
-          );
-        }}
-        onExpand={(paths) => setRequested((current) => union(current, paths))}
-        onSelect={onSelect}
-      />
+      <section
+        aria-label="All files"
+        className="flex min-h-0 flex-1 flex-col pt-1"
+      >
+        <p className="px-3.5 pt-1 pb-0.5 text-[11px] font-medium text-muted-foreground">
+          All files
+        </p>
+        <PierreFileTree
+          filter={fileQuery}
+          onFilterChange={setFileQuery}
+          paths={visiblePaths}
+          links={entries.filter(
+            (entry) => entry.kind === 'symlink' || entry.kind === 'submodule',
+          )}
+          creating={creating}
+          onCreate={(path, entryKind) =>
+            edit.create(path, entryKind, (created) =>
+              onOpen({ kind: 'file', path: created }),
+            )
+          }
+          onMove={edit.move}
+          gitStatus={gitStatus}
+          selected={selected}
+          bindRename={bindRename}
+          onInvalidName={(error) =>
+            toast.add({
+              title: 'Invalid name',
+              description: error,
+              type: 'error',
+            })
+          }
+          renderMenu={(item, context, rename, onMenuKeyDown) => {
+            const folder = item.kind === 'directory';
+            const path =
+              folder && !item.path.endsWith('/') ? `${item.path}/` : item.path;
+            const menu = menuFor(path, folder);
+            return (
+              <FileTreeMenu
+                path={path}
+                anchor={context.anchorElement}
+                actions={menu.actions}
+                hidden={menu.hidden}
+                onMenuKeyDown={onMenuKeyDown}
+                onAction={(id) =>
+                  menu.run(
+                    id,
+                    (restoreFocus) => context.close({ restoreFocus }),
+                    rename,
+                  )
+                }
+              />
+            );
+          }}
+          onExpand={(paths) => setRequested((current) => union(current, paths))}
+          onSelect={onSelect}
+        />
+      </section>
       <AlertDialog
         open={deleting !== null}
         onOpenChange={(open) => {

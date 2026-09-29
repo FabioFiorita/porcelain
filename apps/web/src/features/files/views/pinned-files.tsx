@@ -29,10 +29,7 @@ export function PinnedFiles({
 }) {
   if (paths.length === 0) return null;
   return (
-    <section
-      aria-label="Pinned files"
-      className="shrink-0 border-b px-2 pb-1.5"
-    >
+    <section aria-label="Pinned files" className="shrink-0 px-2 pt-1.5 pb-1">
       <p className="px-1.5 pt-1 pb-0.5 text-[11px] font-medium text-muted-foreground">
         Pinned
       </p>
