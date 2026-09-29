@@ -50,7 +50,7 @@ export function ProjectWorkspace({
             >
               <ProjectNavigator {...navigator} />
             </ResizablePanel>
-            <ResizableHandle />
+            <ResizableHandle className="w-2 after:w-2" />
           </>
         )}
         <ResizablePanel id="document" minSize={isMobile ? 0 : 420}>
