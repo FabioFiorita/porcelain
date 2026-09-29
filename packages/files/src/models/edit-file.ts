@@ -10,4 +10,4 @@ export type EditFileResult = {
   contentFingerprint?: string | undefined;
 };
 
-export type EditFileOptions = { maxCurrentBytes: number };
+export type EditFileOptions = { maxCurrentBytes: number; maxCopyBytes: number };

@@ -1,5 +1,6 @@
 export { ContentChangedError } from './content-changed-error.ts';
 export { CrossDeviceMoveError } from './cross-device-move-error.ts';
+export { DiskFullError } from './disk-full-error.ts';
 export { DirectoryTooLargeError } from './directory-too-large-error.ts';
 export { EntryExistsError } from './entry-exists-error.ts';
 export { FileTooLargeError } from './file-too-large-error.ts';

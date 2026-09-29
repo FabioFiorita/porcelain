@@ -5,6 +5,7 @@ export type { ReadFailure, WriteFailure } from './file-failure.ts';
 export type { FileLocation } from './file-location.ts';
 export type { FileRead, FileReadInput, TextRead } from './file-read.ts';
 export type {
+  EntryCopyInput,
   EntryCreateInput,
   EntryMoveInput,
   FileWrite,

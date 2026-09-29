@@ -8,4 +8,6 @@ export type WriteFailure =
   | ReadFailure
   | 'exists'
   | 'cross-device'
-  | 'trash-unavailable';
+  | 'trash-unavailable'
+  | 'too-large'
+  | 'no-space';

@@ -1,5 +1,6 @@
 import type { FileLocation } from '../../src/models/file-location.ts';
 import type {
+  EntryCopyInput,
   EntryCreateInput,
   EntryMoveInput,
   FileWrite,
@@ -52,7 +53,7 @@ export class InMemoryFileWriter implements FileWriter {
     return Promise.resolve(written);
   }
 
-  copy(input: EntryMoveInput): Promise<FileWrite> {
+  copy(input: EntryCopyInput): Promise<FileWrite> {
     this.entries.set(input.destination, this.entries.get(input.path));
     return Promise.resolve(written);
   }

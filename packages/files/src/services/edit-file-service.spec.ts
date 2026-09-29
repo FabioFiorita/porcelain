@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   ContentChangedError,
   CrossDeviceMoveError,
+  DiskFullError,
   EntryExistsError,
   FileTooLargeError,
   InvalidMoveError,
@@ -25,7 +26,7 @@ import { ScriptedFileWriter } from '../../spec/fakes/scripted-file-writer.ts';
 import { EditFileService } from './edit-file-service.ts';
 
 const worktreeId = 'a'.repeat(32);
-const roomy = { maxCurrentBytes: 1024 };
+const roomy = { maxCurrentBytes: 1024, maxCopyBytes: 1024 };
 const oldFingerprint =
   '01d09d19c2139a46aebfb577780d123d7396e97201bc7ead210a2ebff8239dee';
 const newFingerprint =
@@ -308,5 +309,29 @@ describe('EditFileService', () => {
         command: { kind: 'copy', path: 'a.md', destination: 'b.md' },
       }),
     ).rejects.toThrow(ContentChangedError);
+  });
+
+  it('refuses to copy a file larger than the copy limit', async () => {
+    await expect(
+      failingWith('too-large').execute({
+        worktreeId,
+        command: { kind: 'copy', path: 'big.bin', destination: 'big copy.bin' },
+      }),
+    ).rejects.toThrow(FileTooLargeError);
+  });
+
+  it('reports a full disk instead of failing without a reason', async () => {
+    await expect(
+      failingWith('no-space').execute({
+        worktreeId,
+        command: { kind: 'copy', path: 'a.md', destination: 'b.md' },
+      }),
+    ).rejects.toThrow(DiskFullError);
+    await expect(
+      failingWith('no-space').execute({
+        worktreeId,
+        command: { kind: 'create', path: 'c.md', entryKind: 'file' },
+      }),
+    ).rejects.toThrow(DiskFullError);
   });
 });

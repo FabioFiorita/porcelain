@@ -15,6 +15,7 @@ import {
 import { basename, dirname, join } from 'node:path';
 import trash from 'trash';
 import type {
+  EntryCopyInput,
   EntryCreateInput,
   EntryMoveInput,
   FileLocation,
@@ -156,13 +157,14 @@ export class FilesystemFileWriter implements FileWriter {
     });
   }
 
-  async copy(input: EntryMoveInput, signal?: AbortSignal): Promise<FileWrite> {
+  async copy(input: EntryCopyInput, signal?: AbortSignal): Promise<FileWrite> {
     const target = await this.locate(input, signal);
     return this.attempt(async () => {
       const sourceParent = await this.parent(target, signal);
       const source = join(sourceParent.path, basename(target.path));
       const info = await lstat(source, { bigint: true });
       if (!info.isFile()) throw pathRefused('unreadable');
+      if (info.size > BigInt(input.maxBytes)) throw pathRefused('too-large');
       const destinationTarget = { ...target, path: input.destination };
       const destinationParent = await this.parent(destinationTarget, signal);
       const destination = join(
@@ -187,7 +189,7 @@ export class FilesystemFileWriter implements FileWriter {
         );
         const created = await writing.stat({ bigint: true });
         try {
-          await copyContents(reading, writing, signal);
+          await copyContents(reading, writing, input.maxBytes, signal);
           await writing.sync();
           await this.verifyParent(sourceParent, target, signal);
           await this.verifyParent(destinationParent, destinationTarget, signal);
@@ -311,13 +313,21 @@ export class FilesystemFileWriter implements FileWriter {
 async function copyContents(
   reading: FileHandle,
   writing: FileHandle,
+  maxBytes: number,
   signal?: AbortSignal,
 ) {
+  let copied = 0;
   for (;;) {
     signal?.throwIfAborted();
     const { bytesRead, buffer } = await reading.read();
     if (bytesRead === 0) return;
-    await writing.write(buffer.subarray(0, bytesRead));
+    copied += bytesRead;
+    if (copied > maxBytes) throw pathRefused('too-large');
+    let chunk = buffer.subarray(0, bytesRead);
+    while (chunk.length > 0) {
+      const { bytesWritten } = await writing.write(chunk);
+      chunk = chunk.subarray(bytesWritten);
+    }
   }
 }
 

@@ -24,6 +24,7 @@ import {
   ContentChangedError,
   CrossDeviceMoveError,
   DirectoryTooLargeError,
+  DiskFullError,
   EntryExistsError,
   FileTooLargeError,
   InvalidMoveError,
@@ -259,6 +260,11 @@ const rules: readonly StatusRule[] = [
   },
   { errors: [UnsupportedTextError], statusCode: 422, code: 'unsupported_text' },
   { errors: [FileTooLargeError], statusCode: 422, code: 'file_too_large' },
+  {
+    errors: [DiskFullError],
+    statusCode: 422,
+    message: 'There is not enough space on the disk',
+  },
   {
     errors: [GitActionRejectedError],
     statusCode: 422,

@@ -28,6 +28,7 @@ const YEAR_MS = 365 * DAY_MS;
 const KIBIBYTE = 1024;
 const MEBIBYTE = 1024 * KIBIBYTE;
 const JSON_ESCAPE_FACTOR = 6;
+const FILE_ASSET_BYTES = 10 * MEBIBYTE;
 const DEVICE_LIFETIME_MS = 90 * DAY_MS;
 const PROCESS_GROUP = { lingerMs: 250, cleanupMs: 5 * SECOND_MS, pollMs: 10 };
 
@@ -66,7 +67,7 @@ export type Limits = {
   };
   files: {
     readTextFile: { maxBytes: number };
-    editFile: { maxCurrentBytes: number };
+    editFile: { maxCurrentBytes: number; maxCopyBytes: number };
     readFileAsset: { maxBytes: number; base64ChunkBytes: number };
     readPreviewAssets: {
       maxAssetBytes: number;
@@ -244,8 +245,11 @@ export const LIMITS: Limits = {
   },
   files: {
     readTextFile: { maxBytes: TEXT_BYTES },
-    editFile: { maxCurrentBytes: TEXT_BYTES },
-    readFileAsset: { maxBytes: 10 * MEBIBYTE, base64ChunkBytes: 32 * KIBIBYTE },
+    editFile: { maxCurrentBytes: TEXT_BYTES, maxCopyBytes: FILE_ASSET_BYTES },
+    readFileAsset: {
+      maxBytes: FILE_ASSET_BYTES,
+      base64ChunkBytes: 32 * KIBIBYTE,
+    },
     readPreviewAssets: {
       maxAssetBytes: 10 * MEBIBYTE,
       maxTotalBytes: 16 * MEBIBYTE,

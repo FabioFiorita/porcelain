@@ -19,6 +19,8 @@ export type EntryMoveInput = {
   destination: string;
 };
 
+export type EntryCopyInput = EntryMoveInput & { maxBytes: number };
+
 export type FileWrite =
   | { kind: 'written' }
   | { kind: 'failed'; failure: WriteFailure };

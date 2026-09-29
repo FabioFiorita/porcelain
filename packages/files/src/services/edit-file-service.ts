@@ -18,6 +18,7 @@ import { UnsupportedTextError } from '../errors/unsupported-text-error.ts';
 import { EntryExistsError } from '../errors/entry-exists-error.ts';
 import { CrossDeviceMoveError } from '../errors/cross-device-move-error.ts';
 import { TrashUnavailableError } from '../errors/trash-unavailable-error.ts';
+import { DiskFullError } from '../errors/disk-full-error.ts';
 import type { TextFailure, WriteFailure } from '../models/file-failure.ts';
 
 export class EditFileService {
@@ -85,6 +86,7 @@ export class EditFileService {
               worktreeId,
               path: command.path,
               destination: command.destination,
+              maxBytes: this.options.maxCopyBytes,
             },
             signal,
           ),
@@ -139,6 +141,10 @@ export class EditFileService {
         return new CrossDeviceMoveError();
       case 'trash-unavailable':
         return new TrashUnavailableError();
+      case 'too-large':
+        return new FileTooLargeError();
+      case 'no-space':
+        return new DiskFullError();
     }
   }
 }

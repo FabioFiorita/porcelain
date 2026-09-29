@@ -11,7 +11,7 @@ export type InspectedPath = {
   evidence: { path: string; info: BigIntStats }[];
 };
 
-type Refusal = 'unreadable' | 'changed' | 'trash-unavailable';
+type Refusal = 'unreadable' | 'changed' | 'trash-unavailable' | 'too-large';
 
 const refusals = new WeakMap<Error, Refusal>();
 
@@ -57,6 +57,7 @@ export function filesystemFailure(error: unknown): WriteFailure | undefined {
   if (code === 'ENOENT') return 'missing';
   if (code === 'EEXIST' || code === 'ENOTEMPTY') return 'exists';
   if (code === 'EXDEV') return 'cross-device';
+  if (code === 'ENOSPC' || code === 'EDQUOT') return 'no-space';
   if (code !== undefined && unreadableCodes.has(code)) return 'unreadable';
   return undefined;
 }
