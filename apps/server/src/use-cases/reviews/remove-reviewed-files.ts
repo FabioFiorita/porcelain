@@ -49,6 +49,7 @@ export class RemoveReviewedFilesUseCase {
         this.removeReviewedFiles.execute({
           worktreeId,
           scope: input.scope,
+          branch: input.scope === 'branch' ? input.branch : undefined,
           paths: 'paths' in input ? input.paths : [input.path],
         }),
       { callerSignal: context.signal },

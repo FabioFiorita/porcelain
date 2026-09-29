@@ -3,6 +3,7 @@ import {
   bulkMarkPlan,
   bulkMarkReport,
   bulkReportText,
+  inChunks,
   layerReviewState,
   markAllPlan,
   reviewToggle,
@@ -254,5 +255,22 @@ describe('reviewToggle', () => {
       reviewToggle({ path: 'a.ts', fingerprint: null }, false),
       reviewToggle(undefined, false),
     ]).toEqual([null, null, null]);
+  });
+});
+
+describe('inChunks', () => {
+  it('asks for more marks than one request holds in consecutive requests', () => {
+    const files = Array.from({ length: 4001 }, (_, index) => index);
+    expect(inChunks(files, 2000).map((chunk) => chunk.length)).toEqual([
+      2000, 2000, 1,
+    ]);
+  });
+
+  it('keeps the order of the files across requests', () => {
+    expect(inChunks(['a', 'b', 'c'], 2)).toEqual([['a', 'b'], ['c']]);
+  });
+
+  it('asks for nothing when there is nothing to mark', () => {
+    expect(inChunks([], 2000)).toEqual([]);
   });
 });

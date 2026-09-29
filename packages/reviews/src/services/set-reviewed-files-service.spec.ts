@@ -213,4 +213,82 @@ describe('SetReviewedFilesService', () => {
     ]);
     expect(marked(store, 'a.txt')?.fingerprint).toBe('worktree');
   });
+
+  it('keeps every mark of a branch that changes more files than the worktree limit', () => {
+    const store = new InMemoryReviewedFileStore();
+    const service = new SetReviewedFilesService(
+      store,
+      new FixedClock('2026-01-02T00:00:00.000Z'),
+      { marksPerWorktree: 2000, marksPerBranch: 10_000 },
+    );
+    const branch = 'refs/heads/feature';
+    const files = Array.from({ length: 2001 }, (_, index) => ({
+      path: `file-${String(index).padStart(4, '0')}`,
+      fingerprint: 'f',
+    }));
+    service.execute({
+      worktreeId,
+      scope: 'branch',
+      branch,
+      files: files.slice(0, 2000),
+      changes: changes(files),
+      onConflict: 'report',
+    });
+    service.execute({
+      worktreeId,
+      scope: 'branch',
+      branch,
+      files: files.slice(2000),
+      changes: changes(files),
+      onConflict: 'report',
+    });
+    expect(store.list({ worktreeId, scope: 'branch', branch })).toHaveLength(
+      2001,
+    );
+  });
+
+  it('never evicts the mark of a file the branch still changes, only marks it no longer shows', () => {
+    const store = new InMemoryReviewedFileStore();
+    const service = new SetReviewedFilesService(
+      store,
+      new FixedClock('2026-01-02T00:00:00.000Z'),
+      { marksPerWorktree: 2000, marksPerBranch: 2 },
+    );
+    const branch = 'refs/heads/feature';
+    store.save({
+      worktreeId,
+      scope: 'branch',
+      branch,
+      marks: [
+        {
+          path: 'gone',
+          fingerprint: 'g',
+          reviewedAt: '2025-06-01T00:00:00.000Z',
+          stale: false,
+        },
+        {
+          path: 'kept',
+          fingerprint: 'k',
+          reviewedAt: '2025-01-01T00:00:00.000Z',
+          stale: false,
+        },
+      ],
+    });
+    service.execute({
+      worktreeId,
+      scope: 'branch',
+      branch,
+      files: [{ path: 'new', fingerprint: 'n' }],
+      changes: changes([
+        { path: 'kept', fingerprint: 'k' },
+        { path: 'new', fingerprint: 'n' },
+      ]),
+      onConflict: 'report',
+    });
+    expect(
+      store
+        .list({ worktreeId, scope: 'branch', branch })
+        .map((mark) => mark.path),
+    ).toEqual(['kept', 'new']);
+  });
 });

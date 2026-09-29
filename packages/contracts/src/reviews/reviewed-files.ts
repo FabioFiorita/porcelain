@@ -3,7 +3,11 @@ import { branchRefSchema } from '../shared/branch-ref.ts';
 import { fingerprintSchema } from '../shared/fingerprint.ts';
 import { relativePathSchema } from '../shared/relative-path.ts';
 import { worktreeIdSchema } from '../shared/worktree-params.ts';
-import { REVIEWED_FILE_MARKS, REVIEWED_LAYER_MARKS } from '../shared/limits.ts';
+import {
+  REVIEWED_BRANCH_FILE_MARKS,
+  REVIEWED_FILE_MARKS,
+  REVIEWED_LAYER_MARKS,
+} from '../shared/limits.ts';
 
 const reviewedMarkSchema = z.object({
   path: relativePathSchema,
@@ -19,10 +23,11 @@ const branchScope = {
 
 export const listReviewedFilesQuerySchema = z.strictObject({
   scope: reviewedScopeSchema.optional(),
+  branch: branchRefSchema.optional(),
 });
 export const listReviewedFilesResponseSchema = z.object({
   worktreeId: worktreeIdSchema,
-  marks: z.array(reviewedMarkSchema).max(REVIEWED_FILE_MARKS),
+  marks: z.array(reviewedMarkSchema).max(REVIEWED_BRANCH_FILE_MARKS),
 });
 
 const reviewedFileShape = {
@@ -73,12 +78,14 @@ export const setReviewedFilesResponseSchema =
 export const removeReviewedFileQuerySchema = z.strictObject({
   path: relativePathSchema,
   scope: reviewedScopeSchema.optional(),
+  branch: branchRefSchema.optional(),
 });
 export const removeReviewedFileResponseSchema = listReviewedFilesResponseSchema;
 
 export const removeReviewedFilesRequestSchema = z.strictObject({
   paths: z.array(relativePathSchema).min(1).max(REVIEWED_FILE_MARKS),
   scope: reviewedScopeSchema.optional(),
+  branch: branchRefSchema.optional(),
 });
 export const removeReviewedFilesResponseSchema =
   listReviewedFilesResponseSchema;

@@ -32,16 +32,18 @@ export class SqliteReviewedFileStore implements ReviewedFileStore {
   save(input: ReviewedFileKey & { marks: readonly ReviewedFileMark[] }): void {
     const { worktreeId } = input;
     const scope = scopeOf(input);
+    const branch = input.branch ?? '';
     if (input.marks.length === 0) return;
     this.db.transaction(
       (tx) => {
         for (const mark of input.marks)
           tx.insert(reviewedFiles)
-            .values({ worktreeId, scope, ...mark })
+            .values({ worktreeId, scope, branch, ...mark })
             .onConflictDoUpdate({
               target: [
                 reviewedFiles.worktreeId,
                 reviewedFiles.scope,
+                reviewedFiles.branch,
                 reviewedFiles.path,
               ],
               set: {
@@ -96,5 +98,6 @@ function inScope(key: ReviewedFileKey) {
   return and(
     eq(reviewedFiles.worktreeId, key.worktreeId),
     eq(reviewedFiles.scope, scopeOf(key)),
+    eq(reviewedFiles.branch, key.branch ?? ''),
   );
 }

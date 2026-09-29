@@ -32,6 +32,7 @@ export type ReviewedFileSelection = {
 
 export type ReviewedFileLimits = {
   marksPerWorktree: number;
+  marksPerBranch?: number | undefined;
 };
 
 export type ReviewedLayerMark = {
@@ -54,6 +55,7 @@ export type WorktreeReviewedLayerMark = ReviewedLayerMark & {
 export type ReviewedFileKey = {
   worktreeId: string;
   scope?: ReviewedScope | undefined;
+  branch?: string | undefined;
 };
 
 export type ReviewedFileSave = ReviewedFileKey & {

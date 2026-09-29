@@ -16,6 +16,7 @@ import { fingerprintOf, head, read, worktreePath } from '../scripts/fixture.ts';
 
 const reviewed = (session: Session) => worktreePath(session, '/reviewed');
 const base = 'refs/heads/main';
+const feature = 'refs/heads/feature';
 const staleMark = apiError(
   409,
   'Conflict',
@@ -37,7 +38,7 @@ const branchMarks = (session: Session) =>
   read(session, {
     method: 'GET',
     path: reviewed(session),
-    query: { scope: 'branch' },
+    query: { scope: 'branch', branch: feature },
   });
 
 const worktreeMarks = (session: Session) =>
@@ -55,7 +56,7 @@ export default defineFeature({
   paired: true,
   intent: 'intended',
   behaviour:
-    'A reviewer marks files of the branch review as reviewed at the fingerprint the branch comparison showed, naming the base it was read against; the server compares the branch again before it keeps the mark. Branch marks and working-tree marks are kept apart, so marking a file in one never changes its mark in the other. A branch mark goes stale when a new commit changes the file on the branch, not when the file is edited without committing. A mark for a fingerprint the branch no longer has, or a file the branch did not change, is a conflict, and marking many reports each of those instead of failing. Unmarking in the branch scope leaves the working-tree marks alone.',
+    'A reviewer marks files of the branch review as reviewed at the fingerprint the branch comparison showed, naming the base it was read against; the server compares the branch again before it keeps the mark. Branch marks belong to the branch they were made on and are kept apart from working-tree marks: they are listed and unmarked for that branch, and marking a file in one scope never changes its mark in the other. A branch mark goes stale when a new commit changes the file on the branch, not when the file is edited without committing. A mark for a fingerprint the branch no longer has, or a file the branch did not change, is a conflict, and marking many reports each of those instead of failing. Unmarking in the branch scope leaves the working-tree marks alone.',
   cases: [
     defineCase({
       name: 'mark a branch file at the fingerprint shown',
@@ -254,12 +255,16 @@ export default defineFeature({
         {
           method: 'DELETE',
           path: reviewed(session),
-          query: { path: 'notes.md', scope: 'branch' },
+          query: { path: 'notes.md', scope: 'branch', branch: feature },
         },
         {
           method: 'DELETE',
           path: worktreePath(session, '/reviewed-bulk'),
-          body: { paths: [session.fixture.readme.path], scope: 'branch' },
+          body: {
+            paths: [session.fixture.readme.path],
+            scope: 'branch',
+            branch: feature,
+          },
         },
       ],
       async expect({ responses, session, check, checkContract }) {

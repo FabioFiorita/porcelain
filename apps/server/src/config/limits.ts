@@ -13,6 +13,7 @@ import {
   PATH_LENGTH,
   TUNNEL_HOSTNAME_LENGTH,
   REVIEW_SUMMARY_BYTES,
+  REVIEWED_BRANCH_FILE_MARKS,
   REVIEWED_FILE_MARKS,
   TEXT_BYTES,
   WORKTREE_ID_LENGTH,
@@ -88,7 +89,7 @@ export type Limits = {
       messagesPerThread: number;
       bytesPerWorktree: number;
     };
-    reviewedFiles: { marksPerWorktree: number };
+    reviewedFiles: { marksPerWorktree: number; marksPerBranch: number };
     summaryLink: { lifetimeMs: number; secretBytes: number };
   };
   gitActions: {
@@ -269,7 +270,10 @@ export const LIMITS: Limits = {
       messagesPerThread: 100,
       bytesPerWorktree: MEBIBYTE,
     },
-    reviewedFiles: { marksPerWorktree: REVIEWED_FILE_MARKS },
+    reviewedFiles: {
+      marksPerWorktree: REVIEWED_FILE_MARKS,
+      marksPerBranch: REVIEWED_BRANCH_FILE_MARKS,
+    },
     summaryLink: { lifetimeMs: HOUR_MS, secretBytes: 32 },
   },
   gitActions: {

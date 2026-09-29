@@ -10,6 +10,7 @@ import type { ExpectedFile } from '@porcelain/kernel/models';
 export type SetReviewedFilesInput = {
   worktreeId: string;
   scope?: ReviewedScope | undefined;
+  branch?: string | undefined;
   files: readonly ReviewedFile[];
   changes: readonly ExpectedFile[];
   onConflict: 'report' | 'refuse';

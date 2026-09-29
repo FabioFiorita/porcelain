@@ -66,19 +66,20 @@ export class SetReviewedFilesUseCase {
       this.laneKeys.reviews(worktree),
       'write',
       async ({ signal }) => {
-        const changes =
+        const branch =
           input.scope === 'branch'
-            ? (
-                await this.readBranchChanges.execute(
-                  { worktreeId, base: input.base },
-                  signal,
-                )
-              ).files
-            : await this.worktreeChanges(worktreeId, signal);
+            ? await this.readBranchChanges.execute(
+                { worktreeId, base: input.base },
+                signal,
+              )
+            : undefined;
+        const changes =
+          branch?.files ?? (await this.worktreeChanges(worktreeId, signal));
         this.confirmWorktree.execute({ worktree });
         return this.setReviewedFiles.execute({
           worktreeId,
           scope: input.scope,
+          branch: branch?.head.branch,
           files:
             'files' in input
               ? input.files

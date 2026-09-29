@@ -16,13 +16,16 @@ export const reviewedFiles = sqliteTable(
     scope: text('scope', { enum: ['worktree', 'branch'] })
       .notNull()
       .default('worktree'),
+    branch: text('branch').notNull().default(''),
     path: text('path').notNull(),
     fingerprint: text('fingerprint').notNull(),
     reviewedAt: text('reviewed_at').notNull(),
     stale: integer('stale', { mode: 'boolean' }).notNull().default(false),
   },
   (table) => [
-    primaryKey({ columns: [table.worktreeId, table.scope, table.path] }),
+    primaryKey({
+      columns: [table.worktreeId, table.scope, table.branch, table.path],
+    }),
     index('reviewed_files_worktree').on(table.worktreeId),
   ],
 );

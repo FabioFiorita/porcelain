@@ -20,12 +20,30 @@ type ReviewedRequest = ReviewRequest & { range: ReviewRange };
 
 export type ReviewRange =
   | { kind: 'worktree' }
-  | { kind: 'branch'; base: string };
+  | { kind: 'branch'; base: string; branch: string | undefined };
 
 export const WORKTREE_RANGE: ReviewRange = { kind: 'worktree' };
 
-export function branchReviewRange(base: string | undefined): ReviewRange {
-  return { kind: 'branch', base: base ?? '' };
+export function branchReviewRange(
+  branch:
+    | {
+        base?: { ref: string } | undefined;
+        head: { branch?: string | undefined };
+      }
+    | undefined,
+): ReviewRange {
+  return {
+    kind: 'branch',
+    base: branch?.base?.ref ?? '',
+    branch: branch?.head.branch,
+  };
+}
+
+export function inChunks<T>(items: readonly T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let at = 0; at < items.length; at += size)
+    chunks.push(items.slice(at, at + size));
+  return chunks;
 }
 
 export type ReviewsPort = {
@@ -91,7 +109,9 @@ export type ReviewableItem = Pick<
 >;
 
 export function reviewedScopeKey(range: ReviewRange): string[] {
-  return range.kind === 'branch' ? ['reviewed', 'branch'] : ['reviewed'];
+  return range.kind === 'branch'
+    ? ['reviewed', 'branch', range.branch ?? '']
+    : ['reviewed'];
 }
 
 export function bulkMarkPlan(entries: readonly ReviewableItem[]) {

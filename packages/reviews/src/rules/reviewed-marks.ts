@@ -36,12 +36,14 @@ export function evictedPaths(
   existing: readonly ReviewedFileMark[],
   marking: readonly ReviewedFile[],
   limit: number,
+  shown: ReadonlySet<string> = new Set(),
 ): string[] {
   const remarked = new Set(marking.map((file) => file.path));
   const kept = existing.filter((mark) => !remarked.has(mark.path));
   const excess = kept.length + marking.length - limit;
   if (excess <= 0) return [];
-  return [...kept]
+  return kept
+    .filter((mark) => !shown.has(mark.path))
     .sort(
       (left, right) =>
         Date.parse(left.reviewedAt) - Date.parse(right.reviewedAt) ||

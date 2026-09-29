@@ -40,6 +40,10 @@ function inRange(range: ReviewRange) {
     : {};
 }
 
+function onBranch(range: { branch: string | undefined }) {
+  return range.branch === undefined ? {} : { branch: range.branch };
+}
+
 function json(body: unknown) {
   return {
     headers: { 'content-type': 'application/json' },
@@ -147,7 +151,7 @@ export function createReviewsLive(transport: typeof fetch): ReviewsPort {
       list: ({ worktreeId, signal, range }) =>
         requestJson(
           transport,
-          `${reviewed(worktreeId)}${range.kind === 'branch' ? `?${new URLSearchParams({ scope: 'branch' })}` : ''}`,
+          `${reviewed(worktreeId)}${range.kind === 'branch' ? `?${new URLSearchParams({ scope: 'branch', ...onBranch(range) })}` : ''}`,
           listReviewedFilesResponseSchema,
           { signal },
         ),
@@ -188,7 +192,9 @@ export function createReviewsLive(transport: typeof fetch): ReviewsPort {
         requestJson(
           transport,
           `${reviewed(worktreeId)}?${new URLSearchParams(
-            range.kind === 'branch' ? { path, scope: 'branch' } : { path },
+            range.kind === 'branch'
+              ? { path, scope: 'branch', ...onBranch(range) }
+              : { path },
           )}`,
           removeReviewedFileResponseSchema,
           { method: 'DELETE', signal },
@@ -203,7 +209,7 @@ export function createReviewsLive(transport: typeof fetch): ReviewsPort {
             ...json(
               removeReviewedFilesRequestSchema.parse(
                 range.kind === 'branch'
-                  ? { paths, scope: 'branch' }
+                  ? { paths, scope: 'branch', ...onBranch(range) }
                   : { paths },
               ),
             ),

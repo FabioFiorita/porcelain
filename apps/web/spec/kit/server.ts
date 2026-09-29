@@ -121,10 +121,12 @@ export const server = {
     ),
   paths: async () =>
     read(listWorktreePathsResponseSchema, await worktreePath('/paths')),
-  reviewedFiles: async (scope?: 'branch') =>
+  reviewedFiles: async (branch?: string) =>
     read(
       listReviewedFilesResponseSchema,
-      await worktreePath(`/reviewed${scope ? query({ scope }) : ''}`),
+      await worktreePath(
+        `/reviewed${branch ? query({ scope: 'branch', branch }) : ''}`,
+      ),
     ),
   branchChanges: async (base?: string) =>
     read(

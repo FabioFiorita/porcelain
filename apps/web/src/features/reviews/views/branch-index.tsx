@@ -77,7 +77,7 @@ function BranchFiles({
   const marks = useReviewedMarks(
     scope,
     context,
-    branchReviewRange(changes.data?.base?.ref),
+    branchReviewRange(changes.data),
   );
   if (changes.isPending)
     return (

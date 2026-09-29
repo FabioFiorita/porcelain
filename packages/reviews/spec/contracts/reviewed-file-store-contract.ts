@@ -144,6 +144,41 @@ export function reviewedFileStoreContract(
       ]);
     });
 
+    it('keeps the branch marks of each branch apart', () => {
+      store.save({
+        worktreeId: first,
+        scope: 'branch',
+        branch: 'refs/heads/one',
+        marks: [mark('a.ts', 'one')],
+      });
+      store.save({
+        worktreeId: first,
+        scope: 'branch',
+        branch: 'refs/heads/two',
+        marks: [mark('a.ts', 'two'), mark('b.ts', 'two')],
+      });
+      store.remove({
+        worktreeId: first,
+        scope: 'branch',
+        branch: 'refs/heads/two',
+        paths: ['b.ts'],
+      });
+      expect(
+        store.list({
+          worktreeId: first,
+          scope: 'branch',
+          branch: 'refs/heads/one',
+        }),
+      ).toEqual([mark('a.ts', 'one')]);
+      expect(
+        store.list({
+          worktreeId: first,
+          scope: 'branch',
+          branch: 'refs/heads/two',
+        }),
+      ).toEqual([mark('a.ts', 'two')]);
+    });
+
     it('hands out copies, so changing a returned mark leaves the stored one unchanged', () => {
       const saved = mark('a.ts');
       store.save({ worktreeId: first, marks: [saved] });

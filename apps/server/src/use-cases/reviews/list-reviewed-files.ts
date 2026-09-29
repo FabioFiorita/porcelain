@@ -32,6 +32,7 @@ export class ListReviewedFilesUseCase {
     context: OperationContext,
   ): Promise<ListReviewedFilesResponse> {
     const { worktreeId, scope } = input;
+    const branch = scope === 'branch' ? input.branch : undefined;
     const worktree = await this.checkWorktree.execute(
       { worktreeId, requireAvailableProject: false },
       context,
@@ -39,7 +40,7 @@ export class ListReviewedFilesUseCase {
     return this.lanes.run(
       this.laneKeys.reviews(worktree),
       'read',
-      async () => this.listReviewedFiles.execute({ worktreeId, scope }),
+      async () => this.listReviewedFiles.execute({ worktreeId, scope, branch }),
       { callerSignal: context.signal },
     );
   }

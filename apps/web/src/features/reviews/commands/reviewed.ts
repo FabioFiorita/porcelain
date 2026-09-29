@@ -1,3 +1,4 @@
+import { REVIEWED_FILE_MARKS } from '@porcelain/contracts/shared';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { asMutation } from '@/shared/query/mutation';
 import { reviewedQueryOptions } from '../queries/reviewed';
@@ -5,6 +6,7 @@ import { reviewErrorMessage, type ReviewScope } from '../rules/review';
 import {
   bulkMarkPlan,
   bulkMarkReport,
+  inChunks,
   type MarkReviewedInput,
   type ReviewableItem,
   type ReviewNotice,
@@ -95,38 +97,46 @@ export function useMarkAllReviewed(
   const client = useQueryClient();
   const bulk = useMutation({
     mutationFn: async (entries: readonly ReviewableItem[]) => {
-      const { report, files } = bulkMarkPlan(entries);
-      if (files.length === 0) return report;
-      const response = await enqueueReviewedMany(
-        reviewed,
-        client,
-        files,
-        async () => {
-          const request = reviewed.request();
-          const result = await reviewed.api.setAll({
-            ...request,
-            input: { files },
-          });
-          request.signal.throwIfAborted();
-          return result;
-        },
-      );
-      return bulkMarkReport(report, response);
+      const plan = bulkMarkPlan(entries);
+      let report = plan.report;
+      for (const files of inChunks(plan.files, REVIEWED_FILE_MARKS)) {
+        const response = await enqueueReviewedMany(
+          reviewed,
+          client,
+          files,
+          async () => {
+            const request = reviewed.request();
+            const result = await reviewed.api.setAll({
+              ...request,
+              input: { files },
+            });
+            request.signal.throwIfAborted();
+            return result;
+          },
+        );
+        report = bulkMarkReport(report, response);
+      }
+      return report;
     },
   });
   const unmark = useMutation({
-    mutationFn: (paths: readonly string[]) =>
-      enqueueReviewedMany(
-        reviewed,
-        client,
-        paths.map((path) => ({ path })),
-        async () => {
-          const request = reviewed.request();
-          const result = await reviewed.api.removeAll({ ...request, paths });
-          request.signal.throwIfAborted();
-          return result;
-        },
-      ),
+    mutationFn: async (paths: readonly string[]) => {
+      for (const chunk of inChunks(paths, REVIEWED_FILE_MARKS))
+        await enqueueReviewedMany(
+          reviewed,
+          client,
+          chunk.map((path) => ({ path })),
+          async () => {
+            const request = reviewed.request();
+            const result = await reviewed.api.removeAll({
+              ...request,
+              paths: chunk,
+            });
+            request.signal.throwIfAborted();
+            return result;
+          },
+        );
+    },
   });
   return {
     report: visibleBulkReport(

@@ -59,7 +59,7 @@ function BranchCode({
 }: Props & { path: string | undefined }) {
   const connection = useAccessStore((state) => state.connection);
   const changes = useBranchChanges(scope, connection, base);
-  const range = branchReviewRange(changes.data?.base?.ref);
+  const range = branchReviewRange(changes.data);
   const marks = useReviewedMarks(scope, context, range);
   if (changes.isPending)
     return (

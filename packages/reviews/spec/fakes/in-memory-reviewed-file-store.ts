@@ -11,11 +11,12 @@ import type { ReviewedFileStore } from '../../src/ports/reviewed-file-store.ts';
 type Row = {
   worktreeId: string;
   scope?: ReviewedScope | undefined;
+  branch?: string | undefined;
   mark: ReviewedFileMark;
 };
 
 function rowKey(key: ReviewedFileKey, path: string): string {
-  return `${key.worktreeId}\0${key.scope ?? 'worktree'}\0${path}`;
+  return `${key.worktreeId}\0${key.scope ?? 'worktree'}\0${key.branch ?? ''}\0${path}`;
 }
 
 export class InMemoryReviewedFileStore implements ReviewedFileStore {
@@ -36,7 +37,8 @@ export class InMemoryReviewedFileStore implements ReviewedFileStore {
       .filter(
         (row) =>
           row.worktreeId === input.worktreeId &&
-          (row.scope ?? 'worktree') === (input.scope ?? 'worktree'),
+          (row.scope ?? 'worktree') === (input.scope ?? 'worktree') &&
+          (row.branch ?? '') === (input.branch ?? ''),
       )
       .map((row) => ({
         ...row.mark,
@@ -53,6 +55,7 @@ export class InMemoryReviewedFileStore implements ReviewedFileStore {
       this.rows.set(rowKey(input, mark.path), {
         worktreeId: input.worktreeId,
         scope: input.scope,
+        branch: input.branch,
         mark: { ...mark },
       });
       this.staleness.delete(rowKey(input, mark.path));

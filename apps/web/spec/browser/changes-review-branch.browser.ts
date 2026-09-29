@@ -41,7 +41,9 @@ test('marking a branch file reviewed keeps the mark in the branch review only', 
   server,
 }) => {
   const branchMarks = async () =>
-    (await server.reviewedFiles('branch')).marks.map((mark) => mark.path);
+    (await server.reviewedFiles('refs/heads/feature')).marks.map(
+      (mark) => mark.path,
+    );
   await pairedPage
     .getByRole('button', { name: 'Mark notes.md as reviewed' })
     .first()
