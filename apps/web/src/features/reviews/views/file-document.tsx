@@ -176,6 +176,7 @@ function ReadableFileDocument({
   useHotkey(SHORTCUTS.findInFile, () => setFinding(Date.now()), {
     enabled: active && showingSource && !editing,
     ignoreInputs: false,
+    conflictBehavior: 'allow',
   });
   const actions = (
     <>
