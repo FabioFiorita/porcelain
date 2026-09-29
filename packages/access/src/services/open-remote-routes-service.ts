@@ -1,5 +1,6 @@
 import type {
   ListenedRoute,
+  NetworkAddress,
   OpenRemoteRoutesInput,
   RemoteAccessSettings,
   RouteState,
@@ -11,7 +12,11 @@ import type { RouteListenerRunner } from '../ports/route-listener-runner.ts';
 import type { RouteStateStore } from '../ports/route-state-store.ts';
 import type { TunnelProbe } from '../ports/tunnel-probe.ts';
 import {
-  lanAddresses,
+  defaultRoutes,
+  localNetwork,
+  sameNetwork,
+} from '../rules/local-network.ts';
+import {
   listenedState,
   reachableOrigins,
   tailnetAddresses,
@@ -47,12 +52,7 @@ export class OpenRemoteRoutesService {
   ): Promise<void> {
     const settings = this.remoteAccess.read();
     const found = this.networkAddresses.list();
-    const lan = await this.listen(
-      'lan',
-      settings.lan,
-      lanAddresses(found),
-      signal,
-    );
+    const lan = await this.lan(settings, found, signal);
     const tailnet = await this.listen(
       'tailnet',
       settings.tailnet,
@@ -70,6 +70,26 @@ export class OpenRemoteRoutesService {
         signal,
       ),
     });
+  }
+
+  private async lan(
+    settings: RemoteAccessSettings,
+    found: NetworkAddress[],
+    signal: AbortSignal | undefined,
+  ): Promise<RouteState> {
+    const here = localNetwork(
+      found,
+      defaultRoutes(this.networkAddresses.routeTable()),
+    );
+    if (!settings.lan || here === undefined) {
+      await this.routeListeners.close({ route: 'lan' });
+      return settings.lan ? { kind: 'paused' } : { kind: 'off' };
+    }
+    if (!sameNetwork(here, settings.lanNetwork)) {
+      await this.routeListeners.close({ route: 'lan' });
+      return { kind: 'paused' };
+    }
+    return this.listen('lan', true, [here.address], signal);
   }
 
   private async listen(

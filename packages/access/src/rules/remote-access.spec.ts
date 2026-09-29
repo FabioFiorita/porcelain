@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import type { NetworkAddress } from '@porcelain/access/models';
 import {
   changedRemoteAccess,
-  lanAddresses,
   listenedState,
   reachableOrigins,
   tailnetAddresses,
@@ -21,6 +20,7 @@ function address(
     address: value,
     family: value.includes(':') ? 'IPv6' : 'IPv4',
     internal: false,
+    physical: false,
     ...extra,
   };
 }
@@ -35,39 +35,6 @@ const laptop = [
   address('tailscale0', '100.101.102.103'),
   address('tailscale0', 'fd7a:115c:a1e0::1234:5678'),
 ];
-
-describe('lanAddresses', () => {
-  it('finds every private IPv4 address the machine has on a network, in the order the system lists them', () => {
-    expect(lanAddresses(laptop)).toEqual([
-      '192.168.1.20',
-      '10.0.0.7',
-      '172.17.0.1',
-    ]);
-  });
-
-  it('leaves out public, link-local, loopback and IPv6 addresses', () => {
-    expect(
-      lanAddresses([
-        address('eth0', '203.0.113.5'),
-        address('eth0', '169.254.10.2'),
-        address('lo', '127.0.0.1', { internal: true }),
-        address('eth0', 'fd00::5'),
-        address('eth0', '172.32.0.1'),
-        address('eth0', '172.15.0.1'),
-      ]),
-    ).toEqual([]);
-  });
-
-  it('never counts the Tailscale interface as the local network, even when it carries a private address', () => {
-    expect(
-      lanAddresses([
-        address('tailscale0', '10.1.2.3'),
-        address('utun4', '192.168.50.2'),
-        address('utun4', 'fd7a:115c:a1e0::9'),
-      ]),
-    ).toEqual([]);
-  });
-});
 
 describe('tailnetAddresses', () => {
   it('finds the tailnet IPv4 and IPv6 addresses, IPv4 first', () => {
@@ -131,21 +98,50 @@ describe('tunnelHostname', () => {
 describe('changedRemoteAccess', () => {
   const off = { lan: false, tailnet: false, cloudflare: false };
 
+  const here = {
+    interfaceName: 'wlp2s0',
+    subnet: '192.168.1.0/24',
+    address: '192.168.1.20',
+  };
+  const home = { interfaceName: 'wlp2s0', subnet: '192.168.1.0/24' };
+
   it('changes only the routes the request names', () => {
     expect(
       changedRemoteAccess(
         { ...off, tailnet: true, cloudflareHostname: 'a.example.com' },
         { lan: true },
         253,
+        here,
       ),
     ).toEqual({
       kind: 'settings',
       settings: {
         lan: true,
+        lanNetwork: home,
         tailnet: true,
         cloudflare: false,
         cloudflareHostname: 'a.example.com',
       },
+    });
+  });
+
+  it('keeps the network the local network was turned on for while other routes change, wherever the computer is now', () => {
+    expect(
+      changedRemoteAccess(
+        { ...off, lan: true, lanNetwork: home },
+        { tailnet: true },
+        253,
+        undefined,
+      ),
+    ).toEqual({
+      kind: 'settings',
+      settings: { ...off, lan: true, lanNetwork: home, tailnet: true },
+    });
+  });
+
+  it('refuses to turn the local network on without a network to turn it on for', () => {
+    expect(changedRemoteAccess(off, { lan: true }, 253, undefined)).toEqual({
+      kind: 'no-local-network',
     });
   });
 
@@ -295,7 +291,7 @@ describe('reachableOrigins', () => {
       reachableOrigins({
         lan: { kind: 'on', urls: ['http://192.168.1.20:4173'] },
         tailnet: { kind: 'failed', reason: 'no-address' },
-        cloudflare: { kind: 'starting' },
+        cloudflare: { kind: 'paused' },
       }),
     ).toEqual(['http://192.168.1.20:4173']);
   });

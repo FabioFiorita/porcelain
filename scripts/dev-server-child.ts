@@ -39,20 +39,54 @@ let server: Runtime | undefined;
 const listeningPort = () =>
   Number(new URL(server?.address ?? 'http://127.0.0.1:0').port);
 const startServer = composeServer({
-  networkAddressReader: new FixedNetworkAddressReader([
-    {
-      interfaceName: 'lo',
-      address: '127.0.0.1',
-      family: 'IPv4',
-      internal: true,
-    },
-    {
-      interfaceName: 'eth0',
-      address: '192.168.1.20',
-      family: 'IPv4',
-      internal: false,
-    },
-  ]),
+  networkAddressReader: new FixedNetworkAddressReader(
+    [
+      {
+        interfaceName: 'lo',
+        address: '127.0.0.1',
+        family: 'IPv4',
+        internal: true,
+        physical: false,
+        netmask: '255.0.0.0',
+        cidr: '127.0.0.1/8',
+      },
+      {
+        interfaceName: 'eth0',
+        address: '192.168.1.20',
+        family: 'IPv4',
+        internal: false,
+        physical: true,
+        netmask: '255.255.255.0',
+        cidr: '192.168.1.20/24',
+      },
+      {
+        interfaceName: 'docker0',
+        address: '172.17.0.1',
+        family: 'IPv4',
+        internal: false,
+        physical: false,
+        netmask: '255.255.0.0',
+        cidr: '172.17.0.1/16',
+      },
+      {
+        interfaceName: 'tun0',
+        address: '10.8.0.51',
+        family: 'IPv4',
+        internal: false,
+        physical: false,
+        netmask: '255.255.255.0',
+        cidr: '10.8.0.51/24',
+      },
+    ],
+    [
+      'Iface\tDestination\tGateway \tFlags\tRefCnt\tUse\tMetric\tMask\t\tMTU\tWindow\tIRTT',
+      'eth0\t00000000\t0101A8C0\t0003\t0\t0\t100\t00000000\t0\t0\t0',
+      'docker0\t000011AC\t00000000\t0001\t0\t0\t0\t0000FFFF\t0\t0\t0',
+      'tun0\t0000080A\t00000000\t0001\t0\t0\t0\t00FFFFFF\t0\t0\t0',
+      'eth0\t0001A8C0\t00000000\t0001\t0\t0\t100\t00FFFFFF\t0\t0\t0',
+      '',
+    ].join('\n'),
+  ),
   routeListenerRunner: () => new InMemoryRouteListenerRunner(listeningPort),
   tunnelProbe: () =>
     new ScriptedTunnelProbe(async ({ origin }) => {

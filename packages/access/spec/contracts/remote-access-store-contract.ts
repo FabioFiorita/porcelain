@@ -44,6 +44,28 @@ export function remoteAccessStoreContract(
       });
     });
 
+    it('reads back the network the local network was turned on for, and forgets it when a save leaves it out', () => {
+      const lanNetwork = { interfaceName: 'wlp2s0', subnet: '192.168.1.0/24' };
+      opened.store.save({
+        lan: true,
+        lanNetwork,
+        tailnet: false,
+        cloudflare: false,
+      });
+      expect(opened.store.read()).toEqual({
+        lan: true,
+        lanNetwork,
+        tailnet: false,
+        cloudflare: false,
+      });
+      opened.store.save({ lan: true, tailnet: false, cloudflare: false });
+      expect(opened.store.read()).toEqual({
+        lan: true,
+        tailnet: false,
+        cloudflare: false,
+      });
+    });
+
     it('forgets the tunnel hostname when a save leaves it out', () => {
       opened.store.save({
         lan: false,

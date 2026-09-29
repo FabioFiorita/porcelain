@@ -3,16 +3,23 @@ import type { NetworkAddressReader } from '../../src/ports/network-address-reade
 
 export class FixedNetworkAddressReader implements NetworkAddressReader {
   private addresses: NetworkAddress[];
+  private table: string;
 
-  constructor(addresses: NetworkAddress[]) {
+  constructor(addresses: NetworkAddress[], table = '') {
     this.addresses = addresses;
+    this.table = table;
   }
 
   list(): NetworkAddress[] {
     return [...this.addresses];
   }
 
-  replace(addresses: NetworkAddress[]): void {
+  routeTable(): string {
+    return this.table;
+  }
+
+  replace(addresses: NetworkAddress[], table = this.table): void {
     this.addresses = addresses;
+    this.table = table;
   }
 }

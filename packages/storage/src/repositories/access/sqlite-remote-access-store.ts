@@ -15,6 +15,14 @@ export class SqliteRemoteAccessStore implements RemoteAccessStore {
     if (!row) return { lan: false, tailnet: false, cloudflare: false };
     return {
       lan: row.lan,
+      ...(row.lanInterface === null || row.lanSubnet === null
+        ? {}
+        : {
+            lanNetwork: {
+              interfaceName: row.lanInterface,
+              subnet: row.lanSubnet,
+            },
+          }),
       tailnet: row.tailnet,
       cloudflare: row.cloudflare,
       ...(row.cloudflareHostname === null
@@ -26,6 +34,8 @@ export class SqliteRemoteAccessStore implements RemoteAccessStore {
   save(input: RemoteAccessSettings): void {
     const row = {
       lan: input.lan,
+      lanInterface: input.lanNetwork?.interfaceName ?? null,
+      lanSubnet: input.lanNetwork?.subnet ?? null,
       tailnet: input.tailnet,
       cloudflare: input.cloudflare,
       cloudflareHostname: input.cloudflareHostname ?? null,

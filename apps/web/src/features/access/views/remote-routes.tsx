@@ -1,6 +1,6 @@
-import { CopyIcon } from 'lucide-react';
+import { CopyIcon, ShieldAlertIcon } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,6 +11,8 @@ import { submitForm } from '@/shared/lib/submit-form';
 import { useSetRemoteAccess } from '../commands/share';
 import { connectionErrorMessage } from '../rules/connection-error-message';
 import {
+  localNetworkNote,
+  networkName,
   remoteRouteTitles,
   routeFailure,
   type RemoteAccess,
@@ -20,7 +22,7 @@ import {
 } from '../rules/share';
 
 const descriptions: Record<RemoteRouteName, string> = {
-  lan: 'Phones and computers on the same Wi-Fi or wired network. Traffic on that network is not encrypted.',
+  lan: 'Phones and computers on the same Wi-Fi or wired network as this computer, on that one network only.',
   tailnet:
     'Your devices signed in to Tailscale, from anywhere. Tailscale must be running on this computer.',
   cloudflare:
@@ -49,6 +51,8 @@ function RouteStatus({
         {name === 'cloudflare' ? 'Checking the tunnel' : 'Starting'}
       </Badge>
     );
+  if (status.kind === 'paused')
+    return <Badge variant="outline">Paused on this network</Badge>;
   if (status.kind === 'failed')
     return (
       <div className="flex flex-col items-start gap-1">
@@ -110,6 +114,47 @@ function RouteRow({
       </div>
       <RouteStatus name={name} route={route} />
       {children}
+    </div>
+  );
+}
+
+function LocalNetworkSettings({
+  remote,
+  disabled,
+  onTurnOn,
+}: {
+  remote: RemoteAccess;
+  disabled: boolean;
+  onTurnOn: () => void;
+}) {
+  const { lan } = remote.routes;
+  const here = remote.localNetwork;
+  const paused = lan.enabled && lan.status.kind === 'paused';
+  return (
+    <div className="flex flex-col gap-2">
+      {paused && here && (
+        <Button
+          variant="outline"
+          size="sm"
+          className="self-start"
+          disabled={disabled}
+          onClick={onTurnOn}
+        >
+          Turn on for {networkName(here)}
+        </Button>
+      )}
+      <p className="text-xs text-muted-foreground">
+        {localNetworkNote(remote)}
+      </p>
+      <Alert>
+        <ShieldAlertIcon />
+        <AlertTitle>Not encrypted</AlertTitle>
+        <AlertDescription>
+          Anyone on the same network can read what Porcelain shows and the
+          device credentials it sends. For an encrypted connection, use
+          Tailscale.
+        </AlertDescription>
+      </Alert>
     </div>
   );
 }
@@ -193,9 +238,18 @@ export function RemoteRoutes({
       <RouteRow
         name="lan"
         route={remote.routes.lan}
-        disabled={disabled}
+        disabled={
+          disabled ||
+          (!remote.routes.lan.enabled && remote.localNetwork === undefined)
+        }
         onChange={(lan) => change.submit({ lan })}
-      />
+      >
+        <LocalNetworkSettings
+          remote={remote}
+          disabled={disabled}
+          onTurnOn={() => change.submit({ lan: true })}
+        />
+      </RouteRow>
       <RouteRow
         name="tailnet"
         route={remote.routes.tailnet}

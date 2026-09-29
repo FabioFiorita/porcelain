@@ -2,17 +2,39 @@ import { describe, expect, it } from 'vitest';
 import {
   InvalidTunnelHostnameError,
   MissingTunnelHostnameError,
+  NoLocalNetworkError,
 } from '@porcelain/access/errors';
+import { FixedNetworkAddressReader } from '../../spec/fakes/fixed-network-address-reader.ts';
 import { FixedRuntimeStatusReader } from '../../spec/fakes/fixed-runtime-status-reader.ts';
 import { InMemoryRemoteAccessStore } from '../../spec/fakes/in-memory-remote-access-store.ts';
 import { InMemoryRouteStateStore } from '../../spec/fakes/in-memory-route-state-store.ts';
+import { routeTableVia } from '../../spec/fixtures/route-table.ts';
 import { SetRemoteAccessService } from './set-remote-access-service.ts';
 
 const serviceUrl = 'http://127.0.0.1:4173';
+const home = { interfaceName: 'wlp2s0', subnet: '192.168.1.0/24' };
+const office = { interfaceName: 'wlp2s0', subnet: '10.20.0.0/16' };
+
+function wifi(cidr: string) {
+  const [address = ''] = cidr.split('/');
+  return {
+    interfaceName: 'wlp2s0',
+    address,
+    family: 'IPv4',
+    internal: false,
+    physical: true,
+    netmask: cidr.endsWith('/16') ? '255.255.0.0' : '255.255.255.0',
+    cidr,
+  };
+}
 
 function setup() {
   const settings = new InMemoryRemoteAccessStore();
   const routes = new InMemoryRouteStateStore();
+  const network = new FixedNetworkAddressReader(
+    [wifi('192.168.1.20/24')],
+    routeTableVia('wlp2s0'),
+  );
   const service = new SetRemoteAccessService(
     settings,
     routes,
@@ -21,9 +43,10 @@ function setup() {
       dataDirectory: '/data',
       pid: 1,
     }),
+    network,
     { hostnameLength: 253 },
   );
-  return { settings, routes, service };
+  return { settings, routes, network, service };
 }
 
 describe('SetRemoteAccessService', () => {
@@ -36,10 +59,58 @@ describe('SetRemoteAccessService', () => {
         tailnet: { enabled: false, status: { kind: 'off' } },
         cloudflare: { enabled: false, status: { kind: 'off' } },
       },
+      lanNetwork: home,
+      localNetwork: home,
       serviceUrl,
     });
     expect(settings.read()).toEqual({
       lan: true,
+      lanNetwork: home,
+      tailnet: false,
+      cloudflare: false,
+    });
+  });
+
+  it('turns the local network on for the network the computer is on now, which a second turn-on replaces', () => {
+    const { settings, network, service } = setup();
+    service.execute({ lan: true });
+    network.replace([wifi('10.20.30.40/16')]);
+
+    expect(service.execute({ tailnet: true })).toMatchObject({
+      lanNetwork: home,
+      localNetwork: office,
+    });
+    expect(service.execute({ lan: true })).toMatchObject({
+      routes: { lan: { enabled: true, status: { kind: 'starting' } } },
+      lanNetwork: office,
+      localNetwork: office,
+    });
+    expect(settings.read().lanNetwork).toEqual(office);
+  });
+
+  it('forgets the network when the local network is turned off', () => {
+    const { settings, service } = setup();
+    service.execute({ lan: true });
+    const view = service.execute({ lan: false });
+
+    expect(view.lanNetwork).toBeUndefined();
+    expect(view.localNetwork).toEqual(home);
+    expect(settings.read()).toEqual({
+      lan: false,
+      tailnet: false,
+      cloudflare: false,
+    });
+  });
+
+  it('refuses to turn the local network on while the computer is on no local network, and changes nothing', () => {
+    const { settings, network, service } = setup();
+    network.replace([wifi('192.168.1.20/24')], '');
+
+    expect(() => service.execute({ lan: true, tailnet: true })).toThrow(
+      NoLocalNetworkError,
+    );
+    expect(settings.read()).toEqual({
+      lan: false,
       tailnet: false,
       cloudflare: false,
     });
@@ -95,7 +166,7 @@ describe('SetRemoteAccessService', () => {
   it('refuses to turn Cloudflare on without a hostname and changes nothing', () => {
     const { settings, service } = setup();
 
-    expect(() => service.execute({ lan: true, cloudflare: true })).toThrow(
+    expect(() => service.execute({ tailnet: true, cloudflare: true })).toThrow(
       MissingTunnelHostnameError,
     );
     expect(settings.read()).toEqual({

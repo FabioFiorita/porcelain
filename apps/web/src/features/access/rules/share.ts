@@ -38,6 +38,33 @@ export const deviceRouteTitles: Record<DeviceRoute, string> = {
   tunnel: 'Cloudflare tunnel',
 };
 
+type Network = NonNullable<RemoteAccess['localNetwork']>;
+
+export function networkName(network: Network): string {
+  return `${network.subnet} on ${network.interfaceName}`;
+}
+
+export function localNetworkNote(remote: RemoteAccess): string {
+  const { lan } = remote.routes;
+  const here = remote.localNetwork;
+  const chosen = remote.lanNetwork;
+  if (!lan.enabled)
+    return here
+      ? `Turning it on listens on ${networkName(here)} only, and pauses on any other network.`
+      : 'This computer is not on a local network right now.';
+  if (lan.status.kind !== 'paused')
+    return chosen
+      ? `Listening on ${networkName(chosen)} only.`
+      : 'Listening on this network only.';
+  if (!here)
+    return chosen
+      ? `Paused: this computer is not on a local network. Porcelain listens again when it is back on ${networkName(chosen)}.`
+      : 'Paused: this computer is not on a local network.';
+  return chosen
+    ? `Paused on this network. It was turned on for ${networkName(chosen)}, and listens again there, or here once you turn it on for this network.`
+    : 'Paused on this network. It was turned on before Porcelain kept the network it was turned on for; turn it on for this network to listen here.';
+}
+
 export function routesSettling(
   remote: RemoteAccess | null | undefined,
 ): boolean {

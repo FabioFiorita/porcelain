@@ -9,9 +9,10 @@ import {
   defineFeature,
   invalidRequest,
   record,
+  text,
   type Session,
 } from '../scripts/feature.ts';
-import { eventually, read } from '../scripts/fixture.ts';
+import { eventually, issuePairing, read } from '../scripts/fixture.ts';
 
 const tunnelHost = 'porcelain.example.com';
 const notOnThisComputer = apiError(
@@ -25,6 +26,7 @@ const notAnswered = apiError(
   `This server does not answer to the host ${tunnelHost}`,
 );
 const remoteAccess = { method: 'GET', path: '/api/remote-access' } as const;
+const fixtureNetwork = { interfaceName: 'eth0', subnet: '192.168.1.0/24' };
 const throughTunnel = {
   method: 'GET',
   path: '/api/health',
@@ -53,7 +55,7 @@ export default defineFeature({
   paired: true,
   intent: 'intended',
   behaviour:
-    "A paired browser on the computer that runs Porcelain turns the ways in on and off: the local network, the Tailscale tailnet and the user's own Cloudflare tunnel with its public hostname. The choice is saved; each route reports whether it is off, starting, on with the addresses it serves, or failed with a reason. The server listens at this machine's private and tailnet addresses (the fixture reports one private address, 192.168.1.20, and no tailnet), and it answers to the tunnel hostname only while Cloudflare is on; it checks the tunnel by asking its own health through the hostname (the fixture's tunnel reaches this server for any hostname except one under .invalid, which nothing answers). An address that a route serves can be named in a pairing link. Turning Cloudflare on needs a readable public HTTPS hostname. As with pairing, only a request from this computer's loopback listener may change them, so a device that came in through a route cannot.",
+    "A paired browser on the computer that runs Porcelain turns the ways in on and off: the local network, the Tailscale tailnet and the user's own Cloudflare tunnel with its public hostname. The choice is saved; each route reports whether it is off, starting, on with the addresses it serves, or failed with a reason. Turning the local network on records the network the computer is on, the private IPv4 network of the physical interface that carries the default route, and the server listens there only, never on Docker, libvirt or VPN interfaces, and pauses on any other network (the fixture's computer is on 192.168.1.0/24 through eth0 at 192.168.1.20, with a Docker bridge and a VPN beside it, and has no tailnet); it listens at the tailnet addresses, and it answers to the tunnel hostname only while Cloudflare is on; it checks the tunnel by asking its own health through the hostname (the fixture's tunnel reaches this server for any hostname except one under .invalid, which nothing answers). An address that a route serves can be named in a pairing link. Turning Cloudflare on needs a readable public HTTPS hostname. As with pairing, only a request from this computer's loopback listener may change them, so a device that came in through a route cannot.",
   cases: [
     defineCase({
       name: 'every route is off at first',
@@ -70,6 +72,7 @@ export default defineFeature({
           'body',
           {
             routes: { lan: off, tailnet: off, cloudflare: off },
+            localNetwork: fixtureNetwork,
             serviceUrl: session.address,
           },
           response.body,
@@ -145,8 +148,18 @@ export default defineFeature({
           starting,
           routes(record(response.body)).tailnet,
         );
+        check(
+          'turned on for the network the computer is on',
+          fixtureNetwork,
+          record(response.body).lanNetwork,
+        );
         const opened = await settled(session, 'lan', 'on');
         const settledTailnet = await settled(session, 'tailnet', '');
+        check(
+          'one address on the local network, none on Docker or the VPN',
+          1,
+          [status(opened, 'lan').urls].flat().length,
+        );
         checkMatch(
           'local network serves the private address on the server port',
           /^http:\/\/192\.168\.1\.20:\d+$/,
@@ -264,12 +277,25 @@ export default defineFeature({
       },
     }),
     defineCase({
-      name: 'a device that came in through a route cannot change them',
-      setup: (session) => read(session, remoteAccess),
-      request: () => [
+      name: 'a device paired through a route cannot change them',
+      async setup(session) {
+        const paired = await read(session, {
+          method: 'POST',
+          path: '/api/pair',
+          auth: 'none',
+          headers: { host: tunnelHost, origin: `https://${tunnelHost}` },
+          body: { code: await issuePairing(session, 'Phone'), platform: 'iOS' },
+        });
+        return {
+          before: await read(session, remoteAccess),
+          bearer: text(paired.credential),
+        };
+      },
+      request: (_session, { bearer }) => [
         {
           method: 'PATCH',
           path: '/api/remote-access',
+          auth: { bearer },
           headers: { host: tunnelHost, origin: `https://${tunnelHost}` },
           body: { lan: true },
         },
@@ -284,7 +310,11 @@ export default defineFeature({
           check(`request ${index + 1} status`, 403, response.status);
           check(`request ${index + 1} body`, notOnThisComputer, response.body);
         }
-        check('nothing changed', state, await read(session, remoteAccess));
+        check(
+          'nothing changed',
+          state.before,
+          await read(session, remoteAccess),
+        );
       },
     }),
     defineCase({

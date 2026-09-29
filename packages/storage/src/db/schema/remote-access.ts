@@ -6,12 +6,18 @@ export const remoteAccess = sqliteTable(
   {
     singleton: integer('singleton').primaryKey(),
     lan: integer('lan', { mode: 'boolean' }).notNull(),
+    lanInterface: text('lan_interface'),
+    lanSubnet: text('lan_subnet'),
     tailnet: integer('tailnet', { mode: 'boolean' }).notNull(),
     cloudflare: integer('cloudflare', { mode: 'boolean' }).notNull(),
     cloudflareHostname: text('cloudflare_hostname'),
   },
   (table) => [
     check('remote_access_singleton', sql`${table.singleton} = 1`),
+    check(
+      'remote_access_lan_network',
+      sql`(${table.lanInterface} IS NULL) = (${table.lanSubnet} IS NULL)`,
+    ),
     check(
       'remote_access_cloudflare_hostname',
       sql`${table.cloudflare} = 0 OR ${table.cloudflareHostname} IS NOT NULL`,

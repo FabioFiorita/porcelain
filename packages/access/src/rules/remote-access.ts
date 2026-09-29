@@ -1,5 +1,6 @@
 import type {
   ListenOutcome,
+  LocalNetwork,
   NetworkAddress,
   RemoteAccess,
   RemoteAccessChange,
@@ -10,7 +11,6 @@ import type {
   TunnelAnswer,
 } from '../models/remote-access.ts';
 
-const PRIVATE_IPV4 = [/^10\./, /^192\.168\./, /^172\.(?:1[6-9]|2\d|3[01])\./];
 const TAILNET_IPV4 = /^100\.(?:6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./;
 const TAILNET_IPV6 = /^fd7a:115c:a1e0:/i;
 const TAILSCALE_INTERFACE = 'tailscale0';
@@ -49,19 +49,6 @@ export function tailnetAddresses(
     ...found.filter((entry) => entry.family === 'IPv4'),
     ...found.filter((entry) => entry.family !== 'IPv4'),
   ].map((entry) => entry.address);
-}
-
-export function lanAddresses(addresses: readonly NetworkAddress[]): string[] {
-  const interfaces = tailnetInterfaces(addresses);
-  return addresses
-    .filter(
-      (entry) =>
-        !entry.internal &&
-        entry.family === 'IPv4' &&
-        !interfaces.has(entry.interfaceName) &&
-        PRIVATE_IPV4.some((range) => range.test(entry.address)),
-    )
-    .map((entry) => entry.address);
 }
 
 export function tunnelHostname(
@@ -158,10 +145,29 @@ export function reachableOrigins(states: RouteStates): string[] {
   );
 }
 
+function lanChange(
+  current: RemoteAccessSettings,
+  change: RemoteAccessChange,
+  network: LocalNetwork | undefined,
+): Pick<RemoteAccessSettings, 'lan' | 'lanNetwork'> | undefined {
+  if (change.lan === false) return { lan: false };
+  if (change.lan === undefined)
+    return { lan: current.lan, lanNetwork: current.lanNetwork };
+  if (network === undefined) return undefined;
+  return {
+    lan: true,
+    lanNetwork: {
+      interfaceName: network.interfaceName,
+      subnet: network.subnet,
+    },
+  };
+}
+
 export function changedRemoteAccess(
   current: RemoteAccessSettings,
   change: RemoteAccessChange,
   hostnameLength: number,
+  network?: LocalNetwork,
 ): RemoteAccessDecision {
   const hostname =
     change.cloudflareHostname === undefined
@@ -171,10 +177,13 @@ export function changedRemoteAccess(
     return { kind: 'invalid-hostname' };
   const cloudflare = change.cloudflare ?? current.cloudflare;
   if (cloudflare && hostname === undefined) return { kind: 'missing-hostname' };
+  const lan = lanChange(current, change, network);
+  if (lan === undefined) return { kind: 'no-local-network' };
   return {
     kind: 'settings',
     settings: {
-      lan: change.lan ?? current.lan,
+      lan: lan.lan,
+      ...(lan.lanNetwork === undefined ? {} : { lanNetwork: lan.lanNetwork }),
       tailnet: change.tailnet ?? current.tailnet,
       cloudflare,
       ...(hostname === undefined ? {} : { cloudflareHostname: hostname }),
@@ -199,10 +208,15 @@ export function requestedStates(
   };
 }
 
+function networkOnly(network: LocalNetwork): LocalNetwork {
+  return { interfaceName: network.interfaceName, subnet: network.subnet };
+}
+
 export function remoteAccessView(
   settings: RemoteAccessSettings,
   states: RouteStates,
   serviceUrl: string,
+  here?: LocalNetwork,
 ): RemoteAccess {
   return {
     routes: {
@@ -210,6 +224,10 @@ export function remoteAccessView(
       tailnet: { enabled: settings.tailnet, status: states.tailnet },
       cloudflare: { enabled: settings.cloudflare, status: states.cloudflare },
     },
+    ...(settings.lan && settings.lanNetwork !== undefined
+      ? { lanNetwork: networkOnly(settings.lanNetwork) }
+      : {}),
+    ...(here === undefined ? {} : { localNetwork: networkOnly(here) }),
     ...(settings.cloudflareHostname === undefined
       ? {}
       : { cloudflareHostname: settings.cloudflareHostname }),

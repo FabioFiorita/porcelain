@@ -1,7 +1,12 @@
 export type ListenedRoute = 'lan' | 'tailnet';
 
+export type LocalNetwork = { interfaceName: string; subnet: string };
+
+export type LocalNetworkAddress = LocalNetwork & { address: string };
+
 export type RemoteAccessSettings = {
   lan: boolean;
+  lanNetwork?: LocalNetwork | undefined;
   tailnet: boolean;
   cloudflare: boolean;
   cloudflareHostname?: string | undefined;
@@ -25,6 +30,7 @@ export type RouteState =
   | { kind: 'off' }
   | { kind: 'starting' }
   | { kind: 'on'; urls: string[] }
+  | { kind: 'paused' }
   | { kind: 'failed'; reason: RouteFailure };
 
 export type RouteStates = {
@@ -43,6 +49,8 @@ export type RemoteAccess = {
     tailnet: RemoteRouteView;
     cloudflare: RemoteRouteView;
   };
+  lanNetwork?: LocalNetwork | undefined;
+  localNetwork?: LocalNetwork | undefined;
   cloudflareHostname?: string | undefined;
   serviceUrl: string;
 };
@@ -52,7 +60,12 @@ export type NetworkAddress = {
   address: string;
   family: string;
   internal: boolean;
+  physical: boolean;
+  netmask?: string | undefined;
+  cidr?: string | undefined;
 };
+
+export type DefaultRoute = { interfaceName: string; metric: number };
 
 export type RouteAddresses = { route: ListenedRoute; addresses: string[] };
 
@@ -79,7 +92,8 @@ export type RemoteAccessOptions = { hostnameLength: number };
 
 export type RemoteAccessProblem =
   | { kind: 'invalid-hostname' }
-  | { kind: 'missing-hostname' };
+  | { kind: 'missing-hostname' }
+  | { kind: 'no-local-network' };
 
 export type RemoteAccessDecision =
   | { kind: 'settings'; settings: RemoteAccessSettings }

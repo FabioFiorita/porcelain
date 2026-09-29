@@ -5,6 +5,7 @@ const routeStateSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('off') }),
   z.object({ kind: z.literal('starting') }),
   z.object({ kind: z.literal('on'), urls: z.array(z.string()) }),
+  z.object({ kind: z.literal('paused') }),
   z.object({
     kind: z.literal('failed'),
     reason: z.enum([
@@ -17,6 +18,11 @@ const routeStateSchema = z.discriminatedUnion('kind', [
   }),
 ]);
 
+const localNetworkSchema = z.object({
+  interfaceName: z.string(),
+  subnet: z.string(),
+});
+
 const routeSchema = z.object({
   enabled: z.boolean(),
   status: routeStateSchema,
@@ -28,6 +34,8 @@ export const readRemoteAccessResponseSchema = z.object({
     tailnet: routeSchema,
     cloudflare: routeSchema,
   }),
+  lanNetwork: localNetworkSchema.optional(),
+  localNetwork: localNetworkSchema.optional(),
   cloudflareHostname: z.string().optional(),
   serviceUrl: z.string(),
 });
