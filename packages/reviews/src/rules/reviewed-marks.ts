@@ -1,4 +1,4 @@
-import type { FileChange } from '@porcelain/kernel/models';
+import type { ExpectedFile } from '@porcelain/kernel/models';
 import { expectationHolds } from '@porcelain/kernel/rules';
 import type { ReviewTexts } from '../models/review-evidence.ts';
 import type { ReviewLayer } from '../models/review.ts';
@@ -15,7 +15,7 @@ import { currentLayerFingerprint } from './resolve-review.ts';
 
 export function selectReviewedFiles(
   files: readonly ReviewedFile[],
-  changes: readonly FileChange[],
+  changes: readonly ExpectedFile[],
 ): ReviewedFileSelection {
   const latest = new Map(files.map((file) => [file.path, file.fingerprint]));
   const current = new Map(

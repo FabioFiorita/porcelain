@@ -13,16 +13,16 @@ export class RemoveReviewedFilesService {
   }
 
   execute(input: RemoveReviewedFilesInput): RemoveReviewedFilesResult {
-    const { worktreeId } = input;
+    const { worktreeId, scope } = input;
     const wanted = new Set(input.paths);
     const removed = this.reviewedFiles
-      .list({ worktreeId })
+      .list({ worktreeId, scope })
       .filter((mark) => wanted.has(mark.path))
       .map((mark) => mark.path);
-    this.reviewedFiles.remove({ worktreeId, paths: removed });
+    this.reviewedFiles.remove({ worktreeId, scope, paths: removed });
     return {
       worktreeId,
-      marks: reviewedMarks(this.reviewedFiles.list({ worktreeId })),
+      marks: reviewedMarks(this.reviewedFiles.list({ worktreeId, scope })),
       removed: removed.length > 0,
     };
   }

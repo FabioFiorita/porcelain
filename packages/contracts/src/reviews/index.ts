@@ -49,6 +49,7 @@ export {
   type PublishReviewToolResponse,
 } from './review-tools.ts';
 export {
+  listReviewedFilesQuerySchema,
   listReviewedFilesResponseSchema,
   listReviewedLayersResponseSchema,
   removeReviewedFileQuerySchema,
@@ -63,6 +64,7 @@ export {
   setReviewedFilesResponseSchema,
   setReviewedLayerRequestSchema,
   setReviewedLayerResponseSchema,
+  type ListReviewedFilesQuery,
   type ListReviewedFilesResponse,
   type ListReviewedLayersResponse,
   type RemoveReviewedFileQuery,

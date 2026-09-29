@@ -1,3 +1,5 @@
+export type ReviewedScope = 'worktree' | 'branch';
+
 export type ReviewedMark = {
   path: string;
   fingerprint: string;
@@ -49,18 +51,20 @@ export type WorktreeReviewedLayerMark = ReviewedLayerMark & {
   worktreeId: string;
 };
 
-export type ReviewedFileSave = {
+export type ReviewedFileKey = {
   worktreeId: string;
+  scope?: ReviewedScope | undefined;
+};
+
+export type ReviewedFileSave = ReviewedFileKey & {
   marks: readonly ReviewedFileMark[];
 };
 
-export type ReviewedFileRemoval = {
-  worktreeId: string;
+export type ReviewedFileRemoval = ReviewedFileKey & {
   paths: readonly string[];
 };
 
-export type ReviewedFileStaleness = {
-  worktreeId: string;
+export type ReviewedFileStaleness = ReviewedFileKey & {
   paths: readonly string[];
   stale: boolean;
 };

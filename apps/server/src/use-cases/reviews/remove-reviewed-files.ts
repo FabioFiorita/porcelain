@@ -48,6 +48,7 @@ export class RemoveReviewedFilesUseCase {
       async () =>
         this.removeReviewedFiles.execute({
           worktreeId,
+          scope: input.scope,
           paths: 'paths' in input ? input.paths : [input.path],
         }),
       { callerSignal: context.signal },

@@ -3,13 +3,15 @@ import type {
   ReviewedFileConflict,
   ReviewedFileLimits,
   ReviewedFiles,
+  ReviewedScope,
 } from './reviewed-mark.ts';
-import type { FileChange } from '@porcelain/kernel/models';
+import type { ExpectedFile } from '@porcelain/kernel/models';
 
 export type SetReviewedFilesInput = {
   worktreeId: string;
+  scope?: ReviewedScope | undefined;
   files: readonly ReviewedFile[];
-  changes: readonly FileChange[];
+  changes: readonly ExpectedFile[];
   onConflict: 'report' | 'refuse';
 };
 

@@ -65,5 +65,7 @@ The default, and \`scope: "waiting"\`, returns unresolved threads whose latest m
 
 \`scope: "all"\` returns every thread, including resolved threads and threads whose latest message is yours.
 
+A thread's \`anchor.comparison\` names what the reviewer was reading. \`worktree\` is the uncommitted changes, staged, unstaged or untracked. \`commit\` is one commit against a parent, and \`revision\` is that commit. \`branch\` is the whole branch since it forked from \`base\`, like a pull request, and \`revision\` is the branch tip the reviewer read: \`additions\` lines are lines of the file at that tip and \`deletions\` lines are lines at the merge base. If you committed since, find the code again before you change it.
+
 Reply in Markdown with \`reply_to_comment\`. Resolve a thread only after you fixed it or the reviewer accepted it. Use the optional ids on create and reply so a retry does not add a second copy.
 `;

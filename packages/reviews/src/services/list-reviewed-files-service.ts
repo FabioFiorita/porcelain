@@ -13,10 +13,10 @@ export class ListReviewedFilesService {
   }
 
   execute(input: ListReviewedFilesInput): ListReviewedFilesResult {
-    const { worktreeId } = input;
+    const { worktreeId, scope } = input;
     return {
       worktreeId,
-      marks: reviewedMarks(this.reviewedFiles.list({ worktreeId })),
+      marks: reviewedMarks(this.reviewedFiles.list({ worktreeId, scope })),
     };
   }
 }

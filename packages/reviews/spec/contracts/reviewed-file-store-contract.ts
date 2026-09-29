@@ -107,6 +107,43 @@ export function reviewedFileStoreContract(
       ]);
     });
 
+    it('keeps the worktree and branch marks of one path apart', () => {
+      store.save({ worktreeId: first, marks: [mark('a.ts', 'worktree')] });
+      store.save({
+        worktreeId: first,
+        scope: 'branch',
+        marks: [mark('a.ts', 'branch'), mark('b.ts', 'branch')],
+      });
+      expect(store.list({ worktreeId: first })).toEqual([
+        mark('a.ts', 'worktree'),
+      ]);
+      expect(store.list({ worktreeId: first, scope: 'worktree' })).toEqual([
+        mark('a.ts', 'worktree'),
+      ]);
+      expect(store.list({ worktreeId: first, scope: 'branch' })).toEqual([
+        mark('a.ts', 'branch'),
+        mark('b.ts', 'branch'),
+      ]);
+    });
+
+    it('removes and marks stale only in the asked scope', () => {
+      store.save({ worktreeId: first, marks: [mark('a.ts'), mark('b.ts')] });
+      store.save({
+        worktreeId: first,
+        scope: 'branch',
+        marks: [mark('a.ts'), mark('b.ts')],
+      });
+      store.remove({ worktreeId: first, scope: 'branch', paths: ['a.ts'] });
+      store.setStale({ worktreeId: first, paths: ['b.ts'], stale: true });
+      expect(store.list({ worktreeId: first })).toEqual([
+        mark('a.ts'),
+        { ...mark('b.ts'), stale: true },
+      ]);
+      expect(store.list({ worktreeId: first, scope: 'branch' })).toEqual([
+        mark('b.ts'),
+      ]);
+    });
+
     it('hands out copies, so changing a returned mark leaves the stored one unchanged', () => {
       const saved = mark('a.ts');
       store.save({ worktreeId: first, marks: [saved] });

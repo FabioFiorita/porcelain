@@ -1,4 +1,7 @@
-import type { ListReviewedFilesResponse } from '@porcelain/contracts/reviews';
+import type {
+  ListReviewedFilesQuery,
+  ListReviewedFilesResponse,
+} from '@porcelain/contracts/reviews';
 import type { WorktreeParams } from '@porcelain/contracts/shared';
 import type { ListReviewedFilesService } from '@porcelain/reviews/services';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
@@ -25,10 +28,10 @@ export class ListReviewedFilesUseCase {
   }
 
   async execute(
-    input: WorktreeParams,
+    input: WorktreeParams & ListReviewedFilesQuery,
     context: OperationContext,
   ): Promise<ListReviewedFilesResponse> {
-    const { worktreeId } = input;
+    const { worktreeId, scope } = input;
     const worktree = await this.checkWorktree.execute(
       { worktreeId, requireAvailableProject: false },
       context,
@@ -36,7 +39,7 @@ export class ListReviewedFilesUseCase {
     return this.lanes.run(
       this.laneKeys.reviews(worktree),
       'read',
-      async () => this.listReviewedFiles.execute({ worktreeId }),
+      async () => this.listReviewedFiles.execute({ worktreeId, scope }),
       { callerSignal: context.signal },
     );
   }

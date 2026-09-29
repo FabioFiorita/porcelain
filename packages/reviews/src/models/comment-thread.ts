@@ -9,7 +9,8 @@ export type CommentThreadScope = 'all' | 'waiting';
 type CommentComparison =
   | { kind: 'worktree'; scope: 'staged' | 'unstaged' | 'untracked' }
   | { kind: 'file' }
-  | { kind: 'commit'; parent: number };
+  | { kind: 'commit'; parent: number }
+  | { kind: 'branch'; base: string };
 
 export type CommentAnchor = {
   comparison?: CommentComparison | undefined;

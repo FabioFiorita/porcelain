@@ -20,7 +20,7 @@ export function commentAnchorProblem(
     return { kind: 'reversed-range' };
   if (anchor.comparison === undefined) return undefined;
   const fits =
-    anchor.comparison.kind === 'commit'
+    anchor.comparison.kind === 'commit' || anchor.comparison.kind === 'branch'
       ? COMMIT_REVISION.test(anchor.revision ?? '')
       : anchor.revision === undefined;
   return fits ? undefined : { kind: 'revision-mismatch' };
@@ -75,6 +75,8 @@ function sameComparison(
     return right.kind === 'worktree' && left.scope === right.scope;
   if (left.kind === 'commit')
     return right.kind === 'commit' && left.parent === right.parent;
+  if (left.kind === 'branch')
+    return right.kind === 'branch' && left.base === right.base;
   return right.kind === 'file';
 }
 

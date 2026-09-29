@@ -1,5 +1,8 @@
 import type { ZodTypeProvider } from '@fastify/type-provider-zod';
-import { listReviewedFilesResponseSchema } from '@porcelain/contracts/reviews';
+import {
+  listReviewedFilesQuerySchema,
+  listReviewedFilesResponseSchema,
+} from '@porcelain/contracts/reviews';
 import { worktreeParamsSchema } from '@porcelain/contracts/shared';
 import type { FastifyInstance } from 'fastify';
 import type { ListReviewedFilesUseCase } from '../../../use-cases/reviews/list-reviewed-files.ts';
@@ -15,12 +18,14 @@ export function listReviewedFiles(
     {
       schema: {
         params: worktreeParamsSchema,
+        querystring: listReviewedFilesQuerySchema,
         response: { ...errorResponses, 200: listReviewedFilesResponseSchema },
       },
     },
     async (request) =>
-      options.useCase.execute(request.params, {
-        signal: request.disconnected,
-      }),
+      options.useCase.execute(
+        { ...request.params, ...request.query },
+        { signal: request.disconnected },
+      ),
   );
 }

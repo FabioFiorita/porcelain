@@ -1,7 +1,11 @@
 import { and, asc, eq, inArray } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { reviewedFiles } from '../../db/schema/reviewed-files.ts';
-import type { ReviewedFileMark } from '@porcelain/reviews/models';
+import type {
+  ReviewedFileKey,
+  ReviewedFileMark,
+  ReviewedScope,
+} from '@porcelain/reviews/models';
 import type { ReviewedFileStore } from '@porcelain/reviews/ports';
 
 export class SqliteReviewedFileStore implements ReviewedFileStore {
@@ -11,7 +15,7 @@ export class SqliteReviewedFileStore implements ReviewedFileStore {
     this.db = db;
   }
 
-  list(input: { worktreeId: string }): ReviewedFileMark[] {
+  list(input: ReviewedFileKey): ReviewedFileMark[] {
     return this.db
       .select({
         path: reviewedFiles.path,
@@ -20,24 +24,26 @@ export class SqliteReviewedFileStore implements ReviewedFileStore {
         stale: reviewedFiles.stale,
       })
       .from(reviewedFiles)
-      .where(eq(reviewedFiles.worktreeId, input.worktreeId))
+      .where(inScope(input))
       .orderBy(asc(reviewedFiles.path))
       .all();
   }
 
-  save(input: {
-    worktreeId: string;
-    marks: readonly ReviewedFileMark[];
-  }): void {
+  save(input: ReviewedFileKey & { marks: readonly ReviewedFileMark[] }): void {
     const { worktreeId } = input;
+    const scope = scopeOf(input);
     if (input.marks.length === 0) return;
     this.db.transaction(
       (tx) => {
         for (const mark of input.marks)
           tx.insert(reviewedFiles)
-            .values({ worktreeId, ...mark })
+            .values({ worktreeId, scope, ...mark })
             .onConflictDoUpdate({
-              target: [reviewedFiles.worktreeId, reviewedFiles.path],
+              target: [
+                reviewedFiles.worktreeId,
+                reviewedFiles.scope,
+                reviewedFiles.path,
+              ],
               set: {
                 fingerprint: mark.fingerprint,
                 reviewedAt: mark.reviewedAt,
@@ -50,16 +56,13 @@ export class SqliteReviewedFileStore implements ReviewedFileStore {
     );
   }
 
-  remove(input: { worktreeId: string; paths: readonly string[] }): void {
+  remove(input: ReviewedFileKey & { paths: readonly string[] }): void {
     if (input.paths.length === 0) return;
     this.db.transaction(
       (tx) => {
         tx.delete(reviewedFiles)
           .where(
-            and(
-              eq(reviewedFiles.worktreeId, input.worktreeId),
-              inArray(reviewedFiles.path, [...input.paths]),
-            ),
+            and(inScope(input), inArray(reviewedFiles.path, [...input.paths])),
           )
           .run();
       },
@@ -67,25 +70,31 @@ export class SqliteReviewedFileStore implements ReviewedFileStore {
     );
   }
 
-  setStale(input: {
-    worktreeId: string;
-    paths: readonly string[];
-    stale: boolean;
-  }): void {
+  setStale(
+    input: ReviewedFileKey & { paths: readonly string[]; stale: boolean },
+  ): void {
     if (input.paths.length === 0) return;
     this.db.transaction(
       (tx) => {
         tx.update(reviewedFiles)
           .set({ stale: input.stale })
           .where(
-            and(
-              eq(reviewedFiles.worktreeId, input.worktreeId),
-              inArray(reviewedFiles.path, [...input.paths]),
-            ),
+            and(inScope(input), inArray(reviewedFiles.path, [...input.paths])),
           )
           .run();
       },
       { behavior: 'immediate' },
     );
   }
+}
+
+function scopeOf(key: ReviewedFileKey): ReviewedScope {
+  return key.scope ?? 'worktree';
+}
+
+function inScope(key: ReviewedFileKey) {
+  return and(
+    eq(reviewedFiles.worktreeId, key.worktreeId),
+    eq(reviewedFiles.scope, scopeOf(key)),
+  );
 }

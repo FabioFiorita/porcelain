@@ -121,6 +121,25 @@ describe('CreateCommentThreadService', () => {
     );
   });
 
+  it('answers a repeated branch comment and refuses the same id against another base', () => {
+    const { service } = setup();
+    const onBase = (base: string) =>
+      input({
+        ...ids,
+        anchor: {
+          kind: 'file',
+          filePath: 'README.md',
+          comparison: { kind: 'branch', base },
+          revision: 'a'.repeat(40),
+        },
+      });
+    const first = service.execute(onBase('refs/heads/main'));
+    expect(service.execute(onBase('refs/heads/main'))).toEqual(first);
+    expect(() => service.execute(onBase('refs/heads/develop'))).toThrow(
+      CommentIdentityConflictError,
+    );
+  });
+
   it('refuses a new thread whose message id already belongs to another thread', () => {
     const { service } = setup();
     service.execute(input({ threadId: 'thread-1', messageId: 'message-1' }));
@@ -173,6 +192,17 @@ describe('CreateCommentThreadService', () => {
       },
     },
     {
+      name: 'a branch comparison without the tip it was read at',
+      anchor: {
+        kind: 'codeRange',
+        filePath: 'README.md',
+        startLine: 1,
+        endLine: 2,
+        side: 'additions',
+        comparison: { kind: 'branch', base: 'refs/heads/main' },
+      },
+    },
+    {
       name: 'a file comparison with a revision',
       anchor: {
         kind: 'file',
@@ -196,6 +226,21 @@ describe('CreateCommentThreadService', () => {
       filePath: 'README.md',
       comparison: { kind: 'commit', parent: 1 },
       revision: 'a'.repeat(40),
+    };
+    expect(service.execute(input({ anchor })).anchor).toEqual(anchor);
+  });
+
+  it('opens a thread on a branch comparison that names the tip it was read at', () => {
+    const { service } = setup();
+    const anchor: CommentAnchor = {
+      kind: 'codeRange',
+      filePath: 'README.md',
+      startLine: 1,
+      endLine: 2,
+      side: 'additions',
+      comparison: { kind: 'branch', base: 'refs/remotes/origin/main' },
+      revision: 'a'.repeat(40),
+      contentFingerprint: 'f'.repeat(64),
     };
     expect(service.execute(input({ anchor })).anchor).toEqual(anchor);
   });

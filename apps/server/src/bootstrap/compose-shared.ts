@@ -1,6 +1,7 @@
 import { ReadEnvironmentService } from '@porcelain/access/services';
 import type { Clock } from '@porcelain/kernel/ports';
 import {
+  ReadBranchChangesService,
   ReadChangeDiffsService,
   ReadChangeFingerprintsService,
   ReadWorktreeStatusService,
@@ -40,6 +41,7 @@ import {
   ReadReviewBadgesService,
   RecordReviewActivityService,
 } from '@porcelain/reviews/services';
+import { GitBranchRangeReader } from '../adapters/changes/git-branch-range-reader.ts';
 import { GitChangeDiffReader } from '../adapters/changes/git-change-diff-reader.ts';
 import { GitChangeStatusReader } from '../adapters/changes/git-change-status-reader.ts';
 import { GitWorktreeSideReader } from '../adapters/changes/git-worktree-side-reader.ts';
@@ -110,6 +112,7 @@ export function composeShared(dependencies: SharedDependencies) {
   const readChangeDiffs = new ReadChangeDiffsService(
     new GitChangeDiffReader(openInspection),
   );
+  const branchRangeReader = new GitBranchRangeReader(worktreeAccess, commitGit);
   return {
     git,
     actionGit,
@@ -138,6 +141,8 @@ export function composeShared(dependencies: SharedDependencies) {
     readTextFile,
     readWorktreeStatus,
     readChangeFingerprints,
+    branchRangeReader,
+    readBranchChanges: new ReadBranchChangesService(branchRangeReader),
     readChangeDiffs,
     readInterruptedGitAction: new ReadInterruptedGitActionService(
       stores.gitActions,

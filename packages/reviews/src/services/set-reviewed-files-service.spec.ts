@@ -188,4 +188,29 @@ describe('SetReviewedFilesService', () => {
     expect(store.list({ worktreeId })).toHaveLength(2000);
     expect(marked(store, 'file-0000')).toBeDefined();
   });
+
+  it('marks a branch file without touching the worktree mark of the same path', () => {
+    const { store, service } = setup();
+    service.execute({
+      worktreeId,
+      files: [{ path: 'a.txt', fingerprint: 'worktree' }],
+      changes: changes([{ path: 'a.txt', fingerprint: 'worktree' }]),
+      onConflict: 'refuse',
+    });
+    const result = service.execute({
+      worktreeId,
+      scope: 'branch',
+      files: [{ path: 'a.txt', fingerprint: 'branch' }],
+      changes: changes([{ path: 'a.txt', fingerprint: 'branch' }]),
+      onConflict: 'refuse',
+    });
+    expect(result.marks).toEqual([
+      {
+        path: 'a.txt',
+        fingerprint: 'branch',
+        reviewedAt: '2026-01-02T00:00:00.000Z',
+      },
+    ]);
+    expect(marked(store, 'a.txt')?.fingerprint).toBe('worktree');
+  });
 });

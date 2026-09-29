@@ -1,4 +1,5 @@
 import type {
+  ReadBranchChangesService,
   ReadChangeFingerprintsService,
   ReadWorktreeStatusService,
 } from '@porcelain/changes/services';
@@ -22,6 +23,7 @@ export class SetReviewedFilesUseCase {
   private readonly confirmWorktree: ConfirmWorktreeService;
   private readonly readWorktreeStatus: ReadWorktreeStatusService;
   private readonly readChangeFingerprints: ReadChangeFingerprintsService;
+  private readonly readBranchChanges: ReadBranchChangesService;
   private readonly setReviewedFiles: SetReviewedFilesService;
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
@@ -32,6 +34,7 @@ export class SetReviewedFilesUseCase {
     confirmWorktree: ConfirmWorktreeService,
     readWorktreeStatus: ReadWorktreeStatusService,
     readChangeFingerprints: ReadChangeFingerprintsService,
+    readBranchChanges: ReadBranchChangesService,
     setReviewedFiles: SetReviewedFilesService,
     lanes: Lanes,
     laneKeys: LaneKeys,
@@ -41,6 +44,7 @@ export class SetReviewedFilesUseCase {
     this.confirmWorktree = confirmWorktree;
     this.readWorktreeStatus = readWorktreeStatus;
     this.readChangeFingerprints = readChangeFingerprints;
+    this.readBranchChanges = readBranchChanges;
     this.setReviewedFiles = setReviewedFiles;
     this.lanes = lanes;
     this.laneKeys = laneKeys;
@@ -62,17 +66,19 @@ export class SetReviewedFilesUseCase {
       this.laneKeys.reviews(worktree),
       'write',
       async ({ signal }) => {
-        const status = await this.readWorktreeStatus.execute(
-          { worktreeId },
-          signal,
-        );
-        const { changes } = await this.readChangeFingerprints.execute(
-          { worktreeId, comparisons: status.changes, paths: undefined },
-          signal,
-        );
+        const changes =
+          input.scope === 'branch'
+            ? (
+                await this.readBranchChanges.execute(
+                  { worktreeId, base: input.base },
+                  signal,
+                )
+              ).files
+            : await this.worktreeChanges(worktreeId, signal);
         this.confirmWorktree.execute({ worktree });
         return this.setReviewedFiles.execute({
           worktreeId,
+          scope: input.scope,
           files:
             'files' in input
               ? input.files
@@ -86,5 +92,17 @@ export class SetReviewedFilesUseCase {
     if (changed)
       this.events.worktreeChanged({ worktreeId, change: 'reviewed' });
     return result;
+  }
+
+  private async worktreeChanges(worktreeId: string, signal: AbortSignal) {
+    const status = await this.readWorktreeStatus.execute(
+      { worktreeId },
+      signal,
+    );
+    const { changes } = await this.readChangeFingerprints.execute(
+      { worktreeId, comparisons: status.changes, paths: undefined },
+      signal,
+    );
+    return changes;
   }
 }

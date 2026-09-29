@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { branchRefSchema } from '../shared/branch-ref.ts';
 import { fingerprintSchema } from '../shared/fingerprint.ts';
 import { relativePathSchema } from '../shared/relative-path.ts';
 import { worktreeIdSchema } from '../shared/worktree-params.ts';
@@ -10,19 +11,35 @@ const reviewedMarkSchema = z.object({
   reviewedAt: z.iso.datetime(),
 });
 
+const reviewedScopeSchema = z.enum(['worktree', 'branch']);
+const branchScope = {
+  scope: z.literal('branch'),
+  base: branchRefSchema,
+};
+
+export const listReviewedFilesQuerySchema = z.strictObject({
+  scope: reviewedScopeSchema.optional(),
+});
 export const listReviewedFilesResponseSchema = z.object({
   worktreeId: worktreeIdSchema,
   marks: z.array(reviewedMarkSchema).max(REVIEWED_FILE_MARKS),
 });
 
-export const setReviewedFileRequestSchema = z.strictObject({
+const reviewedFileShape = {
   path: relativePathSchema,
   reviewed: z.literal(true),
   fingerprint: fingerprintSchema,
-});
+};
+export const setReviewedFileRequestSchema = z.union([
+  z.strictObject({
+    ...reviewedFileShape,
+    scope: z.literal('worktree').optional(),
+  }),
+  z.strictObject({ ...reviewedFileShape, ...branchScope }),
+]);
 export const setReviewedFileResponseSchema = listReviewedFilesResponseSchema;
 
-export const setReviewedFilesRequestSchema = z.strictObject({
+const reviewedFilesShape = {
   files: z
     .array(
       z.strictObject({
@@ -32,7 +49,14 @@ export const setReviewedFilesRequestSchema = z.strictObject({
     )
     .min(1)
     .max(REVIEWED_FILE_MARKS),
-});
+};
+export const setReviewedFilesRequestSchema = z.union([
+  z.strictObject({
+    ...reviewedFilesShape,
+    scope: z.literal('worktree').optional(),
+  }),
+  z.strictObject({ ...reviewedFilesShape, ...branchScope }),
+]);
 export const setReviewedFilesResponseSchema =
   listReviewedFilesResponseSchema.extend({
     marked: z.array(relativePathSchema).max(REVIEWED_FILE_MARKS),
@@ -48,11 +72,13 @@ export const setReviewedFilesResponseSchema =
 
 export const removeReviewedFileQuerySchema = z.strictObject({
   path: relativePathSchema,
+  scope: reviewedScopeSchema.optional(),
 });
 export const removeReviewedFileResponseSchema = listReviewedFilesResponseSchema;
 
 export const removeReviewedFilesRequestSchema = z.strictObject({
   paths: z.array(relativePathSchema).min(1).max(REVIEWED_FILE_MARKS),
+  scope: reviewedScopeSchema.optional(),
 });
 export const removeReviewedFilesResponseSchema =
   listReviewedFilesResponseSchema;
@@ -82,6 +108,9 @@ export const removeReviewedLayerQuerySchema = z.strictObject({
 export const removeReviewedLayerResponseSchema =
   listReviewedLayersResponseSchema;
 
+export type ListReviewedFilesQuery = z.output<
+  typeof listReviewedFilesQuerySchema
+>;
 export type ListReviewedFilesResponse = z.output<
   typeof listReviewedFilesResponseSchema
 >;

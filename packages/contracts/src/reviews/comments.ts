@@ -5,6 +5,7 @@ import {
   EVIDENCE_TOKEN_LENGTH,
   LINE_NUMBER_MAX,
 } from '../shared/limits.ts';
+import { branchRefSchema } from '../shared/branch-ref.ts';
 import { relativePathSchema } from '../shared/relative-path.ts';
 import { worktreeIdSchema } from '../shared/worktree-params.ts';
 
@@ -18,6 +19,7 @@ const comparisonSchema = z.discriminatedUnion('kind', [
     kind: z.literal('commit'),
     parent: z.number().int().min(1).max(COMMIT_PARENTS),
   }),
+  z.strictObject({ kind: z.literal('branch'), base: branchRefSchema }),
 ]);
 const evidence = {
   comparison: comparisonSchema.optional(),

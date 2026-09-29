@@ -33,8 +33,10 @@ export type {
   StepDraft,
 } from './review.ts';
 export type {
+  ReviewedFileKey,
   ReviewedFileMark,
   ReviewedLayerMark,
   ReviewedLayerSave,
+  ReviewedScope,
   WorktreeReviewedLayerMark,
 } from './reviewed-mark.ts';

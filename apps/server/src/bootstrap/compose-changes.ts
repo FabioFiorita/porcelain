@@ -1,7 +1,6 @@
 import {
   CheckCommitService,
   ListBranchBasesService,
-  ReadBranchChangesService,
   ReadBranchDiffsService,
   CheckDiffSelectionService,
   ConfirmDiffObservationService,
@@ -11,7 +10,6 @@ import {
   ReadCommitDiffsService,
   ReadCommitFilesService,
 } from '@porcelain/changes/services';
-import { GitBranchRangeReader } from '../adapters/changes/git-branch-range-reader.ts';
 import { GitCommitHistoryReader } from '../adapters/changes/git-commit-history-reader.ts';
 import { ListBranchBasesUseCase } from '../use-cases/changes/list-branch-bases.ts';
 import { ReadBranchChangesUseCase } from '../use-cases/changes/read-branch-changes.ts';
@@ -51,10 +49,7 @@ export function composeChanges(
     shared.worktreeAccess,
     shared.commitGit,
   );
-  const branchRangeReader = new GitBranchRangeReader(
-    shared.worktreeAccess,
-    shared.commitGit,
-  );
+  const { branchRangeReader } = shared;
   const readBranchDetails = new ReadBranchDetailsService(
     shared.changeStatusReader,
   );
@@ -65,7 +60,7 @@ export function composeChanges(
   return {
     readBranchChanges: new ReadBranchChangesUseCase(
       checkWorktree,
-      new ReadBranchChangesService(branchRangeReader),
+      shared.readBranchChanges,
       lanes,
       laneKeys,
     ),

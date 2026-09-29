@@ -29,7 +29,7 @@ export class SetReviewedFilesService {
   }
 
   execute(input: SetReviewedFilesInput): SetReviewedFilesResult {
-    const { worktreeId } = input;
+    const { worktreeId, scope } = input;
     const { marked, conflicts } = selectReviewedFiles(
       input.files,
       input.changes,
@@ -37,19 +37,20 @@ export class SetReviewedFilesService {
     if (input.onConflict === 'refuse' && conflicts.length > 0)
       throw new ReviewedMarkConflictError();
     const evicted = evictedPaths(
-      this.reviewedFiles.list({ worktreeId }),
+      this.reviewedFiles.list({ worktreeId, scope }),
       marked,
       this.options.marksPerWorktree,
     );
-    this.reviewedFiles.remove({ worktreeId, paths: evicted });
+    this.reviewedFiles.remove({ worktreeId, scope, paths: evicted });
     const reviewedAt = this.clock.now();
     this.reviewedFiles.save({
       worktreeId,
+      scope,
       marks: marked.map((file) => ({ ...file, reviewedAt, stale: false })),
     });
     return {
       worktreeId,
-      marks: reviewedMarks(this.reviewedFiles.list({ worktreeId })),
+      marks: reviewedMarks(this.reviewedFiles.list({ worktreeId, scope })),
       marked: marked.map((file) => file.path),
       conflicts,
       changed: marked.length > 0 || evicted.length > 0,

@@ -207,6 +207,7 @@ export function composeReviews(
       shared.confirmWorktree,
       shared.readWorktreeStatus,
       shared.readChangeFingerprints,
+      shared.readBranchChanges,
       setReviewedFiles,
       lanes,
       laneKeys,
