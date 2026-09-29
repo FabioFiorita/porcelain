@@ -1,0 +1,64 @@
+import { PinOffIcon } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/shared/lib/utils';
+import { FileTypeIcon } from './file-type-icon';
+
+export function PinnedFiles({
+  paths,
+  selected,
+  onOpen,
+  onUnpin,
+}: {
+  paths: readonly string[];
+  selected: string;
+  onOpen: (path: string) => void;
+  onUnpin: (path: string) => void;
+}) {
+  if (paths.length === 0) return null;
+  return (
+    <section
+      aria-label="Pinned files"
+      className="shrink-0 border-b px-2 pb-1.5"
+    >
+      <p className="px-1.5 pt-1 pb-0.5 text-[11px] font-medium text-muted-foreground">
+        Pinned
+      </p>
+      <ul>
+        {paths.map((path) => {
+          const separator = path.lastIndexOf('/') + 1;
+          return (
+            <li key={path} className="flex items-center gap-0.5">
+              <button
+                type="button"
+                aria-current={path === selected ? 'page' : undefined}
+                title={path}
+                className={cn(
+                  'flex h-6 min-w-0 flex-1 items-center gap-1.5 rounded-md px-1.5 text-left text-[12.5px] hover:bg-accent',
+                  path === selected && 'bg-accent',
+                )}
+                onClick={() => onOpen(path)}
+              >
+                <FileTypeIcon path={path} className="size-3.5 shrink-0" />
+                <span className="shrink-0">{path.slice(separator)}</span>
+                {separator > 0 && (
+                  <span className="truncate text-muted-foreground">
+                    {path.slice(0, separator - 1)}
+                  </span>
+                )}
+              </button>
+              <Button
+                size="icon-xs"
+                variant="ghost"
+                aria-label={`Unpin ${path}`}
+                title="Unpin"
+                onClick={() => onUnpin(path)}
+              >
+                <PinOffIcon />
+              </Button>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}

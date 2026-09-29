@@ -39,3 +39,20 @@ export function useHiddenPaths(
       .map((preference) => preference.path),
   );
 }
+
+export function usePinnedPaths(
+  connection: ProjectConnection | null,
+  projectId: string,
+): readonly string[] {
+  if (!connection) throw new Error('A connected environment is required');
+  const response = useSuspenseQuery(
+    filePreferencesQueryOptions(
+      connection.environmentId,
+      projectId,
+      connection.request,
+    ),
+  ).data;
+  return response.preferences
+    .filter((preference) => preference.pinned)
+    .map((preference) => preference.path);
+}

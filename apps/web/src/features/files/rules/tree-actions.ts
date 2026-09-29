@@ -52,6 +52,7 @@ export type TreeAction =
   | 'open'
   | 'open-file'
   | 'open-diff'
+  | 'pin'
   | 'hide'
   | 'copy-relative'
   | 'copy-full'
@@ -65,6 +66,7 @@ export function treeActions(input: {
   hiddenEntry: string | null;
   ownHidden: boolean;
   hiddenName: string;
+  pinned?: boolean | undefined;
 }) {
   const actions: { id: TreeAction; label: string }[] = [];
   if (input.folder && !input.link) {
@@ -80,6 +82,11 @@ export function treeActions(input: {
     );
     if (input.changed) actions.push({ id: 'open-file', label: 'Open file' });
   }
+  if (input.pinned !== undefined)
+    actions.push({
+      id: 'pin',
+      label: input.pinned ? 'Unpin file' : 'Pin file',
+    });
   actions.push({
     id: 'hide',
     label:

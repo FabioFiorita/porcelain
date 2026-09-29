@@ -76,4 +76,32 @@ describe('file tree actions', () => {
       'Move to trash',
     ]);
   });
+
+  it('offers to pin a file that is not pinned and to unpin one that is', () => {
+    const file = {
+      folder: false,
+      link: false,
+      changed: false,
+      openable: true,
+      hiddenEntry: null,
+      ownHidden: false,
+      hiddenName: '',
+    };
+    expect(
+      treeActions({ ...file, pinned: false }).map((action) => action.label),
+    ).toEqual([
+      'Rename',
+      'Open',
+      'Pin file',
+      'Hide file',
+      'Copy relative path',
+      'Copy full path',
+      'Move to trash',
+    ]);
+    expect(
+      treeActions({ ...file, pinned: true }).find(
+        (action) => action.id === 'pin',
+      )?.label,
+    ).toBe('Unpin file');
+  });
 });

@@ -1,6 +1,6 @@
-export { useSetHidden } from './commands/set-hidden';
+export { useSetHidden, useSetPinned } from './commands/file-preferences';
 export { openProjectDialog } from './overlays';
-export { useHiddenPaths } from './queries/file-preferences';
+export { useHiddenPaths, usePinnedPaths } from './queries/file-preferences';
 export { useInventory } from './queries/inventory';
 export {
   canonicalPreferencePath,

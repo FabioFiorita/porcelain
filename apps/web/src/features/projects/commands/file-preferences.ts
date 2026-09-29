@@ -7,9 +7,10 @@ import { filePreferencesQueryOptions } from '../queries/file-preferences';
 import {
   canonicalPreferencePath,
   type SetHiddenInput,
+  type SetPinnedInput,
 } from '../rules/file-preferences';
 
-export function useSetHidden(
+function useSetFilePreference(
   connection: ProjectConnection | null,
   projectId: string,
 ) {
@@ -41,6 +42,14 @@ export function useSetHidden(
       },
     }),
   );
+  return mutation;
+}
+
+export function useSetHidden(
+  connection: ProjectConnection | null,
+  projectId: string,
+) {
+  const mutation = useSetFilePreference(connection, projectId);
   return {
     ...mutation,
     submit: (input: SetHiddenInput) =>
@@ -48,6 +57,22 @@ export function useSetHidden(
         path: canonicalPreferencePath(input.path),
         flag: 'hidden',
         value: input.hidden,
+      }),
+  };
+}
+
+export function useSetPinned(
+  connection: ProjectConnection | null,
+  projectId: string,
+) {
+  const mutation = useSetFilePreference(connection, projectId);
+  return {
+    ...mutation,
+    submit: (input: SetPinnedInput) =>
+      mutation.submit({
+        path: canonicalPreferencePath(input.path),
+        flag: 'pinned',
+        value: input.pinned,
       }),
   };
 }

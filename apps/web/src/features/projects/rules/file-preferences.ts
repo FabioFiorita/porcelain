@@ -1,4 +1,5 @@
 export type SetHiddenInput = { path: string; hidden: boolean };
+export type SetPinnedInput = { path: string; pinned: boolean };
 
 export function canonicalPreferencePath(path: string) {
   return path.endsWith('/') ? path.slice(0, -1) : path;

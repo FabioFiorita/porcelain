@@ -7,6 +7,7 @@ import {
   FilePlusIcon,
   FolderPlusIcon,
   PencilIcon,
+  PinIcon,
   Trash2Icon,
 } from 'lucide-react';
 import type { KeyboardEvent } from 'react';
@@ -35,6 +36,7 @@ const icons = {
   open: FileCodeIcon,
   'open-file': FileCodeIcon,
   'open-diff': FileDiffIcon,
+  pin: PinIcon,
   hide: EyeOffIcon,
   'copy-relative': CopyIcon,
   'copy-full': CopyIcon,

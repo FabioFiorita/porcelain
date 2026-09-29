@@ -23,7 +23,9 @@ import {
   canonicalPreferencePath,
   hiddenPathFor,
   useHiddenPaths,
+  usePinnedPaths,
   useSetHidden,
+  useSetPinned,
   visibleFileTreePaths,
 } from '@/features/projects/index';
 import { discardRejection } from '@/shared/lib/submit-form';
@@ -37,6 +39,7 @@ import { isImagePath } from '../rules/html-assets';
 import type { FilesScope } from '../rules/scope';
 import { treeActions } from '../rules/tree-actions';
 import { FileTreeMenu } from './file-tree-menu';
+import { PinnedFiles } from './pinned-files';
 import { QuickOpen } from './quick-open';
 
 type Props = {
@@ -82,6 +85,8 @@ function ScopedFileNavigation({
   const overview = useReviewOverview(scope, connection);
   const hidden = useHiddenPaths(connection, scope.projectId);
   const setHidden = useSetHidden(connection, scope.projectId);
+  const pinned = usePinnedPaths(connection, scope.projectId);
+  const setPinned = useSetPinned(connection, scope.projectId);
   const [showHidden, setShowHidden] = useState(false);
   const [requested, setRequested] = useState<readonly string[]>(() =>
     fileTreeAncestors(selected),
@@ -122,6 +127,21 @@ function ScopedFileNavigation({
   const openable = new Set(
     entries.filter((entry) => entry.kind === 'file').map((entry) => entry.path),
   );
+
+  const openFile = (path: string) =>
+    onOpen({
+      kind:
+        changed.has(path) && !isImagePath(path) && !/\.html?$/i.test(path)
+          ? 'change'
+          : 'file',
+      path,
+    });
+  const onSelect = (path: string) => {
+    const kind = kinds.get(path);
+    if (kind === 'symlink' || kind === 'submodule')
+      onOpen({ kind: 'file', path });
+    else if (kind === 'file') openFile(path);
+  };
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -172,6 +192,14 @@ function ScopedFileNavigation({
           <FolderPlusIcon className="text-muted-foreground" />
         </Button>
       </div>
+      <PinnedFiles
+        paths={pinned}
+        selected={selected}
+        onOpen={openFile}
+        onUnpin={(path) =>
+          discardRejection(setPinned.submit({ path, pinned: false }))
+        }
+      />
       <PierreFileTree
         paths={visiblePaths}
         links={entries.filter(
@@ -210,6 +238,7 @@ function ScopedFileNavigation({
             hiddenEntry,
             ownHidden: hiddenEntry === canonicalPreferencePath(path),
             hiddenName: hiddenEntry?.replace(/\/$/, '').split('/').at(-1) ?? '',
+            pinned: openable.has(path) ? pinned.includes(path) : undefined,
           });
           return (
             <FileTreeMenu
@@ -233,6 +262,13 @@ function ScopedFileNavigation({
                   onOpenDiff: (path) => onOpen({ kind: 'change', path }),
                   onSetHidden: (path, value) =>
                     discardRejection(setHidden.submit({ path, hidden: value })),
+                  onTogglePinned: (path) =>
+                    discardRejection(
+                      setPinned.submit({
+                        path,
+                        pinned: !pinned.includes(path),
+                      }),
+                    ),
                   onTrash: setDeleting,
                 })
               }
@@ -240,21 +276,7 @@ function ScopedFileNavigation({
           );
         }}
         onExpand={(paths) => setRequested((current) => union(current, paths))}
-        onSelect={(path) => {
-          const kind = kinds.get(path);
-          if (kind === 'symlink' || kind === 'submodule')
-            onOpen({ kind: 'file', path });
-          else if (kind === 'file')
-            onOpen({
-              kind:
-                changed.has(path) &&
-                !isImagePath(path) &&
-                !/\.html?$/i.test(path)
-                  ? 'change'
-                  : 'file',
-              path,
-            });
-        }}
+        onSelect={onSelect}
       />
       <AlertDialog
         open={deleting !== null}
@@ -295,6 +317,11 @@ function ScopedFileNavigation({
       {edit.error && !deleting && (
         <p role="alert" className="px-3 py-2 text-xs text-destructive">
           {fileErrorMessage(edit.error)}
+        </p>
+      )}
+      {setPinned.error && (
+        <p role="alert" className="border-t px-3 py-2 text-xs text-destructive">
+          {surfaceErrorMessage(setPinned.error)}
         </p>
       )}
       {setHidden.error && (
