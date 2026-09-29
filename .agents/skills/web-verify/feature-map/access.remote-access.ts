@@ -6,6 +6,7 @@ export default {
   reach:
     'sidebar → Settings → Sharing → Local network, Tailscale, Cloudflare tunnel',
   shortcut: 'Alt+Shift+S',
+  shell: 'desktop',
   behaviour:
     'Settings → Sharing turns the local network, the tailnet and a Cloudflare tunnel on and off, shows each starting and then the addresses it serves, the tailnet at its HTTPS Tailscale name, or why it failed, warns that the local network is not encrypted and names the one network it listens on, and turns the tunnel on once its public hostname is saved.',
   server: ['access.remote-access'],

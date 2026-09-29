@@ -2,11 +2,16 @@ import { spawn, type ChildProcess } from 'node:child_process';
 import { dirname, resolve } from 'node:path';
 import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
+import { parseArgs } from 'node:util';
 import { z } from 'zod';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const webRoot = resolve(root, 'apps/web');
 const readySchema = z.object({ address: z.url() });
+const { values } = parseArgs({
+  options: { desktop: { type: 'boolean', default: false } },
+});
+const webArguments = values.desktop ? ['--mode', 'desktop'] : [];
 
 function exitOf(child: ChildProcess): Promise<number> {
   return new Promise((done) => {
@@ -59,7 +64,7 @@ async function main(): Promise<void> {
       }),
     ]);
     if (stopping) return;
-    web = spawn(resolve(webRoot, 'node_modules/.bin/vite'), [], {
+    web = spawn(resolve(webRoot, 'node_modules/.bin/vite'), webArguments, {
       cwd: webRoot,
       detached: true,
       env: { ...process.env, PORCELAIN_API_TARGET: address },

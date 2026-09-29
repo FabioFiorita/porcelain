@@ -19,6 +19,7 @@ import {
   useAccessStore,
 } from '@/features/access/index';
 import { useInventory } from '@/features/projects/index';
+import { desktopShell } from '@/shared/shell';
 import { copyText } from '@/shared/workspace/copy';
 import { DialogIcon } from '@/app/dialog-icon';
 import type { Preferences } from '@/shared/workspace/preferences';
@@ -100,8 +101,9 @@ export function SettingsDialog({
           <div className="flex flex-col gap-0.5">
             <DialogTitle>Settings</DialogTitle>
             <DialogDescription>
-              Preferences stay in this browser. Sharing changes Porcelain for
-              every device.
+              {desktopShell
+                ? 'Preferences stay in this browser. Sharing changes Porcelain for every device.'
+                : 'Preferences stay in this browser.'}
             </DialogDescription>
           </div>
         </DialogHeader>
@@ -206,11 +208,15 @@ export function SettingsDialog({
 
             <Separator />
 
-            <Section title="Sharing">
-              <SharingSection />
-            </Section>
+            {desktopShell && (
+              <>
+                <Section title="Sharing">
+                  <SharingSection />
+                </Section>
 
-            <Separator />
+                <Separator />
+              </>
+            )}
 
             <Section title="Updates">
               <ServiceUpdateSettings />
