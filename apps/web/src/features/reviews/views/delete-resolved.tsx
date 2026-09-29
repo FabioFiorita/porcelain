@@ -11,7 +11,11 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { useDeleteResolvedComments } from '../commands/comments';
-import { type CommentThread, resolvedCleanup } from '../rules/comments';
+import {
+  type CommentThread,
+  type ConfirmedThreads,
+  resolvedCleanup,
+} from '../rules/comments';
 import { reviewErrorMessage, type ReviewScope } from '../rules/review';
 import type { ReviewsContext } from '../rules/reviewed';
 
@@ -28,9 +32,11 @@ export function DeleteResolved({
   context: ReviewsContext;
   threads: readonly CommentThread[];
 }) {
-  const [open, setOpen] = useState(false);
+  const [confirming, setConfirming] = useState<ConfirmedThreads | null>(null);
   const remove = useDeleteResolvedComments(scope, context);
-  const { deleted, kept } = resolvedCleanup(threads);
+  const { confirmed, kept } = resolvedCleanup(threads);
+  const skipped = remove.result?.skipped.length ?? 0;
+  const close = () => setConfirming(null);
   return (
     <>
       <Button
@@ -38,27 +44,36 @@ export function DeleteResolved({
         variant="ghost"
         size="xs"
         className="ml-auto"
-        disabled={deleted === 0}
-        onClick={() => setOpen(true)}
+        disabled={confirmed.length === 0}
+        onClick={() => {
+          remove.reset();
+          setConfirming(confirmed);
+        }}
       >
         <Trash2Icon data-icon="inline-start" />
         Delete resolved
       </Button>
       <AlertDialog
-        open={open}
+        open={confirming !== null && !(remove.isSuccess && skipped === 0)}
         onOpenChange={(next) => {
-          if (!remove.isPending) setOpen(next);
+          if (!next && !remove.isPending) close();
         }}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete {threadCount(deleted)}?</AlertDialogTitle>
+            <AlertDialogTitle>
+              {remove.isSuccess
+                ? `Kept ${skipped === 1 ? '1 thread' : `${skipped} threads`} that changed`
+                : `Delete ${threadCount(confirming?.length ?? 0)}?`}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              {`This deletes the resolved threads you started, with the agent's replies in them, for you and for the agent.${
-                kept > 0
-                  ? ` ${threadCount(kept)} the agent started ${kept === 1 ? 'stays' : 'stay'}, since you cannot delete what the agent wrote on its own.`
-                  : ''
-              }`}
+              {remove.isSuccess
+                ? 'The agent answered or someone reopened them after you confirmed, so they stay for you to read first.'
+                : `This deletes the resolved threads you started, with the agent's replies in them, for you and for the agent.${
+                    kept > 0
+                      ? ` ${threadCount(kept)} the agent started ${kept === 1 ? 'stays' : 'stay'}, since you cannot delete what the agent wrote on its own.`
+                      : ''
+                  }`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           {remove.error != null && (
@@ -67,16 +82,22 @@ export function DeleteResolved({
             </p>
           )}
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={remove.isPending}>
-              Cancel
-            </AlertDialogCancel>
-            <Button
-              variant="destructive"
-              disabled={remove.isPending}
-              onClick={() => remove.send(undefined, () => setOpen(false))}
-            >
-              {remove.isPending ? 'Deleting…' : 'Delete'}
-            </Button>
+            {remove.isSuccess ? (
+              <Button onClick={close}>Close</Button>
+            ) : (
+              <>
+                <AlertDialogCancel disabled={remove.isPending}>
+                  Cancel
+                </AlertDialogCancel>
+                <Button
+                  variant="destructive"
+                  disabled={remove.isPending}
+                  onClick={() => remove.send(confirming ?? [])}
+                >
+                  {remove.isPending ? 'Deleting…' : 'Delete'}
+                </Button>
+              </>
+            )}
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

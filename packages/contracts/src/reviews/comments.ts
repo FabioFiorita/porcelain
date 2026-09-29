@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import {
   COMMENT_BODY_LENGTH,
+  COMMENT_THREADS_PER_WORKTREE,
   COMMIT_PARENTS,
   EVIDENCE_TOKEN_LENGTH,
   LINE_NUMBER_MAX,
@@ -119,9 +120,20 @@ export const deleteCommentMessageResponseSchema = z.object({
   thread: absentAsNull(commentThreadSchema),
 });
 
+export const deleteResolvedCommentsRequestSchema = z.strictObject({
+  threads: z
+    .array(
+      z.strictObject({
+        threadId: z.uuid(),
+        revision: z.number().int().nonnegative(),
+      }),
+    )
+    .min(1)
+    .max(COMMENT_THREADS_PER_WORKTREE),
+});
 export const deleteResolvedCommentsResponseSchema = z.object({
   deleted: z.array(z.uuid()),
-  kept: z.number().int().nonnegative(),
+  skipped: z.array(z.uuid()),
 });
 
 export const markCommentsSeenRequestSchema = z.strictObject({
@@ -170,6 +182,9 @@ export type EditCommentMessageResponse = z.output<
 >;
 export type DeleteCommentMessageResponse = z.output<
   typeof deleteCommentMessageResponseSchema
+>;
+export type DeleteResolvedCommentsRequest = z.output<
+  typeof deleteResolvedCommentsRequestSchema
 >;
 export type DeleteResolvedCommentsResponse = z.output<
   typeof deleteResolvedCommentsResponseSchema

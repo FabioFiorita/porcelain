@@ -36,11 +36,16 @@ export function commentAuthor(writer: CommentWriter): CommentAuthor {
   return writer.kind === 'agent' ? 'agent' : 'reviewer';
 }
 
-export function startedBy(
+export function unchangedResolvedThread(
   thread: CommentThread,
-  author: CommentAuthor,
+  confirmed: { worktreeId: string; revision: number; author: CommentAuthor },
 ): boolean {
-  return thread.messages[0]?.author === author;
+  return (
+    thread.worktreeId === confirmed.worktreeId &&
+    thread.resolved &&
+    thread.revision === confirmed.revision &&
+    thread.messages[0]?.author === confirmed.author
+  );
 }
 
 export function commentStorageSize(content: CommentContent): number {

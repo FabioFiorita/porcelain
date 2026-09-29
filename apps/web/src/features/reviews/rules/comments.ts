@@ -3,6 +3,7 @@ import type {
   CreateCommentThreadRequest,
   CreateCommentThreadResponse,
   DeleteCommentMessageResponse,
+  DeleteResolvedCommentsRequest,
   DeleteResolvedCommentsResponse,
   EditCommentMessageRequest,
   ReplyToCommentRequest,
@@ -23,6 +24,7 @@ export type EditCommentInput = {
   messageId: string;
 } & EditCommentMessageRequest;
 export type DeleteCommentInput = { threadId: string; messageId: string };
+export type ConfirmedThreads = DeleteResolvedCommentsRequest['threads'];
 
 type CommentRequest = {
   projectId: string;
@@ -47,7 +49,7 @@ export type CommentsPort = {
     request: CommentRequest & DeleteCommentInput,
   ) => Promise<DeleteCommentMessageResponse>;
   removeResolved: (
-    request: CommentRequest,
+    request: CommentRequest & DeleteResolvedCommentsRequest,
   ) => Promise<DeleteResolvedCommentsResponse>;
   seen: (
     request: CommentRequest & { throughRevision: number },
@@ -164,10 +166,10 @@ export function threadStarter(thread: CommentThread): CommentAuthor {
 
 export function resolvedCleanup(threads: readonly CommentThread[]) {
   const resolved = threads.filter((thread) => thread.resolved);
-  const deleted = resolved.filter(
-    (thread) => threadStarter(thread) === 'reviewer',
-  ).length;
-  return { deleted, kept: resolved.length - deleted };
+  const confirmed = resolved
+    .filter((thread) => threadStarter(thread) === 'reviewer')
+    .map((thread) => ({ threadId: thread.id, revision: thread.revision }));
+  return { confirmed, kept: resolved.length - confirmed.length };
 }
 
 export function threadState(

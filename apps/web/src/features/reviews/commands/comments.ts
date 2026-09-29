@@ -12,6 +12,7 @@ import type {
   CommentsContext,
   CommentThread,
   DeleteCommentInput,
+  ConfirmedThreads,
   EditCommentInput,
   NewComment,
   ReplyCommentInput,
@@ -252,22 +253,24 @@ export function useDeleteResolvedComments(
 ) {
   const context = commentContext(scope, comments);
   const client = useQueryClient();
-  return withSend(
-    useMutation({
-      mutationFn: () =>
-        enqueueComment(context, async () => {
-          const request = context.request();
-          const result = await context.api.removeResolved(request);
-          request.signal.throwIfAborted();
-          await mergeCommentThreads(
-            client,
-            context.key,
-            [],
-            queryKeys.inventory(context.connection.environmentId),
-            result.deleted,
-          );
-          return result;
-        }),
-    }),
-  );
+  const mutation = useMutation({
+    mutationFn: (threads: ConfirmedThreads) =>
+      enqueueComment(context, async () => {
+        const request = context.request();
+        const result = await context.api.removeResolved({
+          ...request,
+          threads,
+        });
+        request.signal.throwIfAborted();
+        await mergeCommentThreads(
+          client,
+          context.key,
+          [],
+          queryKeys.inventory(context.connection.environmentId),
+          result.deleted,
+        );
+        return result;
+      }),
+  });
+  return { ...withSend(mutation), result: mutation.data };
 }

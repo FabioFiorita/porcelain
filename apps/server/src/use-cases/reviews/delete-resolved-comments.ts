@@ -1,5 +1,6 @@
 import type {
   CommentAuthor,
+  DeleteResolvedCommentsRequest,
   DeleteResolvedCommentsResponse,
 } from '@porcelain/contracts/reviews';
 import type { WorktreeParams } from '@porcelain/contracts/shared';
@@ -32,7 +33,7 @@ export class DeleteResolvedCommentsUseCase {
   }
 
   async execute(
-    input: WorktreeParams & CommentAuthor,
+    input: WorktreeParams & DeleteResolvedCommentsRequest & CommentAuthor,
     context: OperationContext,
   ): Promise<DeleteResolvedCommentsResponse> {
     const { worktreeId } = input;

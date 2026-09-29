@@ -32,6 +32,7 @@ export const PREVIEW_ASSETS = 64;
 export const PROJECT_NAME_LENGTH = 100;
 export const EVIDENCE_TOKEN_LENGTH = 256;
 export const COMMENT_BODY_LENGTH = 16_000;
+export const COMMENT_THREADS_PER_WORKTREE = 100;
 export const REVIEWED_LAYER_MARKS = 100;
 export const PAIRING_CODE_LENGTH = 200;
 export const PAIRING_LABELS = 20;

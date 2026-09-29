@@ -1,6 +1,7 @@
 import {
   BRANCH_BASES,
   CHANGED_PATHS,
+  COMMENT_THREADS_PER_WORKTREE,
   COMMIT_FILES,
   COMMIT_GROUPS,
   COMMITS_PER_PAGE,
@@ -278,7 +279,7 @@ export const LIMITS: Limits = {
   },
   reviews: {
     comments: {
-      threadsPerWorktree: 100,
+      threadsPerWorktree: COMMENT_THREADS_PER_WORKTREE,
       messagesPerThread: 100,
       bytesPerWorktree: MEBIBYTE,
     },

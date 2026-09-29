@@ -31,6 +31,7 @@ export type AgentAction =
       screenshot: string;
     }
   | { kind: 'comment'; path: string; body: string }
+  | { kind: 'reply'; threadId: string; body: string }
   | { kind: 'edit-file'; edit: EditFileRequest };
 
 export type RepoFixture = {

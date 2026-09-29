@@ -48,51 +48,98 @@ function setup() {
 const ids = (store: InMemoryCommentStore, id = worktreeId) =>
   store.list({ worktreeId: id }).map((entry) => entry.id);
 const device: DeleteResolvedCommentsInput['writer'] = { kind: 'device' };
+const confirmed = (store: InMemoryCommentStore, ...threadIds: string[]) =>
+  threadIds.map((threadId) => ({
+    threadId,
+    revision: store.find({ threadId })?.revision ?? 0,
+  }));
 
 describe('DeleteResolvedCommentsService', () => {
-  it('deletes every resolved thread the reviewer started, the agent replies in it included', () => {
+  it('deletes the confirmed resolved threads the reviewer started, the agent replies in them included', () => {
     const { store, service } = setup();
-    const result = service.execute({ worktreeId, writer: device });
-    expect(result.deleted.toSorted()).toEqual(['answered', 'noted']);
+    const result = service.execute({
+      worktreeId,
+      writer: device,
+      threads: confirmed(store, 'answered', 'noted'),
+    });
+    expect(result).toEqual({ deleted: ['answered', 'noted'], skipped: [] });
     expect(ids(store)).toEqual(['open', 'from-agent']);
     expect(store.findMessage({ messageId: 'answered-1' })).toBeUndefined();
   });
 
-  it('keeps the resolved threads the agent started and counts them', () => {
+  it('keeps a confirmed thread the agent answered after the reviewer confirmed', () => {
     const { store, service } = setup();
-    expect(service.execute({ worktreeId, writer: device }).kept).toBe(1);
-    expect(store.find({ threadId: 'from-agent' })?.messages).toHaveLength(2);
+    const threads = confirmed(store, 'answered', 'noted');
+    const answered = store.find({ threadId: 'answered' });
+    if (answered)
+      store.append({
+        thread: answered,
+        message: { id: 'late', body: 'One more thing', author: 'agent' },
+        sizeBytes: 150,
+        writtenByAgent: true,
+      });
+    const result = service.execute({ worktreeId, writer: device, threads });
+    expect(result).toEqual({ deleted: ['noted'], skipped: ['answered'] });
+    expect(store.findMessage({ messageId: 'late' })?.body).toBe(
+      'One more thing',
+    );
+  });
+
+  it('keeps a confirmed thread that was reopened', () => {
+    const { store, service } = setup();
+    const threads = confirmed(store, 'noted');
+    const noted = store.find({ threadId: 'noted' });
+    if (noted) store.resolve({ thread: noted, resolved: false });
+    expect(service.execute({ worktreeId, writer: device, threads })).toEqual({
+      deleted: [],
+      skipped: ['noted'],
+    });
+    expect(ids(store)).toContain('noted');
+  });
+
+  it('keeps an open thread, a thread the agent started and a thread of another worktree even when named', () => {
+    const { store, service } = setup();
+    const result = service.execute({
+      worktreeId,
+      writer: device,
+      threads: confirmed(store, 'open', 'from-agent', 'elsewhere', 'unknown'),
+    });
+    expect(result).toEqual({
+      deleted: [],
+      skipped: ['open', 'from-agent', 'elsewhere', 'unknown'],
+    });
+    expect(ids(store)).toEqual(['answered', 'noted', 'open', 'from-agent']);
+    expect(ids(store, otherWorktreeId)).toEqual(['elsewhere']);
   });
 
   it('writes as the reviewer for the owner as for a paired device', () => {
     const { store, service } = setup();
-    service.execute({ worktreeId, writer: { kind: 'owner' } });
-    expect(ids(store)).toEqual(['open', 'from-agent']);
-  });
-
-  it("deletes only the agent's resolved threads when the agent asks", () => {
-    const { store, service } = setup();
-    const result = service.execute({ worktreeId, writer: { kind: 'agent' } });
-    expect(result).toEqual({ deleted: ['from-agent'], kept: 2 });
-    expect(ids(store)).toEqual(['answered', 'noted', 'open']);
-  });
-
-  it('leaves the threads of other worktrees alone', () => {
-    const { store, service } = setup();
-    service.execute({ worktreeId, writer: device });
-    expect(ids(store, otherWorktreeId)).toEqual(['elsewhere']);
-  });
-
-  it('deletes nothing when nothing is resolved, and nothing the second time', () => {
-    const { store, service } = setup();
-    service.execute({ worktreeId, writer: device });
-    expect(service.execute({ worktreeId, writer: device })).toEqual({
-      deleted: [],
-      kept: 1,
+    service.execute({
+      worktreeId,
+      writer: { kind: 'owner' },
+      threads: confirmed(store, 'noted'),
     });
+    expect(ids(store)).not.toContain('noted');
+  });
+
+  it("deletes only the agent's own resolved threads when the agent asks", () => {
+    const { store, service } = setup();
     expect(
-      service.execute({ worktreeId: 'c'.repeat(64), writer: device }),
-    ).toEqual({ deleted: [], kept: 0 });
-    expect(ids(store)).toEqual(['open', 'from-agent']);
+      service.execute({
+        worktreeId,
+        writer: { kind: 'agent' },
+        threads: confirmed(store, 'from-agent', 'noted'),
+      }),
+    ).toEqual({ deleted: ['from-agent'], skipped: ['noted'] });
+  });
+
+  it('deletes nothing the second time', () => {
+    const { store, service } = setup();
+    const threads = confirmed(store, 'noted');
+    service.execute({ worktreeId, writer: device, threads });
+    expect(service.execute({ worktreeId, writer: device, threads })).toEqual({
+      deleted: [],
+      skipped: ['noted'],
+    });
   });
 });

@@ -1,5 +1,8 @@
 import type { ZodTypeProvider } from '@fastify/type-provider-zod';
-import { deleteResolvedCommentsResponseSchema } from '@porcelain/contracts/reviews';
+import {
+  deleteResolvedCommentsRequestSchema,
+  deleteResolvedCommentsResponseSchema,
+} from '@porcelain/contracts/reviews';
 import { worktreeParamsSchema } from '@porcelain/contracts/shared';
 import type { FastifyInstance } from 'fastify';
 import type { DeleteResolvedCommentsUseCase } from '../../../use-cases/reviews/delete-resolved-comments.ts';
@@ -10,11 +13,12 @@ export function deleteResolvedComments(
   options: { useCase: Pick<DeleteResolvedCommentsUseCase, 'execute'> },
 ) {
   const api = server.withTypeProvider<ZodTypeProvider>();
-  api.delete(
-    '/worktrees/:worktreeId/comments/resolved',
+  api.post(
+    '/worktrees/:worktreeId/comments/resolved/deletion',
     {
       schema: {
         params: worktreeParamsSchema,
+        body: deleteResolvedCommentsRequestSchema,
         response: {
           ...errorResponses,
           200: deleteResolvedCommentsResponseSchema,
@@ -23,7 +27,7 @@ export function deleteResolvedComments(
     },
     async (request) =>
       options.useCase.execute(
-        { ...request.params, writer: request.caller },
+        { ...request.params, ...request.body, writer: request.caller },
         { signal: request.disconnected },
       ),
   );

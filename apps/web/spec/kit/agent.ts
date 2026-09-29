@@ -14,5 +14,7 @@ export const agent = {
     proof: { checks: ProofCheckStep[]; screenshot: string },
   ) => act({ kind: 'publish-proof', title, ...proof }),
   comment: (path: string, body: string) => act({ kind: 'comment', path, body }),
+  reply: (threadId: string, body: string) =>
+    act({ kind: 'reply', threadId, body }),
   editFile: (edit: EditFileRequest) => act({ kind: 'edit-file', edit }),
 };

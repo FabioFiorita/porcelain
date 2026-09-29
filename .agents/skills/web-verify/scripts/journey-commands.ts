@@ -123,6 +123,11 @@ async function agentRequest(
       },
     });
   }
+  if (action.kind === 'reply')
+    return toolCall(agent, 1, 'reply_to_comment', {
+      threadId: action.threadId,
+      body: action.body,
+    });
   return action.kind === 'publish-review'
     ? toolCall(
         agent,
