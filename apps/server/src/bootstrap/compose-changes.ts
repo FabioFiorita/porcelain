@@ -6,6 +6,7 @@ import {
   ConfirmDiffObservationService,
   ReadChangeLinesService,
   ListCommitsService,
+  ListFileCommitsService,
   ReadBranchDetailsService,
   ReadCommitDiffsService,
   ReadCommitFilesService,
@@ -15,6 +16,7 @@ import { ListBranchBasesUseCase } from '../use-cases/changes/list-branch-bases.t
 import { ReadBranchChangesUseCase } from '../use-cases/changes/read-branch-changes.ts';
 import { ReadBranchDiffsUseCase } from '../use-cases/changes/read-branch-diffs.ts';
 import { ListCommitsUseCase } from '../use-cases/changes/list-commits.ts';
+import { ListFileCommitsUseCase } from '../use-cases/changes/list-file-commits.ts';
 import { ReadChangeDiffsUseCase } from '../use-cases/changes/read-change-diffs.ts';
 import { ReadChangeLinesUseCase } from '../use-cases/changes/read-change-lines.ts';
 import { ReadChangesUseCase } from '../use-cases/changes/read-changes.ts';
@@ -116,6 +118,12 @@ export function composeChanges(
     listCommits: new ListCommitsUseCase(
       checkWorktree,
       listCommits,
+      lanes,
+      laneKeys,
+    ),
+    listFileCommits: new ListFileCommitsUseCase(
+      checkWorktree,
+      new ListFileCommitsService(commitHistoryReader),
       lanes,
       laneKeys,
     ),

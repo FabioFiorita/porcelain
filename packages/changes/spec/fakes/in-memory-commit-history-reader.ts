@@ -5,6 +5,10 @@ import type {
   CommitPatches,
   CommitPatchesRequest,
 } from '../../src/models/commit-history.ts';
+import type {
+  FileCommits,
+  ListFileCommitsInput,
+} from '../../src/models/list-file-commits.ts';
 import type { ReadCommitFilesInput } from '../../src/models/read-commit-files.ts';
 import type { CommitHistoryReader } from '../../src/ports/commit-history-reader.ts';
 
@@ -19,11 +23,13 @@ export class InMemoryCommitHistoryReader implements CommitHistoryReader {
   private readonly commits: readonly CommitFiles[];
   private readonly lookups: ReadonlyMap<string, CommitFilesLookup>;
   private readonly patches: ReadonlyMap<string, CommitPatches>;
+  private readonly timelines: ReadonlyMap<string, FileCommits>;
 
   constructor(
     stored: {
       commits?: readonly CommitFiles[] | undefined;
       patches?: Record<string, CommitPatches> | undefined;
+      timelines?: Record<string, FileCommits> | undefined;
     } = {},
   ) {
     this.commits = stored.commits ?? [];
@@ -31,6 +37,7 @@ export class InMemoryCommitHistoryReader implements CommitHistoryReader {
       this.commits.map((files) => [files.commit.oid, found(files)]),
     );
     this.patches = new Map(Object.entries(stored.patches ?? {}));
+    this.timelines = new Map(Object.entries(stored.timelines ?? {}));
   }
 
   listCommits(): Promise<CommitPage> {
@@ -42,6 +49,12 @@ export class InMemoryCommitHistoryReader implements CommitHistoryReader {
       boundary: undefined,
       restarted: false,
     });
+  }
+
+  listFileCommits(input: ListFileCommitsInput): Promise<FileCommits> {
+    return Promise.resolve(
+      this.timelines.get(input.path) ?? { commits: [], more: false },
+    );
   }
 
   readCommitFiles(input: ReadCommitFilesInput): Promise<CommitFilesLookup> {

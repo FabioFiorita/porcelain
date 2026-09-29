@@ -1,6 +1,7 @@
 import {
   CopyIcon,
   FileDiffIcon,
+  HistoryIcon,
   MessageSquarePlusIcon,
   PencilIcon,
 } from 'lucide-react';
@@ -46,7 +47,9 @@ type FileDocumentProps = {
 export function FileDocument(props: FileDocumentProps) {
   return isImagePath(props.path) ? (
     <div className="flex min-h-0 flex-1 flex-col overflow-auto">
-      <FileToolbar path={props.path} />
+      <FileToolbar path={props.path}>
+        <TimelineButton path={props.path} onOpen={props.onOpen} />
+      </FileToolbar>
       <ImagePreview scope={props.scope} path={props.path} />
     </div>
   ) : (
@@ -239,6 +242,7 @@ function ReadableFileDocument({
           Open diff
         </Button>
       )}
+      <TimelineButton path={path} onOpen={onOpen} />
     </>
   );
 
@@ -346,6 +350,26 @@ function FileToolbar({
       {children}
       {copy && <CopyPath path={path} />}
     </DocumentToolbar>
+  );
+}
+
+function TimelineButton({
+  path,
+  onOpen,
+}: {
+  path: string;
+  onOpen: OpenDocument;
+}) {
+  return (
+    <Button
+      size="icon-sm"
+      variant="ghost"
+      aria-label="Timeline"
+      title="Timeline"
+      onClick={() => onOpen({ kind: 'timeline', path })}
+    >
+      <HistoryIcon />
+    </Button>
   );
 }
 

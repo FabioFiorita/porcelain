@@ -12,6 +12,7 @@ export function runFileTreeAction(
     onStartCreate: (kind: 'file' | 'directory', folder: string) => void;
     onOpenFile: (path: string) => void;
     onOpenDiff: (path: string) => void;
+    onOpenTimeline: (path: string) => void;
     onSetHidden: (path: string, hidden: boolean) => void;
     onTogglePinned: (path: string) => void;
     onTrash: (path: string) => void;
@@ -27,6 +28,7 @@ export function runFileTreeAction(
   else if (id === 'new-folder') input.onStartCreate('directory', input.path);
   else if (id === 'open' || id === 'open-file') input.onOpenFile(input.path);
   else if (id === 'open-diff') input.onOpenDiff(input.path);
+  else if (id === 'timeline') input.onOpenTimeline(input.path);
   else if (id === 'duplicate') input.onDuplicate(input.path);
   else if (id === 'pin') input.onTogglePinned(input.path);
   else if (id === 'hide')

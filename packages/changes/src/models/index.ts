@@ -20,6 +20,7 @@ export type {
 } from './commit-history.ts';
 export type { ListBranchBasesInput } from './list-branch-bases.ts';
 export type { ListCommitsInput } from './list-commits.ts';
+export type { FileCommits, ListFileCommitsInput } from './list-file-commits.ts';
 export type { ReadChangeDiffsInput } from './read-change-diffs.ts';
 export type { ReadCommitFilesInput } from './read-commit-files.ts';
 export type { ReadWorktreeStatusInput } from './read-worktree-status.ts';

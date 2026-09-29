@@ -1,7 +1,9 @@
 import {
   listCommitsResponseSchema,
+  listFileCommitsResponseSchema,
   readCommitFilesResponseSchema,
 } from '@porcelain/contracts/changes';
+import { COMMITS_PER_PAGE } from '@porcelain/contracts/shared';
 import { requestJson } from '@/shared/api/request';
 import { browserTransport } from '@/shared/api/transport';
 
@@ -28,6 +30,13 @@ export const historyApi = {
       { signal },
     );
   },
+  fileCommits: (signal: AbortSignal, worktreeId: string, path: string) =>
+    requestJson(
+      transport,
+      `/api/worktrees/${encodeURIComponent(worktreeId)}/file-commits?${new URLSearchParams({ path, limit: String(COMMITS_PER_PAGE) })}`,
+      listFileCommitsResponseSchema,
+      { signal },
+    ),
   commit: (
     signal: AbortSignal,
     worktreeId: string,

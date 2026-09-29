@@ -39,8 +39,12 @@ export {
 export {
   listCommitsQuerySchema,
   listCommitsResponseSchema,
+  listFileCommitsQuerySchema,
+  listFileCommitsResponseSchema,
   type ListCommitsQuery,
   type ListCommitsResponse,
+  type ListFileCommitsQuery,
+  type ListFileCommitsResponse,
 } from './commit-history.ts';
 export {
   readGitStatusResponseSchema,

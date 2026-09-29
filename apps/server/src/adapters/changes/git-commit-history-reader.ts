@@ -4,7 +4,9 @@ import type {
   CommitPatches,
   CommitPatchesRequest,
   CommitSummary,
+  FileCommits,
   ListCommitsInput,
+  ListFileCommitsInput,
   ReadCommitFilesInput,
 } from '@porcelain/changes/models';
 import type { CommitHistoryReader } from '@porcelain/changes/ports';
@@ -54,6 +56,29 @@ export class GitCommitHistoryReader implements CommitHistoryReader {
       tip: page.tip ?? undefined,
       boundary: page.boundary ?? undefined,
       restarted: page.restarted,
+    };
+  }
+
+  async listFileCommits(
+    input: ListFileCommitsInput,
+    signal?: AbortSignal,
+  ): Promise<FileCommits> {
+    const reader = await this.reader(input.worktreeId, signal);
+    const listed = await reader.listFileCommits(
+      {
+        path: input.path,
+        ...(input.limit === undefined ? {} : { limit: input.limit }),
+      },
+      signal,
+    );
+    return {
+      commits: listed.commits.map((entry) => ({
+        commit: summary(entry.commit),
+        path: entry.path,
+        previousPath: entry.previousPath ?? undefined,
+        status: entry.status,
+      })),
+      more: listed.more,
     };
   }
 

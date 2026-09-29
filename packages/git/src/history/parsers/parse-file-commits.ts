@@ -1,0 +1,55 @@
+import { InvalidGitDiffError, parseRawDiff } from '../../inspection/index.ts';
+import type { GitLimits } from '../../shared/dtos/git-limits.ts';
+import type { CommitFile, FileCommit } from '../dtos/commit-history.ts';
+import { UnsupportedHistoryDataError } from '../errors/unsupported-history-data-error.ts';
+import { decodeHistory } from './decode-history.ts';
+import { COMMIT_FIELDS, parseCommitRecord } from './parse-commit.ts';
+
+const STATUSES: Record<string, CommitFile['status']> = {
+  A: 'added',
+  D: 'deleted',
+  M: 'modified',
+  R: 'renamed',
+  T: 'type-changed',
+};
+
+export function parseFileCommits(
+  output: Buffer,
+  limits: GitLimits,
+): FileCommit[] {
+  const commits: FileCommit[] = [];
+  let at = 0;
+  while (at < output.length) {
+    const fields: string[] = [];
+    for (let field = 0; field < COMMIT_FIELDS; field += 1) {
+      const end = output.indexOf(0, at);
+      if (end === -1) throw new UnsupportedHistoryDataError();
+      fields.push(decodeHistory(output.subarray(at, end)));
+      at = end + 1;
+    }
+    const commit = parseCommitRecord(fields, limits);
+    const { entries, end } = readEntries(output, at);
+    at = end;
+    const [entry, ...others] = entries;
+    const status = STATUSES[entry?.status ?? ''];
+    if (entry === undefined || others.length > 0 || status === undefined)
+      throw new UnsupportedHistoryDataError();
+    commits.push({
+      commit,
+      path: status === 'deleted' ? entry.oldPath : entry.newPath,
+      previousPath: status === 'renamed' ? entry.oldPath : null,
+      status,
+    });
+  }
+  return commits;
+}
+
+function readEntries(output: Buffer, start: number) {
+  try {
+    return parseRawDiff(output, start);
+  } catch (cause) {
+    if (cause instanceof InvalidGitDiffError)
+      throw new UnsupportedHistoryDataError({ cause });
+    throw cause;
+  }
+}

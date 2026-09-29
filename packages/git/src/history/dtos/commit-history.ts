@@ -62,3 +62,17 @@ export type HistoryCheckout = {
   repositoryIdentity: string;
   metadataIdentity: string;
 };
+export type FileCommitsRequest = {
+  path: string;
+  limit?: number;
+};
+export type FileCommit = {
+  commit: CommitSummary;
+  path: string;
+  previousPath: string | null;
+  status: CommitFile['status'];
+};
+export type FileCommits = {
+  commits: FileCommit[];
+  more: boolean;
+};

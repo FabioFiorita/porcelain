@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { COMMITS_PER_PAGE, HISTORY_FRONTIER } from '../shared/limits.ts';
 import { absentAsNull } from '../shared/absent-as-null.ts';
 import { oidListSchema, oidSchema } from '../shared/oid.ts';
+import { relativePathSchema } from '../shared/relative-path.ts';
 
 const oidCursorSchema = z.codec(oidListSchema, z.array(oidSchema), {
   decode: (list) => list.split(','),
@@ -42,5 +43,34 @@ export const listCommitsResponseSchema = z.object({
   restarted: z.boolean(),
 });
 
+export const listFileCommitsQuerySchema = z.strictObject({
+  path: relativePathSchema,
+  limit: z.coerce.number().int().min(1).max(COMMITS_PER_PAGE).optional(),
+});
+
+export const listFileCommitsResponseSchema = z.object({
+  commits: z
+    .array(
+      z.object({
+        commit: commitSummarySchema,
+        path: z.string(),
+        previousPath: absentAsNull(z.string()),
+        status: z.enum([
+          'added',
+          'modified',
+          'deleted',
+          'renamed',
+          'type-changed',
+        ]),
+      }),
+    )
+    .max(COMMITS_PER_PAGE),
+  more: z.boolean(),
+});
+
 export type ListCommitsQuery = z.output<typeof listCommitsQuerySchema>;
 export type ListCommitsResponse = z.output<typeof listCommitsResponseSchema>;
+export type ListFileCommitsQuery = z.output<typeof listFileCommitsQuerySchema>;
+export type ListFileCommitsResponse = z.output<
+  typeof listFileCommitsResponseSchema
+>;

@@ -9,5 +9,5 @@ export type {
   BranchFile,
   BranchRange,
 } from './dtos/branch-range.ts';
-export type { CommitSummary } from './dtos/commit-history.ts';
+export type { CommitSummary, FileCommit } from './dtos/commit-history.ts';
 export type { CommitReaderFactory } from './interfaces/commit-reader.ts';

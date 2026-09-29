@@ -9,7 +9,8 @@ export type DocumentRef =
   | { kind: 'file'; path: string }
   | { kind: 'commit'; oid: string }
   | { kind: 'branch' }
-  | { kind: 'branch-file'; path: string };
+  | { kind: 'branch-file'; path: string }
+  | { kind: 'timeline'; path: string };
 
 const HANDOFF: DocumentRef = { kind: 'handoff' };
 export const BRANCH: DocumentRef = { kind: 'branch' };
@@ -36,6 +37,8 @@ export function entryKey(ref: DocumentRef): string {
       return 'branch';
     case 'branch-file':
       return `branch:${ref.path}`;
+    case 'timeline':
+      return `timeline:${ref.path}`;
   }
 }
 
@@ -57,6 +60,7 @@ export function parseEntry(entry: string | undefined): DocumentRef | null {
       return { kind, layerId: value };
     case 'change':
     case 'file':
+    case 'timeline':
       return { kind, path: value };
     case 'branch':
       return { kind: 'branch-file', path: value };
@@ -114,6 +118,8 @@ function documentTitle(ref: DocumentRef): string {
     case 'file':
     case 'branch-file':
       return ref.path.split('/').at(-1) ?? ref.path;
+    case 'timeline':
+      return `Timeline of ${ref.path.split('/').at(-1) ?? ref.path}`;
   }
 }
 

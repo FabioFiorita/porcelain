@@ -67,6 +67,7 @@ export type TreeAction =
   | 'open'
   | 'open-file'
   | 'open-diff'
+  | 'timeline'
   | 'pin'
   | 'hide'
   | 'copy-relative'
@@ -98,6 +99,8 @@ export function treeActions(input: {
         : { id: 'open', label: 'Open' },
     );
     if (input.changed) actions.push({ id: 'open-file', label: 'Open file' });
+    if (!input.folder && !input.link)
+      actions.push({ id: 'timeline', label: 'Show timeline' });
   }
   if (input.pinned !== undefined)
     actions.push({

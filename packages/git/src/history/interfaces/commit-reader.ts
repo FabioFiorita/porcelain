@@ -11,6 +11,8 @@ import type {
   CommitFilesRequest,
   CommitPage,
   CommitPageRequest,
+  FileCommits,
+  FileCommitsRequest,
   HistoryCheckout,
 } from '../dtos/commit-history.ts';
 import type { GitDiffResult } from '../../inspection/index.ts';
@@ -20,6 +22,10 @@ export interface CommitReader {
     request: CommitPageRequest,
     signal?: AbortSignal,
   ): Promise<CommitPage>;
+  listFileCommits(
+    request: FileCommitsRequest,
+    signal?: AbortSignal,
+  ): Promise<FileCommits>;
   readCommitFiles(
     request: CommitFilesRequest,
     signal?: AbortSignal,

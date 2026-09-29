@@ -6,6 +6,7 @@ import { listBranchBases } from './commands/list-branch-bases.ts';
 import { readBranchDiffs } from './commands/read-branch-diffs.ts';
 import { readBranchRange } from './commands/read-branch-range.ts';
 import { listCommits } from './commands/list-commits.ts';
+import { listFileCommits } from './commands/list-file-commits.ts';
 import { readCommitFiles } from './commands/read-commit-files.ts';
 import type {
   BranchDiffsRequest,
@@ -15,6 +16,7 @@ import type {
   CommitDiffsRequest,
   CommitFilesRequest,
   CommitPageRequest,
+  FileCommitsRequest,
   HistoryCheckout,
 } from './dtos/commit-history.ts';
 import { InvalidHistoryRequestError } from './errors/invalid-history-request-error.ts';
@@ -37,6 +39,16 @@ export class HistoryGit implements CommitReader {
 
   listCommits(request: CommitPageRequest, signal?: AbortSignal) {
     return listCommits(
+      this.checkout,
+      this.gitVersion,
+      request,
+      this.limits,
+      signal,
+    );
+  }
+
+  listFileCommits(request: FileCommitsRequest, signal?: AbortSignal) {
+    return listFileCommits(
       this.checkout,
       this.gitVersion,
       request,

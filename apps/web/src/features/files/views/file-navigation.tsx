@@ -48,7 +48,10 @@ type Props = {
   scope: FilesScope;
   worktreePath: string;
   selected: string;
-  onOpen: (document: { kind: 'file' | 'change'; path: string }) => void;
+  onOpen: (document: {
+    kind: 'file' | 'change' | 'timeline';
+    path: string;
+  }) => void;
 };
 
 export function FileNavigation({
@@ -275,6 +278,7 @@ function ScopedFileNavigation({
                   },
                   onOpenFile: (path) => onOpen({ kind: 'file', path }),
                   onOpenDiff: (path) => onOpen({ kind: 'change', path }),
+                  onOpenTimeline: (path) => onOpen({ kind: 'timeline', path }),
                   onSetHidden: (path, value) =>
                     discardRejection(setHidden.submit({ path, hidden: value })),
                   onTogglePinned: (path) =>

@@ -1,4 +1,6 @@
+import { HistoryIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { FileTimeline } from '@/features/history/index';
 import { DiscardButton } from '@/features/git-actions/index';
 import { useAccessStore } from '@/features/access/index';
 import { useChanges } from '@/features/changes/index';
@@ -80,7 +82,47 @@ export function DocumentView({
       return <BranchDocument {...props} base={base} />;
     case 'branch-file':
       return <BranchFileDocument {...props} base={base} path={document.path} />;
+    case 'timeline':
+      return <TimelineDocument {...props} path={document.path} />;
   }
+}
+
+function TimelineDocument({
+  scope,
+  path,
+  onOpen,
+}: DocumentProps & { path: string }) {
+  return (
+    <div className="flex min-h-0 flex-1 flex-col">
+      <DocumentToolbar
+        titleLabel={`Timeline of ${path}`}
+        title={
+          <span className="flex min-w-0 items-center gap-1.5">
+            <HistoryIcon className="size-4 shrink-0" />
+            <span className="truncate">{path}</span>
+          </span>
+        }
+        subtitle="Commits that changed this file"
+      />
+      <div className="min-h-0 flex-1 overflow-auto">
+        <FileTimeline
+          scope={scope}
+          path={path}
+          onSelect={(commit) =>
+            onOpen(
+              { kind: 'commit', oid: commit.oid },
+              {
+                kind: 'file',
+                filePath: commit.path,
+                revision: commit.oid,
+                comparison: { kind: 'commit', parent: 1 },
+              },
+            )
+          }
+        />
+      </div>
+    </div>
+  );
 }
 
 function HandoffDocument(props: DocumentProps) {

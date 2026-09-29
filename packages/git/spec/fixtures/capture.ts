@@ -383,6 +383,43 @@ function captureBranchRange(): void {
   );
 }
 
+function captureFileTimeline(): void {
+  const checkout = repository('timeline');
+  put(checkout, 'notes.txt', 'one\ntwo\nthree\nfour\n');
+  commit(checkout, 'add notes');
+  put(checkout, 'notes.txt', 'one\ntwo\nthree\nfour\nfive\n');
+  put(checkout, 'other.txt', 'other\n');
+  commit(checkout, 'extend notes', 'Body line');
+  git(checkout, ['mv', 'notes.txt', 'docs name.txt']);
+  commit(checkout, 'rename notes');
+  put(checkout, 'other.txt', 'other\nagain\n');
+  commit(checkout, 'touch other');
+  put(checkout, 'docs name.txt', 'one\ntwo\nthree\nfour\nfive\nsix\n');
+  commit(checkout, 'extend docs');
+  const timeline = read(checkout, [
+    '--literal-pathspecs',
+    'log',
+    '-z',
+    '--raw',
+    '--no-textconv',
+    '--no-ext-diff',
+    '--no-color',
+    '--find-renames=50%',
+    '--follow',
+    '--max-count=6',
+    '--decorate-refs=refs/*',
+    `--format=${COMMIT_FORMAT}`,
+    'HEAD',
+    '--',
+    'docs name.txt',
+  ]);
+  save('log/file-timeline.txt', timeline);
+  save(
+    'log/file-timeline-truncated.txt',
+    timeline.subarray(0, nulOffset(timeline, 8) - 3),
+  );
+}
+
 rmSync(ROOT, { recursive: true, force: true });
 mkdirSync(ROOT, { recursive: true });
 try {
@@ -392,6 +429,7 @@ try {
   captureEmptyAndBare();
   captureFilters();
   captureBranchRange();
+  captureFileTimeline();
 } finally {
   rmSync(ROOT, { recursive: true, force: true });
 }

@@ -9,6 +9,7 @@ import {
   FlaskConicalIcon,
   GitBranchIcon,
   GitCommitHorizontalIcon,
+  HistoryIcon,
   LayersIcon,
   ListXIcon,
   PinIcon,
@@ -104,6 +105,12 @@ function describeTab(key: string, layers: readonly Layer[]) {
         Icon: fileTypeIcon(ref.path),
         title: basename(ref.path),
         hint: `${ref.path} · branch`,
+      };
+    case 'timeline':
+      return {
+        Icon: HistoryIcon,
+        title: basename(ref.path),
+        hint: `${ref.path} · timeline`,
       };
     default:
       return { Icon: FileTextIcon, title: key, hint: key };

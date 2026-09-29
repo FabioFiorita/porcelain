@@ -12,6 +12,7 @@ import type { GenerateCommitDraftUseCase } from '../../use-cases/git-actions/gen
 import type { ListCommentThreadsUseCase } from '../../use-cases/reviews/list-comment-threads.ts';
 import type { ListCommitModelsUseCase } from '../../use-cases/git-actions/list-commit-models.ts';
 import type { ListCommitsUseCase } from '../../use-cases/changes/list-commits.ts';
+import type { ListFileCommitsUseCase } from '../../use-cases/changes/list-file-commits.ts';
 import type { ListDirectoryUseCase } from '../../use-cases/files/list-directory.ts';
 import type { ListFilePreferencesUseCase } from '../../use-cases/projects/list-file-preferences.ts';
 import type { ListGitBranchesUseCase } from '../../use-cases/git-actions/list-git-branches.ts';
@@ -52,6 +53,7 @@ import {
   type AuthenticateOptions,
 } from '../hooks/authenticate.ts';
 import { listCommits } from '../routes/changes/list-commits.ts';
+import { listFileCommits } from '../routes/changes/list-file-commits.ts';
 import { readCommitFiles } from '../routes/changes/read-commit-files.ts';
 import { readCommitDiffs } from '../routes/changes/read-commit-diffs.ts';
 import { listBranchBases } from '../routes/changes/list-branch-bases.ts';
@@ -123,6 +125,7 @@ export type PairedUseCases = {
   changes: {
     listBranchBases: Pick<ListBranchBasesUseCase, 'execute'>;
     listCommits: Pick<ListCommitsUseCase, 'execute'>;
+    listFileCommits: Pick<ListFileCommitsUseCase, 'execute'>;
     readBranchChanges: Pick<ReadBranchChangesUseCase, 'execute'>;
     readBranchDiffs: Pick<ReadBranchDiffsUseCase, 'execute'>;
     readChangeDiffs: Pick<ReadChangeDiffsUseCase, 'execute'>;
@@ -310,6 +313,9 @@ export async function pairedScope(
   });
   server.register(listCommits, {
     useCase: options.application.changes.listCommits,
+  });
+  server.register(listFileCommits, {
+    useCase: options.application.changes.listFileCommits,
   });
   server.register(readCommitFiles, {
     useCase: options.application.changes.readCommitFiles,
