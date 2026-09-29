@@ -10,8 +10,11 @@ let home: string;
 let published: string;
 let updaterActive: boolean;
 let npmViews: number;
+let nativeModulesLoad: Answer;
+let commands: string[];
 
 const packageName = '@fabiofiorita/porcelain';
+const serviceNode = '/opt/service/bin/node';
 const runtimePackage = () =>
   join(
     home,
@@ -19,8 +22,27 @@ const runtimePackage = () =>
     packageName,
   );
 
+function downloadInto(prefix: string, version: string) {
+  const folder = join(prefix, 'node_modules', packageName);
+  mkdirSync(folder, { recursive: true });
+  writeFileSync(
+    join(folder, 'package.json'),
+    JSON.stringify({ name: packageName, version }),
+  );
+}
+
 async function answer(command: string, args: readonly string[]) {
   const ok = (stdout: string): Answer => ({ code: 0, stdout, stderr: '' });
+  commands.push(command);
+  const target = args.at(-1) ?? '';
+  if (command === 'npm' && args[0] === 'install') {
+    downloadInto(
+      args[args.indexOf('--prefix') + 1] ?? '',
+      target.slice(`${packageName}@`.length),
+    );
+    return ok('');
+  }
+  if (command === serviceNode) return nativeModulesLoad;
   if (command === 'npm' && args[0] === 'view') {
     npmViews += 1;
     return ok(JSON.stringify(published));
@@ -55,6 +77,7 @@ const runner = (packageRoot = runtimePackage()) =>
       processGroup: { lingerMs: 10, cleanupMs: 10, pollMs: 1 },
     },
     runner: answer,
+    nodeExecutable: serviceNode,
   });
 const check = (now: string, staleBefore: string) => ({ now, staleBefore });
 
@@ -63,6 +86,8 @@ beforeEach(() => {
   published = '1.1.0';
   updaterActive = false;
   npmViews = 0;
+  nativeModulesLoad = { code: 0, stdout: '', stderr: '' };
+  commands = [];
   install('1.0.0');
 });
 
@@ -143,5 +168,32 @@ describe('the installed service update runner', () => {
     );
     expect(state).toMatchObject({ managed: false, available: false });
     expect(npmViews).toBe(0);
+  });
+
+  it('fails the update with the reason and hands nothing over when the downloaded runtime cannot load its native modules', async () => {
+    nativeModulesLoad = {
+      code: 1,
+      stdout: '',
+      stderr: 'Could not locate the bindings file.',
+    };
+    const updates = runner();
+    await updates.start({ version: '1.1.0' });
+    await expect
+      .poll(
+        async () =>
+          (
+            await updates.read(
+              check('2026-09-29T12:00:00.000Z', '2026-09-29T11:50:00.000Z'),
+            )
+          ).last,
+      )
+      .toEqual({
+        from: '1.0.0',
+        target: '1.1.0',
+        stage: 'failed',
+        reason:
+          'The persistent runtime cannot load its native modules (better-sqlite3, @parcel/watcher): Could not locate the bindings file.',
+      });
+    expect(commands).not.toContain('systemd-run');
   });
 });

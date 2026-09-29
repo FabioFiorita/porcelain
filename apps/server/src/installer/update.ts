@@ -96,6 +96,7 @@ async function replaceRuntime(
   );
   await installRuntime(
     runner,
+    context.nodeExecutable,
     context.packageRoot,
     staging,
     context.packageVersion,

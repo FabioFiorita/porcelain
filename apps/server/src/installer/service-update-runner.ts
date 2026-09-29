@@ -114,6 +114,7 @@ class InstalledServiceUpdateRunner implements ServiceUpdateRunner {
   private async prepareAndHandOff(target: string): Promise<void> {
     await installRuntime(
       this.runner,
+      this.nodeExecutable,
       `${PACKAGE_NAME}@${target}`,
       this.paths.updater,
       target,

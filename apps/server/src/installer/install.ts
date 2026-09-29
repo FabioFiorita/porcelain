@@ -58,6 +58,7 @@ export async function install(
   try {
     await installRuntime(
       runner,
+      context.nodeExecutable,
       context.packageRoot,
       staging,
       context.packageVersion,
