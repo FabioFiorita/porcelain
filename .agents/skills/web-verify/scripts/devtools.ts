@@ -40,7 +40,7 @@ const stateSchema = z.object({
   serverAddress: z.url(),
   evidence: z.string(),
   socketPath: z.string(),
-  sandboxed: z.boolean().default(true),
+  unsandboxedBecause: z.string().nullable().default(null),
 });
 type State = z.output<typeof stateSchema>;
 const usage =
@@ -223,6 +223,29 @@ function chromePath(): string {
   return found;
 }
 
+function sandboxRefusal(): Promise<string | null> {
+  return new Promise((done) => {
+    const chrome = spawn(
+      chromePath(),
+      ['--headless=new', '--dump-dom', 'about:blank'],
+      { stdio: ['ignore', 'ignore', 'pipe'] },
+    );
+    let output = '';
+    const timer = setTimeout(() => chrome.kill('SIGKILL'), 20_000);
+    chrome.stderr.on('data', (chunk: Buffer) => {
+      output += chunk.toString('utf8');
+    });
+    chrome.once('error', () => {
+      clearTimeout(timer);
+      done(null);
+    });
+    chrome.once('close', () => {
+      clearTimeout(timer);
+      done(output.match(/No usable sandbox![^\n]*/)?.[0] ?? null);
+    });
+  });
+}
+
 async function host(): Promise<void> {
   const build = await mkdtemp(join(tmpdir(), 'porcelain-web-server-'));
   const evidence = await mkdtemp(
@@ -270,10 +293,16 @@ async function host(): Promise<void> {
       return null;
     };
     const forced = process.env.PORCELAIN_CHROME_NO_SANDBOX === '1';
+    let unsandboxedBecause: string | null = forced
+      ? 'PORCELAIN_CHROME_NO_SANDBOX=1 asked for it.'
+      : null;
     const sandboxed = forced ? 'not tried' : await launch(true);
     if (sandboxed !== null) {
-      if (!forced)
-        process.stdout.write(`Chrome closed with its sandbox:\n${sandboxed}\n`);
+      if (!forced) {
+        unsandboxedBecause = await sandboxRefusal();
+        if (unsandboxedBecause === null)
+          throw new Error(`${sandboxed}\nChrome closed during startup.`);
+      }
       const unsandboxed = await launch(false);
       if (unsandboxed !== null)
         throw new Error(`${unsandboxed}\nChrome closed during startup.`);
@@ -286,7 +315,7 @@ async function host(): Promise<void> {
         evidence,
         socketPath: server.socketPath,
         serverAddress: server.address,
-        sandboxed: sandboxed === null,
+        unsandboxedBecause,
       }),
       { mode: 0o600 },
     );
@@ -343,7 +372,7 @@ async function start(): Promise<void> {
     const ready = await state();
     if (ready) {
       process.stdout.write(
-        `DevTools web: ${ready.origin}\nEvidence: ${ready.evidence}\n${ready.sandboxed ? '' : 'Chrome runs without its sandbox on this host.\n'}`,
+        `DevTools web: ${ready.origin}\nEvidence: ${ready.evidence}\n${ready.unsandboxedBecause === null ? '' : `Chrome runs without its sandbox: ${ready.unsandboxedBecause}\n`}`,
       );
       return;
     }
