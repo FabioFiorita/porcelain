@@ -50,6 +50,7 @@ import {
 import type { ReviewsContext } from '../rules/reviewed';
 import { BranchIndex } from './branch-index';
 import { ChangeRow, ROW } from './change-row';
+import { DeleteResolved } from './delete-resolved';
 import { InlineComposer } from './inline-composer';
 import { BranchReadiness, ChangeReadiness } from './readiness-panel';
 import { ThreadCard } from './thread-card';
@@ -506,6 +507,9 @@ function CommentsView({
             {value} <span className="tabular-nums">{counts[value]}</span>
           </button>
         ))}
+        {filter === 'resolved' && resolvedCount > 0 && (
+          <DeleteResolved scope={scope} context={context} threads={threads} />
+        )}
       </div>
 
       {visible.length === 0 ? (

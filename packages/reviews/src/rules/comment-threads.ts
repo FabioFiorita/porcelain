@@ -36,6 +36,13 @@ export function commentAuthor(writer: CommentWriter): CommentAuthor {
   return writer.kind === 'agent' ? 'agent' : 'reviewer';
 }
 
+export function startedBy(
+  thread: CommentThread,
+  author: CommentAuthor,
+): boolean {
+  return thread.messages[0]?.author === author;
+}
+
 export function commentStorageSize(content: CommentContent): number {
   return utf8ByteLength(
     JSON.stringify({

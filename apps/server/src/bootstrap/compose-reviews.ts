@@ -1,6 +1,7 @@
 import {
   CreateCommentThreadService,
   DeleteCommentMessageService,
+  DeleteResolvedCommentsService,
   EditCommentMessageService,
   ResolvePublishedReviewService,
   ListCommentThreadsService,
@@ -23,6 +24,7 @@ import { RandomSecretSource } from '../adapters/runtime/random-secret-source.ts'
 import { AtWorktreePathUseCase } from '../use-cases/reviews/at-worktree-path.ts';
 import { CreateCommentThreadUseCase } from '../use-cases/reviews/create-comment-thread.ts';
 import { DeleteCommentMessageUseCase } from '../use-cases/reviews/delete-comment-message.ts';
+import { DeleteResolvedCommentsUseCase } from '../use-cases/reviews/delete-resolved-comments.ts';
 import { EditCommentMessageUseCase } from '../use-cases/reviews/edit-comment-message.ts';
 import { InvalidateReviewedMarksUseCase } from '../use-cases/reviews/invalidate-reviewed-marks.ts';
 import { ListCommentThreadsUseCase } from '../use-cases/reviews/list-comment-threads.ts';
@@ -201,6 +203,13 @@ export function composeReviews(
     deleteCommentMessage: new DeleteCommentMessageUseCase(
       checkWorktree,
       new DeleteCommentMessageService(commentStore),
+      lanes,
+      laneKeys,
+      events,
+    ),
+    deleteResolvedComments: new DeleteResolvedCommentsUseCase(
+      checkWorktree,
+      new DeleteResolvedCommentsService(commentStore),
       lanes,
       laneKeys,
       events,

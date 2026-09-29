@@ -1,0 +1,60 @@
+import { expect } from 'vitest';
+import { test } from '../kit/journey';
+
+test("the reviewer deletes the resolved threads they started after confirming, and the agent's resolved thread stays", async ({
+  pairedPage,
+  repo,
+  server,
+  agent,
+}) => {
+  const fromAgent = 'I kept the old heading in the changelog';
+  const mine = 'Split this into two commits';
+  const saved = async () =>
+    (await server.commentThreads()).map((thread) => ({
+      resolved: thread.resolved,
+      messages: thread.messages.map((message) => message.body),
+    }));
+
+  await agent.comment(repo.readme.path, fromAgent);
+  await pairedPage.getByRole('button', { name: 'Review', exact: true }).click();
+  await pairedPage.getByRole('tab', { name: /^Comments/ }).click();
+  const comments = pairedPage.getByRole('dialog');
+  await expect.element(comments.getByText(fromAgent)).toBeVisible();
+  await comments
+    .getByRole('button', { name: 'Comment on the whole change' })
+    .click();
+  await comments.getByRole('textbox', { name: 'Comment' }).fill(mine);
+  await comments.getByRole('button', { name: 'Comment', exact: true }).click();
+  await expect.element(comments.getByText(mine)).toBeVisible();
+  await comments.getByRole('button', { name: 'Resolve' }).first().click();
+  await comments.getByRole('button', { name: 'Resolve' }).click();
+  await expect
+    .element(comments.getByText('No open comments yet.'))
+    .toBeVisible();
+  await expect.poll(saved).toEqual([
+    { resolved: true, messages: [fromAgent] },
+    { resolved: true, messages: [mine] },
+  ]);
+
+  await comments.getByRole('button', { name: /^resolved/i }).click();
+  await comments.getByRole('button', { name: 'Delete resolved' }).click();
+  const confirm = pairedPage.getByRole('alertdialog');
+  await expect
+    .element(confirm.getByText('Delete 1 resolved thread?'))
+    .toBeVisible();
+  await expect
+    .element(confirm.getByText(/1 resolved thread the agent started stays/))
+    .toBeVisible();
+  await confirm.getByRole('button', { name: 'Cancel' }).click();
+  await expect.element(comments.getByText(mine)).toBeVisible();
+
+  await comments.getByRole('button', { name: 'Delete resolved' }).click();
+  await confirm.getByRole('button', { name: 'Delete', exact: true }).click();
+  await expect.element(confirm).not.toBeInTheDocument();
+  await expect.element(comments.getByText(mine)).not.toBeInTheDocument();
+  await expect.element(comments.getByText(fromAgent)).toBeVisible();
+  await expect.poll(saved).toEqual([{ resolved: true, messages: [fromAgent] }]);
+  await expect
+    .element(comments.getByRole('button', { name: 'Delete resolved' }))
+    .toBeDisabled();
+});

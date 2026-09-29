@@ -245,3 +245,29 @@ export function useDeleteComment(
     }),
   );
 }
+
+export function useDeleteResolvedComments(
+  scope: ReviewScope,
+  comments: CommentsContext,
+) {
+  const context = commentContext(scope, comments);
+  const client = useQueryClient();
+  return withSend(
+    useMutation({
+      mutationFn: () =>
+        enqueueComment(context, async () => {
+          const request = context.request();
+          const result = await context.api.removeResolved(request);
+          request.signal.throwIfAborted();
+          await mergeCommentThreads(
+            client,
+            context.key,
+            [],
+            queryKeys.inventory(context.connection.environmentId),
+            result.deleted,
+          );
+          return result;
+        }),
+    }),
+  );
+}

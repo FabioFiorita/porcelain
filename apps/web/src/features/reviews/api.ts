@@ -16,6 +16,7 @@ import {
   createCommentThreadRequestSchema,
   createCommentThreadResponseSchema,
   deleteCommentMessageResponseSchema,
+  deleteResolvedCommentsResponseSchema,
   editCommentMessageRequestSchema,
   editCommentMessageResponseSchema,
   listCommentThreadsResponseSchema,
@@ -117,6 +118,13 @@ export function createCommentsLive(transport: typeof fetch): CommentsPort {
         transport,
         `${threadPath(worktreeId, threadId)}/messages?${new URLSearchParams({ messageId })}`,
         deleteCommentMessageResponseSchema,
+        { method: 'DELETE', signal },
+      ),
+    removeResolved: ({ worktreeId, signal }) =>
+      requestJson(
+        transport,
+        `${path(worktreeId)}/resolved`,
+        deleteResolvedCommentsResponseSchema,
         { method: 'DELETE', signal },
       ),
     seen: ({ worktreeId, throughRevision, signal }) =>

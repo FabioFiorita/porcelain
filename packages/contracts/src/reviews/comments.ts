@@ -119,6 +119,11 @@ export const deleteCommentMessageResponseSchema = z.object({
   thread: absentAsNull(commentThreadSchema),
 });
 
+export const deleteResolvedCommentsResponseSchema = z.object({
+  deleted: z.array(z.uuid()),
+  kept: z.number().int().nonnegative(),
+});
+
 export const markCommentsSeenRequestSchema = z.strictObject({
   throughRevision: z.number().int().nonnegative(),
 });
@@ -165,6 +170,9 @@ export type EditCommentMessageResponse = z.output<
 >;
 export type DeleteCommentMessageResponse = z.output<
   typeof deleteCommentMessageResponseSchema
+>;
+export type DeleteResolvedCommentsResponse = z.output<
+  typeof deleteResolvedCommentsResponseSchema
 >;
 export type MarkCommentsSeenRequest = z.output<
   typeof markCommentsSeenRequestSchema

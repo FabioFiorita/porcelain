@@ -3,6 +3,7 @@ import type {
   CreateCommentThreadRequest,
   CreateCommentThreadResponse,
   DeleteCommentMessageResponse,
+  DeleteResolvedCommentsResponse,
   EditCommentMessageRequest,
   ReplyToCommentRequest,
   UpdateCommentThreadRequest,
@@ -45,6 +46,9 @@ export type CommentsPort = {
   remove: (
     request: CommentRequest & DeleteCommentInput,
   ) => Promise<DeleteCommentMessageResponse>;
+  removeResolved: (
+    request: CommentRequest,
+  ) => Promise<DeleteResolvedCommentsResponse>;
   seen: (
     request: CommentRequest & { throughRevision: number },
   ) => Promise<{ worktreeId: string; seenThrough: number }>;
@@ -156,6 +160,14 @@ export function anchorLabel(anchor: CommentAnchor): string {
 
 export function threadStarter(thread: CommentThread): CommentAuthor {
   return thread.messages[0]?.author ?? 'reviewer';
+}
+
+export function resolvedCleanup(threads: readonly CommentThread[]) {
+  const resolved = threads.filter((thread) => thread.resolved);
+  const deleted = resolved.filter(
+    (thread) => threadStarter(thread) === 'reviewer',
+  ).length;
+  return { deleted, kept: resolved.length - deleted };
 }
 
 export function threadState(

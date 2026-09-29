@@ -15,6 +15,7 @@ export type {
 } from './comment-thread.ts';
 export type { CreateCommentThreadInput } from './create-comment-thread.ts';
 export type { DeleteCommentMessageInput } from './delete-comment-message.ts';
+export type { DeleteResolvedCommentsInput } from './delete-resolved-comments.ts';
 export type { EditCommentMessageInput } from './edit-comment-message.ts';
 export type { InvalidateReviewedMarksInput } from './invalidate-reviewed-marks.ts';
 export type { ReadReviewEvidenceInput } from './read-review-evidence.ts';
