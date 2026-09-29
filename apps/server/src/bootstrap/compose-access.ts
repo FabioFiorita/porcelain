@@ -88,7 +88,7 @@ export function composeAccess(
     ),
     clearBrowserSession: new ClearBrowserSessionUseCase(lanes),
     checkRequestOrigin: new CheckRequestOriginUseCase(
-      new CheckRequestOriginService(remoteAccess),
+      new CheckRequestOriginService(remoteAccess, routeStates),
       lanes,
     ),
     checkLocalRequest: new CheckLocalRequestUseCase(

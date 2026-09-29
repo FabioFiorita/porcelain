@@ -28,6 +28,7 @@ export type {
   RemoteRoutes,
   RouteAddresses,
   RouteKey,
+  RouteState,
   TunnelAnswer,
   TunnelTarget,
 } from './remote-access.ts';

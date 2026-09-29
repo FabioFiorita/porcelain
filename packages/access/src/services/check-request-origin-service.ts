@@ -3,17 +3,26 @@ import type {
   CheckRequestOriginResult,
 } from '../models/check-request-origin.ts';
 import type { RemoteAccessStore } from '../ports/remote-access-store.ts';
-import { tunnelHosts } from '../rules/remote-access.ts';
+import type { RouteStateStore } from '../ports/route-state-store.ts';
+import { answeredTunnelHosts } from '../rules/remote-access.ts';
 import { requestOriginCheck } from '../rules/request-origin-check.ts';
 
 export class CheckRequestOriginService {
   private readonly remoteAccess: RemoteAccessStore;
+  private readonly routeStates: RouteStateStore;
 
-  constructor(remoteAccess: RemoteAccessStore) {
+  constructor(remoteAccess: RemoteAccessStore, routeStates: RouteStateStore) {
     this.remoteAccess = remoteAccess;
+    this.routeStates = routeStates;
   }
 
   execute(input: CheckRequestOriginInput): CheckRequestOriginResult {
-    return requestOriginCheck(input, tunnelHosts(this.remoteAccess.read()));
+    return requestOriginCheck(
+      input,
+      answeredTunnelHosts(
+        this.remoteAccess.read(),
+        this.routeStates.read().states,
+      ),
+    );
   }
 }

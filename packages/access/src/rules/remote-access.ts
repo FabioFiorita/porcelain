@@ -100,6 +100,16 @@ export function tunnelHosts(settings: RemoteAccessSettings): string[] {
     : [];
 }
 
+export function answeredTunnelHosts(
+  settings: RemoteAccessSettings,
+  states: RouteStates,
+): string[] {
+  const tunnel = states.cloudflare;
+  return tunnel.kind === 'failed' && tunnel.reason === 'other-server'
+    ? []
+    : tunnelHosts(settings);
+}
+
 function routeUrl(address: string, port: number): string {
   return address.includes(':')
     ? `http://[${address}]:${port}`

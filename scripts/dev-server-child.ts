@@ -55,8 +55,9 @@ const startServer = composeServer({
   routeListenerRunner: () => new InMemoryRouteListenerRunner(listeningPort),
   tunnelProbe: () =>
     new ScriptedTunnelProbe(async ({ origin }) => {
-      if (new URL(origin).hostname.endsWith('.invalid'))
-        return { kind: 'unreachable' };
+      const { hostname } = new URL(origin);
+      if (hostname.endsWith('.invalid')) return { kind: 'unreachable' };
+      if (hostname.endsWith('.test')) return { kind: 'foreign' };
       const health = await fetch(`${server?.address ?? ''}/api/health`);
       return {
         kind: 'answered',
