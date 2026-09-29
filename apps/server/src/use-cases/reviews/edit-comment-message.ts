@@ -1,6 +1,6 @@
 import type {
   CommentAuthor,
-  CommentMessageParams,
+  CommentThreadParams,
   EditCommentMessageRequest,
   EditCommentMessageResponse,
 } from '@porcelain/contracts/reviews';
@@ -33,7 +33,7 @@ export class EditCommentMessageUseCase {
   }
 
   async execute(
-    input: CommentMessageParams & EditCommentMessageRequest & CommentAuthor,
+    input: CommentThreadParams & EditCommentMessageRequest & CommentAuthor,
     context: OperationContext,
   ): Promise<EditCommentMessageResponse> {
     const { worktreeId } = input;

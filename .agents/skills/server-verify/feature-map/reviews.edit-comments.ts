@@ -42,8 +42,18 @@ const answered = (id: number) => ({
   id,
   result: { content: [{ type: 'text' }] },
 });
-const message = (session: Session, thread: string, id: string) =>
-  worktreePath(session, `/comments/${thread}/messages/${id}`);
+const messages = (session: Session, thread: string) =>
+  worktreePath(session, `/comments/${thread}/messages`);
+const edit = (session: Session, thread: string, id: string, body: string) => ({
+  method: 'PATCH' as const,
+  path: messages(session, thread),
+  body: { messageId: id, body },
+});
+const remove = (session: Session, thread: string, id: string) => ({
+  method: 'DELETE' as const,
+  path: messages(session, thread),
+  query: { messageId: id },
+});
 const threads = async (session: Session) =>
   list(
     (
@@ -59,9 +69,8 @@ const threadOf = async (session: Session, id: string) =>
 export default defineFeature({
   feature: 'reviews.edit-comments',
   reaches: [
-    'PATCH /api/worktrees/:worktreeId/comments/:threadId/messages/:messageId',
-    'DELETE /api/worktrees/:worktreeId/comments/:threadId/messages/:messageId',
-    'owner POST /mcp',
+    'PATCH /api/worktrees/:worktreeId/comments/:threadId/messages',
+    'DELETE /api/worktrees/:worktreeId/comments/:threadId/messages',
   ],
   paired: true,
   intent: 'intended',
@@ -91,27 +100,21 @@ export default defineFeature({
         );
         return record(await threadOf(session, threadId));
       },
-      request: (session) => [
-        {
-          method: 'PATCH',
-          path: message(session, threadId, questionId),
-          body: { body: rewritten },
-        },
-        toolCall(session, 2, 'list_comments', { scope: 'all' }),
-      ],
-      expect({
-        responses,
+      request: (session) => edit(session, threadId, questionId, rewritten),
+      async expect({
+        response,
         state,
+        session,
         check,
         checkPartial,
         checkContract,
         checkMatch,
       }) {
-        check('status', 200, responses[0]?.status);
+        check('status', 200, response.status);
         checkContract(
           'contract',
           editCommentMessageResponseSchema,
-          responses[0]?.body,
+          response.body,
         );
         checkPartial(
           'the message is rewritten in its place',
@@ -123,15 +126,18 @@ export default defineFeature({
             ],
             revision: Number(state.revision) + 1,
           },
-          responses[0]?.body,
+          response.body,
         );
         checkMatch(
           'the edit is stamped',
           /^\d{4}-\d{2}-\d{2}T/,
-          String(record(list(record(responses[0]?.body).messages)[0]).editedAt),
+          String(record(list(record(response.body).messages)[0]).editedAt),
         );
-        check('tool status', 200, responses[1]?.status);
-        checkPartial('a tool answer', answered(2), responses[1]?.body);
+        const listed = await read(
+          session,
+          toolCall(session, 2, 'list_comments', { scope: 'all' }),
+        );
+        checkPartial('a tool answer', answered(2), listed);
         checkPartial(
           'the agent reads the new text',
           [
@@ -143,18 +149,14 @@ export default defineFeature({
               ],
             },
           ],
-          toolValue(responses[1]?.body),
+          toolValue(listed),
         );
       },
     }),
     defineCase({
       name: 'the same text changes nothing',
       setup: async (session) => record(await threadOf(session, threadId)),
-      request: (session) => ({
-        method: 'PATCH',
-        path: message(session, threadId, questionId),
-        body: { body: rewritten },
-      }),
+      request: (session) => edit(session, threadId, questionId, rewritten),
       expect({ response, state, check }) {
         check('status', 200, response.status);
         check('the thread as it was', state, response.body);
@@ -164,12 +166,8 @@ export default defineFeature({
       name: "a reviewer cannot change the agent's message",
       setup: async (session) => record(await threadOf(session, threadId)),
       request: (session) => [
-        {
-          method: 'PATCH',
-          path: message(session, threadId, answerId),
-          body: { body: 'Rewritten by someone else' },
-        },
-        { method: 'DELETE', path: message(session, threadId, answerId) },
+        edit(session, threadId, answerId, 'Rewritten by someone else'),
+        remove(session, threadId, answerId),
       ],
       async expect({ responses, state, session, check }) {
         check(
@@ -196,10 +194,7 @@ export default defineFeature({
         });
         return record(await threadOf(session, threadId));
       },
-      request: (session) => ({
-        method: 'DELETE',
-        path: message(session, threadId, followUpId),
-      }),
+      request: (session) => remove(session, threadId, followUpId),
       async expect({
         response,
         state,
@@ -250,26 +245,23 @@ export default defineFeature({
           },
         });
       },
-      request: (session) => [
-        {
-          method: 'DELETE',
-          path: message(session, loneThreadId, loneMessageId),
-        },
-        toolCall(session, 3, 'list_comments', { scope: 'all' }),
-      ],
-      async expect({ responses, session, check, checkPartial }) {
-        check('status', 200, responses[0]?.status);
+      request: (session) => remove(session, loneThreadId, loneMessageId),
+      async expect({ response, session, check, checkPartial }) {
+        check('status', 200, response.status);
         check(
           'no thread is left',
           { threadId: loneThreadId, thread: null },
-          responses[0]?.body,
+          response.body,
         );
-        check('tool status', 200, responses[1]?.status);
-        checkPartial('a tool answer', answered(3), responses[1]?.body);
+        const listed = await read(
+          session,
+          toolCall(session, 3, 'list_comments', { scope: 'all' }),
+        );
+        checkPartial('a tool answer', answered(3), listed);
         check(
           'the agent reads only the other thread',
           [threadId],
-          list(toolValue(responses[1]?.body)).map((entry) => record(entry).id),
+          list(toolValue(listed)).map((entry) => record(entry).id),
         );
         check(
           'the reviewer reads only the other thread',
@@ -281,25 +273,14 @@ export default defineFeature({
     defineCase({
       name: 'invalid text, unknown messages and unknown worktrees',
       request: (session) => [
+        edit(session, threadId, questionId, '   '),
+        edit(session, threadId, unknownUuid, 'Hello'),
+        remove(session, unknownUuid, questionId),
+        remove(session, loneThreadId, loneMessageId),
         {
           method: 'PATCH',
-          path: message(session, threadId, questionId),
-          body: { body: '   ' },
-        },
-        {
-          method: 'PATCH',
-          path: message(session, threadId, unknownUuid),
-          body: { body: 'Hello' },
-        },
-        { method: 'DELETE', path: message(session, unknownUuid, questionId) },
-        {
-          method: 'DELETE',
-          path: message(session, loneThreadId, loneMessageId),
-        },
-        {
-          method: 'PATCH',
-          path: `/api/worktrees/${unknownWorktreeId}/comments/${threadId}/messages/${questionId}`,
-          body: { body: 'Hello' },
+          path: `/api/worktrees/${unknownWorktreeId}/comments/${threadId}/messages`,
+          body: { messageId: questionId, body: 'Hello' },
         },
       ],
       expect({ responses, check }) {

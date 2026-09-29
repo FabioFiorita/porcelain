@@ -1,6 +1,7 @@
 import type {
   CommentAuthor,
-  CommentMessageParams,
+  CommentThreadParams,
+  DeleteCommentMessageQuery,
   DeleteCommentMessageResponse,
 } from '@porcelain/contracts/reviews';
 import type { DeleteCommentMessageService } from '@porcelain/reviews/services';
@@ -32,7 +33,7 @@ export class DeleteCommentMessageUseCase {
   }
 
   async execute(
-    input: CommentMessageParams & CommentAuthor,
+    input: CommentThreadParams & DeleteCommentMessageQuery & CommentAuthor,
     context: OperationContext,
   ): Promise<DeleteCommentMessageResponse> {
     const { worktreeId } = input;

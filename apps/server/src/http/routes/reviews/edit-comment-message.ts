@@ -1,6 +1,6 @@
 import type { ZodTypeProvider } from '@fastify/type-provider-zod';
 import {
-  commentMessageParamsSchema,
+  commentThreadParamsSchema,
   editCommentMessageRequestSchema,
   editCommentMessageResponseSchema,
 } from '@porcelain/contracts/reviews';
@@ -14,10 +14,10 @@ export function editCommentMessage(
 ) {
   const api = server.withTypeProvider<ZodTypeProvider>();
   api.patch(
-    '/worktrees/:worktreeId/comments/:threadId/messages/:messageId',
+    '/worktrees/:worktreeId/comments/:threadId/messages',
     {
       schema: {
-        params: commentMessageParamsSchema,
+        params: commentThreadParamsSchema,
         body: editCommentMessageRequestSchema,
         response: { ...errorResponses, 200: editCommentMessageResponseSchema },
       },

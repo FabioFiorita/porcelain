@@ -38,7 +38,7 @@ const commentAuthorSchema = z.enum(['reviewer', 'agent']);
 const commentAnchorSchema = z.discriminatedUnion('kind', [
   z.strictObject({
     kind: z.literal('change'),
-    filePath: z.undefined().optional(),
+    filePath: z.never().optional(),
     ...evidence,
   }),
   z.strictObject({
@@ -106,11 +106,12 @@ export const updateCommentThreadRequestSchema = z.strictObject({
 });
 export const updateCommentThreadResponseSchema = commentThreadSchema;
 
-export const commentMessageParamsSchema = commentThreadParamsSchema.extend({
-  messageId: z.uuid(),
-});
 export const editCommentMessageRequestSchema = z.strictObject({
+  messageId: z.uuid(),
   body: bodySchema,
+});
+export const deleteCommentMessageQuerySchema = z.strictObject({
+  messageId: z.uuid(),
 });
 export const editCommentMessageResponseSchema = commentThreadSchema;
 export const deleteCommentMessageResponseSchema = z.object({
@@ -153,7 +154,9 @@ export type UpdateCommentThreadRequest = z.output<
 export type UpdateCommentThreadResponse = z.output<
   typeof updateCommentThreadResponseSchema
 >;
-export type CommentMessageParams = z.output<typeof commentMessageParamsSchema>;
+export type DeleteCommentMessageQuery = z.output<
+  typeof deleteCommentMessageQuerySchema
+>;
 export type EditCommentMessageRequest = z.output<
   typeof editCommentMessageRequestSchema
 >;

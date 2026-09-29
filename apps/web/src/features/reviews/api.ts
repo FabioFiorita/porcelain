@@ -98,11 +98,11 @@ export function createCommentsLive(transport: typeof fetch): CommentsPort {
     edit: async ({ worktreeId, threadId, messageId, body, signal }) => [
       await requestJson(
         transport,
-        `${threadPath(worktreeId, threadId)}/messages/${encodeURIComponent(messageId)}`,
+        `${threadPath(worktreeId, threadId)}/messages`,
         editCommentMessageResponseSchema,
         {
           method: 'PATCH',
-          ...json(editCommentMessageRequestSchema.parse({ body })),
+          ...json(editCommentMessageRequestSchema.parse({ messageId, body })),
           signal,
         },
       ),
@@ -110,7 +110,7 @@ export function createCommentsLive(transport: typeof fetch): CommentsPort {
     remove: ({ worktreeId, threadId, messageId, signal }) =>
       requestJson(
         transport,
-        `${threadPath(worktreeId, threadId)}/messages/${encodeURIComponent(messageId)}`,
+        `${threadPath(worktreeId, threadId)}/messages?${new URLSearchParams({ messageId })}`,
         deleteCommentMessageResponseSchema,
         { method: 'DELETE', signal },
       ),

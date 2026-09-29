@@ -1,6 +1,7 @@
 import type { ZodTypeProvider } from '@fastify/type-provider-zod';
 import {
-  commentMessageParamsSchema,
+  commentThreadParamsSchema,
+  deleteCommentMessageQuerySchema,
   deleteCommentMessageResponseSchema,
 } from '@porcelain/contracts/reviews';
 import type { FastifyInstance } from 'fastify';
@@ -13,10 +14,11 @@ export function deleteCommentMessage(
 ) {
   const api = server.withTypeProvider<ZodTypeProvider>();
   api.delete(
-    '/worktrees/:worktreeId/comments/:threadId/messages/:messageId',
+    '/worktrees/:worktreeId/comments/:threadId/messages',
     {
       schema: {
-        params: commentMessageParamsSchema,
+        params: commentThreadParamsSchema,
+        querystring: deleteCommentMessageQuerySchema,
         response: {
           ...errorResponses,
           200: deleteCommentMessageResponseSchema,
@@ -25,7 +27,7 @@ export function deleteCommentMessage(
     },
     async (request) =>
       options.useCase.execute(
-        { ...request.params, writer: request.caller },
+        { ...request.params, ...request.query, writer: request.caller },
         { signal: request.disconnected },
       ),
   );

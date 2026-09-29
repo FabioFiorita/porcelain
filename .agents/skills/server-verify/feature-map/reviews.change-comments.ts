@@ -29,7 +29,7 @@ const answered = (id: number) => ({
 export default defineFeature({
   feature: 'reviews.change-comments',
   reaches: ['POST /api/worktrees/:worktreeId/comments', 'owner POST /mcp'],
-  paired: true,
+  paired: false,
   intent: 'intended',
   behaviour:
     'A reviewer comments on a whole change instead of one file: the uncommitted change of the worktree, or the checked-out branch compared against a base at the tip it was read at. The coding agent reads such a thread through the review tools with the same anchor and can open one itself. A whole-change comment names no file, compares against nothing but a branch, and a branch comparison must name its tip; anything else is refused.',
