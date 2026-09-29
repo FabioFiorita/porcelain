@@ -12,6 +12,8 @@ import {
   DIRECTORY_ENTRIES,
   PATH_LENGTH,
   TUNNEL_HOSTNAME_LENGTH,
+  REVIEW_PROOF_BYTES,
+  REVIEW_PROOF_FILE_BYTES,
   REVIEW_SUMMARY_BYTES,
   REVIEWED_BRANCH_FILE_MARKS,
   REVIEWED_FILE_MARKS,
@@ -92,6 +94,12 @@ export type Limits = {
     };
     reviewedFiles: { marksPerWorktree: number; marksPerBranch: number };
     summaryLink: { lifetimeMs: number; secretBytes: number };
+    proof: {
+      maxBytes: number;
+      totalBytes: number;
+      signatureBytes: number;
+      base64ChunkBytes: number;
+    };
   };
   gitActions: {
     deadlineMs: number;
@@ -279,6 +287,12 @@ export const LIMITS: Limits = {
       marksPerBranch: REVIEWED_BRANCH_FILE_MARKS,
     },
     summaryLink: { lifetimeMs: HOUR_MS, secretBytes: 32 },
+    proof: {
+      maxBytes: REVIEW_PROOF_FILE_BYTES,
+      totalBytes: REVIEW_PROOF_BYTES,
+      signatureBytes: 16,
+      base64ChunkBytes: 32 * KIBIBYTE,
+    },
   },
   gitActions: {
     deadlineMs: 2 * MINUTE_MS,

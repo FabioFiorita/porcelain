@@ -21,6 +21,7 @@ import {
   REVIEW_TITLE_LENGTH,
 } from '../shared/limits.ts';
 import { relativePathSchema } from '../shared/relative-path.ts';
+import { proofDraftSchema, publishedProofSchema } from './review-proof.ts';
 import { reviewSummaryLinkSchema } from './review-summary-link.ts';
 import { worktreeIdSchema } from '../shared/worktree-params.ts';
 
@@ -154,6 +155,7 @@ const publishedReviewSchema = z.object({
   diagram: reviewDiagramSchema.optional(),
   layers: z.array(resolvedReviewLayerSchema).max(REVIEW_LAYERS),
   notExplained: z.array(notExplainedSchema).max(CHANGED_PATHS),
+  proof: publishedProofSchema,
 });
 
 export const publishReviewRequestSchema = z.strictObject({
@@ -165,6 +167,7 @@ export const publishReviewRequestSchema = z.strictObject({
   summaryHtml: summaryHtmlSchema,
   diagram: reviewDiagramSchema.optional(),
   layers: z.array(reviewLayerSchema).min(1).max(REVIEW_LAYERS),
+  proof: proofDraftSchema.optional(),
 });
 
 export const readPublishedReviewResponseSchema = z.object({

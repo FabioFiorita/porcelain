@@ -94,6 +94,69 @@ export function reviewStoreContract(
       expect(store.read({ worktreeId: first })).toEqual(withDiagram);
     });
 
+    it('reads saved proof back with the review and its files by worktree and id', () => {
+      const proof = {
+        checks: [
+          { name: 'Tests', result: 'fail' as const, output: 'one failed' },
+        ],
+        assets: [
+          {
+            id: 'shot',
+            kind: 'image' as const,
+            title: 'Screenshot',
+            mediaType: 'image/png' as const,
+            byteLength: 3,
+            layerId: 'layer',
+          },
+        ],
+      };
+      const bytes = new Uint8Array([0x89, 0x50, 0x4e]);
+      store.save({
+        ...review(first),
+        proof,
+        proofFiles: [{ id: 'shot', mediaType: 'image/png', bytes }],
+      });
+      expect(store.read({ worktreeId: first })).toEqual({
+        ...review(first),
+        proof,
+      });
+      expect(
+        store.readProofFile({ worktreeId: first, proofId: 'shot' }),
+      ).toEqual({ id: 'shot', mediaType: 'image/png', bytes });
+      expect(
+        store.readProofFile({ worktreeId: second, proofId: 'shot' }),
+      ).toBeUndefined();
+    });
+
+    it('replaces the proof files of a worktree when its next review is saved', () => {
+      const bytes = new Uint8Array([1, 2, 3]);
+      store.save({
+        ...review(first, 1),
+        proofFiles: [{ id: 'old', mediaType: 'image/png', bytes }],
+      });
+      store.save({
+        ...review(second),
+        proofFiles: [{ id: 'kept', mediaType: 'image/png', bytes }],
+      });
+      store.save({
+        ...review(first, 2),
+        proofFiles: [{ id: 'new', mediaType: 'video/webm', bytes }],
+      });
+      expect(
+        store.readProofFile({ worktreeId: first, proofId: 'old' }),
+      ).toBeUndefined();
+      expect(
+        store.readProofFile({ worktreeId: first, proofId: 'new' }),
+      ).toEqual({ id: 'new', mediaType: 'video/webm', bytes });
+      expect(
+        store.readProofFile({ worktreeId: second, proofId: 'kept' }),
+      ).toEqual({ id: 'kept', mediaType: 'image/png', bytes });
+      store.save(review(first, 3));
+      expect(
+        store.readProofFile({ worktreeId: first, proofId: 'new' }),
+      ).toBeUndefined();
+    });
+
     it('replaces the review of a worktree when a newer one is saved', () => {
       store.save(review(first, 1));
       store.save(review(first, 2));

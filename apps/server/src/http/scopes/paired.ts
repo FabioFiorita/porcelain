@@ -32,6 +32,7 @@ import type { ReadBranchChangesUseCase } from '../../use-cases/changes/read-bran
 import type { ReadBranchDiffsUseCase } from '../../use-cases/changes/read-branch-diffs.ts';
 import type { ReadInventoryUseCase } from '../../use-cases/projects/read-inventory.ts';
 import type { ReadPreviewAssetsUseCase } from '../../use-cases/files/read-preview-assets.ts';
+import type { ReadProofFileUseCase } from '../../use-cases/reviews/read-proof-file.ts';
 import type { ReadPublishedReviewUseCase } from '../../use-cases/reviews/read-published-review.ts';
 import type { ReadTextFileUseCase } from '../../use-cases/files/read-text-file.ts';
 import type { RegisterProjectUseCase } from '../../use-cases/projects/register-project.ts';
@@ -85,6 +86,7 @@ import { editCommentMessage } from '../routes/reviews/edit-comment-message.ts';
 import { listCommentThreads } from '../routes/reviews/list-comment-threads.ts';
 import { markCommentsSeen } from '../routes/reviews/mark-comments-seen.ts';
 import { publishReview } from '../routes/reviews/publish-review.ts';
+import { readProofFile } from '../routes/reviews/read-proof-file.ts';
 import { readPublishedReview } from '../routes/reviews/read-published-review.ts';
 import { listReviewedFiles } from '../routes/reviews/list-reviewed-files.ts';
 import { listReviewedLayers } from '../routes/reviews/list-reviewed-layers.ts';
@@ -138,6 +140,7 @@ export type PairedUseCases = {
     markCommentsSeen: Pick<MarkCommentsSeenUseCase, 'execute'>;
     publishReview: Pick<PublishReviewUseCase, 'execute'>;
     readPublishedReview: Pick<ReadPublishedReviewUseCase, 'execute'>;
+    readProofFile: Pick<ReadProofFileUseCase, 'execute'>;
     removeReviewedFiles: Pick<RemoveReviewedFilesUseCase, 'execute'>;
     removeReviewedLayer: Pick<RemoveReviewedLayerUseCase, 'execute'>;
     replyToComment: Pick<ReplyToCommentUseCase, 'execute'>;
@@ -227,6 +230,9 @@ export async function pairedScope(
   });
   server.register(readPublishedReview, {
     useCase: options.application.reviews.readPublishedReview,
+  });
+  server.register(readProofFile, {
+    useCase: options.application.reviews.readProofFile,
   });
   server.register(publishReview, {
     useCase: options.application.reviews.publishReview,

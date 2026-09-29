@@ -1,7 +1,9 @@
 import type { WorktreeKey, WorktreeKeys } from '@porcelain/kernel/models';
+import type { ProofFile, ProofFileKey } from '../../src/models/review-proof.ts';
 import type {
   Review,
   ReviewActivity,
+  ReviewSave,
   ReviewSummary,
   ReviewSummaryKey,
 } from '../../src/models/review.ts';
@@ -14,6 +16,7 @@ function activityKey(worktreeId: string, revision: number): string {
 export class InMemoryReviewStore implements ReviewStore {
   private readonly rows: Map<string, Review>;
   private readonly activity = new Map<string, boolean>();
+  private readonly proofFiles = new Map<string, ProofFile[]>();
 
   constructor(reviews: readonly Review[] = []) {
     this.rows = new Map(
@@ -44,9 +47,18 @@ export class InMemoryReviewStore implements ReviewStore {
       .at(0);
   }
 
-  save(input: Review): void {
-    this.rows.set(input.worktreeId, structuredClone(input));
+  save(input: ReviewSave): void {
+    const { proofFiles, ...review } = input;
+    this.rows.set(input.worktreeId, structuredClone(review));
+    this.proofFiles.set(input.worktreeId, structuredClone(proofFiles ?? []));
     this.activity.delete(activityKey(input.worktreeId, input.revision));
+  }
+
+  readProofFile(input: ProofFileKey): ProofFile | undefined {
+    const file = this.proofFiles
+      .get(input.worktreeId)
+      ?.find((candidate) => candidate.id === input.proofId);
+    return file && structuredClone(file);
   }
 
   setActive(input: ReviewActivity): void {

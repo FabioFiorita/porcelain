@@ -1,3 +1,10 @@
+import {
+  REVIEW_PROOF_ASSETS,
+  REVIEW_PROOF_FILE_MEBIBYTES,
+  REVIEW_PROOF_MEBIBYTES,
+  REVIEW_PROOF_OUTPUT_LENGTH,
+} from '@porcelain/contracts/shared';
+
 export const REVIEW_GUIDE = `# Publishing a Porcelain review
 
 Tell the behavior from entry point to outcome. Keep layers short and ordered. Use lanes for the parts the change crosses, such as Web, Route, Use case, and Storage. A changed step points at code this change alters. A context step points at unchanged code the reader needs. Prefer one or two sentences per step.
@@ -49,13 +56,37 @@ A compact page that matches a light application:
 
 When the change crosses more than one part of the system, add a summary diagram: lanes, boxes, and arrows. An After view marks boxes New, Changed, or Removed. A Before view is useful when it shows what was wrong. Name the layer behind each box. Add an extra arrow only for a branch or callback the step order does not already show.
 
+## Proof
+
+Attach proof that the work is done in \`proof\`. Porcelain shows it beside the review, and a failing check stands out. Report what you actually ran; never mark a check you did not run as passing.
+
+- \`checks\`: one entry per check you ran, with \`name\`, \`result\` (\`pass\`, \`fail\` or \`skipped\`) and an optional short \`output\` of at most ${REVIEW_PROOF_OUTPUT_LENGTH} characters, such as the failing assertion or the summary line. Publish a failing check as \`fail\` rather than leaving it out.
+- \`assets\`: at most ${REVIEW_PROOF_ASSETS}. An \`image\` (PNG, JPEG, GIF or WebP) or a \`video\` (MP4 or WebM) names a \`path\` relative to the worktree root. Porcelain reads the file when you publish and keeps its own copy: at most ${REVIEW_PROOF_FILE_MEBIBYTES} MiB per file and ${REVIEW_PROOF_MEBIBYTES} MiB together. Its content must match its kind; an SVG or any other document is refused. Save a screenshot inside the worktree, publish, then delete the file so it does not show up as an unexplained change. A \`link\` names an \`http\` or \`https\` \`url\`, such as a CI run.
+- Every check and asset has a \`title\` or \`name\`, and may name the \`layerId\`, or the \`layerId\` and \`stepId\`, it proves. Without them it belongs to the whole review.
+
+\`\`\`json
+{
+  "proof": {
+    "checks": [
+      { "name": "pnpm test", "result": "pass" },
+      { "name": "Save journey", "result": "fail", "output": "Expected the Saved notice", "layerId": "<layer id>" }
+    ],
+    "assets": [
+      { "kind": "image", "title": "Saved notice", "path": "tmp/saved.png", "layerId": "<layer id>" }
+    ]
+  }
+}
+\`\`\`
+
+Publishing replaces the proof with the one you send, so send every check and asset again when you republish.
+
 ## Repair gaps before handing the review off
 
 1. Call \`read_review\` and keep its revision.
 2. Publish with \`expectedRevision\` set to that revision. A mismatch means someone published since you read: read again, then publish.
 3. Fix every unresolved pointer the response returns as changed. Point the step at a line that exists.
 4. Fix lines Porcelain reports as Not explained: either cover them with a changed step or leave them out of the diff you are handing off.
-5. Publish the whole review again. Publishing replaces the latest summary, diagram, and layers. Keep anything that should stay.
+5. Publish the whole review again. Publishing replaces the latest summary, diagram, layers, and proof. Keep anything that should stay.
 
 ## Comments
 

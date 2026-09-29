@@ -4,6 +4,8 @@ import type {
   PublishReviewToolResponse,
 } from '@porcelain/contracts/reviews';
 import type { WorktreeParams } from '@porcelain/contracts/shared';
+import type { ReadBinaryFilesService } from '@porcelain/files/services';
+import { proofFilePaths } from '@porcelain/reviews/rules';
 import type {
   ResolvePublishedReviewService,
   PublishReviewService,
@@ -20,6 +22,7 @@ export class PublishReviewUseCase {
   private readonly checkWorktree: CheckWorktreeUseCasePort;
   private readonly confirmWorktree: ConfirmWorktreeService;
   private readonly readReviewEvidence: ReadReviewEvidenceUseCasePort;
+  private readonly readBinaryFiles: ReadBinaryFilesService;
   private readonly publishReview: PublishReviewService;
   private readonly readEnvironment: ReadEnvironmentService;
   private readonly resolvePublishedReview: ResolvePublishedReviewService;
@@ -31,6 +34,7 @@ export class PublishReviewUseCase {
     checkWorktree: CheckWorktreeUseCasePort,
     confirmWorktree: ConfirmWorktreeService,
     readReviewEvidence: ReadReviewEvidenceUseCasePort,
+    readBinaryFiles: ReadBinaryFilesService,
     publishReview: PublishReviewService,
     readEnvironment: ReadEnvironmentService,
     resolvePublishedReview: ResolvePublishedReviewService,
@@ -41,6 +45,7 @@ export class PublishReviewUseCase {
     this.checkWorktree = checkWorktree;
     this.confirmWorktree = confirmWorktree;
     this.readReviewEvidence = readReviewEvidence;
+    this.readBinaryFiles = readBinaryFiles;
     this.publishReview = publishReview;
     this.readEnvironment = readEnvironment;
     this.resolvePublishedReview = resolvePublishedReview;
@@ -66,11 +71,16 @@ export class PublishReviewUseCase {
           { worktreeId, layers: draft.layers },
           { signal },
         );
+        const proofFiles = await this.readBinaryFiles.execute(
+          { worktreeId, paths: proofFilePaths(draft.proof) },
+          signal,
+        );
         this.confirmWorktree.execute({ worktree });
         const { review, warnings } = this.publishReview.execute({
           worktreeId,
           draft,
           evidence,
+          proofFiles,
         });
         return {
           review: this.resolvePublishedReview.execute({

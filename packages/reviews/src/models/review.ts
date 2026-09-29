@@ -1,3 +1,5 @@
+import type { ProofDraft, ProofFile, ReviewProof } from './review-proof.ts';
+
 export type CodePointer = {
   path: string;
   startLine: number;
@@ -63,6 +65,7 @@ export type ReviewDraft = {
   summaryHtml: string;
   diagram?: ReviewDiagram | undefined;
   layers: LayerDraft[];
+  proof?: ProofDraft | undefined;
 };
 
 export type ReviewStep = StepDraft & {
@@ -84,6 +87,11 @@ export type Review = {
   summarySecret: string;
   diagram?: ReviewDiagram | undefined;
   layers: ReviewLayer[];
+  proof?: ReviewProof | undefined;
+};
+
+export type ReviewSave = Review & {
+  proofFiles?: ProofFile[] | undefined;
 };
 
 export type ReviewDraftProblem =
@@ -93,7 +101,8 @@ export type ReviewDraftProblem =
   | { kind: 'step-lane-out-of-range' }
   | { kind: 'unknown-arrow-step' }
   | { kind: 'box-lane-out-of-range' }
-  | { kind: 'unknown-arrow-box' };
+  | { kind: 'unknown-arrow-box' }
+  | { kind: 'unknown-proof-target' };
 
 export type ReviewSummary = Pick<
   Review,

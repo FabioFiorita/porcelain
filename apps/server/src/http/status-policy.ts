@@ -95,6 +95,9 @@ import {
   CommentTargetNotFoundError,
   DuplicateLayerIdError,
   DuplicateStepIdError,
+  ProofFileNotFoundError,
+  ProofFileUnreadableError,
+  ProofTooLargeError,
   ReviewConflictError,
   ReviewedMarkConflictError,
   ReviewLayerNotFoundError,
@@ -102,7 +105,9 @@ import {
   StepLaneOutOfRangeError,
   UnknownArrowBoxError,
   UnknownArrowStepError,
+  UnknownProofTargetError,
   UnsupportedCommentComparisonError,
+  UnsupportedProofFileError,
 } from '@porcelain/reviews/errors';
 import { errorCodes } from 'fastify';
 import { ApplicationClosedError } from '../runtime/errors/application-closed-error.ts';
@@ -134,6 +139,7 @@ const rules: readonly StatusRule[] = [
       InvalidTunnelHostnameError,
       MissingTunnelHostnameError,
       InvalidHistoryRequestError,
+      UnknownProofTargetError,
     ],
     statusCode: 400,
   },
@@ -172,6 +178,7 @@ const rules: readonly StatusRule[] = [
     errors: [
       WorktreeNotFoundError,
       ReviewLayerNotFoundError,
+      ProofFileNotFoundError,
       ProjectNotFoundError,
       CommitNotFoundError,
       BranchBaseNotFoundError,
@@ -225,7 +232,10 @@ const rules: readonly StatusRule[] = [
     statusCode: 409,
     message: 'The review changed; reload before retrying',
   },
-  { errors: [errorCodes.FST_ERR_CTP_BODY_TOO_LARGE], statusCode: 413 },
+  {
+    errors: [errorCodes.FST_ERR_CTP_BODY_TOO_LARGE, ProofTooLargeError],
+    statusCode: 413,
+  },
   { errors: [TooManyPairingAttemptsError], statusCode: 429 },
   {
     errors: [InspectionLimitError],
@@ -248,6 +258,8 @@ const rules: readonly StatusRule[] = [
       CrossDeviceMoveError,
       TrashUnavailableError,
       UnsupportedAssetTypeError,
+      ProofFileUnreadableError,
+      UnsupportedProofFileError,
       CommitDraftSelectionError,
       CommitDraftTooLargeError,
       CommitGenerationFailedError,

@@ -60,6 +60,7 @@ export class ResolvePublishedReviewService {
         diagnostics,
         layers,
       ),
+      proof: structuredClone(review.proof ?? { checks: [], assets: [] }),
     };
   }
 }

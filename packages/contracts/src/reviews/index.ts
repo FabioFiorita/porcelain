@@ -38,6 +38,12 @@ export {
   type ReadPublishedReviewResponse,
 } from './review.ts';
 export {
+  readProofFileQuerySchema,
+  readProofFileResponseSchema,
+  type ReadProofFileQuery,
+  type ReadProofFileResponse,
+} from './review-proof.ts';
+export {
   readReviewSummaryNotFoundResponseSchema,
   readReviewSummaryParamsSchema,
   readReviewSummaryQuerySchema,

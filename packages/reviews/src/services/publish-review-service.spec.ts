@@ -9,15 +9,20 @@ import {
   BoxLaneOutOfRangeError,
   DuplicateLayerIdError,
   DuplicateStepIdError,
+  ProofFileUnreadableError,
+  ProofTooLargeError,
   ReviewConflictError,
   StepLaneOutOfRangeError,
   UnknownArrowBoxError,
   UnknownArrowStepError,
+  UnknownProofTargetError,
+  UnsupportedProofFileError,
 } from '@porcelain/reviews/errors';
 import type { FileChange } from '@porcelain/kernel/models';
 import type {
   DiagramBox,
   LayerDraft,
+  ProofFileReads,
   ReviewDraft,
   ReviewEvidence,
 } from '@porcelain/reviews/models';
@@ -93,13 +98,27 @@ function draft(overrides: Partial<ReviewDraft> = {}): ReviewDraft {
   };
 }
 
-function setup() {
+const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1]);
+const webm = new Uint8Array([0x1a, 0x45, 0xdf, 0xa3, 0x9f, 0x42, 0x86]);
+const svg = new TextEncoder().encode(
+  '<svg xmlns="http://www.w3.org/2000/svg"/>',
+);
+
+function reads(
+  files: [string, Uint8Array][],
+  tooLarge: string[] = [],
+): ProofFileReads {
+  return { files: new Map(files), tooLarge };
+}
+
+function setup(totalBytes = 1024) {
   const store = new InMemoryReviewStore();
   const service = new PublishReviewService(
     store,
     new FixedClock('2026-01-01T00:00:00.000Z'),
     new SequentialIdSource(),
     new SequentialSecretSource(),
+    { totalBytes, signatureBytes: 16 },
   );
   return { store, service };
 }
@@ -264,6 +283,39 @@ describe('PublishReviewService', () => {
       error: BoxLaneOutOfRangeError,
     },
     {
+      name: 'a check on a layer the review does not have',
+      refused: draft({
+        proof: { checks: [{ name: 'Tests', result: 'pass', layerId: 'x' }] },
+      }),
+      error: UnknownProofTargetError,
+    },
+    {
+      name: 'an asset on a step its layer does not have',
+      refused: draft({
+        proof: {
+          assets: [
+            {
+              kind: 'link',
+              title: 'Run',
+              url: 'https://ci.example/run/1',
+              layerId: 'layer-1',
+              stepId: 'step-9',
+            },
+          ],
+        },
+      }),
+      error: UnknownProofTargetError,
+    },
+    {
+      name: 'a check on a step without its layer',
+      refused: draft({
+        proof: {
+          checks: [{ name: 'Tests', result: 'fail', stepId: 'step-1' }],
+        },
+      }),
+      error: UnknownProofTargetError,
+    },
+    {
       name: 'a diagram arrow to an unknown box',
       refused: draft({
         diagram: {
@@ -293,5 +345,191 @@ describe('PublishReviewService', () => {
     });
     expect(warnings).toEqual(['missing-style']);
     expect(store.read({ worktreeId })?.revision).toBe(1);
+  });
+
+  it('publishes checks as given and keeps each attached file under its own id with the type its bytes show', () => {
+    const { service, store } = setup();
+    const { review } = service.execute({
+      worktreeId,
+      draft: draft({
+        proof: {
+          checks: [
+            { name: 'Unit tests', result: 'pass' },
+            {
+              name: 'Browser journey',
+              result: 'fail',
+              output: 'expected 2, got 3',
+              layerId: 'layer-1',
+              stepId: 'step-1',
+            },
+          ],
+          assets: [
+            { kind: 'image', title: 'Screenshot', path: 'shot.png' },
+            {
+              kind: 'video',
+              title: 'Recording',
+              path: 'run.webm',
+              layerId: 'layer-1',
+            },
+            { kind: 'link', title: 'CI run', url: 'https://ci.example/run/1' },
+          ],
+        },
+      }),
+      evidence: evidence(),
+      proofFiles: reads([
+        ['shot.png', png],
+        ['run.webm', webm],
+      ]),
+    });
+    const [image, video, link] = review.proof?.assets ?? [];
+    expect(review.proof).toEqual({
+      checks: [
+        { name: 'Unit tests', result: 'pass' },
+        {
+          name: 'Browser journey',
+          result: 'fail',
+          output: 'expected 2, got 3',
+          layerId: 'layer-1',
+          stepId: 'step-1',
+        },
+      ],
+      assets: [
+        {
+          id: image?.id,
+          kind: 'image',
+          title: 'Screenshot',
+          mediaType: 'image/png',
+          byteLength: png.byteLength,
+        },
+        {
+          id: video?.id,
+          kind: 'video',
+          title: 'Recording',
+          mediaType: 'video/webm',
+          byteLength: webm.byteLength,
+          layerId: 'layer-1',
+        },
+        {
+          id: link?.id,
+          kind: 'link',
+          title: 'CI run',
+          url: 'https://ci.example/run/1',
+        },
+      ],
+    });
+    expect(new Set([image?.id, video?.id, link?.id]).size).toBe(3);
+    expect(store.read({ worktreeId })?.proof).toEqual(review.proof);
+    expect(
+      store.readProofFile({ worktreeId, proofId: image?.id ?? '' }),
+    ).toEqual({ id: image?.id, mediaType: 'image/png', bytes: png });
+    expect(
+      store.readProofFile({ worktreeId, proofId: video?.id ?? '' }),
+    ).toEqual({ id: video?.id, mediaType: 'video/webm', bytes: webm });
+    expect(
+      store.readProofFile({ worktreeId, proofId: link?.id ?? '' }),
+    ).toBeUndefined();
+  });
+
+  it('drops the previous proof files when a later publish attaches none', () => {
+    const { service, store } = setup();
+    const first = service.execute({
+      worktreeId,
+      draft: draft({
+        proof: { assets: [{ kind: 'image', title: 'Shot', path: 'shot.png' }] },
+      }),
+      evidence: evidence(),
+      proofFiles: reads([['shot.png', png]]),
+    });
+    const second = service.execute({
+      worktreeId,
+      draft: draft({ expectedRevision: 1 }),
+      evidence: evidence(),
+    });
+    expect(second.review.proof).toBeUndefined();
+    expect(
+      store.readProofFile({
+        worktreeId,
+        proofId: first.review.proof?.assets[0]?.id ?? '',
+      }),
+    ).toBeUndefined();
+  });
+
+  it.each<{
+    name: string;
+    kind: 'image' | 'video';
+    proofFiles: ProofFileReads;
+    error: new () => Error;
+  }>([
+    {
+      name: 'an image path the worktree does not hold',
+      kind: 'image',
+      proofFiles: reads([]),
+      error: ProofFileUnreadableError,
+    },
+    {
+      name: 'an image whose bytes are an SVG document',
+      kind: 'image',
+      proofFiles: reads([['proof', svg]]),
+      error: UnsupportedProofFileError,
+    },
+    {
+      name: 'a video whose bytes are a PNG image',
+      kind: 'video',
+      proofFiles: reads([['proof', png]]),
+      error: UnsupportedProofFileError,
+    },
+    {
+      name: 'an empty file',
+      kind: 'image',
+      proofFiles: reads([['proof', new Uint8Array()]]),
+      error: UnsupportedProofFileError,
+    },
+    {
+      name: 'a file the reader stopped at its size limit',
+      kind: 'image',
+      proofFiles: reads([], ['proof']),
+      error: ProofTooLargeError,
+    },
+  ])(
+    'refuses $name and keeps the stored review',
+    ({ kind, proofFiles, error }) => {
+      const { service, store } = setup();
+      service.execute({ worktreeId, draft: draft(), evidence: evidence() });
+      expect(() =>
+        service.execute({
+          worktreeId,
+          draft: draft({
+            expectedRevision: 1,
+            proof: { assets: [{ kind, title: 'Proof', path: 'proof' }] },
+          }),
+          evidence: evidence(),
+          proofFiles,
+        }),
+      ).toThrow(error);
+      expect(store.read({ worktreeId })?.revision).toBe(1);
+    },
+  );
+
+  it('refuses files that fit one by one but not together', () => {
+    const { service, store } = setup(png.byteLength * 2 - 1);
+    expect(() =>
+      service.execute({
+        worktreeId,
+        draft: draft({
+          proof: {
+            assets: [
+              { kind: 'image', title: 'One', path: 'one.png' },
+              { kind: 'image', title: 'Two', path: 'two.png' },
+            ],
+          },
+        }),
+        evidence: evidence(),
+        proofFiles: reads([
+          ['one.png', png],
+          ['two.png', png],
+        ]),
+      }),
+    ).toThrow(ProofTooLargeError);
+    expect(store.read({ worktreeId })).toBeUndefined();
   });
 });

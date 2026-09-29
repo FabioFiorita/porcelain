@@ -5,3 +5,4 @@ export { ReadFileAssetService } from './read-file-asset-service.ts';
 export { ReadPreviewAssetsService } from './read-preview-assets-service.ts';
 export { ReadTextFileService } from './read-text-file-service.ts';
 export { ReadTextFilesService } from './read-text-files-service.ts';
+export { ReadBinaryFilesService } from './read-binary-files-service.ts';

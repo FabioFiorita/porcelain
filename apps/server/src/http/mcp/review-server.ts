@@ -76,7 +76,7 @@ export function createReviewMcpServer(
     'publish_review',
     {
       description:
-        'Atomically replace the latest summary, diagram and review layers. Read the current revision and porcelain://review-guide first. Include your own CSS, matching the reviewed application where possible; missing CSS produces an advisory warning.',
+        'Atomically replace the latest summary, diagram, review layers and proof. Read the current revision and porcelain://review-guide first. Include your own CSS, matching the reviewed application where possible; missing CSS produces an advisory warning. Attach proof that the work is done: checks you ran with their result, and screenshots, short videos or links.',
       inputSchema: publishReviewToolRequestSchema,
     },
     ({ cwd, ...review }, { signal }) =>

@@ -14,3 +14,8 @@ export { StepLaneOutOfRangeError } from './step-lane-out-of-range-error.ts';
 export { UnsupportedCommentComparisonError } from './unsupported-comment-comparison-error.ts';
 export { UnknownArrowBoxError } from './unknown-arrow-box-error.ts';
 export { UnknownArrowStepError } from './unknown-arrow-step-error.ts';
+export { ProofFileNotFoundError } from './proof-file-not-found-error.ts';
+export { ProofFileUnreadableError } from './proof-file-unreadable-error.ts';
+export { ProofTooLargeError } from './proof-too-large-error.ts';
+export { UnknownProofTargetError } from './unknown-proof-target-error.ts';
+export { UnsupportedProofFileError } from './unsupported-proof-file-error.ts';

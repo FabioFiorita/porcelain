@@ -8,6 +8,7 @@ import {
   ListReviewedLayersService,
   MarkCommentsSeenService,
   PublishReviewService,
+  ReadProofFileService,
   ReadReviewLayerService,
   ReadReviewSummaryService,
   RemoveReviewedFilesService,
@@ -29,6 +30,7 @@ import { ListReviewedFilesUseCase } from '../use-cases/reviews/list-reviewed-fil
 import { ListReviewedLayersUseCase } from '../use-cases/reviews/list-reviewed-layers.ts';
 import { MarkCommentsSeenUseCase } from '../use-cases/reviews/mark-comments-seen.ts';
 import { PublishReviewUseCase } from '../use-cases/reviews/publish-review.ts';
+import { ReadProofFileUseCase } from '../use-cases/reviews/read-proof-file.ts';
 import { ReadPublishedReviewUseCase } from '../use-cases/reviews/read-published-review.ts';
 import { ReadReviewSummaryUseCase } from '../use-cases/reviews/read-review-summary.ts';
 import { RemoveReviewedFilesUseCase } from '../use-cases/reviews/remove-reviewed-files.ts';
@@ -109,11 +111,13 @@ export function composeReviews(
     checkWorktree,
     shared.confirmWorktree,
     shared.readReviewEvidence,
+    shared.readBinaryFiles,
     new PublishReviewService(
       reviewStore,
       clock,
       ids,
       new RandomSecretSource(limits.summaryLink),
+      limits.proof,
     ),
     readEnvironment,
     resolvePublishedReview,
@@ -210,6 +214,12 @@ export function composeReviews(
     ),
     publishReview,
     readPublishedReview: readPublishedReviewUseCase,
+    readProofFile: new ReadProofFileUseCase(
+      checkWorktree,
+      new ReadProofFileService(reviewStore, limits.proof),
+      lanes,
+      laneKeys,
+    ),
     readReviewSummary: new ReadReviewSummaryUseCase(
       new ReadReviewSummaryService(reviewStore, clock, signatureSource),
       lanes,

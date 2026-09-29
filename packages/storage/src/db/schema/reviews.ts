@@ -1,5 +1,9 @@
 import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
-import type { ReviewDiagram, ReviewLayer } from '@porcelain/reviews/models';
+import type {
+  ReviewDiagram,
+  ReviewLayer,
+  ReviewProof,
+} from '@porcelain/reviews/models';
 import { worktreePresence } from './worktree-presence.ts';
 
 export const reviews = sqliteTable('reviews', {
@@ -15,4 +19,5 @@ export const reviews = sqliteTable('reviews', {
   summarySecret: text('summary_secret').notNull(),
   diagram: text('diagram', { mode: 'json' }).$type<ReviewDiagram>(),
   layers: text('layers', { mode: 'json' }).$type<ReviewLayer[]>().notNull(),
+  proof: text('proof', { mode: 'json' }).$type<ReviewProof>(),
 });

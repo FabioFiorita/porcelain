@@ -8,6 +8,7 @@ import {
 } from '@porcelain/changes/services';
 import {
   ReadTextFileService,
+  ReadBinaryFilesService,
   ReadTextFilesService,
 } from '@porcelain/files/services';
 import { ReadInterruptedGitActionService } from '@porcelain/git-actions/services';
@@ -165,6 +166,10 @@ export function composeShared(dependencies: SharedDependencies) {
       stores.reviewedLayers,
     ),
     readTextFiles,
+    readBinaryFiles: new ReadBinaryFilesService(
+      fileReader,
+      limits.reviews.proof,
+    ),
     readReviewEvidence: new ReadReviewEvidenceUseCase(
       readWorktreeStatus,
       readChangeFingerprints,

@@ -4,6 +4,7 @@ import type {
   ReviewDraft,
   ReviewDraftProblem,
 } from '../models/review.ts';
+import { proofTargetsKnown } from './review-proof.ts';
 
 function repeats(values: readonly string[]): boolean {
   return new Set(values).size !== values.length;
@@ -52,6 +53,9 @@ export function reviewDraftProblem(
     : [];
   return (
     draft.layers.map(layerProblem).find((problem) => problem !== undefined) ??
-    diagrams.map(diagramProblem).find((problem) => problem !== undefined)
+    diagrams.map(diagramProblem).find((problem) => problem !== undefined) ??
+    (proofTargetsKnown(draft.proof, draft.layers)
+      ? undefined
+      : { kind: 'unknown-proof-target' })
   );
 }

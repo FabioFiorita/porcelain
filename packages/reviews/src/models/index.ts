@@ -32,6 +32,7 @@ export type {
   ReviewDiagram,
   ReviewDraft,
   ReviewLayer,
+  ReviewSave,
   ReviewStep,
   ReviewSummary,
   StepDraft,
@@ -44,3 +45,10 @@ export type {
   ReviewedScope,
   WorktreeReviewedLayerMark,
 } from './reviewed-mark.ts';
+export type {
+  ProofFile,
+  ProofFileKey,
+  ProofFileReads,
+  ProofMediaType,
+  ReviewProof,
+} from './review-proof.ts';

@@ -1,14 +1,25 @@
 import { and, eq, inArray } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
+import { reviewProofFiles } from '../../db/schema/review-proof-files.ts';
 import { reviews } from '../../db/schema/reviews.ts';
-import type { Review, ReviewSummary } from '@porcelain/reviews/models';
+import type {
+  ProofFile,
+  ProofFileKey,
+  Review,
+  ReviewSave,
+  ReviewSummary,
+} from '@porcelain/reviews/models';
 import type { ReviewStore } from '@porcelain/reviews/ports';
 
 type ReviewRow = typeof reviews.$inferSelect;
 
 function reviewFromRow(row: ReviewRow): Review {
-  const { diagram, ...rest } = row;
-  return diagram === null ? rest : { ...rest, diagram };
+  const { diagram, proof, ...rest } = row;
+  return {
+    ...rest,
+    ...(diagram === null ? {} : { diagram }),
+    ...(proof === null ? {} : { proof }),
+  };
 }
 
 export class SqliteReviewStore implements ReviewStore {
@@ -48,16 +59,60 @@ export class SqliteReviewStore implements ReviewStore {
       .get();
   }
 
-  save(input: Review): void {
-    const row = { ...input, diagram: input.diagram ?? null };
+  save(input: ReviewSave): void {
+    const { proofFiles, ...review } = input;
+    const row = {
+      ...review,
+      diagram: review.diagram ?? null,
+      proof: review.proof ?? null,
+    };
+    const files = (proofFiles ?? []).map((file) => ({
+      worktreeId: review.worktreeId,
+      id: file.id,
+      mediaType: file.mediaType,
+      bytes: Buffer.from(
+        file.bytes.buffer,
+        file.bytes.byteOffset,
+        file.bytes.byteLength,
+      ),
+    }));
     this.db.transaction(
       (tx) => {
         tx.insert(reviews)
           .values(row)
           .onConflictDoUpdate({ target: reviews.worktreeId, set: row })
           .run();
+        tx.delete(reviewProofFiles)
+          .where(eq(reviewProofFiles.worktreeId, review.worktreeId))
+          .run();
+        for (const file of files)
+          tx.insert(reviewProofFiles).values(file).run();
       },
       { behavior: 'immediate' },
+    );
+  }
+
+  readProofFile(input: ProofFileKey): ProofFile | undefined {
+    const row = this.db
+      .select({
+        id: reviewProofFiles.id,
+        mediaType: reviewProofFiles.mediaType,
+        bytes: reviewProofFiles.bytes,
+      })
+      .from(reviewProofFiles)
+      .where(
+        and(
+          eq(reviewProofFiles.worktreeId, input.worktreeId),
+          eq(reviewProofFiles.id, input.proofId),
+        ),
+      )
+      .get();
+    return (
+      row && {
+        id: row.id,
+        mediaType: row.mediaType,
+        bytes: new Uint8Array(row.bytes),
+      }
     );
   }
 
