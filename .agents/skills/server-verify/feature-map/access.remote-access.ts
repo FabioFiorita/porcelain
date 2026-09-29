@@ -27,6 +27,13 @@ const notAnswered = apiError(
 );
 const remoteAccess = { method: 'GET', path: '/api/remote-access' } as const;
 const fixtureNetwork = { interfaceName: 'eth0', subnet: '192.168.1.0/24' };
+const tailnetHost = 'porcelain.tail0000.ts.net';
+const throughTailnet = {
+  method: 'GET',
+  path: '/api/health',
+  auth: 'none',
+  headers: { host: tailnetHost },
+} as const;
 const throughTunnel = {
   method: 'GET',
   path: '/api/health',
@@ -55,7 +62,7 @@ export default defineFeature({
   paired: true,
   intent: 'intended',
   behaviour:
-    "A paired browser on the computer that runs Porcelain turns the ways in on and off: the local network, the Tailscale tailnet and the user's own Cloudflare tunnel with its public hostname. The choice is saved; each route reports whether it is off, starting, on with the addresses it serves, or failed with a reason. Turning the local network on records the network the computer is on, the private IPv4 network of the physical interface that carries the default route, and the server listens there only, never on Docker, libvirt or VPN interfaces, and pauses on any other network (the fixture's computer is on 192.168.1.0/24 through eth0 at 192.168.1.20, with a Docker bridge and a VPN beside it, and has no tailnet); it listens at the tailnet addresses, and it answers to the tunnel hostname only while Cloudflare is on; it checks the tunnel by asking its own health through the hostname (the fixture's tunnel reaches this server for any hostname except one under .invalid, which nothing answers). An address that a route serves can be named in a pairing link. Turning Cloudflare on needs a readable public HTTPS hostname. As with pairing, only a request from this computer's loopback listener may change them, so a device that came in through a route cannot.",
+    "A paired browser on the computer that runs Porcelain turns the ways in on and off: the local network, the Tailscale tailnet and the user's own Cloudflare tunnel with its public hostname. The choice is saved; each route reports whether it is off, starting, on with the addresses it serves, or failed with a reason. Turning the local network on records the network the computer is on, the private IPv4 network of the physical interface that carries the default route, and the server listens there only, never on Docker, libvirt or VPN interfaces, and pauses on any other network (the fixture's computer is on 192.168.1.0/24 through eth0 at 192.168.1.20, with a Docker bridge and a VPN beside it, and has no tailnet); Turning the tailnet on has Tailscale Serve the server over HTTPS at the computer's MagicDNS name through a loopback listener of its own (the fixture's Tailscale runs with HTTPS certificates as porcelain.tail0000.ts.net and serves what it is asked to), and the server answers to that name while it is served, and it answers to the tunnel hostname only while Cloudflare is on; it checks the tunnel by asking its own health through the hostname (the fixture's tunnel reaches this server for any hostname except one under .invalid, which nothing answers). An address that a route serves can be named in a pairing link. Turning Cloudflare on needs a readable public HTTPS hostname. As with pairing, only a request from this computer's loopback listener may change them, so a device that came in through a route cannot.",
   cases: [
     defineCase({
       name: 'every route is off at first',
@@ -166,8 +173,8 @@ export default defineFeature({
           [status(opened, 'lan').urls].flat()[0],
         );
         check(
-          'the tailnet fails for want of an address',
-          { kind: 'failed', reason: 'no-address' },
+          'Tailscale serves the tailnet over HTTPS at its name',
+          { kind: 'on', urls: [`https://${tailnetHost}`] },
           status(settledTailnet, 'tailnet'),
         );
         const link = await read(session, {
@@ -182,6 +189,23 @@ export default defineFeature({
           'a link can name the address',
           issuePairingResponseSchema,
           link,
+        );
+        const tailnetLink = await read(session, {
+          method: 'POST',
+          path: '/api/pairings',
+          body: { labels: ['Tablet'], addresses: [`https://${tailnetHost}`] },
+        });
+        check(
+          'a link can name the tailnet',
+          [`https://${tailnetHost}`],
+          record(record([tailnetLink.grants].flat()[0]).grant).addresses,
+        );
+        const answered = await session.send(throughTailnet);
+        check('the tailnet name is answered status', 200, answered.status);
+        check(
+          'the tailnet name is answered body',
+          'ok',
+          record(answered.body).status,
         );
       },
     }),
@@ -220,6 +244,39 @@ export default defineFeature({
             400,
             'Bad Request',
             'This server does not answer at that address, so a link aimed there would not reach it.',
+          ),
+          refused.body,
+        );
+      },
+    }),
+    defineCase({
+      name: 'turn the tailnet off',
+      setup: (session) => settled(session, 'tailnet', 'on'),
+      request: () => ({
+        method: 'PATCH',
+        path: '/api/remote-access',
+        body: { tailnet: false },
+      }),
+      async expect({ response, state, session, check }) {
+        check('status', 200, response.status);
+        check(
+          'saved off, still served until it stops',
+          { enabled: false, status: status(state, 'tailnet') },
+          routes(record(response.body)).tailnet,
+        );
+        check(
+          'the route stops',
+          { enabled: false, status: { kind: 'off' } },
+          routes(await settled(session, 'tailnet', 'off')).tailnet,
+        );
+        const refused = await session.send(throughTailnet);
+        check('the tailnet name is refused status', 403, refused.status);
+        check(
+          'the tailnet name is refused body',
+          apiError(
+            403,
+            'Forbidden',
+            `This server does not answer to the host ${tailnetHost}`,
           ),
           refused.body,
         );

@@ -24,7 +24,7 @@ import {
 const descriptions: Record<RemoteRouteName, string> = {
   lan: 'Phones and computers on the same Wi-Fi or wired network as this computer, on that one network only.',
   tailnet:
-    'Your devices signed in to Tailscale, from anywhere. Tailscale must be running on this computer.',
+    'Your devices signed in to Tailscale, from anywhere, encrypted and over HTTPS at this computer’s Tailscale name. Porcelain runs tailscale serve for you while this is on.',
   cloudflare:
     'Your own Cloudflare tunnel and hostname, over HTTPS from anywhere.',
 };

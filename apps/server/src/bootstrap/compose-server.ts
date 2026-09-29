@@ -2,6 +2,8 @@ import type { Server } from 'node:http';
 import type {
   NetworkAddressReader,
   RouteListenerRunner,
+  TailnetServeRunner,
+  TailnetStatusReader,
   TunnelProbe,
 } from '@porcelain/access/ports';
 import { createCommitPlanner } from '@porcelain/agents/commit-planning';
@@ -18,6 +20,8 @@ import { HttpTunnelProbe } from '../adapters/access/http-tunnel-probe.ts';
 import { InMemoryTunnelConnectionStore } from '../adapters/access/in-memory-tunnel-connection-store.ts';
 import { OsNetworkAddressReader } from '../adapters/access/os-network-address-reader.ts';
 import { ProcessRuntimeStatusReader } from '../adapters/access/process-runtime-status-reader.ts';
+import { ProcessTailnetServeRunner } from '../adapters/access/process-tailnet-serve-runner.ts';
+import { ProcessTailnetStatusReader } from '../adapters/access/process-tailnet-status-reader.ts';
 import { ParcelWorktreeWatcher } from '../adapters/events/parcel-worktree-watcher.ts';
 import { WebSocketEventPublisher } from '../adapters/events/web-socket-event-publisher.ts';
 import { ProcessCommitDraftSource } from '../adapters/git-actions/process-commit-draft-source.ts';
@@ -28,6 +32,7 @@ import { RandomIdSource } from '../adapters/runtime/random-id-source.ts';
 import { StderrLogger } from '../adapters/runtime/stderr-logger.ts';
 import { SystemClock } from '../adapters/runtime/system-clock.ts';
 import { FilesystemWebRootReader } from '../adapters/web/filesystem-web-root-reader.ts';
+import type { Limits } from '../config/limits.ts';
 import { operationDeadlineMs } from '../config/operation-deadline.ts';
 import { createOwnerServer } from '../http/owner-server.ts';
 import { createNetworkServer } from '../http/server.ts';
@@ -61,6 +66,10 @@ import { composeStores } from './compose-stores.ts';
 type RemoteRouteAdapters = {
   networkAddressReader: NetworkAddressReader;
   routeListenerRunner: (target: () => Server) => RouteListenerRunner;
+  tailnet: (limits: Limits['access']['tailscale']) => {
+    status: TailnetStatusReader;
+    serve: TailnetServeRunner;
+  };
   tunnelProbe: (options: { timeoutMs: number }) => TunnelProbe;
 };
 
@@ -127,6 +136,7 @@ const openServerWith =
       serviceUpdateRunner: host.serviceUpdateRunner,
       networkAddressReader: adapters.networkAddressReader,
       routeListenerRunner,
+      tailnet: adapters.tailnet(limits.access.tailscale),
       tunnelProbe: adapters.tunnelProbe({
         timeoutMs: limits.access.remoteAccess.probeTimeoutMs,
       }),
@@ -213,6 +223,12 @@ const openServerWith =
         logger,
       ),
       new IntervalJob(
+        'close-remote-routes',
+        access.closeRemoteRoutes,
+        { atStop: true },
+        logger,
+      ),
+      new IntervalJob(
         'heartbeat',
         new LiveHeartbeat(liveConnections),
         { everyMs: limits.liveUpdates.heartbeatMs },
@@ -265,5 +281,9 @@ export const composeServer =
 export const startServer: StartServer = composeServer({
   networkAddressReader: new OsNetworkAddressReader(),
   routeListenerRunner: (target) => new HttpRouteListenerRunner(target),
+  tailnet: (limits) => ({
+    status: new ProcessTailnetStatusReader(limits),
+    serve: new ProcessTailnetServeRunner(limits),
+  }),
   tunnelProbe: (options) => new HttpTunnelProbe(options),
 });

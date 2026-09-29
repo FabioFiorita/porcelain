@@ -3,6 +3,7 @@ import type {
   IdentifyRequestClientInput,
   RequestClient,
 } from '../models/identify-request-client.ts';
+import type { TailnetProxy } from '../models/remote-access.ts';
 import {
   canonicalHostname,
   ipAddress,
@@ -37,9 +38,23 @@ function networkRoute(localAddress: string | undefined): DeviceRoute {
     : 'lan';
 }
 
+function throughTailnetProxy(
+  input: IdentifyRequestClientInput,
+  local: string | undefined,
+  proxy: TailnetProxy | undefined,
+): boolean {
+  return (
+    proxy !== undefined &&
+    local !== undefined &&
+    local === canonicalHostname(proxy.address) &&
+    input.localPort === proxy.port
+  );
+}
+
 export function requestClient(
   input: IdentifyRequestClientInput,
   tunnelHosts: readonly string[],
+  tailnetProxy?: TailnetProxy,
 ): RequestClient {
   const plain = {
     address: input.peerAddress,
@@ -49,6 +64,15 @@ export function requestClient(
     input.localAddress === undefined
       ? undefined
       : canonicalHostname(input.localAddress);
+  if (throughTailnetProxy(input, local, tailnetProxy))
+    return {
+      route: 'tailnet',
+      address:
+        (input.forwardedFor === undefined
+          ? undefined
+          : ipAddress(input.forwardedFor)) ?? input.peerAddress,
+      secure: true,
+    };
   if (local === undefined || !isLoopbackHostname(local))
     return { route: networkRoute(local), ...plain };
   const tunnelHostname = tunnelHostnameOf(input.host, tunnelHosts);

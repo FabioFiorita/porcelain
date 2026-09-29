@@ -3,6 +3,7 @@ import type { IdentifyRequestClientUseCasePort } from '../../ports/identify-requ
 import { headerValue } from './header-value.ts';
 
 const CONNECTING_ADDRESS_HEADER = 'cf-connecting-ip';
+const FORWARDED_FOR_HEADER = 'x-forwarded-for';
 
 export type RequestClientOptions = {
   access: { identifyRequestClient: IdentifyRequestClientUseCasePort };
@@ -19,13 +20,15 @@ export function identifyRequestClient(
         scheme: request.protocol,
         peerAddress: request.ip,
         localAddress: request.socket.localAddress,
+        localPort: request.socket.localPort,
         connectingAddress: headerValue(
           request.headers[CONNECTING_ADDRESS_HEADER],
         ),
+        forwardedFor: headerValue(request.headers[FORWARDED_FOR_HEADER]),
       },
       { signal: request.disconnected },
     );
-    if (request.client.tunnelHostname !== undefined)
+    if (request.client.secure)
       reply.header(
         'Strict-Transport-Security',
         `max-age=${strictTransport.maxAgeSeconds}`,

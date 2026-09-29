@@ -10,6 +10,12 @@ import { IdentifyRequestClientService } from './identify-request-client-service.
 const tunnelHost = 'porcelain.example.com';
 const visitor = '203.0.113.7';
 
+const tailnetProxy = {
+  hostname: 'laptop.tail0000.ts.net',
+  address: '127.0.0.1',
+  port: 41000,
+};
+
 function identify(
   request: Partial<IdentifyRequestClientInput>,
   tunnel: { enabled?: boolean; state?: RouteState } = {},
@@ -29,13 +35,16 @@ function identify(
       cloudflare: tunnel.state ?? { kind: 'on', urls: [] },
     },
     origins: [],
+    tailnetProxy,
   });
   return new IdentifyRequestClientService(settings, routes).execute({
     host: tunnelHost,
     scheme: 'http',
     peerAddress: '127.0.0.1',
     localAddress: '127.0.0.1',
+    localPort: 4173,
     connectingAddress: visitor,
+    forwardedFor: undefined,
     ...request,
   });
 }
@@ -163,5 +172,49 @@ describe('IdentifyRequestClientService', () => {
 
   it('takes a request whose listener address is unknown as the local network', () => {
     expect(identify({ localAddress: undefined }).route).toBe('lan');
+  });
+
+  it('takes a request on the loopback listener Tailscale Serve forwards to as the tailnet, secure, from the tailnet address it names', () => {
+    expect(
+      identify({
+        host: tailnetProxy.hostname,
+        localPort: tailnetProxy.port,
+        forwardedFor: '100.64.0.9',
+      }),
+    ).toEqual({ route: 'tailnet', address: '100.64.0.9', secure: true });
+  });
+
+  it('takes the Serve listener as the tailnet whatever host the request names', () => {
+    expect(
+      identify({ localPort: tailnetProxy.port, forwardedFor: undefined }),
+    ).toEqual({ route: 'tailnet', address: '127.0.0.1', secure: true });
+  });
+
+  it.each(['100.64.0.9, 203.0.113.7', 'laptop', ''])(
+    'keeps the socket address when Serve names the client as %j',
+    (forwardedFor) => {
+      expect(
+        identify({ localPort: tailnetProxy.port, forwardedFor }).address,
+      ).toBe('127.0.0.1');
+    },
+  );
+
+  it('never trusts a forwarded address on the main loopback listener', () => {
+    expect(
+      identify({
+        host: tailnetProxy.hostname,
+        forwardedFor: '100.64.0.9',
+      }),
+    ).toEqual({ route: 'loopback', address: '127.0.0.1', secure: false });
+  });
+
+  it('does not take a listener at another address on the same port for the Serve listener', () => {
+    expect(
+      identify({
+        localAddress: '192.168.1.20',
+        localPort: tailnetProxy.port,
+        peerAddress: '192.168.1.30',
+      }).route,
+    ).toBe('lan');
   });
 });

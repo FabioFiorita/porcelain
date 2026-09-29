@@ -162,6 +162,13 @@
       "when": 1790700757869,
       "tag": "0022_lan_network",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "6",
+      "when": 1790701825798,
+      "tag": "0023_tailnet_serve_target",
+      "breakpoints": true
     }
   ]
 }

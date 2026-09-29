@@ -15,6 +15,11 @@ type Bind =
   | { kind: 'bound'; bound: Bound }
   | { kind: 'failed'; failure: 'address-in-use' | 'address-unavailable' };
 
+function listeningPort(bound: Bound): number {
+  const address = bound.server.address();
+  return address === null || typeof address === 'string' ? 0 : address.port;
+}
+
 export class HttpRouteListenerRunner implements RouteListenerRunner {
   private readonly target: () => Server;
   private readonly routes = new Map<ListenedRoute, Map<string, Bound>>();
@@ -27,7 +32,7 @@ export class HttpRouteListenerRunner implements RouteListenerRunner {
     input: RouteAddresses,
     signal: AbortSignal,
   ): Promise<ListenOutcome> {
-    const port = await this.port(signal);
+    const shared = input.port === 'server' ? await this.port(signal) : 0;
     const open = this.routes.get(input.route) ?? new Map<string, Bound>();
     this.routes.set(input.route, open);
     for (const [address, bound] of open)
@@ -38,16 +43,18 @@ export class HttpRouteListenerRunner implements RouteListenerRunner {
     const failures: ('address-in-use' | 'address-unavailable')[] = [];
     for (const address of input.addresses) {
       if (open.has(address)) continue;
-      const result = await this.bind(address, port);
+      const result = await this.bind(address, shared);
       if (result.kind === 'bound') open.set(address, result.bound);
       else failures.push(result.failure);
     }
     const failure = failures.includes('address-in-use')
       ? 'address-in-use'
       : failures[0];
+    const bound = input.addresses.filter((address) => open.has(address));
+    const first = bound[0] === undefined ? undefined : open.get(bound[0]);
     return {
-      port,
-      bound: input.addresses.filter((address) => open.has(address)),
+      port: input.port === 'server' || !first ? shared : listeningPort(first),
+      bound,
       ...(failure === undefined ? {} : { failure }),
     };
   }

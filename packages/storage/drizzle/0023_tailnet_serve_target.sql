@@ -1,0 +1,1 @@
+ALTER TABLE `remote_access` ADD `tailnet_serve_target` text;

@@ -24,6 +24,9 @@ export class SqliteRemoteAccessStore implements RemoteAccessStore {
             },
           }),
       tailnet: row.tailnet,
+      ...(row.tailnetServeTarget === null
+        ? {}
+        : { tailnetServeTarget: row.tailnetServeTarget }),
       cloudflare: row.cloudflare,
       ...(row.cloudflareHostname === null
         ? {}
@@ -37,6 +40,7 @@ export class SqliteRemoteAccessStore implements RemoteAccessStore {
       lanInterface: input.lanNetwork?.interfaceName ?? null,
       lanSubnet: input.lanNetwork?.subnet ?? null,
       tailnet: input.tailnet,
+      tailnetServeTarget: input.tailnetServeTarget ?? null,
       cloudflare: input.cloudflare,
       cloudflareHostname: input.cloudflareHostname ?? null,
     };

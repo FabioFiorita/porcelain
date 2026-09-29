@@ -3,6 +3,8 @@ import type {
   PairingReachReader,
   RouteListenerRunner,
   RuntimeStatusReader,
+  TailnetServeRunner,
+  TailnetStatusReader,
   TunnelProbe,
 } from '@porcelain/access/ports';
 import {
@@ -32,6 +34,7 @@ import type { DeviceConnectionStore } from '../ports/device-connection-store.ts'
 import type { TunnelConnectionStore } from '../ports/tunnel-connection-store.ts';
 import { AuthenticateDeviceUseCase } from '../use-cases/access/authenticate-device.ts';
 import { CheckLocalRequestUseCase } from '../use-cases/access/check-local-request.ts';
+import { CloseRemoteRoutesUseCase } from '../use-cases/access/close-remote-routes.ts';
 import { CheckRequestOriginUseCase } from '../use-cases/access/check-request-origin.ts';
 import { IdentifyRequestClientUseCase } from '../use-cases/access/identify-request-client.ts';
 import { OpenRemoteRoutesUseCase } from '../use-cases/access/open-remote-routes.ts';
@@ -65,8 +68,11 @@ type AccessDependencies = {
   serviceUpdateRunner: ServiceUpdateRunner;
   networkAddressReader: NetworkAddressReader;
   routeListenerRunner: RouteListenerRunner;
+  tailnet: { status: TailnetStatusReader; serve: TailnetServeRunner };
   tunnelProbe: TunnelProbe;
 };
+
+const LOOPBACK_ADDRESS = '127.0.0.1';
 
 export function composeAccess(
   context: ComposeContext,
@@ -80,7 +86,10 @@ export function composeAccess(
     routeStates,
     dependencies.networkAddressReader,
     dependencies.routeListenerRunner,
+    dependencies.tailnet.status,
+    dependencies.tailnet.serve,
     dependencies.tunnelProbe,
+    { loopbackAddress: LOOPBACK_ADDRESS },
   );
   const closeTunnelConnections = new CloseTunnelConnectionsService(
     remoteAccess,
@@ -171,6 +180,12 @@ export function composeAccess(
     openRemoteRoutes: new OpenRemoteRoutesUseCase(
       openRemoteRoutes,
       closeTunnelConnections,
+      readEnvironment,
+      lanes,
+      laneKeys,
+    ),
+    closeRemoteRoutes: new CloseRemoteRoutesUseCase(
+      openRemoteRoutes,
       readEnvironment,
       lanes,
       laneKeys,

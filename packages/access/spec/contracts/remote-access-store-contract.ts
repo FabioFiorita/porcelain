@@ -66,6 +66,27 @@ export function remoteAccessStoreContract(
       });
     });
 
+    it('reads back the Tailscale Serve target it saved, and forgets it when a save leaves it out', () => {
+      opened.store.save({
+        lan: false,
+        tailnet: true,
+        tailnetServeTarget: 'http://127.0.0.1:41000',
+        cloudflare: false,
+      });
+      expect(opened.store.read()).toEqual({
+        lan: false,
+        tailnet: true,
+        tailnetServeTarget: 'http://127.0.0.1:41000',
+        cloudflare: false,
+      });
+      opened.store.save({ lan: false, tailnet: true, cloudflare: false });
+      expect(opened.store.read()).toEqual({
+        lan: false,
+        tailnet: true,
+        cloudflare: false,
+      });
+    });
+
     it('forgets the tunnel hostname when a save leaves it out', () => {
       opened.store.save({
         lan: false,

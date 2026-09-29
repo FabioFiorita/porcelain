@@ -1,7 +1,7 @@
 import type {
   ListenOutcome,
   LocalNetwork,
-  NetworkAddress,
+  RemoteRoutes,
   RemoteAccess,
   RemoteAccessChange,
   RemoteAccessDecision,
@@ -13,42 +13,11 @@ import type {
 
 const TAILNET_IPV4 = /^100\.(?:6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./;
 const TAILNET_IPV6 = /^fd7a:115c:a1e0:/i;
-const TAILSCALE_INTERFACE = 'tailscale0';
 const HOSTNAME_LABEL = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
 const NUMERIC_LABEL = /^\d+$/;
 
 export function isTailnetAddress(address: string): boolean {
   return TAILNET_IPV4.test(address) || TAILNET_IPV6.test(address);
-}
-
-function tailnetInterfaces(addresses: readonly NetworkAddress[]): Set<string> {
-  return new Set(
-    addresses
-      .filter(
-        (entry) =>
-          entry.interfaceName === TAILSCALE_INTERFACE ||
-          (entry.family === 'IPv6' && TAILNET_IPV6.test(entry.address)),
-      )
-      .map((entry) => entry.interfaceName),
-  );
-}
-
-export function tailnetAddresses(
-  addresses: readonly NetworkAddress[],
-): string[] {
-  const interfaces = tailnetInterfaces(addresses);
-  const found = addresses.filter(
-    (entry) =>
-      !entry.internal &&
-      interfaces.has(entry.interfaceName) &&
-      (entry.family === 'IPv4'
-        ? TAILNET_IPV4.test(entry.address)
-        : TAILNET_IPV6.test(entry.address)),
-  );
-  return [
-    ...found.filter((entry) => entry.family === 'IPv4'),
-    ...found.filter((entry) => entry.family !== 'IPv4'),
-  ].map((entry) => entry.address);
 }
 
 export function tunnelHostname(
@@ -107,11 +76,7 @@ function routeUrl(address: string, port: number): string {
     : `http://${address}:${port}`;
 }
 
-export function listenedState(
-  addresses: readonly string[],
-  outcome: ListenOutcome,
-): RouteState {
-  if (addresses.length === 0) return { kind: 'failed', reason: 'no-address' };
+export function listenedState(outcome: ListenOutcome): RouteState {
   if (outcome.bound.length === 0)
     return {
       kind: 'failed',
@@ -121,6 +86,18 @@ export function listenedState(
     kind: 'on',
     urls: outcome.bound.map((address) => routeUrl(address, outcome.port)),
   };
+}
+
+export function httpsHosts(
+  settings: RemoteAccessSettings,
+  routes: RemoteRoutes,
+): string[] {
+  return [
+    ...answeredTunnelHosts(settings, routes.states),
+    ...(routes.tailnetProxy === undefined
+      ? []
+      : [routes.tailnetProxy.hostname]),
+  ];
 }
 
 export function tunnelState(
@@ -185,6 +162,9 @@ export function changedRemoteAccess(
       lan: lan.lan,
       ...(lan.lanNetwork === undefined ? {} : { lanNetwork: lan.lanNetwork }),
       tailnet: change.tailnet ?? current.tailnet,
+      ...(current.tailnetServeTarget === undefined
+        ? {}
+        : { tailnetServeTarget: current.tailnetServeTarget }),
       cloudflare,
       ...(hostname === undefined ? {} : { cloudflareHostname: hostname }),
     },

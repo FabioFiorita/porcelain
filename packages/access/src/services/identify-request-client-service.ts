@@ -17,12 +17,11 @@ export class IdentifyRequestClientService {
   }
 
   execute(input: IdentifyRequestClientInput): RequestClient {
+    const routes = this.routeStates.read();
     return requestClient(
       input,
-      answeredTunnelHosts(
-        this.remoteAccess.read(),
-        this.routeStates.read().states,
-      ),
+      answeredTunnelHosts(this.remoteAccess.read(), routes.states),
+      routes.tailnetProxy,
     );
   }
 }

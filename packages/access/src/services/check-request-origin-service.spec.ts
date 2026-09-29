@@ -58,4 +58,43 @@ describe('CheckRequestOriginService', () => {
       refusal: { kind: 'host-not-allowed', hostname: tunnelHost },
     });
   });
+
+  it('answers the tailnet name Tailscale Serves this server at, as an HTTPS origin, and refuses it once nothing serves it', () => {
+    const settings = new InMemoryRemoteAccessStore();
+    settings.save({ lan: false, tailnet: true, cloudflare: false });
+    const routes = new InMemoryRouteStateStore();
+    const hostname = 'laptop.tail0000.ts.net';
+    const on = {
+      states: {
+        lan: { kind: 'off' as const },
+        tailnet: { kind: 'on' as const, urls: [`https://${hostname}`] },
+        cloudflare: { kind: 'off' as const },
+      },
+      origins: [`https://${hostname}`],
+      tailnetProxy: { hostname, address: '127.0.0.1', port: 41000 },
+    };
+    routes.save(on);
+    const service = new CheckRequestOriginService(settings, routes);
+    const write = (origin: string) =>
+      service.execute({
+        host: hostname,
+        origin,
+        method: 'POST',
+        scheme: 'http',
+        localAddress: '127.0.0.1',
+        allowedHosts: [],
+        requireSameOrigin: false,
+      });
+
+    expect(write(`https://${hostname}`)).toEqual({ kind: 'allowed' });
+    expect(write(`http://${hostname}`)).toEqual({
+      kind: 'refused',
+      refusal: { kind: 'cross-origin', origin: `http://${hostname}` },
+    });
+    routes.save({ ...on, tailnetProxy: undefined });
+    expect(write(`https://${hostname}`)).toEqual({
+      kind: 'refused',
+      refusal: { kind: 'host-not-allowed', hostname },
+    });
+  });
 });

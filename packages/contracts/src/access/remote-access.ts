@@ -9,11 +9,17 @@ const routeStateSchema = z.discriminatedUnion('kind', [
   z.object({
     kind: z.literal('failed'),
     reason: z.enum([
-      'no-address',
       'address-in-use',
       'address-unavailable',
       'unreachable',
       'other-server',
+      'tailscale-missing',
+      'tailscale-unavailable',
+      'tailscale-stopped',
+      'https-disabled',
+      'serve-denied',
+      'serve-taken',
+      'serve-failed',
     ]),
   }),
 ]);

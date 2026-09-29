@@ -49,6 +49,12 @@ export type Limits = {
       probeTimeoutMs: number;
       strictTransportMaxAgeSeconds: number;
     };
+    tailscale: {
+      httpsPort: number;
+      commandTimeoutMs: number;
+      outputBytes: number;
+      processGroup: ProcessGroupLimits;
+    };
     pairingAttempts: {
       windowMs: number;
       attemptsPerPeer: number;
@@ -233,6 +239,12 @@ export const LIMITS: Limits = {
       hostnameLength: TUNNEL_HOSTNAME_LENGTH,
       probeTimeoutMs: 5 * SECOND_MS,
       strictTransportMaxAgeSeconds: YEAR_MS / SECOND_MS,
+    },
+    tailscale: {
+      httpsPort: 443,
+      commandTimeoutMs: 10 * SECOND_MS,
+      outputBytes: MEBIBYTE,
+      processGroup: PROCESS_GROUP,
     },
     pairingAttempts: {
       windowMs: MINUTE_MS,

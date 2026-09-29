@@ -14,14 +14,14 @@ function refused(refusal: RequestOriginRefusal): CheckRequestOriginResult {
 
 export function requestOriginCheck(
   input: CheckRequestOriginInput,
-  tunnelHosts: readonly string[] = [],
+  httpsHosts: readonly string[] = [],
 ): CheckRequestOriginResult {
   const authority =
     input.host === undefined ? undefined : requestAuthority(input.host);
   if (authority === undefined) return refused({ kind: 'host-malformed' });
-  const tunnel = tunnelHosts.includes(authority.hostname);
+  const proxied = httpsHosts.includes(authority.hostname);
   const policy = {
-    allowedHosts: [...input.allowedHosts, ...tunnelHosts],
+    allowedHosts: [...input.allowedHosts, ...httpsHosts],
     localAddresses:
       input.localAddress === undefined ? [] : [input.localAddress],
   };
@@ -37,7 +37,7 @@ export function requestOriginCheck(
   const origin = URL.parse(input.origin);
   if (!origin) return refused({ kind: 'origin-malformed' });
   const scheme = origin.protocol.replace(/:$/, '');
-  const requestScheme = tunnel ? 'https' : input.scheme;
+  const requestScheme = proxied ? 'https' : input.scheme;
   const sameOrigin =
     scheme === requestScheme &&
     canonicalHostname(origin.hostname) === authority.hostname &&

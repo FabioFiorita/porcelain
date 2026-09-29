@@ -5,7 +5,9 @@ export type IdentifyRequestClientInput = {
   scheme: string;
   peerAddress: string;
   localAddress: string | undefined;
+  localPort: number | undefined;
   connectingAddress: string | undefined;
+  forwardedFor: string | undefined;
 };
 
 export type RequestClient = {

@@ -11,4 +11,6 @@ export type { NetworkAddressReader } from './network-address-reader.ts';
 export type { RemoteAccessStore } from './remote-access-store.ts';
 export type { RouteListenerRunner } from './route-listener-runner.ts';
 export type { RouteStateStore } from './route-state-store.ts';
+export type { TailnetServeRunner } from './tailnet-serve-runner.ts';
+export type { TailnetStatusReader } from './tailnet-status-reader.ts';
 export type { TunnelProbe } from './tunnel-probe.ts';

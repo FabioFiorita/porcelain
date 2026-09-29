@@ -1,7 +1,7 @@
 import { expect } from 'vitest';
 import { test } from '../kit/journey';
 
-test('turning the ways in on and off from Settings shows each one starting, then serving its address or failing with a reason, and the local network warns it is not encrypted and names its one network', async ({
+test('turning the ways in on and off from Settings shows each one starting, then serving its address, the tailnet over HTTPS at its Tailscale name, and the local network warns it is not encrypted and names its one network', async ({
   pairedPage,
   server,
 }) => {
@@ -40,8 +40,14 @@ test('turning the ways in on and off from Settings shows each one starting, then
 
   await settings.getByRole('switch', { name: 'Tailscale' }).click();
   await expect
-    .element(settings.getByText('Tailscale is not connected on this computer.'))
+    .element(settings.getByText('https://porcelain.tail0000.ts.net'))
     .toBeVisible();
+  await expect
+    .poll(async () => (await server.remoteAccess()).routes.tailnet)
+    .toEqual({
+      enabled: true,
+      status: { kind: 'on', urls: ['https://porcelain.tail0000.ts.net'] },
+    });
 
   const tunnel = settings.getByRole('switch', { name: 'Cloudflare tunnel' });
   await expect.element(tunnel).toBeDisabled();

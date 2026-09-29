@@ -104,17 +104,29 @@ export function routeFailure(
   reason: Extract<RemoteRoute['status'], { kind: 'failed' }>['reason'],
 ): string {
   switch (reason) {
-    case 'no-address':
-      return route === 'tailnet'
-        ? 'Tailscale is not connected on this computer.'
-        : 'This computer is not on a local network.';
     case 'address-in-use':
       return 'Another program already listens on this port.';
     case 'address-unavailable':
-      return 'This computer could not listen at its address.';
+      return route === 'tailnet'
+        ? 'Porcelain could not open the local listener Tailscale forwards to.'
+        : 'This computer could not listen at its address.';
     case 'unreachable':
       return 'Nothing answered at this hostname. Check that cloudflared is running and routes it here.';
     case 'other-server':
       return 'Another server answered at this hostname.';
+    case 'tailscale-missing':
+      return 'Tailscale is not installed on this computer. Install it from tailscale.com/download and sign in.';
+    case 'tailscale-unavailable':
+      return 'Porcelain could not ask Tailscale for its status. Check that the Tailscale service runs: systemctl status tailscaled.';
+    case 'tailscale-stopped':
+      return 'Tailscale is not connected on this computer. Run tailscale up and sign in.';
+    case 'https-disabled':
+      return 'HTTPS is off for your tailnet. In the Tailscale admin console, under DNS, turn on MagicDNS and HTTPS Certificates.';
+    case 'serve-denied':
+      return 'Tailscale does not let Porcelain change Serve. Run sudo tailscale set --operator=$USER once on this computer.';
+    case 'serve-taken':
+      return 'Tailscale Serve already shares something else on HTTPS port 443 of this computer. Remove it with tailscale serve --https=443 off to share Porcelain there.';
+    case 'serve-failed':
+      return 'Tailscale could not start serving Porcelain. Check tailscale serve status on this computer.';
   }
 }
