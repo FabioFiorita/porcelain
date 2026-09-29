@@ -13,6 +13,7 @@ import {
 } from '../architecture/baseline.ts';
 import {
   allowedContractType,
+  allowedProcessImport,
   archRules,
   classify,
   domainPackages,
@@ -458,7 +459,9 @@ function dependencyFindings(
             module.source,
             to,
             dependency.dependencyTypes.includes('type-only'),
-          ) || entryImportsRouteTree(module.source, dependency.resolved)
+          ) ||
+          entryImportsRouteTree(module.source, dependency.resolved) ||
+          allowedProcessImport(module.source, to)
             ? undefined
             : violation(from, to);
         if (rule)
