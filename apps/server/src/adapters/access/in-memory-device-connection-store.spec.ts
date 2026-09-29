@@ -46,4 +46,20 @@ describe('InMemoryDeviceConnectionStore', () => {
     store.remove({ deviceId: 'phone' });
     expect(connection.timesClosed()).toBe(0);
   });
+
+  it('closes at once a connection a removed device registers afterwards, as one authenticated just before the revoke', () => {
+    const store = new InMemoryDeviceConnectionStore();
+    const late = new RecordingHeldConnection();
+    store.remove({ deviceId: 'phone' });
+    store.insert({ deviceId: 'phone', connection: late });
+    expect(late.timesClosed()).toBe(1);
+  });
+
+  it('keeps a connection of another device open after a device is removed', () => {
+    const store = new InMemoryDeviceConnectionStore();
+    const other = new RecordingHeldConnection();
+    store.remove({ deviceId: 'phone' });
+    store.insert({ deviceId: 'tablet', connection: other });
+    expect(other.timesClosed()).toBe(0);
+  });
 });

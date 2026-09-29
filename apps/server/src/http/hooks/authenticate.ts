@@ -34,6 +34,8 @@ export function authenticate(
     request.principal = { kind: 'device', deviceId: device.deviceId };
     if (!request.ws)
       holdUntilRevoked(reply, options.deviceConnections, device.deviceId);
+    if (reply.raw.destroyed)
+      throw httpErrors.unauthorized(AUTHENTICATION_REQUIRED);
     if (deviceCookie(request) === credential)
       setDeviceCookie(
         reply,
