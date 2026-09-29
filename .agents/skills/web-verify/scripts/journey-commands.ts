@@ -184,6 +184,8 @@ const porcelainRepo: BrowserCommand<[RepoStep], string> = async (
       return repository.git('commit', '--message', step.message);
     }
     if (step.kind === 'branch') return repository.git('branch', step.name);
+    if (step.kind === 'merge')
+      return repository.git('merge', '--no-ff', '--no-edit', step.name);
     if (step.kind === 'fifo') {
       await repository.fifo(step.path);
       return '';

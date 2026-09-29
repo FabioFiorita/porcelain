@@ -17,6 +17,8 @@ export async function sampleRepository() {
       hostCommands.porcelainRepo({ kind: 'branch', name }),
     switch: (name: string) =>
       hostCommands.porcelainRepo({ kind: 'switch', name }),
+    merge: (name: string) =>
+      hostCommands.porcelainRepo({ kind: 'merge', name }),
     worktree: (name: string) =>
       hostCommands.porcelainRepo({ kind: 'worktree', name }),
     fifo: (path: string) => hostCommands.porcelainRepo({ kind: 'fifo', path }),
