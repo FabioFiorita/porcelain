@@ -1,4 +1,5 @@
 import { GitBranchIcon } from 'lucide-react';
+import { Suspense } from 'react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAccessStore } from '@/features/access/index';
@@ -74,17 +75,6 @@ function BranchFiles({
 }) {
   const connection = useAccessStore((state) => state.connection);
   const changes = useBranchChanges(scope, connection, base);
-  const marks = useReviewedMarks(
-    scope,
-    context,
-    branchReviewRange(changes.data),
-  );
-  if (changes.isPending)
-    return (
-      <p role="status" className="p-3 text-xs text-muted-foreground">
-        Comparing the branch…
-      </p>
-    );
   if (changes.isError)
     return (
       <div role="alert" className="p-3 text-xs text-muted-foreground">
@@ -99,8 +89,8 @@ function BranchFiles({
         </Button>
       </div>
     );
-  const branch = changes.data;
-  if (branch.base == null)
+  if (changes.isPending || changes.data == null) return <ComparingBranch />;
+  if (changes.data.base == null)
     return (
       <div className="p-3">
         <ReviewEmpty
@@ -109,6 +99,45 @@ function BranchFiles({
         />
       </div>
     );
+  return (
+    <Suspense fallback={<ComparingBranch />}>
+      <BranchFileList
+        scope={scope}
+        context={context}
+        branch={changes.data}
+        activeEntry={activeEntry}
+        threads={threads}
+        onOpen={onOpen}
+      />
+    </Suspense>
+  );
+}
+
+function ComparingBranch() {
+  return (
+    <p role="status" className="p-3 text-xs text-muted-foreground">
+      Comparing the branch…
+    </p>
+  );
+}
+
+function BranchFileList({
+  scope,
+  context,
+  branch,
+  activeEntry,
+  threads,
+  onOpen,
+}: {
+  scope: ReviewScope;
+  context: ReviewsContext;
+  branch: NonNullable<ReturnType<typeof useBranchChanges>['data']>;
+  activeEntry: string | undefined;
+  threads: readonly CommentThread[];
+  onOpen: OpenDocument;
+}) {
+  const marks = useReviewedMarks(scope, context, branchReviewRange(branch));
+  if (branch.base == null) return null;
   const items = mergeBranchChanges(branch.files, marks);
   const head =
     branch.head.branch == null ? 'this commit' : branchName(branch.head.branch);
