@@ -18,6 +18,8 @@ export type InstalledRecord = z.output<typeof installedRecordSchema>;
 const updateJournalSchema = z.object({
   installed: installedRecordSchema,
   backup: z.string(),
+  target: z.string().optional(),
+  healthy: z.boolean().optional(),
 });
 export type UpdateJournal = z.output<typeof updateJournalSchema>;
 

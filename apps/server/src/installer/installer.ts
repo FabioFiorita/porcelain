@@ -19,6 +19,7 @@ import { readServiceStatus, type ServiceStatus } from './status.ts';
 import { SystemdService } from './systemd-service.ts';
 import { uninstall } from './uninstall.ts';
 import { update, type UpdateOutcome } from './update.ts';
+import { recoverService } from './recover-interrupted-update.ts';
 
 type InstallerOptions = {
   homeDirectory: string;
@@ -50,6 +51,10 @@ class Installer {
 
   update(allowDowngrade: boolean): Promise<UpdateOutcome> {
     return this.locked(() => update(this.context, allowDowngrade));
+  }
+
+  recover(): Promise<boolean> {
+    return this.locked(() => recoverService(this.context));
   }
 
   uninstall(): Promise<boolean> {

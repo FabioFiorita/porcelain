@@ -44,4 +44,38 @@ describe('recovery plan', () => {
       recoveryPlan({ journal, runtimeExists: false, previousExists: false }),
     ).toBe('unrecoverable');
   });
+
+  it('restores the previous runtime when the update stopped between moving the old runtime away and moving the new one in', () => {
+    expect(
+      recoveryPlan({ journal, runtimeExists: false, previousExists: true }),
+    ).toBe('restore-previous');
+  });
+
+  it('rolls back a new runtime that never proved healthy', () => {
+    expect(
+      recoveryPlan({
+        journal: { ...journal, target: '1.1.0' },
+        runtimeExists: true,
+        previousExists: true,
+      }),
+    ).toBe('restore-previous');
+  });
+
+  it('keeps a new runtime that came up healthy, and its database, however far the cleanup got', () => {
+    const healthy = { ...journal, target: '1.1.0', healthy: true };
+    expect(
+      recoveryPlan({
+        journal: healthy,
+        runtimeExists: true,
+        previousExists: true,
+      }),
+    ).toBe('finish-update');
+    expect(
+      recoveryPlan({
+        journal: healthy,
+        runtimeExists: true,
+        previousExists: false,
+      }),
+    ).toBe('finish-update');
+  });
 });

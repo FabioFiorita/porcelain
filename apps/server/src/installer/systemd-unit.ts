@@ -27,7 +27,7 @@ function unitValue(value: string): string {
   return output;
 }
 
-function unitArgument(value: string): string {
+export function unitArgument(value: string): string {
   return `"${unitValue(value)}"`;
 }
 

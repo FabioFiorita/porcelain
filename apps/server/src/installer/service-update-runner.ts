@@ -15,7 +15,8 @@ import {
 import { readUpdateRecord } from './records.ts';
 import { presentedUpdate, publishedVersion } from './update-record.ts';
 import { serviceSearchPath } from './search-path.ts';
-import { SERVICE_UNIT_NAME, UPDATE_UNIT_NAME } from './systemd-unit.ts';
+import { UPDATE_UNIT_NAME } from './systemd-unit.ts';
+import { updaterUnitArguments } from './updater-unit.ts';
 import { compareVersions } from './version-policy.ts';
 import { NotPackagedCliError } from './errors/not-packaged-cli-error.ts';
 
@@ -107,18 +108,17 @@ class InstalledServiceUpdateRunner implements ServiceUpdateRunner {
       this.paths.updater,
       target,
     );
-    const handedOff = await this.runner('systemd-run', [
-      '--user',
-      `--unit=${UPDATE_UNIT_NAME}`,
-      '--collect',
-      '--quiet',
-      `--property=ExecStopPost=systemctl --user start ${SERVICE_UNIT_NAME}`,
-      `--setenv=PATH=${serviceSearchPath(this.nodeExecutable, this.options.searchPath)}`,
-      this.nodeExecutable,
-      runtimeEntryPoint(this.paths.updater),
-      'service',
-      'update',
-    ]);
+    const handedOff = await this.runner(
+      'systemd-run',
+      updaterUnitArguments({
+        nodeExecutable: this.nodeExecutable,
+        entryPoint: runtimeEntryPoint(this.paths.updater),
+        searchPath: serviceSearchPath(
+          this.nodeExecutable,
+          this.options.searchPath,
+        ),
+      }),
+    );
     if (handedOff.code !== 0)
       throw new UpdateHandOffError(handedOff.stderr.trim());
   }

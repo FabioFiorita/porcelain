@@ -13,7 +13,7 @@ Commands:
   devices                  List pending pairing links and paired devices
   revoke <id>              Revoke a pending link or a paired device
   mcp                      Serve MCP over the local socket, for an agent
-  service <action>         Install, inspect, update, or uninstall the user service
+  service <action>         Install, inspect, update, recover, or uninstall the user service
   help                     Show this help
 
 Options:

@@ -29,6 +29,18 @@ export async function recoverInterruptedUpdate(
   if (plan === 'unrecoverable' || journal === undefined)
     throw new InterruptedUpdateUnrecoverableError();
   const configuration = await readServiceConfiguration(paths.configuration);
+  const progress = {
+    from: journal.installed.version,
+    target: journal.target ?? '',
+  };
+  if (plan === 'finish-update') {
+    await rm(paths.previousRuntime, { recursive: true, force: true });
+    await rm(paths.nextRuntime, { recursive: true, force: true });
+    await rm(paths.updateJournal, { force: true });
+    await writeJsonFile(paths.updateRecord, { ...progress, stage: 'updated' });
+    if (!(await systemd.probe()).running) await systemd.start();
+    return true;
+  }
   if ((await systemd.probe()).running) await systemd.stop();
   if (plan === 'restore-previous') {
     await rm(paths.runtime, { recursive: true, force: true });
@@ -42,5 +54,20 @@ export async function recoverInterruptedUpdate(
     throw new RestoredServiceUnhealthyError();
   await rm(paths.nextRuntime, { recursive: true, force: true });
   await rm(paths.updateJournal, { force: true });
+  await writeJsonFile(paths.updateRecord, {
+    ...progress,
+    stage: 'failed',
+    reason: `The update was interrupted, so Porcelain went back to ${journal.installed.version} and the database it had before the update.`,
+  });
+  return true;
+}
+
+export async function recoverService(
+  context: InstallerContext,
+): Promise<boolean> {
+  if (await recoverInterruptedUpdate(context)) return true;
+  if (!(await exists(context.paths.installed))) return false;
+  if ((await context.systemd.probe()).running) return false;
+  await context.systemd.start();
   return true;
 }

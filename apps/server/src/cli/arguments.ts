@@ -29,7 +29,7 @@ export type StatusSettings = {
   dataDirectory: string;
 };
 
-type ServiceAction = 'install' | 'status' | 'update' | 'uninstall';
+type ServiceAction = 'install' | 'status' | 'update' | 'recover' | 'uninstall';
 
 export type ServiceSettings = {
   action: ServiceAction;
@@ -171,10 +171,11 @@ function parseArguments(args: readonly string[]): ServeArguments {
       action !== 'install' &&
       action !== 'status' &&
       action !== 'update' &&
+      action !== 'recover' &&
       action !== 'uninstall'
     )
       throw new ServeConfigurationError(
-        'service needs one action: install, status, update, or uninstall',
+        'service needs one action: install, status, update, recover, or uninstall',
       );
     parsed.serviceAction = action;
     index = 2;

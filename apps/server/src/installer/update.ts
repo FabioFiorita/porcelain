@@ -42,15 +42,25 @@ export async function update(
   allowDowngrade: boolean,
 ): Promise<UpdateOutcome> {
   const { paths } = context;
-  await recoverInterruptedUpdate(context);
-  const installed = await readInstalledRecord(paths.installed);
-  if (installed === undefined) throw new NotInstalledError();
-  if (!allowDowngrade && isDowngrade(context.packageVersion, installed.version))
-    throw new ServiceDowngradeError(installed.version, context.packageVersion);
-  const configuration = await readServiceConfiguration(paths.configuration);
-  const progress = { from: installed.version, target: context.packageVersion };
-  await writeJsonFile(paths.updateRecord, { ...progress, stage: 'installing' });
+  let progress = { from: '', target: context.packageVersion };
   try {
+    await recoverInterruptedUpdate(context);
+    const installed = await readInstalledRecord(paths.installed);
+    if (installed === undefined) throw new NotInstalledError();
+    progress = { ...progress, from: installed.version };
+    if (
+      !allowDowngrade &&
+      isDowngrade(context.packageVersion, installed.version)
+    )
+      throw new ServiceDowngradeError(
+        installed.version,
+        context.packageVersion,
+      );
+    const configuration = await readServiceConfiguration(paths.configuration);
+    await writeJsonFile(paths.updateRecord, {
+      ...progress,
+      stage: 'installing',
+    });
     const outcome = await replaceRuntime(
       context,
       configuration,
@@ -103,7 +113,11 @@ async function replaceRuntime(
     if (socket.kind !== 'absent')
       throw new DataDirectoryBusyError(socket.kind, 'update');
     await backupDatabase(configuration.dataDirectory, backup);
-    await writeJsonFile(paths.updateJournal, { installed, backup });
+    await writeJsonFile(paths.updateJournal, {
+      installed,
+      backup,
+      target: context.packageVersion,
+    });
     await rename(paths.runtime, previous);
     replaced = true;
     await rename(staging, paths.runtime);
@@ -112,9 +126,12 @@ async function replaceRuntime(
     await systemd.enableAndStart();
     if (!(await serviceIsHealthy(context, configuration.dataDirectory)))
       throw new UpdatedServiceUnhealthyError();
-    await rm(paths.updateJournal, { force: true });
-    await rm(previous, { recursive: true, force: true });
-    return { backup };
+    await writeJsonFile(paths.updateJournal, {
+      installed,
+      backup,
+      target: context.packageVersion,
+      healthy: true,
+    });
   } catch (error) {
     if (await exists(paths.updateJournal)) {
       try {
@@ -138,4 +155,7 @@ async function replaceRuntime(
   } finally {
     await rm(staging, { recursive: true, force: true });
   }
+  await rm(previous, { recursive: true, force: true });
+  await rm(paths.updateJournal, { force: true });
+  return { backup };
 }

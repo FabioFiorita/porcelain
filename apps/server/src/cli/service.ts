@@ -98,6 +98,14 @@ async function runService(
     );
     return;
   }
+  if (settings.action === 'recover') {
+    dependencies.stdout(
+      (await installer.recover())
+        ? 'Recovered the Porcelain service.\n'
+        : 'The Porcelain service needed no recovery.\n',
+    );
+    return;
+  }
   dependencies.stdout(
     (await installer.uninstall())
       ? 'Uninstalled the Porcelain service. User data was retained.\n'
