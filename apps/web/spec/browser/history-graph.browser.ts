@@ -1,9 +1,7 @@
 import { expect } from 'vitest';
 import { test } from '../kit/journey';
 
-const mergeNode = { x: 13, y: 29 };
-
-test('Open graph opens the commit graph as a tab that comes back after a reload, and clicking a node opens that commit', async ({
+test('Open graph opens the commit graph as a tab that comes back after a reload, and clicking the merge commit in it opens its document', async ({
   app,
   repo,
   server,
@@ -41,7 +39,7 @@ test('Open graph opens the commit graph as a tab that comes back after a reload,
   await opened
     .getByRole('list', { name: 'Commit graph' })
     .getByRole('button', { name: "Merge branch 'topic'", exact: false })
-    .click({ position: mergeNode });
+    .click();
   await expect
     .element(opened.getByRole('heading', { name: /^Merge branch 'topic'/ }))
     .toBeVisible();
