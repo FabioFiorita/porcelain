@@ -78,6 +78,18 @@ export class EditFileService {
           ),
         );
         return { path: command.path };
+      case 'copy':
+        this.succeed(
+          await this.fileWriter.copy(
+            {
+              worktreeId,
+              path: command.path,
+              destination: command.destination,
+            },
+            signal,
+          ),
+        );
+        return { path: command.destination };
     }
   }
 

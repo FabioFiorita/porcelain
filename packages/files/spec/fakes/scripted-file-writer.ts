@@ -23,4 +23,8 @@ export class ScriptedFileWriter implements FileWriter {
   trash(): Promise<FileWrite> {
     return Promise.resolve(this.outcome);
   }
+
+  copy(): Promise<FileWrite> {
+    return Promise.resolve(this.outcome);
+  }
 }

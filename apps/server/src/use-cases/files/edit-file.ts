@@ -57,7 +57,11 @@ export class EditFileUseCase {
       context,
     );
     const paths =
-      input.kind === 'move' ? [input.path, input.destination] : [input.path];
+      input.kind === 'move'
+        ? [input.path, input.destination]
+        : input.kind === 'copy'
+          ? [input.destination]
+          : [input.path];
     const edited = await this.lanes.run(
       this.laneKeys.repository(worktree),
       'write',

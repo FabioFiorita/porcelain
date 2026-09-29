@@ -52,6 +52,11 @@ export class InMemoryFileWriter implements FileWriter {
     return Promise.resolve(written);
   }
 
+  copy(input: EntryMoveInput): Promise<FileWrite> {
+    this.entries.set(input.destination, this.entries.get(input.path));
+    return Promise.resolve(written);
+  }
+
   trash(input: FileLocation): Promise<FileWrite> {
     this.entries.delete(input.path);
     return Promise.resolve(written);

@@ -70,6 +70,11 @@ export const editFileRequestSchema = z.discriminatedUnion('kind', [
     destination: relativePathSchema,
   }),
   z.strictObject({ kind: z.literal('trash'), path: relativePathSchema }),
+  z.strictObject({
+    kind: z.literal('copy'),
+    path: relativePathSchema,
+    destination: relativePathSchema,
+  }),
 ]);
 export const editFileResponseSchema = z.object({
   path: z.string(),

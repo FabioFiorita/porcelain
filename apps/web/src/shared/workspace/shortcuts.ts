@@ -13,6 +13,7 @@ export const SHORTCUTS = {
   toggleReviewed: 'R',
   commentOnFile: 'C',
   findInFile: 'Mod+F',
+  duplicateFile: 'Mod+D',
   nextTab: 'Alt+ArrowRight',
   previousTab: 'Alt+ArrowLeft',
   closeTab: 'Alt+W',
@@ -48,6 +49,7 @@ export const SHORTCUT_GROUPS: {
       { keys: SHORTCUTS.commentOnFile, label: 'Comment on file' },
       { keys: SHORTCUTS.findInFile, label: 'Find in file' },
       { keys: SHORTCUTS.saveFile, label: 'Save file edits' },
+      { keys: SHORTCUTS.duplicateFile, label: 'Duplicate the open file' },
     ],
   },
   {

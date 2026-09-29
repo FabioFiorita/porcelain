@@ -11,4 +11,5 @@ export interface FileWriter {
   create(input: EntryCreateInput, signal?: AbortSignal): Promise<FileWrite>;
   move(input: EntryMoveInput, signal?: AbortSignal): Promise<FileWrite>;
   trash(input: FileLocation, signal?: AbortSignal): Promise<FileWrite>;
+  copy(input: EntryMoveInput, signal?: AbortSignal): Promise<FileWrite>;
 }

@@ -1,4 +1,5 @@
 import type { GitStatusEntry } from '@pierre/trees';
+import { useHotkey } from '@tanstack/react-hotkeys';
 import {
   EyeIcon,
   EyeOffIcon,
@@ -29,6 +30,7 @@ import {
   visibleFileTreePaths,
 } from '@/features/projects/index';
 import { discardRejection } from '@/shared/lib/submit-form';
+import { SHORTCUTS } from '@/shared/workspace/shortcuts';
 import { PierreFileTree } from '../adapters/pierre-file-tree';
 import { useEditFile } from '../commands/edit-file';
 import { runFileTreeAction } from '../commands/tree-menu';
@@ -37,7 +39,7 @@ import { fileErrorMessage, surfaceErrorMessage } from '../rules/error-message';
 import { fileTreeAncestors, mergeFileTreeEntries } from '../rules/file-tree';
 import { isImagePath } from '../rules/html-assets';
 import type { FilesScope } from '../rules/scope';
-import { treeActions } from '../rules/tree-actions';
+import { duplicatePath, treeActions } from '../rules/tree-actions';
 import { FileTreeMenu } from './file-tree-menu';
 import { PinnedFiles } from './pinned-files';
 import { QuickOpen } from './quick-open';
@@ -136,6 +138,19 @@ function ScopedFileNavigation({
           : 'file',
       path,
     });
+  const duplicate = (path: string) =>
+    edit.duplicate(
+      path,
+      duplicatePath(path, (candidate) => kinds.has(candidate)),
+      openFile,
+    );
+  useHotkey(
+    SHORTCUTS.duplicateFile,
+    () => {
+      if (!edit.isPending) duplicate(selected);
+    },
+    { enabled: openable.has(selected), ignoreInputs: true },
+  );
   const onSelect = (path: string) => {
     const kind = kinds.get(path);
     if (kind === 'symlink' || kind === 'submodule')
@@ -270,6 +285,9 @@ function ScopedFileNavigation({
                       }),
                     ),
                   onTrash: setDeleting,
+                  onDuplicate: (path) => {
+                    if (!edit.isPending) duplicate(path);
+                  },
                 })
               }
             />

@@ -1,5 +1,6 @@
 import {
   CopyIcon,
+  CopyPlusIcon,
   EyeIcon,
   EyeOffIcon,
   FileCodeIcon,
@@ -33,6 +34,7 @@ const icons = {
   'new-file': FilePlusIcon,
   'new-folder': FolderPlusIcon,
   rename: PencilIcon,
+  duplicate: CopyPlusIcon,
   open: FileCodeIcon,
   'open-file': FileCodeIcon,
   'open-diff': FileDiffIcon,

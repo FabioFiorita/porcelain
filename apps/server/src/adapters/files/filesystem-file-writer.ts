@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { type BigIntStats, constants } from 'node:fs';
 import {
+  type FileHandle,
   link,
   lstat,
   mkdir,
@@ -155,6 +156,55 @@ export class FilesystemFileWriter implements FileWriter {
     });
   }
 
+  async copy(input: EntryMoveInput, signal?: AbortSignal): Promise<FileWrite> {
+    const target = await this.locate(input, signal);
+    return this.attempt(async () => {
+      const sourceParent = await this.parent(target, signal);
+      const source = join(sourceParent.path, basename(target.path));
+      const info = await lstat(source, { bigint: true });
+      if (!info.isFile()) throw pathRefused('unreadable');
+      const destinationTarget = { ...target, path: input.destination };
+      const destinationParent = await this.parent(destinationTarget, signal);
+      const destination = join(
+        destinationParent.path,
+        basename(input.destination),
+      );
+      signal?.throwIfAborted();
+      const reading = await open(
+        source,
+        constants.O_RDONLY | constants.O_NOFOLLOW,
+      );
+      try {
+        if (!sameFile(info, await reading.stat({ bigint: true })))
+          throw pathRefused('changed');
+        const writing = await open(
+          destination,
+          constants.O_WRONLY |
+            constants.O_CREAT |
+            constants.O_EXCL |
+            constants.O_NOFOLLOW,
+          Number(info.mode & 0o777n),
+        );
+        const created = await writing.stat({ bigint: true });
+        try {
+          await copyContents(reading, writing, signal);
+          await writing.sync();
+          await this.verifyParent(sourceParent, target, signal);
+          await this.verifyParent(destinationParent, destinationTarget, signal);
+          if (!unchanged(info, await lstat(source, { bigint: true })))
+            throw pathRefused('changed');
+        } catch (error) {
+          await removeReservation(destination, created);
+          throw error;
+        } finally {
+          await writing.close();
+        }
+      } finally {
+        await reading.close();
+      }
+    });
+  }
+
   async trash(input: FileLocation, signal?: AbortSignal): Promise<FileWrite> {
     const target = await this.locate(input, signal);
     return this.attempt(async () => {
@@ -255,6 +305,19 @@ export class FilesystemFileWriter implements FileWriter {
   ) {
     const after = await this.parent(target, signal);
     if (!sameEvidence(before, after)) throw pathRefused('changed');
+  }
+}
+
+async function copyContents(
+  reading: FileHandle,
+  writing: FileHandle,
+  signal?: AbortSignal,
+) {
+  for (;;) {
+    signal?.throwIfAborted();
+    const { bytesRead, buffer } = await reading.read();
+    if (bytesRead === 0) return;
+    await writing.write(buffer.subarray(0, bytesRead));
   }
 }
 

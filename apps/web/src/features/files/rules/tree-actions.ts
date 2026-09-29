@@ -14,6 +14,20 @@ export function nextCreatePath(
   return path(`${base}-${suffix}`);
 }
 
+export function duplicatePath(path: string, exists: (path: string) => boolean) {
+  const slash = path.lastIndexOf('/') + 1;
+  const name = path.slice(slash);
+  const dot = name.lastIndexOf('.');
+  const stem = dot > 0 ? name.slice(0, dot) : name;
+  const extension = dot > 0 ? name.slice(dot) : '';
+  const candidate = (suffix: string) =>
+    `${path.slice(0, slash)}${stem} copy${suffix}${extension}`;
+  if (!exists(candidate(''))) return candidate('');
+  let suffix = FILE_NAME_SUFFIX_START;
+  while (exists(candidate(` ${suffix}`))) suffix += 1;
+  return candidate(` ${suffix}`);
+}
+
 export function topLevelDraggedPaths(paths: readonly string[]) {
   return paths.filter(
     (path) =>
@@ -49,6 +63,7 @@ export type TreeAction =
   | 'new-file'
   | 'new-folder'
   | 'rename'
+  | 'duplicate'
   | 'open'
   | 'open-file'
   | 'open-diff'
@@ -74,6 +89,8 @@ export function treeActions(input: {
     actions.push({ id: 'new-folder', label: 'New folder' });
   }
   if (!input.link) actions.push({ id: 'rename', label: 'Rename' });
+  if (input.openable && !input.folder && !input.link)
+    actions.push({ id: 'duplicate', label: 'Duplicate' });
   if (input.openable) {
     actions.push(
       input.changed

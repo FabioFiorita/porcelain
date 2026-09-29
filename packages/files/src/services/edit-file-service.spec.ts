@@ -6,6 +6,7 @@ import {
   FileTooLargeError,
   InvalidMoveError,
   PathNotFoundError,
+  PathNotReadableError,
   TrashUnavailableError,
   UnsupportedTextError,
 } from '@porcelain/files/errors';
@@ -255,5 +256,57 @@ describe('EditFileService', () => {
         command: { kind: 'trash', path: 'notes.md' },
       }),
     ).rejects.toThrow(TrashUnavailableError);
+  });
+
+  it('copies a file beside itself, keeps the original and answers with the copy', async () => {
+    const { writer, service } = withDisk({}, { 'notes.md': stored('old\n') });
+    await expect(
+      service.execute({
+        worktreeId,
+        command: {
+          kind: 'copy',
+          path: 'notes.md',
+          destination: 'notes copy.md',
+        },
+      }),
+    ).resolves.toEqual({ path: 'notes copy.md' });
+    expect(writer.entry('notes.md')).toEqual(stored('old\n'));
+    expect(writer.entry('notes copy.md')).toEqual(stored('old\n'));
+  });
+
+  it('refuses to copy onto an existing entry', async () => {
+    await expect(
+      failingWith('exists').execute({
+        worktreeId,
+        command: { kind: 'copy', path: 'a.md', destination: 'b.md' },
+      }),
+    ).rejects.toThrow(EntryExistsError);
+  });
+
+  it('reports a missing copy source as not found', async () => {
+    await expect(
+      failingWith('missing').execute({
+        worktreeId,
+        command: { kind: 'copy', path: 'missing.md', destination: 'x.md' },
+      }),
+    ).rejects.toThrow(PathNotFoundError);
+  });
+
+  it('refuses to copy what is not a readable file', async () => {
+    await expect(
+      failingWith('unreadable').execute({
+        worktreeId,
+        command: { kind: 'copy', path: 'docs', destination: 'docs copy' },
+      }),
+    ).rejects.toThrow(PathNotReadableError);
+  });
+
+  it('refuses a copy when the source changes while it is copied', async () => {
+    await expect(
+      failingWith('changed').execute({
+        worktreeId,
+        command: { kind: 'copy', path: 'a.md', destination: 'b.md' },
+      }),
+    ).rejects.toThrow(ContentChangedError);
   });
 });

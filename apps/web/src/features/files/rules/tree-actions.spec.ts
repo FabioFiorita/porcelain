@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   canDropPaths,
   directoryPaths,
+  duplicatePath,
   entryName,
   nextCreatePath,
   selectedDirectories,
@@ -52,6 +53,7 @@ describe('file tree actions', () => {
       }).map((action) => action.label),
     ).toEqual([
       'Rename',
+      'Duplicate',
       'Open diff',
       'Open file',
       'Hide file',
@@ -91,6 +93,7 @@ describe('file tree actions', () => {
       treeActions({ ...file, pinned: false }).map((action) => action.label),
     ).toEqual([
       'Rename',
+      'Duplicate',
       'Open',
       'Pin file',
       'Hide file',
@@ -103,5 +106,18 @@ describe('file tree actions', () => {
         (action) => action.id === 'pin',
       )?.label,
     ).toBe('Unpin file');
+  });
+
+  it('names a duplicate after the file with copy before its extension, numbering further copies', () => {
+    const existing = new Set(['docs/notes copy.md', 'docs/notes copy 2.md']);
+    expect(duplicatePath('README.md', () => false)).toBe('README copy.md');
+    expect(duplicatePath('docs/notes.md', (path) => existing.has(path))).toBe(
+      'docs/notes copy 3.md',
+    );
+    expect(duplicatePath('Makefile', () => false)).toBe('Makefile copy');
+    expect(duplicatePath('.env', () => false)).toBe('.env copy');
+    expect(duplicatePath('archive.tar.gz', () => false)).toBe(
+      'archive.tar copy.gz',
+    );
   });
 });

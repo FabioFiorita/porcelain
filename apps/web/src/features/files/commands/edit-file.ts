@@ -149,6 +149,16 @@ export function useEditFile(
         destination: withoutTrailingSlash(destination),
       });
     },
+    duplicate: (
+      path: string,
+      destination: string,
+      onDuplicated: (path: string) => void,
+    ) => {
+      edit
+        .submit({ kind: 'copy', path, destination })
+        .then(() => onDuplicated(destination))
+        .catch(() => undefined);
+    },
     trash: (path: string, onTrashed: () => void) => {
       edit
         .submit({ kind: 'trash', path: withoutTrailingSlash(path) })
