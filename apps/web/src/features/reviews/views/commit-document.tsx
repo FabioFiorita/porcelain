@@ -3,9 +3,10 @@ import { CopyIcon } from 'lucide-react';
 import { useState, useTransition } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { DIFF_WINDOW_FILES } from '@/config/limits';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAccessStore } from '@/features/access/index';
-import { commitEntry } from '@/features/changes/index';
+import { commitEntry, useCommitDiffs } from '@/features/changes/index';
 import { copyText } from '@/shared/workspace/copy';
 import {
   commitMessage,
@@ -15,14 +16,11 @@ import {
   ordinal,
   shortOid,
   useCommit,
-  useCommitDiffs,
 } from '@/features/history/index';
 import type { DocumentInteraction } from '../rules/documents';
 import type { DiffContent, ReviewScope } from '../rules/review';
 import { CodeDocument, type DocumentContext } from './code-document';
 import { DocumentToolbar } from './document-toolbar';
-
-const SHOWN_STEP = 25;
 
 const pathList = (file: CommitFile) => [
   ...new Set([file.oldPath, file.newPath].filter((path) => path != null)),
@@ -58,11 +56,12 @@ export function CommitDocument({
   const commit = useCommit(connection, scope, oid, parent);
   const [window, setWindow] = useState({
     of: `${oid}:${parent}`,
-    shown: SHOWN_STEP,
+    shown: DIFF_WINDOW_FILES,
   });
-  const shown = window.of === `${oid}:${parent}` ? window.shown : SHOWN_STEP;
+  const shown =
+    window.of === `${oid}:${parent}` ? window.shown : DIFF_WINDOW_FILES;
   const readMore = () =>
-    setWindow({ of: `${oid}:${parent}`, shown: shown + SHOWN_STEP });
+    setWindow({ of: `${oid}:${parent}`, shown: shown + DIFF_WINDOW_FILES });
   const reached = commit.files.slice(0, shown);
   const wanted = reached.map((file) => pathList(file));
   const diffs = useCommitDiffs(connection, scope, oid, parent, wanted);
@@ -166,7 +165,7 @@ export function CommitDocument({
           >
             {diffs.isPending
               ? 'Reading…'
-              : `Read ${Math.min(more, SHOWN_STEP)} more of ${more}`}
+              : `Read ${Math.min(more, DIFF_WINDOW_FILES)} more of ${more}`}
           </Button>
         </div>
       )}

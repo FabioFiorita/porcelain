@@ -7,6 +7,8 @@ import {
   readChangeDiffsResponseSchema,
   readChangeLinesResponseSchema,
   readChangesResponseSchema,
+  readCommitDiffsRequestSchema,
+  readCommitDiffsResponseSchema,
   readGitStatusResponseSchema,
   type ReadBranchDiffsRequest,
   type ReadChangeDiffsRequest,
@@ -84,6 +86,29 @@ function createChangesApi(transport: typeof fetch) {
         `${worktreePath(worktreeId)}/branch-bases`,
         listBranchBasesResponseSchema,
         { signal },
+      ),
+    commitDiffs: (
+      signal: AbortSignal,
+      worktreeId: string,
+      oid: string,
+      parent: number,
+      paths: string[][],
+    ) =>
+      requestJson(
+        transport,
+        `${worktreePath(worktreeId)}/commits/${encodeURIComponent(oid)}/diffs`,
+        readCommitDiffsResponseSchema,
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(
+            readCommitDiffsRequestSchema.parse({
+              ...(parent === 1 ? {} : { parent }),
+              paths,
+            }),
+          ),
+          signal,
+        },
       ),
     status: (signal: AbortSignal, worktreeId: string) =>
       requestJson(

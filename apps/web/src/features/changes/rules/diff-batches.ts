@@ -51,3 +51,13 @@ export function diffBatches(
   batches.push(current);
   return batches;
 }
+
+export function consecutiveBatches<T>(
+  items: readonly T[],
+  size: number,
+): T[][] {
+  const batches: T[][] = [];
+  for (let at = 0; at < items.length; at += size)
+    batches.push(items.slice(at, at + size));
+  return batches;
+}

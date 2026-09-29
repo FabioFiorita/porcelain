@@ -23,3 +23,4 @@ export {
   branchRange,
   type BranchFile,
 } from './rules/branch';
+export { useCommitDiffs } from './queries/commit-diffs';

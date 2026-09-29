@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { diffBatches } from './diff-batches.ts';
+import { consecutiveBatches, diffBatches } from './diff-batches.ts';
 
 const name = (index: number) => `file-${String(index).padStart(4, '0')}.md`;
 const file = (index: number) => ({ path: name(index), fingerprint: 'print' });
@@ -85,5 +85,25 @@ describe('diffBatches', () => {
         selections: [rename],
       },
     ]);
+  });
+});
+
+describe('consecutiveBatches', () => {
+  it('splits the files shown so far into batches of the window size', () => {
+    expect(consecutiveBatches(range(7), 3)).toEqual([
+      [0, 1, 2],
+      [3, 4, 5],
+      [6],
+    ]);
+  });
+
+  it('keeps every earlier batch as it was when more files are shown', () => {
+    const before = consecutiveBatches(range(3), 3);
+    const after = consecutiveBatches(range(5), 3);
+    expect(after.slice(0, before.length)).toEqual(before);
+  });
+
+  it('reads nothing when nothing is shown', () => {
+    expect(consecutiveBatches([], 3)).toEqual([]);
   });
 });

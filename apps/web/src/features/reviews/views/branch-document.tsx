@@ -1,6 +1,7 @@
 import { type ReactNode, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { DIFF_WINDOW_FILES } from '@/config/limits';
 import { useAccessStore } from '@/features/access/index';
 import {
   type BranchFile,
@@ -29,8 +30,6 @@ import { CodeDocument, type DocumentContext } from './code-document';
 import { DocumentToolbar } from './document-toolbar';
 import { MarkAllReviewed, ReviewedControl } from './reviewed-control';
 import { ReviewEmpty } from './review-empty';
-
-const SHOWN_STEP = 25;
 
 type Props = {
   scope: ReviewScope;
@@ -145,9 +144,10 @@ function BranchDiffs({
   const overview = useReviewOverview(scope, connection);
   const [window, setWindow] = useState({
     of: branch.head.oid,
-    shown: SHOWN_STEP,
+    shown: DIFF_WINDOW_FILES,
   });
-  const shown = window.of === branch.head.oid ? window.shown : SHOWN_STEP;
+  const shown =
+    window.of === branch.head.oid ? window.shown : DIFF_WINDOW_FILES;
   const reached = items.slice(0, shown);
   const diffs = useBranchDiffs(
     scope,
@@ -248,13 +248,16 @@ function BranchDiffs({
             variant="outline"
             size="sm"
             onClick={() =>
-              setWindow({ of: branch.head.oid, shown: shown + SHOWN_STEP })
+              setWindow({
+                of: branch.head.oid,
+                shown: shown + DIFF_WINDOW_FILES,
+              })
             }
             disabled={diffs.isPending}
           >
             {diffs.isPending
               ? 'Reading…'
-              : `Read ${Math.min(more, SHOWN_STEP)} more of ${more}`}
+              : `Read ${Math.min(more, DIFF_WINDOW_FILES)} more of ${more}`}
           </Button>
         </div>
       )}

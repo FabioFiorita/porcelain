@@ -1,5 +1,5 @@
 import { DIFFS_PER_REQUEST } from '@porcelain/contracts/shared';
-import { useQueries } from '@tanstack/react-query';
+import { useBatchedReads } from './batched-reads';
 import { queryKeys } from '@/shared/query/keys';
 import { changesApi, isWorktreeChangedError } from '../api';
 import {
@@ -32,9 +32,10 @@ export function useChangeDiffs(
     (state) => state.pending[key] === statusToken,
   );
   const batches = diffBatches(expectedFiles, selections, DIFFS_PER_REQUEST);
-  const results = useQueries({
-    queries: batches.map((batch) => ({
-      queryKey: queryKeys.reviewSurface(connection.environmentId, scope, [
+  const read = useBatchedReads({
+    batches,
+    key: (batch) =>
+      queryKeys.reviewSurface(connection.environmentId, scope, [
         'change-diffs',
         statusToken,
         batch.expectedFiles.map(
@@ -42,38 +43,27 @@ export function useChangeDiffs(
         ),
         batch.selections.map(selectionKey),
       ]),
-      refetchOnWindowFocus: false,
-      refetchOnReconnect: false,
-      queryFn: async ({ signal }: { signal: AbortSignal }) => {
-        const request = connection.request(signal);
-        const data = await changesApi.diffs(request.signal, scope.worktreeId, {
-          expectedStatusToken: statusToken,
-          expectedFiles: batch.expectedFiles,
-          selections: batch.selections,
-        });
-        request.signal.throwIfAborted();
-        return data.diffs.map(
-          ({ selection, content }) =>
-            [selectionKey(selection), content] as const,
-        );
-      },
-      retry: (_failureCount: number, error: Error) => {
-        if (isWorktreeChangedError(error)) recover(statusToken);
-        return false;
-      },
-      throwOnError: false,
-    })),
+    read: async (batch, signal) => {
+      const request = connection.request(signal);
+      const data = await changesApi.diffs(request.signal, scope.worktreeId, {
+        expectedStatusToken: statusToken,
+        expectedFiles: batch.expectedFiles,
+        selections: batch.selections,
+      });
+      request.signal.throwIfAborted();
+      return data.diffs.map(
+        ({ selection, content }) => [selectionKey(selection), content] as const,
+      );
+    },
+    retry: (_failureCount, error) => {
+      if (isWorktreeChangedError(error)) recover(statusToken);
+      return false;
+    },
   });
   return {
-    diffs: new Map<string, DiffContent>(
-      results.every((result) => result.data !== undefined)
-        ? results.flatMap((result) => result.data ?? [])
-        : [],
-    ),
-    pending: results.some((result) => result.isPending) || recovering,
-    failed: results.some((result) => result.isError) && !recovering,
-    retry: () => {
-      for (const result of results) if (result.isError) void result.refetch();
-    },
+    diffs: new Map<string, DiffContent>(read.complete ? read.entries : []),
+    pending: read.pending || recovering,
+    failed: read.failed && !recovering,
+    retry: read.retry,
   };
 }

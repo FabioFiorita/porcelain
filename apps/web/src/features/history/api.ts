@@ -1,7 +1,5 @@
 import {
   listCommitsResponseSchema,
-  readCommitDiffsRequestSchema,
-  readCommitDiffsResponseSchema,
   readCommitFilesResponseSchema,
 } from '@porcelain/contracts/changes';
 import { requestJson } from '@/shared/api/request';
@@ -46,27 +44,4 @@ export const historyApi = {
       { signal },
     );
   },
-  diffs: (
-    signal: AbortSignal,
-    worktreeId: string,
-    oid: string,
-    parent: number,
-    paths: string[][],
-  ) =>
-    requestJson(
-      transport,
-      `${worktreePath(worktreeId)}/${encodeURIComponent(oid)}/diffs`,
-      readCommitDiffsResponseSchema,
-      {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(
-          readCommitDiffsRequestSchema.parse({
-            ...(parent === 1 ? {} : { parent }),
-            paths,
-          }),
-        ),
-        signal,
-      },
-    ),
 };

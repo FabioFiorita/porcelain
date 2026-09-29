@@ -124,6 +124,49 @@ export function createFetchGate(filePath: string) {
         release,
       };
     },
+    holdNextPost(pathEnding: string) {
+      const original = window.fetch;
+      let releaseRequest = () => {};
+      let markRequested = () => {};
+      let armed = false;
+      let held = false;
+      const requested = new Promise<void>((resolve) => {
+        markRequested = resolve;
+      });
+      const released = new Promise<void>((resolve) => {
+        releaseRequest = resolve;
+      });
+      window.fetch = async (input, init) => {
+        const path =
+          typeof input === 'string'
+            ? input
+            : input instanceof URL
+              ? input.href
+              : input.url;
+        if (
+          armed &&
+          !held &&
+          init?.method === 'POST' &&
+          new URL(path, location.href).pathname.endsWith(pathEnding)
+        ) {
+          held = true;
+          markRequested();
+          await released;
+        }
+        return original(input, init);
+      };
+      restore = () => {
+        releaseRequest();
+        window.fetch = original;
+      };
+      return {
+        requested,
+        arm() {
+          armed = true;
+        },
+        release: releaseRequest,
+      };
+    },
     restore() {
       restore();
     },

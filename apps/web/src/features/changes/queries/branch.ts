@@ -1,8 +1,10 @@
-import { queryOptions, useQueries, useQuery } from '@tanstack/react-query';
-import { DIFFS_PER_REQUEST } from '@porcelain/contracts/shared';
+import { queryOptions, useQuery } from '@tanstack/react-query';
+import { DIFF_WINDOW_FILES } from '@/config/limits';
+import { useBatchedReads } from './batched-reads';
 import { queryKeys } from '@/shared/query/keys';
 import { changesApi } from '../api';
 import type { BranchRange } from '../rules/branch';
+import { consecutiveBatches } from '../rules/diff-batches';
 import {
   requireChangesConnection,
   type ChangesConnection,
@@ -79,48 +81,37 @@ export function useBranchDiffs(
   paths: readonly (readonly string[])[],
 ) {
   const connected = requireChangesConnection(connection);
-  const batches: (readonly string[])[][] = [];
-  if (range)
-    for (let at = 0; at < paths.length; at += DIFFS_PER_REQUEST)
-      batches.push([...paths.slice(at, at + DIFFS_PER_REQUEST)]);
-  const results = useQueries({
-    queries: batches.map((batch) => ({
-      queryKey: queryKeys.reviewSurface(connected.environmentId, scope, [
+  const read = useBatchedReads({
+    batches: range ? consecutiveBatches(paths, DIFF_WINDOW_FILES) : [],
+    key: (batch) =>
+      queryKeys.reviewSurface(connected.environmentId, scope, [
         'branch-diffs',
         range?.baseOid,
         range?.headOid,
         batch.map((entry) => entry.join('\0')),
       ]),
-      refetchOnWindowFocus: false,
-      refetchOnReconnect: false,
-      staleTime: Infinity,
-      queryFn: async ({ signal }: { signal: AbortSignal }) => {
-        if (!range) return [];
-        const request = connected.request(signal);
-        const data = await changesApi.branchDiffs(
-          request.signal,
-          scope.worktreeId,
-          {
-            baseOid: range.baseOid,
-            headOid: range.headOid,
-            paths: batch.map((entry) => [...entry]),
-          },
-        );
-        request.signal.throwIfAborted();
-        return data.diffs;
-      },
-    })),
-  });
-  const patches = new Map<string, DiffContent>();
-  for (const result of results)
-    for (const diff of result.data ?? [])
-      patches.set(diff.paths.join('\0'), diff.content);
-  return {
-    patches,
-    isPending: results.some((result) => result.isPending),
-    isError: results.some((result) => result.isError),
-    retry: () => {
-      for (const result of results) if (result.isError) void result.refetch();
+    read: async (batch, signal) => {
+      if (!range) return [];
+      const request = connected.request(signal);
+      const data = await changesApi.branchDiffs(
+        request.signal,
+        scope.worktreeId,
+        {
+          baseOid: range.baseOid,
+          headOid: range.headOid,
+          paths: batch.map((entry) => [...entry]),
+        },
+      );
+      request.signal.throwIfAborted();
+      return data.diffs.map(
+        (diff) => [diff.paths.join('\0'), diff.content] as const,
+      );
     },
+  });
+  return {
+    patches: new Map<string, DiffContent>(read.entries),
+    isPending: read.pending,
+    isError: read.failed,
+    retry: read.retry,
   };
 }
