@@ -21,12 +21,16 @@ export function findMatches(
   return matches;
 }
 
+export function currentMatch(index: number, count: number) {
+  return Math.max(0, Math.min(index, count - 1));
+}
+
 export function stepMatch(index: number, count: number, step: 1 | -1) {
-  return count === 0 ? 0 : (index + step + count) % count;
+  return count === 0 ? 0 : (currentMatch(index, count) + step + count) % count;
 }
 
 export function matchCountLabel(index: number, count: number, limit: number) {
   if (count === 0) return 'No results';
   const more = count === limit ? '+' : '';
-  return `${index + 1} of ${count}${more}`;
+  return `${currentMatch(index, count) + 1} of ${count}${more}`;
 }

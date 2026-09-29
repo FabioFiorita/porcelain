@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { findMatches, matchCountLabel, stepMatch } from './find-in-text.ts';
+import {
+  currentMatch,
+  findMatches,
+  matchCountLabel,
+  stepMatch,
+} from './find-in-text.ts';
 
 describe('findMatches', () => {
   it('finds nothing for an empty query', () => {
@@ -45,6 +50,17 @@ describe('stepMatch', () => {
     expect(stepMatch(0, 3, -1)).toBe(2);
   });
 
+  it('steps from the last match when the text shrank under the current one', () => {
+    expect(stepMatch(11, 3, 1)).toBe(0);
+    expect(stepMatch(11, 3, -1)).toBe(1);
+  });
+
+  it('holds the current match within the matches the text still has', () => {
+    expect(currentMatch(11, 3)).toBe(2);
+    expect(currentMatch(1, 3)).toBe(1);
+    expect(currentMatch(4, 0)).toBe(0);
+  });
+
   it('stays at zero without matches', () => {
     expect(stepMatch(0, 0, 1)).toBe(0);
   });
@@ -53,6 +69,10 @@ describe('stepMatch', () => {
 describe('matchCountLabel', () => {
   it('says there are no results', () => {
     expect(matchCountLabel(0, 0, 20)).toBe('No results');
+  });
+
+  it('never counts past the matches the text still has', () => {
+    expect(matchCountLabel(11, 3, 20)).toBe('3 of 3');
   });
 
   it('counts from one', () => {
