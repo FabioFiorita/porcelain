@@ -3,6 +3,7 @@ import type { Clock, IdSource } from '@porcelain/kernel/ports';
 import { CommentIdentityConflictError } from '../errors/comment-identity-conflict-error.ts';
 import { CommentLimitExceededError } from '../errors/comment-limit-exceeded-error.ts';
 import { CommentRevisionMismatchError } from '../errors/comment-revision-mismatch-error.ts';
+import { UnsupportedCommentComparisonError } from '../errors/unsupported-comment-comparison-error.ts';
 import type {
   CommentAnchorProblem,
   CommentContent,
@@ -91,6 +92,8 @@ export class CreateCommentThreadService {
         return new InvalidLineRangeError();
       case 'revision-mismatch':
         return new CommentRevisionMismatchError();
+      case 'unsupported-comparison':
+        return new UnsupportedCommentComparisonError();
     }
   }
 }

@@ -1,6 +1,7 @@
-import { FileQuestionIcon } from 'lucide-react';
+import { FileQuestionIcon, MessageSquarePlusIcon } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
   MessageScroller,
   MessageScrollerButton,
@@ -14,17 +15,24 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/shared/lib/utils';
 import { type ChangeScope, isChangeScope } from '@/shared/workspace/search';
 import { useAccessStore } from '@/features/access/index';
-import { useChanges } from '@/features/changes/index';
+import { useBranchChanges, useChanges } from '@/features/changes/index';
 import { useMarkCommentsSeen } from '../commands/comments';
 import { useComments, usePrefetchComments } from '../queries/comments';
 import { usePublishedReview } from '../queries/published-review';
 import { usePrefetchReviewed, useReviewChangeItems } from '../queries/reviewed';
 import {
   type CommentAnchor,
+  anchorPath,
+  changeAnchor,
   commentsSeenThrough,
   type CommentThread,
 } from '../rules/comments';
-import { type DocumentRef, entryKey, UNEXPLAINED } from '../rules/documents';
+import {
+  BRANCH,
+  type DocumentRef,
+  entryKey,
+  UNEXPLAINED,
+} from '../rules/documents';
 import {
   type ChangeList,
   notExplainedLabel,
@@ -35,6 +43,7 @@ import {
 import type { ReviewsContext } from '../rules/reviewed';
 import { BranchIndex } from './branch-index';
 import { ChangeRow, ROW } from './change-row';
+import { InlineComposer } from './inline-composer';
 import { ThreadCard } from './thread-card';
 
 type OpenDocument = (ref: DocumentRef, anchor?: CommentAnchor) => void;
@@ -144,6 +153,8 @@ export function ReviewIndex({
         <CommentsView
           list={list}
           threads={threads}
+          branch={branch}
+          base={base}
           scope={scope}
           context={context}
           onOpen={onOpen}
@@ -232,7 +243,8 @@ function LayersView({
             reviewStatus={changeByPath.get(path)?.reviewStatus}
             commentCount={
               threads.filter(
-                (thread) => thread.anchor.filePath === path && !thread.resolved,
+                (thread) =>
+                  anchorPath(thread.anchor) === path && !thread.resolved,
               ).length
             }
             active={activeEntry === entryKey({ kind: 'change', path })}
@@ -244,17 +256,85 @@ function LayersView({
   );
 }
 
+function ChangeComment({
+  scope,
+  context,
+  anchor,
+}: {
+  scope: ReviewScope;
+  context: ReviewsContext;
+  anchor: CommentAnchor | undefined;
+}) {
+  const [open, setOpen] = useState(false);
+  const branch = anchor?.comparison?.kind === 'branch';
+  if (open && anchor)
+    return (
+      <InlineComposer
+        scope={scope}
+        context={context}
+        anchor={anchor}
+        onClose={() => setOpen(false)}
+      />
+    );
+  return (
+    <div className="shrink-0 px-2 pt-2">
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="w-full"
+        disabled={anchor == null}
+        onClick={() => setOpen(true)}
+      >
+        <MessageSquarePlusIcon data-icon="inline-start" />
+        {branch ? 'Comment on the whole branch' : 'Comment on the whole change'}
+      </Button>
+    </div>
+  );
+}
+
+function BranchChangeComment({
+  scope,
+  context,
+  base,
+}: {
+  scope: ReviewScope;
+  context: ReviewsContext;
+  base: string | undefined;
+}) {
+  const connection = useAccessStore((state) => state.connection);
+  const changes = useBranchChanges(scope, connection, base);
+  const ref = changes.data?.base?.ref;
+  const tip = changes.data?.head.oid;
+  return (
+    <ChangeComment
+      key={`${ref}:${tip}`}
+      scope={scope}
+      context={context}
+      anchor={
+        ref == null || tip == null
+          ? undefined
+          : changeAnchor({ base: ref, tip })
+      }
+    />
+  );
+}
+
 function CommentsView({
   scope,
   context,
   list,
   threads,
+  branch,
+  base,
   onOpen,
 }: {
   scope: ReviewScope;
   context: ReviewsContext;
   list: ChangeList;
   threads: readonly CommentThread[];
+  branch: boolean;
+  base: string | undefined;
   onOpen: OpenDocument;
 }) {
   const [filter, setFilter] = useState<'open' | 'resolved'>('open');
@@ -292,6 +372,12 @@ function CommentsView({
   }, [filter, highest, markSeen, openCount, resolvedCount, snapshot]);
 
   const reveal = (anchor: CommentAnchor) => {
+    if (anchor.kind === 'change') {
+      onOpen(
+        anchor.comparison?.kind === 'branch' ? BRANCH : { kind: 'handoff' },
+      );
+      return;
+    }
     const ref: DocumentRef =
       anchor.comparison?.kind === 'branch'
         ? { kind: 'branch-file', path: anchor.filePath }
@@ -305,6 +391,15 @@ function CommentsView({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
+      {branch ? (
+        <BranchChangeComment scope={scope} context={context} base={base} />
+      ) : (
+        <ChangeComment
+          scope={scope}
+          context={context}
+          anchor={changeAnchor(undefined)}
+        />
+      )}
       <div className="flex shrink-0 gap-1 px-2 pt-2">
         {(['open', 'resolved'] as const).map((value) => (
           <button

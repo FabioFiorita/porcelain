@@ -5,6 +5,7 @@ import {
   CommentIdentityConflictError,
   CommentLimitExceededError,
   CommentRevisionMismatchError,
+  UnsupportedCommentComparisonError,
 } from '@porcelain/reviews/errors';
 import type {
   CommentAnchor,
@@ -243,6 +244,77 @@ describe('CreateCommentThreadService', () => {
       contentFingerprint: 'f'.repeat(64),
     };
     expect(service.execute(input({ anchor })).anchor).toEqual(anchor);
+  });
+
+  it('opens a thread on the whole working-tree change', () => {
+    const { service, store } = setup();
+    const thread = service.execute(input({ anchor: { kind: 'change' } }));
+    expect(thread.anchor).toEqual({ kind: 'change' });
+    expect(store.list({ worktreeId })).toEqual([thread]);
+  });
+
+  it('opens a thread on the whole branch change read at its tip', () => {
+    const { service } = setup();
+    const anchor: CommentAnchor = {
+      kind: 'change',
+      comparison: { kind: 'branch', base: 'refs/heads/main' },
+      revision: 'a'.repeat(40),
+    };
+    expect(service.execute(input({ anchor })).anchor).toEqual(anchor);
+  });
+
+  it('refuses a whole-branch comment that does not name the tip it was read at', () => {
+    const { service, store } = setup();
+    expect(() =>
+      service.execute(
+        input({
+          anchor: {
+            kind: 'change',
+            comparison: { kind: 'branch', base: 'refs/heads/main' },
+          },
+        }),
+      ),
+    ).toThrow(CommentRevisionMismatchError);
+    expect(store.list({ worktreeId })).toEqual([]);
+  });
+
+  it.each<[string, CommentAnchor]>([
+    ['a file', { kind: 'change', comparison: { kind: 'file' } }],
+    [
+      'a commit',
+      {
+        kind: 'change',
+        comparison: { kind: 'commit', parent: 1 },
+        revision: 'a'.repeat(40),
+      },
+    ],
+    [
+      'a worktree scope',
+      { kind: 'change', comparison: { kind: 'worktree', scope: 'staged' } },
+    ],
+  ])(
+    'refuses a whole-change comment against %s and stores nothing',
+    (_, anchor) => {
+      const { service, store } = setup();
+      expect(() => service.execute(input({ anchor }))).toThrow(
+        UnsupportedCommentComparisonError,
+      );
+      expect(store.list({ worktreeId })).toEqual([]);
+    },
+  );
+
+  it('answers a repeated whole-change comment and refuses the same id on a file', () => {
+    const { service } = setup();
+    const ids = { threadId: 'thread-1', messageId: 'message-1' };
+    const first = service.execute(
+      input({ ...ids, anchor: { kind: 'change' } }),
+    );
+    expect(
+      service.execute(input({ ...ids, anchor: { kind: 'change' } })),
+    ).toEqual(first);
+    expect(() => service.execute(input(ids))).toThrow(
+      CommentIdentityConflictError,
+    );
   });
 
   it('opens the hundredth thread of a worktree and refuses the next', () => {

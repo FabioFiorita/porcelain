@@ -101,6 +101,7 @@ import {
   StepLaneOutOfRangeError,
   UnknownArrowBoxError,
   UnknownArrowStepError,
+  UnsupportedCommentComparisonError,
 } from '@porcelain/reviews/errors';
 import { errorCodes } from 'fastify';
 import { ApplicationClosedError } from '../runtime/errors/application-closed-error.ts';
@@ -145,6 +146,7 @@ const rules: readonly StatusRule[] = [
       UnnamedDiffSelectionError,
       InvalidHunkRangeError,
       CommentRevisionMismatchError,
+      UnsupportedCommentComparisonError,
       InvalidMoveError,
       DuplicateExpectedFileError,
       MergeExpectationMismatchError,

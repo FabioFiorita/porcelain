@@ -9,7 +9,11 @@ import {
 } from '@/features/changes/index';
 import { cn } from '@/shared/lib/utils';
 import { useReviewedMarks } from '../queries/reviewed';
-import type { CommentAnchor, CommentThread } from '../rules/comments';
+import {
+  anchorPath,
+  type CommentAnchor,
+  type CommentThread,
+} from '../rules/comments';
 import { BRANCH, type DocumentRef, entryKey } from '../rules/documents';
 import { mergeBranchChanges, type ReviewScope } from '../rules/review';
 import { branchReviewRange, type ReviewsContext } from '../rules/reviewed';
@@ -144,7 +148,7 @@ function BranchFiles({
               threads.filter(
                 (thread) =>
                   thread.anchor.comparison?.kind === 'branch' &&
-                  thread.anchor.filePath === item.path &&
+                  anchorPath(thread.anchor) === item.path &&
                   !thread.resolved,
               ).length
             }

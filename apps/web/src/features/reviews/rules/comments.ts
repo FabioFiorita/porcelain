@@ -58,8 +58,9 @@ export type CommentsContext = {
   };
 };
 
+export type FileCommentAnchor = Exclude<CommentAnchor, { kind: 'change' }>;
 export type CommentTarget = Pick<
-  CommentAnchor,
+  FileCommentAnchor,
   'filePath' | 'revision' | 'comparison' | 'contentFingerprint'
 >;
 export type RevealComment = { anchor: CommentAnchor; nonce: number };
@@ -73,7 +74,7 @@ type LineRange = {
 export function rangeAnchor(
   target: CommentTarget,
   range: LineRange,
-): CommentAnchor | null {
+): FileCommentAnchor | null {
   if (range.endSide && range.side && range.endSide !== range.side) return null;
   return {
     ...target,
@@ -92,7 +93,8 @@ export function matchesCommentTarget(
   anchor: CommentAnchor,
   target: CommentTarget,
 ) {
-  if (anchor.filePath !== target.filePath) return false;
+  if (anchor.kind === 'change' || anchor.filePath !== target.filePath)
+    return false;
   if (anchor.comparison?.kind === 'branch')
     return target.comparison?.kind === 'branch';
   if (anchor.revision !== target.revision) return false;
@@ -118,7 +120,27 @@ export function commentIsStale(anchor: CommentAnchor, target: CommentTarget) {
   );
 }
 
+export function anchorPath(anchor: CommentAnchor): string | undefined {
+  return anchor.kind === 'change' ? undefined : anchor.filePath;
+}
+
+export function changeAnchor(
+  branch: { base: string; tip: string } | undefined,
+): CommentAnchor {
+  return branch
+    ? {
+        kind: 'change',
+        comparison: { kind: 'branch', base: branch.base },
+        revision: branch.tip,
+      }
+    : { kind: 'change' };
+}
+
 export function anchorLabel(anchor: CommentAnchor): string {
+  if (anchor.kind === 'change')
+    return anchor.comparison?.kind === 'branch'
+      ? 'Whole branch'
+      : 'Whole change';
   if (anchor.kind === 'file') return 'Whole file';
   const sign = anchor.side === 'deletions' ? '−' : '+';
   return anchor.startLine === anchor.endLine

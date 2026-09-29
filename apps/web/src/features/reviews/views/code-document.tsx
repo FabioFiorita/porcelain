@@ -42,7 +42,7 @@ import { isFolded } from '../rules/code-folds';
 import {
   anchorLabel,
   commentIsStale,
-  type CommentAnchor,
+  type FileCommentAnchor,
   type CommentThread,
   matchesCommentTarget,
   rangeAnchor,
@@ -59,7 +59,7 @@ export type DocumentContext = ReviewsContext &
 
 type Note =
   | { kind: 'thread'; thread: CommentThread; stale: boolean }
-  | { kind: 'composer'; anchor: CommentAnchor };
+  | { kind: 'composer'; anchor: FileCommentAnchor };
 type Props = {
   entries: readonly CodeEntry[];
   scope: ReviewScope;
@@ -117,7 +117,7 @@ function CodeSurface({
   const viewer = useRef<CodeViewHandle<Note, undefined>>(null);
   const [composer, setComposer] = useState<{
     id: string;
-    anchor: CommentAnchor;
+    anchor: FileCommentAnchor;
   } | null>(null);
   const [selection, setSelection] = useState<CodeViewLineSelection | null>(
     null,

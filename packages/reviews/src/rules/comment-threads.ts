@@ -18,6 +18,12 @@ export function commentAnchorProblem(
 ): CommentAnchorProblem | undefined {
   if (anchor.kind === 'codeRange' && anchor.endLine < anchor.startLine)
     return { kind: 'reversed-range' };
+  if (
+    anchor.kind === 'change' &&
+    anchor.comparison !== undefined &&
+    anchor.comparison.kind !== 'branch'
+  )
+    return { kind: 'unsupported-comparison' };
   if (anchor.comparison === undefined) return undefined;
   const fits =
     anchor.comparison.kind === 'commit' || anchor.comparison.kind === 'branch'
@@ -93,14 +99,16 @@ function sameComparison(
 
 function sameAnchor(left: CommentAnchor, right: CommentAnchor): boolean {
   const shared =
-    left.filePath === right.filePath &&
     left.revision === right.revision &&
     left.contentFingerprint === right.contentFingerprint &&
     sameComparison(left.comparison, right.comparison);
-  if (left.kind === 'file') return shared && right.kind === 'file';
+  if (left.kind === 'change') return shared && right.kind === 'change';
+  if (left.kind === 'file')
+    return shared && right.kind === 'file' && left.filePath === right.filePath;
   return (
     shared &&
     right.kind === 'codeRange' &&
+    left.filePath === right.filePath &&
     left.startLine === right.startLine &&
     left.endLine === right.endLine &&
     left.side === right.side

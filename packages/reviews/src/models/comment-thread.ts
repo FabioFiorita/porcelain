@@ -14,13 +14,14 @@ type CommentComparison =
 
 export type CommentAnchor = {
   comparison?: CommentComparison | undefined;
-  filePath: string;
   revision?: string | undefined;
   contentFingerprint?: string | undefined;
 } & (
-  | { kind: 'file' }
+  | { kind: 'change' }
+  | { kind: 'file'; filePath: string }
   | {
       kind: 'codeRange';
+      filePath: string;
       startLine: number;
       endLine: number;
       side?: 'additions' | 'deletions' | undefined;
@@ -111,7 +112,8 @@ export type CommentSeenMark = {
 
 export type CommentAnchorProblem =
   | { kind: 'reversed-range' }
-  | { kind: 'revision-mismatch' };
+  | { kind: 'revision-mismatch' }
+  | { kind: 'unsupported-comparison' };
 
 export type CommentThreadKey = { threadId: string };
 

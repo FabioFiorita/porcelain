@@ -37,6 +37,11 @@ const commentAuthorSchema = z.enum(['reviewer', 'agent']);
 
 const commentAnchorSchema = z.discriminatedUnion('kind', [
   z.strictObject({
+    kind: z.literal('change'),
+    filePath: z.undefined().optional(),
+    ...evidence,
+  }),
+  z.strictObject({
     kind: z.literal('file'),
     filePath: relativePathSchema,
     ...evidence,

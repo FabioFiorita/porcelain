@@ -5,6 +5,7 @@ import { useCreateComment } from '../commands/comments';
 import {
   type CommentAnchor,
   anchorLabel,
+  anchorPath,
   commentBodyValid,
   retainIntent,
 } from '../rules/comments';
@@ -59,7 +60,9 @@ export function InlineComposer({
       }}
     >
       <label htmlFor={id} className="text-xs text-muted-foreground">
-        {anchor.filePath} · {anchorLabel(anchor)}
+        {[anchorPath(anchor), anchorLabel(anchor)]
+          .filter((part) => part != null)
+          .join(' · ')}
       </label>
       <Textarea
         id={id}

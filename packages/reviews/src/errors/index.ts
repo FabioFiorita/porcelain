@@ -11,5 +11,6 @@ export { ReviewLayerNotFoundError } from './review-layer-not-found-error.ts';
 export { ReviewSummaryNotFoundError } from './review-summary-not-found-error.ts';
 export { ReviewedMarkConflictError } from './reviewed-mark-conflict-error.ts';
 export { StepLaneOutOfRangeError } from './step-lane-out-of-range-error.ts';
+export { UnsupportedCommentComparisonError } from './unsupported-comment-comparison-error.ts';
 export { UnknownArrowBoxError } from './unknown-arrow-box-error.ts';
 export { UnknownArrowStepError } from './unknown-arrow-step-error.ts';

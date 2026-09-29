@@ -285,10 +285,14 @@ export function ThreadCard({
     <button
       type="button"
       onClick={onReveal}
-      title="Show in the code"
+      title={
+        thread.anchor.kind === 'change' ? 'Show the change' : 'Show in the code'
+      }
       className="flex min-w-0 items-center gap-1 rounded px-0.5 font-mono text-foreground hover:underline"
     >
-      <span className="truncate">{basename(thread.anchor.filePath)}</span>
+      {thread.anchor.kind !== 'change' && (
+        <span className="truncate">{basename(thread.anchor.filePath)}</span>
+      )}
       <span className="shrink-0 font-sans text-muted-foreground">
         {anchorLabel(thread.anchor)}
       </span>

@@ -129,7 +129,7 @@ export function createReviewMcpServer(
     'create_comment',
     {
       description:
-        'Create an agent review thread on a file or code range. Stable optional IDs make retries idempotent.',
+        'Create an agent review thread on the whole change (kind change, with a branch comparison and its tip for a branch review), a file or a code range. Stable optional IDs make retries idempotent.',
       inputSchema: createCommentToolRequestSchema,
     },
     ({ cwd, ...input }, { signal }) =>
