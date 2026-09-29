@@ -22,3 +22,4 @@ export { SetReviewedFilesService } from './set-reviewed-files-service.ts';
 export { SetReviewedLayerService } from './set-reviewed-layer-service.ts';
 export { UpdateCommentThreadService } from './update-comment-thread-service.ts';
 export { ReadProofFileService } from './read-proof-file-service.ts';
+export { CheckReviewDraftService } from './check-review-draft-service.ts';

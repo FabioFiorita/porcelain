@@ -7,6 +7,7 @@ import type { WorktreeParams } from '@porcelain/contracts/shared';
 import type { ReadBinaryFilesService } from '@porcelain/files/services';
 import { proofFilePaths } from '@porcelain/reviews/rules';
 import type {
+  CheckReviewDraftService,
   ResolvePublishedReviewService,
   PublishReviewService,
 } from '@porcelain/reviews/services';
@@ -21,6 +22,7 @@ import type { CheckWorktreeUseCasePort } from '../../ports/check-worktree-use-ca
 export class PublishReviewUseCase {
   private readonly checkWorktree: CheckWorktreeUseCasePort;
   private readonly confirmWorktree: ConfirmWorktreeService;
+  private readonly checkReviewDraft: CheckReviewDraftService;
   private readonly readReviewEvidence: ReadReviewEvidenceUseCasePort;
   private readonly readBinaryFiles: ReadBinaryFilesService;
   private readonly publishReview: PublishReviewService;
@@ -33,6 +35,7 @@ export class PublishReviewUseCase {
   constructor(
     checkWorktree: CheckWorktreeUseCasePort,
     confirmWorktree: ConfirmWorktreeService,
+    checkReviewDraft: CheckReviewDraftService,
     readReviewEvidence: ReadReviewEvidenceUseCasePort,
     readBinaryFiles: ReadBinaryFilesService,
     publishReview: PublishReviewService,
@@ -44,6 +47,7 @@ export class PublishReviewUseCase {
   ) {
     this.checkWorktree = checkWorktree;
     this.confirmWorktree = confirmWorktree;
+    this.checkReviewDraft = checkReviewDraft;
     this.readReviewEvidence = readReviewEvidence;
     this.readBinaryFiles = readBinaryFiles;
     this.publishReview = publishReview;
@@ -67,6 +71,7 @@ export class PublishReviewUseCase {
       this.laneKeys.reviews(worktree),
       'write',
       async ({ signal }) => {
+        this.checkReviewDraft.execute({ worktreeId, draft });
         const evidence = await this.readReviewEvidence.execute(
           { worktreeId, layers: draft.layers },
           { signal },

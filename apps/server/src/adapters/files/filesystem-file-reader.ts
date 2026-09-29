@@ -66,7 +66,7 @@ export class FilesystemFileReader implements FileReader {
         if (!opened.isFile() || !sameFile(before.info, opened))
           return { kind: 'failed', failure: 'changed' };
         if (opened.size > BigInt(maxBytes)) return { kind: 'too-large' };
-        const buffer = Buffer.alloc(maxBytes + 1);
+        const buffer = Buffer.alloc(Number(opened.size) + 1);
         let length = 0;
         while (length < buffer.length) {
           signal?.throwIfAborted();

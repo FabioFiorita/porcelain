@@ -12,7 +12,11 @@ const reader = new InMemoryFileReader({
     'moving.png': { kind: 'failed', failure: 'changed' },
   },
 });
-const service = new ReadBinaryFilesService(reader, { maxBytes: 64 });
+const service = new ReadBinaryFilesService(reader, {
+  maxBytes: 64,
+  totalBytes: 1024,
+});
+const bytes = (length: number) => new Uint8Array(length);
 
 describe('ReadBinaryFilesService', () => {
   it('maps every readable path to its bytes', async () => {
@@ -30,5 +34,37 @@ describe('ReadBinaryFilesService', () => {
     expect([...read.files.keys()]).toEqual(['shot.png']);
     expect(read.tooLarge).toEqual(['huge.webm']);
     expect(read.unreadable).toEqual(['gone.png', 'folder.png', 'moving.png']);
+  });
+
+  it('gives each file only what the budget has left', async () => {
+    const reader = new InMemoryFileReader({
+      files: {
+        'a.png': { kind: 'file', bytes: bytes(40), revision: 'r1' },
+        'b.png': { kind: 'file', bytes: bytes(40), revision: 'r1' },
+        'c.png': { kind: 'file', bytes: bytes(30), revision: 'r1' },
+        'd.png': { kind: 'file', bytes: bytes(20), revision: 'r1' },
+      },
+    });
+    const read = await new ReadBinaryFilesService(reader, {
+      maxBytes: 64,
+      totalBytes: 100,
+    }).execute({ worktreeId, paths: ['a.png', 'b.png', 'c.png', 'd.png'] });
+    expect([...read.files.keys()]).toEqual(['a.png', 'b.png', 'd.png']);
+    expect(read.tooLarge).toEqual(['c.png']);
+  });
+
+  it('reports every later file too large once the budget is spent', async () => {
+    const reader = new InMemoryFileReader({
+      files: {
+        'a.png': { kind: 'file', bytes: bytes(50), revision: 'r1' },
+        'b.png': { kind: 'file', bytes: bytes(1), revision: 'r1' },
+      },
+    });
+    const read = await new ReadBinaryFilesService(reader, {
+      maxBytes: 64,
+      totalBytes: 50,
+    }).execute({ worktreeId, paths: ['a.png', 'b.png'] });
+    expect([...read.files.keys()]).toEqual(['a.png']);
+    expect(read.tooLarge).toEqual(['b.png']);
   });
 });

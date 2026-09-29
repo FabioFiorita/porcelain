@@ -18,28 +18,26 @@ export class ReadBinaryFilesService {
     input: ReadBinaryFilesInput,
     signal?: AbortSignal,
   ): Promise<ReadBinaryFilesResult> {
-    const { worktreeId } = input;
-    const reads = await Promise.all(
-      input.paths.map(async (path) => ({
-        path,
-        read: await this.fileReader.read(
-          { worktreeId, path, maxBytes: this.options.maxBytes },
-          signal,
-        ),
-      })),
-    );
-    return {
-      files: new Map(
-        reads.flatMap(({ path, read }) =>
-          read.kind === 'file' ? [[path, read.bytes]] : [],
-        ),
-      ),
-      tooLarge: reads.flatMap(({ path, read }) =>
-        read.kind === 'too-large' ? [path] : [],
-      ),
-      unreadable: reads.flatMap(({ path, read }) =>
-        read.kind === 'failed' ? [path] : [],
-      ),
-    };
+    const files = new Map<string, Uint8Array>();
+    const tooLarge: string[] = [];
+    const unreadable: string[] = [];
+    let remaining = this.options.totalBytes;
+    for (const path of input.paths) {
+      if (remaining <= 0) {
+        tooLarge.push(path);
+        continue;
+      }
+      const maxBytes = Math.min(this.options.maxBytes, remaining);
+      const read = await this.fileReader.read(
+        { worktreeId: input.worktreeId, path, maxBytes },
+        signal,
+      );
+      if (read.kind === 'file' && read.bytes.length <= maxBytes) {
+        files.set(path, read.bytes);
+        remaining -= read.bytes.length;
+      } else if (read.kind !== 'failed') tooLarge.push(path);
+      else unreadable.push(path);
+    }
+    return { files, tooLarge, unreadable };
   }
 }

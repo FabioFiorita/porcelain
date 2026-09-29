@@ -9,4 +9,4 @@ export type ReadBinaryFilesResult = {
   unreadable: string[];
 };
 
-export type ReadBinaryFilesOptions = { maxBytes: number };
+export type ReadBinaryFilesOptions = { maxBytes: number; totalBytes: number };

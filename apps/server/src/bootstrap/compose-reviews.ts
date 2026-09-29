@@ -1,4 +1,5 @@
 import {
+  CheckReviewDraftService,
   CreateCommentThreadService,
   DeleteCommentMessageService,
   DeleteResolvedCommentsService,
@@ -112,6 +113,7 @@ export function composeReviews(
   const publishReview = new PublishReviewUseCase(
     checkWorktree,
     shared.confirmWorktree,
+    new CheckReviewDraftService(reviewStore),
     shared.readReviewEvidence,
     shared.readBinaryFiles,
     new PublishReviewService(
