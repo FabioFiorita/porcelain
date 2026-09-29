@@ -5,6 +5,7 @@ import {
   ExternalLinkIcon,
 } from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
+import { useProofFileUrl } from '../adapters/proof-file-url';
 import { useProofFile } from '../queries/proof';
 import {
   checkResultLabel,
@@ -12,7 +13,6 @@ import {
   orderedChecks,
   type ProofAsset,
   type ProofCheck,
-  proofFileUrl,
   type ReviewProof,
 } from '../rules/proof';
 import type { ReviewLayer, ReviewScope } from '../rules/review';
@@ -214,28 +214,29 @@ function ProofMedia({
   video: boolean;
 }) {
   const file = useProofFile(scope, context, id);
-  if (file.isPending)
-    return (
-      <p role="status" className="p-3 text-xs text-muted-foreground">
-        Loading {video ? 'video' : 'image'}…
-      </p>
-    );
+  const url = useProofFileUrl(file.data);
   if (file.isError)
     return (
       <p role="status" className="p-3 text-xs text-muted-foreground">
         This attachment could not be loaded.
       </p>
     );
+  if (url === undefined)
+    return (
+      <p role="status" className="p-3 text-xs text-muted-foreground">
+        Loading {video ? 'video' : 'image'}…
+      </p>
+    );
   return video ? (
     <video
       controls
       aria-label={title}
-      src={proofFileUrl(file.data)}
+      src={url}
       className="max-h-80 w-full rounded-md bg-muted"
     />
   ) : (
     <img
-      src={proofFileUrl(file.data)}
+      src={url}
       alt={title}
       className="max-h-80 w-full rounded-md bg-muted object-contain"
     />

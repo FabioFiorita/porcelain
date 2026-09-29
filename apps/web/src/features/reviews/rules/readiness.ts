@@ -11,6 +11,7 @@ export type ReadinessKey =
   | 'stale'
   | 'unexplained'
   | 'comments'
+  | 'replies'
   | 'checks';
 export type ReadinessTone = 'ok' | 'attention' | 'failing';
 export type ReadinessItem = {
@@ -41,6 +42,12 @@ function checksItem(proof: ReviewProof | undefined): ReadinessItem {
     };
   if (total === 0)
     return { key: 'checks', label: 'No checks attached', tone: 'attention' };
+  if (proof?.current === false)
+    return {
+      key: 'checks',
+      label: 'Checks ran before the latest changes',
+      tone: 'attention',
+    };
   if (status.skipped > 0)
     return {
       key: 'checks',
@@ -73,6 +80,25 @@ function unexplainedItem(
       };
 }
 
+function commentItems(onAgent: number, onYou: number): ReadinessItem[] {
+  if (onAgent === 0 && onYou === 0)
+    return [{ key: 'comments', label: 'No open comments', tone: 'ok' }];
+  const items: ReadinessItem[] = [];
+  if (onAgent > 0)
+    items.push({
+      key: 'comments',
+      label: `${counted(onAgent, 'comment', 'comments')} waiting on the agent`,
+      tone: 'attention',
+    });
+  if (onYou > 0)
+    items.push({
+      key: 'replies',
+      label: `${counted(onYou, 'comment', 'comments')} waiting on you`,
+      tone: 'attention',
+    });
+  return items;
+}
+
 export function readinessItems(input: ReadinessInput): ReadinessItem[] {
   const total = input.files.length;
   const reviewed = input.files.filter(
@@ -81,8 +107,11 @@ export function readinessItems(input: ReadinessInput): ReadinessItem[] {
   const stale = input.files.filter(
     (file) => file.reviewStatus === 'stale',
   ).length;
-  const waiting = input.threads.filter(
+  const waitingOnAgent = input.threads.filter(
     (thread) => threadState(thread) === 'awaiting-agent',
+  ).length;
+  const waitingOnYou = input.threads.filter(
+    (thread) => threadState(thread) === 'agent-replied',
   ).length;
   const unexplained = input.explains ? unexplainedItem(input.review) : null;
   return [
@@ -101,17 +130,7 @@ export function readinessItems(input: ReadinessInput): ReadinessItem[] {
           tone: 'attention',
         },
     ...(unexplained === null ? [] : [unexplained]),
-    waiting === 0
-      ? {
-          key: 'comments',
-          label: 'No comments waiting on the agent',
-          tone: 'ok',
-        }
-      : {
-          key: 'comments',
-          label: `${counted(waiting, 'comment', 'comments')} waiting on the agent`,
-          tone: 'attention',
-        },
+    ...commentItems(waitingOnAgent, waitingOnYou),
     checksItem(input.review?.proof),
   ];
 }
@@ -119,6 +138,6 @@ export function readinessItems(input: ReadinessInput): ReadinessItem[] {
 export function readinessSummary(items: readonly ReadinessItem[]): string {
   const open = items.filter((item) => item.tone !== 'ok').length;
   return open === 0
-    ? 'Ready to merge'
+    ? 'Nothing left to check'
     : `${counted(open, 'thing', 'things')} to check`;
 }

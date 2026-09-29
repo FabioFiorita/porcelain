@@ -7,7 +7,11 @@ type CommentThread = Input['threads'][number];
 
 const clean: Review = {
   notExplained: [],
-  proof: { checks: [{ name: 'Tests', result: 'pass' }], assets: [] },
+  proof: {
+    checks: [{ name: 'Tests', result: 'pass' }],
+    assets: [],
+    current: true,
+  },
 };
 
 function thread(
@@ -34,16 +38,16 @@ describe('readinessItems', () => {
       files: [{ reviewStatus: 'reviewed' }, { reviewStatus: 'reviewed' }],
       review: clean,
       explains: true,
-      threads: [thread(['reviewer', 'agent'])],
+      threads: [thread(['reviewer', 'agent'], true)],
     });
     expect(items.map((item) => [item.key, item.label, item.tone])).toEqual([
       ['files', '2 of 2 files reviewed', 'ok'],
       ['stale', 'No marks went stale', 'ok'],
       ['unexplained', 'Every change explained', 'ok'],
-      ['comments', 'No comments waiting on the agent', 'ok'],
+      ['comments', 'No open comments', 'ok'],
       ['checks', '1 check passed', 'ok'],
     ]);
-    expect(readinessSummary(items)).toBe('Ready to merge');
+    expect(readinessSummary(items)).toBe('Nothing left to check');
   });
 
   it('counts unreviewed and stale files, unexplained lines, waiting comments and failing checks', () => {
@@ -69,6 +73,7 @@ describe('readinessItems', () => {
             { name: 'Journey', result: 'fail' },
           ],
           assets: [],
+          current: true,
         },
       },
       explains: true,
@@ -118,6 +123,7 @@ describe('readinessItems', () => {
             { name: 'E2E', result: 'skipped' },
           ],
           assets: [],
+          current: true,
         },
       },
       explains: false,
@@ -126,8 +132,47 @@ describe('readinessItems', () => {
     expect(items.map((item) => [item.key, item.label, item.tone])).toEqual([
       ['files', 'No changed files', 'ok'],
       ['stale', 'No marks went stale', 'ok'],
-      ['comments', 'No comments waiting on the agent', 'ok'],
+      ['comments', 'No open comments', 'ok'],
       ['checks', '1 check skipped', 'attention'],
     ]);
+  });
+
+  it('counts an open thread the agent answered last as waiting on the reviewer', () => {
+    const items = readinessItems({
+      files: [{ reviewStatus: 'reviewed' }],
+      review: clean,
+      explains: true,
+      threads: [
+        thread(['agent']),
+        thread(['reviewer', 'agent']),
+        thread(['reviewer']),
+      ],
+    });
+    expect(
+      items.filter((item) => item.key === 'comments' || item.key === 'replies'),
+    ).toEqual([
+      {
+        key: 'comments',
+        label: '1 comment waiting on the agent',
+        tone: 'attention',
+      },
+      { key: 'replies', label: '2 comments waiting on you', tone: 'attention' },
+    ]);
+    expect(readinessSummary(items)).toBe('2 things to check');
+  });
+
+  it('asks for the checks again once the code changed after they ran', () => {
+    const items = readinessItems({
+      files: [{ reviewStatus: 'reviewed' }],
+      review: { ...clean, proof: { ...clean.proof, current: false } },
+      explains: true,
+      threads: [],
+    });
+    expect(items.find((item) => item.key === 'checks')).toEqual({
+      key: 'checks',
+      label: 'Checks ran before the latest changes',
+      tone: 'attention',
+    });
+    expect(readinessSummary(items)).toBe('1 thing to check');
   });
 });

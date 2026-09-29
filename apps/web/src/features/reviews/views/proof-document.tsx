@@ -1,7 +1,7 @@
-import { CircleXIcon } from 'lucide-react';
+import { CircleXIcon, HistoryIcon } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { usePublishedReview } from '../queries/published-review';
-import { proofLabel, proofStatus } from '../rules/proof';
+import { proofLabel, proofStatus, publishedLabel } from '../rules/proof';
 import type { ReviewScope } from '../rules/review';
 import type { ReviewsContext } from '../rules/reviewed';
 import { DocumentToolbar } from './document-toolbar';
@@ -37,7 +37,7 @@ export function ProofDocument({
     <section className="flex min-h-0 flex-1 flex-col" aria-label="Proof">
       <DocumentToolbar
         title="Proof"
-        subtitle={`Checks ${proofLabel(status)} · ${review.proof.assets.length} ${review.proof.assets.length === 1 ? 'attachment' : 'attachments'}`}
+        subtitle={`Published ${publishedLabel(review.publishedAt)} · checks ${proofLabel(status)} · ${review.proof.assets.length} ${review.proof.assets.length === 1 ? 'attachment' : 'attachments'}`}
       />
       <div className="min-h-0 flex-1 overflow-auto p-4">
         <div className="flex max-w-3xl flex-col gap-4">
@@ -51,6 +51,18 @@ export function ProofDocument({
               </AlertTitle>
               <AlertDescription>
                 The agent reported this work as not passing yet.
+              </AlertDescription>
+            </Alert>
+          )}
+          {!status.current && !empty && (
+            <Alert>
+              <HistoryIcon />
+              <AlertTitle>
+                These checks ran before the latest changes
+              </AlertTitle>
+              <AlertDescription>
+                The code changed after the agent published this proof. Ask it to
+                run the checks again.
               </AlertDescription>
             </Alert>
           )}

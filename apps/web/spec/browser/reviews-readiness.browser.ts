@@ -23,7 +23,7 @@ test('the readiness panel follows reviewed and stale files, unexplained lines, w
   await expect.element(line('0 of 1 file reviewed')).toBeVisible();
   await expect.element(line('No marks went stale')).toBeVisible();
   await expect.element(line('No review published')).toBeVisible();
-  await expect.element(line('No comments waiting on the agent')).toBeVisible();
+  await expect.element(line('No open comments')).toBeVisible();
   await expect.element(line('No checks attached')).toBeVisible();
   await hideReadiness();
 

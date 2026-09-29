@@ -95,7 +95,7 @@ export function ReviewIndex({
     key: ReadinessKey,
     firstStale: string | undefined,
   ) => {
-    if (key === 'comments') {
+    if (key === 'comments' || key === 'replies') {
       setView('comments');
       return;
     }
