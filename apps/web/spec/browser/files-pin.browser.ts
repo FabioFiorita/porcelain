@@ -1,4 +1,5 @@
 import { expect } from 'vitest';
+import { userEvent } from 'vitest/browser';
 import { test } from '../kit/journey';
 
 test('a pinned file is listed under Pinned, opens from there, and unpins', async ({
@@ -23,6 +24,43 @@ test('a pinned file is listed under Pinned, opens from there, and unpins', async
   const group = pairedPage.getByRole('region', { name: 'Pinned files' });
   await expect.element(group.getByText('guide.md')).toBeVisible();
   await expect.poll(pinned).toEqual([path]);
+
+  const commands = [
+    'Rename',
+    'Duplicate',
+    'Show timeline',
+    'Unpin file',
+    'Hide file',
+    'Copy relative path',
+    'Copy full path',
+    'Move to trash',
+  ];
+  await file.click({ button: 'right' });
+  for (const name of commands)
+    await expect
+      .element(pairedPage.getByRole('menuitem', { name, exact: true }))
+      .toBeVisible();
+  await expect
+    .element(
+      pairedPage.getByRole('menuitem', { name: 'Pin file', exact: true }),
+    )
+    .not.toBeInTheDocument();
+  await userEvent.keyboard('{Escape}');
+
+  await group
+    .getByRole('button', { name: /guide\.md/ })
+    .first()
+    .click({ button: 'right' });
+  for (const name of commands)
+    await expect
+      .element(pairedPage.getByRole('menuitem', { name, exact: true }))
+      .toBeVisible();
+  await expect
+    .element(
+      pairedPage.getByRole('menuitem', { name: 'Pin file', exact: true }),
+    )
+    .not.toBeInTheDocument();
+  await userEvent.keyboard('{Escape}');
 
   await pairedPage.getByRole('treeitem', { name: repo.readme.path }).click();
   await expect

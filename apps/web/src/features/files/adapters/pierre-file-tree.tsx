@@ -37,6 +37,7 @@ export function PierreFileTree({
   selected,
   onExpand,
   renderMenu,
+  bindRename,
   onInvalidName,
   onSelect,
 }: {
@@ -50,6 +51,7 @@ export function PierreFileTree({
   gitStatus: readonly GitStatusEntry[];
   selected: string;
   onExpand: (paths: readonly string[]) => void;
+  bindRename: (rename: (path: string) => void) => void;
   renderMenu: (
     item: ContextMenuItem,
     context: ContextMenuOpenContext,
@@ -68,6 +70,7 @@ export function PierreFileTree({
     selected,
     onExpand,
     renderMenu,
+    bindRename,
     onInvalidName,
     onSelect,
   };
@@ -165,6 +168,13 @@ export function PierreFileTree({
 
   useLayoutEffect(() => {
     modelRef.current = model;
+    latest.current.bindRename((path) => {
+      requestAnimationFrame(() => {
+        syncing.current = true;
+        model.startRenaming(path);
+        syncing.current = false;
+      });
+    });
   }, [model]);
   const handledCreate = useRef<number | undefined>(undefined);
   useEffect(() => {

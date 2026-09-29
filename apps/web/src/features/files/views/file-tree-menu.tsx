@@ -22,12 +22,15 @@ import {
 } from '@/components/ui/context-menu';
 import type { TreeAction } from '../rules/tree-actions';
 
-type Props = {
-  path: string;
-  anchor: { left: number; bottom: number };
+type MenuListProps = {
   actions: readonly { id: TreeAction; label: string }[];
   hidden: boolean;
   onAction: (id: TreeAction) => void;
+};
+
+type Props = MenuListProps & {
+  path: string;
+  anchor: HTMLElement;
   onMenuKeyDown: (event: KeyboardEvent<HTMLDivElement>) => void;
 };
 
@@ -57,27 +60,33 @@ export function FileTreeMenu({
 }: Props) {
   return (
     <ContextMenu defaultOpen>
-      <ContextMenuTrigger
-        aria-label={`${path} actions`}
-        className="fixed size-px"
-        style={{ left: anchor.left, top: anchor.bottom }}
-      />
+      <ContextMenuTrigger aria-label={`${path} actions`} className="sr-only" />
       <ContextMenuContent
+        anchor={anchor}
         side="bottom"
         align="start"
+        data-file-tree-context-menu-root="true"
         onKeyDownCapture={onMenuKeyDown}
       >
-        {actions.map((action) => (
-          <FileTreeMenuAction
-            key={action.id}
-            action={action}
-            onAction={onAction}
-            hidden={hidden}
-          />
-        ))}
+        <FileTreeMenuList
+          actions={actions}
+          hidden={hidden}
+          onAction={onAction}
+        />
       </ContextMenuContent>
     </ContextMenu>
   );
+}
+
+export function FileTreeMenuList({ actions, hidden, onAction }: MenuListProps) {
+  return actions.map((action) => (
+    <FileTreeMenuAction
+      key={action.id}
+      action={action}
+      onAction={onAction}
+      hidden={hidden}
+    />
+  ));
 }
 
 function FileTreeMenuAction({
