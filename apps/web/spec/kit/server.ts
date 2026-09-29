@@ -1,6 +1,7 @@
 import {
   listAccessResponseSchema,
   readHealthResponseSchema,
+  readRemoteAccessResponseSchema,
 } from '@porcelain/contracts/access';
 import {
   listCommitsResponseSchema,
@@ -87,6 +88,10 @@ export const server = {
   project: sampleProject,
   devices: async () =>
     (await read(listAccessResponseSchema, '/access', 'owner')).devices,
+  pendingLinks: async () =>
+    (await read(listAccessResponseSchema, '/access', 'owner')).grants,
+  remoteAccess: () =>
+    read(readRemoteAccessResponseSchema, '/api/remote-access'),
   filePreferences: async () =>
     read(
       listFilePreferencesResponseSchema,

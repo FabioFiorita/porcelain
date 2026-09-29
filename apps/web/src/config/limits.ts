@@ -1,3 +1,4 @@
+import { DEVICE_LABEL_LENGTH } from '@porcelain/contracts/shared';
 export const WEB_PLATFORM_NAME_MAX_LENGTH = 120;
 export const PAIRING_PENDING_MS = 0;
 export const PROJECT_DISCOVERY_STALE_MS = 60_000;
@@ -31,3 +32,6 @@ export const PUBLISHED_REVIEW_REFRESH_MS = 1_800_000;
 export const REVIEW_DIAGRAM_FIT_WAIT_MS = 120;
 export const PIERRE_WORKER_POOL_SIZE = 4;
 export const WORKSPACE_SEARCH_VALUE_MAX_LENGTH = 8192;
+export const PAIRING_LABEL_MAX_LENGTH = DEVICE_LABEL_LENGTH;
+export const REMOTE_ACCESS_SETTLING_POLL_MS = 1_000;
+export const PAIRING_QR_BORDER_MODULES = 2;

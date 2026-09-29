@@ -1,0 +1,117 @@
+import { formatDistanceToNowStrict } from 'date-fns';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemDescription,
+  ItemGroup,
+  ItemTitle,
+} from '@/components/ui/item';
+import { Spinner } from '@/components/ui/spinner';
+import { useRevokeAccess } from '../commands/share';
+import { usePairedAccess } from '../queries/share';
+import { connectionErrorMessage } from '../rules/connection-error-message';
+import type { ShareConnection } from '../rules/share';
+
+export function PairedDevices({ connection }: { connection: ShareConnection }) {
+  const access = usePairedAccess(connection);
+  const revoke = useRevokeAccess(connection);
+  if (access.isPending) return <Spinner />;
+  if (access.error)
+    return (
+      <Alert variant="destructive">
+        <AlertDescription>
+          {connectionErrorMessage(access.error)}
+        </AlertDescription>
+      </Alert>
+    );
+  return (
+    <div className="flex flex-col gap-2">
+      <ItemGroup role="list" aria-label="Paired devices and links">
+        {access.data.devices.map((device) => (
+          <Item
+            key={device.id}
+            variant="outline"
+            size="sm"
+            role="listitem"
+            aria-label={device.label}
+          >
+            <ItemContent className="min-w-0">
+              <ItemTitle>
+                {device.label}
+                {device.current && (
+                  <Badge variant="secondary">This browser</Badge>
+                )}
+              </ItemTitle>
+              <ItemDescription>
+                Last seen{' '}
+                {formatDistanceToNowStrict(new Date(device.lastSeenAt), {
+                  addSuffix: true,
+                })}{' '}
+                · {device.platform}
+              </ItemDescription>
+            </ItemContent>
+            {!device.current && (
+              <ItemActions>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  aria-label={`Revoke ${device.label}`}
+                  disabled={revoke.pendingId === device.id}
+                  onClick={() => revoke.submit(device.id)}
+                >
+                  Revoke
+                </Button>
+              </ItemActions>
+            )}
+          </Item>
+        ))}
+        {access.data.grants.map((grant) => (
+          <Item
+            key={grant.id}
+            variant="outline"
+            size="sm"
+            role="listitem"
+            aria-label={grant.label}
+          >
+            <ItemContent className="min-w-0">
+              <ItemTitle>
+                {grant.label}
+                <Badge variant="outline">Pending link</Badge>
+              </ItemTitle>
+              <ItemDescription>
+                Works once, until{' '}
+                {new Date(grant.expiresAt).toLocaleTimeString()}
+              </ItemDescription>
+            </ItemContent>
+            <ItemActions>
+              <Button
+                size="sm"
+                variant="outline"
+                aria-label={`Cancel the link for ${grant.label}`}
+                disabled={revoke.pendingId === grant.id}
+                onClick={() => revoke.submit(grant.id)}
+              >
+                Cancel
+              </Button>
+            </ItemActions>
+          </Item>
+        ))}
+      </ItemGroup>
+      {revoke.error && (
+        <Alert variant="destructive">
+          <AlertDescription>
+            {connectionErrorMessage(revoke.error)}
+          </AlertDescription>
+        </Alert>
+      )}
+      <p className="text-xs text-muted-foreground">
+        Each device has its own credential. Revoking one signs it out at once
+        and leaves the others alone.
+      </p>
+    </div>
+  );
+}

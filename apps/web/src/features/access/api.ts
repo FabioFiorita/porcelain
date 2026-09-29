@@ -1,10 +1,22 @@
-import { readHealthResponseSchema } from '@porcelain/contracts/access';
+import {
+  issuePairingRequestSchema,
+  issuePairingResponseSchema,
+  listAccessResponseSchema,
+  readHealthResponseSchema,
+  readRemoteAccessResponseSchema,
+  revokeAccessRequestSchema,
+  revokeAccessResponseSchema,
+  setRemoteAccessRequestSchema,
+  setRemoteAccessResponseSchema,
+  type SetRemoteAccessRequest,
+} from '@porcelain/contracts/access';
 import {
   readInventoryResponseSchema,
   type ReadInventoryResponse,
 } from '@porcelain/contracts/projects';
 import { WEB_PLATFORM_NAME_MAX_LENGTH } from '@/config/limits';
 import { ConnectionError } from '@/shared/api/connection-error';
+import { RequestError, requestJson } from '@/shared/api/request';
 import { REQUEST_TIMEOUT_MS } from '@/shared/api/request-timeout';
 import { browserTransport } from '@/shared/api/transport';
 import type { PairingCode } from './rules/pairing-link';
@@ -102,6 +114,59 @@ function createSessionApi(
     },
   };
 }
+
+function createShareApi(transport: typeof fetch) {
+  const json = { 'content-type': 'application/json' };
+  return {
+    list: (signal: AbortSignal) =>
+      requestJson(transport, '/api/access', listAccessResponseSchema, {
+        signal,
+      }),
+    issue: (signal: AbortSignal, label: string, addresses: string[]) =>
+      requestJson(transport, '/api/pairings', issuePairingResponseSchema, {
+        method: 'POST',
+        headers: json,
+        body: JSON.stringify(
+          issuePairingRequestSchema.parse({ labels: [label], addresses }),
+        ),
+        signal,
+      }),
+    revoke: (signal: AbortSignal, id: string) =>
+      requestJson(transport, '/api/access/revoke', revokeAccessResponseSchema, {
+        method: 'POST',
+        headers: json,
+        body: JSON.stringify(revokeAccessRequestSchema.parse({ id })),
+        signal,
+      }),
+    remote: async (signal: AbortSignal) => {
+      try {
+        return await requestJson(
+          transport,
+          '/api/remote-access',
+          readRemoteAccessResponseSchema,
+          { signal },
+        );
+      } catch (error) {
+        if (error instanceof RequestError && error.status === 403) return null;
+        throw error;
+      }
+    },
+    setRemote: (signal: AbortSignal, change: SetRemoteAccessRequest) =>
+      requestJson(
+        transport,
+        '/api/remote-access',
+        setRemoteAccessResponseSchema,
+        {
+          method: 'PATCH',
+          headers: json,
+          body: JSON.stringify(setRemoteAccessRequestSchema.parse(change)),
+          signal,
+        },
+      ),
+  };
+}
+
+export const shareApi = createShareApi(browserTransport(fetch));
 
 export const accessApi = {
   pairing: createPairingApi(browserTransport(fetch)),
