@@ -9,7 +9,7 @@ export default {
   edits: [
     {
       kind: 'prepend',
-      path: 'packages/files/src/rules/encode-base64.ts',
+      path: 'packages/files/src/rules/move-problem.ts',
       content: "import '../../../projects/src/models/index.ts';\n",
     },
   ],

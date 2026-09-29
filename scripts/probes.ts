@@ -60,7 +60,7 @@ const expectedSeconds: Record<ProbeGate, (probe: LoadedProbe) => number> = {
   test: () => 7,
   db: () => 2,
   verify: (probe) => (probe.feature === undefined ? 46 : 2),
-  'web-verify': (probe) => (probe.feature === undefined ? 400 : 12),
+  'web-verify': (probe) => (probe.feature === undefined ? 150 : 12),
 };
 const moduleSchema = z.object({ default: probeSchema });
 const localEnvironment = Object.fromEntries(

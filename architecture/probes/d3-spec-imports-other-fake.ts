@@ -8,7 +8,7 @@ export default {
   edits: [
     {
       kind: 'prepend',
-      path: 'packages/files/src/rules/encode-base64.spec.ts',
+      path: 'packages/files/src/rules/move-problem.spec.ts',
       content:
         "import '../../../projects/spec/fakes/in-memory-inventory-store.ts';\n",
     },
