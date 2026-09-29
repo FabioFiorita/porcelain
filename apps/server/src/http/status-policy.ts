@@ -390,13 +390,13 @@ export function toStatusResponse(error: unknown): StatusResponse {
   return response(500, 'Operation failed');
 }
 
-export function failureWorthLogging(
+export function abandonedByClient(
   error: unknown,
   clientGone: boolean,
 ): boolean {
-  const clientAbandoned =
-    clientGone && error instanceof DOMException && error.name === 'AbortError';
-  return toStatusResponse(error).statusCode >= 500 && !clientAbandoned;
+  return (
+    clientGone && error instanceof DOMException && error.name === 'AbortError'
+  );
 }
 
 function isAbandoned(error: unknown) {

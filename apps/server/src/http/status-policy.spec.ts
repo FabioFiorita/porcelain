@@ -10,7 +10,7 @@ import * as gitHistory from '@porcelain/git/history';
 import * as gitInspection from '@porcelain/git/inspection';
 import * as kernelErrors from '@porcelain/kernel/errors';
 import { describe, expect, it } from 'vitest';
-import { failureWorthLogging, toStatusResponse } from './status-policy.ts';
+import { abandonedByClient, toStatusResponse } from './status-policy.ts';
 
 const domainErrors: Record<string, Record<string, unknown>> = {
   access: accessErrors,
@@ -112,31 +112,24 @@ describe('status policy', () => {
   });
 });
 
-describe('failureWorthLogging', () => {
+describe('abandonedByClient', () => {
   const abandoned = new DOMException('The request was abandoned', 'AbortError');
 
-  it('keeps quiet about a request its client abandoned, which is normal navigation', () => {
-    expect(failureWorthLogging(abandoned, true)).toBe(false);
+  it('takes an abort after the client went away as abandoned, which is normal navigation and not a failure', () => {
+    expect(abandonedByClient(abandoned, true)).toBe(true);
   });
 
-  it('logs an abort that the client did not cause', () => {
-    expect(failureWorthLogging(abandoned, false)).toBe(true);
+  it('does not take an abort the client did not cause as abandoned', () => {
+    expect(abandonedByClient(abandoned, false)).toBe(false);
   });
 
-  it('logs a deadline even when the client has gone', () => {
+  it('does not take a deadline as abandoned even when the client has gone', () => {
     expect(
-      failureWorthLogging(new DOMException('Too slow', 'TimeoutError'), true),
-    ).toBe(true);
-  });
-
-  it('logs an unexpected failure whether or not the client stayed', () => {
-    expect(failureWorthLogging(new Error('broken'), true)).toBe(true);
-    expect(failureWorthLogging(new Error('broken'), false)).toBe(true);
-  });
-
-  it('does not log a failure answered below 500', () => {
-    expect(
-      failureWorthLogging(new accessErrors.InvalidPairingError(), false),
+      abandonedByClient(new DOMException('Too slow', 'TimeoutError'), true),
     ).toBe(false);
+  });
+
+  it('does not take an unexpected failure as abandoned', () => {
+    expect(abandonedByClient(new Error('broken'), true)).toBe(false);
   });
 });
