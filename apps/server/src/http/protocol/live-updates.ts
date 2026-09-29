@@ -3,11 +3,13 @@ import type { FastifyInstance } from 'fastify';
 import { WebSocket } from 'ws';
 import type { LiveConnector } from '../../ports/live-connector.ts';
 import type { Logger } from '../../ports/logger.ts';
+import type { TunnelConnectionStore } from '../../ports/tunnel-connection-store.ts';
 import type { WatchOpener } from '../../ports/watch-demand.ts';
 import type { AuthenticateOptions } from '../hooks/authenticate.ts';
 
 export type LiveUpdatesOptions = {
   logger: Logger;
+  tunnelConnections: Pick<TunnelConnectionStore, 'insert'>;
   liveUpdates: LiveConnector;
   worktreeWatches: WatchOpener;
 };
@@ -40,8 +42,20 @@ export function liveUpdates(
       deviceId: principal.deviceId,
       connection: { close: () => socket.close(4001, 'Device access revoked') },
     });
+    const { tunnelHostname } = request.client;
+    const releaseTunnel =
+      tunnelHostname === undefined
+        ? () => undefined
+        : options.tunnelConnections.insert({
+            hostname: tunnelHostname,
+            connection: {
+              close: () =>
+                socket.close(4003, 'This address no longer reaches Porcelain'),
+            },
+          });
     const close = () => {
       releaseDevice();
+      releaseTunnel();
       watches.close();
       connection.close();
     };

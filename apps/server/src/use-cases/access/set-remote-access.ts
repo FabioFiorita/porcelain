@@ -1,4 +1,5 @@
 import type {
+  CloseTunnelConnectionsService,
   OpenRemoteRoutesService,
   ReadEnvironmentService,
   SetRemoteAccessService,
@@ -15,6 +16,7 @@ import type { OperationContext } from '../../ports/operation-context.ts';
 export class SetRemoteAccessUseCase {
   private readonly setRemoteAccess: SetRemoteAccessService;
   private readonly openRemoteRoutes: OpenRemoteRoutesService;
+  private readonly closeTunnelConnections: CloseTunnelConnectionsService;
   private readonly readEnvironment: ReadEnvironmentService;
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
@@ -23,6 +25,7 @@ export class SetRemoteAccessUseCase {
   constructor(
     setRemoteAccess: SetRemoteAccessService,
     openRemoteRoutes: OpenRemoteRoutesService,
+    closeTunnelConnections: CloseTunnelConnectionsService,
     readEnvironment: ReadEnvironmentService,
     lanes: Lanes,
     laneKeys: LaneKeys,
@@ -30,6 +33,7 @@ export class SetRemoteAccessUseCase {
   ) {
     this.setRemoteAccess = setRemoteAccess;
     this.openRemoteRoutes = openRemoteRoutes;
+    this.closeTunnelConnections = closeTunnelConnections;
     this.readEnvironment = readEnvironment;
     this.lanes = lanes;
     this.laneKeys = laneKeys;
@@ -43,13 +47,22 @@ export class SetRemoteAccessUseCase {
     const changed = await this.lanes.run(
       this.laneKeys.remoteAccess(),
       'write',
-      async () => this.setRemoteAccess.execute(input),
+      async () => {
+        const changed = this.setRemoteAccess.execute(input);
+        this.closeTunnelConnections.execute();
+        return changed;
+      },
       { callerSignal: context.signal },
     );
     this.lanes.background(
       this.laneKeys.remoteAccess(),
-      async ({ signal }) =>
-        this.openRemoteRoutes.execute(this.readEnvironment.execute(), signal),
+      async ({ signal }) => {
+        await this.openRemoteRoutes.execute(
+          this.readEnvironment.execute(),
+          signal,
+        );
+        this.closeTunnelConnections.execute();
+      },
       {
         onFailure: (error) =>
           this.logger.failure({

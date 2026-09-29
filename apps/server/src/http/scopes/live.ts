@@ -38,6 +38,7 @@ export async function liveScope(
   );
   server.register(liveUpdates, {
     deviceConnections: application.deviceConnections,
+    tunnelConnections: application.tunnelConnections,
     liveUpdates: application.liveUpdates,
     worktreeWatches: application.worktreeWatches,
     logger: application.logger,

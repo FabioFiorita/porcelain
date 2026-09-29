@@ -15,6 +15,7 @@ import { InMemoryDeviceConnectionStore } from '../adapters/access/in-memory-devi
 import { HttpPairingReachReader } from '../adapters/access/http-pairing-reach-reader.ts';
 import { HttpRouteListenerRunner } from '../adapters/access/http-route-listener-runner.ts';
 import { HttpTunnelProbe } from '../adapters/access/http-tunnel-probe.ts';
+import { InMemoryTunnelConnectionStore } from '../adapters/access/in-memory-tunnel-connection-store.ts';
 import { OsNetworkAddressReader } from '../adapters/access/os-network-address-reader.ts';
 import { ProcessRuntimeStatusReader } from '../adapters/access/process-runtime-status-reader.ts';
 import { ParcelWorktreeWatcher } from '../adapters/events/parcel-worktree-watcher.ts';
@@ -108,6 +109,7 @@ const openServerWith =
       logger,
     };
     const deviceConnections = new InMemoryDeviceConnectionStore();
+    const tunnelConnections = new InMemoryTunnelConnectionStore();
     const routeListenerRunner = adapters.routeListenerRunner(
       () => network.server,
     );
@@ -115,6 +117,7 @@ const openServerWith =
       stores,
       shared,
       deviceConnections,
+      tunnelConnections,
       pairingReachReader: new HttpPairingReachReader(
         input.pairingReach,
         stores.routeStates,
@@ -227,6 +230,7 @@ const openServerWith =
         liveUpdates: liveConnections,
         worktreeWatches,
         deviceConnections,
+        tunnelConnections,
         logger,
       },
       settings,

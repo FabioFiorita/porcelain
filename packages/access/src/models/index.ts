@@ -30,6 +30,7 @@ export type {
   RouteKey,
   RouteState,
   TunnelAnswer,
+  TunnelHostnames,
   TunnelTarget,
 } from './remote-access.ts';
 export type {

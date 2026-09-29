@@ -8,6 +8,7 @@ import type {
 import {
   CheckLocalRequestService,
   CheckRequestOriginService,
+  CloseTunnelConnectionsService,
   IdentifyRequestClientService,
   OpenRemoteRoutesService,
   ReadRemoteAccessService,
@@ -25,6 +26,7 @@ import {
 } from '@porcelain/access/services';
 import { RandomSecretSource } from '../adapters/runtime/random-secret-source.ts';
 import type { DeviceConnectionStore } from '../ports/device-connection-store.ts';
+import type { TunnelConnectionStore } from '../ports/tunnel-connection-store.ts';
 import { AuthenticateDeviceUseCase } from '../use-cases/access/authenticate-device.ts';
 import { CheckLocalRequestUseCase } from '../use-cases/access/check-local-request.ts';
 import { CheckRequestOriginUseCase } from '../use-cases/access/check-request-origin.ts';
@@ -50,6 +52,7 @@ type AccessDependencies = {
   stores: Stores;
   shared: Shared;
   deviceConnections: DeviceConnectionStore;
+  tunnelConnections: TunnelConnectionStore;
   pairingReachReader: PairingReachReader;
   runtimeStatusReader: RuntimeStatusReader;
   networkAddressReader: NetworkAddressReader;
@@ -70,6 +73,11 @@ export function composeAccess(
     dependencies.networkAddressReader,
     dependencies.routeListenerRunner,
     dependencies.tunnelProbe,
+  );
+  const closeTunnelConnections = new CloseTunnelConnectionsService(
+    remoteAccess,
+    routeStates,
+    dependencies.tunnelConnections,
   );
   const { readEnvironment } = dependencies.shared;
   const limits = context.settings.limits.access;
@@ -118,6 +126,7 @@ export function composeAccess(
         { hostnameLength: limits.remoteAccess.hostnameLength },
       ),
       openRemoteRoutes,
+      closeTunnelConnections,
       readEnvironment,
       lanes,
       laneKeys,
@@ -125,6 +134,7 @@ export function composeAccess(
     ),
     openRemoteRoutes: new OpenRemoteRoutesUseCase(
       openRemoteRoutes,
+      closeTunnelConnections,
       readEnvironment,
       lanes,
       laneKeys,

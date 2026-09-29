@@ -66,6 +66,8 @@ export type ListenOutcome = {
 
 export type TunnelTarget = { origin: string };
 
+export type TunnelHostnames = { hostnames: string[] };
+
 export type TunnelAnswer =
   | { kind: 'answered'; environmentId: string }
   | { kind: 'foreign' }
