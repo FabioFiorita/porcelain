@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  anchorBase,
   commentBodyValid,
   commentIsStale,
   commentsSeenThrough,
@@ -145,5 +146,40 @@ describe('matchesCommentTarget on the branch review', () => {
         contentFingerprint: 'e'.repeat(64),
       }),
     ).toBe(true);
+  });
+});
+
+describe('anchorBase', () => {
+  it('reveals a branch line comment against the base it was written against', () => {
+    expect(
+      anchorBase({
+        kind: 'codeRange',
+        filePath: 'notes.md',
+        startLine: 1,
+        endLine: 1,
+        comparison: { kind: 'branch', base: 'refs/remotes/origin/main' },
+        revision: 'a'.repeat(40),
+      }),
+    ).toBe('refs/remotes/origin/main');
+  });
+
+  it('reveals a comment on the whole branch against its base', () => {
+    expect(
+      anchorBase({
+        kind: 'change',
+        comparison: { kind: 'branch', base: 'refs/heads/checkpoint' },
+        revision: 'a'.repeat(40),
+      }),
+    ).toBe('refs/heads/checkpoint');
+  });
+
+  it('leaves the base alone for a comment on uncommitted work', () => {
+    expect(
+      anchorBase({
+        kind: 'file',
+        filePath: 'notes.md',
+        comparison: { kind: 'worktree', scope: 'unstaged' },
+      }),
+    ).toBeUndefined();
   });
 });

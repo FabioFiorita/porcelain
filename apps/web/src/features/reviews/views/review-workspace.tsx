@@ -51,7 +51,7 @@ import type {
 import { useDesktopReview } from '../adapters/desktop-review';
 import { type PaneIndex, useTabLayout } from '../adapters/tab-layout';
 import { usePublishedReview } from '../queries/published-review';
-import type { RevealComment } from '../rules/comments';
+import { anchorBase, type RevealComment } from '../rules/comments';
 import { entryKey, type OpenDocument, parseEntry } from '../rules/documents';
 import type { ReviewLayer } from '../rules/review';
 import type { DocumentContext } from './code-document';
@@ -116,7 +116,11 @@ export function ReviewWorkspace({
         ? { anchor, nonce: Date.now(), pane: focusedPane, key }
         : undefined,
     );
-    onSearch(focusedPane === 1 ? { side: key } : { entry: key });
+    const base = anchor ? anchorBase(anchor) : undefined;
+    onSearch({
+      ...(focusedPane === 1 ? { side: key } : { entry: key }),
+      ...(base === undefined ? {} : { base }),
+    });
     setMobileOpen(false);
   };
   const setSurface = (next: Surface) => {

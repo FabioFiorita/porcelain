@@ -375,6 +375,7 @@ function CommentsView({
     if (anchor.kind === 'change') {
       onOpen(
         anchor.comparison?.kind === 'branch' ? BRANCH : { kind: 'handoff' },
+        anchor,
       );
       return;
     }

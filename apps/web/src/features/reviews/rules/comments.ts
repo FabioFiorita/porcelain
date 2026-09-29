@@ -120,6 +120,12 @@ export function commentIsStale(anchor: CommentAnchor, target: CommentTarget) {
   );
 }
 
+export function anchorBase(anchor: CommentAnchor): string | undefined {
+  return anchor.comparison?.kind === 'branch'
+    ? anchor.comparison.base
+    : undefined;
+}
+
 export function anchorPath(anchor: CommentAnchor): string | undefined {
   return anchor.kind === 'change' ? undefined : anchor.filePath;
 }
