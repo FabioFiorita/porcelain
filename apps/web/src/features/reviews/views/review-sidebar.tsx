@@ -205,6 +205,7 @@ function SidebarSurface({
             activeEntry?.startsWith('commit:') ? activeEntry.slice(7) : ''
           }
           onSelect={(oid) => onOpen({ kind: 'commit', oid })}
+          onOpenGraph={() => onOpen({ kind: 'graph' })}
         />
       )}
     </ReviewBoundary>

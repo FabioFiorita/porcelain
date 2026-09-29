@@ -9,6 +9,7 @@ import {
   FlaskConicalIcon,
   GitBranchIcon,
   GitCommitHorizontalIcon,
+  GitGraphIcon,
   HistoryIcon,
   LayersIcon,
   ListXIcon,
@@ -105,6 +106,12 @@ function describeTab(key: string, layers: readonly Layer[]) {
         Icon: fileTypeIcon(ref.path),
         title: basename(ref.path),
         hint: `${ref.path} · branch`,
+      };
+    case 'graph':
+      return {
+        Icon: GitGraphIcon,
+        title: 'Graph',
+        hint: 'Commit graph of the checked-out branch',
       };
     case 'timeline':
       return {

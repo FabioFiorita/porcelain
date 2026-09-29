@@ -1,5 +1,5 @@
 import { formatDistanceToNowStrict } from 'date-fns';
-import { CopyIcon } from 'lucide-react';
+import { CopyIcon, GitMergeIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -17,12 +17,14 @@ export function CommitRow({
   commit,
   selected,
   height,
+  inset,
   onSelect,
   children,
 }: {
   commit: CommitSummary;
   selected: boolean;
   height?: number | undefined;
+  inset?: number | undefined;
   onSelect: () => void;
   children?: ReactNode;
 }) {
@@ -32,7 +34,7 @@ export function CommitRow({
         render={
           <button
             type="button"
-            style={height === undefined ? undefined : { height }}
+            style={{ height, paddingLeft: inset }}
             aria-pressed={selected}
             title={commit.subject}
             onClick={onSelect}
@@ -44,8 +46,14 @@ export function CommitRow({
           />
         }
       >
-        <span className="truncate text-[12.5px] leading-tight">
-          {commit.subject}
+        <span className="flex min-w-0 items-center gap-1 text-[12.5px] leading-tight">
+          {commit.parentOids.length > 1 && (
+            <GitMergeIcon
+              aria-label="Merge commit"
+              className="size-3.5 shrink-0 text-muted-foreground"
+            />
+          )}
+          <span className="truncate">{commit.subject}</span>
         </span>
         <span className="flex gap-1.5 text-[10.5px] text-muted-foreground">
           <code className="font-mono">{shortOid(commit.oid)}</code>

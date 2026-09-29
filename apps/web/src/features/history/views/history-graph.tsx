@@ -32,7 +32,7 @@ export function HistoryGraph({
   return (
     <svg
       aria-hidden="true"
-      className="shrink-0"
+      className="pointer-events-none absolute top-2 left-1.5"
       data-testid="history-graph"
       width={width}
       height={rows.length * HISTORY_ROW_HEIGHT}

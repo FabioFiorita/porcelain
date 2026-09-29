@@ -5,5 +5,6 @@ export {
   type CommitFile,
   type CommitFiles,
 } from './rules/commit';
+export { CommitGraph } from './views/commit-graph';
 export { FileTimeline } from './views/file-timeline';
 export { HistoryNavigation } from './views/history-navigation';

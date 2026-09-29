@@ -7,12 +7,12 @@ describe('parseTabLayout', () => {
       parseTabLayout({
         panes: [
           { tabs: ['handoff', 'file:a.ts'], pinned: ['file:a.ts'] },
-          { tabs: ['commit:abcd'], pinned: [] },
+          { tabs: ['commit:abcd', 'graph'], pinned: ['graph'] },
         ],
       }),
     ).toEqual([
       { tabs: ['handoff', 'file:a.ts'], pinned: ['file:a.ts'] },
-      { tabs: ['commit:abcd'], pinned: [] },
+      { tabs: ['commit:abcd', 'graph'], pinned: ['graph'] },
     ]);
   });
 

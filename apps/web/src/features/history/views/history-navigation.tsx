@@ -1,4 +1,6 @@
-import { GitBranchIcon } from 'lucide-react';
+import { GitBranchIcon, GitGraphIcon } from 'lucide-react';
+import type { ReactNode } from 'react';
+import { Button } from '@/components/ui/button';
 import {
   Empty,
   EmptyDescription,
@@ -9,35 +11,67 @@ import { useAccessStore } from '@/features/access/index';
 import { worktreeLabel } from '@/features/projects/index';
 import { useHistory } from '../queries/history';
 import type { HistoryScope } from '../rules/connection';
-import { historyFollows, layoutGraph } from '../rules/graph';
+import { historyFollows } from '../rules/graph';
 import { HistoryRows } from './history-rows';
 
 export function HistoryNavigation({
   scope,
   selected,
   onSelect,
+  onOpenGraph,
 }: {
   scope: HistoryScope;
   selected: string;
   onSelect: (oid: string) => void;
+  onOpenGraph: () => void;
 }) {
   const connection = useAccessStore((state) => state.connection);
   const history = useHistory(connection, scope);
-  const rows = layoutGraph(history.commits);
-  const observe =
-    history.hasNextPage &&
-    !history.isFetchingNextPage &&
-    !history.isFetchNextPageError;
 
   return (
     <div className="flex flex-col">
-      {history.snapshot != null && (
-        <p className="flex shrink-0 items-center gap-1.5 border-b px-3.5 py-2 text-[11.5px] text-muted-foreground">
+      <HistoryHeading
+        history={history}
+        action={
+          history.commits.length > 0 ? (
+            <Button size="xs" variant="ghost" onClick={onOpenGraph}>
+              <GitGraphIcon />
+              Open graph
+            </Button>
+          ) : undefined
+        }
+      />
+      {history.commits.length === 0 ? (
+        <NoCommits />
+      ) : (
+        <HistoryRows
+          commits={history.commits}
+          history={history}
+          selected={selected}
+          onSelect={onSelect}
+        />
+      )}
+    </div>
+  );
+}
+
+export function HistoryHeading({
+  history,
+  action,
+}: {
+  history: ReturnType<typeof useHistory>;
+  action?: ReactNode;
+}) {
+  return (
+    <>
+      {(history.snapshot != null || action !== undefined) && (
+        <div className="flex shrink-0 items-center gap-1.5 border-b py-1.5 pr-1.5 pl-3.5 text-[11.5px] text-muted-foreground">
           <GitBranchIcon className="size-3.5 shrink-0" />
-          <span className="truncate">
-            {historyFollows(history.snapshot, worktreeLabel)}
+          <span className="min-w-0 flex-1 truncate">
+            {historyFollows(history.snapshot ?? undefined, worktreeLabel)}
           </span>
-        </p>
+          {action}
+        </div>
       )}
       {history.restarted && (
         <p
@@ -47,28 +81,19 @@ export function HistoryNavigation({
           History changed. Showing it from the top.
         </p>
       )}
-      {rows.length === 0 ? (
-        <Empty>
-          <EmptyHeader>
-            <EmptyTitle>No commits yet</EmptyTitle>
-            <EmptyDescription>
-              Commits will appear here once this worktree has history.
-            </EmptyDescription>
-          </EmptyHeader>
-        </Empty>
-      ) : (
-        <HistoryRows
-          rows={rows}
-          selected={selected}
-          onSelect={onSelect}
-          loading={history.isFetchingNextPage}
-          failed={history.isFetchNextPageError}
-          nextAfter={history.nextAfter}
-          boundary={history.boundary}
-          onLoadMore={history.loadNextPage}
-          canLoadMore={observe}
-        />
-      )}
-    </div>
+    </>
+  );
+}
+
+export function NoCommits() {
+  return (
+    <Empty>
+      <EmptyHeader>
+        <EmptyTitle>No commits yet</EmptyTitle>
+        <EmptyDescription>
+          Commits will appear here once this worktree has history.
+        </EmptyDescription>
+      </EmptyHeader>
+    </Empty>
   );
 }

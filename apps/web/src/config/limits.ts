@@ -9,6 +9,7 @@ export const HISTORY_OID_LENGTH = 7;
 export const HISTORY_ROW_HEIGHT = 58;
 export const HISTORY_LANE_WIDTH = 16;
 export const HISTORY_GRAPH_INSET = 13;
+export const HISTORY_GRAPH_ROW_GAP = 8;
 export const HISTORY_GRAPH_MERGE_RADIUS = 5;
 export const HISTORY_GRAPH_DOT_RADIUS = 4;
 export const HISTORY_GRAPH_STROKE_WIDTH = 1.5;

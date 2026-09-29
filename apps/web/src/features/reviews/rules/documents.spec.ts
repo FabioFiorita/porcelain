@@ -39,6 +39,12 @@ describe('workspaceTitle', () => {
     ).toBe('a1b2c3d — p');
   });
 
+  it('names the commit graph', () => {
+    expect(
+      workspaceTitle({ entry: 'graph', surface: 'history', project: 'p' }),
+    ).toBe('Commit graph — p');
+  });
+
   it('names the surface when no document is open', () => {
     expect(
       workspaceTitle({ entry: undefined, surface: 'history', project: 'p' }),

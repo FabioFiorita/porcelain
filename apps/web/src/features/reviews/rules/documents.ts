@@ -10,12 +10,14 @@ export type DocumentRef =
   | { kind: 'commit'; oid: string }
   | { kind: 'branch' }
   | { kind: 'branch-file'; path: string }
+  | { kind: 'graph' }
   | { kind: 'timeline'; path: string };
 
 const HANDOFF: DocumentRef = { kind: 'handoff' };
 export const BRANCH: DocumentRef = { kind: 'branch' };
 export const UNEXPLAINED: DocumentRef = { kind: 'unexplained' };
 export const PROOF: DocumentRef = { kind: 'proof' };
+const GRAPH: DocumentRef = { kind: 'graph' };
 
 export function entryKey(ref: DocumentRef): string {
   switch (ref.kind) {
@@ -37,6 +39,8 @@ export function entryKey(ref: DocumentRef): string {
       return 'branch';
     case 'branch-file':
       return `branch:${ref.path}`;
+    case 'graph':
+      return 'graph';
     case 'timeline':
       return `timeline:${ref.path}`;
   }
@@ -48,6 +52,7 @@ export function parseEntry(entry: string | undefined): DocumentRef | null {
   if (entry === 'unexplained') return UNEXPLAINED;
   if (entry === 'proof') return PROOF;
   if (entry === 'branch') return BRANCH;
+  if (entry === 'graph') return GRAPH;
 
   const separator = entry.indexOf(':');
   if (separator <= 0) return null;
@@ -112,6 +117,8 @@ function documentTitle(ref: DocumentRef): string {
       return 'Review';
     case 'branch':
       return 'Branch changes';
+    case 'graph':
+      return 'Commit graph';
     case 'commit':
       return ref.oid.slice(0, HISTORY_OID_LENGTH);
     case 'change':

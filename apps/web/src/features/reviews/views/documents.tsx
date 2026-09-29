@@ -1,6 +1,6 @@
-import { HistoryIcon } from 'lucide-react';
+import { GitGraphIcon, HistoryIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { FileTimeline } from '@/features/history/index';
+import { CommitGraph, FileTimeline } from '@/features/history/index';
 import { DiscardButton } from '@/features/git-actions/index';
 import { useAccessStore } from '@/features/access/index';
 import { useChanges } from '@/features/changes/index';
@@ -84,7 +84,31 @@ export function DocumentView({
       return <BranchFileDocument {...props} base={base} path={document.path} />;
     case 'timeline':
       return <TimelineDocument {...props} path={document.path} />;
+    case 'graph':
+      return <GraphDocument {...props} />;
   }
+}
+
+function GraphDocument({ scope, onOpen }: DocumentProps) {
+  return (
+    <div className="flex min-h-0 flex-1 flex-col">
+      <DocumentToolbar
+        title={
+          <span className="flex min-w-0 items-center gap-1.5">
+            <GitGraphIcon className="size-4 shrink-0" />
+            <span className="truncate">Commit graph</span>
+          </span>
+        }
+        subtitle="Commits on this branch with their merges and refs"
+      />
+      <div className="min-h-0 flex-1 overflow-auto">
+        <CommitGraph
+          scope={scope}
+          onSelect={(oid) => onOpen({ kind: 'commit', oid })}
+        />
+      </div>
+    </div>
+  );
 }
 
 function TimelineDocument({
