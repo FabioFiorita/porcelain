@@ -5,7 +5,7 @@ test('the workspace shows a heading it never renders', async ({
   pairedPage,
 }) => {
   await expect
-    .element(
+    .poll(() =>
       pairedPage.getByRole('heading', {
         name: 'A heading Porcelain never shows',
       }),
