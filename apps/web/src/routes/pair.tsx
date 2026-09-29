@@ -1,4 +1,5 @@
-import { createFileRoute, redirect } from '@tanstack/react-router';
+import { createFileRoute, redirect, useRouter } from '@tanstack/react-router';
+import { useEffect } from 'react';
 import {
   connectionErrorMessage,
   DisconnectedPage,
@@ -35,6 +36,14 @@ export const Route = createFileRoute('/pair')({
 
 function PairRoute() {
   const data = Route.useLoaderData();
+  const router = useRouter();
+  useEffect(() => {
+    const pairFromLink = () => {
+      if (window.location.hash) void router.invalidate();
+    };
+    window.addEventListener('hashchange', pairFromLink);
+    return () => window.removeEventListener('hashchange', pairFromLink);
+  }, [router]);
   return (
     <DisconnectedPage>
       {data ? <NotPaired reason={data.reason} /> : <NotPaired />}

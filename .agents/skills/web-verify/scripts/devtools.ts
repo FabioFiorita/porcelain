@@ -40,6 +40,7 @@ const stateSchema = z.object({
   serverAddress: z.url(),
   evidence: z.string(),
   socketPath: z.string(),
+  sandboxed: z.boolean().default(true),
 });
 type State = z.output<typeof stateSchema>;
 const usage =
@@ -243,31 +244,40 @@ async function host(): Promise<void> {
       },
     );
     const origin = await viteAddress(vite);
-    const args = [
-      'start',
-      '--headless',
-      '--isolated',
-      `--executablePath=${chromePath()}`,
-      `--workspace=${repositoryRoot}`,
-      `--workspace=${evidence}`,
-      '--no-performance-crux',
-      '--no-usage-statistics',
-    ];
-    if (process.env.PORCELAIN_CHROME_NO_SANDBOX === '1')
-      args.push('--chromeArg=--no-sandbox');
-    const started = await command(args);
-    if (commandFailed(started)) throw new Error(started.output);
-    ownsChrome = true;
-    const opened = await command(['new_page', origin]);
-    if (commandFailed(opened))
-      throw new Error(
-        `${opened.output}\nChrome closed during startup. Set PORCELAIN_CHROME_NO_SANDBOX=1 if this host cannot launch its sandbox.`,
-      );
-    const pages = await command(['list_pages', '--output-format=json']);
-    if (commandFailed(pages))
-      throw new Error(
-        `${pages.output}\nChrome closed during startup. Set PORCELAIN_CHROME_NO_SANDBOX=1 if this host cannot launch its sandbox.`,
-      );
+    const launch = async (sandbox: boolean) => {
+      const args = [
+        'start',
+        '--headless',
+        '--isolated',
+        `--executablePath=${chromePath()}`,
+        `--workspace=${repositoryRoot}`,
+        `--workspace=${evidence}`,
+        '--no-performance-crux',
+        '--no-usage-statistics',
+        ...(sandbox ? [] : ['--chromeArg=--no-sandbox']),
+      ];
+      const started = await command(args);
+      if (commandFailed(started)) throw new Error(started.output);
+      ownsChrome = true;
+      for (const step of [['new_page', origin], ['list_pages']]) {
+        const result = await command(step);
+        if (commandFailed(result)) {
+          await command(['stop']);
+          ownsChrome = false;
+          return result.output;
+        }
+      }
+      return null;
+    };
+    const forced = process.env.PORCELAIN_CHROME_NO_SANDBOX === '1';
+    const sandboxed = forced ? 'not tried' : await launch(true);
+    if (sandboxed !== null) {
+      if (!forced)
+        process.stdout.write(`Chrome closed with its sandbox:\n${sandboxed}\n`);
+      const unsandboxed = await launch(false);
+      if (unsandboxed !== null)
+        throw new Error(`${unsandboxed}\nChrome closed during startup.`);
+    }
     await writeFile(
       statePath,
       JSON.stringify({
@@ -276,6 +286,7 @@ async function host(): Promise<void> {
         evidence,
         socketPath: server.socketPath,
         serverAddress: server.address,
+        sandboxed: sandboxed === null,
       }),
       { mode: 0o600 },
     );
@@ -332,7 +343,7 @@ async function start(): Promise<void> {
     const ready = await state();
     if (ready) {
       process.stdout.write(
-        `DevTools web: ${ready.origin}\nEvidence: ${ready.evidence}\n`,
+        `DevTools web: ${ready.origin}\nEvidence: ${ready.evidence}\n${ready.sandboxed ? '' : 'Chrome runs without its sandbox on this host.\n'}`,
       );
       return;
     }

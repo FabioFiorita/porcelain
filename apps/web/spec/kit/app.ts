@@ -198,6 +198,10 @@ function address() {
   };
 }
 
+function follow(address: string) {
+  (framed?.contentWindow?.location ?? location).assign(address);
+}
+
 function title() {
   return (framed?.contentDocument ?? document).title;
 }
@@ -221,4 +225,5 @@ export const app = {
   link,
   address,
   title,
+  follow,
 };
