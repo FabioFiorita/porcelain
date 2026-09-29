@@ -1,6 +1,7 @@
 import {
   pairingLink,
   type IssuePairingResponse,
+  type ListAccessResponse,
   type ReadRemoteAccessResponse,
   type RenameEnvironmentResponse,
 } from '@porcelain/contracts/access';
@@ -15,6 +16,7 @@ export type Environment = RenameEnvironmentResponse;
 export type RemoteRouteName = keyof RemoteAccess['routes'];
 export type RemoteRoute = RemoteAccess['routes'][RemoteRouteName];
 type PairingAddress = { route: RemoteRouteName; url: string };
+type DeviceRoute = ListAccessResponse['devices'][number]['route'];
 type IssuedLink = { label: string; link: string; expiresAt: string };
 
 const remoteRouteNames: readonly RemoteRouteName[] = [
@@ -27,6 +29,13 @@ export const remoteRouteTitles: Record<RemoteRouteName, string> = {
   lan: 'Local network',
   tailnet: 'Tailscale',
   cloudflare: 'Cloudflare tunnel',
+};
+
+export const deviceRouteTitles: Record<DeviceRoute, string> = {
+  loopback: 'This computer',
+  lan: 'Local network',
+  tailnet: 'Tailscale',
+  tunnel: 'Cloudflare tunnel',
 };
 
 export function routesSettling(
@@ -51,16 +60,6 @@ export function pairingAddresses(
       ? status.urls.map((url) => ({ route, url }))
       : [];
   });
-}
-
-export function linkAddresses(
-  chosen: string,
-  addresses: readonly PairingAddress[],
-): string[] {
-  return [
-    chosen,
-    ...addresses.map(({ url }) => url).filter((url) => url !== chosen),
-  ];
 }
 
 export function issuedLink(issued: IssuePairingResponse): IssuedLink | null {

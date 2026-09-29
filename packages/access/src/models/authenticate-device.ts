@@ -1,5 +1,8 @@
+import type { DeviceRoute } from './device.ts';
+
 export type AuthenticateDeviceInput = {
   credential: string;
+  route: DeviceRoute;
   address?: string | undefined;
 };
 

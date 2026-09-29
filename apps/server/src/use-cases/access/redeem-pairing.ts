@@ -1,6 +1,6 @@
 import type { RedeemPairingService } from '@porcelain/access/services';
 import type {
-  RedeemPairingRequest,
+  RedeemPairingInput,
   RedeemPairingResponse,
 } from '@porcelain/contracts/access';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
@@ -23,7 +23,7 @@ export class RedeemPairingUseCase {
   }
 
   execute(
-    input: RedeemPairingRequest,
+    input: RedeemPairingInput,
     context: OperationContext,
   ): Promise<RedeemPairingResponse> {
     return this.lanes.run(

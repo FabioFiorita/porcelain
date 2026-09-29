@@ -10,6 +10,7 @@ const device: StoredDevice = {
   platform: 'iOS',
   createdAt: '2026-09-22T10:00:00.000Z',
   lastSeenAt: '2026-09-23T09:00:00.000Z',
+  route: 'lan',
   secretHash: 'hash',
 };
 

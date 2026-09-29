@@ -37,7 +37,11 @@ export class AuthenticateDeviceService {
     const device =
       this.deviceSightings.find({ deviceId: credential.id }) ??
       this.devices.find({ deviceId: credential.id });
-    if (!device || !secretMatches(device.secretHash, credential.secret))
+    if (
+      !device ||
+      !secretMatches(device.secretHash, credential.secret) ||
+      device.route !== input.route
+    )
       return { kind: 'refused' };
     const now = this.clock.now();
     if (!deviceUsable(device, now, this.options.unusedLifetimeMs))

@@ -67,6 +67,7 @@ export class RedeemPairingService {
       platform,
       createdAt: now,
       lastSeenAt: now,
+      route: input.route,
     };
     this.pairingGrants.redeem({
       grant,

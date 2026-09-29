@@ -100,6 +100,8 @@ export class SqlitePairingGrantStore implements PairingGrantStore {
             createdAt: device.createdAt,
             lastSeenAt: device.lastSeenAt,
             lastSeenAddress: device.lastSeenAddress ?? null,
+            route: device.route,
+            routeInferred: device.routeInferred === true,
             revokedAt: device.revokedAt ?? null,
           })
           .run();

@@ -17,6 +17,10 @@ const TAILSCALE_INTERFACE = 'tailscale0';
 const HOSTNAME_LABEL = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
 const NUMERIC_LABEL = /^\d+$/;
 
+export function isTailnetAddress(address: string): boolean {
+  return TAILNET_IPV4.test(address) || TAILNET_IPV6.test(address);
+}
+
 function tailnetInterfaces(addresses: readonly NetworkAddress[]): Set<string> {
   return new Set(
     addresses

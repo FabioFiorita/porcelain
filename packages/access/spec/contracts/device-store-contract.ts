@@ -19,6 +19,7 @@ function device(
     createdAt,
     lastSeenAt: createdAt,
     lastSeenAddress: '192.168.1.10',
+    route: 'lan',
   };
 }
 
@@ -47,6 +48,17 @@ export function deviceStoreContract(
     it('finds a paired device by id with everything stored for it', () => {
       const store = open([device('phone'), device('tablet')]);
       expect(store.find({ deviceId: 'tablet' })).toEqual(device('tablet'));
+    });
+
+    it('keeps the route each device is bound to and whether it was inferred', () => {
+      const tablet: StoredDevice = {
+        ...device('tablet'),
+        route: 'tunnel',
+        routeInferred: true,
+      };
+      const store = open([device('phone'), tablet]);
+      expect(store.find({ deviceId: 'phone' })).toEqual(device('phone'));
+      expect(store.find({ deviceId: 'tablet' })).toEqual(tablet);
     });
 
     it('finds a device paired without an address', () => {

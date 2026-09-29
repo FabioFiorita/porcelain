@@ -30,6 +30,7 @@ function device(id: string, extra: Partial<StoredDevice> = {}): StoredDevice {
     platform: 'iOS',
     createdAt: `2026-09-2${id}T10:00:00.000Z`,
     lastSeenAt: '2026-09-23T09:00:00.000Z',
+    route: 'lan',
     secretHash: 'device-hash',
     ...extra,
   };
@@ -79,7 +80,9 @@ describe('ListAccessService', () => {
 
   it('lists paired devices that are not revoked, oldest first, without their secrets', () => {
     const { devices, service } = setup();
-    devices.add(device('2', { lastSeenAddress: '192.168.1.30' }));
+    devices.add(
+      device('2', { lastSeenAddress: '100.64.0.9', route: 'tailnet' }),
+    );
     devices.add(device('1'));
     devices.add(device('3', { revokedAt: '2026-09-23T08:00:00.000Z' }));
 
@@ -90,6 +93,7 @@ describe('ListAccessService', () => {
         platform: 'iOS',
         createdAt: '2026-09-21T10:00:00.000Z',
         lastSeenAt: '2026-09-23T09:00:00.000Z',
+        route: 'lan',
       },
       {
         id: '2',
@@ -97,8 +101,24 @@ describe('ListAccessService', () => {
         platform: 'iOS',
         createdAt: '2026-09-22T10:00:00.000Z',
         lastSeenAt: '2026-09-23T09:00:00.000Z',
-        lastSeenAddress: '192.168.1.30',
+        lastSeenAddress: '100.64.0.9',
+        route: 'tailnet',
       },
+    ]);
+  });
+
+  it('says which devices had their route inferred from where they were last seen', () => {
+    const { devices, service } = setup();
+    devices.add(device('1', { routeInferred: true }));
+    devices.add(device('2', { routeInferred: false }));
+
+    expect(
+      service
+        .execute()
+        .devices.map(({ id, routeInferred }) => ({ id, routeInferred })),
+    ).toEqual([
+      { id: '1', routeInferred: true },
+      { id: '2', routeInferred: undefined },
     ]);
   });
 

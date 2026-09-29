@@ -32,6 +32,7 @@ const device: StoredDevice = {
   createdAt: '2026-09-24T10:05:00.000Z',
   lastSeenAt: '2026-09-24T10:05:00.000Z',
   lastSeenAddress: '192.168.1.20',
+  route: 'lan',
 };
 const redeemedAt = '2026-09-24T10:05:00.000Z';
 const revokedAt = '2026-09-24T10:06:00.000Z';

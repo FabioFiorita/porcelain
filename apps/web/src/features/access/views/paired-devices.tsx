@@ -14,7 +14,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { useRevokeAccess } from '../commands/share';
 import { usePairedAccess } from '../queries/share';
 import { connectionErrorMessage } from '../rules/connection-error-message';
-import type { ShareConnection } from '../rules/share';
+import { deviceRouteTitles, type ShareConnection } from '../rules/share';
 
 export function PairedDevices({ connection }: { connection: ShareConnection }) {
   const access = usePairedAccess(connection);
@@ -45,6 +45,9 @@ export function PairedDevices({ connection }: { connection: ShareConnection }) {
                 {device.current && (
                   <Badge variant="secondary">This browser</Badge>
                 )}
+                <Badge variant="outline">
+                  {deviceRouteTitles[device.route]}
+                </Badge>
               </ItemTitle>
               <ItemDescription>
                 Last seen{' '}
@@ -53,6 +56,13 @@ export function PairedDevices({ connection }: { connection: ShareConnection }) {
                 })}{' '}
                 · {device.platform}
               </ItemDescription>
+              {device.routeInferred && (
+                <ItemDescription>
+                  Paired before each device was tied to one way in, so it now
+                  works only through {deviceRouteTitles[device.route]}, where it
+                  was last seen. Pair it again to use another way in.
+                </ItemDescription>
+              )}
             </ItemContent>
             {!device.current && (
               <ItemActions>
@@ -109,8 +119,11 @@ export function PairedDevices({ connection }: { connection: ShareConnection }) {
         </Alert>
       )}
       <p className="text-xs text-muted-foreground">
-        Each device has its own credential. Revoking one signs it out at once
-        and leaves the others alone.
+        Each device has its own credential, which works only through the way in
+        it was paired over, so a credential seen on one network cannot be used
+        through another. A phone that uses two ways in is paired once through
+        each. Revoking a device signs it out at once and leaves the others
+        alone.
       </p>
     </div>
   );

@@ -1,7 +1,7 @@
 import { expect } from 'vitest';
 import { test } from '../kit/journey';
 
-test('sharing from Settings creates a one-time pairing link with its QR code, lists the paired devices and revokes one', async ({
+test('sharing from Settings creates a one-time pairing link for one way in with its QR code, lists the paired devices with the way in each works through and revokes one', async ({
   pairedPage,
   server,
 }) => {
@@ -21,6 +21,13 @@ test('sharing from Settings creates a one-time pairing link with its QR code, li
     .element(settings.getByText(/^http:\/\/192\.168\.1\.20:\d+$/))
     .toBeVisible();
 
+  await expect
+    .element(
+      settings.getByText(
+        'The device will work only through Local network. To use it through another way in too, pair it again through that one.',
+      ),
+    )
+    .toBeVisible();
   await settings.getByLabelText('Device name').fill('My phone');
   await settings.getByRole('button', { name: 'Create pairing link' }).click();
   await expect
@@ -38,7 +45,10 @@ test('sharing from Settings creates a one-time pairing link with its QR code, li
   });
   await expect
     .element(devices.getByRole('listitem', { name: 'Journey browser' }))
-    .toMatchTextContent(/This browser/);
+    .toMatchTextContent(/This browserThis computer/);
+  await expect
+    .poll(async () => (await server.devices()).map((device) => device.route))
+    .toEqual(['loopback', 'loopback']);
   await expect
     .element(devices.getByRole('button', { name: 'Revoke Journey browser' }))
     .not.toBeInTheDocument();

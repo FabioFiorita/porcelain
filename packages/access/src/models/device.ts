@@ -1,3 +1,5 @@
+export type DeviceRoute = 'loopback' | 'lan' | 'tailnet' | 'tunnel';
+
 export type Device = {
   id: string;
   label: string;
@@ -5,6 +7,8 @@ export type Device = {
   createdAt: string;
   lastSeenAt: string;
   lastSeenAddress?: string | undefined;
+  route: DeviceRoute;
+  routeInferred?: boolean | undefined;
 };
 
 export type StoredDevice = Device & {

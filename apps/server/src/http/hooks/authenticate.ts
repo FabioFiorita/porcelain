@@ -27,7 +27,11 @@ export function authenticate(
     const credential = credentialOf(request);
     if (!credential) throw httpErrors.unauthorized(AUTHENTICATION_REQUIRED);
     const device = await options.access.authenticateDevice.execute(
-      { credential, address: request.client.address },
+      {
+        credential,
+        route: request.client.route,
+        address: request.client.address,
+      },
       { signal: request.disconnected },
     );
     if (!device) throw httpErrors.unauthorized(AUTHENTICATION_REQUIRED);

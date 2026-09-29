@@ -34,6 +34,7 @@ function identify(
     host: tunnelHost,
     scheme: 'http',
     peerAddress: '127.0.0.1',
+    localAddress: '127.0.0.1',
     connectingAddress: visitor,
     ...request,
   });
@@ -42,6 +43,7 @@ function identify(
 describe('IdentifyRequestClientService', () => {
   it('takes a request for the tunnel hostname as secure and from the visitor Cloudflare names', () => {
     expect(identify({})).toEqual({
+      route: 'tunnel',
       address: visitor,
       secure: true,
       tunnelHostname: tunnelHost,
@@ -50,6 +52,7 @@ describe('IdentifyRequestClientService', () => {
 
   it('reads the tunnel hostname whatever its case and with its port', () => {
     expect(identify({ host: 'Porcelain.Example.com:443' })).toEqual({
+      route: 'tunnel',
       address: visitor,
       secure: true,
       tunnelHostname: tunnelHost,
@@ -64,6 +67,7 @@ describe('IdentifyRequestClientService', () => {
 
   it('keeps the socket address when the tunnel hostname arrives from another machine', () => {
     expect(identify({ peerAddress: '192.168.1.30' })).toEqual({
+      route: 'tunnel',
       address: '192.168.1.30',
       secure: true,
       tunnelHostname: tunnelHost,
@@ -87,6 +91,7 @@ describe('IdentifyRequestClientService', () => {
     'never trusts a visitor address on a request for %s, which did not come through the tunnel',
     (host) => {
       expect(identify({ host })).toEqual({
+        route: 'loopback',
         address: '127.0.0.1',
         secure: false,
       });
@@ -95,6 +100,7 @@ describe('IdentifyRequestClientService', () => {
 
   it('does not take the saved hostname for the tunnel while Cloudflare is off', () => {
     expect(identify({}, { enabled: false })).toEqual({
+      route: 'loopback',
       address: '127.0.0.1',
       secure: false,
     });
@@ -103,11 +109,12 @@ describe('IdentifyRequestClientService', () => {
   it('does not take the hostname for the tunnel once another server answers there', () => {
     expect(
       identify({}, { state: { kind: 'failed', reason: 'other-server' } }),
-    ).toEqual({ address: '127.0.0.1', secure: false });
+    ).toEqual({ route: 'loopback', address: '127.0.0.1', secure: false });
   });
 
   it('takes the hostname for the tunnel while the tunnel is being checked', () => {
     expect(identify({}, { state: { kind: 'starting' } })).toEqual({
+      route: 'tunnel',
       address: visitor,
       secure: true,
       tunnelHostname: tunnelHost,
@@ -116,8 +123,45 @@ describe('IdentifyRequestClientService', () => {
 
   it('takes a request that arrived over HTTPS as secure', () => {
     expect(identify({ host: '127.0.0.1:4173', scheme: 'https' })).toEqual({
+      route: 'loopback',
       address: '127.0.0.1',
       secure: true,
     });
+  });
+
+  it.each([tunnelHost, '192.168.1.20:4173'])(
+    'takes a request that reached a listener at a private address as the local network, even for %s',
+    (host) => {
+      expect(
+        identify({
+          host,
+          localAddress: '192.168.1.20',
+          peerAddress: '192.168.1.30',
+        }),
+      ).toEqual({ route: 'lan', address: '192.168.1.30', secure: false });
+    },
+  );
+
+  it('reads the listener address in its IPv4-mapped form', () => {
+    expect(
+      identify({ host: undefined, localAddress: '::ffff:127.0.0.1' }).route,
+    ).toBe('loopback');
+    expect(
+      identify({ localAddress: '::ffff:192.168.1.20', peerAddress: '::1' })
+        .route,
+    ).toBe('lan');
+  });
+
+  it.each(['100.101.102.103', 'fd7a:115c:a1e0::1'])(
+    'takes a request that reached a listener at the tailnet address %s as the tailnet',
+    (localAddress) => {
+      expect(
+        identify({ localAddress, peerAddress: '100.64.0.9', host: tunnelHost }),
+      ).toEqual({ route: 'tailnet', address: '100.64.0.9', secure: false });
+    },
+  );
+
+  it('takes a request whose listener address is unknown as the local network', () => {
+    expect(identify({ localAddress: undefined }).route).toBe('lan');
   });
 });

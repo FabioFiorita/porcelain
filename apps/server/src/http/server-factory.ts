@@ -42,6 +42,7 @@ export function createServer(options: ServerFactoryOptions) {
   server.addHook('onRequest', (request, reply, done) => {
     request.principal = options.principal;
     request.client = {
+      route: 'lan',
       address: request.ip,
       secure: request.protocol === 'https',
     };

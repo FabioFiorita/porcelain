@@ -31,6 +31,8 @@ const pairingGrantSchema = z.object({
   createdAt: z.string(),
   expiresAt: z.string(),
 });
+const deviceRouteSchema = z.enum(['loopback', 'lan', 'tailnet', 'tunnel']);
+
 const deviceSchema = z.object({
   id: z.string(),
   label: z.string(),
@@ -38,6 +40,8 @@ const deviceSchema = z.object({
   createdAt: z.string(),
   lastSeenAt: z.string(),
   lastSeenAddress: z.string().optional(),
+  route: deviceRouteSchema,
+  routeInferred: z.boolean().optional(),
   current: z.boolean().optional(),
 });
 
@@ -73,7 +77,9 @@ export const revokeAccessResponseSchema = z.object({
 
 export const clearBrowserSessionResponseSchema = z.undefined();
 
-export type RedeemPairingRequest = z.output<typeof redeemPairingRequestSchema>;
+type RedeemPairingRequest = z.output<typeof redeemPairingRequestSchema>;
+type DeviceRoute = z.output<typeof deviceRouteSchema>;
+export type RedeemPairingInput = RedeemPairingRequest & { route: DeviceRoute };
 export type RedeemPairingResponse = z.output<
   typeof redeemPairingResponseSchema
 >;

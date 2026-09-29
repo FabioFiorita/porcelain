@@ -11,6 +11,7 @@ function device(overrides: Partial<StoredDevice> = {}): StoredDevice {
     platform: 'iOS',
     createdAt: '2026-09-24T10:00:00.000Z',
     lastSeenAt: '2026-09-24T10:00:00.000Z',
+    route: 'lan',
     secretHash: 'a'.repeat(64),
     ...overrides,
   };

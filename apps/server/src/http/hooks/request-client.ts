@@ -18,6 +18,7 @@ export function identifyRequestClient(
         host: request.headers.host,
         scheme: request.protocol,
         peerAddress: request.ip,
+        localAddress: request.socket.localAddress,
         connectingAddress: headerValue(
           request.headers[CONNECTING_ADDRESS_HEADER],
         ),

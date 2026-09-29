@@ -16,7 +16,6 @@ import { submitForm } from '@/shared/lib/submit-form';
 import { useIssuePairing } from '../commands/share';
 import { connectionErrorMessage } from '../rules/connection-error-message';
 import {
-  linkAddresses,
   pairingAddresses,
   remoteRouteTitles,
   type RemoteAccess,
@@ -35,9 +34,8 @@ export function PairDevice({
   const [label, setLabel] = useState('');
   const [chosen, setChosen] = useState<string | null>(null);
   const issue = useIssuePairing(connection);
-  const address =
-    addresses.find(({ url }) => url === chosen)?.url ?? addresses[0]?.url;
-  if (address === undefined)
+  const target = addresses.find(({ url }) => url === chosen) ?? addresses[0];
+  if (target === undefined)
     return (
       <p className="text-xs text-muted-foreground">
         Turn on a way in above to pair a phone or another computer.
@@ -51,7 +49,7 @@ export function PairDevice({
           submitForm(event, async () =>
             issue.submit({
               label: label.trim(),
-              addresses: linkAddresses(address, addresses),
+              addresses: [target.url],
             }),
           )
         }
@@ -72,7 +70,7 @@ export function PairDevice({
             <NativeSelect
               id="pairing-address"
               className="w-full"
-              value={address}
+              value={target.url}
               onChange={(event) => setChosen(event.target.value)}
             >
               {addresses.map(({ route, url }) => (
@@ -92,6 +90,10 @@ export function PairDevice({
           Create pairing link
         </Button>
       </form>
+      <p className="text-xs text-muted-foreground">
+        The device will work only through {remoteRouteTitles[target.route]}. To
+        use it through another way in too, pair it again through that one.
+      </p>
       {issue.error && (
         <Alert variant="destructive">
           <AlertDescription>

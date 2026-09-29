@@ -4,6 +4,7 @@ import {
   defineCase,
   defineFeature,
   record,
+  unauthenticated,
   type HttpRequest,
   type Session,
 } from '../scripts/feature.ts';
@@ -79,7 +80,7 @@ export default defineFeature({
   paired: false,
   intent: 'intended',
   behaviour:
-    "Cloudflare serves the tunnel's public hostname over HTTPS only and hands each request to this server over plain HTTP on the loopback listener, naming the visitor in Cf-Connecting-IP. A request for the tunnel hostname is therefore treated as secure: the device cookie it sets or refreshes is marked Secure, and the answer tells the browser to reach that hostname over HTTPS only. The visitor Cloudflare names is the client for the pairing attempt allowance, so one visitor who exhausts it does not lock out another; that header is trusted only on a request for the tunnel hostname that arrived on the loopback listener and is ignored on any other.",
+    "Cloudflare serves the tunnel's public hostname over HTTPS only and hands each request to this server over plain HTTP on the loopback listener, naming the visitor in Cf-Connecting-IP. A request for the tunnel hostname is therefore treated as secure, and a device paired through it is bound to the tunnel: the device cookie it sets or refreshes is marked Secure, and the answer tells the browser to reach that hostname over HTTPS only. The visitor Cloudflare names is the client for the pairing attempt allowance, so one visitor who exhausts it does not lock out another; that header is trusted only on a request for the tunnel hostname that arrived on the loopback listener and is ignored on any other.",
   cases: [
     defineCase({
       name: 'a browser that pairs through the tunnel keeps a secure cookie',
@@ -113,7 +114,7 @@ export default defineFeature({
       },
     }),
     defineCase({
-      name: 'the cookie a tunnel visitor sends back stays for HTTPS only',
+      name: 'the cookie a tunnel visitor sends back stays for HTTPS only and works only through the tunnel',
       async setup(session) {
         const paired = await session.read({
           ...attempt(await issuePairing(session, 'Tablet'), {
@@ -150,21 +151,20 @@ export default defineFeature({
           strictTransport,
           tunnelRead?.headers['strict-transport-security'],
         );
-        check('read on the loopback listener status', 200, directRead?.status);
-        checkContract(
-          'read on the loopback listener body',
-          readInventoryResponseSchema,
-          directRead?.body,
-        );
-        checkMatch(
-          'the loopback listener refreshes it as before',
-          deviceCookieForm,
-          directRead?.headers['set-cookie'],
+        check(
+          'refused on the loopback listener status',
+          401,
+          directRead?.status,
         );
         check(
-          'no HTTPS demand on the loopback listener',
+          'refused on the loopback listener body',
+          unauthenticated,
+          directRead?.body,
+        );
+        check(
+          'no cookie refreshed on the loopback listener',
           undefined,
-          directRead?.headers['strict-transport-security'],
+          directRead?.headers['set-cookie'],
         );
       },
     }),

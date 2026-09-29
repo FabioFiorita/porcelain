@@ -47,6 +47,8 @@ export class ListAccessService {
             createdAt,
             lastSeenAt,
             lastSeenAddress,
+            route,
+            routeInferred,
           }) => ({
             id,
             label,
@@ -54,6 +56,8 @@ export class ListAccessService {
             createdAt,
             lastSeenAt,
             ...(lastSeenAddress === undefined ? {} : { lastSeenAddress }),
+            route,
+            ...(routeInferred === true ? { routeInferred } : {}),
             ...(id === input?.viewerDeviceId ? { current: true } : {}),
           }),
         ),

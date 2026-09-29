@@ -21,8 +21,9 @@ export function redeemPairing(
       },
     },
     (request) =>
-      options.useCase.execute(request.body, {
-        signal: request.disconnected,
-      }),
+      options.useCase.execute(
+        { ...request.body, route: request.client.route },
+        { signal: request.disconnected },
+      ),
   );
 }

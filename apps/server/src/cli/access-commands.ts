@@ -96,6 +96,7 @@ export async function listAccess(
   for (const device of listing.devices)
     output.stdout(
       `  ${device.id}  ${printable(device.label, DEVICE_LABEL_LENGTH)}  ${printable(device.platform)}  ` +
+        `over ${device.route}${device.routeInferred ? ' (inferred)' : ''}  ` +
         `last seen ${device.lastSeenAt}${device.lastSeenAddress ? ` from ${printable(device.lastSeenAddress, limits.cli.printedAddressLength)}` : ''}\n`,
     );
 }

@@ -11,6 +11,7 @@ function seen(id: string, lastSeenAt: string): StoredDevice {
     createdAt: '2026-09-20T10:00:00.000Z',
     lastSeenAt,
     lastSeenAddress: '192.168.1.10',
+    route: 'lan',
   };
 }
 

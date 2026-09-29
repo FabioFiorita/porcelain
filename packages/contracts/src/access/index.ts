@@ -28,7 +28,7 @@ export {
   type IssuePairingResponse,
   type ListAccessRequest,
   type ListAccessResponse,
-  type RedeemPairingRequest,
+  type RedeemPairingInput,
   type RedeemPairingResponse,
   type RevokeAccessRequest,
   type RevokeAccessResponse,

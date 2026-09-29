@@ -1,3 +1,4 @@
+import type { DeviceRoute } from '../models/device.ts';
 import type {
   IdentifyRequestClientInput,
   RequestClient,
@@ -7,6 +8,7 @@ import {
   ipAddress,
   isLoopbackHostname,
 } from './host-policy.ts';
+import { isTailnetAddress } from './remote-access.ts';
 import { requestAuthority } from './request-authority.ts';
 
 function tunnelHostnameOf(
@@ -29,14 +31,30 @@ function cloudflareVisitor(
     : ipAddress(input.connectingAddress);
 }
 
+function networkRoute(localAddress: string | undefined): DeviceRoute {
+  return localAddress !== undefined && isTailnetAddress(localAddress)
+    ? 'tailnet'
+    : 'lan';
+}
+
 export function requestClient(
   input: IdentifyRequestClientInput,
   tunnelHosts: readonly string[],
 ): RequestClient {
+  const plain = {
+    address: input.peerAddress,
+    secure: input.scheme === 'https',
+  };
+  const local =
+    input.localAddress === undefined
+      ? undefined
+      : canonicalHostname(input.localAddress);
+  if (local === undefined || !isLoopbackHostname(local))
+    return { route: networkRoute(local), ...plain };
   const tunnelHostname = tunnelHostnameOf(input.host, tunnelHosts);
-  if (tunnelHostname === undefined)
-    return { address: input.peerAddress, secure: input.scheme === 'https' };
+  if (tunnelHostname === undefined) return { route: 'loopback', ...plain };
   return {
+    route: 'tunnel',
     address: cloudflareVisitor(input) ?? input.peerAddress,
     secure: true,
     tunnelHostname,

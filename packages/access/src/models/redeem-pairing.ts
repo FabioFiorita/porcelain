@@ -1,8 +1,9 @@
-import type { Device, DeviceDetailLimits } from './device.ts';
+import type { Device, DeviceDetailLimits, DeviceRoute } from './device.ts';
 
 export type RedeemPairingInput = {
   code: string;
   platform: string;
+  route: DeviceRoute;
   label?: string | undefined;
 };
 

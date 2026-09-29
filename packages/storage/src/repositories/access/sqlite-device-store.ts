@@ -9,11 +9,13 @@ type DeviceRow = typeof devices.$inferSelect;
 function storedDevice({
   lastSeenAddress,
   revokedAt,
+  routeInferred,
   ...device
 }: DeviceRow): StoredDevice {
   return {
     ...device,
     ...(lastSeenAddress === null ? {} : { lastSeenAddress }),
+    ...(routeInferred ? { routeInferred } : {}),
     ...(revokedAt === null ? {} : { revokedAt }),
   };
 }
