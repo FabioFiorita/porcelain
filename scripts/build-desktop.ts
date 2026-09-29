@@ -96,6 +96,40 @@ export async function buildDesktop(): Promise<string> {
   const electronVersion = desktop.dependencies.electron;
   if (electronVersion === undefined)
     throw new Error('Pin Electron in apps/desktop/package.json');
+  const iconset = join(output, 'Porcelain.iconset');
+  const icon = join(output, 'Porcelain.icns');
+  await rm(iconset, { recursive: true, force: true });
+  await mkdir(iconset, { recursive: true });
+  for (const size of [16, 32, 128, 256, 512]) {
+    for (const scale of [1, 2]) {
+      const pixels = size * scale;
+      if (pixels > 512) continue;
+      const source = join(root, 'apps/web/public/icon-512.png');
+      const destination = join(
+        iconset,
+        `icon_${size}x${size}${scale === 2 ? '@2x' : ''}.png`,
+      );
+      if (pixels === 512) {
+        await cp(source, destination);
+        continue;
+      }
+      await desktopCommand('/usr/bin/sips', [
+        '-z',
+        `${pixels}`,
+        `${pixels}`,
+        source,
+        '--out',
+        destination,
+      ]);
+    }
+  }
+  await desktopCommand('/usr/bin/iconutil', [
+    '-c',
+    'icns',
+    '-o',
+    icon,
+    iconset,
+  ]);
   await rm(stage, { recursive: true, force: true });
   await mkdir(stage, { recursive: true });
   await desktopCommand('pnpm', [
@@ -166,6 +200,7 @@ export async function buildDesktop(): Promise<string> {
     dir: stage,
     name: 'Porcelain',
     executableName: 'Porcelain',
+    icon,
     platform: 'darwin',
     arch: process.arch,
     electronVersion,
