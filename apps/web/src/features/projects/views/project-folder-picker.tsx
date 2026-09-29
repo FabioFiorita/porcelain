@@ -1,5 +1,4 @@
 import type { ProjectConnection } from '../rules/connection';
-import { FolderOpenIcon } from 'lucide-react';
 import { Fragment } from 'react';
 import {
   Breadcrumb,
@@ -36,10 +35,7 @@ export function ProjectFolderPicker({
       aria-label="Browse for a folder"
       className="flex flex-col gap-2 rounded-2xl border bg-muted/30 p-3"
     >
-      <h3 className="flex items-center gap-2 px-1 text-sm font-medium">
-        <FolderOpenIcon className="text-muted-foreground" />
-        Browse for a folder
-      </h3>
+      <h3 className="px-1 text-sm font-medium">Browse for a folder</h3>
       {current && (
         <Breadcrumb aria-label="Folder path">
           <BreadcrumbList>
