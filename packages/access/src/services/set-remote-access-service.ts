@@ -53,12 +53,13 @@ export class SetRemoteAccessService {
     );
     if (decision.kind !== 'settings') throw this.failure(decision);
     this.remoteAccess.save(decision.settings);
-    const states = requestedStates(
-      this.routeStates.read().states,
-      input,
-      decision.settings,
-    );
-    this.routeStates.save({ states, origins: reachableOrigins(states) });
+    const current = this.routeStates.read();
+    const states = requestedStates(current.states, input, decision.settings);
+    this.routeStates.save({
+      ...current,
+      states,
+      origins: reachableOrigins(states),
+    });
     return remoteAccessView(
       decision.settings,
       states,

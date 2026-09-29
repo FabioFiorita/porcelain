@@ -132,6 +132,27 @@ describe('SetRemoteAccessService', () => {
     expect(routes.read().origins).toEqual(open.urls);
   });
 
+  it('keeps knowing the listener Tailscale Serve forwards to while another route changes', () => {
+    const { routes, service } = setup();
+    const tailnetProxy = {
+      hostname: 'laptop.tail0000.ts.net',
+      address: '127.0.0.1',
+      port: 41000,
+    };
+    const on = {
+      kind: 'on' as const,
+      urls: ['https://laptop.tail0000.ts.net'],
+    };
+    routes.save({
+      states: { ...routes.read().states, tailnet: on },
+      origins: on.urls,
+      tailnetProxy,
+    });
+    service.execute({ lan: true });
+
+    expect(routes.read().tailnetProxy).toEqual(tailnetProxy);
+  });
+
   it('checks the tunnel again when Cloudflare is turned on again or its hostname changes', () => {
     const { routes, service } = setup();
     service.execute({ cloudflare: true, cloudflareHostname: 'a.example.com' });
