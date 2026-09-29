@@ -24,8 +24,18 @@ signature and retains the previous app in
 The app keeps its profile and server data in
 `~/Library/Application Support/Porcelain/`. The server owns the `server/`
 subdirectory and has its own database and owner socket. Development servers
-keep their separate data. The desktop pairs itself through that owner socket;
-the renderer has no Node access or privileged IPC.
+keep their separate data. The main process creates a fresh loopback session per launch and sends its
+hash and startup configuration through Electron’s private process channel.
+The renderer runs at `porcelain://app`; the main process proxies web assets
+and API requests to the managed server without exposing its credential.
+Browser and remote pairing keep their existing flow. The sandboxed preload
+exposes only desktop menu actions, appearance and window state notifications.
+
+Mac window controls sit in the existing sidebar header. Open Project
+(Command-O) and Settings (Command-comma) use the existing UI, including the
+directory picker. Window bounds and maximized state are saved in the profile,
+and restored only onto a connected display. Preferences use the stable
+desktop origin and persist across server ports and restarts.
 
 Closing the last window keeps the server running. Activating Porcelain in the
 Dock opens its window again. Quit or Command-Q closes the windows, stops the
@@ -41,8 +51,11 @@ pnpm verify:desktop installed-project
 The desktop feature map lives in `scripts/desktop-feature-map.ts`. The command
 launches the installed app against a disposable real Git repository and an
 isolated profile. It checks project registration, SQLite creation, window
-close, Dock activation, project and pairing persistence after restart, and
-server shutdown. Evidence is retained under `dist/desktop/evidence/`.
+close, Dock activation, Git history, live file updates, native menus, appearance, fullscreen spacing,
+window and maximized-state restoration, project and
+preference persistence after restart, refusal of unauthenticated local
+requests, and server shutdown. The managed desktop session creates no
+browser pairing record. Evidence is retained under `dist/desktop/evidence/`.
 
 The HTTP net and browser journeys retain their Linux namespace sandbox.
 Run their branch checkpoint on Linux. The macOS network parser specs use

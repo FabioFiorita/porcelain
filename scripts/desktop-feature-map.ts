@@ -1,5 +1,6 @@
 import { existsSync } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
+import { isDeepStrictEqual } from 'node:util';
 import { join } from 'node:path';
 import { _electron, type Page } from 'playwright';
 import { z } from 'zod';
@@ -27,7 +28,7 @@ export const desktopFeatures = [
   {
     name: 'installed-project',
     promise:
-      'the installed app starts its own server, opens a real Git project, survives window close, reopens from the Dock, retains its project and pairing after restart, and stops its server on Quit',
+      'the installed app starts its own server, opens a real Git project, survives window close, reopens from the Dock, retains its project, preferences and window after restart without browser pairing, and stops its server on Quit',
     run: installedProject,
   },
 ];
@@ -51,6 +52,7 @@ async function installedProject(input: DesktopProof) {
       timeout: 30_000,
     });
   const app = await launch();
+  const appProcess = app.process();
   app
     .process()
     .stderr?.on('data', (chunk: Buffer) => process.stderr.write(chunk));
@@ -61,9 +63,18 @@ async function installedProject(input: DesktopProof) {
     const page = await app.firstWindow({ timeout: 30_000 });
     visiblePage = page;
     page.on('pageerror', (error) => errors.push(error.message));
-    await page.waitForURL((url) => url.pathname !== '/pair', {
-      timeout: 30_000,
+    page.on('console', (message) => {
+      if (message.type() === 'error') errors.push(message.text());
     });
+    await page.waitForURL(
+      (url) =>
+        url.protocol === 'porcelain:' &&
+        url.hostname === 'app' &&
+        url.pathname !== '/pair',
+      {
+        timeout: 30_000,
+      },
+    );
     const status = ownerStatus.parse(
       await askOwner(data, 'GET', '/status', undefined, 5000),
     );
@@ -72,9 +83,46 @@ async function installedProject(input: DesktopProof) {
       new URL(status.address).hostname === '127.0.0.1',
       'The app server must listen only on loopback',
     );
+    requireProof(
+      (await fetch(`${status.address}/api/inventory`)).status === 401,
+      'The loopback server must refuse requests without authentication',
+    );
+    requireProof(
+      (
+        await fetch(`${status.address}/api/inventory`, {
+          headers: { Authorization: 'Bearer wrong-desktop-secret' },
+        })
+      ).status === 401,
+      'The loopback server must refuse an incorrect desktop credential',
+    );
+    const rendererAccess = z
+      .object({
+        cookies: z.string(),
+        bridge: z.boolean(),
+        node: z.boolean(),
+        credential: z.boolean(),
+      })
+      .parse(
+        await page.evaluate(
+          `({ cookies: document.cookie, bridge: !!window.porcelainDesktop, node: 'require' in window, credential: 'credential' in (window.porcelainDesktop ?? {}) })`,
+        ),
+      );
+    requireProof(
+      rendererAccess.bridge &&
+        rendererAccess.cookies === '' &&
+        !rendererAccess.node &&
+        !rendererAccess.credential,
+      'The renderer must not receive the server credential or Node access',
+    );
     await page
       .getByRole('button', { name: 'Open project', exact: true })
-      .click();
+      .waitFor();
+    await app.evaluate(({ Menu }) => {
+      const item = Menu.getApplicationMenu()?.getMenuItemById('open-project');
+      if (item == null)
+        throw new Error('The native Open Project menu is missing');
+      Reflect.apply(item.click, item, [item, undefined, undefined]);
+    });
     const dialog = page.getByRole('dialog', { name: 'Open project' });
     await dialog.waitFor({ state: 'visible' });
     await dialog.getByRole('button', { name: 'Enter a path' }).click();
@@ -106,6 +154,113 @@ async function installedProject(input: DesktopProof) {
         ),
       'The real server must persist the opened project',
     );
+    const chrome = z
+      .object({ inset: z.string(), drag: z.string(), buttonDrag: z.string() })
+      .parse(
+        await page.evaluate(
+          `(() => { const header = document.querySelector('.desktop-sidebar-header'); return { inset: getComputedStyle(header).paddingLeft, drag: getComputedStyle(header).getPropertyValue('app-region'), buttonDrag: getComputedStyle(header.querySelector('button')).getPropertyValue('app-region') }; })()`,
+        ),
+      );
+    requireProof(
+      chrome.inset === '82px' &&
+        chrome.drag === 'drag' &&
+        chrome.buttonDrag === 'no-drag',
+      'The sidebar must leave room for Mac controls and keep its button clickable',
+    );
+    await page
+      .getByRole('button', { name: 'desktop-smoke', exact: true })
+      .click();
+    await page.waitForURL((url) => url.pathname !== '/');
+    await page.reload();
+    await page
+      .getByRole('button', { name: 'desktop-smoke', exact: true })
+      .waitFor();
+    const reviewToggle = page.getByRole('button', {
+      name: 'Review',
+      exact: true,
+    });
+    if (await reviewToggle.isVisible()) await reviewToggle.click();
+    await page.getByRole('tab', { name: 'History', exact: true }).click();
+    await page
+      .getByRole('button', { name: 'Create smoke project', exact: false })
+      .waitFor();
+    await page.getByRole('tab', { name: 'Files', exact: true }).click();
+    const readme = page.getByRole('treeitem', {
+      name: 'README.md',
+      exact: true,
+    });
+    await readme.click({ button: 'right' });
+    await page.getByRole('menuitem', { name: 'Open', exact: true }).click();
+    await page.getByText('Desktop smoke', { exact: true }).waitFor();
+    await writeFile(
+      join(input.repository, 'README.md'),
+      '# Desktop smoke\n\nUpdated on disk through the desktop server.\n',
+    );
+    await page
+      .getByText('Updated on disk through the desktop server.', { exact: true })
+      .waitFor();
+    const reviewSheet = page.getByRole('dialog', { name: 'Worktree review' });
+    if (await reviewSheet.isVisible()) await page.keyboard.press('Escape');
+    await app.evaluate(({ Menu }) => {
+      const item = Menu.getApplicationMenu()?.getMenuItemById('open-settings');
+      if (item == null) throw new Error('The native Settings menu is missing');
+      Reflect.apply(item.click, item, [item, undefined, undefined]);
+    });
+    const settingsDialog = page.getByRole('dialog', { name: 'Settings' });
+    await settingsDialog.waitFor({ state: 'visible' });
+    await settingsDialog
+      .getByRole('tab', { name: 'Dark', exact: true })
+      .click();
+    await page.waitForFunction("document.querySelector('.dark') !== null");
+    requireProof(
+      await app.evaluate(
+        ({ nativeTheme }) => nativeTheme.themeSource === 'dark',
+      ),
+      'Appearance must update the native window',
+    );
+    await page.keyboard.press('Escape');
+    const bounds = await app.evaluate(({ BrowserWindow, screen }) => {
+      const view = BrowserWindow.getAllWindows()[0];
+      if (view === undefined) throw new Error('The app window is missing');
+      const area = screen.getPrimaryDisplay().workArea;
+      view.setBounds({
+        x: area.x + 30,
+        y: area.y + 30,
+        width: 980,
+        height: 680,
+      });
+      return view.getBounds();
+    });
+    await app.evaluate(
+      ({ BrowserWindow }) =>
+        new Promise<void>((resolveFullscreen) => {
+          const view = BrowserWindow.getAllWindows()[0];
+          if (view === undefined) throw new Error('The app window is missing');
+          view.once('enter-full-screen', () => resolveFullscreen());
+          view.setFullScreen(true);
+        }),
+    );
+    await page.waitForFunction(
+      "document.documentElement.classList.contains('desktop-fullscreen')",
+    );
+    requireProof(
+      (await page.evaluate(
+        "getComputedStyle(document.querySelector('.desktop-sidebar-header')).paddingLeft",
+      )) === '12px',
+      'Fullscreen must remove the traffic-light inset',
+    );
+    await app.evaluate(
+      ({ BrowserWindow }) =>
+        new Promise<void>((resolveFullscreen) => {
+          const view = BrowserWindow.getAllWindows()[0];
+          if (view === undefined) throw new Error('The app window is missing');
+          view.once('leave-full-screen', () => resolveFullscreen());
+          view.setFullScreen(false);
+        }),
+    );
+    await page.waitForFunction(
+      "!document.documentElement.classList.contains('desktop-fullscreen')",
+    );
     await page.screenshot({
       path: join(input.evidence, 'installed-project.png'),
     });
@@ -135,6 +290,21 @@ async function installedProject(input: DesktopProof) {
     await view
       .getByRole('button', { name: 'desktop-smoke', exact: true })
       .waitFor();
+    await app.evaluate(
+      ({ BrowserWindow }) =>
+        new Promise<void>((resolveMaximized) => {
+          const view = BrowserWindow.getAllWindows()[0];
+          if (view === undefined) throw new Error('The app window is missing');
+          view.once('maximize', () => resolveMaximized());
+          view.maximize();
+        }),
+    );
+    requireProof(
+      (await app.evaluate(({ BrowserWindow }) =>
+        BrowserWindow.getAllWindows()[0]?.isMaximized(),
+      )) === true,
+      'The Mac window must maximize before its saved-state proof',
+    );
     process.stdout.write(
       'Desktop proof: project opened, window reopened; checking Quit\n',
     );
@@ -154,8 +324,32 @@ async function installedProject(input: DesktopProof) {
         await askOwner(data, 'GET', '/access', undefined, 5000),
       );
       requireProof(
-        pairing.devices.length === 1,
-        'Restarting must reuse the existing desktop pairing',
+        pairing.devices.length === 0,
+        'The managed desktop session must not create browser pairings',
+      );
+      requireProof(
+        isDeepStrictEqual(
+          await restarted.evaluate(({ BrowserWindow }) =>
+            BrowserWindow.getAllWindows()[0]?.getNormalBounds(),
+          ),
+          bounds,
+        ),
+        'Restarting must restore the saved window bounds',
+      );
+      requireProof(
+        (await restarted.evaluate(({ BrowserWindow }) =>
+          BrowserWindow.getAllWindows()[0]?.isMaximized(),
+        )) === true,
+        'Restarting must restore the maximized window',
+      );
+      await restored.waitForFunction(
+        "document.querySelector('.dark') !== null",
+      );
+      requireProof(
+        await restarted.evaluate(
+          ({ nativeTheme }) => nativeTheme.themeSource === 'dark',
+        ),
+        'Restarting must keep appearance on the stable desktop origin',
       );
       const next = ownerStatus.parse(
         await askOwner(data, 'GET', '/status', undefined, 5000),
@@ -172,9 +366,18 @@ async function installedProject(input: DesktopProof) {
     return {
       openedProject: true,
       nativeDatabase: true,
+      realGitHistory: true,
+      liveFileUpdates: true,
       closeKeepsServer: true,
       dockReopens: true,
-      restartKeepsProjectAndPairing: true,
+      restartKeepsProjectAndPreferences: true,
+      privateDesktopSession: true,
+      stableOrigin: true,
+      nativeMenus: true,
+      nativeAppearance: true,
+      windowRestored: true,
+      maximizedRestored: true,
+      fullscreenChrome: true,
       quitStopsServer: true,
     };
   } catch (error) {
@@ -192,13 +395,14 @@ async function installedProject(input: DesktopProof) {
     }
     await writeFile(
       join(input.evidence, 'failure.txt'),
-      `${error instanceof Error ? error.message : 'Desktop proof failed'}\n`,
+      `${error instanceof Error ? (error.stack ?? error.message) : 'Desktop proof failed'}\n`,
     );
     throw error;
   } finally {
-    await closeDesktop(app).catch(() => {
-      app.process().kill('SIGKILL');
-    });
+    if (appProcess.exitCode === null && appProcess.signalCode === null)
+      await closeDesktop(app).catch(() => {
+        appProcess.kill('SIGKILL');
+      });
   }
 }
 
@@ -212,11 +416,23 @@ function processAlive(pid: number): boolean {
 }
 
 async function closeDesktop(app: Awaited<ReturnType<typeof _electron.launch>>) {
+  const started = performance.now();
+  const child = app.process();
+  child.once('exit', (code, signal) =>
+    process.stdout.write(
+      `Desktop process exited (${code}, ${signal}) after ${Math.round(performance.now() - started)} ms\n`,
+    ),
+  );
   const timeout = AbortSignal.timeout(15_000);
   const expired = new Promise<never>((_resolve, reject) => {
     timeout.addEventListener(
       'abort',
-      () => reject(new Error('The app did not quit after stopping its server')),
+      () =>
+        reject(
+          new Error(
+            `The app did not quit after stopping its server (process ${child.pid}, exit ${child.exitCode}, signal ${child.signalCode})`,
+          ),
+        ),
       { once: true },
     );
   });

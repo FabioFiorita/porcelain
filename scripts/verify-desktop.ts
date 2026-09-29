@@ -43,7 +43,10 @@ try {
 } catch (error) {
   const message =
     error instanceof Error ? error.message : 'Desktop verification failed';
-  await writeFile(join(evidence, 'failure.txt'), `${message}\n`);
+  await writeFile(
+    join(evidence, 'failure.txt'),
+    `${error instanceof Error ? (error.stack ?? message) : message}\n`,
+  );
   process.stderr.write(`${message}\nEvidence: ${evidence}\n`);
   process.exitCode = 1;
 } finally {
