@@ -49,6 +49,7 @@ export type Limits = {
       probeTimeoutMs: number;
       strictTransportMaxAgeSeconds: number;
     };
+    networkDiscovery: { commandTimeoutMs: number; outputBytes: number };
     tailscale: {
       httpsPort: number;
       commandTimeoutMs: number;
@@ -240,6 +241,7 @@ export const LIMITS: Limits = {
       probeTimeoutMs: 5 * SECOND_MS,
       strictTransportMaxAgeSeconds: YEAR_MS / SECOND_MS,
     },
+    networkDiscovery: { commandTimeoutMs: SECOND_MS, outputBytes: KIBIBYTE },
     tailscale: {
       httpsPort: 443,
       commandTimeoutMs: 10 * SECOND_MS,

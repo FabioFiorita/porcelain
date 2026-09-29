@@ -646,6 +646,8 @@ export function classify(path: string): Classification | undefined {
   );
   if (storeContract)
     return classified('store-contract', storeContract[1] ?? '');
+  if (/^apps\/server\/spec\/fixtures\/.+\.ts$/.test(path))
+    return classified('fixture', 'server');
   if (/^apps\/server\/spec\/fakes\/.+\.ts$/.test(path))
     return classified('fake', 'server');
   const packageFile = /^packages\/([^/]+)\/src\/(.+)$/.exec(path);
@@ -1021,6 +1023,8 @@ export function allowedContractType(
 }
 
 export const serverProcessImporters: Readonly<Record<string, string>> = {
+  'apps/server/src/adapters/access/mac-network-command.ts':
+    'macOS has no procfs route and ARP tables; this gateway runs fixed route and arp commands through the process public API, with no request input',
   'apps/server/src/adapters/access/tailscale-command.ts':
     'Porcelain runs tailscale serve itself so the tailnet reaches it over HTTPS at the MagicDNS name; this module is the one server gateway that starts an external tool, through the process public API, and the Tailscale adapters run it',
 };

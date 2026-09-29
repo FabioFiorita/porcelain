@@ -18,6 +18,8 @@ import { HttpPairingReachReader } from '../adapters/access/http-pairing-reach-re
 import { HttpRouteListenerRunner } from '../adapters/access/http-route-listener-runner.ts';
 import { HttpTunnelProbe } from '../adapters/access/http-tunnel-probe.ts';
 import { InMemoryTunnelConnectionStore } from '../adapters/access/in-memory-tunnel-connection-store.ts';
+import { MacNetworkAddressReader } from '../adapters/access/mac-network-address-reader.ts';
+import { readNetworkPlatform } from '../config/network-platform.ts';
 import { OsNetworkAddressReader } from '../adapters/access/os-network-address-reader.ts';
 import { ProcessRuntimeStatusReader } from '../adapters/access/process-runtime-status-reader.ts';
 import { ProcessTailnetServeRunner } from '../adapters/access/process-tailnet-serve-runner.ts';
@@ -64,7 +66,9 @@ import { composeShared } from './compose-shared.ts';
 import { composeStores } from './compose-stores.ts';
 
 type RemoteRouteAdapters = {
-  networkAddressReader: NetworkAddressReader;
+  networkAddressReader: (
+    limits: Limits['access']['networkDiscovery'],
+  ) => NetworkAddressReader;
   routeListenerRunner: (target: () => Server) => RouteListenerRunner;
   tailnet: (limits: Limits['access']['tailscale']) => {
     status: TailnetStatusReader;
@@ -134,7 +138,9 @@ const openServerWith =
       ),
       runtimeStatusReader: new ProcessRuntimeStatusReader(input.runtimeStatus),
       serviceUpdateRunner: host.serviceUpdateRunner,
-      networkAddressReader: adapters.networkAddressReader,
+      networkAddressReader: adapters.networkAddressReader(
+        limits.access.networkDiscovery,
+      ),
       routeListenerRunner,
       tailnet: adapters.tailnet(limits.access.tailscale),
       tunnelProbe: adapters.tunnelProbe({
@@ -278,8 +284,15 @@ export const composeServer =
       clock: new SystemClock(),
     });
 
+const networkReaders = {
+  darwin: (limits: Limits['access']['networkDiscovery']) =>
+    new MacNetworkAddressReader(limits),
+  linux: (_limits: Limits['access']['networkDiscovery']) =>
+    new OsNetworkAddressReader(),
+};
+
 export const startServer: StartServer = composeServer({
-  networkAddressReader: new OsNetworkAddressReader(),
+  networkAddressReader: networkReaders[readNetworkPlatform()],
   routeListenerRunner: (target) => new HttpRouteListenerRunner(target),
   tailnet: (limits) => ({
     status: new ProcessTailnetStatusReader(limits),

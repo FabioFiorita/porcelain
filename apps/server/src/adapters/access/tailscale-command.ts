@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import { runCommand, type ProcessGroupLimits } from '@porcelain/process';
 
 export type TailscaleLimits = {
@@ -12,7 +13,11 @@ export type TailscaleRun =
   | { kind: 'failed'; denied: boolean }
   | { kind: 'done'; stdout: string };
 
-const COMMAND = 'tailscale';
+const MAC_COMMAND = '/Applications/Tailscale.app/Contents/MacOS/Tailscale';
+const COMMAND =
+  process.platform === 'darwin' && existsSync(MAC_COMMAND)
+    ? MAC_COMMAND
+    : 'tailscale';
 const DENIED = /access denied|permission denied|operator/i;
 
 function missingCommand(error: unknown): boolean {
