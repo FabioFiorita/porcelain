@@ -12,6 +12,7 @@ import {
   ProofFileUnreadableError,
   ProofTooLargeError,
   ReviewConflictError,
+  UnknownProofFileError,
   StepLaneOutOfRangeError,
   UnknownArrowBoxError,
   UnknownArrowStepError,
@@ -531,5 +532,84 @@ describe('PublishReviewService', () => {
       }),
     ).toThrow(ProofTooLargeError);
     expect(store.read({ worktreeId })).toBeUndefined();
+  });
+
+  it('keeps a published file when the next publish names it by its proof id', () => {
+    const { service, store } = setup();
+    const first = service.execute({
+      worktreeId,
+      draft: draft({
+        proof: { assets: [{ kind: 'image', title: 'Shot', path: 'shot.png' }] },
+      }),
+      evidence: evidence(),
+      proofFiles: reads([['shot.png', png]]),
+    });
+    const kept = first.review.proof?.assets[0]?.id ?? '';
+    const second = service.execute({
+      worktreeId,
+      draft: draft({
+        expectedRevision: 1,
+        proof: {
+          assets: [
+            {
+              kind: 'image',
+              title: 'Same shot',
+              proofId: kept,
+              layerId: 'layer-1',
+            },
+          ],
+        },
+      }),
+      evidence: evidence(),
+    });
+    const asset = second.review.proof?.assets[0];
+    expect(asset).toEqual({
+      id: asset?.id,
+      kind: 'image',
+      title: 'Same shot',
+      mediaType: 'image/png',
+      byteLength: png.byteLength,
+      layerId: 'layer-1',
+    });
+    expect(
+      store.readProofFile({ worktreeId, proofId: asset?.id ?? '' }),
+    ).toEqual({ id: asset?.id, mediaType: 'image/png', bytes: png });
+  });
+
+  it.each([
+    {
+      name: 'a proof id the review does not hold',
+      kind: 'image' as const,
+      known: false,
+    },
+    {
+      name: 'a kept image named as a video',
+      kind: 'video' as const,
+      known: true,
+    },
+  ])('refuses $name and keeps the stored review', ({ kind, known }) => {
+    const { service, store } = setup();
+    const first = service.execute({
+      worktreeId,
+      draft: draft({
+        proof: { assets: [{ kind: 'image', title: 'Shot', path: 'shot.png' }] },
+      }),
+      evidence: evidence(),
+      proofFiles: reads([['shot.png', png]]),
+    });
+    const proofId = known
+      ? (first.review.proof?.assets[0]?.id ?? '')
+      : 'no-such-proof';
+    expect(() =>
+      service.execute({
+        worktreeId,
+        draft: draft({
+          expectedRevision: 1,
+          proof: { assets: [{ kind, title: 'Shot', proofId }] },
+        }),
+        evidence: evidence(),
+      }),
+    ).toThrow(known ? UnsupportedProofFileError : UnknownProofFileError);
+    expect(store.read({ worktreeId })?.revision).toBe(1);
   });
 });

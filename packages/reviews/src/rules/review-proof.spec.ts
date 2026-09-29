@@ -56,6 +56,7 @@ describe('proofFilePaths', () => {
           { kind: 'link', title: 'CI', url: 'https://ci.example/1' },
           { kind: 'video', title: 'B', path: 'run.webm' },
           { kind: 'image', title: 'A again', path: 'shots/a.png' },
+          { kind: 'image', title: 'Kept', proofId: 'kept' },
         ],
       }),
     ).toEqual(['shots/a.png', 'run.webm']);

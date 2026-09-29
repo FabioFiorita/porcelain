@@ -9,6 +9,7 @@ import { ReviewConflictError } from '../errors/review-conflict-error.ts';
 import { StepLaneOutOfRangeError } from '../errors/step-lane-out-of-range-error.ts';
 import { UnknownArrowBoxError } from '../errors/unknown-arrow-box-error.ts';
 import { UnknownArrowStepError } from '../errors/unknown-arrow-step-error.ts';
+import { UnknownProofFileError } from '../errors/unknown-proof-file-error.ts';
 import { UnknownProofTargetError } from '../errors/unknown-proof-target-error.ts';
 import { UnsupportedProofFileError } from '../errors/unsupported-proof-file-error.ts';
 import type {
@@ -65,7 +66,11 @@ export class PublishReviewService {
     const current = this.reviews.read({ worktreeId: input.worktreeId });
     if ((current?.revision ?? 0) !== draft.expectedRevision)
       throw new ReviewConflictError();
-    const { proof, proofFiles } = this.proof(draft.proof, input.proofFiles);
+    const { proof, proofFiles } = this.proof(
+      input.worktreeId,
+      draft.proof,
+      input.proofFiles,
+    );
     const files = input.evidence.texts;
     const layers = draft.layers.map((layer): ReviewLayer => {
       const steps = layer.steps.map((step) => ({
@@ -97,6 +102,7 @@ export class PublishReviewService {
   }
 
   private proof(
+    worktreeId: string,
     draft: ProofDraft | undefined,
     reads: ProofFileReads | undefined,
   ): { proof: ReviewProof | undefined; proofFiles: ProofFile[] } {
@@ -105,7 +111,7 @@ export class PublishReviewService {
     const assets = (draft.assets ?? []).map((asset) => {
       const id = this.idSource.next();
       if (asset.kind === 'link') return { ...structuredClone(asset), id };
-      const file = this.proofFile(id, asset, reads);
+      const file = this.proofFile(worktreeId, id, asset, reads);
       proofFiles.push(file);
       return this.fileAsset(asset, file);
     });
@@ -121,12 +127,24 @@ export class PublishReviewService {
   }
 
   private proofFile(
+    worktreeId: string,
     id: string,
     asset: ProofFileDraft,
     reads: ProofFileReads | undefined,
   ): ProofFile {
-    if (reads?.tooLarge.includes(asset.path)) throw new ProofTooLargeError();
-    const bytes = reads?.files.get(asset.path);
+    if (asset.proofId !== undefined) {
+      const kept = this.reviews.readProofFile({
+        worktreeId,
+        proofId: asset.proofId,
+      });
+      if (kept === undefined) throw new UnknownProofFileError();
+      if (proofFileKind(kept.mediaType) !== asset.kind)
+        throw new UnsupportedProofFileError();
+      return { id, mediaType: kept.mediaType, bytes: kept.bytes };
+    }
+    const path = asset.path ?? '';
+    if (reads?.tooLarge.includes(path)) throw new ProofTooLargeError();
+    const bytes = reads?.files.get(path);
     if (bytes === undefined) throw new ProofFileUnreadableError();
     const mediaType = proofMediaType(
       bytes.subarray(0, this.proofLimits.signatureBytes),

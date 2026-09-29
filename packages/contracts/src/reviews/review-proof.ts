@@ -35,19 +35,23 @@ const linkUrlSchema = z
   .url({ protocol: /^https?$/ })
   .max(REVIEW_PROOF_URL_LENGTH);
 
+const proofFileDraftSchema = <Kind extends 'image' | 'video'>(kind: Kind) =>
+  z
+    .strictObject({
+      kind: z.literal(kind),
+      title: titleSchema,
+      path: relativePathSchema.optional(),
+      proofId: idSchema.optional(),
+      ...targetShape,
+    })
+    .refine(
+      (asset) => (asset.path === undefined) !== (asset.proofId === undefined),
+      'Name either the path of a new file or the proofId of a published one',
+    );
+
 const proofAssetDraftSchema = z.discriminatedUnion('kind', [
-  z.strictObject({
-    kind: z.literal('image'),
-    title: titleSchema,
-    path: relativePathSchema,
-    ...targetShape,
-  }),
-  z.strictObject({
-    kind: z.literal('video'),
-    title: titleSchema,
-    path: relativePathSchema,
-    ...targetShape,
-  }),
+  proofFileDraftSchema('image'),
+  proofFileDraftSchema('video'),
   z.strictObject({
     kind: z.literal('link'),
     title: titleSchema,

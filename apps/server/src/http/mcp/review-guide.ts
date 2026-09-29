@@ -61,7 +61,7 @@ When the change crosses more than one part of the system, add a summary diagram:
 Attach proof that the work is done in \`proof\`. Porcelain shows it beside the review, and a failing check stands out. Report what you actually ran; never mark a check you did not run as passing.
 
 - \`checks\`: one entry per check you ran, with \`name\`, \`result\` (\`pass\`, \`fail\` or \`skipped\`) and an optional short \`output\` of at most ${REVIEW_PROOF_OUTPUT_LENGTH} characters, such as the failing assertion or the summary line. Publish a failing check as \`fail\` rather than leaving it out.
-- \`assets\`: at most ${REVIEW_PROOF_ASSETS}. An \`image\` (PNG, JPEG, GIF or WebP) or a \`video\` (MP4 or WebM) names a \`path\` relative to the worktree root. Porcelain reads the file when you publish and keeps its own copy: at most ${REVIEW_PROOF_FILE_MEBIBYTES} MiB per file and ${REVIEW_PROOF_MEBIBYTES} MiB together. Its content must match its kind; an SVG or any other document is refused. Save a screenshot inside the worktree, publish, then delete the file so it does not show up as an unexplained change. A \`link\` names an \`http\` or \`https\` \`url\`, such as a CI run.
+- \`assets\`: at most ${REVIEW_PROOF_ASSETS}. An \`image\` (PNG, JPEG, GIF or WebP) or a \`video\` (MP4 or WebM) names a \`path\` relative to the worktree root. Porcelain reads the file when you publish and keeps its own copy: at most ${REVIEW_PROOF_FILE_MEBIBYTES} MiB per file and ${REVIEW_PROOF_MEBIBYTES} MiB together. Its content must match its kind; an SVG or any other document is refused. Save a screenshot inside the worktree, publish, then delete the file so it does not show up as an unexplained change; Porcelain keeps its copy. A \`link\` names an \`http\` or \`https\` \`url\`, such as a CI run.
 - Every check and asset has a \`title\` or \`name\`, and may name the \`layerId\`, or the \`layerId\` and \`stepId\`, it proves. Without them it belongs to the whole review.
 
 \`\`\`json
@@ -78,7 +78,7 @@ Attach proof that the work is done in \`proof\`. Porcelain shows it beside the r
 }
 \`\`\`
 
-Publishing replaces the proof with the one you send, so send every check and asset again when you republish.
+Publishing replaces the proof with the one you send. When you republish, send every check again, and every asset you want to keep: a new file by \`path\`, and an image or video already published by \`proofId\`, its \`id\` from \`read_review\`, in place of \`path\`. Porcelain reuses its copy, so the file does not need to exist any more. Name either \`path\` or \`proofId\`, never both.
 
 ## Repair gaps before handing the review off
 
@@ -86,7 +86,7 @@ Publishing replaces the proof with the one you send, so send every check and ass
 2. Publish with \`expectedRevision\` set to that revision. A mismatch means someone published since you read: read again, then publish.
 3. Fix every unresolved pointer the response returns as changed. Point the step at a line that exists.
 4. Fix lines Porcelain reports as Not explained: either cover them with a changed step or leave them out of the diff you are handing off.
-5. Publish the whole review again. Publishing replaces the latest summary, diagram, layers, and proof. Keep anything that should stay.
+5. Publish the whole review again. Publishing replaces the latest summary, diagram, layers, and proof. Keep anything that should stay; keep published images and videos by their \`proofId\`.
 
 ## Comments
 

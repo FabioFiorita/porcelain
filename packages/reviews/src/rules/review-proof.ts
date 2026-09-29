@@ -36,7 +36,7 @@ export function proofFilePaths(proof: ProofDraft | undefined): string[] {
   return [
     ...new Set(
       (proof?.assets ?? []).flatMap((asset) =>
-        asset.kind === 'link' ? [] : [asset.path],
+        asset.kind === 'link' || asset.path === undefined ? [] : [asset.path],
       ),
     ),
   ];

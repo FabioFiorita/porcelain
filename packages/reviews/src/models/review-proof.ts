@@ -22,7 +22,8 @@ export type ProofMediaType =
 export type ProofFileDraft = ProofTarget & {
   kind: ProofFileKind;
   title: string;
-  path: string;
+  path?: string | undefined;
+  proofId?: string | undefined;
 };
 
 type ProofLinkDraft = ProofTarget & {
