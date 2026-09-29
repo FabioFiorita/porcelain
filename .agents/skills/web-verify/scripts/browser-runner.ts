@@ -3,7 +3,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { Writable } from 'node:stream';
 import { fileURLToPath } from 'node:url';
-import { createVitest } from 'vitest/node';
+import { createVitest, type Vite } from 'vitest/node';
 import { PlaywrightBrowserProvider } from '@vitest/browser-playwright';
 import { z } from 'zod';
 import { IsolatedServer } from '../../server-verify/scripts/session.ts';
@@ -13,6 +13,8 @@ const repositoryRoot = resolve(
   dirname(fileURLToPath(import.meta.url)),
   '../../../..',
 );
+const appSource = '/src/';
+const appEntry = `${appSource}main.tsx`;
 
 export const runRequestSchema = z.strictObject({
   spec: z.string(),
@@ -60,6 +62,23 @@ function errorMessage(error: unknown): string {
     : `${error.message}\nCaused by: ${errorMessage(cause)}`;
 }
 
+async function transformApp(
+  client: Vite.DevEnvironment,
+  url = appEntry,
+  seen = new Set<string>(),
+): Promise<void> {
+  if (seen.has(url)) return;
+  seen.add(url);
+  await client.warmupRequest(url);
+  const module = await client.moduleGraph.getModuleByUrl(url);
+  if (module === undefined || module.type === 'css') return;
+  await Promise.all(
+    [...module.importedModules]
+      .filter((imported) => imported.url.startsWith(appSource))
+      .map((imported) => transformApp(client, imported.url, seen)),
+  );
+}
+
 export async function startBrowser(evidence: string, output: Writable) {
   const config = fileURLToPath(
     new URL('./vitest.browser.config.ts', import.meta.url),
@@ -103,6 +122,9 @@ export async function startBrowser(evidence: string, output: Writable) {
   try {
     await runner.standalone();
     await runner.globTestSpecifications();
+    for (const project of runner.projects)
+      if (project.browser !== undefined)
+        await transformApp(project.browser.vite.environments.client);
   } catch (error) {
     await runner.close();
     throw error;
