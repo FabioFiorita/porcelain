@@ -7,7 +7,7 @@ export default {
     'Settings → Remote computers → Add, then Toggle Sidebar → the remote computer → its worktree',
   shell: 'desktop',
   behaviour:
-    'The desktop app lists each remote computer under its name and status in the sidebar, next to this computer, and opens its worktree in the full review workspace over its own credential: it marks a change reviewed there across origins and shows what changes on it through a live ticket, without a reload.',
+    "The desktop app lists another computer under its own name and status in the sidebar, apart from this computer's projects, and opens its worktree in the full review workspace over that computer's own credential, with the machine in the tab title: a change marked reviewed lands on that computer only, and what changes there shows live through a live ticket, without a reload.",
   server: [
     'access.pairing',
     'access.environment',

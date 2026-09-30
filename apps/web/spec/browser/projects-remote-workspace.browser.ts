@@ -1,18 +1,18 @@
 import { expect } from 'vitest';
 import { test } from '../kit/journey';
 
-test('the desktop app lists a remote computer under its name in the sidebar, opens its worktree, marks a change reviewed there and shows what changes on it live', async ({
+test('the desktop app lists another computer under its own name in the sidebar, opens its worktree, marks a change reviewed there and shows what changes on it live', async ({
   pairedPage,
   app,
   server,
-  repo,
+  remote,
 }) => {
-  const inventory = await server.inventory();
-  const host = inventory.environment.name;
-  const sample = await server.project();
-  const main = sample.worktrees.find((worktree) => worktree.main);
-  const readme = repo.readme.path;
-  const rewritten = 'Rewritten on the remote computer while it is open.';
+  const local = await server.project();
+  const other = await remote.server.inventory();
+  const otherProject = await remote.server.project();
+  const otherMain = otherProject.worktrees.find((worktree) => worktree.main);
+  const readme = remote.repo.readme.path;
+  const rewritten = 'Rewritten on the other computer while it is open.';
 
   await pairedPage
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
@@ -35,7 +35,7 @@ test('the desktop app lists a remote computer under its name in the sidebar, ope
     .element(
       settings
         .getByRole('list', { name: 'Remote computers', exact: true })
-        .getByRole('listitem', { name: host, exact: true }),
+        .getByRole('listitem', { name: other.environment.name, exact: true }),
     )
     .toBeVisible();
   await settings.getByRole('button', { name: 'Back', exact: true }).click();
@@ -43,24 +43,38 @@ test('the desktop app lists a remote computer under its name in the sidebar, ope
   await pairedPage
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
+  const here = pairedPage.getByRole('group', {
+    name: 'This computer',
+    exact: true,
+  });
+  const there = pairedPage.getByRole('group', {
+    name: other.environment.name,
+    exact: true,
+  });
+  await expect
+    .element(there.getByText('Online', { exact: true }))
+    .toBeVisible();
   await expect
     .element(
-      pairedPage
-        .getByRole('group', { name: 'This computer', exact: true })
-        .getByRole('button', { name: sample.name, exact: true }),
+      there.getByRole('button', { name: otherProject.name, exact: true }),
     )
     .toBeVisible();
-  const remote = pairedPage.getByRole('group', { name: host, exact: true });
   await expect
-    .element(remote.getByText('Online', { exact: true }))
+    .element(there.getByRole('button', { name: local.name, exact: true }))
+    .not.toBeInTheDocument();
+  await expect
+    .element(here.getByRole('button', { name: local.name, exact: true }))
     .toBeVisible();
   await expect
-    .element(remote.getByRole('button', { name: sample.name, exact: true }))
-    .toBeVisible();
-  await remote.getByRole('button', { name: /Main worktree/ }).click();
+    .element(here.getByRole('button', { name: otherProject.name, exact: true }))
+    .not.toBeInTheDocument();
+  await there.getByRole('button', { name: /Main worktree/ }).click();
   await expect
     .poll(() => app.address().path)
-    .toBe(`/remotes/${inventory.environmentId}/${sample.id}/${main?.id ?? ''}`);
+    .toBe(
+      `/remotes/${other.environmentId}/${otherProject.id}/${otherMain?.id ?? ''}`,
+    );
+  await expect.poll(() => app.title()).toContain(other.environment.name);
 
   const mark = pairedPage.getByRole('button', {
     name: `Mark ${readme} as reviewed`,
@@ -78,9 +92,12 @@ test('the desktop app lists a remote computer under its name in the sidebar, ope
     .toBeEnabled();
   await expect
     .poll(async () =>
-      (await server.reviewedFiles()).marks.map((entry) => entry.path),
+      (await remote.server.reviewedFiles()).marks.map((entry) => entry.path),
     )
     .toContain(readme);
+  await expect
+    .poll(async () => (await server.reviewedFiles()).marks)
+    .toEqual([]);
 
   await pairedPage.getByRole('button', { name: 'Review', exact: true }).click();
   await pairedPage.getByRole('tab', { name: 'Files', exact: true }).click();
@@ -93,11 +110,17 @@ test('the desktop app lists a remote computer under its name in the sidebar, ope
   const source = pairedPage.getByRole('tab', { name: 'Source', exact: true });
   await source.click();
   await expect.element(source).toHaveAttribute('aria-selected', 'true');
-  await repo.write(readme, `# Sample repository\n\n${rewritten}\n`);
   await expect
-    .poll(async () => (await server.text(readme)).text)
+    .poll(async () => (await remote.server.liveTicketHits()).length)
+    .toBeGreaterThan(0);
+  await remote.repo.write(readme, `# Sample repository\n\n${rewritten}\n`);
+  await expect
+    .poll(async () => (await remote.server.text(readme)).text)
     .toContain(rewritten);
   await expect
     .element(pairedPage.getByText(rewritten, { exact: true }))
     .toBeVisible();
+  await expect
+    .poll(async () => (await server.text(readme)).text)
+    .not.toContain(rewritten);
 }, 30_000);
