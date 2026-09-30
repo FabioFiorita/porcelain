@@ -16,6 +16,7 @@ import {
   ServiceUpdateNotOfferedError,
   ServiceUpdateRunningError,
   TooManyPairingAttemptsError,
+  TooManyLiveTicketsError,
 } from '@porcelain/access/errors';
 import {
   BranchBaseNotFoundError,
@@ -256,7 +257,10 @@ const rules: readonly StatusRule[] = [
     errors: [errorCodes.FST_ERR_CTP_BODY_TOO_LARGE, ProofTooLargeError],
     statusCode: 413,
   },
-  { errors: [TooManyPairingAttemptsError], statusCode: 429 },
+  {
+    errors: [TooManyPairingAttemptsError, TooManyLiveTicketsError],
+    statusCode: 429,
+  },
   {
     errors: [InspectionLimitError],
     statusCode: 413,

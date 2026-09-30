@@ -4,7 +4,10 @@ import {
   SequentialIdSource,
   SequentialSecretSource,
 } from '@porcelain/kernel/fakes';
-import { DeviceViewerRequiredError } from '@porcelain/access/errors';
+import {
+  DeviceViewerRequiredError,
+  TooManyLiveTicketsError,
+} from '@porcelain/access/errors';
 import { parseCredential, secretMatches } from '@porcelain/access/rules';
 import { InMemoryLiveTicketStore } from '../../spec/fakes/in-memory-live-ticket-store.ts';
 import { IssueLiveTicketService } from './issue-live-ticket-service.ts';
@@ -14,7 +17,7 @@ const viewer = { kind: 'device' as const, deviceId };
 const now = '2026-09-30T10:00:00.000Z';
 const lifetimeMs = 30_000;
 
-function setup(maxOutstanding = 8) {
+function setup(maxOutstanding = 8, maxPerDevice = 4) {
   const tickets = new InMemoryLiveTicketStore();
   const clock = new FixedClock(now);
   const service = new IssueLiveTicketService(
@@ -22,7 +25,7 @@ function setup(maxOutstanding = 8) {
     clock,
     new SequentialIdSource(),
     new SequentialSecretSource(),
-    { lifetimeMs, maxOutstanding },
+    { lifetimeMs, maxOutstanding, maxPerDevice },
   );
   return { tickets, clock, service };
 }
@@ -72,13 +75,53 @@ describe('IssueLiveTicketService', () => {
     ]);
   });
 
-  it('keeps at most the outstanding limit, forgetting the oldest ticket', () => {
-    const { tickets, service } = setup(2);
+  it("keeps at most the per-device limit, forgetting only that device's oldest ticket", () => {
+    const { tickets, service } = setup(8, 2);
+    const other = {
+      kind: 'device' as const,
+      deviceId: '00000000-0000-4000-8000-00000000000e',
+    };
+    const kept = service.execute({ viewer: other, route: 'lan' });
     const issued = [1, 2, 3].map(() =>
       service.execute({ viewer, route: 'lan' }),
     );
     expect(tickets.read().tickets.map((ticket) => ticket.id)).toEqual(
-      issued.slice(1).map((entry) => parseCredential('pct', entry.ticket)?.id),
+      [kept, ...issued.slice(1)].map(
+        (entry) => parseCredential('pct', entry.ticket)?.id,
+      ),
+    );
+  });
+
+  it("never forgets another device's ticket to make room, and refuses a new ticket while the outstanding limit is reached", () => {
+    const { tickets, service } = setup(2, 2);
+    const first = {
+      kind: 'device' as const,
+      deviceId: '00000000-0000-4000-8000-00000000000e',
+    };
+    const second = {
+      kind: 'device' as const,
+      deviceId: '00000000-0000-4000-8000-00000000000f',
+    };
+    service.execute({ viewer: first, route: 'lan' });
+    service.execute({ viewer: second, route: 'lan' });
+    const before = tickets.read();
+    expect(() => service.execute({ viewer, route: 'lan' })).toThrow(
+      TooManyLiveTicketsError,
+    );
+    expect(tickets.read()).toEqual(before);
+  });
+
+  it('lets a device at the outstanding limit replace its own oldest ticket', () => {
+    const { tickets, service } = setup(2, 2);
+    const first = service.execute({ viewer, route: 'lan' });
+    service.execute({ viewer, route: 'lan' });
+    const third = service.execute({ viewer, route: 'lan' });
+    expect(tickets.read().tickets).toHaveLength(2);
+    expect(tickets.read().tickets.map((ticket) => ticket.id)).not.toContain(
+      parseCredential('pct', first.ticket)?.id,
+    );
+    expect(tickets.read().tickets.map((ticket) => ticket.id)).toContain(
+      parseCredential('pct', third.ticket)?.id,
     );
   });
 

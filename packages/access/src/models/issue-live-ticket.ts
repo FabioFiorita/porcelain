@@ -14,4 +14,5 @@ export type IssueLiveTicketResult = { ticket: string; expiresAt: string };
 export type IssueLiveTicketOptions = {
   lifetimeMs: number;
   maxOutstanding: number;
+  maxPerDevice: number;
 };

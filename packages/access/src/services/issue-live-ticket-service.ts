@@ -1,6 +1,7 @@
 import type { Clock, IdSource, SecretSource } from '@porcelain/kernel/ports';
 import { instantAfter, sha256Hex } from '@porcelain/kernel/rules';
 import { DeviceViewerRequiredError } from '../errors/device-viewer-required-error.ts';
+import { TooManyLiveTicketsError } from '../errors/too-many-live-tickets-error.ts';
 import type {
   IssueLiveTicketInput,
   IssueLiveTicketOptions,
@@ -41,20 +42,20 @@ export class IssueLiveTicketService {
       this.idSource.next(),
       this.secretSource.next(),
     );
-    this.liveTickets.save(
-      liveTicketIssued(
-        this.liveTickets.read(),
-        {
-          id: issued.id,
-          secretHash: sha256Hex(issued.secret),
-          deviceId: viewer.deviceId,
-          route: input.route,
-          expiresAt,
-        },
-        now,
-        this.options.maxOutstanding,
-      ),
+    const tickets = liveTicketIssued(
+      this.liveTickets.read(),
+      {
+        id: issued.id,
+        secretHash: sha256Hex(issued.secret),
+        deviceId: viewer.deviceId,
+        route: input.route,
+        expiresAt,
+      },
+      now,
+      this.options,
     );
+    if (tickets === undefined) throw new TooManyLiveTicketsError();
+    this.liveTickets.save(tickets);
     return { ticket: issued.token, expiresAt };
   }
 }

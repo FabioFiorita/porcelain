@@ -12,10 +12,16 @@ export function liveTicketIssued(
   current: LiveTickets,
   ticket: StoredLiveTicket,
   now: string,
-  maxOutstanding: number,
-): LiveTickets {
+  limits: { maxOutstanding: number; maxPerDevice: number },
+): LiveTickets | undefined {
   const kept = current.tickets.filter((entry) => unexpired(entry, now));
-  return { tickets: [...kept, ticket].slice(-maxOutstanding) };
+  const own = kept.filter((entry) => entry.deviceId === ticket.deviceId);
+  const forgotten = new Set(
+    own.slice(0, Math.max(0, own.length - limits.maxPerDevice + 1)),
+  );
+  const remaining = kept.filter((entry) => !forgotten.has(entry));
+  if (remaining.length >= limits.maxOutstanding) return undefined;
+  return { tickets: [...remaining, ticket] };
 }
 
 export function liveTicketTaken(
