@@ -7,6 +7,7 @@ import type {
   RequestOriginVerdict,
 } from '../../ports/check-request-origin-use-case-port.ts';
 import { bearerCredential } from './authenticate.ts';
+import { presentedTicket } from './live-ticket.ts';
 
 type Refusal = Extract<RequestOriginVerdict, { allowed: false }>['refusal'];
 
@@ -37,7 +38,12 @@ function refusalMessage(refusal: Refusal): string {
   }
 }
 
-function presentedCredential(request: FastifyRequest): PresentedCredential {
+function presentedCredential(
+  request: FastifyRequest,
+  policy: OriginPolicy,
+): PresentedCredential {
+  if (policy.crossOrigin === 'ticket' && presentedTicket(request) !== undefined)
+    return 'ticket';
   return bearerCredential(request) === undefined ? 'none' : 'bearer';
 }
 
@@ -57,7 +63,7 @@ export function checkRequestOrigin(
         allowedHosts: options.allowedHosts,
         requireSameOrigin: policy.requireSameOrigin ?? false,
         crossOrigin: policy.crossOrigin,
-        credential: presentedCredential(request),
+        credential: presentedCredential(request, policy),
       },
       { signal: request.disconnected },
     );

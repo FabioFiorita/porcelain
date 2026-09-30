@@ -30,6 +30,8 @@ export type LiveConnection = {
   close(): void;
 };
 
+export type LiveOptions = { ticket: string; origin?: string };
+
 export type Fixture = {
   folders: { home: string; repository: string; state: string; web: string };
   branch: string;
@@ -38,6 +40,7 @@ export type Fixture = {
   initialCommit: string;
   web: { shell: string; asset: { path: string; text: string }; escape: string };
   summaryLinkLifetimeMs: number;
+  liveTicketLifetimeMs: number;
   gitActionDeadlineMs: number;
   inventoryStaleAfterMs: number;
   codingTool: {
@@ -80,7 +83,7 @@ export type Session = {
   worktreeId: string;
   send(request: HttpRequest): Promise<HttpResponse>;
   read(request: HttpRequest, status?: number): Promise<HttpResponse>;
-  live(): Promise<LiveConnection>;
+  live(options?: LiveOptions): Promise<LiveConnection>;
   git(subcommand: GitSubcommand, ...args: string[]): Promise<string>;
   writeFile(path: string, content: string | Uint8Array): Promise<void>;
   readFile(path: string): Promise<string>;

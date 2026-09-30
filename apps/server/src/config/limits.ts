@@ -42,6 +42,7 @@ export type Limits = {
   access: {
     environment: { protocol: number };
     pairingGrant: { lifetimeMs: number };
+    liveTicket: { lifetimeMs: number; maxOutstanding: number };
     device: { unusedLifetimeMs: number; cookieMaxAgeSeconds: number };
     deviceDetails: { labelLength: number; platformLength: number };
     credentials: { secretBytes: number };
@@ -226,6 +227,7 @@ export const LIMITS: Limits = {
   access: {
     environment: { protocol: ENVIRONMENT_PROTOCOL },
     pairingGrant: { lifetimeMs: 15 * MINUTE_MS },
+    liveTicket: { lifetimeMs: 30 * SECOND_MS, maxOutstanding: 256 },
     device: {
       unusedLifetimeMs: DEVICE_LIFETIME_MS,
       cookieMaxAgeSeconds: DEVICE_LIFETIME_MS / SECOND_MS,

@@ -8,8 +8,11 @@ export {
 } from './environment.ts';
 export { readHealthResponseSchema, type ReadHealthResponse } from './health.ts';
 export {
+  issueLiveTicketResponseSchema,
   liveNoticeSchema,
   liveSubscriptionSchema,
+  type IssueLiveTicketRequest,
+  type IssueLiveTicketResponse,
   type LiveNotice,
 } from './live-updates.ts';
 export {

@@ -1,6 +1,6 @@
-type CrossOriginPolicy = 'refused' | 'bearer' | 'anyone';
+type CrossOriginPolicy = 'refused' | 'bearer' | 'ticket' | 'anyone';
 
-type PresentedCredential = 'bearer' | 'none';
+type PresentedCredential = 'bearer' | 'ticket' | 'none';
 
 export type CheckRequestOriginInput = {
   host: string | undefined;

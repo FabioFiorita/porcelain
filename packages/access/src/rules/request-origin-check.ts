@@ -40,6 +40,8 @@ function crossOriginAllowed(input: CheckRequestOriginInput): boolean {
       return false;
     case 'bearer':
       return input.credential === 'bearer';
+    case 'ticket':
+      return input.credential === 'ticket';
     case 'anyone':
       return true;
   }

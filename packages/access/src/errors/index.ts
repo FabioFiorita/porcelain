@@ -12,3 +12,4 @@ export { UnidentifiedLocalNetworkError } from './unidentified-local-network-erro
 export { ServiceNotManagedError } from './service-not-managed-error.ts';
 export { ServiceUpdateNotOfferedError } from './service-update-not-offered-error.ts';
 export { ServiceUpdateRunningError } from './service-update-running-error.ts';
+export { DeviceViewerRequiredError } from './device-viewer-required-error.ts';

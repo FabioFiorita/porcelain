@@ -264,4 +264,48 @@ describe('requestOriginCheck', () => {
       sameOrigin,
     );
   });
+
+  it('lets a ticket through from another origin, or without one, where same origin is demanded and tickets may cross origins', () => {
+    const upgrade = {
+      requireSameOrigin: true,
+      crossOrigin: 'ticket' as const,
+      credential: 'ticket' as const,
+    };
+    expect(check({ ...upgrade, origin: 'http://elsewhere.example' })).toEqual(
+      crossOrigin,
+    );
+    expect(check(upgrade)).toEqual(sameOrigin);
+  });
+
+  it.each(['bearer', 'none'] as const)(
+    'keeps demanding the same origin of an upgrade presenting %s where tickets may cross origins',
+    (credential) => {
+      const origin = 'http://elsewhere.example';
+      const upgrade = {
+        requireSameOrigin: true,
+        crossOrigin: 'ticket' as const,
+        credential,
+      };
+      expect(check({ ...upgrade, origin })).toEqual({
+        kind: 'refused',
+        refusal: { kind: 'cross-origin', origin },
+      });
+      expect(check(upgrade)).toEqual({
+        kind: 'refused',
+        refusal: { kind: 'origin-required' },
+      });
+    },
+  );
+
+  it('refuses a ticket where only bearer clients may cross origins', () => {
+    const origin = 'http://elsewhere.example';
+    expect(
+      check({
+        method: 'POST',
+        origin,
+        crossOrigin: 'bearer',
+        credential: 'ticket',
+      }),
+    ).toEqual({ kind: 'refused', refusal: { kind: 'cross-origin', origin } });
+  });
 });

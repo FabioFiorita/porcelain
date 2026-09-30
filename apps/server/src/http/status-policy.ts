@@ -4,6 +4,7 @@ import {
   InvalidDeviceDetailsError,
   InvalidPairingAddressError,
   InvalidPairingError,
+  DeviceViewerRequiredError,
   InvalidTailnetHostnameError,
   InvalidTunnelHostnameError,
   MissingTailnetHostnameError,
@@ -184,7 +185,10 @@ const rules: readonly StatusRule[] = [
     message: INVALID_REQUEST,
   },
   { errors: [InvalidPairingError], statusCode: 401 },
-  { errors: [CommentAuthorMismatchError], statusCode: 403 },
+  {
+    errors: [CommentAuthorMismatchError, DeviceViewerRequiredError],
+    statusCode: 403,
+  },
   {
     errors: [
       WorktreeNotFoundError,

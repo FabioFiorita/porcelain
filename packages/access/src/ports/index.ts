@@ -12,3 +12,4 @@ export type { RemoteAccessStore } from './remote-access-store.ts';
 export type { RouteListenerRunner } from './route-listener-runner.ts';
 export type { RouteStateStore } from './route-state-store.ts';
 export type { TunnelProbe } from './tunnel-probe.ts';
+export type { LiveTicketStore } from './live-ticket-store.ts';

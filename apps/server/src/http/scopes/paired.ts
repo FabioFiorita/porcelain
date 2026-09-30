@@ -1,3 +1,4 @@
+import type { IssueLiveTicketUseCase } from '../../use-cases/access/issue-live-ticket.ts';
 import type { ReadServiceUpdateUseCase } from '../../use-cases/access/read-service-update.ts';
 import type { Limits } from '../../config/limits.ts';
 import type { FastifyInstance } from 'fastify';
@@ -53,6 +54,7 @@ import {
   authenticate,
   type AuthenticateOptions,
 } from '../hooks/authenticate.ts';
+import { issueLiveTicket } from '../routes/access/issue-live-ticket.ts';
 import { listCommits } from '../routes/changes/list-commits.ts';
 import { listFileCommits } from '../routes/changes/list-file-commits.ts';
 import { readCommitFiles } from '../routes/changes/read-commit-files.ts';
@@ -108,6 +110,7 @@ import { setReviewedLayer } from '../routes/reviews/set-reviewed-layer.ts';
 export type PairedUseCases = {
   access: {
     readServiceUpdate: Pick<ReadServiceUpdateUseCase, 'execute'>;
+    issueLiveTicket: Pick<IssueLiveTicketUseCase, 'execute'>;
   };
   projects: {
     browseProjectFolders: Pick<BrowseProjectFoldersUseCase, 'execute'>;
@@ -187,6 +190,9 @@ export async function pairedScope(
   );
   server.register(readServiceUpdate, {
     useCase: options.application.access.readServiceUpdate,
+  });
+  server.register(issueLiveTicket, {
+    useCase: options.application.access.issueLiveTicket,
   });
   server.register(runGitAction, {
     useCase: options.application.gitActions.runGitAction,

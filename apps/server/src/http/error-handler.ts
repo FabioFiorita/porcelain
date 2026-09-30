@@ -13,7 +13,7 @@ export function errorHandler(logger: Logger) {
         kind: 'request',
         requestId: request.id,
         method: request.method,
-        url: request.url,
+        url: request.url.split('?', 1)[0] ?? '',
         error,
       });
     if (statusCode === 401) reply.header('WWW-Authenticate', 'Bearer');

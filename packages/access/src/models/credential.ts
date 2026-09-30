@@ -1,4 +1,4 @@
-export type CredentialKind = 'pcp' | 'pcd';
+export type CredentialKind = 'pcp' | 'pcd' | 'pct';
 
 export type Credential = { id: string; secret: string; token: string };
 

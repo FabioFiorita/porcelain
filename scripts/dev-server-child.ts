@@ -220,6 +220,7 @@ const fixture = {
     escape: 'leak.txt',
   },
   summaryLinkLifetimeMs: 2000,
+  liveTicketLifetimeMs: 1000,
   gitActionDeadlineMs: 1500,
   inventoryStaleAfterMs: 200,
   codingTool,
@@ -337,6 +338,13 @@ try {
       limits: {
         ...settings.limits,
         jobs: { ...settings.limits.jobs, refreshInventoryMs: 250 },
+        access: {
+          ...settings.limits.access,
+          liveTicket: {
+            ...settings.limits.access.liveTicket,
+            lifetimeMs: fixture.liveTicketLifetimeMs,
+          },
+        },
         inventory: {
           ...settings.limits.inventory,
           staleAfterMs: fixture.inventoryStaleAfterMs,
