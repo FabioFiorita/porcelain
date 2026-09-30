@@ -1,8 +1,8 @@
 'use client';
 
+import * as React from 'react';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from 'cn';
-import type * as React from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -55,7 +55,7 @@ function InputGroupAddon({
       data-align={align}
       className={cn(inputGroupAddonVariants({ align }), className)}
       onClick={(e) => {
-        if (e.target instanceof HTMLElement && e.target.closest('button')) {
+        if ((e.target as HTMLElement).closest('button')) {
           return;
         }
         e.currentTarget.parentElement?.querySelector('input')?.focus();
@@ -122,7 +122,10 @@ function InputGroupInput({
   return (
     <Input
       data-slot="input-group-control"
-      className={cn('flex-1        ', className)}
+      className={cn(
+        'flex-1 rounded-none border-0 bg-transparent shadow-none ring-0 focus-visible:ring-0 aria-invalid:ring-0 dark:bg-transparent',
+        className,
+      )}
       {...props}
     />
   );
@@ -135,7 +138,10 @@ function InputGroupTextarea({
   return (
     <Textarea
       data-slot="input-group-control"
-      className={cn('flex-1 resize-none         ', className)}
+      className={cn(
+        'flex-1 resize-none rounded-none border-0 bg-transparent py-2 shadow-none ring-0 focus-visible:ring-0 aria-invalid:ring-0 dark:bg-transparent',
+        className,
+      )}
       {...props}
     />
   );
@@ -145,7 +151,7 @@ export {
   InputGroup,
   InputGroupAddon,
   InputGroupButton,
-  InputGroupInput,
   InputGroupText,
+  InputGroupInput,
   InputGroupTextarea,
 };

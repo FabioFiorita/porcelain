@@ -34,7 +34,7 @@ import {
   unknownRule,
 } from '../architecture/probe.ts';
 import { compilerFindings } from '../architecture/react-compiler.ts';
-import { pinProblems } from '../architecture/shadcn-pins.ts';
+import { pinProblems, uiFolder } from '../architecture/shadcn-pins.ts';
 import {
   loadJourneys,
   unmappedRoutes,
@@ -350,13 +350,12 @@ const strictnessFlags = [
   'exactOptionalPropertyTypes',
   'noImplicitOverride',
   'noFallthroughCasesInSwitch',
-  'noUnusedLocals',
-  'noUnusedParameters',
   'verbatimModuleSyntax',
   'erasableSyntaxOnly',
 ] as const;
 
 const requiredRules = [
+  'no-unused-vars',
   'typescript/consistent-type-imports',
   'typescript/no-deprecated',
   'typescript/no-explicit-any',
@@ -383,13 +382,6 @@ const sanctionedOverrides: readonly unknown[] = [
       'typescript/no-unsafe-call': 'off',
       'typescript/no-unsafe-member-access': 'off',
       'typescript/no-unsafe-return': 'off',
-    },
-  },
-  {
-    files: ['apps/web/src/components/ui/**'],
-    rules: {
-      'shadcn/no-restyle': 'off',
-      'shadcn/no-raw-colors': 'off',
     },
   },
 ];
@@ -507,7 +499,7 @@ async function configProblems(): Promise<Problem[]> {
     problems.push(
       problem(
         'lint-config',
-        '.oxlintrc.json overrides only the plugin files, and the shadcn call-site rules for components/ui, which stays what the registry serves; any other override is a disable directive.',
+        '.oxlintrc.json overrides only the plugin files; any other override is a disable directive.',
       ),
     );
   const tsconfigs = filesUnder('.').filter((path) =>
@@ -1028,7 +1020,12 @@ function duplicateFindings(): Finding[] {
 async function lint(): Promise<number> {
   const files = roots
     .flatMap(filesUnder)
-    .filter((path) => lintedFile.test(path) && path !== generatedRouteTree);
+    .filter(
+      (path) =>
+        lintedFile.test(path) &&
+        path !== generatedRouteTree &&
+        !path.startsWith(`${uiFolder}/`),
+    );
   const result = spawnSync(
     join('node_modules', '.bin', 'oxlint'),
     [

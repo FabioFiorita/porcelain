@@ -1,10 +1,9 @@
-'use client';
-
+import * as React from 'react';
 import { Dialog as DialogPrimitive } from '@base-ui/react/dialog';
 import { cn } from 'cn';
-import { XIcon } from 'lucide-react';
-import type * as React from 'react';
+
 import { Button } from '@/components/ui/button';
+import { XIcon } from 'lucide-react';
 
 function Dialog({ ...props }: DialogPrimitive.Root.Props) {
   return <DialogPrimitive.Root data-slot="dialog" {...props} />;
@@ -64,7 +63,7 @@ function DialogContent({
             render={
               <Button
                 variant="ghost"
-                className="absolute top-4 right-4"
+                className="absolute top-4 right-4 bg-secondary"
                 size="icon-sm"
               />
             }

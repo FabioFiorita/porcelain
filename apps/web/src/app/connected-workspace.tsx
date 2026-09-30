@@ -32,8 +32,7 @@ type Review = {
 export function ConnectedWorkspace({ review }: { review?: Review }) {
   const navigationTrigger = useRef<HTMLButtonElement>(null);
   const [shortcuts, setShortcuts] = useState(false);
-  const { setOpenMobile, isMobile, open, openMobile, toggleSidebar } =
-    useSidebar();
+  const { setOpenMobile, isMobile, open, openMobile } = useSidebar();
   const navigate = useNavigate();
   const connection = useAccessStore((state) => state.connection);
   const inventory = useInventory(connection);
@@ -78,15 +77,6 @@ export function ConnectedWorkspace({ review }: { review?: Review }) {
     onOpenShortcuts: () => setShortcuts(true),
   };
 
-  useHotkey(
-    SHORTCUTS.toggleNavigator,
-    () => {
-      if (!isMobile && open)
-        requestAnimationFrame(() => navigationTrigger.current?.focus());
-      toggleSidebar();
-    },
-    { ignoreInputs: true },
-  );
   useHotkey(SHORTCUTS.openSettings, openSettings, { ignoreInputs: true });
   useHotkey(SHORTCUTS.openShortcuts, () => setShortcuts(true), {
     ignoreInputs: true,
@@ -95,7 +85,7 @@ export function ConnectedWorkspace({ review }: { review?: Review }) {
   return (
     <>
       {isMobile && (
-        <Sidebar variant="floating" mobileFinalFocus={navigationTrigger}>
+        <Sidebar variant="floating">
           <ProjectNavigator
             {...navigator}
             onSelect={(id) => {
