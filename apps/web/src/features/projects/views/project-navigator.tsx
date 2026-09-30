@@ -8,6 +8,7 @@ import {
   EmptyTitle,
 } from '@/components/ui/empty';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { desktopShell } from '@/shared/shell';
 import type { Inventory } from '../rules/inventory';
 import { RemoveProjectDialog } from './remove-project-dialog';
 import { RenameProjectDialog } from './rename-project-dialog';
@@ -38,7 +39,15 @@ export function ProjectNavigator({
       aria-label="Projects and worktrees"
       className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border bg-card text-[13px]"
     >
-      <header className="flex h-11 shrink-0 items-center gap-2 border-b px-3">
+      <header className="desktop-sidebar-header flex h-11 shrink-0 items-center gap-2 border-b px-3">
+        {desktopShell && (
+          <img
+            src="/icon-512.png"
+            alt=""
+            draggable={false}
+            className="size-6 shrink-0 rounded-md"
+          />
+        )}
         <div className="flex min-w-0 flex-col leading-tight">
           <span className="text-sm font-semibold">Porcelain</span>
           <span

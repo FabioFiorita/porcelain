@@ -2,6 +2,10 @@
   "name": "@porcelain/server",
   "private": true,
   "type": "module",
+  "exports": {
+    "./desktop": "./src/bootstrap/desktop.ts",
+    "./desktop-settings": "./src/config/desktop-settings.ts"
+  },
   "scripts": {
     "start": "node --input-type=module --eval \"const { cli } = await import('./src/bootstrap/main.ts'); await cli.run();\"",
     "typecheck": "tsc --noEmit",

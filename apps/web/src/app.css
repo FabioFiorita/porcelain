@@ -5,6 +5,40 @@
 
 @custom-variant dark (&:is(.dark *));
 
+.desktop-shell .desktop-sidebar-header {
+  padding-left: 82px;
+  app-region: drag;
+}
+
+.desktop-shell
+  :is(button, input, textarea, select, a, [role='button'], [role='separator']) {
+  app-region: no-drag;
+}
+
+.desktop-shell .desktop-workspace-without-navigator {
+  padding-top: 52px;
+}
+
+.desktop-shell .desktop-workspace-without-navigator::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 44px;
+  app-region: drag;
+}
+
+.desktop-fullscreen .desktop-sidebar-header {
+  padding-left: 12px;
+}
+
+.desktop-fullscreen .desktop-workspace-without-navigator {
+  padding-top: 8px;
+}
+
+.desktop-fullscreen .desktop-workspace-without-navigator::before {
+  display: none;
+}
+
 @theme inline {
   --color-graph-1: var(--graph-1);
   --color-graph-2: var(--graph-2);

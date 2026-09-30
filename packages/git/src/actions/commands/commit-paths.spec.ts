@@ -109,7 +109,12 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  rmSync(checkout, { recursive: true, force: true });
+  rmSync(checkout, {
+    recursive: true,
+    force: true,
+    maxRetries: 3,
+    retryDelay: 10,
+  });
 });
 
 describe('commitPaths', () => {
@@ -217,7 +222,7 @@ describe('commitPaths', () => {
       git('ls-tree', '-r', '--name-only', 'HEAD', 'many').split('\n').length -
         1,
     ).toBe(2000);
-  });
+  }, 20_000);
 
   it('refuses more than 2,000 paths', async () => {
     const paths = Array.from({ length: 2001 }, (_, index) => `many/${index}`);

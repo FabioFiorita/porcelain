@@ -1,5 +1,6 @@
 import { liveNoticeSchema } from '@porcelain/contracts/access';
 import { reportUnauthorized } from '../api/unauthorized';
+import { desktopLiveAddress } from '../adapters/desktop';
 import type { LiveSubscription, LiveUpdatePort } from '@/shared/live/port';
 
 const MAX_RECONNECT_MS = 10_000;
@@ -19,7 +20,9 @@ export function createLiveUpdatesLive(): LiveUpdatePort {
       const open = () => {
         if (signal.aborted) return;
         const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-        socket = new WebSocket(`${protocol}//${location.host}/api/live`);
+        socket = new WebSocket(
+          desktopLiveAddress() ?? `${protocol}//${location.host}/api/live`,
+        );
         socket.addEventListener('message', (event) => {
           let value: unknown;
           try {

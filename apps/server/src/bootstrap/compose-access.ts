@@ -6,6 +6,7 @@ import type {
   TunnelProbe,
 } from '@porcelain/access/ports';
 import {
+  AuthenticateDesktopSessionService,
   AuthorizeServiceUpdateService,
   CheckLocalRequestService,
   CheckRequestOriginService,
@@ -64,9 +65,11 @@ import { TakePairingAttemptUseCase } from '../use-cases/access/take-pairing-atte
 import type { ComposeContext } from './compose-context.ts';
 import type { Shared } from './compose-shared.ts';
 import type { Stores } from './compose-stores.ts';
+import type { ServerHost } from '../ports/server-host.ts';
 
 type AccessDependencies = {
   stores: Stores;
+  desktopSession: ServerHost['desktopSession'];
   shared: Shared;
   deviceConnections: DeviceConnectionStore;
   tunnelConnections: TunnelConnectionStore;
@@ -123,6 +126,7 @@ export function composeAccess(
       ),
       lanes,
       laneKeys,
+      new AuthenticateDesktopSessionService(dependencies.desktopSession),
     ),
     issueLiveTicket: new IssueLiveTicketUseCase(
       new IssueLiveTicketService(

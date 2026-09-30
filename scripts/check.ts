@@ -3,6 +3,7 @@ import { spawn } from 'node:child_process';
 const commands = [
   'typecheck:server',
   'typecheck:web',
+  'typecheck:desktop',
   'lint:server',
   'lint:web',
   'format:server:check',

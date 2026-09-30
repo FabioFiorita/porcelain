@@ -79,6 +79,8 @@ const packageNames = readdirSync(join(repositoryRoot, 'packages'), {
   )
   .map((entry) => entry.name);
 const sourceRoots = [
+  'apps/desktop/src',
+  'apps/desktop/spec',
   'apps/server/src',
   'apps/server/spec',
   ...packageNames.flatMap((name) => [
@@ -111,14 +113,15 @@ function sourceFiles(directory: string): string[] {
 }
 
 const permittedOutsideRoots: readonly RegExp[] = [
-  /^(?:packages\/[^/]+|apps\/server)\/(?:package|tsconfig)\.json$/,
+  /^(?:packages\/[^/]+|apps\/(?:server|desktop))\/(?:package|tsconfig)\.json$/,
   /^packages\/storage\/drizzle\/(?:meta\/)?[^/]+\.(?:sql|json)$/,
   /^packages\/storage\/drizzle\.config\.ts$/,
   /^packages\/storage\/scripts\/[^/]+\.ts$/,
   /^apps\/web\/(?:package\.json|tsconfig(?:\.node)?\.json|components\.json|index\.html|vite\.config\.ts)$/,
   /^apps\/web\/public\/[^/]+$/,
 ];
-const insideRoot = /^(?:packages\/[^/]+|apps\/server)\/(?:src|spec)\//;
+const insideRoot =
+  /^(?:packages\/[^/]+|apps\/(?:server|desktop))\/(?:src|spec)\//;
 const fixtureData = /^packages\/[^/]+\/spec\/fixtures\//;
 const webInside = /^apps\/web\/(?:src|spec)\//;
 const webAsset = /^apps\/web\/src\/(?:[^/]+\.css|assets\/[^/]+)$/;

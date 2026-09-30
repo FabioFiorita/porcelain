@@ -10,6 +10,7 @@ import { ProjectWorkspaceProvider } from '@/features/projects/index';
 import { ReviewShell } from '@/app/review-shell';
 import { WorkspaceError } from '@/app/workspace-error';
 import { WorkspacePending } from '@/app/workspace-pending';
+import { DesktopActions } from '@/app/desktop-actions';
 
 export const Route = createFileRoute('/_paired')({
   beforeLoad: async ({ context }) => {
@@ -33,6 +34,7 @@ function PairedLayout() {
         onOpenChange={setNavigatorOpen}
       >
         <Outlet />
+        <DesktopActions />
       </ProjectWorkspaceProvider>
     </ReviewShell>
   ) : (

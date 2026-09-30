@@ -10,7 +10,6 @@ import {
 import { Sidebar, SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
 import { useAccessStore } from '@/features/access/index';
 import {
-  OpenProjectDialog,
   openProjectDialog,
   ProjectNavigator,
   ProjectWorkspace,
@@ -130,7 +129,6 @@ export function ConnectedWorkspace({ review }: { review?: Review }) {
         )}
       </ProjectWorkspace>
 
-      <OpenProjectDialog onOpened={openWorktree} />
       <ShortcutsDialog open={shortcuts} onOpenChange={setShortcuts} />
     </>
   );

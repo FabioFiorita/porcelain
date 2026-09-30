@@ -39,6 +39,14 @@ const PROCESS_GROUP = { lingerMs: 250, cleanupMs: 5 * SECOND_MS, pollMs: 10 };
 type ProcessGroupLimits = typeof PROCESS_GROUP;
 
 export type Limits = {
+  desktop: {
+    startupMs: number;
+    shutdownMs: number;
+    windowWidth: number;
+    windowHeight: number;
+    minWidth: number;
+    minHeight: number;
+  };
   access: {
     environment: { protocol: number };
     pairingGrant: { lifetimeMs: number };
@@ -56,6 +64,7 @@ export type Limits = {
       probeTimeoutMs: number;
       strictTransportMaxAgeSeconds: number;
     };
+    networkDiscovery: { commandTimeoutMs: number; outputBytes: number };
     pairingAttempts: {
       windowMs: number;
       attemptsPerPeer: number;
@@ -239,6 +248,14 @@ export type Limits = {
 };
 
 export const LIMITS: Limits = {
+  desktop: {
+    startupMs: 20 * SECOND_MS,
+    shutdownMs: 10 * SECOND_MS,
+    windowWidth: 1280,
+    windowHeight: 840,
+    minWidth: 800,
+    minHeight: 600,
+  },
   access: {
     environment: { protocol: ENVIRONMENT_PROTOCOL },
     pairingGrant: { lifetimeMs: 15 * MINUTE_MS },
@@ -262,6 +279,7 @@ export const LIMITS: Limits = {
       probeTimeoutMs: 5 * SECOND_MS,
       strictTransportMaxAgeSeconds: YEAR_MS / SECOND_MS,
     },
+    networkDiscovery: { commandTimeoutMs: SECOND_MS, outputBytes: KIBIBYTE },
     pairingAttempts: {
       windowMs: MINUTE_MS,
       attemptsPerPeer: 10,

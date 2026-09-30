@@ -16,6 +16,8 @@ import { HttpPairingReachReader } from '../adapters/access/http-pairing-reach-re
 import { HttpRouteListenerRunner } from '../adapters/access/http-route-listener-runner.ts';
 import { HttpTunnelProbe } from '../adapters/access/http-tunnel-probe.ts';
 import { InMemoryTunnelConnectionStore } from '../adapters/access/in-memory-tunnel-connection-store.ts';
+import { MacNetworkAddressReader } from '../adapters/access/mac-network-address-reader.ts';
+import { readNetworkPlatform } from '../config/network-platform.ts';
 import { OsNetworkAddressReader } from '../adapters/access/os-network-address-reader.ts';
 import { ProcessRuntimeStatusReader } from '../adapters/access/process-runtime-status-reader.ts';
 import { ParcelWorktreeWatcher } from '../adapters/events/parcel-worktree-watcher.ts';
@@ -29,6 +31,7 @@ import { StderrLogger } from '../adapters/runtime/stderr-logger.ts';
 import { SystemClock } from '../adapters/runtime/system-clock.ts';
 import { FilesystemWebRootReader } from '../adapters/web/filesystem-web-root-reader.ts';
 import { operationDeadlineMs } from '../config/operation-deadline.ts';
+import type { Limits } from '../config/limits.ts';
 import { createOwnerServer } from '../http/owner-server.ts';
 import { createNetworkServer } from '../http/server.ts';
 import { IntervalJob, JobSequence } from '../runtime/interval-job.ts';
@@ -59,7 +62,9 @@ import { composeShared } from './compose-shared.ts';
 import { composeStores } from './compose-stores.ts';
 
 type RemoteRouteAdapters = {
-  networkAddressReader: NetworkAddressReader;
+  networkAddressReader: (
+    limits: Limits['access']['networkDiscovery'],
+  ) => NetworkAddressReader;
   routeListenerRunner: (target: () => Server) => RouteListenerRunner;
   tunnelProbe: (options: { timeoutMs: number }) => TunnelProbe;
 };
@@ -115,6 +120,7 @@ const openServerWith =
       () => network.server,
     );
     const access = composeAccess(context, {
+      desktopSession: host.desktopSession,
       stores,
       shared,
       deviceConnections,
@@ -126,7 +132,9 @@ const openServerWith =
       runtimeStatusReader: new ProcessRuntimeStatusReader(input.runtimeStatus),
       serviceUpdateRunner: host.serviceUpdateRunner,
       serverVersion: host.version,
-      networkAddressReader: adapters.networkAddressReader,
+      networkAddressReader: adapters.networkAddressReader(
+        limits.access.networkDiscovery,
+      ),
       routeListenerRunner,
       tunnelProbe: adapters.tunnelProbe({
         timeoutMs: limits.access.remoteAccess.probeTimeoutMs,
@@ -269,8 +277,15 @@ export const composeServer =
       clock: new SystemClock(),
     });
 
+const networkReaders = {
+  darwin: (limits: Limits['access']['networkDiscovery']) =>
+    new MacNetworkAddressReader(limits),
+  linux: (_limits: Limits['access']['networkDiscovery']) =>
+    new OsNetworkAddressReader(),
+};
+
 export const startServer: StartServer = composeServer({
-  networkAddressReader: new OsNetworkAddressReader(),
+  networkAddressReader: networkReaders[readNetworkPlatform()],
   routeListenerRunner: (target) => new HttpRouteListenerRunner(target),
   tunnelProbe: (options) => new HttpTunnelProbe(options),
 });

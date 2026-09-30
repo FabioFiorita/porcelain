@@ -43,5 +43,6 @@ export type {
   IdentifyRequestClientInput,
   RequestClient,
 } from './identify-request-client.ts';
+export type { DesktopSession } from './desktop-session.ts';
 export type { LiveTickets } from './live-ticket.ts';
 export type { RedeemLiveTicketInput } from './redeem-live-ticket.ts';

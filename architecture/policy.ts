@@ -42,6 +42,7 @@ export const targetPackageExports: Record<string, Record<string, string>> = {
     ]),
   ),
   contracts: {
+    './desktop': './src/desktop/index.ts',
     './shared': './src/shared/index.ts',
     ...Object.fromEntries(
       domainPackages.map((name) => [`./${name}`, `./src/${name}/index.ts`]),
@@ -93,6 +94,9 @@ export const requiredServerFiles: readonly string[] = [
 ];
 
 export const roles = [
+  'desktop',
+  'desktop-gateway',
+  'desktop-server-api',
   'transport',
   'status-policy',
   'use-case',
@@ -483,7 +487,7 @@ function classifyPackage(name: string, inside: string) {
     return;
   }
   if (name === 'contracts') {
-    if (domainSet.has(section) || section === 'shared')
+    if (domainSet.has(section) || section === 'shared' || section === 'desktop')
       return classified('contract', name);
     return;
   }
@@ -649,11 +653,26 @@ export function classify(path: string): Classification | undefined {
   );
   if (storeContract)
     return classified('store-contract', storeContract[1] ?? '');
+  if (/^apps\/server\/spec\/fixtures\/.+\.ts$/.test(path))
+    return classified('fixture', 'server');
   if (/^apps\/server\/spec\/fakes\/.+\.ts$/.test(path))
     return classified('fake', 'server');
   const packageFile = /^packages\/([^/]+)\/src\/(.+)$/.exec(path);
   if (packageFile)
     return classifyPackage(packageFile[1] ?? '', packageFile[2] ?? '');
+  if (
+    path === 'apps/server/src/bootstrap/desktop.ts' ||
+    path === 'apps/server/src/config/desktop-settings.ts'
+  )
+    return classified('desktop-server-api', 'server');
+  if (path.startsWith('apps/desktop/src/')) {
+    if (path.endsWith('.spec.ts')) return classified('test', 'desktop');
+    if (path.startsWith('apps/desktop/src/adapters/'))
+      return classified('desktop-gateway', 'desktop');
+    if (path.startsWith('apps/desktop/src/rules/'))
+      return classified('rule', 'desktop');
+    return classified('desktop', 'desktop');
+  }
   if (path.startsWith('apps/server/src/'))
     return classifyServer(path.slice('apps/server/src/'.length));
   if (path.startsWith('apps/web/')) return classifyWeb(path);
@@ -669,6 +688,8 @@ const domainInternal: readonly Role[] = [
 ];
 
 const everything: readonly Role[] = [
+  'desktop',
+  'desktop-server-api',
   'transport',
   'status-policy',
   'use-case',
@@ -692,6 +713,20 @@ const everything: readonly Role[] = [
 ];
 
 export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
+  desktop: new Set([
+    'desktop',
+    'desktop-gateway',
+    'rule',
+    'contract',
+    'desktop-server-api',
+  ]),
+  'desktop-gateway': new Set(['contract']),
+  'desktop-server-api': new Set([
+    'bootstrap',
+    'config',
+    'transport',
+    'installer-api',
+  ]),
   transport: new Set([
     'kernel',
     'installer-api',
@@ -929,8 +964,18 @@ function testViolation(
     from.owner !== 'server'
   )
     return 'store-contract-runs-against-its-fake-storage-and-server-adapters-only';
-  if (from.owner !== 'server' && to.owner === 'server')
+  if (
+    from.owner !== 'server' &&
+    to.owner === 'server' &&
+    !(from.owner === 'desktop' && to.role === 'desktop-server-api')
+  )
     return 'package-cannot-import-server';
+  if (
+    from.owner === 'desktop' &&
+    to.owner === 'desktop' &&
+    to.role === 'desktop-gateway'
+  )
+    return;
   if (!allowedTargets.test.has(to.role)) return `test-cannot-import-${to.role}`;
   return;
 }
@@ -953,7 +998,11 @@ export function violation(
     !(to.owner === 'kernel' && to.role === 'kernel')
   )
     return 'fixture-imports-own-package-models-only';
-  if (from.owner !== 'server' && to.owner === 'server')
+  if (
+    from.owner !== 'server' &&
+    to.owner === 'server' &&
+    !(from.owner === 'desktop' && to.role === 'desktop-server-api')
+  )
     return 'package-cannot-import-server';
   if (from.owner === 'git' && domainSet.has(to.owner))
     return 'git-cannot-import-domain';
@@ -1023,7 +1072,10 @@ export function allowedContractType(
   );
 }
 
-export const serverProcessImporters: Readonly<Record<string, string>> = {};
+export const serverProcessImporters: Readonly<Record<string, string>> = {
+  'apps/server/src/adapters/access/mac-network-command.ts':
+    'macOS has no procfs route and ARP tables; this gateway runs fixed route and arp commands through the process public API, with no request input',
+};
 
 export function allowedProcessImport(
   path: string,
@@ -1037,6 +1089,8 @@ export function allowedProcessImport(
 }
 
 export const nodeGlobalRoles: ReadonlySet<Role> = new Set<Role>([
+  'desktop',
+  'desktop-gateway',
   'gateway',
   'gateway-api',
   'repository',
@@ -1052,6 +1106,8 @@ const typedRoles = new Set<Role>([
   'server-port',
 ]);
 const boundaryRoles = new Set<Role>([
+  'desktop',
+  'desktop-server-api',
   'transport',
   'status-policy',
   'contract',
@@ -1063,6 +1119,9 @@ const nodeModules = new Set(
 const storageEngineModule = /^(?:fs|child_process)(?:\/|$)/;
 
 export const externalPackages: Record<Role, readonly string[]> = {
+  desktop: ['electron', 'fix-path', 'zod'],
+  'desktop-gateway': [],
+  'desktop-server-api': [],
   transport: [
     'fastify',
     '@fastify/*',
