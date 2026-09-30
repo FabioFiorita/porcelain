@@ -341,6 +341,7 @@ export const styleRules = [
   'web-baseline',
   'web-journey-baseline',
   'shadcn-ui-pinned',
+  'web-feature-map',
 ] as const;
 
 export type StyleRule = (typeof styleRules)[number];

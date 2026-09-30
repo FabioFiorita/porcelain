@@ -88,6 +88,67 @@ export const negativeJourneys: readonly NegativeJourney[] = [
   },
 ];
 
+const routeFolder = 'apps/web/src/routes';
+
+type RouteFile = { file: string; segments: string[]; index: boolean };
+
+function routeFiles(folder: string, inside: string[] = []): RouteFile[] {
+  return readdirSync(join(repositoryRoot, folder, ...inside), {
+    withFileTypes: true,
+  }).flatMap((entry) => {
+    if (entry.name.startsWith('-')) return [];
+    if (entry.isDirectory()) return routeFiles(folder, [...inside, entry.name]);
+    if (!/\.tsx?$/.test(entry.name)) return [];
+    const stem = entry.name.replace(/(?:\.lazy)?\.tsx?$/, '');
+    if (inside.length === 0 && stem === '__root') return [];
+    const parts = [...inside, ...stem.split('.')];
+    const last = parts.at(-1);
+    return [
+      {
+        file: [folder, ...inside, entry.name].join('/'),
+        segments:
+          last === 'index' || last === 'route' ? parts.slice(0, -1) : parts,
+        index: last === 'index',
+      },
+    ];
+  });
+}
+
+export function pageRoutes(): { file: string; path: string }[] {
+  const files = routeFiles(routeFolder);
+  const layout = (route: RouteFile) =>
+    !route.index &&
+    files.some(
+      (other) =>
+        other.segments.length > route.segments.length &&
+        route.segments.every(
+          (segment, index) => other.segments[index] === segment,
+        ),
+    );
+  return files
+    .filter((route) => !layout(route))
+    .map((route) => ({
+      file: route.file,
+      path: `/${route.segments
+        .filter(
+          (segment) => !segment.startsWith('_') && !/^\(.+\)$/.test(segment),
+        )
+        .map((segment) => segment.replace(/_$/, ''))
+        .join('/')}`,
+    }))
+    .toSorted((left, right) => left.file.localeCompare(right.file));
+}
+
+export function unmappedRoutes(journeys: readonly Journey[]): string[] {
+  const mapped = new Set(journeys.map((journey) => journey.route));
+  return pageRoutes()
+    .filter((route) => !mapped.has(route.path))
+    .map(
+      (route) =>
+        `${route.file} renders the page at ${route.path}, which no web feature map entry names as its route; give the journey that drives that page route: '${route.path}', or write one. __root and a layout route, whose folder holds child routes and whose page is its index, need none.`,
+    );
+}
+
 export async function loadJourneys(): Promise<Journey[]> {
   const serverFeatures = new Map(
     (await loadServerFeatures()).map((feature) => [

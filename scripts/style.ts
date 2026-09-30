@@ -35,6 +35,10 @@ import {
 } from '../architecture/probe.ts';
 import { compilerFindings } from '../architecture/react-compiler.ts';
 import { pinProblems } from '../architecture/shadcn-pins.ts';
+import {
+  loadJourneys,
+  unmappedRoutes,
+} from '../.agents/skills/web-verify/scripts/catalogue.ts';
 import { manualAuditProblems } from '../architecture/ci-policy.ts';
 
 const [mode, target] = process.argv.slice(2);
@@ -644,6 +648,21 @@ function filesOf(root: string): Map<string, string> {
   );
 }
 
+async function featureMapProblems(): Promise<Problem[]> {
+  try {
+    return unmappedRoutes(await loadJourneys()).map((found) =>
+      problem('web-feature-map', found),
+    );
+  } catch (error) {
+    return [
+      problem(
+        'web-feature-map',
+        error instanceof Error ? error.message : String(error),
+      ),
+    ];
+  }
+}
+
 async function routeTreeProblems(): Promise<Problem[]> {
   const web = 'apps/web';
   const routes = join(web, 'src', 'routes');
@@ -1034,6 +1053,7 @@ if (mode === 'format') {
     ...(target === 'web'
       ? pinProblems('.').map((found) => problem('shadcn-ui-pinned', found))
       : []),
+    ...(target === 'web' ? await featureMapProblems() : []),
   ];
   for (const { rule, message } of problems)
     process.stderr.write(`error style(${rule}): ${message}\n`);
