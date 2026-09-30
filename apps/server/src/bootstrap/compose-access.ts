@@ -3,8 +3,6 @@ import type {
   PairingReachReader,
   RouteListenerRunner,
   RuntimeStatusReader,
-  TailnetServeRunner,
-  TailnetStatusReader,
   TunnelProbe,
 } from '@porcelain/access/ports';
 import {
@@ -68,7 +66,6 @@ type AccessDependencies = {
   serviceUpdateRunner: ServiceUpdateRunner;
   networkAddressReader: NetworkAddressReader;
   routeListenerRunner: RouteListenerRunner;
-  tailnet: { status: TailnetStatusReader; serve: TailnetServeRunner };
   tunnelProbe: TunnelProbe;
 };
 
@@ -86,8 +83,6 @@ export function composeAccess(
     routeStates,
     dependencies.networkAddressReader,
     dependencies.routeListenerRunner,
-    dependencies.tailnet.status,
-    dependencies.tailnet.serve,
     dependencies.tunnelProbe,
     { loopbackAddress: LOOPBACK_ADDRESS },
   );

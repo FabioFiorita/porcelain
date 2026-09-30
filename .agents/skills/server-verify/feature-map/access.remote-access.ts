@@ -67,7 +67,7 @@ export default defineFeature({
   paired: true,
   intent: 'intended',
   behaviour:
-    "A paired browser on the computer that runs Porcelain turns the ways in on and off: the local network, the Tailscale tailnet and the user's own Cloudflare tunnel with its public hostname. The choice is saved; each route reports whether it is off, starting, on with the addresses it serves, or failed with a reason. Turning the local network on records the network the computer is on, the private IPv4 network of the physical interface that carries the default route with the address and hardware address of its router, and the server listens there only, never on Docker, libvirt or VPN interfaces, and pauses on any other network (the fixture's computer is on 192.168.1.0/24 through eth0 at 192.168.1.20 behind the router 192.168.1.1 at 02:00:5e:10:00:01, with a Docker bridge and a VPN beside it, and has no tailnet); Turning the tailnet on has Tailscale Serve the server over HTTPS at the computer's MagicDNS name through a loopback listener of its own (the fixture's Tailscale runs with HTTPS certificates as porcelain.tail0000.ts.net and serves what it is asked to), and the server answers to that name while it is served, and it answers to the tunnel hostname only while Cloudflare is on; it checks the tunnel by asking its own health through the hostname (the fixture's tunnel reaches this server for any hostname except one under .invalid, which nothing answers). An address that a route serves can be named in a pairing link. Turning Cloudflare on needs a readable public HTTPS hostname. As with pairing, only a request from this computer's loopback listener may change them, so a device that came in through a route cannot.",
+    "A paired browser on the computer that runs Porcelain turns the ways in on and off: the local network, the Tailscale tailnet and the user's own Cloudflare tunnel with its public hostname. The choice is saved; each route reports whether it is off, starting, on with the addresses it serves, or failed with a reason. Turning the local network on records the network the computer is on, the private IPv4 network of the physical interface that carries the default route with the address and hardware address of its router, and the server listens there only, never on Docker, libvirt or VPN interfaces, and pauses on any other network (the fixture's computer is on 192.168.1.0/24 through eth0 at 192.168.1.20 behind the router 192.168.1.1 at 02:00:5e:10:00:01, with a Docker bridge and a VPN beside it, and has no tailnet); Turning the tailnet on needs the computer's Tailscale name under ts.net; the server never runs Tailscale itself: it opens a loopback listener of its own on a port it keeps, names it for the owner's own tailscale serve command, answers to the Tailscale name while the tailnet is on, and checks the tailnet by asking its own health through that name like the tunnel (the fixture's Tailscale forwards porcelain.tail0000.ts.net here), and it answers to the tunnel hostname only while Cloudflare is on; it checks the tunnel by asking its own health through the hostname (the fixture's tunnel reaches this server for any hostname except one with an invalid label, which nothing answers). An address that a route serves can be named in a pairing link. Turning Cloudflare on needs a readable public HTTPS hostname. As with pairing, only a request from this computer's loopback listener may change them, so a device that came in through a route cannot.",
   cases: [
     defineCase({
       name: 'every route is off at first',
@@ -110,6 +110,16 @@ export default defineFeature({
             cloudflareHostname: 'http://x.example.com',
           },
         },
+        {
+          method: 'PATCH',
+          path: '/api/remote-access',
+          body: { tailnet: true },
+        },
+        {
+          method: 'PATCH',
+          path: '/api/remote-access',
+          body: { tailnet: true, tailnetHostname: 'porcelain.example.com' },
+        },
       ],
       async expect({ responses, state, session, check }) {
         for (const [index, response] of responses.slice(0, 2).entries()) {
@@ -136,6 +146,30 @@ export default defineFeature({
           ),
           responses[3]?.body,
         );
+        check('missing Tailscale name status', 400, responses[4]?.status);
+        check(
+          'missing Tailscale name body',
+          apiError(
+            400,
+            'Bad Request',
+            "Tailscale needs this computer's Tailscale name.",
+          ),
+          responses[4]?.body,
+        );
+        check(
+          'Tailscale name outside ts.net status',
+          400,
+          responses[5]?.status,
+        );
+        check(
+          'Tailscale name outside ts.net body',
+          apiError(
+            400,
+            'Bad Request',
+            "Enter this computer's Tailscale name, such as laptop.tail1234.ts.net.",
+          ),
+          responses[5]?.body,
+        );
         check('nothing changed', state, await read(session, remoteAccess));
       },
     }),
@@ -144,7 +178,11 @@ export default defineFeature({
       request: () => ({
         method: 'PATCH',
         path: '/api/remote-access',
-        body: { lan: true, tailnet: true },
+        body: {
+          lan: true,
+          tailnet: true,
+          tailnetHostname: 'Porcelain.Tail0000.ts.net',
+        },
       }),
       async expect({ response, session, check, checkContract, checkMatch }) {
         check('status', 200, response.status);
@@ -165,6 +203,11 @@ export default defineFeature({
           fixtureNetwork,
           record(response.body).lanNetwork,
         );
+        check(
+          'Tailscale name saved the canonical way',
+          tailnetHost,
+          record(response.body).tailnetHostname,
+        );
         const opened = await settled(session, 'lan', 'on');
         const settledTailnet = await settled(session, 'tailnet', '');
         check(
@@ -178,9 +221,14 @@ export default defineFeature({
           [status(opened, 'lan').urls].flat()[0],
         );
         check(
-          'Tailscale serves the tailnet over HTTPS at its name',
+          'the Tailscale name reaches this server over HTTPS',
           { kind: 'on', urls: [`https://${tailnetHost}`] },
           status(settledTailnet, 'tailnet'),
+        );
+        checkMatch(
+          'names the loopback listener to forward Tailscale Serve to',
+          /^http:\/\/127\.0\.0\.1:\d+$/,
+          settledTailnet.tailnetTarget,
         );
         const link = await read(session, {
           method: 'POST',
@@ -269,10 +317,21 @@ export default defineFeature({
           { enabled: false, status: status(state, 'tailnet') },
           routes(record(response.body)).tailnet,
         );
+        const stopped = await settled(session, 'tailnet', 'off');
         check(
           'the route stops',
           { enabled: false, status: { kind: 'off' } },
-          routes(await settled(session, 'tailnet', 'off')).tailnet,
+          routes(stopped).tailnet,
+        );
+        check(
+          'the Tailscale name is kept',
+          tailnetHost,
+          stopped.tailnetHostname,
+        );
+        check(
+          'no listener is named',
+          ['routes', 'localNetwork', 'tailnetHostname', 'serviceUrl'],
+          Object.keys(stopped),
         );
         const refused = await session.send(throughTailnet);
         check('the tailnet name is refused status', 403, refused.status);
@@ -423,6 +482,27 @@ export default defineFeature({
           'nothing answers',
           { kind: 'failed', reason: 'unreachable' },
           status(await settled(session, 'cloudflare', 'failed'), 'cloudflare'),
+        );
+      },
+    }),
+    defineCase({
+      name: 'a Tailscale name nothing answers at fails the tailnet',
+      request: () => ({
+        method: 'PATCH',
+        path: '/api/remote-access',
+        body: { tailnet: true, tailnetHostname: 'porcelain.invalid.ts.net' },
+      }),
+      async expect({ response, session, check }) {
+        check('status', 200, response.status);
+        check(
+          'checking the tailnet',
+          { kind: 'starting' },
+          status(record(response.body), 'tailnet'),
+        );
+        check(
+          'nothing answers',
+          { kind: 'failed', reason: 'unreachable' },
+          status(await settled(session, 'tailnet', 'failed'), 'tailnet'),
         );
       },
     }),

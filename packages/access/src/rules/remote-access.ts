@@ -11,11 +11,13 @@ import type {
   RouteStates,
   TunnelAnswer,
 } from '../models/remote-access.ts';
+import { tailnetTarget } from './tailnet.ts';
 
 const TAILNET_IPV4 = /^100\.(?:6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./;
 const TAILNET_IPV6 = /^fd7a:115c:a1e0:/i;
 const HOSTNAME_LABEL = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
 const NUMERIC_LABEL = /^\d+$/;
+const TAILNET_DOMAIN = '.ts.net';
 
 export function isTailnetAddress(address: string): boolean {
   return TAILNET_IPV4.test(address) || TAILNET_IPV6.test(address);
@@ -49,6 +51,11 @@ export function tunnelHostname(
   )
     return undefined;
   return hostname;
+}
+
+function tailnetHostname(value: string, maxLength: number): string | undefined {
+  const hostname = tunnelHostname(value, maxLength);
+  return hostname?.endsWith(TAILNET_DOMAIN) ? hostname : undefined;
 }
 
 export function tunnelOrigin(hostname: string): string {
@@ -94,9 +101,11 @@ export function httpsHosts(
   routes: RemoteRoutes,
 ): string[] {
   const tailnet = routes.tailnetProxy?.hostname;
+  const tailnetState = routes.states.tailnet;
   return [
     ...answeredTunnelHosts(settings, routes.states),
-    ...(tailnet === undefined || routes.states.tailnet.kind !== 'on'
+    ...(tailnet === undefined ||
+    (tailnetState.kind === 'failed' && tailnetState.reason === 'other-server')
       ? []
       : [tailnet]),
   ];
@@ -153,6 +162,27 @@ function lanChange(
   return { kind: 'lan', lan: true, lanNetwork: networkOnly(network) };
 }
 
+type TailnetChange =
+  | { kind: 'tailnet'; tailnet: boolean; hostname?: string | undefined }
+  | RemoteAccessProblem;
+
+function tailnetChange(
+  current: RemoteAccessSettings,
+  change: RemoteAccessChange,
+  hostnameLength: number,
+): TailnetChange {
+  const hostname =
+    change.tailnetHostname === undefined
+      ? current.tailnetHostname
+      : tailnetHostname(change.tailnetHostname, hostnameLength);
+  if (change.tailnetHostname !== undefined && hostname === undefined)
+    return { kind: 'invalid-tailnet-hostname' };
+  const tailnet = change.tailnet ?? current.tailnet;
+  if (tailnet && hostname === undefined)
+    return { kind: 'missing-tailnet-hostname' };
+  return { kind: 'tailnet', tailnet, hostname };
+}
+
 export function changedRemoteAccess(
   current: RemoteAccessSettings,
   change: RemoteAccessChange,
@@ -167,17 +197,21 @@ export function changedRemoteAccess(
     return { kind: 'invalid-hostname' };
   const cloudflare = change.cloudflare ?? current.cloudflare;
   if (cloudflare && hostname === undefined) return { kind: 'missing-hostname' };
+  const tailnet = tailnetChange(current, change, hostnameLength);
+  if (tailnet.kind !== 'tailnet') return tailnet;
   const lan = lanChange(current, change, network);
   if (lan.kind !== 'lan') return lan;
+  const port = tailnet.tailnet ? current.tailnetPort : undefined;
   return {
     kind: 'settings',
     settings: {
       lan: lan.lan,
       ...(lan.lanNetwork === undefined ? {} : { lanNetwork: lan.lanNetwork }),
-      tailnet: change.tailnet ?? current.tailnet,
-      ...(current.tailnetServeTarget === undefined
+      tailnet: tailnet.tailnet,
+      ...(tailnet.hostname === undefined
         ? {}
-        : { tailnetServeTarget: current.tailnetServeTarget }),
+        : { tailnetHostname: tailnet.hostname }),
+      ...(port === undefined ? {} : { tailnetPort: port }),
       cloudflare,
       ...(hostname === undefined ? {} : { cloudflareHostname: hostname }),
     },
@@ -192,7 +226,11 @@ export function requestedStates(
   const starting: RouteState = { kind: 'starting' };
   return {
     lan: change.lan === true ? starting : states.lan,
-    tailnet: change.tailnet === true ? starting : states.tailnet,
+    tailnet:
+      settings.tailnet &&
+      (change.tailnet === true || change.tailnetHostname !== undefined)
+        ? starting
+        : states.tailnet,
     cloudflare:
       settings.cloudflare &&
       (change.cloudflare === true || change.cloudflareHostname !== undefined)
@@ -203,10 +241,11 @@ export function requestedStates(
 
 export function remoteAccessView(
   settings: RemoteAccessSettings,
-  states: RouteStates,
+  routes: RemoteRoutes,
   serviceUrl: string,
   here?: LocalNetwork,
 ): RemoteAccess {
+  const { states, tailnetProxy } = routes;
   return {
     routes: {
       lan: { enabled: settings.lan, status: states.lan },
@@ -217,6 +256,14 @@ export function remoteAccessView(
       ? { lanNetwork: networkOnly(settings.lanNetwork) }
       : {}),
     ...(here === undefined ? {} : { localNetwork: networkOnly(here) }),
+    ...(settings.tailnetHostname === undefined
+      ? {}
+      : { tailnetHostname: settings.tailnetHostname }),
+    ...(settings.tailnet && tailnetProxy !== undefined
+      ? {
+          tailnetTarget: tailnetTarget(tailnetProxy.address, tailnetProxy.port),
+        }
+      : {}),
     ...(settings.cloudflareHostname === undefined
       ? {}
       : { cloudflareHostname: settings.cloudflareHostname }),

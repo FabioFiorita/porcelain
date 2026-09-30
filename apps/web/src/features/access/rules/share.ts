@@ -106,36 +106,32 @@ export function issuedLink(issued: IssuePairingResponse): IssuedLink | null {
   };
 }
 
+export function tailscaleServeCommand(target: string): string {
+  return `tailscale serve --bg --https=443 ${target}`;
+}
+
 export function routeFailure(
   route: RemoteRouteName,
   reason: Extract<RemoteRoute['status'], { kind: 'failed' }>['reason'],
 ): string {
+  const freshPort =
+    'Turn Tailscale off and on again to pick a free port, then run the new command below.';
   switch (reason) {
     case 'address-in-use':
-      return 'Another program already listens on this port.';
+      return route === 'tailnet'
+        ? `Another program already listens on the port Tailscale forwards to. ${freshPort}`
+        : 'Another program already listens on this port.';
     case 'address-unavailable':
       return route === 'tailnet'
-        ? 'Porcelain could not open the local listener Tailscale forwards to.'
+        ? `Porcelain could not open the local listener Tailscale forwards to. ${freshPort}`
         : 'This computer could not listen at its address.';
     case 'unreachable':
-      return 'Nothing answered at this hostname. Check that cloudflared is running and routes it here.';
+      return route === 'tailnet'
+        ? 'Nothing answered at this Tailscale name. Check that Tailscale is connected on this computer, that MagicDNS and HTTPS Certificates are on in the Tailscale admin console, and that you ran the command below, then check again.'
+        : 'Nothing answered at this hostname. Check that cloudflared is running and routes it here.';
     case 'other-server':
-      return 'Another server answered at this hostname.';
-    case 'tailscale-missing':
-      return 'Tailscale is not installed on this computer. Install it from tailscale.com/download and sign in.';
-    case 'tailscale-unavailable':
-      return 'Porcelain could not ask Tailscale for its status. Check that the Tailscale service runs: systemctl status tailscaled.';
-    case 'tailscale-stopped':
-      return 'Tailscale is not connected on this computer. Run tailscale up and sign in.';
-    case 'https-disabled':
-      return 'HTTPS is off for your tailnet. In the Tailscale admin console, under DNS, turn on MagicDNS and HTTPS Certificates.';
-    case 'serve-denied':
-      return 'Tailscale does not let Porcelain change Serve. Run sudo tailscale set --operator=$USER once on this computer.';
-    case 'serve-taken':
-      return 'Tailscale Serve already shares something else on HTTPS port 443 of this computer. Remove it with tailscale serve --https=443 off to share Porcelain there.';
-    case 'serve-still-on':
-      return 'Porcelain could not confirm that Tailscale stopped serving it, so it keeps holding the port Tailscale forwards to and tries again. Check tailscale serve status, or run tailscale serve --https=443 off.';
-    case 'serve-failed':
-      return 'Tailscale could not start serving Porcelain. Check tailscale serve status on this computer.';
+      return route === 'tailnet'
+        ? 'Another server answered at this Tailscale name. Run the command below so Tailscale forwards to this Porcelain, then check again.'
+        : 'Another server answered at this hostname.';
   }
 }

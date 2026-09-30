@@ -71,38 +71,30 @@ export function remoteAccessStoreContract(
       });
     });
 
-    it('reads back the Tailscale Serve target it saved, and forgets it when a save leaves it out', () => {
-      opened.store.save({
+    it('reads back the Tailscale name and listener port it saved, and forgets the port when a save leaves it out', () => {
+      const tailnet = {
         lan: false,
         tailnet: true,
-        tailnetServeTarget: 'http://127.0.0.1:41000',
+        tailnetHostname: 'laptop.tail0000.ts.net',
         cloudflare: false,
-      });
-      expect(opened.store.read()).toEqual({
-        lan: false,
-        tailnet: true,
-        tailnetServeTarget: 'http://127.0.0.1:41000',
-        cloudflare: false,
-      });
-      opened.store.save({ lan: false, tailnet: true, cloudflare: false });
-      expect(opened.store.read()).toEqual({
-        lan: false,
-        tailnet: true,
-        cloudflare: false,
-      });
+      };
+      opened.store.save({ ...tailnet, tailnetPort: 41000 });
+      expect(opened.store.read()).toEqual({ ...tailnet, tailnetPort: 41000 });
+      opened.store.save(tailnet);
+      expect(opened.store.read()).toEqual(tailnet);
     });
 
     it('forgets the tunnel hostname when a save leaves it out', () => {
       opened.store.save({
-        lan: false,
-        tailnet: true,
+        lan: true,
+        tailnet: false,
         cloudflare: false,
         cloudflareHostname: 'porcelain.example.com',
       });
-      opened.store.save({ lan: false, tailnet: true, cloudflare: false });
+      opened.store.save({ lan: true, tailnet: false, cloudflare: false });
       expect(opened.store.read()).toEqual({
-        lan: false,
-        tailnet: true,
+        lan: true,
+        tailnet: false,
         cloudflare: false,
       });
     });

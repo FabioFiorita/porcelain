@@ -53,10 +53,20 @@ describe('changedRemoteAccess', () => {
   };
   const here = { ...home, address: '192.168.1.20' };
 
+  const tailnet = {
+    tailnet: true,
+    tailnetHostname: 'laptop.tail0000.ts.net',
+  };
+
   it('changes only the routes the request names', () => {
     expect(
       changedRemoteAccess(
-        { ...off, tailnet: true, cloudflareHostname: 'a.example.com' },
+        {
+          ...off,
+          ...tailnet,
+          tailnetPort: 41000,
+          cloudflareHostname: 'a.example.com',
+        },
         { lan: true },
         253,
         here,
@@ -66,7 +76,8 @@ describe('changedRemoteAccess', () => {
       settings: {
         lan: true,
         lanNetwork: home,
-        tailnet: true,
+        ...tailnet,
+        tailnetPort: 41000,
         cloudflare: false,
         cloudflareHostname: 'a.example.com',
       },
@@ -77,27 +88,51 @@ describe('changedRemoteAccess', () => {
     expect(
       changedRemoteAccess(
         { ...off, lan: true, lanNetwork: home },
-        { tailnet: true },
+        tailnet,
         253,
         undefined,
       ),
     ).toEqual({
       kind: 'settings',
-      settings: { ...off, lan: true, lanNetwork: home, tailnet: true },
+      settings: { ...off, lan: true, lanNetwork: home, ...tailnet },
     });
   });
 
-  it('keeps the Tailscale Serve target Porcelain set until the routes stop serving it', () => {
-    const target = 'http://127.0.0.1:41000';
+  it("turns the tailnet on at this computer's Tailscale name, read in lower case", () => {
     expect(
       changedRemoteAccess(
-        { ...off, tailnet: true, tailnetServeTarget: target },
+        off,
+        { tailnet: true, tailnetHostname: ' Laptop.Tail0000.ts.net ' },
+        253,
+      ),
+    ).toEqual({ kind: 'settings', settings: { ...off, ...tailnet } });
+  });
+
+  it.each(['porcelain.example.com', 'laptop', 'https://laptop.ts.net:8443'])(
+    'refuses %j as a Tailscale name, since Tailscale serves HTTPS only at a ts.net name',
+    (tailnetHostname) => {
+      expect(
+        changedRemoteAccess(off, { tailnet: true, tailnetHostname }, 253),
+      ).toEqual({ kind: 'invalid-tailnet-hostname' });
+    },
+  );
+
+  it('refuses to turn the tailnet on without a Tailscale name', () => {
+    expect(changedRemoteAccess(off, { tailnet: true }, 253)).toEqual({
+      kind: 'missing-tailnet-hostname',
+    });
+  });
+
+  it('forgets the listener port when the tailnet is turned off and keeps its name, so turning it on again picks a free port', () => {
+    expect(
+      changedRemoteAccess(
+        { ...off, ...tailnet, tailnetPort: 41000 },
         { tailnet: false },
         253,
       ),
     ).toEqual({
       kind: 'settings',
-      settings: { ...off, tailnetServeTarget: target },
+      settings: { ...off, tailnetHostname: tailnet.tailnetHostname },
     });
   });
 
@@ -270,12 +305,32 @@ describe('httpsHosts', () => {
     ).toEqual(['porcelain.example.com', 'laptop.tail0000.ts.net']);
   });
 
-  it('names no tailnet host while Porcelain only holds the Serve listener without serving through it', () => {
+  it.each([
+    ['checked', { kind: 'starting' as const }],
+    ['unanswered', { kind: 'failed' as const, reason: 'unreachable' as const }],
+  ])(
+    'names the tailnet host while its name is %s, since the check itself arrives through it',
+    (_, tailnet) => {
+      expect(
+        httpsHosts(settings, {
+          states: { lan: { kind: 'off' }, tailnet, cloudflare: on },
+          origins: [],
+          tailnetProxy: {
+            hostname: 'laptop.tail0000.ts.net',
+            address: '127.0.0.1',
+            port: 41000,
+          },
+        }),
+      ).toEqual(['porcelain.example.com', 'laptop.tail0000.ts.net']);
+    },
+  );
+
+  it('names no tailnet host once another server answers at the Tailscale name', () => {
     expect(
       httpsHosts(settings, {
         states: {
           lan: { kind: 'off' },
-          tailnet: { kind: 'failed', reason: 'serve-still-on' },
+          tailnet: { kind: 'failed', reason: 'other-server' },
           cloudflare: on,
         },
         origins: [],
@@ -307,7 +362,7 @@ describe('reachableOrigins', () => {
     expect(
       reachableOrigins({
         lan: { kind: 'on', urls: ['http://192.168.1.20:4173'] },
-        tailnet: { kind: 'failed', reason: 'tailscale-stopped' },
+        tailnet: { kind: 'failed', reason: 'unreachable' },
         cloudflare: { kind: 'paused' },
       }),
     ).toEqual(['http://192.168.1.20:4173']);

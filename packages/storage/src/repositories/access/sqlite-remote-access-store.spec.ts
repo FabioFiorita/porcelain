@@ -38,6 +38,8 @@ describe('SqliteRemoteAccessStore persistence', () => {
     createRemoteAccessStore(first).save({
       lan: true,
       tailnet: true,
+      tailnetHostname: 'laptop.tail0000.ts.net',
+      tailnetPort: 41000,
       cloudflare: true,
       cloudflareHostname: 'porcelain.example.com',
     });
@@ -50,6 +52,8 @@ describe('SqliteRemoteAccessStore persistence', () => {
     expect(reopened).toEqual({
       lan: true,
       tailnet: true,
+      tailnetHostname: 'laptop.tail0000.ts.net',
+      tailnetPort: 41000,
       cloudflare: true,
       cloudflareHostname: 'porcelain.example.com',
     });
