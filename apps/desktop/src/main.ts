@@ -6,8 +6,11 @@ import {
   Menu,
   nativeTheme,
   screen,
+  safeStorage,
   session,
   shell,
+  type IpcMainEvent,
+  type IpcMainInvokeEvent,
 } from 'electron';
 import { join } from 'node:path';
 import {
@@ -15,6 +18,8 @@ import {
   type DesktopAction,
 } from '@porcelain/contracts/desktop';
 import { WindowState } from './adapters/window-state.ts';
+import { EncryptedCredentials } from './adapters/encrypted-credentials.ts';
+import { LocalAppUpdate } from './local-app-update.ts';
 import { restoreWindowBounds } from './rules/window-bounds.ts';
 import {
   desktopAddress,
@@ -38,6 +43,31 @@ let actionsReady = false;
 let pendingAction: DesktopAction | undefined;
 let stopServing: (() => void) | undefined;
 const savedWindow = new WindowState(settings.profile);
+const credentials = new EncryptedCredentials(settings.profile, {
+  available: async () =>
+    (await safeStorage.isAsyncEncryptionAvailable()) &&
+    (process.platform !== 'linux' ||
+      safeStorage.getSelectedStorageBackend() !== 'basic_text'),
+  encrypt: (value) => safeStorage.encryptStringAsync(value),
+  decrypt: async (value) =>
+    (await safeStorage.decryptStringAsync(value)).result,
+});
+const appUpdate = new LocalAppUpdate((state) =>
+  window?.webContents.send('porcelain:app-update-state', state),
+);
+
+function trustedSender(event: IpcMainEvent | IpcMainInvokeEvent): boolean {
+  return (
+    window !== undefined &&
+    event.sender === window.webContents &&
+    event.senderFrame === window.webContents.mainFrame &&
+    localNavigation(event.senderFrame.url, desktopAddress)
+  );
+}
+
+function authorize(event: IpcMainInvokeEvent): void {
+  if (!trustedSender(event)) throw new Error('Untrusted desktop request');
+}
 
 function failure(error: unknown) {
   process.stderr.write(
@@ -82,6 +112,7 @@ async function openWindow() {
     webPreferences: {
       preload: join(settings.packageRoot, 'desktop/preload.cjs'),
       additionalArguments: [
+        `--porcelain-version=${app.getVersion()}`,
         `--porcelain-live=${local.address.replace('http:', 'ws:')}/api/live`,
       ],
       sandbox: true,
@@ -204,6 +235,32 @@ async function dispatch(action: DesktopAction) {
 
 async function start() {
   await app.whenReady();
+  ipcMain.handle('porcelain:credentials-read', (event) => {
+    authorize(event);
+    return credentials.read();
+  });
+  ipcMain.handle('porcelain:credentials-write', (event, value: unknown) => {
+    authorize(event);
+    if (typeof value !== 'string')
+      throw new Error('Credentials must be a string');
+    return credentials.write(value);
+  });
+  ipcMain.handle('porcelain:credentials-clear', (event) => {
+    authorize(event);
+    return credentials.clear();
+  });
+  ipcMain.handle('porcelain:app-update-check', (event) => {
+    authorize(event);
+    return appUpdate.check();
+  });
+  ipcMain.handle('porcelain:app-update-install', (event) => {
+    authorize(event);
+    return appUpdate.install();
+  });
+  ipcMain.on('porcelain:app-update-watch', (event) => {
+    if (trustedSender(event))
+      event.sender.send('porcelain:app-update-state', appUpdate.read());
+  });
   fixPath();
   Menu.setApplicationMenu(
     Menu.buildFromTemplate([

@@ -970,6 +970,12 @@ function testViolation(
     !(from.owner === 'desktop' && to.role === 'desktop-server-api')
   )
     return 'package-cannot-import-server';
+  if (
+    from.owner === 'desktop' &&
+    to.owner === 'desktop' &&
+    to.role === 'desktop-gateway'
+  )
+    return;
   if (!allowedTargets.test.has(to.role)) return `test-cannot-import-${to.role}`;
   return;
 }

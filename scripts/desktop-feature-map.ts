@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs';
-import { writeFile } from 'node:fs/promises';
+import { readFile, stat, writeFile } from 'node:fs/promises';
 import { isDeepStrictEqual } from 'node:util';
 import { join } from 'node:path';
 import { _electron, type Page } from 'playwright';
@@ -26,12 +26,210 @@ function requireProof(condition: boolean, promise: string) {
 
 export const desktopFeatures = [
   {
+    name: 'bridge-capabilities',
+    promise:
+      'the installed preload persists one opaque credential string through encrypted storage and restart, refuses untrusted callers and unavailable encryption, clears saved credentials, exposes its app version, and reports local update checks and unavailable installation through removable state subscriptions',
+    run: bridgeCapabilities,
+  },
+  {
     name: 'installed-project',
     promise:
       'the installed app starts its own server, opens a real Git project, survives window close, reopens from the Dock, retains its project, preferences and window after restart without browser pairing, and stops its server on Quit',
     run: installedProject,
   },
 ];
+
+async function bridgeCapabilities(input: DesktopProof) {
+  const environment: Record<string, string> = {};
+  for (const [name, value] of Object.entries(process.env))
+    if (value !== undefined && name !== 'ELECTRON_RUN_AS_NODE')
+      environment[name] = value;
+  const launch = () =>
+    _electron.launch({
+      executablePath: input.executable,
+      args: [
+        '--data-directory',
+        input.profile,
+        '--project-home',
+        input.repository,
+      ],
+      env: environment,
+      timeout: 30_000,
+    });
+  const value = JSON.stringify([
+    { name: 'Desktop proof', credential: 'test-only-bearer' },
+  ]);
+  const destination = join(input.profile, 'credentials.enc');
+  const app = await launch();
+  const child = app.process();
+  try {
+    const page = await app.firstWindow({ timeout: 30_000 });
+    await page.waitForURL(
+      (url) => url.protocol === 'porcelain:' && url.pathname !== '/pair',
+    );
+    requireProof(
+      (await page.evaluate('window.porcelainDesktop.credentials.read()')) ===
+        null,
+      'A fresh app profile must have no saved credentials',
+    );
+    await page.evaluate(
+      `window.porcelainDesktop.credentials.write(${JSON.stringify(value)})`,
+    );
+    requireProof(
+      (await page.evaluate('window.porcelainDesktop.credentials.read()')) ===
+        value,
+      'The preload must restore the exact opaque string',
+    );
+    requireProof(
+      !(await readFile(destination)).includes(Buffer.from('test-only-bearer')),
+      'The app data file must not contain plaintext credentials',
+    );
+    requireProof(
+      ((await stat(destination)).mode & 0o777) === 0o600,
+      'Only the profile owner may read or write the encrypted file',
+    );
+    const current = await app.evaluate(({ app }) => app.getVersion());
+    const updates = z
+      .object({
+        current: z.string(),
+        available: z.string().nullable(),
+        states: z.array(z.string()),
+        unsubscribed: z.boolean(),
+        installError: z.string(),
+      })
+      .parse(
+        await page.evaluate(`(async () => {
+      const bridge = window.porcelainDesktop.appUpdate;
+      const states = [];
+      let checking = false;
+      let finished = () => {};
+      const settled = new Promise((resolve) => { finished = resolve; });
+      const unsubscribe = bridge.onState((state) => {
+        states.push(state.status);
+        if (state.status === 'checking') checking = true;
+        if (checking && state.status === 'idle') finished();
+      });
+      const result = await bridge.check();
+      await settled;
+      unsubscribe();
+      const count = states.length;
+      let installError = '';
+      try { await bridge.install(); } catch (error) { installError = error.message; }
+      await bridge.check();
+      return { current: bridge.current(), available: result.available, states, unsubscribed: states.length === count, installError };
+    })()`),
+      );
+    requireProof(
+      updates.current === current,
+      'The preload must expose the installed app version synchronously',
+    );
+    requireProof(
+      updates.available === null,
+      'A local app must not invent an available release',
+    );
+    requireProof(
+      updates.states.includes('checking') && updates.states.at(-1) === 'idle',
+      'Update subscriptions must observe a completed check',
+    );
+    requireProof(
+      updates.unsubscribed,
+      'Unsubscribe must stop delivering update states',
+    );
+    requireProof(
+      updates.installError.includes('unavailable for this local build'),
+      'Installing without a release feed must reject',
+    );
+    const denied = await app.evaluate(async ({ BrowserWindow, app }) => {
+      const main = BrowserWindow.getAllWindows()[0];
+      if (main === undefined) throw new Error('The main window is missing');
+      const rogue = new BrowserWindow({
+        show: false,
+        webPreferences: {
+          preload: `${app.getAppPath()}/desktop/preload.cjs`,
+          sandbox: true,
+          contextIsolation: true,
+          nodeIntegration: false,
+        },
+      });
+      try {
+        await rogue.loadURL(
+          'data:text/html,<title>Untrusted bridge caller</title>',
+        );
+        const failures: unknown = await rogue.webContents
+          .executeJavaScript(`(async () => {
+          const bridge = window.porcelainDesktop;
+          const operations = [() => bridge.credentials.read(), () => bridge.credentials.write('untrusted'), () => bridge.credentials.clear(), () => bridge.appUpdate.check(), () => bridge.appUpdate.install()];
+          const failures = [];
+          for (const operation of operations) {
+            try { await operation(); failures.push(false); }
+            catch (error) { failures.push(error.message.includes('Untrusted desktop request')); }
+          }
+          return failures;
+        })()`);
+        return failures;
+      } finally {
+        rogue.destroy();
+      }
+    });
+    requireProof(
+      isDeepStrictEqual(denied, [true, true, true, true, true]),
+      'Every credential and app-update IPC operation must reject an untrusted window',
+    );
+    await closeDesktop(app);
+  } finally {
+    if (child.exitCode === null && child.signalCode === null)
+      await closeDesktop(app).catch(() => child.kill('SIGKILL'));
+  }
+  const restarted = await launch();
+  const restartedChild = restarted.process();
+  try {
+    const page = await restarted.firstWindow({ timeout: 30_000 });
+    await page.waitForURL(
+      (url) => url.protocol === 'porcelain:' && url.pathname !== '/pair',
+    );
+    requireProof(
+      (await page.evaluate('window.porcelainDesktop.credentials.read()')) ===
+        value,
+      'Encrypted credentials must survive an app restart',
+    );
+    const encrypted = await readFile(destination);
+    await restarted.evaluate(({ safeStorage }) => {
+      safeStorage.isAsyncEncryptionAvailable = () => Promise.resolve(false);
+    });
+    const unavailable = await page.evaluate(`(async () => {
+      try { await window.porcelainDesktop.credentials.write('must-not-be-stored'); return false; }
+      catch (error) { return error.message.includes('unavailable'); }
+    })()`);
+    requireProof(
+      unavailable === true,
+      'The preload must reject writes when safeStorage is unavailable',
+    );
+    requireProof(
+      isDeepStrictEqual(await readFile(destination), encrypted),
+      'Unavailable encryption must preserve the previous ciphertext',
+    );
+    await page.evaluate('window.porcelainDesktop.credentials.clear()');
+    requireProof(
+      (await page.evaluate('window.porcelainDesktop.credentials.read()')) ===
+        null && !existsSync(destination),
+      'Clear must remove saved credentials even when encryption is unavailable',
+    );
+    await closeDesktop(restarted);
+  } finally {
+    if (restartedChild.exitCode === null && restartedChild.signalCode === null)
+      await closeDesktop(restarted).catch(() => restartedChild.kill('SIGKILL'));
+  }
+  return {
+    encryptedCredentials: true,
+    restartRestoresCredentials: true,
+    untrustedCallersRejected: true,
+    unavailableEncryptionRejected: true,
+    clearRemovesCredentials: true,
+    currentAppVersion: true,
+    localUpdateState: true,
+    updateSubscriptionRemoved: true,
+  };
+}
 
 async function installedProject(input: DesktopProof) {
   const errors: string[] = [];
