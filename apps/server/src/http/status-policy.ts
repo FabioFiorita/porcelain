@@ -18,6 +18,7 @@ import {
   ServiceUpdateRunningError,
   TooManyPairingAttemptsError,
   TooManyLiveTicketsError,
+  UntrustedDeviceError,
 } from '@porcelain/access/errors';
 import {
   BranchBaseNotFoundError,
@@ -188,7 +189,11 @@ const rules: readonly StatusRule[] = [
   },
   { errors: [InvalidPairingError], statusCode: 401 },
   {
-    errors: [CommentAuthorMismatchError, DeviceViewerRequiredError],
+    errors: [
+      CommentAuthorMismatchError,
+      DeviceViewerRequiredError,
+      UntrustedDeviceError,
+    ],
     statusCode: 403,
   },
   {

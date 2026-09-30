@@ -48,7 +48,7 @@ export {
   startServiceUpdateRequestSchema,
   startServiceUpdateResponseSchema,
   type ReadServiceUpdateResponse,
-  type StartServiceUpdateRequest,
+  type StartServiceUpdateInput,
   type StartServiceUpdateResponse,
 } from './service-update.ts';
 export {

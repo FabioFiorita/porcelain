@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { Principal } from './principal.ts';
 import { absentAsNull } from '../shared/absent-as-null.ts';
 import { SERVICE_VERSION_LENGTH } from '../shared/limits.ts';
 
@@ -33,9 +34,13 @@ export const startServiceUpdateResponseSchema = readServiceUpdateResponseSchema;
 export type ReadServiceUpdateResponse = z.output<
   typeof readServiceUpdateResponseSchema
 >;
-export type StartServiceUpdateRequest = z.output<
+type StartServiceUpdateRequest = z.output<
   typeof startServiceUpdateRequestSchema
 >;
+export type StartServiceUpdateInput = StartServiceUpdateRequest & {
+  viewer: Principal;
+  local: boolean;
+};
 export type StartServiceUpdateResponse = z.output<
   typeof startServiceUpdateResponseSchema
 >;

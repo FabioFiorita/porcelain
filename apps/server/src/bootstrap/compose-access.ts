@@ -6,6 +6,7 @@ import type {
   TunnelProbe,
 } from '@porcelain/access/ports';
 import {
+  AuthorizeServiceUpdateService,
   CheckLocalRequestService,
   CheckRequestOriginService,
   CloseTunnelConnectionsService,
@@ -165,6 +166,7 @@ export function composeAccess(
     ),
     startServiceUpdate: new StartServiceUpdateUseCase(
       dependencies.serviceUpdateRunner,
+      new AuthorizeServiceUpdateService(deviceStore),
       new CheckServiceUpdateService(),
       planServiceUpdateCheck,
       lanes,

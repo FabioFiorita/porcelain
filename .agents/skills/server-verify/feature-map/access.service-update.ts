@@ -31,10 +31,10 @@ const alreadyRunning = apiError(
   'Conflict',
   'An update is already running',
 );
-const notOnThisComputer = apiError(
+const untrusted = apiError(
   403,
   'Forbidden',
-  'Sharing is managed from a browser on the computer that runs Porcelain',
+  'An owner must trust this device on the computer that runs Porcelain before it can update Porcelain',
 );
 const settled = (body: Record<string, unknown>) => body.running === false;
 const offered = async (session: Session) => read(session, status);
@@ -45,7 +45,7 @@ export default defineFeature({
   paired: true,
   intent: 'intended',
   behaviour:
-    "Every paired device reads which version of Porcelain runs, whether it runs as the installed service, the newest published version and whether it is newer, whether an update runs now, and how the last update went. A paired browser on the computer that runs Porcelain starts an update to the newer version the server offers; the server accepts it at once, reports its progress from downloading through installing and restarting, and ends updated on the new version, or failed with the reason while it keeps running the version it had. Only the offered version can be installed, one update runs at a time, and a request that did not come from this computer's loopback listener is refused, like Sharing. The update itself belongs to the installed service's updater, which this net replaces with a scripted one: its first update fails and its second succeeds.",
+    "Every paired device reads which version of Porcelain runs, whether it runs as the installed service, the newest published version and whether it is newer, whether an update runs now, and how the last update went. A paired browser on the computer that runs Porcelain starts an update to the newer version the server offers; the server accepts it at once, reports its progress from downloading through installing and restarting, and ends updated on the new version, or failed with the reason while it keeps running the version it had. Only the offered version can be installed and one update runs at a time. A request that did not come from this computer's loopback listener, such as one a proxy on this computer relayed, is refused unless the owner trusts the device that sends it (access.trusted-update). The update itself belongs to the installed service's updater, which this net replaces with a scripted one: its first update fails and its second succeeds.",
   cases: [
     defineCase({
       name: 'the server offers its newer version',
@@ -65,7 +65,7 @@ export default defineFeature({
       },
     }),
     defineCase({
-      name: 'a version other than the offered one, a malformed body and a remote request are refused',
+      name: 'a version other than the offered one, a malformed body and a relayed request from an untrusted device are refused',
       setup: offered,
       request: (_, state) => [
         start('99.0.0'),
@@ -80,7 +80,7 @@ export default defineFeature({
         );
         check('not offered', notOffered, responses[0]?.body);
         check('malformed', invalidRequest, responses[1]?.body);
-        check('remote', notOnThisComputer, responses[2]?.body);
+        check('remote', untrusted, responses[2]?.body);
         check('nothing started', state, await read(session, status));
       },
     }),

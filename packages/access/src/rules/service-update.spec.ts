@@ -10,10 +10,23 @@ const offered: ServiceUpdateState = {
   running: false,
   last: undefined,
 };
+const allowed = { canUpdate: true };
 
 describe('serviceUpdateRefusal', () => {
   it('lets the installed service update to the newer version it offers', () => {
-    expect(serviceUpdateRefusal(offered, { version: '1.1.0' })).toBeUndefined();
+    expect(
+      serviceUpdateRefusal(offered, { version: '1.1.0' }, allowed),
+    ).toBeUndefined();
+  });
+
+  it('refuses a caller that may not update before anything else', () => {
+    expect(
+      serviceUpdateRefusal(
+        { ...offered, managed: false, running: true },
+        { version: '2.0.0' },
+        { canUpdate: false },
+      ),
+    ).toEqual({ kind: 'untrusted' });
   });
 
   it('refuses a server that does not run as the installed service', () => {
@@ -21,13 +34,18 @@ describe('serviceUpdateRefusal', () => {
       serviceUpdateRefusal(
         { ...offered, managed: false },
         { version: '1.1.0' },
+        allowed,
       ),
     ).toEqual({ kind: 'unmanaged' });
   });
 
   it('refuses while another update runs', () => {
     expect(
-      serviceUpdateRefusal({ ...offered, running: true }, { version: '1.1.0' }),
+      serviceUpdateRefusal(
+        { ...offered, running: true },
+        { version: '1.1.0' },
+        allowed,
+      ),
     ).toEqual({ kind: 'running' });
   });
 
@@ -44,7 +62,7 @@ describe('serviceUpdateRefusal', () => {
       '1.1.0',
     ],
   ])('refuses %s', (_, state, version) => {
-    expect(serviceUpdateRefusal(state, { version })).toEqual({
+    expect(serviceUpdateRefusal(state, { version }, allowed)).toEqual({
       kind: 'not-offered',
     });
   });

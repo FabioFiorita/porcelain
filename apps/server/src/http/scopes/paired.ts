@@ -1,5 +1,6 @@
 import type { IssueLiveTicketUseCase } from '../../use-cases/access/issue-live-ticket.ts';
 import type { ReadServiceUpdateUseCase } from '../../use-cases/access/read-service-update.ts';
+import type { StartServiceUpdateUseCase } from '../../use-cases/access/start-service-update.ts';
 import type { Limits } from '../../config/limits.ts';
 import type { FastifyInstance } from 'fastify';
 import type { BrowseProjectFoldersUseCase } from '../../use-cases/projects/browse-project-folders.ts';
@@ -53,7 +54,12 @@ import {
   authenticate,
   type AuthenticateOptions,
 } from '../hooks/authenticate.ts';
+import {
+  recognizeLocalRequest,
+  type LocalDeviceOptions,
+} from '../hooks/local-device.ts';
 import { issueLiveTicket } from '../routes/access/issue-live-ticket.ts';
+import { startServiceUpdate } from '../routes/access/start-service-update.ts';
 import { listCommits } from '../routes/changes/list-commits.ts';
 import { listFileCommits } from '../routes/changes/list-file-commits.ts';
 import { readCommitFiles } from '../routes/changes/read-commit-files.ts';
@@ -106,8 +112,9 @@ import { setReviewedFiles } from '../routes/reviews/set-reviewed-files.ts';
 import { setReviewedLayer } from '../routes/reviews/set-reviewed-layer.ts';
 
 export type PairedUseCases = {
-  access: {
+  access: LocalDeviceOptions['access'] & {
     readServiceUpdate: Pick<ReadServiceUpdateUseCase, 'execute'>;
+    startServiceUpdate: Pick<StartServiceUpdateUseCase, 'execute'>;
     issueLiveTicket: Pick<IssueLiveTicketUseCase, 'execute'>;
   };
   projects: {
@@ -187,6 +194,12 @@ export async function pairedScope(
   );
   server.register(readServiceUpdate, {
     useCase: options.application.access.readServiceUpdate,
+  });
+  server.register(async (updates) => {
+    updates.addHook('onRequest', recognizeLocalRequest(options.application));
+    updates.register(startServiceUpdate, {
+      useCase: options.application.access.startServiceUpdate,
+    });
   });
   server.register(issueLiveTicket, {
     useCase: options.application.access.issueLiveTicket,

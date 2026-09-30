@@ -4,7 +4,6 @@ import type { IssuePairingUseCase } from '../../use-cases/access/issue-pairing.t
 import type { ListAccessUseCase } from '../../use-cases/access/list-access.ts';
 import type { ReadRemoteAccessUseCase } from '../../use-cases/access/read-remote-access.ts';
 import type { RenameEnvironmentUseCase } from '../../use-cases/access/rename-environment.ts';
-import type { StartServiceUpdateUseCase } from '../../use-cases/access/start-service-update.ts';
 import type { RevokeAccessUseCase } from '../../use-cases/access/revoke-access.ts';
 import type { SetDeviceTrustUseCase } from '../../use-cases/access/set-device-trust.ts';
 import type { SetRemoteAccessUseCase } from '../../use-cases/access/set-remote-access.ts';
@@ -20,7 +19,6 @@ import { issuePairing } from '../routes/access/issue-pairing.ts';
 import { listAccess } from '../routes/access/list-access.ts';
 import { readRemoteAccess } from '../routes/access/read-remote-access.ts';
 import { renameEnvironment } from '../routes/access/rename-environment.ts';
-import { startServiceUpdate } from '../routes/access/start-service-update.ts';
 import { revokeAccess } from '../routes/access/revoke-access.ts';
 import { setDeviceTrust } from '../routes/access/set-device-trust.ts';
 import { setRemoteAccess } from '../routes/access/set-remote-access.ts';
@@ -31,7 +29,6 @@ export type HostUseCases = {
     listAccess: Pick<ListAccessUseCase, 'execute'>;
     readRemoteAccess: Pick<ReadRemoteAccessUseCase, 'execute'>;
     renameEnvironment: Pick<RenameEnvironmentUseCase, 'execute'>;
-    startServiceUpdate: Pick<StartServiceUpdateUseCase, 'execute'>;
     revokeAccess: Pick<RevokeAccessUseCase, 'execute'>;
     setDeviceTrust: Pick<SetDeviceTrustUseCase, 'execute'>;
     setRemoteAccess: Pick<SetRemoteAccessUseCase, 'execute'>;
@@ -67,8 +64,5 @@ export async function hostScope(
   });
   server.register(renameEnvironment, {
     useCase: application.access.renameEnvironment,
-  });
-  server.register(startServiceUpdate, {
-    useCase: application.access.startServiceUpdate,
   });
 }
