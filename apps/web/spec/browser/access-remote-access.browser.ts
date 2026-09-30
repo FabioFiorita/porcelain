@@ -5,8 +5,12 @@ test('turning the ways in on and off from Settings shows each one starting, then
   pairedPage,
   server,
 }) => {
-  await pairedPage.getByRole('button', { name: 'Toggle Sidebar' }).click();
-  await pairedPage.getByRole('button', { name: 'Settings' }).click();
+  await pairedPage
+    .getByRole('button', { name: 'Toggle Sidebar', exact: true })
+    .click();
+  await pairedPage
+    .getByRole('button', { name: 'Settings', exact: true })
+    .click();
   const settings = pairedPage.getByRole('main', {
     name: 'Settings',
     exact: true,
@@ -15,10 +19,18 @@ test('turning the ways in on and off from Settings shows each one starting, then
     .getByRole('main', { name: 'Settings', exact: true })
     .getByRole('button', { name: 'Sharing', exact: true })
     .click();
-  const lan = settings.getByRole('switch', { name: 'Local network' });
+  const lan = settings.getByRole('switch', {
+    name: 'Local network',
+    exact: true,
+  });
   await expect.element(lan).not.toBeChecked();
   await expect
-    .element(settings.getByRole('note', { name: 'Local network warning' }))
+    .element(
+      settings.getByRole('note', {
+        name: 'Local network warning',
+        exact: true,
+      }),
+    )
     .toMatchTextContent(
       'Not encryptedAnyone on the same network can read what Porcelain shows and the device credentials it sends. For an encrypted connection, use Tailscale.',
     );
@@ -26,6 +38,7 @@ test('turning the ways in on and off from Settings shows each one starting, then
     .element(
       settings.getByText(
         'Turning it on listens on 192.168.1.0/24 on eth0 only, and pauses on any other network.',
+        { exact: true },
       ),
     )
     .toBeVisible();
@@ -36,7 +49,11 @@ test('turning the ways in on and off from Settings shows each one starting, then
     .element(settings.getByText(/^http:\/\/192\.168\.1\.20:\d+$/))
     .toBeVisible();
   await expect
-    .element(settings.getByText('Listening on 192.168.1.0/24 on eth0 only.'))
+    .element(
+      settings.getByText('Listening on 192.168.1.0/24 on eth0 only.', {
+        exact: true,
+      }),
+    )
     .toBeVisible();
   await expect
     .poll(async () => await server.remoteAccess())
@@ -45,20 +62,28 @@ test('turning the ways in on and off from Settings shows each one starting, then
       lanNetwork: { interfaceName: 'eth0', subnet: '192.168.1.0/24' },
     });
 
-  const tailnet = settings.getByRole('switch', { name: 'Tailscale' });
+  const tailnet = settings.getByRole('switch', {
+    name: 'Tailscale',
+    exact: true,
+  });
   await expect.element(tailnet).toBeDisabled();
   await settings
-    .getByRole('textbox', { name: 'Tailscale name' })
+    .getByRole('textbox', { name: 'Tailscale name', exact: true })
     .fill('Porcelain.Tail0000.ts.net');
-  await settings.getByRole('button', { name: 'Save name' }).click();
+  await settings
+    .getByRole('button', { name: 'Save name', exact: true })
+    .click();
   await expect.element(tailnet).toBeChecked();
   await expect
-    .element(settings.getByText('https://porcelain.tail0000.ts.net'))
+    .element(
+      settings.getByText('https://porcelain.tail0000.ts.net', { exact: true }),
+    )
     .toBeVisible();
   await expect
     .element(
       settings.getByText(
         'tailscale serve --bg --https=443 http://127.0.0.1:41000',
+        { exact: true },
       ),
     )
     .toBeVisible();
@@ -69,15 +94,22 @@ test('turning the ways in on and off from Settings shows each one starting, then
       status: { kind: 'on', urls: ['https://porcelain.tail0000.ts.net'] },
     });
 
-  const tunnel = settings.getByRole('switch', { name: 'Cloudflare tunnel' });
+  const tunnel = settings.getByRole('switch', {
+    name: 'Cloudflare tunnel',
+    exact: true,
+  });
   await expect.element(tunnel).toBeDisabled();
   await settings
-    .getByRole('textbox', { name: 'Public hostname' })
+    .getByRole('textbox', { name: 'Public hostname', exact: true })
     .fill('https://Porcelain.Example.com/');
-  await settings.getByRole('button', { name: 'Save hostname' }).click();
+  await settings
+    .getByRole('button', { name: 'Save hostname', exact: true })
+    .click();
   await expect.element(tunnel).toBeChecked();
   await expect
-    .element(settings.getByText('https://porcelain.example.com'))
+    .element(
+      settings.getByText('https://porcelain.example.com', { exact: true }),
+    )
     .toBeVisible();
   await expect
     .poll(async () => (await server.remoteAccess()).routes.cloudflare)

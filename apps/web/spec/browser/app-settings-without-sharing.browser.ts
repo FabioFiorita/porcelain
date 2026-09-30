@@ -7,9 +7,12 @@ test('the web the server serves lists Appearance, Git and agents, Connection and
 }) => {
   const host = (await server.inventory()).environment.name;
   const offered = await server.serviceUpdate();
-  await pairedPage.getByRole('button', { name: 'Toggle Sidebar' }).click();
+  await pairedPage
+    .getByRole('button', { name: 'Toggle Sidebar', exact: true })
+    .click();
   const navigator = pairedPage.getByRole('navigation', {
     name: 'Projects and worktrees',
+    exact: true,
   });
   await expect
     .element(navigator.getByText(host, { exact: true }))
@@ -42,6 +45,8 @@ test('the web the server serves lists Appearance, Git and agents, Connection and
     .element(settings.getByRole('heading', { name: 'Updates', exact: true }))
     .toBeVisible();
   await expect
-    .element(settings.getByText(`Porcelain ${offered.version ?? ''}`))
+    .element(
+      settings.getByText(`Porcelain ${offered.version ?? ''}`, { exact: true }),
+    )
     .toBeVisible();
 });

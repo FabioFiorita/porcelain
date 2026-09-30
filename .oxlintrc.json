@@ -5,7 +5,20 @@
     "typeAware": true
   },
   "rules": {
-    "shadcn/no-restyle": ["error", { "allow": ["layout"] }],
+    "shadcn/no-restyle": [
+      "error",
+      {
+        "allow": ["layout"],
+        "message": {
+          "color": "\"{{className}}\" is not allowed on <{{component}}>, which owns its {{category}}. Use one of its variants, or compose the look in the feature view from layout classes on a parent; components/ui is never edited, so when no variant gives the look, ask the owner.",
+          "typography": "\"{{className}}\" is not allowed on <{{component}}>, which owns its {{category}}. Use one of its variants, or compose the look in the feature view from layout classes on a parent; components/ui is never edited, so when no variant gives the look, ask the owner.",
+          "shape": "\"{{className}}\" is not allowed on <{{component}}>, which owns its {{category}}. Use one of its variants, or compose the look in the feature view from layout classes on a parent; components/ui is never edited, so when no variant gives the look, ask the owner.",
+          "effects": "\"{{className}}\" is not allowed on <{{component}}>, which owns its {{category}}. Use one of its variants, or compose the look in the feature view from layout classes on a parent; components/ui is never edited, so when no variant gives the look, ask the owner.",
+          "motion": "\"{{className}}\" is not allowed on <{{component}}>, which owns its {{category}}. Use one of its variants, or compose the look in the feature view from layout classes on a parent; components/ui is never edited, so when no variant gives the look, ask the owner.",
+          "spacing": "\"{{className}}\" is not allowed on <{{component}}>, which owns its spacing. Use one of its sizes, or gap and margin on a parent in the feature view; components/ui is never edited, so when no size fits, ask the owner."
+        }
+      }
+    ],
     "shadcn/no-raw-colors": "error",
     "porcelain/no-comments": "error",
     "porcelain/models-are-types": "error",
@@ -87,6 +100,9 @@
     "porcelain/web-views-no-direct-data": "error",
     "porcelain/web-views-no-transport": "error",
     "porcelain/web-views-no-contracts": "error",
+    "porcelain/web-dialogs-from-ui": "error",
+    "porcelain/web-keys-through-hotkeys": "error",
+    "porcelain/web-navigation-through-router": "error",
     "porcelain/web-no-empty-catch": "error",
     "porcelain/web-shadcn-wrapper": "error",
     "porcelain/web-browser-spec-no-mocks": "error",
@@ -120,6 +136,13 @@
         "typescript/no-unsafe-call": "off",
         "typescript/no-unsafe-member-access": "off",
         "typescript/no-unsafe-return": "off"
+      }
+    },
+    {
+      "files": ["apps/web/src/components/ui/**"],
+      "rules": {
+        "shadcn/no-restyle": "off",
+        "shadcn/no-raw-colors": "off"
       }
     }
   ]

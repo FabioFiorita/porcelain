@@ -15,11 +15,13 @@ test('a file is duplicated from its menu and the open copy again with Mod+D', as
     (await server.directory('')).entries.map((entry) => entry.name);
 
   await pairedPage.getByRole('button', { name: 'Review', exact: true }).click();
-  await pairedPage.getByRole('tab', { name: 'Files' }).click();
+  await pairedPage.getByRole('tab', { name: 'Files', exact: true }).click();
   await pairedPage
-    .getByRole('treeitem', { name: path })
+    .getByRole('treeitem', { name: path, exact: true })
     .click({ button: 'right' });
-  await pairedPage.getByRole('menuitem', { name: 'Duplicate' }).click();
+  await pairedPage
+    .getByRole('menuitem', { name: 'Duplicate', exact: true })
+    .click();
   await expect.poll(names).toContain('notes copy.md');
   await expect
     .poll(async () => (await server.text('notes copy.md')).text)
@@ -30,9 +32,11 @@ test('a file is duplicated from its menu and the open copy again with Mod+D', as
   await expect.poll(() => app.title()).toBe(`notes copy.md — ${project}`);
 
   await pairedPage.getByRole('button', { name: 'Review', exact: true }).click();
-  await pairedPage.getByRole('tab', { name: 'Files' }).click();
+  await pairedPage.getByRole('tab', { name: 'Files', exact: true }).click();
   await expect
-    .element(pairedPage.getByRole('treeitem', { name: 'notes copy.md' }))
+    .element(
+      pairedPage.getByRole('treeitem', { name: 'notes copy.md', exact: true }),
+    )
     .toBeVisible();
   await userEvent.keyboard('{Control>}d{/Control}');
   await expect.poll(names).toContain('notes copy copy.md');

@@ -15,19 +15,24 @@ test('the reviewer comments on the whole uncommitted change and then on the whol
     }));
 
   await pairedPage.getByRole('button', { name: 'Review', exact: true }).click();
-  await pairedPage.getByRole('tab', { name: 'Comments' }).click();
+  await pairedPage.getByRole('tab', { name: 'Comments', exact: true }).click();
   await pairedPage
-    .getByRole('button', { name: 'Comment on the whole change' })
+    .getByRole('button', { name: 'Comment on the whole change', exact: true })
     .click();
-  const comment = pairedPage.getByRole('textbox', { name: 'Comment' });
+  const comment = pairedPage.getByRole('textbox', {
+    name: 'Comment',
+    exact: true,
+  });
   const post = pairedPage.getByRole('button', { name: 'Comment', exact: true });
   await expect
-    .element(pairedPage.getByText('Whole change').first())
+    .element(pairedPage.getByText('Whole change', { exact: true }).first())
     .toBeVisible();
   await expect.element(post).toBeDisabled();
   await comment.fill(onChange);
   await post.click();
-  await expect.element(pairedPage.getByText(onChange)).toBeVisible();
+  await expect
+    .element(pairedPage.getByText(onChange, { exact: true }))
+    .toBeVisible();
   await expect
     .poll(saved)
     .toEqual([{ anchor: { kind: 'change' }, messages: [onChange] }]);
@@ -41,13 +46,18 @@ test('the reviewer comments on the whole uncommitted change and then on the whol
   await pairedPage.getByRole('tab', { name: 'Branch', exact: true }).click();
   const branchComment = pairedPage.getByRole('button', {
     name: 'Comment on the whole branch',
+    exact: true,
   });
   await expect.element(branchComment).toBeEnabled();
   await branchComment.click();
   await comment.fill(onBranch);
   await post.click();
-  await expect.element(pairedPage.getByText(onBranch)).toBeVisible();
-  await expect.element(pairedPage.getByText('Whole branch')).toBeVisible();
+  await expect
+    .element(pairedPage.getByText(onBranch, { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(pairedPage.getByText('Whole branch', { exact: true }))
+    .toBeVisible();
   await expect.poll(saved).toEqual([
     { anchor: { kind: 'change' }, messages: [onChange] },
     {

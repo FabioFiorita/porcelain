@@ -18,9 +18,14 @@ test('while a published layer is read again after its code changed, its mark wai
   const opened = await app.open(await app.link('this'));
   await opened.getByRole('button', { name: 'Review', exact: true }).click();
   await opened.getByRole('button', { name: new RegExp(title) }).click();
-  const layer = opened.getByRole('region', { name: `Review layer ${title}` });
-  const reviewed = layer.getByRole('button', { name: 'Reviewed' });
-  await layer.getByRole('button', { name: 'Mark layer reviewed' }).click();
+  const layer = opened.getByRole('region', {
+    name: `Review layer ${title}`,
+    exact: true,
+  });
+  const reviewed = layer.getByRole('button', { name: 'Reviewed', exact: true });
+  await layer
+    .getByRole('button', { name: 'Mark layer reviewed', exact: true })
+    .click();
   await expect.element(reviewed).toHaveAttribute('aria-pressed', 'true');
   await expect.poll(marks).toEqual(['reviewed']);
 
@@ -33,18 +38,27 @@ test('while a published layer is read again after its code changed, its mark wai
   await expect.poll(marks).toEqual(['stale']);
   const markChanged = layer.getByRole('button', {
     name: 'Mark changed layer reviewed',
+    exact: true,
   });
   await expect.element(markChanged).toBeDisabled();
 
   held.release();
   await expect
-    .element(layer.getByText('Code changed since the review was written.'))
+    .element(
+      layer.getByText('Code changed since the review was written.', {
+        exact: true,
+      }),
+    )
     .toBeVisible();
   await expect.element(markChanged).toBeEnabled();
   await markChanged.click();
   await expect.element(reviewed).toHaveAttribute('aria-pressed', 'true');
   await expect.poll(marks).toEqual(['reviewed']);
   await expect
-    .element(layer.getByText('The layer mark could not be updated. Try again.'))
+    .element(
+      layer.getByText('The layer mark could not be updated. Try again.', {
+        exact: true,
+      }),
+    )
     .not.toBeInTheDocument();
 });

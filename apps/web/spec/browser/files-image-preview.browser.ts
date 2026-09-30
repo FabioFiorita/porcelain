@@ -16,21 +16,28 @@ test('an image opened from the file tree shows as a picture', async ({
   await repo.write(binary, 'binary\u0000content\n');
   const opened = await app.open(await app.link('this'));
   await opened.getByRole('button', { name: 'Review', exact: true }).click();
-  await opened.getByRole('tab', { name: 'Files' }).click();
-  await opened.getByRole('treeitem', { name: image }).click();
-  await expect.element(opened.getByRole('img', { name: image })).toBeVisible();
+  await opened.getByRole('tab', { name: 'Files', exact: true }).click();
+  await opened.getByRole('treeitem', { name: image, exact: true }).click();
+  await expect
+    .element(opened.getByRole('img', { name: image, exact: true }))
+    .toBeVisible();
 });
 
 test('a binary file opened from the file tree is not shown as text and says why', async () => {
   await page.getByRole('button', { name: 'Review', exact: true }).click();
-  await page.getByRole('tab', { name: 'Files' }).click();
-  await page.getByRole('treeitem', { name: binary }).click({ button: 'right' });
-  await page.getByRole('menuitem', { name: 'Open file' }).click();
-  await expect.element(page.getByText('Not shown')).toBeVisible();
+  await page.getByRole('tab', { name: 'Files', exact: true }).click();
+  await page
+    .getByRole('treeitem', { name: binary, exact: true })
+    .click({ button: 'right' });
+  await page.getByRole('menuitem', { name: 'Open file', exact: true }).click();
+  await expect
+    .element(page.getByText('Not shown', { exact: true }))
+    .toBeVisible();
   await expect
     .element(
       page.getByText(
         'This file is binary or uses an unsupported text encoding.',
+        { exact: true },
       ),
     )
     .toBeVisible();

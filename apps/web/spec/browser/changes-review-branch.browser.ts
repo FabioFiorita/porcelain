@@ -20,17 +20,28 @@ test('reviewing the branch lists the files committed since the default branch an
   await pairedPage.getByRole('button', { name: 'Review', exact: true }).click();
   await pairedPage.getByRole('tab', { name: 'Branch', exact: true }).click();
   await expect
-    .element(pairedPage.getByText('1 commit on feature since main'))
+    .element(
+      pairedPage.getByText('1 commit on feature since main', { exact: true }),
+    )
     .toBeVisible();
   await expect
-    .element(pairedPage.getByRole('button', { name: 'README.md · modified' }))
+    .element(
+      pairedPage.getByRole('button', {
+        name: 'README.md · modified',
+        exact: true,
+      }),
+    )
     .toBeVisible();
-  await pairedPage.getByRole('button', { name: 'notes.md · added' }).click();
+  await pairedPage
+    .getByRole('button', { name: 'notes.md · added', exact: true })
+    .click();
 
   await expect
-    .element(pairedPage.getByText('notes.md · on the branch'))
+    .element(pairedPage.getByText('notes.md · on the branch', { exact: true }))
     .toBeVisible();
-  await expect.element(pairedPage.getByText('second line')).toBeVisible();
+  await expect
+    .element(pairedPage.getByText('second line', { exact: true }))
+    .toBeVisible();
   const search = () => new URLSearchParams(app.address().query);
   await expect.poll(() => search().get('scope')).toBe('branch');
   await expect.poll(() => search().get('entry')).toBe('branch:notes.md');
@@ -45,14 +56,17 @@ test('marking a branch file reviewed keeps the mark in the branch review only', 
       (mark) => mark.path,
     );
   await pairedPage
-    .getByRole('button', { name: 'Mark notes.md as reviewed' })
+    .getByRole('button', { name: 'Mark notes.md as reviewed', exact: true })
     .first()
     .click();
   await expect.poll(branchMarks).toEqual(['notes.md']);
   await expect
     .element(
       pairedPage
-        .getByRole('button', { name: 'Unmark notes.md as unreviewed' })
+        .getByRole('button', {
+          name: 'Unmark notes.md as unreviewed',
+          exact: true,
+        })
         .first(),
     )
     .toBeEnabled();
@@ -68,14 +82,16 @@ test('a comment on a branch file is saved against the branch and waits for the a
   const body = 'Why a second line?';
   const tip = (await server.branchChanges()).head.oid;
   await pairedPage
-    .getByRole('button', { name: 'Comment on notes.md (added)' })
+    .getByRole('button', { name: 'Comment on notes.md (added)', exact: true })
     .click();
-  await pairedPage.getByRole('textbox', { name: 'Comment' }).fill(body);
+  await pairedPage
+    .getByRole('textbox', { name: 'Comment', exact: true })
+    .fill(body);
   await pairedPage
     .getByRole('button', { name: 'Comment', exact: true })
     .click();
   await expect
-    .element(pairedPage.getByText('Waiting for the agent'))
+    .element(pairedPage.getByText('Waiting for the agent', { exact: true }))
     .toBeVisible();
   await expect
     .poll(async () =>

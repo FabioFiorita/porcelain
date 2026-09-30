@@ -7,7 +7,6 @@ import { Route as PairedRouteImport } from './routes/_paired';
 import { Route as PairRouteImport } from './routes/pair';
 import { Route as PairedIndexRouteImport } from './routes/_paired/index';
 import { Route as PairedProjectIdWorktreeIdRouteImport } from './routes/_paired/$projectId/$worktreeId';
-import { Route as PairedSettingsIndexRouteImport } from './routes/_paired/settings/index';
 import { Route as PairedSettingsSectionRouteImport } from './routes/_paired/settings/$section';
 
 const PairedRoute = PairedRouteImport.update({
@@ -30,11 +29,6 @@ const PairedProjectIdWorktreeIdRoute =
     path: '/$projectId/$worktreeId',
     getParentRoute: () => PairedRoute,
   } as any);
-const PairedSettingsIndexRoute = PairedSettingsIndexRouteImport.update({
-  id: '/settings/',
-  path: '/settings/',
-  getParentRoute: () => PairedRoute,
-} as any);
 const PairedSettingsSectionRoute = PairedSettingsSectionRouteImport.update({
   id: '/settings/$section',
   path: '/settings/$section',
@@ -46,14 +40,12 @@ export interface FileRoutesByFullPath {
   '/pair': typeof PairRoute;
   '/$projectId/$worktreeId': typeof PairedProjectIdWorktreeIdRoute;
   '/settings/$section': typeof PairedSettingsSectionRoute;
-  '/settings/': typeof PairedSettingsIndexRoute;
 }
 export interface FileRoutesByTo {
   '/pair': typeof PairRoute;
   '/': typeof PairedIndexRoute;
   '/$projectId/$worktreeId': typeof PairedProjectIdWorktreeIdRoute;
   '/settings/$section': typeof PairedSettingsSectionRoute;
-  '/settings': typeof PairedSettingsIndexRoute;
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport;
@@ -62,31 +54,19 @@ export interface FileRoutesById {
   '/_paired/': typeof PairedIndexRoute;
   '/_paired/$projectId/$worktreeId': typeof PairedProjectIdWorktreeIdRoute;
   '/_paired/settings/$section': typeof PairedSettingsSectionRoute;
-  '/_paired/settings/': typeof PairedSettingsIndexRoute;
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath;
-  fullPaths:
-    | '/'
-    | '/pair'
-    | '/$projectId/$worktreeId'
-    | '/settings/$section'
-    | '/settings/';
+  fullPaths: '/' | '/pair' | '/$projectId/$worktreeId' | '/settings/$section';
   fileRoutesByTo: FileRoutesByTo;
-  to:
-    | '/pair'
-    | '/'
-    | '/$projectId/$worktreeId'
-    | '/settings/$section'
-    | '/settings';
+  to: '/pair' | '/' | '/$projectId/$worktreeId' | '/settings/$section';
   id:
     | '__root__'
     | '/_paired'
     | '/pair'
     | '/_paired/'
     | '/_paired/$projectId/$worktreeId'
-    | '/_paired/settings/$section'
-    | '/_paired/settings/';
+    | '/_paired/settings/$section';
   fileRoutesById: FileRoutesById;
 }
 export interface RootRouteChildren {
@@ -124,13 +104,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PairedProjectIdWorktreeIdRouteImport;
       parentRoute: typeof PairedRoute;
     };
-    '/_paired/settings/': {
-      id: '/_paired/settings/';
-      path: '/settings';
-      fullPath: '/settings/';
-      preLoaderRoute: typeof PairedSettingsIndexRouteImport;
-      parentRoute: typeof PairedRoute;
-    };
     '/_paired/settings/$section': {
       id: '/_paired/settings/$section';
       path: '/settings/$section';
@@ -145,14 +118,12 @@ interface PairedRouteChildren {
   PairedIndexRoute: typeof PairedIndexRoute;
   PairedProjectIdWorktreeIdRoute: typeof PairedProjectIdWorktreeIdRoute;
   PairedSettingsSectionRoute: typeof PairedSettingsSectionRoute;
-  PairedSettingsIndexRoute: typeof PairedSettingsIndexRoute;
 }
 
 const PairedRouteChildren: PairedRouteChildren = {
   PairedIndexRoute: PairedIndexRoute,
   PairedProjectIdWorktreeIdRoute: PairedProjectIdWorktreeIdRoute,
   PairedSettingsSectionRoute: PairedSettingsSectionRoute,
-  PairedSettingsIndexRoute: PairedSettingsIndexRoute,
 };
 
 const PairedRouteWithChildren =

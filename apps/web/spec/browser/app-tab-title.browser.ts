@@ -12,10 +12,15 @@ test('the browser tab follows the open surface, file and commit', async ({
   await expect.poll(title).toBe(`Changes — ${project}`);
 
   await pairedPage.getByRole('button', { name: 'Review', exact: true }).click();
-  await pairedPage.getByRole('tab', { name: 'Files' }).click();
-  const file = pairedPage.getByRole('treeitem', { name: repo.readme.path });
+  await pairedPage.getByRole('tab', { name: 'Files', exact: true }).click();
+  const file = pairedPage.getByRole('treeitem', {
+    name: repo.readme.path,
+    exact: true,
+  });
   await file.click({ button: 'right' });
-  await pairedPage.getByRole('menuitem', { name: 'Open file' }).click();
+  await pairedPage
+    .getByRole('menuitem', { name: 'Open file', exact: true })
+    .click();
   await expect.poll(title).toBe(`${repo.readme.path} — ${project}`);
 
   const subject = 'Name the tab after the commit';
@@ -25,7 +30,9 @@ test('the browser tab follows the open surface, file and commit', async ({
     .toBe(subject);
   const oid = (await server.commits()).commits[0]?.oid ?? '';
   await pairedPage.getByRole('button', { name: 'Review', exact: true }).click();
-  await pairedPage.getByRole('tab', { name: 'History' }).click();
-  await pairedPage.getByRole('button', { name: subject, exact: false }).click();
+  await pairedPage.getByRole('tab', { name: 'History', exact: true }).click();
+  await pairedPage
+    .getByRole('button', { name: new RegExp(`^${subject}`) })
+    .click();
   await expect.poll(title).toBe(`${oid.slice(0, 7)} — ${project}`);
 });

@@ -19,31 +19,51 @@ test('choosing another base compares the branch against it and the default bring
   await pairedPage.getByRole('button', { name: 'Review', exact: true }).click();
   await pairedPage.getByRole('tab', { name: 'Branch', exact: true }).click();
   await expect
-    .element(pairedPage.getByText('2 commits on feature since main'))
+    .element(
+      pairedPage.getByText('2 commits on feature since main', { exact: true }),
+    )
     .toBeVisible();
 
   await pairedPage
-    .getByRole('button', { name: 'Compare against the default branch' })
+    .getByRole('button', {
+      name: 'Compare against the default branch',
+      exact: true,
+    })
     .click();
-  await pairedPage.getByRole('option', { name: 'checkpoint' }).click();
+  await pairedPage
+    .getByRole('option', { name: 'checkpoint', exact: true })
+    .click();
   await expect
-    .element(pairedPage.getByText('1 commit on feature since checkpoint'))
+    .element(
+      pairedPage.getByText('1 commit on feature since checkpoint', {
+        exact: true,
+      }),
+    )
     .toBeVisible();
   await expect
-    .element(pairedPage.getByRole('button', { name: 'second.md · added' }))
+    .element(
+      pairedPage.getByRole('button', {
+        name: 'second.md · added',
+        exact: true,
+      }),
+    )
     .toBeVisible();
   await expect
-    .element(pairedPage.getByRole('button', { name: 'first.md · added' }))
+    .element(
+      pairedPage.getByRole('button', { name: 'first.md · added', exact: true }),
+    )
     .not.toBeInTheDocument();
   const base = () => new URLSearchParams(app.address().query).get('base');
   await expect.poll(base).toBe('refs/heads/checkpoint');
 
   await pairedPage
-    .getByRole('button', { name: 'Compare against checkpoint' })
+    .getByRole('button', { name: 'Compare against checkpoint', exact: true })
     .click();
   await pairedPage.getByRole('option', { name: /^main/u }).click();
   await expect
-    .element(pairedPage.getByText('2 commits on feature since main'))
+    .element(
+      pairedPage.getByText('2 commits on feature since main', { exact: true }),
+    )
     .toBeVisible();
   await expect.poll(base).toBeNull();
 });

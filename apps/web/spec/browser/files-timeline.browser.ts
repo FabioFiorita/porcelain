@@ -19,46 +19,56 @@ test('the timeline of a renamed file lists its commits across the rename and ope
     .toBe(moved);
 
   await pairedPage.getByRole('button', { name: 'Review', exact: true }).click();
-  await pairedPage.getByRole('tab', { name: 'Files' }).click();
-  await pairedPage.getByRole('treeitem', { name: guide }).click();
-  await pairedPage.getByRole('button', { name: 'Timeline' }).click();
+  await pairedPage.getByRole('tab', { name: 'Files', exact: true }).click();
+  await pairedPage.getByRole('treeitem', { name: guide, exact: true }).click();
+  await pairedPage
+    .getByRole('button', { name: 'Timeline', exact: true })
+    .click();
   const timeline = pairedPage.getByRole('list', {
     name: `Timeline of ${guide}`,
+    exact: true,
   });
   await expect
-    .element(timeline.getByText(`Renamed from ${readme}`))
+    .element(timeline.getByText(`Renamed from ${readme}`, { exact: true }))
     .toBeVisible();
   await expect
-    .element(timeline.getByText(`Modified as ${readme}`))
+    .element(timeline.getByText(`Modified as ${readme}`, { exact: true }))
     .toBeVisible();
-  await expect.element(timeline.getByText(`Added as ${readme}`)).toBeVisible();
   await expect
-    .element(timeline.getByText('Start of this file’s history.'))
+    .element(timeline.getByText(`Added as ${readme}`, { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(
+      timeline.getByText('Start of this file’s history.', { exact: true }),
+    )
     .toBeVisible();
 
-  await timeline.getByRole('button', { name: explained, exact: false }).click();
+  await timeline
+    .getByRole('button', { name: new RegExp(`^${explained}`) })
+    .click();
   await expect
-    .element(pairedPage.getByRole('heading', { name: explained }))
+    .element(pairedPage.getByRole('heading', { name: explained, exact: true }))
     .toBeVisible();
   await expect
-    .element(pairedPage.getByText('A change to review.'))
+    .element(pairedPage.getByText('A change to review.', { exact: true }))
     .toBeVisible();
 });
 
 test('the file tree opens the timeline of a file', async ({ pairedPage }) => {
   await pairedPage.getByRole('button', { name: 'Review', exact: true }).click();
-  await pairedPage.getByRole('tab', { name: 'Files' }).click();
+  await pairedPage.getByRole('tab', { name: 'Files', exact: true }).click();
   await pairedPage
-    .getByRole('treeitem', { name: 'guide.md' })
+    .getByRole('treeitem', { name: 'guide.md', exact: true })
     .click({ button: 'right' });
-  await pairedPage.getByRole('menuitem', { name: 'Show timeline' }).click();
+  await pairedPage
+    .getByRole('menuitem', { name: 'Show timeline', exact: true })
+    .click();
   await expect
     .element(
       pairedPage
-        .getByRole('list', { name: 'Timeline of guide.md' })
+        .getByRole('list', { name: 'Timeline of guide.md', exact: true })
         .getByRole('button', {
-          name: 'Move the readme to the guide',
-          exact: false,
+          name: /^Move the readme to the guide/,
         }),
     )
     .toBeVisible();

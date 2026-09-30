@@ -10,13 +10,14 @@ test('discarding a changed file returns it to the last commit, and Restore bring
   const saved = async () => (await server.text(readme)).text;
   await pairedPage.getByRole('button', { name: 'Review', exact: true }).click();
   await pairedPage
-    .getByRole('button', { name: `${readme} · unstaged` })
+    .getByRole('button', { name: `${readme} · unstaged`, exact: true })
     .click();
   await pairedPage
-    .getByRole('button', { name: `Discard changes to ${readme}` })
+    .getByRole('button', { name: `Discard changes to ${readme}`, exact: true })
     .click();
   const dialog = pairedPage.getByRole('alertdialog', {
     name: `Discard ${readme}?`,
+    exact: true,
   });
   await expect.element(dialog).toBeVisible();
   await dialog.getByRole('button', { name: 'Discard', exact: true }).click();
@@ -42,10 +43,11 @@ test('discarding a file that changed after the dialog opened is refused and keep
   const readme = repo.readme.path;
   const newer = 'Changed on disk after the discard dialog opened\n';
   await pairedPage
-    .getByRole('button', { name: `Discard changes to ${readme}` })
+    .getByRole('button', { name: `Discard changes to ${readme}`, exact: true })
     .click();
   const dialog = pairedPage.getByRole('alertdialog', {
     name: `Discard ${readme}?`,
+    exact: true,
   });
   await expect.element(dialog).toBeVisible();
   await repo.write(readme, newer);
@@ -54,7 +56,7 @@ test('discarding a file that changed after the dialog opened is refused and keep
     .element(dialog.getByRole('alert'))
     .toMatchTextContent(/Look at the diff again before discarding\./);
   await expect
-    .element(dialog.getByRole('button', { name: 'Look again' }))
+    .element(dialog.getByRole('button', { name: 'Look again', exact: true }))
     .toBeVisible();
   await expect.poll(async () => (await server.text(readme)).text).toBe(newer);
 });

@@ -8,15 +8,20 @@ test('the owner names this computer in Settings, and the tab title, pairing and 
 }) => {
   const host = (await server.inventory()).environment.name;
   const project = (await server.project()).name;
-  await pairedPage.getByRole('button', { name: 'Toggle Sidebar' }).click();
+  await pairedPage
+    .getByRole('button', { name: 'Toggle Sidebar', exact: true })
+    .click();
   const navigator = pairedPage.getByRole('navigation', {
     name: 'Projects and worktrees',
+    exact: true,
   });
   await expect
     .element(navigator.getByText(host, { exact: true }))
     .toBeVisible();
 
-  await pairedPage.getByRole('button', { name: 'Settings' }).click();
+  await pairedPage
+    .getByRole('button', { name: 'Settings', exact: true })
+    .click();
   const settings = pairedPage.getByRole('main', {
     name: 'Settings',
     exact: true,
@@ -25,8 +30,11 @@ test('the owner names this computer in Settings, and the tab title, pairing and 
     .getByRole('main', { name: 'Settings', exact: true })
     .getByRole('button', { name: 'Sharing', exact: true })
     .click();
-  const name = settings.getByRole('textbox', { name: 'Name of this computer' });
-  const save = settings.getByRole('button', { name: 'Save' });
+  const name = settings.getByRole('textbox', {
+    name: 'Name of this computer',
+    exact: true,
+  });
+  const save = settings.getByRole('button', { name: 'Save', exact: true });
   await expect.element(name).toHaveValue('');
   await expect.element(save).toBeDisabled();
   await name.fill('Workstation');
@@ -43,7 +51,9 @@ test('the owner names this computer in Settings, and the tab title, pairing and 
   await expect
     .poll(() => app.title())
     .toBe(`Changes — ${project} · Workstation`);
-  await pairedPage.getByRole('button', { name: 'Toggle Sidebar' }).click();
+  await pairedPage
+    .getByRole('button', { name: 'Toggle Sidebar', exact: true })
+    .click();
   await expect
     .element(navigator.getByText('Workstation', { exact: true }))
     .toBeVisible();

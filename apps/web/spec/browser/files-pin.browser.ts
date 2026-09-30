@@ -15,14 +15,24 @@ test('a pinned file is listed under Pinned, opens from there, and unpins', async
       .map((preference) => preference.path);
 
   await pairedPage.getByRole('button', { name: 'Review', exact: true }).click();
-  await pairedPage.getByRole('tab', { name: 'Files' }).click();
-  const file = pairedPage.getByRole('treeitem', { name: 'guide.md' });
+  await pairedPage.getByRole('tab', { name: 'Files', exact: true }).click();
+  const file = pairedPage.getByRole('treeitem', {
+    name: 'guide.md',
+    exact: true,
+  });
   await expect.element(file).toBeVisible();
   await file.click({ button: 'right' });
-  await pairedPage.getByRole('menuitem', { name: 'Pin file' }).click();
+  await pairedPage
+    .getByRole('menuitem', { name: 'Pin file', exact: true })
+    .click();
 
-  const group = pairedPage.getByRole('region', { name: 'Pinned files' });
-  await expect.element(group.getByText('guide.md')).toBeVisible();
+  const group = pairedPage.getByRole('region', {
+    name: 'Pinned files',
+    exact: true,
+  });
+  await expect
+    .element(group.getByText('guide.md', { exact: true }))
+    .toBeVisible();
   await expect.poll(pinned).toEqual([path]);
 
   const commands = [
@@ -62,21 +72,27 @@ test('a pinned file is listed under Pinned, opens from there, and unpins', async
     .not.toBeInTheDocument();
   await userEvent.keyboard('{Escape}');
 
-  await pairedPage.getByRole('treeitem', { name: repo.readme.path }).click();
+  await pairedPage
+    .getByRole('treeitem', { name: repo.readme.path, exact: true })
+    .click();
   await expect
-    .element(pairedPage.getByText('A change to review.'))
+    .element(pairedPage.getByText('A change to review.', { exact: true }))
     .toBeVisible();
   await pairedPage.getByRole('button', { name: 'Review', exact: true }).click();
-  await pairedPage.getByRole('tab', { name: 'Files' }).click();
+  await pairedPage.getByRole('tab', { name: 'Files', exact: true }).click();
   await group
     .getByRole('button', { name: /guide\.md/ })
     .first()
     .click();
-  await expect.element(pairedPage.getByText('Pinned reading')).toBeVisible();
+  await expect
+    .element(pairedPage.getByText('Pinned reading', { exact: true }))
+    .toBeVisible();
 
   await pairedPage.getByRole('button', { name: 'Review', exact: true }).click();
-  await pairedPage.getByRole('tab', { name: 'Files' }).click();
-  await pairedPage.getByRole('button', { name: `Unpin ${path}` }).click();
+  await pairedPage.getByRole('tab', { name: 'Files', exact: true }).click();
+  await pairedPage
+    .getByRole('button', { name: `Unpin ${path}`, exact: true })
+    .click();
   await expect.element(group).not.toBeInTheDocument();
   await expect.poll(pinned).toEqual([]);
 });

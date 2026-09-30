@@ -18,7 +18,10 @@ test('a blank comment cannot be posted, and a written comment on a changed file 
   await pairedPage
     .getByRole('button', { name: new RegExp(`^Comment on ${readme} \\(`) })
     .click();
-  const comment = pairedPage.getByRole('textbox', { name: 'Comment' });
+  const comment = pairedPage.getByRole('textbox', {
+    name: 'Comment',
+    exact: true,
+  });
   const post = pairedPage.getByRole('button', { name: 'Comment', exact: true });
   await expect.element(comment).toBeVisible();
   await expect.element(post).toBeDisabled();
@@ -28,9 +31,11 @@ test('a blank comment cannot be posted, and a written comment on a changed file 
 
   await comment.fill(body);
   await post.click();
-  await expect.element(pairedPage.getByText(body)).toBeVisible();
   await expect
-    .element(pairedPage.getByText('Waiting for the agent'))
+    .element(pairedPage.getByText(body, { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(pairedPage.getByText('Waiting for the agent', { exact: true }))
     .toBeVisible();
   await expect
     .poll(saved)

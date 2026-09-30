@@ -7,14 +7,30 @@ test('a repository found on this machine opens as a project in the navigator and
   server,
 }) => {
   const path = await projectHome.repository('discovered');
-  await pairedPage.getByRole('button', { name: 'Toggle Sidebar' }).click();
-  await pairedPage.getByRole('button', { name: 'Open project' }).click();
-  const dialog = pairedPage.getByRole('dialog', { name: 'Open project' });
-  const found = dialog.getByRole('region', { name: 'Found on this machine' });
+  await pairedPage
+    .getByRole('button', { name: 'Toggle Sidebar', exact: true })
+    .click();
+  await pairedPage
+    .getByRole('button', { name: 'Open project', exact: true })
+    .click();
+  const dialog = pairedPage.getByRole('dialog', {
+    name: 'Open project',
+    exact: true,
+  });
+  const found = dialog.getByRole('region', {
+    name: 'Found on this machine',
+    exact: true,
+  });
   await found
-    .getByRole('textbox', { name: 'Search repositories on this machine' })
+    .getByRole('textbox', {
+      name: 'Search repositories on this machine',
+      exact: true,
+    })
     .fill('discovered');
-  const repository = found.getByRole('button', { name: `discovered ${path}` });
+  const repository = found.getByRole('button', {
+    name: `discovered ${path}`,
+    exact: true,
+  });
   await expect.element(repository).toBeVisible();
   await repository.click();
 

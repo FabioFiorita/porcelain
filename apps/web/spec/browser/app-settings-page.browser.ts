@@ -10,7 +10,9 @@ test('Settings opens as its own page with one section at a time, and Back return
     exact: true,
   });
   await expect.element(review).toBeVisible();
-  await pairedPage.getByRole('button', { name: 'Toggle Sidebar' }).click();
+  await pairedPage
+    .getByRole('button', { name: 'Toggle Sidebar', exact: true })
+    .click();
   await pairedPage
     .getByRole('button', { name: 'Settings', exact: true })
     .click();
@@ -47,7 +49,9 @@ test('Settings opens as its own page with one section at a time, and Back return
 test('Escape leaves Settings, except while typing in one of its fields', async ({
   pairedPage,
 }) => {
-  await pairedPage.getByRole('button', { name: 'Toggle Sidebar' }).click();
+  await pairedPage
+    .getByRole('button', { name: 'Toggle Sidebar', exact: true })
+    .click();
   await pairedPage
     .getByRole('button', { name: 'Settings', exact: true })
     .click();
@@ -79,7 +83,9 @@ test('Settings still opens once the last project is removed', async ({
   server,
 }) => {
   const project = await server.project();
-  await pairedPage.getByRole('button', { name: 'Toggle Sidebar' }).click();
+  await pairedPage
+    .getByRole('button', { name: 'Toggle Sidebar', exact: true })
+    .click();
   await pairedPage
     .getByRole('button', { name: project.name, exact: true })
     .click({ button: 'right' });

@@ -2988,6 +2988,85 @@ test('the workspace opens after pairing', { retry: 2 }, async ({ pairedPage }) =
     errors: 1,
   },
   {
+    rule: 'web-dialogs-from-ui',
+    path: 'apps/web/src/app/settings-page.tsx',
+    valid: `import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+
+export function SettingsDialog({ open }: { open: boolean }) {
+  return (
+    <Dialog open={open}>
+      <DialogContent>
+        <DialogTitle>Settings</DialogTitle>
+      </DialogContent>
+    </Dialog>
+  );
+}
+`,
+    invalid: `export function SettingsPage() {
+  return (
+    <div role="dialog" aria-modal="true" aria-label="Settings">
+      <h1>Settings</h1>
+    </div>
+  );
+}
+`,
+    errors: 1,
+  },
+  {
+    rule: 'web-dialogs-from-ui',
+    path: 'apps/web/src/features/access/views/probe-view.tsx',
+    invalid: `export function ProbeView() {
+  return <section role={'alertdialog'}>Remove?</section>;
+}
+`,
+    errors: 1,
+  },
+  {
+    rule: 'web-keys-through-hotkeys',
+    path: 'apps/web/src/app/settings-page.tsx',
+    valid: `import { useHotkey } from '@tanstack/react-hotkeys';
+import { SHORTCUTS } from '@/shared/workspace/shortcuts';
+
+export function SettingsPage({ onLeave }: { onLeave: () => void }) {
+  useHotkey(SHORTCUTS.toggleSidebar, onLeave);
+  return <h1>Settings</h1>;
+}
+`,
+    invalid: `import { useEffect } from 'react';
+
+export function SettingsPage({ onLeave }: { onLeave: () => void }) {
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onLeave();
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [onLeave]);
+  return <h1>Settings</h1>;
+}
+`,
+    errors: 1,
+  },
+  {
+    rule: 'web-navigation-through-router',
+    path: 'apps/web/src/app/settings-page.tsx',
+    valid: `import { useCanGoBack, useRouter } from '@tanstack/react-router';
+
+export function useLeave() {
+  const router = useRouter();
+  const canGoBack = useCanGoBack();
+  return () => {
+    if (canGoBack) router.history.back();
+  };
+}
+`,
+    invalid: `export function leave() {
+  if (window.history.length > 1) window.history.back();
+}
+`,
+    errors: 2,
+  },
+  {
     rule: 'web-commands-own-writes',
     path: 'apps/web/src/features/access/queries/probe-query.ts',
     invalid: `import { useMutation } from '@tanstack/react-query';
@@ -3029,7 +3108,7 @@ test('a conflict is recognised by the review client', async ({ server }) => {
 import { test } from '../kit/journey';
 
 test('the workspace names its review region', async ({ pairedPage }) => {
-  const region = pairedPage.getByRole('region', { name: 'Review content' }).element();
+  const region = pairedPage.getByRole('region', { name: 'Review content', exact: true }).element();
   await expect.element(region).toBeVisible();
 });
 `,
@@ -3046,6 +3125,30 @@ test('the workspace offers a commit button', async ({ pairedPage }) => {
 });
 `,
     errors: 1,
+  },
+  {
+    rule: 'web-journey-locators',
+    path: 'apps/web/spec/browser/probe.browser.ts',
+    valid: `import { expect } from 'vitest';
+import { test } from '../kit/journey';
+
+test('marking a file reviewed presses its toggle', async ({ pairedPage }) => {
+  await pairedPage.getByRole('button', { name: 'Mark notes.md as reviewed', exact: true }).click();
+  await expect.element(pairedPage.getByRole('button', { name: /^Reviewed$/ })).toBeVisible();
+  await expect.element(pairedPage.getByText('Reviewed', { exact: true })).toBeVisible();
+  await expect.element(pairedPage.getByLabelText(new RegExp('^Comment'))).toBeVisible();
+});
+`,
+    invalid: `import { expect } from 'vitest';
+import { test } from '../kit/journey';
+
+test('marking a file reviewed presses its toggle', async ({ pairedPage }) => {
+  await pairedPage.getByRole('button', { name: 'Mark notes.md as reviewed' }).click();
+  await expect.element(pairedPage.getByText('Reviewed')).toBeVisible();
+  await expect.element(pairedPage.getByLabelText('Comment', { exact: false })).toBeVisible();
+});
+`,
+    errors: 3,
   },
   {
     rule: 'web-journey-no-waits',

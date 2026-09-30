@@ -4,7 +4,9 @@ import { test } from '../kit/journey';
 test('desktop Settings lists Sharing as its own section and opens its page', async ({
   pairedPage,
 }) => {
-  await pairedPage.getByRole('button', { name: 'Toggle Sidebar' }).click();
+  await pairedPage
+    .getByRole('button', { name: 'Toggle Sidebar', exact: true })
+    .click();
   await pairedPage
     .getByRole('button', { name: 'Settings', exact: true })
     .click();

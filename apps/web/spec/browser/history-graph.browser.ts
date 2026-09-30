@@ -20,14 +20,14 @@ test('Open graph opens the commit graph as a tab that comes back after a reload,
 
   const opened = await app.openReloadable(await app.link('this'));
   await opened.getByRole('button', { name: 'Review', exact: true }).click();
-  await opened.getByRole('tab', { name: 'History' }).click();
-  await opened.getByRole('button', { name: 'Open graph' }).click();
+  await opened.getByRole('tab', { name: 'History', exact: true }).click();
+  await opened.getByRole('button', { name: 'Open graph', exact: true }).click();
   await expect
     .element(opened.getByRole('tab', { name: /^Graph/ }))
     .toHaveAttribute('aria-selected', 'true');
-  const graph = opened.getByRole('list', { name: 'Commit graph' });
+  const graph = opened.getByRole('list', { name: 'Commit graph', exact: true });
   await expect
-    .element(graph.getByRole('img', { name: 'Merge commit' }))
+    .element(graph.getByRole('img', { name: 'Merge commit', exact: true }))
     .toBeVisible();
   await expect.element(graph.getByText('topic', { exact: true })).toBeVisible();
 
@@ -37,8 +37,8 @@ test('Open graph opens the commit graph as a tab that comes back after a reload,
     .element(opened.getByRole('tab', { name: /^Graph/ }))
     .toHaveAttribute('aria-selected', 'true');
   await opened
-    .getByRole('list', { name: 'Commit graph' })
-    .getByRole('button', { name: "Merge branch 'topic'", exact: false })
+    .getByRole('list', { name: 'Commit graph', exact: true })
+    .getByRole('button', { name: /^Merge commit ?Merge branch 'topic'/ })
     .click();
   await expect
     .element(opened.getByRole('heading', { name: /^Merge branch 'topic'/ }))
