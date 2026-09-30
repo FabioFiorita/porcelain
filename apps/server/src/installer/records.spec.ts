@@ -28,7 +28,7 @@ describe('readServiceConfiguration', () => {
     });
   });
 
-  it('reads a configuration saved when the service listened on a network host, leaving the host behind so the service listens on this computer only', async () => {
+  it('reads a configuration saved when the service listened on a network host, keeping the host so the owner can be told to share it again', async () => {
     writeFileSync(
       path,
       JSON.stringify({
@@ -41,6 +41,7 @@ describe('readServiceConfiguration', () => {
     expect(await readServiceConfiguration(path)).toEqual({
       dataDirectory: '/home/u/.porcelain',
       port: 4738,
+      host: '192.168.15.64',
     });
   });
 
