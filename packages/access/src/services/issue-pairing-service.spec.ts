@@ -96,6 +96,23 @@ describe('IssuePairingService', () => {
     });
   });
 
+  it('issues an untrusted grant unless the owner asks for a trusted one', () => {
+    const { grants, service } = setup();
+    const plain = issueOne(service);
+    const [trusted] = service.execute({
+      labels: ['Desktop'],
+      addresses: [address],
+      environmentId,
+      trusted: true,
+    }).grants;
+    expect(plain.grant.trusted).toBe(false);
+    expect(trusted?.grant.trusted).toBe(true);
+    expect(grants.find({ grantId: plain.grant.id })?.trusted).toBe(false);
+    expect(grants.find({ grantId: trusted?.grant.id ?? '' })?.trusted).toBe(
+      true,
+    );
+  });
+
   it('refuses an address the server does not answer at and issues nothing', () => {
     const { grants, service } = setup();
     expect(() =>

@@ -4,6 +4,7 @@ export type IssuePairingInput = {
   labels: readonly string[];
   addresses: readonly string[];
   environmentId: string;
+  trusted?: boolean | undefined;
 };
 
 type PairingLink = {
@@ -13,7 +14,7 @@ type PairingLink = {
 };
 
 export type IssuedPairingGrant = {
-  grant: PairingGrant;
+  grant: PairingGrant & { trusted: boolean };
   code: string;
   link: PairingLink;
 };

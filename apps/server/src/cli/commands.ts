@@ -1,7 +1,12 @@
 import type { Limits } from '../config/limits.ts';
 import type { Clock } from '@porcelain/kernel/ports';
 import type { OwnerProbe } from '../ports/owner-probe.ts';
-import { issuePairings, listAccess, revokeAccess } from './access-commands.ts';
+import {
+  issuePairings,
+  listAccess,
+  revokeAccess,
+  setDeviceTrust,
+} from './access-commands.ts';
 import type { CliCommand } from './arguments.ts';
 import { serveHelp } from './help.ts';
 import { runLocalServer, type StartServer } from './launcher.ts';
@@ -46,8 +51,11 @@ export async function runCommand(
     case 'pair':
       await issuePairings(
         command.settings.dataDirectory,
-        command.settings.labels,
-        command.settings.addresses,
+        {
+          labels: command.settings.labels,
+          addresses: command.settings.addresses,
+          trusted: command.settings.trusted,
+        },
         output,
         context.limits,
       );
@@ -64,6 +72,14 @@ export async function runCommand(
       ))
         ? 0
         : 1;
+    case 'trust':
+      await setDeviceTrust(
+        command.settings.dataDirectory,
+        { id: command.settings.id, trusted: command.settings.trusted },
+        output,
+        context.limits,
+      );
+      return 0;
     case 'share':
       return shareRemoteAccess(
         command.settings.dataDirectory,

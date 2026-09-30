@@ -14,3 +14,4 @@ export { ServiceUpdateNotOfferedError } from './service-update-not-offered-error
 export { ServiceUpdateRunningError } from './service-update-running-error.ts';
 export { DeviceViewerRequiredError } from './device-viewer-required-error.ts';
 export { TooManyLiveTicketsError } from './too-many-live-tickets-error.ts';
+export { DeviceNotFoundError } from './device-not-found-error.ts';

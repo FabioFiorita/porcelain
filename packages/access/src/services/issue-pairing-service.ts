@@ -50,6 +50,7 @@ export class IssuePairingService {
     const labels = input.labels.map((label) =>
       this.detail(validLabel(label, this.options.labelLength)),
     );
+    const trusted = input.trusted === true;
     const createdAt = this.clock.now();
     const expiresAt = instantAfter(createdAt, this.options.lifetimeMs);
     const issued = labels.map((label) => {
@@ -64,6 +65,7 @@ export class IssuePairingService {
         addresses: [...input.addresses],
         createdAt,
         expiresAt,
+        trusted,
       };
       return { grant, code };
     });
@@ -86,7 +88,7 @@ export class IssuePairingService {
   }
 
   private issued(
-    grant: PairingGrant,
+    grant: PairingGrant & { trusted: boolean },
     code: string,
     environmentId: string,
   ): IssuedPairingGrant {

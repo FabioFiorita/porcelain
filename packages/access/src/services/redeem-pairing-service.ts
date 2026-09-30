@@ -68,6 +68,7 @@ export class RedeemPairingService {
       createdAt: now,
       lastSeenAt: now,
       route: input.route,
+      ...(grant.trusted === true ? { trusted: true } : {}),
     };
     this.pairingGrants.redeem({
       grant,

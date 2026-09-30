@@ -1,6 +1,7 @@
 import { STATUS_CODES } from 'node:http';
 import { HttpError } from '@fastify/sensible';
 import {
+  DeviceNotFoundError,
   InvalidDeviceDetailsError,
   InvalidPairingAddressError,
   InvalidPairingError,
@@ -202,6 +203,7 @@ const rules: readonly StatusRule[] = [
       FolderNotFoundError,
       GitActionNotFoundError,
       NoWorktreeAtPathError,
+      DeviceNotFoundError,
     ],
     statusCode: 404,
   },

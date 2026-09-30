@@ -28,6 +28,8 @@ export {
   redeemPairingResponseSchema,
   revokeAccessRequestSchema,
   revokeAccessResponseSchema,
+  setDeviceTrustRequestSchema,
+  setDeviceTrustResponseSchema,
   type ClearBrowserSessionResponse,
   type IssuePairingRequest,
   type IssuePairingResponse,
@@ -37,6 +39,8 @@ export {
   type RedeemPairingResponse,
   type RevokeAccessRequest,
   type RevokeAccessResponse,
+  type SetDeviceTrustRequest,
+  type SetDeviceTrustResponse,
 } from './pairing.ts';
 export type { Principal } from './principal.ts';
 export {
