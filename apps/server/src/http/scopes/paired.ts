@@ -192,11 +192,11 @@ export async function pairedScope(
       cookieMaxAgeSeconds: options.limits.access.device.cookieMaxAgeSeconds,
     }),
   );
-  server.register(readServiceUpdate, {
-    useCase: options.application.access.readServiceUpdate,
-  });
   server.register(async (updates) => {
     updates.addHook('onRequest', recognizeLocalRequest(options.application));
+    updates.register(readServiceUpdate, {
+      useCase: options.application.access.readServiceUpdate,
+    });
     updates.register(startServiceUpdate, {
       useCase: options.application.access.startServiceUpdate,
     });

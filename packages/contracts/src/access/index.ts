@@ -47,6 +47,7 @@ export {
   readServiceUpdateResponseSchema,
   startServiceUpdateRequestSchema,
   startServiceUpdateResponseSchema,
+  type ReadServiceUpdateRequest,
   type ReadServiceUpdateResponse,
   type StartServiceUpdateInput,
   type StartServiceUpdateResponse,

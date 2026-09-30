@@ -23,6 +23,7 @@ export const readServiceUpdateResponseSchema = z.object({
   available: z.boolean(),
   running: z.boolean(),
   last: absentAsNull(serviceUpdateSchema),
+  canUpdate: z.boolean(),
 });
 
 export const startServiceUpdateRequestSchema = z.strictObject({
@@ -31,16 +32,15 @@ export const startServiceUpdateRequestSchema = z.strictObject({
 
 export const startServiceUpdateResponseSchema = readServiceUpdateResponseSchema;
 
+export type ReadServiceUpdateRequest = { viewer: Principal; local: boolean };
 export type ReadServiceUpdateResponse = z.output<
   typeof readServiceUpdateResponseSchema
 >;
 type StartServiceUpdateRequest = z.output<
   typeof startServiceUpdateRequestSchema
 >;
-export type StartServiceUpdateInput = StartServiceUpdateRequest & {
-  viewer: Principal;
-  local: boolean;
-};
+export type StartServiceUpdateInput = StartServiceUpdateRequest &
+  ReadServiceUpdateRequest;
 export type StartServiceUpdateResponse = z.output<
   typeof startServiceUpdateResponseSchema
 >;

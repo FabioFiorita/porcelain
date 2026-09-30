@@ -45,7 +45,7 @@ export default defineFeature({
   paired: true,
   intent: 'intended',
   behaviour:
-    "Every paired device reads which version of Porcelain runs, whether it runs as the installed service, the newest published version and whether it is newer, whether an update runs now, and how the last update went. A paired browser on the computer that runs Porcelain starts an update to the newer version the server offers; the server accepts it at once, reports its progress from downloading through installing and restarting, and ends updated on the new version, or failed with the reason while it keeps running the version it had. Only the offered version can be installed and one update runs at a time. A request that did not come from this computer's loopback listener, such as one a proxy on this computer relayed, is refused unless the owner trusts the device that sends it (access.trusted-update). The update itself belongs to the installed service's updater, which this net replaces with a scripted one: its first update fails and its second succeeds.",
+    "Every paired device reads which version of Porcelain runs, whether it runs as the installed service, the newest published version and whether it is newer, whether an update runs now, how the last update went, and whether it may start an update itself. A paired browser on the computer that runs Porcelain starts an update to the newer version the server offers; the server accepts it at once, reports its progress from downloading through installing and restarting, and ends updated on the new version, or failed with the reason while it keeps running the version it had. Only the offered version can be installed and one update runs at a time. A request that did not come from this computer's loopback listener, such as one a proxy on this computer relayed, is refused unless the owner trusts the device that sends it (access.trusted-update). The update itself belongs to the installed service's updater, which this net replaces with a scripted one: its first update fails and its second succeeds.",
   cases: [
     defineCase({
       name: 'the server offers its newer version',
@@ -58,8 +58,14 @@ export default defineFeature({
           response.body,
         );
         checkPartial(
-          'a newer version is offered and nothing runs',
-          { managed: true, available: true, running: false, last: null },
+          'a newer version is offered, nothing runs and this browser may update',
+          {
+            managed: true,
+            available: true,
+            running: false,
+            last: null,
+            canUpdate: true,
+          },
           response.body,
         );
       },
@@ -159,6 +165,7 @@ export default defineFeature({
               stage: 'updated',
               reason: null,
             },
+            canUpdate: true,
           },
           ended,
         );

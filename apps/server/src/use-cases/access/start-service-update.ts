@@ -46,16 +46,17 @@ export class StartServiceUpdateUseCase {
       this.laneKeys.serviceUpdate(),
       'write',
       async ({ signal }) => {
+        const authority = this.authorizeServiceUpdate.execute({
+          viewer: input.viewer,
+          local: input.local,
+        });
         this.checkServiceUpdate.execute({
-          authority: this.authorizeServiceUpdate.execute({
-            viewer: input.viewer,
-            local: input.local,
-          }),
+          authority,
           state: await this.updates.read(check, signal),
           target,
         });
         await this.updates.start(target, signal);
-        return this.updates.read(check);
+        return { ...(await this.updates.read(check)), ...authority };
       },
       { callerSignal: context.signal },
     );

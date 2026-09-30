@@ -1,4 +1,7 @@
-import { startServiceUpdateResponseSchema } from '@porcelain/contracts/access';
+import {
+  readServiceUpdateResponseSchema,
+  startServiceUpdateResponseSchema,
+} from '@porcelain/contracts/access';
 import {
   apiError,
   defineCase,
@@ -91,12 +94,69 @@ async function browserCookie(
 
 export default defineFeature({
   feature: 'access.trusted-update',
-  reaches: ['POST /api/service/update'],
+  reaches: ['GET /api/service/update', 'POST /api/service/update'],
   paired: true,
   intent: 'intended',
   behaviour:
-    "A device the owner trusts updates Porcelain from wherever it was paired: the desktop app updates a remote computer with its bearer credential from its own origin, and a browser on the web a server serves updates that server with its device cookie. It authenticates exactly as every paired request does, so a revoked device is refused as unauthenticated, and a cookie-authenticated update still has to come from the server's own origin. A paired device the owner has not trusted, or has stopped trusting, is refused with a message that an owner must trust it on that computer first, so a phone whose credential leaked can read the server but never replace its software. A browser on the computer that runs Porcelain updates it as before, trusted or not (access.service-update).",
+    "A device the owner trusts updates Porcelain from wherever it was paired: the desktop app updates a remote computer with its bearer credential from its own origin, and a browser on the web a server serves updates that server with its device cookie. It authenticates exactly as every paired request does, so a revoked device is refused as unauthenticated, and a cookie-authenticated update still has to come from the server's own origin. A paired device the owner has not trusted, or has stopped trusting, is refused with a message that an owner must trust it on that computer first, so a phone whose credential leaked can read the server but never replace its software. A browser on the computer that runs Porcelain updates it as before, trusted or not (access.service-update). The update status tells each caller whether it may start an update, so an app shows the action only where it would work.",
   cases: [
+    defineCase({
+      name: 'the status tells each caller whether it may start an update',
+      async setup(session) {
+        return {
+          phone: await pairDevice(session, 'Status phone'),
+          desktop: await trustedDevice(session, 'Status desktop'),
+        };
+      },
+      request: (_session, state) => [
+        status,
+        { ...status, headers: { 'x-forwarded-for': '203.0.113.9' } },
+        {
+          ...status,
+          auth: { bearer: state.phone.credential },
+          headers: { origin: app },
+        },
+        {
+          ...status,
+          auth: { bearer: state.desktop.credential },
+          headers: { origin: app },
+        },
+      ],
+      expect({ responses, check, checkContract, checkPartial }) {
+        const [here, relayed, phone, desktop] = responses;
+        check(
+          'statuses',
+          [200, 200, 200, 200],
+          responses.map((response) => response.status),
+        );
+        checkContract('contract', readServiceUpdateResponseSchema, here?.body);
+        checkPartial(
+          'a browser on this computer may',
+          { running: false, canUpdate: true },
+          here?.body,
+        );
+        checkPartial(
+          'the same device through a relay may not',
+          { running: false, canUpdate: false },
+          relayed?.body,
+        );
+        checkPartial(
+          'an untrusted device may not',
+          { running: false, canUpdate: false },
+          phone?.body,
+        );
+        checkPartial(
+          'a trusted device may',
+          { running: false, canUpdate: true },
+          desktop?.body,
+        );
+        check(
+          'the trusted device reads it from its own origin',
+          '*',
+          desktop?.headers['access-control-allow-origin'],
+        );
+      },
+    }),
     defineCase({
       name: 'an untrusted device is refused from another origin and through a relay',
       async setup(session) {
@@ -244,6 +304,7 @@ export default defineFeature({
               target: state.before.latest,
               stage: 'downloading',
             },
+            canUpdate: true,
           },
           response.body,
         );

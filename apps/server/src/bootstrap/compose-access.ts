@@ -112,6 +112,7 @@ export function composeAccess(
     clock,
     limits.serviceUpdate,
   );
+  const authorizeServiceUpdate = new AuthorizeServiceUpdateService(deviceStore);
   return {
     authenticateDevice: new AuthenticateDeviceUseCase(
       new AuthenticateDeviceService(
@@ -160,13 +161,14 @@ export function composeAccess(
     ),
     readServiceUpdate: new ReadServiceUpdateUseCase(
       dependencies.serviceUpdateRunner,
+      authorizeServiceUpdate,
       planServiceUpdateCheck,
       lanes,
       laneKeys,
     ),
     startServiceUpdate: new StartServiceUpdateUseCase(
       dependencies.serviceUpdateRunner,
-      new AuthorizeServiceUpdateService(deviceStore),
+      authorizeServiceUpdate,
       new CheckServiceUpdateService(),
       planServiceUpdateCheck,
       lanes,
