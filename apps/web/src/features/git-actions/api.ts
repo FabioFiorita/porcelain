@@ -1,4 +1,3 @@
-import type { OperationStore } from '@/shared/query/operation-store';
 import {
   dismissInterruptedGitActionResponseSchema,
   generateCommitDraftRequestSchema,
@@ -11,9 +10,10 @@ import {
 import { RequestError, requestJson } from '@/shared/api/request';
 import { GIT_ACTION_REJECTED_STATUSES } from '@/config/limits';
 import type { GitActionsPort } from './rules/git-action';
-export type { GitActionsPort } from './rules/git-action';
+import { perConnection } from '@/shared/api/per-connection';
+import type { Transport } from '@/shared/api/transport';
 
-export function createGitActionsLive(transport: typeof fetch): GitActionsPort {
+function createGitActionsApi(transport: Transport): GitActionsPort {
   const path = (worktreeId: string) =>
     `/api/worktrees/${encodeURIComponent(worktreeId)}/git`;
   const json = (body: unknown) => ({
@@ -72,13 +72,4 @@ export function createGitActionsLive(transport: typeof fetch): GitActionsPort {
   };
 }
 
-export type GitContext = {
-  api: { gitActions: GitActionsPort };
-  connection: {
-    environmentId: string;
-    controller: AbortController;
-    operations: OperationStore;
-    request: (signal?: AbortSignal) => { signal: AbortSignal };
-    transport: typeof fetch;
-  };
-};
+export const gitActionsApi = perConnection(createGitActionsApi);

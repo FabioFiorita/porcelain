@@ -14,12 +14,13 @@ import { useReviewedMarks } from '../queries/reviewed';
 import { anchorPath, type CommentThread } from '../rules/comments';
 import { BRANCH, entryKey, type OpenDocument } from '../rules/documents';
 import { mergeBranchChanges, type ReviewScope } from '../rules/review';
-import { branchReviewRange, type ReviewsContext } from '../rules/reviewed';
+import { branchReviewRange } from '../rules/reviewed';
 import { BranchBasePicker } from './branch-base-picker';
 import { ChangeRow, ROW } from './change-row';
 import { ReviewEmpty } from './review-empty';
 import { groupSpecPaths } from '../rules/spec-paths';
 import { usePreferences } from '@/shared/workspace/preferences';
+import { type ConnectionContext } from '@/shared/workspace/connection';
 
 export function BranchIndex({
   scope,
@@ -31,7 +32,7 @@ export function BranchIndex({
   onBase,
 }: {
   scope: ReviewScope;
-  context: ReviewsContext;
+  context: ConnectionContext;
   base: string | undefined;
   activeEntry: string | undefined;
   threads: readonly CommentThread[];
@@ -69,7 +70,7 @@ function BranchFiles({
   onOpen,
 }: {
   scope: ReviewScope;
-  context: ReviewsContext;
+  context: ConnectionContext;
   base: string | undefined;
   activeEntry: string | undefined;
   threads: readonly CommentThread[];
@@ -132,7 +133,7 @@ function BranchFileList({
   onOpen,
 }: {
   scope: ReviewScope;
-  context: ReviewsContext;
+  context: ConnectionContext;
   branch: NonNullable<ReturnType<typeof useBranchChanges>['data']>;
   activeEntry: string | undefined;
   threads: readonly CommentThread[];

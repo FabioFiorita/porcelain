@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/popover';
 import { branchName, useBranchBases } from '@/features/changes/index';
 import type { ReviewScope } from '../rules/review';
-import type { ReviewsContext } from '../rules/reviewed';
+import { type ConnectionContext } from '@/shared/workspace/connection';
 
 export function BranchBasePicker({
   scope,
@@ -25,7 +25,7 @@ export function BranchBasePicker({
   onBase,
 }: {
   scope: ReviewScope;
-  connection: ReviewsContext['connection'];
+  connection: ConnectionContext['connection'];
   base: string | undefined;
   onBase: (base: string | undefined) => void;
 }) {

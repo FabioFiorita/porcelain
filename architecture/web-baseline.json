@@ -54,12 +54,6 @@
     "apps/web/src/shared/lib/submit-form.ts": 1,
     "apps/web/src/shared/workspace/copy.ts": 1
   },
-  "unclassified-import-target": {
-    "apps/web/src/app/workspace-provider.tsx": 1
-  },
-  "unclassified-source": {
-    "apps/web/src/app/boot.ts": 1
-  },
   "unused-export": {
     "apps/web/src/shared/lib/pierre.ts": 1,
     "apps/web/src/shared/query/live-updates.ts": 2

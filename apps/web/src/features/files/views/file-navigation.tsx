@@ -38,7 +38,7 @@ import { useDirectories, useDirectory } from '../queries/directory';
 import { fileErrorMessage, surfaceErrorMessage } from '../rules/error-message';
 import { fileTreeAncestors, mergeFileTreeEntries } from '../rules/file-tree';
 import { isImagePath } from '../rules/html-assets';
-import type { FilesConnection, FilesScope } from '../rules/scope';
+import type { FilesScope } from '../rules/scope';
 import {
   duplicatePath,
   treeActions,
@@ -47,10 +47,11 @@ import {
 import { FileTreeMenu } from './file-tree-menu';
 import { PinnedFiles } from './pinned-files';
 import { QuickOpen } from './quick-open';
+import { type Connection } from '@/shared/workspace/connection';
 
 type Props = {
   scope: FilesScope;
-  connection: FilesConnection;
+  connection: Connection;
   worktreePath: string;
   selected: string;
   onOpen: (document: {

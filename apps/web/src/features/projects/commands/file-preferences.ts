@@ -1,6 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { SetFilePreferenceRequest } from '@porcelain/contracts/projects';
-import type { ProjectConnection } from '../rules/connection';
 import { asMutation } from '@/shared/query/mutation';
 import { projectsApi } from '../api';
 import { filePreferencesQueryOptions } from '../queries/file-preferences';
@@ -9,9 +8,10 @@ import {
   type SetHiddenInput,
   type SetPinnedInput,
 } from '../rules/file-preferences';
+import { type Connection } from '@/shared/workspace/connection';
 
 function useSetFilePreference(
-  connection: ProjectConnection | null,
+  connection: Connection | null,
   projectId: string,
 ) {
   if (!connection) throw new Error('A connected environment is required');
@@ -45,10 +45,7 @@ function useSetFilePreference(
   return mutation;
 }
 
-export function useSetHidden(
-  connection: ProjectConnection | null,
-  projectId: string,
-) {
+export function useSetHidden(connection: Connection | null, projectId: string) {
   const mutation = useSetFilePreference(connection, projectId);
   return {
     ...mutation,
@@ -61,10 +58,7 @@ export function useSetHidden(
   };
 }
 
-export function useSetPinned(
-  connection: ProjectConnection | null,
-  projectId: string,
-) {
+export function useSetPinned(connection: Connection | null, projectId: string) {
   const mutation = useSetFilePreference(connection, projectId);
   return {
     ...mutation,

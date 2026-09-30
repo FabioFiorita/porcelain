@@ -1,11 +1,11 @@
 import { queryOptions, useQuery } from '@tanstack/react-query';
-import type { ProjectConnection } from '../rules/connection';
 import { projectsApi } from '../api';
 import { PROJECT_DISCOVERY_STALE_MS } from '@/config/limits';
+import { type Connection } from '@/shared/workspace/connection';
 
 function projectDiscoveryQueryOptions(
   environmentId: string,
-  connection: ProjectConnection,
+  connection: Connection,
 ) {
   return queryOptions({
     queryKey: ['project-discovery', environmentId],
@@ -21,7 +21,7 @@ function projectDiscoveryQueryOptions(
 function projectFolderQueryOptions(
   environmentId: string,
   path: string | undefined,
-  connection: ProjectConnection,
+  connection: Connection,
 ) {
   return queryOptions({
     queryKey: ['project-folder', environmentId, path ?? null],
@@ -35,7 +35,7 @@ function projectFolderQueryOptions(
 }
 
 export function useProjectDiscovery(
-  connection: ProjectConnection | null,
+  connection: Connection | null,
   enabled: boolean,
 ) {
   if (!connection) throw new Error('A connected environment is required');
@@ -46,7 +46,7 @@ export function useProjectDiscovery(
 }
 
 export function useProjectFolder(
-  connection: ProjectConnection | null,
+  connection: Connection | null,
   path: string | undefined,
   enabled: boolean,
 ) {

@@ -25,14 +25,15 @@ import {
   type ReviewScope,
 } from '../rules/review';
 import { branchReviewRange, type ReviewRange } from '../rules/reviewed';
-import { CodeDocument, type DocumentContext } from './code-document';
+import { CodeDocument } from './code-document';
 import { DocumentToolbar } from './document-toolbar';
 import { MarkAllReviewed, ReviewedControl } from './reviewed-control';
 import { ReviewEmpty } from './review-empty';
+import { type ConnectionContext } from '@/shared/workspace/connection';
 
 type Props = {
   scope: ReviewScope;
-  context: DocumentContext;
+  context: ConnectionContext;
   interaction: DocumentInteraction;
   base: string | undefined;
 };
@@ -106,7 +107,7 @@ function BranchMarkedCode({
   path,
 }: {
   scope: ReviewScope;
-  context: DocumentContext;
+  context: ConnectionContext;
   interaction: DocumentInteraction;
   branch: NonNullable<ReturnType<typeof useBranchChanges>['data']>;
   path: string | undefined;
@@ -155,7 +156,7 @@ function BranchDiffs({
   branch,
 }: {
   scope: ReviewScope;
-  context: DocumentContext;
+  context: ConnectionContext;
   interaction: DocumentInteraction;
   range: ReviewRange;
   items: readonly BranchChangeItem[];

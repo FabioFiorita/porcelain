@@ -3,9 +3,7 @@ import { useBatchedReads } from './batched-reads';
 import { queryKeys } from '@/shared/query/keys';
 import { changesApi, isWorktreeChangedError } from '../api';
 import {
-  requireChangesConnection,
   selectionKey,
-  type ChangesConnection,
   type ChangesScope,
   type ChangeSelection,
   type DiffContent,
@@ -13,16 +11,20 @@ import {
 } from '../rules/changes';
 import { diffBatches } from '../rules/diff-batches';
 import { useChangesStore } from '../store';
+import {
+  type Connection,
+  requireConnection,
+} from '@/shared/workspace/connection';
 
 export function useChangeDiffs(
   scope: ChangesScope,
-  possibleConnection: ChangesConnection | null,
+  possibleConnection: Connection | null,
   statusToken: string,
   expectedFiles: readonly ExpectedFile[],
   selections: readonly ChangeSelection[],
   recover: (statusToken: string) => void,
 ) {
-  const connection = requireChangesConnection(possibleConnection);
+  const connection = requireConnection(possibleConnection);
   const key = JSON.stringify([
     connection.environmentId,
     scope.projectId,

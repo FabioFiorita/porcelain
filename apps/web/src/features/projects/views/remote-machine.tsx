@@ -4,20 +4,14 @@ import { Button } from '@/components/ui/button';
 import {
   remoteStatusNote,
   remoteStatusText,
+  remoteStatusVariant,
   useRemoteStatus,
   type RemoteConnection,
-  type RemoteStatus,
 } from '@/features/access/index';
 import { useRemoteInventory } from '../queries/inventory';
 import type { WorktreeTarget } from '../rules/inventory';
 import { MachineSection } from './machine-section';
 import { ProjectSection } from './project-section';
-
-function statusVariant(status: RemoteStatus) {
-  if (status.kind === 'online') return 'secondary';
-  if (status.kind === 'checking') return 'outline';
-  return 'destructive';
-}
 
 export function RemoteMachine({
   entry: { remote, connection },
@@ -42,7 +36,7 @@ export function RemoteMachine({
       name={name}
       icon={ServerIcon}
       status={
-        <Badge variant={statusVariant(status)}>
+        <Badge variant={remoteStatusVariant(status)}>
           {remoteStatusText(status)}
         </Badge>
       }

@@ -29,16 +29,10 @@ import { connectionErrorMessage } from '../rules/connection-error-message';
 import {
   remoteStatusNote,
   remoteStatusText,
+  remoteStatusVariant,
   type Remote,
-  type RemoteStatus,
 } from '../rules/remotes';
 import { useRemotesStore } from '../store';
-
-function statusVariant(status: RemoteStatus) {
-  if (status.kind === 'online') return 'secondary';
-  if (status.kind === 'checking') return 'outline';
-  return 'destructive';
-}
 
 function RemoteRow({ remote }: { remote: Remote }) {
   const status = useRemoteStatus(remote);
@@ -60,21 +54,24 @@ function RemoteRow({ remote }: { remote: Remote }) {
         </ItemDescription>
       </ItemContent>
       <ItemActions>
-        <Badge variant={statusVariant(status)}>
+        <Badge variant={remoteStatusVariant(status)}>
           {remoteStatusText(status)}
         </Badge>
         <Button
           variant="ghost"
           size="icon-sm"
           aria-label={`Remove ${name}`}
-          onClick={() => forget(remote)}
+          disabled={forget.isPending}
+          onClick={() => forget.submit(remote)}
         >
           <Trash2Icon />
         </Button>
       </ItemActions>
-      {note && (
+      {(note || forget.error) && (
         <ItemFooter>
-          <ItemDescription>{note}</ItemDescription>
+          <ItemDescription>
+            {forget.error ? connectionErrorMessage(forget.error) : note}
+          </ItemDescription>
         </ItemFooter>
       )}
     </Item>

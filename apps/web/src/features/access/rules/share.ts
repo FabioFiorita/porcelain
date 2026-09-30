@@ -6,12 +6,6 @@ import {
   type RenameEnvironmentResponse,
 } from '@porcelain/contracts/access';
 
-export type ShareConnection = {
-  environmentId: string;
-  request: (signal?: AbortSignal) => { signal: AbortSignal };
-  transport: (path: string, init?: RequestInit) => Promise<Response>;
-};
-
 export type RemoteAccess = ReadRemoteAccessResponse;
 export type Environment = RenameEnvironmentResponse;
 export type RemoteRouteName = keyof RemoteAccess['routes'];

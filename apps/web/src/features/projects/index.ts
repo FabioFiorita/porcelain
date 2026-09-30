@@ -11,6 +11,7 @@ export {
   firstWaitingWorktree,
   selectedWorktreeInProject,
   worktreeLabel,
+  type Inventory,
   type Project,
   type WorktreeTarget,
 } from './rules/inventory';

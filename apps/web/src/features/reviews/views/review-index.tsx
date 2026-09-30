@@ -50,20 +50,19 @@ import {
   type ReviewResponse,
   type ReviewScope,
 } from '../rules/review';
-import type { ReviewsContext } from '../rules/reviewed';
 import { BranchIndex } from './branch-index';
 import { ChangeRow, ROW } from './change-row';
-import type { DocumentContext } from './code-document';
 import { DeleteResolved } from './delete-resolved';
 import { InlineComposer } from './inline-composer';
 import { BranchReadiness, ChangeReadiness } from './readiness-panel';
 import { ThreadCard } from './thread-card';
 import { groupSpecPaths } from '../rules/spec-paths';
 import { usePreferences } from '@/shared/workspace/preferences';
+import { type ConnectionContext } from '@/shared/workspace/connection';
 
 type Props = {
   scope: ReviewScope;
-  context: DocumentContext;
+  context: ConnectionContext;
   activeEntry: string | undefined;
   onOpen: OpenDocument;
 };
@@ -394,7 +393,7 @@ function ChangeComment({
   anchor,
 }: {
   scope: ReviewScope;
-  context: ReviewsContext;
+  context: ConnectionContext;
   anchor: CommentAnchor | undefined;
 }) {
   const [open, setOpen] = useState(false);
@@ -431,7 +430,7 @@ function BranchChangeComment({
   base,
 }: {
   scope: ReviewScope;
-  context: ReviewsContext;
+  context: ConnectionContext;
   base: string | undefined;
 }) {
   const { connection } = context;
@@ -461,7 +460,7 @@ function CommentsView({
   onOpen,
 }: {
   scope: ReviewScope;
-  context: ReviewsContext;
+  context: ConnectionContext;
   list: ChangeList;
   threads: readonly CommentThread[];
   branch: boolean;

@@ -95,8 +95,8 @@ function createPairingApi(transport: Transport): PairingPort {
 }
 
 function createSessionApi(
-  restoringTransport: typeof fetch,
-  connectedTransport: typeof fetch = restoringTransport,
+  restoringTransport: Transport,
+  connectedTransport: Transport = restoringTransport,
 ): SessionPort {
   return {
     async restore(signal) {

@@ -6,8 +6,9 @@ import {
 } from '@/components/ui/empty';
 import { useFileTimeline } from '../queries/file-timeline';
 import { timelineChange } from '../rules/commit';
-import type { HistoryConnection, HistoryScope } from '../rules/connection';
+import type { HistoryScope } from '../rules/connection';
 import { CommitRow } from './commit-row';
+import { type Connection } from '@/shared/workspace/connection';
 
 export function FileTimeline({
   scope,
@@ -16,7 +17,7 @@ export function FileTimeline({
   onSelect,
 }: {
   scope: HistoryScope;
-  connection: HistoryConnection;
+  connection: Connection;
   path: string;
   onSelect: (commit: { oid: string; path: string }) => void;
 }) {

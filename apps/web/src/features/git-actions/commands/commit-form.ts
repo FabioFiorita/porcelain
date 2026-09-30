@@ -5,7 +5,6 @@ import {
 import { useForm, useSelector } from '@tanstack/react-form';
 import { usePreferences } from '@/shared/workspace/preferences';
 import { createId } from '@/shared/lib/id';
-import type { GitContext } from '../api';
 import { resolveCommitModel } from '../rules/commit-model';
 import {
   commitFormDefaults,
@@ -22,6 +21,7 @@ import { useCommitState, commitRuntime } from '../store';
 import { useCommitModels } from '../queries/git-actions';
 import { useGitAction } from './run-action';
 import { useCommitDraft } from './commit-draft';
+import { type ConnectionContext } from '@/shared/workspace/connection';
 const isAbort = (error: unknown) =>
   error instanceof DOMException && error.name === 'AbortError';
 
@@ -35,7 +35,7 @@ function useCommitFormState(
     initialMessage = '',
     lastCommitMessage = '',
   }: CommitFormProps,
-  context: GitContext,
+  context: ConnectionContext,
   files: { path: string; paths: string[]; kind: string }[],
 ) {
   const form = useForm({
@@ -360,7 +360,7 @@ async function checkOutcome(controls: ReturnType<typeof useCommitFormState>) {
 
 export function useCommitForm(
   props: CommitFormProps,
-  context: GitContext,
+  context: ConnectionContext,
   files: { path: string; paths: string[]; kind: string }[],
 ) {
   const controls = useCommitFormState(props, context, files);

@@ -11,23 +11,20 @@ import { Spinner } from '@/components/ui/spinner';
 import { desktopShell } from '@/shared/shell';
 import { useRemoteAccess } from '../queries/share';
 import { connectionErrorMessage } from '../rules/connection-error-message';
-import type {
-  Environment,
-  RemoteAccess,
-  ShareConnection,
-} from '../rules/share';
+import type { Environment, RemoteAccess } from '../rules/share';
 import { useAccessStore } from '../store';
 import { EnvironmentName } from './environment-name';
 import { ServiceUpdateSettings } from './service-update';
 import { PairDevice } from './pair-device';
 import { PairedDevices } from './paired-devices';
 import { RemoteRoutes } from './remote-routes';
+import { type Connection } from '@/shared/workspace/connection';
 
 function RemoteAccessGate({
   connection,
   children,
 }: {
-  connection: ShareConnection;
+  connection: Connection;
   children: (remote: RemoteAccess) => ReactNode;
 }) {
   const remote = useRemoteAccess(connection);

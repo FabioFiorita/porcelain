@@ -14,7 +14,6 @@ import {
 } from '../rules/documents';
 import { proofOnLayer } from '../rules/proof';
 import type { ReviewScope } from '../rules/review';
-import type { DocumentContext } from './code-document';
 import { BranchDocument, BranchFileDocument } from './branch-document';
 import { CommitDocument } from './commit-document';
 import { DocumentToolbar } from './document-toolbar';
@@ -26,10 +25,11 @@ import { ReviewCodeDocument } from './review-code-document';
 import { MarkAllReviewed } from './reviewed-control';
 import { ReviewEmpty } from './review-empty';
 import { UnexplainedDocument } from './unexplained-document';
+import { type ConnectionContext } from '@/shared/workspace/connection';
 
 type DocumentProps = {
   scope: ReviewScope;
-  context: DocumentContext;
+  context: ConnectionContext;
   interaction: DocumentInteraction;
   onOpen: OpenDocument;
 };
@@ -44,7 +44,7 @@ export function DocumentView({
   base,
 }: {
   scope: ReviewScope;
-  context: DocumentContext;
+  context: ConnectionContext;
   document: DocumentRef;
   onOpen: OpenDocument;
   active?: boolean;

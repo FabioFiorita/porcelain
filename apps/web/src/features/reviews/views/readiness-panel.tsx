@@ -27,7 +27,8 @@ import {
   type ReviewScope,
   type ReviewStatus,
 } from '../rules/review';
-import { branchReviewRange, type ReviewsContext } from '../rules/reviewed';
+import { branchReviewRange } from '../rules/reviewed';
+import { type ConnectionContext } from '@/shared/workspace/connection';
 
 type Select = (key: ReadinessKey, firstStale: string | undefined) => void;
 
@@ -61,7 +62,7 @@ export function BranchReadiness({
   onSelect,
 }: {
   scope: ReviewScope;
-  context: ReviewsContext;
+  context: ConnectionContext;
   base: string | undefined;
   review: ReviewResponse | null;
   threads: readonly CommentThread[];
@@ -93,7 +94,7 @@ function BranchReadinessMarks({
   onSelect,
 }: {
   scope: ReviewScope;
-  context: ReviewsContext;
+  context: ConnectionContext;
   branch: NonNullable<ReturnType<typeof useBranchChanges>['data']>;
   review: ReviewResponse | null;
   threads: readonly CommentThread[];

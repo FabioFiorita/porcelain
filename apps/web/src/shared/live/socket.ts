@@ -2,20 +2,17 @@ import {
   issueLiveTicketResponseSchema,
   liveNoticeSchema,
 } from '@porcelain/contracts/access';
-import { requestJson } from '../api/request';
-import { reportUnauthorized } from '../api/unauthorized';
+import { RequestError, requestJson } from '../api/request';
+import type { Transport } from '../api/transport';
 import type { LiveSubscription, LiveUpdatePort } from '@/shared/live/port';
 
 const MAX_RECONNECT_MS = 10_000;
 
-type LiveServer = {
-  open: (signal: AbortSignal) => Promise<WebSocket>;
-  onUnauthorized: () => void;
-};
-
-function createLiveUpdates(server: LiveServer): LiveUpdatePort {
+function createLiveUpdates(
+  open: (signal: AbortSignal) => Promise<WebSocket>,
+): LiveUpdatePort {
   return {
-    connect({ signal, onNotice, onReconnect }) {
+    connect({ signal, onNotice, onReconnect, onUnauthorized }) {
       let socket: WebSocket | null = null;
       let subscription: LiveSubscription = {
         type: 'subscribe',
@@ -27,7 +24,7 @@ function createLiveUpdates(server: LiveServer): LiveUpdatePort {
       let retry: ReturnType<typeof setTimeout> | undefined;
       const retryLater = () => {
         if (signal.aborted) return;
-        retry = setTimeout(() => void open(), retryMs);
+        retry = setTimeout(() => void reopen(), retryMs);
         retryMs = Math.min(retryMs * 2, MAX_RECONNECT_MS);
       };
       const listen = (opened: WebSocket) => {
@@ -52,19 +49,22 @@ function createLiveUpdates(server: LiveServer): LiveUpdatePort {
         opened.addEventListener('close', (event) => {
           socket = null;
           if (event.code === 4001) {
-            server.onUnauthorized();
+            onUnauthorized();
             return;
           }
           retryLater();
         });
       };
-      const open = async () => {
+      const reopen = async () => {
         if (signal.aborted) return;
         let opened: WebSocket;
         try {
-          opened = await server.open(signal);
-        } catch {
-          retryLater();
+          opened = await open(signal);
+        } catch (error) {
+          if (signal.aborted) return;
+          if (error instanceof RequestError && error.status === 401)
+            onUnauthorized();
+          else retryLater();
           return;
         }
         if (signal.aborted) opened.close();
@@ -79,7 +79,7 @@ function createLiveUpdates(server: LiveServer): LiveUpdatePort {
         },
         { once: true },
       );
-      void open();
+      void reopen();
       return {
         subscribe(value) {
           subscription = value;
@@ -103,26 +103,20 @@ function remoteAddress(address: string, ticket: string) {
 }
 
 export function sameOriginLiveUpdates(): LiveUpdatePort {
-  return createLiveUpdates({
-    open: async () => new WebSocket(sameOriginAddress()),
-    onUnauthorized: reportUnauthorized,
-  });
+  return createLiveUpdates(async () => new WebSocket(sameOriginAddress()));
 }
 
 export function remoteLiveUpdates(
   address: string,
-  transport: typeof fetch,
+  transport: Transport,
 ): LiveUpdatePort {
-  return createLiveUpdates({
-    async open(signal) {
-      const { ticket } = await requestJson(
-        transport,
-        '/api/live/tickets',
-        issueLiveTicketResponseSchema,
-        { method: 'POST', signal },
-      );
-      return new WebSocket(remoteAddress(address, ticket));
-    },
-    onUnauthorized: () => undefined,
+  return createLiveUpdates(async (signal) => {
+    const { ticket } = await requestJson(
+      transport,
+      '/api/live/tickets',
+      issueLiveTicketResponseSchema,
+      { method: 'POST', signal },
+    );
+    return new WebSocket(remoteAddress(address, ticket));
   });
 }

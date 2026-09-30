@@ -18,8 +18,9 @@ import {
 } from '@/features/history/index';
 import type { DocumentInteraction } from '../rules/documents';
 import type { DiffContent, ReviewScope } from '../rules/review';
-import { CodeDocument, type DocumentContext } from './code-document';
+import { CodeDocument } from './code-document';
 import { DocumentToolbar } from './document-toolbar';
+import { type ConnectionContext } from '@/shared/workspace/connection';
 
 const pathList = (file: CommitFile) => [
   ...new Set([file.oldPath, file.newPath].filter((path) => path != null)),
@@ -33,7 +34,7 @@ export function CommitDocument({
   oid,
 }: {
   scope: ReviewScope;
-  context: DocumentContext;
+  context: ConnectionContext;
   interaction: DocumentInteraction;
   oid: string;
 }) {

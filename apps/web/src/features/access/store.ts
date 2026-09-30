@@ -2,29 +2,28 @@ import type { ReadInventoryResponse } from '@porcelain/contracts/projects';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { savedJson } from '@/shared/lib/saved-json';
-import { parseRemotes, withRemote, type Remote } from './rules/remotes';
+import {
+  parseRemotes,
+  syncRemoteConnections,
+  withRemote,
+  type Remote,
+} from './rules/remotes';
 import { REQUEST_TIMEOUT_MS } from '@/shared/api/request-timeout';
-import { browserTransport, remoteTransport } from '@/shared/api/transport';
+import {
+  browserTransport,
+  remoteTransport,
+  type Transport,
+} from '@/shared/api/transport';
 import type { LiveUpdatePort } from '@/shared/live/port';
 import { remoteLiveUpdates, sameOriginLiveUpdates } from '@/shared/live/socket';
-import {
-  createOperationStore,
-  type OperationStore,
-} from '@/shared/query/operation-store';
-
-export type Connection = {
-  environmentId: string;
-  controller: AbortController;
-  operations: OperationStore;
-  request: (signal?: AbortSignal) => { signal: AbortSignal };
-  transport: typeof fetch;
-  liveUpdates: LiveUpdatePort;
-};
+import { adoptFileDrafts } from '@/shared/query/file-drafts';
+import { createOperationStore } from '@/shared/query/operation-store';
+import type { Connection } from '@/shared/workspace/connection';
 
 export type RemoteConnection = { remote: Remote; connection: Connection };
 
 type Server = {
-  transport: typeof fetch;
+  transport: Transport;
   liveUpdates: LiveUpdatePort;
   operationsKey: string;
 };
@@ -48,7 +47,7 @@ function createConnection(environmentId: string, server: Server): Connection {
     storage = undefined;
   }
   const controller = new AbortController();
-  return {
+  const connection: Connection = {
     environmentId,
     controller,
     operations: createOperationStore(
@@ -64,6 +63,8 @@ function createConnection(environmentId: string, server: Server): Connection {
     transport: server.transport,
     liveUpdates: server.liveUpdates,
   };
+  adoptFileDrafts(connection);
+  return connection;
 }
 
 function localConnection(environmentId: string) {
@@ -74,16 +75,13 @@ function localConnection(environmentId: string) {
   });
 }
 
-function remoteConnection(remote: Remote): RemoteConnection {
+function remoteConnection(remote: Remote) {
   const transport = remoteTransport(remote.address, remote.credential);
-  return {
-    remote,
-    connection: createConnection(remote.environmentId, {
-      transport,
-      liveUpdates: remoteLiveUpdates(remote.address, transport),
-      operationsKey: `porcelain-git-requests:${remote.address}:${remote.environmentId}`,
-    }),
-  };
+  return createConnection(remote.environmentId, {
+    transport,
+    liveUpdates: remoteLiveUpdates(remote.address, transport),
+    operationsKey: `porcelain-git-requests:${remote.address}:${remote.environmentId}`,
+  });
 }
 
 function close(connection: Connection) {
@@ -118,27 +116,16 @@ export const useRemotesStore = create<RemotesState>()(
   ),
 );
 
-function sameRemote(left: Remote, right: Remote) {
-  return (
-    left.environmentId === right.environmentId &&
-    left.address === right.address &&
-    left.credential === right.credential
-  );
-}
-
 function remoteConnections(
   remotes: readonly Remote[],
   current: readonly RemoteConnection[],
 ) {
-  const next = remotes.map((remote) => {
-    const kept = current.find((entry) => sameRemote(entry.remote, remote));
-    return kept
-      ? { remote, connection: kept.connection }
-      : remoteConnection(remote);
-  });
-  for (const entry of current)
-    if (!next.some((kept) => kept.connection === entry.connection))
-      close(entry.connection);
+  const { next, closed } = syncRemoteConnections(
+    remotes,
+    current,
+    remoteConnection,
+  );
+  for (const connection of closed) close(connection);
   return next;
 }
 

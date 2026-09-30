@@ -1,14 +1,14 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import type { ProjectConnection } from '../rules/connection';
 import { ConnectionError } from '@/shared/api/connection-error';
 import { retainedFileDrafts } from '@/shared/query/file-drafts';
 import { queryKeys } from '@/shared/query/keys';
 import { projectsApi } from '../api';
 import { inventoryQueryOptions } from '../queries/inventory';
 import type { Inventory } from '../rules/inventory';
+import { type Connection } from '@/shared/workspace/connection';
 
 export function useRemoveProject(
-  connection: ProjectConnection | null,
+  connection: Connection | null,
   close: () => void,
 ) {
   if (!connection) throw new Error('A connected environment is required');

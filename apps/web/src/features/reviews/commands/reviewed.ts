@@ -11,22 +11,23 @@ import {
   type ReviewableItem,
   type ReviewNotice,
   type ReviewRange,
-  type ReviewsContext,
   reviewToggle,
   type ReviewToggleTarget,
   visibleBulkReport,
   WORKTREE_RANGE,
 } from '../rules/reviewed';
 import { enqueueReviewed, enqueueReviewedMany } from './reviewed-queue';
+import { type ConnectionContext } from '@/shared/workspace/connection';
+import { reviewsApi } from '../api';
 
 function reviewedContext(
   scope: ReviewScope,
-  context: ReviewsContext,
+  context: ConnectionContext,
   range: ReviewRange,
 ) {
-  const { api, connection } = context;
+  const { connection } = context;
   return {
-    api: api.reviews.reviewed,
+    api: reviewsApi(connection).reviewed,
     key: reviewedQueryOptions(scope, context, range).queryKey,
     connection,
     request: (signal?: AbortSignal) => ({
@@ -39,7 +40,7 @@ function reviewedContext(
 
 function useUnmarkOne(
   scope: ReviewScope,
-  context: ReviewsContext,
+  context: ConnectionContext,
   range: ReviewRange,
 ) {
   const reviewed = reviewedContext(scope, context, range);
@@ -55,7 +56,7 @@ function useUnmarkOne(
 
 export function useMarkReviewed(
   scope: ReviewScope,
-  context: ReviewsContext,
+  context: ConnectionContext,
   range: ReviewRange = WORKTREE_RANGE,
 ) {
   const reviewed = reviewedContext(scope, context, range);
@@ -77,7 +78,7 @@ export function useMarkReviewed(
 
 export function useUnmarkReviewed(
   scope: ReviewScope,
-  context: ReviewsContext,
+  context: ConnectionContext,
   range: ReviewRange = WORKTREE_RANGE,
 ) {
   const unmarkOne = useUnmarkOne(scope, context, range);
@@ -90,7 +91,7 @@ export function useUnmarkReviewed(
 
 export function useMarkAllReviewed(
   scope: ReviewScope,
-  context: ReviewsContext,
+  context: ConnectionContext,
   range: ReviewRange = WORKTREE_RANGE,
 ) {
   const reviewed = reviewedContext(scope, context, range);
@@ -152,7 +153,7 @@ export function useMarkAllReviewed(
 
 export function useToggleReviewed(
   scope: ReviewScope,
-  context: ReviewsContext,
+  context: ConnectionContext,
   notify: (notice: ReviewNotice) => void,
   range: ReviewRange = WORKTREE_RANGE,
 ) {

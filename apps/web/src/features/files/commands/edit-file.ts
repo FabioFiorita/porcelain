@@ -2,14 +2,18 @@ import { ConnectionError } from '@/shared/api/connection-error';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { FileDraft, type FileDraftState } from '@/features/files/store';
 import type { EditFileRequest as FileEdit } from '@porcelain/contracts/files';
-import type { FilesConnection, FilesScope } from '../rules/scope';
+import type { FilesScope } from '../rules/scope';
 import { isContentChangedError } from '../api';
 import { createId } from '@/shared/lib/id';
 import { useFileDraftState } from '../store';
-import { retainedFileDrafts } from '@/shared/query/file-drafts';
+import {
+  draftConnection,
+  retainedFileDrafts,
+} from '@/shared/query/file-drafts';
 import { asMutation } from '@/shared/query/mutation';
 import { filesApi } from '../api';
 import { copyText } from '@/shared/workspace/copy';
+import { type Connection } from '@/shared/workspace/connection';
 
 const parentOf = (path: string) => path.split('/').slice(0, -1).join('/');
 const withoutTrailingSlash = (path: string) => path.replace(/\/$/, '');
@@ -53,7 +57,11 @@ async function reload(
   );
 }
 
-function releaseDrafts(connection: object, scope: FilesScope, input: FileEdit) {
+function releaseDrafts(
+  connection: Connection,
+  scope: FilesScope,
+  input: FileEdit,
+) {
   if (input.kind !== 'move' && input.kind !== 'trash') return;
   const prefix = `${JSON.stringify([scope.projectId, scope.worktreeId])}/`;
   const retained = retainedFileDrafts(connection);
@@ -75,7 +83,7 @@ function releaseDrafts(connection: object, scope: FilesScope, input: FileEdit) {
 }
 
 async function executeFileWrite(
-  connection: FilesConnection,
+  connection: Connection,
   scope: FilesScope,
   client: ReturnType<typeof useQueryClient>,
   input: FileEdit,
@@ -120,16 +128,13 @@ async function executeFileWrite(
   }
 }
 
-function useFileWriter(connection: FilesConnection | null, scope: FilesScope) {
+function useFileWriter(connection: Connection | null, scope: FilesScope) {
   if (!connection) throw new Error('A connected environment is required');
   const client = useQueryClient();
   return (input: FileEdit) =>
-    executeFileWrite(connection, scope, client, input);
+    executeFileWrite(draftConnection(connection), scope, client, input);
 }
-export function useEditFile(
-  connection: FilesConnection | null,
-  scope: FilesScope,
-) {
+export function useEditFile(connection: Connection | null, scope: FilesScope) {
   const write = useFileWriter(connection, scope);
   const edit = asMutation(useMutation({ mutationFn: write }));
   return {
@@ -173,7 +178,7 @@ export function useEditFile(
 }
 
 export function useFileDraft(
-  connection: FilesConnection | null,
+  connection: Connection | null,
   scope: FilesScope,
   path: string,
   text: string,

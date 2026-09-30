@@ -1,17 +1,42 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { createContext, type ReactNode, useContext, useEffect } from 'react';
-import { workspaceContext, type WorkspaceContext } from './boot';
-import { onUnauthorized } from '../shared/api/unauthorized';
+import { onUnauthorized, reportUnauthorized } from '../shared/api/unauthorized';
 import {
-  type Connection,
+  remoteKey,
+  remoteLiveOpen,
   useAccessStore,
+  useRecheckRemote,
   useRemoteConnections,
+  useRemoteStatus,
+  type RemoteConnection,
 } from '@/features/access/index';
-import { retainedFileDrafts } from '@/shared/query/file-drafts';
+import { readGitReceipt } from '@/features/git-actions/index';
+import { hasUnsavedFileDrafts } from '@/shared/query/file-drafts';
 import { connectLiveQueries } from '@/shared/query/live-updates';
 import { desktopShell } from '@/shared/shell';
+import type {
+  Connection,
+  ConnectionContext,
+} from '@/shared/workspace/connection';
 
-const Context = createContext<{ local: WorkspaceContext | null } | null>(null);
+const Context = createContext<{ local: ConnectionContext | null } | null>(null);
+
+function RemoteLive({ remote }: { remote: RemoteConnection }) {
+  const queryClient = useQueryClient();
+  const status = useRemoteStatus(remote.remote);
+  const recheck = useRecheckRemote();
+  const open = remoteLiveOpen(status, desktopShell);
+  const { connection } = remote;
+  const saved = remote.remote;
+  useEffect(() => {
+    if (!open) return;
+    return connectLiveQueries(queryClient, connection, {
+      readReceipt: (request) => readGitReceipt(connection, request),
+      onUnauthorized: () => void recheck(saved),
+    });
+  }, [open, queryClient, connection, recheck, saved]);
+  return null;
+}
 
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
@@ -19,19 +44,12 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const remotes = useRemoteConnections();
   useEffect(() => {
     if (!connection) return;
-    const connections = [
-      connection,
-      ...remotes.map((remote) => remote.connection),
+    const environments = [
+      connection.environmentId,
+      ...remotes.map((remote) => remote.remote.environmentId),
     ];
     const leaving = (event: BeforeUnloadEvent) => {
-      if (
-        connections.some((open) =>
-          [...retainedFileDrafts(open).values()].some((draft) => {
-            const state = draft.snapshot();
-            return state.saving || state.text !== state.savedText;
-          }),
-        )
-      ) {
+      if (hasUnsavedFileDrafts(environments)) {
         event.preventDefault();
         event.returnValue = '';
       }
@@ -41,25 +59,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   }, [connection, remotes]);
   useEffect(() => {
     if (!connection) return;
-    return connectLiveQueries(
-      workspaceContext(connection).api,
-      queryClient,
-      connection,
-    );
+    return connectLiveQueries(queryClient, connection, {
+      readReceipt: (request) => readGitReceipt(connection, request),
+      onUnauthorized: reportUnauthorized,
+    });
   }, [connection, queryClient]);
-  useEffect(() => {
-    if (!connection || !desktopShell) return;
-    const stops = remotes.map((remote) =>
-      connectLiveQueries(
-        workspaceContext(remote.connection).api,
-        queryClient,
-        remote.connection,
-      ),
-    );
-    return () => {
-      for (const stop of stops) stop();
-    };
-  }, [connection, remotes, queryClient]);
   useEffect(
     () =>
       onUnauthorized(() => {
@@ -70,9 +74,12 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     [queryClient],
   );
   return (
-    <Context
-      value={{ local: connection ? workspaceContext(connection) : null }}
-    >
+    <Context value={{ local: connection ? { connection } : null }}>
+      {connection &&
+        desktopShell &&
+        remotes.map((remote) => (
+          <RemoteLive key={remoteKey(remote.remote)} remote={remote} />
+        ))}
       {children}
     </Context>
   );
@@ -84,9 +91,9 @@ function useLocalContext() {
   return context.local;
 }
 
-export function useConnectedContext(remote?: Connection) {
+export function useConnectedContext(remote?: Connection): ConnectionContext {
   const local = useLocalContext();
-  if (remote) return workspaceContext(remote);
+  if (remote) return { connection: remote };
   if (!local) throw new Error('A connected environment is required');
   return local;
 }

@@ -13,9 +13,7 @@ import {
   EmptyTitle,
 } from '@/components/ui/empty';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { useRemoteConnections } from '@/features/access/index';
-import { desktopShell } from '@/shared/shell';
-import type { ProjectConnection } from '../rules/connection';
+import type { RemoteConnection } from '@/features/access/index';
 import type { Inventory, WorktreeTarget } from '../rules/inventory';
 import { MachineSection } from './machine-section';
 import { RemoteMachine } from './remote-machine';
@@ -23,10 +21,12 @@ import { RemoveProjectDialog } from './remove-project-dialog';
 import { RenameProjectDialog } from './rename-project-dialog';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
 import { ProjectSection } from './project-section';
+import { type Connection } from '@/shared/workspace/connection';
 
 type Props = {
   inventory: Inventory;
-  connection: ProjectConnection;
+  connection: Connection;
+  remotes: readonly RemoteConnection[] | undefined;
   selected: Pick<WorktreeTarget, 'remote' | 'worktreeId'> | undefined;
   onSelect: (target: WorktreeTarget) => void;
   onOpenProject: () => void;
@@ -38,6 +38,7 @@ type Props = {
 export function ProjectNavigator({
   inventory,
   connection,
+  remotes,
   selected,
   onSelect: select,
   onOpenProject: openProject,
@@ -46,7 +47,6 @@ export function ProjectNavigator({
   onOpenShortcuts: openShortcuts,
 }: Props) {
   const projects = inventory.projects;
-  const remotes = useRemoteConnections();
   const selectedOn = (remote: string | null) =>
     selected?.remote === remote ? selected.worktreeId : undefined;
   const local =
@@ -101,7 +101,7 @@ export function ProjectNavigator({
 
       <ScrollArea className="h-0 min-h-0 flex-1">
         <div className="p-2">
-          {desktopShell ? (
+          {remotes ? (
             <>
               <MachineSection name="This computer" icon={MonitorIcon}>
                 {local}

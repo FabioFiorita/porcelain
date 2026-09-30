@@ -9,9 +9,10 @@ import {
 } from '@/components/ui/empty';
 import { worktreeLabel } from '@/features/projects/index';
 import { useHistory } from '../queries/history';
-import type { HistoryConnection, HistoryScope } from '../rules/connection';
+import type { HistoryScope } from '../rules/connection';
 import { historyFollows } from '../rules/graph';
 import { HistoryRows } from './history-rows';
+import { type Connection } from '@/shared/workspace/connection';
 
 export function HistoryNavigation({
   scope,
@@ -21,7 +22,7 @@ export function HistoryNavigation({
   onOpenGraph,
 }: {
   scope: HistoryScope;
-  connection: HistoryConnection;
+  connection: Connection;
   selected: string;
   onSelect: (oid: string) => void;
   onOpenGraph: () => void;

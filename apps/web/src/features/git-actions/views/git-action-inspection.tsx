@@ -26,8 +26,7 @@ import {
 import type { GitActionStatus } from '../rules/status';
 import { CommitForm } from './commit-form';
 import { GitActionError } from './git-action-message';
-
-type GitContext = Parameters<typeof useActionForm>[2];
+import { type ConnectionContext } from '@/shared/workspace/connection';
 
 export function GitActionInspection({
   scope,
@@ -38,7 +37,7 @@ export function GitActionInspection({
   onLookAgain,
 }: {
   scope: GitScope;
-  context: GitContext;
+  context: ConnectionContext;
   entry: GitAction;
   status: GitActionStatus;
   onBusy: (busy: boolean) => void;
@@ -84,7 +83,7 @@ function CommitActionForm({
   onLookAgain,
 }: {
   scope: GitScope;
-  context: GitContext;
+  context: ConnectionContext;
   action: 'commit' | 'amend';
   status: GitActionStatus;
   onBusy: (busy: boolean) => void;
@@ -155,7 +154,7 @@ function StashActionForm({
   onLookAgain,
 }: {
   scope: GitScope;
-  context: GitContext;
+  context: ConnectionContext;
   action: FormAction;
   status: GitActionStatus;
   onBusy: (busy: boolean) => void;
@@ -195,7 +194,7 @@ function ActionForm({
   onLookAgain,
 }: {
   scope: GitScope;
-  context: GitContext;
+  context: ConnectionContext;
   action: FormAction;
   status: GitActionStatus;
   expectedStatus?: GitActionStatus;

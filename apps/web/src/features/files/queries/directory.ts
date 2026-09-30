@@ -4,13 +4,14 @@ import {
   useSuspenseQuery,
 } from '@tanstack/react-query';
 import { filesApi } from '../api';
-import type { FilesConnection, FilesScope } from '../rules/scope';
+import type { FilesScope } from '../rules/scope';
+import { type Connection } from '@/shared/workspace/connection';
 
 function directoryQueryOptions(
   environmentId: string,
   scope: FilesScope,
   path: string,
-  connection: FilesConnection,
+  connection: Connection,
 ) {
   return queryOptions({
     queryKey: [
@@ -35,7 +36,7 @@ function directoryQueryOptions(
 }
 
 export function useDirectory(
-  connection: FilesConnection | null,
+  connection: Connection | null,
   scope: FilesScope,
   path: string,
 ) {
@@ -46,7 +47,7 @@ export function useDirectory(
 }
 
 export function useDirectories(
-  connection: FilesConnection | null,
+  connection: Connection | null,
   scope: FilesScope,
   paths: readonly string[],
 ) {

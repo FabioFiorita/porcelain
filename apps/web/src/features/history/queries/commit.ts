@@ -1,13 +1,14 @@
 import { queryOptions, useSuspenseQuery } from '@tanstack/react-query';
 import { historyApi } from '../api';
-import type { HistoryConnection, HistoryScope } from '../rules/connection';
+import type { HistoryScope } from '../rules/connection';
+import { type Connection } from '@/shared/workspace/connection';
 
 function commitQueryOptions(
   environmentId: string,
   scope: HistoryScope,
   oid: string,
   parent: number,
-  connection: HistoryConnection,
+  connection: Connection,
 ) {
   return queryOptions({
     queryKey: [
@@ -36,7 +37,7 @@ function commitQueryOptions(
 }
 
 export function useCommit(
-  connection: HistoryConnection | null,
+  connection: Connection | null,
   scope: HistoryScope,
   oid: string,
   parent = 1,

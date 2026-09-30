@@ -1,11 +1,11 @@
 import { queryOptions, useSuspenseQuery } from '@tanstack/react-query';
-import type { ProjectConnection } from '../rules/connection';
 import { projectsApi } from '../api';
+import { type Connection } from '@/shared/workspace/connection';
 
 export function filePreferencesQueryOptions(
   environmentId: string,
   projectId: string,
-  connection: ProjectConnection,
+  connection: Connection,
 ) {
   return queryOptions({
     queryKey: ['review', environmentId, projectId, 'file-preferences'],
@@ -22,7 +22,7 @@ export function filePreferencesQueryOptions(
 }
 
 export function useHiddenPaths(
-  connection: ProjectConnection | null,
+  connection: Connection | null,
   projectId: string,
 ): ReadonlySet<string> {
   if (!connection) throw new Error('A connected environment is required');
@@ -41,7 +41,7 @@ export function useHiddenPaths(
 }
 
 export function usePinnedPaths(
-  connection: ProjectConnection | null,
+  connection: Connection | null,
   projectId: string,
 ): readonly string[] {
   if (!connection) throw new Error('A connected environment is required');

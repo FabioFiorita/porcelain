@@ -6,7 +6,8 @@ import {
 } from '@tanstack/react-query';
 import { discardRejection } from '@/shared/lib/submit-form';
 import { historyApi } from '../api';
-import type { HistoryConnection, HistoryScope } from '../rules/connection';
+import type { HistoryScope } from '../rules/connection';
+import { type Connection } from '@/shared/workspace/connection';
 
 type Continuation = { after: string[]; tip: string };
 
@@ -28,7 +29,7 @@ function selectHistory(
 function historyQueryOptions(
   environmentId: string,
   scope: HistoryScope,
-  connection: HistoryConnection,
+  connection: Connection,
 ) {
   return infiniteQueryOptions<
     ListCommitsResponse,
@@ -66,10 +67,7 @@ function historyQueryOptions(
   });
 }
 
-export function useHistory(
-  connection: HistoryConnection | null,
-  scope: HistoryScope,
-) {
+export function useHistory(connection: Connection | null, scope: HistoryScope) {
   if (!connection) throw new Error('A connected environment is required');
   const query = useSuspenseInfiniteQuery(
     historyQueryOptions(connection.environmentId, scope, connection),

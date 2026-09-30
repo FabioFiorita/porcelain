@@ -1,12 +1,13 @@
 import { queryOptions, useSuspenseQuery } from '@tanstack/react-query';
 import { historyApi } from '../api';
-import type { HistoryConnection, HistoryScope } from '../rules/connection';
+import type { HistoryScope } from '../rules/connection';
+import { type Connection } from '@/shared/workspace/connection';
 
 function fileTimelineQueryOptions(
   environmentId: string,
   scope: HistoryScope,
   path: string,
-  connection: HistoryConnection,
+  connection: Connection,
 ) {
   return queryOptions({
     queryKey: [
@@ -34,7 +35,7 @@ function fileTimelineQueryOptions(
 }
 
 export function useFileTimeline(
-  connection: HistoryConnection | null,
+  connection: Connection | null,
   scope: HistoryScope,
   path: string,
 ) {

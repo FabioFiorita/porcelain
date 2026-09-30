@@ -30,8 +30,8 @@ import {
 import { requestJson } from '@/shared/api/request';
 import type { CommentsPort } from './rules/comments';
 import type { ReviewRange, ReviewsPort } from './rules/reviewed';
-export type { CommentsPort } from './rules/comments';
-export type { ReviewsPort } from './rules/reviewed';
+import { perConnection } from '@/shared/api/per-connection';
+import type { Transport } from '@/shared/api/transport';
 
 function worktreePath(worktreeId: string) {
   return `/api/worktrees/${encodeURIComponent(worktreeId)}`;
@@ -54,7 +54,7 @@ function json(body: unknown) {
   };
 }
 
-export function createCommentsLive(transport: typeof fetch): CommentsPort {
+function createCommentsApi(transport: Transport): CommentsPort {
   const path = (worktreeId: string) => `${worktreePath(worktreeId)}/comments`;
   const threadPath = (worktreeId: string, threadId: string) =>
     `${path(worktreeId)}/${encodeURIComponent(threadId)}`;
@@ -146,7 +146,7 @@ export function createCommentsLive(transport: typeof fetch): CommentsPort {
   };
 }
 
-export function createReviewsLive(transport: typeof fetch): ReviewsPort {
+function createReviewsApi(transport: Transport): ReviewsPort {
   const reviewed = (worktreeId: string) =>
     `${worktreePath(worktreeId)}/reviewed`;
   const layers = (worktreeId: string) =>
@@ -267,3 +267,6 @@ export function createReviewsLive(transport: typeof fetch): ReviewsPort {
     },
   };
 }
+
+export const commentsApi = perConnection(createCommentsApi);
+export const reviewsApi = perConnection(createReviewsApi);

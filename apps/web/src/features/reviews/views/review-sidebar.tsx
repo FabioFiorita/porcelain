@@ -20,11 +20,10 @@ import {
   isSurface,
   type Surface,
 } from '@/shared/workspace/search';
-import type { ReviewsContext } from '../rules/reviewed';
 import { ReviewBoundary } from './review-boundary';
-import type { DocumentContext } from './code-document';
 import { ReviewEmpty } from './review-empty';
 import { ReviewIndex } from './review-index';
+import { type ConnectionContext } from '@/shared/workspace/connection';
 
 type ChangesScope = {
   scope: ChangeScope;
@@ -45,7 +44,7 @@ export function ReviewSidebar({
   changes,
 }: {
   scope: ReviewScope;
-  context: DocumentContext;
+  context: ConnectionContext;
   worktreePath: string;
   surface: Surface;
   activeEntry: string | undefined;
@@ -128,7 +127,7 @@ function ChangesSurfaceLabel({
   context,
 }: {
   scope: ReviewScope;
-  context: ReviewsContext;
+  context: ConnectionContext;
 }) {
   const hasReview = useHasReviewLayers(scope, context) === true;
   const Icon = hasReview ? ListChecksIcon : FileDiffIcon;
@@ -151,7 +150,7 @@ function SidebarSurface({
   changes,
 }: {
   scope: ReviewScope;
-  context: DocumentContext;
+  context: ConnectionContext;
   worktreePath: string;
   surface: Surface;
   activeEntry: string | undefined;

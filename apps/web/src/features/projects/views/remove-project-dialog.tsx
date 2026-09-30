@@ -13,13 +13,13 @@ import { Spinner } from '@/components/ui/spinner';
 import { connectionErrorMessage } from '@/features/access/index';
 import { useRemoveProject } from '../commands/remove-project';
 import { removeProjectDialog } from '../overlays';
-import type { ProjectConnection } from '../rules/connection';
 import { projectPath, type Project } from '../rules/inventory';
+import { type Connection } from '@/shared/workspace/connection';
 
 export function RemoveProjectDialog({
   connection,
 }: {
-  connection: ProjectConnection;
+  connection: Connection;
 }) {
   const remove = useRemoveProject(connection, () =>
     removeProjectDialog.close(),

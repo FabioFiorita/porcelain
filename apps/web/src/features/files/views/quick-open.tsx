@@ -6,12 +6,13 @@ import {
   CommandItem,
   CommandList,
 } from '@/components/ui/command';
-import type { FilesConnection, FilesScope } from '../rules/scope';
+import type { FilesScope } from '../rules/scope';
 import { useWorktreePaths } from '../queries/paths';
 import { quickOpenDialog, quickOpenOperations } from '../overlays';
 import { useQuickOpenActions } from '../commands/quick-open';
 import { useQuickOpenShortcut } from '../adapters/quick-open-shortcut';
 import { quickOpenMatches } from '../rules/quick-open';
+import { type Connection } from '@/shared/workspace/connection';
 
 export function QuickOpen({
   scope,
@@ -19,7 +20,7 @@ export function QuickOpen({
   onOpen,
 }: {
   scope: FilesScope;
-  connection: FilesConnection;
+  connection: Connection;
   onOpen: (path: string) => void;
 }) {
   const { query, setQuery, toggle, select } = useQuickOpenActions(

@@ -9,7 +9,6 @@ import { queryKeys } from '@/shared/query/keys';
 import { asMutation } from '@/shared/query/mutation';
 import { commentsQueryOptions } from '../queries/comments';
 import type {
-  CommentsContext,
   CommentThread,
   DeleteCommentInput,
   ConfirmedThreads,
@@ -19,11 +18,13 @@ import type {
   ResolveCommentInput,
 } from '../rules/comments';
 import type { ReviewScope } from '../rules/review';
+import { type ConnectionContext } from '@/shared/workspace/connection';
+import { commentsApi } from '../api';
 
-function commentContext(scope: ReviewScope, context: CommentsContext) {
-  const { api, connection } = context;
+function commentContext(scope: ReviewScope, context: ConnectionContext) {
+  const { connection } = context;
   return {
-    api: api.comments,
+    api: commentsApi(connection),
     key: commentsQueryOptions(scope, context).queryKey,
     connection,
     request: (signal?: AbortSignal) => ({
@@ -105,7 +106,7 @@ function withSend<TData, TVariables>(
 
 export function useMarkCommentsSeen(
   scope: ReviewScope,
-  comments: CommentsContext,
+  comments: ConnectionContext,
 ) {
   const context = commentContext(scope, comments);
   const client = useQueryClient();
@@ -125,7 +126,7 @@ export function useMarkCommentsSeen(
 }
 export function useCreateComment(
   scope: ReviewScope,
-  comments: CommentsContext,
+  comments: ConnectionContext,
 ) {
   const context = commentContext(scope, comments);
   const client = useQueryClient();
@@ -145,7 +146,10 @@ export function useCreateComment(
   return { ...create, bodyLimit: COMMENT_BODY_LENGTH };
 }
 
-export function useReplyComment(scope: ReviewScope, comments: CommentsContext) {
+export function useReplyComment(
+  scope: ReviewScope,
+  comments: ConnectionContext,
+) {
   const context = commentContext(scope, comments);
   const client = useQueryClient();
   const reply = withSend(
@@ -175,7 +179,7 @@ export function useReplyComment(scope: ReviewScope, comments: CommentsContext) {
 
 export function useResolveComment(
   scope: ReviewScope,
-  comments: CommentsContext,
+  comments: ConnectionContext,
 ) {
   const context = commentContext(scope, comments);
   const client = useQueryClient();
@@ -198,7 +202,10 @@ export function useResolveComment(
   );
 }
 
-export function useEditComment(scope: ReviewScope, comments: CommentsContext) {
+export function useEditComment(
+  scope: ReviewScope,
+  comments: ConnectionContext,
+) {
   const context = commentContext(scope, comments);
   const client = useQueryClient();
   const edit = withSend(
@@ -219,7 +226,7 @@ export function useEditComment(scope: ReviewScope, comments: CommentsContext) {
 
 export function useDeleteComment(
   scope: ReviewScope,
-  comments: CommentsContext,
+  comments: ConnectionContext,
 ) {
   const context = commentContext(scope, comments);
   const client = useQueryClient();
@@ -249,7 +256,7 @@ export function useDeleteComment(
 
 export function useDeleteResolvedComments(
   scope: ReviewScope,
-  comments: CommentsContext,
+  comments: ConnectionContext,
 ) {
   const context = commentContext(scope, comments);
   const client = useQueryClient();

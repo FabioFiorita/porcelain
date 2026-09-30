@@ -1,7 +1,8 @@
 import { assetUrl } from '@/features/files/rules/html-assets';
-import type { FilesConnection, FilesScope } from '../rules/scope';
+import type { FilesScope } from '../rules/scope';
 import { useAsset } from '@/features/files/queries/preview-assets';
 import { fileErrorMessage } from '../rules/error-message';
+import { type Connection } from '@/shared/workspace/connection';
 
 export function ImagePreview({
   scope,
@@ -10,7 +11,7 @@ export function ImagePreview({
 }: {
   scope: FilesScope;
   path: string;
-  connection: FilesConnection;
+  connection: Connection;
 }) {
   const query = useAsset(connection, scope, path);
   return (

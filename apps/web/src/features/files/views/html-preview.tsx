@@ -1,7 +1,8 @@
-import type { FilesConnection, FilesScope } from '../rules/scope';
+import type { FilesScope } from '../rules/scope';
 import { useHtmlPreview } from '@/features/files/queries/preview-assets';
 import { fileErrorMessage } from '../rules/error-message';
 import { HtmlFrame } from './html-frame';
+import { type Connection } from '@/shared/workspace/connection';
 
 export function HtmlPreview({
   scope,
@@ -12,7 +13,7 @@ export function HtmlPreview({
   scope: FilesScope;
   path: string;
   html: string;
-  connection: FilesConnection;
+  connection: Connection;
 }) {
   const preview = useHtmlPreview(connection, scope, path, html);
   if (preview.isPending)

@@ -25,13 +25,13 @@ import {
   type ReviewableItem,
   reviewedControlLabel,
   type ReviewRange,
-  type ReviewsContext,
   WORKTREE_RANGE,
 } from '../rules/reviewed';
+import { type ConnectionContext } from '@/shared/workspace/connection';
 
 export function fileReviewControl(
   scope: ReviewScope,
-  context: ReviewsContext,
+  context: ConnectionContext,
   item: ReviewChangeItem,
 ) {
   return {
@@ -63,7 +63,7 @@ export function ReviewedControl({
   range = WORKTREE_RANGE,
 }: {
   scope: ReviewScope;
-  context: ReviewsContext;
+  context: ConnectionContext;
   path: string;
   fingerprint: string | null | undefined;
   status: ReviewStatus;
@@ -141,7 +141,7 @@ export function MarkAllReviewed({
   range = WORKTREE_RANGE,
 }: {
   scope: ReviewScope;
-  context: ReviewsContext;
+  context: ConnectionContext;
   entries: readonly ReviewableItem[];
   compact?: boolean;
   kind?: 'all' | 'layer';

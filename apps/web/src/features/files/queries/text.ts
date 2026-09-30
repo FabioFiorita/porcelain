@@ -4,13 +4,14 @@ import {
   useSuspenseQuery,
 } from '@tanstack/react-query';
 import { filesApi, unreadableFileReason } from '../api';
-import type { FilesConnection, FilesScope } from '../rules/scope';
+import type { FilesScope } from '../rules/scope';
+import { type Connection } from '@/shared/workspace/connection';
 
 function textQueryOptions(
   environmentId: string,
   scope: FilesScope,
   path: string,
-  connection: FilesConnection,
+  connection: Connection,
 ) {
   return queryOptions({
     queryKey: [
@@ -47,7 +48,7 @@ function textQueryOptions(
 }
 
 export function useTextFile(
-  connection: FilesConnection | null,
+  connection: Connection | null,
   scope: FilesScope,
   path: string,
   _active: boolean,
@@ -59,7 +60,7 @@ export function useTextFile(
 }
 
 export function useTextContents(
-  connection: FilesConnection | null,
+  connection: Connection | null,
   scope: FilesScope,
   paths: readonly string[],
 ) {

@@ -1,13 +1,14 @@
 import { queryOptions, useQuery } from '@tanstack/react-query';
 import { inlineHtmlAssets } from '../rules/html-assets';
 import { filesApi } from '../api';
-import type { FilesConnection, FilesScope } from '../rules/scope';
+import type { FilesScope } from '../rules/scope';
+import { type Connection } from '@/shared/workspace/connection';
 
 function assetQueryOptions(
   environmentId: string,
   scope: FilesScope,
   path: string,
-  connection: FilesConnection,
+  connection: Connection,
 ) {
   return queryOptions({
     queryKey: [
@@ -32,7 +33,7 @@ function assetQueryOptions(
 }
 
 export function useAsset(
-  connection: FilesConnection | null,
+  connection: Connection | null,
   scope: FilesScope,
   path: string,
 ) {
@@ -47,7 +48,7 @@ function htmlPreviewQueryOptions(
   scope: FilesScope,
   path: string,
   html: string,
-  connection: FilesConnection,
+  connection: Connection,
 ) {
   return queryOptions({
     queryKey: [
@@ -82,7 +83,7 @@ function htmlPreviewQueryOptions(
 }
 
 export function useHtmlPreview(
-  connection: FilesConnection | null,
+  connection: Connection | null,
   scope: FilesScope,
   path: string,
   html: string,

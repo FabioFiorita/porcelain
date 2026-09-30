@@ -4,13 +4,7 @@ import {
   useHotkey,
 } from '@tanstack/react-hotkeys';
 import { PanelRightIcon, LayersIcon as ReviewLayersIcon } from 'lucide-react';
-import {
-  type ComponentProps,
-  type ReactNode,
-  type RefObject,
-  useRef,
-  useState,
-} from 'react';
+import { type ReactNode, type RefObject, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Empty,
@@ -53,15 +47,13 @@ import { usePublishedReview } from '../queries/published-review';
 import { anchorBase, type RevealComment } from '../rules/comments';
 import { entryKey, type OpenDocument, parseEntry } from '../rules/documents';
 import type { ReviewLayer } from '../rules/review';
-import type { DocumentContext } from './code-document';
 import { DocumentTabs } from './document-tabs';
 import { DocumentView } from './documents';
 import { ReviewBoundary } from './review-boundary';
 import { ReviewSidebar } from './review-sidebar';
+import { type ConnectionContext } from '@/shared/workspace/connection';
 
 type Worktree = Project['worktrees'][number];
-type WorkspaceContext = DocumentContext &
-  ComponentProps<typeof GitButton>['context'];
 
 export function ReviewWorkspace({
   worktree,
@@ -73,7 +65,7 @@ export function ReviewWorkspace({
 }: {
   worktree: Worktree;
   projectId: string;
-  context: WorkspaceContext;
+  context: ConnectionContext;
   search: WorkspaceSearch;
   onSearch: SetWorkspaceSearch;
   navigationTrigger: RefObject<HTMLButtonElement | null>;
@@ -276,7 +268,7 @@ function DocumentArea({
   tabControls,
 }: {
   scope: { projectId: string; worktreeId: string };
-  context: WorkspaceContext;
+  context: ConnectionContext;
   worktreeId: string;
   entry: string | undefined;
   side: string | undefined;
@@ -389,7 +381,7 @@ function PaneView({
 }: {
   index: PaneIndex;
   base: string | undefined;
-  context: WorkspaceContext;
+  context: ConnectionContext;
   layout: ReturnType<typeof useTabLayout>;
   split: boolean;
   focused: boolean;

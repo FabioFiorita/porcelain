@@ -28,8 +28,8 @@ import {
   type RemoteAccess,
   type RemoteRoute,
   type RemoteRouteName,
-  type ShareConnection,
 } from '../rules/share';
+import { type Connection } from '@/shared/workspace/connection';
 
 const descriptions: Record<RemoteRouteName, string> = {
   lan: 'Phones and computers on the same Wi-Fi or wired network as this computer, on that one network only.',
@@ -347,7 +347,7 @@ export function RemoteRoutes({
   connection,
   remote,
 }: {
-  connection: ShareConnection;
+  connection: Connection;
   remote: RemoteAccess;
 }) {
   const change = useSetRemoteAccess(connection);

@@ -20,13 +20,13 @@ import {
   useRenameProject,
 } from '../commands/rename-project';
 import { renameProjectDialog } from '../overlays';
-import type { ProjectConnection } from '../rules/connection';
 import { projectPath, type Project } from '../rules/inventory';
+import { type Connection } from '@/shared/workspace/connection';
 
 export function RenameProjectDialog({
   connection,
 }: {
-  connection: ProjectConnection;
+  connection: Connection;
 }) {
   const rename = useRenameProject(connection, () =>
     renameProjectDialog.close(),

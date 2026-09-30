@@ -4,9 +4,10 @@ import {
   SERVICE_UPDATE_POLL_MS,
 } from '@/config/limits';
 import { shareApi } from '../api';
-import { routesSettling, type ShareConnection } from '../rules/share';
+import { routesSettling } from '../rules/share';
+import { type Connection } from '@/shared/workspace/connection';
 
-export function pairedAccessQueryOptions(connection: ShareConnection) {
+export function pairedAccessQueryOptions(connection: Connection) {
   return queryOptions({
     queryKey: ['paired-access', connection.environmentId],
     queryFn: ({ signal }) =>
@@ -14,7 +15,7 @@ export function pairedAccessQueryOptions(connection: ShareConnection) {
   });
 }
 
-export function remoteAccessQueryOptions(connection: ShareConnection) {
+export function remoteAccessQueryOptions(connection: Connection) {
   return queryOptions({
     queryKey: ['remote-access', connection.environmentId],
     queryFn: ({ signal }) =>
@@ -24,11 +25,11 @@ export function remoteAccessQueryOptions(connection: ShareConnection) {
   });
 }
 
-export function usePairedAccess(connection: ShareConnection) {
+export function usePairedAccess(connection: Connection) {
   return useQuery(pairedAccessQueryOptions(connection));
 }
 
-export function useRemoteAccess(connection: ShareConnection) {
+export function useRemoteAccess(connection: Connection) {
   const query = useQuery(remoteAccessQueryOptions(connection));
   return {
     data: query.data,
@@ -38,7 +39,7 @@ export function useRemoteAccess(connection: ShareConnection) {
   };
 }
 
-export function serviceUpdateQueryOptions(connection: ShareConnection) {
+export function serviceUpdateQueryOptions(connection: Connection) {
   return queryOptions({
     queryKey: ['service-update', connection.environmentId],
     queryFn: ({ signal }) =>
@@ -49,7 +50,7 @@ export function serviceUpdateQueryOptions(connection: ShareConnection) {
   });
 }
 
-export function useServiceUpdate(connection: ShareConnection) {
+export function useServiceUpdate(connection: Connection) {
   const query = useQuery(serviceUpdateQueryOptions(connection));
   return {
     data: query.data,

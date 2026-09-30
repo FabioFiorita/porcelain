@@ -1,6 +1,7 @@
 import { createFileRoute, Navigate } from '@tanstack/react-router';
 import {
   useRemoteConnection,
+  useRemoteStatus,
   type RemoteConnection,
 } from '@/features/access/index';
 import {
@@ -25,13 +26,23 @@ export const Route = createFileRoute(
   component: RemoteWorktreeLayout,
 });
 
+type Shown = {
+  remote: RemoteConnection;
+  projectId: string;
+  worktreeId: string;
+  search: WorkspaceSearch;
+};
+
 function RemoteWorktreeLayout() {
   const { environmentId, projectId, worktreeId } = Route.useParams();
   const search = Route.useSearch();
   const remote = useRemoteConnection(environmentId);
-  if (!desktopShell || !remote) return <Navigate to="/" replace />;
+  if (!desktopShell || !remote)
+    return (
+      <Navigate to="/" search={{ ...search, worktree: worktreeId }} replace />
+    );
   return (
-    <RemoteWorktree
+    <RemoteStatusGate
       key={environmentId}
       remote={remote}
       projectId={projectId}
@@ -41,19 +52,25 @@ function RemoteWorktreeLayout() {
   );
 }
 
-function RemoteWorktree({
-  remote,
-  projectId,
-  worktreeId,
-  search,
-}: {
-  remote: RemoteConnection;
-  projectId: string;
-  worktreeId: string;
-  search: WorkspaceSearch;
-}) {
+function RemoteStatusGate(shown: Shown) {
+  const status = useRemoteStatus(shown.remote.remote);
+  if (status.kind === 'checking') return <WorkspacePending />;
+  if (status.kind !== 'online')
+    return <ConnectedWorkspace remote={shown.remote} unavailable={status} />;
+  return <RemoteWorktree {...shown} />;
+}
+
+function RemoteWorktree({ remote, projectId, worktreeId, search }: Shown) {
   const inventory = useInventory(remote.connection);
   const selection = selectedWorktreeInProject(inventory, worktreeId);
-  if (selection?.projectId !== projectId) return <Navigate to="/" replace />;
-  return <ConnectedWorkspace review={{ selection, search }} remote={remote} />;
+  if (selection?.projectId !== projectId)
+    return (
+      <Navigate to="/" search={{ ...search, worktree: worktreeId }} replace />
+    );
+  return (
+    <ConnectedWorkspace
+      review={{ selection, search, inventory }}
+      remote={remote}
+    />
+  );
 }

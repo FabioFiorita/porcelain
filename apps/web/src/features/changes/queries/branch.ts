@@ -5,16 +5,15 @@ import { queryKeys } from '@/shared/query/keys';
 import { changesApi } from '../api';
 import type { BranchRange } from '../rules/branch';
 import { consecutiveBatches } from '../rules/diff-batches';
+import { type ChangesScope, type DiffContent } from '../rules/changes';
 import {
-  requireChangesConnection,
-  type ChangesConnection,
-  type ChangesScope,
-  type DiffContent,
-} from '../rules/changes';
+  type Connection,
+  requireConnection,
+} from '@/shared/workspace/connection';
 
 function branchChangesQueryOptions(
   scope: ChangesScope,
-  connection: ChangesConnection,
+  connection: Connection,
   base: string | undefined,
 ) {
   return queryOptions({
@@ -39,24 +38,20 @@ function branchChangesQueryOptions(
 
 export function useBranchChanges(
   scope: ChangesScope,
-  connection: ChangesConnection | null,
+  connection: Connection | null,
   base: string | undefined,
 ) {
   return useQuery(
-    branchChangesQueryOptions(
-      scope,
-      requireChangesConnection(connection),
-      base,
-    ),
+    branchChangesQueryOptions(scope, requireConnection(connection), base),
   );
 }
 
 export function useBranchBases(
   scope: ChangesScope,
-  connection: ChangesConnection | null,
+  connection: Connection | null,
   enabled: boolean,
 ) {
-  const connected = requireChangesConnection(connection);
+  const connected = requireConnection(connection);
   return useQuery({
     queryKey: queryKeys.reviewSurface(connected.environmentId, scope, [
       'branch-bases',
@@ -76,11 +71,11 @@ export function useBranchBases(
 
 export function useBranchDiffs(
   scope: ChangesScope,
-  connection: ChangesConnection | null,
+  connection: Connection | null,
   range: BranchRange | null,
   paths: readonly (readonly string[])[],
 ) {
-  const connected = requireChangesConnection(connection);
+  const connected = requireConnection(connection);
   const read = useBatchedReads({
     batches: range ? consecutiveBatches(paths, DIFF_WINDOW_FILES) : [],
     key: (batch) =>

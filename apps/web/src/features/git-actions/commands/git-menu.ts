@@ -2,7 +2,6 @@ import type {
   ReadChangesResponse,
   ReadGitStatusResponse,
 } from '@porcelain/contracts/changes';
-import type { GitContext } from '../api';
 import type { ActionInput, GitScope } from '../rules/git-action';
 import {
   expectationFor,
@@ -20,6 +19,7 @@ import {
 import { type GitActionStatus, statusFromChanges } from '../rules/status';
 import { restoreStash } from './restore-stash';
 import { useGitAction } from './run-action';
+import { type ConnectionContext } from '@/shared/workspace/connection';
 
 type DiscardedItem = { oid: string; path: string; kind: 'hunk' | 'rename' };
 
@@ -128,7 +128,7 @@ async function restoreDiscarded(
 
 export function useGitMenu(
   scope: GitScope,
-  context: GitContext,
+  context: ConnectionContext,
   menu: Menu & {
     refreshLook: () => Promise<ReadChangesResponse>;
     onLooked: (status: GitActionStatus) => void;

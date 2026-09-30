@@ -7,9 +7,10 @@ import {
   remoteAccessQueryOptions,
   serviceUpdateQueryOptions,
 } from '../queries/share';
-import { issuedLink, type ShareConnection } from '../rules/share';
+import { issuedLink } from '../rules/share';
+import { type Connection } from '@/shared/workspace/connection';
 
-export function useIssuePairing(connection: ShareConnection) {
+export function useIssuePairing(connection: Connection) {
   const client = useQueryClient();
   const mutation = useMutation({
     scope: { id: `share:${connection.environmentId}` },
@@ -35,7 +36,7 @@ export function useIssuePairing(connection: ShareConnection) {
   };
 }
 
-export function useRevokeAccess(connection: ShareConnection) {
+export function useRevokeAccess(connection: Connection) {
   const client = useQueryClient();
   const mutation = useMutation({
     scope: { id: `share:${connection.environmentId}` },
@@ -53,7 +54,7 @@ export function useRevokeAccess(connection: ShareConnection) {
   };
 }
 
-export function useSetRemoteAccess(connection: ShareConnection) {
+export function useSetRemoteAccess(connection: Connection) {
   const client = useQueryClient();
   const key = remoteAccessQueryOptions(connection).queryKey;
   const mutation = useMutation({
@@ -72,7 +73,7 @@ export function useSetRemoteAccess(connection: ShareConnection) {
   };
 }
 
-export function useRenameEnvironment(connection: ShareConnection) {
+export function useRenameEnvironment(connection: Connection) {
   const client = useQueryClient();
   const mutation = useMutation({
     scope: { id: `environment-name:${connection.environmentId}` },
@@ -91,7 +92,7 @@ export function useRenameEnvironment(connection: ShareConnection) {
   };
 }
 
-export function useStartServiceUpdate(connection: ShareConnection) {
+export function useStartServiceUpdate(connection: Connection) {
   const client = useQueryClient();
   const key = serviceUpdateQueryOptions(connection).queryKey;
   const mutation = useMutation({

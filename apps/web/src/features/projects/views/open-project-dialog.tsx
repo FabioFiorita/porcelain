@@ -11,15 +11,15 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { connectionErrorMessage } from '@/features/access/index';
 import { useOpenProject } from '../commands/open-project';
 import { openProjectDialog } from '../overlays';
-import type { ProjectConnection } from '../rules/connection';
 import { ProjectDiscovery } from './project-discovery';
 import { ProjectFolderPicker } from './project-folder-picker';
+import { type Connection } from '@/shared/workspace/connection';
 
 export function OpenProjectDialog({
   connection,
   onOpened,
 }: {
-  connection: ProjectConnection;
+  connection: Connection;
   onOpened: (projectId: string, worktreeId: string) => Promise<void>;
 }) {
   const opening = useOpenProject(

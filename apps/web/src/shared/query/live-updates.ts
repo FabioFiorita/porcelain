@@ -1,30 +1,23 @@
 import type { LiveNotice } from '@porcelain/contracts/access';
 import type { RunGitActionResponse } from '@porcelain/contracts/git-actions';
 import type { QueryClient, QueryFilters } from '@tanstack/react-query';
-import type { LiveUpdatePort } from '@/shared/live/port';
+import type { Connection } from '@/shared/workspace/connection';
 import { reviewSurfaceFilters } from '@/shared/query/keys';
-import {
-  isTerminal,
-  type OperationStore,
-} from '@/shared/query/operation-store';
+import { isTerminal } from '@/shared/query/operation-store';
 
 type Receipt = RunGitActionResponse;
-type LiveApi = {
-  gitActions: {
-    receipt: (request: {
-      projectId: string;
-      worktreeId: string;
-      requestId: string;
-      signal: AbortSignal;
-    }) => Promise<Receipt>;
-  };
-  liveUpdates: LiveUpdatePort;
-};
-
-type Connection = {
-  environmentId: string;
-  controller: AbortController;
-  operations?: OperationStore;
+type LiveConnection = Pick<
+  Connection,
+  'environmentId' | 'controller' | 'operations' | 'liveUpdates'
+>;
+type LiveOptions = {
+  readReceipt: (request: {
+    projectId: string;
+    worktreeId: string;
+    requestId: string;
+    signal: AbortSignal;
+  }) => Promise<Receipt>;
+  onUnauthorized: () => void;
 };
 
 type Watched = { projectId: string; worktreeId: string; paths: Set<string> };
@@ -238,21 +231,20 @@ export async function applyLiveNotice(
 }
 
 export function connectLiveQueries(
-  api: LiveApi,
   client: QueryClient,
-  connection: Connection,
+  connection: LiveConnection,
+  { readReceipt, onUnauthorized }: LiveOptions,
 ) {
   const lifecycle = new AbortController();
   const recoverPending = () => {
-    for (const operation of connection.operations?.list() ?? []) {
+    for (const operation of connection.operations.list()) {
       if (operation.receipt && isTerminal(operation.receipt)) continue;
-      void api.gitActions
-        .receipt({
-          projectId: operation.projectId,
-          worktreeId: operation.worktreeId,
-          requestId: operation.requestId,
-          signal: connection.controller.signal,
-        })
+      void readReceipt({
+        projectId: operation.projectId,
+        worktreeId: operation.worktreeId,
+        requestId: operation.requestId,
+        signal: connection.controller.signal,
+      })
         .then(async (receipt) => {
           if (connection.controller.signal.aborted || lifecycle.signal.aborted)
             return;
@@ -266,12 +258,12 @@ export function connectLiveQueries(
             !connection.controller.signal.aborted &&
             !lifecycle.signal.aborted
           )
-            connection.operations?.accept(receipt);
+            connection.operations.accept(receipt);
         })
         .catch(() => {});
     }
   };
-  const live = api.liveUpdates.connect({
+  const live = connection.liveUpdates.connect({
     signal: AbortSignal.any([connection.controller.signal, lifecycle.signal]),
     onNotice: (notice) => {
       if (notice.type === 'ready') recoverPending();
@@ -282,22 +274,26 @@ export function connectLiveQueries(
             !connection.controller.signal.aborted &&
             !lifecycle.signal.aborted
           )
-            connection.operations?.accept(notice.receipt);
+            connection.operations.accept(notice.receipt);
         },
         () => recoverPending(),
       );
     },
     onReconnect: () => {
-      void client.invalidateQueries({ type: 'active' });
+      void client.invalidateQueries({
+        type: 'active',
+        predicate: (query) => query.queryKey[1] === connection.environmentId,
+      });
       recoverPending();
     },
+    onUnauthorized,
   });
   let queued = false;
   let sent = '';
   const send = () => {
     queued = false;
     const subscription = liveSubscription(client, connection.environmentId);
-    for (const operation of connection.operations?.list() ?? []) {
+    for (const operation of connection.operations.list()) {
       if (operation.receipt && isTerminal(operation.receipt)) continue;
       if (
         !subscription.worktrees.some(
@@ -323,7 +319,7 @@ export function connectLiveQueries(
     queueMicrotask(send);
   };
   const unsubscribe = client.getQueryCache().subscribe(changed);
-  const unsubscribeOperations = connection.operations?.subscribe(changed);
+  const unsubscribeOperations = connection.operations.subscribe(changed);
   changed();
   return () => {
     unsubscribe();

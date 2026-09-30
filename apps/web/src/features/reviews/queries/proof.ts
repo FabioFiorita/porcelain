@@ -1,14 +1,15 @@
 import { queryOptions, useQuery } from '@tanstack/react-query';
 import { queryKeys } from '@/shared/query/keys';
 import type { ReviewScope } from '../rules/review';
-import type { ReviewsContext } from '../rules/reviewed';
+import { type ConnectionContext } from '@/shared/workspace/connection';
+import { reviewsApi } from '../api';
 
 function proofFileQueryOptions(
   scope: ReviewScope,
-  context: ReviewsContext,
+  context: ConnectionContext,
   proofId: string,
 ) {
-  const { api, connection } = context;
+  const { connection } = context;
   return queryOptions({
     queryKey: queryKeys.reviewSurface(connection.environmentId, scope, [
       'proof',
@@ -16,7 +17,7 @@ function proofFileQueryOptions(
     ]),
     queryFn: async ({ signal }) => {
       const request = connection.request(signal);
-      const file = await api.reviews.proofFile({
+      const file = await reviewsApi(connection).proofFile({
         ...scope,
         ...request,
         proofId,
@@ -30,7 +31,7 @@ function proofFileQueryOptions(
 
 export function useProofFile(
   scope: ReviewScope,
-  context: ReviewsContext,
+  context: ConnectionContext,
   proofId: string,
 ) {
   return useQuery({

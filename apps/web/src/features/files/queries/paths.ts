@@ -1,11 +1,12 @@
 import { queryOptions, useQuery } from '@tanstack/react-query';
 import { filesApi } from '../api';
-import type { FilesConnection, FilesScope } from '../rules/scope';
+import type { FilesScope } from '../rules/scope';
+import { type Connection } from '@/shared/workspace/connection';
 
 function pathsQueryOptions(
   environmentId: string,
   scope: FilesScope,
-  connection: FilesConnection,
+  connection: Connection,
 ) {
   return queryOptions({
     queryKey: [
@@ -28,7 +29,7 @@ function pathsQueryOptions(
 }
 
 export function useWorktreePaths(
-  connection: FilesConnection | null,
+  connection: Connection | null,
   scope: FilesScope,
   enabled = true,
 ) {

@@ -14,9 +14,10 @@ import { Spinner } from '@/components/ui/spinner';
 import { useRevokeAccess } from '../commands/share';
 import { usePairedAccess } from '../queries/share';
 import { connectionErrorMessage } from '../rules/connection-error-message';
-import { deviceRouteTitles, type ShareConnection } from '../rules/share';
+import { deviceRouteTitles } from '../rules/share';
+import { type Connection } from '@/shared/workspace/connection';
 
-export function PairedDevices({ connection }: { connection: ShareConnection }) {
+export function PairedDevices({ connection }: { connection: Connection }) {
   const access = usePairedAccess(connection);
   const revoke = useRevokeAccess(connection);
   if (access.isPending) return <Spinner />;

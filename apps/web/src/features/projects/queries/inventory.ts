@@ -3,13 +3,13 @@ import {
   useQuery,
   useSuspenseQuery,
 } from '@tanstack/react-query';
-import type { ProjectConnection } from '../rules/connection';
 import { ConnectionError } from '@/shared/api/connection-error';
 import { projectsApi } from '../api';
+import { type Connection } from '@/shared/workspace/connection';
 
 export function inventoryQueryOptions(
   environmentId: string,
-  connection: ProjectConnection,
+  connection: Connection,
 ) {
   return queryOptions({
     queryKey: ['inventory', environmentId],
@@ -28,17 +28,14 @@ export function inventoryQueryOptions(
   });
 }
 
-export function useInventory(connection: ProjectConnection | null) {
+export function useInventory(connection: Connection | null) {
   if (!connection) throw new Error('A connected environment is required');
   return useSuspenseQuery(
     inventoryQueryOptions(connection.environmentId, connection),
   ).data;
 }
 
-export function useRemoteInventory(
-  connection: ProjectConnection,
-  enabled: boolean,
-) {
+export function useRemoteInventory(connection: Connection, enabled: boolean) {
   const query = useQuery({
     ...inventoryQueryOptions(connection.environmentId, connection),
     enabled,

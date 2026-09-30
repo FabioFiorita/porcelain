@@ -25,16 +25,17 @@ import type {
   ReviewScope,
   ReviewStep,
 } from '../rules/review';
-import { CodeDocument, type DocumentContext } from './code-document';
+import { CodeDocument } from './code-document';
 import { fileReviewControl } from './reviewed-control';
 import { DocumentToolbar } from './document-toolbar';
 import { ProofList } from './proof-list';
 import type { Graph } from './review-diagram';
 import { ReviewDiagram } from './lazy-review-diagram';
+import { type ConnectionContext } from '@/shared/workspace/connection';
 
 type LayerProps = {
   scope: ReviewScope;
-  context: DocumentContext;
+  context: ConnectionContext;
   interaction: DocumentInteraction;
   onOpen: OpenDocument;
 };

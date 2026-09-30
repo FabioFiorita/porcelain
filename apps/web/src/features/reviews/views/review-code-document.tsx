@@ -27,11 +27,11 @@ import {
   type ReviewChangeItem,
   type ReviewScope,
 } from '../rules/review';
-import type { ReviewsContext } from '../rules/reviewed';
-import { CodeDocument, type DocumentContext } from './code-document';
+import { CodeDocument } from './code-document';
 import { InlineComposer } from './inline-composer';
 import { fileReviewControl, ReviewedControl } from './reviewed-control';
 import { ThreadCard } from './thread-card';
+import { type ConnectionContext } from '@/shared/workspace/connection';
 
 export function ReviewCodeDocument({
   scope,
@@ -46,7 +46,7 @@ export function ReviewCodeDocument({
   toolbar,
 }: {
   scope: ReviewScope;
-  context: DocumentContext;
+  context: ConnectionContext;
   interaction: DocumentInteraction;
   paths?: readonly string[];
   files?: readonly { path: string; note?: string }[];
@@ -278,7 +278,7 @@ function OmittedChanges({
   commentRequest?: number;
   renderedPaths: ReadonlySet<string>;
   scope: ReviewScope;
-  context: ReviewsContext;
+  context: ConnectionContext;
 }) {
   return (
     <section className="mx-4 mt-3 rounded-lg border bg-muted/40 px-4 py-3">
@@ -335,7 +335,7 @@ function OmittedDiscussion({
   commentRequest,
 }: {
   scope: ReviewScope;
-  context: ReviewsContext;
+  context: ConnectionContext;
   path: string;
   commentRequest?: number;
 }) {

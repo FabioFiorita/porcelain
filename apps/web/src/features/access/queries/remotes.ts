@@ -18,7 +18,10 @@ export function remoteStatusQueryOptions(remote: Remote) {
           AbortSignal.timeout(REMOTE_STATUS_TIMEOUT_MS),
         ]),
       ),
-    refetchInterval: REMOTE_STATUS_REFRESH_MS,
+    refetchInterval: (query) =>
+      remoteStatus(remote, query.state.data).kind === 'other-server'
+        ? false
+        : REMOTE_STATUS_REFRESH_MS,
     retry: false,
   });
 }

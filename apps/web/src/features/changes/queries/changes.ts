@@ -6,15 +6,15 @@ import {
 import { ConnectionError } from '@/shared/api/connection-error';
 import { queryKeys } from '@/shared/query/keys';
 import { changesApi } from '../api';
+import { type ChangesScope } from '../rules/changes';
 import {
-  requireChangesConnection,
-  type ChangesConnection,
-  type ChangesScope,
-} from '../rules/changes';
+  type Connection,
+  requireConnection,
+} from '@/shared/workspace/connection';
 
 export function changesQueryOptions(
   scope: ChangesScope,
-  connection: ChangesConnection,
+  connection: Connection,
 ) {
   return queryOptions({
     queryKey: queryKeys.reviewSurface(connection.environmentId, scope, [
@@ -41,21 +41,18 @@ export function changesQueryOptions(
   });
 }
 
-export function useChanges(
-  scope: ChangesScope,
-  connection: ChangesConnection | null,
-) {
+export function useChanges(scope: ChangesScope, connection: Connection | null) {
   return useSuspenseQuery(
-    changesQueryOptions(scope, requireChangesConnection(connection)),
+    changesQueryOptions(scope, requireConnection(connection)),
   ).data;
 }
 
 export function useReviewOverview(
   scope: ChangesScope,
-  connection: ChangesConnection | null,
+  connection: Connection | null,
 ) {
   return useQuery({
-    ...changesQueryOptions(scope, requireChangesConnection(connection)),
+    ...changesQueryOptions(scope, requireConnection(connection)),
     throwOnError: false,
   }).data;
 }

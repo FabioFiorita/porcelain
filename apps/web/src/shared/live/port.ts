@@ -10,5 +10,6 @@ export type LiveUpdatePort = {
     signal: AbortSignal;
     onNotice: (notice: LiveNotice) => void;
     onReconnect: () => void;
+    onUnauthorized: () => void;
   }): { subscribe(value: LiveSubscription): void };
 };

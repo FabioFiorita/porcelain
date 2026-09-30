@@ -1,4 +1,3 @@
-import type { ProjectConnection } from '../rules/connection';
 import { FolderGit2Icon, RefreshCwIcon, SearchIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -11,13 +10,14 @@ import { Spinner } from '@/components/ui/spinner';
 import { connectionErrorMessage } from '@/features/access/index';
 import { useProjectDiscovery } from '../queries/project-locations';
 import { useProjectBrowserStore } from '../store';
+import { type Connection } from '@/shared/workspace/connection';
 
 export function ProjectDiscovery({
   connection,
   disabled,
   onOpen,
 }: {
-  connection: ProjectConnection | null;
+  connection: Connection | null;
   disabled: boolean;
   onOpen: (path: string) => void;
 }) {
