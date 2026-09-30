@@ -192,6 +192,7 @@ function SidebarSurface({
       {surface === 'files' && (
         <FileNavigation
           scope={scope}
+          connection={context.connection}
           worktreePath={worktreePath}
           selected={
             activeEntry?.startsWith('file:') ? activeEntry.slice(5) : ''
@@ -202,6 +203,7 @@ function SidebarSurface({
       {surface === 'history' && (
         <HistoryNavigation
           scope={scope}
+          connection={context.connection}
           selected={
             activeEntry?.startsWith('commit:') ? activeEntry.slice(7) : ''
           }

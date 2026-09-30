@@ -14,7 +14,7 @@ export function useRenameProject(
   const client = useQueryClient();
   const key = inventoryQueryOptions(
     connection.environmentId,
-    connection.request,
+    connection,
   ).queryKey;
   const mutation = asMutation(
     useMutation({
@@ -27,7 +27,7 @@ export function useRenameProject(
         name: string;
       }) => {
         const request = connection.request();
-        const result = await projectsApi.inventory.rename(
+        const result = await projectsApi(connection).inventory.rename(
           request.signal,
           projectId,
           name,

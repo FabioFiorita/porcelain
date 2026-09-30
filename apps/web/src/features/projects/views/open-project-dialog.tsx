@@ -8,21 +8,20 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import {
-  connectionErrorMessage,
-  useAccessStore,
-} from '@/features/access/index';
+import { connectionErrorMessage } from '@/features/access/index';
 import { useOpenProject } from '../commands/open-project';
 import { openProjectDialog } from '../overlays';
+import type { ProjectConnection } from '../rules/connection';
 import { ProjectDiscovery } from './project-discovery';
 import { ProjectFolderPicker } from './project-folder-picker';
 
 export function OpenProjectDialog({
+  connection,
   onOpened,
 }: {
+  connection: ProjectConnection;
   onOpened: (projectId: string, worktreeId: string) => Promise<void>;
 }) {
-  const connection = useAccessStore((state) => state.connection);
   const opening = useOpenProject(
     connection,
     () => openProjectDialog.close(),

@@ -2,7 +2,6 @@ import { type ReactNode, Suspense, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DIFF_WINDOW_FILES } from '@/config/limits';
-import { useAccessStore } from '@/features/access/index';
 import {
   type BranchFile,
   branchErrorMessage,
@@ -56,7 +55,7 @@ function BranchCode({
   base,
   path,
 }: Props & { path: string | undefined }) {
-  const connection = useAccessStore((state) => state.connection);
+  const { connection } = context;
   const changes = useBranchChanges(scope, connection, base);
   if (changes.isError)
     return (
@@ -169,7 +168,7 @@ function BranchDiffs({
     diffRange: ReturnType<typeof branchRange>;
   };
 }) {
-  const connection = useAccessStore((state) => state.connection);
+  const { connection } = context;
   const overview = useReviewOverview(scope, connection);
   const [window, setWindow] = useState({
     of: branch.head.oid,

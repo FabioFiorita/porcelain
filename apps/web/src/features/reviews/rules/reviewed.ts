@@ -86,6 +86,7 @@ export type ReviewsContext = {
     environmentId: string;
     controller: AbortController;
     request: (signal?: AbortSignal) => { signal: AbortSignal };
+    transport: (path: string, init?: RequestInit) => Promise<Response>;
   };
 };
 

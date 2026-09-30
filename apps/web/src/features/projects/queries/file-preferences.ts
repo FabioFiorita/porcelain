@@ -5,13 +5,13 @@ import { projectsApi } from '../api';
 export function filePreferencesQueryOptions(
   environmentId: string,
   projectId: string,
-  request: (signal?: AbortSignal) => { signal: AbortSignal },
+  connection: ProjectConnection,
 ) {
   return queryOptions({
     queryKey: ['review', environmentId, projectId, 'file-preferences'],
     queryFn: async ({ signal }) => {
-      const connected = request(signal);
-      const response = await projectsApi.filePreferences.list(
+      const connected = connection.request(signal);
+      const response = await projectsApi(connection).filePreferences.list(
         connected.signal,
         projectId,
       );
@@ -30,7 +30,7 @@ export function useHiddenPaths(
     filePreferencesQueryOptions(
       connection.environmentId,
       projectId,
-      connection.request,
+      connection,
     ),
   ).data;
   return new Set(
@@ -49,7 +49,7 @@ export function usePinnedPaths(
     filePreferencesQueryOptions(
       connection.environmentId,
       projectId,
-      connection.request,
+      connection,
     ),
   ).data;
   return response.preferences

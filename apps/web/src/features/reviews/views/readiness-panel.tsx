@@ -10,7 +10,6 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
-import { useAccessStore } from '@/features/access/index';
 import { useBranchChanges } from '@/features/changes/index';
 import { cn } from '@/shared/lib/utils';
 import { useReviewedMarks } from '../queries/reviewed';
@@ -68,7 +67,7 @@ export function BranchReadiness({
   threads: readonly CommentThread[];
   onSelect: Select;
 }) {
-  const connection = useAccessStore((state) => state.connection);
+  const { connection } = context;
   const changes = useBranchChanges(scope, connection, base);
   if (changes.data?.base == null) return null;
   return (

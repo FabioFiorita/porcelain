@@ -7,7 +7,7 @@ function assetQueryOptions(
   environmentId: string,
   scope: FilesScope,
   path: string,
-  request: (signal?: AbortSignal) => { signal: AbortSignal },
+  connection: FilesConnection,
 ) {
   return queryOptions({
     queryKey: [
@@ -19,8 +19,8 @@ function assetQueryOptions(
       path,
     ],
     queryFn: async ({ signal }) => {
-      const connected = request(signal);
-      const result = await filesApi.asset(
+      const connected = connection.request(signal);
+      const result = await filesApi(connection).asset(
         connected.signal,
         scope.worktreeId,
         path,
@@ -38,12 +38,7 @@ export function useAsset(
 ) {
   if (!connection) throw new Error('A connected environment is required');
   return useQuery(
-    assetQueryOptions(
-      connection.environmentId,
-      scope,
-      path,
-      connection.request,
-    ),
+    assetQueryOptions(connection.environmentId, scope, path, connection),
   );
 }
 
@@ -52,7 +47,7 @@ function htmlPreviewQueryOptions(
   scope: FilesScope,
   path: string,
   html: string,
-  request: (signal?: AbortSignal) => { signal: AbortSignal },
+  connection: FilesConnection,
 ) {
   return queryOptions({
     queryKey: [
@@ -65,9 +60,9 @@ function htmlPreviewQueryOptions(
       html,
     ],
     queryFn: async ({ signal }) => {
-      const connected = request(signal);
+      const connected = connection.request(signal);
       const result = await inlineHtmlAssets(html, path, async (paths) => {
-        const response = await filesApi.previewAssets(
+        const response = await filesApi(connection).previewAssets(
           connected.signal,
           scope.worktreeId,
           path,
@@ -99,7 +94,7 @@ export function useHtmlPreview(
       scope,
       path,
       html,
-      connection.request,
+      connection,
     ),
   );
 }

@@ -19,7 +19,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from '@/components/ui/toast';
-import { useAccessStore } from '@/features/access/index';
 import { changePath, useReviewOverview } from '@/features/changes/index';
 import {
   canonicalPreferencePath,
@@ -39,7 +38,7 @@ import { useDirectories, useDirectory } from '../queries/directory';
 import { fileErrorMessage, surfaceErrorMessage } from '../rules/error-message';
 import { fileTreeAncestors, mergeFileTreeEntries } from '../rules/file-tree';
 import { isImagePath } from '../rules/html-assets';
-import type { FilesScope } from '../rules/scope';
+import type { FilesConnection, FilesScope } from '../rules/scope';
 import {
   duplicatePath,
   treeActions,
@@ -51,6 +50,7 @@ import { QuickOpen } from './quick-open';
 
 type Props = {
   scope: FilesScope;
+  connection: FilesConnection;
   worktreePath: string;
   selected: string;
   onOpen: (document: {
@@ -61,6 +61,7 @@ type Props = {
 
 export function FileNavigation({
   scope,
+  connection,
   worktreePath,
   selected,
   onOpen,
@@ -70,6 +71,7 @@ export function FileNavigation({
     <ScopedFileNavigation
       key={scopeKey}
       scope={scope}
+      connection={connection}
       worktreePath={worktreePath}
       selected={selected}
       onOpen={onOpen}
@@ -79,11 +81,11 @@ export function FileNavigation({
 
 function ScopedFileNavigation({
   scope,
+  connection,
   worktreePath,
   selected,
   onOpen,
 }: Props) {
-  const connection = useAccessStore((state) => state.connection);
   const root = useDirectory(connection, scope, '');
   const edit = useEditFile(connection, scope);
   const [creating, setCreating] = useState<{
@@ -227,6 +229,7 @@ function ScopedFileNavigation({
     <div className="flex h-full min-h-0 flex-col">
       <QuickOpen
         scope={scope}
+        connection={connection}
         onOpen={(path) => {
           setRequested((current) => union(current, fileTreeAncestors(path)));
           onOpen({ kind: 'file', path });

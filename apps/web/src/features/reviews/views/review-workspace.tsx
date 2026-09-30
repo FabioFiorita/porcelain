@@ -34,7 +34,6 @@ import {
 } from '@/components/ui/sheet';
 import { SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
 import { cn } from '@/shared/lib/utils';
-import { useAccessStore } from '@/features/access/index';
 import { useReviewOverview } from '@/features/changes/index';
 import type { Project } from '@/features/projects/index';
 import {
@@ -219,7 +218,7 @@ export function ReviewWorkspace({
         >
           <ReviewBoundary>
             <InterruptedActionNotice scope={scope} context={context} />
-            <ConflictGuidance scope={scope} onOpen={open} />
+            <ConflictGuidance scope={scope} context={context} onOpen={open} />
             <DocumentArea
               reveal={reveal}
               scope={scope}
@@ -293,7 +292,7 @@ function DocumentArea({
   navigatorOpenMobile: boolean;
   tabControls: ReactNode;
 }) {
-  const connection = useAccessStore((state) => state.connection);
+  const { connection } = context;
   const overview = useReviewOverview(scope, connection);
   const published = usePublishedReview(scope, context);
   const layers = published.data?.active ? published.data.layers : [];

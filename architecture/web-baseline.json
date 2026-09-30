@@ -55,12 +55,9 @@
     "apps/web/src/shared/workspace/copy.ts": 1
   },
   "unclassified-import-target": {
-    "apps/web/src/app/workspace-provider.tsx": 1,
-    "apps/web/src/main.tsx": 1,
-    "apps/web/src/shared/query/live-updates.ts": 1
+    "apps/web/src/app/workspace-provider.tsx": 1
   },
   "unclassified-source": {
-    "apps/web/src/app/api.ts": 1,
     "apps/web/src/app/boot.ts": 1
   },
   "unused-export": {
@@ -69,8 +66,5 @@
   },
   "web-shared-cannot-import-ui": {
     "apps/web/src/shared/workspace/copy.ts": 1
-  },
-  "web-shared-imports-no-owner": {
-    "apps/web/src/shared/query/live-updates.ts": 1
   }
 }

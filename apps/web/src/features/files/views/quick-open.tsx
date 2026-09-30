@@ -6,9 +6,8 @@ import {
   CommandItem,
   CommandList,
 } from '@/components/ui/command';
-import type { FilesScope } from '../rules/scope';
+import type { FilesConnection, FilesScope } from '../rules/scope';
 import { useWorktreePaths } from '../queries/paths';
-import { useAccessStore } from '@/features/access/index';
 import { quickOpenDialog, quickOpenOperations } from '../overlays';
 import { useQuickOpenActions } from '../commands/quick-open';
 import { useQuickOpenShortcut } from '../adapters/quick-open-shortcut';
@@ -16,16 +15,17 @@ import { quickOpenMatches } from '../rules/quick-open';
 
 export function QuickOpen({
   scope,
+  connection,
   onOpen,
 }: {
   scope: FilesScope;
+  connection: FilesConnection;
   onOpen: (path: string) => void;
 }) {
   const { query, setQuery, toggle, select } = useQuickOpenActions(
     onOpen,
     quickOpenOperations,
   );
-  const connection = useAccessStore((state) => state.connection);
   const names = useWorktreePaths(connection, scope);
   useQuickOpenShortcut(toggle);
   const matches = quickOpenMatches(names.data?.paths ?? [], query);

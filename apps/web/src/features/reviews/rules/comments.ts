@@ -61,6 +61,7 @@ export type CommentsContext = {
   connection: {
     environmentId: string;
     request: (signal?: AbortSignal) => { signal: AbortSignal };
+    transport: (path: string, init?: RequestInit) => Promise<Response>;
   };
 };
 

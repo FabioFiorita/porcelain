@@ -26,7 +26,7 @@ export function useChangeLines(
     enabled,
     queryFn: async ({ signal }) => {
       const request = connection.request(signal);
-      const result = await changesApi.lines(
+      const result = await changesApi(connection).lines(
         request.signal,
         scope.worktreeId,
         path,

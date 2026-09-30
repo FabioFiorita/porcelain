@@ -79,5 +79,6 @@ export type GitContext = {
     controller: AbortController;
     operations: OperationStore;
     request: (signal?: AbortSignal) => { signal: AbortSignal };
+    transport: typeof fetch;
   };
 };

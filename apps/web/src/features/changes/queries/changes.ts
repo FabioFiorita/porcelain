@@ -24,7 +24,10 @@ export function changesQueryOptions(
     refetchOnReconnect: false,
     queryFn: async ({ signal }) => {
       const request = connection.request(signal);
-      const changes = await changesApi.list(request.signal, scope.worktreeId);
+      const changes = await changesApi(connection).list(
+        request.signal,
+        scope.worktreeId,
+      );
       request.signal.throwIfAborted();
       if (
         changes.environmentId !== connection.environmentId ||

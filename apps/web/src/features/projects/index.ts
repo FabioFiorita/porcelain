@@ -12,6 +12,7 @@ export {
   selectedWorktreeInProject,
   worktreeLabel,
   type Project,
+  type WorktreeTarget,
 } from './rules/inventory';
 export { OpenProjectDialog } from './views/open-project-dialog';
 export { ProjectNavigator } from './views/project-navigator';

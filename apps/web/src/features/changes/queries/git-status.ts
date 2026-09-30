@@ -17,7 +17,10 @@ export function gitStatusQueryOptions(
     ]),
     queryFn: async ({ signal }) => {
       const request = connection.request(signal);
-      const data = await changesApi.status(request.signal, scope.worktreeId);
+      const data = await changesApi(connection).status(
+        request.signal,
+        scope.worktreeId,
+      );
       request.signal.throwIfAborted();
       return data;
     },

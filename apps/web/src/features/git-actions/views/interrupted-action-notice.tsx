@@ -1,5 +1,4 @@
 import { Button } from '@/components/ui/button';
-import { useAccessStore } from '@/features/access/index';
 import { useReviewOverview } from '@/features/changes/index';
 import type { GitScope } from '../rules/git-action';
 import { useDismissInterrupted } from '../commands/dismiss-interrupted';
@@ -12,7 +11,7 @@ export function InterruptedActionNotice({
   scope: GitScope;
   context: Parameters<typeof useDismissInterrupted>[1];
 }) {
-  const connection = useAccessStore((state) => state.connection);
+  const { connection } = context;
   const overview = useReviewOverview(scope, connection);
   const dismiss = useDismissInterrupted(scope, context);
   const interrupted = overview?.changes.interrupted;

@@ -28,7 +28,7 @@ function selectHistory(
 function historyQueryOptions(
   environmentId: string,
   scope: HistoryScope,
-  request: (signal?: AbortSignal) => { signal: AbortSignal },
+  connection: HistoryConnection,
 ) {
   return infiniteQueryOptions<
     ListCommitsResponse,
@@ -45,8 +45,8 @@ function historyQueryOptions(
       'history',
     ],
     queryFn: async ({ signal, pageParam }) => {
-      const connected = request(signal);
-      const page = await historyApi.list(
+      const connected = connection.request(signal);
+      const page = await historyApi(connection).list(
         connected.signal,
         scope.worktreeId,
         pageParam?.after,
@@ -72,7 +72,7 @@ export function useHistory(
 ) {
   if (!connection) throw new Error('A connected environment is required');
   const query = useSuspenseInfiniteQuery(
-    historyQueryOptions(connection.environmentId, scope, connection.request),
+    historyQueryOptions(connection.environmentId, scope, connection),
   );
   return {
     ...query.data,

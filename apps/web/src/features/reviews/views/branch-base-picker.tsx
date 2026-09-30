@@ -14,20 +14,21 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { useAccessStore } from '@/features/access/index';
 import { branchName, useBranchBases } from '@/features/changes/index';
 import type { ReviewScope } from '../rules/review';
+import type { ReviewsContext } from '../rules/reviewed';
 
 export function BranchBasePicker({
   scope,
+  connection,
   base,
   onBase,
 }: {
   scope: ReviewScope;
+  connection: ReviewsContext['connection'];
   base: string | undefined;
   onBase: (base: string | undefined) => void;
 }) {
-  const connection = useAccessStore((state) => state.connection);
   const [open, setOpen] = useState(false);
   const bases = useBranchBases(scope, connection, open);
   const label = base == null ? 'the default branch' : branchName(base);

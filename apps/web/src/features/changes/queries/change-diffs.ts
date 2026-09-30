@@ -45,11 +45,15 @@ export function useChangeDiffs(
       ]),
     read: async (batch, signal) => {
       const request = connection.request(signal);
-      const data = await changesApi.diffs(request.signal, scope.worktreeId, {
-        expectedStatusToken: statusToken,
-        expectedFiles: batch.expectedFiles,
-        selections: batch.selections,
-      });
+      const data = await changesApi(connection).diffs(
+        request.signal,
+        scope.worktreeId,
+        {
+          expectedStatusToken: statusToken,
+          expectedFiles: batch.expectedFiles,
+          selections: batch.selections,
+        },
+      );
       request.signal.throwIfAborted();
       return data.diffs.map(
         ({ selection, content }) => [selectionKey(selection), content] as const,

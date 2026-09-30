@@ -1,5 +1,4 @@
-import type { FilesScope } from '../rules/scope';
-import { useAccessStore } from '@/features/access/index';
+import type { FilesConnection, FilesScope } from '../rules/scope';
 import { useHtmlPreview } from '@/features/files/queries/preview-assets';
 import { fileErrorMessage } from '../rules/error-message';
 import { HtmlFrame } from './html-frame';
@@ -8,12 +7,13 @@ export function HtmlPreview({
   scope,
   path,
   html,
+  connection,
 }: {
   scope: FilesScope;
   path: string;
   html: string;
+  connection: FilesConnection;
 }) {
-  const connection = useAccessStore((state) => state.connection);
   const preview = useHtmlPreview(connection, scope, path, html);
   if (preview.isPending)
     return (

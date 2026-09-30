@@ -2,7 +2,6 @@ import { parsePatchFiles } from '@pierre/diffs';
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useAccessStore } from '@/features/access/index';
 import {
   selectionKey,
   useChangeDiffs,
@@ -193,7 +192,7 @@ function LayerSteps({
   focus: string | undefined;
 }) {
   const { scope, context } = props;
-  const connection = useAccessStore((state) => state.connection);
+  const { connection } = context;
   const recover = useRecoverChangedDiffs(scope, connection);
   usePrefetchReviewed(scope, context);
   const { changes } = useChanges(scope, connection);
@@ -275,7 +274,7 @@ function Step({
     step.kind === 'context' ||
     committed ||
     item?.comparisons.some((change) => change.scope === 'untracked');
-  const connection = useAccessStore((state) => state.connection);
+  const { connection } = context;
   const lines = useChangeLines(
     scope,
     connection,

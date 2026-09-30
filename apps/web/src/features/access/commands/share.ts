@@ -15,7 +15,7 @@ export function useIssuePairing(connection: ShareConnection) {
     scope: { id: `share:${connection.environmentId}` },
     mutationFn: async (input: { label: string; addresses: string[] }) =>
       issuedLink(
-        await shareApi.issue(
+        await shareApi(connection).issue(
           connection.request().signal,
           input.label,
           input.addresses,
@@ -40,7 +40,7 @@ export function useRevokeAccess(connection: ShareConnection) {
   const mutation = useMutation({
     scope: { id: `share:${connection.environmentId}` },
     mutationFn: (id: string) =>
-      shareApi.revoke(connection.request().signal, id),
+      shareApi(connection).revoke(connection.request().signal, id),
     onSettled: () =>
       client.invalidateQueries({
         queryKey: pairedAccessQueryOptions(connection).queryKey,
@@ -59,7 +59,7 @@ export function useSetRemoteAccess(connection: ShareConnection) {
   const mutation = useMutation({
     scope: { id: `remote-access:${connection.environmentId}` },
     mutationFn: (change: SetRemoteAccessRequest) =>
-      shareApi.setRemote(connection.request().signal, change),
+      shareApi(connection).setRemote(connection.request().signal, change),
     onSuccess: async (remote) => {
       await client.cancelQueries({ queryKey: key });
       client.setQueryData(key, remote);
@@ -77,7 +77,7 @@ export function useRenameEnvironment(connection: ShareConnection) {
   const mutation = useMutation({
     scope: { id: `environment-name:${connection.environmentId}` },
     mutationFn: (name: string | null) =>
-      shareApi.rename(connection.request().signal, name),
+      shareApi(connection).rename(connection.request().signal, name),
     onSuccess: () =>
       client.invalidateQueries({
         queryKey: queryKeys.inventory(connection.environmentId),
@@ -97,7 +97,10 @@ export function useStartServiceUpdate(connection: ShareConnection) {
   const mutation = useMutation({
     scope: { id: `service-update:${connection.environmentId}` },
     mutationFn: (version: string) =>
-      shareApi.startServiceUpdate(connection.request().signal, version),
+      shareApi(connection).startServiceUpdate(
+        connection.request().signal,
+        version,
+      ),
     onSuccess: async (state) => {
       await client.cancelQueries({ queryKey: key });
       client.setQueryData(key, state);

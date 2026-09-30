@@ -5,7 +5,6 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DIFF_WINDOW_FILES } from '@/config/limits';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useAccessStore } from '@/features/access/index';
 import { commitEntry, useCommitDiffs } from '@/features/changes/index';
 import { copyText } from '@/shared/workspace/copy';
 import {
@@ -38,7 +37,7 @@ export function CommitDocument({
   interaction: DocumentInteraction;
   oid: string;
 }) {
-  const connection = useAccessStore((state) => state.connection);
+  const { connection } = context;
   const { reveal } = interaction;
   const requestedParent =
     reveal?.anchor.comparison?.kind === 'commit'

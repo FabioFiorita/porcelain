@@ -3,7 +3,19 @@ export { pairBrowser } from './commands/pairing';
 export { restoreSession } from './commands/restore-session';
 export { connectionErrorMessage } from './rules/connection-error-message';
 export { parsePairingLink } from './rules/pairing-link';
-export { useAccessStore } from './store';
+export { useRemoteStatus } from './queries/remotes';
+export {
+  remoteStatusNote,
+  remoteStatusText,
+  type RemoteStatus,
+} from './rules/remotes';
+export {
+  useAccessStore,
+  useRemoteConnection,
+  useRemoteConnections,
+  type Connection,
+  type RemoteConnection,
+} from './store';
 export { DisconnectBrowser } from './views/disconnect-browser';
 export { DisconnectedPage } from './views/disconnected-page';
 export { NotPaired } from './views/not-paired';

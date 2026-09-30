@@ -5,12 +5,14 @@ import { PROJECT_DISCOVERY_STALE_MS } from '@/config/limits';
 
 function projectDiscoveryQueryOptions(
   environmentId: string,
-  request: (signal?: AbortSignal) => { signal: AbortSignal },
+  connection: ProjectConnection,
 ) {
   return queryOptions({
     queryKey: ['project-discovery', environmentId],
     queryFn: ({ signal }) =>
-      projectsApi.inventory.discover(request(signal).signal),
+      projectsApi(connection).inventory.discover(
+        connection.request(signal).signal,
+      ),
     staleTime: PROJECT_DISCOVERY_STALE_MS,
     retry: false,
   });
@@ -19,12 +21,15 @@ function projectDiscoveryQueryOptions(
 function projectFolderQueryOptions(
   environmentId: string,
   path: string | undefined,
-  request: (signal?: AbortSignal) => { signal: AbortSignal },
+  connection: ProjectConnection,
 ) {
   return queryOptions({
     queryKey: ['project-folder', environmentId, path ?? null],
     queryFn: ({ signal }) =>
-      projectsApi.inventory.browse(request(signal).signal, path),
+      projectsApi(connection).inventory.browse(
+        connection.request(signal).signal,
+        path,
+      ),
     retry: false,
   });
 }
@@ -35,10 +40,7 @@ export function useProjectDiscovery(
 ) {
   if (!connection) throw new Error('A connected environment is required');
   return useQuery({
-    ...projectDiscoveryQueryOptions(
-      connection.environmentId,
-      connection.request,
-    ),
+    ...projectDiscoveryQueryOptions(connection.environmentId, connection),
     enabled,
   });
 }
@@ -50,11 +52,7 @@ export function useProjectFolder(
 ) {
   if (!connection) throw new Error('A connected environment is required');
   return useQuery({
-    ...projectFolderQueryOptions(
-      connection.environmentId,
-      path,
-      connection.request,
-    ),
+    ...projectFolderQueryOptions(connection.environmentId, path, connection),
     enabled,
   });
 }

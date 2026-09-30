@@ -1,5 +1,7 @@
 import { reportUnauthorized } from './unauthorized';
 
+export type Transport = (path: string, init?: RequestInit) => Promise<Response>;
+
 export function browserTransport(
   transport: typeof fetch,
   options: { reportUnauthorized?: boolean } = {},
@@ -33,6 +35,16 @@ function establishing(input: Parameters<typeof fetch>[0]) {
   return path.endsWith('/api/pair');
 }
 
+function crossOrigin(target: URL, init: RequestInit) {
+  return fetch(target, {
+    ...init,
+    mode: 'cors',
+    credentials: 'omit',
+    redirect: 'error',
+    cache: 'no-store',
+  });
+}
+
 export function remoteTransport(
   address: string,
   credential?: string,
@@ -46,13 +58,6 @@ export function remoteTransport(
         : input instanceof URL
           ? input.href
           : input.url;
-    return fetch(new URL(path, address), {
-      ...init,
-      headers,
-      mode: 'cors',
-      credentials: 'omit',
-      redirect: 'error',
-      cache: 'no-store',
-    });
+    return crossOrigin(new URL(path, address), { ...init, headers });
   };
 }

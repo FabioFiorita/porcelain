@@ -3,6 +3,7 @@ import {
   REMOTE_STATUS_REFRESH_MS,
   REMOTE_STATUS_TIMEOUT_MS,
 } from '@/config/limits';
+import { remoteTransport } from '@/shared/api/transport';
 import { remoteApi } from '../api';
 import { remoteStatus, type Remote } from '../rules/remotes';
 
@@ -11,7 +12,7 @@ export function remoteStatusQueryOptions(remote: Remote) {
     queryKey: ['remote-status', remote.environmentId, remote.address],
     queryFn: ({ signal }) =>
       remoteApi.describe(
-        remote,
+        remoteTransport(remote.address, remote.credential),
         AbortSignal.any([
           signal,
           AbortSignal.timeout(REMOTE_STATUS_TIMEOUT_MS),

@@ -28,10 +28,12 @@ export function ProjectSection({
   project,
   selected,
   onSelect,
+  manage = true,
 }: {
   project: Project;
   selected: string | null | undefined;
   onSelect: (id: string) => void;
+  manage?: boolean;
 }) {
   const path = projectPath(project);
   return (
@@ -68,22 +70,26 @@ export function ProjectSection({
               Copy path
             </ContextMenuItem>
           </ContextMenuGroup>
-          <ContextMenuSeparator />
-          <ContextMenuGroup>
-            <ContextMenuItem
-              onClick={() => renameProjectDialog.openWithPayload(project)}
-            >
-              <PencilIcon />
-              Rename project
-            </ContextMenuItem>
-            <ContextMenuItem
-              variant="destructive"
-              onClick={() => removeProjectDialog.openWithPayload(project)}
-            >
-              <FolderMinusIcon />
-              Remove from Porcelain
-            </ContextMenuItem>
-          </ContextMenuGroup>
+          {manage && (
+            <>
+              <ContextMenuSeparator />
+              <ContextMenuGroup>
+                <ContextMenuItem
+                  onClick={() => renameProjectDialog.openWithPayload(project)}
+                >
+                  <PencilIcon />
+                  Rename project
+                </ContextMenuItem>
+                <ContextMenuItem
+                  variant="destructive"
+                  onClick={() => removeProjectDialog.openWithPayload(project)}
+                >
+                  <FolderMinusIcon />
+                  Remove from Porcelain
+                </ContextMenuItem>
+              </ContextMenuGroup>
+            </>
+          )}
         </ContextMenuContent>
       </ContextMenu>
 

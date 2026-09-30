@@ -9,6 +9,7 @@ export type ChangesScope = { projectId: string; worktreeId: string };
 export type ChangesConnection = {
   environmentId: string;
   request: (signal?: AbortSignal) => { signal: AbortSignal };
+  transport: (path: string, init?: RequestInit) => Promise<Response>;
 };
 export type Change =
   ReadChangesResponse['changes'][number]['comparisons'][number];

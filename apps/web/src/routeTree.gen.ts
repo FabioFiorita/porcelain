@@ -8,6 +8,7 @@ import { Route as PairRouteImport } from './routes/pair';
 import { Route as PairedIndexRouteImport } from './routes/_paired/index';
 import { Route as PairedProjectIdWorktreeIdRouteImport } from './routes/_paired/$projectId/$worktreeId';
 import { Route as PairedSettingsSectionRouteImport } from './routes/_paired/settings/$section';
+import { Route as PairedRemotesEnvironmentIdProjectIdWorktreeIdRouteImport } from './routes/_paired/remotes/$environmentId/$projectId/$worktreeId';
 
 const PairedRoute = PairedRouteImport.update({
   id: '/_paired',
@@ -34,18 +35,26 @@ const PairedSettingsSectionRoute = PairedSettingsSectionRouteImport.update({
   path: '/settings/$section',
   getParentRoute: () => PairedRoute,
 } as any);
+const PairedRemotesEnvironmentIdProjectIdWorktreeIdRoute =
+  PairedRemotesEnvironmentIdProjectIdWorktreeIdRouteImport.update({
+    id: '/remotes/$environmentId/$projectId/$worktreeId',
+    path: '/remotes/$environmentId/$projectId/$worktreeId',
+    getParentRoute: () => PairedRoute,
+  } as any);
 
 export interface FileRoutesByFullPath {
   '/': typeof PairedIndexRoute;
   '/pair': typeof PairRoute;
   '/$projectId/$worktreeId': typeof PairedProjectIdWorktreeIdRoute;
   '/settings/$section': typeof PairedSettingsSectionRoute;
+  '/remotes/$environmentId/$projectId/$worktreeId': typeof PairedRemotesEnvironmentIdProjectIdWorktreeIdRoute;
 }
 export interface FileRoutesByTo {
   '/pair': typeof PairRoute;
   '/': typeof PairedIndexRoute;
   '/$projectId/$worktreeId': typeof PairedProjectIdWorktreeIdRoute;
   '/settings/$section': typeof PairedSettingsSectionRoute;
+  '/remotes/$environmentId/$projectId/$worktreeId': typeof PairedRemotesEnvironmentIdProjectIdWorktreeIdRoute;
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport;
@@ -54,19 +63,31 @@ export interface FileRoutesById {
   '/_paired/': typeof PairedIndexRoute;
   '/_paired/$projectId/$worktreeId': typeof PairedProjectIdWorktreeIdRoute;
   '/_paired/settings/$section': typeof PairedSettingsSectionRoute;
+  '/_paired/remotes/$environmentId/$projectId/$worktreeId': typeof PairedRemotesEnvironmentIdProjectIdWorktreeIdRoute;
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath;
-  fullPaths: '/' | '/pair' | '/$projectId/$worktreeId' | '/settings/$section';
+  fullPaths:
+    | '/'
+    | '/pair'
+    | '/$projectId/$worktreeId'
+    | '/settings/$section'
+    | '/remotes/$environmentId/$projectId/$worktreeId';
   fileRoutesByTo: FileRoutesByTo;
-  to: '/pair' | '/' | '/$projectId/$worktreeId' | '/settings/$section';
+  to:
+    | '/pair'
+    | '/'
+    | '/$projectId/$worktreeId'
+    | '/settings/$section'
+    | '/remotes/$environmentId/$projectId/$worktreeId';
   id:
     | '__root__'
     | '/_paired'
     | '/pair'
     | '/_paired/'
     | '/_paired/$projectId/$worktreeId'
-    | '/_paired/settings/$section';
+    | '/_paired/settings/$section'
+    | '/_paired/remotes/$environmentId/$projectId/$worktreeId';
   fileRoutesById: FileRoutesById;
 }
 export interface RootRouteChildren {
@@ -111,6 +132,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PairedSettingsSectionRouteImport;
       parentRoute: typeof PairedRoute;
     };
+    '/_paired/remotes/$environmentId/$projectId/$worktreeId': {
+      id: '/_paired/remotes/$environmentId/$projectId/$worktreeId';
+      path: '/remotes/$environmentId/$projectId/$worktreeId';
+      fullPath: '/remotes/$environmentId/$projectId/$worktreeId';
+      preLoaderRoute: typeof PairedRemotesEnvironmentIdProjectIdWorktreeIdRouteImport;
+      parentRoute: typeof PairedRoute;
+    };
   }
 }
 
@@ -118,12 +146,15 @@ interface PairedRouteChildren {
   PairedIndexRoute: typeof PairedIndexRoute;
   PairedProjectIdWorktreeIdRoute: typeof PairedProjectIdWorktreeIdRoute;
   PairedSettingsSectionRoute: typeof PairedSettingsSectionRoute;
+  PairedRemotesEnvironmentIdProjectIdWorktreeIdRoute: typeof PairedRemotesEnvironmentIdProjectIdWorktreeIdRoute;
 }
 
 const PairedRouteChildren: PairedRouteChildren = {
   PairedIndexRoute: PairedIndexRoute,
   PairedProjectIdWorktreeIdRoute: PairedProjectIdWorktreeIdRoute,
   PairedSettingsSectionRoute: PairedSettingsSectionRoute,
+  PairedRemotesEnvironmentIdProjectIdWorktreeIdRoute:
+    PairedRemotesEnvironmentIdProjectIdWorktreeIdRoute,
 };
 
 const PairedRouteWithChildren =

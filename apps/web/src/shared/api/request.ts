@@ -1,5 +1,6 @@
 import { apiErrorSchema, type ApiErrorCode } from '@porcelain/contracts/shared';
 import { ConnectionError } from './connection-error';
+import type { Transport } from './transport';
 
 type ResponseSchema<T> = { parse(value: unknown): T };
 
@@ -16,7 +17,7 @@ export class RequestError extends Error {
 }
 
 export async function requestJson<T>(
-  transport: typeof fetch,
+  transport: Transport,
   path: string,
   schema: ResponseSchema<T>,
   init: RequestInit,

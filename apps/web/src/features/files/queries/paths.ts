@@ -5,7 +5,7 @@ import type { FilesConnection, FilesScope } from '../rules/scope';
 function pathsQueryOptions(
   environmentId: string,
   scope: FilesScope,
-  request: (signal?: AbortSignal) => { signal: AbortSignal },
+  connection: FilesConnection,
 ) {
   return queryOptions({
     queryKey: [
@@ -16,8 +16,11 @@ function pathsQueryOptions(
       'paths',
     ],
     queryFn: async ({ signal }) => {
-      const connected = request(signal);
-      const response = await filesApi.paths(connected.signal, scope.worktreeId);
+      const connected = connection.request(signal);
+      const response = await filesApi(connection).paths(
+        connected.signal,
+        scope.worktreeId,
+      );
       connected.signal.throwIfAborted();
       return response;
     },
@@ -31,7 +34,7 @@ export function useWorktreePaths(
 ) {
   if (!connection) throw new Error('A connected environment is required');
   return useQuery({
-    ...pathsQueryOptions(connection.environmentId, scope, connection.request),
+    ...pathsQueryOptions(connection.environmentId, scope, connection),
     enabled,
     retry: false,
     throwOnError: false,

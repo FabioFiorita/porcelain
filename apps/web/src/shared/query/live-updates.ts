@@ -1,7 +1,7 @@
 import type { LiveNotice } from '@porcelain/contracts/access';
 import type { RunGitActionResponse } from '@porcelain/contracts/git-actions';
 import type { QueryClient, QueryFilters } from '@tanstack/react-query';
-import type { Api } from '@/app/api';
+import type { LiveUpdatePort } from '@/shared/live/port';
 import { reviewSurfaceFilters } from '@/shared/query/keys';
 import {
   isTerminal,
@@ -9,6 +9,17 @@ import {
 } from '@/shared/query/operation-store';
 
 type Receipt = RunGitActionResponse;
+type LiveApi = {
+  gitActions: {
+    receipt: (request: {
+      projectId: string;
+      worktreeId: string;
+      requestId: string;
+      signal: AbortSignal;
+    }) => Promise<Receipt>;
+  };
+  liveUpdates: LiveUpdatePort;
+};
 
 type Connection = {
   environmentId: string;
@@ -227,7 +238,7 @@ export async function applyLiveNotice(
 }
 
 export function connectLiveQueries(
-  api: Api,
+  api: LiveApi,
   client: QueryClient,
   connection: Connection,
 ) {

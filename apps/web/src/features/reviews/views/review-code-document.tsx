@@ -1,7 +1,6 @@
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { useAccessStore } from '@/features/access/index';
 import {
   changeId,
   diffEntry,
@@ -57,7 +56,7 @@ export function ReviewCodeDocument({
   commentRequest?: number;
   toolbar?: (collapseControl: ReactNode) => ReactNode;
 }) {
-  const connection = useAccessStore((state) => state.connection);
+  const { connection } = context;
   const recover = useRecoverChangedDiffs(scope, connection);
   usePrefetchReviewed(scope, context);
   const { changes } = useChanges(scope, connection);
@@ -294,7 +293,11 @@ function OmittedChanges({
             {isImagePath(item.path) && (
               <>
                 <span>Current worktree image</span>
-                <ImagePreview scope={scope} path={item.path} />
+                <ImagePreview
+                  scope={scope}
+                  path={item.path}
+                  connection={context.connection}
+                />
               </>
             )}
             <Badge variant="outline" className="shrink-0">

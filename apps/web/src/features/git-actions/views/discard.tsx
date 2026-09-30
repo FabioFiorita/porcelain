@@ -11,7 +11,6 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/toast';
-import { useAccessStore } from '@/features/access/index';
 import {
   useReadCurrentChanges,
   useReviewOverview,
@@ -40,7 +39,7 @@ export function DiscardButton({
   hiddenTrigger?: boolean;
   children?: (trigger: ReactNode) => ReactNode;
 }) {
-  const connection = useAccessStore((state) => state.connection);
+  const { connection } = context;
   const overview = useReviewOverview(scope, connection);
   const readChanges = useReadCurrentChanges(scope, connection);
   const [isOpen, setOpen] = useState(false);

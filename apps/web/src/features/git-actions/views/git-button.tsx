@@ -1,6 +1,5 @@
 import { ChevronDownIcon, GitBranchIcon, Undo2Icon } from 'lucide-react';
 import { Fragment, useState } from 'react';
-import { useAccessStore } from '@/features/access/index';
 import {
   useGitStatus,
   useRefreshGitLook,
@@ -62,7 +61,7 @@ export function GitButton({
   scope: GitScope;
   context: Parameters<typeof useGitMenu>[1];
 }) {
-  const connection = useAccessStore((state) => state.connection);
+  const { connection } = context;
   const overview = useReviewOverview(scope, connection);
   const [detailsEnabled, setDetailsEnabled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);

@@ -6,7 +6,7 @@ function fileTimelineQueryOptions(
   environmentId: string,
   scope: HistoryScope,
   path: string,
-  request: (signal?: AbortSignal) => { signal: AbortSignal },
+  connection: HistoryConnection,
 ) {
   return queryOptions({
     queryKey: [
@@ -19,8 +19,8 @@ function fileTimelineQueryOptions(
       path,
     ],
     queryFn: async ({ signal }) => {
-      const connected = request(signal);
-      const timeline = await historyApi.fileCommits(
+      const connected = connection.request(signal);
+      const timeline = await historyApi(connection).fileCommits(
         connected.signal,
         scope.worktreeId,
         path,
@@ -40,11 +40,6 @@ export function useFileTimeline(
 ) {
   if (!connection) throw new Error('A connected environment is required');
   return useSuspenseQuery(
-    fileTimelineQueryOptions(
-      connection.environmentId,
-      scope,
-      path,
-      connection.request,
-    ),
+    fileTimelineQueryOptions(connection.environmentId, scope, path, connection),
   ).data;
 }

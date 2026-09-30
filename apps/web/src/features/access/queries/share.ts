@@ -9,14 +9,16 @@ import { routesSettling, type ShareConnection } from '../rules/share';
 export function pairedAccessQueryOptions(connection: ShareConnection) {
   return queryOptions({
     queryKey: ['paired-access', connection.environmentId],
-    queryFn: ({ signal }) => shareApi.list(connection.request(signal).signal),
+    queryFn: ({ signal }) =>
+      shareApi(connection).list(connection.request(signal).signal),
   });
 }
 
 export function remoteAccessQueryOptions(connection: ShareConnection) {
   return queryOptions({
     queryKey: ['remote-access', connection.environmentId],
-    queryFn: ({ signal }) => shareApi.remote(connection.request(signal).signal),
+    queryFn: ({ signal }) =>
+      shareApi(connection).remote(connection.request(signal).signal),
     refetchInterval: (query) =>
       routesSettling(query.state.data) ? REMOTE_ACCESS_SETTLING_POLL_MS : false,
   });
@@ -40,7 +42,7 @@ export function serviceUpdateQueryOptions(connection: ShareConnection) {
   return queryOptions({
     queryKey: ['service-update', connection.environmentId],
     queryFn: ({ signal }) =>
-      shareApi.serviceUpdate(connection.request(signal).signal),
+      shareApi(connection).serviceUpdate(connection.request(signal).signal),
     refetchInterval: (query) =>
       query.state.data?.running === true ? SERVICE_UPDATE_POLL_MS : false,
     retry: false,

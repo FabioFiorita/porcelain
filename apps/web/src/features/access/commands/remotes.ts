@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { ConnectionError } from '@/shared/api/connection-error';
 import { REQUEST_TIMEOUT_MS } from '@/shared/api/request-timeout';
+import { remoteTransport } from '@/shared/api/transport';
 import { remoteApi } from '../api';
 import { remoteStatusQueryOptions } from '../queries/remotes';
 import { remoteLink, remoteStatus, type Remote } from '../rules/remotes';
@@ -13,9 +14,13 @@ async function addRemote(value: string): Promise<Remote> {
       'Paste the whole link porcelain pair printed, starting with http.',
     );
   const signal = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
-  const credential = await remoteApi.pair(link, signal);
+  const credential = await remoteApi.pair(
+    remoteTransport(link.address),
+    link,
+    signal,
+  );
   const answer = await remoteApi.describe(
-    { address: link.address, credential },
+    remoteTransport(link.address, credential),
     signal,
   );
   const status = remoteStatus(link, answer);

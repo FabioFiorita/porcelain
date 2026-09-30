@@ -15,7 +15,7 @@ export function useRemoveProject(
   const client = useQueryClient();
   const key = inventoryQueryOptions(
     connection.environmentId,
-    connection.request,
+    connection,
   ).queryKey;
   const mutation = useMutation({
     scope: { id: `inventory:${connection.environmentId}` },
@@ -28,7 +28,7 @@ export function useRemoveProject(
           );
       await client.cancelQueries({ queryKey: key });
       const request = connection.request();
-      const result = await projectsApi.inventory.remove(
+      const result = await projectsApi(connection).inventory.remove(
         request.signal,
         projectId,
       );

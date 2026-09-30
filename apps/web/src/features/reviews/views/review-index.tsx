@@ -20,7 +20,6 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/shared/lib/utils';
 import { type ChangeScope, isChangeScope } from '@/shared/workspace/search';
-import { useAccessStore } from '@/features/access/index';
 import { useBranchChanges, useChanges } from '@/features/changes/index';
 import { useMarkCommentsSeen } from '../commands/comments';
 import { useToggleReviewed } from '../commands/reviewed';
@@ -85,7 +84,7 @@ export function ReviewIndex({
   onChangeScope,
   onBase,
 }: Props & ScopeProps) {
-  const connection = useAccessStore((state) => state.connection);
+  const { connection } = context;
   const [view, setView] = useState<'layers' | 'comments'>('layers');
   usePrefetchReviewed(scope, context);
   usePrefetchComments(scope, context);
@@ -435,7 +434,7 @@ function BranchChangeComment({
   context: ReviewsContext;
   base: string | undefined;
 }) {
-  const connection = useAccessStore((state) => state.connection);
+  const { connection } = context;
   const changes = useBranchChanges(scope, connection, base);
   const ref = changes.data?.base?.ref;
   const tip = changes.data?.head.oid;

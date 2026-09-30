@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useAccessStore } from '@/features/access/index';
 import { useGitStatus } from '@/features/changes/index';
 import { Button } from '@/components/ui/button';
 import {
@@ -91,7 +90,7 @@ function CommitActionForm({
   onBusy: (busy: boolean) => void;
   onLookAgain?: (() => Promise<void>) | undefined;
 }) {
-  const connection = useAccessStore((state) => state.connection);
+  const { connection } = context;
   const details = useGitStatus(scope, connection);
   if (details.pending)
     return (
@@ -162,7 +161,7 @@ function StashActionForm({
   onBusy: (busy: boolean) => void;
   onLookAgain?: (() => Promise<void>) | undefined;
 }) {
-  const connection = useAccessStore((state) => state.connection);
+  const { connection } = context;
   const details = useGitStatus(scope, connection);
   if (details.pending)
     return (

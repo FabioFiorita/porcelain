@@ -7,7 +7,7 @@ function commitQueryOptions(
   scope: HistoryScope,
   oid: string,
   parent: number,
-  request: (signal?: AbortSignal) => { signal: AbortSignal },
+  connection: HistoryConnection,
 ) {
   return queryOptions({
     queryKey: [
@@ -20,8 +20,8 @@ function commitQueryOptions(
       parent,
     ],
     queryFn: async ({ signal }) => {
-      const connected = request(signal);
-      const commit = await historyApi.commit(
+      const connected = connection.request(signal);
+      const commit = await historyApi(connection).commit(
         connected.signal,
         scope.worktreeId,
         oid,
@@ -48,7 +48,7 @@ export function useCommit(
       scope,
       oid,
       parent,
-      connection.request,
+      connection,
     ),
   ).data;
 }

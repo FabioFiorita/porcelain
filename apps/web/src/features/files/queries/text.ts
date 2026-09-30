@@ -10,7 +10,7 @@ function textQueryOptions(
   environmentId: string,
   scope: FilesScope,
   path: string,
-  request: (signal?: AbortSignal) => { signal: AbortSignal },
+  connection: FilesConnection,
 ) {
   return queryOptions({
     queryKey: [
@@ -22,9 +22,9 @@ function textQueryOptions(
       path,
     ],
     queryFn: async ({ signal }) => {
-      const connected = request(signal);
+      const connected = connection.request(signal);
       try {
-        const response = await filesApi.text(
+        const response = await filesApi(connection).text(
           connected.signal,
           scope.worktreeId,
           path,
@@ -54,7 +54,7 @@ export function useTextFile(
 ) {
   if (!connection) throw new Error('A connected environment is required');
   return useSuspenseQuery(
-    textQueryOptions(connection.environmentId, scope, path, connection.request),
+    textQueryOptions(connection.environmentId, scope, path, connection),
   ).data;
 }
 
@@ -66,12 +66,7 @@ export function useTextContents(
   if (!connection) throw new Error('A connected environment is required');
   const queries = useQueries({
     queries: paths.map((path) => ({
-      ...textQueryOptions(
-        connection.environmentId,
-        scope,
-        path,
-        connection.request,
-      ),
+      ...textQueryOptions(connection.environmentId, scope, path, connection),
       throwOnError: false,
     })),
   });

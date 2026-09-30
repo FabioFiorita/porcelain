@@ -10,7 +10,7 @@ function directoryQueryOptions(
   environmentId: string,
   scope: FilesScope,
   path: string,
-  request: (signal?: AbortSignal) => { signal: AbortSignal },
+  connection: FilesConnection,
 ) {
   return queryOptions({
     queryKey: [
@@ -22,8 +22,8 @@ function directoryQueryOptions(
       path,
     ],
     queryFn: async ({ signal }) => {
-      const connected = request(signal);
-      const response = await filesApi.directory(
+      const connected = connection.request(signal);
+      const response = await filesApi(connection).directory(
         connected.signal,
         scope.worktreeId,
         path,
@@ -41,12 +41,7 @@ export function useDirectory(
 ) {
   if (!connection) throw new Error('A connected environment is required');
   return useSuspenseQuery(
-    directoryQueryOptions(
-      connection.environmentId,
-      scope,
-      path,
-      connection.request,
-    ),
+    directoryQueryOptions(connection.environmentId, scope, path, connection),
   ).data;
 }
 
@@ -58,12 +53,7 @@ export function useDirectories(
   if (!connection) throw new Error('A connected environment is required');
   return useQueries({
     queries: paths.map((path) =>
-      directoryQueryOptions(
-        connection.environmentId,
-        scope,
-        path,
-        connection.request,
-      ),
+      directoryQueryOptions(connection.environmentId, scope, path, connection),
     ),
   });
 }

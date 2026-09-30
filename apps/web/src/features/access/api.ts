@@ -25,22 +25,23 @@ import { WEB_PLATFORM_NAME_MAX_LENGTH } from '@/config/limits';
 import { ConnectionError } from '@/shared/api/connection-error';
 import { RequestError, requestJson } from '@/shared/api/request';
 import { REQUEST_TIMEOUT_MS } from '@/shared/api/request-timeout';
-import { browserTransport, remoteTransport } from '@/shared/api/transport';
+import { perConnection } from '@/shared/api/per-connection';
+import { browserTransport, type Transport } from '@/shared/api/transport';
 import type { PairingCode } from './rules/pairing-link';
-import type { Remote, RemoteAnswer, RemoteLink } from './rules/remotes';
+import type { RemoteAnswer, RemoteLink } from './rules/remotes';
 
-export type PairingPort = {
+type PairingPort = {
   redeem(
     request: PairingCode & { signal: AbortSignal },
   ): Promise<ReadInventoryResponse>;
 };
 
-export type SessionPort = {
+type SessionPort = {
   restore(signal: AbortSignal): Promise<ReadInventoryResponse | null>;
   disconnect(): Promise<void>;
 };
 
-function createPairingApi(transport: typeof fetch): PairingPort {
+function createPairingApi(transport: Transport): PairingPort {
   return {
     async redeem({ code, environmentId, signal }) {
       let health: unknown;
@@ -123,7 +124,7 @@ function createSessionApi(
   };
 }
 
-function createShareApi(transport: typeof fetch) {
+function createShareApi(transport: Transport) {
   const json = { 'content-type': 'application/json' };
   return {
     list: (signal: AbortSignal) =>
@@ -207,7 +208,7 @@ function createShareApi(transport: typeof fetch) {
   };
 }
 
-export const shareApi = createShareApi(browserTransport(fetch));
+export const shareApi = perConnection(createShareApi);
 
 export const accessApi = {
   pairing: createPairingApi(browserTransport(fetch)),
@@ -226,10 +227,14 @@ function platformName() {
 }
 
 export const remoteApi = {
-  async pair(link: RemoteLink, signal: AbortSignal): Promise<string> {
+  async pair(
+    transport: Transport,
+    link: RemoteLink,
+    signal: AbortSignal,
+  ): Promise<string> {
     let response: Response;
     try {
-      response = await remoteTransport(link.address)('/api/pair', {
+      response = await transport('/api/pair', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ code: link.code, platform: platformName() }),
@@ -251,15 +256,12 @@ export const remoteApi = {
     return paired.credential;
   },
   async describe(
-    remote: Pick<Remote, 'address' | 'credential'>,
+    transport: Transport,
     signal: AbortSignal,
   ): Promise<RemoteAnswer> {
     let response: Response;
     try {
-      response = await remoteTransport(remote.address, remote.credential)(
-        '/api/environment',
-        { signal },
-      );
+      response = await transport('/api/environment', { signal });
     } catch (error) {
       const timedOut =
         signal.reason instanceof DOMException &&

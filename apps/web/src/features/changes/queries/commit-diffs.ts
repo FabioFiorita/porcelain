@@ -29,7 +29,7 @@ export function useCommitDiffs(
     ],
     read: async (batch, signal) => {
       const connected = connection.request(signal);
-      const data = await changesApi.commitDiffs(
+      const data = await changesApi(connection).commitDiffs(
         connected.signal,
         scope.worktreeId,
         oid,

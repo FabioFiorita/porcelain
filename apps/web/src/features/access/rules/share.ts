@@ -9,6 +9,7 @@ import {
 export type ShareConnection = {
   environmentId: string;
   request: (signal?: AbortSignal) => { signal: AbortSignal };
+  transport: (path: string, init?: RequestInit) => Promise<Response>;
 };
 
 export type RemoteAccess = ReadRemoteAccessResponse;

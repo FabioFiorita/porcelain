@@ -26,7 +26,7 @@ function branchChangesQueryOptions(
     refetchOnReconnect: false,
     queryFn: async ({ signal }) => {
       const request = connection.request(signal);
-      const changes = await changesApi.branch(
+      const changes = await changesApi(connection).branch(
         request.signal,
         scope.worktreeId,
         base,
@@ -64,7 +64,7 @@ export function useBranchBases(
     enabled,
     queryFn: async ({ signal }) => {
       const request = connected.request(signal);
-      const bases = await changesApi.branchBases(
+      const bases = await changesApi(connected).branchBases(
         request.signal,
         scope.worktreeId,
       );
@@ -93,7 +93,7 @@ export function useBranchDiffs(
     read: async (batch, signal) => {
       if (!range) return [];
       const request = connected.request(signal);
-      const data = await changesApi.branchDiffs(
+      const data = await changesApi(connected).branchDiffs(
         request.signal,
         scope.worktreeId,
         {

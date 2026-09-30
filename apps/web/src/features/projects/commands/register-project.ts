@@ -10,7 +10,7 @@ export function useRegisterProject(connection: ProjectConnection | null) {
   const client = useQueryClient();
   const key = inventoryQueryOptions(
     connection.environmentId,
-    connection.request,
+    connection,
   ).queryKey;
   return asMutation(
     useMutation({
@@ -18,7 +18,7 @@ export function useRegisterProject(connection: ProjectConnection | null) {
       mutationFn: async (path: string) => {
         await client.cancelQueries({ queryKey: key });
         const request = connection.request();
-        const project = await projectsApi.inventory.register(
+        const project = await projectsApi(connection).inventory.register(
           request.signal,
           path,
         );

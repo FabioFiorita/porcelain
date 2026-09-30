@@ -2,7 +2,6 @@ import { GitBranchIcon } from 'lucide-react';
 import { Suspense } from 'react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { useAccessStore } from '@/features/access/index';
 import {
   branchErrorMessage,
   branchName,
@@ -42,7 +41,12 @@ export function BranchIndex({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="shrink-0 px-2 pt-2">
-        <BranchBasePicker scope={scope} base={base} onBase={onBase} />
+        <BranchBasePicker
+          scope={scope}
+          connection={context.connection}
+          base={base}
+          onBase={onBase}
+        />
       </div>
       <BranchFiles
         scope={scope}
@@ -71,7 +75,7 @@ function BranchFiles({
   threads: readonly CommentThread[];
   onOpen: OpenDocument;
 }) {
-  const connection = useAccessStore((state) => state.connection);
+  const { connection } = context;
   const changes = useBranchChanges(scope, connection, base);
   if (changes.isError)
     return (

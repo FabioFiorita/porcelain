@@ -19,7 +19,7 @@ function useSetFilePreference(
   const key = filePreferencesQueryOptions(
     connection.environmentId,
     projectId,
-    connection.request,
+    connection,
   ).queryKey;
   const mutation = asMutation(
     useMutation({
@@ -28,7 +28,7 @@ function useSetFilePreference(
       },
       mutationFn: async (input: SetFilePreferenceRequest) => {
         const request = connection.request();
-        const response = await projectsApi.filePreferences.set(
+        const response = await projectsApi(connection).filePreferences.set(
           request.signal,
           projectId,
           input,

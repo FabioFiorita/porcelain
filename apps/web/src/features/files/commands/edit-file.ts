@@ -104,7 +104,11 @@ async function executeFileWrite(
         throw new ConnectionError(
           'Save or discard the unsaved draft before moving this entry.',
         );
-    const result = await filesApi.edit(request.signal, scope.worktreeId, input);
+    const result = await filesApi(connection).edit(
+      request.signal,
+      scope.worktreeId,
+      input,
+    );
     request.signal.throwIfAborted();
     return result;
   } finally {
