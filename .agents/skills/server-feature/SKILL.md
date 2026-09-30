@@ -22,7 +22,7 @@ A feature is one route over one use case. Copy the nearest feature in the same a
 
 ## Changing or removing one
 
-Change the contract first; `pnpm typecheck:server` then leads through the route, the use case and the composition. To remove, delete the route, its scope registration, the use case, its composition entry, the contract exports and the feature's reach together; `verify.ts --all` fails on a reach that is no longer registered.
+Change the contract first; `pnpm typecheck:server` then leads through the route, the use case and the composition. To remove, delete the route, its scope registration, the use case, its composition entry, the contract exports and the feature's reach together; `verify.ts --all` fails on a reach that is no longer registered. Rows the removed behaviour already stored must still read: a value dropped from a persisted enum keeps decoding (or a migration moves it), and a route left with no caller in the web, the CLI or MCP goes in the same change. The commit names the removal the owner asked for.
 
 ## When a guardrail changed
 

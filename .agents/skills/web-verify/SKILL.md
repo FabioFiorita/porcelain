@@ -33,7 +33,9 @@ pnpm verify:web --all
    - `codingTool`: `codingTool.install()` puts the server fixture's fake coding tool on the server's PATH as `claude` and returns the replies it drafts (`message` for one commit, `groups` for several); until a journey installs it, the server has no coding command-line tool;
    - `failures`: declare a failure the journey expects, `failures.console(pattern)` or `failures.response('POST /api/…', status)`.
 4. Drive the page by role, label or text. Assert what the page shows with `await expect.element(locator)…` and what the server kept with `await expect.poll(() => server.…)…`. Name each case as a sentence of what the user does and sees.
-5. Run the affected journey once. Use `--all` for a cross-cutting checkpoint or release. Lint states the journey rules in `architecture/web-rules.mjs`; read a rule's message when it blocks you.
+5. Run the affected journey once. Use `--all` for a cross-cutting checkpoint or release, and when `components/ui` or `shared/` changed.
+
+A new or changed behaviour is proven by its journey in the same commit: a new route, control, menu or setting gets a map entry and a journey, and a behaviour the owner changed gets its journey and map entry rewritten to the new promise. Never keep a journey passing by shaping the UI around it (a role, a label or a mounted element kept only for a locator); when a journey stands in the way of what the owner asked for, ask the owner. Lint states the journey rules in `architecture/web-rules.mjs`; read a rule's message when it blocks you.
 
 A new route the web calls needs a journey that reaches it through the UI. When a journey starts reaching a route listed in `architecture/web-journey-baseline.json`, remove that route from the list in the same change.
 
@@ -43,7 +45,7 @@ Each journey runs against a fresh server. A journey fails on a failed assertion,
 
 The default is one run per selected journey. Use `--repeat <count>` explicitly when investigating a flaky case or when repeated evidence answers a concrete question. Each repetition gets a fresh server and isolated test iframe with cleared cookies and browser storage. The repetitions of one journey run one after another in the same browser. There are no retries or automatic repetitions based on Git history. The runner stops at the first failed run, journey or unexpected negative result: no further journey starts, journeys already running in other browsers finish, and the evidence already collected stays. A partial run does not judge full coverage; the summary lists skipped journeys and negatives.
 
-For ordinary feature proof, run each affected journey once after `pnpm check`. A cross-cutting checkpoint runs `pnpm verify:web --all` once. Automatic CI runs fast checks; the runtime workflow is manual. Do not trigger hosted audits while Actions spending is blocked without Fabio's approval.
+For ordinary feature proof, write or update the journeys for what changed, then run each affected journey once after `pnpm check`. A cross-cutting checkpoint runs `pnpm verify:web --all` once. Automatic CI runs fast checks; the runtime workflow is manual. Do not trigger hosted audits while Actions spending is blocked without Fabio's approval.
 
 `--all` also runs the negative journeys in `apps/web/spec/negative/`, planted journeys that must fail for what they plant: text the app never shows, a server state nobody saved, and a console error. The run prints `REJECTED` for each; their number is pinned in `scripts/catalogue.ts`.
 
