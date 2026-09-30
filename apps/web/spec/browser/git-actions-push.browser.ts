@@ -6,7 +6,7 @@ test('pushing to a remote whose address Porcelain cannot use is refused with how
   repo,
   server,
 }) => {
-  const branch = (await server.branches()).current;
+  const branch = (await server.gitStatus()).branch?.name;
   await repo.remote('origin', 'git://127.0.0.1:9/remote.git');
   await pairedPage.getByRole('button', { name: 'Git actions' }).click();
   const push = pairedPage.getByRole('menuitem', { name: /^Push/ });

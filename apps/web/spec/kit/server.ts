@@ -18,7 +18,6 @@ import {
 } from '@porcelain/contracts/files';
 import {
   listCommitModelsResponseSchema,
-  listGitBranchesResponseSchema,
   readGitActionReceiptResponseSchema,
 } from '@porcelain/contracts/git-actions';
 import {
@@ -145,8 +144,6 @@ export const server = {
     read(readPublishedReviewResponseSchema, await worktreePath('/review')),
   commentThreads: async () =>
     read(listCommentThreadsResponseSchema, await worktreePath('/comments')),
-  branches: async () =>
-    read(listGitBranchesResponseSchema, await worktreePath('/git/branches')),
   commitModels: () =>
     read(listCommitModelsResponseSchema, '/api/git/commit-models'),
   receipt: async (requestId: string) =>

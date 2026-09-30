@@ -26,5 +26,7 @@ test('a commit is refused when the worktree switched branch after the dialog ope
   await expect
     .poll(async () => (await server.commits()).commits[0]?.subject)
     .toBe(newest);
-  await expect.poll(async () => (await server.branches()).current).toBe(moved);
+  await expect
+    .poll(async () => (await server.gitStatus()).branch?.name)
+    .toBe(moved);
 });

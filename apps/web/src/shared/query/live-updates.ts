@@ -106,13 +106,7 @@ const FILE_SURFACES = new Set([
   'html-preview',
   'step-lines',
 ]);
-const GIT_SURFACES = new Set([
-  'changes',
-  'git-status',
-  'branches',
-  'paths',
-  'step-lines',
-]);
+const GIT_SURFACES = new Set(['changes', 'git-status', 'paths', 'step-lines']);
 
 async function refreshActiveQueries(
   client: QueryClient,
@@ -177,7 +171,7 @@ export async function refreshGitReceipt(
   const refresh = (async () => {
     const surfaces =
       receipt.action === 'fetch' || receipt.action === 'push'
-        ? new Set(['git-status', 'changes', 'branches'])
+        ? new Set(['git-status', 'changes'])
         : new Set([...GIT_SURFACES, ...FILE_SURFACES]);
     const refreshes = await Promise.allSettled(
       [

@@ -21,7 +21,7 @@ test('stashing sets the changes aside and popping the stash brings them back', a
   await expect.poll(async () => (await server.changes()).changes).toEqual([]);
   await expect
     .poll(stashes)
-    .toEqual([`On ${(await server.branches()).current}: Journey stash`]);
+    .toEqual([`On ${(await server.gitStatus()).branch?.name}: Journey stash`]);
   await userEvent.keyboard('{Escape}');
   await expect.element(stash).not.toBeInTheDocument();
 
@@ -76,5 +76,7 @@ test('popping a stash over a file changed since is refused with what Git said an
         (entry) => entry.message,
       ),
     )
-    .toEqual([`On ${(await server.branches()).current}: Porcelain review`]);
+    .toEqual([
+      `On ${(await server.gitStatus()).branch?.name}: Porcelain review`,
+    ]);
 });

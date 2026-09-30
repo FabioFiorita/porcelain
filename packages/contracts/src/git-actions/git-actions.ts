@@ -121,18 +121,6 @@ export const dismissInterruptedGitActionResponseSchema = z.object({
   dismissed: z.literal(true),
 });
 
-export const listGitBranchesResponseSchema = z.object({
-  current: absentAsNull(z.string()),
-  branches: z.array(
-    z.object({
-      name: z.string(),
-      upstream: absentAsNull(z.string()),
-      lastCommitAt: z.string(),
-      checkedOutElsewhere: z.boolean(),
-    }),
-  ),
-});
-
 export type GitActionScope = z.output<typeof gitActionScopeSchema>;
 export type RunGitActionRequest = z.output<typeof runGitActionRequestSchema>;
 export type RunGitActionResponse = z.output<typeof runGitActionResponseSchema>;
@@ -147,7 +135,4 @@ export type DismissInterruptedGitActionParams = z.output<
 >;
 export type DismissInterruptedGitActionResponse = z.output<
   typeof dismissInterruptedGitActionResponseSchema
->;
-export type ListGitBranchesResponse = z.output<
-  typeof listGitBranchesResponseSchema
 >;

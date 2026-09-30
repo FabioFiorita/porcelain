@@ -17,7 +17,6 @@ import type { ListCommitsUseCase } from '../../use-cases/changes/list-commits.ts
 import type { ListFileCommitsUseCase } from '../../use-cases/changes/list-file-commits.ts';
 import type { ListDirectoryUseCase } from '../../use-cases/files/list-directory.ts';
 import type { ListFilePreferencesUseCase } from '../../use-cases/projects/list-file-preferences.ts';
-import type { ListGitBranchesUseCase } from '../../use-cases/git-actions/list-git-branches.ts';
 import type { ListReviewedFilesUseCase } from '../../use-cases/reviews/list-reviewed-files.ts';
 import type { ListReviewedLayersUseCase } from '../../use-cases/reviews/list-reviewed-layers.ts';
 import type { ListWorktreePathsUseCase } from '../../use-cases/files/list-worktree-paths.ts';
@@ -70,7 +69,6 @@ import { readPreviewAssets } from '../routes/files/read-preview-assets.ts';
 import { readTextFile } from '../routes/files/read-text-file.ts';
 import { dismissInterruptedGitAction } from '../routes/git-actions/dismiss-interrupted-git-action.ts';
 import { generateCommitDraft } from '../routes/git-actions/generate-commit-draft.ts';
-import { listGitBranches } from '../routes/git-actions/list-git-branches.ts';
 import { listCommitModels } from '../routes/git-actions/list-commit-models.ts';
 import { readGitActionReceipt } from '../routes/git-actions/read-git-action-receipt.ts';
 import { runGitAction } from '../routes/git-actions/run-git-action.ts';
@@ -169,7 +167,6 @@ export type PairedUseCases = {
     >;
     generateCommitDraft: Pick<GenerateCommitDraftUseCase, 'execute'>;
     listCommitModels: Pick<ListCommitModelsUseCase, 'execute'>;
-    listGitBranches: Pick<ListGitBranchesUseCase, 'execute'>;
     readGitActionReceipt: Pick<ReadGitActionReceiptUseCase, 'execute'>;
     runGitAction: Pick<RunGitActionUseCase, 'execute'>;
   };
@@ -202,9 +199,6 @@ export async function pairedScope(
   });
   server.register(dismissInterruptedGitAction, {
     useCase: options.application.gitActions.dismissInterruptedGitAction,
-  });
-  server.register(listGitBranches, {
-    useCase: options.application.gitActions.listGitBranches,
   });
   server.register(listCommitModels, {
     useCase: options.application.gitActions.listCommitModels,

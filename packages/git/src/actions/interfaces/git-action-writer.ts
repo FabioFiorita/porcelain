@@ -1,5 +1,4 @@
 import type { CheckoutSession } from '../../inspection/index.ts';
-import type { GitBranchList } from '../dtos/git-branch-list.ts';
 import type {
   GitActionExpectation,
   GitActionIntent,
@@ -12,7 +11,6 @@ export interface GitActionWriter {
     paths: readonly string[],
     signal?: AbortSignal,
   ): Promise<string>;
-  listBranches(signal?: AbortSignal): Promise<GitBranchList>;
   executeDirect(
     requestId: string,
     intent: GitActionIntent,
