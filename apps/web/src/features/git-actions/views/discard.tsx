@@ -81,16 +81,8 @@ export function DiscardButton({
   const trigger =
     shown && !hiddenTrigger ? (
       <Button
-        size={
-          variant === 'quiet' ? 'quiet' : variant === 'compact' ? 'xs' : 'sm'
-        }
-        variant={
-          variant === 'quiet'
-            ? 'quiet'
-            : variant === 'compact'
-              ? 'ghost'
-              : 'destructive'
-        }
+        size={variant === 'button' ? 'sm' : 'xs'}
+        variant={variant === 'button' ? 'destructive' : 'ghost'}
         aria-label={
           hunk
             ? `Discard ${lines} of ${fileName(path)}`

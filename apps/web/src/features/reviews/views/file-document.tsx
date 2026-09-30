@@ -207,8 +207,8 @@ function ReadableFileDocument({
     <>
       {contentFingerprint && (
         <Button
-          variant="quiet"
-          size="quiet"
+          variant="ghost"
+          size="xs"
           disabled={draftState.owner !== null && draftState.owner !== editorId}
           title={
             draftState.owner && draftState.owner !== editorId
@@ -227,8 +227,8 @@ function ReadableFileDocument({
       )}
       {changed && (
         <Button
-          variant="quiet"
-          size="quiet"
+          variant="ghost"
+          size="xs"
           onClick={() => onOpen({ kind: 'change', path })}
         >
           <FileDiffIcon />
@@ -375,8 +375,8 @@ function TimelineButton({
 }) {
   return (
     <Button
-      variant="quiet"
-      size="quiet"
+      variant="ghost"
+      size="xs"
       aria-label="Timeline"
       title="Timeline"
       onClick={() => onOpen({ kind: 'timeline', path })}
@@ -390,8 +390,8 @@ function TimelineButton({
 function CopyPath({ path }: { path: string }) {
   return (
     <Button
-      variant="quiet"
-      size="quiet"
+      variant="ghost"
+      size="xs"
       aria-label="Copy path"
       title="Copy path"
       onClick={() => copyText(path, 'path')}

@@ -493,8 +493,8 @@ function CodeSurface({
             ) : null;
             const comment = entry.comment ? (
               <Button
-                variant="quiet"
-                size="quiet"
+                variant="ghost"
+                size="xs"
                 aria-label={`Comment on ${entry.path} (${entry.kind === 'diff' ? (entry.note ?? 'diff') : 'file'})`}
                 onClick={() => openFileComment(entry)}
               >

@@ -260,8 +260,8 @@ function ChangeDocument({
             headerActions={
               <>
                 <Button
-                  variant="quiet"
-                  size="quiet"
+                  variant="ghost"
+                  size="xs"
                   onClick={() => onOpen({ kind: 'file', path })}
                 >
                   <FileIcon />
