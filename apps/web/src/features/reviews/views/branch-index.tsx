@@ -9,6 +9,8 @@ import {
   useBranchChanges,
 } from '@/features/changes/index';
 import { cn } from '@/shared/lib/utils';
+import { toast } from '@/components/ui/toast';
+import { useToggleReviewed } from '../commands/reviewed';
 import { useReviewedMarks } from '../queries/reviewed';
 import {
   anchorPath,
@@ -22,7 +24,11 @@ import { BranchBasePicker } from './branch-base-picker';
 import { ChangeRow, ROW } from './change-row';
 import { ReviewEmpty } from './review-empty';
 
-type OpenDocument = (ref: DocumentRef, anchor?: CommentAnchor) => void;
+type OpenDocument = (
+  ref: DocumentRef,
+  anchor?: CommentAnchor,
+  options?: { compose?: boolean },
+) => void;
 
 export function BranchIndex({
   scope,
@@ -136,7 +142,14 @@ function BranchFileList({
   threads: readonly CommentThread[];
   onOpen: OpenDocument;
 }) {
-  const marks = useReviewedMarks(scope, context, branchReviewRange(branch));
+  const range = branchReviewRange(branch);
+  const marks = useReviewedMarks(scope, context, range);
+  const reviewed = useToggleReviewed(
+    scope,
+    context,
+    (notice) => toast.add(notice),
+    range,
+  );
   if (branch.base == null) return null;
   const items = mergeBranchChanges(branch.files, marks);
   const head =
@@ -185,6 +198,14 @@ function BranchFileList({
               activeEntry === entryKey({ kind: 'branch-file', path: item.path })
             }
             onOpen={onOpen}
+            canReview={item.fingerprint != null}
+            onReview={() =>
+              reviewed.toggle({
+                path: item.path,
+                reviewed: item.reviewStatus === 'reviewed',
+                fingerprint: item.fingerprint,
+              })
+            }
           />
         ))}
       </div>

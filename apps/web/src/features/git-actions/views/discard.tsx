@@ -1,5 +1,5 @@
 import { Undo2Icon } from 'lucide-react';
-import { type ReactNode, useState } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -27,6 +27,8 @@ export function DiscardButton({
   path,
   hunk,
   variant = 'button',
+  signal,
+  hiddenTrigger = false,
   children,
 }: {
   scope: GitScope;
@@ -34,6 +36,8 @@ export function DiscardButton({
   path: string;
   hunk?: { scope: 'staged' | 'unstaged'; startLine: number; endLine: number };
   variant?: 'button' | 'compact' | 'quiet';
+  signal?: number;
+  hiddenTrigger?: boolean;
   children?: (trigger: ReactNode) => ReactNode;
 }) {
   const connection = useAccessStore((state) => state.connection);
@@ -65,37 +69,49 @@ export function DiscardButton({
   });
   const { busy, error, uncertain } = discard;
   const shown = Boolean(candidate && (file || isOpen));
-  const trigger = shown ? (
-    <Button
-      size={variant === 'quiet' ? 'quiet' : variant === 'compact' ? 'xs' : 'sm'}
-      variant={
-        variant === 'quiet'
-          ? 'quiet'
-          : variant === 'compact'
-            ? 'ghost'
-            : 'destructive'
-      }
-      aria-label={
-        hunk
-          ? `Discard ${lines} of ${fileName(path)}`
-          : `Discard changes to ${fileName(path)}`
-      }
-      onClick={() => {
-        discard.reset();
-        setOpenedStatus(status);
-        setOpen(true);
-      }}
-    >
-      <Undo2Icon />
-      {variant === 'quiet' ? (
-        <span className="max-[720px]:sr-only">Discard</span>
-      ) : variant === 'compact' ? (
-        'Discard selection'
-      ) : (
-        'Discard'
-      )}
-    </Button>
-  ) : null;
+  const openedSignal = useRef<number | undefined>(undefined);
+  useEffect(() => {
+    if (signal === undefined || signal === openedSignal.current || !status)
+      return;
+    openedSignal.current = signal;
+    discard.reset();
+    setOpenedStatus(status);
+    setOpen(true);
+  }, [signal, status]);
+  const trigger =
+    shown && !hiddenTrigger ? (
+      <Button
+        size={
+          variant === 'quiet' ? 'quiet' : variant === 'compact' ? 'xs' : 'sm'
+        }
+        variant={
+          variant === 'quiet'
+            ? 'quiet'
+            : variant === 'compact'
+              ? 'ghost'
+              : 'destructive'
+        }
+        aria-label={
+          hunk
+            ? `Discard ${lines} of ${fileName(path)}`
+            : `Discard changes to ${fileName(path)}`
+        }
+        onClick={() => {
+          discard.reset();
+          setOpenedStatus(status);
+          setOpen(true);
+        }}
+      >
+        <Undo2Icon />
+        {variant === 'quiet' ? (
+          <span className="max-[720px]:sr-only">Discard</span>
+        ) : variant === 'compact' ? (
+          'Discard selection'
+        ) : (
+          'Discard'
+        )}
+      </Button>
+    ) : null;
   const dialog = shown ? (
     <AlertDialog open={isOpen} onOpenChange={(next) => !busy && setOpen(next)}>
       <AlertDialogContent>

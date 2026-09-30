@@ -254,6 +254,9 @@ function ChangeDocument({
       >
         {(trigger) => (
           <ReviewCodeDocument
+            {...(interaction.reveal?.compose
+              ? { commentRequest: interaction.reveal.nonce }
+              : {})}
             headerActions={
               <>
                 <Button

@@ -69,7 +69,11 @@ export type CommentTarget = Pick<
   FileCommentAnchor,
   'filePath' | 'revision' | 'comparison' | 'contentFingerprint'
 >;
-export type RevealComment = { anchor: CommentAnchor; nonce: number };
+export type RevealComment = {
+  anchor: CommentAnchor;
+  nonce: number;
+  compose?: boolean;
+};
 type LineRange = {
   start: number;
   end: number;

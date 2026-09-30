@@ -1,11 +1,33 @@
-import { CheckIcon, MessageSquareIcon, RotateCcwIcon } from 'lucide-react';
+import {
+  CheckIcon,
+  CopyIcon,
+  FileDiffIcon,
+  FileIcon,
+  HistoryIcon,
+  MessageSquareIcon,
+  MessageSquarePlusIcon,
+  RotateCcwIcon,
+  Undo2Icon,
+} from 'lucide-react';
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from '@/components/ui/context-menu';
 import { cn } from '@/shared/lib/utils';
+import { copyText } from '@/shared/workspace/copy';
 import { FileTypeIcon } from '@/features/files/index';
 import type { CommentAnchor } from '../rules/comments';
 import type { DocumentRef } from '../rules/documents';
 import { basename, type ReviewStatus } from '../rules/review';
 
-type OpenDocument = (ref: DocumentRef, anchor?: CommentAnchor) => void;
+type OpenDocument = (
+  ref: DocumentRef,
+  anchor?: CommentAnchor,
+  options?: { compose?: boolean },
+) => void;
 
 export const ROW =
   'flex w-full min-w-0 items-center gap-1.5 rounded-lg px-2 py-1 text-left text-[12.5px] transition-colors hover:bg-accent';
@@ -19,6 +41,9 @@ export function ChangeRow({
   commentCount,
   active,
   onOpen,
+  onReview,
+  canReview,
+  onDiscard,
   indented = false,
 }: {
   path: string;
@@ -29,41 +54,102 @@ export function ChangeRow({
   commentCount: number;
   active: boolean;
   onOpen: OpenDocument;
+  onReview: () => void;
+  canReview: boolean;
+  onDiscard?: () => void;
   indented?: boolean;
 }) {
+  const label = `${basename(path)}${scopes.length > 0 ? ` · ${scopes.join(' + ')}` : ''}`;
   return (
-    <button
-      type="button"
-      aria-pressed={active}
-      aria-label={`${basename(path)}${scopes.length > 0 ? ` · ${scopes.join(' + ')}` : ''}`}
-      title={note == null ? path : `${path}\n${note}`}
-      className={cn(
-        ROW,
-        'text-muted-foreground',
-        indented && 'pl-7',
-        active && 'bg-accent font-medium text-foreground',
-      )}
-      onClick={() => onOpen(document)}
-    >
-      <ReviewStatusIcon status={reviewStatus} />
-      <FileTypeIcon path={path} className="size-3.5 shrink-0" />
-      <span
-        className={cn(
-          'min-w-0 flex-1 truncate',
-          reviewStatus === 'reviewed' &&
-            'line-through decoration-muted-foreground/40',
-        )}
+    <ContextMenu>
+      <ContextMenuTrigger
+        render={
+          <button
+            type="button"
+            aria-pressed={active}
+            aria-label={label}
+            title={note == null ? path : `${path}\n${note}`}
+            className={cn(
+              ROW,
+              'text-muted-foreground',
+              indented && 'pl-7',
+              active && 'bg-accent font-medium text-foreground',
+            )}
+            onClick={() => onOpen(document)}
+          />
+        }
       >
-        {basename(path)}
-      </span>
-      {commentCount > 0 && (
-        <span className="flex shrink-0 items-center gap-0.5 text-[10.5px]">
-          <MessageSquareIcon className="size-3" />
-          {commentCount}
+        <ReviewStatusIcon status={reviewStatus} />
+        <FileTypeIcon path={path} className="size-3.5 shrink-0" />
+        <span
+          className={cn(
+            'min-w-0 flex-1 truncate',
+            reviewStatus === 'reviewed' &&
+              'line-through decoration-muted-foreground/40',
+          )}
+        >
+          {basename(path)}
         </span>
-      )}
-    </button>
+        {commentCount > 0 && (
+          <span className="flex shrink-0 items-center gap-0.5 text-[10.5px]">
+            <MessageSquareIcon className="size-3" />
+            {commentCount}
+          </span>
+        )}
+      </ContextMenuTrigger>
+      <ContextMenuContent className="min-w-52">
+        <ContextMenuItem disabled={!canReview} onClick={onReview}>
+          <CheckIcon />
+          {reviewMenuLabel(reviewStatus)}
+        </ContextMenuItem>
+        <ContextMenuItem
+          onClick={() =>
+            onOpen(
+              document,
+              { kind: 'file', filePath: path },
+              { compose: true },
+            )
+          }
+        >
+          <MessageSquarePlusIcon />
+          Comment
+        </ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem onClick={() => onOpen(document)}>
+          <FileDiffIcon />
+          Open diff
+        </ContextMenuItem>
+        <ContextMenuItem onClick={() => onOpen({ kind: 'file', path })}>
+          <FileIcon />
+          Open file
+        </ContextMenuItem>
+        <ContextMenuItem onClick={() => onOpen({ kind: 'timeline', path })}>
+          <HistoryIcon />
+          Show timeline
+        </ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem onClick={() => copyText(path, 'relative path')}>
+          <CopyIcon />
+          Copy relative path
+        </ContextMenuItem>
+        {onDiscard && (
+          <>
+            <ContextMenuSeparator />
+            <ContextMenuItem variant="destructive" onClick={onDiscard}>
+              <Undo2Icon />
+              Discard
+            </ContextMenuItem>
+          </>
+        )}
+      </ContextMenuContent>
+    </ContextMenu>
   );
+}
+
+function reviewMenuLabel(status: ReviewStatus | undefined) {
+  if (status === 'reviewed') return 'Unmark as reviewed';
+  if (status === 'stale') return 'Mark as reviewed again';
+  return 'Mark as reviewed';
 }
 
 function ReviewStatusIcon({ status }: { status: ReviewStatus | undefined }) {

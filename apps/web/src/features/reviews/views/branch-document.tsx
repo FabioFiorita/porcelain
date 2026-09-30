@@ -234,6 +234,9 @@ function BranchDiffs({
         context={context}
         interaction={interaction}
         range={range}
+        {...(interaction.reveal?.compose
+          ? { commentRequest: interaction.reveal.nonce }
+          : {})}
         entries={entries}
         toolbar={(collapseControl) =>
           single && first ? (

@@ -22,6 +22,7 @@ import {
 } from '@/shared/workspace/search';
 import type { ReviewsContext } from '../rules/reviewed';
 import { ReviewBoundary } from './review-boundary';
+import type { DocumentContext } from './code-document';
 import { ReviewEmpty } from './review-empty';
 import { ReviewIndex } from './review-index';
 
@@ -44,7 +45,7 @@ export function ReviewSidebar({
   changes,
 }: {
   scope: ReviewScope;
-  context: ReviewsContext;
+  context: DocumentContext;
   worktreePath: string;
   surface: Surface;
   activeEntry: string | undefined;
@@ -150,7 +151,7 @@ function SidebarSurface({
   changes,
 }: {
   scope: ReviewScope;
-  context: ReviewsContext;
+  context: DocumentContext;
   worktreePath: string;
   surface: Surface;
   activeEntry: string | undefined;
