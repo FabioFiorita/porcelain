@@ -12,14 +12,18 @@ test('opening a commit from History shows its message, its file and the diff of 
     .poll(async () => (await server.commits()).commits[0]?.subject)
     .toBe(subject);
   await pairedPage.getByRole('button', { name: 'Review', exact: true }).click();
-  await pairedPage.getByRole('tab', { name: 'History' }).click();
-  await pairedPage.getByRole('button', { name: subject, exact: false }).click();
+  await pairedPage.getByRole('tab', { name: 'History', exact: true }).click();
+  await pairedPage
+    .getByRole('button', { name: new RegExp(`^${subject}`) })
+    .click();
   await expect
-    .element(pairedPage.getByRole('heading', { name: subject }))
+    .element(pairedPage.getByRole('heading', { name: subject, exact: true }))
     .toBeVisible();
-  await expect.element(pairedPage.getByText('1 file changed')).toBeVisible();
   await expect
-    .element(pairedPage.getByText('A change to review.'))
+    .element(pairedPage.getByText('1 file changed', { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(pairedPage.getByText('A change to review.', { exact: true }))
     .toBeVisible();
 });
 
@@ -36,16 +40,21 @@ test('a binary file in a commit is listed without a code preview and says it is 
     .poll(async () => (await server.commits()).commits[0]?.subject)
     .toBe(subject);
   await pairedPage.getByRole('button', { name: 'Review', exact: true }).click();
-  await pairedPage.getByRole('tab', { name: 'History' }).click();
-  await pairedPage.getByRole('button', { name: subject, exact: false }).click();
+  await pairedPage.getByRole('tab', { name: 'History', exact: true }).click();
+  await pairedPage
+    .getByRole('button', { name: new RegExp(`^${subject}`) })
+    .click();
   await expect
-    .element(pairedPage.getByRole('heading', { name: subject }))
+    .element(pairedPage.getByRole('heading', { name: subject, exact: true }))
     .toBeVisible();
   const withoutPreview = pairedPage.getByRole('list', {
     name: 'Changes without code preview',
+    exact: true,
   });
-  await expect.element(withoutPreview.getByText(logo)).toBeVisible();
   await expect
-    .element(withoutPreview.getByText('added · Binary change'))
+    .element(withoutPreview.getByText(logo, { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(withoutPreview.getByText('added · Binary change', { exact: true }))
     .toBeVisible();
 });

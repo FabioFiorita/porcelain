@@ -1,10 +1,20 @@
+import { FieldLegend, FieldSet } from '@/components/ui/field';
+import {
+  Item,
+  ItemContent,
+  ItemDescription,
+  ItemGroup,
+} from '@/components/ui/item';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Separator } from '@/components/ui/separator';
 import { Spinner } from '@/components/ui/spinner';
 import { desktopShell } from '@/shared/shell';
 import { useRemoteAccess } from '../queries/share';
 import { connectionErrorMessage } from '../rules/connection-error-message';
-import type { Environment, ShareConnection } from '../rules/share';
+import type {
+  Environment,
+  RemoteAccess,
+  ShareConnection,
+} from '../rules/share';
 import { useAccessStore } from '../store';
 import { EnvironmentName } from './environment-name';
 import { PairDevice } from './pair-device';
@@ -35,23 +45,61 @@ function ShareContent({
     );
   if (!remote.data) return <Spinner />;
   return (
-    <div className="flex flex-col gap-4">
-      <EnvironmentName connection={connection} environment={environment} />
-      <Separator />
-      <RemoteRoutes connection={connection} remote={remote.data} />
-      <Separator />
-      <div className="flex flex-col gap-1">
-        <p className="text-sm font-medium">Pair a device</p>
-        <p className="text-xs text-muted-foreground">
-          Open the link or scan the code on the other device to connect it to{' '}
-          {environment.name}. Each link works once, for a few minutes.
-        </p>
-      </div>
-      <PairDevice connection={connection} remote={remote.data} />
-      <Separator />
-      <p className="text-sm font-medium">Paired devices</p>
-      <PairedDevices connection={connection} />
-    </div>
+    <ShareSections
+      connection={connection}
+      environment={environment}
+      remote={remote.data}
+    />
+  );
+}
+
+function ShareSections({
+  connection,
+  environment,
+  remote,
+}: {
+  connection: ShareConnection;
+  environment: Environment;
+  remote: RemoteAccess;
+}) {
+  return (
+    <>
+      <ItemGroup>
+        <Item variant="outline">
+          <ItemContent>
+            <EnvironmentName
+              connection={connection}
+              environment={environment}
+            />
+          </ItemContent>
+        </Item>
+      </ItemGroup>
+      <RemoteRoutes connection={connection} remote={remote} />
+      <FieldSet>
+        <FieldLegend variant="label">Pair a device</FieldLegend>
+        <ItemGroup>
+          <Item variant="outline">
+            <ItemContent>
+              <ItemDescription>
+                Open the link or scan the code on the other device to connect it
+                to {environment.name}. Each link works once, for a few minutes.
+              </ItemDescription>
+              <PairDevice connection={connection} remote={remote} />
+            </ItemContent>
+          </Item>
+        </ItemGroup>
+      </FieldSet>
+      <FieldSet>
+        <FieldLegend variant="label">Paired devices</FieldLegend>
+        <ItemGroup>
+          <Item variant="outline">
+            <ItemContent>
+              <PairedDevices connection={connection} />
+            </ItemContent>
+          </Item>
+        </ItemGroup>
+      </FieldSet>
+    </>
   );
 }
 

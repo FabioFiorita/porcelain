@@ -71,9 +71,7 @@ export async function install(
     await rename(staging, paths.runtime);
     const configuration: ServiceConfiguration = {
       dataDirectory: settings.dataDirectory,
-      host: settings.host,
       port: settings.port,
-      allowedHosts: settings.allowedHosts,
     };
     await writeJsonFile(paths.configuration, configuration);
     await writeJsonFile(paths.installed, { version: context.packageVersion });

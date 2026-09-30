@@ -12,21 +12,26 @@ test('opening the graph of a published layer draws its lane and step, and choosi
   await pairedPage.getByRole('button', { name: new RegExp(title) }).click();
   const layer = pairedPage.getByRole('region', {
     name: `Review layer ${title}`,
+    exact: true,
   });
-  const graphTab = layer.getByRole('tab', { name: 'Graph' });
+  const graphTab = layer.getByRole('tab', { name: 'Graph', exact: true });
   await graphTab.click();
   await expect.element(graphTab).toHaveAttribute('aria-selected', 'true');
 
   const step = layer.getByRole('button', { name: 'New line', exact: true });
   await expect.element(step).toBeVisible();
-  await expect.element(step.getByText('A line is added')).toBeVisible();
+  await expect
+    .element(step.getByText('A line is added', { exact: true }))
+    .toBeVisible();
   await expect.element(layer.getByText('Docs', { exact: true })).toBeVisible();
   await expect
-    .element(layer.getByText('Loading diagram…'))
+    .element(layer.getByText('Loading diagram…', { exact: true }))
     .not.toBeInTheDocument();
 
   await step.click();
   await expect
-    .element(layer.getByRole('region', { name: 'Selected step code' }))
+    .element(
+      layer.getByRole('region', { name: 'Selected step code', exact: true }),
+    )
     .toBeVisible();
 });

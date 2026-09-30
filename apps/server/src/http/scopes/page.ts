@@ -25,7 +25,10 @@ export async function pageScope(
   const { application, allowedHosts, files } = options;
   server.addHook(
     'onRequest',
-    checkRequestOrigin({ access: application.access, allowedHosts }),
+    checkRequestOrigin(
+      { access: application.access, allowedHosts },
+      { crossOrigin: 'refused' },
+    ),
   );
   server.register(async (summaries) => {
     summaries.addHook('onRequest', summaryPageHeaders);

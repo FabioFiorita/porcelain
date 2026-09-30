@@ -62,6 +62,10 @@ const ioGlobals = new Set([
   'requestAnimationFrame',
   'console',
 ]);
+const dialogRoles = new Set(['dialog', 'alertdialog']);
+const keyTargets = new Set([...globalObjects, 'document']);
+const keyEvents = new Set(['keydown', 'keyup', 'keypress']);
+const historyGlobals = new Set(['history']);
 const pureRuleModules = /^(?:@porcelain\/contracts(?:\/|$)|date-fns(?:\/|$))/;
 const loopStatements = new Set([
   'ForStatement',
@@ -135,6 +139,11 @@ const journeyLocatorReads = new Set([
   'elements',
   'query',
 ]);
+const journeyNamedLocators = new Map([
+  ['getByRole', 'options'],
+  ['getByText', 'argument'],
+  ['getByLabelText', 'argument'],
+]);
 const journeyTimers = new Set([
   'setTimeout',
   'setInterval',
@@ -162,6 +171,27 @@ function importedName(specifier) {
   return specifier.imported.type === 'Identifier'
     ? specifier.imported.name
     : specifier.imported.value;
+}
+
+function objectProperty(node, key) {
+  if (node?.type !== 'ObjectExpression') return undefined;
+  const found = node.properties.find(
+    (property) =>
+      property.type === 'Property' &&
+      !property.computed &&
+      ((property.key.type === 'Identifier' && property.key.name === key) ||
+        (property.key.type === 'Literal' && property.key.value === key)),
+  );
+  return found?.value;
+}
+
+function patternNode(node) {
+  return (
+    (node.type === 'Literal' && node.regex?.pattern !== undefined) ||
+    (node.type === 'NewExpression' &&
+      node.callee.type === 'Identifier' &&
+      node.callee.name === 'RegExp')
+  );
 }
 
 function journeyRule(visitors) {
@@ -365,6 +395,32 @@ function viewRule(visitors) {
       return visitors(context, path);
     },
   };
+}
+
+function pageCode(path) {
+  return (
+    path.startsWith(`${webSource}app/`) ||
+    webPart(path) === 'view' ||
+    (path.startsWith(`${webSource}shared/`) && path.endsWith('.tsx'))
+  );
+}
+
+function pageRule(visitors) {
+  return {
+    create(context) {
+      return pageCode(webPath(context)) ? visitors(context) : {};
+    },
+  };
+}
+
+function stringValue(node) {
+  if (node?.type === 'Literal' && typeof node.value === 'string')
+    return node.value;
+  if (node?.type === 'JSXExpressionContainer')
+    return stringValue(node.expression);
+  if (node?.type === 'TemplateLiteral' && node.expressions.length === 0)
+    return node.quasis[0]?.value.cooked ?? undefined;
+  return undefined;
 }
 
 function commandCalls(body, visitorKeys) {
@@ -816,6 +872,48 @@ export const webRules = {
         });
     },
   })),
+  'web-dialogs-from-ui': pageRule((context) => ({
+    JSXAttribute(node) {
+      if (
+        node.name.type === 'JSXIdentifier' &&
+        node.name.name === 'role' &&
+        dialogRoles.has(stringValue(node.value) ?? '')
+      )
+        context.report({
+          node,
+          message:
+            'A dialog is Dialog, AlertDialog or Sheet from components/ui, which bring the role, the focus trap, Escape and the overlay; a page is a route. A hand-set dialog role copies them badly and fools the journeys that find it.',
+        });
+    },
+  })),
+  'web-keys-through-hotkeys': pageRule((context) => ({
+    CallExpression(node) {
+      const callee = node.callee;
+      if (
+        callee.type !== 'MemberExpression' ||
+        methodName(callee) !== 'addEventListener' ||
+        callee.object.type !== 'Identifier' ||
+        !keyTargets.has(callee.object.name) ||
+        !keyEvents.has(stringValue(node.arguments[0]) ?? '')
+      )
+        return;
+      context.report({
+        node,
+        message:
+          'A keyboard shortcut is useHotkey from @tanstack/react-hotkeys with its keys in shared/workspace/shortcuts.ts, which scopes it and lists it in the shortcuts dialog; a window or document key listener fights every other shortcut and the editor. A key that belongs to one element is its onKeyDown.',
+      });
+    },
+  })),
+  'web-navigation-through-router': pageRule((context) => ({
+    'Program:exit'(program) {
+      for (const node of globalUses(context, program, historyGlobals))
+        context.report({
+          node,
+          message:
+            "Navigation goes through TanStack Router: Link, useNavigate, useCanGoBack and useRouter().history.back(); window.history moves the page behind the router's back, so its location, loaders and blockers go stale.",
+        });
+    },
+  })),
   'web-no-empty-catch': {
     create(context) {
       if (!inWeb(webPath(context))) return {};
@@ -990,15 +1088,27 @@ export const webRules = {
   })),
   'web-journey-locators': journeyRule((context) => ({
     CallExpression(node) {
-      if (
-        expectCall(node) === undefined &&
-        journeyLocatorReads.has(methodName(node.callee) ?? '')
-      )
+      const method = methodName(node.callee) ?? '';
+      if (expectCall(node) === undefined && journeyLocatorReads.has(method)) {
         context.report({
           node,
           message:
             'A journey finds elements by role, label or text, the way a user and assistive technology do; CSS selectors, test ids and element reads couple it to markup and read one moment.',
         });
+        return;
+      }
+      const named = journeyNamedLocators.get(method);
+      if (named === undefined) return;
+      const [first, second] = node.arguments;
+      const name = named === 'options' ? objectProperty(second, 'name') : first;
+      if (name === undefined || patternNode(name)) return;
+      const exact = objectProperty(second, 'exact');
+      if (exact?.type === 'Literal' && exact.value === true) return;
+      context.report({
+        node,
+        message:
+          'A journey names an element exactly: pass exact: true with a string name, or a RegExp that states its own bounds; a substring match finds another element whose label contains the text, and a product label is never renamed to dodge one.',
+      });
     },
   })),
   'web-journey-no-waits': journeyRule((context) => {

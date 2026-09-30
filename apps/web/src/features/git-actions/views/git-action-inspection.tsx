@@ -46,8 +46,6 @@ export function GitActionInspection({
   onLookAgain?: (() => Promise<void>) | undefined;
 }) {
   if (
-    entry === 'switch-branch' ||
-    entry === 'create-branch' ||
     entry === 'discard' ||
     entry === 'fetch' ||
     entry === 'pull' ||

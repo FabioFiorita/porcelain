@@ -271,6 +271,9 @@ async function main() {
         PORCELAIN_DEV_ROOT: root,
         PORCELAIN_DEV_BIN: bin,
         PORCELAIN_DEV_PORT: String(network.port),
+        ...(process.env.PORCELAIN_DEV_SAMPLE === 'review'
+          ? { PORCELAIN_DEV_SAMPLE: 'review' }
+          : {}),
       },
     });
     stopChild = () => {

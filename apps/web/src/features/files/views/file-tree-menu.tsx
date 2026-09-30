@@ -12,22 +12,45 @@ import {
   PinIcon,
   Trash2Icon,
 } from 'lucide-react';
-import type { KeyboardEvent } from 'react';
+import type { ComponentProps, ComponentType, KeyboardEvent } from 'react';
 import {
-  ContextMenu,
-  ContextMenuContent,
   ContextMenuItem,
   ContextMenuSeparator,
-  ContextMenuTrigger,
 } from '@/components/ui/context-menu';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import type { TreeAction } from '../rules/tree-actions';
 
-type Props = {
-  path: string;
-  anchor: { left: number; bottom: number };
+type MenuParts = {
+  Item: ComponentType<ComponentProps<typeof ContextMenuItem>>;
+  Separator: ComponentType;
+};
+
+type MenuListProps = {
   actions: readonly { id: TreeAction; label: string }[];
   hidden: boolean;
   onAction: (id: TreeAction) => void;
+  parts?: MenuParts;
+};
+
+const contextParts: MenuParts = {
+  Item: ContextMenuItem,
+  Separator: ContextMenuSeparator,
+};
+
+const dropdownParts: MenuParts = {
+  Item: DropdownMenuItem,
+  Separator: DropdownMenuSeparator,
+};
+
+type Props = MenuListProps & {
+  path: string;
+  anchor: HTMLElement;
   onMenuKeyDown: (event: KeyboardEvent<HTMLDivElement>) => void;
 };
 
@@ -55,47 +78,64 @@ export function FileTreeMenu({
   onAction,
   onMenuKeyDown,
 }: Props) {
+  const point = anchor.getBoundingClientRect();
   return (
-    <ContextMenu defaultOpen>
-      <ContextMenuTrigger
+    <DropdownMenu defaultOpen>
+      <DropdownMenuTrigger
         aria-label={`${path} actions`}
         className="fixed size-px"
-        style={{ left: anchor.left, top: anchor.bottom }}
+        style={{ left: point.left, top: point.top }}
       />
-      <ContextMenuContent
-        side="bottom"
-        align="start"
+      <DropdownMenuContent
+        data-file-tree-context-menu-root="true"
         onKeyDownCapture={onMenuKeyDown}
       >
-        {actions.map((action) => (
-          <FileTreeMenuAction
-            key={action.id}
-            action={action}
-            onAction={onAction}
-            hidden={hidden}
-          />
-        ))}
-      </ContextMenuContent>
-    </ContextMenu>
+        <FileTreeMenuList
+          actions={actions}
+          hidden={hidden}
+          onAction={onAction}
+          parts={dropdownParts}
+        />
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
+}
+
+export function FileTreeMenuList({
+  actions,
+  hidden,
+  onAction,
+  parts = contextParts,
+}: MenuListProps) {
+  return actions.map((action) => (
+    <FileTreeMenuAction
+      key={action.id}
+      action={action}
+      onAction={onAction}
+      hidden={hidden}
+      parts={parts}
+    />
+  ));
 }
 
 function FileTreeMenuAction({
   action,
   onAction,
   hidden,
+  parts: { Item, Separator },
 }: {
   action: { id: TreeAction; label: string };
   onAction: (id: TreeAction) => void;
   hidden: boolean;
+  parts: MenuParts;
 }) {
   const Icon = action.id === 'hide' && hidden ? EyeIcon : icons[action.id];
   return (
     <>
       {(action.id === 'hide' ||
         action.id === 'copy-relative' ||
-        action.id === 'trash') && <ContextMenuSeparator />}
-      <ContextMenuItem
+        action.id === 'trash') && <Separator />}
+      <Item
         variant={action.id === 'trash' ? 'destructive' : 'default'}
         onPointerDownCapture={() => onAction(action.id)}
         onKeyDownCapture={(event) => {
@@ -104,7 +144,7 @@ function FileTreeMenuAction({
       >
         <Icon />
         {action.label}
-      </ContextMenuItem>
+      </Item>
     </>
   );
 }

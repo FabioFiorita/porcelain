@@ -14,6 +14,7 @@ import {
 } from '../commands/reviewed';
 import {
   reviewErrorMessage,
+  type ReviewChangeItem,
   type ReviewScope,
   type ReviewStatus,
 } from '../rules/review';
@@ -27,6 +28,30 @@ import {
   type ReviewsContext,
   WORKTREE_RANGE,
 } from '../rules/reviewed';
+
+export function fileReviewControl(
+  scope: ReviewScope,
+  context: ReviewsContext,
+  item: ReviewChangeItem,
+) {
+  return {
+    path: item.path,
+    fingerprint: item.fingerprint ?? null,
+    reviewed: item.reviewStatus === 'reviewed',
+    stale: item.reviewStatus === 'stale',
+    control: (
+      <ReviewedControl
+        key={`review:${item.path}`}
+        scope={scope}
+        context={context}
+        path={item.path}
+        fingerprint={item.fingerprint}
+        status={item.reviewStatus}
+        compact
+      />
+    ),
+  };
+}
 
 export function ReviewedControl({
   scope,

@@ -7,6 +7,8 @@ import {
 import { gitActionReceiptSchema } from '../shared/git-action-receipt.ts';
 import { relativePathSchema } from '../shared/relative-path.ts';
 import { worktreeIdSchema } from '../shared/worktree-params.ts';
+import type { DeviceRoute } from './pairing.ts';
+import type { Principal } from './principal.ts';
 
 export const liveSubscriptionSchema = z.strictObject({
   type: z.literal('subscribe'),
@@ -46,3 +48,13 @@ export const liveNoticeSchema = z.discriminatedUnion('type', [
 ]);
 
 export type LiveNotice = z.output<typeof liveNoticeSchema>;
+
+export const issueLiveTicketResponseSchema = z.object({
+  ticket: z.string(),
+  expiresAt: z.string(),
+});
+
+export type IssueLiveTicketRequest = { viewer: Principal; route: DeviceRoute };
+export type IssueLiveTicketResponse = z.output<
+  typeof issueLiveTicketResponseSchema
+>;

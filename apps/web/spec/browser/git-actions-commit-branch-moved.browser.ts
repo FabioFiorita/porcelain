@@ -10,7 +10,10 @@ test('a commit is refused when the worktree switched branch after the dialog ope
 }) => {
   const newest = (await server.commits()).commits[0]?.subject;
   await pairedPage.getByRole('button', { name: 'Commit', exact: true }).click();
-  const dialog = pairedPage.getByRole('dialog', { name: 'Commit changes' });
+  const dialog = pairedPage.getByRole('dialog', {
+    name: 'Commit changes',
+    exact: true,
+  });
   await expect
     .element(dialog.getByText(repo.initialBranch, { exact: true }))
     .toBeVisible();
@@ -18,13 +21,19 @@ test('a commit is refused when the worktree switched branch after the dialog ope
   await repo.branch(moved);
   await repo.switch(moved);
   await expect.element(dialog.getByText(moved, { exact: true })).toBeVisible();
-  await dialog.getByRole('textbox', { name: 'Message' }).fill('Moved commit');
-  await dialog.getByRole('button', { name: 'Commit selected files' }).click();
+  await dialog
+    .getByRole('textbox', { name: 'Message', exact: true })
+    .fill('Moved commit');
+  await dialog
+    .getByRole('button', { name: 'Commit selected files', exact: true })
+    .click();
   await expect
     .element(dialog.getByRole('alert'))
     .toMatchTextContent(/changed since looked/i);
   await expect
     .poll(async () => (await server.commits()).commits[0]?.subject)
     .toBe(newest);
-  await expect.poll(async () => (await server.branches()).current).toBe(moved);
+  await expect
+    .poll(async () => (await server.gitStatus()).branch?.name)
+    .toBe(moved);
 });

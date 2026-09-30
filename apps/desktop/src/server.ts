@@ -31,6 +31,7 @@ const settings = readServerSettings({
 try {
   const server = await startServer(settings, signal.signal, {
     desktopSession: session,
+    version: undefined,
     serviceUpdateRunner: openServiceUpdateRunner({
       homeDirectory: homedir(),
       packageRoot,

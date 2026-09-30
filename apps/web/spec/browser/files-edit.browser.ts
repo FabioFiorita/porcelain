@@ -9,13 +9,15 @@ test('an edited file saves after a pause, with Done and when its tab closes', as
   const readme = repo.readme.path;
   const saved = async () => (await server.text(readme)).text;
   await pairedPage.getByRole('button', { name: 'Review', exact: true }).click();
-  await pairedPage.getByRole('tab', { name: 'Files' }).click();
-  const file = pairedPage.getByRole('treeitem', { name: readme });
+  await pairedPage.getByRole('tab', { name: 'Files', exact: true }).click();
+  const file = pairedPage.getByRole('treeitem', { name: readme, exact: true });
   await expect.element(file).toBeVisible();
   await file.click({ button: 'right' });
-  await pairedPage.getByRole('menuitem', { name: 'Open file' }).click();
+  await pairedPage
+    .getByRole('menuitem', { name: 'Open file', exact: true })
+    .click();
   await pairedPage.getByRole('button', { name: 'Edit', exact: true }).click();
-  const editor = pairedPage.getByRole('textbox', { name: readme });
+  const editor = pairedPage.getByRole('textbox', { name: readme, exact: true });
   await expect.element(editor).toBeVisible();
 
   await editor.fill('Browser autosave marker');
@@ -25,7 +27,7 @@ test('an edited file saves after a pause, with Done and when its tab closes', as
   await expect.poll(saved).toContain('Browser autosave marker');
 
   await editor.fill('Browser done marker');
-  await pairedPage.getByRole('button', { name: 'Done' }).click();
+  await pairedPage.getByRole('button', { name: 'Done', exact: true }).click();
   await expect
     .element(pairedPage.getByRole('button', { name: 'Edit', exact: true }))
     .toBeVisible();
@@ -33,10 +35,10 @@ test('an edited file saves after a pause, with Done and when its tab closes', as
 
   await pairedPage.getByRole('button', { name: 'Edit', exact: true }).click();
   await pairedPage
-    .getByRole('textbox', { name: readme })
+    .getByRole('textbox', { name: readme, exact: true })
     .fill('Browser close marker');
   await pairedPage
-    .getByRole('button', { name: `Close ${readme}` })
+    .getByRole('button', { name: `Close ${readme}`, exact: true })
     .last()
     .click();
   await expect.poll(saved).toContain('Browser close marker');

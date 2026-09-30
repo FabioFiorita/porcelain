@@ -27,23 +27,29 @@ test('reading more of a long branch keeps the diffs already shown while the next
     .getByRole('button', { name: /^All branch changes/u })
     .click();
   await expect
-    .element(pairedPage.getByText('A change to review.'))
+    .element(pairedPage.getByText('A change to review.', { exact: true }))
     .toBeVisible();
 
   gate.arm();
-  await pairedPage.getByRole('button', { name: 'Read 2 more of 2' }).click();
+  await pairedPage
+    .getByRole('button', { name: 'Read 2 more of 2', exact: true })
+    .click();
   await gate.requested;
   await expect
-    .element(pairedPage.getByText('A change to review.'))
+    .element(pairedPage.getByText('A change to review.', { exact: true }))
     .toBeVisible();
   gate.release();
   await expect
-    .element(pairedPage.getByRole('button', { name: 'Read 2 more of 2' }))
+    .element(
+      pairedPage.getByRole('button', { name: 'Read 2 more of 2', exact: true }),
+    )
     .not.toBeInTheDocument();
   await expect
-    .element(pairedPage.getByText('Some patches could not be read.'))
+    .element(
+      pairedPage.getByText('Some patches could not be read.', { exact: true }),
+    )
     .not.toBeInTheDocument();
   await expect
-    .element(pairedPage.getByText('A change to review.'))
+    .element(pairedPage.getByText('A change to review.', { exact: true }))
     .toBeVisible();
 });

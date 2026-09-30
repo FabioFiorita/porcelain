@@ -206,11 +206,12 @@ async function installedProject(input: DesktopProof) {
       if (item == null) throw new Error('The native Settings menu is missing');
       Reflect.apply(item.click, item, [item, undefined, undefined]);
     });
-    const settingsDialog = page.getByRole('dialog', { name: 'Settings' });
-    await settingsDialog.waitFor({ state: 'visible' });
-    await settingsDialog
-      .getByRole('tab', { name: 'Dark', exact: true })
-      .click();
+    const settingsPage = page.getByRole('main', {
+      name: 'Settings',
+      exact: true,
+    });
+    await settingsPage.waitFor({ state: 'visible' });
+    await settingsPage.getByRole('tab', { name: 'Dark', exact: true }).click();
     await page.waitForFunction("document.querySelector('.dark') !== null");
     requireProof(
       await app.evaluate(
@@ -218,7 +219,10 @@ async function installedProject(input: DesktopProof) {
       ),
       'Appearance must update the native window',
     );
-    await page.keyboard.press('Escape');
+    await settingsPage
+      .getByRole('button', { name: 'Back', exact: true })
+      .click();
+    await settingsPage.waitFor({ state: 'hidden' });
     const bounds = await app.evaluate(({ BrowserWindow, screen }) => {
       const view = BrowserWindow.getAllWindows()[0];
       if (view === undefined) throw new Error('The app window is missing');

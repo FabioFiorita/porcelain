@@ -18,16 +18,23 @@ test('showing a branch comment opens its file against the base it was written ag
   await pairedPage.getByRole('button', { name: 'Review', exact: true }).click();
   await pairedPage.getByRole('tab', { name: 'Branch', exact: true }).click();
   await pairedPage
-    .getByRole('button', { name: 'Compare against the default branch' })
+    .getByRole('button', {
+      name: 'Compare against the default branch',
+      exact: true,
+    })
     .click();
-  await pairedPage.getByRole('option', { name: 'checkpoint' }).click();
+  await pairedPage
+    .getByRole('option', { name: 'checkpoint', exact: true })
+    .click();
   await expect.poll(() => search().get('base')).toBe('refs/heads/checkpoint');
-  await pairedPage.getByRole('button', { name: 'notes.md · added' }).click();
   await pairedPage
-    .getByRole('button', { name: 'Comment on notes.md (added)' })
+    .getByRole('button', { name: 'notes.md · added', exact: true })
     .click();
   await pairedPage
-    .getByRole('textbox', { name: 'Comment' })
+    .getByRole('button', { name: 'Comment on notes.md (added)', exact: true })
+    .click();
+  await pairedPage
+    .getByRole('textbox', { name: 'Comment', exact: true })
     .fill('Against the checkpoint');
   await pairedPage
     .getByRole('button', { name: 'Comment', exact: true })
@@ -40,7 +47,7 @@ test('showing a branch comment opens its file against the base it was written ag
 
   await pairedPage.getByRole('button', { name: 'Review', exact: true }).click();
   await pairedPage
-    .getByRole('button', { name: 'Compare against checkpoint' })
+    .getByRole('button', { name: 'Compare against checkpoint', exact: true })
     .click();
   await pairedPage.getByRole('option', { name: /^main/u }).click();
   await expect.poll(() => search().get('base')).toBeNull();

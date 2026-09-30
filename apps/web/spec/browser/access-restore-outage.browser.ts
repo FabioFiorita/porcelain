@@ -8,9 +8,11 @@ test('a reload while the server cannot answer keeps the address and shows the wo
   failures.console(/Could not reach Porcelain to restore this browser session/);
   const opened = await app.openReloadable(await app.link('this'));
   await opened.getByRole('button', { name: 'Review', exact: true }).click();
-  await opened.getByRole('tab', { name: 'Files' }).click();
+  await opened.getByRole('tab', { name: 'Files', exact: true }).click();
   await expect
-    .element(opened.getByRole('tab', { name: 'Files', selected: true }))
+    .element(
+      opened.getByRole('tab', { name: 'Files', selected: true, exact: true }),
+    )
     .toBeVisible();
   const workspace = app.address().path;
   const outage = await app.failSessionRestore();
@@ -18,11 +20,16 @@ test('a reload while the server cannot answer keeps the address and shows the wo
   await app.reload();
 
   await expect
-    .element(opened.getByText('Could not display the workspace.'))
+    .element(
+      opened.getByText('Could not display the workspace.', { exact: true }),
+    )
     .toBeVisible();
   await expect
     .element(
-      opened.getByRole('heading', { name: 'This browser is not paired' }),
+      opened.getByRole('heading', {
+        name: 'This browser is not paired',
+        exact: true,
+      }),
     )
     .not.toBeInTheDocument();
   await expect.poll(() => app.address().path).toBe(workspace);
@@ -30,11 +37,15 @@ test('a reload while the server cannot answer keeps the address and shows the wo
   outage.end();
 
   await expect
-    .element(opened.getByRole('region', { name: 'Review content' }))
+    .element(
+      opened.getByRole('region', { name: 'Review content', exact: true }),
+    )
     .toBeVisible();
   await expect.poll(() => app.address().path).toBe(workspace);
   await opened.getByRole('button', { name: 'Review', exact: true }).click();
   await expect
-    .element(opened.getByRole('tab', { name: 'Files', selected: true }))
+    .element(
+      opened.getByRole('tab', { name: 'Files', selected: true, exact: true }),
+    )
     .toBeVisible();
 });

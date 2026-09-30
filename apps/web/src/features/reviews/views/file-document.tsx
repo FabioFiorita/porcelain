@@ -1,13 +1,8 @@
-import {
-  CopyIcon,
-  FileDiffIcon,
-  HistoryIcon,
-  MessageSquarePlusIcon,
-  PencilIcon,
-} from 'lucide-react';
+import { CopyIcon, FileDiffIcon, HistoryIcon, PencilIcon } from 'lucide-react';
 import { useHotkey } from '@tanstack/react-hotkeys';
 import { type ReactNode, useEffect, useId, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { ButtonGroup } from '@/components/ui/button-group';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAccessStore } from '@/features/access/index';
 import { useChanges } from '@/features/changes/index';
@@ -47,8 +42,11 @@ type FileDocumentProps = {
 export function FileDocument(props: FileDocumentProps) {
   return isImagePath(props.path) ? (
     <div className="flex min-h-0 flex-1 flex-col overflow-auto">
-      <FileToolbar path={props.path}>
-        <TimelineButton path={props.path} onOpen={props.onOpen} />
+      <FileToolbar path={props.path} copy={false}>
+        <ButtonGroup className="max-w-full flex-wrap justify-end">
+          <TimelineButton path={props.path} onOpen={props.onOpen} />
+          <CopyPath path={props.path} />
+        </ButtonGroup>
       </FileToolbar>
       <ImagePreview scope={props.scope} path={props.path} />
     </div>
@@ -169,7 +167,6 @@ function ReadableFileDocument({
       setMode('source');
   }, [reveal, path]);
   const [editing, setEditing] = useState(false);
-  const [commentRequest, setCommentRequest] = useState<number>();
   const [finding, setFinding] = useState<number>();
   const [foundLine, setFoundLine] = useState<{ line: number; nonce: number }>();
   const editorId = useId();
@@ -181,7 +178,7 @@ function ReadableFileDocument({
     ignoreInputs: false,
     conflictBehavior: 'allow',
   });
-  const actions = (
+  const leading = (
     <>
       <span
         aria-live="polite"
@@ -204,20 +201,14 @@ function ReadableFileDocument({
           </TabsList>
         </Tabs>
       )}
-      {showingSource && contentFingerprint && (
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={() => setCommentRequest(Date.now())}
-        >
-          <MessageSquarePlusIcon className="size-3.5" />
-          Comment
-        </Button>
-      )}
+    </>
+  );
+  const commands = (
+    <>
       {contentFingerprint && (
         <Button
-          size="sm"
           variant="ghost"
+          size="xs"
           disabled={draftState.owner !== null && draftState.owner !== editorId}
           title={
             draftState.owner && draftState.owner !== editorId
@@ -228,21 +219,24 @@ function ReadableFileDocument({
             if (draft.claim(editorId)) setEditing(true);
           }}
         >
-          <PencilIcon className="size-3.5" />
-          {draftState.text !== draftState.savedText ? 'Resume edit' : 'Edit'}
+          <PencilIcon />
+          <span className="max-[720px]:sr-only">
+            {draftState.text !== draftState.savedText ? 'Resume edit' : 'Edit'}
+          </span>
         </Button>
       )}
       {changed && (
         <Button
-          size="sm"
           variant="ghost"
+          size="xs"
           onClick={() => onOpen({ kind: 'change', path })}
         >
-          <FileDiffIcon className="size-3.5" />
-          Open diff
+          <FileDiffIcon />
+          <span className="max-[720px]:sr-only">Open diff</span>
         </Button>
       )}
       <TimelineButton path={path} onOpen={onOpen} />
+      <CopyPath path={path} />
     </>
   );
 
@@ -268,24 +262,39 @@ function ReadableFileDocument({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-card">
-      <FileToolbar path={path}>{actions}</FileToolbar>
       {mode === 'rendered' && kind === 'markdown' ? (
-        <div className="min-h-0 flex-1 overflow-auto">
-          <MarkdownView
-            text={text}
-            className="mx-auto max-w-[78ch] px-6 py-6"
-          />
-        </div>
+        <>
+          <FileToolbar path={path} copy={false}>
+            {leading}
+            <ButtonGroup className="max-w-full flex-wrap justify-end">
+              {commands}
+            </ButtonGroup>
+          </FileToolbar>
+          <div className="min-h-0 flex-1 overflow-auto">
+            <MarkdownView
+              text={text}
+              className="mx-auto max-w-[78ch] px-6 py-6"
+            />
+          </div>
+        </>
       ) : mode === 'rendered' && kind === 'html' ? (
-        <div className="flex min-h-0 flex-1 flex-col bg-background">
-          <p className="border-b bg-muted/40 px-3.5 py-1.5 text-[11px] text-muted-foreground">
-            Sandboxed preview: scripts run, and cannot read Porcelain, your
-            cookies or the review API, load anything from the network, submit a
-            form, or move the page around them. A script can still send what it
-            sees out by sending this frame to another address.
-          </p>
-          <HtmlPreview scope={scope} path={path} html={text} />
-        </div>
+        <>
+          <FileToolbar path={path} copy={false}>
+            {leading}
+            <ButtonGroup className="max-w-full flex-wrap justify-end">
+              {commands}
+            </ButtonGroup>
+          </FileToolbar>
+          <div className="flex min-h-0 flex-1 flex-col bg-background">
+            <p className="border-b bg-muted/40 px-3.5 py-1.5 text-[11px] text-muted-foreground">
+              Sandboxed preview: scripts run, and cannot read Porcelain, your
+              cookies or the review API, load anything from the network, submit
+              a form, or move the page around them. A script can still send what
+              it sees out by sending this frame to another address.
+            </p>
+            <HtmlPreview scope={scope} path={path} html={text} />
+          </div>
+        </>
       ) : (
         <div className="flex min-h-0 flex-1 flex-col">
           {finding !== undefined && (
@@ -300,17 +309,21 @@ function ReadableFileDocument({
             scope={scope}
             context={context}
             interaction={interaction}
-            disableFileHeader
-            {...(commentRequest !== undefined ? { commentRequest } : {})}
+            headerLeading={leading}
+            headerActions={commands}
             {...(foundLine !== undefined ? { foundLine } : {})}
             entries={[
               {
                 ...fileEntry(`file:${path}`, path, text),
-                comment: {
-                  filePath: path,
-                  comparison: { kind: 'file' },
-                  ...(contentFingerprint ? { contentFingerprint } : {}),
-                },
+                ...(contentFingerprint
+                  ? {
+                      comment: {
+                        filePath: path,
+                        comparison: { kind: 'file' },
+                        contentFingerprint,
+                      },
+                    }
+                  : {}),
               },
             ]}
           />
@@ -362,13 +375,14 @@ function TimelineButton({
 }) {
   return (
     <Button
-      size="icon-sm"
       variant="ghost"
+      size="xs"
       aria-label="Timeline"
       title="Timeline"
       onClick={() => onOpen({ kind: 'timeline', path })}
     >
       <HistoryIcon />
+      <span className="max-[720px]:sr-only">Timeline</span>
     </Button>
   );
 }
@@ -376,13 +390,14 @@ function TimelineButton({
 function CopyPath({ path }: { path: string }) {
   return (
     <Button
-      size="icon-sm"
       variant="ghost"
+      size="xs"
       aria-label="Copy path"
       title="Copy path"
       onClick={() => copyText(path, 'path')}
     >
       <CopyIcon />
+      <span className="max-[720px]:sr-only">Copy path</span>
     </Button>
   );
 }

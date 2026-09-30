@@ -28,11 +28,6 @@ const refSchema = z
   .max(GIT_REF_LENGTH)
   .regex(/^refs\/heads\/[\s\S]/u)
   .refine((value) => !value.includes('\0'));
-const branchSchema = z
-  .string()
-  .min(1)
-  .max(GIT_REF_LENGTH)
-  .refine((value) => !value.includes('\0'));
 const remoteSchema = z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,99}$/);
 const expectedFileSchema = z.strictObject({
   path: relativePathSchema,
@@ -97,15 +92,6 @@ const gitActionIntentSchema = z.discriminatedUnion('action', [
       })
       .optional(),
   }),
-  z.strictObject({
-    action: z.literal('switch-branch'),
-    branch: branchSchema,
-  }),
-  z.strictObject({
-    action: z.literal('create-branch'),
-    branch: branchSchema,
-    switchTo: z.boolean(),
-  }),
 ]);
 
 const gitActionExpectationSchema = z.strictObject({
@@ -135,18 +121,6 @@ export const dismissInterruptedGitActionResponseSchema = z.object({
   dismissed: z.literal(true),
 });
 
-export const listGitBranchesResponseSchema = z.object({
-  current: absentAsNull(z.string()),
-  branches: z.array(
-    z.object({
-      name: z.string(),
-      upstream: absentAsNull(z.string()),
-      lastCommitAt: z.string(),
-      checkedOutElsewhere: z.boolean(),
-    }),
-  ),
-});
-
 export type GitActionScope = z.output<typeof gitActionScopeSchema>;
 export type RunGitActionRequest = z.output<typeof runGitActionRequestSchema>;
 export type RunGitActionResponse = z.output<typeof runGitActionResponseSchema>;
@@ -161,7 +135,4 @@ export type DismissInterruptedGitActionParams = z.output<
 >;
 export type DismissInterruptedGitActionResponse = z.output<
   typeof dismissInterruptedGitActionResponseSchema
->;
-export type ListGitBranchesResponse = z.output<
-  typeof listGitBranchesResponseSchema
 >;

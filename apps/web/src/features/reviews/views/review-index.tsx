@@ -6,6 +6,8 @@ import {
 import { useEffect, useRef, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { toast } from '@/components/ui/toast';
+import { DiscardButton } from '@/features/git-actions/index';
 import {
   MessageScroller,
   MessageScrollerButton,
@@ -21,6 +23,7 @@ import { type ChangeScope, isChangeScope } from '@/shared/workspace/search';
 import { useAccessStore } from '@/features/access/index';
 import { useBranchChanges, useChanges } from '@/features/changes/index';
 import { useMarkCommentsSeen } from '../commands/comments';
+import { useToggleReviewed } from '../commands/reviewed';
 import { useComments, usePrefetchComments } from '../queries/comments';
 import { usePublishedReview } from '../queries/published-review';
 import { usePrefetchReviewed, useReviewChangeItems } from '../queries/reviewed';
@@ -37,6 +40,7 @@ import {
   entryKey,
   PROOF,
   UNEXPLAINED,
+  type OpenDocument,
 } from '../rules/documents';
 import { proofLabel, proofStatus } from '../rules/proof';
 import type { ReadinessKey } from '../rules/readiness';
@@ -50,15 +54,17 @@ import {
 import type { ReviewsContext } from '../rules/reviewed';
 import { BranchIndex } from './branch-index';
 import { ChangeRow, ROW } from './change-row';
+import type { DocumentContext } from './code-document';
 import { DeleteResolved } from './delete-resolved';
 import { InlineComposer } from './inline-composer';
 import { BranchReadiness, ChangeReadiness } from './readiness-panel';
 import { ThreadCard } from './thread-card';
+import { groupSpecPaths } from '../rules/spec-paths';
+import { usePreferences } from '@/shared/workspace/preferences';
 
-type OpenDocument = (ref: DocumentRef, anchor?: CommentAnchor) => void;
 type Props = {
   scope: ReviewScope;
-  context: ReviewsContext;
+  context: DocumentContext;
   activeEntry: string | undefined;
   onOpen: OpenDocument;
 };
@@ -211,6 +217,8 @@ export function ReviewIndex({
 }
 
 function LayersView({
+  scope,
+  context,
   activeEntry,
   onOpen,
   list,
@@ -223,8 +231,18 @@ function LayersView({
   changes: readonly ReviewChangeItem[];
   threads: readonly CommentThread[];
 }) {
-  const paths = list.changes.map((entry) => entry.path);
+  const { preferences } = usePreferences();
+  const paths = groupSpecPaths(list.changes, preferences.collapseSpecs).map(
+    (entry) => entry.path,
+  );
   const changeByPath = new Map(changes.map((item) => [item.path, item]));
+  const reviewed = useToggleReviewed(scope, context, (notice) =>
+    toast.add(notice),
+  );
+  const [discard, setDiscard] = useState<{
+    path: string;
+    nonce: number;
+  } | null>(null);
   return (
     <ScrollArea className="h-0 min-h-0 flex-1">
       <div className="p-2">
@@ -302,8 +320,31 @@ function LayersView({
             }
             active={activeEntry === entryKey({ kind: 'change', path })}
             onOpen={onOpen}
+            canReview={changeByPath.get(path)?.fingerprint != null}
+            onReview={() =>
+              reviewed.toggle({
+                path,
+                reviewed: changeByPath.get(path)?.reviewStatus === 'reviewed',
+                fingerprint: changeByPath.get(path)?.fingerprint,
+              })
+            }
+            onDiscard={() =>
+              setDiscard((current) => ({
+                path,
+                nonce: (current?.nonce ?? 0) + 1,
+              }))
+            }
           />
         ))}
+        {discard && (
+          <DiscardButton
+            scope={scope}
+            context={context}
+            path={discard.path}
+            signal={discard.nonce}
+            hiddenTrigger
+          />
+        )}
       </div>
     </ScrollArea>
   );

@@ -31,7 +31,7 @@ import {
 import type { ReviewsContext } from '../rules/reviewed';
 import { CodeDocument, type DocumentContext } from './code-document';
 import { InlineComposer } from './inline-composer';
-import { ReviewedControl } from './reviewed-control';
+import { fileReviewControl, ReviewedControl } from './reviewed-control';
 import { ThreadCard } from './thread-card';
 
 export function ReviewCodeDocument({
@@ -42,6 +42,7 @@ export function ReviewCodeDocument({
   files = [],
   focus,
   header,
+  headerActions,
   commentRequest,
   toolbar,
 }: {
@@ -52,6 +53,7 @@ export function ReviewCodeDocument({
   files?: readonly { path: string; note?: string }[];
   focus?: Readonly<Record<string, readonly LineSpan[]>>;
   header?: () => ReactNode;
+  headerActions?: ReactNode;
   commentRequest?: number;
   toolbar?: (collapseControl: ReactNode) => ReactNode;
 }) {
@@ -111,7 +113,7 @@ export function ReviewCodeDocument({
   });
   const entries = items.flatMap((item): CodeEntry[] =>
     item.comparisons.flatMap((change): CodeEntry[] => {
-      const review = reviewControl(scope, context, item);
+      const review = fileReviewControl(scope, context, item);
       if (change.scope === 'untracked') {
         const text = untracked.contents.get(change.path);
         if (text === undefined) return [];
@@ -194,6 +196,7 @@ export function ReviewCodeDocument({
       {...(commentRequest !== undefined ? { commentRequest } : {})}
       entries={entries}
       {...(documentHeader ? { header: documentHeader } : {})}
+      {...(headerActions ? { headerActions } : {})}
       {...(toolbar ? { toolbar } : {})}
     />
   );
@@ -256,30 +259,6 @@ function ContentState({
       )}
     </section>
   );
-}
-
-function reviewControl(
-  scope: ReviewScope,
-  context: ReviewsContext,
-  item: ReviewChangeItem,
-) {
-  return {
-    path: item.path,
-    fingerprint: item.fingerprint ?? null,
-    reviewed: item.reviewStatus === 'reviewed',
-    stale: item.reviewStatus === 'stale',
-    control: (
-      <ReviewedControl
-        key={`review:${item.path}`}
-        scope={scope}
-        context={context}
-        path={item.path}
-        fingerprint={item.fingerprint}
-        status={item.reviewStatus}
-        compact
-      />
-    ),
-  };
 }
 
 function formatOmission(reason: string) {

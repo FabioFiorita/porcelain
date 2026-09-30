@@ -12,4 +12,9 @@ export type PairingAttemptLimits = {
   maxPeers: number;
 };
 
+export type PairingAttemptBudgets<Budget> = {
+  sameOrigin: Budget;
+  crossOrigin: Budget;
+};
+
 export type PairingAttemptTaken = { attempts: PairingAttempts; taken: boolean };

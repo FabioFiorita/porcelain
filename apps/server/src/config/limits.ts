@@ -11,6 +11,7 @@ import {
   DEVICE_LABEL_LENGTH,
   DEVICE_PLATFORM_LENGTH,
   DIRECTORY_ENTRIES,
+  ENVIRONMENT_PROTOCOL,
   PATH_LENGTH,
   TUNNEL_HOSTNAME_LENGTH,
   REVIEW_PROOF_BYTES,
@@ -47,7 +48,13 @@ export type Limits = {
     minHeight: number;
   };
   access: {
+    environment: { protocol: number };
     pairingGrant: { lifetimeMs: number };
+    liveTicket: {
+      lifetimeMs: number;
+      maxOutstanding: number;
+      maxPerDevice: number;
+    };
     device: { unusedLifetimeMs: number; cookieMaxAgeSeconds: number };
     deviceDetails: { labelLength: number; platformLength: number };
     credentials: { secretBytes: number };
@@ -58,13 +65,13 @@ export type Limits = {
       strictTransportMaxAgeSeconds: number;
     };
     networkDiscovery: { commandTimeoutMs: number; outputBytes: number };
-    tailscale: {
-      httpsPort: number;
-      commandTimeoutMs: number;
-      outputBytes: number;
-      processGroup: ProcessGroupLimits;
-    };
     pairingAttempts: {
+      windowMs: number;
+      attemptsPerPeer: number;
+      attemptsOverall: number;
+      maxPeers: number;
+    };
+    crossOriginPairingAttempts: {
       windowMs: number;
       attemptsPerPeer: number;
       attemptsOverall: number;
@@ -191,7 +198,11 @@ export type Limits = {
     flushDeviceActivityMs: number;
     openRemoteRoutesMs: number;
   };
-  http: { reviewBodyBytes: number; editFileBodyBytes: number };
+  http: {
+    reviewBodyBytes: number;
+    editFileBodyBytes: number;
+    corsMaxAgeSeconds: number;
+  };
   locks: { startupWaitMs: number; pollMs: number; staleTakeovers: number };
   installer: {
     command: {
@@ -202,7 +213,12 @@ export type Limits = {
     health: { attempts: number; intervalMs: number };
   };
   listeners: { closeGraceMs: number };
-  cli: { printedAddressLength: number; printedIdLength: number };
+  cli: {
+    printedAddressLength: number;
+    printedIdLength: number;
+    shareSettleMs: number;
+    sharePollMs: number;
+  };
   agents: {
     processGroup: ProcessGroupLimits;
     processDeadlineMs: number;
@@ -241,7 +257,13 @@ export const LIMITS: Limits = {
     minHeight: 600,
   },
   access: {
+    environment: { protocol: ENVIRONMENT_PROTOCOL },
     pairingGrant: { lifetimeMs: 15 * MINUTE_MS },
+    liveTicket: {
+      lifetimeMs: 30 * SECOND_MS,
+      maxOutstanding: 256,
+      maxPerDevice: 4,
+    },
     device: {
       unusedLifetimeMs: DEVICE_LIFETIME_MS,
       cookieMaxAgeSeconds: DEVICE_LIFETIME_MS / SECOND_MS,
@@ -258,16 +280,16 @@ export const LIMITS: Limits = {
       strictTransportMaxAgeSeconds: YEAR_MS / SECOND_MS,
     },
     networkDiscovery: { commandTimeoutMs: SECOND_MS, outputBytes: KIBIBYTE },
-    tailscale: {
-      httpsPort: 443,
-      commandTimeoutMs: 10 * SECOND_MS,
-      outputBytes: MEBIBYTE,
-      processGroup: PROCESS_GROUP,
-    },
     pairingAttempts: {
       windowMs: MINUTE_MS,
       attemptsPerPeer: 10,
       attemptsOverall: 60,
+      maxPeers: 1024,
+    },
+    crossOriginPairingAttempts: {
+      windowMs: MINUTE_MS,
+      attemptsPerPeer: 10,
+      attemptsOverall: 30,
       maxPeers: 1024,
     },
   },
@@ -410,6 +432,7 @@ export const LIMITS: Limits = {
   http: {
     reviewBodyBytes: JSON_ESCAPE_FACTOR * REVIEW_SUMMARY_BYTES + MEBIBYTE,
     editFileBodyBytes: 8 * MEBIBYTE,
+    corsMaxAgeSeconds: (10 * MINUTE_MS) / SECOND_MS,
   },
   locks: { startupWaitMs: 10 * SECOND_MS, pollMs: 25, staleTakeovers: 3 },
   installer: {
@@ -421,7 +444,12 @@ export const LIMITS: Limits = {
     health: { attempts: 60, intervalMs: 250 },
   },
   listeners: { closeGraceMs: 5 * SECOND_MS },
-  cli: { printedAddressLength: 60, printedIdLength: 80 },
+  cli: {
+    printedAddressLength: 60,
+    printedIdLength: 80,
+    shareSettleMs: 15 * SECOND_MS,
+    sharePollMs: 250,
+  },
   agents: {
     processGroup: PROCESS_GROUP,
     processDeadlineMs: 2 * MINUTE_MS,

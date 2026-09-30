@@ -16,9 +16,11 @@ test('a branch mark belongs to its branch: another branch starts fresh and switc
 
   await pairedPage.getByRole('button', { name: 'Review', exact: true }).click();
   await pairedPage.getByRole('tab', { name: 'Branch', exact: true }).click();
-  await pairedPage.getByRole('button', { name: 'notes.md · added' }).click();
   await pairedPage
-    .getByRole('button', { name: 'Mark notes.md as reviewed' })
+    .getByRole('button', { name: 'notes.md · added', exact: true })
+    .click();
+  await pairedPage
+    .getByRole('button', { name: 'Mark notes.md as reviewed', exact: true })
     .first()
     .click();
   await expect
@@ -34,7 +36,7 @@ test('a branch mark belongs to its branch: another branch starts fresh and switc
   await expect
     .element(
       pairedPage
-        .getByRole('button', { name: 'Mark notes.md as reviewed' })
+        .getByRole('button', { name: 'Mark notes.md as reviewed', exact: true })
         .first(),
     )
     .toBeVisible();
@@ -43,7 +45,10 @@ test('a branch mark belongs to its branch: another branch starts fresh and switc
   await expect
     .element(
       pairedPage
-        .getByRole('button', { name: 'Unmark notes.md as unreviewed' })
+        .getByRole('button', {
+          name: 'Unmark notes.md as unreviewed',
+          exact: true,
+        })
         .first(),
     )
     .toBeVisible();

@@ -1,13 +1,18 @@
 export {
+  readEnvironmentResponseSchema,
   renameEnvironmentRequestSchema,
   renameEnvironmentResponseSchema,
+  type ReadEnvironmentResponse,
   type RenameEnvironmentRequest,
   type RenameEnvironmentResponse,
 } from './environment.ts';
 export { readHealthResponseSchema, type ReadHealthResponse } from './health.ts';
 export {
+  issueLiveTicketResponseSchema,
   liveNoticeSchema,
   liveSubscriptionSchema,
+  type IssueLiveTicketRequest,
+  type IssueLiveTicketResponse,
   type LiveNotice,
 } from './live-updates.ts';
 export {

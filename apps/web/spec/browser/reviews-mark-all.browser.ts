@@ -30,16 +30,21 @@ test('marking all changed files reviewed marks each one, a file changed on disk 
   await repo.write(notes, 'Notes to review\n');
   const markTwo = pairedPage.getByRole('button', {
     name: 'Mark all 2 files reviewed',
+    exact: true,
   });
   await expect.element(markTwo).toBeVisible();
   await markTwo.click();
-  const unmarkAll = pairedPage.getByRole('button', { name: 'Unmark all' });
+  const unmarkAll = pairedPage.getByRole('button', {
+    name: 'Unmark all',
+    exact: true,
+  });
   await expect.element(unmarkAll).toBeEnabled();
   await expect.poll(reviewedAsTheyAre).toEqual([notes, readme].toSorted());
 
   await repo.write(notes, 'Notes changed after the review\n');
   const markOne = pairedPage.getByRole('button', {
     name: 'Mark all 1 files reviewed',
+    exact: true,
   });
   await expect.element(markOne).toBeEnabled();
   await expect.poll(reviewedAsTheyAre).toEqual([readme]);

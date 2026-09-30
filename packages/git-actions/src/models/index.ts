@@ -31,6 +31,4 @@ export type {
   GitActionRunnerOutcome,
   GitActionRunRequest,
 } from './git-action-run.ts';
-export type { GitActionScope } from './git-action-scope.ts';
-export type { GitBranches } from './git-branches.ts';
 export type { RunGitActionInput } from './run-git-action.ts';

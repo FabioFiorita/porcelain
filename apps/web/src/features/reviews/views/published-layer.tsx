@@ -27,6 +27,7 @@ import type {
   ReviewStep,
 } from '../rules/review';
 import { CodeDocument, type DocumentContext } from './code-document';
+import { fileReviewControl } from './reviewed-control';
 import { DocumentToolbar } from './document-toolbar';
 import { ProofList } from './proof-list';
 import type { Graph } from './review-diagram';
@@ -323,6 +324,7 @@ function Step({
                 ]
               : [];
           });
+    const review = item ? fileReviewControl(scope, context, item) : undefined;
     patches.forEach(({ patch, comparison }, index) => {
       const fileDiff = parsePatchFiles(patch).flatMap(
         (group) => group.files,
@@ -334,6 +336,7 @@ function Step({
           path: step.pointer.path,
           fileDiff,
           version: contentVersion(patch),
+          ...(review ? { review } : {}),
           comment: {
             filePath: step.pointer.path,
             ...(comparison ? { comparison } : {}),
@@ -382,6 +385,7 @@ function Step({
             context={context}
             interaction={interaction}
             entries={entries}
+            collapsible
             fullHeight
           />
         </div>

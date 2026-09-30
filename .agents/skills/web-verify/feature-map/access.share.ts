@@ -2,7 +2,7 @@ import type { JourneyEntry } from '../scripts/catalogue.ts';
 
 export default {
   feature: 'access.share',
-  route: '/',
+  route: '/settings/$section',
   reach: 'sidebar → Settings → Sharing',
   shortcut: 'Alt+Shift+S',
   shell: 'desktop',

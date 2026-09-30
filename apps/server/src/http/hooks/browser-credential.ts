@@ -29,7 +29,7 @@ export function deliverBrowserCredential(cookie: {
     payload: unknown,
   ) => {
     const split = withoutCredential(payload);
-    if (!split || !fromBrowser(request)) return payload;
+    if (!split || !fromBrowser(request) || request.crossOrigin) return payload;
     setDeviceCookie(
       reply,
       split.credential,

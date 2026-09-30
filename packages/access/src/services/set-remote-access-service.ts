@@ -1,4 +1,6 @@
+import { InvalidTailnetHostnameError } from '../errors/invalid-tailnet-hostname-error.ts';
 import { InvalidTunnelHostnameError } from '../errors/invalid-tunnel-hostname-error.ts';
+import { MissingTailnetHostnameError } from '../errors/missing-tailnet-hostname-error.ts';
 import { MissingTunnelHostnameError } from '../errors/missing-tunnel-hostname-error.ts';
 import { NoLocalNetworkError } from '../errors/no-local-network-error.ts';
 import { UnidentifiedLocalNetworkError } from '../errors/unidentified-local-network-error.ts';
@@ -57,14 +59,11 @@ export class SetRemoteAccessService {
     this.remoteAccess.save(decision.settings);
     const current = this.routeStates.read();
     const states = requestedStates(current.states, input, decision.settings);
-    this.routeStates.save({
-      ...current,
-      states,
-      origins: reachableOrigins(states),
-    });
+    const routes = { ...current, states, origins: reachableOrigins(states) };
+    this.routeStates.save(routes);
     return remoteAccessView(
       decision.settings,
-      states,
+      routes,
       this.runtimeStatusReader.current().address,
       here,
     );
@@ -76,6 +75,10 @@ export class SetRemoteAccessService {
         return new InvalidTunnelHostnameError();
       case 'missing-hostname':
         return new MissingTunnelHostnameError();
+      case 'invalid-tailnet-hostname':
+        return new InvalidTailnetHostnameError();
+      case 'missing-tailnet-hostname':
+        return new MissingTailnetHostnameError();
       case 'no-local-network':
         return new NoLocalNetworkError();
       case 'unidentified-local-network':

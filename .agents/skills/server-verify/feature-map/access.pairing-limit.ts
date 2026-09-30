@@ -23,6 +23,10 @@ const attempt = (code: string): HttpRequest => ({
   auth: 'none',
   body: { code, platform: 'iOS' },
 });
+const fromPage = (code: string): HttpRequest => ({
+  ...attempt(code),
+  headers: { origin: 'http://page.example' },
+});
 
 export default defineFeature({
   feature: 'access.pairing-limit',
@@ -30,8 +34,35 @@ export default defineFeature({
   paired: false,
   intent: 'observed',
   behaviour:
-    'Pairing attempts are rate limited per peer: ten attempts within a minute exhaust the allowance and further attempts are refused, even with a valid code, until it refills. A successful redemption gives its attempt back, so only failed attempts count. Runs on its own server so the limit starts full.',
+    "Pairing attempts are rate limited per peer: ten attempts within a minute exhaust the allowance and further attempts are refused, even with a valid code, until it refills. A successful redemption gives its attempt back, so only failed attempts count. Redemptions from pages on other origins spend an allowance of their own, so a page that exhausts it cannot keep the owner's browser or a phone from pairing. Runs on its own server so the limit starts full.",
   cases: [
+    defineCase({
+      name: 'pages on other origins that exhaust their attempts cannot starve pairing',
+      setup: (session) => issuePairing(session, 'Phone'),
+      request: (_session, code) => [
+        ...Array.from({ length: 10 }, () => fromPage('pcp_wrong')),
+        fromPage(code),
+        attempt(code),
+      ],
+      expect({ responses, check, checkPartial }) {
+        for (const [index, response] of responses.slice(0, 10).entries()) {
+          check(`page failure ${index + 1} status`, 401, response.status);
+          check(
+            `page failure ${index + 1} error body`,
+            invalidLink,
+            response.body,
+          );
+        }
+        check('the page is limited status', 429, responses[10]?.status);
+        check('the page is limited error body', limited, responses[10]?.body);
+        check('same-origin pairing still redeems', 200, responses[11]?.status);
+        checkPartial(
+          'the redeemed device',
+          { label: 'Phone', platform: 'iOS' },
+          record(responses[11]?.body).device,
+        );
+      },
+    }),
     defineCase({
       name: 'a success gives its attempt back and ten failures exhaust the allowance',
       setup: (session) => issuePairing(session, 'Phone'),

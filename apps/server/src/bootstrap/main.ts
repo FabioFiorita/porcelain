@@ -12,6 +12,7 @@ import { DataDirectoryInsecureError } from '../runtime/errors/data-directory-ins
 import { DataDirectoryOwnedError } from '../runtime/errors/data-directory-owned-error.ts';
 import { OwnerSocketUnreadableError } from '../runtime/errors/owner-socket-unreadable-error.ts';
 import { OwnerSocketModeError } from '../runtime/errors/owner-socket-mode-error.ts';
+import { delay } from '../runtime/delay.ts';
 import { startServer } from './compose-server.ts';
 
 export const cli = new PorcelainCli({
@@ -19,6 +20,7 @@ export const cli = new PorcelainCli({
   ownerProbe: new SocketOwnerProbe(),
   clock: new SystemClock(),
   limits: readCliSettings().limits,
+  wait: delay,
   actionableErrors: [
     ServeConfigurationError,
     DataDirectoryOwnedError,

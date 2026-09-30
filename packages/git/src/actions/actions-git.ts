@@ -10,8 +10,6 @@ import { createStash } from './commands/create-stash.ts';
 import { discardPath } from './commands/discard-path.ts';
 import { fetchBranch } from './commands/fetch-branch.ts';
 import { inspectActionTarget } from './commands/inspect-action-target.ts';
-import { listBranches } from './commands/list-branches.ts';
-import { manageBranch } from './commands/manage-branch.ts';
 import { pullBranch } from './commands/pull-branch.ts';
 import { pushBranch } from './commands/push-branch.ts';
 import type {
@@ -52,14 +50,6 @@ export class ActionsGit implements GitActionWriter {
     signal?: AbortSignal,
   ) {
     return readSelectedDiff(this.session, headOid, paths, this.limits, signal);
-  }
-
-  async listBranches(signal?: AbortSignal) {
-    const bounded = signal ?? AbortSignal.timeout(this.limits.readTimeoutMs);
-    await this.session.verify(bounded);
-    const branches = await listBranches(this.process, bounded);
-    await this.session.confirm(bounded);
-    return branches;
   }
 
   async executeDirect(
@@ -141,13 +131,6 @@ export class ActionsGit implements GitActionWriter {
           );
         case 'discard':
           return await discardPath(
-            this.process,
-            { id, intent, preview },
-            signal,
-          );
-        case 'switch-branch':
-        case 'create-branch':
-          return await manageBranch(
             this.process,
             { id, intent, preview },
             signal,

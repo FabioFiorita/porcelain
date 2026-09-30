@@ -15,10 +15,15 @@ test('a blank reply cannot be posted, and a written reply to the agent joins its
     );
 
   await agent.comment(repo.readme.path, question);
-  await expect.element(pairedPage.getByText(question)).toBeVisible();
+  await expect
+    .element(pairedPage.getByText(question, { exact: true }))
+    .toBeVisible();
   await pairedPage.getByRole('button', { name: 'Reply', exact: true }).click();
-  const reply = pairedPage.getByRole('textbox', { name: 'Reply' });
-  const post = pairedPage.getByRole('button', { name: 'Post reply' });
+  const reply = pairedPage.getByRole('textbox', { name: 'Reply', exact: true });
+  const post = pairedPage.getByRole('button', {
+    name: 'Post reply',
+    exact: true,
+  });
   await expect.element(reply).toBeVisible();
   await expect.element(post).toBeDisabled();
   await reply.fill('   ');
@@ -27,9 +32,11 @@ test('a blank reply cannot be posted, and a written reply to the agent joins its
 
   await reply.fill(answer);
   await post.click();
-  await expect.element(pairedPage.getByText(answer)).toBeVisible();
   await expect
-    .element(pairedPage.getByText('Waiting for the agent'))
+    .element(pairedPage.getByText(answer, { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(pairedPage.getByText('Waiting for the agent', { exact: true }))
     .toBeVisible();
   await expect
     .poll(conversation)

@@ -344,6 +344,9 @@ export const styleRules = [
   'react-compiler',
   'web-baseline',
   'web-journey-baseline',
+  'shadcn-ui-pinned',
+  'web-feature-map',
+  'duplicate-code',
 ] as const;
 
 export type StyleRule = (typeof styleRules)[number];
@@ -1066,8 +1069,6 @@ export function allowedContractType(
 export const serverProcessImporters: Readonly<Record<string, string>> = {
   'apps/server/src/adapters/access/mac-network-command.ts':
     'macOS has no procfs route and ARP tables; this gateway runs fixed route and arp commands through the process public API, with no request input',
-  'apps/server/src/adapters/access/tailscale-command.ts':
-    'Porcelain runs tailscale serve itself so the tailnet reaches it over HTTPS at the MagicDNS name; this module is the one server gateway that starts an external tool, through the process public API, and the Tailscale adapters run it',
 };
 
 export function allowedProcessImport(

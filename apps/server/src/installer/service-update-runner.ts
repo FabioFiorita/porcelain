@@ -4,7 +4,7 @@ import { commandRunner, type CommandRunner } from './command-runner.ts';
 import { UpdateHandOffError } from './errors/update-hand-off-error.ts';
 import { failureDetail } from './failure-detail.ts';
 import { exists, writeJsonFile } from './json-file.ts';
-import { readPackageIdentity } from './package-identity.ts';
+import { readPackageVersion } from './package-identity.ts';
 import { servicePaths, type ServicePaths } from './paths.ts';
 import {
   installRuntime,
@@ -17,7 +17,6 @@ import { serviceSearchPath } from './search-path.ts';
 import { UPDATE_UNIT_NAME } from './systemd-unit.ts';
 import { updaterUnitArguments } from './updater-unit.ts';
 import { compareVersions } from './version-policy.ts';
-import { NotPackagedCliError } from './errors/not-packaged-cli-error.ts';
 
 type ServiceUpdateState = Awaited<ReturnType<ServiceUpdateRunner['read']>>;
 type ServiceUpdateCheck = Parameters<ServiceUpdateRunner['read']>[0];
@@ -134,14 +133,8 @@ class InstalledServiceUpdateRunner implements ServiceUpdateRunner {
       throw new UpdateHandOffError(handedOff.stderr.trim());
   }
 
-  private async runningVersion(): Promise<string | undefined> {
-    try {
-      return (await readPackageIdentity(this.options.packageRoot))
-        .packageVersion;
-    } catch (error) {
-      if (error instanceof NotPackagedCliError) return undefined;
-      throw error;
-    }
+  private runningVersion(): Promise<string | undefined> {
+    return readPackageVersion(this.options.packageRoot);
   }
 
   private async managed(): Promise<boolean> {

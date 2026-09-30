@@ -37,6 +37,9 @@ export function PierreFileTree({
   selected,
   onExpand,
   renderMenu,
+  bindRename,
+  filter,
+  onFilterChange,
   onInvalidName,
   onSelect,
 }: {
@@ -50,6 +53,9 @@ export function PierreFileTree({
   gitStatus: readonly GitStatusEntry[];
   selected: string;
   onExpand: (paths: readonly string[]) => void;
+  bindRename: (rename: (path: string) => void) => void;
+  filter: string;
+  onFilterChange: (value: string) => void;
   renderMenu: (
     item: ContextMenuItem,
     context: ContextMenuOpenContext,
@@ -68,6 +74,8 @@ export function PierreFileTree({
     selected,
     onExpand,
     renderMenu,
+    bindRename,
+    onFilterChange,
     onInvalidName,
     onSelect,
   };
@@ -92,7 +100,10 @@ export function PierreFileTree({
     unsafeCSS:
       '[data-icon-name="file-tree-icon-chevron"] { color: var(--trees-fg-muted); }',
     gitStatus,
-    search: true,
+    search: false,
+    onSearchChange: (value) => {
+      if (value == null) latest.current.onFilterChange('');
+    },
     renaming: {
       onError: (error) => {
         pendingCreate.current = null;
@@ -164,7 +175,17 @@ export function PierreFileTree({
   });
 
   useLayoutEffect(() => {
+    model.setSearch(filter === '' ? null : filter);
+  }, [filter, model]);
+  useLayoutEffect(() => {
     modelRef.current = model;
+    latest.current.bindRename((path) => {
+      requestAnimationFrame(() => {
+        syncing.current = true;
+        model.startRenaming(path);
+        syncing.current = false;
+      });
+    });
   }, [model]);
   const handledCreate = useRef<number | undefined>(undefined);
   useEffect(() => {

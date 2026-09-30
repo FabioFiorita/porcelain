@@ -142,10 +142,15 @@ export default defineFeature({
     defineCase({
       name: 'a Git action is announced with its receipt and its Git change',
       async setup(session) {
+        const path = 'announced.md';
         return {
           connection: await watching(session),
           requestId: randomUUID(),
-          expected: await expectation(session),
+          path,
+          expected: {
+            ...(await expectation(session)),
+            files: [{ path, fingerprint: await fingerprintOf(session, path) }],
+          },
         };
       },
       request: (session, state) => ({
@@ -154,9 +159,9 @@ export default defineFeature({
         body: {
           requestId: state.requestId,
           input: {
-            action: 'create-branch',
-            branch: 'announced',
-            switchTo: false,
+            action: 'commit',
+            message: 'Announce the note',
+            paths: [state.path],
           },
           expected: state.expected,
         },
@@ -189,9 +194,8 @@ export default defineFeature({
             worktreeId: session.worktreeId,
             receipt: {
               requestId: state.requestId,
-              action: 'create-branch',
+              action: 'commit',
               state: 'succeeded',
-              result: { branch: 'announced' },
             },
           },
           settled,

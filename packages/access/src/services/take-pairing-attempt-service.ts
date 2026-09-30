@@ -5,16 +5,17 @@ import type {
   TakePairingAttemptInput,
   TakePairingAttemptOptions,
 } from '../models/take-pairing-attempt.ts';
+import type { PairingAttemptBudgets } from '../models/pairing-attempts.ts';
 import type { PairingAttemptStore } from '../ports/pairing-attempt-store.ts';
 import { takePairingAttempt } from '../rules/pairing-attempts.ts';
 
 export class TakePairingAttemptService {
-  private readonly pairingAttempts: PairingAttemptStore;
+  private readonly pairingAttempts: PairingAttemptBudgets<PairingAttemptStore>;
   private readonly clock: Clock;
   private readonly options: TakePairingAttemptOptions;
 
   constructor(
-    pairingAttempts: PairingAttemptStore,
+    pairingAttempts: PairingAttemptBudgets<PairingAttemptStore>,
     clock: Clock,
     options: TakePairingAttemptOptions,
   ) {
@@ -24,13 +25,15 @@ export class TakePairingAttemptService {
   }
 
   execute(input: TakePairingAttemptInput): void {
+    const budget = input.crossOrigin ? 'crossOrigin' : 'sameOrigin';
+    const store = this.pairingAttempts[budget];
     const { attempts, taken } = takePairingAttempt(
-      this.pairingAttempts.read(),
+      store.read(),
       input.peer,
       this.clock.now(),
-      this.options,
+      this.options[budget],
     );
-    this.pairingAttempts.save(attempts);
+    store.save(attempts);
     if (!taken) throw new TooManyPairingAttemptsError();
   }
 }

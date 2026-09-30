@@ -27,7 +27,7 @@ export class ReadRemoteAccessService {
   execute(): RemoteAccess {
     return remoteAccessView(
       this.remoteAccess.read(),
-      this.routeStates.read().states,
+      this.routeStates.read(),
       this.runtimeStatusReader.current().address,
       localNetwork(
         this.networkAddresses.list(),

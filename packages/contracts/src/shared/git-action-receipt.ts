@@ -12,8 +12,6 @@ export const gitActionSchema = z.enum([
   'stash-apply',
   'stash-pop',
   'discard',
-  'switch-branch',
-  'create-branch',
 ]);
 
 export const gitActionReceiptSchema = z.object({

@@ -20,13 +20,17 @@ test('All changes shows the diffs of more tracked changes than one diff request 
     .toBe(count);
   const opened = await app.open(await app.link('this'));
   await opened.getByRole('button', { name: 'Review', exact: true }).click();
-  await opened.getByRole('button', { name: 'All changes' }).click();
+  await opened
+    .getByRole('button', { name: 'All changes', exact: true })
+    .click();
   await expect
     .element(opened.getByText(`${paths[0]} changed`, { exact: true }))
     .toBeVisible();
   await expect
     .element(
-      opened.getByText('The changes in this document could not be read.'),
+      opened.getByText('The changes in this document could not be read.', {
+        exact: true,
+      }),
     )
     .not.toBeInTheDocument();
   await expect

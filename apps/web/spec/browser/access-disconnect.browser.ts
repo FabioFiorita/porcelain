@@ -1,5 +1,4 @@
 import { expect } from 'vitest';
-import { userEvent } from 'vitest/browser';
 import { test } from '../kit/journey';
 
 test('disconnecting is refused while a file draft cannot be saved, and the file on disk keeps its own change', async ({
@@ -10,26 +9,41 @@ test('disconnecting is refused while a file draft cannot be saved, and the file 
   const readme = repo.readme.path;
   const onDisk = 'Changed on disk before the browser disconnects\n';
   await pairedPage.getByRole('button', { name: 'Review', exact: true }).click();
-  await pairedPage.getByRole('tab', { name: 'Files' }).click();
-  const file = pairedPage.getByRole('treeitem', { name: readme });
+  await pairedPage.getByRole('tab', { name: 'Files', exact: true }).click();
+  const file = pairedPage.getByRole('treeitem', { name: readme, exact: true });
   await expect.element(file).toBeVisible();
   await file.click({ button: 'right' });
-  await pairedPage.getByRole('menuitem', { name: 'Open file' }).click();
+  await pairedPage
+    .getByRole('menuitem', { name: 'Open file', exact: true })
+    .click();
   await pairedPage.getByRole('button', { name: 'Edit', exact: true }).click();
-  const editor = pairedPage.getByRole('textbox', { name: readme });
+  const editor = pairedPage.getByRole('textbox', { name: readme, exact: true });
   await expect.element(editor).toBeVisible();
   await repo.write(readme, onDisk);
   await editor.fill('A draft the browser cannot save');
   await expect
-    .element(pairedPage.getByText('Not saving: changed on disk'))
+    .element(
+      pairedPage.getByText('Not saving: changed on disk', { exact: true }),
+    )
     .toBeVisible();
   await expect.poll(() => server.fileWriteCount()).toBe(1);
 
-  await pairedPage.getByRole('button', { name: 'Toggle Sidebar' }).click();
-  await pairedPage.getByRole('button', { name: 'Settings' }).click();
-  const settings = pairedPage.getByRole('dialog', { name: 'Settings' });
+  await pairedPage
+    .getByRole('button', { name: 'Toggle Sidebar', exact: true })
+    .click();
+  await pairedPage
+    .getByRole('button', { name: 'Settings', exact: true })
+    .click();
+  const settings = pairedPage.getByRole('main', {
+    name: 'Settings',
+    exact: true,
+  });
+  await pairedPage
+    .getByRole('main', { name: 'Settings', exact: true })
+    .getByRole('button', { name: 'Connection', exact: true })
+    .click();
   await settings
-    .getByRole('button', { name: 'Disconnect this browser' })
+    .getByRole('button', { name: 'Disconnect this browser', exact: true })
     .click();
 
   await expect
@@ -45,28 +59,42 @@ test('disconnecting this browser ends its session and shows how to pair it again
   pairedPage,
   server,
 }) => {
-  const settings = pairedPage.getByRole('dialog', { name: 'Settings' });
-  await settings.getByRole('button', { name: 'Close' }).click();
-  await expect.element(settings).not.toBeInTheDocument();
-  const navigator = pairedPage.getByRole('navigation', {
-    name: 'Projects and worktrees',
+  const settings = pairedPage.getByRole('main', {
+    name: 'Settings',
+    exact: true,
   });
-  await userEvent.keyboard('{Escape}');
-  await expect.element(navigator).not.toBeInTheDocument();
-  await pairedPage.getByRole('button', { name: 'Reload' }).click();
+  await settings.getByRole('button', { name: 'Back', exact: true }).click();
+  await expect.element(settings).not.toBeInTheDocument();
+  await pairedPage
+    .getByRole('button', { name: 'Resume edit', exact: true })
+    .click();
+  await pairedPage.getByRole('button', { name: 'Reload', exact: true }).click();
   await expect
-    .element(pairedPage.getByText('Not saving: changed on disk'))
+    .element(
+      pairedPage.getByText('Not saving: changed on disk', { exact: true }),
+    )
     .not.toBeInTheDocument();
 
-  await pairedPage.getByRole('button', { name: 'Toggle Sidebar' }).click();
-  await pairedPage.getByRole('button', { name: 'Settings' }).click();
+  await pairedPage
+    .getByRole('button', { name: 'Toggle Sidebar', exact: true })
+    .click();
+  await pairedPage
+    .getByRole('button', { name: 'Settings', exact: true })
+    .click();
+  await pairedPage
+    .getByRole('main', { name: 'Settings', exact: true })
+    .getByRole('button', { name: 'Connection', exact: true })
+    .click();
   await settings
-    .getByRole('button', { name: 'Disconnect this browser' })
+    .getByRole('button', { name: 'Disconnect this browser', exact: true })
     .click();
 
   await expect
     .element(
-      pairedPage.getByRole('heading', { name: 'This browser is not paired' }),
+      pairedPage.getByRole('heading', {
+        name: 'This browser is not paired',
+        exact: true,
+      }),
     )
     .toBeVisible();
   await expect

@@ -251,6 +251,8 @@ function issued(form: string) {
 
 export const credentialForm = new RegExp(`^${issued('pcd')}$`);
 
+export const liveTicketForm = new RegExp(`^${issued('pct')}$`);
+
 export const deviceCookieForm = new RegExp(
   `^porcelain_device=[^;]+; ${literally('Path=/api; HttpOnly; SameSite=Strict; Max-Age=7776000')}$`,
 );

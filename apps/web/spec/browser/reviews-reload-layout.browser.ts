@@ -11,11 +11,13 @@ test('open tabs, a pinned tab and a collapsed diff come back after a reload', as
   const opened = await app.openReloadable(await app.link('this'));
   const openFile = async (path: string) => {
     await opened.getByRole('button', { name: 'Review', exact: true }).click();
-    await opened.getByRole('tab', { name: 'Files' }).click();
-    const file = opened.getByRole('treeitem', { name: path });
+    await opened.getByRole('tab', { name: 'Files', exact: true }).click();
+    const file = opened.getByRole('treeitem', { name: path, exact: true });
     await expect.element(file).toBeVisible();
     await file.click({ button: 'right' });
-    await opened.getByRole('menuitem', { name: 'Open file' }).click();
+    await opened
+      .getByRole('menuitem', { name: 'Open file', exact: true })
+      .click();
     await expect
       .element(opened.getByRole('tab', { name: new RegExp(path) }))
       .toBeVisible();
@@ -25,30 +27,44 @@ test('open tabs, a pinned tab and a collapsed diff come back after a reload', as
   await opened
     .getByRole('tab', { name: new RegExp(readme) })
     .click({ button: 'right' });
-  await opened.getByRole('menuitem', { name: 'Pin' }).click();
+  await opened.getByRole('menuitem', { name: 'Pin', exact: true }).click();
   await expect
-    .element(opened.getByRole('button', { name: `Unpin ${readme}` }))
+    .element(
+      opened.getByRole('button', { name: `Unpin ${readme}`, exact: true }),
+    )
     .toBeVisible();
   await opened.getByRole('button', { name: 'Review', exact: true }).click();
-  await opened.getByRole('tab', { name: 'Changes' }).click();
-  await opened.getByRole('button', { name: 'All changes' }).click();
-  await opened.getByRole('button', { name: `Collapse ${readme}` }).click();
+  await opened.getByRole('tab', { name: 'Changes', exact: true }).click();
+  await opened
+    .getByRole('button', { name: 'All changes', exact: true })
+    .click();
+  await opened
+    .getByRole('button', { name: `Collapse ${readme}`, exact: true })
+    .click();
   await expect
-    .element(opened.getByRole('button', { name: `Expand ${readme}` }))
+    .element(
+      opened.getByRole('button', { name: `Expand ${readme}`, exact: true }),
+    )
     .toBeVisible();
 
   await app.reload();
 
   await expect
-    .element(opened.getByRole('button', { name: `Expand ${readme}` }))
+    .element(
+      opened.getByRole('button', { name: `Expand ${readme}`, exact: true }),
+    )
     .toBeVisible();
   await expect
-    .element(opened.getByRole('button', { name: `Unpin ${readme}` }))
+    .element(
+      opened.getByRole('button', { name: `Unpin ${readme}`, exact: true }),
+    )
     .toBeVisible();
   await expect
     .element(opened.getByRole('tab', { name: new RegExp(notes) }))
     .toBeVisible();
   await expect
-    .element(opened.getByRole('button', { name: `Close ${notes}` }))
+    .element(
+      opened.getByRole('button', { name: `Close ${notes}`, exact: true }),
+    )
     .toBeInTheDocument();
 });

@@ -13,7 +13,8 @@ export type RemoteAccessSettings = {
   lan: boolean;
   lanNetwork?: LocalNetwork | undefined;
   tailnet: boolean;
-  tailnetServeTarget?: string | undefined;
+  tailnetHostname?: string | undefined;
+  tailnetPort?: number | undefined;
   cloudflare: boolean;
   cloudflareHostname?: string | undefined;
 };
@@ -21,26 +22,16 @@ export type RemoteAccessSettings = {
 export type RemoteAccessChange = {
   lan?: boolean | undefined;
   tailnet?: boolean | undefined;
+  tailnetHostname?: string | undefined;
   cloudflare?: boolean | undefined;
   cloudflareHostname?: string | undefined;
 };
-
-export type TailnetFailure =
-  | 'serve-still-on'
-  | 'tailscale-missing'
-  | 'tailscale-unavailable'
-  | 'tailscale-stopped'
-  | 'https-disabled'
-  | 'serve-denied'
-  | 'serve-taken'
-  | 'serve-failed';
 
 type RouteFailure =
   | 'address-in-use'
   | 'address-unavailable'
   | 'unreachable'
-  | 'other-server'
-  | TailnetFailure;
+  | 'other-server';
 
 export type RouteState =
   | { kind: 'off' }
@@ -58,7 +49,7 @@ export type RouteStates = {
 export type TailnetProxy = {
   address: string;
   port: number;
-  hostname?: string | undefined;
+  hostname: string;
 };
 
 export type RemoteRoutes = {
@@ -77,6 +68,8 @@ export type RemoteAccess = {
   };
   lanNetwork?: LocalNetwork | undefined;
   localNetwork?: LocalNetwork | undefined;
+  tailnetHostname?: string | undefined;
+  tailnetTarget?: string | undefined;
   cloudflareHostname?: string | undefined;
   serviceUrl: string;
 };
@@ -111,35 +104,6 @@ export type ListenOutcome = {
   failure?: 'address-in-use' | 'address-unavailable' | undefined;
 };
 
-export type TailnetServing =
-  | { kind: 'nothing' }
-  | { kind: 'proxy'; target: string }
-  | { kind: 'other' };
-
-export type TailnetReport =
-  | { kind: 'missing' }
-  | { kind: 'unavailable' }
-  | {
-      kind: 'status';
-      running: boolean;
-      https: boolean;
-      dnsName?: string | undefined;
-      serving: TailnetServing;
-    };
-
-export type TailnetServeTarget = { target: string };
-
-export type TailnetServeOutcome =
-  | { kind: 'done' }
-  | { kind: 'denied' }
-  | { kind: 'failed' };
-
-export type TailnetReadiness =
-  | { kind: 'ready'; hostname: string; serving: TailnetServing }
-  | { kind: 'failed'; reason: TailnetFailure };
-
-export type TailnetServePlan = 'keep' | 'serve' | 'taken';
-
 export type TunnelTarget = { origin: string };
 
 export type TunnelHostnames = { hostnames: string[] };
@@ -161,6 +125,8 @@ export type RemoteAccessOptions = { hostnameLength: number };
 export type RemoteAccessProblem =
   | { kind: 'invalid-hostname' }
   | { kind: 'missing-hostname' }
+  | { kind: 'invalid-tailnet-hostname' }
+  | { kind: 'missing-tailnet-hostname' }
   | { kind: 'no-local-network' }
   | { kind: 'unidentified-local-network' };
 

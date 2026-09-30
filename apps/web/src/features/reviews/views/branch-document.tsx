@@ -1,4 +1,4 @@
-import { type ReactNode, useState } from 'react';
+import { type ReactNode, Suspense, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DIFF_WINDOW_FILES } from '@/config/limits';
@@ -58,14 +58,6 @@ function BranchCode({
 }: Props & { path: string | undefined }) {
   const connection = useAccessStore((state) => state.connection);
   const changes = useBranchChanges(scope, connection, base);
-  const range = branchReviewRange(changes.data);
-  const marks = useReviewedMarks(scope, context, range);
-  if (changes.isPending)
-    return (
-      <p role="status" className="p-4 text-sm">
-        Comparing the branch…
-      </p>
-    );
   if (changes.isError)
     return (
       <div className="flex flex-col items-center p-4">
@@ -78,14 +70,51 @@ function BranchCode({
         </Button>
       </div>
     );
-  const branch = changes.data;
-  if (branch.base == null)
+  if (changes.isPending || changes.data == null) return <ComparingBranch />;
+  if (changes.data.base == null)
     return (
       <ReviewEmpty
         title="No default branch"
         description="Choose the branch this one is compared against in the Branch list."
       />
     );
+  return (
+    <Suspense fallback={<ComparingBranch />}>
+      <BranchMarkedCode
+        scope={scope}
+        context={context}
+        interaction={interaction}
+        branch={changes.data}
+        path={path}
+      />
+    </Suspense>
+  );
+}
+
+function ComparingBranch() {
+  return (
+    <p role="status" className="p-4 text-sm">
+      Comparing the branch…
+    </p>
+  );
+}
+
+function BranchMarkedCode({
+  scope,
+  context,
+  interaction,
+  branch,
+  path,
+}: {
+  scope: ReviewScope;
+  context: DocumentContext;
+  interaction: DocumentInteraction;
+  branch: NonNullable<ReturnType<typeof useBranchChanges>['data']>;
+  path: string | undefined;
+}) {
+  const range = branchReviewRange(branch);
+  const marks = useReviewedMarks(scope, context, range);
+  if (branch.base == null) return null;
   const items = mergeBranchChanges(
     branch.files,
     marks,
@@ -205,6 +234,9 @@ function BranchDiffs({
         context={context}
         interaction={interaction}
         range={range}
+        {...(interaction.reveal?.compose
+          ? { commentRequest: interaction.reveal.nonce }
+          : {})}
         entries={entries}
         toolbar={(collapseControl) =>
           single && first ? (

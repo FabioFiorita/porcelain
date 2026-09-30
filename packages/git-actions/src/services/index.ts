@@ -6,7 +6,6 @@ export { FinishGitActionService } from './finish-git-action-service.ts';
 export { GenerateCommitDraftService } from './generate-commit-draft-service.ts';
 export { InterruptGitActionService } from './interrupt-git-action-service.ts';
 export { ListCommitModelsService } from './list-commit-models-service.ts';
-export { ListGitBranchesService } from './list-git-branches-service.ts';
 export { ReadGitActionReceiptService } from './read-git-action-receipt-service.ts';
 export { ReadInterruptedGitActionService } from './read-interrupted-git-action-service.ts';
 export { RecordGitActionProgressService } from './record-git-action-progress-service.ts';

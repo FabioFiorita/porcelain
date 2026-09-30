@@ -81,7 +81,7 @@ async function runService(
   if (settings.action === 'install') {
     const result = await installer.install(settings);
     dependencies.stdout(
-      `Installed Porcelain ${identity.packageVersion} as a user service.\n`,
+      `Installed Porcelain ${identity.packageVersion} as a user service. It listens on this computer only; share it with: porcelain share lan on\n`,
     );
     if (result.backup !== undefined)
       dependencies.stdout(`Database backup: ${result.backup}\n`);
@@ -96,14 +96,19 @@ async function runService(
     dependencies.stdout(
       `Updated the Porcelain service to ${identity.packageVersion}.\nDatabase backup: ${result.backup}\n`,
     );
+    if (result.localNetworkHint !== undefined)
+      dependencies.stdout(`${result.localNetworkHint}\n`);
     return;
   }
   if (settings.action === 'recover') {
+    const recovery = await installer.recover();
     dependencies.stdout(
-      (await installer.recover())
+      recovery.recovered
         ? 'Recovered the Porcelain service.\n'
         : 'The Porcelain service needed no recovery.\n',
     );
+    if (recovery.localNetworkHint !== undefined)
+      dependencies.stdout(`${recovery.localNetworkHint}\n`);
     return;
   }
   dependencies.stdout(

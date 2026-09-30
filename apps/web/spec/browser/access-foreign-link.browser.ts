@@ -10,11 +10,17 @@ test('a link made for another installation is refused and pairs no device', asyn
     .element(
       page.getByText(
         'This link was made for a different Porcelain installation.',
+        { exact: true },
       ),
     )
     .toBeVisible();
   await expect
-    .element(page.getByRole('heading', { name: 'This browser is not paired' }))
+    .element(
+      page.getByRole('heading', {
+        name: 'This browser is not paired',
+        exact: true,
+      }),
+    )
     .toBeVisible();
   await expect
     .poll(async () => (await server.devices()).map((device) => device.label))

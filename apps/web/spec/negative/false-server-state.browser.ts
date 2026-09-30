@@ -6,7 +6,9 @@ test('the server keeps a project name nobody gave it', async ({
   server,
 }) => {
   await expect
-    .element(pairedPage.getByRole('region', { name: 'Review content' }))
+    .element(
+      pairedPage.getByRole('region', { name: 'Review content', exact: true }),
+    )
     .toBeVisible();
   await expect
     .poll(async () => (await server.project()).name)

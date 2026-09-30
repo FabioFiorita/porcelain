@@ -88,7 +88,11 @@ export function withDocument(
   return next;
 }
 
-export type OpenDocument = (ref: DocumentRef, anchor?: CommentAnchor) => void;
+export type OpenDocument = (
+  ref: DocumentRef,
+  anchor?: CommentAnchor,
+  options?: { compose?: boolean },
+) => void;
 
 export type DocumentInteraction = {
   active: boolean;

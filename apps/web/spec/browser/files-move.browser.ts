@@ -22,10 +22,10 @@ test('dragging a file onto a folder in the tree moves it into that folder on dis
   await repo.write(clash, 'Notes that clash\n');
   const opened = await app.open(await app.link('this'));
   await opened.getByRole('button', { name: 'Review', exact: true }).click();
-  await opened.getByRole('tab', { name: 'Files' }).click();
+  await opened.getByRole('tab', { name: 'Files', exact: true }).click();
   await userEvent.dragAndDrop(
-    opened.getByRole('treeitem', { name: moved }),
-    opened.getByRole('treeitem', { name: folder }),
+    opened.getByRole('treeitem', { name: moved, exact: true }),
+    opened.getByRole('treeitem', { name: folder, exact: true }),
   );
   await expect
     .poll(async () =>
@@ -38,10 +38,10 @@ test('dragging a file onto a folder in the tree moves it into that folder on dis
     )
     .not.toContain(moved);
   await expect
-    .element(opened.getByRole('treeitem', { name: moved }))
+    .element(opened.getByRole('treeitem', { name: moved, exact: true }))
     .not.toBeInTheDocument();
   await expect
-    .element(opened.getByText('Change no longer present'))
+    .element(opened.getByText('Change no longer present', { exact: true }))
     .not.toBeInTheDocument();
 });
 
@@ -49,14 +49,14 @@ test('dragging a file onto a folder that already holds that name is refused and 
   server,
 }) => {
   await userEvent.dragAndDrop(
-    page.getByRole('treeitem', { name: clash }),
-    page.getByRole('treeitem', { name: folder }),
+    page.getByRole('treeitem', { name: clash, exact: true }),
+    page.getByRole('treeitem', { name: folder, exact: true }),
   );
   await expect
     .element(page.getByRole('alert'))
     .toHaveTextContent('An entry already exists at that path');
   await expect
-    .element(page.getByRole('treeitem', { name: clash }))
+    .element(page.getByRole('treeitem', { name: clash, exact: true }))
     .toBeVisible();
   await expect
     .poll(async () => (await server.text(clash)).text)

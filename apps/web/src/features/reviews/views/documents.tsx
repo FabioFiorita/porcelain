@@ -1,4 +1,4 @@
-import { GitGraphIcon, HistoryIcon } from 'lucide-react';
+import { FileIcon, GitGraphIcon, HistoryIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CommitGraph, FileTimeline } from '@/features/history/index';
 import { DiscardButton } from '@/features/git-actions/index';
@@ -24,7 +24,7 @@ import { PublishedLayer } from './published-layer';
 import { ProofDocument } from './proof-document';
 import { PublishedOverview } from './published-overview';
 import { ReviewCodeDocument } from './review-code-document';
-import { MarkAllReviewed, ReviewedControl } from './reviewed-control';
+import { MarkAllReviewed } from './reviewed-control';
 import { ReviewEmpty } from './review-empty';
 import { UnexplainedDocument } from './unexplained-document';
 
@@ -227,6 +227,7 @@ function ChangeDocument({
   scope,
   context,
   interaction,
+  onOpen,
   path,
 }: DocumentProps & { path: string }) {
   const connection = useAccessStore((state) => state.connection);
@@ -245,27 +246,37 @@ function ChangeDocument({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <ReviewCodeDocument
-        toolbar={() => (
-          <DocumentToolbar
-            title={path.slice(path.lastIndexOf('/') + 1)}
-            subtitle={path}
-          >
-            <DiscardButton scope={scope} context={context} path={path} />
-            <ReviewedControl
-              scope={scope}
-              context={context}
-              path={path}
-              fingerprint={change.fingerprint}
-              status={change.reviewStatus}
-            />
-          </DocumentToolbar>
-        )}
+      <DiscardButton
         scope={scope}
         context={context}
-        interaction={interaction}
-        paths={[path]}
-      />
+        path={path}
+        variant="quiet"
+      >
+        {(trigger) => (
+          <ReviewCodeDocument
+            {...(interaction.reveal?.compose
+              ? { commentRequest: interaction.reveal.nonce }
+              : {})}
+            headerActions={
+              <>
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  onClick={() => onOpen({ kind: 'file', path })}
+                >
+                  <FileIcon />
+                  <span className="max-[720px]:sr-only">Open file</span>
+                </Button>
+                {trigger}
+              </>
+            }
+            scope={scope}
+            context={context}
+            interaction={interaction}
+            paths={[path]}
+          />
+        )}
+      </DiscardButton>
     </div>
   );
 }

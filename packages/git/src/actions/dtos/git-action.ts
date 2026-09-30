@@ -39,9 +39,7 @@ export type GitActionIntent =
             endLine: number;
           }
         | undefined;
-    }
-  | { action: 'switch-branch'; branch: string }
-  | { action: 'create-branch'; branch: string; switchTo: boolean };
+    };
 
 export type GitActionExpectation = {
   headOid: string | null;

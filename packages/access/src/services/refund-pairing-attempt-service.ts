@@ -4,16 +4,17 @@ import type {
   RefundPairingAttemptInput,
   RefundPairingAttemptOptions,
 } from '../models/refund-pairing-attempt.ts';
+import type { PairingAttemptBudgets } from '../models/pairing-attempts.ts';
 import type { PairingAttemptStore } from '../ports/pairing-attempt-store.ts';
 import { refundPairingAttempt } from '../rules/pairing-attempts.ts';
 
 export class RefundPairingAttemptService {
-  private readonly pairingAttempts: PairingAttemptStore;
+  private readonly pairingAttempts: PairingAttemptBudgets<PairingAttemptStore>;
   private readonly clock: Clock;
   private readonly options: RefundPairingAttemptOptions;
 
   constructor(
-    pairingAttempts: PairingAttemptStore,
+    pairingAttempts: PairingAttemptBudgets<PairingAttemptStore>,
     clock: Clock,
     options: RefundPairingAttemptOptions,
   ) {
@@ -23,12 +24,14 @@ export class RefundPairingAttemptService {
   }
 
   execute(input: RefundPairingAttemptInput): void {
-    this.pairingAttempts.save(
+    const budget = input.crossOrigin ? 'crossOrigin' : 'sameOrigin';
+    const store = this.pairingAttempts[budget];
+    store.save(
       refundPairingAttempt(
-        this.pairingAttempts.read(),
+        store.read(),
         input.peer,
         this.clock.now(),
-        this.options,
+        this.options[budget],
       ),
     );
   }

@@ -6,7 +6,7 @@ import {
   FilePlusIcon,
   FolderPlusIcon,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -17,6 +17,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { toast } from '@/components/ui/toast';
 import { useAccessStore } from '@/features/access/index';
 import { changePath, useReviewOverview } from '@/features/changes/index';
@@ -39,7 +40,11 @@ import { fileErrorMessage, surfaceErrorMessage } from '../rules/error-message';
 import { fileTreeAncestors, mergeFileTreeEntries } from '../rules/file-tree';
 import { isImagePath } from '../rules/html-assets';
 import type { FilesScope } from '../rules/scope';
-import { duplicatePath, treeActions } from '../rules/tree-actions';
+import {
+  duplicatePath,
+  treeActions,
+  type TreeAction,
+} from '../rules/tree-actions';
 import { FileTreeMenu } from './file-tree-menu';
 import { PinnedFiles } from './pinned-files';
 import { QuickOpen } from './quick-open';
@@ -93,6 +98,7 @@ function ScopedFileNavigation({
   const pinned = usePinnedPaths(connection, scope.projectId);
   const setPinned = useSetPinned(connection, scope.projectId);
   const [showHidden, setShowHidden] = useState(false);
+  const [fileQuery, setFileQuery] = useState('');
   const [requested, setRequested] = useState<readonly string[]>(() =>
     fileTreeAncestors(selected),
   );
@@ -160,31 +166,95 @@ function ScopedFileNavigation({
       onOpen({ kind: 'file', path });
     else if (kind === 'file') openFile(path);
   };
+  const renameFile = useRef<(path: string) => void>(() => undefined);
+  const bindRename = (rename: (path: string) => void) => {
+    renameFile.current = rename;
+  };
+  const menuFor = (path: string, folder: boolean) => {
+    const hiddenEntry = hiddenPathFor(path, hidden);
+    return {
+      hidden: hiddenEntry !== null,
+      actions: treeActions({
+        folder,
+        link: entries.some(
+          (entry) =>
+            entry.path === path &&
+            (entry.kind === 'symlink' || entry.kind === 'submodule'),
+        ),
+        changed: changed.has(path),
+        openable: openable.has(path),
+        hiddenEntry,
+        ownHidden: hiddenEntry === canonicalPreferencePath(path),
+        hiddenName: hiddenEntry?.replace(/\/$/, '').split('/').at(-1) ?? '',
+        pinned: openable.has(path) ? pinned.includes(path) : undefined,
+      }),
+      run: (
+        id: TreeAction,
+        close: (restoreFocus: boolean) => void,
+        rename: () => void,
+      ) =>
+        runFileTreeAction(id, {
+          path,
+          hiddenEntry,
+          worktreePath,
+          close,
+          rename,
+          onStartCreate: (kind, parent) => {
+            if (!edit.isPending)
+              setCreating({ kind, folder: parent, nonce: Date.now() });
+          },
+          onOpenFile: (next) => onOpen({ kind: 'file', path: next }),
+          onOpenDiff: (next) => onOpen({ kind: 'change', path: next }),
+          onOpenTimeline: (next) => onOpen({ kind: 'timeline', path: next }),
+          onSetHidden: (next, value) =>
+            discardRejection(setHidden.submit({ path: next, hidden: value })),
+          onTogglePinned: (next) =>
+            discardRejection(
+              setPinned.submit({
+                path: next,
+                pinned: !pinned.includes(next),
+              }),
+            ),
+          onTrash: setDeleting,
+          onDuplicate: (next) => {
+            if (!edit.isPending) duplicate(next);
+          },
+        }),
+    };
+  };
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex shrink-0 items-center gap-1 px-2 pt-2 pb-1">
-        <QuickOpen
-          scope={scope}
-          onOpen={(path) => {
-            setRequested((current) => union(current, fileTreeAncestors(path)));
-            onOpen({ kind: 'file', path });
-          }}
+      <QuickOpen
+        scope={scope}
+        onOpen={(path) => {
+          setRequested((current) => union(current, fileTreeAncestors(path)));
+          onOpen({ kind: 'file', path });
+        }}
+      />
+      <div className="flex shrink-0 items-center gap-1 px-2 pt-2">
+        <Input
+          aria-label="Search files"
+          placeholder="Search..."
+          value={fileQuery}
+          onChange={(event) => setFileQuery(event.target.value)}
+          className="h-7 w-auto min-w-0 flex-1"
         />
         {hidden.size > 0 && (
           <Button
-            size="sm"
+            size="icon-sm"
             variant={showHidden ? 'secondary' : 'ghost'}
             aria-pressed={showHidden}
-            className="h-6"
+            aria-label={
+              showHidden ? 'Showing hidden' : `Hidden (${hidden.size})`
+            }
             onClick={() => setShowHidden((current) => !current)}
           >
             {showHidden ? (
-              <EyeIcon className="size-3.5" />
+              <EyeIcon className="text-muted-foreground" />
             ) : (
-              <EyeOffIcon className="size-3.5" />
+              <EyeOffIcon className="text-muted-foreground" />
             )}
-            {showHidden ? 'Showing hidden' : `Hidden (${hidden.size})`}
           </Button>
         )}
         <Button
@@ -217,89 +287,77 @@ function ScopedFileNavigation({
         onUnpin={(path) =>
           discardRejection(setPinned.submit({ path, pinned: false }))
         }
-      />
-      <PierreFileTree
-        paths={visiblePaths}
-        links={entries.filter(
-          (entry) => entry.kind === 'symlink' || entry.kind === 'submodule',
-        )}
-        creating={creating}
-        onCreate={(path, entryKind) =>
-          edit.create(path, entryKind, (created) =>
-            onOpen({ kind: 'file', path: created }),
-          )
-        }
-        onMove={edit.move}
-        gitStatus={gitStatus}
-        selected={selected}
-        onInvalidName={(error) =>
-          toast.add({
-            title: 'Invalid name',
-            description: error,
-            type: 'error',
-          })
-        }
-        renderMenu={(item, context, rename, onMenuKeyDown) => {
-          const folder = item.kind === 'directory';
-          const path =
-            folder && !item.path.endsWith('/') ? `${item.path}/` : item.path;
-          const hiddenEntry = hiddenPathFor(path, hidden);
-          const actions = treeActions({
-            folder,
-            link: entries.some(
-              (entry) =>
-                entry.path === path &&
-                (entry.kind === 'symlink' || entry.kind === 'submodule'),
-            ),
-            changed: changed.has(path),
-            openable: openable.has(path),
-            hiddenEntry,
-            ownHidden: hiddenEntry === canonicalPreferencePath(path),
-            hiddenName: hiddenEntry?.replace(/\/$/, '').split('/').at(-1) ?? '',
-            pinned: openable.has(path) ? pinned.includes(path) : undefined,
-          });
-          return (
-            <FileTreeMenu
-              path={path}
-              anchor={context.anchorRect}
-              actions={actions}
-              hidden={hiddenEntry !== null}
-              onMenuKeyDown={onMenuKeyDown}
-              onAction={(id) =>
-                runFileTreeAction(id, {
-                  path,
-                  hiddenEntry,
-                  worktreePath,
-                  close: (restoreFocus) => context.close({ restoreFocus }),
-                  rename,
-                  onStartCreate: (kind, folder) => {
-                    if (!edit.isPending)
-                      setCreating({ kind, folder, nonce: Date.now() });
-                  },
-                  onOpenFile: (path) => onOpen({ kind: 'file', path }),
-                  onOpenDiff: (path) => onOpen({ kind: 'change', path }),
-                  onOpenTimeline: (path) => onOpen({ kind: 'timeline', path }),
-                  onSetHidden: (path, value) =>
-                    discardRejection(setHidden.submit({ path, hidden: value })),
-                  onTogglePinned: (path) =>
-                    discardRejection(
-                      setPinned.submit({
-                        path,
-                        pinned: !pinned.includes(path),
-                      }),
-                    ),
-                  onTrash: setDeleting,
-                  onDuplicate: (path) => {
-                    if (!edit.isPending) duplicate(path);
-                  },
-                })
-              }
-            />
-          );
+        menuFor={(path) => {
+          const menu = menuFor(path, false);
+          return {
+            actions: menu.actions,
+            hidden: menu.hidden,
+            onAction: (id) =>
+              menu.run(
+                id,
+                () => undefined,
+                () => renameFile.current(path),
+              ),
+          };
         }}
-        onExpand={(paths) => setRequested((current) => union(current, paths))}
-        onSelect={onSelect}
       />
+      <section
+        aria-label="All files"
+        className="flex min-h-0 flex-1 flex-col pt-1"
+      >
+        <p className="px-3.5 pt-1 pb-0.5 text-[11px] font-medium text-muted-foreground">
+          All files
+        </p>
+        <PierreFileTree
+          filter={fileQuery}
+          onFilterChange={setFileQuery}
+          paths={visiblePaths}
+          links={entries.filter(
+            (entry) => entry.kind === 'symlink' || entry.kind === 'submodule',
+          )}
+          creating={creating}
+          onCreate={(path, entryKind) =>
+            edit.create(path, entryKind, (created) =>
+              onOpen({ kind: 'file', path: created }),
+            )
+          }
+          onMove={edit.move}
+          gitStatus={gitStatus}
+          selected={selected}
+          bindRename={bindRename}
+          onInvalidName={(error) =>
+            toast.add({
+              title: 'Invalid name',
+              description: error,
+              type: 'error',
+            })
+          }
+          renderMenu={(item, context, rename, onMenuKeyDown) => {
+            const folder = item.kind === 'directory';
+            const path =
+              folder && !item.path.endsWith('/') ? `${item.path}/` : item.path;
+            const menu = menuFor(path, folder);
+            return (
+              <FileTreeMenu
+                path={path}
+                anchor={context.anchorElement}
+                actions={menu.actions}
+                hidden={menu.hidden}
+                onMenuKeyDown={onMenuKeyDown}
+                onAction={(id) =>
+                  menu.run(
+                    id,
+                    (restoreFocus) => context.close({ restoreFocus }),
+                    rename,
+                  )
+                }
+              />
+            );
+          }}
+          onExpand={(paths) => setRequested((current) => union(current, paths))}
+          onSelect={onSelect}
+        />
+      </section>
       <AlertDialog
         open={deleting !== null}
         onOpenChange={(open) => {

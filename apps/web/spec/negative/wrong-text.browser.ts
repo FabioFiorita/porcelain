@@ -8,6 +8,7 @@ test('the workspace shows a heading it never renders', async ({
     .poll(() =>
       pairedPage.getByRole('heading', {
         name: 'A heading Porcelain never shows',
+        exact: true,
       }),
     )
     .toBeVisible();

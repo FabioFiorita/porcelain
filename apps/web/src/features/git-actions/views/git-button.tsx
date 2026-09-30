@@ -7,6 +7,7 @@ import {
   useReviewOverview,
 } from '@/features/changes/index';
 import { Button } from '@/components/ui/button';
+import { ButtonGroup } from '@/components/ui/button-group';
 import {
   Dialog,
   DialogContent,
@@ -50,7 +51,6 @@ import {
   statusFromChanges,
   suggestedCount,
 } from '../rules/status';
-import { BranchDialog } from './branch-dialog';
 import { GitActionIcon } from './git-action-icon';
 import { GitActionInspection } from './git-action-inspection';
 import { GitActionMessage } from './git-action-message';
@@ -123,10 +123,7 @@ export function GitButton({
 
   return (
     <>
-      <fieldset
-        aria-label="Git controls"
-        className="m-0 flex shrink-0 border-0 p-0"
-      >
+      <ButtonGroup aria-label="Git controls" className="shrink-0">
         <Popover
           open={running != null && progressOpen}
           onOpenChange={(open) => {
@@ -320,20 +317,9 @@ export function GitButton({
             )}
           </DropdownMenuContent>
         </DropdownMenu>
-      </fieldset>
+      </ButtonGroup>
 
-      {action === 'switch-branch' || action === 'create-branch' ? (
-        <BranchDialog
-          scope={scope}
-          context={context}
-          open
-          mode={action === 'switch-branch' ? 'switch' : 'create'}
-          status={{ ...status, branch: overview.changes.branch }}
-          onOpenChange={(open) => {
-            if (!open) setAction(null);
-          }}
-        />
-      ) : action != null ? (
+      {action != null ? (
         <Dialog
           open
           disablePointerDismissal

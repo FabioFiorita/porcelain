@@ -13,11 +13,6 @@ const merging = { inProgress: 'merge' as const, mergeHeadOid };
 const remote = { remoteName: 'origin', sourceRef: 'refs/heads/main' };
 const files = (...paths: string[]) =>
   paths.map((path) => ({ path, fingerprint }));
-const branch: GitActionIntent = {
-  action: 'create-branch',
-  branch: 'feature',
-  switchTo: false,
-};
 const discard: GitActionIntent = { action: 'discard', path: 'README.md' };
 
 type Row = {
@@ -41,25 +36,25 @@ describe('gitActionProblem', () => {
     },
     {
       name: 'a path expected twice, even with the same fingerprint',
-      intent: branch,
+      intent: discard,
       expected: { files: files('README.md', 'README.md') },
       problem: { kind: 'duplicate-expected-file' },
     },
     {
       name: 'a merge in progress without its merge head',
-      intent: branch,
+      intent: discard,
       expected: { inProgress: 'merge' },
       problem: { kind: 'merge-expectation' },
     },
     {
       name: 'a merge head without a merge in progress',
-      intent: branch,
+      intent: discard,
       expected: { mergeHeadOid },
       problem: { kind: 'merge-expectation' },
     },
     {
       name: 'a merge head during a rebase',
-      intent: branch,
+      intent: discard,
       expected: { inProgress: 'rebase', mergeHeadOid },
       problem: { kind: 'merge-expectation' },
     },
@@ -161,12 +156,6 @@ describe('gitActionProblem', () => {
   });
 
   it.each<Row>([
-    {
-      name: 'a local action with nothing expected',
-      intent: branch,
-      expected: {},
-      problem: undefined,
-    },
     {
       name: 'a commit whose expected files are the selection in another order',
       intent: { action: 'commit', message: 'Fix', paths: ['a.md', 'b.md'] },

@@ -9,6 +9,7 @@ import {
 } from '../scripts/feature.ts';
 import {
   expectation,
+  fingerprintOf,
   gitPath,
   gitRoute,
   read,
@@ -31,7 +32,7 @@ export default defineFeature({
   paired: true,
   intent: 'intended',
   behaviour:
-    "After an action ended interrupted, the worktree's changes carry an interrupted marker naming it until the owner dismisses it by request ID; dismissing clears the marker, keeps the receipt, and dismissing again answers the same. The isolated session cannot stop the server mid-action, so the interrupted action here is a branch creation whose object store never finishes opening, which outlives the session's short Git action deadline and settles as interrupted. An unknown request is not found, and dismissing a request that did not end interrupted is a mismatch conflict.",
+    "After an action ended interrupted, the worktree's changes carry an interrupted marker naming it until the owner dismisses it by request ID; dismissing clears the marker, keeps the receipt, and dismissing again answers the same. The isolated session cannot stop the server mid-action, so the interrupted action here is a commit whose object store never finishes opening, which outlives the session's short Git action deadline and settles as interrupted. An unknown request is not found, and dismissing a request that did not end interrupted is a mismatch conflict.",
   cases: [
     defineCase({
       name: 'unknown request',
@@ -51,6 +52,8 @@ export default defineFeature({
     defineCase({
       name: 'a request that was not interrupted',
       async setup(session) {
+        const path = 'note.txt';
+        await session.writeFile(path, 'A note\n');
         const requestId = randomUUID();
         await session.read(
           {
@@ -59,11 +62,16 @@ export default defineFeature({
             body: {
               requestId,
               input: {
-                action: 'create-branch',
-                branch: 'feature',
-                switchTo: false,
+                action: 'commit',
+                message: 'Keep a note',
+                paths: [path],
               },
-              expected: await expectation(session),
+              expected: {
+                ...(await expectation(session)),
+                files: [
+                  { path, fingerprint: await fingerprintOf(session, path) },
+                ],
+              },
             },
           },
           202,
@@ -83,7 +91,11 @@ export default defineFeature({
     defineCase({
       name: 'an interrupted action is marked until it is dismissed',
       async setup(session) {
-        const expected = await expectation(session);
+        const path = session.fixture.readme.path;
+        const expected = {
+          ...(await expectation(session)),
+          files: [{ path, fingerprint: await fingerprintOf(session, path) }],
+        };
         await session.fifo(alternates);
         const requestId = randomUUID();
         await session.read(
@@ -93,9 +105,9 @@ export default defineFeature({
             body: {
               requestId,
               input: {
-                action: 'create-branch',
-                branch: 'stuck',
-                switchTo: false,
+                action: 'commit',
+                message: 'Stuck',
+                paths: [path],
               },
               expected,
             },
@@ -136,7 +148,7 @@ export default defineFeature({
         check('the fetch ended interrupted', 'interrupted', state.state);
         checkPartial(
           'the changes carried the marker',
-          { requestId: state.requestId, action: 'create-branch' },
+          { requestId: state.requestId, action: 'commit' },
           state.marker,
         );
         check('dismissed status', 200, responses[0]?.status);

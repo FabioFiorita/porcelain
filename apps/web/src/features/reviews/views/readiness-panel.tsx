@@ -4,6 +4,7 @@ import {
   CircleCheckIcon,
   CircleXIcon,
 } from 'lucide-react';
+import { Suspense } from 'react';
 import {
   Collapsible,
   CollapsibleContent,
@@ -69,13 +70,39 @@ export function BranchReadiness({
 }) {
   const connection = useAccessStore((state) => state.connection);
   const changes = useBranchChanges(scope, connection, base);
-  const marks = useReviewedMarks(
-    scope,
-    context,
-    branchReviewRange(changes.data),
-  );
   if (changes.data?.base == null) return null;
-  const files = mergeBranchChanges(changes.data.files, marks);
+  return (
+    <Suspense fallback={null}>
+      <BranchReadinessMarks
+        scope={scope}
+        context={context}
+        branch={changes.data}
+        review={review}
+        threads={threads}
+        onSelect={onSelect}
+      />
+    </Suspense>
+  );
+}
+
+function BranchReadinessMarks({
+  scope,
+  context,
+  branch,
+  review,
+  threads,
+  onSelect,
+}: {
+  scope: ReviewScope;
+  context: ReviewsContext;
+  branch: NonNullable<ReturnType<typeof useBranchChanges>['data']>;
+  review: ReviewResponse | null;
+  threads: readonly CommentThread[];
+  onSelect: Select;
+}) {
+  const marks = useReviewedMarks(scope, context, branchReviewRange(branch));
+  if (branch.base == null) return null;
+  const files = mergeBranchChanges(branch.files, marks);
   return (
     <ReadinessCard
       items={readinessItems({ files, review, explains: false, threads })}

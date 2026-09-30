@@ -34,6 +34,11 @@ import {
   unknownRule,
 } from '../architecture/probe.ts';
 import { compilerFindings } from '../architecture/react-compiler.ts';
+import { pinProblems, uiFolder } from '../architecture/shadcn-pins.ts';
+import {
+  loadJourneys,
+  unmappedRoutes,
+} from '../.agents/skills/web-verify/scripts/catalogue.ts';
 import { manualAuditProblems } from '../architecture/ci-policy.ts';
 
 const [mode, target] = process.argv.slice(2);
@@ -348,13 +353,12 @@ const strictnessFlags = [
   'exactOptionalPropertyTypes',
   'noImplicitOverride',
   'noFallthroughCasesInSwitch',
-  'noUnusedLocals',
-  'noUnusedParameters',
   'verbatimModuleSyntax',
   'erasableSyntaxOnly',
 ] as const;
 
 const requiredRules = [
+  'no-unused-vars',
   'typescript/consistent-type-imports',
   'typescript/no-deprecated',
   'typescript/no-explicit-any',
@@ -498,7 +502,7 @@ async function configProblems(): Promise<Problem[]> {
     problems.push(
       problem(
         'lint-config',
-        '.oxlintrc.json overrides only the plugin files; a per-file override is a disable directive.',
+        '.oxlintrc.json overrides only the plugin files; any other override is a disable directive.',
       ),
     );
   const tsconfigs = filesUnder('.').filter((path) =>
@@ -645,6 +649,21 @@ function filesOf(root: string): Map<string, string> {
       readFileSync(file, 'utf8'),
     ]),
   );
+}
+
+async function featureMapProblems(): Promise<Problem[]> {
+  try {
+    return unmappedRoutes(await loadJourneys()).map((found) =>
+      problem('web-feature-map', found),
+    );
+  } catch (error) {
+    return [
+      problem(
+        'web-feature-map',
+        error instanceof Error ? error.message : String(error),
+      ),
+    ];
+  }
 }
 
 async function routeTreeProblems(): Promise<Problem[]> {
@@ -942,10 +961,76 @@ function webSources(): string[] {
   );
 }
 
+const cloneSchema = z.object({
+  duplicates: z.array(
+    z.object({
+      lines: z.number(),
+      firstFile: z.object({ name: z.string(), start: z.number() }),
+      secondFile: z.object({ name: z.string(), start: z.number() }),
+    }),
+  ),
+});
+
+function duplicateFindings(): Finding[] {
+  const scratch = mkdtempSync(join(tmpdir(), 'porcelain-duplicates-'));
+  try {
+    const result = spawnSync(
+      join('node_modules', '.bin', 'jscpd'),
+      [
+        '--format',
+        'typescript,tsx',
+        '--min-tokens',
+        '50',
+        '--min-lines',
+        '5',
+        '--mode',
+        'mild',
+        '--ignore',
+        '**/components/ui/**,**/routeTree.gen.ts,**/*.spec.ts',
+        '--absolute',
+        '--no-colors',
+        '--reporters',
+        'json',
+        '--output',
+        scratch,
+        'apps/web/src',
+      ],
+      { encoding: 'utf8' },
+    );
+    if (result.error) throw result.error;
+    if (result.status !== 0)
+      throw new Error(`jscpd failed:\n${result.stdout}${result.stderr}`);
+    const report = cloneSchema.parse(
+      JSON.parse(readFileSync(join(scratch, 'jscpd-report.json'), 'utf8')),
+    );
+    const at = (name: string) => relative('.', name);
+    return report.duplicates.flatMap((clone) =>
+      [
+        [clone.firstFile, clone.secondFile],
+        [clone.secondFile, clone.firstFile],
+      ].map(([here, there]) => ({
+        rule: 'style/duplicate-code',
+        file: at(here?.name ?? ''),
+        line: here?.start ?? 0,
+        column: 0,
+        code: 'error style(duplicate-code)',
+        message: `${clone.lines} lines here repeat ${at(there?.name ?? '')}:${there?.start ?? 0}; a second copy is extracted into its owner (components/ui, shared/ or the feature), never pasted.`,
+      })),
+    );
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+}
+
 async function lint(): Promise<number> {
   const files = roots
     .flatMap(filesUnder)
-    .filter((path) => lintedFile.test(path) && path !== generatedRouteTree);
+    .filter(
+      (path) =>
+        lintedFile.test(path) &&
+        path !== generatedRouteTree &&
+        !path.startsWith(`${uiFolder}/`),
+    );
   const result = spawnSync(
     join('node_modules', '.bin', 'oxlint'),
     [
@@ -988,7 +1073,7 @@ async function lint(): Promise<number> {
   const settled = settleBaseline(
     readBaseline('.'),
     (rule) => target === 'web' && rule.includes('/'),
-    [...linted, ...compiled],
+    [...linted, ...compiled, ...(target === 'web' ? duplicateFindings() : [])],
   );
   for (const finding of settled.reported)
     process.stdout.write(
@@ -1035,6 +1120,10 @@ if (mode === 'format') {
       throw error;
     })),
     ...(target === 'web' ? await routeTreeProblems() : []),
+    ...(target === 'web'
+      ? pinProblems('.').map((found) => problem('shadcn-ui-pinned', found))
+      : []),
+    ...(target === 'web' ? await featureMapProblems() : []),
   ];
   for (const { rule, message } of problems)
     process.stderr.write(`error style(${rule}): ${message}\n`);

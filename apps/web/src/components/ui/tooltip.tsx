@@ -1,5 +1,3 @@
-'use client';
-
 import { Tooltip as TooltipPrimitive } from '@base-ui/react/tooltip';
 import { cn } from 'cn';
 
@@ -62,4 +60,4 @@ function TooltipContent({
   );
 }
 
-export { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger };
+export { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider };

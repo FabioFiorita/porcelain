@@ -109,11 +109,17 @@ export function ReviewWorkspace({
   const [reveal, setReveal] = useState<
     (RevealComment & { pane: PaneIndex; key: string }) | undefined
   >();
-  const open: OpenDocument = (ref, anchor) => {
+  const open: OpenDocument = (ref, anchor, options) => {
     const key = entryKey(ref);
     setReveal(
       anchor
-        ? { anchor, nonce: Date.now(), pane: focusedPane, key }
+        ? {
+            anchor,
+            nonce: Date.now(),
+            pane: focusedPane,
+            key,
+            ...(options?.compose ? { compose: true } : {}),
+          }
         : undefined,
     );
     const base = anchor ? anchorBase(anchor) : undefined;

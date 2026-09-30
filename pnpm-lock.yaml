@@ -153,6 +153,9 @@ importers:
       esbuild:
         specifier: 0.28.2
         version: 0.28.2
+      jscpd:
+        specifier: 5.3.3
+        version: 5.3.3
       lefthook:
         specifier: 2.1.14
         version: 2.1.14
@@ -204,6 +207,9 @@ importers:
 
   apps/server:
     dependencies:
+      '@fastify/cors':
+        specifier: 11.3.0
+        version: 11.3.0
       '@fastify/sensible':
         specifier: 6.0.5
         version: 6.0.5
@@ -1175,6 +1181,9 @@ packages:
 
   '@fastify/ajv-compiler@4.0.6':
     resolution: {integrity: sha512-NtuzM0SfaMJbGlnjr9LWQUN5LzgSrbB8tf/wRZNas+4E1O/Nmzl53e7ruT61HDZyRCJGC6FxIogmNZO1c5ETBA==}
+
+  '@fastify/cors@11.3.0':
+    resolution: {integrity: sha512-ggQGua+xHv1MvePbPr0v//xLYEsCXbWspquXCJS9Ot5YoRXq8J8ZWzHnxDBVnbtXosvistXo6LtNzOJswf64Fw==}
 
   '@fastify/error@4.2.0':
     resolution: {integrity: sha512-RSo3sVDXfHskiBZKBPRgnQTtIqpi/7zhJOEmAxCiBcM7d0uwdGdxLlsCaLzGs8v8NnxIRlfG0N51p5yFaOentQ==}
@@ -3725,6 +3734,55 @@ packages:
     resolution: {integrity: sha512-SFNOvSJ+Dgf/9An904Yx+CgSlIPCkIpao4qo51lpee25TIRejdH3rhR4EZMGoNx3/TP3O+wzWuiTFl4sqbltzA==}
     hasBin: true
 
+  jscpd-darwin-arm64@5.3.3:
+    resolution: {integrity: sha512-fjjfjNf5p9jhEwFvgRyOteGPV7TYwPZ/bFhPiITs2KgvirDMOv7d5lgVSmS3BUHSBMyNwzxjyrAvvvSsE2LdXA==}
+    cpu: [arm64]
+    os: [darwin]
+
+  jscpd-darwin-x64@5.3.3:
+    resolution: {integrity: sha512-MnVxRZX0IWDHP+ze6cMNTQuRsyBy/UB58fgZm/+R8fyktYVScOtYEQw+6AOz2ng6EjzYaCxGJwzlni94yfEZkA==}
+    cpu: [x64]
+    os: [darwin]
+
+  jscpd-linux-arm64-gnu@5.3.3:
+    resolution: {integrity: sha512-sowSw71vQguhEGvM78tNECWCD3ZSSL8T2SE68GKEe89cux0ZjUXx3CRbcarladZ6Pzobpq7Koe4vtRVKHAdBEA==}
+    cpu: [arm64]
+    os: [linux]
+    libc: [glibc]
+
+  jscpd-linux-arm64-musl@5.3.3:
+    resolution: {integrity: sha512-pPSPdzRZD3NNHi/5y3ud9z2E3SjIAYh7VWyGrIs0DVzwI7n/0paRFkQ0W6VCdWfPCK6Tnb1yeMgX/vOrygV0sg==}
+    cpu: [arm64]
+    os: [linux]
+    libc: [musl]
+
+  jscpd-linux-x64-gnu@5.3.3:
+    resolution: {integrity: sha512-FwB2UrrGk5HWXPLlGnGBJJgTgE/f6zhE+MJYpkl2KZvMuj8y6bZqYTW+vgBy82aTqdgokKgEf6aScBeAqR63Fg==}
+    cpu: [x64]
+    os: [linux]
+    libc: [glibc]
+
+  jscpd-linux-x64-musl@5.3.3:
+    resolution: {integrity: sha512-J4lN8yc6VieD1Hh/TvtOcRm7bZ3D20idaoy6VZb0iWEa9Ui5M5vJa+hOLK1ye6i6Lyn8CkkSBFCqS9jqsTiF9A==}
+    cpu: [x64]
+    os: [linux]
+    libc: [musl]
+
+  jscpd-windows-arm64-msvc@5.3.3:
+    resolution: {integrity: sha512-mvvHaMrtEkiFdt09RWxbIvlgGfTH0Q7pBecUU4d4nYsz2+6Fs/7KKgWwiMQV80PPGRqCLvOkzpgBDnz9aAgbtA==}
+    cpu: [arm64]
+    os: [win32]
+
+  jscpd-windows-x64-msvc@5.3.3:
+    resolution: {integrity: sha512-4kinkEmmOfmv6glGbjihtmmoJoeR4Czg6dVoR/NNT88jKTnGWZdaSc83je4AEIdznyE9FHKPbg/WpqE9zNJFmQ==}
+    cpu: [x64]
+    os: [win32]
+
+  jscpd@5.3.3:
+    resolution: {integrity: sha512-BLSHnjrByjRCFENUOCPY/xYcPVOxSINTdybjUHuEAbEROmamD+BCQOTy2eLjxuyBWcR34ARV7q1O0/OOiJzxQg==}
+    engines: {node: '>=18'}
+    hasBin: true
+
   jsesc@3.1.0:
     resolution: {integrity: sha512-/sM3dO2FOzXjKQhJuo0Q173wf2KOo8t4I8vHy6lF9poUp7bKT0/NHE8fPX23PwfhnykfqnC2xRxOnVw5XuGIaA==}
     engines: {node: '>=6'}
@@ -5835,6 +5893,11 @@ snapshots:
       ajv: 8.20.0
       ajv-formats: 3.0.1(ajv@8.20.0)
       fast-uri: 4.1.4
+
+  '@fastify/cors@11.3.0':
+    dependencies:
+      fastify-plugin: 6.0.0
+      toad-cache: 3.7.4
 
   '@fastify/error@4.2.0': {}
 
@@ -7996,6 +8059,41 @@ snapshots:
   js-yaml@4.3.2:
     dependencies:
       argparse: 2.0.1
+
+  jscpd-darwin-arm64@5.3.3:
+    optional: true
+
+  jscpd-darwin-x64@5.3.3:
+    optional: true
+
+  jscpd-linux-arm64-gnu@5.3.3:
+    optional: true
+
+  jscpd-linux-arm64-musl@5.3.3:
+    optional: true
+
+  jscpd-linux-x64-gnu@5.3.3:
+    optional: true
+
+  jscpd-linux-x64-musl@5.3.3:
+    optional: true
+
+  jscpd-windows-arm64-msvc@5.3.3:
+    optional: true
+
+  jscpd-windows-x64-msvc@5.3.3:
+    optional: true
+
+  jscpd@5.3.3:
+    optionalDependencies:
+      jscpd-darwin-arm64: 5.3.3
+      jscpd-darwin-x64: 5.3.3
+      jscpd-linux-arm64-gnu: 5.3.3
+      jscpd-linux-arm64-musl: 5.3.3
+      jscpd-linux-x64-gnu: 5.3.3
+      jscpd-linux-x64-musl: 5.3.3
+      jscpd-windows-arm64-msvc: 5.3.3
+      jscpd-windows-x64-msvc: 5.3.3
 
   jsesc@3.1.0: {}
 

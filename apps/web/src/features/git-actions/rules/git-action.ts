@@ -2,16 +2,12 @@ import type {
   GenerateCommitDraftRequest,
   GenerateCommitDraftResponse,
   ListCommitModelsResponse,
-} from '@porcelain/contracts/git-actions';
-import type {
-  ListGitBranchesResponse,
   RunGitActionRequest,
   RunGitActionResponse,
 } from '@porcelain/contracts/git-actions';
 export type CommitDraftInput = GenerateCommitDraftRequest;
 export type CommitDraft = GenerateCommitDraftResponse;
 export type CommitModel = ListCommitModelsResponse[number];
-type BranchesResponse = ListGitBranchesResponse;
 export type Receipt = RunGitActionResponse;
 export type ActionInput = RunGitActionRequest['input'];
 export type Expectation = RunGitActionRequest['expected'];
@@ -33,7 +29,6 @@ export type GitActionsPort = {
   run: (
     request: GitActionsRequest & { input: RunGitActionRequest },
   ) => Promise<Receipt>;
-  branches: (request: GitActionsRequest) => Promise<BranchesResponse>;
   dismissInterrupted: (
     request: GitActionsRequest & { requestId: string },
   ) => Promise<void>;

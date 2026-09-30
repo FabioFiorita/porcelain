@@ -23,15 +23,17 @@ Coverage is whatever `--list` prints; there is no other list. Each feature runs 
 
 The command prints one line per feature, each failure under it, and the evidence folder. It exits 1 when any assertion fails or is weak, a case throws or makes no assertion, a request's status or body was never asserted, a declared route was never requested, the isolated server fails to start or stop, a feature made no assertion, or a negative feature was not rejected; it exits 2 on usage errors. Read the evidence before reporting. `<folder>/<feature>.json` (a negative feature's is `negative.<feature>.json`) holds the feature's intent, behaviour, reaches, counts, failures and durations, and for every case, in order and each tagged setup, request or follow-up, its steps: HTTP exchanges with the request (method, path with query, headers with credentials redacted, body) and the response (status, headers other than date, connection, keep-alive and content-length, body); host Git commands with their whole argument list and output or error; file writes and reads with their byte counts; symbolic links, FIFOs, removals and renames; folder listings with the names they found; and live connections with the messages sent and received and how they closed. Beside the steps each case holds every assertion with its expected and actual values, its sources and, when weak, why; the error it threw or the requests it left unasserted; its duration; and what the server wrote to standard error while it ran. The feature ends with the server's whole standard output and standard error. `<folder>/summary.json` totals the run, lists the registered routes and what reached them, and records each negative feature and whether it was rejected. Every case records its wall time (`durationMs`, setup to last assertion), every feature its own and its cases' (`durations`), and the run prints and records its ten slowest cases; they are numbers to read, not limits. A pass verifies only the cases in the evidence.
 
-Secrets never reach evidence or output, however short. The run collects every secret the session issued or sent: the paired credential, every credential and pairing code by its form (`pcd_…`, `pcp_…`) and every value of a `credential`, `code`, `link`, `signature`, `token` or `secret` field, every signed summary link with its token and signature, every bearer credential and cookie a case sends, and every cookie the server sets. It looks for them in every request and response body (JSON or raw), path and header, every live notice, Git's output, file contents and the server's output, then walks the whole evidence and replaces each one, and its URL-, HTML- and JSON-escaped forms, with `[redacted]`. A feature whose evidence would still hold a secret is not written; the run fails and says so.
+Secrets never reach evidence or output, however short. The run collects every secret the session issued or sent: the paired credential, every credential, pairing code and live ticket by its form (`pcd_…`, `pcp_…`, `pct_…`) and every value of a `credential`, `code`, `link`, `signature`, `token` or `secret` field, every signed summary link with its token and signature, every bearer credential and cookie a case sends, and every cookie the server sets. It looks for them in every request and response body (JSON or raw), path and header, every live notice, Git's output, file contents and the server's output, then walks the whole evidence and replaces each one, and its URL-, HTML- and JSON-escaped forms, with `[redacted]`. A feature whose evidence would still hold a secret is not written; the run fails and says so.
 
 ## Fixture
 
 The isolated server starts with one registered Git repository whose README.md is committed once and then changed without staging, one paired device whose bearer credential is the default for requests, and a web root holding the web shell, one hashed asset and a symbolic link that leads out of it. `scripts/dev-server-child.ts` writes what it created into the session manifest, and a case reads it from `session.fixture` (folder names, branch, device label and platform, the README's path and its committed and changed text, the initial commit's subject, the web root's files, the summary link lifetime, the Git action deadline, the catalog staleness window and the fake coding tool's command and replies); it never types those values again. A case discovers IDs from `session.projectId` and `session.worktreeId`, and takes values the server computes (fingerprints, status tokens) from a read and values Git computes (object IDs, patches) from `session.git(...)`. A case that needs more history or files creates them in its setup with `session.git(subcommand, ...args)`, `session.writeFile(...)`, `session.symlink(target, path)`, `session.fifo(path)`, `session.remove(path)` and `session.rename(from, to)`, which act on the sample repository from the host with fixed author and dates and are each recorded as a step; `session.readFile(path)` and `session.entries(path)` observe it (a listing may name the project home, `..`, but nothing above it). A case changes the host only through these helpers and `session.installCodingTool()`. `session.git` always runs `git -C <sample repository> <subcommand> ...args`: it refuses `-C`, `--git-dir`, `--work-tree` and `--namespace`, and any absolute path outside the project home, so the session, not the case, decides the repository; `session.rename` moves an entry within the project home. The owner socket (`target: 'owner'`) is reachable from the host.
 
-The fixture overrides four limits of the server's settings in `scripts/dev-server-child.ts`, and nothing else:
+The fixture overrides five limits of the server's settings in `scripts/dev-server-child.ts`, and no other setting (besides the settings, it hands the server only the scripted updater and running version described below):
+
 - the inventory refreshes every 250 ms instead of every 30 seconds, so a case that changes a repository on disk waits with `eventually` until the inventory shows it;
 - signed summary links expire after 2 seconds instead of an hour (`session.fixture.summaryLinkLifetimeMs`), so a case can watch one expire;
+- a live ticket expires after 1 second instead of 30 (`session.fixture.liveTicketLifetimeMs`), so a case can watch one expire;
 - a Git action's deadline is 1.5 seconds instead of two minutes (`session.fixture.gitActionDeadlineMs`), so the interrupted-action case settles in seconds;
 - a catalog entry is stale after 200 ms instead of a minute (`session.fixture.inventoryStaleAfterMs`), below the 250 ms inventory refresh, so worktree reads regularly find their entry stale and go through the refresh before answering.
 
@@ -39,7 +41,7 @@ The review tools are reached with `toolCall(session, id, tool, input)` on the ow
 
 The server starts with no coding command-line tool on its PATH. A case that needs one calls `session.installCodingTool()` in its setup, which links the fixture's fake coding tool, built from `scripts/dev-coding-tool.ts`, into the sandbox's PATH folder as `claude`, where it stays for the rest of the feature; it is recorded as a step. The server finds and runs it as it would the real CLI: it lists the Claude models, and the tool reads the prompt from standard input and answers in the Claude CLI's JSON envelope, whose structured output is `session.fixture.codingTool.message` for a prompt that asks for one message and `session.fixture.codingTool.groups` for one that asks for a sequence of commits, whatever the selection. It fails like the real CLI for an unknown option, a missing print mode, JSON output or JSON schema, a model other than `sonnet` or `haiku`, and a prompt that asks for neither. So a case that asks for the fixture's replies selects exactly their paths, and one that selects anything else proves the server's refusal. A feature that needs the refusal for a missing tool asserts it before any case installs the tool.
 
-The server never updates itself for real: `scripts/dev-server-child.ts` hands it a scripted updater (`apps/server/spec/fakes/scripted-service-update-runner.ts`) in place of the installed service's, so nothing runs npm or systemd. It runs as the installed service on one version and offers a newer one; its first update fails with a reason and keeps the running version, its second ends updated on the newer one, each stage a few hundred milliseconds after the last. A case reads the versions from `GET /api/service/update` and waits for an update with `eventually`.
+The server never updates itself for real: `scripts/dev-server-child.ts` hands it a scripted updater (`apps/server/spec/fakes/scripted-service-update-runner.ts`) in place of the installed service's, so nothing runs npm or systemd. It runs as the installed service on one version, which is also the version `GET /api/environment` names (the child passes it to the server beside the updater), and offers a newer one; its first update fails with a reason and keeps the running version, its second ends updated on the newer one, each stage a few hundred milliseconds after the last. A case reads the versions from `GET /api/service/update` and waits for an update with `eventually`.
 
 The run bundles `scripts/dev-server-child.ts` and the fake coding tool with esbuild once, with the native packages it cannot bundle beside it and the migrations, and every isolated server runs that build. The sandbox mounts only the built server (at `/opt/porcelain/server`), the node and git binaries with Git's exec path and templates, the shared libraries those binaries and the native addons load, its PATH folder and the fixture folder; never the checkout, a shell or the rest of `/usr`. It runs in its own session, network, PID and IPC namespaces and dies with its parent; the host reaches the network listener at the same address through a relay over a Unix socket in the fixture folder, and the owner socket directly. The sandbox's PATH is one host folder, mounted read-only, holding a symlink to git and nothing else until a case installs the fake coding tool there, so no commit-model tool on the host ever reaches it. Without `/bin/sh`, through which Git reaches a local-path remote, and without a network, fetch, pull and push are verified up to the point where Git would contact the remote; no case needs more. The host's `session.git` runs without system or global configuration and with `core.hooksPath=/dev/null`, like the server's Git in the sandbox, and `session.writeFile`, `readFile`, `symlink`, `fifo`, `remove`, `rename` and `entries` resolve real paths, so a symbolic link cannot lead them out of the sample repository or, for `rename` and `entries`, the project home.
 
@@ -51,18 +53,26 @@ One feature is one file, `feature-map/<feature>.ts`, whose default export is the
 export default defineFeature({
   feature: 'projects.rename',
   reaches: 'PATCH /api/projects/:projectId', // or a list; owner socket routes start with "owner "
-  paired: true,                                 // its routes need a paired credential
-  intent: 'intended',                           // or 'observed'
+  paired: true, // its routes need a paired credential
+  intent: 'intended', // or 'observed'
   behaviour: 'The owner gives a registered project a new display name ...',
   cases: [
     defineCase({
       name: 'unknown project',
-      setup: inventory,                         // optional; its result is `state`
-      request: () => ({ method: 'PATCH', path: `/api/projects/${unknownUuid}`, body: { name: 'Ghost' } }),
+      setup: inventory, // optional; its result is `state`
+      request: () => ({
+        method: 'PATCH',
+        path: `/api/projects/${unknownUuid}`,
+        body: { name: 'Ghost' },
+      }),
       async expect({ response, state, session, check }) {
         check('status', 404, response.status);
-        check('error body', apiError(404, 'Not Found', 'Project not found'), response.body);
-        check('inventory unchanged', state, await inventory(session));   // follow-up read
+        check(
+          'error body',
+          apiError(404, 'Not Found', 'Project not found'),
+          response.body,
+        );
+        check('inventory unchanged', state, await inventory(session)); // follow-up read
       },
     }),
   ],
@@ -75,7 +85,7 @@ export default defineFeature({
 - Every response the case requested must have its status and its body asserted; a case that leaves either unasserted fails, naming the request. Reading a property is not asserting it.
 - Setup reads go through `read(session, request, status?)` (or `session.read`), which fails the case unless the answer has that status (200 by default); a setup that calls `session.send` fails. A follow-up request either goes through `read` or has its status asserted.
 - `paired: true` puts every route in `reaches` into the `access.authentication` sweep, which refuses each one without a credential; there is no other list of paired routes.
-- `session.live()` opens `/api/live` as the paired viewer; `upgradeHeaders(address)` probes its rejections over plain HTTP.
+- `session.live()` opens `/api/live` as the paired viewer from the server's own origin; `session.live({ ticket, origin })` opens it with a live ticket instead, with no credential and the given origin or none; `upgradeHeaders(address)` probes its rejections over plain HTTP.
 - Every route in `reaches` must be requested by some case and answered; a request that never got a response, or a live connection that never opened, reaches nothing.
 - Every route the isolated server registers must be in some feature's `reaches`, and every reach must be a registered route; the run fails on either gap. `scripts/dev-server-child.ts` lists the network and owner routes it saw Fastify register (GET, POST, PUT, PATCH and DELETE; HEAD is GET without a body) in the session manifest, which only the development fixture writes, and `summary.json` records them.
 

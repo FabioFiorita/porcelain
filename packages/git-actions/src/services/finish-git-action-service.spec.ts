@@ -34,7 +34,7 @@ describe('FinishGitActionService', () => {
       requestId: REQUEST_ID,
       projectId: running.projectId,
       worktreeId: running.worktreeId,
-      action: 'create-branch',
+      action: 'fetch',
       state: 'succeeded',
       progress: [],
       result: { branch: 'feature' },

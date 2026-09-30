@@ -117,9 +117,9 @@ describe('RunGitActionService', () => {
     const { lines, execute } = subject();
     const ran = await execute({
       run: sampleRun({
-        action: 'create-branch',
-        branch: 'feature',
-        switchTo: false,
+        action: 'fetch',
+        remoteName: 'origin',
+        sourceRef: 'refs/heads/main',
       }),
       changes: [change('README.md', GUIDE_FINGERPRINT)],
     });
@@ -134,7 +134,11 @@ describe('RunGitActionService', () => {
       detail: 'Updates were rejected',
     });
     const ran = await execute({
-      run: sampleRun({ action: 'switch-branch', branch: 'main' }),
+      run: sampleRun({
+        action: 'fetch',
+        remoteName: 'origin',
+        sourceRef: 'refs/heads/main',
+      }),
       changes: [],
     });
     expect(ran.outcome).toEqual({
@@ -148,7 +152,11 @@ describe('RunGitActionService', () => {
   it('reports an action Git stopped at its deadline as interrupted', async () => {
     const { execute } = subject({ kind: 'timed-out' });
     const ran = await execute({
-      run: sampleRun({ action: 'switch-branch', branch: 'main' }),
+      run: sampleRun({
+        action: 'fetch',
+        remoteName: 'origin',
+        sourceRef: 'refs/heads/main',
+      }),
       changes: [],
     });
     expect(ran.outcome).toEqual({
@@ -168,7 +176,11 @@ describe('RunGitActionService', () => {
       changes: [change('README.md', GUIDE_FINGERPRINT)],
     });
     const branch = await subject().service.execute({
-      run: sampleRun({ action: 'switch-branch', branch: 'main' }),
+      run: sampleRun({
+        action: 'fetch',
+        remoteName: 'origin',
+        sourceRef: 'refs/heads/main',
+      }),
       changes: [],
     });
     expect(passing.reviewStale).toBe(true);

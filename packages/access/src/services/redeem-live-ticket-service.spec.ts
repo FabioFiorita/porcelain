@@ -1,0 +1,128 @@
+import { describe, expect, it } from 'vitest';
+import { FixedClock } from '@porcelain/kernel/fakes';
+import type { StoredDevice } from '@porcelain/access/models';
+import { credential } from '@porcelain/access/rules';
+import { sha256Hex } from '@porcelain/kernel/rules';
+import { InMemoryDeviceSightingStore } from '../../spec/fakes/in-memory-device-sighting-store.ts';
+import { InMemoryDeviceStore } from '../../spec/fakes/in-memory-device-store.ts';
+import { InMemoryLiveTicketStore } from '../../spec/fakes/in-memory-live-ticket-store.ts';
+import { RedeemLiveTicketService } from './redeem-live-ticket-service.ts';
+
+const deviceId = '00000000-0000-4000-8000-00000000000d';
+const ticketId = '00000000-0000-4000-8000-0000000000a1';
+const secret = 't'.repeat(43);
+const issuedAt = '2026-09-30T10:00:00.000Z';
+const expiresAt = '2026-09-30T10:00:30.000Z';
+const day = 24 * 60 * 60 * 1000;
+const ticket = credential('pct', ticketId, secret).token;
+
+function setup(device: Partial<StoredDevice> = {}) {
+  const devices = new InMemoryDeviceStore();
+  devices.add({
+    id: deviceId,
+    label: 'Desktop app',
+    platform: 'macOS',
+    createdAt: '2026-09-01T10:00:00.000Z',
+    lastSeenAt: issuedAt,
+    route: 'tailnet',
+    secretHash: sha256Hex('d'.repeat(43)),
+    ...device,
+  });
+  const tickets = new InMemoryLiveTicketStore();
+  tickets.save({
+    tickets: [
+      {
+        id: ticketId,
+        secretHash: sha256Hex(secret),
+        deviceId,
+        route: 'tailnet',
+        expiresAt,
+      },
+    ],
+  });
+  const clock = new FixedClock('2026-09-30T10:00:05.000Z');
+  const service = new RedeemLiveTicketService(
+    tickets,
+    devices,
+    new InMemoryDeviceSightingStore(),
+    clock,
+    { unusedLifetimeMs: 90 * day },
+  );
+  return { devices, tickets, clock, service };
+}
+
+const refused = { kind: 'refused' };
+
+describe('RedeemLiveTicketService', () => {
+  it('authenticates the device the ticket was issued to, over the same route', () => {
+    const { service } = setup();
+    expect(service.execute({ ticket, route: 'tailnet' })).toEqual({
+      kind: 'authenticated',
+      deviceId,
+    });
+  });
+
+  it('refuses a ticket used once already', () => {
+    const { tickets, service } = setup();
+    service.execute({ ticket, route: 'tailnet' });
+    expect(service.execute({ ticket, route: 'tailnet' })).toEqual(refused);
+    expect(tickets.read().tickets).toEqual([]);
+  });
+
+  it('accepts a ticket until the moment it expires and refuses it from then on', () => {
+    const early = setup();
+    early.clock.set('2026-09-30T10:00:29.999Z');
+    expect(early.service.execute({ ticket, route: 'tailnet' })).toEqual({
+      kind: 'authenticated',
+      deviceId,
+    });
+    const late = setup();
+    late.clock.set(expiresAt);
+    expect(late.service.execute({ ticket, route: 'tailnet' })).toEqual(refused);
+  });
+
+  it('refuses a ticket over another route and does not let it be tried again', () => {
+    const { service } = setup();
+    expect(service.execute({ ticket, route: 'tunnel' })).toEqual(refused);
+    expect(service.execute({ ticket, route: 'tailnet' })).toEqual(refused);
+  });
+
+  it('refuses a ticket whose secret does not match', () => {
+    const { service } = setup();
+    expect(
+      service.execute({
+        ticket: credential('pct', ticketId, 'x'.repeat(43)).token,
+        route: 'tailnet',
+      }),
+    ).toEqual(refused);
+  });
+
+  it.each([
+    ['an unknown ticket', credential('pct', deviceId, secret).token],
+    ['a device credential', credential('pcd', ticketId, secret).token],
+    ['a pairing code', credential('pcp', ticketId, secret).token],
+    ['an empty value', ''],
+    ['a malformed value', `pct_${ticketId}_short`],
+  ])('refuses %s without spending the ticket', (_, value) => {
+    const { service } = setup();
+    expect(service.execute({ ticket: value, route: 'tailnet' })).toEqual(
+      refused,
+    );
+    expect(service.execute({ ticket, route: 'tailnet' })).toEqual({
+      kind: 'authenticated',
+      deviceId,
+    });
+  });
+
+  it('refuses the ticket of a device revoked since it was issued', () => {
+    const { devices, service } = setup();
+    const device = devices.find({ deviceId });
+    if (device) devices.markRevoked({ device, revokedAt: issuedAt });
+    expect(service.execute({ ticket, route: 'tailnet' })).toEqual(refused);
+  });
+
+  it('refuses the ticket of a device left unused past its lifetime', () => {
+    const { service } = setup({ lastSeenAt: '2026-06-01T10:00:00.000Z' });
+    expect(service.execute({ ticket, route: 'tailnet' })).toEqual(refused);
+  });
+});

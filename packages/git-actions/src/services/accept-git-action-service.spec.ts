@@ -27,8 +27,12 @@ const request: AcceptGitActionInput = {
   projectId: PROJECT_ID,
   worktreeId: WORKTREE_ID,
   requestId: REQUEST_ID,
-  intent: { action: 'create-branch', branch: 'feature', switchTo: false },
-  expected: CLEAN_EXPECTATION,
+  intent: {
+    action: 'fetch',
+    remoteName: 'origin',
+    sourceRef: 'refs/heads/main',
+  },
+  expected: { ...CLEAN_EXPECTATION, upstream: { oid: 'c'.repeat(40) } },
 };
 const readme = { path: 'README.md', fingerprint: README_FINGERPRINT };
 
@@ -49,7 +53,7 @@ describe('AcceptGitActionService', () => {
         requestId: REQUEST_ID,
         projectId: PROJECT_ID,
         worktreeId: WORKTREE_ID,
-        action: 'create-branch',
+        action: 'fetch',
         state: 'running',
         progress: [],
         acceptedAt,
@@ -101,7 +105,11 @@ describe('AcceptGitActionService', () => {
     expect(() =>
       service.execute({
         ...request,
-        intent: { action: 'create-branch', branch: 'other', switchTo: false },
+        intent: {
+          action: 'fetch',
+          remoteName: 'origin',
+          sourceRef: 'refs/heads/other',
+        },
       }),
     ).toThrow(GitActionReceiptMismatchError);
   });
@@ -175,6 +183,7 @@ describe('AcceptGitActionService', () => {
       name: 'a fetch without its upstream',
       change: {
         intent: { action: 'fetch', ...upstream },
+        expected: CLEAN_EXPECTATION,
       } satisfies Partial<AcceptGitActionInput>,
       error: MissingUpstreamExpectationError,
     },

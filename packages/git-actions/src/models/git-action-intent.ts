@@ -26,8 +26,6 @@ export type GitActionIntent =
       hunk?:
         | { scope: 'staged' | 'unstaged'; startLine: number; endLine: number }
         | undefined;
-    }
-  | { action: 'switch-branch'; branch: string }
-  | { action: 'create-branch'; branch: string; switchTo: boolean };
+    };
 
 export type GitActionKind = GitActionIntent['action'];

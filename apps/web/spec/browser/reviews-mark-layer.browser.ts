@@ -18,9 +18,13 @@ test('marking a published layer reviewed keeps the mark, a change to its code as
   await pairedPage.getByRole('button', { name: new RegExp(title) }).click();
   const layer = pairedPage.getByRole('region', {
     name: `Review layer ${title}`,
+    exact: true,
   });
-  const mark = layer.getByRole('button', { name: 'Mark layer reviewed' });
-  const reviewed = layer.getByRole('button', { name: 'Reviewed' });
+  const mark = layer.getByRole('button', {
+    name: 'Mark layer reviewed',
+    exact: true,
+  });
+  const reviewed = layer.getByRole('button', { name: 'Reviewed', exact: true });
   await expect.element(mark).toBeEnabled();
   await expect.poll(marks).toEqual([]);
   await mark.click();
@@ -32,10 +36,15 @@ test('marking a published layer reviewed keeps the mark, a change to its code as
     `${repo.readme.committed}\nA revised change to review.\n`,
   );
   await expect
-    .element(layer.getByText('Code changed since the review was written.'))
+    .element(
+      layer.getByText('Code changed since the review was written.', {
+        exact: true,
+      }),
+    )
     .toBeVisible();
   const markChanged = layer.getByRole('button', {
     name: 'Mark changed layer reviewed',
+    exact: true,
   });
   await expect.element(markChanged).toBeEnabled();
   await expect.poll(marks).toEqual(['stale']);

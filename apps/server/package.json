@@ -12,6 +12,7 @@
     "test": "vitest run --config ../../vitest.config.ts --project @porcelain/server"
   },
   "dependencies": {
+    "@fastify/cors": "11.3.0",
     "@fastify/sensible": "6.0.5",
     "@fastify/type-provider-zod": "1.0.0",
     "@fastify/websocket": "11.3.1",

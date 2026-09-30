@@ -17,6 +17,7 @@ export type Preferences = {
   lineOverflow: 'scroll' | 'wrap';
   markdownDefault: 'reader' | 'source';
   htmlDefault: 'preview' | 'source';
+  collapseSpecs: boolean;
 };
 
 const PREFERENCES_STORAGE_KEY = 'porcelain.prototype.preferences';
@@ -29,6 +30,7 @@ const DEFAULT_PREFERENCES: Preferences = {
   lineOverflow: 'scroll',
   markdownDefault: 'reader',
   htmlDefault: 'preview',
+  collapseSpecs: false,
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -73,6 +75,7 @@ function readPreferences(): Preferences {
         stored.htmlDefault === 'preview' || stored.htmlDefault === 'source'
           ? stored.htmlDefault
           : DEFAULT_PREFERENCES.htmlDefault,
+      collapseSpecs: stored.collapseSpecs === true,
     };
   } catch {
     return DEFAULT_PREFERENCES;

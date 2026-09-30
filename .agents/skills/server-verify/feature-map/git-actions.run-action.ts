@@ -1,5 +1,4 @@
 import { randomUUID } from 'node:crypto';
-import { runGitActionResponseSchema } from '@porcelain/contracts/git-actions';
 import {
   apiError,
   defineCase,
@@ -33,10 +32,13 @@ const run = (
   path: gitPath(session, '/actions', { worktreeId }),
   body,
 });
-const branchRequest = {
-  requestId: randomUUID(),
-  input: { action: 'create-branch', branch: 'feature', switchTo: false },
-};
+function fetchInput(session: Session) {
+  return {
+    action: 'fetch' as const,
+    remoteName: 'origin',
+    sourceRef: `refs/heads/${session.fixture.branch}`,
+  };
+}
 
 async function action(
   session: Session,
@@ -70,71 +72,38 @@ export default defineFeature({
   paired: true,
   intent: 'intended',
   behaviour:
-    'The owner runs a Git action (commit, amend, stash, restore a stash, discard, switch or create a branch, fetch, pull or push) under a client-chosen request ID, stating what they expect of the worktree: head, branch and in-progress state, the file fingerprints for file actions, and the upstream commit they saw for fetch, pull and push. The action is accepted at once (202, running) and runs in the background; its receipt settles as succeeded, rejected, conflicted or interrupted. A worktree that is not registered is not found, and nothing is accepted. If the worktree or its upstream no longer matches the expectation the action is rejected without touching it, and a remote whose URL Porcelain cannot use is rejected. A fetch, pull or push that reaches a remote is not verified here: Git reaches a local-path remote through /bin/sh, which the sandbox does not mount. Repeating a request ID returns its receipt (with the status its state maps to) instead of running again; reusing it for a different action is a conflict.',
+    'The owner runs a Git action (commit, amend, stash, restore a stash, discard, fetch, pull or push) under a client-chosen request ID, stating what they expect of the worktree: head, branch and in-progress state, the file fingerprints for file actions, and the upstream commit they saw for fetch, pull and push. The action is accepted at once (202, running) and runs in the background; its receipt settles as succeeded, rejected, conflicted or interrupted. A worktree that is not registered is not found, and nothing is accepted. If the worktree or its upstream no longer matches the expectation the action is rejected without touching it, and a remote whose URL Porcelain cannot use is rejected. A fetch, pull or push that reaches a remote is not verified here: Git reaches a local-path remote through /bin/sh, which the sandbox does not mount. Repeating a request ID returns its receipt (with the status its state maps to) instead of running again; reusing it for a different action is a conflict.',
   cases: [
-    defineCase({
-      name: 'create a branch',
-      async setup(session) {
-        return { ...branchRequest, expected: await expectation(session) };
-      },
-      request: (session, body) => run(session, body),
-      async expect({
-        response,
-        state,
-        session,
-        check,
-        checkPartial,
-        checkContract,
-      }) {
-        check('accepted', 202, response.status);
-        checkContract('contract', runGitActionResponseSchema, response.body);
-        checkPartial(
-          'running receipt',
-          {
-            requestId: state.requestId,
-            projectId: session.projectId,
-            worktreeId: session.worktreeId,
-            action: 'create-branch',
-            state: 'running',
-            progress: [],
-          },
-          response.body,
-        );
-        const settled = await settledReceipt(session, state.requestId);
-        checkPartial(
-          'settled receipt',
-          {
-            state: 'succeeded',
-            result: { headOid: state.expected.headOid, branch: 'feature' },
-          },
-          settled.receipt,
-        );
-        check(
-          'branch exists',
-          'feature\n',
-          await session.git(
-            'branch',
-            '--list',
-            'feature',
-            '--format=%(refname:short)',
-          ),
-        );
-      },
-    }),
     defineCase({
       name: 'repeat the request ID',
       async setup(session) {
-        return { ...branchRequest, expected: await expectation(session) };
+        const path = 'note.txt';
+        await session.writeFile(path, 'A note\n');
+        const requestId = randomUUID();
+        const body = {
+          requestId,
+          input: { action: 'commit', message: 'Keep a note', paths: [path] },
+          expected: {
+            ...(await expectation(session)),
+            files: [{ path, fingerprint: await fingerprintOf(session, path) }],
+          },
+        };
+        await session.read(run(session, body), 202);
+        await settledReceipt(session, requestId);
+        return body;
       },
       request: (session, body) => [
         run(session, body),
-        run(session, { ...body, input: { ...body.input, branch: 'other' } }),
+        run(session, {
+          ...body,
+          input: { ...body.input, message: 'A different note' },
+        }),
       ],
-      expect({ responses, check, checkPartial }) {
+      expect({ responses, state, check, checkPartial }) {
         check('replay status', 200, responses[0]?.status);
         checkPartial(
           'replay returns the settled receipt',
-          { requestId: branchRequest.requestId, state: 'succeeded' },
+          { requestId: state.requestId, state: 'succeeded' },
           responses[0]?.body,
         );
         check('different action status', 409, responses[1]?.status);
@@ -385,68 +354,37 @@ export default defineFeature({
       },
     }),
     defineCase({
-      name: 'switch to another branch',
-      setup: (session) =>
-        action(session, { action: 'switch-branch', branch: 'feature' }),
-      request: (session, body) => run(session, body),
-      async expect({ response, state, session, check, checkPartial }) {
-        check('accepted', 202, response.status);
-        checkPartial(
-          'running receipt',
-          {
-            requestId: state.requestId,
-            action: 'switch-branch',
-            state: 'running',
-          },
-          response.body,
-        );
-        const settled = await settledReceipt(session, state.requestId);
-        checkPartial(
-          'settled receipt',
-          { state: 'succeeded', result: { branch: 'feature' } },
-          settled.receipt,
-        );
-        check(
-          'the worktree is on the branch',
-          'feature\n',
-          await session.git('branch', '--show-current'),
-        );
-        await session.git('switch', session.fixture.branch);
-      },
-    }),
-    defineCase({
       name: 'the worktree no longer matches',
-      setup: (session) =>
-        action(
-          session,
-          { action: 'create-branch', branch: 'too-late', switchTo: false },
-          { headOid: unknownOid },
-        ),
-      request: (session, body) => [run(session, body)],
+      async setup(session) {
+        return {
+          head: await head(session),
+          body: await action(session, fetchInput(session), {
+            headOid: unknownOid,
+            upstreamOid: unknownOid,
+          }),
+        };
+      },
+      request: (session, state) => [run(session, state.body)],
       async expect({ responses, state, session, check, checkPartial }) {
         check('accepted', 202, responses[0]?.status);
         checkPartial(
           'running receipt',
-          { requestId: state.requestId, state: 'running' },
+          { requestId: state.body.requestId, state: 'running' },
           responses[0]?.body,
         );
-        const settled = await settledReceipt(session, state.requestId);
+        const settled = await settledReceipt(session, state.body.requestId);
         check('receipt read status', 200, settled.status);
         checkPartial(
           'rejected',
           { state: 'rejected', reason: 'CHANGED_SINCE_LOOKED' },
           settled.receipt,
         );
-        check(
-          'no branch was created',
-          '',
-          await session.git('branch', '--list', 'too-late'),
-        );
-        const replay = await session.send(run(session, state));
+        check('head unchanged', state.head, await head(session));
+        const replay = await session.send(run(session, state.body));
         check('replaying a rejected action answers 409', 409, replay.status);
         checkPartial(
           'with its receipt',
-          { requestId: state.requestId, state: 'rejected' },
+          { requestId: state.body.requestId, state: 'rejected' },
           replay.body,
         );
       },
@@ -552,12 +490,7 @@ export default defineFeature({
     }),
     defineCase({
       name: 'a worktree that is not registered',
-      setup: (session) =>
-        action(session, {
-          action: 'create-branch',
-          branch: 'nowhere',
-          switchTo: false,
-        }),
+      setup: (session) => action(session, fetchInput(session)),
       request: (session, body) => run(session, body, unknownWorktreeId),
       async expect({ response, state, session, check }) {
         check('status', 404, response.status);
@@ -580,7 +513,7 @@ export default defineFeature({
         }),
         run(session, {
           requestId: 'not-a-uuid',
-          input: branchRequest.input,
+          input: fetchInput(session),
           expected,
         }),
         run(session, {
@@ -588,7 +521,7 @@ export default defineFeature({
           input: { action: 'commit', message: '   ', paths: [] },
           expected,
         }),
-        run(session, { requestId: randomUUID(), input: branchRequest.input }),
+        run(session, { requestId: randomUUID(), input: fetchInput(session) }),
         run(session, {
           requestId: randomUUID(),
           input: {
@@ -610,7 +543,7 @@ export default defineFeature({
         }
         check(
           'branches unchanged',
-          ['feature', session.fixture.branch].sort(),
+          [session.fixture.branch],
           list(
             (await session.git('branch', '--format=%(refname:short)'))
               .trim()

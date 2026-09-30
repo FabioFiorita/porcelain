@@ -12,7 +12,6 @@ import {
   GenerateCommitDraftService,
   InterruptGitActionService,
   ListCommitModelsService,
-  ListGitBranchesService,
   ReadGitActionReceiptService,
   RecordGitActionProgressService,
   RecoverInterruptedGitActionsService,
@@ -20,12 +19,10 @@ import {
 } from '@porcelain/git-actions/services';
 import { FilesystemUntrackedFileReader } from '../adapters/git-actions/filesystem-untracked-file-reader.ts';
 import { GitGitActionRunner } from '../adapters/git-actions/git-git-action-runner.ts';
-import { GitBranchReader } from '../adapters/git-actions/git-branch-reader.ts';
 import { GitSelectedDiffReader } from '../adapters/git-actions/git-selected-diff-reader.ts';
 import { DismissInterruptedGitActionUseCase } from '../use-cases/git-actions/dismiss-interrupted-git-action.ts';
 import { GenerateCommitDraftUseCase } from '../use-cases/git-actions/generate-commit-draft.ts';
 import { ListCommitModelsUseCase } from '../use-cases/git-actions/list-commit-models.ts';
-import { ListGitBranchesUseCase } from '../use-cases/git-actions/list-git-branches.ts';
 import { ReadGitActionReceiptUseCase } from '../use-cases/git-actions/read-git-action-receipt.ts';
 import { RecoverInterruptedGitActionsUseCase } from '../use-cases/git-actions/recover-interrupted-git-actions.ts';
 import { RunGitActionUseCase } from '../use-cases/git-actions/run-git-action.ts';
@@ -93,18 +90,6 @@ export function composeGitActions(
       lanes,
       laneKeys,
       events,
-    ),
-    listGitBranches: new ListGitBranchesUseCase(
-      dependencies.checkWorktree,
-      new ListGitBranchesService(
-        new GitBranchReader(
-          shared.worktreeAccess,
-          shared.actionGit,
-          shared.gitSessions,
-        ),
-      ),
-      lanes,
-      laneKeys,
     ),
     listCommitModels: new ListCommitModelsUseCase(
       new ListCommitModelsService(dependencies.commitModelReader),

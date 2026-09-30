@@ -4,7 +4,6 @@ import {
   generateCommitDraftRequestSchema,
   generateCommitDraftResponseSchema,
   listCommitModelsResponseSchema,
-  listGitBranchesResponseSchema,
   readGitActionReceiptResponseSchema,
   runGitActionRejectedResponseSchema,
   runGitActionRequestSchema,
@@ -55,13 +54,6 @@ export function createGitActionsLive(transport: typeof fetch): GitActionsPort {
       if ('requestId' in result) return result;
       throw new RequestError(result.statusCode, result.message);
     },
-    branches: ({ worktreeId, signal }) =>
-      requestJson(
-        transport,
-        `${path(worktreeId)}/branches`,
-        listGitBranchesResponseSchema,
-        { signal },
-      ),
     dismissInterrupted: async ({ worktreeId, requestId, signal }) => {
       await requestJson(
         transport,

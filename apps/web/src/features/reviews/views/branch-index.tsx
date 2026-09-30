@@ -1,4 +1,5 @@
 import { GitBranchIcon } from 'lucide-react';
+import { Suspense } from 'react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAccessStore } from '@/features/access/index';
@@ -8,20 +9,18 @@ import {
   useBranchChanges,
 } from '@/features/changes/index';
 import { cn } from '@/shared/lib/utils';
+import { toast } from '@/components/ui/toast';
+import { useToggleReviewed } from '../commands/reviewed';
 import { useReviewedMarks } from '../queries/reviewed';
-import {
-  anchorPath,
-  type CommentAnchor,
-  type CommentThread,
-} from '../rules/comments';
-import { BRANCH, type DocumentRef, entryKey } from '../rules/documents';
+import { anchorPath, type CommentThread } from '../rules/comments';
+import { BRANCH, entryKey, type OpenDocument } from '../rules/documents';
 import { mergeBranchChanges, type ReviewScope } from '../rules/review';
 import { branchReviewRange, type ReviewsContext } from '../rules/reviewed';
 import { BranchBasePicker } from './branch-base-picker';
 import { ChangeRow, ROW } from './change-row';
 import { ReviewEmpty } from './review-empty';
-
-type OpenDocument = (ref: DocumentRef, anchor?: CommentAnchor) => void;
+import { groupSpecPaths } from '../rules/spec-paths';
+import { usePreferences } from '@/shared/workspace/preferences';
 
 export function BranchIndex({
   scope,
@@ -74,17 +73,6 @@ function BranchFiles({
 }) {
   const connection = useAccessStore((state) => state.connection);
   const changes = useBranchChanges(scope, connection, base);
-  const marks = useReviewedMarks(
-    scope,
-    context,
-    branchReviewRange(changes.data),
-  );
-  if (changes.isPending)
-    return (
-      <p role="status" className="p-3 text-xs text-muted-foreground">
-        Comparing the branch…
-      </p>
-    );
   if (changes.isError)
     return (
       <div role="alert" className="p-3 text-xs text-muted-foreground">
@@ -99,8 +87,8 @@ function BranchFiles({
         </Button>
       </div>
     );
-  const branch = changes.data;
-  if (branch.base == null)
+  if (changes.isPending || changes.data == null) return <ComparingBranch />;
+  if (changes.data.base == null)
     return (
       <div className="p-3">
         <ReviewEmpty
@@ -109,6 +97,53 @@ function BranchFiles({
         />
       </div>
     );
+  return (
+    <Suspense fallback={<ComparingBranch />}>
+      <BranchFileList
+        scope={scope}
+        context={context}
+        branch={changes.data}
+        activeEntry={activeEntry}
+        threads={threads}
+        onOpen={onOpen}
+      />
+    </Suspense>
+  );
+}
+
+function ComparingBranch() {
+  return (
+    <p role="status" className="p-3 text-xs text-muted-foreground">
+      Comparing the branch…
+    </p>
+  );
+}
+
+function BranchFileList({
+  scope,
+  context,
+  branch,
+  activeEntry,
+  threads,
+  onOpen,
+}: {
+  scope: ReviewScope;
+  context: ReviewsContext;
+  branch: NonNullable<ReturnType<typeof useBranchChanges>['data']>;
+  activeEntry: string | undefined;
+  threads: readonly CommentThread[];
+  onOpen: OpenDocument;
+}) {
+  const { preferences } = usePreferences();
+  const range = branchReviewRange(branch);
+  const marks = useReviewedMarks(scope, context, range);
+  const reviewed = useToggleReviewed(
+    scope,
+    context,
+    (notice) => toast.add(notice),
+    range,
+  );
+  if (branch.base == null) return null;
   const items = mergeBranchChanges(branch.files, marks);
   const head =
     branch.head.branch == null ? 'this commit' : branchName(branch.head.branch);
@@ -136,7 +171,7 @@ function BranchFiles({
             No changes since {branchName(branch.base.ref)}
           </p>
         )}
-        {items.map((item) => (
+        {groupSpecPaths(items, preferences.collapseSpecs).map((item) => (
           <ChangeRow
             key={item.path}
             path={item.path}
@@ -156,6 +191,14 @@ function BranchFiles({
               activeEntry === entryKey({ kind: 'branch-file', path: item.path })
             }
             onOpen={onOpen}
+            canReview={item.fingerprint != null}
+            onReview={() =>
+              reviewed.toggle({
+                path: item.path,
+                reviewed: item.reviewStatus === 'reviewed',
+                fingerprint: item.fingerprint,
+              })
+            }
           />
         ))}
       </div>

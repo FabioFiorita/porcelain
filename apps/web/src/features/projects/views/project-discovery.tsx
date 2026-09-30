@@ -34,8 +34,20 @@ export function ProjectDiscovery({
   return (
     <section
       aria-label="Found on this machine"
-      className="flex flex-col gap-2 rounded-2xl border p-2"
+      className="flex flex-col gap-2 rounded-2xl border bg-muted/30 p-3"
     >
+      <div className="flex items-center justify-between gap-2 px-1">
+        <h3 className="text-sm font-medium">Found on this machine</h3>
+        <Button
+          variant="ghost"
+          size="icon-xs"
+          aria-label="Refresh discovered repositories"
+          disabled={disabled || discovery.isFetching}
+          onClick={() => void discovery.refetch()}
+        >
+          {discovery.isFetching ? <Spinner /> : <RefreshCwIcon />}
+        </Button>
+      </div>
       <InputGroup>
         <InputGroupInput
           aria-label="Search repositories on this machine"
@@ -48,20 +60,6 @@ export function ProjectDiscovery({
           <SearchIcon />
         </InputGroupAddon>
       </InputGroup>
-      <div className="flex items-center justify-between gap-2 px-1">
-        <h3 className="text-xs font-medium text-muted-foreground">
-          Found on this machine
-        </h3>
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          aria-label="Refresh discovered repositories"
-          disabled={disabled || discovery.isFetching}
-          onClick={() => void discovery.refetch()}
-        >
-          {discovery.isFetching ? <Spinner /> : <RefreshCwIcon />}
-        </Button>
-      </div>
       {discovery.error ? (
         <p role="alert" className="px-1 text-xs text-destructive">
           {connectionErrorMessage(discovery.error)}

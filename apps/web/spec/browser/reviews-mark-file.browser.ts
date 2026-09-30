@@ -11,9 +11,11 @@ test('marking and unmarking a changed file as reviewed updates its control and t
     (await server.reviewedFiles()).marks.map((mark) => mark.path);
   const mark = pairedPage.getByRole('button', {
     name: `Mark ${readme} as reviewed`,
+    exact: true,
   });
   const unmark = pairedPage.getByRole('button', {
     name: `Unmark ${readme} as unreviewed`,
+    exact: true,
   });
   await expect.element(mark).toBeVisible();
   await mark.click();
