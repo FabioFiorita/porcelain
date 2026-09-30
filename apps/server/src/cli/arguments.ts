@@ -35,9 +35,7 @@ export type ServiceSettings = {
   action: ServiceAction;
   allowDowngrade: boolean;
   dataDirectory: string;
-  host: string;
   port: number;
-  allowedHosts: string[];
 };
 
 type PairSettings = {
@@ -287,13 +285,11 @@ function parseArguments(args: readonly string[]): ServeArguments {
       throw new ServeConfigurationError(
         '--allow-downgrade is only valid with service update',
       );
-    if (
-      parsed.serviceAction !== 'install' &&
-      (parsed.lan ||
-        parsed.host !== undefined ||
-        parsed.port !== undefined ||
-        parsed.allowHosts.length > 0)
-    )
+    if (parsed.lan || parsed.host !== undefined || parsed.allowHosts.length > 0)
+      throw new ServeConfigurationError(
+        'The service listens on this computer only; share it on the local network with: porcelain share lan on',
+      );
+    if (parsed.serviceAction !== 'install' && parsed.port !== undefined)
       throw new ServeConfigurationError(
         'serve options are only valid with service install',
       );
@@ -415,9 +411,7 @@ export function parseCliArguments(
         action: parsed.serviceAction ?? 'status',
         allowDowngrade: parsed.allowDowngrade,
         dataDirectory: settings.dataDirectory,
-        host: settings.host,
         port: settings.port,
-        allowedHosts: settings.allowedHosts,
       },
     };
 

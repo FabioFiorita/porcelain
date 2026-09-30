@@ -6,9 +6,7 @@ import { readJsonFile } from './json-file.ts';
 
 const serviceConfigurationSchema = z.object({
   dataDirectory: z.string(),
-  host: z.string(),
   port: z.number().int(),
-  allowedHosts: z.array(z.string()),
 });
 export type ServiceConfiguration = z.output<typeof serviceConfigurationSchema>;
 

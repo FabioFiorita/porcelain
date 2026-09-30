@@ -5,9 +5,7 @@ export type ServicePlan = {
   nodeExecutable: string;
   entryPoint: string;
   dataDirectory: string;
-  host: string;
   port: number;
-  allowedHosts: readonly string[];
   stdoutLog: string;
   stderrLog: string;
   searchPath: string;
@@ -42,11 +40,8 @@ export function renderSystemdUnit(plan: ServicePlan): string {
     'serve',
     '--data-directory',
     plan.dataDirectory,
-    '--host',
-    plan.host,
     '--port',
     String(plan.port),
-    ...plan.allowedHosts.flatMap((host) => ['--allow-host', host]),
   ];
   return `[Unit]
 Description=Porcelain review server

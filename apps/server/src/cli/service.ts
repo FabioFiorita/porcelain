@@ -81,7 +81,7 @@ async function runService(
   if (settings.action === 'install') {
     const result = await installer.install(settings);
     dependencies.stdout(
-      `Installed Porcelain ${identity.packageVersion} as a user service.\n`,
+      `Installed Porcelain ${identity.packageVersion} as a user service. It listens on this computer only; share it with: porcelain share lan on\n`,
     );
     if (result.backup !== undefined)
       dependencies.stdout(`Database backup: ${result.backup}\n`);
