@@ -324,9 +324,7 @@ function Step({
                 ]
               : [];
           });
-    const review = item
-      ? fileReviewControl(scope, context, item, true)
-      : undefined;
+    const review = item ? fileReviewControl(scope, context, item) : undefined;
     patches.forEach(({ patch, comparison }, index) => {
       const fileDiff = parsePatchFiles(patch).flatMap(
         (group) => group.files,

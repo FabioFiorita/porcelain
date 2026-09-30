@@ -21,7 +21,6 @@ import {
 import {
   type BulkReviewReport,
   bulkReportText,
-  layerFileControlLabel,
   markAllPlan,
   type ReviewableItem,
   reviewedControlLabel,
@@ -34,7 +33,6 @@ export function fileReviewControl(
   scope: ReviewScope,
   context: ReviewsContext,
   item: ReviewChangeItem,
-  concise = false,
 ) {
   return {
     path: item.path,
@@ -50,7 +48,6 @@ export function fileReviewControl(
         fingerprint={item.fingerprint}
         status={item.reviewStatus}
         compact
-        {...(concise ? { concise: true } : {})}
       />
     ),
   };
@@ -63,7 +60,6 @@ export function ReviewedControl({
   fingerprint,
   status,
   compact = false,
-  concise = false,
   range = WORKTREE_RANGE,
 }: {
   scope: ReviewScope;
@@ -72,7 +68,6 @@ export function ReviewedControl({
   fingerprint: string | null | undefined;
   status: ReviewStatus;
   compact?: boolean;
-  concise?: boolean;
   range?: ReviewRange;
 }) {
   const mark = useMarkReviewed(scope, context, range);
@@ -93,7 +88,6 @@ export function ReviewedControl({
 
   const reviewed = status === 'reviewed';
   const label = reviewedControlLabel(path, status);
-  const name = concise ? layerFileControlLabel(path, status) : label;
   return (
     <span className="inline-flex min-w-0 items-center gap-1">
       <Button
@@ -103,7 +97,7 @@ export function ReviewedControl({
         className={cn(compact && 'size-5 ', compact && reviewed && '    ')}
         aria-pressed={reviewed}
         disabled={pending}
-        aria-label={name}
+        aria-label={label}
         title={label}
         onClick={() => {
           if (reviewed) unmark.start(path);
