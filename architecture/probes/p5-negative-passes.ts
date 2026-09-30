@@ -11,8 +11,8 @@ export default {
     {
       kind: 'replace',
       path: 'apps/web/spec/negative/wrong-text.browser.ts',
-      old: "      pairedPage.getByRole('heading', {\n        name: 'A heading Porcelain never shows',\n      }),",
-      new: "      pairedPage.getByRole('region', {\n        name: 'Review content',\n      }),",
+      old: "      pairedPage.getByRole('heading', {\n        name: 'A heading Porcelain never shows',\n        exact: true,\n      }),",
+      new: "      pairedPage.getByRole('region', {\n        name: 'Review content',\n        exact: true,\n      }),",
     },
   ],
 } satisfies Probe;
