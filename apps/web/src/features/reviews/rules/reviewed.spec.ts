@@ -4,6 +4,7 @@ import {
   bulkMarkReport,
   bulkReportText,
   inChunks,
+  layerFileControlLabel,
   layerReviewState,
   markAllPlan,
   reviewToggle,
@@ -163,6 +164,16 @@ describe('markAllPlan', () => {
       label: 'No files can be marked reviewed',
       text: 'No reviewable files',
     });
+  });
+});
+
+describe('layerFileControlLabel', () => {
+  it.each([
+    { status: 'unreviewed' as const, label: 'Mark README.md' },
+    { status: 'reviewed' as const, label: 'Unmark README.md' },
+    { status: 'stale' as const, label: 'Mark changed README.md' },
+  ])('names the $status layer file $label', ({ status, label }) => {
+    expect(layerFileControlLabel('README.md', status)).toBe(label);
   });
 });
 

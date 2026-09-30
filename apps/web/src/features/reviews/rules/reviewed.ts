@@ -237,6 +237,15 @@ export function reviewedControlLabel(
       : `Mark ${path} as reviewed`;
 }
 
+export function layerFileControlLabel(
+  path: string,
+  status: 'unreviewed' | 'reviewed' | 'stale',
+) {
+  if (status === 'reviewed') return `Unmark ${path}`;
+  if (status === 'stale') return `Mark changed ${path}`;
+  return `Mark ${path}`;
+}
+
 export function layerReviewState(
   marks: ListReviewedLayersResponse | undefined,
   layer: Pick<ReviewLayer, 'id' | 'fingerprint'>,

@@ -75,6 +75,7 @@ type Props = {
   foundLine?: { line: number; nonce: number };
   disableFileHeader?: boolean;
   fullHeight?: boolean;
+  collapsible?: boolean;
   range?: ReviewRange;
 };
 export function CodeDocument(props: Props) {
@@ -114,6 +115,7 @@ function CodeSurface({
   foundLine,
   disableFileHeader = false,
   fullHeight = false,
+  collapsible = false,
   onToggleReviewed,
 }: Props & {
   threads: readonly CommentThread[];
@@ -527,7 +529,7 @@ function CodeSurface({
                 : null;
             return (
               <span className="flex items-center gap-1">
-                {entries.length > 1 && (
+                {(collapsible || entries.length > 1) && (
                   <button
                     type="button"
                     aria-expanded={!isCollapsed}
