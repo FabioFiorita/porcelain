@@ -236,15 +236,10 @@ export function SettingsPage({
           </div>
         </nav>
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-          <header className="flex flex-col gap-1 border-b px-6 py-4">
+          <header className="flex border-b px-6 py-4">
             <h2 className="font-heading text-base leading-none font-medium">
               Settings
             </h2>
-            <p className="text-sm text-muted-foreground">
-              {desktopShell
-                ? 'Preferences stay in this browser. Sharing changes Porcelain for every device.'
-                : 'Preferences stay in this browser.'}
-            </p>
           </header>
           <div ref={frameRef} className="min-h-0 flex-1 overflow-hidden">
             <Page id="appearance" title="Appearance">

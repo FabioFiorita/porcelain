@@ -18,9 +18,6 @@ test('the web the server serves opens Settings with its preferences and Updates 
   await pairedPage.getByRole('button', { name: 'Settings' }).click();
   const settings = pairedPage.getByRole('dialog', { name: 'Settings' });
   await expect
-    .element(settings.getByText('Preferences stay in this browser.'))
-    .toBeVisible();
-  await expect
     .element(settings.getByRole('heading', { name: 'Appearance' }))
     .toBeVisible();
   await expect
