@@ -30,19 +30,17 @@ export function ProjectWorkspace({
   navigator,
   isMobile,
   open,
-  settings = false,
   children,
 }: {
   navigator: ComponentProps<typeof ProjectNavigator>;
   isMobile: boolean;
   open: boolean;
-  settings?: boolean;
   children: ReactNode;
 }) {
   return (
     <div className="h-svh min-w-0 flex-1 bg-muted p-2 text-[13px] text-foreground">
       <ResizablePanelGroup orientation="horizontal">
-        {!isMobile && open && !settings && (
+        {!isMobile && open && (
           <>
             <ResizablePanel
               id="navigator"

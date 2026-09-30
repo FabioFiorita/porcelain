@@ -7,8 +7,8 @@ import { Route as PairedRouteImport } from './routes/_paired';
 import { Route as PairRouteImport } from './routes/pair';
 import { Route as PairedIndexRouteImport } from './routes/_paired/index';
 import { Route as PairedProjectIdWorktreeIdRouteImport } from './routes/_paired/$projectId/$worktreeId';
-import { Route as PairedProjectIdWorktreeIdIndexRouteImport } from './routes/_paired/$projectId/$worktreeId/index';
-import { Route as PairedProjectIdWorktreeIdSettingsRouteImport } from './routes/_paired/$projectId/$worktreeId/settings';
+import { Route as PairedSettingsIndexRouteImport } from './routes/_paired/settings/index';
+import { Route as PairedSettingsSectionRouteImport } from './routes/_paired/settings/$section';
 
 const PairedRoute = PairedRouteImport.update({
   id: '/_paired',
@@ -30,40 +30,39 @@ const PairedProjectIdWorktreeIdRoute =
     path: '/$projectId/$worktreeId',
     getParentRoute: () => PairedRoute,
   } as any);
-const PairedProjectIdWorktreeIdIndexRoute =
-  PairedProjectIdWorktreeIdIndexRouteImport.update({
-    id: '/',
-    path: '/',
-    getParentRoute: () => PairedProjectIdWorktreeIdRoute,
-  } as any);
-const PairedProjectIdWorktreeIdSettingsRoute =
-  PairedProjectIdWorktreeIdSettingsRouteImport.update({
-    id: '/settings',
-    path: '/settings',
-    getParentRoute: () => PairedProjectIdWorktreeIdRoute,
-  } as any);
+const PairedSettingsIndexRoute = PairedSettingsIndexRouteImport.update({
+  id: '/settings/',
+  path: '/settings/',
+  getParentRoute: () => PairedRoute,
+} as any);
+const PairedSettingsSectionRoute = PairedSettingsSectionRouteImport.update({
+  id: '/settings/$section',
+  path: '/settings/$section',
+  getParentRoute: () => PairedRoute,
+} as any);
 
 export interface FileRoutesByFullPath {
   '/': typeof PairedIndexRoute;
   '/pair': typeof PairRoute;
-  '/$projectId/$worktreeId': typeof PairedProjectIdWorktreeIdRouteWithChildren;
-  '/$projectId/$worktreeId/settings': typeof PairedProjectIdWorktreeIdSettingsRoute;
-  '/$projectId/$worktreeId/': typeof PairedProjectIdWorktreeIdIndexRoute;
+  '/$projectId/$worktreeId': typeof PairedProjectIdWorktreeIdRoute;
+  '/settings/$section': typeof PairedSettingsSectionRoute;
+  '/settings/': typeof PairedSettingsIndexRoute;
 }
 export interface FileRoutesByTo {
   '/pair': typeof PairRoute;
   '/': typeof PairedIndexRoute;
-  '/$projectId/$worktreeId/settings': typeof PairedProjectIdWorktreeIdSettingsRoute;
-  '/$projectId/$worktreeId': typeof PairedProjectIdWorktreeIdIndexRoute;
+  '/$projectId/$worktreeId': typeof PairedProjectIdWorktreeIdRoute;
+  '/settings/$section': typeof PairedSettingsSectionRoute;
+  '/settings': typeof PairedSettingsIndexRoute;
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport;
   '/_paired': typeof PairedRouteWithChildren;
   '/pair': typeof PairRoute;
   '/_paired/': typeof PairedIndexRoute;
-  '/_paired/$projectId/$worktreeId': typeof PairedProjectIdWorktreeIdRouteWithChildren;
-  '/_paired/$projectId/$worktreeId/settings': typeof PairedProjectIdWorktreeIdSettingsRoute;
-  '/_paired/$projectId/$worktreeId/': typeof PairedProjectIdWorktreeIdIndexRoute;
+  '/_paired/$projectId/$worktreeId': typeof PairedProjectIdWorktreeIdRoute;
+  '/_paired/settings/$section': typeof PairedSettingsSectionRoute;
+  '/_paired/settings/': typeof PairedSettingsIndexRoute;
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath;
@@ -71,22 +70,23 @@ export interface FileRouteTypes {
     | '/'
     | '/pair'
     | '/$projectId/$worktreeId'
-    | '/$projectId/$worktreeId/settings'
-    | '/$projectId/$worktreeId/';
+    | '/settings/$section'
+    | '/settings/';
   fileRoutesByTo: FileRoutesByTo;
   to:
     | '/pair'
     | '/'
-    | '/$projectId/$worktreeId/settings'
-    | '/$projectId/$worktreeId';
+    | '/$projectId/$worktreeId'
+    | '/settings/$section'
+    | '/settings';
   id:
     | '__root__'
     | '/_paired'
     | '/pair'
     | '/_paired/'
     | '/_paired/$projectId/$worktreeId'
-    | '/_paired/$projectId/$worktreeId/settings'
-    | '/_paired/$projectId/$worktreeId/';
+    | '/_paired/settings/$section'
+    | '/_paired/settings/';
   fileRoutesById: FileRoutesById;
 }
 export interface RootRouteChildren {
@@ -124,48 +124,35 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PairedProjectIdWorktreeIdRouteImport;
       parentRoute: typeof PairedRoute;
     };
-    '/_paired/$projectId/$worktreeId/': {
-      id: '/_paired/$projectId/$worktreeId/';
-      path: '/';
-      fullPath: '/$projectId/$worktreeId/';
-      preLoaderRoute: typeof PairedProjectIdWorktreeIdIndexRouteImport;
-      parentRoute: typeof PairedProjectIdWorktreeIdRoute;
-    };
-    '/_paired/$projectId/$worktreeId/settings': {
-      id: '/_paired/$projectId/$worktreeId/settings';
+    '/_paired/settings/': {
+      id: '/_paired/settings/';
       path: '/settings';
-      fullPath: '/$projectId/$worktreeId/settings';
-      preLoaderRoute: typeof PairedProjectIdWorktreeIdSettingsRouteImport;
-      parentRoute: typeof PairedProjectIdWorktreeIdRoute;
+      fullPath: '/settings/';
+      preLoaderRoute: typeof PairedSettingsIndexRouteImport;
+      parentRoute: typeof PairedRoute;
+    };
+    '/_paired/settings/$section': {
+      id: '/_paired/settings/$section';
+      path: '/settings/$section';
+      fullPath: '/settings/$section';
+      preLoaderRoute: typeof PairedSettingsSectionRouteImport;
+      parentRoute: typeof PairedRoute;
     };
   }
 }
 
-interface PairedProjectIdWorktreeIdRouteChildren {
-  PairedProjectIdWorktreeIdSettingsRoute: typeof PairedProjectIdWorktreeIdSettingsRoute;
-  PairedProjectIdWorktreeIdIndexRoute: typeof PairedProjectIdWorktreeIdIndexRoute;
-}
-
-const PairedProjectIdWorktreeIdRouteChildren: PairedProjectIdWorktreeIdRouteChildren =
-  {
-    PairedProjectIdWorktreeIdSettingsRoute:
-      PairedProjectIdWorktreeIdSettingsRoute,
-    PairedProjectIdWorktreeIdIndexRoute: PairedProjectIdWorktreeIdIndexRoute,
-  };
-
-const PairedProjectIdWorktreeIdRouteWithChildren =
-  PairedProjectIdWorktreeIdRoute._addFileChildren(
-    PairedProjectIdWorktreeIdRouteChildren,
-  );
-
 interface PairedRouteChildren {
   PairedIndexRoute: typeof PairedIndexRoute;
-  PairedProjectIdWorktreeIdRoute: typeof PairedProjectIdWorktreeIdRouteWithChildren;
+  PairedProjectIdWorktreeIdRoute: typeof PairedProjectIdWorktreeIdRoute;
+  PairedSettingsSectionRoute: typeof PairedSettingsSectionRoute;
+  PairedSettingsIndexRoute: typeof PairedSettingsIndexRoute;
 }
 
 const PairedRouteChildren: PairedRouteChildren = {
   PairedIndexRoute: PairedIndexRoute,
-  PairedProjectIdWorktreeIdRoute: PairedProjectIdWorktreeIdRouteWithChildren,
+  PairedProjectIdWorktreeIdRoute: PairedProjectIdWorktreeIdRoute,
+  PairedSettingsSectionRoute: PairedSettingsSectionRoute,
+  PairedSettingsIndexRoute: PairedSettingsIndexRoute,
 };
 
 const PairedRouteWithChildren =

@@ -1,4 +1,10 @@
-import type { ReactNode } from 'react';
+import { FieldLegend, FieldSet } from '@/components/ui/field';
+import {
+  Item,
+  ItemContent,
+  ItemDescription,
+  ItemGroup,
+} from '@/components/ui/item';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Spinner } from '@/components/ui/spinner';
 import { desktopShell } from '@/shared/shell';
@@ -14,19 +20,6 @@ import { EnvironmentName } from './environment-name';
 import { PairDevice } from './pair-device';
 import { PairedDevices } from './paired-devices';
 import { RemoteRoutes } from './remote-routes';
-
-function Group({ title, children }: { title?: string; children: ReactNode }) {
-  return (
-    <section className="flex flex-col gap-2.5">
-      {title && (
-        <h3 className="px-1 text-sm font-medium text-foreground/70">{title}</h3>
-      )}
-      <div className="flex flex-col divide-y overflow-hidden rounded-xl border bg-card *:px-4 *:py-3">
-        {children}
-      </div>
-    </section>
-  );
-}
 
 function ShareContent({
   connection,
@@ -71,22 +64,41 @@ function ShareSections({
 }) {
   return (
     <>
-      <Group>
-        <EnvironmentName connection={connection} environment={environment} />
-      </Group>
+      <ItemGroup>
+        <Item variant="outline">
+          <ItemContent>
+            <EnvironmentName
+              connection={connection}
+              environment={environment}
+            />
+          </ItemContent>
+        </Item>
+      </ItemGroup>
       <RemoteRoutes connection={connection} remote={remote} />
-      <Group title="Pair a device">
-        <div className="flex flex-col gap-3">
-          <p className="text-xs text-muted-foreground">
-            Open the link or scan the code on the other device to connect it to{' '}
-            {environment.name}. Each link works once, for a few minutes.
-          </p>
-          <PairDevice connection={connection} remote={remote} />
-        </div>
-      </Group>
-      <Group title="Paired devices">
-        <PairedDevices connection={connection} />
-      </Group>
+      <FieldSet>
+        <FieldLegend variant="label">Pair a device</FieldLegend>
+        <ItemGroup>
+          <Item variant="outline">
+            <ItemContent>
+              <ItemDescription>
+                Open the link or scan the code on the other device to connect it
+                to {environment.name}. Each link works once, for a few minutes.
+              </ItemDescription>
+              <PairDevice connection={connection} remote={remote} />
+            </ItemContent>
+          </Item>
+        </ItemGroup>
+      </FieldSet>
+      <FieldSet>
+        <FieldLegend variant="label">Paired devices</FieldLegend>
+        <ItemGroup>
+          <Item variant="outline">
+            <ItemContent>
+              <PairedDevices connection={connection} />
+            </ItemContent>
+          </Item>
+        </ItemGroup>
+      </FieldSet>
     </>
   );
 }

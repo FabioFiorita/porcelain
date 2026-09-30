@@ -10,7 +10,14 @@ test('the owner updates Porcelain from Settings, sees a failed update keep the r
   const to = offered.latest ?? '';
   await pairedPage.getByRole('button', { name: 'Toggle Sidebar' }).click();
   await pairedPage.getByRole('button', { name: 'Settings' }).click();
-  const settings = pairedPage.getByRole('dialog', { name: 'Settings' });
+  const settings = pairedPage.getByRole('main', {
+    name: 'Settings',
+    exact: true,
+  });
+  await pairedPage
+    .getByRole('main', { name: 'Settings', exact: true })
+    .getByRole('button', { name: 'Updates', exact: true })
+    .click();
   await expect.element(settings.getByText(`Porcelain ${from}`)).toBeVisible();
   await expect
     .element(settings.getByText(`Porcelain ${to} is available.`))

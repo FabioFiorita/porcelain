@@ -1,5 +1,4 @@
 import { expect } from 'vitest';
-import { userEvent } from 'vitest/browser';
 import { test } from '../kit/journey';
 
 test('disconnecting is refused while a file draft cannot be saved, and the file on disk keeps its own change', async ({
@@ -27,7 +26,14 @@ test('disconnecting is refused while a file draft cannot be saved, and the file 
 
   await pairedPage.getByRole('button', { name: 'Toggle Sidebar' }).click();
   await pairedPage.getByRole('button', { name: 'Settings' }).click();
-  const settings = pairedPage.getByRole('dialog', { name: 'Settings' });
+  const settings = pairedPage.getByRole('main', {
+    name: 'Settings',
+    exact: true,
+  });
+  await pairedPage
+    .getByRole('main', { name: 'Settings', exact: true })
+    .getByRole('button', { name: 'Connection', exact: true })
+    .click();
   await settings
     .getByRole('button', { name: 'Disconnect this browser' })
     .click();
@@ -45,14 +51,15 @@ test('disconnecting this browser ends its session and shows how to pair it again
   pairedPage,
   server,
 }) => {
-  const settings = pairedPage.getByRole('dialog', { name: 'Settings' });
+  const settings = pairedPage.getByRole('main', {
+    name: 'Settings',
+    exact: true,
+  });
   await settings.getByRole('button', { name: 'Back', exact: true }).click();
   await expect.element(settings).not.toBeInTheDocument();
-  const navigator = pairedPage.getByRole('navigation', {
-    name: 'Projects and worktrees',
-  });
-  await userEvent.keyboard('{Escape}');
-  await expect.element(navigator).not.toBeInTheDocument();
+  await pairedPage
+    .getByRole('button', { name: 'Resume edit', exact: true })
+    .click();
   await pairedPage.getByRole('button', { name: 'Reload' }).click();
   await expect
     .element(pairedPage.getByText('Not saving: changed on disk'))
@@ -60,6 +67,10 @@ test('disconnecting this browser ends its session and shows how to pair it again
 
   await pairedPage.getByRole('button', { name: 'Toggle Sidebar' }).click();
   await pairedPage.getByRole('button', { name: 'Settings' }).click();
+  await pairedPage
+    .getByRole('main', { name: 'Settings', exact: true })
+    .getByRole('button', { name: 'Connection', exact: true })
+    .click();
   await settings
     .getByRole('button', { name: 'Disconnect this browser' })
     .click();

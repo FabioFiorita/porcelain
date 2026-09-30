@@ -7,7 +7,14 @@ test('turning the ways in on and off from Settings shows each one starting, then
 }) => {
   await pairedPage.getByRole('button', { name: 'Toggle Sidebar' }).click();
   await pairedPage.getByRole('button', { name: 'Settings' }).click();
-  const settings = pairedPage.getByRole('dialog', { name: 'Settings' });
+  const settings = pairedPage.getByRole('main', {
+    name: 'Settings',
+    exact: true,
+  });
+  await pairedPage
+    .getByRole('main', { name: 'Settings', exact: true })
+    .getByRole('button', { name: 'Sharing', exact: true })
+    .click();
   const lan = settings.getByRole('switch', { name: 'Local network' });
   await expect.element(lan).not.toBeChecked();
   await expect

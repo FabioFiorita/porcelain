@@ -1,9 +1,4 @@
-import {
-  createFileRoute,
-  Navigate,
-  Outlet,
-  useRouterState,
-} from '@tanstack/react-router';
+import { createFileRoute, Navigate } from '@tanstack/react-router';
 import { useAccessStore } from '@/features/access/index';
 import {
   selectedWorktreeInProject,
@@ -27,16 +22,9 @@ function WorktreeLayout() {
   const connection = useAccessStore((state) => state.connection);
   const inventory = useInventory(connection);
   const selection = selectedWorktreeInProject(inventory, worktreeId);
-  const settings = useRouterState({
-    select: (state) => state.location.pathname.endsWith('/settings'),
-  });
   if (selection?.projectId !== projectId)
     return (
       <Navigate to="/" search={{ ...search, worktree: worktreeId }} replace />
     );
-  return (
-    <ConnectedWorkspace review={{ selection, search }} settings={settings}>
-      <Outlet />
-    </ConnectedWorkspace>
-  );
+  return <ConnectedWorkspace review={{ selection, search }} />;
 }

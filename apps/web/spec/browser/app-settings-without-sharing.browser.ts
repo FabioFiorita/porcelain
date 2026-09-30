@@ -1,7 +1,7 @@
 import { expect } from 'vitest';
 import { test } from '../kit/journey';
 
-test('the web the server serves opens Settings with its preferences and Updates and no Sharing, and the navigator still names this computer', async ({
+test('the web the server serves lists Appearance, Git and agents, Connection and Updates in Settings and no Sharing, and the navigator still names this computer', async ({
   pairedPage,
   server,
 }) => {
@@ -15,31 +15,33 @@ test('the web the server serves opens Settings with its preferences and Updates 
     .element(navigator.getByText(host, { exact: true }))
     .toBeVisible();
 
-  await pairedPage.getByRole('button', { name: 'Settings' }).click();
-  const settings = pairedPage.getByRole('dialog', { name: 'Settings' });
+  await pairedPage
+    .getByRole('button', { name: 'Settings', exact: true })
+    .click();
+  const settings = pairedPage.getByRole('main', {
+    name: 'Settings',
+    exact: true,
+  });
+  const sections = settings.getByRole('navigation', {
+    name: 'Settings sections',
+    exact: true,
+  });
   await expect
-    .element(settings.getByRole('heading', { name: 'Appearance' }))
+    .element(settings.getByRole('heading', { name: 'Appearance', exact: true }))
     .toBeVisible();
+  for (const name of ['Appearance', 'Git and agents', 'Connection', 'Updates'])
+    await expect
+      .element(sections.getByRole('button', { name, exact: true }))
+      .toBeVisible();
   await expect
-    .element(settings.getByRole('heading', { name: 'Updates' }))
+    .element(sections.getByRole('button', { name: 'Sharing', exact: true }))
+    .not.toBeInTheDocument();
+
+  await sections.getByRole('button', { name: 'Updates', exact: true }).click();
+  await expect
+    .element(settings.getByRole('heading', { name: 'Updates', exact: true }))
     .toBeVisible();
   await expect
     .element(settings.getByText(`Porcelain ${offered.version ?? ''}`))
     .toBeVisible();
-  await expect
-    .element(settings.getByRole('heading', { name: 'Connection' }))
-    .toBeVisible();
-  await expect
-    .element(settings.getByRole('heading', { name: 'Sharing' }))
-    .not.toBeInTheDocument();
-  await expect.element(settings.getByText(/Sharing/)).not.toBeInTheDocument();
-  await expect
-    .element(settings.getByRole('textbox', { name: 'Name of this computer' }))
-    .not.toBeInTheDocument();
-  await expect
-    .element(settings.getByRole('switch', { name: 'Local network' }))
-    .not.toBeInTheDocument();
-  await expect
-    .element(settings.getByRole('button', { name: 'Create pairing link' }))
-    .not.toBeInTheDocument();
 });

@@ -1,3 +1,12 @@
+import {
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemDescription,
+  ItemFooter,
+  ItemGroup,
+  ItemTitle,
+} from '@/components/ui/item';
 import { CopyIcon, ShieldAlertIcon } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -91,19 +100,6 @@ function RouteStatus({
   );
 }
 
-function Group({ title, children }: { title?: string; children: ReactNode }) {
-  return (
-    <section className="flex flex-col gap-2.5">
-      {title && (
-        <h3 className="px-1 text-sm font-medium text-foreground/70">{title}</h3>
-      )}
-      <div className="flex flex-col divide-y overflow-hidden rounded-xl border bg-card *:px-4 *:py-3">
-        {children}
-      </div>
-    </section>
-  );
-}
-
 function RouteRow({
   name,
   route,
@@ -119,22 +115,26 @@ function RouteRow({
 }) {
   const title = remoteRouteTitles[name];
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex items-center justify-between gap-6">
-        <div className="min-w-0">
-          <p className="text-sm font-medium">{title}</p>
-          <p className="text-xs text-muted-foreground">{descriptions[name]}</p>
-        </div>
+    <Item variant="outline">
+      <ItemContent>
+        <ItemTitle>{title}</ItemTitle>
+        <ItemDescription>{descriptions[name]}</ItemDescription>
+      </ItemContent>
+      <ItemActions>
         <Switch
           aria-label={title}
           checked={route.enabled}
           disabled={disabled}
           onCheckedChange={(enabled) => onChange(enabled)}
         />
-      </div>
-      <RouteStatus name={name} route={route} />
-      {children}
-    </div>
+      </ItemActions>
+      <ItemFooter>
+        <div className="flex min-w-0 flex-1 flex-col gap-2">
+          <RouteStatus name={name} route={route} />
+          {children}
+        </div>
+      </ItemFooter>
+    </Item>
   );
 }
 
@@ -354,7 +354,7 @@ export function RemoteRoutes({
   const disabled = change.isPending;
   return (
     <>
-      <Group>
+      <ItemGroup>
         <RouteRow
           name="lan"
           route={remote.routes.lan}
@@ -370,8 +370,8 @@ export function RemoteRoutes({
             onTurnOn={() => change.submit({ lan: true })}
           />
         </RouteRow>
-      </Group>
-      <Group>
+      </ItemGroup>
+      <ItemGroup>
         <RouteRow
           name="tailnet"
           route={remote.routes.tailnet}
@@ -392,8 +392,8 @@ export function RemoteRoutes({
             onCheck={() => change.submit({ tailnet: true })}
           />
         </RouteRow>
-      </Group>
-      <Group>
+      </ItemGroup>
+      <ItemGroup>
         <RouteRow
           name="cloudflare"
           route={remote.routes.cloudflare}
@@ -414,7 +414,7 @@ export function RemoteRoutes({
             onCheck={() => change.submit({ cloudflare: true })}
           />
         </RouteRow>
-      </Group>
+      </ItemGroup>
       {change.error && (
         <Alert variant="destructive">
           <AlertDescription>
