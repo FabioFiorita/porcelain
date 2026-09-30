@@ -385,6 +385,13 @@ const sanctionedOverrides: readonly unknown[] = [
       'typescript/no-unsafe-return': 'off',
     },
   },
+  {
+    files: ['apps/web/src/components/ui/**'],
+    rules: {
+      'shadcn/no-restyle': 'off',
+      'shadcn/no-raw-colors': 'off',
+    },
+  },
 ];
 
 const typesFreePackages = new Set<string>([
@@ -500,7 +507,7 @@ async function configProblems(): Promise<Problem[]> {
     problems.push(
       problem(
         'lint-config',
-        '.oxlintrc.json overrides only the plugin files; a per-file override is a disable directive.',
+        '.oxlintrc.json overrides only the plugin files, and the shadcn call-site rules for components/ui, which stays what the registry serves; any other override is a disable directive.',
       ),
     );
   const tsconfigs = filesUnder('.').filter((path) =>

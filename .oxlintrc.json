@@ -137,6 +137,13 @@
         "typescript/no-unsafe-member-access": "off",
         "typescript/no-unsafe-return": "off"
       }
+    },
+    {
+      "files": ["apps/web/src/components/ui/**"],
+      "rules": {
+        "shadcn/no-restyle": "off",
+        "shadcn/no-raw-colors": "off"
+      }
     }
   ]
 }
