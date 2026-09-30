@@ -6,7 +6,9 @@ import { Route as rootRouteImport } from './routes/__root';
 import { Route as PairedRouteImport } from './routes/_paired';
 import { Route as PairRouteImport } from './routes/pair';
 import { Route as PairedIndexRouteImport } from './routes/_paired/index';
-import { Route as PairedProjectIdWorktreeIdRouteImport } from './routes/_paired/$projectId.$worktreeId';
+import { Route as PairedProjectIdWorktreeIdRouteImport } from './routes/_paired/$projectId/$worktreeId';
+import { Route as PairedProjectIdWorktreeIdIndexRouteImport } from './routes/_paired/$projectId/$worktreeId/index';
+import { Route as PairedProjectIdWorktreeIdSettingsRouteImport } from './routes/_paired/$projectId/$worktreeId/settings';
 
 const PairedRoute = PairedRouteImport.update({
   id: '/_paired',
@@ -28,35 +30,63 @@ const PairedProjectIdWorktreeIdRoute =
     path: '/$projectId/$worktreeId',
     getParentRoute: () => PairedRoute,
   } as any);
+const PairedProjectIdWorktreeIdIndexRoute =
+  PairedProjectIdWorktreeIdIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => PairedProjectIdWorktreeIdRoute,
+  } as any);
+const PairedProjectIdWorktreeIdSettingsRoute =
+  PairedProjectIdWorktreeIdSettingsRouteImport.update({
+    id: '/settings',
+    path: '/settings',
+    getParentRoute: () => PairedProjectIdWorktreeIdRoute,
+  } as any);
 
 export interface FileRoutesByFullPath {
   '/': typeof PairedIndexRoute;
   '/pair': typeof PairRoute;
-  '/$projectId/$worktreeId': typeof PairedProjectIdWorktreeIdRoute;
+  '/$projectId/$worktreeId': typeof PairedProjectIdWorktreeIdRouteWithChildren;
+  '/$projectId/$worktreeId/settings': typeof PairedProjectIdWorktreeIdSettingsRoute;
+  '/$projectId/$worktreeId/': typeof PairedProjectIdWorktreeIdIndexRoute;
 }
 export interface FileRoutesByTo {
   '/pair': typeof PairRoute;
   '/': typeof PairedIndexRoute;
-  '/$projectId/$worktreeId': typeof PairedProjectIdWorktreeIdRoute;
+  '/$projectId/$worktreeId/settings': typeof PairedProjectIdWorktreeIdSettingsRoute;
+  '/$projectId/$worktreeId': typeof PairedProjectIdWorktreeIdIndexRoute;
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport;
   '/_paired': typeof PairedRouteWithChildren;
   '/pair': typeof PairRoute;
   '/_paired/': typeof PairedIndexRoute;
-  '/_paired/$projectId/$worktreeId': typeof PairedProjectIdWorktreeIdRoute;
+  '/_paired/$projectId/$worktreeId': typeof PairedProjectIdWorktreeIdRouteWithChildren;
+  '/_paired/$projectId/$worktreeId/settings': typeof PairedProjectIdWorktreeIdSettingsRoute;
+  '/_paired/$projectId/$worktreeId/': typeof PairedProjectIdWorktreeIdIndexRoute;
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath;
-  fullPaths: '/' | '/pair' | '/$projectId/$worktreeId';
+  fullPaths:
+    | '/'
+    | '/pair'
+    | '/$projectId/$worktreeId'
+    | '/$projectId/$worktreeId/settings'
+    | '/$projectId/$worktreeId/';
   fileRoutesByTo: FileRoutesByTo;
-  to: '/pair' | '/' | '/$projectId/$worktreeId';
+  to:
+    | '/pair'
+    | '/'
+    | '/$projectId/$worktreeId/settings'
+    | '/$projectId/$worktreeId';
   id:
     | '__root__'
     | '/_paired'
     | '/pair'
     | '/_paired/'
-    | '/_paired/$projectId/$worktreeId';
+    | '/_paired/$projectId/$worktreeId'
+    | '/_paired/$projectId/$worktreeId/settings'
+    | '/_paired/$projectId/$worktreeId/';
   fileRoutesById: FileRoutesById;
 }
 export interface RootRouteChildren {
@@ -94,17 +124,48 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PairedProjectIdWorktreeIdRouteImport;
       parentRoute: typeof PairedRoute;
     };
+    '/_paired/$projectId/$worktreeId/': {
+      id: '/_paired/$projectId/$worktreeId/';
+      path: '/';
+      fullPath: '/$projectId/$worktreeId/';
+      preLoaderRoute: typeof PairedProjectIdWorktreeIdIndexRouteImport;
+      parentRoute: typeof PairedProjectIdWorktreeIdRoute;
+    };
+    '/_paired/$projectId/$worktreeId/settings': {
+      id: '/_paired/$projectId/$worktreeId/settings';
+      path: '/settings';
+      fullPath: '/$projectId/$worktreeId/settings';
+      preLoaderRoute: typeof PairedProjectIdWorktreeIdSettingsRouteImport;
+      parentRoute: typeof PairedProjectIdWorktreeIdRoute;
+    };
   }
 }
 
+interface PairedProjectIdWorktreeIdRouteChildren {
+  PairedProjectIdWorktreeIdSettingsRoute: typeof PairedProjectIdWorktreeIdSettingsRoute;
+  PairedProjectIdWorktreeIdIndexRoute: typeof PairedProjectIdWorktreeIdIndexRoute;
+}
+
+const PairedProjectIdWorktreeIdRouteChildren: PairedProjectIdWorktreeIdRouteChildren =
+  {
+    PairedProjectIdWorktreeIdSettingsRoute:
+      PairedProjectIdWorktreeIdSettingsRoute,
+    PairedProjectIdWorktreeIdIndexRoute: PairedProjectIdWorktreeIdIndexRoute,
+  };
+
+const PairedProjectIdWorktreeIdRouteWithChildren =
+  PairedProjectIdWorktreeIdRoute._addFileChildren(
+    PairedProjectIdWorktreeIdRouteChildren,
+  );
+
 interface PairedRouteChildren {
   PairedIndexRoute: typeof PairedIndexRoute;
-  PairedProjectIdWorktreeIdRoute: typeof PairedProjectIdWorktreeIdRoute;
+  PairedProjectIdWorktreeIdRoute: typeof PairedProjectIdWorktreeIdRouteWithChildren;
 }
 
 const PairedRouteChildren: PairedRouteChildren = {
   PairedIndexRoute: PairedIndexRoute,
-  PairedProjectIdWorktreeIdRoute: PairedProjectIdWorktreeIdRoute,
+  PairedProjectIdWorktreeIdRoute: PairedProjectIdWorktreeIdRouteWithChildren,
 };
 
 const PairedRouteWithChildren =

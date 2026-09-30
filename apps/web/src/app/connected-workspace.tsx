@@ -1,6 +1,6 @@
 import { detectPlatform, useHotkey } from '@tanstack/react-hotkeys';
 import { useNavigate } from '@tanstack/react-router';
-import { type RefObject, useRef, useState } from 'react';
+import { type ReactNode, type RefObject, useRef, useState } from 'react';
 import {
   Empty,
   EmptyDescription,
@@ -10,6 +10,7 @@ import {
 import { Sidebar, SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
 import { useAccessStore } from '@/features/access/index';
 import {
+  firstWaitingWorktree,
   OpenProjectDialog,
   openProjectDialog,
   ProjectNavigator,
@@ -19,31 +20,38 @@ import {
 } from '@/features/projects/index';
 import { ReviewWorkspace, workspaceTitle } from '@/features/reviews/index';
 import { useDocumentTitle } from '@/shared/hooks/use-document-title';
+import { cn } from '@/shared/lib/utils';
 import { useConnectedContext } from '@/app/workspace-provider';
-import { SettingsDialog } from '@/app/settings-dialog';
 import { ShortcutsDialog } from '@/app/shortcuts-dialog';
-import type {
-  SetWorkspaceSearch,
-  WorkspaceSearch,
-} from '@/shared/workspace/search';
+import type { WorkspaceSearch } from '@/shared/workspace/search';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
 
 type Review = {
   selection: NonNullable<ReturnType<typeof selectedWorktreeInProject>>;
   search: WorkspaceSearch;
-  onSearch: SetWorkspaceSearch;
 };
 
-export function ConnectedWorkspace({ review }: { review?: Review }) {
+export function ConnectedWorkspace({
+  review,
+  settings = false,
+  children,
+}: {
+  review?: Review;
+  settings?: boolean;
+  children?: ReactNode;
+}) {
   const navigationTrigger = useRef<HTMLButtonElement>(null);
-  const [settings, setSettings] = useState(false);
   const [shortcuts, setShortcuts] = useState(false);
   const { setOpenMobile, isMobile, open, openMobile, toggleSidebar } =
     useSidebar();
   const navigate = useNavigate();
   const connection = useAccessStore((state) => state.connection);
   const inventory = useInventory(connection);
+  const context = useConnectedContext();
   const selectedWorktreeId = review?.selection.worktree.id;
+  const settingsTarget =
+    review?.selection ??
+    selectedWorktreeInProject(inventory, firstWaitingWorktree(inventory)?.id);
   useDocumentTitle(
     review
       ? workspaceTitle({
@@ -68,11 +76,22 @@ export function ConnectedWorkspace({ review }: { review?: Review }) {
     const target = selectedWorktreeInProject(inventory, id);
     if (target) void openWorktree(target.projectId, target.worktree.id);
   };
+  const openSettings = () => {
+    if (settings || !settingsTarget) return;
+    void navigate({
+      to: '/$projectId/$worktreeId/settings',
+      params: {
+        projectId: settingsTarget.projectId,
+        worktreeId: settingsTarget.worktree.id,
+      },
+      search: review?.search ?? {},
+    });
+  };
   const navigator = {
     inventory,
     selectedWorktreeId,
     onOpenProject: () => openProjectDialog.open(null),
-    onOpenSettings: () => setSettings(true),
+    onOpenSettings: openSettings,
     onOpenShortcuts: () => setShortcuts(true),
   };
 
@@ -85,9 +104,7 @@ export function ConnectedWorkspace({ review }: { review?: Review }) {
     },
     { ignoreInputs: true },
   );
-  useHotkey(SHORTCUTS.openSettings, () => setSettings(true), {
-    ignoreInputs: true,
-  });
+  useHotkey(SHORTCUTS.openSettings, openSettings, { ignoreInputs: true });
   useHotkey(SHORTCUTS.openShortcuts, () => setShortcuts(true), {
     ignoreInputs: true,
   });
@@ -110,70 +127,85 @@ export function ConnectedWorkspace({ review }: { review?: Review }) {
         isMobile={isMobile}
         open={open}
       >
-        <WorkspaceDocument
-          navigationTrigger={navigationTrigger}
-          review={review}
-          isMobile={isMobile}
-          open={open}
-          openMobile={openMobile}
-        />
+        {review ? (
+          <div
+            className={cn(
+              'flex h-full min-h-0 min-w-0 flex-col',
+              settings && 'hidden',
+            )}
+          >
+            <ReviewWorkspace
+              key={review.selection.worktree.id}
+              navigationTrigger={navigationTrigger}
+              worktree={review.selection.worktree}
+              projectId={review.selection.projectId}
+              search={review.search}
+              onSearch={(update, options) =>
+                void navigate({
+                  to: '/$projectId/$worktreeId',
+                  params: {
+                    projectId: review.selection.projectId,
+                    worktreeId: review.selection.worktree.id,
+                  },
+                  search: (previous) => ({ ...previous, ...update }),
+                  ...options,
+                })
+              }
+              context={context}
+            />
+          </div>
+        ) : (
+          !settings && (
+            <EmptyWorkspace
+              navigationTrigger={navigationTrigger}
+              isMobile={isMobile}
+              open={open}
+              openMobile={openMobile}
+            />
+          )
+        )}
+        {settings && (
+          <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col">
+            {children}
+          </div>
+        )}
       </ProjectWorkspace>
 
       <OpenProjectDialog onOpened={openWorktree} />
-      <SettingsDialog open={settings} onOpenChange={setSettings} />
       <ShortcutsDialog open={shortcuts} onOpenChange={setShortcuts} />
     </>
   );
 }
 
-function WorkspaceDocument({
+function EmptyWorkspace({
   navigationTrigger,
-  review,
   isMobile,
   open,
   openMobile,
 }: {
   navigationTrigger: RefObject<HTMLButtonElement | null>;
-  review: Review | undefined;
   isMobile: boolean;
   open: boolean;
   openMobile: boolean;
 }) {
-  const context = useConnectedContext();
   return (
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-      {review ? (
-        <ReviewWorkspace
-          key={review.selection.worktree.id}
-          navigationTrigger={navigationTrigger}
-          worktree={review.selection.worktree}
-          projectId={review.selection.projectId}
-          search={review.search}
-          onSearch={review.onSearch}
-          context={context}
-        />
-      ) : (
-        <div className="relative grid h-full min-h-0 place-items-center rounded-xl border bg-card p-8">
-          <SidebarTrigger
-            ref={navigationTrigger}
-            className="absolute top-3 left-3"
-            aria-label="Toggle Sidebar"
-            aria-expanded={isMobile ? openMobile : open}
-            aria-keyshortcuts={
-              detectPlatform() === 'mac' ? 'Meta+B' : 'Control+B'
-            }
-            title={`Toggle projects (${SHORTCUTS.toggleNavigator})`}
-          />
-          <Empty>
-            <EmptyHeader>
-              <EmptyTitle>Select a worktree</EmptyTitle>
-              <EmptyDescription>
-                Choose a worktree to establish your review context.
-              </EmptyDescription>
-            </EmptyHeader>
-          </Empty>
-        </div>
-      )}
+    <div className="relative grid h-full min-h-0 place-items-center rounded-xl border bg-card p-8">
+      <SidebarTrigger
+        ref={navigationTrigger}
+        className="absolute top-3 left-3"
+        aria-label="Toggle Sidebar"
+        aria-expanded={isMobile ? openMobile : open}
+        aria-keyshortcuts={detectPlatform() === 'mac' ? 'Meta+B' : 'Control+B'}
+        title={`Toggle projects (${SHORTCUTS.toggleNavigator})`}
+      />
+      <Empty>
+        <EmptyHeader>
+          <EmptyTitle>Select a worktree</EmptyTitle>
+          <EmptyDescription>
+            Choose a worktree to establish your review context.
+          </EmptyDescription>
+        </EmptyHeader>
+      </Empty>
     </div>
   );
 }
