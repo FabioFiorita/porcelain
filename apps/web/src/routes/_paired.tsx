@@ -3,6 +3,7 @@ import {
   Navigate,
   Outlet,
   redirect,
+  useRouterState,
 } from '@tanstack/react-router';
 import { useState } from 'react';
 import { restoreSession, useAccessStore } from '@/features/access/index';
@@ -27,6 +28,9 @@ export const Route = createFileRoute('/_paired')({
 function PairedLayout() {
   const connected = useAccessStore((state) => state.connection !== null);
   const [navigatorOpen, setNavigatorOpen] = useState(true);
+  const empty = useRouterState({
+    select: (state) => state.location.pathname === '/',
+  });
   return connected ? (
     <ReviewShell>
       <ProjectWorkspaceProvider
@@ -34,7 +38,7 @@ function PairedLayout() {
         onOpenChange={setNavigatorOpen}
       >
         <Outlet />
-        <DesktopActions />
+        <DesktopActions empty={empty} />
       </ProjectWorkspaceProvider>
     </ReviewShell>
   ) : (

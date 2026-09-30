@@ -6,7 +6,7 @@ import {
 } from '@/features/projects/index';
 import { onDesktopAction } from '@/shared/adapters/desktop';
 
-export function DesktopActions() {
+export function DesktopActions({ empty }: { empty: boolean }) {
   const navigate = useNavigate();
   useEffect(
     () =>
@@ -26,6 +26,7 @@ export function DesktopActions() {
         navigate({
           to: '/$projectId/$worktreeId',
           params: { projectId, worktreeId },
+          replace: empty,
         })
       }
     />
