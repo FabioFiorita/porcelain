@@ -1,4 +1,6 @@
 import {
+  readEnvironmentResponseSchema,
+  redeemPairingResponseSchema,
   issuePairingRequestSchema,
   issuePairingResponseSchema,
   listAccessResponseSchema,
@@ -23,8 +25,9 @@ import { WEB_PLATFORM_NAME_MAX_LENGTH } from '@/config/limits';
 import { ConnectionError } from '@/shared/api/connection-error';
 import { RequestError, requestJson } from '@/shared/api/request';
 import { REQUEST_TIMEOUT_MS } from '@/shared/api/request-timeout';
-import { browserTransport } from '@/shared/api/transport';
+import { browserTransport, remoteTransport } from '@/shared/api/transport';
 import type { PairingCode } from './rules/pairing-link';
+import type { Remote, RemoteAnswer, RemoteLink } from './rules/remotes';
 
 export type PairingPort = {
   redeem(
@@ -221,3 +224,54 @@ function platformName() {
       : navigator.userAgent.slice(0, WEB_PLATFORM_NAME_MAX_LENGTH);
   return agent === '' ? 'Browser' : agent;
 }
+
+export const remoteApi = {
+  async pair(link: RemoteLink, signal: AbortSignal): Promise<string> {
+    let response: Response;
+    try {
+      response = await remoteTransport(link.address)('/api/pair', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ code: link.code, platform: platformName() }),
+        signal,
+      });
+    } catch (error) {
+      throw new ConnectionError(
+        `Could not reach ${link.address}. Check that Porcelain runs there and that this computer reaches it.`,
+        { cause: error },
+      );
+    }
+    if (!response.ok)
+      throw new ConnectionError(
+        'That link was not accepted. It works once, for a few minutes; run porcelain pair again.',
+      );
+    const paired = redeemPairingResponseSchema.parse(await response.json());
+    if (!paired.credential)
+      throw new ConnectionError('The remote paired but sent no credential.');
+    return paired.credential;
+  },
+  async describe(
+    remote: Pick<Remote, 'address' | 'credential'>,
+    signal: AbortSignal,
+  ): Promise<RemoteAnswer> {
+    let response: Response;
+    try {
+      response = await remoteTransport(remote.address, remote.credential)(
+        '/api/environment',
+        { signal },
+      );
+    } catch (error) {
+      const timedOut =
+        signal.reason instanceof DOMException &&
+        signal.reason.name === 'TimeoutError';
+      if (signal.aborted && !timedOut) throw error;
+      return { kind: 'unreachable' };
+    }
+    if (response.status === 401) return { kind: 'unauthorized' };
+    if (!response.ok) return { kind: 'unreachable' };
+    return {
+      kind: 'described',
+      environment: readEnvironmentResponseSchema.parse(await response.json()),
+    };
+  },
+};

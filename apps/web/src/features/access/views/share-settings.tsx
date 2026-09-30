@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { FieldLegend, FieldSet } from '@/components/ui/field';
 import {
   Item,
@@ -17,16 +18,17 @@ import type {
 } from '../rules/share';
 import { useAccessStore } from '../store';
 import { EnvironmentName } from './environment-name';
+import { ServiceUpdateSettings } from './service-update';
 import { PairDevice } from './pair-device';
 import { PairedDevices } from './paired-devices';
 import { RemoteRoutes } from './remote-routes';
 
-function ShareContent({
+function RemoteAccessGate({
   connection,
-  environment,
+  children,
 }: {
   connection: ShareConnection;
-  environment: Environment;
+  children: (remote: RemoteAccess) => ReactNode;
 }) {
   const remote = useRemoteAccess(connection);
   if (remote.managedElsewhere)
@@ -44,71 +46,88 @@ function ShareContent({
       </Alert>
     );
   if (!remote.data) return <Spinner />;
-  return (
-    <ShareSections
-      connection={connection}
-      environment={environment}
-      remote={remote.data}
-    />
-  );
+  return children(remote.data);
 }
 
-function ShareSections({
-  connection,
-  environment,
-  remote,
-}: {
-  connection: ShareConnection;
-  environment: Environment;
-  remote: RemoteAccess;
-}) {
-  return (
-    <>
-      <ItemGroup>
-        <Item variant="outline">
-          <ItemContent>
-            <EnvironmentName
-              connection={connection}
-              environment={environment}
-            />
-          </ItemContent>
-        </Item>
-      </ItemGroup>
-      <RemoteRoutes connection={connection} remote={remote} />
-      <FieldSet>
-        <FieldLegend variant="label">Pair a device</FieldLegend>
-        <ItemGroup>
-          <Item variant="outline">
-            <ItemContent>
-              <ItemDescription>
-                Open the link or scan the code on the other device to connect it
-                to {environment.name}. Each link works once, for a few minutes.
-              </ItemDescription>
-              <PairDevice connection={connection} remote={remote} />
-            </ItemContent>
-          </Item>
-        </ItemGroup>
-      </FieldSet>
-      <FieldSet>
-        <FieldLegend variant="label">Paired devices</FieldLegend>
-        <ItemGroup>
-          <Item variant="outline">
-            <ItemContent>
-              <PairedDevices connection={connection} />
-            </ItemContent>
-          </Item>
-        </ItemGroup>
-      </FieldSet>
-    </>
-  );
-}
-
-export function ShareSettings({ environment }: { environment: Environment }) {
+function useDesktopConnection() {
   const connection = useAccessStore((state) => state.connection);
+  return desktopShell ? connection : null;
+}
+
+export function ComputerSettings({
+  environment,
+}: {
+  environment: Environment;
+}) {
+  const connection = useDesktopConnection();
   return (
-    desktopShell &&
     connection && (
-      <ShareContent connection={connection} environment={environment} />
+      <>
+        <ItemGroup>
+          <Item variant="outline">
+            <ItemContent>
+              <EnvironmentName
+                connection={connection}
+                environment={environment}
+              />
+            </ItemContent>
+          </Item>
+        </ItemGroup>
+        <FieldSet>
+          <FieldLegend variant="label">Updates</FieldLegend>
+          <ItemGroup>
+            <Item variant="outline">
+              <ItemContent>
+                <ServiceUpdateSettings />
+              </ItemContent>
+            </Item>
+          </ItemGroup>
+        </FieldSet>
+      </>
+    )
+  );
+}
+
+export function WaysInSettings() {
+  const connection = useDesktopConnection();
+  return (
+    connection && (
+      <RemoteAccessGate connection={connection}>
+        {(remote) => <RemoteRoutes connection={connection} remote={remote} />}
+      </RemoteAccessGate>
+    )
+  );
+}
+
+export function DevicesSettings({ environment }: { environment: Environment }) {
+  const connection = useDesktopConnection();
+  return (
+    connection && (
+      <RemoteAccessGate connection={connection}>
+        {(remote) => (
+          <>
+            <FieldSet>
+              <FieldLegend variant="label">Pair a device</FieldLegend>
+              <ItemGroup>
+                <Item variant="outline">
+                  <ItemContent>
+                    <ItemDescription>
+                      Open the link or scan the code on the other device to
+                      connect it to {environment.name}. Each link works once,
+                      for a few minutes.
+                    </ItemDescription>
+                    <PairDevice connection={connection} remote={remote} />
+                  </ItemContent>
+                </Item>
+              </ItemGroup>
+            </FieldSet>
+            <FieldSet>
+              <FieldLegend variant="label">Paired devices</FieldLegend>
+              <PairedDevices connection={connection} />
+            </FieldSet>
+          </>
+        )}
+      </RemoteAccessGate>
     )
   );
 }

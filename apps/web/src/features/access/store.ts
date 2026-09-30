@@ -1,5 +1,8 @@
 import type { ReadInventoryResponse } from '@porcelain/contracts/projects';
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+import { savedJson } from '@/shared/lib/saved-json';
+import { parseRemotes, withRemote, type Remote } from './rules/remotes';
 import { REQUEST_TIMEOUT_MS } from '@/shared/api/request-timeout';
 import {
   createOperationStore,
@@ -81,3 +84,30 @@ export const useAccessStore = create<AccessState>()((set, get) => ({
     }));
   },
 }));
+
+type RemotesState = {
+  remotes: Remote[];
+  save: (remote: Remote) => void;
+  forget: (environmentId: string) => void;
+};
+
+export const useRemotesStore = create<RemotesState>()(
+  persist<RemotesState, [], [], Remote[]>(
+    (set, get) => ({
+      remotes: [],
+      save: (remote) => set({ remotes: withRemote(get().remotes, remote) }),
+      forget: (environmentId) =>
+        set({
+          remotes: get().remotes.filter(
+            (remote) => remote.environmentId !== environmentId,
+          ),
+        }),
+    }),
+    {
+      name: 'porcelain.remotes',
+      storage: savedJson(() => localStorage, parseRemotes),
+      partialize: ({ remotes }) => remotes,
+      merge: (saved, current) => ({ ...current, remotes: parseRemotes(saved) }),
+    },
+  ),
+);

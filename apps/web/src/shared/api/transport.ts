@@ -32,3 +32,27 @@ function establishing(input: Parameters<typeof fetch>[0]) {
         : input.url;
   return path.endsWith('/api/pair');
 }
+
+export function remoteTransport(
+  address: string,
+  credential?: string,
+): typeof fetch {
+  return (input, init) => {
+    const headers = new Headers(init?.headers);
+    if (credential) headers.set('authorization', `Bearer ${credential}`);
+    const path =
+      typeof input === 'string'
+        ? input
+        : input instanceof URL
+          ? input.href
+          : input.url;
+    return fetch(new URL(path, address), {
+      ...init,
+      headers,
+      mode: 'cors',
+      credentials: 'omit',
+      redirect: 'error',
+      cache: 'no-store',
+    });
+  };
+}

@@ -28,7 +28,7 @@ test('the owner names this computer in Settings, and the tab title, pairing and 
   });
   await pairedPage
     .getByRole('main', { name: 'Settings', exact: true })
-    .getByRole('button', { name: 'Sharing', exact: true })
+    .getByRole('button', { name: 'This computer', exact: true })
     .click();
   const name = settings.getByRole('textbox', {
     name: 'Name of this computer',
@@ -42,9 +42,13 @@ test('the owner names this computer in Settings, and the tab title, pairing and 
   await expect
     .poll(async () => (await server.inventory()).environment)
     .toEqual({ name: 'Workstation', custom: true });
+  await settings.getByRole('button', { name: 'Devices', exact: true }).click();
   await expect
     .element(settings.getByText(/to connect it to Workstation\./))
     .toBeVisible();
+  await settings
+    .getByRole('button', { name: 'This computer', exact: true })
+    .click();
   await expect.element(save).toBeDisabled();
   await expect.poll(() => app.title()).toBe('Settings · Workstation');
   await settings.getByRole('button', { name: 'Back', exact: true }).click();
@@ -60,7 +64,9 @@ test('the owner names this computer in Settings, and the tab title, pairing and 
   await navigator
     .getByRole('button', { name: 'Settings', exact: true })
     .click();
-  await settings.getByRole('button', { name: 'Sharing', exact: true }).click();
+  await settings
+    .getByRole('button', { name: 'This computer', exact: true })
+    .click();
 
   await name.fill('');
   await save.click();

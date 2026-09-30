@@ -230,7 +230,11 @@ const porcelainPairingLink: BrowserCommand<[string], PairingParts> = async (
   ).grants;
   await keepEvidence();
   if (grant === undefined) throw new Error('The owner issued no pairing grant');
-  return { code: grant.link.code, environmentId: grant.link.environmentId };
+  return {
+    code: grant.link.code,
+    environmentId: grant.link.environmentId,
+    address: owner.address,
+  };
 };
 
 const porcelainHits: BrowserCommand<[number], ServerHit[]> = async (

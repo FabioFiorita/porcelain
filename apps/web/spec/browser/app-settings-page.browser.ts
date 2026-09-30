@@ -59,7 +59,9 @@ test('Escape leaves Settings, except while typing in one of its fields', async (
     name: 'Settings',
     exact: true,
   });
-  await settings.getByRole('button', { name: 'Sharing', exact: true }).click();
+  await settings
+    .getByRole('button', { name: 'This computer', exact: true })
+    .click();
   const name = settings.getByRole('textbox', {
     name: 'Name of this computer',
     exact: true,
@@ -68,7 +70,7 @@ test('Escape leaves Settings, except while typing in one of its fields', async (
   await userEvent.keyboard('{Escape}');
   await expect.element(settings).toBeVisible();
 
-  await settings.getByRole('button', { name: 'Updates', exact: true }).click();
+  await settings.getByRole('button', { name: 'Devices', exact: true }).click();
   await userEvent.keyboard('{Escape}');
   await expect.element(settings).not.toBeInTheDocument();
   await expect

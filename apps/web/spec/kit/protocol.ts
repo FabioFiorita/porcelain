@@ -41,7 +41,11 @@ export type RepoFixture = {
   readme: { path: string; committed: string; changed: string };
 };
 
-export type PairingParts = { code: string; environmentId: string };
+export type PairingParts = {
+  code: string;
+  environmentId: string;
+  address: string;
+};
 
 export type DraftedCommit = { message: string; paths: string[] };
 

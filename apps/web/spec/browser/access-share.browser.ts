@@ -1,7 +1,7 @@
 import { expect } from 'vitest';
 import { test } from '../kit/journey';
 
-test('sharing from Settings creates a one-time pairing link for one way in with its QR code, lists the paired devices with the way in each works through and revokes one', async ({
+test('Settings → Devices creates a one-time pairing link for one way in with its QR code, lists the paired devices with the way in each works through and revokes one', async ({
   pairedPage,
   server,
 }) => {
@@ -17,23 +17,25 @@ test('sharing from Settings creates a one-time pairing link for one way in with 
   });
   await pairedPage
     .getByRole('main', { name: 'Settings', exact: true })
-    .getByRole('button', { name: 'Sharing', exact: true })
+    .getByRole('button', { name: 'Devices', exact: true })
     .click();
   await expect
     .element(
       settings.getByText(
-        'Turn on a way in above to pair a phone or another computer.',
+        'Turn on a way in under Ways in to pair a phone or another computer.',
         { exact: true },
       ),
     )
     .toBeVisible();
 
+  await settings.getByRole('button', { name: 'Ways in', exact: true }).click();
   await settings
     .getByRole('switch', { name: 'Local network', exact: true })
     .click();
   await expect
     .element(settings.getByText(/^http:\/\/192\.168\.1\.20:\d+$/))
     .toBeVisible();
+  await settings.getByRole('button', { name: 'Devices', exact: true }).click();
 
   await expect
     .element(

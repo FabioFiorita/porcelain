@@ -4,6 +4,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
+import { Item, ItemContent, ItemMedia, ItemTitle } from '@/components/ui/item';
 import { Label } from '@/components/ui/label';
 import {
   NativeSelect,
@@ -38,7 +39,7 @@ export function PairDevice({
   if (target === undefined)
     return (
       <p className="text-xs text-muted-foreground">
-        Turn on a way in above to pair a phone or another computer.
+        Turn on a way in under Ways in to pair a phone or another computer.
       </p>
     );
   return (
@@ -102,10 +103,12 @@ export function PairDevice({
         </Alert>
       )}
       {issue.issued && (
-        <div className="flex flex-col gap-3 rounded-lg border bg-muted/30 p-3 sm:flex-row sm:items-start">
-          <PairingQr link={issue.issued.link} />
-          <div className="flex min-w-0 flex-1 flex-col gap-2">
-            <p className="text-sm font-medium">Scan on {issue.issued.label}</p>
+        <Item variant="muted">
+          <ItemMedia>
+            <PairingQr link={issue.issued.link} />
+          </ItemMedia>
+          <ItemContent>
+            <ItemTitle>Scan on {issue.issued.label}</ItemTitle>
             <p
               aria-label="Pairing link"
               className="font-mono text-xs break-all text-muted-foreground"
@@ -125,8 +128,8 @@ export function PairDevice({
               <CopyIcon />
               Copy link
             </Button>
-          </div>
-        </div>
+          </ItemContent>
+        </Item>
       )}
     </div>
   );

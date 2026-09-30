@@ -17,7 +17,7 @@ test('turning the ways in on and off from Settings shows each one starting, then
   });
   await pairedPage
     .getByRole('main', { name: 'Settings', exact: true })
-    .getByRole('button', { name: 'Sharing', exact: true })
+    .getByRole('button', { name: 'Ways in', exact: true })
     .click();
   const lan = settings.getByRole('switch', {
     name: 'Local network',

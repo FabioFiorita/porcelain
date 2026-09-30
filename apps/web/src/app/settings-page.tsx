@@ -3,9 +3,12 @@ import {
   ArrowLeftIcon,
   CopyIcon,
   GitBranchIcon,
+  MonitorIcon,
   PaletteIcon,
+  RadioTowerIcon,
   RefreshCwIcon,
-  Share2Icon,
+  ServerIcon,
+  SmartphoneIcon,
   UnplugIcon,
   type LucideIcon,
 } from 'lucide-react';
@@ -33,10 +36,13 @@ import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CommitModelSetting } from '@/app/commit-model-setting';
 import {
+  ComputerSettings,
+  DevicesSettings,
   DisconnectBrowser,
+  RemoteComputers,
   ServiceUpdateSettings,
-  ShareSettings,
   useAccessStore,
+  WaysInSettings,
 } from '@/features/access/index';
 import { useInventory } from '@/features/projects/index';
 import { useDocumentTitle } from '@/shared/hooks/use-document-title';
@@ -54,11 +60,18 @@ export const settingsSections: readonly {
 }[] = [
   { id: 'appearance', label: 'Appearance', icon: PaletteIcon },
   { id: 'git', label: 'Git and agents', icon: GitBranchIcon },
-  { id: 'connection', label: 'Connection', icon: UnplugIcon },
   ...(desktopShell
-    ? [{ id: 'sharing', label: 'Sharing', icon: Share2Icon }]
-    : []),
-  { id: 'updates', label: 'Updates', icon: RefreshCwIcon },
+    ? [
+        { id: 'computer', label: 'This computer', icon: MonitorIcon },
+        { id: 'ways-in', label: 'Ways in', icon: RadioTowerIcon },
+        { id: 'devices', label: 'Devices', icon: SmartphoneIcon },
+        { id: 'remotes', label: 'Remote computers', icon: ServerIcon },
+        { id: 'connection', label: 'Connection', icon: UnplugIcon },
+      ]
+    : [
+        { id: 'connection', label: 'Connection', icon: UnplugIcon },
+        { id: 'updates', label: 'Updates', icon: RefreshCwIcon },
+      ]),
 ];
 
 type ChoiceName = {
@@ -151,10 +164,17 @@ function AgentsSetting() {
   );
 }
 
-function SharingSection() {
+function useEnvironment() {
   const connection = useAccessStore((state) => state.connection);
-  const { environment } = useInventory(connection);
-  return <ShareSettings environment={environment} />;
+  return useInventory(connection).environment;
+}
+
+function ComputerSection() {
+  return <ComputerSettings environment={useEnvironment()} />;
+}
+
+function DevicesSection() {
+  return <DevicesSettings environment={useEnvironment()} />;
 }
 
 function SectionContent({ section }: { section: string }) {
@@ -199,8 +219,14 @@ function SectionContent({ section }: { section: string }) {
           </Item>
         </ItemGroup>
       );
-    case 'sharing':
-      return <SharingSection />;
+    case 'computer':
+      return <ComputerSection />;
+    case 'ways-in':
+      return <WaysInSettings />;
+    case 'devices':
+      return <DevicesSection />;
+    case 'remotes':
+      return <RemoteComputers />;
     case 'updates':
       return (
         <ItemGroup>

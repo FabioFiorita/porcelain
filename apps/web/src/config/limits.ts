@@ -3,6 +3,8 @@ import {
   ENVIRONMENT_NAME_LENGTH,
 } from '@porcelain/contracts/shared';
 export const WEB_PLATFORM_NAME_MAX_LENGTH = 120;
+export const REMOTE_STATUS_REFRESH_MS = 30_000;
+export const REMOTE_STATUS_TIMEOUT_MS = 5_000;
 export const PAIRING_PENDING_MS = 0;
 export const PROJECT_DISCOVERY_STALE_MS = 60_000;
 export const HISTORY_OID_LENGTH = 7;

@@ -216,6 +216,15 @@ async function link(installation: 'this' | 'another') {
   });
 }
 
+async function remoteLink() {
+  const issued = await hostCommands.porcelainPairingLink('Remote computer');
+  return pairingLink({
+    addresses: [issued.address],
+    code: issued.code,
+    environmentId: issued.environmentId,
+  });
+}
+
 export const app = {
   open,
   openReloadable,
@@ -223,6 +232,7 @@ export const app = {
   visited,
   failSessionRestore,
   link,
+  remoteLink,
   address,
   title,
   follow,

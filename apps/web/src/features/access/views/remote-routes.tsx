@@ -259,7 +259,7 @@ function TailnetSettings({
       ? undefined
       : tailscaleServeCommand(remote.tailnetTarget);
   return (
-    <div className="flex flex-col gap-2 rounded-lg border bg-muted/30 p-3">
+    <div className="flex flex-col gap-2">
       <HostnameForm
         label="Tailscale name"
         saveLabel="Save name"
@@ -322,7 +322,7 @@ function TunnelSettings({
 }) {
   const cloudflare = remote.routes.cloudflare;
   return (
-    <div className="flex flex-col gap-2 rounded-lg border bg-muted/30 p-3">
+    <div className="flex flex-col gap-2">
       <HostnameForm
         label="Public hostname"
         saveLabel="Save hostname"
