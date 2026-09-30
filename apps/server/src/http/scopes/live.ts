@@ -28,7 +28,10 @@ export async function liveScope(
   const { application, allowedHosts } = options;
   server.addHook(
     'onRequest',
-    checkRequestOrigin({ access: application.access, allowedHosts }, true),
+    checkRequestOrigin(
+      { access: application.access, allowedHosts },
+      { crossOrigin: 'refused', requireSameOrigin: true },
+    ),
   );
   server.addHook(
     'onRequest',

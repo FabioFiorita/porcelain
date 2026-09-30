@@ -1,3 +1,7 @@
+type CrossOriginPolicy = 'refused' | 'bearer' | 'anyone';
+
+type PresentedCredential = 'bearer' | 'none';
+
 export type CheckRequestOriginInput = {
   host: string | undefined;
   origin: string | undefined;
@@ -7,6 +11,8 @@ export type CheckRequestOriginInput = {
   localPort: number | undefined;
   allowedHosts: readonly string[];
   requireSameOrigin: boolean;
+  crossOrigin: CrossOriginPolicy;
+  credential: PresentedCredential;
 };
 
 export type RequestOriginRefusal =
@@ -18,5 +24,5 @@ export type RequestOriginRefusal =
   | { kind: 'cross-origin'; origin: string };
 
 export type CheckRequestOriginResult =
-  | { kind: 'allowed' }
+  | { kind: 'allowed'; crossOrigin: boolean }
   | { kind: 'refused'; refusal: RequestOriginRefusal };

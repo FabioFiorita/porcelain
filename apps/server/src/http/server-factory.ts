@@ -16,6 +16,7 @@ declare module 'fastify' {
     disconnected: AbortSignal;
     principal: Principal | undefined;
     client: IdentifiedClient;
+    crossOrigin: boolean;
     readonly caller: Principal;
   }
 }
@@ -34,6 +35,7 @@ export function createServer(options: ServerFactoryOptions) {
   server.decorateRequest('disconnected');
   server.decorateRequest('principal');
   server.decorateRequest('client');
+  server.decorateRequest('crossOrigin', false);
   server.decorateRequest('caller', {
     getter() {
       return callerOf(this);
@@ -41,6 +43,7 @@ export function createServer(options: ServerFactoryOptions) {
   });
   server.addHook('onRequest', (request, reply, done) => {
     request.principal = options.principal;
+    request.crossOrigin = false;
     request.client = {
       route: 'lan',
       address: request.ip,

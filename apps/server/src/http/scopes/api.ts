@@ -1,3 +1,4 @@
+import cors from '@fastify/cors';
 import type { Limits } from '../../config/limits.ts';
 import type { FastifyInstance } from 'fastify';
 import type { AuthenticateOptions } from '../hooks/authenticate.ts';
@@ -28,15 +29,29 @@ export async function apiScope(
   },
 ) {
   const { application, allowedHosts, limits } = options;
+  const origins = { access: application.access, allowedHosts };
   server.addHook('onRequest', preventCaching);
+  server.register(cors, {
+    origin: '*',
+    credentials: false,
+    methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE'],
+    allowedHeaders: ['authorization', 'content-type'],
+    maxAge: limits.http.corsMaxAgeSeconds,
+  });
   server.register(liveScope, { application, allowedHosts, limits });
-  server.register(async (http) => {
-    http.addHook(
+  server.register(publicScope, { application, allowedHosts, limits });
+  server.register(async (paired) => {
+    paired.addHook(
       'onRequest',
-      checkRequestOrigin({ access: application.access, allowedHosts }),
+      checkRequestOrigin(origins, { crossOrigin: 'bearer' }),
     );
-    http.register(publicScope, { application, limits });
-    http.register(pairedScope, { application, limits });
-    http.register(hostScope, { application, limits });
+    paired.register(pairedScope, { application, limits });
+  });
+  server.register(async (host) => {
+    host.addHook(
+      'onRequest',
+      checkRequestOrigin(origins, { crossOrigin: 'refused' }),
+    );
+    host.register(hostScope, { application, limits });
   });
 }

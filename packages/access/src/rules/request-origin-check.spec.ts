@@ -12,13 +12,18 @@ function check(request: Partial<CheckRequestOriginInput>) {
     localPort: 4173,
     allowedHosts: [],
     requireSameOrigin: false,
+    crossOrigin: 'refused',
+    credential: 'none',
     ...request,
   });
 }
 
+const sameOrigin = { kind: 'allowed', crossOrigin: false };
+const crossOrigin = { kind: 'allowed', crossOrigin: true };
+
 describe('requestOriginCheck', () => {
   it('lets a read through a loopback host without an origin', () => {
-    expect(check({})).toEqual({ kind: 'allowed' });
+    expect(check({})).toEqual(sameOrigin);
   });
 
   it.each([
@@ -48,15 +53,15 @@ describe('requestOriginCheck', () => {
   it('answers to a configured host and to the address the request reached', () => {
     expect(
       check({ host: 'Laptop.Local.:4173', allowedHosts: ['laptop.local'] }),
-    ).toEqual({ kind: 'allowed' });
+    ).toEqual(sameOrigin);
     expect(
       check({ host: '192.168.1.5:4173', localAddress: '::ffff:192.168.1.5' }),
-    ).toEqual({ kind: 'allowed' });
-    expect(check({ host: '[::1]:4173' })).toEqual({ kind: 'allowed' });
+    ).toEqual(sameOrigin);
+    expect(check({ host: '[::1]:4173' })).toEqual(sameOrigin);
   });
 
   it('lets a write without an origin through, as a non-browser client sends it', () => {
-    expect(check({ method: 'POST' })).toEqual({ kind: 'allowed' });
+    expect(check({ method: 'POST' })).toEqual(sameOrigin);
   });
 
   it('requires an origin where same origin is demanded, even for a read', () => {
@@ -95,14 +100,14 @@ describe('requestOriginCheck', () => {
         host: 'localhost',
         origin: 'http://localhost:80',
       }),
-    ).toEqual({ kind: 'allowed' });
+    ).toEqual(sameOrigin);
     expect(
       check({
         method: 'POST',
         host: '127.0.0.1:4173',
         origin: 'http://127.0.0.1:4173',
       }),
-    ).toEqual({ kind: 'allowed' });
+    ).toEqual(sameOrigin);
   });
 
   it('checks the origin of a read where same origin is demanded', () => {
@@ -114,7 +119,7 @@ describe('requestOriginCheck', () => {
     });
     expect(
       check({ requireSameOrigin: true, origin: 'http://127.0.0.1:4173' }),
-    ).toEqual({ kind: 'allowed' });
+    ).toEqual(sameOrigin);
   });
 
   it('answers to a tunnel hostname only while it is a tunnel host', () => {
@@ -134,10 +139,12 @@ describe('requestOriginCheck', () => {
           localPort: 4173,
           allowedHosts: [],
           requireSameOrigin: false,
+          crossOrigin: 'refused',
+          credential: 'none',
         },
         [host],
       ),
-    ).toEqual({ kind: 'allowed' });
+    ).toEqual(sameOrigin);
   });
 
   it('treats a tunnel host as reached over HTTPS, whatever scheme the tunnel spoke to the server', () => {
@@ -150,15 +157,111 @@ describe('requestOriginCheck', () => {
       localPort: 4173,
       allowedHosts: [],
       requireSameOrigin: false,
+      crossOrigin: 'refused' as const,
+      credential: 'none' as const,
     };
     expect(
       requestOriginCheck({ ...write, origin: `https://${host}` }, [host]),
-    ).toEqual({ kind: 'allowed' });
+    ).toEqual(sameOrigin);
     expect(
       requestOriginCheck({ ...write, origin: `http://${host}` }, [host]),
     ).toEqual({
       kind: 'refused',
       refusal: { kind: 'cross-origin', origin: `http://${host}` },
     });
+  });
+
+  it('lets a read from another origin through and says it came from another origin', () => {
+    expect(check({ origin: 'http://elsewhere.example' })).toEqual(crossOrigin);
+  });
+
+  it.each([
+    ['another origin', 'http://elsewhere.example'],
+    ['an opaque origin', 'null'],
+    ['a malformed origin', 'not a url'],
+  ])(
+    'lets a write that carries a bearer credential from %s through where bearer clients may cross origins',
+    (_, origin) => {
+      expect(
+        check({
+          method: 'POST',
+          origin,
+          crossOrigin: 'bearer',
+          credential: 'bearer',
+        }),
+      ).toEqual(crossOrigin);
+    },
+  );
+
+  it('keeps refusing a cross-origin write without a bearer credential where bearer clients may cross origins', () => {
+    const origin = 'http://elsewhere.example';
+    expect(
+      check({
+        method: 'POST',
+        origin,
+        crossOrigin: 'bearer',
+        credential: 'none',
+      }),
+    ).toEqual({ kind: 'refused', refusal: { kind: 'cross-origin', origin } });
+    expect(
+      check({
+        method: 'DELETE',
+        origin: 'null',
+        crossOrigin: 'bearer',
+        credential: 'none',
+      }),
+    ).toEqual({ kind: 'refused', refusal: { kind: 'origin-opaque' } });
+  });
+
+  it('refuses a cross-origin write with a bearer credential where crossing origins is refused', () => {
+    const origin = 'http://elsewhere.example';
+    expect(
+      check({
+        method: 'PUT',
+        origin,
+        crossOrigin: 'refused',
+        credential: 'bearer',
+      }),
+    ).toEqual({ kind: 'refused', refusal: { kind: 'cross-origin', origin } });
+  });
+
+  it('refuses a host the server was not told to answer to, even for a bearer client or where anyone may cross origins', () => {
+    const request = {
+      host: 'rebound.example:4173',
+      localAddress: '192.168.1.5',
+      method: 'POST',
+      origin: 'http://rebound.example:4173',
+    };
+    const refusal = {
+      kind: 'refused',
+      refusal: { kind: 'host-not-allowed', hostname: 'rebound.example' },
+    };
+    expect(
+      check({ ...request, crossOrigin: 'bearer', credential: 'bearer' }),
+    ).toEqual(refusal);
+    expect(check({ ...request, crossOrigin: 'anyone' })).toEqual(refusal);
+  });
+
+  it('lets anyone write where anyone may cross origins, and says whether the write came from another origin', () => {
+    expect(
+      check({
+        method: 'POST',
+        origin: 'http://elsewhere.example',
+        crossOrigin: 'anyone',
+      }),
+    ).toEqual(crossOrigin);
+    expect(
+      check({ method: 'POST', origin: 'null', crossOrigin: 'anyone' }),
+    ).toEqual(crossOrigin);
+    expect(
+      check({
+        method: 'POST',
+        origin: 'http://127.0.0.1:4173',
+        crossOrigin: 'anyone',
+      }),
+    ).toEqual(sameOrigin);
+    expect(check({ method: 'POST', crossOrigin: 'anyone' })).toEqual(
+      sameOrigin,
+    );
   });
 });

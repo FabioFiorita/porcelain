@@ -178,7 +178,11 @@ export type Limits = {
     flushDeviceActivityMs: number;
     openRemoteRoutesMs: number;
   };
-  http: { reviewBodyBytes: number; editFileBodyBytes: number };
+  http: {
+    reviewBodyBytes: number;
+    editFileBodyBytes: number;
+    corsMaxAgeSeconds: number;
+  };
   locks: { startupWaitMs: number; pollMs: number; staleTakeovers: number };
   installer: {
     command: {
@@ -383,6 +387,7 @@ export const LIMITS: Limits = {
   http: {
     reviewBodyBytes: JSON_ESCAPE_FACTOR * REVIEW_SUMMARY_BYTES + MEBIBYTE,
     editFileBodyBytes: 8 * MEBIBYTE,
+    corsMaxAgeSeconds: (10 * MINUTE_MS) / SECOND_MS,
   },
   locks: { startupWaitMs: 10 * SECOND_MS, pollMs: 25, staleTakeovers: 3 },
   installer: {

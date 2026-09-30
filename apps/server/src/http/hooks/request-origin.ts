@@ -2,14 +2,22 @@ import { httpErrors } from '@fastify/sensible';
 import type { FastifyRequest } from 'fastify';
 import type {
   CheckRequestOriginUseCasePort,
+  CrossOriginPolicy,
+  PresentedCredential,
   RequestOriginVerdict,
 } from '../../ports/check-request-origin-use-case-port.ts';
+import { bearerCredential } from './authenticate.ts';
 
 type Refusal = Extract<RequestOriginVerdict, { allowed: false }>['refusal'];
 
 export type RequestOriginOptions = {
   access: { checkRequestOrigin: CheckRequestOriginUseCasePort };
   allowedHosts: readonly string[];
+};
+
+type OriginPolicy = {
+  crossOrigin: CrossOriginPolicy;
+  requireSameOrigin?: boolean;
 };
 
 function refusalMessage(refusal: Refusal): string {
@@ -29,9 +37,13 @@ function refusalMessage(refusal: Refusal): string {
   }
 }
 
+function presentedCredential(request: FastifyRequest): PresentedCredential {
+  return bearerCredential(request) === undefined ? 'none' : 'bearer';
+}
+
 export function checkRequestOrigin(
   options: RequestOriginOptions,
-  requireSameOrigin = false,
+  policy: OriginPolicy,
 ) {
   return async (request: FastifyRequest) => {
     const result = await options.access.checkRequestOrigin.execute(
@@ -43,11 +55,14 @@ export function checkRequestOrigin(
         localAddress: request.socket.localAddress,
         localPort: request.socket.localPort,
         allowedHosts: options.allowedHosts,
-        requireSameOrigin,
+        requireSameOrigin: policy.requireSameOrigin ?? false,
+        crossOrigin: policy.crossOrigin,
+        credential: presentedCredential(request),
       },
       { signal: request.disconnected },
     );
     if (!result.allowed)
       throw httpErrors.forbidden(refusalMessage(result.refusal));
+    request.crossOrigin = result.crossOrigin;
   };
 }

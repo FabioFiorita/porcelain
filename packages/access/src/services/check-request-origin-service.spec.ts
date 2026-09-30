@@ -28,6 +28,8 @@ function checkThroughTunnel(cloudflare: RouteState, enabled = true) {
     localPort: 4173,
     allowedHosts: [],
     requireSameOrigin: false,
+    crossOrigin: 'refused',
+    credential: 'none',
   });
 }
 
@@ -41,7 +43,10 @@ describe('CheckRequestOriginService', () => {
       { kind: 'failed', reason: 'unreachable' },
     ],
   ])('answers the tunnel hostname %s', (_moment, cloudflare) => {
-    expect(checkThroughTunnel(cloudflare)).toEqual({ kind: 'allowed' });
+    expect(checkThroughTunnel(cloudflare)).toEqual({
+      kind: 'allowed',
+      crossOrigin: false,
+    });
   });
 
   it('refuses the tunnel hostname once the check found another server behind it', () => {
@@ -91,13 +96,18 @@ describe('CheckRequestOriginService', () => {
         localPort,
         allowedHosts: [],
         requireSameOrigin: false,
+        crossOrigin: 'refused',
+        credential: 'none',
       });
     const notAnswered = {
       kind: 'refused',
       refusal: { kind: 'host-not-allowed', hostname },
     };
 
-    expect(write(`https://${hostname}`)).toEqual({ kind: 'allowed' });
+    expect(write(`https://${hostname}`)).toEqual({
+      kind: 'allowed',
+      crossOrigin: false,
+    });
     expect(write(`http://${hostname}`)).toEqual({
       kind: 'refused',
       refusal: { kind: 'cross-origin', origin: `http://${hostname}` },

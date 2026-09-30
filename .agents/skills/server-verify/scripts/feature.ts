@@ -3,7 +3,7 @@ import type { ApiErrorCode } from '@porcelain/contracts/shared';
 export type Intent = 'observed' | 'intended';
 
 export type HttpRequest = {
-  method: 'GET' | 'HEAD' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+  method: 'GET' | 'HEAD' | 'OPTIONS' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   path: string;
   query?: Record<string, string | number | boolean>;
   body?: unknown;
