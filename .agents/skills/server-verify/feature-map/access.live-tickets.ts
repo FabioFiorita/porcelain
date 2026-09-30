@@ -14,10 +14,31 @@ import {
   type HttpRequest,
   type Session,
 } from '../scripts/feature.ts';
-import { liveTicketForm, pairDevice, read } from '../scripts/fixture.ts';
+import {
+  issuePairing,
+  liveTicketForm,
+  pairDevice,
+  read,
+} from '../scripts/fixture.ts';
 
 const app = 'http://app.example';
 const tickets = '/api/live/tickets';
+
+async function browserCookie(session: Session) {
+  const code = await issuePairing(session, 'Browser');
+  const paired = await session.read({
+    method: 'POST',
+    path: '/api/pair',
+    auth: 'none',
+    headers: { 'x-porcelain-browser': '1' },
+    body: { code, platform: 'Browser' },
+  });
+  const cookie = /porcelain_device=[^;]+/.exec(
+    paired.headers['set-cookie'] ?? '',
+  )?.[0];
+  if (!cookie) throw new Error('Browser pairing set no device cookie');
+  return cookie;
+}
 
 async function ticketFor(session: Session, credential?: string) {
   const issued = await read(session, {
@@ -216,6 +237,25 @@ export default defineFeature({
       request: (session, state) => upgradeWith(session, state.ticket),
       expect({ response, check }) {
         checkRefused(check, response);
+      },
+    }),
+    defineCase({
+      name: 'a ticket that was never issued, or an empty one, is refused without falling back to the device cookie',
+      setup: browserCookie,
+      request: (session, cookie) => [
+        upgradeWith(
+          session,
+          'pct_not-a-ticket',
+          new URL(session.address).origin,
+          { cookie },
+        ),
+        upgradeWith(session, '', new URL(session.address).origin, { cookie }),
+        upgradeWith(session, 'pct_not-a-ticket', app, { cookie }),
+      ],
+      expect({ responses, check }) {
+        checkRefused(check, responses[0], 'from the same origin');
+        checkRefused(check, responses[1], 'an empty ticket');
+        checkRefused(check, responses[2], 'from the app');
       },
     }),
     defineCase({

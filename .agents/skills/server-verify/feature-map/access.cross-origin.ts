@@ -284,6 +284,39 @@ export default defineFeature({
       },
     }),
     defineCase({
+      name: 'an empty or unknown bearer beside a valid cookie never authenticates by the cookie',
+      async setup(session) {
+        return {
+          cookie: await browserCookie(session),
+          name: await projectName(session),
+        };
+      },
+      request: (session, state) => [
+        rename(session, 'Empty bearer', {
+          headers: { ...fromApp, authorization: 'Bearer ' },
+          auth: { cookie: state.cookie },
+        }),
+        rename(session, 'Unknown bearer', {
+          headers: { ...fromApp, authorization: 'Bearer pcd_not-a-device' },
+          auth: { cookie: state.cookie },
+        }),
+        rename(session, 'Unknown bearer here', {
+          headers: { authorization: 'Bearer pcd_not-a-device' },
+          auth: { cookie: state.cookie },
+        }),
+      ],
+      async expect({ responses, state, session, check }) {
+        const [empty, unknown, here] = responses;
+        check('empty bearer status', 403, empty?.status);
+        check('empty bearer body', refusedFromApp, empty?.body);
+        check('unknown bearer status', 401, unknown?.status);
+        check('unknown bearer body', unauthenticated, unknown?.body);
+        check('same-origin unknown bearer status', 401, here?.status);
+        check('same-origin unknown bearer body', unauthenticated, here?.body);
+        check('the name is unchanged', state.name, await projectName(session));
+      },
+    }),
+    defineCase({
       name: 'a bearer client from a host the server does not answer to is refused',
       setup: projectName,
       request: (session) =>
