@@ -41,6 +41,7 @@ import { type CodeEntry, codeTarget } from '../adapters/code-entries';
 import { useToggleReviewed } from '../commands/reviewed';
 import { useComments } from '../queries/comments';
 import { isFolded } from '../rules/code-folds';
+import { groupSpecPaths, isSpecPath } from '../rules/spec-paths';
 import {
   anchorLabel,
   commentIsStale,
@@ -102,7 +103,7 @@ export function CodeDocument(props: Props) {
   );
 }
 function CodeSurface({
-  entries,
+  entries: given,
   scope,
   context: gitContext,
   interaction,
@@ -123,6 +124,7 @@ function CodeSurface({
 }) {
   const { dark } = useTheme();
   const { preferences } = usePreferences();
+  const entries = groupSpecPaths(given, preferences.collapseSpecs);
   const folds = useCodeFolds(interaction.worktreeId, interaction.entry);
   const viewer = useRef<CodeViewHandle<Note, undefined>>(null);
   const [composer, setComposer] = useState<{
@@ -142,7 +144,10 @@ function CodeSurface({
           isFolded(
             folds.folds,
             entry.id,
-            entries.length > 1 && entry.review?.reviewed === true,
+            (entries.length > 1 && entry.review?.reviewed === true) ||
+              ((collapsible || entries.length > 1) &&
+                preferences.collapseSpecs &&
+                isSpecPath(entry.path)),
           ),
       )
       .map((entry) => entry.id),

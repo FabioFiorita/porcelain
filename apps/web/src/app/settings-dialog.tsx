@@ -12,6 +12,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Switch } from '@/components/ui/switch';
 import { useIsMobile } from '@/shared/hooks/use-mobile';
 import { cn } from '@/shared/lib/utils';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -40,7 +41,11 @@ const items: { id: string; label: string; icon: LucideIcon }[] = [
     : []),
 ];
 
-function Choice<K extends keyof Preferences>({
+type ChoiceName = {
+  [K in keyof Preferences]: Preferences[K] extends string ? K : never;
+}[keyof Preferences];
+
+function Choice<K extends ChoiceName>({
   label,
   description,
   name,
@@ -78,6 +83,25 @@ function Choice<K extends keyof Preferences>({
           ))}
         </TabsList>
       </Tabs>
+    </div>
+  );
+}
+
+function SpecFilesSetting() {
+  const { preferences, setPreference } = usePreferences();
+  return (
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-8">
+      <div className="min-w-0">
+        <p className="text-sm font-medium">Spec files</p>
+        <p className="text-xs text-muted-foreground">
+          Group them after the other files and start them collapsed.
+        </p>
+      </div>
+      <Switch
+        aria-label="Spec files"
+        checked={preferences.collapseSpecs}
+        onCheckedChange={(checked) => setPreference('collapseSpecs', checked)}
+      />
     </div>
   );
 }
@@ -255,6 +279,7 @@ export function SettingsPage({
                     { value: 'wrap', label: 'Wrap' },
                   ]}
                 />
+                <SpecFilesSetting />
               </Group>
               <Group title="Documents">
                 <Choice
