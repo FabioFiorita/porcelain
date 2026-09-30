@@ -12,23 +12,15 @@ import { cn } from '@/shared/lib/utils';
 import { toast } from '@/components/ui/toast';
 import { useToggleReviewed } from '../commands/reviewed';
 import { useReviewedMarks } from '../queries/reviewed';
-import {
-  anchorPath,
-  type CommentAnchor,
-  type CommentThread,
-} from '../rules/comments';
-import { BRANCH, type DocumentRef, entryKey } from '../rules/documents';
+import { anchorPath, type CommentThread } from '../rules/comments';
+import { BRANCH, entryKey, type OpenDocument } from '../rules/documents';
 import { mergeBranchChanges, type ReviewScope } from '../rules/review';
 import { branchReviewRange, type ReviewsContext } from '../rules/reviewed';
 import { BranchBasePicker } from './branch-base-picker';
 import { ChangeRow, ROW } from './change-row';
 import { ReviewEmpty } from './review-empty';
-
-type OpenDocument = (
-  ref: DocumentRef,
-  anchor?: CommentAnchor,
-  options?: { compose?: boolean },
-) => void;
+import { groupSpecPaths } from '../rules/spec-paths';
+import { usePreferences } from '@/shared/workspace/preferences';
 
 export function BranchIndex({
   scope,
@@ -142,6 +134,7 @@ function BranchFileList({
   threads: readonly CommentThread[];
   onOpen: OpenDocument;
 }) {
+  const { preferences } = usePreferences();
   const range = branchReviewRange(branch);
   const marks = useReviewedMarks(scope, context, range);
   const reviewed = useToggleReviewed(
@@ -178,7 +171,7 @@ function BranchFileList({
             No changes since {branchName(branch.base.ref)}
           </p>
         )}
-        {items.map((item) => (
+        {groupSpecPaths(items, preferences.collapseSpecs).map((item) => (
           <ChangeRow
             key={item.path}
             path={item.path}

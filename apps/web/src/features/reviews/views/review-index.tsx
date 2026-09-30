@@ -40,6 +40,7 @@ import {
   entryKey,
   PROOF,
   UNEXPLAINED,
+  type OpenDocument,
 } from '../rules/documents';
 import { proofLabel, proofStatus } from '../rules/proof';
 import type { ReadinessKey } from '../rules/readiness';
@@ -58,12 +59,9 @@ import { DeleteResolved } from './delete-resolved';
 import { InlineComposer } from './inline-composer';
 import { BranchReadiness, ChangeReadiness } from './readiness-panel';
 import { ThreadCard } from './thread-card';
+import { groupSpecPaths } from '../rules/spec-paths';
+import { usePreferences } from '@/shared/workspace/preferences';
 
-type OpenDocument = (
-  ref: DocumentRef,
-  anchor?: CommentAnchor,
-  options?: { compose?: boolean },
-) => void;
 type Props = {
   scope: ReviewScope;
   context: DocumentContext;
@@ -233,7 +231,10 @@ function LayersView({
   changes: readonly ReviewChangeItem[];
   threads: readonly CommentThread[];
 }) {
-  const paths = list.changes.map((entry) => entry.path);
+  const { preferences } = usePreferences();
+  const paths = groupSpecPaths(list.changes, preferences.collapseSpecs).map(
+    (entry) => entry.path,
+  );
   const changeByPath = new Map(changes.map((item) => [item.path, item]));
   const reviewed = useToggleReviewed(scope, context, (notice) =>
     toast.add(notice),

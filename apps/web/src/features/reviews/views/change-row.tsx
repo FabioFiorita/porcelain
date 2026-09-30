@@ -19,15 +19,8 @@ import {
 import { cn } from '@/shared/lib/utils';
 import { copyText } from '@/shared/workspace/copy';
 import { FileTypeIcon } from '@/features/files/index';
-import type { CommentAnchor } from '../rules/comments';
-import type { DocumentRef } from '../rules/documents';
+import type { DocumentRef, OpenDocument } from '../rules/documents';
 import { basename, type ReviewStatus } from '../rules/review';
-
-type OpenDocument = (
-  ref: DocumentRef,
-  anchor?: CommentAnchor,
-  options?: { compose?: boolean },
-) => void;
 
 export const ROW =
   'flex w-full min-w-0 items-center gap-1.5 rounded-lg px-2 py-1 text-left text-[12.5px] transition-colors hover:bg-accent';
