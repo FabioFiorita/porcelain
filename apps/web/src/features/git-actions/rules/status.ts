@@ -119,9 +119,6 @@ export function gitActionBlocker(
       return branch?.stashes && branch.stashes.length === 0
         ? 'No stash is available.'
         : null;
-    case 'switch-branch':
-    case 'create-branch':
-      return null;
     case 'discard':
       return null;
   }
@@ -159,12 +156,6 @@ export function gitActionReason(
     case 'stash-apply':
     case 'stash-pop':
       return branch?.stashes == null ? 'Enter a full stash object ID.' : null;
-    case 'switch-branch':
-      return status.changes.length
-        ? 'Uncommitted files come along unless Git refuses the switch.'
-        : null;
-    case 'create-branch':
-      return 'Starts at the currently displayed commit.';
     case 'discard':
       return null;
   }

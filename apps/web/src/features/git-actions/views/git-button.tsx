@@ -51,7 +51,6 @@ import {
   statusFromChanges,
   suggestedCount,
 } from '../rules/status';
-import { BranchDialog } from './branch-dialog';
 import { GitActionIcon } from './git-action-icon';
 import { GitActionInspection } from './git-action-inspection';
 import { GitActionMessage } from './git-action-message';
@@ -320,18 +319,7 @@ export function GitButton({
         </DropdownMenu>
       </ButtonGroup>
 
-      {action === 'switch-branch' || action === 'create-branch' ? (
-        <BranchDialog
-          scope={scope}
-          context={context}
-          open
-          mode={action === 'switch-branch' ? 'switch' : 'create'}
-          status={{ ...status, branch: overview.changes.branch }}
-          onOpenChange={(open) => {
-            if (!open) setAction(null);
-          }}
-        />
-      ) : action != null ? (
+      {action != null ? (
         <Dialog
           open
           disablePointerDismissal

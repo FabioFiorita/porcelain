@@ -3,8 +3,6 @@ import {
   ArchiveRestoreIcon,
   ArrowDownIcon,
   ArrowUpIcon,
-  GitBranchIcon,
-  GitBranchPlusIcon,
   GitCommitHorizontalIcon,
   HistoryIcon,
 } from 'lucide-react';
@@ -30,10 +28,6 @@ export function GitActionIcon({
     case 'stash-apply':
     case 'stash-pop':
       return <ArchiveRestoreIcon className={className} />;
-    case 'switch-branch':
-      return <GitBranchIcon className={className} />;
-    case 'create-branch':
-      return <GitBranchPlusIcon className={className} />;
     default:
       return <GitCommitHorizontalIcon className={className} />;
   }

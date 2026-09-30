@@ -6,7 +6,14 @@ const readme = { path: 'README.md', fingerprint: 'a'.repeat(64) };
 describe('gitActionTarget', () => {
   it('leaves an action that expects no files unchecked', () => {
     expect(
-      gitActionTarget({ action: 'switch-branch', branch: 'main' }, {}),
+      gitActionTarget(
+        {
+          action: 'fetch',
+          remoteName: 'origin',
+          sourceRef: 'refs/heads/main',
+        },
+        {},
+      ),
     ).toEqual({ kind: 'unchecked' });
   });
 

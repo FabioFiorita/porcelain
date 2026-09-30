@@ -11,7 +11,9 @@ import {
 } from '../scripts/feature.ts';
 import {
   expectation,
+  fingerprintOf,
   gitPath,
+  head,
   receiptPath,
   receiptRoute,
   settledReceipt,
@@ -28,6 +30,8 @@ export default defineFeature({
     defineCase({
       name: 'a settled action',
       async setup(session) {
+        const path = 'note.txt';
+        await session.writeFile(path, 'A note\n');
         const requestId = randomUUID();
         await session.read(
           {
@@ -36,11 +40,16 @@ export default defineFeature({
             body: {
               requestId,
               input: {
-                action: 'create-branch',
-                branch: 'feature',
-                switchTo: false,
+                action: 'commit',
+                message: 'Keep a note',
+                paths: [path],
               },
-              expected: await expectation(session),
+              expected: {
+                ...(await expectation(session)),
+                files: [
+                  { path, fingerprint: await fingerprintOf(session, path) },
+                ],
+              },
             },
           },
           202,
@@ -52,7 +61,14 @@ export default defineFeature({
         method: 'GET',
         path: receiptPath(session, requestId),
       }),
-      expect({ response, state, session, check, checkPartial, checkContract }) {
+      async expect({
+        response,
+        state,
+        session,
+        check,
+        checkPartial,
+        checkContract,
+      }) {
         check('status', 200, response.status);
         checkContract(
           'contract',
@@ -65,10 +81,10 @@ export default defineFeature({
             requestId: state,
             projectId: session.projectId,
             worktreeId: session.worktreeId,
-            action: 'create-branch',
+            action: 'commit',
             state: 'succeeded',
             progress: [],
-            result: { branch: 'feature' },
+            result: { headOid: await head(session) },
           },
           response.body,
         );
@@ -85,13 +101,14 @@ export default defineFeature({
             body: {
               requestId,
               input: {
-                action: 'create-branch',
-                branch: 'too-late',
-                switchTo: false,
+                action: 'fetch',
+                remoteName: 'origin',
+                sourceRef: `refs/heads/${session.fixture.branch}`,
               },
               expected: {
                 ...(await expectation(session)),
                 headOid: unknownOid,
+                upstreamOid: unknownOid,
               },
             },
           },
@@ -115,7 +132,7 @@ export default defineFeature({
           'receipt',
           {
             requestId: state,
-            action: 'create-branch',
+            action: 'fetch',
             state: 'rejected',
             reason: 'CHANGED_SINCE_LOOKED',
           },
@@ -134,11 +151,15 @@ export default defineFeature({
             body: {
               requestId,
               input: {
-                action: 'create-branch',
-                branch: 'elsewhere',
-                switchTo: false,
+                action: 'fetch',
+                remoteName: 'origin',
+                sourceRef: `refs/heads/${session.fixture.branch}`,
               },
-              expected: await expectation(session),
+              expected: {
+                ...(await expectation(session)),
+                headOid: unknownOid,
+                upstreamOid: unknownOid,
+              },
             },
           },
           202,

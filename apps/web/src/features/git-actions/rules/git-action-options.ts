@@ -47,23 +47,12 @@ export const gitActions = [
     label: 'Pop stash',
     description: 'Restore, then remove a stash',
   },
-  {
-    id: 'switch-branch',
-    label: 'Switch branch',
-    description: 'Check out another local branch',
-  },
-  {
-    id: 'create-branch',
-    label: 'Create branch',
-    description: 'Start a branch from the current commit',
-  },
 ] as const satisfies readonly GitActionOption[];
 
 export const gitActionGroups = [
   { id: 'commit', actions: [gitActions[0], gitActions[1]] },
   { id: 'sync', actions: [gitActions[2], gitActions[3], gitActions[4]] },
   { id: 'stash', actions: [gitActions[5], gitActions[7]] },
-  { id: 'branch', actions: [gitActions[8], gitActions[9]] },
 ] as const;
 
 export function gitActionLabel(action: GitAction) {

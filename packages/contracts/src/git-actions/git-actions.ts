@@ -28,11 +28,6 @@ const refSchema = z
   .max(GIT_REF_LENGTH)
   .regex(/^refs\/heads\/[\s\S]/u)
   .refine((value) => !value.includes('\0'));
-const branchSchema = z
-  .string()
-  .min(1)
-  .max(GIT_REF_LENGTH)
-  .refine((value) => !value.includes('\0'));
 const remoteSchema = z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,99}$/);
 const expectedFileSchema = z.strictObject({
   path: relativePathSchema,
@@ -96,15 +91,6 @@ const gitActionIntentSchema = z.discriminatedUnion('action', [
         endLine: z.number().int().positive(),
       })
       .optional(),
-  }),
-  z.strictObject({
-    action: z.literal('switch-branch'),
-    branch: branchSchema,
-  }),
-  z.strictObject({
-    action: z.literal('create-branch'),
-    branch: branchSchema,
-    switchTo: z.boolean(),
   }),
 ]);
 
