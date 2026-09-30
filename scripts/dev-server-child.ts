@@ -355,7 +355,7 @@ try {
       },
     },
     shutdown.signal,
-    { serviceUpdateRunner },
+    { serviceUpdateRunner, version: fixture.serviceUpdate.version },
   );
   const [grant] = issuedPairingSchema.parse(
     await askOwner(

@@ -46,6 +46,7 @@ import { ClearBrowserSessionUseCase } from '../use-cases/access/clear-browser-se
 import { FlushDeviceActivityUseCase } from '../use-cases/access/flush-device-activity.ts';
 import { IssuePairingUseCase } from '../use-cases/access/issue-pairing.ts';
 import { ListAccessUseCase } from '../use-cases/access/list-access.ts';
+import { ReadEnvironmentUseCase } from '../use-cases/access/read-environment.ts';
 import { ReadHealthUseCase } from '../use-cases/access/read-health.ts';
 import { ReadOwnerStatusUseCase } from '../use-cases/access/read-owner-status.ts';
 import { RedeemPairingUseCase } from '../use-cases/access/redeem-pairing.ts';
@@ -64,6 +65,7 @@ type AccessDependencies = {
   pairingReachReader: PairingReachReader;
   runtimeStatusReader: RuntimeStatusReader;
   serviceUpdateRunner: ServiceUpdateRunner;
+  serverVersion: string | undefined;
   networkAddressReader: NetworkAddressReader;
   routeListenerRunner: RouteListenerRunner;
   tunnelProbe: TunnelProbe;
@@ -212,6 +214,16 @@ export function composeAccess(
       laneKeys,
     ),
     readHealth: new ReadHealthUseCase(readEnvironment, lanes, laneKeys),
+    readEnvironment: new ReadEnvironmentUseCase(
+      readEnvironment,
+      dependencies.shared.readEnvironmentName,
+      lanes,
+      laneKeys,
+      {
+        version: dependencies.serverVersion,
+        protocol: limits.environment.protocol,
+      },
+    ),
     readOwnerStatus: new ReadOwnerStatusUseCase(
       new ReadOwnerStatusService(dependencies.runtimeStatusReader),
       lanes,

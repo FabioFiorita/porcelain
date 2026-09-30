@@ -11,6 +11,7 @@ import {
   DEVICE_LABEL_LENGTH,
   DEVICE_PLATFORM_LENGTH,
   DIRECTORY_ENTRIES,
+  ENVIRONMENT_PROTOCOL,
   PATH_LENGTH,
   TUNNEL_HOSTNAME_LENGTH,
   REVIEW_PROOF_BYTES,
@@ -39,6 +40,7 @@ type ProcessGroupLimits = typeof PROCESS_GROUP;
 
 export type Limits = {
   access: {
+    environment: { protocol: number };
     pairingGrant: { lifetimeMs: number };
     device: { unusedLifetimeMs: number; cookieMaxAgeSeconds: number };
     deviceDetails: { labelLength: number; platformLength: number };
@@ -218,6 +220,7 @@ export type Limits = {
 
 export const LIMITS: Limits = {
   access: {
+    environment: { protocol: ENVIRONMENT_PROTOCOL },
     pairingGrant: { lifetimeMs: 15 * MINUTE_MS },
     device: {
       unusedLifetimeMs: DEVICE_LIFETIME_MS,

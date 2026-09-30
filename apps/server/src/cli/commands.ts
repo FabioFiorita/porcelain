@@ -6,7 +6,10 @@ import type { CliCommand } from './arguments.ts';
 import { serveHelp } from './help.ts';
 import { runLocalServer, type StartServer } from './launcher.ts';
 import { runMcpBridge } from './mcp-bridge.ts';
-import { openServiceUpdateRunner } from '../installer/index.ts';
+import {
+  openServiceUpdateRunner,
+  readPackageVersion,
+} from '../installer/index.ts';
 import { cliPackageRoot, runServiceCommand } from './service.ts';
 import { reportStatus } from './status.ts';
 
@@ -85,6 +88,7 @@ export async function runCommand(
             searchPath: context.searchPath,
             command: context.limits.installer.command,
           }),
+          version: await readPackageVersion(cliPackageRoot()),
         },
         output: (message) => context.stdout(`${message}\n`),
       });

@@ -1,6 +1,8 @@
 export {
+  readEnvironmentResponseSchema,
   renameEnvironmentRequestSchema,
   renameEnvironmentResponseSchema,
+  type ReadEnvironmentResponse,
   type RenameEnvironmentRequest,
   type RenameEnvironmentResponse,
 } from './environment.ts';

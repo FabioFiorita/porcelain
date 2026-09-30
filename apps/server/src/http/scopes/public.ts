@@ -1,6 +1,7 @@
 import type { Limits } from '../../config/limits.ts';
 import type { FastifyInstance } from 'fastify';
 import type { ClearBrowserSessionUseCase } from '../../use-cases/access/clear-browser-session.ts';
+import type { ReadEnvironmentUseCase } from '../../use-cases/access/read-environment.ts';
 import type { ReadHealthUseCase } from '../../use-cases/access/read-health.ts';
 import type { RedeemPairingUseCase } from '../../use-cases/access/redeem-pairing.ts';
 import {
@@ -14,12 +15,14 @@ import {
   type PairingAttemptOptions,
 } from '../hooks/pairing-attempts.ts';
 import { clearBrowserSession } from '../routes/access/clear-browser-session.ts';
+import { readEnvironment } from '../routes/access/read-environment.ts';
 import { readHealth } from '../routes/access/read-health.ts';
 import { redeemPairing } from '../routes/access/redeem-pairing.ts';
 
 export type PublicUseCases = {
   access: PairingAttemptOptions['access'] & {
     clearBrowserSession: Pick<ClearBrowserSessionUseCase, 'execute'>;
+    readEnvironment: Pick<ReadEnvironmentUseCase, 'execute'>;
     readHealth: Pick<ReadHealthUseCase, 'execute'>;
     redeemPairing: Pick<RedeemPairingUseCase, 'execute'>;
   };
@@ -32,6 +35,9 @@ export async function publicScope(
   const { application } = options;
   server.register(readHealth, {
     useCase: application.access.readHealth,
+  });
+  server.register(readEnvironment, {
+    useCase: application.access.readEnvironment,
   });
   server.register(async (session) => {
     session.addHook('preHandler', requireBrowserRequest);

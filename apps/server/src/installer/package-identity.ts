@@ -21,3 +21,14 @@ export async function readPackageIdentity(
     throw new NotPackagedCliError();
   return { packageRoot, packageVersion: manifest.value.version };
 }
+
+export async function readPackageVersion(
+  packageRoot: string,
+): Promise<string | undefined> {
+  try {
+    return (await readPackageIdentity(packageRoot)).packageVersion;
+  } catch (error) {
+    if (error instanceof NotPackagedCliError) return undefined;
+    throw error;
+  }
+}

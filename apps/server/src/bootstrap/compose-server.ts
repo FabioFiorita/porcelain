@@ -125,6 +125,7 @@ const openServerWith =
       ),
       runtimeStatusReader: new ProcessRuntimeStatusReader(input.runtimeStatus),
       serviceUpdateRunner: host.serviceUpdateRunner,
+      serverVersion: host.version,
       networkAddressReader: adapters.networkAddressReader,
       routeListenerRunner,
       tunnelProbe: adapters.tunnelProbe({
