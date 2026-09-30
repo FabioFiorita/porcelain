@@ -194,7 +194,12 @@ export type Limits = {
     health: { attempts: number; intervalMs: number };
   };
   listeners: { closeGraceMs: number };
-  cli: { printedAddressLength: number; printedIdLength: number };
+  cli: {
+    printedAddressLength: number;
+    printedIdLength: number;
+    shareSettleMs: number;
+    sharePollMs: number;
+  };
   agents: {
     processGroup: ProcessGroupLimits;
     processDeadlineMs: number;
@@ -401,7 +406,12 @@ export const LIMITS: Limits = {
     health: { attempts: 60, intervalMs: 250 },
   },
   listeners: { closeGraceMs: 5 * SECOND_MS },
-  cli: { printedAddressLength: 60, printedIdLength: 80 },
+  cli: {
+    printedAddressLength: 60,
+    printedIdLength: 80,
+    shareSettleMs: 15 * SECOND_MS,
+    sharePollMs: 250,
+  },
   agents: {
     processGroup: PROCESS_GROUP,
     processDeadlineMs: 2 * MINUTE_MS,

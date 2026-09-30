@@ -3,8 +3,10 @@ import { ownerSocketPath } from '../config/owner-socket-settings.ts';
 import { OwnerRequestError } from './errors/owner-request-error.ts';
 import { OwnerSocketTimeoutError } from './errors/owner-socket-timeout-error.ts';
 
+type OwnerMethod = 'GET' | 'POST' | 'PATCH';
+
 type OwnerExchange = {
-  method: 'GET' | 'POST';
+  method: OwnerMethod;
   path: string;
   body?: string | undefined;
   headers?: Record<string, string> | undefined;
@@ -88,7 +90,7 @@ function messageFrom(answer: OwnerAnswer): string {
 
 export async function askOwner(
   dataDirectory: string,
-  method: 'GET' | 'POST',
+  method: OwnerMethod,
   path: string,
   body: unknown,
   timeoutMs: number,

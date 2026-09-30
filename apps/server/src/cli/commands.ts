@@ -11,6 +11,7 @@ import {
   readPackageVersion,
 } from '../installer/index.ts';
 import { cliPackageRoot, runServiceCommand } from './service.ts';
+import { shareRemoteAccess } from './share-command.ts';
 import { reportStatus } from './status.ts';
 
 type CommandContext = {
@@ -21,6 +22,7 @@ type CommandContext = {
   ownerProbe: OwnerProbe;
   startServer: StartServer;
   limits: Limits;
+  wait: (ms: number) => Promise<void>;
   stdout: (message: string) => void;
   stderr: (message: string) => void;
 };
@@ -62,6 +64,14 @@ export async function runCommand(
       ))
         ? 0
         : 1;
+    case 'share':
+      return shareRemoteAccess(
+        command.settings.dataDirectory,
+        command.settings.action,
+        output,
+        context.limits,
+        context.wait,
+      );
     case 'mcp':
       await runMcpBridge(
         command.settings.dataDirectory,

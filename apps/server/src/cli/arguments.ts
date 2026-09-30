@@ -51,6 +51,18 @@ type RevokeSettings = {
   id: string;
 };
 
+export type ShareAction =
+  | { kind: 'show' }
+  | { kind: 'check' }
+  | { kind: 'lan'; on: boolean }
+  | { kind: 'tailnet'; hostname: string | undefined }
+  | { kind: 'cloudflare'; hostname: string | undefined };
+
+type ShareSettings = {
+  dataDirectory: string;
+  action: ShareAction;
+};
+
 export type CliCommand =
   | { command: 'help' }
   | { command: 'serve'; settings: ServeSettings }
@@ -58,6 +70,7 @@ export type CliCommand =
   | { command: 'pair'; settings: PairSettings }
   | { command: 'devices'; settings: StatusSettings }
   | { command: 'revoke'; settings: RevokeSettings }
+  | { command: 'share'; settings: ShareSettings }
   | { command: 'mcp'; settings: StatusSettings }
   | { command: 'service'; settings: ServiceSettings };
 
@@ -185,6 +198,7 @@ function parseArguments(args: readonly string[]): ServeArguments {
     command === 'pair' ||
     command === 'devices' ||
     command === 'revoke' ||
+    command === 'share' ||
     command === 'mcp'
   ) {
     parsed.command = command;
@@ -287,6 +301,29 @@ function parseArguments(args: readonly string[]): ServeArguments {
   return parsed;
 }
 
+const SHARE_USAGE =
+  'share takes no route to show sharing, or one of: lan on|off, tailscale <name>|off, cloudflare <hostname>|off, check';
+
+function shareAction(operands: readonly string[]): ShareAction {
+  const [route, value, ...rest] = operands;
+  if (rest.length > 0) throw new ServeConfigurationError(SHARE_USAGE);
+  if (route === undefined) return { kind: 'show' };
+  if (route === 'check' && value === undefined) return { kind: 'check' };
+  if (route === 'lan' && (value === 'on' || value === 'off'))
+    return { kind: 'lan', on: value === 'on' };
+  if (route === 'tailscale' && value !== undefined)
+    return {
+      kind: 'tailnet',
+      hostname: value === 'off' ? undefined : value,
+    };
+  if (route === 'cloudflare' && value !== undefined)
+    return {
+      kind: 'cloudflare',
+      hostname: value === 'off' ? undefined : value,
+    };
+  throw new ServeConfigurationError(SHARE_USAGE);
+}
+
 function dataDirectoryFor(
   parsed: ServeArguments,
   environment: EnvironmentSettings,
@@ -338,6 +375,11 @@ export function parseCliArguments(
       },
     };
   }
+  if (parsed.command === 'share')
+    return {
+      command: 'share',
+      settings: { dataDirectory, action: shareAction(parsed.operands) },
+    };
   if (parsed.command === 'revoke') {
     const id = parsed.operands[0];
     if (parsed.operands.length !== 1 || !id)
