@@ -2,6 +2,7 @@ import cors from '@fastify/cors';
 import type { Limits } from '../../config/limits.ts';
 import type { FastifyInstance } from 'fastify';
 import type { AuthenticateOptions } from '../hooks/authenticate.ts';
+import { crossOriginClients } from '../hooks/cross-origin-clients.ts';
 import { preventCaching } from '../hooks/prevent-caching.ts';
 import {
   checkRequestOrigin,
@@ -32,11 +33,9 @@ export async function apiScope(
   const origins = { access: application.access, allowedHosts };
   server.addHook('onRequest', preventCaching);
   server.register(cors, {
-    origin: '*',
-    credentials: false,
-    methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE'],
-    allowedHeaders: ['authorization', 'content-type'],
-    maxAge: limits.http.corsMaxAgeSeconds,
+    delegator: crossOriginClients({
+      maxAgeSeconds: limits.http.corsMaxAgeSeconds,
+    }),
   });
   server.register(liveScope, { application, allowedHosts, limits });
   server.register(publicScope, { application, allowedHosts, limits });

@@ -1,5 +1,7 @@
 import {
   listAccessResponseSchema,
+  readEnvironmentResponseSchema,
+  readHealthResponseSchema,
   redeemPairingResponseSchema,
 } from '@porcelain/contracts/access';
 import {
@@ -67,6 +69,7 @@ async function browserCookie(session: Session) {
 export default defineFeature({
   feature: 'access.cross-origin',
   reaches: [
+    'GET /api/environment',
     'GET /api/inventory',
     'PATCH /api/projects/:projectId',
     'POST /api/pair',
@@ -76,7 +79,7 @@ export default defineFeature({
   paired: false,
   intent: 'intended',
   behaviour:
-    'An app served from another origin, such as the desktop app holding several environments, uses a server with the bearer credential it paired for. The API answers a CORS preflight before any origin or credential check, lets any origin read the answers, and never allows credentials, so a device cookie never works across origins. A request that carries a bearer credential may come from any origin, while a cookie-authenticated or unauthenticated write from another origin is refused exactly as before, and the Host allowlist still applies to everyone. A pairing code is redeemable from any origin, since the code is the secret: the credential comes back in the body, bound to the route the request reached, and a cross-origin redemption never sets a cookie. Sharing and device management stay with a browser on the computer that runs Porcelain.',
+    'An app served from another origin, such as the desktop app holding several environments, uses a server with the bearer credential it paired for. The API answers a CORS preflight that asks to send a bearer credential, or to redeem a pairing code, before any origin or credential check; it lets any origin read the answers to requests that carry a bearer credential and to pairing redemptions, and never allows credentials, so a device cookie never works across origins. A page on another origin gets no CORS headers for anything else, so it cannot read the public environment descriptor or health of a server on this computer. A request that carries a bearer credential may come from any origin, while a cookie-authenticated or unauthenticated write from another origin is refused exactly as before, and the Host allowlist still applies to everyone. A pairing code is redeemable from any origin, since the code is the secret: the credential comes back in the body, bound to the route the request reached, and a cross-origin redemption never sets a cookie. Sharing and device management stay with a browser on the computer that runs Porcelain.',
   cases: [
     defineCase({
       name: 'a preflight is answered before any origin or credential check',
@@ -112,6 +115,95 @@ export default defineFeature({
           'cached for ten minutes',
           '600',
           response.headers['access-control-max-age'],
+        );
+        check(
+          'credentials are never allowed',
+          undefined,
+          response.headers['access-control-allow-credentials'],
+        );
+      },
+    }),
+    defineCase({
+      name: 'a page on another origin cannot read public answers, a bearer client can',
+      request: () => [
+        {
+          method: 'GET',
+          path: '/api/environment',
+          headers: fromApp,
+          auth: 'none',
+        },
+        { method: 'GET', path: '/api/health', headers: fromApp, auth: 'none' },
+        { method: 'GET', path: '/api/environment', headers: fromApp },
+        {
+          method: 'OPTIONS',
+          path: '/api/environment',
+          auth: 'none',
+          headers: { origin: app, 'access-control-request-method': 'GET' },
+        },
+      ],
+      expect({ responses, check, checkContract }) {
+        const [anonymous, health, bearer, preflight] = responses;
+        check('anonymous status', 200, anonymous?.status);
+        checkContract(
+          'anonymous body',
+          readEnvironmentResponseSchema,
+          anonymous?.body,
+        );
+        check(
+          'no CORS header without a bearer credential',
+          undefined,
+          anonymous?.headers['access-control-allow-origin'],
+        );
+        check('health status', 200, health?.status);
+        checkContract('health body', readHealthResponseSchema, health?.body);
+        check(
+          'no CORS header on health',
+          undefined,
+          health?.headers['access-control-allow-origin'],
+        );
+        check('bearer status', 200, bearer?.status);
+        check('bearer body', anonymous?.body, bearer?.body);
+        check(
+          'a bearer client reads it from any origin',
+          '*',
+          bearer?.headers['access-control-allow-origin'],
+        );
+        check('preflight without a bearer status', 404, preflight?.status);
+        check(
+          'preflight without a bearer body',
+          apiError(
+            404,
+            'Not Found',
+            'Route OPTIONS:/api/environment not found',
+          ),
+          preflight?.body,
+        );
+        check(
+          'no CORS header on that preflight',
+          undefined,
+          preflight?.headers['access-control-allow-origin'],
+        );
+      },
+    }),
+    defineCase({
+      name: 'a pairing redemption may be preflighted from another origin',
+      request: () => ({
+        method: 'OPTIONS',
+        path: '/api/pair',
+        auth: 'none',
+        headers: {
+          origin: app,
+          'access-control-request-method': 'POST',
+          'access-control-request-headers': 'content-type',
+        },
+      }),
+      expect({ response, check }) {
+        check('status', 204, response.status);
+        check('no body', undefined, response.body);
+        check(
+          'any origin',
+          '*',
+          response.headers['access-control-allow-origin'],
         );
         check(
           'credentials are never allowed',
