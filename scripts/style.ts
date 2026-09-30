@@ -964,6 +964,67 @@ function webSources(): string[] {
   );
 }
 
+const cloneSchema = z.object({
+  duplicates: z.array(
+    z.object({
+      lines: z.number(),
+      firstFile: z.object({ name: z.string(), start: z.number() }),
+      secondFile: z.object({ name: z.string(), start: z.number() }),
+    }),
+  ),
+});
+
+function duplicateFindings(): Finding[] {
+  const scratch = mkdtempSync(join(tmpdir(), 'porcelain-duplicates-'));
+  try {
+    const result = spawnSync(
+      join('node_modules', '.bin', 'jscpd'),
+      [
+        '--format',
+        'typescript,tsx',
+        '--min-tokens',
+        '50',
+        '--min-lines',
+        '5',
+        '--mode',
+        'mild',
+        '--ignore',
+        '**/components/ui/**,**/routeTree.gen.ts,**/*.spec.ts',
+        '--absolute',
+        '--no-colors',
+        '--reporters',
+        'json',
+        '--output',
+        scratch,
+        'apps/web/src',
+      ],
+      { encoding: 'utf8' },
+    );
+    if (result.error) throw result.error;
+    if (result.status !== 0)
+      throw new Error(`jscpd failed:\n${result.stdout}${result.stderr}`);
+    const report = cloneSchema.parse(
+      JSON.parse(readFileSync(join(scratch, 'jscpd-report.json'), 'utf8')),
+    );
+    const at = (name: string) => relative('.', name);
+    return report.duplicates.flatMap((clone) =>
+      [
+        [clone.firstFile, clone.secondFile],
+        [clone.secondFile, clone.firstFile],
+      ].map(([here, there]) => ({
+        rule: 'style/duplicate-code',
+        file: at(here?.name ?? ''),
+        line: here?.start ?? 0,
+        column: 0,
+        code: 'error style(duplicate-code)',
+        message: `${clone.lines} lines here repeat ${at(there?.name ?? '')}:${there?.start ?? 0}; a second copy is extracted into its owner (components/ui, shared/ or the feature), never pasted.`,
+      })),
+    );
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+}
+
 async function lint(): Promise<number> {
   const files = roots
     .flatMap(filesUnder)
@@ -1010,7 +1071,7 @@ async function lint(): Promise<number> {
   const settled = settleBaseline(
     readBaseline('.'),
     (rule) => target === 'web' && rule.includes('/'),
-    [...linted, ...compiled],
+    [...linted, ...compiled, ...(target === 'web' ? duplicateFindings() : [])],
   );
   for (const finding of settled.reported)
     process.stdout.write(
