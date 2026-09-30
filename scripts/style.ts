@@ -34,6 +34,7 @@ import {
   unknownRule,
 } from '../architecture/probe.ts';
 import { compilerFindings } from '../architecture/react-compiler.ts';
+import { pinProblems } from '../architecture/shadcn-pins.ts';
 import { manualAuditProblems } from '../architecture/ci-policy.ts';
 
 const [mode, target] = process.argv.slice(2);
@@ -1030,6 +1031,9 @@ if (mode === 'format') {
       throw error;
     })),
     ...(target === 'web' ? await routeTreeProblems() : []),
+    ...(target === 'web'
+      ? pinProblems('.').map((found) => problem('shadcn-ui-pinned', found))
+      : []),
   ];
   for (const { rule, message } of problems)
     process.stderr.write(`error style(${rule}): ${message}\n`);

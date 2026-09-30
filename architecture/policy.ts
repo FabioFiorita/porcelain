@@ -340,6 +340,7 @@ export const styleRules = [
   'react-compiler',
   'web-baseline',
   'web-journey-baseline',
+  'shadcn-ui-pinned',
 ] as const;
 
 export type StyleRule = (typeof styleRules)[number];
