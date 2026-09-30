@@ -84,6 +84,19 @@ function RouteStatus({
   );
 }
 
+function Group({ title, children }: { title?: string; children: ReactNode }) {
+  return (
+    <section className="flex flex-col gap-2.5">
+      {title && (
+        <h3 className="px-1 text-sm font-medium text-foreground/70">{title}</h3>
+      )}
+      <div className="flex flex-col divide-y overflow-hidden rounded-xl border bg-card *:px-4 *:py-3">
+        {children}
+      </div>
+    </section>
+  );
+}
+
 function RouteRow({
   name,
   route,
@@ -234,48 +247,54 @@ export function RemoteRoutes({
   const change = useSetRemoteAccess(connection);
   const disabled = change.isPending;
   return (
-    <div className="flex flex-col gap-4">
-      <RouteRow
-        name="lan"
-        route={remote.routes.lan}
-        disabled={
-          disabled ||
-          (!remote.routes.lan.enabled && remote.localNetwork === undefined)
-        }
-        onChange={(lan) => change.submit({ lan })}
-      >
-        <LocalNetworkSettings
-          remote={remote}
-          disabled={disabled}
-          onTurnOn={() => change.submit({ lan: true })}
-        />
-      </RouteRow>
-      <RouteRow
-        name="tailnet"
-        route={remote.routes.tailnet}
-        disabled={disabled}
-        onChange={(tailnet) => change.submit({ tailnet })}
-      />
-      <RouteRow
-        name="cloudflare"
-        route={remote.routes.cloudflare}
-        disabled={disabled || remote.cloudflareHostname === undefined}
-        onChange={(cloudflare) => change.submit({ cloudflare })}
-      >
-        <TunnelSettings
-          remote={remote}
-          disabled={disabled}
-          onSave={(cloudflareHostname) =>
-            change.submit({
-              cloudflareHostname,
-              ...(remote.cloudflareHostname === undefined
-                ? { cloudflare: true }
-                : {}),
-            })
+    <>
+      <Group>
+        <RouteRow
+          name="lan"
+          route={remote.routes.lan}
+          disabled={
+            disabled ||
+            (!remote.routes.lan.enabled && remote.localNetwork === undefined)
           }
-          onCheck={() => change.submit({ cloudflare: true })}
+          onChange={(lan) => change.submit({ lan })}
+        >
+          <LocalNetworkSettings
+            remote={remote}
+            disabled={disabled}
+            onTurnOn={() => change.submit({ lan: true })}
+          />
+        </RouteRow>
+      </Group>
+      <Group>
+        <RouteRow
+          name="tailnet"
+          route={remote.routes.tailnet}
+          disabled={disabled}
+          onChange={(tailnet) => change.submit({ tailnet })}
         />
-      </RouteRow>
+      </Group>
+      <Group>
+        <RouteRow
+          name="cloudflare"
+          route={remote.routes.cloudflare}
+          disabled={disabled || remote.cloudflareHostname === undefined}
+          onChange={(cloudflare) => change.submit({ cloudflare })}
+        >
+          <TunnelSettings
+            remote={remote}
+            disabled={disabled}
+            onSave={(cloudflareHostname) =>
+              change.submit({
+                cloudflareHostname,
+                ...(remote.cloudflareHostname === undefined
+                  ? { cloudflare: true }
+                  : {}),
+              })
+            }
+            onCheck={() => change.submit({ cloudflare: true })}
+          />
+        </RouteRow>
+      </Group>
       {change.error && (
         <Alert variant="destructive">
           <AlertDescription>
@@ -283,6 +302,6 @@ export function RemoteRoutes({
           </AlertDescription>
         </Alert>
       )}
-    </div>
+    </>
   );
 }

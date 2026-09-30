@@ -11,6 +11,12 @@ import {
 import { useNavigate } from '@tanstack/react-router';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbList,
+  BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Switch } from '@/components/ui/switch';
@@ -35,11 +41,11 @@ const mcpCommand = 'claude mcp add porcelain -- porcelain mcp';
 const items: { id: string; label: string; icon: LucideIcon }[] = [
   { id: 'appearance', label: 'Appearance', icon: PaletteIcon },
   { id: 'git', label: 'Git and agents', icon: GitBranchIcon },
-  { id: 'updates', label: 'Updates', icon: RefreshCwIcon },
   { id: 'connection', label: 'Connection', icon: UnplugIcon },
   ...(desktopShell
     ? [{ id: 'sharing', label: 'Sharing', icon: Share2Icon }]
     : []),
+  { id: 'updates', label: 'Updates', icon: RefreshCwIcon },
 ];
 
 type ChoiceName = {
@@ -123,17 +129,19 @@ function Group({ title, children }: { title?: string; children: ReactNode }) {
 function Page({
   id,
   title,
+  current,
   children,
 }: {
   id: string;
   title: string;
+  current: string;
   children: ReactNode;
 }) {
   return (
     <section id={id} className="h-full">
       <ScrollArea className="h-full">
         <div className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-6 py-6">
-          <h2 className="text-base font-medium">{title}</h2>
+          {id !== current && <h2 className="text-base font-medium">{title}</h2>}
           {children}
         </div>
       </ScrollArea>
@@ -190,6 +198,7 @@ export function SettingsPage({
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
   }, [navigate, projectId, worktreeId]);
+  const section = items.find((item) => item.id === current) ?? items[0];
   const page = (
     <div
       role="dialog"
@@ -249,12 +258,22 @@ export function SettingsPage({
         </nav>
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           <header className="flex h-11 items-center border-b px-6">
-            <h2 className="font-heading text-base leading-none font-medium">
-              Settings
-            </h2>
+            <Breadcrumb>
+              <BreadcrumbList className="flex-nowrap">
+                <BreadcrumbItem>
+                  <span>Settings</span>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                  <h2 className="font-heading text-base leading-none font-medium text-foreground">
+                    {section?.label}
+                  </h2>
+                </BreadcrumbItem>
+              </BreadcrumbList>
+            </Breadcrumb>
           </header>
           <div ref={frameRef} className="min-h-0 flex-1 overflow-hidden">
-            <Page id="appearance" title="Appearance">
+            <Page id="appearance" title="Appearance" current={current}>
               <Group>
                 <Choice
                   label="Theme"
@@ -309,7 +328,7 @@ export function SettingsPage({
                 />
               </Group>
             </Page>
-            <Page id="git" title="Git and agents">
+            <Page id="git" title="Git and agents" current={current}>
               <Group title="Git">
                 <Choice
                   label="Pull strategy"
@@ -347,23 +366,21 @@ export function SettingsPage({
                 </div>
               </Group>
             </Page>
-            <Page id="updates" title="Updates">
-              <Group>
-                <ServiceUpdateSettings />
-              </Group>
-            </Page>
-            <Page id="connection" title="Connection">
+            <Page id="connection" title="Connection" current={current}>
               <Group>
                 <DisconnectBrowser />
               </Group>
             </Page>
             {desktopShell && (
-              <Page id="sharing" title="Sharing">
-                <Group>
-                  <SharingSection />
-                </Group>
+              <Page id="sharing" title="Sharing" current={current}>
+                <SharingSection />
               </Page>
             )}
+            <Page id="updates" title="Updates" current={current}>
+              <Group>
+                <ServiceUpdateSettings />
+              </Group>
+            </Page>
           </div>
         </div>
       </div>
