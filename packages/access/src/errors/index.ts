@@ -5,8 +5,12 @@ export { MissingEnvironmentIdentityError } from './missing-environment-identity-
 export { TooManyPairingAttemptsError } from './too-many-pairing-attempts-error.ts';
 export { InvalidTunnelHostnameError } from './invalid-tunnel-hostname-error.ts';
 export { MissingTunnelHostnameError } from './missing-tunnel-hostname-error.ts';
+export { InvalidTailnetHostnameError } from './invalid-tailnet-hostname-error.ts';
+export { MissingTailnetHostnameError } from './missing-tailnet-hostname-error.ts';
 export { NoLocalNetworkError } from './no-local-network-error.ts';
 export { UnidentifiedLocalNetworkError } from './unidentified-local-network-error.ts';
 export { ServiceNotManagedError } from './service-not-managed-error.ts';
 export { ServiceUpdateNotOfferedError } from './service-update-not-offered-error.ts';
 export { ServiceUpdateRunningError } from './service-update-running-error.ts';
+export { DeviceViewerRequiredError } from './device-viewer-required-error.ts';
+export { TooManyLiveTicketsError } from './too-many-live-tickets-error.ts';

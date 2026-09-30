@@ -22,6 +22,7 @@ import {
   type HttpRequest,
   type HttpResponse,
   type LiveConnection,
+  type LiveOptions,
   type Phase,
   type Session,
 } from './feature.ts';
@@ -71,6 +72,8 @@ type EntriesStep = {
 type LiveStep = {
   phase: Phase;
   kind: 'live';
+  via: 'credential' | 'ticket';
+  origin: string | undefined;
   opened: boolean;
   sent: unknown[];
   received: unknown[];
@@ -298,6 +301,7 @@ function fixtureOf(value: unknown): Fixture {
       escape: text(web.escape),
     },
     summaryLinkLifetimeMs: Number(fixture.summaryLinkLifetimeMs),
+    liveTicketLifetimeMs: Number(fixture.liveTicketLifetimeMs),
     gitActionDeadlineMs: Number(fixture.gitActionDeadlineMs),
     inventoryStaleAfterMs: Number(fixture.inventoryStaleAfterMs),
     codingTool: {
@@ -477,7 +481,7 @@ export class ServerHandle {
       worktreeId: ids.worktreeId,
       send: (request) => this.send(recorder, request),
       read: (request, status) => this.read(recorder, request, status),
-      live: () => this.live(recorder),
+      live: (options) => this.live(recorder, options),
       secret: (value) => recorder.secret(value),
       git: async (subcommand, ...options) => {
         const refused = options.find((option) =>
@@ -757,10 +761,16 @@ export class ServerHandle {
     });
   }
 
-  async live(recorder: Recorder): Promise<LiveConnection> {
+  async live(
+    recorder: Recorder,
+    options?: LiveOptions,
+  ): Promise<LiveConnection> {
+    const origin = options ? options.origin : new URL(this.address).origin;
     const step: LiveStep = {
       phase: recorder.phase,
       kind: 'live',
+      via: options ? 'ticket' : 'credential',
+      origin,
       opened: false,
       sent: [],
       received: [],
@@ -768,10 +778,14 @@ export class ServerHandle {
     recorder.steps.push(step);
     const url = new URL('/api/live', this.address);
     url.protocol = 'ws:';
+    if (options) {
+      recorder.secret(options.ticket);
+      url.searchParams.set('ticket', options.ticket);
+    }
     const socket = new WebSocket(url, {
       headers: {
-        authorization: `Bearer ${this.credential}`,
-        origin: new URL(this.address).origin,
+        ...(options ? {} : { authorization: `Bearer ${this.credential}` }),
+        ...(origin === undefined ? {} : { origin }),
       },
     });
     recorder.cleanups.push(() => socket.close());

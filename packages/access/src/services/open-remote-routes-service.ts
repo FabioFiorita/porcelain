@@ -6,14 +6,11 @@ import type {
   RouteState,
   RouteStates,
   TailnetProxy,
-  TailnetReport,
 } from '../models/remote-access.ts';
 import type { NetworkAddressReader } from '../ports/network-address-reader.ts';
 import type { RemoteAccessStore } from '../ports/remote-access-store.ts';
 import type { RouteListenerRunner } from '../ports/route-listener-runner.ts';
 import type { RouteStateStore } from '../ports/route-state-store.ts';
-import type { TailnetServeRunner } from '../ports/tailnet-serve-runner.ts';
-import type { TailnetStatusReader } from '../ports/tailnet-status-reader.ts';
 import type { TunnelProbe } from '../ports/tunnel-probe.ts';
 import {
   defaultRoutes,
@@ -28,24 +25,21 @@ import {
   tunnelState,
 } from '../rules/remote-access.ts';
 import {
-  tailnetOrigin,
-  tailnetReadiness,
-  tailnetServedByUs,
-  tailnetServeFailure,
-  tailnetServePlan,
-  tailnetServePort,
-  tailnetTarget,
+  tailnetNeedsCheck,
+  tailnetShownWhileChecking,
 } from '../rules/tailnet.ts';
 
-type TailnetOpening = { state: RouteState; proxy?: TailnetProxy | undefined };
+type TailnetOpening = {
+  state: RouteState;
+  proxy?: TailnetProxy | undefined;
+  check?: boolean | undefined;
+};
 
 export class OpenRemoteRoutesService {
   private readonly remoteAccess: RemoteAccessStore;
   private readonly routeStates: RouteStateStore;
   private readonly networkAddresses: NetworkAddressReader;
   private readonly routeListeners: RouteListenerRunner;
-  private readonly tailnetStatus: TailnetStatusReader;
-  private readonly tailnetServe: TailnetServeRunner;
   private readonly tunnelProbe: TunnelProbe;
   private readonly options: RemoteRouteOptions;
 
@@ -54,8 +48,6 @@ export class OpenRemoteRoutesService {
     routeStates: RouteStateStore,
     networkAddresses: NetworkAddressReader,
     routeListeners: RouteListenerRunner,
-    tailnetStatus: TailnetStatusReader,
-    tailnetServe: TailnetServeRunner,
     tunnelProbe: TunnelProbe,
     options: RemoteRouteOptions,
   ) {
@@ -63,8 +55,6 @@ export class OpenRemoteRoutesService {
     this.routeStates = routeStates;
     this.networkAddresses = networkAddresses;
     this.routeListeners = routeListeners;
-    this.tailnetStatus = tailnetStatus;
-    this.tailnetServe = tailnetServe;
     this.tunnelProbe = tunnelProbe;
     this.options = options;
   }
@@ -77,17 +67,15 @@ export class OpenRemoteRoutesService {
     const settings = input.closing
       ? { ...saved, lan: false, tailnet: false, cloudflare: false }
       : saved;
+    const current = this.routeStates.read().states;
     const lan = await this.lan(settings, this.networkAddresses.list(), signal);
-    const tailnet = await this.tailnet(settings, signal);
-    const opened = {
-      ...this.routeStates.read().states,
-      lan,
-      tailnet: tailnet.state,
-    };
+    const tailnet = await this.tailnet(settings, current.tailnet, signal);
+    const opened = { ...current, lan, tailnet: tailnet.state };
     this.save(opened, tailnet.proxy);
     this.save(
       {
         ...opened,
+        tailnet: await this.checked(tailnet, input.environmentId, signal),
         cloudflare: await this.tunnel(
           settings,
           opened.cloudflare,
@@ -123,112 +111,49 @@ export class OpenRemoteRoutesService {
 
   private async tailnet(
     settings: RemoteAccessSettings,
+    current: RouteState,
     signal: AbortSignal | undefined,
   ): Promise<TailnetOpening> {
-    const previous = settings.tailnetServeTarget;
-    const recordedPort =
-      previous === undefined ? undefined : tailnetServePort(previous);
-    const held =
-      recordedPort === undefined
-        ? undefined
-        : await this.holdServePort(recordedPort, signal);
-    const report = await this.tailnetStatus.read();
-    if (!settings.tailnet) return this.release(report, previous, held, signal);
-    if (previous !== undefined && held === undefined) {
-      const released = await this.release(report, previous, held, signal);
-      if (released.state.kind === 'failed') return released;
+    const hostname = settings.tailnetHostname;
+    if (!settings.tailnet || hostname === undefined) {
+      await this.routeListeners.close({ route: 'tailnet' });
+      return { state: { kind: 'off' } };
     }
-    const readiness = tailnetReadiness(
-      previous !== undefined && held === undefined
-        ? await this.tailnetStatus.read()
-        : report,
+    const outcome = await this.routeListeners.listen(
+      {
+        route: 'tailnet',
+        addresses: [this.options.loopbackAddress],
+        port: settings.tailnetPort ?? 'own',
+      },
+      signal,
     );
-    if (readiness.kind === 'failed') return this.holding(held, readiness);
-    const port = held ?? (await this.holdServePort('own', signal));
-    if (port === undefined)
-      return this.holding(port, {
-        kind: 'failed',
-        reason: 'address-unavailable',
+    if (outcome.bound.length === 0) {
+      await this.routeListeners.close({ route: 'tailnet' });
+      return { state: listenedState(outcome) };
+    }
+    if (settings.tailnetPort === undefined)
+      this.remoteAccess.save({
+        ...this.remoteAccess.read(),
+        tailnetPort: outcome.port,
       });
-    const target = tailnetTarget(this.options.loopbackAddress, port);
-    const plan = tailnetServePlan(
-      readiness.serving,
-      target,
-      held === undefined ? undefined : previous,
-    );
-    if (plan === 'taken') {
-      this.forgetServeTarget();
-      return this.holding(undefined, { kind: 'failed', reason: 'serve-taken' });
-    }
-    this.recordServeTarget(target);
-    if (plan === 'serve') {
-      const failure = tailnetServeFailure(
-        await this.tailnetServe.serve({ target }, signal),
-      );
-      if (failure !== undefined)
-        return this.holding(port, { kind: 'failed', reason: failure });
-    }
     return {
-      state: { kind: 'on', urls: [tailnetOrigin(readiness.hostname)] },
+      state: tailnetShownWhileChecking(current),
+      check: tailnetNeedsCheck(current),
       proxy: {
-        hostname: readiness.hostname,
         address: this.options.loopbackAddress,
-        port,
+        port: outcome.port,
+        hostname,
       },
     };
   }
 
-  private async release(
-    report: TailnetReport,
-    previous: string | undefined,
-    held: number | undefined,
+  private async checked(
+    tailnet: TailnetOpening,
+    environmentId: string,
     signal: AbortSignal | undefined,
-  ): Promise<TailnetOpening> {
-    const stillOn: RouteState = { kind: 'failed', reason: 'serve-still-on' };
-    if (previous === undefined) return this.holding(undefined, { kind: 'off' });
-    if (report.kind !== 'status') return this.holding(held, stillOn);
-    if (tailnetServedByUs(report, previous)) {
-      await this.tailnetServe.stop({ target: previous }, signal);
-      const after = await this.tailnetStatus.read();
-      if (after.kind !== 'status' || tailnetServedByUs(after, previous))
-        return this.holding(held, stillOn);
-    }
-    this.forgetServeTarget();
-    return this.holding(undefined, { kind: 'off' });
-  }
-
-  private async holding(
-    port: number | undefined,
-    state: RouteState,
-  ): Promise<TailnetOpening> {
-    if (port === undefined) {
-      await this.routeListeners.close({ route: 'tailnet' });
-      return { state };
-    }
-    return { state, proxy: { address: this.options.loopbackAddress, port } };
-  }
-
-  private async holdServePort(
-    port: number | 'own',
-    signal: AbortSignal | undefined,
-  ): Promise<number | undefined> {
-    const outcome = await this.routeListeners.listen(
-      { route: 'tailnet', addresses: [this.options.loopbackAddress], port },
-      signal,
-    );
-    return outcome.bound.length === 0 ? undefined : outcome.port;
-  }
-
-  private recordServeTarget(target: string): void {
-    this.remoteAccess.save({
-      ...this.remoteAccess.read(),
-      tailnetServeTarget: target,
-    });
-  }
-
-  private forgetServeTarget(): void {
-    const { tailnetServeTarget: _, ...rest } = this.remoteAccess.read();
-    this.remoteAccess.save(rest);
+  ): Promise<RouteState> {
+    if (tailnet.proxy === undefined || !tailnet.check) return tailnet.state;
+    return this.answerAt(tailnet.proxy.hostname, environmentId, signal);
   }
 
   private async tunnel(
@@ -240,6 +165,14 @@ export class OpenRemoteRoutesService {
     const hostname = settings.cloudflareHostname;
     if (!settings.cloudflare || hostname === undefined) return { kind: 'off' };
     if (!tunnelNeedsCheck(current)) return current;
+    return this.answerAt(hostname, environmentId, signal);
+  }
+
+  private async answerAt(
+    hostname: string,
+    environmentId: string,
+    signal: AbortSignal | undefined,
+  ): Promise<RouteState> {
     const origin = tunnelOrigin(hostname);
     const answer = await this.tunnelProbe.probe({ origin }, signal);
     return tunnelState(answer, environmentId, origin);

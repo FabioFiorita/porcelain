@@ -3,7 +3,7 @@ import type { Probe } from '../probe.ts';
 export default {
   decision: 'D3',
   plants:
-    'the access adapter beside the Tailscale one imports @porcelain/process, which only git, agents, the installer and exactly the Tailscale adapter may use',
+    'an access adapter imports @porcelain/process, which only git, agents, the installer and the server gateways listed with a reason may use',
   gate: 'arch',
   rule: 'process-importable-by-git-agents-installer:',
   edits: [

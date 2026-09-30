@@ -19,7 +19,10 @@ import { readServiceStatus, type ServiceStatus } from './status.ts';
 import { SystemdService } from './systemd-service.ts';
 import { uninstall } from './uninstall.ts';
 import { update, type UpdateOutcome } from './update.ts';
-import { recoverService } from './recover-interrupted-update.ts';
+import {
+  recoverService,
+  type RecoveryOutcome,
+} from './recover-interrupted-update.ts';
 
 type InstallerOptions = {
   homeDirectory: string;
@@ -53,7 +56,7 @@ class Installer {
     return this.locked(() => update(this.context, allowDowngrade));
   }
 
-  recover(): Promise<boolean> {
+  recover(): Promise<RecoveryOutcome> {
     return this.locked(() => recoverService(this.context));
   }
 

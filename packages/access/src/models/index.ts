@@ -35,10 +35,6 @@ export type {
   RouteAddresses,
   RouteKey,
   RouteState,
-  TailnetReport,
-  TailnetServeOutcome,
-  TailnetServeTarget,
-  TailnetServing,
   TunnelAnswer,
   TunnelHostnames,
   TunnelTarget,
@@ -47,3 +43,5 @@ export type {
   IdentifyRequestClientInput,
   RequestClient,
 } from './identify-request-client.ts';
+export type { LiveTickets } from './live-ticket.ts';
+export type { RedeemLiveTicketInput } from './redeem-live-ticket.ts';

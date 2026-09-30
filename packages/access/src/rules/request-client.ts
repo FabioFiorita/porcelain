@@ -10,6 +10,7 @@ import {
   isLoopbackHostname,
 } from './host-policy.ts';
 import { isTailnetAddress } from './remote-access.ts';
+import { arrivedThroughTailnet } from './tailnet.ts';
 import { requestAuthority } from './request-authority.ts';
 
 function tunnelHostnameOf(
@@ -38,19 +39,6 @@ function networkRoute(localAddress: string | undefined): DeviceRoute {
     : 'lan';
 }
 
-function throughTailnetProxy(
-  input: IdentifyRequestClientInput,
-  local: string | undefined,
-  proxy: TailnetProxy | undefined,
-): boolean {
-  return (
-    proxy !== undefined &&
-    local !== undefined &&
-    local === canonicalHostname(proxy.address) &&
-    input.localPort === proxy.port
-  );
-}
-
 export function requestClient(
   input: IdentifyRequestClientInput,
   tunnelHosts: readonly string[],
@@ -64,7 +52,7 @@ export function requestClient(
     input.localAddress === undefined
       ? undefined
       : canonicalHostname(input.localAddress);
-  if (throughTailnetProxy(input, local, tailnetProxy))
+  if (arrivedThroughTailnet(input, tailnetProxy))
     return {
       route: 'tailnet',
       address:

@@ -11,7 +11,8 @@ export const remoteAccess = sqliteTable(
     lanGateway: text('lan_gateway'),
     lanGatewayHardware: text('lan_gateway_hardware'),
     tailnet: integer('tailnet', { mode: 'boolean' }).notNull(),
-    tailnetServeTarget: text('tailnet_serve_target'),
+    tailnetHostname: text('tailnet_hostname'),
+    tailnetPort: integer('tailnet_port'),
     cloudflare: integer('cloudflare', { mode: 'boolean' }).notNull(),
     cloudflareHostname: text('cloudflare_hostname'),
   },
@@ -20,6 +21,10 @@ export const remoteAccess = sqliteTable(
     check(
       'remote_access_lan_network',
       sql`(${table.lanInterface} IS NULL) = (${table.lanSubnet} IS NULL)`,
+    ),
+    check(
+      'remote_access_tailnet_hostname',
+      sql`${table.tailnet} = 0 OR ${table.tailnetHostname} IS NOT NULL`,
     ),
     check(
       'remote_access_cloudflare_hostname',

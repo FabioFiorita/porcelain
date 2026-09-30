@@ -3,8 +3,6 @@ import type {
   PairingReachReader,
   RouteListenerRunner,
   RuntimeStatusReader,
-  TailnetServeRunner,
-  TailnetStatusReader,
   TunnelProbe,
 } from '@porcelain/access/ports';
 import {
@@ -28,7 +26,10 @@ import {
   RevokeDeviceService,
   RevokePairingGrantService,
   TakePairingAttemptService,
+  IssueLiveTicketService,
+  RedeemLiveTicketService,
 } from '@porcelain/access/services';
+import { InMemoryLiveTicketStore } from '../adapters/access/in-memory-live-ticket-store.ts';
 import { RandomSecretSource } from '../adapters/runtime/random-secret-source.ts';
 import type { DeviceConnectionStore } from '../ports/device-connection-store.ts';
 import type { TunnelConnectionStore } from '../ports/tunnel-connection-store.ts';
@@ -46,8 +47,11 @@ import { StartServiceUpdateUseCase } from '../use-cases/access/start-service-upd
 import type { ServiceUpdateRunner } from '../ports/service-update-runner.ts';
 import { ClearBrowserSessionUseCase } from '../use-cases/access/clear-browser-session.ts';
 import { FlushDeviceActivityUseCase } from '../use-cases/access/flush-device-activity.ts';
+import { IssueLiveTicketUseCase } from '../use-cases/access/issue-live-ticket.ts';
 import { IssuePairingUseCase } from '../use-cases/access/issue-pairing.ts';
+import { RedeemLiveTicketUseCase } from '../use-cases/access/redeem-live-ticket.ts';
 import { ListAccessUseCase } from '../use-cases/access/list-access.ts';
+import { ReadEnvironmentUseCase } from '../use-cases/access/read-environment.ts';
 import { ReadHealthUseCase } from '../use-cases/access/read-health.ts';
 import { ReadOwnerStatusUseCase } from '../use-cases/access/read-owner-status.ts';
 import { RedeemPairingUseCase } from '../use-cases/access/redeem-pairing.ts';
@@ -66,9 +70,9 @@ type AccessDependencies = {
   pairingReachReader: PairingReachReader;
   runtimeStatusReader: RuntimeStatusReader;
   serviceUpdateRunner: ServiceUpdateRunner;
+  serverVersion: string | undefined;
   networkAddressReader: NetworkAddressReader;
   routeListenerRunner: RouteListenerRunner;
-  tailnet: { status: TailnetStatusReader; serve: TailnetServeRunner };
   tunnelProbe: TunnelProbe;
 };
 
@@ -86,8 +90,6 @@ export function composeAccess(
     routeStates,
     dependencies.networkAddressReader,
     dependencies.routeListenerRunner,
-    dependencies.tailnet.status,
-    dependencies.tailnet.serve,
     dependencies.tunnelProbe,
     { loopbackAddress: LOOPBACK_ADDRESS },
   );
@@ -102,6 +104,7 @@ export function composeAccess(
   const deviceSightingStore = stores.deviceSightings;
   const { pairingGrants, pairingAttempts } = stores;
   const secretSource = new RandomSecretSource(limits.credentials);
+  const liveTickets = new InMemoryLiveTicketStore();
   const planServiceUpdateCheck = new PlanServiceUpdateCheckService(
     clock,
     limits.serviceUpdate,
@@ -109,6 +112,28 @@ export function composeAccess(
   return {
     authenticateDevice: new AuthenticateDeviceUseCase(
       new AuthenticateDeviceService(
+        deviceStore,
+        deviceSightingStore,
+        clock,
+        limits.device,
+      ),
+      lanes,
+      laneKeys,
+    ),
+    issueLiveTicket: new IssueLiveTicketUseCase(
+      new IssueLiveTicketService(
+        liveTickets,
+        clock,
+        ids,
+        secretSource,
+        limits.liveTicket,
+      ),
+      lanes,
+      laneKeys,
+    ),
+    redeemLiveTicket: new RedeemLiveTicketUseCase(
+      new RedeemLiveTicketService(
+        liveTickets,
         deviceStore,
         deviceSightingStore,
         clock,
@@ -217,6 +242,16 @@ export function composeAccess(
       laneKeys,
     ),
     readHealth: new ReadHealthUseCase(readEnvironment, lanes, laneKeys),
+    readEnvironment: new ReadEnvironmentUseCase(
+      readEnvironment,
+      dependencies.shared.readEnvironmentName,
+      lanes,
+      laneKeys,
+      {
+        version: dependencies.serverVersion,
+        protocol: limits.environment.protocol,
+      },
+    ),
     readOwnerStatus: new ReadOwnerStatusUseCase(
       new ReadOwnerStatusService(dependencies.runtimeStatusReader),
       lanes,
@@ -234,20 +269,18 @@ export function composeAccess(
       laneKeys,
     ),
     takePairingAttempt: new TakePairingAttemptUseCase(
-      new TakePairingAttemptService(
-        pairingAttempts,
-        clock,
-        limits.pairingAttempts,
-      ),
+      new TakePairingAttemptService(pairingAttempts, clock, {
+        sameOrigin: limits.pairingAttempts,
+        crossOrigin: limits.crossOriginPairingAttempts,
+      }),
       lanes,
       laneKeys,
     ),
     refundPairingAttempt: new RefundPairingAttemptUseCase(
-      new RefundPairingAttemptService(
-        pairingAttempts,
-        clock,
-        limits.pairingAttempts,
-      ),
+      new RefundPairingAttemptService(pairingAttempts, clock, {
+        sameOrigin: limits.pairingAttempts,
+        crossOrigin: limits.crossOriginPairingAttempts,
+      }),
       lanes,
       laneKeys,
     ),

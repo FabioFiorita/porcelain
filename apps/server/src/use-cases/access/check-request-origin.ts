@@ -21,7 +21,7 @@ export class CheckRequestOriginUseCase {
       async (): Promise<RequestOriginVerdict> => {
         const result = this.checkRequestOrigin.execute(input);
         return result.kind === 'allowed'
-          ? { allowed: true }
+          ? { allowed: true, crossOrigin: result.crossOrigin }
           : { allowed: false, refusal: result.refusal };
       },
       { callerSignal: context.signal },

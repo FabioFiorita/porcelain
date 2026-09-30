@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { localNetworkNote, type RemoteAccess } from './share.ts';
+import {
+  localNetworkNote,
+  routeFailure,
+  tailscaleServeCommand,
+  type RemoteAccess,
+} from './share.ts';
 
 const home = {
   interfaceName: 'wlp2s0',
@@ -120,5 +125,22 @@ describe('localNetworkNote', () => {
     ).toBe(
       'Porcelain cannot tell this network from another one yet, because the hardware address of its router is not known. Try again in a moment.',
     );
+  });
+});
+
+describe('tailscaleServeCommand', () => {
+  it('forwards HTTPS on the Tailscale name to the listener Porcelain keeps for it', () => {
+    expect(tailscaleServeCommand('http://127.0.0.1:41000')).toBe(
+      'tailscale serve --bg --https=443 http://127.0.0.1:41000',
+    );
+  });
+});
+
+describe('routeFailure', () => {
+  it('tells the owner what to set up in Tailscale when nothing answers at its name, not what to check in cloudflared', () => {
+    expect(routeFailure('tailnet', 'unreachable')).toContain(
+      'you ran the command below',
+    );
+    expect(routeFailure('cloudflare', 'unreachable')).toContain('cloudflared');
   });
 });

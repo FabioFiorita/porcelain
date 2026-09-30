@@ -8,7 +8,6 @@ import { promisify } from 'node:util';
 import { z } from 'zod';
 import { FixedNetworkAddressReader } from '../apps/server/spec/fakes/fixed-network-address-reader.ts';
 import { InMemoryRouteListenerRunner } from '../apps/server/spec/fakes/in-memory-route-listener-runner.ts';
-import { InMemoryTailnet } from '../apps/server/spec/fakes/in-memory-tailnet.ts';
 import { ScriptedServiceUpdateRunner } from '../apps/server/spec/fakes/scripted-service-update-runner.ts';
 import { ScriptedTunnelProbe } from '../apps/server/spec/fakes/scripted-tunnel-probe.ts';
 import { composeServer } from '../apps/server/src/bootstrap/compose-server.ts';
@@ -95,15 +94,12 @@ const startServer = composeServer({
     ].join('\n'),
   ),
   routeListenerRunner: () =>
-    new InMemoryRouteListenerRunner(listeningPort, () => 0),
-  tailnet: () => {
-    const tailnet = new InMemoryTailnet('porcelain.tail0000.ts.net.');
-    return { status: tailnet, serve: tailnet };
-  },
+    new InMemoryRouteListenerRunner(listeningPort, () => 41000),
   tunnelProbe: () =>
     new ScriptedTunnelProbe(async ({ origin }) => {
       const { hostname } = new URL(origin);
-      if (hostname.endsWith('.invalid')) return { kind: 'unreachable' };
+      if (hostname.split('.').includes('invalid'))
+        return { kind: 'unreachable' };
       if (hostname.endsWith('.test')) return { kind: 'foreign' };
       const health = await fetch(`${server?.address ?? ''}/api/health`);
       return {
@@ -224,6 +220,7 @@ const fixture = {
     escape: 'leak.txt',
   },
   summaryLinkLifetimeMs: 2000,
+  liveTicketLifetimeMs: 1000,
   gitActionDeadlineMs: 1500,
   inventoryStaleAfterMs: 200,
   codingTool,
@@ -464,6 +461,13 @@ try {
       limits: {
         ...settings.limits,
         jobs: { ...settings.limits.jobs, refreshInventoryMs: 250 },
+        access: {
+          ...settings.limits.access,
+          liveTicket: {
+            ...settings.limits.access.liveTicket,
+            lifetimeMs: fixture.liveTicketLifetimeMs,
+          },
+        },
         inventory: {
           ...settings.limits.inventory,
           staleAfterMs: fixture.inventoryStaleAfterMs,
@@ -482,7 +486,7 @@ try {
       },
     },
     shutdown.signal,
-    { serviceUpdateRunner },
+    { serviceUpdateRunner, version: fixture.serviceUpdate.version },
   );
   const [grant] = issuedPairingSchema.parse(
     await askOwner(

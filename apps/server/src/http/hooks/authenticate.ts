@@ -13,10 +13,15 @@ export type AuthenticateOptions = {
 
 type DeviceCookieOptions = { cookieMaxAgeSeconds: number };
 
-function credentialOf(request: FastifyRequest): string | undefined {
+export function bearerCredential(request: FastifyRequest): string | undefined {
   const header = request.headers.authorization;
-  if (header?.startsWith('Bearer ')) return header.slice('Bearer '.length);
-  return deviceCookie(request) ?? undefined;
+  return header?.startsWith('Bearer ')
+    ? header.slice('Bearer '.length)
+    : undefined;
+}
+
+function credentialOf(request: FastifyRequest): string | undefined {
+  return bearerCredential(request) ?? deviceCookie(request) ?? undefined;
 }
 
 export function authenticate(

@@ -1020,10 +1020,7 @@ export function allowedContractType(
   );
 }
 
-export const serverProcessImporters: Readonly<Record<string, string>> = {
-  'apps/server/src/adapters/access/tailscale-command.ts':
-    'Porcelain runs tailscale serve itself so the tailnet reaches it over HTTPS at the MagicDNS name; this module is the one server gateway that starts an external tool, through the process public API, and the Tailscale adapters run it',
-};
+export const serverProcessImporters: Readonly<Record<string, string>> = {};
 
 export function allowedProcessImport(
   path: string,

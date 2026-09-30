@@ -12,6 +12,13 @@ Commands:
   pair <name>...           Print a one-time pairing link per device name
   devices                  List pending pairing links and paired devices
   revoke <id>              Revoke a pending link or a paired device
+  share                    Show how this server is shared and at which addresses
+  share lan on|off         Share on the local network, or stop
+  share tailscale <name>|off
+                           Share through Tailscale Serve under this machine's Tailscale name
+  share cloudflare <hostname>|off
+                           Share through your Cloudflare tunnel's public hostname
+  share check              Check every shared route again
   mcp                      Serve MCP over the local socket, for an agent
   service <action>         Install, inspect, update, recover, or uninstall the user service
   help                     Show this help

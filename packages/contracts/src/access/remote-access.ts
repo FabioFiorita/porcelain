@@ -13,14 +13,6 @@ const routeStateSchema = z.discriminatedUnion('kind', [
       'address-unavailable',
       'unreachable',
       'other-server',
-      'tailscale-missing',
-      'tailscale-unavailable',
-      'tailscale-stopped',
-      'https-disabled',
-      'serve-denied',
-      'serve-taken',
-      'serve-failed',
-      'serve-still-on',
     ]),
   }),
 ]);
@@ -45,6 +37,8 @@ export const readRemoteAccessResponseSchema = z.object({
   }),
   lanNetwork: localNetworkSchema.optional(),
   localNetwork: localNetworkSchema.optional(),
+  tailnetHostname: z.string().optional(),
+  tailnetTarget: z.string().optional(),
   cloudflareHostname: z.string().optional(),
   serviceUrl: z.string(),
 });
@@ -53,6 +47,7 @@ export const setRemoteAccessRequestSchema = z
   .strictObject({
     lan: z.boolean().optional(),
     tailnet: z.boolean().optional(),
+    tailnetHostname: z.string().min(1).max(TUNNEL_HOSTNAME_LENGTH).optional(),
     cloudflare: z.boolean().optional(),
     cloudflareHostname: z
       .string()

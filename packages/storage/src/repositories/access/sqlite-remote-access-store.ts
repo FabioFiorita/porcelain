@@ -30,9 +30,10 @@ export class SqliteRemoteAccessStore implements RemoteAccessStore {
             },
           }),
       tailnet: row.tailnet,
-      ...(row.tailnetServeTarget === null
+      ...(row.tailnetHostname === null
         ? {}
-        : { tailnetServeTarget: row.tailnetServeTarget }),
+        : { tailnetHostname: row.tailnetHostname }),
+      ...(row.tailnetPort === null ? {} : { tailnetPort: row.tailnetPort }),
       cloudflare: row.cloudflare,
       ...(row.cloudflareHostname === null
         ? {}
@@ -48,7 +49,8 @@ export class SqliteRemoteAccessStore implements RemoteAccessStore {
       lanGateway: input.lanNetwork?.gateway ?? null,
       lanGatewayHardware: input.lanNetwork?.gatewayHardware ?? null,
       tailnet: input.tailnet,
-      tailnetServeTarget: input.tailnetServeTarget ?? null,
+      tailnetHostname: input.tailnetHostname ?? null,
+      tailnetPort: input.tailnetPort ?? null,
       cloudflare: input.cloudflare,
       cloudflareHostname: input.cloudflareHostname ?? null,
     };

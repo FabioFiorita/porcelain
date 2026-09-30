@@ -176,6 +176,13 @@
       "when": 1790704272855,
       "tag": "0024_lan_router",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "6",
+      "when": 1790787083501,
+      "tag": "0025_tailnet_hostname",
+      "breakpoints": true
     }
   ]
 }

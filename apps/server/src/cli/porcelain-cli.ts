@@ -18,6 +18,7 @@ type PorcelainCliRuntime = {
   ownerProbe: OwnerProbe;
   clock: Clock;
   limits: Limits;
+  wait: (ms: number) => Promise<void>;
   actionableErrors: readonly ActionableError[];
 };
 
@@ -70,6 +71,7 @@ export class PorcelainCli {
         clock: this.runtime.clock,
         ownerProbe: this.runtime.ownerProbe,
         limits: this.runtime.limits,
+        wait: this.runtime.wait,
         startServer: dependencies.startServer ?? this.runtime.startServer,
         stdout,
         stderr,

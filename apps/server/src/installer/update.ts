@@ -24,9 +24,13 @@ import {
   type ServiceConfiguration,
 } from './records.ts';
 import { recoverInterruptedUpdate } from './recover-interrupted-update.ts';
+import { localNetworkHint } from './share-hint.ts';
 import { isDowngrade } from './version-policy.ts';
 
-export type UpdateOutcome = { backup: string };
+export type UpdateOutcome = {
+  backup: string;
+  localNetworkHint: string | undefined;
+};
 
 async function restartPrevious(
   context: InstallerContext,
@@ -134,9 +138,10 @@ async function replaceRuntime(
       healthy: true,
     });
   } catch (error) {
+    let hint: string | undefined;
     if (await exists(paths.updateJournal)) {
       try {
-        await recoverInterruptedUpdate(context);
+        hint = (await recoverInterruptedUpdate(context)).localNetworkHint;
       } catch (recoveryError) {
         throw new UpdateRecoveryError(failureDetail(recoveryError));
       }
@@ -152,11 +157,11 @@ async function replaceRuntime(
       : stopped
         ? 'the previous runtime was restarted before replacement'
         : 'the installed service was left unchanged';
-    throw new UpdateFailedError(recovery, failureDetail(error));
+    throw new UpdateFailedError(recovery, failureDetail(error), hint);
   } finally {
     await rm(staging, { recursive: true, force: true });
   }
   await rm(previous, { recursive: true, force: true });
   await rm(paths.updateJournal, { force: true });
-  return { backup };
+  return { backup, localNetworkHint: localNetworkHint(configuration.host) };
 }

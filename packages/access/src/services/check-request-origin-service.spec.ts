@@ -25,8 +25,11 @@ function checkThroughTunnel(cloudflare: RouteState, enabled = true) {
     method: 'POST',
     scheme: 'http',
     localAddress: '127.0.0.1',
+    localPort: 4173,
     allowedHosts: [],
     requireSameOrigin: false,
+    crossOrigin: 'refused',
+    credential: 'none',
   });
 }
 
@@ -40,7 +43,10 @@ describe('CheckRequestOriginService', () => {
       { kind: 'failed', reason: 'unreachable' },
     ],
   ])('answers the tunnel hostname %s', (_moment, cloudflare) => {
-    expect(checkThroughTunnel(cloudflare)).toEqual({ kind: 'allowed' });
+    expect(checkThroughTunnel(cloudflare)).toEqual({
+      kind: 'allowed',
+      crossOrigin: false,
+    });
   });
 
   it('refuses the tunnel hostname once the check found another server behind it', () => {
@@ -59,11 +65,16 @@ describe('CheckRequestOriginService', () => {
     });
   });
 
-  it('answers the tailnet name Tailscale Serves this server at, as an HTTPS origin, and refuses it once nothing serves it', () => {
+  it('answers the Tailscale name only on the listener Tailscale Serve forwards to, as an HTTPS origin, and refuses it on any other listener or once that listener is gone', () => {
     const settings = new InMemoryRemoteAccessStore();
-    settings.save({ lan: false, tailnet: true, cloudflare: false });
-    const routes = new InMemoryRouteStateStore();
     const hostname = 'laptop.tail0000.ts.net';
+    settings.save({
+      lan: false,
+      tailnet: true,
+      tailnetHostname: hostname,
+      cloudflare: false,
+    });
+    const routes = new InMemoryRouteStateStore();
     const on = {
       states: {
         lan: { kind: 'off' as const },
@@ -75,26 +86,34 @@ describe('CheckRequestOriginService', () => {
     };
     routes.save(on);
     const service = new CheckRequestOriginService(settings, routes);
-    const write = (origin: string) =>
+    const write = (origin: string, localPort = 41000) =>
       service.execute({
         host: hostname,
         origin,
         method: 'POST',
         scheme: 'http',
         localAddress: '127.0.0.1',
+        localPort,
         allowedHosts: [],
         requireSameOrigin: false,
+        crossOrigin: 'refused',
+        credential: 'none',
       });
+    const notAnswered = {
+      kind: 'refused',
+      refusal: { kind: 'host-not-allowed', hostname },
+    };
 
-    expect(write(`https://${hostname}`)).toEqual({ kind: 'allowed' });
+    expect(write(`https://${hostname}`)).toEqual({
+      kind: 'allowed',
+      crossOrigin: false,
+    });
     expect(write(`http://${hostname}`)).toEqual({
       kind: 'refused',
       refusal: { kind: 'cross-origin', origin: `http://${hostname}` },
     });
+    expect(write(`https://${hostname}`, 4173)).toEqual(notAnswered);
     routes.save({ ...on, tailnetProxy: undefined });
-    expect(write(`https://${hostname}`)).toEqual({
-      kind: 'refused',
-      refusal: { kind: 'host-not-allowed', hostname },
-    });
+    expect(write(`https://${hostname}`)).toEqual(notAnswered);
   });
 });

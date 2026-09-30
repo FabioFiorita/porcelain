@@ -1,7 +1,7 @@
 import { expect } from 'vitest';
 import { test } from '../kit/journey';
 
-test('turning the ways in on and off from Settings shows each one starting, then serving its address, the tailnet over HTTPS at its Tailscale name, and the local network warns it is not encrypted and names its one network', async ({
+test('turning the ways in on and off from Settings shows each one starting, then serving its address, the tailnet over HTTPS at the Tailscale name the owner saves with the one tailscale serve command to run, and the local network warns it is not encrypted and names its one network', async ({
   pairedPage,
   server,
 }) => {
@@ -38,9 +38,22 @@ test('turning the ways in on and off from Settings shows each one starting, then
       lanNetwork: { interfaceName: 'eth0', subnet: '192.168.1.0/24' },
     });
 
-  await settings.getByRole('switch', { name: 'Tailscale' }).click();
+  const tailnet = settings.getByRole('switch', { name: 'Tailscale' });
+  await expect.element(tailnet).toBeDisabled();
+  await settings
+    .getByRole('textbox', { name: 'Tailscale name' })
+    .fill('Porcelain.Tail0000.ts.net');
+  await settings.getByRole('button', { name: 'Save name' }).click();
+  await expect.element(tailnet).toBeChecked();
   await expect
     .element(settings.getByText('https://porcelain.tail0000.ts.net'))
+    .toBeVisible();
+  await expect
+    .element(
+      settings.getByText(
+        'tailscale serve --bg --https=443 http://127.0.0.1:41000',
+      ),
+    )
     .toBeVisible();
   await expect
     .poll(async () => (await server.remoteAccess()).routes.tailnet)

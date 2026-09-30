@@ -37,7 +37,10 @@ export function composeStores(session: StorageSession) {
     devices: new CachedDeviceStore(createDeviceStore(session)),
     deviceSightings: new InMemoryDeviceSightingStore(),
     pairingGrants: createPairingGrantStore(session),
-    pairingAttempts: new InMemoryPairingAttemptStore(),
+    pairingAttempts: {
+      sameOrigin: new InMemoryPairingAttemptStore(),
+      crossOrigin: new InMemoryPairingAttemptStore(),
+    },
     remoteAccess: new CachedRemoteAccessStore(createRemoteAccessStore(session)),
     routeStates: new InMemoryRouteStateStore(),
     gitActions: createGitActionReceiptStore(session),

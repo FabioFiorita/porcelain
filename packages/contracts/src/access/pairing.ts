@@ -78,7 +78,7 @@ export const revokeAccessResponseSchema = z.object({
 export const clearBrowserSessionResponseSchema = z.undefined();
 
 type RedeemPairingRequest = z.output<typeof redeemPairingRequestSchema>;
-type DeviceRoute = z.output<typeof deviceRouteSchema>;
+export type DeviceRoute = z.output<typeof deviceRouteSchema>;
 export type RedeemPairingInput = RedeemPairingRequest & { route: DeviceRoute };
 export type RedeemPairingResponse = z.output<
   typeof redeemPairingResponseSchema

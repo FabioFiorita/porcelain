@@ -4,7 +4,10 @@ import {
   InvalidDeviceDetailsError,
   InvalidPairingAddressError,
   InvalidPairingError,
+  DeviceViewerRequiredError,
+  InvalidTailnetHostnameError,
   InvalidTunnelHostnameError,
+  MissingTailnetHostnameError,
   MissingEnvironmentIdentityError,
   MissingTunnelHostnameError,
   NoLocalNetworkError,
@@ -13,6 +16,7 @@ import {
   ServiceUpdateNotOfferedError,
   ServiceUpdateRunningError,
   TooManyPairingAttemptsError,
+  TooManyLiveTicketsError,
 } from '@porcelain/access/errors';
 import {
   BranchBaseNotFoundError,
@@ -144,6 +148,8 @@ const rules: readonly StatusRule[] = [
       InvalidDeviceDetailsError,
       InvalidTunnelHostnameError,
       MissingTunnelHostnameError,
+      InvalidTailnetHostnameError,
+      MissingTailnetHostnameError,
       InvalidHistoryRequestError,
       UnknownProofTargetError,
       UnknownProofFileError,
@@ -180,7 +186,10 @@ const rules: readonly StatusRule[] = [
     message: INVALID_REQUEST,
   },
   { errors: [InvalidPairingError], statusCode: 401 },
-  { errors: [CommentAuthorMismatchError], statusCode: 403 },
+  {
+    errors: [CommentAuthorMismatchError, DeviceViewerRequiredError],
+    statusCode: 403,
+  },
   {
     errors: [
       WorktreeNotFoundError,
@@ -248,7 +257,10 @@ const rules: readonly StatusRule[] = [
     errors: [errorCodes.FST_ERR_CTP_BODY_TOO_LARGE, ProofTooLargeError],
     statusCode: 413,
   },
-  { errors: [TooManyPairingAttemptsError], statusCode: 429 },
+  {
+    errors: [TooManyPairingAttemptsError, TooManyLiveTicketsError],
+    statusCode: 429,
+  },
   {
     errors: [InspectionLimitError],
     statusCode: 413,

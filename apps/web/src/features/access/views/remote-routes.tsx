@@ -15,6 +15,7 @@ import {
   networkName,
   remoteRouteTitles,
   routeFailure,
+  tailscaleServeCommand,
   type RemoteAccess,
   type RemoteRoute,
   type RemoteRouteName,
@@ -24,9 +25,15 @@ import {
 const descriptions: Record<RemoteRouteName, string> = {
   lan: 'Phones and computers on the same Wi-Fi or wired network as this computer, on that one network only.',
   tailnet:
-    'Your devices signed in to Tailscale, from anywhere, encrypted and over HTTPS at this computer’s Tailscale name. Porcelain runs tailscale serve for you while this is on.',
+    'Your devices signed in to Tailscale, from anywhere, encrypted and over HTTPS at this computer’s Tailscale name. You set up tailscale serve once; Porcelain checks that it reaches here.',
   cloudflare:
     'Your own Cloudflare tunnel and hostname, over HTTPS from anywhere.',
+};
+
+const checkingLabels: Record<RemoteRouteName, string> = {
+  lan: 'Starting',
+  tailnet: 'Checking the Tailscale name',
+  cloudflare: 'Checking the tunnel',
 };
 
 function RouteStatus({
@@ -48,7 +55,7 @@ function RouteStatus({
     return (
       <Badge variant="outline">
         <Spinner />
-        {name === 'cloudflare' ? 'Checking the tunnel' : 'Starting'}
+        {checkingLabels[name]}
       </Badge>
     );
   if (status.kind === 'paused')
@@ -172,6 +179,136 @@ function LocalNetworkSettings({
   );
 }
 
+function HostnameForm({
+  label,
+  saveLabel,
+  placeholder,
+  saved,
+  failed,
+  disabled,
+  onSave,
+  onCheck,
+}: {
+  label: string;
+  saveLabel: string;
+  placeholder: string;
+  saved: string;
+  failed: boolean;
+  disabled: boolean;
+  onSave: (hostname: string) => void;
+  onCheck: () => void;
+}) {
+  const [draft, setDraft] = useState<string | null>(null);
+  const hostname = draft ?? saved;
+  return (
+    <form
+      className="flex flex-col gap-2 sm:flex-row"
+      onSubmit={(event) =>
+        submitForm(event, async () => {
+          onSave(hostname.trim());
+          setDraft(null);
+        })
+      }
+    >
+      <Input
+        aria-label={label}
+        placeholder={placeholder}
+        value={hostname}
+        disabled={disabled}
+        onChange={(event) => setDraft(event.target.value)}
+      />
+      <Button
+        type="submit"
+        variant="outline"
+        className="shrink-0"
+        disabled={
+          disabled || hostname.trim() === '' || hostname.trim() === saved
+        }
+      >
+        {saveLabel}
+      </Button>
+      {failed && (
+        <Button
+          type="button"
+          variant="outline"
+          className="shrink-0"
+          disabled={disabled}
+          onClick={onCheck}
+        >
+          Check again
+        </Button>
+      )}
+    </form>
+  );
+}
+
+function TailnetSettings({
+  remote,
+  disabled,
+  onSave,
+  onCheck,
+}: {
+  remote: RemoteAccess;
+  disabled: boolean;
+  onSave: (hostname: string) => void;
+  onCheck: () => void;
+}) {
+  const tailnet = remote.routes.tailnet;
+  const command =
+    remote.tailnetTarget === undefined
+      ? undefined
+      : tailscaleServeCommand(remote.tailnetTarget);
+  return (
+    <div className="flex flex-col gap-2 rounded-lg border bg-muted/30 p-3">
+      <HostnameForm
+        label="Tailscale name"
+        saveLabel="Save name"
+        placeholder="laptop.tail1234.ts.net"
+        saved={remote.tailnetHostname ?? ''}
+        failed={tailnet.enabled && tailnet.status.kind === 'failed'}
+        disabled={disabled}
+        onSave={onSave}
+        onCheck={onCheck}
+      />
+      {remote.tailnetHostname === undefined && (
+        <p className="text-xs text-muted-foreground">
+          Save this computer’s name on your tailnet, as tailscale status or the
+          Tailscale admin console shows it, to turn this on. Porcelain then
+          names the one command to run.
+        </p>
+      )}
+      {remote.tailnetHostname !== undefined && !tailnet.enabled && (
+        <p className="text-xs text-muted-foreground">
+          If you set up tailscale serve for Porcelain, remove it with tailscale
+          serve --https=443 off, or Tailscale keeps forwarding to a port
+          Porcelain no longer holds.
+        </p>
+      )}
+      {command !== undefined && (
+        <div className="flex flex-col gap-1">
+          <p className="text-xs text-muted-foreground">
+            Run this once on this computer. Tailscale keeps it across restarts;
+            remove it with tailscale serve --https=443 off.
+          </p>
+          <div className="flex max-w-full items-center gap-1">
+            <code className="truncate rounded bg-muted px-1.5 py-0.5 font-mono text-xs">
+              {command}
+            </code>
+            <Button
+              size="icon-xs"
+              variant="ghost"
+              aria-label="Copy the tailscale serve command"
+              onClick={() => copyText(command, 'command')}
+            >
+              <CopyIcon />
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function TunnelSettings({
   remote,
   disabled,
@@ -183,50 +320,19 @@ function TunnelSettings({
   onSave: (hostname: string) => void;
   onCheck: () => void;
 }) {
-  const saved = remote.cloudflareHostname ?? '';
-  const [draft, setDraft] = useState<string | null>(null);
-  const hostname = draft ?? saved;
   const cloudflare = remote.routes.cloudflare;
   return (
     <div className="flex flex-col gap-2 rounded-lg border bg-muted/30 p-3">
-      <form
-        className="flex flex-col gap-2 sm:flex-row"
-        onSubmit={(event) =>
-          submitForm(event, async () => {
-            onSave(hostname.trim());
-            setDraft(null);
-          })
-        }
-      >
-        <Input
-          aria-label="Public hostname"
-          placeholder="porcelain.example.com"
-          value={hostname}
-          disabled={disabled}
-          onChange={(event) => setDraft(event.target.value)}
-        />
-        <Button
-          type="submit"
-          variant="outline"
-          className="shrink-0"
-          disabled={
-            disabled || hostname.trim() === '' || hostname.trim() === saved
-          }
-        >
-          Save hostname
-        </Button>
-        {cloudflare.enabled && cloudflare.status.kind === 'failed' && (
-          <Button
-            type="button"
-            variant="outline"
-            className="shrink-0"
-            disabled={disabled}
-            onClick={onCheck}
-          >
-            Check again
-          </Button>
-        )}
-      </form>
+      <HostnameForm
+        label="Public hostname"
+        saveLabel="Save hostname"
+        placeholder="porcelain.example.com"
+        saved={remote.cloudflareHostname ?? ''}
+        failed={cloudflare.enabled && cloudflare.status.kind === 'failed'}
+        disabled={disabled}
+        onSave={onSave}
+        onCheck={onCheck}
+      />
       <p className="text-xs text-muted-foreground">
         In Cloudflare, publish this hostname from your tunnel to{' '}
         <span className="font-mono">{remote.serviceUrl}</span>, and run
@@ -269,9 +375,23 @@ export function RemoteRoutes({
         <RouteRow
           name="tailnet"
           route={remote.routes.tailnet}
-          disabled={disabled}
+          disabled={disabled || remote.tailnetHostname === undefined}
           onChange={(tailnet) => change.submit({ tailnet })}
-        />
+        >
+          <TailnetSettings
+            remote={remote}
+            disabled={disabled}
+            onSave={(tailnetHostname) =>
+              change.submit({
+                tailnetHostname,
+                ...(remote.tailnetHostname === undefined
+                  ? { tailnet: true }
+                  : {}),
+              })
+            }
+            onCheck={() => change.submit({ tailnet: true })}
+          />
+        </RouteRow>
       </Group>
       <Group>
         <RouteRow
