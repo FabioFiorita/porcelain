@@ -17,39 +17,64 @@ test('the reviewer edits and then deletes their own comment, and cannot change t
     );
 
   await agent.comment(readme, fromAgent);
-  await expect.element(pairedPage.getByText(fromAgent)).toBeVisible();
   await expect
-    .element(pairedPage.getByRole('button', { name: 'Comment actions' }))
+    .element(pairedPage.getByText(fromAgent, { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(
+      pairedPage.getByRole('button', { name: 'Comment actions', exact: true }),
+    )
     .not.toBeInTheDocument();
 
   await pairedPage
     .getByRole('button', { name: new RegExp(`^Comment on ${readme} \\(`) })
     .click();
-  await pairedPage.getByRole('textbox', { name: 'Comment' }).fill(first);
+  await pairedPage
+    .getByRole('textbox', { name: 'Comment', exact: true })
+    .fill(first);
   await pairedPage
     .getByRole('button', { name: 'Comment', exact: true })
     .click();
-  await expect.element(pairedPage.getByText(first)).toBeVisible();
+  await expect
+    .element(pairedPage.getByText(first, { exact: true }))
+    .toBeVisible();
 
-  await pairedPage.getByRole('button', { name: 'Comment actions' }).click();
-  await pairedPage.getByRole('menuitem', { name: 'Edit' }).click();
-  const editor = pairedPage.getByRole('textbox', { name: 'Edit comment' });
+  await pairedPage
+    .getByRole('button', { name: 'Comment actions', exact: true })
+    .click();
+  await pairedPage.getByRole('menuitem', { name: 'Edit', exact: true }).click();
+  const editor = pairedPage.getByRole('textbox', {
+    name: 'Edit comment',
+    exact: true,
+  });
   await expect.element(editor).toHaveValue(first);
   await editor.fill('   ');
   await expect
-    .element(pairedPage.getByRole('button', { name: 'Save' }))
+    .element(pairedPage.getByRole('button', { name: 'Save', exact: true }))
     .toBeDisabled();
   await editor.fill(rewritten);
-  await pairedPage.getByRole('button', { name: 'Save' }).click();
-  await expect.element(pairedPage.getByText(rewritten)).toBeVisible();
-  await expect.element(pairedPage.getByText('edited')).toBeVisible();
+  await pairedPage.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect
+    .element(pairedPage.getByText(rewritten, { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(pairedPage.getByText('edited', { exact: true }))
+    .toBeVisible();
   await expect
     .poll(saved)
     .toEqual([[`agent: ${fromAgent}`], [`reviewer: ${rewritten}`]]);
 
-  await pairedPage.getByRole('button', { name: 'Comment actions' }).click();
-  await pairedPage.getByRole('menuitem', { name: 'Delete' }).click();
-  await expect.element(pairedPage.getByText(rewritten)).not.toBeInTheDocument();
-  await expect.element(pairedPage.getByText(fromAgent)).toBeVisible();
+  await pairedPage
+    .getByRole('button', { name: 'Comment actions', exact: true })
+    .click();
+  await pairedPage
+    .getByRole('menuitem', { name: 'Delete', exact: true })
+    .click();
+  await expect
+    .element(pairedPage.getByText(rewritten, { exact: true }))
+    .not.toBeInTheDocument();
+  await expect
+    .element(pairedPage.getByText(fromAgent, { exact: true }))
+    .toBeVisible();
   await expect.poll(saved).toEqual([[`agent: ${fromAgent}`]]);
 });

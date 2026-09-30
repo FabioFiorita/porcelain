@@ -16,20 +16,23 @@ test('an HTML page opened from the file tree previews with its local images and 
   );
   const opened = await app.open(await app.link('this'));
   await opened.getByRole('button', { name: 'Review', exact: true }).click();
-  await opened.getByRole('tab', { name: 'Files' }).click();
-  await opened.getByRole('treeitem', { name: 'page.html' }).click();
+  await opened.getByRole('tab', { name: 'Files', exact: true }).click();
+  await opened
+    .getByRole('treeitem', { name: 'page.html', exact: true })
+    .click();
   await expect
-    .element(opened.getByLabelText('page.html HTML preview'))
+    .element(opened.getByLabelText('page.html HTML preview', { exact: true }))
     .toBeVisible();
   await expect
     .element(
       opened.getByText(
         'Some assets could not be loaded: missing.png. This preview supports local static assets.',
+        { exact: true },
       ),
     )
     .toBeVisible();
   await expect
-    .element(opened.getByRole('tab', { name: 'Preview' }))
+    .element(opened.getByRole('tab', { name: 'Preview', exact: true }))
     .toHaveAttribute('aria-selected', 'true');
   await expect
     .element(opened.getByText(/could not be loaded: .*logo\.svg/))
@@ -37,7 +40,7 @@ test('an HTML page opened from the file tree previews with its local images and 
 });
 
 test('switching the HTML page to its source shows the markup instead of the preview', async () => {
-  const source = page.getByRole('tab', { name: 'Source' });
+  const source = page.getByRole('tab', { name: 'Source', exact: true });
   await source.click();
   await expect.element(source).toHaveAttribute('aria-selected', 'true');
   await expect

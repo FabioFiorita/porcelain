@@ -10,20 +10,26 @@ test('a commit made while the live connection is down shows its outcome once the
   const message = 'Followed commit';
   await pairedPage.getByRole('button', { name: 'Commit', exact: true }).click();
   const dialog = pairedPage.getByRole('dialog');
-  await dialog.getByRole('textbox', { name: 'Message' }).fill(message);
+  await dialog
+    .getByRole('textbox', { name: 'Message', exact: true })
+    .fill(message);
   live.drop();
   await expect.poll(() => live.connected()).toBe(false);
-  await dialog.getByRole('button', { name: 'Commit selected files' }).click();
+  await dialog
+    .getByRole('button', { name: 'Commit selected files', exact: true })
+    .click();
   await expect
     .poll(async () => (await server.commits()).commits[0]?.subject)
     .toBe(message);
   await expect
-    .element(dialog.getByRole('button', { name: 'Committing…' }))
+    .element(dialog.getByRole('button', { name: 'Committing…', exact: true }))
     .toBeDisabled();
 
   live.restore();
   await expect.poll(() => live.connected()).toBe(true);
-  await expect.element(dialog.getByText('succeeded')).toBeVisible();
+  await expect
+    .element(dialog.getByText('succeeded', { exact: true }))
+    .toBeVisible();
   await userEvent.keyboard('{Escape}');
   await expect.element(dialog).not.toBeInTheDocument();
 });
@@ -38,31 +44,51 @@ test('a stash pop refused while the live connection is down shows what Git said 
   await repo.write(readme, 'Set aside\n');
   await expect
     .element(
-      pairedPage.getByRole('button', { name: `Mark ${readme} as reviewed` }),
+      pairedPage.getByRole('button', {
+        name: `Mark ${readme} as reviewed`,
+        exact: true,
+      }),
     )
     .toBeVisible();
-  await pairedPage.getByRole('button', { name: 'Git actions' }).click();
+  await pairedPage
+    .getByRole('button', { name: 'Git actions', exact: true })
+    .click();
   await pairedPage.getByRole('menuitem', { name: /^Stash changes/ }).click();
-  const stash = pairedPage.getByRole('dialog', { name: 'Stash changes' });
-  await stash.getByRole('button', { name: 'Stash changes' }).click();
-  await expect.element(stash.getByText('succeeded')).toBeVisible();
+  const stash = pairedPage.getByRole('dialog', {
+    name: 'Stash changes',
+    exact: true,
+  });
+  await stash
+    .getByRole('button', { name: 'Stash changes', exact: true })
+    .click();
+  await expect
+    .element(stash.getByText('succeeded', { exact: true }))
+    .toBeVisible();
   await userEvent.keyboard('{Escape}');
   await expect.element(stash).not.toBeInTheDocument();
 
   await repo.write(readme, local);
   await expect
     .element(
-      pairedPage.getByRole('button', { name: `Mark ${readme} as reviewed` }),
+      pairedPage.getByRole('button', {
+        name: `Mark ${readme} as reviewed`,
+        exact: true,
+      }),
     )
     .toBeVisible();
-  await pairedPage.getByRole('button', { name: 'Git actions' }).click();
+  await pairedPage
+    .getByRole('button', { name: 'Git actions', exact: true })
+    .click();
   await pairedPage.getByRole('menuitem', { name: /^Pop stash/ }).click();
-  const pop = pairedPage.getByRole('dialog', { name: 'Pop stash' });
+  const pop = pairedPage.getByRole('dialog', {
+    name: 'Pop stash',
+    exact: true,
+  });
   live.drop();
   await expect.poll(() => live.connected()).toBe(false);
-  await pop.getByRole('button', { name: 'Pop stash' }).click();
+  await pop.getByRole('button', { name: 'Pop stash', exact: true }).click();
   await expect
-    .element(pop.getByRole('button', { name: 'Working…' }))
+    .element(pop.getByRole('button', { name: 'Working…', exact: true }))
     .toBeDisabled();
 
   live.restore();

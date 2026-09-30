@@ -9,7 +9,7 @@ test('an agent question and checks older than the code keep the readiness panel 
   const readme = repo.readme.path;
   const readiness = pairedPage
     .getByRole('dialog')
-    .getByRole('region', { name: 'Readiness' });
+    .getByRole('region', { name: 'Readiness', exact: true });
   const line = (text: string) =>
     readiness.getByRole('button', { name: text, exact: true });
 
@@ -30,12 +30,16 @@ test('an agent question and checks older than the code keep the readiness panel 
     .element(line('Checks ran before the latest changes'))
     .toBeVisible();
   await line('Checks ran before the latest changes').click();
-  const proof = pairedPage.getByRole('region', { name: 'Proof' });
+  const proof = pairedPage.getByRole('region', { name: 'Proof', exact: true });
   await expect
-    .element(proof.getByText('These checks ran before the latest changes'))
+    .element(
+      proof.getByText('These checks ran before the latest changes', {
+        exact: true,
+      }),
+    )
     .toBeVisible();
   await expect
-    .element(proof.getByRole('heading', { name: 'Proof' }))
+    .element(proof.getByRole('heading', { name: 'Proof', exact: true }))
     .toBeVisible();
   await expect.element(proof).toMatchTextContent('Published ');
 });

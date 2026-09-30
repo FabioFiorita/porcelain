@@ -17,11 +17,13 @@ test('a resolved thread the agent answers while the reviewer confirms the deleti
   await pairedPage.getByRole('tab', { name: /^Comments/ }).click();
   const comments = pairedPage.getByRole('dialog');
   await comments
-    .getByRole('button', { name: 'Comment on the whole change' })
+    .getByRole('button', { name: 'Comment on the whole change', exact: true })
     .click();
-  await comments.getByRole('textbox', { name: 'Comment' }).fill(mine);
+  await comments
+    .getByRole('textbox', { name: 'Comment', exact: true })
+    .fill(mine);
   await comments.getByRole('button', { name: 'Comment', exact: true }).click();
-  await comments.getByRole('button', { name: 'Resolve' }).click();
+  await comments.getByRole('button', { name: 'Resolve', exact: true }).click();
   await expect
     .poll(async () =>
       (await server.commentThreads()).map((thread) => thread.resolved),
@@ -29,10 +31,12 @@ test('a resolved thread the agent answers while the reviewer confirms the deleti
     .toEqual([true]);
 
   await comments.getByRole('button', { name: /^resolved/i }).click();
-  await comments.getByRole('button', { name: 'Delete resolved' }).click();
+  await comments
+    .getByRole('button', { name: 'Delete resolved', exact: true })
+    .click();
   const confirm = pairedPage.getByRole('alertdialog');
   await expect
-    .element(confirm.getByText('Delete 1 resolved thread?'))
+    .element(confirm.getByText('Delete 1 resolved thread?', { exact: true }))
     .toBeVisible();
   const [thread] = await server.commentThreads();
   await agent.reply(thread?.id ?? '', late);
@@ -40,9 +44,9 @@ test('a resolved thread the agent answers while the reviewer confirms the deleti
 
   await confirm.getByRole('button', { name: 'Delete', exact: true }).click();
   await expect
-    .element(confirm.getByText('Kept 1 thread that changed'))
+    .element(confirm.getByText('Kept 1 thread that changed', { exact: true }))
     .toBeVisible();
-  await confirm.getByRole('button', { name: 'Close' }).click();
+  await confirm.getByRole('button', { name: 'Close', exact: true }).click();
   await expect.element(confirm).not.toBeInTheDocument();
   await expect.poll(saved).toEqual([[mine, late]]);
 });

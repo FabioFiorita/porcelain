@@ -135,6 +135,11 @@ const journeyLocatorReads = new Set([
   'elements',
   'query',
 ]);
+const journeyNamedLocators = new Map([
+  ['getByRole', 'options'],
+  ['getByText', 'argument'],
+  ['getByLabelText', 'argument'],
+]);
 const journeyTimers = new Set([
   'setTimeout',
   'setInterval',
@@ -162,6 +167,27 @@ function importedName(specifier) {
   return specifier.imported.type === 'Identifier'
     ? specifier.imported.name
     : specifier.imported.value;
+}
+
+function objectProperty(node, key) {
+  if (node?.type !== 'ObjectExpression') return undefined;
+  const found = node.properties.find(
+    (property) =>
+      property.type === 'Property' &&
+      !property.computed &&
+      ((property.key.type === 'Identifier' && property.key.name === key) ||
+        (property.key.type === 'Literal' && property.key.value === key)),
+  );
+  return found?.value;
+}
+
+function patternNode(node) {
+  return (
+    (node.type === 'Literal' && node.regex?.pattern !== undefined) ||
+    (node.type === 'NewExpression' &&
+      node.callee.type === 'Identifier' &&
+      node.callee.name === 'RegExp')
+  );
 }
 
 function journeyRule(visitors) {
@@ -990,15 +1016,27 @@ export const webRules = {
   })),
   'web-journey-locators': journeyRule((context) => ({
     CallExpression(node) {
-      if (
-        expectCall(node) === undefined &&
-        journeyLocatorReads.has(methodName(node.callee) ?? '')
-      )
+      const method = methodName(node.callee) ?? '';
+      if (expectCall(node) === undefined && journeyLocatorReads.has(method)) {
         context.report({
           node,
           message:
             'A journey finds elements by role, label or text, the way a user and assistive technology do; CSS selectors, test ids and element reads couple it to markup and read one moment.',
         });
+        return;
+      }
+      const named = journeyNamedLocators.get(method);
+      if (named === undefined) return;
+      const [first, second] = node.arguments;
+      const name = named === 'options' ? objectProperty(second, 'name') : first;
+      if (name === undefined || patternNode(name)) return;
+      const exact = objectProperty(second, 'exact');
+      if (exact?.type === 'Literal' && exact.value === true) return;
+      context.report({
+        node,
+        message:
+          'A journey names an element exactly: pass exact: true with a string name, or a RegExp that states its own bounds; a substring match finds another element whose label contains the text, and a product label is never renamed to dodge one.',
+      });
     },
   })),
   'web-journey-no-waits': journeyRule((context) => {

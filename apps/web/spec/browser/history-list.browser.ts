@@ -22,35 +22,37 @@ test('History lists each commit message without a graph beside it and marks a me
     .toBe(2);
 
   await pairedPage.getByRole('button', { name: 'Review', exact: true }).click();
-  await pairedPage.getByRole('tab', { name: 'History' }).click();
+  await pairedPage.getByRole('tab', { name: 'History', exact: true }).click();
   const sidebar = pairedPage.getByRole('complementary', {
     name: 'Review sidebar',
+    exact: true,
   });
   const merge = sidebar.getByRole('button', {
-    name: "Merge branch 'topic'",
-    exact: false,
+    name: /^Merge commit ?Merge branch 'topic'/,
   });
   await expect
-    .element(merge.getByRole('img', { name: 'Merge commit' }))
+    .element(merge.getByRole('img', { name: 'Merge commit', exact: true }))
     .toBeVisible();
-  const described = sidebar.getByRole('button', { name: long, exact: false });
+  const described = sidebar.getByRole('button', {
+    name: new RegExp(`^${long}`),
+  });
   await expect
     .element(described.getByText(long, { exact: true }))
     .toBeVisible();
   await expect
-    .element(described.getByRole('img', { name: 'Merge commit' }))
+    .element(described.getByRole('img', { name: 'Merge commit', exact: true }))
     .not.toBeInTheDocument();
   await expect
     .element(
       sidebar
-        .getByRole('button', { name: topic, exact: false })
+        .getByRole('button', { name: new RegExp(`^${topic}`) })
         .getByText('topic', { exact: true }),
     )
     .toBeVisible();
   await expect
-    .element(sidebar.getByRole('list', { name: 'Commit graph' }))
+    .element(sidebar.getByRole('list', { name: 'Commit graph', exact: true }))
     .not.toBeInTheDocument();
   await expect
-    .element(sidebar.getByRole('button', { name: 'Open graph' }))
+    .element(sidebar.getByRole('button', { name: 'Open graph', exact: true }))
     .toBeVisible();
 });

@@ -15,20 +15,26 @@ test('resolving a comment moves it from open to resolved, and reopening it bring
   await pairedPage.getByRole('button', { name: 'Review', exact: true }).click();
   await pairedPage.getByRole('tab', { name: /^Comments/ }).click();
   const comments = pairedPage.getByRole('dialog');
-  await expect.element(comments.getByText(question)).toBeVisible();
-  await comments.getByRole('button', { name: 'Resolve' }).click();
   await expect
-    .element(comments.getByText('No open comments yet.'))
+    .element(comments.getByText(question, { exact: true }))
+    .toBeVisible();
+  await comments.getByRole('button', { name: 'Resolve', exact: true }).click();
+  await expect
+    .element(comments.getByText('No open comments yet.', { exact: true }))
     .toBeVisible();
   await expect.poll(resolved).toEqual([true]);
 
   await comments.getByRole('button', { name: /^resolved/i }).click();
-  await expect.element(comments.getByText(question)).toBeVisible();
-  await comments.getByRole('button', { name: 'Reopen' }).click();
   await expect
-    .element(comments.getByText('Nothing resolved yet.'))
+    .element(comments.getByText(question, { exact: true }))
+    .toBeVisible();
+  await comments.getByRole('button', { name: 'Reopen', exact: true }).click();
+  await expect
+    .element(comments.getByText('Nothing resolved yet.', { exact: true }))
     .toBeVisible();
   await expect.poll(resolved).toEqual([false]);
   await comments.getByRole('button', { name: /^open/i }).click();
-  await expect.element(comments.getByText(question)).toBeVisible();
+  await expect
+    .element(comments.getByText(question, { exact: true }))
+    .toBeVisible();
 });

@@ -11,13 +11,15 @@ test('closing an editor saves its draft and reopening starts a fresh editor sess
     await pairedPage
       .getByRole('button', { name: 'Review', exact: true })
       .click();
-    await pairedPage.getByRole('tab', { name: 'Files' }).click();
-    const file = pairedPage.getByRole('treeitem', { name: path });
+    await pairedPage.getByRole('tab', { name: 'Files', exact: true }).click();
+    const file = pairedPage.getByRole('treeitem', { name: path, exact: true });
     await expect.element(file).toBeVisible();
     await file.click({ button: 'right' });
-    await pairedPage.getByRole('menuitem', { name: 'Open file' }).click();
+    await pairedPage
+      .getByRole('menuitem', { name: 'Open file', exact: true })
+      .click();
     await pairedPage.getByRole('button', { name: 'Edit', exact: true }).click();
-    const editor = pairedPage.getByRole('textbox', { name: path });
+    const editor = pairedPage.getByRole('textbox', { name: path, exact: true });
     await expect.element(editor).toBeVisible();
     return editor;
   };
@@ -25,7 +27,7 @@ test('closing an editor saves its draft and reopening starts a fresh editor sess
   const editor = await openEditor();
   await editor.fill('Closed editor marker');
   await pairedPage
-    .getByRole('button', { name: `Close ${path}` })
+    .getByRole('button', { name: `Close ${path}`, exact: true })
     .last()
     .click();
   await expect
@@ -38,7 +40,7 @@ test('closing an editor saves its draft and reopening starts a fresh editor sess
     .element(pairedPage.getByText('Saves as you pause', { exact: true }))
     .toBeVisible();
   await reopened.fill('Reopened editor marker');
-  await pairedPage.getByRole('button', { name: 'Done' }).click();
+  await pairedPage.getByRole('button', { name: 'Done', exact: true }).click();
   await expect
     .poll(async () => (await server.text(path)).text)
     .toContain('Reopened editor marker');
@@ -50,11 +52,13 @@ test('an editor keeps its draft ownership while the file opens in another pane',
 }) => {
   const path = repo.readme.path;
   await pairedPage.getByRole('button', { name: 'Review', exact: true }).click();
-  await pairedPage.getByRole('tab', { name: 'Files' }).click();
-  const file = pairedPage.getByRole('treeitem', { name: path });
+  await pairedPage.getByRole('tab', { name: 'Files', exact: true }).click();
+  const file = pairedPage.getByRole('treeitem', { name: path, exact: true });
   await expect.element(file).toBeVisible();
   await file.click({ button: 'right' });
-  await pairedPage.getByRole('menuitem', { name: 'Open file' }).click();
+  await pairedPage
+    .getByRole('menuitem', { name: 'Open file', exact: true })
+    .click();
   await pairedPage.getByRole('tab', { name: new RegExp(path) }).click({
     button: 'right',
   });
@@ -64,12 +68,12 @@ test('an editor keeps its draft ownership while the file opens in another pane',
     .first()
     .click();
   await expect
-    .element(pairedPage.getByRole('textbox', { name: path }))
+    .element(pairedPage.getByRole('textbox', { name: path, exact: true }))
     .toBeVisible();
   await expect
     .element(pairedPage.getByRole('button', { name: 'Edit', exact: true }))
     .toBeDisabled();
   await expect
-    .element(pairedPage.getByRole('button', { name: 'Done' }))
+    .element(pairedPage.getByRole('button', { name: 'Done', exact: true }))
     .toBeVisible();
 });

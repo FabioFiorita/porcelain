@@ -8,8 +8,8 @@ test('New file and New folder open inline names at phone width and create entrie
 }) => {
   const opened = await app.open(await app.link('this'));
   await opened.getByRole('button', { name: 'Review', exact: true }).click();
-  await opened.getByRole('tab', { name: 'Files' }).click();
-  await opened.getByRole('button', { name: 'New file' }).click();
+  await opened.getByRole('tab', { name: 'Files', exact: true }).click();
+  await opened.getByRole('button', { name: 'New file', exact: true }).click();
   const fileName = opened.getByRole('textbox', { name: /rename/i });
   await expect.element(fileName).toBeVisible();
   await fileName.fill('phone-created.md');
@@ -20,11 +20,13 @@ test('New file and New folder open inline names at phone width and create entrie
     )
     .toContain('phone-created.md');
   await expect
-    .element(opened.getByRole('dialog', { name: 'Worktree review' }))
+    .element(
+      opened.getByRole('dialog', { name: 'Worktree review', exact: true }),
+    )
     .not.toBeInTheDocument();
   await opened.getByRole('button', { name: 'Review', exact: true }).click();
-  await opened.getByRole('tab', { name: 'Files' }).click();
-  await opened.getByRole('button', { name: 'New folder' }).click();
+  await opened.getByRole('tab', { name: 'Files', exact: true }).click();
+  await opened.getByRole('button', { name: 'New folder', exact: true }).click();
   const folderName = opened.getByRole('textbox', { name: /rename/i });
   await expect.element(folderName).toBeVisible();
   await folderName.fill('phone-folder');

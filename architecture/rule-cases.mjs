@@ -3029,7 +3029,7 @@ test('a conflict is recognised by the review client', async ({ server }) => {
 import { test } from '../kit/journey';
 
 test('the workspace names its review region', async ({ pairedPage }) => {
-  const region = pairedPage.getByRole('region', { name: 'Review content' }).element();
+  const region = pairedPage.getByRole('region', { name: 'Review content', exact: true }).element();
   await expect.element(region).toBeVisible();
 });
 `,
@@ -3046,6 +3046,30 @@ test('the workspace offers a commit button', async ({ pairedPage }) => {
 });
 `,
     errors: 1,
+  },
+  {
+    rule: 'web-journey-locators',
+    path: 'apps/web/spec/browser/probe.browser.ts',
+    valid: `import { expect } from 'vitest';
+import { test } from '../kit/journey';
+
+test('marking a file reviewed presses its toggle', async ({ pairedPage }) => {
+  await pairedPage.getByRole('button', { name: 'Mark notes.md as reviewed', exact: true }).click();
+  await expect.element(pairedPage.getByRole('button', { name: /^Reviewed$/ })).toBeVisible();
+  await expect.element(pairedPage.getByText('Reviewed', { exact: true })).toBeVisible();
+  await expect.element(pairedPage.getByLabelText(new RegExp('^Comment'))).toBeVisible();
+});
+`,
+    invalid: `import { expect } from 'vitest';
+import { test } from '../kit/journey';
+
+test('marking a file reviewed presses its toggle', async ({ pairedPage }) => {
+  await pairedPage.getByRole('button', { name: 'Mark notes.md as reviewed' }).click();
+  await expect.element(pairedPage.getByText('Reviewed')).toBeVisible();
+  await expect.element(pairedPage.getByLabelText('Comment', { exact: false })).toBeVisible();
+});
+`,
+    errors: 3,
   },
   {
     rule: 'web-journey-no-waits',

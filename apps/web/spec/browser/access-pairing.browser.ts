@@ -7,7 +7,9 @@ test('a one-time link pairs the browser and opens the workspace without leaving 
   server,
 }) => {
   await expect
-    .element(pairedPage.getByRole('region', { name: 'Review content' }))
+    .element(
+      pairedPage.getByRole('region', { name: 'Review content', exact: true }),
+    )
     .toBeVisible();
   await expect.poll(() => app.address().fragment).toBe('');
   await expect

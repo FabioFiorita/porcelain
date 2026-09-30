@@ -9,7 +9,10 @@ test('the readiness panel follows reviewed and stale files, unexplained lines, w
 }) => {
   const readme = repo.readme.path;
   const sidebar = pairedPage.getByRole('dialog');
-  const readiness = sidebar.getByRole('region', { name: 'Readiness' });
+  const readiness = sidebar.getByRole('region', {
+    name: 'Readiness',
+    exact: true,
+  });
   const line = (text: string) =>
     readiness.getByRole('button', { name: text, exact: true });
   const showReadiness = () =>
@@ -30,20 +33,23 @@ test('the readiness panel follows reviewed and stale files, unexplained lines, w
   await pairedPage
     .getByRole('button', { name: new RegExp(`^Comment on ${readme} \\(`) })
     .click();
-  await pairedPage.getByRole('textbox', { name: 'Comment' }).fill('Why?');
+  await pairedPage
+    .getByRole('textbox', { name: 'Comment', exact: true })
+    .fill('Why?');
   await pairedPage
     .getByRole('button', { name: 'Comment', exact: true })
     .click();
   await expect
-    .element(pairedPage.getByText('Waiting for the agent'))
+    .element(pairedPage.getByText('Waiting for the agent', { exact: true }))
     .toBeVisible();
   await pairedPage
-    .getByRole('button', { name: `Mark ${readme} as reviewed` })
+    .getByRole('button', { name: `Mark ${readme} as reviewed`, exact: true })
     .click();
   await expect
     .element(
       pairedPage.getByRole('button', {
         name: `Unmark ${readme} as unreviewed`,
+        exact: true,
       }),
     )
     .toBeEnabled();
@@ -74,8 +80,8 @@ test('the readiness panel follows reviewed and stale files, unexplained lines, w
   await expect
     .element(
       pairedPage
-        .getByRole('region', { name: 'Proof' })
-        .getByRole('heading', { name: 'Proof' }),
+        .getByRole('region', { name: 'Proof', exact: true })
+        .getByRole('heading', { name: 'Proof', exact: true }),
     )
     .toBeVisible();
 });

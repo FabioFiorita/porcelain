@@ -9,18 +9,29 @@ test('the owner names this computer in Settings, and the header, the tab title a
 }) => {
   const host = (await server.inventory()).environment.name;
   const project = (await server.project()).name;
-  await pairedPage.getByRole('button', { name: 'Toggle Sidebar' }).click();
+  await pairedPage
+    .getByRole('button', { name: 'Toggle Sidebar', exact: true })
+    .click();
   const navigator = pairedPage.getByRole('navigation', {
     name: 'Projects and worktrees',
+    exact: true,
   });
   await expect
     .element(navigator.getByText(host, { exact: true }))
     .toBeVisible();
 
-  await pairedPage.getByRole('button', { name: 'Settings' }).click();
-  const settings = pairedPage.getByRole('dialog', { name: 'Settings' });
-  const name = settings.getByRole('textbox', { name: 'Name of this computer' });
-  const save = settings.getByRole('button', { name: 'Save' });
+  await pairedPage
+    .getByRole('button', { name: 'Settings', exact: true })
+    .click();
+  const settings = pairedPage.getByRole('dialog', {
+    name: 'Settings',
+    exact: true,
+  });
+  const name = settings.getByRole('textbox', {
+    name: 'Name of this computer',
+    exact: true,
+  });
+  const save = settings.getByRole('button', { name: 'Save', exact: true });
   await expect.element(name).toHaveValue('');
   await expect.element(save).toBeDisabled();
   await name.fill('Workstation');

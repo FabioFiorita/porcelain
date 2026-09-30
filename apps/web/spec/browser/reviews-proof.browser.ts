@@ -14,14 +14,16 @@ test('the proof an agent published shows its checks and screenshot, with the fai
     screenshot: 'Saved notice',
   });
   await pairedPage.getByRole('button', { name: 'Review', exact: true }).click();
-  await pairedPage.getByRole('button', { name: 'Proof · 1 failing' }).click();
+  await pairedPage
+    .getByRole('button', { name: 'Proof · 1 failing', exact: true })
+    .click();
 
-  const proof = pairedPage.getByRole('region', { name: 'Proof' });
+  const proof = pairedPage.getByRole('region', { name: 'Proof', exact: true });
   await expect
     .element(proof.getByRole('alert'))
     .toMatchTextContent('1 check failed');
   const checks = proof
-    .getByRole('region', { name: 'Checks' })
+    .getByRole('region', { name: 'Checks', exact: true })
     .getByRole('listitem');
   await expect
     .element(checks.first())
@@ -31,6 +33,6 @@ test('the proof an agent published shows its checks and screenshot, with the fai
     .element(checks.nth(1))
     .toHaveAccessibleName('Unit tests: Passed');
   await expect
-    .element(proof.getByRole('img', { name: 'Saved notice' }))
+    .element(proof.getByRole('img', { name: 'Saved notice', exact: true }))
     .toBeVisible();
 });

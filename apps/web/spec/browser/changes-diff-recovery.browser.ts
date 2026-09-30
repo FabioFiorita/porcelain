@@ -15,12 +15,17 @@ test('a file changed before its diff request reaches the server recovers to the 
   await repo.write(repo.readme.path, `# Sample repository\n\n${first}\n`);
   const opened = await app.open(await app.link('this'));
   await opened.getByRole('button', { name: 'Review', exact: true }).click();
-  await opened.getByRole('button', { name: 'All changes' }).click();
+  await opened
+    .getByRole('button', { name: 'All changes', exact: true })
+    .click();
   await expect.element(opened.getByText(first, { exact: true })).toBeVisible();
   held.arm();
   await opened.getByRole('button', { name: 'Review', exact: true }).click();
   await opened
-    .getByRole('button', { name: `${repo.readme.path} · unstaged` })
+    .getByRole('button', {
+      name: `${repo.readme.path} · unstaged`,
+      exact: true,
+    })
     .click();
   await held.requested;
   const before = (await server.changeListHits()).length;
@@ -37,11 +42,13 @@ test('a file changed before its diff request reaches the server recovers to the 
     .toBeVisible();
   await expect
     .element(
-      opened.getByText('The changes in this document could not be read.'),
+      opened.getByText('The changes in this document could not be read.', {
+        exact: true,
+      }),
     )
     .not.toBeInTheDocument();
   await expect
-    .element(opened.getByText('Loading changes…'))
+    .element(opened.getByText('Loading changes…', { exact: true }))
     .not.toBeInTheDocument();
   await expect
     .poll(async () =>
