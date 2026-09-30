@@ -46,7 +46,7 @@ test('disconnecting this browser ends its session and shows how to pair it again
   server,
 }) => {
   const settings = pairedPage.getByRole('dialog', { name: 'Settings' });
-  await settings.getByRole('button', { name: 'Close' }).click();
+  await settings.getByRole('button', { name: 'Back', exact: true }).click();
   await expect.element(settings).not.toBeInTheDocument();
   const navigator = pairedPage.getByRole('navigation', {
     name: 'Projects and worktrees',

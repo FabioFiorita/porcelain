@@ -1,4 +1,5 @@
 import {
+  ArrowLeftIcon,
   CopyIcon,
   GitBranchIcon,
   PaletteIcon,
@@ -168,6 +169,8 @@ export function SettingsPage({
 }) {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
+  const connection = useAccessStore((state) => state.connection);
+  const { environment } = useInventory(connection);
   const [current, setCurrent] = useState(items[0]?.id ?? 'appearance');
   const frameRef = useRef<HTMLDivElement>(null);
   const show = (id: string) => {
@@ -203,19 +206,18 @@ export function SettingsPage({
           aria-label="Settings sections"
           className="flex shrink-0 flex-col border-b md:w-60 md:border-r md:border-b-0"
         >
-          <div className="flex h-11 items-center border-b px-2">
-            <Button
-              variant="ghost"
-              className="w-full justify-start"
-              onClick={leave}
-            >
-              <span aria-hidden="true" className="text-sm font-semibold">
-                Porcelain
+          <header className="flex h-11 shrink-0 items-center gap-2 border-b px-3">
+            <div className="flex min-w-0 flex-col leading-tight">
+              <span className="text-sm font-semibold">Porcelain</span>
+              <span
+                className="truncate text-[11px] text-muted-foreground"
+                title={`Connected to ${environment.name}`}
+              >
+                {environment.name}
               </span>
-              <span className="sr-only">Close</span>
-            </Button>
-          </div>
-          <div className="flex gap-1 overflow-x-auto p-3 md:flex-col md:overflow-y-auto">
+            </div>
+          </header>
+          <div className="flex gap-1 overflow-x-auto p-3 md:min-h-0 md:flex-1 md:flex-col md:overflow-y-auto">
             {items.map((item) => {
               const Icon = item.icon;
               const selected = current === item.id;
@@ -234,6 +236,16 @@ export function SettingsPage({
               );
             })}
           </div>
+          <footer className="flex shrink-0 items-center gap-1 border-t p-2">
+            <Button
+              variant="ghost"
+              className="h-8 min-w-0 flex-1 justify-start"
+              onClick={leave}
+            >
+              <ArrowLeftIcon className="size-3.5" />
+              Back
+            </Button>
+          </footer>
         </nav>
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           <header className="flex h-11 items-center border-b px-6">
