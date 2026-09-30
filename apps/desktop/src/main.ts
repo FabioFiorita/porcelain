@@ -76,7 +76,7 @@ async function openWindow() {
     ...(restored?.bounds ?? {}),
     title: 'Porcelain',
     titleBarStyle: 'hiddenInset',
-    trafficLightPosition: { x: 16, y: 18 },
+    trafficLightPosition: { x: 16, y: 24 },
     backgroundColor: nativeTheme.shouldUseDarkColors ? '#171717' : '#fafafa',
     show: false,
     webPreferences: {
