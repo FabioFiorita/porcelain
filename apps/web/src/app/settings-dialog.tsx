@@ -236,7 +236,7 @@ export function SettingsPage({
           </div>
         </nav>
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-          <header className="flex border-b px-6 py-4">
+          <header className="flex h-11 items-center border-b px-6">
             <h2 className="font-heading text-base leading-none font-medium">
               Settings
             </h2>
