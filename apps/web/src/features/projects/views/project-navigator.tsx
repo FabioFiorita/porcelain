@@ -8,7 +8,6 @@ import {
   EmptyTitle,
 } from '@/components/ui/empty';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import logo from '../../../assets/logo.png';
 import type { Inventory } from '../rules/inventory';
 import { RemoveProjectDialog } from './remove-project-dialog';
 import { RenameProjectDialog } from './rename-project-dialog';
@@ -40,12 +39,6 @@ export function ProjectNavigator({
       className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border bg-card text-[13px]"
     >
       <header className="flex h-11 shrink-0 items-center gap-2 border-b px-3">
-        <img
-          src={logo}
-          alt=""
-          draggable={false}
-          className="size-6 shrink-0 rounded-md"
-        />
         <div className="flex min-w-0 flex-col leading-tight">
           <span className="text-sm font-semibold">Porcelain</span>
           <span

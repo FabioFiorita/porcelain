@@ -26,7 +26,6 @@ import {
   useAccessStore,
 } from '@/features/access/index';
 import { useInventory } from '@/features/projects/index';
-import logo from '@/assets/logo.png';
 import { desktopShell } from '@/shared/shell';
 import { copyText } from '@/shared/workspace/copy';
 import type { Preferences } from '@/shared/workspace/preferences';
@@ -160,12 +159,6 @@ export function SettingsDialog({
                   <Button variant="ghost" className="w-full justify-start" />
                 }
               >
-                <img
-                  src={logo}
-                  alt=""
-                  draggable={false}
-                  className="size-6 rounded-md"
-                />
                 <span aria-hidden="true" className="text-sm font-semibold">
                   Porcelain
                 </span>
