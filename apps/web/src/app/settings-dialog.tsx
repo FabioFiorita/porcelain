@@ -265,7 +265,7 @@ export function SettingsPage({
                 </BreadcrumbItem>
                 <BreadcrumbSeparator />
                 <BreadcrumbItem>
-                  <h2 className="font-heading text-base leading-none font-medium text-foreground">
+                  <h2 className="font-medium text-foreground">
                     {section?.label}
                   </h2>
                 </BreadcrumbItem>
