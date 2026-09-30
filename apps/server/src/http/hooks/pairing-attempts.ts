@@ -12,7 +12,7 @@ export type PairingAttemptOptions = {
 export function takePairingAttempt(options: PairingAttemptOptions) {
   return async (request: FastifyRequest) => {
     await options.access.takePairingAttempt.execute(
-      { peer: request.client.address },
+      { peer: request.client.address, crossOrigin: request.crossOrigin },
       { signal: request.disconnected },
     );
   };
@@ -22,7 +22,7 @@ export function refundSucceededPairingAttempt(options: PairingAttemptOptions) {
   return async (request: FastifyRequest, reply: FastifyReply) => {
     if (reply.statusCode === 200)
       await options.access.refundPairingAttempt.execute(
-        { peer: request.client.address },
+        { peer: request.client.address, crossOrigin: request.crossOrigin },
         { signal: request.disconnected },
       );
   };

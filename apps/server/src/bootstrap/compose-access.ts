@@ -269,20 +269,18 @@ export function composeAccess(
       laneKeys,
     ),
     takePairingAttempt: new TakePairingAttemptUseCase(
-      new TakePairingAttemptService(
-        pairingAttempts,
-        clock,
-        limits.pairingAttempts,
-      ),
+      new TakePairingAttemptService(pairingAttempts, clock, {
+        sameOrigin: limits.pairingAttempts,
+        crossOrigin: limits.crossOriginPairingAttempts,
+      }),
       lanes,
       laneKeys,
     ),
     refundPairingAttempt: new RefundPairingAttemptUseCase(
-      new RefundPairingAttemptService(
-        pairingAttempts,
-        clock,
-        limits.pairingAttempts,
-      ),
+      new RefundPairingAttemptService(pairingAttempts, clock, {
+        sameOrigin: limits.pairingAttempts,
+        crossOrigin: limits.crossOriginPairingAttempts,
+      }),
       lanes,
       laneKeys,
     ),

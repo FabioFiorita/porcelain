@@ -58,6 +58,12 @@ export type Limits = {
       attemptsOverall: number;
       maxPeers: number;
     };
+    crossOriginPairingAttempts: {
+      windowMs: number;
+      attemptsPerPeer: number;
+      attemptsOverall: number;
+      maxPeers: number;
+    };
   };
   projects: {
     presence: { graceMs: number };
@@ -252,6 +258,12 @@ export const LIMITS: Limits = {
       windowMs: MINUTE_MS,
       attemptsPerPeer: 10,
       attemptsOverall: 60,
+      maxPeers: 1024,
+    },
+    crossOriginPairingAttempts: {
+      windowMs: MINUTE_MS,
+      attemptsPerPeer: 10,
+      attemptsOverall: 30,
       maxPeers: 1024,
     },
   },
