@@ -143,10 +143,50 @@ export function deviceStoreContract(
       });
     });
 
-    it('stores nothing when an unknown device is revoked or seen', () => {
+    it('keeps whether the owner trusts each device, a device paired untrusted by default', () => {
+      const tablet: StoredDevice = { ...device('tablet'), trusted: true };
+      const store = open([device('phone'), tablet]);
+      expect(store.find({ deviceId: 'phone' })).toEqual(device('phone'));
+      expect(store.find({ deviceId: 'tablet' })).toEqual(tablet);
+    });
+
+    it('trusts the asked device, even one found before, and keeps the others untrusted', () => {
+      const store = open([device('phone'), device('tablet')]);
+      store.find({ deviceId: 'phone' });
+      store.recordTrust({ device: device('phone'), trusted: true });
+      expect(store.find({ deviceId: 'phone' })).toEqual({
+        ...device('phone'),
+        trusted: true,
+      });
+      expect(store.find({ deviceId: 'tablet' })).toEqual(device('tablet'));
+    });
+
+    it('stops trusting a device the owner no longer trusts, even one found before', () => {
+      const store = open([{ ...device('phone'), trusted: true }]);
+      store.find({ deviceId: 'phone' });
+      store.recordTrust({ device: device('phone'), trusted: false });
+      expect(store.find({ deviceId: 'phone' })).toEqual(device('phone'));
+    });
+
+    it('keeps the latest sighting and revocation when trust changes through an older copy, and trust through later sightings', () => {
+      const store = open([device('phone')]);
+      store.recordSighting({ device: { ...device('phone'), ...sighting } });
+      store.markRevoked({ device: device('phone'), revokedAt });
+      store.recordTrust({ device: device('phone'), trusted: true });
+      store.recordSighting({ device: { ...device('phone'), ...sighting } });
+      expect(store.find({ deviceId: 'phone' })).toEqual({
+        ...device('phone'),
+        ...sighting,
+        trusted: true,
+        revokedAt,
+      });
+    });
+
+    it('stores nothing when an unknown device is revoked, seen or trusted', () => {
       const store = open([device('phone')]);
       store.markRevoked({ device: device('unknown'), revokedAt });
       store.recordSighting({ device: { ...device('stranger'), ...sighting } });
+      store.recordTrust({ device: device('stranger'), trusted: true });
       expect(store.list()).toEqual([device('phone')]);
     });
 

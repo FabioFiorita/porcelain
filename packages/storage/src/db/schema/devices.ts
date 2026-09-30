@@ -14,5 +14,6 @@ export const devices = sqliteTable('devices', {
   routeInferred: integer('route_inferred', { mode: 'boolean' })
     .notNull()
     .default(false),
+  trusted: integer('trusted', { mode: 'boolean' }).notNull().default(false),
   revokedAt: text('revoked_at'),
 });

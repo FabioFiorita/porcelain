@@ -6,6 +6,7 @@ export type PairingGrant = {
   addresses: string[];
   createdAt: string;
   expiresAt: string;
+  trusted?: boolean | undefined;
 };
 
 export type StoredPairingGrant = PairingGrant & {

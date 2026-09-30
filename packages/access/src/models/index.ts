@@ -6,7 +6,7 @@ export type {
   CheckRequestOriginInput,
   RequestOriginRefusal,
 } from './check-request-origin.ts';
-export type { StoredDevice } from './device.ts';
+export type { DeviceTrust, StoredDevice } from './device.ts';
 export type { ChosenEnvironmentName } from './environment-name.ts';
 export type {
   ServiceUpdateCheck,

@@ -13,10 +13,12 @@ type GrantRow = typeof pairingGrants.$inferSelect;
 function storedGrant({
   redeemedAt,
   revokedAt,
+  trusted,
   ...grant
 }: GrantRow): StoredPairingGrant {
   return {
     ...grant,
+    ...(trusted ? { trusted } : {}),
     ...(redeemedAt === null ? {} : { redeemedAt }),
     ...(revokedAt === null ? {} : { revokedAt }),
   };
@@ -43,6 +45,7 @@ export class SqlitePairingGrantStore implements PairingGrantStore {
               addresses: grant.addresses,
               createdAt: grant.createdAt,
               expiresAt: grant.expiresAt,
+              trusted: grant.trusted === true,
               redeemedAt: grant.redeemedAt ?? null,
               revokedAt: grant.revokedAt ?? null,
             })),
@@ -102,6 +105,7 @@ export class SqlitePairingGrantStore implements PairingGrantStore {
             lastSeenAddress: device.lastSeenAddress ?? null,
             route: device.route,
             routeInferred: device.routeInferred === true,
+            trusted: device.trusted === true,
             revokedAt: device.revokedAt ?? null,
           })
           .run();

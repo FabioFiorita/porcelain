@@ -1,4 +1,4 @@
-import { index, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { index, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
 export const pairingGrants = sqliteTable(
   'pairing_grants',
@@ -12,6 +12,7 @@ export const pairingGrants = sqliteTable(
       .default([]),
     createdAt: text('created_at').notNull(),
     expiresAt: text('expires_at').notNull(),
+    trusted: integer('trusted', { mode: 'boolean' }).notNull().default(false),
     redeemedAt: text('redeemed_at'),
     revokedAt: text('revoked_at'),
   },
