@@ -24,9 +24,16 @@ import {
   tunnelOrigin,
   tunnelState,
 } from '../rules/remote-access.ts';
-import { tailnetNeedsCheck, tailnetOrigin } from '../rules/tailnet.ts';
+import {
+  tailnetNeedsCheck,
+  tailnetShownWhileChecking,
+} from '../rules/tailnet.ts';
 
-type TailnetOpening = { state: RouteState; proxy?: TailnetProxy | undefined };
+type TailnetOpening = {
+  state: RouteState;
+  proxy?: TailnetProxy | undefined;
+  check?: boolean | undefined;
+};
 
 export class OpenRemoteRoutesService {
   private readonly remoteAccess: RemoteAccessStore;
@@ -130,7 +137,8 @@ export class OpenRemoteRoutesService {
         tailnetPort: outcome.port,
       });
     return {
-      state: tailnetNeedsCheck(current) ? { kind: 'starting' } : current,
+      state: tailnetShownWhileChecking(current),
+      check: tailnetNeedsCheck(current),
       proxy: {
         address: this.options.loopbackAddress,
         port: outcome.port,
@@ -144,11 +152,8 @@ export class OpenRemoteRoutesService {
     environmentId: string,
     signal: AbortSignal | undefined,
   ): Promise<RouteState> {
-    if (tailnet.proxy === undefined || tailnet.state.kind !== 'starting')
-      return tailnet.state;
-    const origin = tailnetOrigin(tailnet.proxy.hostname);
-    const answer = await this.tunnelProbe.probe({ origin }, signal);
-    return tunnelState(answer, environmentId, origin);
+    if (tailnet.proxy === undefined || !tailnet.check) return tailnet.state;
+    return this.answerAt(tailnet.proxy.hostname, environmentId, signal);
   }
 
   private async tunnel(
@@ -160,6 +165,14 @@ export class OpenRemoteRoutesService {
     const hostname = settings.cloudflareHostname;
     if (!settings.cloudflare || hostname === undefined) return { kind: 'off' };
     if (!tunnelNeedsCheck(current)) return current;
+    return this.answerAt(hostname, environmentId, signal);
+  }
+
+  private async answerAt(
+    hostname: string,
+    environmentId: string,
+    signal: AbortSignal | undefined,
+  ): Promise<RouteState> {
     const origin = tunnelOrigin(hostname);
     const answer = await this.tunnelProbe.probe({ origin }, signal);
     return tunnelState(answer, environmentId, origin);

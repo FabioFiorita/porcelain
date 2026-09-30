@@ -19,7 +19,7 @@ export class CheckRequestOriginService {
   execute(input: CheckRequestOriginInput): CheckRequestOriginResult {
     return requestOriginCheck(
       input,
-      httpsHosts(this.remoteAccess.read(), this.routeStates.read()),
+      httpsHosts(this.remoteAccess.read(), this.routeStates.read(), input),
     );
   }
 }

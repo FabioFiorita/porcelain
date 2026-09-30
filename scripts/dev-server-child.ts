@@ -94,7 +94,7 @@ const startServer = composeServer({
     ].join('\n'),
   ),
   routeListenerRunner: () =>
-    new InMemoryRouteListenerRunner(listeningPort, () => 0),
+    new InMemoryRouteListenerRunner(listeningPort, () => 41000),
   tunnelProbe: () =>
     new ScriptedTunnelProbe(async ({ origin }) => {
       const { hostname } = new URL(origin);

@@ -67,7 +67,7 @@ export default defineFeature({
   paired: true,
   intent: 'intended',
   behaviour:
-    "A paired browser on the computer that runs Porcelain turns the ways in on and off: the local network, the Tailscale tailnet and the user's own Cloudflare tunnel with its public hostname. The choice is saved; each route reports whether it is off, starting, on with the addresses it serves, or failed with a reason. Turning the local network on records the network the computer is on, the private IPv4 network of the physical interface that carries the default route with the address and hardware address of its router, and the server listens there only, never on Docker, libvirt or VPN interfaces, and pauses on any other network (the fixture's computer is on 192.168.1.0/24 through eth0 at 192.168.1.20 behind the router 192.168.1.1 at 02:00:5e:10:00:01, with a Docker bridge and a VPN beside it, and has no tailnet); Turning the tailnet on needs the computer's Tailscale name under ts.net; the server never runs Tailscale itself: it opens a loopback listener of its own on a port it keeps, names it for the owner's own tailscale serve command, answers to the Tailscale name while the tailnet is on, and checks the tailnet by asking its own health through that name like the tunnel (the fixture's Tailscale forwards porcelain.tail0000.ts.net here), and it answers to the tunnel hostname only while Cloudflare is on; it checks the tunnel by asking its own health through the hostname (the fixture's tunnel reaches this server for any hostname except one with an invalid label, which nothing answers). An address that a route serves can be named in a pairing link. Turning Cloudflare on needs a readable public HTTPS hostname. As with pairing, only a request from this computer's loopback listener may change them, so a device that came in through a route cannot.",
+    "A paired browser on the computer that runs Porcelain turns the ways in on and off: the local network, the Tailscale tailnet and the user's own Cloudflare tunnel with its public hostname. The choice is saved; each route reports whether it is off, starting, on with the addresses it serves, or failed with a reason. Turning the local network on records the network the computer is on, the private IPv4 network of the physical interface that carries the default route with the address and hardware address of its router, and the server listens there only, never on Docker, libvirt or VPN interfaces, and pauses on any other network (the fixture's computer is on 192.168.1.0/24 through eth0 at 192.168.1.20 behind the router 192.168.1.1 at 02:00:5e:10:00:01, with a Docker bridge and a VPN beside it, and has no tailnet); Turning the tailnet on needs the computer's Tailscale name under ts.net; the server never runs Tailscale itself: it opens a loopback listener of its own on a port it keeps, names it for the owner's own tailscale serve command, answers to the Tailscale name only on that listener, so a forward to any other port is refused, and checks the tailnet by asking its own health through that name like the tunnel, asking again while it fails (the fixture's Tailscale forwards porcelain.tail0000.ts.net to its listener on port 41000), and it answers to the tunnel hostname only while Cloudflare is on; it checks the tunnel by asking its own health through the hostname (the fixture's tunnel reaches this server for any hostname except one with an invalid label, which nothing answers). An address that a route serves can be named in a pairing link. Turning Cloudflare on needs a readable public HTTPS hostname. As with pairing, only a request from this computer's loopback listener may change them, so a device that came in through a route cannot.",
   cases: [
     defineCase({
       name: 'every route is off at first',
@@ -225,9 +225,9 @@ export default defineFeature({
           { kind: 'on', urls: [`https://${tailnetHost}`] },
           status(settledTailnet, 'tailnet'),
         );
-        checkMatch(
+        check(
           'names the loopback listener to forward Tailscale Serve to',
-          /^http:\/\/127\.0\.0\.1:\d+$/,
+          'http://127.0.0.1:41000',
           settledTailnet.tailnetTarget,
         );
         const link = await read(session, {
@@ -253,12 +253,20 @@ export default defineFeature({
           [`https://${tailnetHost}`],
           record(record([tailnetLink.grants].flat()[0]).grant).addresses,
         );
-        const answered = await session.send(throughTailnet);
-        check('the tailnet name is answered status', 200, answered.status);
+        const mainListener = await session.send(throughTailnet);
         check(
-          'the tailnet name is answered body',
-          'ok',
-          record(answered.body).status,
+          'the Tailscale name is refused on the main listener status',
+          403,
+          mainListener.status,
+        );
+        check(
+          'the Tailscale name is refused on the main listener body',
+          apiError(
+            403,
+            'Forbidden',
+            `This server does not answer to the host ${tailnetHost}`,
+          ),
+          mainListener.body,
         );
       },
     }),

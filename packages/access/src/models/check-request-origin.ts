@@ -4,6 +4,7 @@ export type CheckRequestOriginInput = {
   method: string;
   scheme: string;
   localAddress: string | undefined;
+  localPort: number | undefined;
   allowedHosts: readonly string[];
   requireSameOrigin: boolean;
 };

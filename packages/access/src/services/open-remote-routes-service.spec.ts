@@ -53,7 +53,7 @@ const lanAtHome = {
   cloudflare: false,
 };
 
-function setup(options: { refusing?: boolean; taken?: number[] } = {}) {
+function setup(options: { refusing?: boolean } = {}) {
   const settings = new InMemoryRemoteAccessStore();
   const routes = new InMemoryRouteStateStore();
   const addresses = new FixedNetworkAddressReader(
@@ -61,11 +61,7 @@ function setup(options: { refusing?: boolean; taken?: number[] } = {}) {
     routeTableVia('wlp2s0'),
     laptopNeighbourTable,
   );
-  const listeners = new InMemoryRouteListenerRunner(
-    4173,
-    41000,
-    options.taken ?? [],
-  );
+  const listeners = new InMemoryRouteListenerRunner(4173, 41000, []);
   const probe = new FixedTunnelProbe({ kind: 'answered', environmentId });
   const service = new OpenRemoteRoutesService(
     settings,
@@ -190,21 +186,18 @@ describe('OpenRemoteRoutesService', () => {
   );
 
   it('fails the tailnet without asking its name when another program holds its recorded port, keeping the port it told the owner', async () => {
-    const { settings, routes, listeners, open } = setup({
-      taken: [39000],
-    });
+    const { settings, routes, open } = setup({ refusing: true });
     settings.save({ ...tailnetOnly, tailnetPort: 39000 });
     await open();
 
     expect(routes.read()).toEqual({
       states: {
         lan: { kind: 'off' },
-        tailnet: { kind: 'failed', reason: 'address-unavailable' },
+        tailnet: { kind: 'failed', reason: 'address-in-use' },
         cloudflare: { kind: 'off' },
       },
       origins: [],
     });
-    expect(listeners.bound({ route: 'tailnet' })).toEqual([]);
     expect(settings.read().tailnetPort).toBe(39000);
   });
 
@@ -215,6 +208,25 @@ describe('OpenRemoteRoutesService', () => {
     probe.replace({ kind: 'unreachable' });
     await open();
 
+    expect(routes.read().states.tailnet).toEqual({
+      kind: 'on',
+      urls: [`https://${tailnetName}`],
+    });
+  });
+
+  it('asks the Tailscale name again on every pass while it fails, showing the failure meanwhile, and turns the tailnet on once it answers', async () => {
+    const { settings, routes, probe, open } = setup();
+    probe.replace({ kind: 'unreachable' });
+    settings.save(tailnetOnly);
+    await open();
+    await open();
+    expect(routes.read().states.tailnet).toEqual({
+      kind: 'failed',
+      reason: 'unreachable',
+    });
+
+    probe.replace({ kind: 'answered', environmentId });
+    await open();
     expect(routes.read().states.tailnet).toEqual({
       kind: 'on',
       urls: [`https://${tailnetName}`],

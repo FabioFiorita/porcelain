@@ -51,7 +51,7 @@ test('turning the ways in on and off from Settings shows each one starting, then
   await expect
     .element(
       settings.getByText(
-        /^tailscale serve --bg --https=443 http:\/\/127\.0\.0\.1:\d+$/,
+        'tailscale serve --bg --https=443 http://127.0.0.1:41000',
       ),
     )
     .toBeVisible();

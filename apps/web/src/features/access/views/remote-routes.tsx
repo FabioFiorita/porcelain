@@ -257,13 +257,21 @@ function TailnetSettings({
         onSave={onSave}
         onCheck={onCheck}
       />
-      {command === undefined ? (
+      {remote.tailnetHostname === undefined && (
         <p className="text-xs text-muted-foreground">
           Save this computer’s name on your tailnet, as tailscale status or the
           Tailscale admin console shows it, to turn this on. Porcelain then
           names the one command to run.
         </p>
-      ) : (
+      )}
+      {remote.tailnetHostname !== undefined && !tailnet.enabled && (
+        <p className="text-xs text-muted-foreground">
+          If you set up tailscale serve for Porcelain, remove it with tailscale
+          serve --https=443 off, or Tailscale keeps forwarding to a port
+          Porcelain no longer holds.
+        </p>
+      )}
+      {command !== undefined && (
         <div className="flex flex-col gap-1">
           <p className="text-xs text-muted-foreground">
             Run this once on this computer. Tailscale keeps it across restarts;

@@ -9,6 +9,7 @@ function check(request: Partial<CheckRequestOriginInput>) {
     method: 'GET',
     scheme: 'http',
     localAddress: '127.0.0.1',
+    localPort: 4173,
     allowedHosts: [],
     requireSameOrigin: false,
     ...request,
@@ -130,6 +131,7 @@ describe('requestOriginCheck', () => {
           method: 'GET',
           scheme: 'http',
           localAddress: '127.0.0.1',
+          localPort: 4173,
           allowedHosts: [],
           requireSameOrigin: false,
         },
@@ -145,6 +147,7 @@ describe('requestOriginCheck', () => {
       method: 'POST',
       scheme: 'http',
       localAddress: '127.0.0.1',
+      localPort: 4173,
       allowedHosts: [],
       requireSameOrigin: false,
     };

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { RouteState } from '@porcelain/access/models';
 import {
   changedRemoteAccess,
   httpsHosts,
@@ -286,73 +287,57 @@ describe('httpsHosts', () => {
   const settings = {
     lan: false,
     tailnet: true,
+    tailnetHostname: 'laptop.tail0000.ts.net',
     cloudflare: true,
     cloudflareHostname: 'porcelain.example.com',
   };
   const on = { kind: 'on' as const, urls: [] };
-
-  it('names the tunnel hostname and the tailnet name the proxy in front serves over HTTPS', () => {
-    expect(
-      httpsHosts(settings, {
-        states: { lan: { kind: 'off' }, tailnet: on, cloudflare: on },
-        origins: [],
-        tailnetProxy: {
-          hostname: 'laptop.tail0000.ts.net',
-          address: '127.0.0.1',
-          port: 41000,
-        },
-      }),
-    ).toEqual(['porcelain.example.com', 'laptop.tail0000.ts.net']);
+  const routes = (tailnet: RouteState) => ({
+    states: { lan: { kind: 'off' as const }, tailnet, cloudflare: on },
+    origins: [],
+    tailnetProxy: {
+      hostname: 'laptop.tail0000.ts.net',
+      address: '127.0.0.1',
+      port: 41000,
+    },
   });
+  const throughTailnet = { localAddress: '127.0.0.1', localPort: 41000 };
+  const mainListener = { localAddress: '127.0.0.1', localPort: 4173 };
 
-  it.each([
-    ['checked', { kind: 'starting' as const }],
-    ['unanswered', { kind: 'failed' as const, reason: 'unreachable' as const }],
+  it.each<[string, RouteState]>([
+    ['on', on],
+    ['being checked', { kind: 'starting' }],
+    ['unanswered', { kind: 'failed', reason: 'unreachable' }],
   ])(
-    'names the tailnet host while its name is %s, since the check itself arrives through it',
+    'names the tunnel hostname, and the Tailscale name for a request on the listener Tailscale forwards to while the tailnet is %s',
     (_, tailnet) => {
-      expect(
-        httpsHosts(settings, {
-          states: { lan: { kind: 'off' }, tailnet, cloudflare: on },
-          origins: [],
-          tailnetProxy: {
-            hostname: 'laptop.tail0000.ts.net',
-            address: '127.0.0.1',
-            port: 41000,
-          },
-        }),
-      ).toEqual(['porcelain.example.com', 'laptop.tail0000.ts.net']);
+      expect(httpsHosts(settings, routes(tailnet), throughTailnet)).toEqual([
+        'porcelain.example.com',
+        'laptop.tail0000.ts.net',
+      ]);
     },
   );
 
-  it('names no tailnet host once another server answers at the Tailscale name', () => {
-    expect(
-      httpsHosts(settings, {
-        states: {
-          lan: { kind: 'off' },
-          tailnet: { kind: 'failed', reason: 'other-server' },
-          cloudflare: on,
-        },
-        origins: [],
-        tailnetProxy: {
-          hostname: 'laptop.tail0000.ts.net',
-          address: '127.0.0.1',
-          port: 41000,
-        },
-      }),
-    ).toEqual(['porcelain.example.com']);
+  it('names no Tailscale name for a request on any other listener, so a forward to the wrong port is never answered as the tailnet', () => {
+    expect(httpsHosts(settings, routes(on), mainListener)).toEqual([
+      'porcelain.example.com',
+    ]);
   });
 
-  it('names no tailnet host while nothing serves the tailnet', () => {
+  it('names no Tailscale name while the tailnet has no listener', () => {
     expect(
-      httpsHosts(settings, {
-        states: {
-          lan: { kind: 'off' },
-          tailnet: { kind: 'off' },
-          cloudflare: on,
+      httpsHosts(
+        settings,
+        {
+          states: {
+            lan: { kind: 'off' },
+            tailnet: { kind: 'off' },
+            cloudflare: on,
+          },
+          origins: [],
         },
-        origins: [],
-      }),
+        throughTailnet,
+      ),
     ).toEqual(['porcelain.example.com']);
   });
 });

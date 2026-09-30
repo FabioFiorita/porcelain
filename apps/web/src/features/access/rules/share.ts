@@ -115,7 +115,7 @@ export function routeFailure(
   reason: Extract<RemoteRoute['status'], { kind: 'failed' }>['reason'],
 ): string {
   const freshPort =
-    'Turn Tailscale off and on again to pick a free port, then run the new command below.';
+    'Your devices may reach that program instead of Porcelain: run tailscale serve --https=443 off now, then turn Tailscale off and on here to pick a free port and run the new command Porcelain names.';
   switch (reason) {
     case 'address-in-use':
       return route === 'tailnet'
@@ -127,11 +127,11 @@ export function routeFailure(
         : 'This computer could not listen at its address.';
     case 'unreachable':
       return route === 'tailnet'
-        ? 'Nothing answered at this Tailscale name. Check that Tailscale is connected on this computer, that MagicDNS and HTTPS Certificates are on in the Tailscale admin console, and that you ran the command below, then check again.'
+        ? 'Nothing answered at this Tailscale name yet. Check that you ran the command below, that Tailscale is connected on this computer and uses MagicDNS, and that MagicDNS and HTTPS Certificates are on in the Tailscale admin console. Porcelain keeps checking.'
         : 'Nothing answered at this hostname. Check that cloudflared is running and routes it here.';
     case 'other-server':
       return route === 'tailnet'
-        ? 'Another server answered at this Tailscale name. Run the command below so Tailscale forwards to this Porcelain, then check again.'
+        ? 'Another server answered at this Tailscale name. Run the command below so Tailscale forwards to this Porcelain; Porcelain keeps checking.'
         : 'Another server answered at this hostname.';
   }
 }

@@ -41,6 +41,7 @@ export function checkRequestOrigin(
         method: request.method,
         scheme: request.protocol,
         localAddress: request.socket.localAddress,
+        localPort: request.socket.localPort,
         allowedHosts: options.allowedHosts,
         requireSameOrigin,
       },
