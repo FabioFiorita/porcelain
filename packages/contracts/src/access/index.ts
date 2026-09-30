@@ -28,6 +28,8 @@ export {
   redeemPairingResponseSchema,
   revokeAccessRequestSchema,
   revokeAccessResponseSchema,
+  setDeviceTrustRequestSchema,
+  setDeviceTrustResponseSchema,
   type ClearBrowserSessionResponse,
   type IssuePairingRequest,
   type IssuePairingResponse,
@@ -37,14 +39,17 @@ export {
   type RedeemPairingResponse,
   type RevokeAccessRequest,
   type RevokeAccessResponse,
+  type SetDeviceTrustRequest,
+  type SetDeviceTrustResponse,
 } from './pairing.ts';
 export type { Principal } from './principal.ts';
 export {
   readServiceUpdateResponseSchema,
   startServiceUpdateRequestSchema,
   startServiceUpdateResponseSchema,
+  type ReadServiceUpdateRequest,
   type ReadServiceUpdateResponse,
-  type StartServiceUpdateRequest,
+  type StartServiceUpdateInput,
   type StartServiceUpdateResponse,
 } from './service-update.ts';
 export {

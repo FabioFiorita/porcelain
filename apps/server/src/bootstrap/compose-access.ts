@@ -6,6 +6,7 @@ import type {
   TunnelProbe,
 } from '@porcelain/access/ports';
 import {
+  AuthorizeServiceUpdateService,
   CheckLocalRequestService,
   CheckRequestOriginService,
   CloseTunnelConnectionsService,
@@ -25,6 +26,7 @@ import {
   RefundPairingAttemptService,
   RevokeDeviceService,
   RevokePairingGrantService,
+  SetDeviceTrustService,
   TakePairingAttemptService,
   IssueLiveTicketService,
   RedeemLiveTicketService,
@@ -57,6 +59,7 @@ import { ReadOwnerStatusUseCase } from '../use-cases/access/read-owner-status.ts
 import { RedeemPairingUseCase } from '../use-cases/access/redeem-pairing.ts';
 import { RefundPairingAttemptUseCase } from '../use-cases/access/refund-pairing-attempt.ts';
 import { RevokeAccessUseCase } from '../use-cases/access/revoke-access.ts';
+import { SetDeviceTrustUseCase } from '../use-cases/access/set-device-trust.ts';
 import { TakePairingAttemptUseCase } from '../use-cases/access/take-pairing-attempt.ts';
 import type { ComposeContext } from './compose-context.ts';
 import type { Shared } from './compose-shared.ts';
@@ -109,6 +112,7 @@ export function composeAccess(
     clock,
     limits.serviceUpdate,
   );
+  const authorizeServiceUpdate = new AuthorizeServiceUpdateService(deviceStore);
   return {
     authenticateDevice: new AuthenticateDeviceUseCase(
       new AuthenticateDeviceService(
@@ -157,12 +161,14 @@ export function composeAccess(
     ),
     readServiceUpdate: new ReadServiceUpdateUseCase(
       dependencies.serviceUpdateRunner,
+      authorizeServiceUpdate,
       planServiceUpdateCheck,
       lanes,
       laneKeys,
     ),
     startServiceUpdate: new StartServiceUpdateUseCase(
       dependencies.serviceUpdateRunner,
+      authorizeServiceUpdate,
       new CheckServiceUpdateService(),
       planServiceUpdateCheck,
       lanes,
@@ -288,6 +294,11 @@ export function composeAccess(
       new RevokePairingGrantService(pairingGrants, clock),
       new RevokeDeviceService(deviceStore, deviceSightingStore, clock),
       dependencies.deviceConnections,
+      lanes,
+      laneKeys,
+    ),
+    setDeviceTrust: new SetDeviceTrustUseCase(
+      new SetDeviceTrustService(deviceStore),
       lanes,
       laneKeys,
     ),

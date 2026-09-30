@@ -16,6 +16,10 @@ export function readServiceUpdate(
         response: { ...errorResponses, 200: readServiceUpdateResponseSchema },
       },
     },
-    (request) => options.useCase.execute({ signal: request.disconnected }),
+    (request) =>
+      options.useCase.execute(
+        { viewer: request.caller, local: request.local },
+        { signal: request.disconnected },
+      ),
   );
 }

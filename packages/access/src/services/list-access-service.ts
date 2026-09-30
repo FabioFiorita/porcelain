@@ -29,12 +29,13 @@ export class ListAccessService {
       grants: this.pairingGrants
         .list()
         .filter((grant) => pairingGrantPending(grant, now))
-        .map(({ id, label, addresses, createdAt, expiresAt }) => ({
+        .map(({ id, label, addresses, createdAt, expiresAt, trusted }) => ({
           id,
           label,
           addresses,
           createdAt,
           expiresAt,
+          trusted: trusted === true,
         })),
       devices: this.devices
         .list()
@@ -49,6 +50,7 @@ export class ListAccessService {
             lastSeenAddress,
             route,
             routeInferred,
+            trusted,
           }) => ({
             id,
             label,
@@ -58,6 +60,7 @@ export class ListAccessService {
             ...(lastSeenAddress === undefined ? {} : { lastSeenAddress }),
             route,
             ...(routeInferred === true ? { routeInferred } : {}),
+            trusted: trusted === true,
             ...(id === input?.viewerDeviceId ? { current: true } : {}),
           }),
         ),

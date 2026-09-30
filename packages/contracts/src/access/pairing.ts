@@ -30,6 +30,7 @@ const pairingGrantSchema = z.object({
   addresses: z.array(z.string()),
   createdAt: z.string(),
   expiresAt: z.string(),
+  trusted: z.boolean(),
 });
 const deviceRouteSchema = z.enum(['loopback', 'lan', 'tailnet', 'tunnel']);
 
@@ -42,6 +43,7 @@ const deviceSchema = z.object({
   lastSeenAddress: z.string().optional(),
   route: deviceRouteSchema,
   routeInferred: z.boolean().optional(),
+  trusted: z.boolean(),
   current: z.boolean().optional(),
 });
 
@@ -56,6 +58,7 @@ export const issuePairingRequestSchema = z.strictObject({
     .min(1)
     .max(PAIRING_LABELS),
   addresses: z.array(z.url()).min(1).max(PAIRING_ADDRESSES),
+  trusted: z.boolean().optional(),
 });
 export const issuePairingResponseSchema = z.object({
   grants: z.array(
@@ -75,6 +78,15 @@ export const revokeAccessResponseSchema = z.object({
   kind: z.enum(['grant', 'device']).optional(),
 });
 
+export const setDeviceTrustRequestSchema = z.strictObject({
+  id: z.string().min(1),
+  trusted: z.boolean(),
+});
+export const setDeviceTrustResponseSchema = z.object({
+  id: z.string(),
+  trusted: z.boolean(),
+});
+
 export const clearBrowserSessionResponseSchema = z.undefined();
 
 type RedeemPairingRequest = z.output<typeof redeemPairingRequestSchema>;
@@ -89,6 +101,12 @@ export type IssuePairingRequest = z.output<typeof issuePairingRequestSchema>;
 export type IssuePairingResponse = z.output<typeof issuePairingResponseSchema>;
 export type RevokeAccessRequest = z.output<typeof revokeAccessRequestSchema>;
 export type RevokeAccessResponse = z.output<typeof revokeAccessResponseSchema>;
+export type SetDeviceTrustRequest = z.output<
+  typeof setDeviceTrustRequestSchema
+>;
+export type SetDeviceTrustResponse = z.output<
+  typeof setDeviceTrustResponseSchema
+>;
 export type ClearBrowserSessionResponse = z.output<
   typeof clearBrowserSessionResponseSchema
 >;

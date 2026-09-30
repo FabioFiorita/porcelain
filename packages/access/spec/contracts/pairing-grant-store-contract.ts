@@ -113,6 +113,21 @@ export function pairingGrantStoreContract(
       expect(opened.devices.find({ deviceId: device.id })).toEqual(device);
     });
 
+    it('keeps a grant that pairs a trusted device and the trusted device it paired', () => {
+      const trusted: StoredPairingGrant = { ...grant('one'), trusted: true };
+      const trustedDevice: StoredDevice = { ...device, trusted: true };
+      grants.add({ grants: [trusted, grant('two')] });
+      grants.redeem({ grant: trusted, redeemedAt, device: trustedDevice });
+      expect(grants.find({ grantId: 'one' })).toEqual({
+        ...trusted,
+        redeemedAt,
+      });
+      expect(grants.find({ grantId: 'two' })).toEqual(grant('two'));
+      expect(opened.devices.find({ deviceId: device.id })).toEqual(
+        trustedDevice,
+      );
+    });
+
     it('keeps a redemption when the grant is revoked through an older copy', () => {
       grants.add({ grants: [grant('one')] });
       grants.redeem({ grant: grant('one'), redeemedAt, device });

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { Principal } from './principal.ts';
 import { absentAsNull } from '../shared/absent-as-null.ts';
 import { SERVICE_VERSION_LENGTH } from '../shared/limits.ts';
 
@@ -22,6 +23,7 @@ export const readServiceUpdateResponseSchema = z.object({
   available: z.boolean(),
   running: z.boolean(),
   last: absentAsNull(serviceUpdateSchema),
+  canUpdate: z.boolean(),
 });
 
 export const startServiceUpdateRequestSchema = z.strictObject({
@@ -30,12 +32,15 @@ export const startServiceUpdateRequestSchema = z.strictObject({
 
 export const startServiceUpdateResponseSchema = readServiceUpdateResponseSchema;
 
+export type ReadServiceUpdateRequest = { viewer: Principal; local: boolean };
 export type ReadServiceUpdateResponse = z.output<
   typeof readServiceUpdateResponseSchema
 >;
-export type StartServiceUpdateRequest = z.output<
+type StartServiceUpdateRequest = z.output<
   typeof startServiceUpdateRequestSchema
 >;
+export type StartServiceUpdateInput = StartServiceUpdateRequest &
+  ReadServiceUpdateRequest;
 export type StartServiceUpdateResponse = z.output<
   typeof startServiceUpdateResponseSchema
 >;

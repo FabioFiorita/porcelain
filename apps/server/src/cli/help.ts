@@ -12,6 +12,8 @@ Commands:
   pair <name>...           Print a one-time pairing link per device name
   devices                  List pending pairing links and paired devices
   revoke <id>              Revoke a pending link or a paired device
+  trust <id>               Let a paired device update Porcelain from anywhere it was paired
+  untrust <id>             Stop a paired device from updating Porcelain
   share                    Show how this server is shared and at which addresses
   share lan on|off         Share on the local network, or stop
   share tailscale <name>|off
@@ -28,6 +30,7 @@ Options:
   --host <host>            Listen host (default: ${DEFAULT_LISTEN_HOST})
   --allow-host <host>      Answer to this host name as well (repeatable)
   --address <origin>       Origin a pairing link points at (repeatable)
+  --trusted                Pair a device that may update Porcelain (with pair)
   --port <port>            Listen port (default: ${DEFAULT_LISTEN_PORT})
   --data-directory <path>  Persistent state directory (default: ~/${DEFAULT_DATA_DIRECTORY_NAME})
   --allow-downgrade        Permit service update to an older invoked CLI version

@@ -7,11 +7,13 @@ export class InMemoryDeviceStore implements DeviceStore {
   private readonly devices = new Map<string, StoredDevice>();
   private readonly revocations = new Map<string, string>();
   private readonly sightings = new Map<string, Sighting>();
+  private readonly trust = new Map<string, true | undefined>();
 
   add(device: StoredDevice): void {
     this.devices.set(device.id, { ...device });
     this.revocations.delete(device.id);
     this.sightings.delete(device.id);
+    this.trust.set(device.id, device.trusted || undefined);
   }
 
   find(input: { deviceId: string }): StoredDevice | undefined {
@@ -36,10 +38,15 @@ export class InMemoryDeviceStore implements DeviceStore {
     });
   }
 
+  recordTrust(input: { device: StoredDevice; trusted: boolean }): void {
+    this.trust.set(input.device.id, input.trusted || undefined);
+  }
+
   private current(device: StoredDevice): StoredDevice {
     return {
       ...device,
       ...this.sightings.get(device.id),
+      trusted: this.trust.get(device.id),
       revokedAt: this.revocations.get(device.id) ?? device.revokedAt,
     };
   }

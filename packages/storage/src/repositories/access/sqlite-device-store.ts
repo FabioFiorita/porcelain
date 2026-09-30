@@ -1,6 +1,6 @@
 import { asc, eq } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
-import type { StoredDevice } from '@porcelain/access/models';
+import type { DeviceTrust, StoredDevice } from '@porcelain/access/models';
 import type { DeviceStore } from '@porcelain/access/ports';
 import { devices } from '../../db/schema/devices.ts';
 
@@ -10,12 +10,14 @@ function storedDevice({
   lastSeenAddress,
   revokedAt,
   routeInferred,
+  trusted,
   ...device
 }: DeviceRow): StoredDevice {
   return {
     ...device,
     ...(lastSeenAddress === null ? {} : { lastSeenAddress }),
     ...(routeInferred ? { routeInferred } : {}),
+    ...(trusted ? { trusted } : {}),
     ...(revokedAt === null ? {} : { revokedAt }),
   };
 }
@@ -65,6 +67,18 @@ export class SqliteDeviceStore implements DeviceStore {
             lastSeenAt: input.device.lastSeenAt,
             lastSeenAddress: input.device.lastSeenAddress ?? null,
           })
+          .where(eq(devices.id, input.device.id))
+          .run();
+      },
+      { behavior: 'immediate' },
+    );
+  }
+
+  recordTrust(input: DeviceTrust): void {
+    this.db.transaction(
+      (tx) => {
+        tx.update(devices)
+          .set({ trusted: input.trusted })
           .where(eq(devices.id, input.device.id))
           .run();
       },

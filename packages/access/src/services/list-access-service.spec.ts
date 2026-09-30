@@ -67,6 +67,7 @@ describe('ListAccessService', () => {
         addresses: ['http://192.168.1.20:4173'],
         createdAt: '2026-09-23T10:00:01.000Z',
         expiresAt: '2026-09-23T10:15:00.000Z',
+        trusted: false,
       },
       {
         id: '5',
@@ -74,6 +75,7 @@ describe('ListAccessService', () => {
         addresses: ['http://192.168.1.20:4173'],
         createdAt: '2026-09-23T10:00:05.000Z',
         expiresAt: '2026-09-23T10:15:00.000Z',
+        trusted: false,
       },
     ]);
   });
@@ -94,6 +96,7 @@ describe('ListAccessService', () => {
         createdAt: '2026-09-21T10:00:00.000Z',
         lastSeenAt: '2026-09-23T09:00:00.000Z',
         route: 'lan',
+        trusted: false,
       },
       {
         id: '2',
@@ -103,6 +106,7 @@ describe('ListAccessService', () => {
         lastSeenAt: '2026-09-23T09:00:00.000Z',
         lastSeenAddress: '100.64.0.9',
         route: 'tailnet',
+        trusted: false,
       },
     ]);
   });
@@ -119,6 +123,25 @@ describe('ListAccessService', () => {
     ).toEqual([
       { id: '1', routeInferred: true },
       { id: '2', routeInferred: undefined },
+    ]);
+  });
+
+  it('says which devices and which pending links the owner trusts', () => {
+    const { devices, grants, service } = setup();
+    devices.add(device('1', { trusted: true }));
+    devices.add(device('2'));
+    grants.add({ grants: [grant('1', { trusted: true }), grant('2')] });
+
+    const listing = service.execute();
+    expect(listing.devices.map(({ id, trusted }) => ({ id, trusted }))).toEqual(
+      [
+        { id: '1', trusted: true },
+        { id: '2', trusted: false },
+      ],
+    );
+    expect(listing.grants.map(({ id, trusted }) => ({ id, trusted }))).toEqual([
+      { id: '1', trusted: true },
+      { id: '2', trusted: false },
     ]);
   });
 

@@ -42,11 +42,18 @@ type PairSettings = {
   dataDirectory: string;
   labels: string[];
   addresses: string[];
+  trusted: boolean;
 };
 
 type RevokeSettings = {
   dataDirectory: string;
   id: string;
+};
+
+type TrustSettings = {
+  dataDirectory: string;
+  id: string;
+  trusted: boolean;
 };
 
 export type ShareAction =
@@ -68,6 +75,7 @@ export type CliCommand =
   | { command: 'pair'; settings: PairSettings }
   | { command: 'devices'; settings: StatusSettings }
   | { command: 'revoke'; settings: RevokeSettings }
+  | { command: 'trust'; settings: TrustSettings }
   | { command: 'share'; settings: ShareSettings }
   | { command: 'mcp'; settings: StatusSettings }
   | { command: 'service'; settings: ServiceSettings };
@@ -82,6 +90,8 @@ type ServeArguments = {
   lan: boolean;
   help: boolean;
   allowDowngrade: boolean;
+  trusted: boolean;
+  untrust: boolean;
   serviceAction?: ServiceAction;
   command: CliCommand['command'];
 };
@@ -168,6 +178,8 @@ function parseArguments(args: readonly string[]): ServeArguments {
     lan: false,
     help: false,
     allowDowngrade: false,
+    trusted: false,
+    untrust: false,
     allowHosts: [],
     addresses: [],
     operands: [],
@@ -196,10 +208,15 @@ function parseArguments(args: readonly string[]): ServeArguments {
     command === 'pair' ||
     command === 'devices' ||
     command === 'revoke' ||
+    command === 'trust' ||
     command === 'share' ||
     command === 'mcp'
   ) {
     parsed.command = command;
+    index = 1;
+  } else if (command === 'untrust') {
+    parsed.command = 'trust';
+    parsed.untrust = true;
     index = 1;
   } else if (command === 'help' || command === '--help' || command === '-h') {
     parsed.help = true;
@@ -225,6 +242,10 @@ function parseArguments(args: readonly string[]): ServeArguments {
     }
     if (argument === '--allow-downgrade') {
       parsed.allowDowngrade = true;
+      continue;
+    }
+    if (argument === '--trusted') {
+      parsed.trusted = true;
       continue;
     }
     if (
@@ -276,6 +297,8 @@ function parseArguments(args: readonly string[]): ServeArguments {
   }
   if (parsed.lan && parsed.host !== undefined)
     throw new ServeConfigurationError('--lan cannot be combined with --host');
+  if (parsed.trusted && parsed.command !== 'pair')
+    throw new ServeConfigurationError('--trusted is only valid with pair');
   if (parsed.command === 'service') {
     if (parsed.operands.length > 0)
       throw new ServeConfigurationError('service does not accept operands');
@@ -368,6 +391,7 @@ export function parseCliArguments(
         dataDirectory,
         labels: parsed.operands,
         addresses: parsed.addresses,
+        trusted: parsed.trusted,
       },
     };
   }
@@ -381,6 +405,16 @@ export function parseCliArguments(
     if (parsed.operands.length !== 1 || !id)
       throw new ServeConfigurationError('revoke needs exactly one id');
     return { command: 'revoke', settings: { dataDirectory, id } };
+  }
+  if (parsed.command === 'trust') {
+    const id = parsed.operands[0];
+    const verb = parsed.untrust ? 'untrust' : 'trust';
+    if (parsed.operands.length !== 1 || !id)
+      throw new ServeConfigurationError(`${verb} needs exactly one device id`);
+    return {
+      command: 'trust',
+      settings: { dataDirectory, id, trusted: !parsed.untrust },
+    };
   }
 
   const host = parsed.lan ? '0.0.0.0' : (parsed.host ?? environment.host);

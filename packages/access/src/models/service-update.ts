@@ -1,3 +1,5 @@
+import type { ServiceUpdateAuthority } from './authorize-service-update.ts';
+
 type ServiceUpdateStage =
   | 'downloading'
   | 'installing'
@@ -31,11 +33,13 @@ export type ServiceUpdateTarget = {
 };
 
 export type CheckServiceUpdateInput = {
+  authority: ServiceUpdateAuthority;
   state: ServiceUpdateState;
   target: ServiceUpdateTarget;
 };
 
 export type ServiceUpdateRefusal =
+  | { kind: 'untrusted' }
   | { kind: 'unmanaged' }
   | { kind: 'running' }
   | { kind: 'not-offered' };

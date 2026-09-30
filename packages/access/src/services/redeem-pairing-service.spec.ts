@@ -80,6 +80,24 @@ describe('RedeemPairingService', () => {
     );
   });
 
+  it('pairs a trusted device from a trusted grant', () => {
+    const { devices, service, code } = setup({ trusted: true });
+    const { device } = service.execute({
+      code,
+      platform: 'macOS',
+      route: 'lan',
+    });
+    expect(device.trusted).toBe(true);
+    expect(devices.find({ deviceId: device.id })?.trusted).toBe(true);
+  });
+
+  it('pairs an untrusted device from an ordinary grant', () => {
+    const { devices, service, code } = setup({ trusted: false });
+    const { device } = service.execute({ code, platform: 'iOS', route: 'lan' });
+    expect(device.trusted).toBeUndefined();
+    expect(devices.find({ deviceId: device.id })?.trusted).toBeUndefined();
+  });
+
   it.each(['loopback', 'tailnet', 'tunnel'] as const)(
     'binds the device to the route it was paired over, %s',
     (route) => {

@@ -3,6 +3,7 @@ import {
   pairingLink,
   listAccessResponseSchema,
   revokeAccessResponseSchema,
+  setDeviceTrustResponseSchema,
 } from '@porcelain/contracts/access';
 import {
   DEVICE_LABEL_LENGTH,
@@ -34,10 +35,15 @@ function qr(link: string): Promise<string> {
   });
 }
 
+type PairingRequest = {
+  labels: readonly string[];
+  addresses: readonly string[];
+  trusted: boolean;
+};
+
 export async function issuePairings(
   dataDirectory: string,
-  labels: readonly string[],
-  addresses: readonly string[],
+  pairing: PairingRequest,
   output: Output,
   limits: Limits,
   withQr = true,
@@ -48,7 +54,7 @@ export async function issuePairings(
       dataDirectory,
       'POST',
       '/pairings',
-      { labels, addresses },
+      pairing,
       limits.owner.requestTimeoutMs,
     ),
   );
@@ -64,6 +70,10 @@ export async function issuePairings(
       ? `This link works once, for ${minutes} minutes.\n`
       : `${answer.grants.length} links, each good once for ${minutes} minutes.\n`,
   );
+  if (pairing.trusted)
+    output.stdout(
+      'A device paired with it is trusted: it may update Porcelain.\n',
+    );
 }
 
 export async function listAccess(
@@ -84,7 +94,7 @@ export async function listAccess(
     output.stdout('Pending links\n');
     for (const grant of listing.grants)
       output.stdout(
-        `  ${grant.id}  ${printable(grant.label, DEVICE_LABEL_LENGTH)}  expires ${grant.expiresAt}\n`,
+        `  ${grant.id}  ${printable(grant.label, DEVICE_LABEL_LENGTH)}  ${grant.trusted ? 'trusted  ' : ''}expires ${grant.expiresAt}\n`,
       );
     output.stdout('\n');
   }
@@ -97,6 +107,7 @@ export async function listAccess(
     output.stdout(
       `  ${device.id}  ${printable(device.label, DEVICE_LABEL_LENGTH)}  ${printable(device.platform)}  ` +
         `over ${device.route}${device.routeInferred ? ' (inferred)' : ''}  ` +
+        `${device.trusted ? 'trusted' : 'not trusted'}  ` +
         `last seen ${device.lastSeenAt}${device.lastSeenAddress ? ` from ${printable(device.lastSeenAddress, limits.cli.printedAddressLength)}` : ''}\n`,
     );
 }
@@ -128,4 +139,26 @@ export async function revokeAccess(
       : 'That device is revoked; anything it had open is closed.\n',
   );
   return true;
+}
+
+export async function setDeviceTrust(
+  dataDirectory: string,
+  change: { id: string; trusted: boolean },
+  output: Output,
+  limits: Limits,
+): Promise<void> {
+  const answer = setDeviceTrustResponseSchema.parse(
+    await askOwner(
+      dataDirectory,
+      'POST',
+      '/access/trust',
+      change,
+      limits.owner.requestTimeoutMs,
+    ),
+  );
+  output.stdout(
+    answer.trusted
+      ? 'That device is trusted: it may update Porcelain.\n'
+      : 'That device is no longer trusted to update Porcelain.\n',
+  );
 }

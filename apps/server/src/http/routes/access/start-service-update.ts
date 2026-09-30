@@ -21,9 +21,14 @@ export function startServiceUpdate(
       },
     },
     async (request, reply) => {
-      const state = await options.useCase.execute(request.body, {
-        signal: request.disconnected,
-      });
+      const state = await options.useCase.execute(
+        {
+          version: request.body.version,
+          viewer: request.caller,
+          local: request.local,
+        },
+        { signal: request.disconnected },
+      );
       return reply.code(202).send(state);
     },
   );

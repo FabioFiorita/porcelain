@@ -22,3 +22,5 @@ export { CheckServiceUpdateService } from './check-service-update-service.ts';
 export { PlanServiceUpdateCheckService } from './plan-service-update-check-service.ts';
 export { IssueLiveTicketService } from './issue-live-ticket-service.ts';
 export { RedeemLiveTicketService } from './redeem-live-ticket-service.ts';
+export { SetDeviceTrustService } from './set-device-trust-service.ts';
+export { AuthorizeServiceUpdateService } from './authorize-service-update-service.ts';

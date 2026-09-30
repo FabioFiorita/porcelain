@@ -1,4 +1,4 @@
-import type { StoredDevice } from '@porcelain/access/models';
+import type { DeviceTrust, StoredDevice } from '@porcelain/access/models';
 import type { DeviceStore } from '@porcelain/access/ports';
 
 export class CachedDeviceStore implements DeviceStore {
@@ -28,6 +28,11 @@ export class CachedDeviceStore implements DeviceStore {
 
   recordSighting(input: { device: StoredDevice }): void {
     this.devices.recordSighting(input);
+    this.cached.delete(input.device.id);
+  }
+
+  recordTrust(input: DeviceTrust): void {
+    this.devices.recordTrust(input);
     this.cached.delete(input.device.id);
   }
 }

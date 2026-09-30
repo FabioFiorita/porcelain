@@ -1,9 +1,10 @@
 import type {
+  AuthorizeServiceUpdateService,
   CheckServiceUpdateService,
   PlanServiceUpdateCheckService,
 } from '@porcelain/access/services';
 import type {
-  StartServiceUpdateRequest,
+  StartServiceUpdateInput,
   StartServiceUpdateResponse,
 } from '@porcelain/contracts/access';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
@@ -13,6 +14,7 @@ import type { ServiceUpdateRunner } from '../../ports/service-update-runner.ts';
 
 export class StartServiceUpdateUseCase {
   private readonly updates: ServiceUpdateRunner;
+  private readonly authorizeServiceUpdate: AuthorizeServiceUpdateService;
   private readonly checkServiceUpdate: CheckServiceUpdateService;
   private readonly planCheck: PlanServiceUpdateCheckService;
   private readonly lanes: Lanes;
@@ -20,12 +22,14 @@ export class StartServiceUpdateUseCase {
 
   constructor(
     updates: ServiceUpdateRunner,
+    authorizeServiceUpdate: AuthorizeServiceUpdateService,
     checkServiceUpdate: CheckServiceUpdateService,
     planCheck: PlanServiceUpdateCheckService,
     lanes: Lanes,
     laneKeys: LaneKeys,
   ) {
     this.updates = updates;
+    this.authorizeServiceUpdate = authorizeServiceUpdate;
     this.checkServiceUpdate = checkServiceUpdate;
     this.planCheck = planCheck;
     this.lanes = lanes;
@@ -33,20 +37,26 @@ export class StartServiceUpdateUseCase {
   }
 
   execute(
-    input: StartServiceUpdateRequest,
+    input: StartServiceUpdateInput,
     context: OperationContext,
   ): Promise<StartServiceUpdateResponse> {
     const check = this.planCheck.execute();
+    const target = { version: input.version };
     return this.lanes.run(
       this.laneKeys.serviceUpdate(),
       'write',
       async ({ signal }) => {
-        this.checkServiceUpdate.execute({
-          state: await this.updates.read(check, signal),
-          target: input,
+        const authority = this.authorizeServiceUpdate.execute({
+          viewer: input.viewer,
+          local: input.local,
         });
-        await this.updates.start(input, signal);
-        return this.updates.read(check);
+        this.checkServiceUpdate.execute({
+          authority,
+          state: await this.updates.read(check, signal),
+          target,
+        });
+        await this.updates.start(target, signal);
+        return { ...(await this.updates.read(check)), ...authority };
       },
       { callerSignal: context.signal },
     );

@@ -9,6 +9,7 @@ export type Device = {
   lastSeenAddress?: string | undefined;
   route: DeviceRoute;
   routeInferred?: boolean | undefined;
+  trusted?: boolean | undefined;
 };
 
 export type StoredDevice = Device & {
@@ -26,3 +27,5 @@ export type DeviceKey = { deviceId: string };
 export type DeviceSighting = { device: StoredDevice };
 
 export type DeviceRevocation = { device: StoredDevice; revokedAt: string };
+
+export type DeviceTrust = { device: StoredDevice; trusted: boolean };

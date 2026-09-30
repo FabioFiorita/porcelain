@@ -12,6 +12,7 @@ const idle: ServiceUpdate = {
   available: true,
   running: false,
   last: undefined,
+  canUpdate: true,
 };
 const during = (stage: 'downloading' | 'installing' | 'restarting') => ({
   ...idle,
