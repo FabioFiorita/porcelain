@@ -36,7 +36,7 @@ const mcpCommand = 'claude mcp add porcelain -- porcelain mcp';
 
 const items: { id: string; label: string; icon: LucideIcon }[] = [
   { id: 'appearance', label: 'Appearance', icon: PaletteIcon },
-  { id: 'git', label: 'Git', icon: GitBranchIcon },
+  { id: 'git', label: 'Git and agents', icon: GitBranchIcon },
   { id: 'updates', label: 'Updates', icon: RefreshCwIcon },
   { id: 'connection', label: 'Connection', icon: UnplugIcon },
   ...(desktopShell
@@ -86,18 +86,12 @@ function Choice<K extends keyof Preferences>({
   );
 }
 
-function Group({
-  id,
-  title,
-  children,
-}: {
-  id?: string;
-  title: string;
-  children: ReactNode;
-}) {
+function Group({ title, children }: { title?: string; children: ReactNode }) {
   return (
-    <section id={id} className="flex flex-col gap-2.5">
-      <h2 className="px-1 text-sm font-medium text-foreground/70">{title}</h2>
+    <section className="flex flex-col gap-2.5">
+      {title && (
+        <h3 className="px-1 text-sm font-medium text-foreground/70">{title}</h3>
+      )}
       <div className="flex flex-col divide-y overflow-hidden rounded-xl border bg-card *:px-4 *:py-3">
         {children}
       </div>
@@ -105,14 +99,24 @@ function Group({
   );
 }
 
-function Page({ id, children }: { id?: string; children: ReactNode }) {
+function Page({
+  id,
+  title,
+  children,
+}: {
+  id: string;
+  title: string;
+  children: ReactNode;
+}) {
   return (
-    <div
-      id={id}
-      className="mx-auto flex min-h-full w-full max-w-3xl flex-col gap-8 px-6 py-6"
-    >
-      {children}
-    </div>
+    <section id={id} className="h-full">
+      <ScrollArea className="h-full">
+        <div className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-6 py-6">
+          <h2 className="text-base font-medium">{title}</h2>
+          {children}
+        </div>
+      </ScrollArea>
+    </section>
   );
 }
 
@@ -131,20 +135,17 @@ export function SettingsDialog({
 }) {
   const [current, setCurrent] = useState(items[0]?.id ?? 'appearance');
   const frameRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    const viewport = frameRef.current?.querySelector(
-      '[data-slot="scroll-area-viewport"]',
-    );
-    if (viewport instanceof HTMLElement) viewport.scrollTop = 0;
-    setCurrent(items[0]?.id ?? 'appearance');
-  }, [open]);
   const show = (id: string) => {
     setCurrent(id);
     frameRef.current
       ?.querySelector(`#${CSS.escape(id)}`)
       ?.scrollIntoView({ block: 'start' });
   };
+  useEffect(() => {
+    if (!open) return;
+    setCurrent(items[0]?.id ?? 'appearance');
+    if (frameRef.current) frameRef.current.scrollTop = 0;
+  }, [open]);
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent fullscreen showCloseButton={false}>
@@ -200,118 +201,118 @@ export function SettingsDialog({
                   : 'Preferences stay in this browser.'}
               </DialogDescription>
             </header>
-            <div ref={frameRef} className="min-h-0 flex-1">
-              <ScrollArea className="h-full">
-                <div className="h-full">
-                  <Page id="appearance">
-                    <Group title="Appearance">
-                      <Choice
-                        label="Theme"
-                        description="System follows your operating system."
-                        name="appearance"
-                        options={[
-                          { value: 'system', label: 'System' },
-                          { value: 'light', label: 'Light' },
-                          { value: 'dark', label: 'Dark' },
-                        ]}
-                      />
-                    </Group>
-                    <Group title="Code">
-                      <Choice
-                        label="Diff layout"
-                        description="Split shows old and new side by side."
-                        name="diffStyle"
-                        options={[
-                          { value: 'unified', label: 'Unified' },
-                          { value: 'split', label: 'Split' },
-                        ]}
-                      />
-                      <Choice
-                        label="Long lines"
-                        description="Wrap keeps every line visible without scrolling."
-                        name="lineOverflow"
-                        options={[
-                          { value: 'scroll', label: 'Scroll' },
-                          { value: 'wrap', label: 'Wrap' },
-                        ]}
-                      />
-                    </Group>
-                    <Group title="Documents">
-                      <Choice
-                        label="Markdown opens as"
-                        description="You can switch per file."
-                        name="markdownDefault"
-                        options={[
-                          { value: 'reader', label: 'Reader' },
-                          { value: 'source', label: 'Source' },
-                        ]}
-                      />
-                      <Choice
-                        label="HTML opens as"
-                        description="Previews run in a sandbox with no access to Porcelain."
-                        name="htmlDefault"
-                        options={[
-                          { value: 'preview', label: 'Preview' },
-                          { value: 'source', label: 'Source' },
-                        ]}
-                      />
-                    </Group>
-                  </Page>
-                  <Page id="git">
-                    <Group title="Git">
-                      <Choice
-                        label="Pull strategy"
-                        description="Used by Pull in the Git menu."
-                        name="pullStrategy"
-                        options={[
-                          { value: 'merge', label: 'Merge' },
-                          { value: 'rebase', label: 'Rebase' },
-                        ]}
-                      />
-                      <CommitModelSetting />
-                    </Group>
-                    <Group title="Agents">
-                      <div className="flex flex-col gap-3">
-                        <p className="text-xs text-muted-foreground">
-                          Agents read and add comments, read reviewed marks, and
-                          upload their handoff through the Porcelain MCP server.
-                          It runs on this machine and needs no credential. Add
-                          it to Codex or Claude Code:
-                        </p>
-                        <div className="relative rounded-lg border bg-muted/50">
-                          <pre className="overflow-x-auto p-3 font-mono text-[11.5px]">
-                            {mcpCommand}
-                          </pre>
-                          <Button
-                            size="icon-sm"
-                            variant="ghost"
-                            className="absolute top-1.5 right-1.5"
-                            aria-label="Copy MCP configuration"
-                            onClick={() =>
-                              copyText(mcpCommand, 'MCP configuration')
-                            }
-                          >
-                            <CopyIcon />
-                          </Button>
-                        </div>
-                      </div>
-                    </Group>
-                  </Page>
-                  <Page>
-                    <Group id="updates" title="Updates">
-                      <ServiceUpdateSettings />
-                    </Group>
-                    <Group id="connection" title="Connection">
-                      <DisconnectBrowser />
-                    </Group>
-                    {desktopShell && (
-                      <Group id="sharing" title="Sharing">
-                        <SharingSection />
-                      </Group>
-                    )}
-                  </Page>
-                </div>
-              </ScrollArea>
+            <div ref={frameRef} className="min-h-0 flex-1 overflow-hidden">
+              <Page id="appearance" title="Appearance">
+                <Group>
+                  <Choice
+                    label="Theme"
+                    description="System follows your operating system."
+                    name="appearance"
+                    options={[
+                      { value: 'system', label: 'System' },
+                      { value: 'light', label: 'Light' },
+                      { value: 'dark', label: 'Dark' },
+                    ]}
+                  />
+                </Group>
+                <Group title="Code">
+                  <Choice
+                    label="Diff layout"
+                    description="Split shows old and new side by side."
+                    name="diffStyle"
+                    options={[
+                      { value: 'unified', label: 'Unified' },
+                      { value: 'split', label: 'Split' },
+                    ]}
+                  />
+                  <Choice
+                    label="Long lines"
+                    description="Wrap keeps every line visible without scrolling."
+                    name="lineOverflow"
+                    options={[
+                      { value: 'scroll', label: 'Scroll' },
+                      { value: 'wrap', label: 'Wrap' },
+                    ]}
+                  />
+                </Group>
+                <Group title="Documents">
+                  <Choice
+                    label="Markdown opens as"
+                    description="You can switch per file."
+                    name="markdownDefault"
+                    options={[
+                      { value: 'reader', label: 'Reader' },
+                      { value: 'source', label: 'Source' },
+                    ]}
+                  />
+                  <Choice
+                    label="HTML opens as"
+                    description="Previews run in a sandbox with no access to Porcelain."
+                    name="htmlDefault"
+                    options={[
+                      { value: 'preview', label: 'Preview' },
+                      { value: 'source', label: 'Source' },
+                    ]}
+                  />
+                </Group>
+              </Page>
+              <Page id="git" title="Git and agents">
+                <Group title="Git">
+                  <Choice
+                    label="Pull strategy"
+                    description="Used by Pull in the Git menu."
+                    name="pullStrategy"
+                    options={[
+                      { value: 'merge', label: 'Merge' },
+                      { value: 'rebase', label: 'Rebase' },
+                    ]}
+                  />
+                  <CommitModelSetting />
+                </Group>
+                <Group title="Agents">
+                  <div className="flex flex-col gap-3">
+                    <p className="text-xs text-muted-foreground">
+                      Agents read and add comments, read reviewed marks, and
+                      upload their handoff through the Porcelain MCP server. It
+                      runs on this machine and needs no credential. Add it to
+                      Codex or Claude Code:
+                    </p>
+                    <div className="relative rounded-lg border bg-muted/50">
+                      <pre className="overflow-x-auto p-3 font-mono text-[11.5px]">
+                        {mcpCommand}
+                      </pre>
+                      <Button
+                        size="icon-sm"
+                        variant="ghost"
+                        className="absolute top-1.5 right-1.5"
+                        aria-label="Copy MCP configuration"
+                        onClick={() =>
+                          copyText(mcpCommand, 'MCP configuration')
+                        }
+                      >
+                        <CopyIcon />
+                      </Button>
+                    </div>
+                  </div>
+                </Group>
+              </Page>
+              <Page id="updates" title="Updates">
+                <Group>
+                  <ServiceUpdateSettings />
+                </Group>
+              </Page>
+              <Page id="connection" title="Connection">
+                <Group>
+                  <DisconnectBrowser />
+                </Group>
+              </Page>
+              {desktopShell && (
+                <Page id="sharing" title="Sharing">
+                  <Group>
+                    <SharingSection />
+                  </Group>
+                </Page>
+              )}
             </div>
           </div>
         </div>
