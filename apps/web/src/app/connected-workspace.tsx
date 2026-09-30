@@ -126,6 +126,7 @@ export function ConnectedWorkspace({
         navigator={{ ...navigator, onSelect: selectWorktree }}
         isMobile={isMobile}
         open={open}
+        settings={settings}
       >
         {review ? (
           <div
