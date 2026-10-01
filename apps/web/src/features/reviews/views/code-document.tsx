@@ -29,7 +29,7 @@ import {
   PIERRE_THEME,
 } from '@/shared/lib/pierre';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
-import { usePreferences, useTheme } from '@/features/access/index';
+import { usePreferences, useTheme } from '@/features/preferences/index';
 import { type CodeEntry, codeTarget } from '../adapters/code-entries';
 import { useToggleReviewed } from '../commands/reviewed';
 import { useComments } from '../queries/comments';

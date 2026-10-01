@@ -1,5 +1,5 @@
 import { cn } from '@/shared/lib/utils';
-import { useTheme } from '@/features/access/index';
+import { useTheme } from '@/features/preferences/index';
 
 export function HtmlFrame({
   html,

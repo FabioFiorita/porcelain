@@ -42,10 +42,9 @@ import {
   RemoteComputers,
   ServiceUpdateSettings,
   useAccessStore,
-  usePreferences,
   WaysInSettings,
-  type Preferences,
 } from '@/features/access/index';
+import { usePreferences, type Preferences } from '@/features/preferences/index';
 import { useInventory } from '@/features/projects/index';
 import { useDocumentTitle } from '@/shared/hooks/use-document-title';
 import { desktopShell } from '@/shared/shell';

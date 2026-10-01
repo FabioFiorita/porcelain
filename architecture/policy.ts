@@ -188,6 +188,7 @@ export const webDomains = [
   'git-actions',
   'history',
   'reviews',
+  'preferences',
 ] as const;
 
 export const shadcnRegistry: ReadonlySet<string> = new Set([
