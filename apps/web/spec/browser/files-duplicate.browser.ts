@@ -38,7 +38,7 @@ test('a file is duplicated from its menu and the open copy again with Mod+D', as
       pairedPage.getByRole('treeitem', { name: 'notes copy.md', exact: true }),
     )
     .toBeVisible();
-  await userEvent.keyboard('{Control>}d{/Control}');
+  await userEvent.keyboard('{ControlOrMeta>}d{/ControlOrMeta}');
   await expect.poll(names).toContain('notes copy copy.md');
   await expect.poll(() => app.title()).toBe(`notes copy copy.md — ${project}`);
 });
