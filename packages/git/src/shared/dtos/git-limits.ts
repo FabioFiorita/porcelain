@@ -5,6 +5,7 @@ export type GitLimits = {
   readTimeoutMs: number;
   outputBytes: number;
   followUpTimeoutMs: number;
+  renames: { limit: number; similarityPercent: number };
   inspection: {
     statusBytes: number;
     maxChanges: number;
@@ -17,6 +18,8 @@ export type GitLimits = {
     checkIgnoredBytes: number;
     checkoutDirectoryBytes: number;
     stashListBytes: number;
+    maxStashes: number;
+    contextLines: number;
     submoduleStatusBytes: number;
     filterConfigBytes: number;
     filterPathsBytes: number;

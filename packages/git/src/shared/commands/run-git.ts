@@ -32,20 +32,21 @@ export type GitProcessResult = {
   failure?: 'output-limit';
 };
 
-const MODE_CONFIG: Record<GitMode, readonly string[]> = {
-  read: [
-    'core.fsmonitor=false',
-    'core.untrackedCache=false',
-    'core.quotePath=true',
-    'diff.renameLimit=2000',
-  ],
-  write: [
-    'core.fsmonitor=false',
-    'core.untrackedCache=false',
-    'maintenance.auto=false',
-    'gc.auto=0',
-  ],
-};
+function modeConfig(mode: GitMode, limits: GitLimits): readonly string[] {
+  return mode === 'read'
+    ? [
+        'core.fsmonitor=false',
+        'core.untrackedCache=false',
+        'core.quotePath=true',
+        `diff.renameLimit=${limits.renames.limit}`,
+      ]
+    : [
+        'core.fsmonitor=false',
+        'core.untrackedCache=false',
+        'maintenance.auto=false',
+        'gc.auto=0',
+      ];
+}
 
 export async function runGitRead(
   checkout: string,
@@ -58,7 +59,7 @@ export async function runGitRead(
   const output = await runCommand(
     {
       command: 'git',
-      args: gitArguments('read', checkout, args, options),
+      args: gitArguments('read', checkout, args, limits, options),
       env: gitEnvironment('read'),
       stdin: options.input,
       timeoutMs: options.timeoutMs ?? limits.readTimeoutMs,
@@ -101,7 +102,7 @@ export async function runGitWrite(
   const output = await runCommand(
     {
       command: 'git',
-      args: gitArguments('write', checkout, args, {}),
+      args: gitArguments('write', checkout, args, limits, {}),
       env: gitEnvironment('write', options.indexFile),
       stdin: options.input,
       maxBytes: options.maxBytes ?? limits.outputBytes,
@@ -140,6 +141,7 @@ function gitArguments(
   mode: GitMode,
   checkout: string,
   args: readonly string[],
+  limits: GitLimits,
   options: Pick<GitReadOptions, 'config' | 'leading'>,
 ): string[] {
   return [
@@ -147,10 +149,9 @@ function gitArguments(
     ...(options.leading ?? []),
     '-C',
     checkout,
-    ...[...MODE_CONFIG[mode], ...(options.config ?? [])].flatMap((entry) => [
-      '-c',
-      entry,
-    ]),
+    ...[...modeConfig(mode, limits), ...(options.config ?? [])].flatMap(
+      (entry) => ['-c', entry],
+    ),
     ...args,
   ];
 }

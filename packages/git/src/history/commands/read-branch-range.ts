@@ -20,7 +20,7 @@ import {
   inspectHistoryCheckout,
 } from './inspect-history-checkout.ts';
 import { lookupBranchRefs, readDefaultBase } from './read-default-base.ts';
-import { DIFF_FLAGS, fileStatus } from './read-commit-files.ts';
+import { diffFlags, fileStatus } from './read-commit-files.ts';
 import { readHistoryAnswer, runHistory } from './run-history.ts';
 
 const ABSENT = 1;
@@ -133,7 +133,7 @@ async function readFiles(
       '--raw',
       '-z',
       '--no-abbrev',
-      ...DIFF_FLAGS,
+      ...diffFlags(limits),
       from,
       to,
       '--',

@@ -24,7 +24,10 @@ const at = '2026-09-01T00:00:00.000Z';
 
 inventoryStoreContract('SqliteInventoryStore', () => {
   const dataDirectory = mkdtempSync(join(tmpdir(), 'porcelain-storage-'));
-  const session = openStorageSession(dataDirectory, { worktreeIdLength: 32 });
+  const session = openStorageSession(dataDirectory, {
+    worktreeIdLength: 32,
+    busyTimeoutMs: 5000,
+  });
   return {
     store: createInventoryStore(session),
     close: () => {
@@ -150,7 +153,10 @@ describe('SqliteInventoryStore removal', () => {
 
   beforeEach(() => {
     dataDirectory = mkdtempSync(join(tmpdir(), 'porcelain-storage-'));
-    session = openStorageSession(dataDirectory, { worktreeIdLength: 32 });
+    session = openStorageSession(dataDirectory, {
+      worktreeIdLength: 32,
+      busyTimeoutMs: 5000,
+    });
   });
 
   afterEach(() => {

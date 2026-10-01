@@ -141,6 +141,7 @@ export type Limits = {
     readTimeoutMs: number;
     outputBytes: number;
     followUpTimeoutMs: number;
+    renames: { limit: number; similarityPercent: number };
     inspection: {
       statusBytes: number;
       maxChanges: number;
@@ -153,6 +154,8 @@ export type Limits = {
       checkIgnoredBytes: number;
       checkoutDirectoryBytes: number;
       stashListBytes: number;
+      maxStashes: number;
+      contextLines: number;
       submoduleStatusBytes: number;
       filterConfigBytes: number;
       filterPathsBytes: number;
@@ -182,6 +185,7 @@ export type Limits = {
     staleAfterMs: number;
   };
   lanes: { readCapacity: number; operationTimeoutMs: number };
+  storage: { busyTimeoutMs: number };
   liveUpdates: {
     maxConnections: number;
     maxWatchedWorktrees: number;
@@ -367,6 +371,7 @@ export const LIMITS: Limits = {
     readTimeoutMs: 10 * SECOND_MS,
     outputBytes: 4 * MEBIBYTE,
     followUpTimeoutMs: 5 * SECOND_MS,
+    renames: { limit: 2000, similarityPercent: 50 },
     inspection: {
       statusBytes: 8 * MEBIBYTE,
       maxChanges: CHANGED_PATHS,
@@ -379,6 +384,8 @@ export const LIMITS: Limits = {
       checkIgnoredBytes: MEBIBYTE,
       checkoutDirectoryBytes: 16 * KIBIBYTE,
       stashListBytes: MEBIBYTE,
+      maxStashes: 100,
+      contextLines: 3,
       submoduleStatusBytes: MEBIBYTE,
       filterConfigBytes: MEBIBYTE,
       filterPathsBytes: 8 * MEBIBYTE,
@@ -412,6 +419,7 @@ export const LIMITS: Limits = {
     staleAfterMs: 60 * SECOND_MS,
   },
   lanes: { readCapacity: 4, operationTimeoutMs: 30 * SECOND_MS },
+  storage: { busyTimeoutMs: 5 * SECOND_MS },
   liveUpdates: {
     maxConnections: 64,
     maxWatchedWorktrees: 64,

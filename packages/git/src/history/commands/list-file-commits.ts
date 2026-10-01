@@ -14,7 +14,7 @@ import {
   confirmHistoryCheckout,
   inspectHistoryCheckout,
 } from './inspect-history-checkout.ts';
-import { DIFF_FLAGS } from './read-commit-files.ts';
+import { diffFlags } from './read-commit-files.ts';
 import { readHistoryAnswer, runHistory } from './run-history.ts';
 
 const MISSING = 1;
@@ -46,7 +46,7 @@ export async function listFileCommits(
               'log',
               '-z',
               '--raw',
-              ...DIFF_FLAGS,
+              ...diffFlags(limits),
               '--diff-merges=first-parent',
               '--follow',
               `--max-count=${limit + 1}`,

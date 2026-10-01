@@ -9,7 +9,7 @@ export async function readStashes(
 ): Promise<{ oid: string; message: string }[]> {
   const output = await runInspection(
     checkout,
-    [...STASH_LIST_ARGS, '-100'],
+    [...STASH_LIST_ARGS, `--max-count=${limits.inspection.maxStashes}`],
     limits,
     signal,
     { maxBytes: limits.inspection.stashListBytes },
