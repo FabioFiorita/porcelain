@@ -1,4 +1,5 @@
 import { execFile } from 'node:child_process';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { subscribe } from 'node:diagnostics_channel';
 import { appendFileSync } from 'node:fs';
 import { mkdir, symlink, unlink, writeFile } from 'node:fs/promises';
@@ -444,6 +445,7 @@ try {
   await writeFile(join(web, fixture.web.asset.path), fixture.web.asset.text);
   await symlink('../credential.json', join(web, fixture.web.escape));
 
+  const desktopCredential = randomBytes(32).toString('base64url');
   const settings = readServerSettings({
     dataDirectory: state,
     projectHome: root,
@@ -481,7 +483,16 @@ try {
       },
     },
     shutdown.signal,
-    { serviceUpdateRunner, version: fixture.serviceUpdate.version },
+    {
+      serviceUpdateRunner,
+      version: fixture.serviceUpdate.version,
+      desktopSession: {
+        deviceId: randomUUID(),
+        secretHash: createHash('sha256')
+          .update(desktopCredential)
+          .digest('hex'),
+      },
+    },
   );
   const [grant] = issuedPairingSchema.parse(
     await askOwner(
@@ -531,9 +542,11 @@ try {
   });
 
   const credentialFile = join(root, 'credential.json');
-  await writeFile(credentialFile, `${JSON.stringify({ credential })}\n`, {
-    mode: 0o600,
-  });
+  await writeFile(
+    credentialFile,
+    `${JSON.stringify({ credential, desktopCredential })}\n`,
+    { mode: 0o600 },
+  );
   const manifest = join(root, 'manifest.json');
   fixtureReady = true;
   await writeFile(
