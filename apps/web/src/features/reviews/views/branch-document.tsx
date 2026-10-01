@@ -27,6 +27,7 @@ import {
 import { branchReviewRange, type ReviewRange } from '../rules/reviewed';
 import { CodeDocument } from './code-document';
 import { DocumentToolbar } from './document-toolbar';
+import { ReadMoreFiles } from './read-more-files';
 import { MarkAllReviewed, ReviewedControl } from './reviewed-control';
 import { ReviewEmpty } from './review-empty';
 import { type ConnectionContext } from '@/shared/workspace/connection';
@@ -274,25 +275,16 @@ function BranchDiffs({
           />
         )}
       />
-      {more > 0 && (
-        <div className="border-t px-4 py-3 text-center">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() =>
-              setWindow({
-                of: branch.head.oid,
-                shown: shown + DIFF_WINDOW_FILES,
-              })
-            }
-            disabled={diffs.isPending}
-          >
-            {diffs.isPending
-              ? 'Reading…'
-              : `Read ${Math.min(more, DIFF_WINDOW_FILES)} more of ${more}`}
-          </Button>
-        </div>
-      )}
+      <ReadMoreFiles
+        more={more}
+        pending={diffs.isPending}
+        onReadMore={() =>
+          setWindow({
+            of: branch.head.oid,
+            shown: shown + DIFF_WINDOW_FILES,
+          })
+        }
+      />
     </div>
   );
 }
