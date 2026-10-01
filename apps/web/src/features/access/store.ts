@@ -17,7 +17,11 @@ import {
   type Transport,
 } from '@/shared/api/transport';
 import type { LiveUpdatePort } from '@/shared/live/port';
-import { remoteLiveUpdates, sameOriginLiveUpdates } from '@/shared/live/socket';
+import {
+  remoteLiveUpdates,
+  sameOriginLiveUpdates,
+  type LiveRetryTimer,
+} from '@/shared/live/socket';
 import { adoptFileDrafts } from '@/shared/query/file-drafts';
 import { createOperationStore } from '@/shared/query/operation-store';
 import type { Connection } from '@/shared/workspace/connection';
@@ -71,11 +75,16 @@ function createConnection(environmentId: string, server: Server): Connection {
   return connection;
 }
 
+const liveRetry: LiveRetryTimer = (run, ms) => {
+  const timer = setTimeout(run, ms);
+  return () => clearTimeout(timer);
+};
+
 function localConnection(environmentId: string) {
   return createConnection(environmentId, {
     address: window.location.href,
     transport: browserTransport(fetch),
-    liveUpdates: sameOriginLiveUpdates(),
+    liveUpdates: sameOriginLiveUpdates(liveRetry),
     operationsKey: `porcelain-git-requests:${environmentId}`,
   });
 }
@@ -85,7 +94,7 @@ function remoteConnection(remote: Remote) {
   return createConnection(remote.environmentId, {
     address: remote.address,
     transport,
-    liveUpdates: remoteLiveUpdates(remote.address, transport),
+    liveUpdates: remoteLiveUpdates(remote.address, transport, liveRetry),
     operationsKey: `porcelain-git-requests:${remote.address}:${remote.environmentId}`,
   });
 }

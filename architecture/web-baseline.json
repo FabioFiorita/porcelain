@@ -1,6 +1,5 @@
 {
   "porcelain/no-number-outside-limits": {
-    "apps/web/src/shared/live/socket.ts": 5,
     "apps/web/src/shared/query/live-updates.ts": 3,
     "apps/web/src/shared/workspace/preferences.tsx": 1
   },
@@ -20,9 +19,6 @@
   },
   "porcelain/web-store-owns-storage": {
     "apps/web/src/shared/workspace/preferences.tsx": 2
-  },
-  "porcelain/web-timers-in-commands-and-store": {
-    "apps/web/src/shared/live/socket.ts": 2
   },
   "porcelain/web-views-no-direct-data": {
     "apps/web/src/app/workspace-provider.tsx": 3
