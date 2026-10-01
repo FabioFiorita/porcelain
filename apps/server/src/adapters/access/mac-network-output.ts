@@ -36,24 +36,31 @@ export function macRouteTable(output: string): string {
   return `${ROUTE_HEADER}\n${route.interfaceName} 00000000 ${hex} 0003 0 0 0 00000000`;
 }
 
+export function macPrimaryService(output: string): string | undefined {
+  const service = /^\s*PrimaryService : (\S+)\s*$/m.exec(output)?.[1];
+  return service !== undefined && /^[\dA-F-]+$/i.test(service)
+    ? service
+    : undefined;
+}
+
 export function macNeighbourTable(output: string): string {
-  const entries = output.split('\n').flatMap((line) => {
-    const [, address, hardware, device] =
-      /\(([^)]+)\) at (\S+) on (\S+)/.exec(line) ?? [];
-    if (
-      address === undefined ||
-      hardware === undefined ||
-      device === undefined ||
-      !IPV4.test(address) ||
-      !HARDWARE.test(hardware)
-    )
-      return [];
-    const normalized = hardware
-      .split(':')
-      .map((octet) => (octet.length === 1 ? `0${octet}` : octet))
-      .join(':')
-      .toLowerCase();
-    return [`${address} 0x1 0x2 ${normalized} * ${device}`];
-  });
-  return [NEIGHBOUR_HEADER, ...entries].join('\n');
+  const value = (key: string) =>
+    new RegExp(`^\\s*${key} : (\\S+)\\s*$`, 'm').exec(output)?.[1];
+  const address = value('ARPResolvedIPAddress');
+  const hardware = value('ARPResolvedHardwareAddress');
+  const device = value('InterfaceName');
+  if (
+    address === undefined ||
+    hardware === undefined ||
+    device === undefined ||
+    !IPV4.test(address) ||
+    !HARDWARE.test(hardware)
+  )
+    return NEIGHBOUR_HEADER;
+  const normalized = hardware
+    .split(':')
+    .map((octet) => (octet.length === 1 ? `0${octet}` : octet))
+    .join(':')
+    .toLowerCase();
+  return `${NEIGHBOUR_HEADER}\n${address} 0x1 0x2 ${normalized} * ${device}`;
 }

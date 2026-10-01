@@ -5,11 +5,14 @@ export function readCommand(input: {
   args: readonly string[];
   timeoutMs: number;
   maxBytes: number;
+  input?: string;
 }): string {
   return execFileSync(input.command, input.args, {
     encoding: 'utf8',
     timeout: input.timeoutMs,
     maxBuffer: input.maxBytes,
-    stdio: ['ignore', 'pipe', 'ignore'],
+    ...(input.input === undefined
+      ? { stdio: ['ignore', 'pipe', 'ignore'] }
+      : { input: input.input, stdio: ['pipe', 'pipe', 'ignore'] }),
   });
 }

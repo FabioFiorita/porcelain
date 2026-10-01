@@ -2,7 +2,7 @@ import { networkInterfaces } from 'node:os';
 import type { NetworkAddress } from '@porcelain/access/models';
 import type { NetworkAddressReader } from '@porcelain/access/ports';
 import type { Limits } from '../../config/limits.ts';
-import { readMacRoute, readMacNeighbour } from './mac-network-command.ts';
+import { readMacPrimaryService, readMacRoute } from './mac-network-command.ts';
 import {
   macPhysicalInterface,
   macRouteTable,
@@ -35,6 +35,6 @@ export class MacNetworkAddressReader implements NetworkAddressReader {
   }
 
   neighbourTable(): string {
-    return macNeighbourTable(readMacNeighbour(this.limits));
+    return macNeighbourTable(readMacPrimaryService(this.limits));
   }
 }
