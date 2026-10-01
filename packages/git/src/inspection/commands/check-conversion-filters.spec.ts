@@ -28,6 +28,40 @@ const withoutAttributeListing = {
 
 const refused = { name: 'UnsupportedGitFiltersError' };
 
+const machineEnvironment = Object.fromEntries(
+  Object.entries(process.env).filter(([name]) => !name.startsWith('GIT_')),
+);
+
+const driversAroundTheCheckout = () => {
+  let names = '';
+  try {
+    names = execFileSync(
+      'git',
+      [
+        '-C',
+        checkout,
+        'config',
+        '--null',
+        '--name-only',
+        '--get-regexp',
+        '^filter[.]',
+      ],
+      { encoding: 'utf8', env: machineEnvironment },
+    );
+  } catch {
+    names = '';
+  }
+  const drivers = new Set(
+    names
+      .split('\0')
+      .filter(Boolean)
+      .map((name) => name.split('.').slice(1, -1).join('.')),
+  );
+  return [...drivers].flatMap((driver) =>
+    ['clean', 'smudge', 'process'].map((step) => `filter.${driver}.${step}=`),
+  );
+};
+
 beforeEach(() => {
   checkout = mkdtempSync(join(tmpdir(), 'porcelain-conversion-filters-'));
   execFileSync('git', ['init', '-q', '-b', 'main', checkout]);
@@ -43,8 +77,10 @@ afterEach(() => {
 });
 
 describe('sessionConversionFilters', () => {
-  it('finds nothing to disable in a checkout without filters', async () => {
-    expect(await sessionConversionFilters(session(), gitLimits)).toEqual([]);
+  it('disables only the drivers the machine configures in a checkout without filters', async () => {
+    expect(await sessionConversionFilters(session(), gitLimits)).toEqual(
+      driversAroundTheCheckout(),
+    );
   });
 
   it('disables every configured driver when no attribute gives the filter a value', async () => {
@@ -61,7 +97,7 @@ describe('sessionConversionFilters', () => {
     write('.gitattributes', '*.txt text\n*.bin !filter\n');
     expect(
       await sessionConversionFilters(session(), withoutAttributeListing),
-    ).toEqual([]);
+    ).toEqual(driversAroundTheCheckout());
   });
 
   it.each([
