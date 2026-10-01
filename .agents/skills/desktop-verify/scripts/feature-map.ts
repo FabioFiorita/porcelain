@@ -91,7 +91,7 @@ export const desktopFeatures = [
     name: 'installed',
     app: 'installed',
     promise:
-      'the installed app ships with its Electron fuses locked (no run as Node, no NODE_OPTIONS, no Node inspect arguments, embedded ASAR integrity validation, the app loaded only from its ASAR, encrypted cookies, no extra file protocol privileges), and refuses to start with --inspect, --remote-debugging-port, ELECTRON_RUN_AS_NODE or NODE_OPTIONS without opening a debugging endpoint, running Node code, or touching a running copy or its profile',
+      'the installed app ships with its Electron fuses locked (no run as Node, no NODE_OPTIONS, no Node inspect arguments, embedded ASAR integrity validation, the app loaded only from its ASAR, encrypted cookies, no extra file protocol privileges), refuses to start with --inspect, --remote-debugging-port or ELECTRON_RUN_AS_NODE before it creates a profile, starts as usual with the NODE_OPTIONS its fuse removes, and in every case opens no debugging endpoint, runs no Node code from the launch and leaves a running copy and its profile untouched',
     run: installedLock,
   },
 ];
@@ -1197,12 +1197,13 @@ async function ownerProfileState(profile: string) {
   );
 }
 
-async function refusedLaunch(
+async function launchInstalled(
   executable: string,
   launch: {
     profile: string;
     arguments: string[];
     environment: Record<string, string>;
+    outcome: 'refused' | 'ignored';
   },
 ) {
   const environment: Record<string, string> = {};
@@ -1219,14 +1220,14 @@ async function refusedLaunch(
     {
       env: { ...environment, ...launch.environment },
       stdio: ['ignore', 'pipe', 'pipe'],
-      timeout: 20_000,
+      timeout: 60_000,
       killSignal: 'SIGKILL',
     },
   );
   const output: Buffer[] = [];
   child.stdout.on('data', (chunk: Buffer) => output.push(chunk));
   child.stderr.on('data', (chunk: Buffer) => output.push(chunk));
-  const [code, signal] = await new Promise<[number | null, string | null]>(
+  const closed = new Promise<[number | null, string | null]>(
     (resolveExit, rejectExit) => {
       child.once('error', rejectExit);
       child.once('close', (exitCode, exitSignal) =>
@@ -1234,7 +1235,24 @@ async function refusedLaunch(
       );
     },
   );
-  return { code, signal, output: Buffer.concat(output).toString('utf8') };
+  let started = false;
+  if (launch.outcome === 'ignored') {
+    const socket = join(launch.profile, 'server', 'server.sock');
+    for (
+      const deadline = Date.now() + 30_000;
+      Date.now() < deadline && child.exitCode === null && !started;
+      started = existsSync(socket)
+    )
+      await new Promise((resolveWait) => setTimeout(resolveWait, 250));
+    child.kill('SIGTERM');
+  }
+  const [code, signal] = await closed;
+  return {
+    code,
+    signal,
+    started,
+    output: Buffer.concat(output).toString('utf8'),
+  };
 }
 
 async function installedLock(input: DesktopProof) {
@@ -1257,12 +1275,14 @@ async function installedLock(input: DesktopProof) {
       name: 'inspect',
       arguments: ['--inspect=0'],
       environment: {},
+      outcome: 'refused',
       refusal: 'Porcelain refuses to start with the debugging switch --inspect',
     },
     {
       name: 'remote-debugging-port',
       arguments: ['--remote-debugging-port=0'],
       environment: {},
+      outcome: 'refused',
       refusal:
         'Porcelain refuses to start with the debugging switch --remote-debugging-port',
     },
@@ -1270,55 +1290,75 @@ async function installedLock(input: DesktopProof) {
       name: 'run-as-node',
       arguments: ['-e', payload],
       environment: { ELECTRON_RUN_AS_NODE: '1' },
+      outcome: 'refused',
       refusal: 'Porcelain refuses to start with ELECTRON_RUN_AS_NODE set',
     },
     {
       name: 'node-options',
       arguments: [],
-      environment: { NODE_OPTIONS: `--require ${payloadFile}` },
-      refusal: 'Porcelain refuses to start with NODE_OPTIONS set',
+      environment: { NODE_OPTIONS: `--inspect=0 --require ${payloadFile}` },
+      outcome: 'ignored',
+      refusal: '',
     },
-  ];
-  const results: { name: string; code: number | null; output: string }[] = [];
+  ] satisfies {
+    name: string;
+    arguments: string[];
+    environment: Record<string, string>;
+    outcome: 'refused' | 'ignored';
+    refusal: string;
+  }[];
+  const results: {
+    name: string;
+    outcome: string;
+    code: number | null;
+    output: string;
+  }[] = [];
   for (const launch of launches) {
     const profile = join(input.profile, launch.name);
-    const result = await refusedLaunch(input.executable, {
+    const result = await launchInstalled(input.executable, {
       ...launch,
       profile,
     });
     results.push({
       name: launch.name,
+      outcome: launch.outcome,
       code: result.code,
       output: result.output,
     });
     requireProof(
-      result.signal === null && result.code !== null && result.code !== 0,
-      `The installed app must exit with a failure when launched with ${launch.name}, not keep running (${result.code}, ${result.signal}): ${result.output}`,
-    );
-    requireProof(
-      result.output.includes(launch.refusal),
-      `The installed app must say why it refuses ${launch.name}: ${result.output}`,
-    );
-    requireProof(
       !/Debugger listening|DevTools listening/.test(result.output),
-      `A refused ${launch.name} launch must not open a debugging endpoint`,
-    );
-    requireProof(
-      !existsSync(profile),
-      `A refused ${launch.name} launch must stop before it creates its profile`,
+      `A launch with ${launch.name} must not open a debugging endpoint`,
     );
     requireProof(
       !existsSync(marker),
-      `A refused ${launch.name} launch must not run Node code`,
+      `A launch with ${launch.name} must not run Node code`,
     );
+    if (launch.outcome === 'refused') {
+      requireProof(
+        result.signal === null && result.code !== null && result.code !== 0,
+        `The installed app must exit with a failure when launched with ${launch.name}, not keep running (${result.code}, ${result.signal}): ${result.output}`,
+      );
+      requireProof(
+        result.output.includes(launch.refusal),
+        `The installed app must say why it refuses ${launch.name}: ${result.output}`,
+      );
+      requireProof(
+        !existsSync(profile),
+        `A refused ${launch.name} launch must stop before it creates its profile`,
+      );
+    } else
+      requireProof(
+        result.started && result.signal === null && result.code === 0,
+        `The installed app must start as usual with ${launch.name} removed by its fuse and quit cleanly (${result.code}, ${result.signal}): ${result.output}`,
+      );
   }
   requireProof(
     isDeepStrictEqual(runningCopies(input.executable), copiesBefore),
-    'Refused launches must leave the running copies of the installed app as they were',
+    'Launches with debugging switches or Node variables must leave the running copies of the installed app as they were',
   );
   requireProof(
     isDeepStrictEqual(await ownerProfileState(ownerProfile), profileBefore),
-    'Refused launches must not touch the installed app profile',
+    'Launches with debugging switches or Node variables must not touch the installed app profile',
   );
   return {
     fuses: Object.fromEntries(

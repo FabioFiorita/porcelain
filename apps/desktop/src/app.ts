@@ -34,7 +34,11 @@ import { liveAddress, liveSocketHeaders } from './rules/live-socket.ts';
 import { trustedSender } from './rules/trusted-sender.ts';
 
 registerDesktopScheme();
-app.setAppLogsPath();
+app.setAppLogsPath(
+  process.platform === 'darwin'
+    ? join(app.getPath('home'), 'Library/Logs', app.getName())
+    : undefined,
+);
 const settings = desktopSettings(
   app.getPath('userData'),
   app.getPath('logs'),

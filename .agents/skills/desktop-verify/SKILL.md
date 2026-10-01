@@ -40,6 +40,8 @@ The app keeps remote-computer credentials through Electron's `safeStorage`, whic
 osascript -e 'tell application "Terminal" to do script "cd ~/Code/<worktree> && pnpm verify:desktop > /tmp/desktop-proof.log 2>&1; echo $? >> /tmp/desktop-proof.log"'
 ```
 
+The display must be awake: macOS never finishes a fullscreen transition while it sleeps, and `project` then waits forever. `caffeinate -u -t 2` wakes it.
+
 After a desktop change, run `pnpm check` where you are, then on a Mac run each affected feature once.
 
 ## The installed app
@@ -48,6 +50,8 @@ After a desktop change, run `pnpm check` where you are, then on a Mac run each a
 
 The installed app is locked against debugging, because anyone running as the owner could otherwise start it under a debugger and read the credentials it keeps in `safeStorage`. The build flips its Electron fuses: no run as Node, no `NODE_OPTIONS`, no Node inspect arguments, embedded ASAR integrity validation, the app loaded only from its ASAR, encrypted cookies and no extra `file://` privileges. Chromium's remote debugging is no fuse, so the packaged host refuses to start, before it takes the single-instance lock, when launched with a debugging switch or with `ELECTRON_RUN_AS_NODE` or `NODE_OPTIONS` set (`rules/launch-refusal.ts`). Playwright cannot drive it for the same reason.
 
-`pnpm verify:desktop installed` checks the installed app as a black box without disturbing a running copy: it reads the fuse wire, launches the app with `--inspect=0`, with `--remote-debugging-port=0`, with `ELECTRON_RUN_AS_NODE=1` and with `NODE_OPTIONS`, each with a disposable profile, and proves each launch exits refused without a debugging endpoint, without running Node code, without creating its profile, and without changing the running copies or the owner's profile. Run it after the owner installs a build that changes the lock.
+Electron removes `NODE_OPTIONS` before any app code runs once its fuse is off, so the installed app cannot see it and starts as usual without it; the refusal of `NODE_OPTIONS` in the rule only guards a build that lost the fuse.
+
+`pnpm verify:desktop installed` checks the installed app as a black box without disturbing a running copy: it reads the fuse wire, then launches the app with `--inspect=0`, with `--remote-debugging-port=0` and with `ELECTRON_RUN_AS_NODE=1`, each with a disposable profile, and proves each launch exits refused before it creates its profile; it launches it once more with `NODE_OPTIONS=--inspect=0 --require <payload>` and proves the app starts as usual and quits cleanly. No launch may open a debugging endpoint, run the payload, or change the running copies or the owner's profile. Run it over SSH after the owner installs a build that changes the lock: the `NODE_OPTIONS` launch starts the app, and in the logged-in session a freshly signed build asks for the Keychain before its first use.
 
 The installed app keeps its profile in `~/Library/Application Support/Porcelain/`: `credentials.enc` (the remote computers, encrypted through the Keychain), `window.json`, and `server/`, the server's own database and owner socket. Its server writes to `~/Library/Logs/Porcelain/server.log`, moved aside to `server.log.1` at the size `LIMITS.desktop.serverLogBytes` sets. `--data-directory <folder>` moves the profile, and the logs to `<folder>/logs`; `--project-home <folder>` sets where Open Project starts. Development servers keep their own data.
