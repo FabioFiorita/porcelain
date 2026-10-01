@@ -306,6 +306,7 @@ function seatbeltProfile(sandbox: Sandbox): string {
     `(allow file-read* ${filters('literal', readable)} ${filters('subpath', [...gitFolders, folder, root])})`,
     `(allow file-map-executable ${filters('literal', libraries)} ${filters('subpath', [installation.server])})`,
     `(allow file-read-metadata ${filters('literal', ancestors([...readable, ...gitFolders, folder, root]))})`,
+    `(allow file-read-data ${filters('literal', ancestors([folder, root]))})`,
     `(allow file-write* ${filters('subpath', [root])})`,
     `(allow network-bind network-inbound (local ip "localhost:${port}"))`,
     `(allow network-outbound (remote ip "localhost:${port}"))`,
@@ -354,8 +355,12 @@ function serverOption(): string | undefined {
   return at === -1 ? undefined : process.argv[at + 1];
 }
 
+function scratchFolder(): string {
+  return process.platform === 'darwin' ? '/tmp' : tmpdir();
+}
+
 async function temporary(prefix: string, scratch: string[]): Promise<string> {
-  const path = realpathSync(await mkdtemp(join(tmpdir(), prefix)));
+  const path = realpathSync(await mkdtemp(join(scratchFolder(), prefix)));
   scratch.push(path);
   return path;
 }
