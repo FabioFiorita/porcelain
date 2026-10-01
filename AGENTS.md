@@ -52,7 +52,7 @@ Use the proof stages above for web work. Browser behavior cases run with Vitest 
 
 - Commit only the paths you changed; never `git add -A`; never stash or reset hard; never commit anything under `.claude/`.
 - One short imperative sentence per commit; no attribution lines of any kind.
-- Push only when the owner's current message asks for it; an earlier approval does not carry over.
+- Push your branch when its checks pass, unless the owner says otherwise in the session; never push `main`, which takes `rebuild` only when the owner merges it.
 - When you ask the owner a question, wait for the answer before changing anything it decides.
 - Work in the area the owner gave you; ask before changing code outside it.
 - Write no prose documents: the workflow lives in skills, the rules in the tooling, the example in the code.
