@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 import {
   appRequestRefusal,
   appRequestTarget,
+  developmentWebPath,
   forwardedRequestHeaders,
   forwardedResponseHeaders,
+  forwardedWebRequestHeaders,
 } from './app-request.ts';
 
 const server = {
@@ -137,7 +139,7 @@ describe('forwardedResponseHeaders', () => {
   });
 
   it('withholds cookies, encoding and length from the page and keeps the content type', () => {
-    const forwarded = forwardedResponseHeaders('/', answer);
+    const forwarded = forwardedResponseHeaders('/', answer, 'built');
     expect(
       ['set-cookie', 'content-encoding', 'content-length', 'content-type'].map(
         (name) => forwarded.get(name),
@@ -147,7 +149,7 @@ describe('forwardedResponseHeaders', () => {
 
   it('gives every page the app policy, which keeps scripts to the app, instead of the server one', () => {
     expect(
-      forwardedResponseHeaders('/project/worktree', answer)
+      forwardedResponseHeaders('/project/worktree', answer, 'built')
         .get('content-security-policy')
         ?.split('; '),
     ).toContain("script-src 'self'");
@@ -155,9 +157,66 @@ describe('forwardedResponseHeaders', () => {
 
   it('leaves the policy of an API answer as the server sent it', () => {
     expect(
-      forwardedResponseHeaders('/api/inventory', answer).get(
+      forwardedResponseHeaders('/api/inventory', answer, 'built').get(
         'content-security-policy',
       ),
     ).toBe("default-src 'none'");
+  });
+
+  it('admits the inline script Vite injects only into pages of the development web', () => {
+    expect(
+      forwardedResponseHeaders('/project/worktree', answer, 'development')
+        .get('content-security-policy')
+        ?.split('; '),
+    ).toContain("script-src 'self' 'unsafe-inline'");
+  });
+});
+
+describe('developmentWebPath', () => {
+  it.each([
+    '/',
+    '/project/worktree',
+    '/@vite/client',
+    '/src/main.tsx',
+    '/apiary',
+  ])('sends %s to the Vite server', (pathname) => {
+    expect(developmentWebPath(pathname)).toBe(true);
+  });
+
+  it.each(['/api', '/api/inventory', '/review-summaries/token'])(
+    'keeps %s on the local server',
+    (pathname) => {
+      expect(developmentWebPath(pathname)).toBe(false);
+    },
+  );
+});
+
+describe('forwardedWebRequestHeaders', () => {
+  const forwarded = forwardedWebRequestHeaders(
+    new Headers({
+      host: 'app',
+      cookie: 'porcelain_device=stolen',
+      connection: 'keep-alive',
+      'content-length': '12',
+      'accept-encoding': 'gzip',
+      authorization: 'Bearer page-supplied',
+      origin: 'porcelain://app',
+      accept: 'text/javascript',
+    }),
+  );
+
+  it('sends the Vite server no credential, cookie or app origin, and keeps what the page accepts', () => {
+    expect(
+      [
+        'host',
+        'cookie',
+        'connection',
+        'content-length',
+        'accept-encoding',
+        'authorization',
+        'origin',
+        'accept',
+      ].map((name) => forwarded.get(name)),
+    ).toEqual([null, null, null, null, null, null, null, 'text/javascript']);
   });
 });

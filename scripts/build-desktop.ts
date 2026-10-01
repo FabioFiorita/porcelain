@@ -1,182 +1,47 @@
-import { spawn } from 'node:child_process';
-import { existsSync, realpathSync } from 'node:fs';
-import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
-import { dirname, join, resolve } from 'node:path';
+import { rm } from 'node:fs/promises';
+import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+  flipFuses,
+  FuseV1Options,
+  FuseVersion,
+  type FuseV1Config,
+} from '@electron/fuses';
 import { packager } from '@electron/packager';
-import { rebuild } from '@electron/rebuild';
-import { build } from 'esbuild';
-import { z } from 'zod';
+import { desktopCommand, root, stageDesktop } from './desktop-stage.ts';
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const output = join(root, 'dist/desktop');
 const stage = join(output, 'stage');
-const manifestSchema = z.object({
-  name: z.string(),
-  version: z.string().optional(),
-  dependencies: z.record(z.string(), z.string()).default({}),
-  optionalDependencies: z.record(z.string(), z.string()).default({}),
-});
-const external = [
-  'better-sqlite3',
-  '@parcel/watcher',
-  'trash',
-  'bufferutil',
-  'utf-8-validate',
-];
-
-export async function desktopCommand(command: string, args: readonly string[]) {
-  await new Promise<void>((resolveCommand, rejectCommand) => {
-    const child = spawn(command, args, { cwd: root, stdio: 'inherit' });
-    child.once('error', rejectCommand);
-    child.once('close', (code) => {
-      if (code === 0) resolveCommand();
-      else rejectCommand(new Error(`${command} exited with ${code}`));
-    });
-  });
-}
-
-async function manifest(directory: string) {
-  return manifestSchema.parse(
-    JSON.parse(await readFile(join(directory, 'package.json'), 'utf8')),
-  );
-}
-
-function locate(name: string, from: string): string | undefined {
-  for (let directory = from; ; directory = dirname(directory)) {
-    const candidate = join(directory, 'node_modules', name);
-    if (existsSync(join(candidate, 'package.json')))
-      return realpathSync(candidate);
-    if (dirname(directory) === directory) return undefined;
-  }
-}
-
-async function vendor(
-  name: string,
-  from: string,
-  into: string,
-  ancestry: ReadonlySet<string>,
-) {
-  const source = locate(name, from);
-  if (source === undefined)
-    throw new Error(`Missing runtime dependency: ${name}`);
-  if (ancestry.has(source))
-    throw new Error(`Cyclic runtime dependency: ${name}`);
-  const destination = join(into, name);
-  await cp(source, destination, {
-    recursive: true,
-    dereference: true,
-    filter: (path) => !path.endsWith('/node_modules'),
-  });
-  const dependencies = await manifest(source);
-  const visited = new Set([...ancestry, source]);
-  for (const dependency of Object.keys(dependencies.dependencies))
-    await vendor(
-      dependency,
-      source,
-      join(destination, 'node_modules'),
-      visited,
-    );
-  for (const dependency of Object.keys(dependencies.optionalDependencies))
-    if (locate(dependency, source) !== undefined)
-      await vendor(
-        dependency,
-        source,
-        join(destination, 'node_modules'),
-        visited,
-      );
-}
+const lockedFuses = {
+  version: FuseVersion.V1,
+  strictlyRequireAllFuses: true,
+  [FuseV1Options.RunAsNode]: false,
+  [FuseV1Options.EnableCookieEncryption]: true,
+  [FuseV1Options.EnableNodeOptionsEnvironmentVariable]: false,
+  [FuseV1Options.EnableNodeCliInspectArguments]: false,
+  [FuseV1Options.EnableEmbeddedAsarIntegrityValidation]: true,
+  [FuseV1Options.OnlyLoadAppFromAsar]: true,
+  [FuseV1Options.LoadBrowserProcessSpecificV8Snapshot]: false,
+  [FuseV1Options.GrantFileProtocolExtraPrivileges]: false,
+  [FuseV1Options.WasmTrapHandlers]: true,
+} satisfies FuseV1Config;
 
 export async function buildDesktop(): Promise<string> {
   if (process.platform !== 'darwin')
     throw new Error('Build the local Mac app on macOS');
   if (process.arch !== 'arm64' && process.arch !== 'x64')
     throw new Error('The Mac app requires arm64 or x64');
-  const desktop = await manifest(join(root, 'apps/desktop'));
-  const electronVersion = desktop.dependencies.electron;
-  if (electronVersion === undefined)
-    throw new Error('Pin Electron in apps/desktop/package.json');
-  const icon = join(root, 'scripts/assets/porcelain.icns');
   await rm(stage, { recursive: true, force: true });
-  await mkdir(stage, { recursive: true });
-  await desktopCommand('pnpm', [
-    '--filter',
-    '@porcelain/web',
-    'exec',
-    'vite',
-    'build',
-    '--mode',
-    'desktop',
-    '--outDir',
-    join(stage, 'web'),
-    '--emptyOutDir',
-  ]);
-  const banner = {
-    js: "import { createRequire as porcelainRequire } from 'node:module'; const require = porcelainRequire(import.meta.url);",
-  };
-  await build({
-    entryPoints: [join(root, 'apps/desktop/src/preload.ts')],
-    outfile: join(stage, 'desktop/preload.cjs'),
-    bundle: true,
-    format: 'cjs',
-    platform: 'node',
-    target: 'node24',
-    external: ['electron'],
-  });
-  await build({
-    entryPoints: [join(root, 'apps/desktop/src/main.ts')],
-    outfile: join(stage, 'desktop/main.mjs'),
-    bundle: true,
-    format: 'esm',
-    platform: 'node',
-    target: 'node24',
-    external: ['electron'],
-    banner,
-  });
-  await build({
-    entryPoints: [join(root, 'apps/desktop/src/server.ts')],
-    outfile: join(stage, 'server/src/bootstrap/server.mjs'),
-    bundle: true,
-    format: 'esm',
-    platform: 'node',
-    target: 'node24',
-    external: ['electron', ...external],
-    banner,
-  });
-  await cp(
-    join(root, 'packages/storage/drizzle'),
-    join(stage, 'server/drizzle'),
-    { recursive: true },
-  );
-  const server = await manifest(join(root, 'apps/server'));
-  const dependencies: Record<string, string> = {};
-  for (const name of external) {
-    const version = server.dependencies[name];
-    if (version === undefined) continue;
-    dependencies[name] = version;
-    await vendor(
-      name,
-      join(root, 'apps/server'),
-      join(stage, 'node_modules'),
-      new Set(),
-    );
-  }
-  await writeFile(
-    join(stage, 'package.json'),
-    `${JSON.stringify({ name: desktop.name, productName: 'Porcelain', version: desktop.version, type: 'module', main: 'desktop/main.mjs', dependencies }, null, 2)}\n`,
-  );
-  await rebuild({
-    buildPath: stage,
-    electronVersion,
-    arch: process.arch,
-    onlyModules: ['better-sqlite3'],
-    force: true,
+  const { electronVersion } = await stageDesktop({
+    directory: stage,
+    productName: 'Porcelain',
+    web: true,
   });
   const packaged = await packager({
     dir: stage,
     name: 'Porcelain',
     executableName: 'Porcelain',
-    icon,
+    icon: join(root, 'scripts/assets/porcelain.icns'),
     platform: 'darwin',
     arch: process.arch,
     electronVersion,
@@ -186,6 +51,11 @@ export async function buildDesktop(): Promise<string> {
     prune: false,
     out: output,
     overwrite: true,
+    afterCopy: [
+      async ({ buildPath }) => {
+        await flipFuses(resolve(buildPath, '../../..'), lockedFuses);
+      },
+    ],
     osxSign: {
       identity: '-',
       identityValidation: false,

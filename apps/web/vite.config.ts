@@ -9,6 +9,14 @@ const target = process.env.PORCELAIN_API_TARGET;
 const proxy = target
   ? { '/api': { target, ws: true }, '/review-summaries': { target } }
   : undefined;
+const desktopPort = Number(process.env.PORCELAIN_DESKTOP_WEB_PORT ?? 0);
+const desktop = desktopPort
+  ? {
+      port: desktopPort,
+      strictPort: true,
+      hmr: { host: '127.0.0.1', clientPort: desktopPort },
+    }
+  : undefined;
 
 export default defineConfig({
   plugins: [
@@ -28,6 +36,7 @@ export default defineConfig({
   server: {
     host: '127.0.0.1',
     ...(proxy ? { proxy } : {}),
+    ...desktop,
   },
   preview: { ...(proxy ? { proxy } : {}) },
 });

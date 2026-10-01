@@ -2,7 +2,8 @@ import { existsSync } from 'node:fs';
 import { cp, mkdir, rename, rm } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { buildDesktop, desktopCommand } from './build-desktop.ts';
+import { buildDesktop } from './build-desktop.ts';
+import { desktopCommand } from './desktop-stage.ts';
 
 const target = '/Applications/Porcelain.app';
 const staged = `/Applications/.Porcelain-install-${process.pid}.app`;

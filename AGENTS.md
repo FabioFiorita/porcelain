@@ -39,7 +39,7 @@ Existing web code still breaks many of these rules. `architecture/web-baseline.j
 
 Use shadcn registry components for UI primitives. Search the installed registry with `pnpm --filter @porcelain/web exec shadcn list @shadcn --query <name>` and add a missing primitive through the shadcn CLI. Never edit a file in `components/ui`: it stays exactly what the shadcn CLI installed, and `architecture/shadcn-pins.json` pins each file to what the registry serves. After `shadcn add` and the format, run `node scripts/shadcn-pin.ts`, which pins the registry's version, never the file on disk; re-pinning an edited file or editing the pins is a guard change the owner approves. Do not create a local replacement in a feature view. Compose product-specific views in their feature folders from the existing variants and layout classes; when a look needs a new variant or a restyle the lint refuses, ask the owner.
 
-Use the proof stages above for web work. Browser behavior cases run with Vitest Browser Mode and its Playwright Chromium provider against a disposable real server. Agent inspection and performance use `pnpm devtools` through the `web-verify` skill. `pnpm dev --desktop` runs the web as the desktop app shows it; never edit `shared/shell.ts` to preview desktop UI. Do not add a runtime mock API or a separate prototype.
+Use the proof stages above for web work. Browser behavior cases run with Vitest Browser Mode and its Playwright Chromium provider against a disposable real server. Agent inspection and performance use `pnpm devtools` through the `web-verify` skill. `pnpm dev --desktop` runs the desktop app unpackaged from the checkout, as Porcelain Dev with its own profile beside the installed app, and `pnpm devtools start --desktop` serves the web in Chrome as the desktop app shows it; never edit `shared/shell.ts` to preview desktop UI, and never build, install or launch the owner's installed app to test a change. Do not add a runtime mock API or a separate prototype.
 
 ## Skills
 
@@ -47,7 +47,7 @@ Use the proof stages above for web work. Browser behavior cases run with Vitest 
 - `server-verify`: run the HTTP regression net, add a feature case, read the evidence.
 - `server-feature`: add, change or remove an endpoint end to end: contract, use case, route, scope, wiring, spec, net case, gates.
 - `web-verify`: browser behavior tests and Chrome DevTools CLI against a disposable server.
-- `desktop-verify`: build, sign and install the Mac app, where it keeps its data and logs, and its proof against the installed app on macOS.
+- `desktop-verify`: the development Mac app, its proof against an unpackaged build on macOS, the locked installed app and its check, and where each keeps its data and logs.
 
 ## Working rules the tooling cannot see
 

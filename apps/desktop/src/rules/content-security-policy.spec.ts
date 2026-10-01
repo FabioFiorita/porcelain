@@ -8,7 +8,7 @@ import {
 describe('desktop content security policy', () => {
   it('allows connections to user-entered HTTP and HTTPS computers and their WS and WSS live sockets', () => {
     expect(
-      desktopContentSecurityPolicy()
+      desktopContentSecurityPolicy('built')
         .split('; ')
         .find((directive) => directive.startsWith('connect-src ')),
     ).toBe("connect-src 'self' http: https: ws: wss:");
@@ -16,7 +16,7 @@ describe('desktop content security policy', () => {
 
   it('frames only the app and its own blobs, so no frame can show a website inside the window', () => {
     expect(
-      desktopContentSecurityPolicy()
+      desktopContentSecurityPolicy('built')
         .split('; ')
         .find((directive) => directive.startsWith('frame-src ')),
     ).toBe("frame-src 'self' blob:");
@@ -24,7 +24,7 @@ describe('desktop content security policy', () => {
 
   it('keeps the remaining directives unchanged, including scripts restricted to the app origin', () => {
     expect(
-      desktopContentSecurityPolicy()
+      desktopContentSecurityPolicy('built')
         .split('; ')
         .filter(
           (directive) =>
@@ -42,6 +42,18 @@ describe('desktop content security policy', () => {
       "base-uri 'self'",
     ]);
   });
+
+  it('differs for the development web only by admitting the inline script Vite injects for hot reload', () => {
+    expect(desktopContentSecurityPolicy('development').split('; ')).toEqual(
+      desktopContentSecurityPolicy('built')
+        .split('; ')
+        .map((directive) =>
+          directive === "script-src 'self'"
+            ? "script-src 'self' 'unsafe-inline'"
+            : directive,
+        ),
+    );
+  });
 });
 
 describe('desktop response content security policy', () => {
@@ -49,26 +61,43 @@ describe('desktop response content security policy', () => {
 
   it('preserves the server sandbox for a signed review summary page', () => {
     expect(
-      desktopResponseContentSecurityPolicy('/review-summaries/token', sandbox),
+      desktopResponseContentSecurityPolicy(
+        '/review-summaries/token',
+        sandbox,
+        'built',
+      ),
     ).toBe(sandbox);
   });
 
   it('applies the app policy to all other pages even when the server supplies another policy', () => {
     expect([
-      desktopResponseContentSecurityPolicy('/', sandbox),
-      desktopResponseContentSecurityPolicy('/remotes/computer', sandbox),
-      desktopResponseContentSecurityPolicy('/review-summaries/', sandbox),
+      desktopResponseContentSecurityPolicy('/', sandbox, 'built'),
+      desktopResponseContentSecurityPolicy(
+        '/remotes/computer',
+        sandbox,
+        'built',
+      ),
+      desktopResponseContentSecurityPolicy(
+        '/review-summaries/',
+        sandbox,
+        'built',
+      ),
       desktopResponseContentSecurityPolicy(
         '/review-summaries/token/other',
         sandbox,
+        'built',
       ),
-    ]).toEqual(Array(4).fill(desktopContentSecurityPolicy()));
+    ]).toEqual(Array(4).fill(desktopContentSecurityPolicy('built')));
   });
 
   it('keeps the restrictive app policy when a summary has no server policy', () => {
     expect(
-      desktopResponseContentSecurityPolicy('/review-summaries/token', null),
-    ).toBe(desktopContentSecurityPolicy());
+      desktopResponseContentSecurityPolicy(
+        '/review-summaries/token',
+        null,
+        'built',
+      ),
+    ).toBe(desktopContentSecurityPolicy('built'));
   });
 });
 

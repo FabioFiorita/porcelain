@@ -1,17 +1,17 @@
 import { spawn, type ChildProcess } from 'node:child_process';
-import { dirname, resolve } from 'node:path';
+import { createServer } from 'node:net';
+import { resolve } from 'node:path';
 import { createInterface } from 'node:readline';
-import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { z } from 'zod';
+import { electronExecutable, root, stageDesktop } from './desktop-stage.ts';
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const webRoot = resolve(root, 'apps/web');
+const vite = resolve(webRoot, 'node_modules/.bin/vite');
 const readySchema = z.object({ address: z.url() });
 const { values } = parseArgs({
   options: { desktop: { type: 'boolean', default: false } },
 });
-const webArguments = values.desktop ? ['--mode', 'desktop'] : [];
 
 function exitOf(child: ChildProcess): Promise<number> {
   return new Promise((done) => {
@@ -23,7 +23,94 @@ function exitOf(child: ChildProcess): Promise<number> {
   });
 }
 
-async function main(): Promise<void> {
+function freePort(): Promise<number> {
+  return new Promise((done, fail) => {
+    const probe = createServer();
+    probe.once('error', fail);
+    probe.listen(0, '127.0.0.1', () => {
+      const address = probe.address();
+      probe.close(() =>
+        typeof address === 'object' && address !== null
+          ? done(address.port)
+          : fail(new Error('No free port for the development web')),
+      );
+    });
+  });
+}
+
+async function webReady(origin: string, exited: Promise<number>) {
+  let stopped = false;
+  void exited.then(() => {
+    stopped = true;
+  });
+  for (const deadline = Date.now() + 60_000; Date.now() < deadline;) {
+    if (stopped) throw new Error('Vite exited before it was ready.');
+    const answer = await fetch(origin).catch(() => undefined);
+    if (answer?.ok) return;
+    await new Promise((done) => setTimeout(done, 250));
+  }
+  throw new Error(`Vite did not answer at ${origin}.`);
+}
+
+async function desktop(): Promise<void> {
+  const app = resolve(root, 'dist/desktop/development');
+  await stageDesktop({
+    directory: app,
+    productName: 'Porcelain Dev',
+    web: false,
+  });
+  const port = await freePort();
+  const origin = `http://127.0.0.1:${port}`;
+  const web = spawn(vite, ['--mode', 'desktop'], {
+    cwd: webRoot,
+    detached: true,
+    env: { ...process.env, PORCELAIN_DESKTOP_WEB_PORT: `${port}` },
+    stdio: 'inherit',
+  });
+  const webExit = exitOf(web);
+  let electron: ChildProcess | undefined;
+  let stopping = false;
+  const stop = () => {
+    if (stopping) return;
+    stopping = true;
+    electron?.kill('SIGTERM');
+    web.kill('SIGTERM');
+  };
+  process.on('SIGINT', stop);
+  process.on('SIGTERM', stop);
+  try {
+    await webReady(origin, webExit);
+    if (stopping) return;
+    const environment: Record<string, string> = {};
+    for (const [name, value] of Object.entries(process.env))
+      if (value !== undefined && name !== 'ELECTRON_RUN_AS_NODE')
+        environment[name] = value;
+    electron = spawn(electronExecutable(), [app, '--web-dev-server', origin], {
+      cwd: root,
+      env: environment,
+      stdio: 'inherit',
+    });
+    const appExit = exitOf(electron);
+    const first = await Promise.race([appExit, webExit]);
+    if (!stopping) process.exitCode = first;
+    stop();
+    await Promise.all([appExit, webExit]);
+  } catch (error) {
+    if (!stopping) {
+      process.stderr.write(
+        `${error instanceof Error ? error.message : String(error)}\n`,
+      );
+      process.exitCode = 1;
+    }
+  } finally {
+    stop();
+    await webExit;
+    process.off('SIGINT', stop);
+    process.off('SIGTERM', stop);
+  }
+}
+
+async function browser(): Promise<void> {
   const server = spawn(
     process.execPath,
     [resolve(root, 'scripts/dev-server.ts')],
@@ -65,7 +152,7 @@ async function main(): Promise<void> {
       }),
     ]);
     if (stopping) return;
-    web = spawn(resolve(webRoot, 'node_modules/.bin/vite'), webArguments, {
+    web = spawn(vite, [], {
       cwd: webRoot,
       detached: true,
       env: { ...process.env, PORCELAIN_API_TARGET: address },
@@ -93,4 +180,4 @@ async function main(): Promise<void> {
   }
 }
 
-await main();
+await (values.desktop ? desktop() : browser());

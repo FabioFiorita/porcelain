@@ -1,8 +1,11 @@
+import { execFileSync, spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { readFile, stat, writeFile } from 'node:fs/promises';
+import { lstat, mkdir, readFile, stat, writeFile } from 'node:fs/promises';
+import { homedir } from 'node:os';
 import { isDeepStrictEqual } from 'node:util';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
+import { FuseState, FuseV1Options, getCurrentFuseWire } from '@electron/fuses';
 import { _electron, type Page } from 'playwright';
 import { z } from 'zod';
 import type { DesktopBridge } from '@porcelain/contracts/desktop';
@@ -25,6 +28,7 @@ declare function getComputedStyle(element: RendererElement): RendererStyle;
 
 type DesktopProof = {
   executable: string;
+  appArguments: readonly string[];
   profile: string;
   repository: string;
   evidence: string;
@@ -64,21 +68,31 @@ function requireProof(condition: boolean, promise: string) {
 export const desktopFeatures = [
   {
     name: 'review-summaries',
+    app: 'development',
     promise:
-      'the installed app renders local and remote signed HTML summaries through its own origin inside isolated sandboxes, preserves their theme and layer links, refuses to let a summary show a website in its frame, and keeps app scripts restricted to its own origin',
+      'the app renders local and remote signed HTML summaries through its own origin inside isolated sandboxes, preserves their theme and layer links, refuses to let a summary show a website in its frame, and keeps app scripts restricted to its own origin',
     run: reviewSummaries,
   },
   {
     name: 'bridge-capabilities',
+    app: 'development',
     promise:
-      'the installed preload persists one opaque credential string through encrypted storage and restart, reports credentials it cannot decrypt as unreadable and never saves over them, tells the owner in Settings, refuses untrusted callers and unavailable encryption, clears saved credentials, exposes its app version, and reports that the local build has no update feed, through checks and removable state subscriptions, and rejects installation',
+      'the preload persists one opaque credential string through encrypted storage and restart, reports credentials it cannot decrypt as unreadable and never saves over them, tells the owner in Settings, refuses untrusted callers and unavailable encryption, clears saved credentials, exposes its app version, and reports that the local build has no update feed, through checks and removable state subscriptions, and rejects installation',
     run: bridgeCapabilities,
   },
   {
-    name: 'installed-project',
+    name: 'project',
+    app: 'development',
     promise:
-      'the installed app starts its own server, permits remote connections with scripts restricted to the app origin, opens only a manually selected Git project through its trusted native picker, cancels without registration or folder discovery, offers no reload or developer tools menus, shows that the local build updates by reinstalling rather than claiming it is the newest, retains its project and preferences after restart, survives window close, keeps its server output in its logs folder and stops its server on Quit',
-    run: installedProject,
+      'the app starts its own server, permits remote connections with scripts restricted to the app origin, opens only a manually selected Git project through its trusted native picker, cancels without registration or folder discovery, offers no reload or developer tools menus unless it runs on a Vite server, shows that the local build updates by reinstalling rather than claiming it is the newest, retains its project and preferences after restart, survives window close, keeps its server output in its logs folder and stops its server on Quit',
+    run: project,
+  },
+  {
+    name: 'installed',
+    app: 'installed',
+    promise:
+      'the installed app ships with its Electron fuses locked (no run as Node, no NODE_OPTIONS, no Node inspect arguments, embedded ASAR integrity validation, the app loaded only from its ASAR, encrypted cookies, no extra file protocol privileges), and refuses to start with --inspect, --remote-debugging-port, ELECTRON_RUN_AS_NODE or NODE_OPTIONS without opening a debugging endpoint, running Node code, or touching a running copy or its profile',
+    run: installedLock,
   },
 ];
 
@@ -90,6 +104,7 @@ async function launchDesktop(input: DesktopProof) {
   return _electron.launch({
     executablePath: input.executable,
     args: [
+      ...input.appArguments,
       '--data-directory',
       input.profile,
       '--project-home',
@@ -457,7 +472,7 @@ async function bridgeCapabilities(input: DesktopProof) {
     });
     requireProof(
       updates.current === current,
-      'The preload must expose the installed app version synchronously',
+      'The preload must expose the app version synchronously',
     );
     requireProof(
       updates.available === null,
@@ -619,7 +634,7 @@ async function bridgeCapabilities(input: DesktopProof) {
   };
 }
 
-async function installedProject(input: DesktopProof) {
+async function project(input: DesktopProof) {
   const errors: string[] = [];
   const launch = () => launchDesktop(input);
   const app = await launch();
@@ -660,7 +675,7 @@ async function installedProject(input: DesktopProof) {
           .split('; ')
           .includes("connect-src 'self' http: https: ws: wss:") &&
         contentSecurityPolicy.split('; ').includes("script-src 'self'"),
-      'The installed desktop policy must allow remote HTTP and WebSocket connections while restricting scripts to the app origin',
+      'The desktop policy must allow remote HTTP and WebSocket connections while restricting scripts to the app origin',
     );
     const status = ownerStatus.parse(
       await askOwner(data, 'GET', '/status', undefined, 5000),
@@ -841,7 +856,7 @@ async function installedProject(input: DesktopProof) {
         !['reload', 'forcereload', 'toggledevtools'].some((role) =>
           viewRoles.includes(role),
         ),
-      'The installed app must offer no Reload or Developer Tools menu items',
+      'The app must offer no Reload or Developer Tools menu items without a Vite server',
     );
     const settingsPage = page.getByRole('main', {
       name: 'Settings',
@@ -918,7 +933,7 @@ async function installedProject(input: DesktopProof) {
       .locator('html.desktop-fullscreen')
       .waitFor({ state: 'detached' });
     await page.screenshot({
-      path: join(input.evidence, 'installed-project.png'),
+      path: join(input.evidence, 'project.png'),
     });
     requireProof(
       existsSync(join(data, 'inventory.sqlite')),
@@ -1115,4 +1130,202 @@ async function closeDesktop(app: Awaited<ReturnType<typeof _electron.launch>>) {
     );
   });
   await Promise.race([app.close(), expired]);
+}
+
+const lockedFuses: [string, FuseV1Options, FuseState][] = [
+  ['RunAsNode', FuseV1Options.RunAsNode, FuseState.DISABLE],
+  [
+    'EnableNodeOptionsEnvironmentVariable',
+    FuseV1Options.EnableNodeOptionsEnvironmentVariable,
+    FuseState.DISABLE,
+  ],
+  [
+    'EnableNodeCliInspectArguments',
+    FuseV1Options.EnableNodeCliInspectArguments,
+    FuseState.DISABLE,
+  ],
+  [
+    'EnableEmbeddedAsarIntegrityValidation',
+    FuseV1Options.EnableEmbeddedAsarIntegrityValidation,
+    FuseState.ENABLE,
+  ],
+  ['OnlyLoadAppFromAsar', FuseV1Options.OnlyLoadAppFromAsar, FuseState.ENABLE],
+  [
+    'EnableCookieEncryption',
+    FuseV1Options.EnableCookieEncryption,
+    FuseState.ENABLE,
+  ],
+  [
+    'GrantFileProtocolExtraPrivileges',
+    FuseV1Options.GrantFileProtocolExtraPrivileges,
+    FuseState.DISABLE,
+  ],
+];
+const ownerProfileEntries = [
+  'SingletonLock',
+  'SingletonSocket',
+  'SingletonCookie',
+  'DevToolsActivePort',
+  'Local State',
+  'window.json',
+  'credentials.enc',
+];
+
+function fuseName(state: FuseState | undefined): string {
+  if (state === FuseState.ENABLE) return 'on';
+  if (state === FuseState.DISABLE) return 'off';
+  return `unexpected ${String(state)}`;
+}
+
+function runningCopies(executable: string): number[] {
+  return execFileSync('/bin/ps', ['-axo', 'pid=,comm='], { encoding: 'utf8' })
+    .split('\n')
+    .flatMap((line) => {
+      const match = /^\s*(\d+)\s+(.+)$/.exec(line);
+      return match?.[2] === executable ? [Number(match[1])] : [];
+    });
+}
+
+async function ownerProfileState(profile: string) {
+  return Promise.all(
+    ownerProfileEntries.map(
+      async (name): Promise<[string, number | 'absent']> => {
+        const entry = await lstat(join(profile, name)).catch(() => undefined);
+        return [name, entry?.mtimeMs ?? 'absent'];
+      },
+    ),
+  );
+}
+
+async function refusedLaunch(
+  executable: string,
+  launch: {
+    profile: string;
+    arguments: string[];
+    environment: Record<string, string>;
+  },
+) {
+  const environment: Record<string, string> = {};
+  for (const [name, value] of Object.entries(process.env))
+    if (
+      value !== undefined &&
+      name !== 'ELECTRON_RUN_AS_NODE' &&
+      name !== 'NODE_OPTIONS'
+    )
+      environment[name] = value;
+  const child = spawn(
+    executable,
+    [...launch.arguments, '--data-directory', launch.profile],
+    {
+      env: { ...environment, ...launch.environment },
+      stdio: ['ignore', 'pipe', 'pipe'],
+      timeout: 20_000,
+      killSignal: 'SIGKILL',
+    },
+  );
+  const output: Buffer[] = [];
+  child.stdout.on('data', (chunk: Buffer) => output.push(chunk));
+  child.stderr.on('data', (chunk: Buffer) => output.push(chunk));
+  const [code, signal] = await new Promise<[number | null, string | null]>(
+    (resolveExit, rejectExit) => {
+      child.once('error', rejectExit);
+      child.once('close', (exitCode, exitSignal) =>
+        resolveExit([exitCode, exitSignal]),
+      );
+    },
+  );
+  return { code, signal, output: Buffer.concat(output).toString('utf8') };
+}
+
+async function installedLock(input: DesktopProof) {
+  const wire = await getCurrentFuseWire(resolve(input.executable, '../../..'));
+  for (const [name, option, state] of lockedFuses)
+    requireProof(
+      wire[option] === state,
+      `The installed app must ship with the ${name} fuse ${fuseName(state)}`,
+    );
+  const ownerProfile = join(homedir(), 'Library/Application Support/Porcelain');
+  const copiesBefore = runningCopies(input.executable);
+  const profileBefore = await ownerProfileState(ownerProfile);
+  const marker = join(input.profile, 'node-ran');
+  const payload = `require('node:fs').writeFileSync(${JSON.stringify(marker)}, 'ran');\n`;
+  const payloadFile = join(input.profile, 'payload.cjs');
+  await mkdir(input.profile, { recursive: true });
+  await writeFile(payloadFile, payload);
+  const launches = [
+    {
+      name: 'inspect',
+      arguments: ['--inspect=0'],
+      environment: {},
+      refusal: 'Porcelain refuses to start with the debugging switch --inspect',
+    },
+    {
+      name: 'remote-debugging-port',
+      arguments: ['--remote-debugging-port=0'],
+      environment: {},
+      refusal:
+        'Porcelain refuses to start with the debugging switch --remote-debugging-port',
+    },
+    {
+      name: 'run-as-node',
+      arguments: ['-e', payload],
+      environment: { ELECTRON_RUN_AS_NODE: '1' },
+      refusal: 'Porcelain refuses to start with ELECTRON_RUN_AS_NODE set',
+    },
+    {
+      name: 'node-options',
+      arguments: [],
+      environment: { NODE_OPTIONS: `--require ${payloadFile}` },
+      refusal: 'Porcelain refuses to start with NODE_OPTIONS set',
+    },
+  ];
+  const results: { name: string; code: number | null; output: string }[] = [];
+  for (const launch of launches) {
+    const profile = join(input.profile, launch.name);
+    const result = await refusedLaunch(input.executable, {
+      ...launch,
+      profile,
+    });
+    results.push({
+      name: launch.name,
+      code: result.code,
+      output: result.output,
+    });
+    requireProof(
+      result.signal === null && result.code !== null && result.code !== 0,
+      `The installed app must exit with a failure when launched with ${launch.name}, not keep running (${result.code}, ${result.signal}): ${result.output}`,
+    );
+    requireProof(
+      result.output.includes(launch.refusal),
+      `The installed app must say why it refuses ${launch.name}: ${result.output}`,
+    );
+    requireProof(
+      !/Debugger listening|DevTools listening/.test(result.output),
+      `A refused ${launch.name} launch must not open a debugging endpoint`,
+    );
+    requireProof(
+      !existsSync(profile),
+      `A refused ${launch.name} launch must stop before it creates its profile`,
+    );
+    requireProof(
+      !existsSync(marker),
+      `A refused ${launch.name} launch must not run Node code`,
+    );
+  }
+  requireProof(
+    isDeepStrictEqual(runningCopies(input.executable), copiesBefore),
+    'Refused launches must leave the running copies of the installed app as they were',
+  );
+  requireProof(
+    isDeepStrictEqual(await ownerProfileState(ownerProfile), profileBefore),
+    'Refused launches must not touch the installed app profile',
+  );
+  return {
+    fuses: Object.fromEntries(
+      lockedFuses.map(([name, option]) => [name, fuseName(wire[option])]),
+    ),
+    runningCopies: copiesBefore,
+    ownerProfile: Object.fromEntries(profileBefore),
+    launches: results,
+  };
 }
