@@ -19,7 +19,7 @@ export function externalNavigation(url: string): boolean {
   try {
     const target = new URL(url);
     return (
-      target.protocol === 'https:' &&
+      (target.protocol === 'https:' || target.protocol === 'http:') &&
       target.username === '' &&
       target.password === ''
     );

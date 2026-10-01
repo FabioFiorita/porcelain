@@ -35,16 +35,19 @@ describe('desktop navigation', () => {
   ])('refuses a different origin or a credentialed navigation: %s', (url) => {
     expect(localNavigation(url, 'http://127.0.0.1:3000')).toBe(false);
   });
-  it('permits an ordinary HTTPS link in the system browser', () => {
-    expect(externalNavigation('https://github.com/electron/electron')).toBe(
-      true,
-    );
+  it.each([
+    'https://github.com/electron/electron',
+    'http://192.168.1.20:8080/',
+  ])('permits an ordinary web link in the system browser: %s', (url) => {
+    expect(externalNavigation(url)).toBe(true);
   });
   it.each([
     'file:///etc/passwd',
     'javascript:alert(1)',
-    'http://example.com',
+    'porcelain://app/',
+    'mailto:owner@example.com',
     'https://owner:secret@example.com',
+    'http://owner@example.com',
     'unparseable',
   ])('refuses an unsafe external link: %s', (url) => {
     expect(externalNavigation(url)).toBe(false);

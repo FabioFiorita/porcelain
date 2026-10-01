@@ -87,6 +87,15 @@ function windowState(view: BrowserWindow) {
   return { bounds: view.getNormalBounds(), maximized: view.isMaximized() };
 }
 
+function openExternal(url: string): void {
+  if (externalNavigation(url))
+    void shell.openExternal(url).catch((error: unknown) => {
+      process.stderr.write(
+        `Porcelain: could not open ${url}: ${error instanceof Error ? error.message : 'unknown failure'}\n`,
+      );
+    });
+}
+
 function failure(error: unknown) {
   process.stderr.write(
     `${error instanceof Error ? error.message : 'The local server failed'}\n`,
@@ -176,7 +185,9 @@ async function openWindow() {
   view.webContents.session.setPermissionCheckHandler(() => false);
   view.webContents.on('will-attach-webview', (event) => event.preventDefault());
   view.webContents.on('will-navigate', (event, url) => {
-    if (!localNavigation(url, origin)) event.preventDefault();
+    if (localNavigation(url, origin)) return;
+    event.preventDefault();
+    openExternal(url);
   });
   view.webContents.on('will-redirect', (event, url) => {
     if (!localNavigation(url, origin)) event.preventDefault();
@@ -198,7 +209,7 @@ async function openWindow() {
       });
   });
   view.webContents.setWindowOpenHandler(({ url }) => {
-    if (externalNavigation(url)) void shell.openExternal(url).catch(failure);
+    openExternal(url);
     return { action: 'deny' };
   });
   await view.loadURL(desktopAddress);
