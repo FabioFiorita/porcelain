@@ -10,7 +10,7 @@ import {
   withRemote,
   type Remote,
 } from './rules/remotes';
-import { REQUEST_TIMEOUT_MS } from '@/shared/api/request-timeout';
+import { REQUEST_TIMEOUT_MS } from '@/config/limits';
 import {
   browserTransport,
   remoteTransport,

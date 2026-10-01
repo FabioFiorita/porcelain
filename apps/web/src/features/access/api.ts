@@ -23,10 +23,12 @@ import {
   readInventoryResponseSchema,
   type ReadInventoryResponse,
 } from '@porcelain/contracts/projects';
-import { WEB_PLATFORM_NAME_MAX_LENGTH } from '@/config/limits';
+import {
+  REQUEST_TIMEOUT_MS,
+  WEB_PLATFORM_NAME_MAX_LENGTH,
+} from '@/config/limits';
 import { ConnectionError } from '@/shared/api/connection-error';
 import { RequestError, requestJson } from '@/shared/api/request';
-import { REQUEST_TIMEOUT_MS } from '@/shared/api/request-timeout';
 import { perConnection } from '@/shared/api/per-connection';
 import { browserTransport, type Transport } from '@/shared/api/transport';
 import type { PairingCode } from '@porcelain/client/access/rules';

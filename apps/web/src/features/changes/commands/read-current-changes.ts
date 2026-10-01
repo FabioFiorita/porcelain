@@ -14,8 +14,7 @@ export function useReadCurrentChanges(
   const client = useQueryClient();
   const connection = requireConnection(possibleConnection);
   const options = changesQueryOptions(scope, connection);
-  return async () =>
-    (await client.fetchQuery({ ...options, staleTime: 0 })).changes;
+  return async () => (await client.query({ ...options, staleTime: 0 })).changes;
 }
 
 export function useRefreshGitLook(
