@@ -1,3 +1,4 @@
+import { Fragment } from 'react';
 import { formatForDisplay } from '@tanstack/react-hotkeys';
 import {
   KeyboardIcon,
@@ -13,8 +14,8 @@ import {
   EmptyTitle,
 } from '@/components/ui/empty';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { SidebarMenuSubItem } from '@/components/ui/sidebar';
 import type { RemoteConnection } from '@/features/access/index';
-import { desktopShell } from '@/shared/shell';
 import type { Inventory, WorktreeTarget } from '../rules/inventory';
 import { MachineSection } from './machine-section';
 import { RemoteMachine } from './remote-machine';
@@ -50,28 +51,25 @@ export function ProjectNavigator({
   const projects = inventory.projects;
   const selectedOn = (remote: string | null) =>
     selected?.remote === remote ? selected.worktreeId : undefined;
-  const local =
-    projects.length === 0 ? (
-      <Empty>
-        <EmptyHeader>
-          <EmptyTitle>No projects registered</EmptyTitle>
-          <EmptyDescription>
-            This environment has no projects yet.
-          </EmptyDescription>
-        </EmptyHeader>
-      </Empty>
-    ) : (
-      projects.map((project) => (
-        <ProjectSection
-          key={project.id}
-          project={project}
-          selected={selectedOn(null)}
-          onSelect={(worktreeId) =>
-            select({ remote: null, projectId: project.id, worktreeId })
-          }
-        />
-      ))
-    );
+  const empty = (
+    <Empty>
+      <EmptyHeader>
+        <EmptyTitle>No projects registered</EmptyTitle>
+        <EmptyDescription>
+          This environment has no projects yet.
+        </EmptyDescription>
+      </EmptyHeader>
+    </Empty>
+  );
+  const section = (project: Inventory['projects'][number]) => (
+    <ProjectSection
+      project={project}
+      selected={selectedOn(null)}
+      onSelect={(worktreeId) =>
+        select({ remote: null, projectId: project.id, worktreeId })
+      }
+    />
+  );
 
   return (
     <nav
@@ -79,14 +77,6 @@ export function ProjectNavigator({
       className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border bg-card text-[13px]"
     >
       <header className="desktop-sidebar-header flex h-11 shrink-0 items-center gap-2 border-b px-3">
-        {desktopShell && (
-          <img
-            src="/icon-512.png"
-            alt=""
-            draggable={false}
-            className="size-6 shrink-0 rounded-md"
-          />
-        )}
         <div className="flex min-w-0 flex-col leading-tight">
           <span className="text-sm font-semibold">Porcelain</span>
           <span
@@ -113,7 +103,15 @@ export function ProjectNavigator({
           {remotes ? (
             <>
               <MachineSection name="This computer" icon={MonitorIcon}>
-                {local}
+                {projects.length === 0 ? (
+                  <SidebarMenuSubItem>{empty}</SidebarMenuSubItem>
+                ) : (
+                  projects.map((project) => (
+                    <SidebarMenuSubItem key={project.id}>
+                      {section(project)}
+                    </SidebarMenuSubItem>
+                  ))
+                )}
               </MachineSection>
               {remotes.map((entry) => (
                 <RemoteMachine
@@ -125,8 +123,12 @@ export function ProjectNavigator({
                 />
               ))}
             </>
+          ) : projects.length === 0 ? (
+            empty
           ) : (
-            local
+            projects.map((project) => (
+              <Fragment key={project.id}>{section(project)}</Fragment>
+            ))
           )}
         </div>
       </ScrollArea>

@@ -7,8 +7,8 @@ import {
 } from '@/components/ui/collapsible';
 import {
   SidebarGroup,
-  SidebarGroupContent,
   SidebarGroupLabel,
+  SidebarMenuSub,
 } from '@/components/ui/sidebar';
 
 export function MachineSection({
@@ -34,7 +34,7 @@ export function MachineSection({
           </span>
         </SidebarGroupLabel>
         <CollapsibleContent>
-          <SidebarGroupContent>{children}</SidebarGroupContent>
+          <SidebarMenuSub>{children}</SidebarMenuSub>
         </CollapsibleContent>
       </SidebarGroup>
     </Collapsible>
