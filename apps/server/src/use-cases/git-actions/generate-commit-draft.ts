@@ -6,8 +6,8 @@ import type {
 import type {
   GenerateCommitDraftRequest,
   GenerateCommitDraftResponse,
-  GitActionScope,
 } from '@porcelain/contracts/git-actions';
+import type { WorktreeParams } from '@porcelain/contracts/shared';
 import type {
   CaptureCommitDraftService,
   GenerateCommitDraftService,
@@ -53,7 +53,7 @@ export class GenerateCommitDraftUseCase {
   }
 
   async execute(
-    input: GitActionScope & GenerateCommitDraftRequest,
+    input: WorktreeParams & GenerateCommitDraftRequest,
     context: OperationContext,
   ): Promise<GenerateCommitDraftResponse> {
     const { worktreeId } = input;

@@ -32,17 +32,23 @@ export class ReadServiceUpdateUseCase {
     this.laneKeys = laneKeys;
   }
 
-  execute(
+  async execute(
     input: ReadServiceUpdateRequest,
     context: OperationContext,
   ): Promise<ReadServiceUpdateResponse> {
     const check = this.planCheck.execute();
+    const authority = await this.lanes.run(
+      this.laneKeys.access(),
+      'read',
+      async () => this.authorizeServiceUpdate.execute(input),
+      { callerSignal: context.signal },
+    );
     return this.lanes.run(
       this.laneKeys.serviceUpdate(),
       'read',
       async ({ signal }) => ({
         ...(await this.updates.read(check, signal)),
-        ...this.authorizeServiceUpdate.execute(input),
+        ...authority,
       }),
       { callerSignal: context.signal },
     );

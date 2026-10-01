@@ -67,10 +67,18 @@ export class ReadInventoryUseCase {
       { callerSignal: context.signal },
     );
     const statuses = await this.reviewBadges(listings, context);
-    const { environmentId } = this.readEnvironment.execute();
+    const { environmentId, environment } = await this.lanes.run(
+      this.laneKeys.access(),
+      'read',
+      async () => ({
+        environmentId: this.readEnvironment.execute().environmentId,
+        environment: this.readEnvironmentName.execute(),
+      }),
+      { callerSignal: context.signal },
+    );
     return {
       ...inventoryReport(environmentId, inventory, listings, statuses),
-      environment: this.readEnvironmentName.execute(),
+      environment,
     };
   }
 

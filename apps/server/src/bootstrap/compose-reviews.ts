@@ -142,6 +142,7 @@ export function composeReviews(
     checkWorktree,
     readPublishedReview,
     shared.readReviewEvidence,
+    shared.confirmWorktree,
     shared.recordReviewActivity,
     lanes,
     laneKeys,

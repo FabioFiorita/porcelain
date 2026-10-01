@@ -9,7 +9,7 @@ import { assertMigrationHistory, migrateDatabase } from './migrate.ts';
 import { createSession, type StorageSession } from './session.ts';
 import { worktreeIdV1 } from './worktree-id-v1.ts';
 
-type StorageOptions = { worktreeIdLength: number };
+type StorageOptions = { worktreeIdLength: number; busyTimeoutMs: number };
 
 export function openStorageSession(
   dataDirectory: string,
@@ -20,7 +20,7 @@ export function openStorageSession(
   const database = new Database(join(dataDirectory, DATABASE_FILE));
   try {
     assertMigrationHistory(database);
-    database.pragma('busy_timeout = 5000');
+    database.pragma(`busy_timeout = ${options.busyTimeoutMs}`);
     database.pragma('journal_mode = WAL');
     database.function(
       'porcelain_worktree_id',

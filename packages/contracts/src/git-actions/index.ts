@@ -9,7 +9,6 @@ export {
 export {
   dismissInterruptedGitActionParamsSchema,
   dismissInterruptedGitActionResponseSchema,
-  gitActionScopeSchema,
   readGitActionReceiptParamsSchema,
   readGitActionReceiptResponseSchema,
   runGitActionRejectedResponseSchema,
@@ -17,7 +16,6 @@ export {
   runGitActionResponseSchema,
   type DismissInterruptedGitActionParams,
   type DismissInterruptedGitActionResponse,
-  type GitActionScope,
   type ReadGitActionReceiptParams,
   type ReadGitActionReceiptResponse,
   type RunGitActionRequest,

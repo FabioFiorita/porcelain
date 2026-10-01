@@ -56,6 +56,30 @@ describe('readHeadBlob', () => {
     ).toEqual({ kind: 'bytes', bytes: Buffer.from('committed\n') });
   });
 
+  it('answers missing for a path HEAD does not hold, even when it is on disk', async () => {
+    writeFileSync(join(checkout, 'new.md'), 'only on disk\n');
+    expect(
+      await Promise.all(
+        ['new.md', 'absent.md'].map((path) =>
+          readHeadBlob({ path: checkout }, { path, maxBytes: 100 }, gitLimits),
+        ),
+      ),
+    ).toEqual([{ kind: 'missing' }, { kind: 'missing' }]);
+  });
+
+  it('answers missing when the branch has no commit yet', async () => {
+    const empty = join(base, 'empty');
+    execFileSync('git', ['init', '-q', empty]);
+    writeFileSync(join(empty, 'README.md'), 'not committed\n');
+    expect(
+      await readHeadBlob(
+        { path: empty },
+        { path: 'README.md', maxBytes: 100 },
+        gitLimits,
+      ),
+    ).toEqual({ kind: 'missing' });
+  });
+
   it('answers too large for a blob one byte past the limit', async () => {
     expect(
       await readHeadBlob(

@@ -36,20 +36,26 @@ export class StartServiceUpdateUseCase {
     this.laneKeys = laneKeys;
   }
 
-  execute(
+  async execute(
     input: StartServiceUpdateInput,
     context: OperationContext,
   ): Promise<StartServiceUpdateResponse> {
     const check = this.planCheck.execute();
     const target = { version: input.version };
+    const authority = await this.lanes.run(
+      this.laneKeys.access(),
+      'read',
+      async () =>
+        this.authorizeServiceUpdate.execute({
+          viewer: input.viewer,
+          local: input.local,
+        }),
+      { callerSignal: context.signal },
+    );
     return this.lanes.run(
       this.laneKeys.serviceUpdate(),
       'write',
       async ({ signal }) => {
-        const authority = this.authorizeServiceUpdate.execute({
-          viewer: input.viewer,
-          local: input.local,
-        });
         this.checkServiceUpdate.execute({
           authority,
           state: await this.updates.read(check, signal),

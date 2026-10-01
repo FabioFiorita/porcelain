@@ -7,7 +7,10 @@ import { openStorageSession } from '../../index.ts';
 import { createRemoteAccessStore } from './index.ts';
 
 function open(dataDirectory: string) {
-  return openStorageSession(dataDirectory, { worktreeIdLength: 32 });
+  return openStorageSession(dataDirectory, {
+    worktreeIdLength: 32,
+    busyTimeoutMs: 5000,
+  });
 }
 
 remoteAccessStoreContract('SqliteRemoteAccessStore', () => {

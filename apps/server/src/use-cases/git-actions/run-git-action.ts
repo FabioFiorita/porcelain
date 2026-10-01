@@ -3,10 +3,10 @@ import type {
   ReadWorktreeStatusService,
 } from '@porcelain/changes/services';
 import type {
-  GitActionScope,
   RunGitActionRequest,
   RunGitActionResponse,
 } from '@porcelain/contracts/git-actions';
+import type { WorktreeParams } from '@porcelain/contracts/shared';
 import type { GitActionRun } from '@porcelain/git-actions/models';
 import type {
   AcceptGitActionService,
@@ -79,7 +79,7 @@ export class RunGitActionUseCase {
   }
 
   async execute(
-    input: GitActionScope & RunGitActionRequest,
+    input: WorktreeParams & RunGitActionRequest,
     context: OperationContext,
   ): Promise<RunGitActionResponse> {
     const { worktreeId } = input;

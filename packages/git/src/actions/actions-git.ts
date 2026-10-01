@@ -58,7 +58,6 @@ export class ActionsGit implements GitActionWriter {
     expected: GitActionExpectation,
     signal: AbortSignal,
     onProgress?: (line: string) => void,
-    verifyTarget?: () => Promise<void>,
   ): Promise<GitActionOutcome> {
     await this.session.verify(signal);
     const { preview, remote, stashLog } = await inspectActionTarget(
@@ -67,8 +66,6 @@ export class ActionsGit implements GitActionWriter {
       expected,
       signal,
     );
-    if (intent.action !== 'commit' && intent.action !== 'amend')
-      await verifyTarget?.();
     await this.session.confirm(signal);
     const id = requestId;
     this.progress =
@@ -85,7 +82,6 @@ export class ActionsGit implements GitActionWriter {
             this.process,
             { id, intent, preview },
             signal,
-            verifyTarget,
           );
         case 'fetch':
           return remote

@@ -83,6 +83,7 @@ const openServerWith =
     const gitVersion = await readGitVersion(limits.git, input.signal);
     const session = openStorageSession(settings.dataDirectory, {
       worktreeIdLength: limits.projects.worktreeIds.length,
+      busyTimeoutMs: limits.storage.busyTimeoutMs,
     });
     const stores = composeStores(session);
     const catalog = new InMemoryWorktreeCatalogStore();
@@ -104,6 +105,7 @@ const openServerWith =
       gitVersion,
       worktreeId,
       clock,
+      logger,
     });
     const context: ComposeContext = {
       lanes,

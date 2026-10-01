@@ -17,7 +17,7 @@ export async function readSelectedDiff(
       ...(headOid ? [headOid] : ['--cached']),
       '--no-ext-diff',
       '--no-textconv',
-      '--unified=3',
+      `--unified=${limits.inspection.contextLines}`,
       '--',
       ...paths,
     ],

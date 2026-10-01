@@ -26,12 +26,14 @@ import {
 } from './inspect-history-checkout.ts';
 import { runHistory } from './run-history.ts';
 
-export const DIFF_FLAGS = [
-  '--no-textconv',
-  '--no-ext-diff',
-  '--no-color',
-  '--find-renames=50%',
-];
+export function diffFlags(limits: GitLimits): string[] {
+  return [
+    '--no-textconv',
+    '--no-ext-diff',
+    '--no-color',
+    `--find-renames=${limits.renames.similarityPercent}%`,
+  ];
+}
 
 export async function readCommitFiles(
   checkout: HistoryCheckout,
@@ -50,7 +52,7 @@ export async function readCommitFiles(
       'show',
       '--raw',
       '-z',
-      ...DIFF_FLAGS,
+      ...diffFlags(limits),
       `--diff-merges=${parent === 1 ? 'first-parent' : 'off'}`,
       `--format=${COMMIT_FORMAT}`,
       request.oid,
@@ -76,7 +78,7 @@ export async function readCommitFiles(
               '-r',
               '--raw',
               '-z',
-              ...DIFF_FLAGS,
+              ...diffFlags(limits),
               parentOid,
               request.oid,
               '--',

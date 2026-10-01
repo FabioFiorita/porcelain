@@ -183,7 +183,7 @@ async function readPaths(
   try {
     output = await runInspection(
       checkout,
-      diffArguments(comparison, pathspecs, renames),
+      diffArguments(comparison, pathspecs, renames, limits),
       limits,
       signal,
       { maxBytes: limits.inspection.diffBatchBytes, config },
@@ -199,6 +199,7 @@ function diffArguments(
   comparison: DiffComparison,
   pathspecs: readonly string[],
   renames: boolean,
+  limits: GitLimits,
 ): string[] {
   return [
     ...(comparison.kind === 'commit'
@@ -216,10 +217,12 @@ function diffArguments(
     '--no-ext-diff',
     '--no-textconv',
     '--no-color',
-    renames ? '--find-renames=50%' : '--no-renames',
+    renames
+      ? `--find-renames=${limits.renames.similarityPercent}%`
+      : '--no-renames',
     '--diff-algorithm=myers',
     '--no-indent-heuristic',
-    '--unified=3',
+    `--unified=${limits.inspection.contextLines}`,
     '--src-prefix=a/',
     '--dst-prefix=b/',
     '--no-relative',

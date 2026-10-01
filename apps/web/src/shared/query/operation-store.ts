@@ -1,9 +1,9 @@
 import {
-  gitActionScopeSchema,
   runGitActionRequestSchema,
   type RunGitActionRequest,
   type RunGitActionResponse,
 } from '@porcelain/contracts/git-actions';
+import { worktreeParamsSchema } from '@porcelain/contracts/shared';
 
 type Receipt = RunGitActionResponse;
 type Operation = {
@@ -17,7 +17,7 @@ type Operation = {
 function parseRetainedOperation(value: unknown): Operation | null {
   if (!isRecord(value)) return null;
   const candidate = value;
-  const parsedScope = gitActionScopeSchema.safeParse({
+  const parsedScope = worktreeParamsSchema.safeParse({
     projectId: candidate.projectId,
     worktreeId: candidate.worktreeId,
   });

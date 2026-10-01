@@ -44,6 +44,8 @@ const readingMethod =
   /^(?:read|list|find|count|by|seen|latest|last)(?:[A-Z]|$)/;
 const serviceFile = /\/packages\/[^/]+\/src\/services\/.+-service\.ts$/;
 const useCaseFile = /\/apps\/server\/src\/use-cases\/.+\.ts$/;
+const useCaseOrPortFile =
+  /\/apps\/server\/src\/(?:use-cases\/.+|ports\/.+-use-case-port)\.ts$/;
 const modelFile = /\/packages\/[^/]+\/src\/models\/.+\.ts$/;
 const domainShapeFile = new RegExp(
   `/packages/(?:${domainPackages.join('|')})/src/(?:models|ports)/(?!index\\.ts$).+\\.ts$`,
@@ -67,6 +69,16 @@ const tableLanes: Readonly<
     any: ['inventory', 'repository', 'project'],
   },
   WorktreeCatalogStore: { save: ['inventory'] },
+  DeviceStore: { any: ['access'] },
+  PairingGrantStore: { any: ['access'] },
+  EnvironmentNameStore: { any: ['access'] },
+  RemoteAccessStore: { any: ['remoteAccess'] },
+  DeviceSightingStore: { any: ['access'] },
+  PairingAttemptStore: { any: ['access'] },
+  LiveTicketStore: { any: ['access'] },
+  RouteStateStore: { any: ['remoteAccess'] },
+  TunnelConnectionStore: { any: ['remoteAccess'] },
+  DeviceConnectionStore: { any: ['access'] },
 };
 const readsBeforeLane: Readonly<Record<string, string>> = {
   CheckWorktreeService:
@@ -77,6 +89,15 @@ const readsBeforeLane: Readonly<Record<string, string>> = {
   FindProjectService: 'resolves the project before the lane is keyed on it',
   ReadReviewSummaryService:
     'reads a summary link by its token, before any worktree is known',
+  CheckRequestOriginService:
+    'reads the remote-access snapshot for every request; queuing it in the remote-access lane would hold all requests while routes open',
+  IdentifyRequestClientService:
+    'reads the remote-access snapshot for every request; queuing it in the remote-access lane would hold all requests while routes open',
+};
+
+const checkedByCaller: Readonly<Record<string, string>> = {
+  ReadReviewEvidenceUseCase:
+    'reads the evidence inside the lane of the use case that checked the worktree, never on its own',
 };
 
 type Lane =
@@ -501,6 +522,60 @@ function laneFindings(
   return result;
 }
 
+function resolvesWorktree(project: Project, declaration: Node): boolean {
+  return descendants(declaration).some((node) => {
+    if (!isCallExpression(node) || !isPropertyAccessExpression(node.expression))
+      return false;
+    const { name, expression } = node.expression;
+    if (!isIdentifier(name) || name.text !== 'execute') return false;
+    if (thisMember(expression) === 'checkWorktree') return true;
+    const target = project.checker
+      .getTypeAtLocation(expression)
+      ?.getSymbol()
+      ?.declarations[0]?.resolve(project);
+    const targetName =
+      target && (isClassDeclaration(target) || isInterfaceDeclaration(target))
+        ? (target.name?.text ?? '')
+        : '';
+    return (
+      target !== undefined &&
+      useCaseOrPortFile.test(target.getSourceFile().fileName) &&
+      !(targetName.replace(/Port$/, '') in checkedByCaller)
+    );
+  });
+}
+
+function worktreeCheckFindings(
+  root: string,
+  project: Project,
+  file: SourceFile,
+): TypeFinding[] {
+  const { checker } = project;
+  return file.statements.filter(isClassDeclaration).flatMap((declaration) => {
+    const name = declaration.name?.text ?? '';
+    if (name in checkedByCaller) return [];
+    const execute = executeMethods(file).find(
+      (method) => method.parent === declaration,
+    );
+    const signature = execute && checker.getSignatureFromDeclaration(execute);
+    const input = signature && checker.getParameterType(signature, 0);
+    const scoped =
+      input !== undefined &&
+      checker
+        .getPropertiesOfType(input)
+        .some((property) => property.name === 'worktreeId');
+    if (!execute || !scoped || resolvesWorktree(project, declaration))
+      return [];
+    return [
+      {
+        rule: 'worktree-use-case-checks',
+        from: where(root, execute),
+        to: `${name} takes a worktreeId; resolve it with this.checkWorktree.execute before using it, or hand it to a use case that does`,
+      },
+    ];
+  });
+}
+
 export function typeRuleFindings(root: string): TypeFinding[] {
   const api = new API({ cwd: root });
   try {
@@ -543,7 +618,10 @@ export function typeRuleFindings(root: string): TypeFinding[] {
         }
         if (inServer) {
           if (useCaseFile.test(name))
-            findings.push(...laneFindings(root, project, file, writerCache));
+            findings.push(
+              ...laneFindings(root, project, file, writerCache),
+              ...worktreeCheckFindings(root, project, file),
+            );
           continue;
         }
         checked.add(name);

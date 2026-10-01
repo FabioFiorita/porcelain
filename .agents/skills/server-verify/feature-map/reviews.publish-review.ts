@@ -11,6 +11,7 @@ import {
   type Session,
 } from '../scripts/feature.ts';
 import {
+  eventually,
   inventory,
   sampleReview,
   sampleSummaryHtml,
@@ -38,7 +39,7 @@ export default defineFeature({
   paired: true,
   intent: 'observed',
   behaviour:
-    "An agent or reviewer publishes the worktree's review: an HTML summary, an optional diagram and layers of steps that point at code. Publishing replaces the previous review only if the publisher states the revision it last saw; each publish increments the revision. The server resolves every pointer against the worktree (fingerprinting the text and locating it as current or changed), lists changed lines no step explains, signs a link to the summary, and marks the worktree's review status as pending in the inventory.",
+    "An agent or reviewer publishes the worktree's review: an HTML summary, an optional diagram and layers of steps that point at code. Publishing replaces the previous review only if the publisher states the revision it last saw; each publish increments the revision. The server resolves every pointer against the worktree (fingerprinting the text and locating it as current or changed), lists changed lines no step explains, signs a link to the summary, and marks the worktree's review status as pending in the inventory. Once every line the review explains is committed, the inventory stops marking it pending.",
   cases: [
     defineCase({
       name: 'first publish',
@@ -193,6 +194,37 @@ export default defineFeature({
           'unknown worktree error body',
           worktreeNotFound,
           responses[2]?.body,
+        );
+      },
+    }),
+    defineCase({
+      name: 'the line the review explains is committed',
+      request: (session) =>
+        publish(session, sampleReview(session, 2, layerId, stepId)),
+      async expect({ response, session, check, checkPartial }) {
+        check('status', 200, response.status);
+        checkPartial(
+          'published active',
+          { revision: 3, active: true },
+          record(response.body).review,
+        );
+        check(
+          'worktree review is pending',
+          'pending',
+          await worktreeStatus(session),
+        );
+        await session.git('commit', '-am', 'Commit the readme');
+        const settled = await eventually(
+          session,
+          { method: 'GET', path: '/api/inventory' },
+          (body) =>
+            record(list(record(list(body.projects)[0]).worktrees)[0]).status !==
+            'pending',
+        );
+        check(
+          'worktree review is no longer pending',
+          null,
+          record(list(record(list(settled.projects)[0]).worktrees)[0]).status,
         );
       },
     }),

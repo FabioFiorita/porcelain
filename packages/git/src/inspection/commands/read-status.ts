@@ -22,7 +22,7 @@ export async function readStatus(
       '--ahead-behind',
       '--untracked-files=all',
       '--ignore-submodules=dirty',
-      '--find-renames=50%',
+      `--find-renames=${limits.renames.similarityPercent}%`,
     ],
     limits,
     signal,

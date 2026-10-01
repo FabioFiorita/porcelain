@@ -6,6 +6,7 @@ export const gitLimits = {
   readTimeoutMs: 10_000,
   outputBytes: 4 * MEBIBYTE,
   followUpTimeoutMs: 5000,
+  renames: { limit: 2000, similarityPercent: 50 },
   inspection: {
     statusBytes: 8 * MEBIBYTE,
     maxChanges: 2000,
@@ -18,6 +19,8 @@ export const gitLimits = {
     checkIgnoredBytes: MEBIBYTE,
     checkoutDirectoryBytes: 16 * KIBIBYTE,
     stashListBytes: MEBIBYTE,
+    maxStashes: 100,
+    contextLines: 3,
     submoduleStatusBytes: MEBIBYTE,
     filterConfigBytes: MEBIBYTE,
     filterPathsBytes: 8 * MEBIBYTE,

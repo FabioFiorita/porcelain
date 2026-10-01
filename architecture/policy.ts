@@ -293,6 +293,7 @@ export const archRules = [
   'recording-fake-for-write-only-port',
   'lane-per-table',
   'lane-mode-matches-service',
+  'worktree-use-case-checks',
   'unused-export',
   'unused-dependency',
   'web-shadcn-ui-owner',
@@ -1421,6 +1422,8 @@ const archRuleReasons = {
     'Run the store call inside the lane that owns its table, as tableLanes in architecture/type-rules.ts names; a lane serializes the writes to its tables, so a call outside it races them.',
   'lane-mode-matches-service':
     "Call a service that writes inside a 'write' lane, lanes.background or lanes.finish; reads share a lane, so a write in a read lane races them.",
+  'worktree-use-case-checks':
+    'Resolve a worktreeId with checkWorktree (or hand it to a use case that does) before acting on it; the check refreshes a stale catalog, refuses an unknown or unavailable worktree and yields the worktree its lane is keyed on.',
   'unused-export':
     'Delete the export or stop exporting it; an export nothing imports is surface every later change must keep working.',
   'unused-dependency':

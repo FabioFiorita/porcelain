@@ -11,7 +11,10 @@ import { createReviewedFileStore } from './index.ts';
 
 reviewedFileStoreContract('SqliteReviewedFileStore', (worktreeIds) => {
   const dataDirectory = mkdtempSync(join(tmpdir(), 'porcelain-storage-'));
-  const session = openStorageSession(dataDirectory, { worktreeIdLength: 32 });
+  const session = openStorageSession(dataDirectory, {
+    worktreeIdLength: 32,
+    busyTimeoutMs: 5000,
+  });
   createInventoryStore(session).save({
     id: 'project',
     name: 'project',

@@ -8,11 +8,9 @@ export async function commitIndex(
   process: GitProcessRunner,
   command: GitActionCommand<'commit' | 'amend'>,
   signal: AbortSignal,
-  verifyTarget?: () => Promise<void>,
 ): Promise<GitActionOutcome> {
   const { intent, preview } = command;
-  if (intent.paths)
-    return commitPaths(process, command, intent.paths, signal, verifyTarget);
+  if (intent.paths) return commitPaths(process, command, intent.paths, signal);
   if (!preview.staged) return { state: 'no-change', refreshRequired: false };
   const committed = await process.execute(
     ['commit', '--file=-', '--cleanup=verbatim'],
