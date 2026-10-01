@@ -1,4 +1,4 @@
-export type DiscoveredProjectRepository = {
+export type ProjectRepository = {
   commonDirectory: string;
   repositoryIdentity: string;
   worktrees: {

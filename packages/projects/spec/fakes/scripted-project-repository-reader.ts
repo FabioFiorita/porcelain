@@ -1,19 +1,16 @@
 import type {
-  DiscoveredProjectRepository,
+  ProjectRepository,
   RepositoryLocation,
 } from '../../src/models/project-repository.ts';
 import type { ProjectRepositoryReader } from '../../src/ports/project-repository-reader.ts';
 
 export class ScriptedProjectRepositoryReader implements ProjectRepositoryReader {
-  private readonly repositories: ReadonlyMap<
-    string,
-    DiscoveredProjectRepository
-  >;
+  private readonly repositories: ReadonlyMap<string, ProjectRepository>;
   private readonly origins: ReadonlyMap<string, string>;
 
   constructor(
     stored: {
-      repositories?: Record<string, DiscoveredProjectRepository> | undefined;
+      repositories?: Record<string, ProjectRepository> | undefined;
       origins?: Record<string, string> | undefined;
     } = {},
   ) {
@@ -23,7 +20,7 @@ export class ScriptedProjectRepositoryReader implements ProjectRepositoryReader 
 
   async find(
     input: RepositoryLocation,
-  ): Promise<DiscoveredProjectRepository | undefined> {
+  ): Promise<ProjectRepository | undefined> {
     return this.repositories.get(input.path);
   }
 

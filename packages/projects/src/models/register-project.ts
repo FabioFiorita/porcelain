@@ -1,8 +1,8 @@
 import type { RegisteredProject } from './project.ts';
-import type { DiscoveredProjectRepository } from './project-repository.ts';
+import type { ProjectRepository } from './project-repository.ts';
 
 export type RegisterProjectInput = {
-  repository: DiscoveredProjectRepository;
+  repository: ProjectRepository;
   originUrl: string | undefined;
 };
 

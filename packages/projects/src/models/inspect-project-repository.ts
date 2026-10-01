@@ -1,5 +1,5 @@
-import type { DiscoveredProjectRepository } from './project-repository.ts';
+import type { ProjectRepository } from './project-repository.ts';
 
 export type InspectProjectRepositoryInput = { path: string };
 
-export type InspectProjectRepositoryResult = DiscoveredProjectRepository;
+export type InspectProjectRepositoryResult = ProjectRepository;

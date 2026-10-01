@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { SequentialIdSource } from '@porcelain/kernel/fakes';
 import type {
-  DiscoveredProjectRepository,
+  ProjectRepository,
   RegisteredProject,
 } from '@porcelain/projects/models';
 import { InMemoryInventoryStore } from '../../spec/fakes/in-memory-inventory-store.ts';
 import { RegisterProjectService } from './register-project-service.ts';
 
-const repository: DiscoveredProjectRepository = {
+const repository: ProjectRepository = {
   commonDirectory: '/srv/api/.git',
   repositoryIdentity: 'identity-1',
   worktrees: [
