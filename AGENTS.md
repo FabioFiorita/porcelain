@@ -52,6 +52,10 @@ Use the proof stages above for web work. Browser behavior cases run with Vitest 
 
 - Commit only the paths you changed; never `git add -A`; never stash or reset hard; never commit anything under `.claude/`.
 - One short imperative sentence per commit; no attribution lines of any kind.
+- Push only when the owner's current message asks for it; an earlier approval does not carry over.
+- When you ask the owner a question, wait for the answer before changing anything it decides.
+- Work in the area the owner gave you; ask before changing code outside it.
+- Write no prose documents: the workflow lives in skills, the rules in the tooling, the example in the code.
 - Before using a library, check its current documentation for a built-in pattern and prefer it over a helper.
 - Do not make the server bend to the old web code during its rebuild.
 - Limits live in `packages/contracts/src/shared/limits.ts` when the server enforces them, otherwise in `apps/server/src/config/limits.ts` or `apps/web/src/config/limits.ts`, nowhere else.
