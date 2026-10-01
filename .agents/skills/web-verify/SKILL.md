@@ -38,7 +38,7 @@ pnpm verify:web --all
 
 A new or changed behaviour is proven by its journey in the same commit: a new route, control, menu or setting gets a map entry and a journey, and a behaviour the owner changed gets its journey and map entry rewritten to the new promise. Never keep a journey passing by shaping the UI around it (a role, a label or a mounted element kept only for a locator); when a journey stands in the way of what the owner asked for, ask the owner. Lint states the journey rules in `architecture/web-rules.mjs`; read a rule's message when it blocks you.
 
-A new route the web calls needs a journey that reaches it through the UI. When a journey starts reaching a route listed in `architecture/web-journey-baseline.json`, remove that route from the list in the same change.
+A new route the web calls needs a journey that reaches it through the UI.
 
 ## What a run proves
 
@@ -50,7 +50,7 @@ For ordinary feature proof, write or update the journeys for what changed, then 
 
 `--all` also runs the negative journeys in `apps/web/spec/negative/`, planted journeys that must fail for what they plant: text the app never shows, a server state nobody saved, and a console error. The run prints `REJECTED` for each; their number is pinned in `scripts/catalogue.ts`.
 
-`--all` then judges coverage. `scripts/web-routes.ts` reads the routes the web calls from the api layer (`features/*/api`, `shared/api`, `shared/live`) and matches them to the routes the server registers. A route the web calls that no journey reached through the UI fails the run unless `architecture/web-journey-baseline.json` holds it; that list only shrinks, and a listed route a journey now reaches, or one the web no longer calls, fails the run until it is removed. A named journey checks whether a route it reached is still listed in that baseline; discovering a newly uncovered route still requires `--all`.
+`--all` then judges coverage. `scripts/web-routes.ts` reads the routes the web calls from the api layer (`features/*/api`, `shared/api`, `shared/live`) and matches them to the routes the server registers. A route the web calls that no journey reached through the UI fails the run. A named journey does not judge coverage; discovering an uncovered route requires `--all`.
 
 The run prints one line per journey as it finishes, with its wall time, then the evidence folder; a failed run's Vitest output is printed above its line. `<folder>/<journey>.json` holds the map entry, each run's failures, duration and the requests the server answered; `<folder>/<journey>/run-<n>/` holds the Vitest report and output (`vitest.log`), the server's hits and logs, the kit's exchanges and failure screenshots. `<folder>/summary.json` holds stage timings, the number of browsers, the negatives, the registered routes and the coverage: the routes the web calls, those reached and those not yet reached.
 

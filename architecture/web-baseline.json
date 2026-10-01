@@ -1,5 +1,0 @@
-{
-  "typescript/no-deprecated": {
-    "apps/web/src/shared/workspace/copy.ts": 1
-  }
-}
