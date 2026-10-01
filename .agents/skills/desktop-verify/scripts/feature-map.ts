@@ -397,9 +397,18 @@ async function reviewSummaries(input: DesktopProof) {
         .catch(() => undefined);
     throw error;
   } finally {
-    if (remote !== undefined) await closeDesktop(remote);
-    await closeDesktop(local);
+    await closeEvery([remote, local]);
   }
+}
+
+async function closeEvery(
+  apps: (Awaited<ReturnType<typeof _electron.launch>> | undefined)[],
+) {
+  const closed = await Promise.allSettled(
+    apps.flatMap((app) => (app === undefined ? [] : [closeDesktop(app)])),
+  );
+  for (const result of closed)
+    if (result.status === 'rejected') throw result.reason;
 }
 
 function savedCredentials(page: Page) {
@@ -1120,12 +1129,11 @@ async function closeDesktop(app: Awaited<ReturnType<typeof _electron.launch>>) {
   const expired = new Promise<never>((_resolve, reject) => {
     timeout.addEventListener(
       'abort',
-      () =>
-        reject(
-          new Error(
-            `The app did not quit after stopping its server (process ${child.pid}, exit ${child.exitCode}, signal ${child.signalCode})`,
-          ),
-        ),
+      () => {
+        const message = `The app did not quit after stopping its server (process ${child.pid}, exit ${child.exitCode}, signal ${child.signalCode})`;
+        child.kill('SIGKILL');
+        reject(new Error(message));
+      },
       { once: true },
     );
   });
