@@ -8,7 +8,11 @@ import { PlaywrightBrowserProvider } from '@vitest/browser-playwright';
 import { z } from 'zod';
 import { IsolatedServer } from '../../server-verify/scripts/session.ts';
 import { shellSchema, type Shell } from './catalogue.ts';
-import { journeyCommands, setJourneyServer } from './journey-commands.ts';
+import {
+  journeyCommands,
+  setJourneyServer,
+  takeJourneyRemote,
+} from './journey-commands.ts';
 
 const repositoryRoot = resolve(
   dirname(fileURLToPath(import.meta.url)),
@@ -138,10 +142,16 @@ export async function startBrowser(
     throw error;
   }
   return {
-    async run(spec: string, target: string, manifest: string, folder: string) {
+    async run(
+      spec: string,
+      target: string,
+      manifest: string,
+      folder: string,
+      startRemote: () => Promise<IsolatedServer>,
+    ) {
       address = target;
       for (const change of targets) change(target);
-      setJourneyServer(manifest, folder);
+      setJourneyServer(manifest, folder, startRemote);
       runner.config.outputFile = { json: join(folder, 'vitest.json') };
       for (const project of runner.projects) {
         runner.state.clearFiles(project, runner.state.getFilepaths());
@@ -223,19 +233,33 @@ async function runOnce(
   output.text = '';
   await mkdir(folder, { recursive: true });
   const server = await IsolatedServer.start(repositoryRoot, build);
+  let remote: IsolatedServer | undefined;
   try {
-    const result = await browser.run(
-      spec,
-      server.address,
-      server.manifestPath,
-      folder,
-    );
+    let result: Awaited<ReturnType<BrowserRunner['run']>>;
+    try {
+      result = await browser.run(
+        spec,
+        server.address,
+        server.manifestPath,
+        folder,
+        () => IsolatedServer.start(repositoryRoot, build),
+      );
+    } finally {
+      remote = await takeJourneyRemote()?.catch(() => undefined);
+    }
     const reported = existsSync(join(folder, 'vitest.json'));
-    const hits = await server.hits();
+    const remoteHits = remote === undefined ? [] : await remote.hits();
+    const serverHits = await server.hits();
+    const hits = [...serverHits, ...remoteHits];
     await writeFile(
       join(folder, 'server.json'),
-      `${JSON.stringify({ hits, logs: server.logs() }, null, 2)}\n`,
+      `${JSON.stringify({ hits: serverHits, logs: server.logs() }, null, 2)}\n`,
     );
+    if (remote !== undefined)
+      await writeFile(
+        join(folder, 'remote-server.json'),
+        `${JSON.stringify({ hits: remoteHits, logs: remote.logs() }, null, 2)}\n`,
+      );
     return {
       passed: reported && result.code === 0,
       failures: !reported
@@ -251,6 +275,8 @@ async function runOnce(
   } finally {
     const stopped = await server.stop();
     if (stopped !== undefined) output.text += `${stopped}\n`;
+    const remoteStopped = await remote?.stop();
+    if (remoteStopped !== undefined) output.text += `${remoteStopped}\n`;
     await writeFile(join(folder, 'vitest.log'), output.text);
   }
 }

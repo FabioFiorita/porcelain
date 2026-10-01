@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   parseRemotes,
   remoteLink,
+  remoteLiveOpen,
   remoteStatus,
+  syncRemoteConnections,
   withRemote,
 } from './remotes.ts';
 
@@ -87,5 +89,78 @@ describe('withRemote', () => {
   it('replaces a remote paired again instead of listing it twice', () => {
     const renewed = { ...remote, credential: 'pcd_new' };
     expect(withRemote([remote], renewed)).toEqual([renewed]);
+  });
+});
+
+describe('syncRemoteConnections', () => {
+  const open = (saved: typeof remote) => ({ opened: saved.credential });
+
+  it('opens a connection for a remote it has not seen', () => {
+    const { next, closed } = syncRemoteConnections([remote], [], open);
+    expect(next).toEqual([{ remote, connection: { opened: 'pcd_secret' } }]);
+    expect(closed).toEqual([]);
+  });
+
+  it('keeps the connection of a remote at the same address with the same credential', () => {
+    const kept = { opened: 'pcd_secret' };
+    const renamed = { ...remote, name: 'renamed' };
+    const { next, closed } = syncRemoteConnections(
+      [renamed],
+      [{ remote, connection: kept }],
+      open,
+    );
+    expect(next[0]?.connection).toBe(kept);
+    expect(next[0]?.remote).toBe(renamed);
+    expect(closed).toEqual([]);
+  });
+
+  it('closes the connection of a forgotten remote', () => {
+    const forgotten = { opened: 'pcd_secret' };
+    const { next, closed } = syncRemoteConnections(
+      [],
+      [{ remote, connection: forgotten }],
+      open,
+    );
+    expect(next).toEqual([]);
+    expect(closed).toEqual([forgotten]);
+  });
+
+  it.each([
+    ['a new credential', { ...remote, credential: 'pcd_new' }],
+    ['a new address', { ...remote, address: 'http://192.168.15.65:4738' }],
+  ])('replaces the connection of a remote paired with %s', (_, changed) => {
+    const old = { opened: 'pcd_secret' };
+    const { next, closed } = syncRemoteConnections(
+      [changed],
+      [{ remote, connection: old }],
+      open,
+    );
+    expect(next[0]?.connection).not.toBe(old);
+    expect(next[0]?.connection).toEqual({ opened: changed.credential });
+    expect(closed).toEqual([old]);
+  });
+});
+
+describe('remoteLiveOpen', () => {
+  it('opens live updates for an online remote in the desktop app', () => {
+    expect(remoteLiveOpen({ kind: 'online', name: 'beelink' }, true)).toBe(
+      true,
+    );
+  });
+
+  it('keeps live updates closed in the web the server serves', () => {
+    expect(remoteLiveOpen({ kind: 'online', name: 'beelink' }, false)).toBe(
+      false,
+    );
+  });
+
+  it.each([
+    { kind: 'checking' as const },
+    { kind: 'offline' as const },
+    { kind: 'needs-pairing' as const },
+    { kind: 'other-server' as const },
+    { kind: 'incompatible' as const },
+  ])('keeps live updates closed for a remote that is %j', (status) => {
+    expect(remoteLiveOpen(status, true)).toBe(false);
   });
 });

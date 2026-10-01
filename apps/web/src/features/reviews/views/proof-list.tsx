@@ -16,7 +16,7 @@ import {
   type ReviewProof,
 } from '../rules/proof';
 import type { ReviewLayer, ReviewScope } from '../rules/review';
-import type { ReviewsContext } from '../rules/reviewed';
+import { type ConnectionContext } from '@/shared/workspace/connection';
 
 type Target = { layerId?: string | undefined; stepId?: string | undefined };
 
@@ -40,7 +40,7 @@ export function ProofList({
   inLayer = false,
 }: {
   scope: ReviewScope;
-  context: ReviewsContext;
+  context: ConnectionContext;
   proof: ReviewProof;
   layers: readonly ReviewLayer[];
   inLayer?: boolean;
@@ -150,7 +150,7 @@ function AssetView({
   target,
 }: {
   scope: ReviewScope;
-  context: ReviewsContext;
+  context: ConnectionContext;
   asset: ProofAsset;
   target: string | undefined;
 }) {
@@ -208,7 +208,7 @@ function ProofMedia({
   video,
 }: {
   scope: ReviewScope;
-  context: ReviewsContext;
+  context: ConnectionContext;
   id: string;
   title: string;
   video: boolean;

@@ -8,13 +8,14 @@ import { ENVIRONMENT_NAME_MAX_LENGTH } from '@/config/limits';
 import { submitForm } from '@/shared/lib/submit-form';
 import { useRenameEnvironment } from '../commands/share';
 import { connectionErrorMessage } from '../rules/connection-error-message';
-import type { Environment, ShareConnection } from '../rules/share';
+import type { Environment } from '../rules/share';
+import { type Connection } from '@/shared/workspace/connection';
 
 export function EnvironmentName({
   connection,
   environment,
 }: {
-  connection: ShareConnection;
+  connection: Connection;
   environment: Environment;
 }) {
   const [draft, setDraft] = useState<string | null>(null);

@@ -17,7 +17,7 @@ import {
   resolvedCleanup,
 } from '../rules/comments';
 import { reviewErrorMessage, type ReviewScope } from '../rules/review';
-import type { ReviewsContext } from '../rules/reviewed';
+import { type ConnectionContext } from '@/shared/workspace/connection';
 
 function threadCount(count: number) {
   return count === 1 ? '1 resolved thread' : `${count} resolved threads`;
@@ -29,7 +29,7 @@ export function DeleteResolved({
   threads,
 }: {
   scope: ReviewScope;
-  context: ReviewsContext;
+  context: ConnectionContext;
   threads: readonly CommentThread[];
 }) {
   const [confirming, setConfirming] = useState<ConfirmedThreads | null>(null);

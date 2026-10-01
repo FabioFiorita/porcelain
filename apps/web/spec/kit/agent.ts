@@ -3,7 +3,7 @@ import { hostCommands } from './commands';
 import type { AgentAction, ProofCheckStep } from './protocol';
 
 const act = async (action: AgentAction) => {
-  await hostCommands.porcelainRepo({ kind: 'agent', action });
+  await hostCommands.porcelainRepo({ kind: 'agent', action }, 'this');
 };
 
 export const agent = {

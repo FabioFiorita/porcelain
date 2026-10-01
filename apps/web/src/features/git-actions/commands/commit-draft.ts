@@ -1,4 +1,3 @@
-import type { GitContext } from '../api';
 import { useMutation } from '@tanstack/react-query';
 import { asMutation } from '@/shared/query/mutation';
 import type {
@@ -6,20 +5,22 @@ import type {
   CommitDraftInput,
   GitScope,
 } from '../rules/git-action';
+import { type ConnectionContext } from '@/shared/workspace/connection';
+import { gitActionsApi } from '../api';
 
 export function useCommitDraft(
   scope: GitScope,
-  context: GitContext,
+  context: ConnectionContext,
   drafts: Set<AbortController>,
 ) {
-  const { api, connection } = context;
+  const { connection } = context;
   const mutation = asMutation(
     useMutation({
       mutationFn: ({
         signal,
         ...input
       }: CommitDraftInput & { signal?: AbortSignal }) =>
-        api.gitActions.draft({
+        gitActionsApi(connection).draft({
           ...scope,
           ...connection.request(signal),
           input,

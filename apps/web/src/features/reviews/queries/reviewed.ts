@@ -12,16 +12,17 @@ import {
 import {
   type ReviewRange,
   reviewedScopeKey,
-  type ReviewsContext,
   WORKTREE_RANGE,
 } from '../rules/reviewed';
+import { type ConnectionContext } from '@/shared/workspace/connection';
+import { reviewsApi } from '../api';
 
 export function reviewedQueryOptions(
   scope: ReviewScope,
-  context: ReviewsContext,
+  context: ConnectionContext,
   range: ReviewRange = WORKTREE_RANGE,
 ) {
-  const { api, connection } = context;
+  const { connection } = context;
   return queryOptions({
     queryKey: queryKeys.reviewSurface(
       connection.environmentId,
@@ -30,7 +31,7 @@ export function reviewedQueryOptions(
     ),
     queryFn: async ({ signal }) => {
       const request = connection.request(signal);
-      const data = await api.reviews.reviewed.list({
+      const data = await reviewsApi(connection).reviewed.list({
         ...scope,
         ...request,
         range,
@@ -43,7 +44,7 @@ export function reviewedQueryOptions(
 
 export function useReviewedMarks(
   scope: ReviewScope,
-  context: ReviewsContext,
+  context: ConnectionContext,
   range: ReviewRange = WORKTREE_RANGE,
 ) {
   return useSuspenseQuery(reviewedQueryOptions(scope, context, range)).data;
@@ -51,7 +52,7 @@ export function useReviewedMarks(
 
 export function usePrefetchReviewed(
   scope: ReviewScope,
-  context: ReviewsContext,
+  context: ConnectionContext,
   range: ReviewRange = WORKTREE_RANGE,
 ) {
   usePrefetchQuery(reviewedQueryOptions(scope, context, range));
@@ -59,7 +60,7 @@ export function usePrefetchReviewed(
 
 export function useReviewChangeItems(
   scope: ReviewScope,
-  context: ReviewsContext,
+  context: ConnectionContext,
   changes: ChangeList,
   paths?: readonly string[],
 ) {

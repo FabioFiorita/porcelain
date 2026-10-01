@@ -1,6 +1,6 @@
 import { detectPlatform, useHotkey } from '@tanstack/react-hotkeys';
-import { useNavigate } from '@tanstack/react-router';
-import { type RefObject, useRef, useState } from 'react';
+import { linkOptions, useNavigate } from '@tanstack/react-router';
+import { type ReactNode, type RefObject, useRef, useState } from 'react';
 import {
   Empty,
   EmptyDescription,
@@ -8,75 +8,114 @@ import {
   EmptyTitle,
 } from '@/components/ui/empty';
 import { Sidebar, SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
-import { useAccessStore } from '@/features/access/index';
+import {
+  RemoteUnavailable,
+  useRemoteConnections,
+  type RemoteConnection,
+  type RemoteStatus,
+} from '@/features/access/index';
 import {
   openProjectDialog,
   ProjectNavigator,
   ProjectWorkspace,
-  selectedWorktreeInProject,
   useInventory,
+  type Inventory,
+  type selectedWorktreeInProject,
+  type WorktreeTarget,
 } from '@/features/projects/index';
 import { ReviewWorkspace, workspaceTitle } from '@/features/reviews/index';
 import { useDocumentTitle } from '@/shared/hooks/use-document-title';
 import { useConnectedContext } from '@/app/workspace-provider';
 import { ShortcutsDialog } from '@/app/shortcuts-dialog';
-import type { WorkspaceSearch } from '@/shared/workspace/search';
+import type {
+  SetWorkspaceSearch,
+  WorkspaceSearch,
+} from '@/shared/workspace/search';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
+import { desktopShell } from '@/shared/shell';
 
 type Review = {
   selection: NonNullable<ReturnType<typeof selectedWorktreeInProject>>;
   search: WorkspaceSearch;
+  inventory: Inventory;
 };
 
-export function ConnectedWorkspace({ review }: { review?: Review }) {
+function worktreeLocation(target: WorktreeTarget) {
+  const params = { projectId: target.projectId, worktreeId: target.worktreeId };
+  return target.remote === null
+    ? linkOptions({ to: '/$projectId/$worktreeId', params })
+    : linkOptions({
+        to: '/remotes/$environmentId/$projectId/$worktreeId',
+        params: { environmentId: target.remote, ...params },
+      });
+}
+
+export function ConnectedWorkspace({
+  review,
+  remote,
+  unavailable,
+}: {
+  review?: Review;
+  remote?: RemoteConnection;
+  unavailable?: RemoteStatus;
+}) {
   const navigationTrigger = useRef<HTMLButtonElement>(null);
   const [shortcuts, setShortcuts] = useState(false);
   const { setOpenMobile, isMobile, open, openMobile } = useSidebar();
   const navigate = useNavigate();
-  const connection = useAccessStore((state) => state.connection);
-  const inventory = useInventory(connection);
-  const context = useConnectedContext();
-  const selectedWorktreeId = review?.selection.worktree.id;
+  const local = useConnectedContext();
+  const localInventory = useInventory(local.connection);
+  const remotes = useRemoteConnections();
+  const context = useConnectedContext(remote?.connection);
+  const shownOn = remote?.remote.environmentId ?? null;
+  const shown = review && {
+    remote: shownOn,
+    projectId: review.selection.projectId,
+    worktreeId: review.selection.worktree.id,
+  };
   useDocumentTitle(
     review
       ? workspaceTitle({
           entry: review.search.entry,
           surface: review.search.surface,
-          project: inventory.projects.find(
+          project: review.inventory.projects.find(
             (project) => project.id === review.selection.projectId,
           )?.name,
-          environment: inventory.environment.custom
-            ? inventory.environment.name
-            : undefined,
+          environment:
+            remote || review.inventory.environment.custom
+              ? review.inventory.environment.name
+              : undefined,
         })
       : 'Porcelain',
   );
-  const openWorktree = (projectId: string, worktreeId: string) =>
-    navigate({
-      to: '/$projectId/$worktreeId',
-      params: { projectId, worktreeId },
-      replace: review === undefined,
-    });
-  const selectWorktree = (id: string) => {
-    const target = selectedWorktreeInProject(inventory, id);
-    if (target) void openWorktree(target.projectId, target.worktree.id);
-  };
-  const openSettings = () => {
+  const openWorktree = (target: WorktreeTarget) =>
+    navigate({ ...worktreeLocation(target), replace: review === undefined });
+  const openSettings = (section = 'appearance') => {
     setOpenMobile(false);
-    void navigate({
-      to: '/settings/$section',
-      params: { section: 'appearance' },
-    });
+    void navigate({ to: '/settings/$section', params: { section } });
   };
   const navigator = {
-    inventory,
-    selectedWorktreeId,
+    inventory: localInventory,
+    connection: local.connection,
+    remotes: desktopShell ? remotes : undefined,
+    selected: shown,
     onOpenProject: () => openProjectDialog.open(null),
-    onOpenSettings: openSettings,
+    onOpenSettings: () => openSettings(),
+    onOpenRemotes: () => openSettings('remotes'),
     onOpenShortcuts: () => setShortcuts(true),
   };
+  const onSearch: SetWorkspaceSearch = (update, options) => {
+    if (!shown) return;
+    void navigate({
+      ...worktreeLocation(shown),
+      search: (previous) => ({ ...previous, ...update }),
+      ...options,
+    });
+  };
 
-  useHotkey(SHORTCUTS.openSettings, openSettings, { ignoreInputs: true });
+  useHotkey(SHORTCUTS.openSettings, () => openSettings(), {
+    ignoreInputs: true,
+  });
   useHotkey(SHORTCUTS.openShortcuts, () => setShortcuts(true), {
     ignoreInputs: true,
   });
@@ -87,36 +126,29 @@ export function ConnectedWorkspace({ review }: { review?: Review }) {
         <Sidebar variant="floating">
           <ProjectNavigator
             {...navigator}
-            onSelect={(id) => {
-              selectWorktree(id);
+            onSelect={(target) => {
+              void openWorktree(target);
               setOpenMobile(false);
             }}
           />
         </Sidebar>
       )}
       <ProjectWorkspace
-        navigator={{ ...navigator, onSelect: selectWorktree }}
+        navigator={{
+          ...navigator,
+          onSelect: (target) => void openWorktree(target),
+        }}
         isMobile={isMobile}
         open={open}
       >
         {review ? (
           <ReviewWorkspace
-            key={review.selection.worktree.id}
+            key={`${shownOn ?? ''}:${review.selection.worktree.id}`}
             navigationTrigger={navigationTrigger}
             worktree={review.selection.worktree}
             projectId={review.selection.projectId}
             search={review.search}
-            onSearch={(update, options) =>
-              void navigate({
-                to: '/$projectId/$worktreeId',
-                params: {
-                  projectId: review.selection.projectId,
-                  worktreeId: review.selection.worktree.id,
-                },
-                search: (previous) => ({ ...previous, ...update }),
-                ...options,
-              })
-            }
+            onSearch={onSearch}
             context={context}
           />
         ) : (
@@ -125,7 +157,24 @@ export function ConnectedWorkspace({ review }: { review?: Review }) {
             isMobile={isMobile}
             open={open}
             openMobile={openMobile}
-          />
+          >
+            {remote && unavailable ? (
+              <RemoteUnavailable
+                name={remote.remote.name}
+                status={unavailable}
+                onOpenRemotes={() => openSettings('remotes')}
+              />
+            ) : (
+              <Empty>
+                <EmptyHeader>
+                  <EmptyTitle>Select a worktree</EmptyTitle>
+                  <EmptyDescription>
+                    Choose a worktree to establish your review context.
+                  </EmptyDescription>
+                </EmptyHeader>
+              </Empty>
+            )}
+          </EmptyWorkspace>
         )}
       </ProjectWorkspace>
 
@@ -139,11 +188,13 @@ function EmptyWorkspace({
   isMobile,
   open,
   openMobile,
+  children,
 }: {
   navigationTrigger: RefObject<HTMLButtonElement | null>;
   isMobile: boolean;
   open: boolean;
   openMobile: boolean;
+  children: ReactNode;
 }) {
   return (
     <div className="relative grid h-full min-h-0 place-items-center rounded-xl border bg-card p-8">
@@ -155,14 +206,7 @@ function EmptyWorkspace({
         aria-keyshortcuts={detectPlatform() === 'mac' ? 'Meta+B' : 'Control+B'}
         title={`Toggle projects (${SHORTCUTS.toggleNavigator})`}
       />
-      <Empty>
-        <EmptyHeader>
-          <EmptyTitle>Select a worktree</EmptyTitle>
-          <EmptyDescription>
-            Choose a worktree to establish your review context.
-          </EmptyDescription>
-        </EmptyHeader>
-      </Empty>
+      {children}
     </div>
   );
 }

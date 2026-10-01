@@ -4,13 +4,14 @@ import {
   useSuspenseQuery,
 } from '@tanstack/react-query';
 import { filesApi, unreadableFileReason } from '../api';
-import type { FilesConnection, FilesScope } from '../rules/scope';
+import type { FilesScope } from '../rules/scope';
+import { type Connection } from '@/shared/workspace/connection';
 
 function textQueryOptions(
   environmentId: string,
   scope: FilesScope,
   path: string,
-  request: (signal?: AbortSignal) => { signal: AbortSignal },
+  connection: Connection,
 ) {
   return queryOptions({
     queryKey: [
@@ -22,9 +23,9 @@ function textQueryOptions(
       path,
     ],
     queryFn: async ({ signal }) => {
-      const connected = request(signal);
+      const connected = connection.request(signal);
       try {
-        const response = await filesApi.text(
+        const response = await filesApi(connection).text(
           connected.signal,
           scope.worktreeId,
           path,
@@ -47,31 +48,26 @@ function textQueryOptions(
 }
 
 export function useTextFile(
-  connection: FilesConnection | null,
+  connection: Connection | null,
   scope: FilesScope,
   path: string,
   _active: boolean,
 ) {
   if (!connection) throw new Error('A connected environment is required');
   return useSuspenseQuery(
-    textQueryOptions(connection.environmentId, scope, path, connection.request),
+    textQueryOptions(connection.environmentId, scope, path, connection),
   ).data;
 }
 
 export function useTextContents(
-  connection: FilesConnection | null,
+  connection: Connection | null,
   scope: FilesScope,
   paths: readonly string[],
 ) {
   if (!connection) throw new Error('A connected environment is required');
   const queries = useQueries({
     queries: paths.map((path) => ({
-      ...textQueryOptions(
-        connection.environmentId,
-        scope,
-        path,
-        connection.request,
-      ),
+      ...textQueryOptions(connection.environmentId, scope, path, connection),
       throwOnError: false,
     })),
   });

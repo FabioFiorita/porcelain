@@ -1,17 +1,17 @@
 import { queryOptions, useSuspenseQuery } from '@tanstack/react-query';
-import type { ProjectConnection } from '../rules/connection';
 import { projectsApi } from '../api';
+import { type Connection } from '@/shared/workspace/connection';
 
 export function filePreferencesQueryOptions(
   environmentId: string,
   projectId: string,
-  request: (signal?: AbortSignal) => { signal: AbortSignal },
+  connection: Connection,
 ) {
   return queryOptions({
     queryKey: ['review', environmentId, projectId, 'file-preferences'],
     queryFn: async ({ signal }) => {
-      const connected = request(signal);
-      const response = await projectsApi.filePreferences.list(
+      const connected = connection.request(signal);
+      const response = await projectsApi(connection).filePreferences.list(
         connected.signal,
         projectId,
       );
@@ -22,7 +22,7 @@ export function filePreferencesQueryOptions(
 }
 
 export function useHiddenPaths(
-  connection: ProjectConnection | null,
+  connection: Connection | null,
   projectId: string,
 ): ReadonlySet<string> {
   if (!connection) throw new Error('A connected environment is required');
@@ -30,7 +30,7 @@ export function useHiddenPaths(
     filePreferencesQueryOptions(
       connection.environmentId,
       projectId,
-      connection.request,
+      connection,
     ),
   ).data;
   return new Set(
@@ -41,7 +41,7 @@ export function useHiddenPaths(
 }
 
 export function usePinnedPaths(
-  connection: ProjectConnection | null,
+  connection: Connection | null,
   projectId: string,
 ): readonly string[] {
   if (!connection) throw new Error('A connected environment is required');
@@ -49,7 +49,7 @@ export function usePinnedPaths(
     filePreferencesQueryOptions(
       connection.environmentId,
       projectId,
-      connection.request,
+      connection,
     ),
   ).data;
   return response.preferences

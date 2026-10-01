@@ -5,7 +5,6 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DIFF_WINDOW_FILES } from '@/config/limits';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useAccessStore } from '@/features/access/index';
 import { commitEntry, useCommitDiffs } from '@/features/changes/index';
 import { copyText } from '@/shared/workspace/copy';
 import {
@@ -19,8 +18,9 @@ import {
 } from '@/features/history/index';
 import type { DocumentInteraction } from '../rules/documents';
 import type { DiffContent, ReviewScope } from '../rules/review';
-import { CodeDocument, type DocumentContext } from './code-document';
+import { CodeDocument } from './code-document';
 import { DocumentToolbar } from './document-toolbar';
+import { type ConnectionContext } from '@/shared/workspace/connection';
 
 const pathList = (file: CommitFile) => [
   ...new Set([file.oldPath, file.newPath].filter((path) => path != null)),
@@ -34,11 +34,11 @@ export function CommitDocument({
   oid,
 }: {
   scope: ReviewScope;
-  context: DocumentContext;
+  context: ConnectionContext;
   interaction: DocumentInteraction;
   oid: string;
 }) {
-  const connection = useAccessStore((state) => state.connection);
+  const { connection } = context;
   const { reveal } = interaction;
   const requestedParent =
     reveal?.anchor.comparison?.kind === 'commit'

@@ -10,8 +10,8 @@ import {
   serviceUpdateOutcome,
   serviceUpdateProgress,
 } from '../rules/service-update';
-import type { ShareConnection } from '../rules/share';
 import { useAccessStore } from '../store';
+import { type Connection } from '@/shared/workspace/connection';
 
 function Outcome({
   state,
@@ -60,7 +60,7 @@ function Offer({
   state,
   onStart,
 }: {
-  connection: ShareConnection;
+  connection: Connection;
   state: ServiceUpdate;
   onStart: () => void;
 }) {
@@ -109,7 +109,7 @@ function Offer({
   );
 }
 
-function UpdateContent({ connection }: { connection: ShareConnection }) {
+function UpdateContent({ connection }: { connection: Connection }) {
   const update = useServiceUpdate(connection);
   const [started, setStarted] = useState(false);
   const state = update.data;

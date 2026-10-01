@@ -2,7 +2,6 @@ import type {
   ListReviewedLayersResponse,
   SetReviewedLayerRequest,
 } from '@porcelain/contracts/reviews';
-import type { CommentsPort } from './comments';
 import type { ProofFile } from './proof';
 import {
   isFingerprintable,
@@ -77,15 +76,6 @@ export type ReviewsPort = {
     remove: (
       request: ReviewRequest & { layerId: string },
     ) => Promise<ListReviewedLayersResponse>;
-  };
-};
-
-export type ReviewsContext = {
-  api: { comments: CommentsPort; reviews: ReviewsPort };
-  connection: {
-    environmentId: string;
-    controller: AbortController;
-    request: (signal?: AbortSignal) => { signal: AbortSignal };
   };
 };
 

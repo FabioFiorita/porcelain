@@ -1,20 +1,20 @@
 import { renameProjectRequestSchema } from '@porcelain/contracts/projects';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import type { ProjectConnection } from '../rules/connection';
 import { asMutation } from '@/shared/query/mutation';
 import { projectsApi } from '../api';
 import { inventoryQueryOptions } from '../queries/inventory';
 import type { Inventory } from '../rules/inventory';
+import { type Connection } from '@/shared/workspace/connection';
 
 export function useRenameProject(
-  connection: ProjectConnection | null,
+  connection: Connection | null,
   close: () => void,
 ) {
   if (!connection) throw new Error('A connected environment is required');
   const client = useQueryClient();
   const key = inventoryQueryOptions(
     connection.environmentId,
-    connection.request,
+    connection,
   ).queryKey;
   const mutation = asMutation(
     useMutation({
@@ -27,7 +27,7 @@ export function useRenameProject(
         name: string;
       }) => {
         const request = connection.request();
-        const result = await projectsApi.inventory.rename(
+        const result = await projectsApi(connection).inventory.rename(
           request.signal,
           projectId,
           name,

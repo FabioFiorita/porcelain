@@ -56,14 +56,6 @@ export type CommentsPort = {
   ) => Promise<{ worktreeId: string; seenThrough: number }>;
 };
 
-export type CommentsContext = {
-  api: { comments: CommentsPort };
-  connection: {
-    environmentId: string;
-    request: (signal?: AbortSignal) => { signal: AbortSignal };
-  };
-};
-
 export type FileCommentAnchor = Exclude<CommentAnchor, { kind: 'change' }>;
 export type CommentTarget = Pick<
   FileCommentAnchor,

@@ -1,13 +1,14 @@
 import { queryOptions, useSuspenseQuery } from '@tanstack/react-query';
 import { historyApi } from '../api';
-import type { HistoryConnection, HistoryScope } from '../rules/connection';
+import type { HistoryScope } from '../rules/connection';
+import { type Connection } from '@/shared/workspace/connection';
 
 function commitQueryOptions(
   environmentId: string,
   scope: HistoryScope,
   oid: string,
   parent: number,
-  request: (signal?: AbortSignal) => { signal: AbortSignal },
+  connection: Connection,
 ) {
   return queryOptions({
     queryKey: [
@@ -20,8 +21,8 @@ function commitQueryOptions(
       parent,
     ],
     queryFn: async ({ signal }) => {
-      const connected = request(signal);
-      const commit = await historyApi.commit(
+      const connected = connection.request(signal);
+      const commit = await historyApi(connection).commit(
         connected.signal,
         scope.worktreeId,
         oid,
@@ -36,7 +37,7 @@ function commitQueryOptions(
 }
 
 export function useCommit(
-  connection: HistoryConnection | null,
+  connection: Connection | null,
   scope: HistoryScope,
   oid: string,
   parent = 1,
@@ -48,7 +49,7 @@ export function useCommit(
       scope,
       oid,
       parent,
-      connection.request,
+      connection,
     ),
   ).data;
 }

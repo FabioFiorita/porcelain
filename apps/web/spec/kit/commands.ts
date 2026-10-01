@@ -7,16 +7,20 @@ import type {
   RepoStep,
   ServerAnswer,
   ServerHit,
+  ServerName,
   ServerRead,
 } from './protocol';
 
 declare module 'vitest/browser' {
   interface BrowserCommands {
     porcelainRead: (request: ServerRead) => Promise<ServerAnswer>;
-    porcelainRepo: (step: RepoStep) => Promise<string>;
-    porcelainFixture: () => Promise<RepoFixture>;
-    porcelainPairingLink: (label: string) => Promise<PairingParts>;
-    porcelainHits: (since: number) => Promise<ServerHit[]>;
+    porcelainRepo: (step: RepoStep, server: ServerName) => Promise<string>;
+    porcelainFixture: (server: ServerName) => Promise<RepoFixture>;
+    porcelainPairingLink: (
+      label: string,
+      server: ServerName,
+    ) => Promise<PairingParts>;
+    porcelainHits: (since: number, server: ServerName) => Promise<ServerHit[]>;
     porcelainProjectHome: (step: ProjectHomeStep) => Promise<string>;
     porcelainCodingTool: () => Promise<CodingToolReplies>;
     porcelainInitScript: (content: string) => Promise<void>;

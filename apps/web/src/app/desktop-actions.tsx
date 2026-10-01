@@ -5,8 +5,15 @@ import {
   openProjectDialog,
 } from '@/features/projects/index';
 import { onDesktopAction } from '@/shared/adapters/desktop';
+import type { Connection } from '@/shared/workspace/connection';
 
-export function DesktopActions({ empty }: { empty: boolean }) {
+export function DesktopActions({
+  connection,
+  empty,
+}: {
+  connection: Connection;
+  empty: boolean;
+}) {
   const navigate = useNavigate();
   useEffect(
     () =>
@@ -22,6 +29,7 @@ export function DesktopActions({ empty }: { empty: boolean }) {
   );
   return (
     <OpenProjectDialog
+      connection={connection}
       onOpened={(projectId, worktreeId) =>
         navigate({
           to: '/$projectId/$worktreeId',

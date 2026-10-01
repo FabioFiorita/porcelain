@@ -1,13 +1,14 @@
 import { queryOptions, useQuery } from '@tanstack/react-query';
 import { inlineHtmlAssets } from '../rules/html-assets';
 import { filesApi } from '../api';
-import type { FilesConnection, FilesScope } from '../rules/scope';
+import type { FilesScope } from '../rules/scope';
+import { type Connection } from '@/shared/workspace/connection';
 
 function assetQueryOptions(
   environmentId: string,
   scope: FilesScope,
   path: string,
-  request: (signal?: AbortSignal) => { signal: AbortSignal },
+  connection: Connection,
 ) {
   return queryOptions({
     queryKey: [
@@ -19,8 +20,8 @@ function assetQueryOptions(
       path,
     ],
     queryFn: async ({ signal }) => {
-      const connected = request(signal);
-      const result = await filesApi.asset(
+      const connected = connection.request(signal);
+      const result = await filesApi(connection).asset(
         connected.signal,
         scope.worktreeId,
         path,
@@ -32,18 +33,13 @@ function assetQueryOptions(
 }
 
 export function useAsset(
-  connection: FilesConnection | null,
+  connection: Connection | null,
   scope: FilesScope,
   path: string,
 ) {
   if (!connection) throw new Error('A connected environment is required');
   return useQuery(
-    assetQueryOptions(
-      connection.environmentId,
-      scope,
-      path,
-      connection.request,
-    ),
+    assetQueryOptions(connection.environmentId, scope, path, connection),
   );
 }
 
@@ -52,7 +48,7 @@ function htmlPreviewQueryOptions(
   scope: FilesScope,
   path: string,
   html: string,
-  request: (signal?: AbortSignal) => { signal: AbortSignal },
+  connection: Connection,
 ) {
   return queryOptions({
     queryKey: [
@@ -65,9 +61,9 @@ function htmlPreviewQueryOptions(
       html,
     ],
     queryFn: async ({ signal }) => {
-      const connected = request(signal);
+      const connected = connection.request(signal);
       const result = await inlineHtmlAssets(html, path, async (paths) => {
-        const response = await filesApi.previewAssets(
+        const response = await filesApi(connection).previewAssets(
           connected.signal,
           scope.worktreeId,
           path,
@@ -87,7 +83,7 @@ function htmlPreviewQueryOptions(
 }
 
 export function useHtmlPreview(
-  connection: FilesConnection | null,
+  connection: Connection | null,
   scope: FilesScope,
   path: string,
   html: string,
@@ -99,7 +95,7 @@ export function useHtmlPreview(
       scope,
       path,
       html,
-      connection.request,
+      connection,
     ),
   );
 }

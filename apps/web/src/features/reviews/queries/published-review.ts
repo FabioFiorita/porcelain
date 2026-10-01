@@ -3,20 +3,25 @@ import { ConnectionError } from '@/shared/api/connection-error';
 import { queryKeys } from '@/shared/query/keys';
 import { PUBLISHED_REVIEW_REFRESH_MS } from '@/config/limits';
 import type { ReviewLayer, ReviewScope } from '../rules/review';
-import { layerReviewState, type ReviewsContext } from '../rules/reviewed';
+import { layerReviewState } from '../rules/reviewed';
+import { type ConnectionContext } from '@/shared/workspace/connection';
+import { reviewsApi } from '../api';
 
 function publishedReviewQueryOptions(
   scope: ReviewScope,
-  context: ReviewsContext,
+  context: ConnectionContext,
 ) {
-  const { api, connection } = context;
+  const { connection } = context;
   return queryOptions({
     queryKey: queryKeys.reviewSurface(connection.environmentId, scope, [
       'review',
     ]),
     queryFn: async ({ signal }) => {
       const request = connection.request(signal);
-      const review = await api.reviews.review({ ...scope, ...request });
+      const review = await reviewsApi(connection).review({
+        ...scope,
+        ...request,
+      });
       request.signal.throwIfAborted();
       if (
         review &&
@@ -36,7 +41,7 @@ function publishedReviewQueryOptions(
 
 export function usePublishedReview(
   scope: ReviewScope,
-  context: ReviewsContext,
+  context: ConnectionContext,
 ) {
   return useQuery({
     ...publishedReviewQueryOptions(scope, context),
@@ -46,23 +51,23 @@ export function usePublishedReview(
 
 export function useHasReviewLayers(
   scope: ReviewScope,
-  context: ReviewsContext,
+  context: ConnectionContext,
 ) {
   return usePublishedReview(scope, context).data?.active ?? false;
 }
 
 export function layerMarksQueryOptions(
   scope: ReviewScope,
-  context: ReviewsContext,
+  context: ConnectionContext,
 ) {
-  const { api, connection } = context;
+  const { connection } = context;
   return queryOptions({
     queryKey: queryKeys.reviewSurface(connection.environmentId, scope, [
       'reviewed-layers',
     ]),
     queryFn: async ({ signal }) => {
       const request = connection.request(signal);
-      const result = await api.reviews.reviewedLayers.list({
+      const result = await reviewsApi(connection).reviewedLayers.list({
         ...scope,
         ...request,
       });
@@ -74,7 +79,7 @@ export function layerMarksQueryOptions(
 
 export function useLayerMark(
   scope: ReviewScope,
-  context: ReviewsContext,
+  context: ConnectionContext,
   layer: Pick<ReviewLayer, 'id' | 'fingerprint'>,
 ) {
   const published = usePublishedReview(scope, context);

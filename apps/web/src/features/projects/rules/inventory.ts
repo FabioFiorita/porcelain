@@ -2,6 +2,11 @@ import type { ReadInventoryResponse } from '@porcelain/contracts/projects';
 
 export type Inventory = ReadInventoryResponse;
 export type Project = Inventory['projects'][number];
+export type WorktreeTarget = {
+  remote: string | null;
+  projectId: string;
+  worktreeId: string;
+};
 
 export function selectedWorktreeInProject(
   inventory: Inventory,

@@ -13,10 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Field, FieldError } from '@/components/ui/field';
 import { Spinner } from '@/components/ui/spinner';
-import {
-  connectionErrorMessage,
-  useAccessStore,
-} from '@/features/access/index';
+import { connectionErrorMessage } from '@/features/access/index';
 import { submitForm } from '@/shared/lib/submit-form';
 import {
   renameProjectValidator,
@@ -24,9 +21,13 @@ import {
 } from '../commands/rename-project';
 import { renameProjectDialog } from '../overlays';
 import { projectPath, type Project } from '../rules/inventory';
+import { type Connection } from '@/shared/workspace/connection';
 
-export function RenameProjectDialog() {
-  const connection = useAccessStore((state) => state.connection);
+export function RenameProjectDialog({
+  connection,
+}: {
+  connection: Connection;
+}) {
   const rename = useRenameProject(connection, () =>
     renameProjectDialog.close(),
   );

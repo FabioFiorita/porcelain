@@ -13,9 +13,10 @@ import {
   type SetFilePreferenceRequest,
 } from '@porcelain/contracts/projects';
 import { requestJson } from '@/shared/api/request';
-import { browserTransport } from '@/shared/api/transport';
+import { perConnection } from '@/shared/api/per-connection';
+import type { Transport } from '@/shared/api/transport';
 
-function createProjectsApi(transport: typeof fetch) {
+function createProjectsApi(transport: Transport) {
   const preferencesPath = (projectId: string) =>
     `/api/projects/${encodeURIComponent(projectId)}/file-preferences`;
   return {
@@ -95,4 +96,4 @@ function createProjectsApi(transport: typeof fetch) {
   };
 }
 
-export const projectsApi = createProjectsApi(browserTransport(fetch));
+export const projectsApi = perConnection(createProjectsApi);

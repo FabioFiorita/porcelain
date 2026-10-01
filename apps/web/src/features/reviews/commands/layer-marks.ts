@@ -2,13 +2,14 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/shared/query/keys';
 import { layerMarksQueryOptions } from '../queries/published-review';
 import type { ReviewScope } from '../rules/review';
-import type { ReviewsContext } from '../rules/reviewed';
+import { type ConnectionContext } from '@/shared/workspace/connection';
+import { reviewsApi } from '../api';
 
 export function useToggleLayerMark(
   scope: ReviewScope,
-  context: ReviewsContext,
+  context: ConnectionContext,
 ) {
-  const { api, connection } = context;
+  const { connection } = context;
   const client = useQueryClient();
   const key = layerMarksQueryOptions(scope, context).queryKey;
   const mutation = useMutation({
@@ -19,12 +20,12 @@ export function useToggleLayerMark(
     }) => {
       const request = connection.request();
       const result = input.reviewed
-        ? await api.reviews.reviewedLayers.remove({
+        ? await reviewsApi(connection).reviewedLayers.remove({
             ...scope,
             ...request,
             layerId: input.layerId,
           })
-        : await api.reviews.reviewedLayers.set({
+        : await reviewsApi(connection).reviewedLayers.set({
             ...scope,
             ...request,
             input: {

@@ -1,7 +1,6 @@
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { useAccessStore } from '@/features/access/index';
 import {
   changeId,
   diffEntry,
@@ -28,11 +27,11 @@ import {
   type ReviewChangeItem,
   type ReviewScope,
 } from '../rules/review';
-import type { ReviewsContext } from '../rules/reviewed';
-import { CodeDocument, type DocumentContext } from './code-document';
+import { CodeDocument } from './code-document';
 import { InlineComposer } from './inline-composer';
 import { fileReviewControl, ReviewedControl } from './reviewed-control';
 import { ThreadCard } from './thread-card';
+import { type ConnectionContext } from '@/shared/workspace/connection';
 
 export function ReviewCodeDocument({
   scope,
@@ -47,7 +46,7 @@ export function ReviewCodeDocument({
   toolbar,
 }: {
   scope: ReviewScope;
-  context: DocumentContext;
+  context: ConnectionContext;
   interaction: DocumentInteraction;
   paths?: readonly string[];
   files?: readonly { path: string; note?: string }[];
@@ -57,7 +56,7 @@ export function ReviewCodeDocument({
   commentRequest?: number;
   toolbar?: (collapseControl: ReactNode) => ReactNode;
 }) {
-  const connection = useAccessStore((state) => state.connection);
+  const { connection } = context;
   const recover = useRecoverChangedDiffs(scope, connection);
   usePrefetchReviewed(scope, context);
   const { changes } = useChanges(scope, connection);
@@ -279,7 +278,7 @@ function OmittedChanges({
   commentRequest?: number;
   renderedPaths: ReadonlySet<string>;
   scope: ReviewScope;
-  context: ReviewsContext;
+  context: ConnectionContext;
 }) {
   return (
     <section className="mx-4 mt-3 rounded-lg border bg-muted/40 px-4 py-3">
@@ -294,7 +293,11 @@ function OmittedChanges({
             {isImagePath(item.path) && (
               <>
                 <span>Current worktree image</span>
-                <ImagePreview scope={scope} path={item.path} />
+                <ImagePreview
+                  scope={scope}
+                  path={item.path}
+                  connection={context.connection}
+                />
               </>
             )}
             <Badge variant="outline" className="shrink-0">
@@ -332,7 +335,7 @@ function OmittedDiscussion({
   commentRequest,
 }: {
   scope: ReviewScope;
-  context: ReviewsContext;
+  context: ConnectionContext;
   path: string;
   commentRequest?: number;
 }) {

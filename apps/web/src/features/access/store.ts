@@ -2,22 +2,35 @@ import type { ReadInventoryResponse } from '@porcelain/contracts/projects';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { savedJson } from '@/shared/lib/saved-json';
-import { parseRemotes, withRemote, type Remote } from './rules/remotes';
+import {
+  parseRemotes,
+  syncRemoteConnections,
+  withRemote,
+  type Remote,
+} from './rules/remotes';
 import { REQUEST_TIMEOUT_MS } from '@/shared/api/request-timeout';
 import {
-  createOperationStore,
-  type OperationStore,
-} from '@/shared/query/operation-store';
+  browserTransport,
+  remoteTransport,
+  type Transport,
+} from '@/shared/api/transport';
+import type { LiveUpdatePort } from '@/shared/live/port';
+import { remoteLiveUpdates, sameOriginLiveUpdates } from '@/shared/live/socket';
+import { adoptFileDrafts } from '@/shared/query/file-drafts';
+import { createOperationStore } from '@/shared/query/operation-store';
+import type { Connection } from '@/shared/workspace/connection';
 
-type Connection = {
-  environmentId: string;
-  controller: AbortController;
-  operations: OperationStore;
-  request: (signal?: AbortSignal) => { signal: AbortSignal };
+export type RemoteConnection = { remote: Remote; connection: Connection };
+
+type Server = {
+  transport: Transport;
+  liveUpdates: LiveUpdatePort;
+  operationsKey: string;
 };
 
 type AccessState = {
   connection: Connection | null;
+  remoteConnections: readonly RemoteConnection[];
   generation: number;
   connect: (environmentId: string) => Connection;
   beginConnection: (
@@ -26,7 +39,7 @@ type AccessState = {
   clear: () => void;
 };
 
-function createConnection(environmentId: string): Connection {
+function createConnection(environmentId: string, server: Server): Connection {
   let storage: Storage | undefined;
   try {
     storage = window.sessionStorage;
@@ -34,13 +47,11 @@ function createConnection(environmentId: string): Connection {
     storage = undefined;
   }
   const controller = new AbortController();
-  return {
+  const connection: Connection = {
     environmentId,
     controller,
     operations: createOperationStore(
-      storage
-        ? { storage, key: `porcelain-git-requests:${environmentId}` }
-        : undefined,
+      storage ? { storage, key: server.operationsKey } : undefined,
     ),
     request: (signal) => ({
       signal: AbortSignal.any([
@@ -49,41 +60,34 @@ function createConnection(environmentId: string): Connection {
         ...(signal ? [signal] : []),
       ]),
     }),
+    transport: server.transport,
+    liveUpdates: server.liveUpdates,
   };
+  adoptFileDrafts(connection);
+  return connection;
 }
 
-export const useAccessStore = create<AccessState>()((set, get) => ({
-  connection: null,
-  generation: 0,
-  connect(environmentId) {
-    const current = get().connection;
-    if (current?.environmentId === environmentId) return current;
-    current?.operations.clear();
-    current?.controller.abort();
-    const connection = createConnection(environmentId);
-    set({ connection });
-    return connection;
-  },
-  beginConnection(automatic = false) {
-    if (automatic && get().generation !== 0) return null;
-    const attempt = get().generation;
-    return (inventory) => {
-      if (attempt !== get().generation) return false;
-      set({ generation: attempt + 1 });
-      get().connect(inventory.environmentId);
-      return true;
-    };
-  },
-  clear() {
-    const current = get().connection;
-    current?.operations.clear();
-    current?.controller.abort();
-    set((state) => ({
-      connection: null,
-      generation: state.generation + 1,
-    }));
-  },
-}));
+function localConnection(environmentId: string) {
+  return createConnection(environmentId, {
+    transport: browserTransport(fetch),
+    liveUpdates: sameOriginLiveUpdates(),
+    operationsKey: `porcelain-git-requests:${environmentId}`,
+  });
+}
+
+function remoteConnection(remote: Remote) {
+  const transport = remoteTransport(remote.address, remote.credential);
+  return createConnection(remote.environmentId, {
+    transport,
+    liveUpdates: remoteLiveUpdates(remote.address, transport),
+    operationsKey: `porcelain-git-requests:${remote.address}:${remote.environmentId}`,
+  });
+}
+
+function close(connection: Connection) {
+  connection.operations.clear();
+  connection.controller.abort();
+}
 
 type RemotesState = {
   remotes: Remote[];
@@ -111,3 +115,69 @@ export const useRemotesStore = create<RemotesState>()(
     },
   ),
 );
+
+function remoteConnections(
+  remotes: readonly Remote[],
+  current: readonly RemoteConnection[],
+) {
+  const { next, closed } = syncRemoteConnections(
+    remotes,
+    current,
+    remoteConnection,
+  );
+  for (const connection of closed) close(connection);
+  return next;
+}
+
+export const useAccessStore = create<AccessState>()((set, get) => ({
+  connection: null,
+  remoteConnections: remoteConnections(useRemotesStore.getState().remotes, []),
+  generation: 0,
+  connect(environmentId) {
+    const current = get().connection;
+    if (current?.environmentId === environmentId) return current;
+    if (current) close(current);
+    const connection = localConnection(environmentId);
+    set({ connection });
+    return connection;
+  },
+  beginConnection(automatic = false) {
+    if (automatic && get().generation !== 0) return null;
+    const attempt = get().generation;
+    return (inventory) => {
+      if (attempt !== get().generation) return false;
+      set({ generation: attempt + 1 });
+      get().connect(inventory.environmentId);
+      return true;
+    };
+  },
+  clear() {
+    const current = get().connection;
+    if (current) close(current);
+    set((state) => ({
+      connection: null,
+      generation: state.generation + 1,
+    }));
+  },
+}));
+
+useRemotesStore.subscribe(({ remotes }) =>
+  useAccessStore.setState({
+    remoteConnections: remoteConnections(
+      remotes,
+      useAccessStore.getState().remoteConnections,
+    ),
+  }),
+);
+
+export function useRemoteConnections() {
+  return useAccessStore((state) => state.remoteConnections);
+}
+
+export function useRemoteConnection(environmentId: string) {
+  return useAccessStore((state) =>
+    state.remoteConnections.find(
+      (entry) => entry.remote.environmentId === environmentId,
+    ),
+  );
+}

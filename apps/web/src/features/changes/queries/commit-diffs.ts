@@ -3,12 +3,13 @@ import { DIFF_WINDOW_FILES } from '@/config/limits';
 import { useBatchedReads } from './batched-reads';
 import { consecutiveBatches } from '../rules/diff-batches';
 import { changesApi } from '../api';
-import type { ChangesConnection, ChangesScope } from '../rules/changes';
+import type { ChangesScope } from '../rules/changes';
+import { type Connection } from '@/shared/workspace/connection';
 
 type DiffContent = ReadCommitDiffsResponse['diffs'][number]['content'];
 
 export function useCommitDiffs(
-  connection: ChangesConnection | null,
+  connection: Connection | null,
   scope: ChangesScope,
   oid: string,
   parent: number,
@@ -29,7 +30,7 @@ export function useCommitDiffs(
     ],
     read: async (batch, signal) => {
       const connected = connection.request(signal);
-      const data = await changesApi.commitDiffs(
+      const data = await changesApi(connection).commitDiffs(
         connected.signal,
         scope.worktreeId,
         oid,

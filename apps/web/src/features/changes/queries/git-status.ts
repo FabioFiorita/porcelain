@@ -1,15 +1,15 @@
 import { queryOptions, useQuery } from '@tanstack/react-query';
 import { queryKeys } from '@/shared/query/keys';
 import { changesApi } from '../api';
+import { type ChangesScope } from '../rules/changes';
 import {
-  requireChangesConnection,
-  type ChangesConnection,
-  type ChangesScope,
-} from '../rules/changes';
+  type Connection,
+  requireConnection,
+} from '@/shared/workspace/connection';
 
 export function gitStatusQueryOptions(
   scope: ChangesScope,
-  connection: ChangesConnection,
+  connection: Connection,
 ) {
   return queryOptions({
     queryKey: queryKeys.reviewSurface(connection.environmentId, scope, [
@@ -17,7 +17,10 @@ export function gitStatusQueryOptions(
     ]),
     queryFn: async ({ signal }) => {
       const request = connection.request(signal);
-      const data = await changesApi.status(request.signal, scope.worktreeId);
+      const data = await changesApi(connection).status(
+        request.signal,
+        scope.worktreeId,
+      );
       request.signal.throwIfAborted();
       return data;
     },
@@ -26,11 +29,11 @@ export function gitStatusQueryOptions(
 
 export function useGitStatus(
   scope: ChangesScope,
-  connection: ChangesConnection | null,
+  connection: Connection | null,
   enabled = true,
 ) {
   const query = useQuery({
-    ...gitStatusQueryOptions(scope, requireChangesConnection(connection)),
+    ...gitStatusQueryOptions(scope, requireConnection(connection)),
     enabled,
     throwOnError: false,
   });

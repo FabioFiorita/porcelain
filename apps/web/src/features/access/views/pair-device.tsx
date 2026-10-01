@@ -20,15 +20,15 @@ import {
   pairingAddresses,
   remoteRouteTitles,
   type RemoteAccess,
-  type ShareConnection,
 } from '../rules/share';
 import { PairingQr } from './pairing-qr';
+import { type Connection } from '@/shared/workspace/connection';
 
 export function PairDevice({
   connection,
   remote,
 }: {
-  connection: ShareConnection;
+  connection: Connection;
   remote: RemoteAccess;
 }) {
   const addresses = pairingAddresses(remote);

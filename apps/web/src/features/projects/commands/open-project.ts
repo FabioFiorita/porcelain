@@ -1,9 +1,9 @@
-import type { ProjectConnection } from '../rules/connection';
 import { useProjectBrowserStore } from '../store';
 import { useRegisterProject } from './register-project';
+import { type Connection } from '@/shared/workspace/connection';
 
 export function useOpenProject(
-  connection: ProjectConnection | null,
+  connection: Connection | null,
   close: () => void,
   selectWorktree: (projectId: string, worktreeId: string) => Promise<void>,
 ) {

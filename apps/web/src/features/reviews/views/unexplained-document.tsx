@@ -2,10 +2,10 @@ import { usePublishedReview } from '../queries/published-review';
 import type { DocumentInteraction } from '../rules/documents';
 import { spansLabel } from '../rules/patch-focus';
 import { notExplainedLabel, type ReviewScope } from '../rules/review';
-import type { DocumentContext } from './code-document';
 import { DocumentToolbar } from './document-toolbar';
 import { ReviewCodeDocument } from './review-code-document';
 import { ReviewEmpty } from './review-empty';
+import { type ConnectionContext } from '@/shared/workspace/connection';
 
 export function UnexplainedDocument({
   scope,
@@ -13,7 +13,7 @@ export function UnexplainedDocument({
   interaction,
 }: {
   scope: ReviewScope;
-  context: DocumentContext;
+  context: ConnectionContext;
   interaction: DocumentInteraction;
 }) {
   const published = usePublishedReview(scope, context);

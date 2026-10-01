@@ -3,9 +3,7 @@ import { useBatchedReads } from './batched-reads';
 import { queryKeys } from '@/shared/query/keys';
 import { changesApi, isWorktreeChangedError } from '../api';
 import {
-  requireChangesConnection,
   selectionKey,
-  type ChangesConnection,
   type ChangesScope,
   type ChangeSelection,
   type DiffContent,
@@ -13,16 +11,20 @@ import {
 } from '../rules/changes';
 import { diffBatches } from '../rules/diff-batches';
 import { useChangesStore } from '../store';
+import {
+  type Connection,
+  requireConnection,
+} from '@/shared/workspace/connection';
 
 export function useChangeDiffs(
   scope: ChangesScope,
-  possibleConnection: ChangesConnection | null,
+  possibleConnection: Connection | null,
   statusToken: string,
   expectedFiles: readonly ExpectedFile[],
   selections: readonly ChangeSelection[],
   recover: (statusToken: string) => void,
 ) {
-  const connection = requireChangesConnection(possibleConnection);
+  const connection = requireConnection(possibleConnection);
   const key = JSON.stringify([
     connection.environmentId,
     scope.projectId,
@@ -45,11 +47,15 @@ export function useChangeDiffs(
       ]),
     read: async (batch, signal) => {
       const request = connection.request(signal);
-      const data = await changesApi.diffs(request.signal, scope.worktreeId, {
-        expectedStatusToken: statusToken,
-        expectedFiles: batch.expectedFiles,
-        selections: batch.selections,
-      });
+      const data = await changesApi(connection).diffs(
+        request.signal,
+        scope.worktreeId,
+        {
+          expectedStatusToken: statusToken,
+          expectedFiles: batch.expectedFiles,
+          selections: batch.selections,
+        },
+      );
       request.signal.throwIfAborted();
       return data.diffs.map(
         ({ selection, content }) => [selectionKey(selection), content] as const,

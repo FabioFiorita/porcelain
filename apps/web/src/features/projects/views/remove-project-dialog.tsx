@@ -10,16 +10,17 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Spinner } from '@/components/ui/spinner';
-import {
-  connectionErrorMessage,
-  useAccessStore,
-} from '@/features/access/index';
+import { connectionErrorMessage } from '@/features/access/index';
 import { useRemoveProject } from '../commands/remove-project';
 import { removeProjectDialog } from '../overlays';
 import { projectPath, type Project } from '../rules/inventory';
+import { type Connection } from '@/shared/workspace/connection';
 
-export function RemoveProjectDialog() {
-  const connection = useAccessStore((state) => state.connection);
+export function RemoveProjectDialog({
+  connection,
+}: {
+  connection: Connection;
+}) {
   const remove = useRemoveProject(connection, () =>
     removeProjectDialog.close(),
   );

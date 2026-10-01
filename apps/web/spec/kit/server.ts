@@ -31,124 +31,139 @@ import {
   readPublishedReviewResponseSchema,
 } from '@porcelain/contracts/reviews';
 import { hostCommands } from './commands';
+import type { ServerName } from './protocol';
 
 type Schema<T> = { parse(value: unknown): T };
-
-async function read<T>(
-  schema: Schema<T>,
-  path: string,
-  target: 'network' | 'owner' = 'network',
-): Promise<T> {
-  const answer = await hostCommands.porcelainRead({ target, path });
-  if (answer.status !== 200)
-    throw new Error(`The server answered ${path} with ${answer.status}.`);
-  return schema.parse(answer.body);
-}
 
 function query(values: Record<string, string>) {
   return `?${new URLSearchParams(values).toString()}`;
 }
 
-async function sampleProject() {
-  const project = (await read(readInventoryResponseSchema, '/api/inventory'))
-    .projects[0];
-  if (!project) throw new Error('The isolated server has no project.');
-  return project;
-}
+export function serverOn(name: ServerName) {
+  const read = async <T>(
+    schema: Schema<T>,
+    path: string,
+    target: 'network' | 'owner' = 'network',
+  ): Promise<T> => {
+    const answer = await hostCommands.porcelainRead({
+      server: name,
+      target,
+      path,
+    });
+    if (answer.status !== 200)
+      throw new Error(`The server answered ${path} with ${answer.status}.`);
+    return schema.parse(answer.body);
+  };
 
-async function worktreePath(suffix: string) {
-  const worktree = (await sampleProject()).worktrees[0];
-  if (!worktree) throw new Error('The isolated server has no worktree.');
-  return `/api/worktrees/${encodeURIComponent(worktree.id)}${suffix}`;
-}
-
-export const server = {
-  changeDiffHits: async () =>
-    (await hostCommands.porcelainHits(0)).filter(
-      (hit) =>
-        !hit.kit &&
-        hit.method === 'POST' &&
-        hit.route === '/api/worktrees/:worktreeId/changes/diffs',
-    ),
-  changeListHits: async () =>
-    (await hostCommands.porcelainHits(0)).filter(
-      (hit) =>
-        !hit.kit &&
-        hit.method === 'GET' &&
-        hit.route === '/api/worktrees/:worktreeId/changes',
-    ),
-  fileWriteCount: async () =>
-    (await hostCommands.porcelainHits(0)).filter(
-      (hit) =>
-        !hit.kit &&
-        hit.method === 'POST' &&
-        hit.route === '/api/worktrees/:worktreeId/files',
-    ).length,
-  health: () => read(readHealthResponseSchema, '/api/health'),
-  inventory: () => read(readInventoryResponseSchema, '/api/inventory'),
-  project: sampleProject,
-  devices: async () =>
-    (await read(listAccessResponseSchema, '/access', 'owner')).devices,
-  pendingLinks: async () =>
-    (await read(listAccessResponseSchema, '/access', 'owner')).grants,
-  remoteAccess: () =>
-    read(readRemoteAccessResponseSchema, '/api/remote-access'),
-  serviceUpdate: () =>
-    read(readServiceUpdateResponseSchema, '/api/service/update'),
-  filePreferences: async () =>
-    read(
-      listFilePreferencesResponseSchema,
-      `/api/projects/${encodeURIComponent((await sampleProject()).id)}/file-preferences`,
-    ),
-  changes: async () =>
-    read(readChangesResponseSchema, await worktreePath('/changes')),
-  gitStatus: async () =>
-    read(readGitStatusResponseSchema, await worktreePath('/git/status')),
-  commits: async () =>
-    read(listCommitsResponseSchema, await worktreePath('/commits')),
-  commitFiles: async (oid: string) =>
-    read(
-      readCommitFilesResponseSchema,
-      await worktreePath(`/commits/${encodeURIComponent(oid)}/files`),
-    ),
-  text: async (path: string) =>
-    read(
-      readTextFileResponseSchema,
-      await worktreePath(`/text${query({ path })}`),
-    ),
-  directory: async (path: string) =>
-    read(
-      listDirectoryResponseSchema,
-      await worktreePath(`/directory${query({ path })}`),
-    ),
-  paths: async () =>
-    read(listWorktreePathsResponseSchema, await worktreePath('/paths')),
-  reviewedFiles: async (branch?: string) =>
-    read(
-      listReviewedFilesResponseSchema,
-      await worktreePath(
-        `/reviewed${branch ? query({ scope: 'branch', branch }) : ''}`,
+  const sampleProject = async () => {
+    const project = (await read(readInventoryResponseSchema, '/api/inventory'))
+      .projects[0];
+    if (!project) throw new Error('The isolated server has no project.');
+    return project;
+  };
+  const worktreePath = async (suffix: string) => {
+    const worktree = (await sampleProject()).worktrees[0];
+    if (!worktree) throw new Error('The isolated server has no worktree.');
+    return `/api/worktrees/${encodeURIComponent(worktree.id)}${suffix}`;
+  };
+  const hits = () => hostCommands.porcelainHits(0, name);
+  return {
+    liveTicketHits: async () =>
+      (await hits()).filter(
+        (hit) =>
+          !hit.kit &&
+          hit.method === 'POST' &&
+          hit.route === '/api/live/tickets',
       ),
-    ),
-  branchChanges: async (base?: string) =>
-    read(
-      readBranchChangesResponseSchema,
-      await worktreePath(`/branch-changes${base ? query({ base }) : ''}`),
-    ),
-  reviewedLayers: async () =>
-    read(
-      listReviewedLayersResponseSchema,
-      await worktreePath('/reviewed-layers'),
-    ),
-  publishedReview: async () =>
-    read(readPublishedReviewResponseSchema, await worktreePath('/review')),
-  commentThreads: async () =>
-    read(listCommentThreadsResponseSchema, await worktreePath('/comments')),
-  commitModels: () =>
-    read(listCommitModelsResponseSchema, '/api/git/commit-models'),
-  receipt: async (requestId: string) =>
-    read(
-      readGitActionReceiptResponseSchema,
-      await worktreePath(`/git/receipts/${encodeURIComponent(requestId)}`),
-    ),
-};
+    changeDiffHits: async () =>
+      (await hits()).filter(
+        (hit) =>
+          !hit.kit &&
+          hit.method === 'POST' &&
+          hit.route === '/api/worktrees/:worktreeId/changes/diffs',
+      ),
+    changeListHits: async () =>
+      (await hits()).filter(
+        (hit) =>
+          !hit.kit &&
+          hit.method === 'GET' &&
+          hit.route === '/api/worktrees/:worktreeId/changes',
+      ),
+    fileWriteCount: async () =>
+      (await hits()).filter(
+        (hit) =>
+          !hit.kit &&
+          hit.method === 'POST' &&
+          hit.route === '/api/worktrees/:worktreeId/files',
+      ).length,
+    health: () => read(readHealthResponseSchema, '/api/health'),
+    inventory: () => read(readInventoryResponseSchema, '/api/inventory'),
+    project: sampleProject,
+    devices: async () =>
+      (await read(listAccessResponseSchema, '/access', 'owner')).devices,
+    pendingLinks: async () =>
+      (await read(listAccessResponseSchema, '/access', 'owner')).grants,
+    remoteAccess: () =>
+      read(readRemoteAccessResponseSchema, '/api/remote-access'),
+    serviceUpdate: () =>
+      read(readServiceUpdateResponseSchema, '/api/service/update'),
+    filePreferences: async () =>
+      read(
+        listFilePreferencesResponseSchema,
+        `/api/projects/${encodeURIComponent((await sampleProject()).id)}/file-preferences`,
+      ),
+    changes: async () =>
+      read(readChangesResponseSchema, await worktreePath('/changes')),
+    gitStatus: async () =>
+      read(readGitStatusResponseSchema, await worktreePath('/git/status')),
+    commits: async () =>
+      read(listCommitsResponseSchema, await worktreePath('/commits')),
+    commitFiles: async (oid: string) =>
+      read(
+        readCommitFilesResponseSchema,
+        await worktreePath(`/commits/${encodeURIComponent(oid)}/files`),
+      ),
+    text: async (path: string) =>
+      read(
+        readTextFileResponseSchema,
+        await worktreePath(`/text${query({ path })}`),
+      ),
+    directory: async (path: string) =>
+      read(
+        listDirectoryResponseSchema,
+        await worktreePath(`/directory${query({ path })}`),
+      ),
+    paths: async () =>
+      read(listWorktreePathsResponseSchema, await worktreePath('/paths')),
+    reviewedFiles: async (branch?: string) =>
+      read(
+        listReviewedFilesResponseSchema,
+        await worktreePath(
+          `/reviewed${branch ? query({ scope: 'branch', branch }) : ''}`,
+        ),
+      ),
+    branchChanges: async (base?: string) =>
+      read(
+        readBranchChangesResponseSchema,
+        await worktreePath(`/branch-changes${base ? query({ base }) : ''}`),
+      ),
+    reviewedLayers: async () =>
+      read(
+        listReviewedLayersResponseSchema,
+        await worktreePath('/reviewed-layers'),
+      ),
+    publishedReview: async () =>
+      read(readPublishedReviewResponseSchema, await worktreePath('/review')),
+    commentThreads: async () =>
+      read(listCommentThreadsResponseSchema, await worktreePath('/comments')),
+    commitModels: () =>
+      read(listCommitModelsResponseSchema, '/api/git/commit-models'),
+    receipt: async (requestId: string) =>
+      read(
+        readGitActionReceiptResponseSchema,
+        await worktreePath(`/git/receipts/${encodeURIComponent(requestId)}`),
+      ),
+  };
+}
+
+export const server = serverOn('this');

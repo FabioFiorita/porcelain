@@ -1,4 +1,3 @@
-import type { GitContext } from '../api';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type {
   ActionInput,
@@ -12,13 +11,15 @@ import { createId } from '@/shared/lib/id';
 import { refreshGitReceipt } from '@/shared/query/live-updates';
 import { asMutation } from '@/shared/query/mutation';
 import { isTerminal, operationKey } from '@/shared/query/operation-store';
+import { type ConnectionContext } from '@/shared/workspace/connection';
+import { gitActionsApi } from '../api';
 
 export function useGitAction(
   scope: GitScope,
   action: GitAction,
-  context: GitContext,
+  context: ConnectionContext,
 ) {
-  const { api, connection } = context;
+  const { connection } = context;
   const client = useQueryClient();
   const { operations } = connection;
   const key = operationKey(scope, action);
@@ -58,7 +59,9 @@ export function useGitAction(
         requestId: body.requestId,
         request: body,
       });
-      await accept(await api.gitActions.run({ ...request(), input: body }));
+      await accept(
+        await gitActionsApi(connection).run({ ...request(), input: body }),
+      );
       return operations.wait(key, connection.controller.signal);
     },
   });
@@ -67,7 +70,10 @@ export function useGitAction(
       const current = operations.get(key);
       if (!current) throw new Error('No operation to recover');
       await accept(
-        await api.gitActions.run({ ...request(), input: current.request }),
+        await gitActionsApi(connection).run({
+          ...request(),
+          input: current.request,
+        }),
       );
       return operations.wait(key, connection.controller.signal);
     },

@@ -10,7 +10,6 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
-import { useAccessStore } from '@/features/access/index';
 import { useBranchChanges } from '@/features/changes/index';
 import { cn } from '@/shared/lib/utils';
 import { useReviewedMarks } from '../queries/reviewed';
@@ -28,7 +27,8 @@ import {
   type ReviewScope,
   type ReviewStatus,
 } from '../rules/review';
-import { branchReviewRange, type ReviewsContext } from '../rules/reviewed';
+import { branchReviewRange } from '../rules/reviewed';
+import { type ConnectionContext } from '@/shared/workspace/connection';
 
 type Select = (key: ReadinessKey, firstStale: string | undefined) => void;
 
@@ -62,13 +62,13 @@ export function BranchReadiness({
   onSelect,
 }: {
   scope: ReviewScope;
-  context: ReviewsContext;
+  context: ConnectionContext;
   base: string | undefined;
   review: ReviewResponse | null;
   threads: readonly CommentThread[];
   onSelect: Select;
 }) {
-  const connection = useAccessStore((state) => state.connection);
+  const { connection } = context;
   const changes = useBranchChanges(scope, connection, base);
   if (changes.data?.base == null) return null;
   return (
@@ -94,7 +94,7 @@ function BranchReadinessMarks({
   onSelect,
 }: {
   scope: ReviewScope;
-  context: ReviewsContext;
+  context: ConnectionContext;
   branch: NonNullable<ReturnType<typeof useBranchChanges>['data']>;
   review: ReviewResponse | null;
   threads: readonly CommentThread[];

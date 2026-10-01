@@ -1,16 +1,16 @@
 import { COMMIT_MESSAGE_BYTES } from '@porcelain/contracts/shared';
 import { useMutation } from '@tanstack/react-query';
-import type { GitContext } from '../api';
 import type { FormAction } from '../rules/action-form';
 import type { ActionInput, GitScope } from '../rules/git-action';
 import { expectationFor } from '../rules/feedback';
 import type { GitActionStatus } from '../rules/status';
 import { useGitAction } from './run-action';
+import { type ConnectionContext } from '@/shared/workspace/connection';
 
 export function useActionForm(
   scope: GitScope,
   action: FormAction,
-  context: GitContext,
+  context: ConnectionContext,
   {
     expectedStatus,
     onBusy,

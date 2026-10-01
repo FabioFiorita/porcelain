@@ -1,21 +1,21 @@
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '@/shared/query/keys';
 import { changesApi } from '../api';
+import { type ChangesScope } from '../rules/changes';
 import {
-  requireChangesConnection,
-  type ChangesConnection,
-  type ChangesScope,
-} from '../rules/changes';
+  type Connection,
+  requireConnection,
+} from '@/shared/workspace/connection';
 
 export function useChangeLines(
   scope: ChangesScope,
-  possibleConnection: ChangesConnection | null,
+  possibleConnection: Connection | null,
   path: string,
   from: number,
   to: number,
   enabled: boolean,
 ) {
-  const connection = requireChangesConnection(possibleConnection);
+  const connection = requireConnection(possibleConnection);
   return useQuery({
     queryKey: queryKeys.reviewSurface(connection.environmentId, scope, [
       'step-lines',
@@ -26,7 +26,7 @@ export function useChangeLines(
     enabled,
     queryFn: async ({ signal }) => {
       const request = connection.request(signal);
-      const result = await changesApi.lines(
+      const result = await changesApi(connection).lines(
         request.signal,
         scope.worktreeId,
         path,

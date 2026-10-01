@@ -9,8 +9,8 @@ export default {
     {
       kind: 'replace',
       path: 'architecture/web-baseline.json',
-      old: '"unclassified-source": {\n    "apps/web/src/app/api.ts": 1',
-      new: '"unclassified-source": {\n    "apps/web/src/app/api.ts": 2',
+      old: '"web-shared-cannot-import-ui": {\n    "apps/web/src/shared/workspace/copy.ts": 1',
+      new: '"web-shared-cannot-import-ui": {\n    "apps/web/src/shared/workspace/copy.ts": 2',
     },
   ],
 } satisfies Probe;

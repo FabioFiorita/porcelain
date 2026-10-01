@@ -1,6 +1,5 @@
 import type { ReadChangesResponse } from '@porcelain/contracts/changes';
 import { useMutation } from '@tanstack/react-query';
-import type { GitContext } from '../api';
 import type { GitScope, Receipt } from '../rules/git-action';
 import {
   changedSinceLooked,
@@ -14,6 +13,7 @@ import { type GitActionStatus, statusFromChanges } from '../rules/status';
 import { DISCARD_RESTORE_TOAST_MS } from '@/config/limits';
 import { restoreStash } from './restore-stash';
 import { useGitAction } from './run-action';
+import { type ConnectionContext } from '@/shared/workspace/connection';
 
 type Hunk = {
   scope: 'staged' | 'unstaged';
@@ -105,7 +105,7 @@ function finish(
 
 export function useDiscard(
   scope: GitScope,
-  context: GitContext,
+  context: ConnectionContext,
   {
     path,
     hunk,

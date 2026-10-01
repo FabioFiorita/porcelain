@@ -26,19 +26,19 @@ export const Route = createFileRoute('/_paired')({
 });
 
 function PairedLayout() {
-  const connected = useAccessStore((state) => state.connection !== null);
+  const connection = useAccessStore((state) => state.connection);
   const [navigatorOpen, setNavigatorOpen] = useState(true);
   const empty = useRouterState({
     select: (state) => state.location.pathname === '/',
   });
-  return connected ? (
+  return connection ? (
     <ReviewShell>
       <ProjectWorkspaceProvider
         open={navigatorOpen}
         onOpenChange={setNavigatorOpen}
       >
         <Outlet />
-        <DesktopActions empty={empty} />
+        <DesktopActions connection={connection} empty={empty} />
       </ProjectWorkspaceProvider>
     </ReviewShell>
   ) : (

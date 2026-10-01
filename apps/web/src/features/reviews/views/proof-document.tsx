@@ -3,17 +3,17 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { usePublishedReview } from '../queries/published-review';
 import { proofLabel, proofStatus, publishedLabel } from '../rules/proof';
 import type { ReviewScope } from '../rules/review';
-import type { ReviewsContext } from '../rules/reviewed';
 import { DocumentToolbar } from './document-toolbar';
 import { ProofList } from './proof-list';
 import { ReviewEmpty } from './review-empty';
+import { type ConnectionContext } from '@/shared/workspace/connection';
 
 export function ProofDocument({
   scope,
   context,
 }: {
   scope: ReviewScope;
-  context: ReviewsContext;
+  context: ConnectionContext;
 }) {
   const published = usePublishedReview(scope, context);
   const review = published.data?.active ? published.data : null;

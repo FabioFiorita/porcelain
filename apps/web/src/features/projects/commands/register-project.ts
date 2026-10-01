@@ -1,16 +1,16 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import type { ProjectConnection } from '../rules/connection';
 import { asMutation } from '@/shared/query/mutation';
 import { projectsApi } from '../api';
 import { inventoryQueryOptions } from '../queries/inventory';
 import type { Inventory } from '../rules/inventory';
+import { type Connection } from '@/shared/workspace/connection';
 
-export function useRegisterProject(connection: ProjectConnection | null) {
+export function useRegisterProject(connection: Connection | null) {
   if (!connection) throw new Error('A connected environment is required');
   const client = useQueryClient();
   const key = inventoryQueryOptions(
     connection.environmentId,
-    connection.request,
+    connection,
   ).queryKey;
   return asMutation(
     useMutation({
@@ -18,7 +18,7 @@ export function useRegisterProject(connection: ProjectConnection | null) {
       mutationFn: async (path: string) => {
         await client.cancelQueries({ queryKey: key });
         const request = connection.request();
-        const project = await projectsApi.inventory.register(
+        const project = await projectsApi(connection).inventory.register(
           request.signal,
           path,
         );

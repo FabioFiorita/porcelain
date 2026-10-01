@@ -2,7 +2,6 @@ import { parsePatchFiles } from '@pierre/diffs';
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useAccessStore } from '@/features/access/index';
 import {
   selectionKey,
   useChangeDiffs,
@@ -26,16 +25,17 @@ import type {
   ReviewScope,
   ReviewStep,
 } from '../rules/review';
-import { CodeDocument, type DocumentContext } from './code-document';
+import { CodeDocument } from './code-document';
 import { fileReviewControl } from './reviewed-control';
 import { DocumentToolbar } from './document-toolbar';
 import { ProofList } from './proof-list';
 import type { Graph } from './review-diagram';
 import { ReviewDiagram } from './lazy-review-diagram';
+import { type ConnectionContext } from '@/shared/workspace/connection';
 
 type LayerProps = {
   scope: ReviewScope;
-  context: DocumentContext;
+  context: ConnectionContext;
   interaction: DocumentInteraction;
   onOpen: OpenDocument;
 };
@@ -193,7 +193,7 @@ function LayerSteps({
   focus: string | undefined;
 }) {
   const { scope, context } = props;
-  const connection = useAccessStore((state) => state.connection);
+  const { connection } = context;
   const recover = useRecoverChangedDiffs(scope, connection);
   usePrefetchReviewed(scope, context);
   const { changes } = useChanges(scope, connection);
@@ -275,7 +275,7 @@ function Step({
     step.kind === 'context' ||
     committed ||
     item?.comparisons.some((change) => change.scope === 'untracked');
-  const connection = useAccessStore((state) => state.connection);
+  const { connection } = context;
   const lines = useChangeLines(
     scope,
     connection,

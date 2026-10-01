@@ -1,6 +1,12 @@
 import type { EditFileRequest } from '@porcelain/contracts/files';
 
-export type ServerRead = { target: 'network' | 'owner'; path: string };
+export type ServerName = 'this' | 'remote';
+
+export type ServerRead = {
+  server: ServerName;
+  target: 'network' | 'owner';
+  path: string;
+};
 
 export type ServerAnswer = { status: number; body: unknown };
 

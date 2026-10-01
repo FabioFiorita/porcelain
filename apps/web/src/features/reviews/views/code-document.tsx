@@ -16,13 +16,7 @@ import {
   ChevronsUpDownIcon,
   MessageSquarePlusIcon,
 } from 'lucide-react';
-import {
-  type ComponentProps,
-  type ReactNode,
-  useEffect,
-  useRef,
-  useState,
-} from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ButtonGroup } from '@/components/ui/button-group';
 import { toast } from '@/components/ui/toast';
@@ -52,13 +46,11 @@ import {
 } from '../rules/comments';
 import type { DocumentInteraction } from '../rules/documents';
 import { basename, type ReviewScope } from '../rules/review';
-import type { ReviewRange, ReviewsContext } from '../rules/reviewed';
+import type { ReviewRange } from '../rules/reviewed';
 import { useCodeFolds } from '../store';
 import { InlineComposer } from './inline-composer';
 import { ThreadCard } from './thread-card';
-
-export type DocumentContext = ReviewsContext &
-  ComponentProps<typeof DiscardButton>['context'];
+import { type ConnectionContext } from '@/shared/workspace/connection';
 
 type Note =
   | { kind: 'thread'; thread: CommentThread; stale: boolean }
@@ -66,7 +58,7 @@ type Note =
 type Props = {
   entries: readonly CodeEntry[];
   scope: ReviewScope;
-  context: DocumentContext;
+  context: ConnectionContext;
   interaction: DocumentInteraction;
   header?: () => ReactNode;
   headerLeading?: ReactNode;

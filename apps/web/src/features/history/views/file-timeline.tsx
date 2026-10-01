@@ -4,22 +4,23 @@ import {
   EmptyHeader,
   EmptyTitle,
 } from '@/components/ui/empty';
-import { useAccessStore } from '@/features/access/index';
 import { useFileTimeline } from '../queries/file-timeline';
 import { timelineChange } from '../rules/commit';
 import type { HistoryScope } from '../rules/connection';
 import { CommitRow } from './commit-row';
+import { type Connection } from '@/shared/workspace/connection';
 
 export function FileTimeline({
   scope,
+  connection,
   path,
   onSelect,
 }: {
   scope: HistoryScope;
+  connection: Connection;
   path: string;
   onSelect: (commit: { oid: string; path: string }) => void;
 }) {
-  const connection = useAccessStore((state) => state.connection);
   const timeline = useFileTimeline(connection, scope, path);
   if (timeline.commits.length === 0)
     return (

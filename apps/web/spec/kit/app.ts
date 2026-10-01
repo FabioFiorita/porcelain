@@ -1,6 +1,7 @@
 import { pairingLink } from '@porcelain/contracts/access';
 import { page } from 'vitest/browser';
 import { hostCommands } from './commands';
+import type { ServerName } from './protocol';
 
 export type BrowserFailure = {
   kind: 'console error' | 'uncaught error' | 'unhandled rejection';
@@ -207,7 +208,10 @@ function title() {
 }
 
 async function link(installation: 'this' | 'another') {
-  const issued = await hostCommands.porcelainPairingLink('Journey browser');
+  const issued = await hostCommands.porcelainPairingLink(
+    'Journey browser',
+    'this',
+  );
   return pairingLink({
     addresses: [''],
     code: issued.code,
@@ -216,8 +220,11 @@ async function link(installation: 'this' | 'another') {
   });
 }
 
-async function remoteLink() {
-  const issued = await hostCommands.porcelainPairingLink('Remote computer');
+async function remoteLink(server: ServerName = 'remote') {
+  const issued = await hostCommands.porcelainPairingLink(
+    'Remote computer',
+    server,
+  );
   return pairingLink({
     addresses: [issued.address],
     code: issued.code,

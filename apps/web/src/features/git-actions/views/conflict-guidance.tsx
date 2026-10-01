@@ -1,18 +1,21 @@
 import { CopyIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useAccessStore } from '@/features/access/index';
 import { useReviewOverview } from '@/features/changes/index';
 import type { GitScope } from '../rules/git-action';
 import { copyText } from '@/shared/workspace/copy';
 
 export function ConflictGuidance({
   scope,
+  context,
   onOpen,
 }: {
   scope: GitScope;
+  context: {
+    connection: NonNullable<Parameters<typeof useReviewOverview>[1]>;
+  };
   onOpen: (entry: { kind: 'file'; path: string }) => void;
 }) {
-  const connection = useAccessStore((state) => state.connection);
+  const { connection } = context;
   const overview = useReviewOverview(scope, connection);
   const state = overview?.changes.inProgress;
   if (!state) return null;

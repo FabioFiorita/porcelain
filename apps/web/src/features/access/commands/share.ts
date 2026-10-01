@@ -7,15 +7,16 @@ import {
   remoteAccessQueryOptions,
   serviceUpdateQueryOptions,
 } from '../queries/share';
-import { issuedLink, type ShareConnection } from '../rules/share';
+import { issuedLink } from '../rules/share';
+import { type Connection } from '@/shared/workspace/connection';
 
-export function useIssuePairing(connection: ShareConnection) {
+export function useIssuePairing(connection: Connection) {
   const client = useQueryClient();
   const mutation = useMutation({
     scope: { id: `share:${connection.environmentId}` },
     mutationFn: async (input: { label: string; addresses: string[] }) =>
       issuedLink(
-        await shareApi.issue(
+        await shareApi(connection).issue(
           connection.request().signal,
           input.label,
           input.addresses,
@@ -35,12 +36,12 @@ export function useIssuePairing(connection: ShareConnection) {
   };
 }
 
-export function useRevokeAccess(connection: ShareConnection) {
+export function useRevokeAccess(connection: Connection) {
   const client = useQueryClient();
   const mutation = useMutation({
     scope: { id: `share:${connection.environmentId}` },
     mutationFn: (id: string) =>
-      shareApi.revoke(connection.request().signal, id),
+      shareApi(connection).revoke(connection.request().signal, id),
     onSettled: () =>
       client.invalidateQueries({
         queryKey: pairedAccessQueryOptions(connection).queryKey,
@@ -53,13 +54,13 @@ export function useRevokeAccess(connection: ShareConnection) {
   };
 }
 
-export function useSetRemoteAccess(connection: ShareConnection) {
+export function useSetRemoteAccess(connection: Connection) {
   const client = useQueryClient();
   const key = remoteAccessQueryOptions(connection).queryKey;
   const mutation = useMutation({
     scope: { id: `remote-access:${connection.environmentId}` },
     mutationFn: (change: SetRemoteAccessRequest) =>
-      shareApi.setRemote(connection.request().signal, change),
+      shareApi(connection).setRemote(connection.request().signal, change),
     onSuccess: async (remote) => {
       await client.cancelQueries({ queryKey: key });
       client.setQueryData(key, remote);
@@ -72,12 +73,12 @@ export function useSetRemoteAccess(connection: ShareConnection) {
   };
 }
 
-export function useRenameEnvironment(connection: ShareConnection) {
+export function useRenameEnvironment(connection: Connection) {
   const client = useQueryClient();
   const mutation = useMutation({
     scope: { id: `environment-name:${connection.environmentId}` },
     mutationFn: (name: string | null) =>
-      shareApi.rename(connection.request().signal, name),
+      shareApi(connection).rename(connection.request().signal, name),
     onSuccess: () =>
       client.invalidateQueries({
         queryKey: queryKeys.inventory(connection.environmentId),
@@ -91,13 +92,16 @@ export function useRenameEnvironment(connection: ShareConnection) {
   };
 }
 
-export function useStartServiceUpdate(connection: ShareConnection) {
+export function useStartServiceUpdate(connection: Connection) {
   const client = useQueryClient();
   const key = serviceUpdateQueryOptions(connection).queryKey;
   const mutation = useMutation({
     scope: { id: `service-update:${connection.environmentId}` },
     mutationFn: (version: string) =>
-      shareApi.startServiceUpdate(connection.request().signal, version),
+      shareApi(connection).startServiceUpdate(
+        connection.request().signal,
+        version,
+      ),
     onSuccess: async (state) => {
       await client.cancelQueries({ queryKey: key });
       client.setQueryData(key, state);

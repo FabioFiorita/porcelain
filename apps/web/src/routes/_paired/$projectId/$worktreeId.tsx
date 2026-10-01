@@ -26,5 +26,5 @@ function WorktreeLayout() {
     return (
       <Navigate to="/" search={{ ...search, worktree: worktreeId }} replace />
     );
-  return <ConnectedWorkspace review={{ selection, search }} />;
+  return <ConnectedWorkspace review={{ selection, search, inventory }} />;
 }

@@ -2,17 +2,14 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { accessApi } from '../api';
 import { useAccessStore } from '../store';
 import { ConnectionError } from '@/shared/api/connection-error';
-import { retainedFileDrafts } from '@/shared/query/file-drafts';
+import { saveFileDrafts } from '@/shared/query/file-drafts';
+import { unsavedDraftsMessage } from '../rules/connection-error-message';
 
 async function disconnectSession() {
   const connection = useAccessStore.getState().connection;
   try {
-    if (connection)
-      for (const draft of retainedFileDrafts(connection).values())
-        if (!(await draft.save()))
-          throw new ConnectionError(
-            'Save or discard unsaved file drafts before disconnecting.',
-          );
+    if (connection && !(await saveFileDrafts(connection.environmentId)))
+      throw new ConnectionError(unsavedDraftsMessage);
     await accessApi.session.disconnect();
   } catch (error) {
     throw error instanceof ConnectionError

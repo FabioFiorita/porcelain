@@ -14,6 +14,7 @@ import type {
   RepoStep,
   ServerAnswer,
   ServerHit,
+  ServerName,
   ServerRead,
 } from '../../../../apps/web/spec/kit/protocol.ts';
 import type {
@@ -26,7 +27,11 @@ import {
   toolCall,
   toolResult,
 } from '../../server-verify/scripts/fixture.ts';
-import { Recorder, ServerHandle } from '../../server-verify/scripts/session.ts';
+import {
+  Recorder,
+  ServerHandle,
+  type IsolatedServer,
+} from '../../server-verify/scripts/session.ts';
 
 export const journeyHeader = { 'x-porcelain-journey': 'kit' };
 const proofScreenshot = 'proof-screenshot.png';
@@ -39,12 +44,73 @@ let recorder = new Recorder();
 recorder.phase = 'follow-up';
 let attached: Promise<ServerHandle> | undefined;
 let evidenceFolder: string | undefined;
+let remote:
+  | {
+      start: () => Promise<IsolatedServer>;
+      started?: Promise<IsolatedServer>;
+    }
+  | undefined;
 
-export function setJourneyServer(manifest: string, evidence: string): void {
+export const remoteComputerName = 'Remote journey computer';
+export const remoteProjectName = 'remote-sample';
+
+export function setJourneyServer(
+  manifest: string,
+  evidence: string,
+  startRemote?: () => Promise<IsolatedServer>,
+): void {
   recorder = new Recorder();
   recorder.phase = 'follow-up';
   attached = ServerHandle.attach(manifest);
   evidenceFolder = evidence;
+  remote = startRemote === undefined ? undefined : { start: startRemote };
+}
+
+export function takeJourneyRemote(): Promise<IsolatedServer> | undefined {
+  const started = remote?.started;
+  remote = undefined;
+  return started;
+}
+
+async function prepareRemote(start: () => Promise<IsolatedServer>) {
+  const started = await start();
+  try {
+    const kit = started.session(recorder, { projectId: '', worktreeId: '' });
+    await read(kit, {
+      method: 'PUT',
+      path: '/api/environment/name',
+      headers: journeyHeader,
+      body: { name: remoteComputerName },
+    });
+    const project = readInventoryResponseSchema.parse(
+      await read(kit, {
+        method: 'GET',
+        path: '/api/inventory',
+        headers: journeyHeader,
+      }),
+    ).projects[0];
+    if (project === undefined)
+      throw new Error('The remote computer has no project.');
+    await read(kit, {
+      method: 'PATCH',
+      path: `/api/projects/${encodeURIComponent(project.id)}`,
+      headers: journeyHeader,
+      body: { name: remoteProjectName },
+    });
+    return started;
+  } catch (error) {
+    await started.stop();
+    throw error;
+  }
+}
+
+function remoteHandle(): Promise<IsolatedServer> {
+  if (remote === undefined)
+    throw new Error(
+      'Journeys run through pnpm verify:web, which starts the remote computer when a journey first asks for it.',
+    );
+  remote.started ??= prepareRemote(remote.start);
+  return remote.started;
 }
 
 function handle(): Promise<ServerHandle> {
@@ -58,8 +124,15 @@ function handle(): Promise<ServerHandle> {
   return attached;
 }
 
-async function session() {
-  return (await handle()).session(recorder, { projectId: '', worktreeId: '' });
+function handleOf(server: ServerName): Promise<ServerHandle> {
+  return server === 'remote' ? remoteHandle() : handle();
+}
+
+async function session(server: ServerName = 'this') {
+  return (await handleOf(server)).session(recorder, {
+    projectId: '',
+    worktreeId: '',
+  });
 }
 
 async function keepEvidence() {
@@ -76,7 +149,7 @@ const porcelainRead: BrowserCommand<[ServerRead], ServerAnswer> = async (
   request,
 ) => {
   const response = await (
-    await session()
+    await session(request.server)
   ).send({
     method: 'GET',
     path: request.path,
@@ -163,11 +236,12 @@ async function agentActs(agent: Session, action: AgentAction) {
   return '';
 }
 
-const porcelainRepo: BrowserCommand<[RepoStep], string> = async (
+const porcelainRepo: BrowserCommand<[RepoStep, ServerName], string> = async (
   _context,
   step,
+  server,
 ) => {
-  const repository = await session();
+  const repository = await session(server);
   const done = await (async () => {
     if (step.kind === 'agent') return agentActs(repository, step.action);
     if (step.kind === 'write') {
@@ -206,8 +280,11 @@ const porcelainRepo: BrowserCommand<[RepoStep], string> = async (
   return done;
 };
 
-const porcelainFixture: BrowserCommand<[], RepoFixture> = async () => {
-  const { fixture } = await handle();
+const porcelainFixture: BrowserCommand<[ServerName], RepoFixture> = async (
+  _context,
+  server,
+) => {
+  const { fixture } = await handleOf(server);
   return {
     branch: fixture.branch,
     initialCommit: fixture.initialCommit,
@@ -215,11 +292,11 @@ const porcelainFixture: BrowserCommand<[], RepoFixture> = async () => {
   };
 };
 
-const porcelainPairingLink: BrowserCommand<[string], PairingParts> = async (
-  _context,
-  label,
-) => {
-  const owner = await session();
+const porcelainPairingLink: BrowserCommand<
+  [string, ServerName],
+  PairingParts
+> = async (_context, label, server) => {
+  const owner = await session(server);
   const [grant] = issuePairingResponseSchema.parse(
     await read(owner, {
       method: 'POST',
@@ -237,10 +314,14 @@ const porcelainPairingLink: BrowserCommand<[string], PairingParts> = async (
   };
 };
 
-const porcelainHits: BrowserCommand<[number], ServerHit[]> = async (
+const porcelainHits: BrowserCommand<[number, ServerName], ServerHit[]> = async (
   _context,
   since,
-) => (await (await handle()).hits()).slice(since);
+  server,
+) => {
+  if (server === 'remote' && remote?.started === undefined) return [];
+  return (await (await handleOf(server)).hits()).slice(since);
+};
 
 const porcelainProjectHome: BrowserCommand<[ProjectHomeStep], string> = async (
   _context,

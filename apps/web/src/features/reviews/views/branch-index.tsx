@@ -2,7 +2,6 @@ import { GitBranchIcon } from 'lucide-react';
 import { Suspense } from 'react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { useAccessStore } from '@/features/access/index';
 import {
   branchErrorMessage,
   branchName,
@@ -15,12 +14,13 @@ import { useReviewedMarks } from '../queries/reviewed';
 import { anchorPath, type CommentThread } from '../rules/comments';
 import { BRANCH, entryKey, type OpenDocument } from '../rules/documents';
 import { mergeBranchChanges, type ReviewScope } from '../rules/review';
-import { branchReviewRange, type ReviewsContext } from '../rules/reviewed';
+import { branchReviewRange } from '../rules/reviewed';
 import { BranchBasePicker } from './branch-base-picker';
 import { ChangeRow, ROW } from './change-row';
 import { ReviewEmpty } from './review-empty';
 import { groupSpecPaths } from '../rules/spec-paths';
 import { usePreferences } from '@/shared/workspace/preferences';
+import { type ConnectionContext } from '@/shared/workspace/connection';
 
 export function BranchIndex({
   scope,
@@ -32,7 +32,7 @@ export function BranchIndex({
   onBase,
 }: {
   scope: ReviewScope;
-  context: ReviewsContext;
+  context: ConnectionContext;
   base: string | undefined;
   activeEntry: string | undefined;
   threads: readonly CommentThread[];
@@ -42,7 +42,12 @@ export function BranchIndex({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="shrink-0 px-2 pt-2">
-        <BranchBasePicker scope={scope} base={base} onBase={onBase} />
+        <BranchBasePicker
+          scope={scope}
+          connection={context.connection}
+          base={base}
+          onBase={onBase}
+        />
       </div>
       <BranchFiles
         scope={scope}
@@ -65,13 +70,13 @@ function BranchFiles({
   onOpen,
 }: {
   scope: ReviewScope;
-  context: ReviewsContext;
+  context: ConnectionContext;
   base: string | undefined;
   activeEntry: string | undefined;
   threads: readonly CommentThread[];
   onOpen: OpenDocument;
 }) {
-  const connection = useAccessStore((state) => state.connection);
+  const { connection } = context;
   const changes = useBranchChanges(scope, connection, base);
   if (changes.isError)
     return (
@@ -128,7 +133,7 @@ function BranchFileList({
   onOpen,
 }: {
   scope: ReviewScope;
-  context: ReviewsContext;
+  context: ConnectionContext;
   branch: NonNullable<ReturnType<typeof useBranchChanges>['data']>;
   activeEntry: string | undefined;
   threads: readonly CommentThread[];

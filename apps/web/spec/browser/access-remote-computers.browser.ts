@@ -4,9 +4,9 @@ import { test } from '../kit/journey';
 test('the desktop app adds a remote computer from the link porcelain pair prints, shows it online, refuses a used or broken link, and forgets it', async ({
   pairedPage,
   app,
-  server,
+  remote,
 }) => {
-  const host = (await server.inventory()).environment.name;
+  const host = (await remote.server.inventory()).environment.name;
   await pairedPage
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
@@ -39,6 +39,14 @@ test('the desktop app adds a remote computer from the link porcelain pair prints
     )
     .toBeVisible();
 
+  await field.fill(await app.remoteLink('this'));
+  await add.click();
+  await expect
+    .element(
+      settings.getByText('That link is for this computer.', { exact: true }),
+    )
+    .toBeVisible();
+
   const link = await app.remoteLink();
   await field.fill(link);
   await add.click();
@@ -46,13 +54,15 @@ test('the desktop app adds a remote computer from the link porcelain pair prints
     name: 'Remote computers',
     exact: true,
   });
-  const remote = remotes.getByRole('listitem', { name: host, exact: true });
-  await expect.element(remote).toBeVisible();
+  const listed = remotes.getByRole('listitem', { name: host, exact: true });
+  await expect.element(listed).toBeVisible();
   await expect
-    .element(remote.getByText('Online', { exact: true }))
+    .element(listed.getByText('Online', { exact: true }))
     .toBeVisible();
   await expect
-    .poll(async () => (await server.devices()).map((device) => device.label))
+    .poll(async () =>
+      (await remote.server.devices()).map((device) => device.label),
+    )
     .toContain('Remote computer');
 
   await field.fill(link);
@@ -66,7 +76,7 @@ test('the desktop app adds a remote computer from the link porcelain pair prints
     )
     .toBeVisible();
 
-  await remote
+  await listed
     .getByRole('button', { name: `Remove ${host}`, exact: true })
     .click();
   await expect.element(empty).toBeVisible();

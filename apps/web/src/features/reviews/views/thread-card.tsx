@@ -50,7 +50,7 @@ import {
   reviewErrorMessage,
   type ReviewScope,
 } from '../rules/review';
-import type { ReviewsContext } from '../rules/reviewed';
+import { type ConnectionContext } from '@/shared/workspace/connection';
 
 const relative = (iso?: string) =>
   iso == null
@@ -91,7 +91,7 @@ function ThreadStarter({ thread }: { thread: CommentThread }) {
 
 type MessageOwner = {
   scope: ReviewScope;
-  context: ReviewsContext;
+  context: ConnectionContext;
   threadId: string;
 };
 
@@ -266,7 +266,7 @@ export function ThreadCard({
 }: {
   thread: CommentThread;
   scope: ReviewScope;
-  context: ReviewsContext;
+  context: ConnectionContext;
   onReveal?: () => void;
 }) {
   const [replying, setReplying] = useState(false);

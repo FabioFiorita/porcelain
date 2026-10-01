@@ -1,5 +1,10 @@
 import { formatForDisplay } from '@tanstack/react-hotkeys';
-import { PlusIcon, SettingsIcon, KeyboardIcon } from 'lucide-react';
+import {
+  KeyboardIcon,
+  MonitorIcon,
+  PlusIcon,
+  SettingsIcon,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Empty,
@@ -8,31 +13,65 @@ import {
   EmptyTitle,
 } from '@/components/ui/empty';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import type { RemoteConnection } from '@/features/access/index';
 import { desktopShell } from '@/shared/shell';
-import type { Inventory } from '../rules/inventory';
+import type { Inventory, WorktreeTarget } from '../rules/inventory';
+import { MachineSection } from './machine-section';
+import { RemoteMachine } from './remote-machine';
 import { RemoveProjectDialog } from './remove-project-dialog';
 import { RenameProjectDialog } from './rename-project-dialog';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
 import { ProjectSection } from './project-section';
+import { type Connection } from '@/shared/workspace/connection';
 
 type Props = {
   inventory: Inventory;
-  selectedWorktreeId: string | undefined;
-  onSelect: (id: string) => void;
+  connection: Connection;
+  remotes: readonly RemoteConnection[] | undefined;
+  selected: Pick<WorktreeTarget, 'remote' | 'worktreeId'> | undefined;
+  onSelect: (target: WorktreeTarget) => void;
   onOpenProject: () => void;
   onOpenSettings: () => void;
+  onOpenRemotes: () => void;
   onOpenShortcuts: () => void;
 };
 
 export function ProjectNavigator({
   inventory,
-  selectedWorktreeId: selected,
+  connection,
+  remotes,
+  selected,
   onSelect: select,
   onOpenProject: openProject,
   onOpenSettings: openSettings,
+  onOpenRemotes: openRemotes,
   onOpenShortcuts: openShortcuts,
 }: Props) {
   const projects = inventory.projects;
+  const selectedOn = (remote: string | null) =>
+    selected?.remote === remote ? selected.worktreeId : undefined;
+  const local =
+    projects.length === 0 ? (
+      <Empty>
+        <EmptyHeader>
+          <EmptyTitle>No projects registered</EmptyTitle>
+          <EmptyDescription>
+            This environment has no projects yet.
+          </EmptyDescription>
+        </EmptyHeader>
+      </Empty>
+    ) : (
+      projects.map((project) => (
+        <ProjectSection
+          key={project.id}
+          project={project}
+          selected={selectedOn(null)}
+          onSelect={(worktreeId) =>
+            select({ remote: null, projectId: project.id, worktreeId })
+          }
+        />
+      ))
+    );
 
   return (
     <nav
@@ -71,24 +110,23 @@ export function ProjectNavigator({
 
       <ScrollArea className="h-0 min-h-0 flex-1">
         <div className="p-2">
-          {projects.length === 0 ? (
-            <Empty>
-              <EmptyHeader>
-                <EmptyTitle>No projects registered</EmptyTitle>
-                <EmptyDescription>
-                  This environment has no projects yet.
-                </EmptyDescription>
-              </EmptyHeader>
-            </Empty>
+          {remotes ? (
+            <>
+              <MachineSection name="This computer" icon={MonitorIcon}>
+                {local}
+              </MachineSection>
+              {remotes.map((entry) => (
+                <RemoteMachine
+                  key={entry.remote.environmentId}
+                  entry={entry}
+                  selected={selectedOn(entry.remote.environmentId)}
+                  onSelect={select}
+                  onOpenRemotes={openRemotes}
+                />
+              ))}
+            </>
           ) : (
-            projects.map((project) => (
-              <ProjectSection
-                key={project.id}
-                project={project}
-                selected={selected}
-                onSelect={select}
-              />
-            ))
+            local
           )}
         </div>
       </ScrollArea>
@@ -115,8 +153,8 @@ export function ProjectNavigator({
           <KeyboardIcon />
         </Button>
       </footer>
-      <RenameProjectDialog />
-      <RemoveProjectDialog />
+      <RenameProjectDialog connection={connection} />
+      <RemoveProjectDialog connection={connection} />
     </nav>
   );
 }

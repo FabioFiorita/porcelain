@@ -20,7 +20,6 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/shared/lib/utils';
 import { type ChangeScope, isChangeScope } from '@/shared/workspace/search';
-import { useAccessStore } from '@/features/access/index';
 import { useBranchChanges, useChanges } from '@/features/changes/index';
 import { useMarkCommentsSeen } from '../commands/comments';
 import { useToggleReviewed } from '../commands/reviewed';
@@ -51,20 +50,19 @@ import {
   type ReviewResponse,
   type ReviewScope,
 } from '../rules/review';
-import type { ReviewsContext } from '../rules/reviewed';
 import { BranchIndex } from './branch-index';
 import { ChangeRow, ROW } from './change-row';
-import type { DocumentContext } from './code-document';
 import { DeleteResolved } from './delete-resolved';
 import { InlineComposer } from './inline-composer';
 import { BranchReadiness, ChangeReadiness } from './readiness-panel';
 import { ThreadCard } from './thread-card';
 import { groupSpecPaths } from '../rules/spec-paths';
 import { usePreferences } from '@/shared/workspace/preferences';
+import { type ConnectionContext } from '@/shared/workspace/connection';
 
 type Props = {
   scope: ReviewScope;
-  context: DocumentContext;
+  context: ConnectionContext;
   activeEntry: string | undefined;
   onOpen: OpenDocument;
 };
@@ -85,7 +83,7 @@ export function ReviewIndex({
   onChangeScope,
   onBase,
 }: Props & ScopeProps) {
-  const connection = useAccessStore((state) => state.connection);
+  const { connection } = context;
   const [view, setView] = useState<'layers' | 'comments'>('layers');
   usePrefetchReviewed(scope, context);
   usePrefetchComments(scope, context);
@@ -395,7 +393,7 @@ function ChangeComment({
   anchor,
 }: {
   scope: ReviewScope;
-  context: ReviewsContext;
+  context: ConnectionContext;
   anchor: CommentAnchor | undefined;
 }) {
   const [open, setOpen] = useState(false);
@@ -432,10 +430,10 @@ function BranchChangeComment({
   base,
 }: {
   scope: ReviewScope;
-  context: ReviewsContext;
+  context: ConnectionContext;
   base: string | undefined;
 }) {
-  const connection = useAccessStore((state) => state.connection);
+  const { connection } = context;
   const changes = useBranchChanges(scope, connection, base);
   const ref = changes.data?.base?.ref;
   const tip = changes.data?.head.oid;
@@ -462,7 +460,7 @@ function CommentsView({
   onOpen,
 }: {
   scope: ReviewScope;
-  context: ReviewsContext;
+  context: ConnectionContext;
   list: ChangeList;
   threads: readonly CommentThread[];
   branch: boolean;

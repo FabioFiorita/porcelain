@@ -1,18 +1,18 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { changesQueryOptions } from '../queries/changes';
-import {
-  requireChangesConnection,
-  type ChangesConnection,
-  type ChangesScope,
-} from '../rules/changes';
+import { type ChangesScope } from '../rules/changes';
 import { useChangesStore } from '../store';
+import {
+  type Connection,
+  requireConnection,
+} from '@/shared/workspace/connection';
 
 export function useRecoverChangedDiffs(
   scope: ChangesScope,
-  possibleConnection: ChangesConnection | null,
+  possibleConnection: Connection | null,
 ) {
   const client = useQueryClient();
-  const connection = requireChangesConnection(possibleConnection);
+  const connection = requireConnection(possibleConnection);
   const options = changesQueryOptions(scope, connection);
   const key = JSON.stringify([
     connection.environmentId,

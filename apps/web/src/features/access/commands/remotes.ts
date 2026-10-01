@@ -1,10 +1,13 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { ConnectionError } from '@/shared/api/connection-error';
 import { REQUEST_TIMEOUT_MS } from '@/shared/api/request-timeout';
+import { remoteTransport } from '@/shared/api/transport';
+import { dropFileDrafts, saveFileDrafts } from '@/shared/query/file-drafts';
 import { remoteApi } from '../api';
 import { remoteStatusQueryOptions } from '../queries/remotes';
+import { unsavedDraftsMessage } from '../rules/connection-error-message';
 import { remoteLink, remoteStatus, type Remote } from '../rules/remotes';
-import { useRemotesStore } from '../store';
+import { useAccessStore, useRemotesStore } from '../store';
 
 async function addRemote(value: string): Promise<Remote> {
   const link = remoteLink(value);
@@ -12,10 +15,18 @@ async function addRemote(value: string): Promise<Remote> {
     throw new ConnectionError(
       'Paste the whole link porcelain pair printed, starting with http.',
     );
+  if (
+    link.environmentId === useAccessStore.getState().connection?.environmentId
+  )
+    throw new ConnectionError('That link is for this computer.');
   const signal = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
-  const credential = await remoteApi.pair(link, signal);
+  const credential = await remoteApi.pair(
+    remoteTransport(link.address),
+    link,
+    signal,
+  );
   const answer = await remoteApi.describe(
-    { address: link.address, credential },
+    remoteTransport(link.address, credential),
     signal,
   );
   const status = remoteStatus(link, answer);
@@ -55,12 +66,34 @@ export function useAddRemote() {
   };
 }
 
+async function forgetRemote(remote: Remote) {
+  if (!(await saveFileDrafts(remote.environmentId)))
+    throw new ConnectionError(unsavedDraftsMessage);
+  useRemotesStore.getState().forget(remote.environmentId);
+  dropFileDrafts(remote.environmentId);
+  return remote;
+}
+
 export function useForgetRemote() {
   const client = useQueryClient();
-  return (remote: Remote) => {
-    useRemotesStore.getState().forget(remote.environmentId);
-    client.removeQueries({
+  const mutation = useMutation({
+    mutationFn: forgetRemote,
+    onSuccess: (remote) =>
+      client.removeQueries({
+        queryKey: remoteStatusQueryOptions(remote).queryKey,
+      }),
+  });
+  return {
+    submit: mutation.mutate,
+    isPending: mutation.isPending,
+    error: mutation.error,
+  };
+}
+
+export function useRecheckRemote() {
+  const client = useQueryClient();
+  return (remote: Remote) =>
+    client.invalidateQueries({
       queryKey: remoteStatusQueryOptions(remote).queryKey,
     });
-  };
 }

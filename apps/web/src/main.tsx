@@ -5,13 +5,11 @@ import { createRoot } from 'react-dom/client';
 import { Toaster } from './components/ui/toast';
 import { TooltipProvider } from './components/ui/tooltip';
 import './app.css';
-import { createBootApi } from './app/boot';
 import { createQueryClient } from '@/shared/query/client';
 import { WorkspaceProvider } from './app/workspace-provider';
 import { routeTree } from './routeTree.gen';
 
 const queryClient = createQueryClient();
-const api = await createBootApi();
 const router = createRouter({
   routeTree,
   context: { queryClient },
@@ -31,7 +29,7 @@ createRoot(root).render(
   <StrictMode>
     <TooltipProvider>
       <QueryClientProvider client={queryClient}>
-        <WorkspaceProvider api={api}>
+        <WorkspaceProvider>
           <Toaster>
             <RouterProvider router={router} />
           </Toaster>

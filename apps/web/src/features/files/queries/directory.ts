@@ -4,13 +4,14 @@ import {
   useSuspenseQuery,
 } from '@tanstack/react-query';
 import { filesApi } from '../api';
-import type { FilesConnection, FilesScope } from '../rules/scope';
+import type { FilesScope } from '../rules/scope';
+import { type Connection } from '@/shared/workspace/connection';
 
 function directoryQueryOptions(
   environmentId: string,
   scope: FilesScope,
   path: string,
-  request: (signal?: AbortSignal) => { signal: AbortSignal },
+  connection: Connection,
 ) {
   return queryOptions({
     queryKey: [
@@ -22,8 +23,8 @@ function directoryQueryOptions(
       path,
     ],
     queryFn: async ({ signal }) => {
-      const connected = request(signal);
-      const response = await filesApi.directory(
+      const connected = connection.request(signal);
+      const response = await filesApi(connection).directory(
         connected.signal,
         scope.worktreeId,
         path,
@@ -35,35 +36,25 @@ function directoryQueryOptions(
 }
 
 export function useDirectory(
-  connection: FilesConnection | null,
+  connection: Connection | null,
   scope: FilesScope,
   path: string,
 ) {
   if (!connection) throw new Error('A connected environment is required');
   return useSuspenseQuery(
-    directoryQueryOptions(
-      connection.environmentId,
-      scope,
-      path,
-      connection.request,
-    ),
+    directoryQueryOptions(connection.environmentId, scope, path, connection),
   ).data;
 }
 
 export function useDirectories(
-  connection: FilesConnection | null,
+  connection: Connection | null,
   scope: FilesScope,
   paths: readonly string[],
 ) {
   if (!connection) throw new Error('A connected environment is required');
   return useQueries({
     queries: paths.map((path) =>
-      directoryQueryOptions(
-        connection.environmentId,
-        scope,
-        path,
-        connection.request,
-      ),
+      directoryQueryOptions(connection.environmentId, scope, path, connection),
     ),
   });
 }

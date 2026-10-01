@@ -2,7 +2,6 @@ import { FileIcon, GitGraphIcon, HistoryIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CommitGraph, FileTimeline } from '@/features/history/index';
 import { DiscardButton } from '@/features/git-actions/index';
-import { useAccessStore } from '@/features/access/index';
 import { useChanges } from '@/features/changes/index';
 import { usePublishedReview } from '../queries/published-review';
 import { usePrefetchReviewed, useReviewChangeItems } from '../queries/reviewed';
@@ -15,7 +14,6 @@ import {
 } from '../rules/documents';
 import { proofOnLayer } from '../rules/proof';
 import type { ReviewScope } from '../rules/review';
-import type { DocumentContext } from './code-document';
 import { BranchDocument, BranchFileDocument } from './branch-document';
 import { CommitDocument } from './commit-document';
 import { DocumentToolbar } from './document-toolbar';
@@ -27,10 +25,11 @@ import { ReviewCodeDocument } from './review-code-document';
 import { MarkAllReviewed } from './reviewed-control';
 import { ReviewEmpty } from './review-empty';
 import { UnexplainedDocument } from './unexplained-document';
+import { type ConnectionContext } from '@/shared/workspace/connection';
 
 type DocumentProps = {
   scope: ReviewScope;
-  context: DocumentContext;
+  context: ConnectionContext;
   interaction: DocumentInteraction;
   onOpen: OpenDocument;
 };
@@ -45,7 +44,7 @@ export function DocumentView({
   base,
 }: {
   scope: ReviewScope;
-  context: DocumentContext;
+  context: ConnectionContext;
   document: DocumentRef;
   onOpen: OpenDocument;
   active?: boolean;
@@ -89,7 +88,7 @@ export function DocumentView({
   }
 }
 
-function GraphDocument({ scope, onOpen }: DocumentProps) {
+function GraphDocument({ scope, context, onOpen }: DocumentProps) {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <DocumentToolbar
@@ -104,6 +103,7 @@ function GraphDocument({ scope, onOpen }: DocumentProps) {
       <div className="min-h-0 flex-1 overflow-auto">
         <CommitGraph
           scope={scope}
+          connection={context.connection}
           onSelect={(oid) => onOpen({ kind: 'commit', oid })}
         />
       </div>
@@ -113,6 +113,7 @@ function GraphDocument({ scope, onOpen }: DocumentProps) {
 
 function TimelineDocument({
   scope,
+  context,
   path,
   onOpen,
 }: DocumentProps & { path: string }) {
@@ -131,6 +132,7 @@ function TimelineDocument({
       <div className="min-h-0 flex-1 overflow-auto">
         <FileTimeline
           scope={scope}
+          connection={context.connection}
           path={path}
           onSelect={(commit) =>
             onOpen(
@@ -165,7 +167,7 @@ function HandoffDocument(props: DocumentProps) {
 }
 
 function PlainChangesDocument({ scope, context, interaction }: DocumentProps) {
-  const connection = useAccessStore((state) => state.connection);
+  const { connection } = context;
   usePrefetchReviewed(scope, context);
   const list = useChanges(scope, connection).changes;
   const changes = useReviewChangeItems(scope, context, list);
@@ -230,7 +232,7 @@ function ChangeDocument({
   onOpen,
   path,
 }: DocumentProps & { path: string }) {
-  const connection = useAccessStore((state) => state.connection);
+  const { connection } = context;
   usePrefetchReviewed(scope, context);
   const list = useChanges(scope, connection).changes;
   const change = useReviewChangeItems(scope, context, list, [path]).find(

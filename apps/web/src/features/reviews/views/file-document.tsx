@@ -4,7 +4,6 @@ import { type ReactNode, useEffect, useId, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ButtonGroup } from '@/components/ui/button-group';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useAccessStore } from '@/features/access/index';
 import { useChanges } from '@/features/changes/index';
 import { copyText } from '@/shared/workspace/copy';
 import { usePreferences } from '@/shared/workspace/preferences';
@@ -26,14 +25,15 @@ import {
 import { fileEntry } from '../adapters/code-entries';
 import type { DocumentInteraction, OpenDocument } from '../rules/documents';
 import type { ReviewScope } from '../rules/review';
-import { CodeDocument, type DocumentContext } from './code-document';
+import { CodeDocument } from './code-document';
 import { DocumentToolbar } from './document-toolbar';
 import { FindBar } from './find-bar';
 import { ReviewEmpty } from './review-empty';
+import { type ConnectionContext } from '@/shared/workspace/connection';
 
 type FileDocumentProps = {
   scope: ReviewScope;
-  context: DocumentContext;
+  context: ConnectionContext;
   interaction: DocumentInteraction;
   path: string;
   onOpen: OpenDocument;
@@ -48,7 +48,11 @@ export function FileDocument(props: FileDocumentProps) {
           <CopyPath path={props.path} />
         </ButtonGroup>
       </FileToolbar>
-      <ImagePreview scope={props.scope} path={props.path} />
+      <ImagePreview
+        scope={props.scope}
+        path={props.path}
+        connection={props.context.connection}
+      />
     </div>
   ) : (
     <LinkedFileDocument {...props} />
@@ -57,7 +61,7 @@ export function FileDocument(props: FileDocumentProps) {
 
 function LinkedFileDocument(props: FileDocumentProps) {
   const parent = props.path.split('/').slice(0, -1).join('/');
-  const connection = useAccessStore((state) => state.connection);
+  const { connection } = props.context;
   const folder = useDirectory(connection, props.scope, parent);
   const name = props.path.split('/').at(-1);
   const link = folder.entries.find((entry) => entry.name === name);
@@ -91,7 +95,7 @@ function TextFileDocument({
   path,
   onOpen,
 }: FileDocumentProps) {
-  const connection = useAccessStore((state) => state.connection);
+  const { connection } = context;
   const file = useTextFile(connection, scope, path, interaction.active);
   const unreadable = 'kind' in file;
   const { draft, state } = useFileDraft(
@@ -151,7 +155,7 @@ function ReadableFileDocument({
   draftState: FileDraftState;
 }) {
   const { preferences } = usePreferences();
-  const connection = useAccessStore((state) => state.connection);
+  const { connection } = context;
   const { changes } = useChanges(scope, connection);
   const kind = fileKind(path);
   const changed = changes.changes.some((entry) => entry.path === path);
@@ -292,7 +296,12 @@ function ReadableFileDocument({
               a form, or move the page around them. A script can still send what
               it sees out by sending this frame to another address.
             </p>
-            <HtmlPreview scope={scope} path={path} html={text} />
+            <HtmlPreview
+              scope={scope}
+              path={path}
+              html={text}
+              connection={connection}
+            />
           </div>
         </>
       ) : (

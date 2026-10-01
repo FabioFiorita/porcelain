@@ -11,7 +11,7 @@ import {
   retainIntent,
 } from '../rules/comments';
 import { reviewErrorMessage, type ReviewScope } from '../rules/review';
-import type { ReviewsContext } from '../rules/reviewed';
+import { type ConnectionContext } from '@/shared/workspace/connection';
 
 export function InlineComposer({
   scope,
@@ -20,7 +20,7 @@ export function InlineComposer({
   onClose,
 }: {
   scope: ReviewScope;
-  context: ReviewsContext;
+  context: ConnectionContext;
   anchor: CommentAnchor;
   onClose: () => void;
 }) {

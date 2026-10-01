@@ -1,4 +1,3 @@
-import type { ProjectConnection } from '../rules/connection';
 import { Fragment } from 'react';
 import {
   Breadcrumb,
@@ -13,13 +12,14 @@ import { Spinner } from '@/components/ui/spinner';
 import { useProjectFolder } from '../queries/project-locations';
 import { useProjectBrowserStore } from '../store';
 import { ProjectFolderList } from './project-folder-list';
+import { type Connection } from '@/shared/workspace/connection';
 
 export function ProjectFolderPicker({
   connection,
   disabled,
   onOpen,
 }: {
-  connection: ProjectConnection | null;
+  connection: Connection | null;
   disabled: boolean;
   onOpen: (path: string) => void;
 }) {

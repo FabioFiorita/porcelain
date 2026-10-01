@@ -5,19 +5,23 @@ import { codingTool } from './coding-tool';
 import { createFetchGate } from './fetch-gate';
 import { hostCommands } from './commands';
 import { sampleRepository } from './repo';
-import { server } from './server';
+import { server, serverOn } from './server';
 
 type Expected =
   | { kind: 'console'; pattern: RegExp; seen: boolean }
   | { kind: 'response'; route: string; status: number; seen: boolean };
 
-let hitsSeen = 0;
+const hitsSeen = { this: 0, remote: 0 };
 
 watchBrowser();
 
 async function unexpectedFailures(expected: readonly Expected[]) {
-  const hits = await hostCommands.porcelainHits(hitsSeen);
-  hitsSeen += hits.length;
+  const hits = [];
+  for (const name of ['this', 'remote'] as const) {
+    const answered = await hostCommands.porcelainHits(hitsSeen[name], name);
+    hitsSeen[name] += answered.length;
+    hits.push(...answered);
+  }
   const found = [
     ...takeBrowserFailures().flatMap((failure) => {
       const declared = expected.find(
@@ -59,7 +63,11 @@ async function unexpectedFailures(expected: readonly Expected[]) {
 
 export const test = base
   .extend('server', { scope: 'file' }, () => server)
-  .extend('repo', { scope: 'file' }, () => sampleRepository())
+  .extend('repo', { scope: 'file' }, () => sampleRepository('this'))
+  .extend('remote', { scope: 'file' }, async () => ({
+    server: serverOn('remote'),
+    repo: await sampleRepository('remote'),
+  }))
   .extend('agent', { scope: 'file' }, () => agent)
   .extend('codingTool', { scope: 'file' }, () => codingTool)
   .extend('fetchGate', { scope: 'file' }, ({ repo }, { onCleanup }) => {

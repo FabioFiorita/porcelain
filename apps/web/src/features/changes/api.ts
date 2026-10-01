@@ -14,9 +14,10 @@ import {
   type ReadChangeDiffsRequest,
 } from '@porcelain/contracts/changes';
 import { RequestError, requestJson } from '@/shared/api/request';
-import { browserTransport } from '@/shared/api/transport';
+import { perConnection } from '@/shared/api/per-connection';
+import type { Transport } from '@/shared/api/transport';
 
-function createChangesApi(transport: typeof fetch) {
+function createChangesApi(transport: Transport) {
   const worktreePath = (worktreeId: string) =>
     `/api/worktrees/${encodeURIComponent(worktreeId)}`;
   return {
@@ -120,7 +121,7 @@ function createChangesApi(transport: typeof fetch) {
   };
 }
 
-export const changesApi = createChangesApi(browserTransport(fetch));
+export const changesApi = perConnection(createChangesApi);
 
 export function isWorktreeChangedError(error: unknown) {
   return (

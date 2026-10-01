@@ -1,11 +1,12 @@
 import { queryOptions, useQuery } from '@tanstack/react-query';
 import { filesApi } from '../api';
-import type { FilesConnection, FilesScope } from '../rules/scope';
+import type { FilesScope } from '../rules/scope';
+import { type Connection } from '@/shared/workspace/connection';
 
 function pathsQueryOptions(
   environmentId: string,
   scope: FilesScope,
-  request: (signal?: AbortSignal) => { signal: AbortSignal },
+  connection: Connection,
 ) {
   return queryOptions({
     queryKey: [
@@ -16,8 +17,11 @@ function pathsQueryOptions(
       'paths',
     ],
     queryFn: async ({ signal }) => {
-      const connected = request(signal);
-      const response = await filesApi.paths(connected.signal, scope.worktreeId);
+      const connected = connection.request(signal);
+      const response = await filesApi(connection).paths(
+        connected.signal,
+        scope.worktreeId,
+      );
       connected.signal.throwIfAborted();
       return response;
     },
@@ -25,13 +29,13 @@ function pathsQueryOptions(
 }
 
 export function useWorktreePaths(
-  connection: FilesConnection | null,
+  connection: Connection | null,
   scope: FilesScope,
   enabled = true,
 ) {
   if (!connection) throw new Error('A connected environment is required');
   return useQuery({
-    ...pathsQueryOptions(connection.environmentId, scope, connection.request),
+    ...pathsQueryOptions(connection.environmentId, scope, connection),
     enabled,
     retry: false,
     throwOnError: false,

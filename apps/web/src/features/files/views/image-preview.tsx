@@ -1,17 +1,18 @@
 import { assetUrl } from '@/features/files/rules/html-assets';
 import type { FilesScope } from '../rules/scope';
-import { useAccessStore } from '@/features/access/index';
 import { useAsset } from '@/features/files/queries/preview-assets';
 import { fileErrorMessage } from '../rules/error-message';
+import { type Connection } from '@/shared/workspace/connection';
 
 export function ImagePreview({
   scope,
   path,
+  connection,
 }: {
   scope: FilesScope;
   path: string;
+  connection: Connection;
 }) {
-  const connection = useAccessStore((state) => state.connection);
   const query = useAsset(connection, scope, path);
   return (
     <div className="flex w-full flex-col items-center gap-2 p-4">

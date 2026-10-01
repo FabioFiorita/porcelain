@@ -2,7 +2,6 @@ import { type ReactNode, Suspense, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DIFF_WINDOW_FILES } from '@/config/limits';
-import { useAccessStore } from '@/features/access/index';
 import {
   type BranchFile,
   branchErrorMessage,
@@ -26,14 +25,15 @@ import {
   type ReviewScope,
 } from '../rules/review';
 import { branchReviewRange, type ReviewRange } from '../rules/reviewed';
-import { CodeDocument, type DocumentContext } from './code-document';
+import { CodeDocument } from './code-document';
 import { DocumentToolbar } from './document-toolbar';
 import { MarkAllReviewed, ReviewedControl } from './reviewed-control';
 import { ReviewEmpty } from './review-empty';
+import { type ConnectionContext } from '@/shared/workspace/connection';
 
 type Props = {
   scope: ReviewScope;
-  context: DocumentContext;
+  context: ConnectionContext;
   interaction: DocumentInteraction;
   base: string | undefined;
 };
@@ -56,7 +56,7 @@ function BranchCode({
   base,
   path,
 }: Props & { path: string | undefined }) {
-  const connection = useAccessStore((state) => state.connection);
+  const { connection } = context;
   const changes = useBranchChanges(scope, connection, base);
   if (changes.isError)
     return (
@@ -107,7 +107,7 @@ function BranchMarkedCode({
   path,
 }: {
   scope: ReviewScope;
-  context: DocumentContext;
+  context: ConnectionContext;
   interaction: DocumentInteraction;
   branch: NonNullable<ReturnType<typeof useBranchChanges>['data']>;
   path: string | undefined;
@@ -156,7 +156,7 @@ function BranchDiffs({
   branch,
 }: {
   scope: ReviewScope;
-  context: DocumentContext;
+  context: ConnectionContext;
   interaction: DocumentInteraction;
   range: ReviewRange;
   items: readonly BranchChangeItem[];
@@ -169,7 +169,7 @@ function BranchDiffs({
     diffRange: ReturnType<typeof branchRange>;
   };
 }) {
-  const connection = useAccessStore((state) => state.connection);
+  const { connection } = context;
   const overview = useReviewOverview(scope, connection);
   const [window, setWindow] = useState({
     of: branch.head.oid,

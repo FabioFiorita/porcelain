@@ -1,9 +1,11 @@
 import { reportUnauthorized } from './unauthorized';
 
+export type Transport = (path: string, init?: RequestInit) => Promise<Response>;
+
 export function browserTransport(
   transport: typeof fetch,
   options: { reportUnauthorized?: boolean } = {},
-): typeof fetch {
+): Transport {
   return async (input, init) => {
     const headers = new Headers(init?.headers);
     headers.delete('authorization');
@@ -15,7 +17,7 @@ export function browserTransport(
     });
     if (
       response.status === 401 &&
-      !establishing(input) &&
+      !input.endsWith('/api/pair') &&
       options.reportUnauthorized !== false
     )
       reportUnauthorized();
@@ -23,36 +25,23 @@ export function browserTransport(
   };
 }
 
-function establishing(input: Parameters<typeof fetch>[0]) {
-  const path =
-    typeof input === 'string'
-      ? input
-      : input instanceof URL
-        ? input.href
-        : input.url;
-  return path.endsWith('/api/pair');
+function crossOrigin(target: URL, init: RequestInit) {
+  return fetch(target, {
+    ...init,
+    mode: 'cors',
+    credentials: 'omit',
+    redirect: 'error',
+    cache: 'no-store',
+  });
 }
 
 export function remoteTransport(
   address: string,
   credential?: string,
-): typeof fetch {
+): Transport {
   return (input, init) => {
     const headers = new Headers(init?.headers);
     if (credential) headers.set('authorization', `Bearer ${credential}`);
-    const path =
-      typeof input === 'string'
-        ? input
-        : input instanceof URL
-          ? input.href
-          : input.url;
-    return fetch(new URL(path, address), {
-      ...init,
-      headers,
-      mode: 'cors',
-      credentials: 'omit',
-      redirect: 'error',
-      cache: 'no-store',
-    });
+    return crossOrigin(new URL(input, address), { ...init, headers });
   };
 }

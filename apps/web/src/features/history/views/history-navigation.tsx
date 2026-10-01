@@ -7,25 +7,26 @@ import {
   EmptyHeader,
   EmptyTitle,
 } from '@/components/ui/empty';
-import { useAccessStore } from '@/features/access/index';
 import { worktreeLabel } from '@/features/projects/index';
 import { useHistory } from '../queries/history';
 import type { HistoryScope } from '../rules/connection';
 import { historyFollows } from '../rules/graph';
 import { HistoryRows } from './history-rows';
+import { type Connection } from '@/shared/workspace/connection';
 
 export function HistoryNavigation({
   scope,
+  connection,
   selected,
   onSelect,
   onOpenGraph,
 }: {
   scope: HistoryScope;
+  connection: Connection;
   selected: string;
   onSelect: (oid: string) => void;
   onOpenGraph: () => void;
 }) {
-  const connection = useAccessStore((state) => state.connection);
   const history = useHistory(connection, scope);
 
   return (
