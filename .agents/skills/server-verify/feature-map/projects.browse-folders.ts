@@ -69,21 +69,24 @@ export default defineFeature({
     }),
     defineCase({
       name: 'a folder outside the project home',
-      request: () => ({
+      request: (session) => ({
         method: 'GET',
         path: '/api/projects/folders',
-        query: { path: '/opt/porcelain' },
+        query: { path: session.installation },
       }),
-      expect({ response, check }) {
+      expect({ response, session, check }) {
         check('status', 200, response.status);
         check(
           'lists the sandbox folder that holds the server',
           {
-            path: '/opt/porcelain',
-            parent: '/opt',
+            path: session.installation,
+            parent: session.installation.slice(
+              0,
+              session.installation.lastIndexOf('/'),
+            ),
             directories: [
-              { name: 'bin', path: '/opt/porcelain/bin' },
-              { name: 'server', path: '/opt/porcelain/server' },
+              { name: 'bin', path: `${session.installation}/bin` },
+              { name: 'server', path: `${session.installation}/server` },
             ],
             repository: false,
             truncated: false,

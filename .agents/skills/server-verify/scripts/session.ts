@@ -11,7 +11,6 @@ import {
 import { request as httpRequest, type IncomingHttpHeaders } from 'node:http';
 import { basename, dirname, join, resolve, sep } from 'node:path';
 import { promisify } from 'node:util';
-import { codingToolExecutable } from '../../../../scripts/dev-server.ts';
 import {
   isRecord,
   list,
@@ -98,6 +97,8 @@ type Manifest = {
   credentialFile: string;
   hitsFile: string;
   bin: string;
+  installation: string;
+  codingTool: string;
   fixture: Fixture;
   routes: string[];
 };
@@ -321,6 +322,8 @@ function manifestOf(value: unknown): Manifest {
     credentialFile: text(manifest.credentialFile),
     hitsFile: text(manifest.hitsFile),
     bin: text(manifest.bin),
+    installation: text(manifest.installation),
+    codingTool: text(manifest.codingTool),
     fixture: fixtureOf(manifest.fixture),
     routes: list(manifest.routes).map(text),
   };
@@ -414,22 +417,26 @@ export class ServerHandle {
   readonly address: string;
   readonly repository: string;
   readonly projectHome: string;
+  readonly installation: string;
   readonly socketPath: string;
   readonly credential: string;
   readonly fixture: Fixture;
   readonly routes: readonly string[];
   private readonly hitsFile: string;
   private readonly bin: string;
+  private readonly codingTool: string;
 
   protected constructor(manifest: Manifest, credential: string) {
     this.address = manifest.address;
     this.repository = manifest.repository;
     this.projectHome = resolve(manifest.repository, '..');
+    this.installation = manifest.installation;
     this.socketPath = manifest.socketPath;
     this.fixture = manifest.fixture;
     this.routes = manifest.routes;
     this.hitsFile = manifest.hitsFile;
     this.bin = manifest.bin;
+    this.codingTool = manifest.codingTool;
     this.credential = credential;
   }
 
@@ -477,6 +484,7 @@ export class ServerHandle {
       address: this.address,
       repository: this.repository,
       projectHome: this.projectHome,
+      installation: this.installation,
       projectId: ids.projectId,
       worktreeId: ids.worktreeId,
       send: (request) => this.send(recorder, request),
@@ -575,7 +583,7 @@ export class ServerHandle {
       },
       installCodingTool: async () => {
         const { command } = this.fixture.codingTool;
-        await symlink(codingToolExecutable, join(this.bin, command)).catch(
+        await symlink(this.codingTool, join(this.bin, command)).catch(
           (error: unknown) => {
             if (!(isRecord(error) && error.code === 'EEXIST')) throw error;
           },
@@ -584,7 +592,7 @@ export class ServerHandle {
           phase: recorder.phase,
           kind: 'install',
           command,
-          target: codingToolExecutable,
+          target: this.codingTool,
         });
       },
     };
