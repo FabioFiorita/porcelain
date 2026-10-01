@@ -235,6 +235,18 @@ async function dispatch(action: DesktopAction) {
 
 async function start() {
   await app.whenReady();
+  ipcMain.handle('porcelain:pick-project-folder', async (event) => {
+    authorize(event);
+    const owner = window;
+    if (owner === undefined) throw new Error('The app window is unavailable');
+    const selected = await dialog.showOpenDialog(owner, {
+      title: 'Open project',
+      buttonLabel: 'Open project',
+      defaultPath: settings.projectHome,
+      properties: ['openDirectory'],
+    });
+    return selected.canceled ? null : (selected.filePaths[0] ?? null);
+  });
   ipcMain.handle('porcelain:credentials-read', (event) => {
     authorize(event);
     return credentials.read();

@@ -29,11 +29,14 @@ hash and startup configuration through Electron’s private process channel.
 The renderer runs at `porcelain://app`; the main process proxies web assets
 and API requests to the managed server without exposing its credential.
 Browser and remote pairing keep their existing flow. The sandboxed preload
-exposes only desktop menu actions, appearance and window state notifications.
+exposes desktop menu actions, the native project picker, appearance and window
+state notifications, encrypted credential storage and local update status.
 
 Mac window controls sit in the existing sidebar header. Open Project
-(Command-O) and Settings (Command-comma) use the existing UI, including the
-directory picker. Window bounds and maximized state are saved in the profile,
+(Command-O) opens a native folder sheet for This computer. Browser and remote
+access retain the server directory picker. Repositories are added only through
+explicit selection; startup reopens saved projects without discovering folders.
+Settings uses Command-comma. Window bounds and maximized state are saved in the profile,
 and restored only onto a connected display. Preferences use the stable
 desktop origin and persist across server ports and restarts.
 
@@ -50,7 +53,8 @@ pnpm verify:desktop installed-project
 
 The desktop feature map lives in `scripts/desktop-feature-map.ts`. The command
 launches the installed app against a disposable real Git repository and an
-isolated profile. It checks project registration, SQLite creation, window
+isolated profile. It supplies selections at Electron's native dialog boundary,
+checks cancellation and registration without folder discovery, SQLite creation, window
 close, Dock activation, Git history, live file updates, native menus, appearance, fullscreen spacing,
 window and maximized-state restoration, project and
 preference persistence after restart, refusal of unauthenticated local

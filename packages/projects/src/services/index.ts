@@ -4,7 +4,6 @@ export { CheckRefreshedWorktreeService } from './check-refreshed-worktree-servic
 export { CheckWorktreeService } from './check-worktree-service.ts';
 export { CollectAbsentWorktreesService } from './collect-absent-worktrees-service.ts';
 export { ConfirmWorktreeService } from './confirm-worktree-service.ts';
-export { DiscoverProjectsService } from './discover-projects-service.ts';
 export { FindProjectService } from './find-project-service.ts';
 export { FindWorktreeAtPathService } from './find-worktree-at-path-service.ts';
 export { ForgetProjectRecordsService } from './forget-project-records-service.ts';

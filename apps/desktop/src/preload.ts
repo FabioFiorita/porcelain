@@ -31,6 +31,14 @@ ipcRenderer.on(
   },
 );
 const bridge: DesktopBridge = {
+  pickProjectFolder: async () => {
+    const value: unknown = await ipcRenderer.invoke(
+      'porcelain:pick-project-folder',
+    );
+    if (value !== null && typeof value !== 'string')
+      throw new Error('Invalid project folder response');
+    return value;
+  },
   credentials: {
     read: async () => {
       const value: unknown = await ipcRenderer.invoke(

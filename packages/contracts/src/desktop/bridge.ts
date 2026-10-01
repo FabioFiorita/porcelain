@@ -34,6 +34,7 @@ export type DesktopAppUpdateState = z.output<
   typeof desktopAppUpdateStateSchema
 >;
 export type DesktopBridge = {
+  pickProjectFolder: () => Promise<string | null>;
   credentials: {
     read: () => Promise<string | null>;
     write: (value: string) => Promise<void>;

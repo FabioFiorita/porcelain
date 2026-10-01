@@ -4,7 +4,6 @@ import {
   BrowseProjectFoldersService,
   CheckProjectService,
   CollectAbsentWorktreesService,
-  DiscoverProjectsService,
   FindProjectService,
   ForgetProjectRecordsService,
   InspectProjectRepositoryService,
@@ -25,7 +24,6 @@ import { GitProjectRepositoryReader } from '../adapters/projects/git-project-rep
 import { BrowseProjectFoldersUseCase } from '../use-cases/projects/browse-project-folders.ts';
 import { CheckWorktreeUseCase } from '../use-cases/projects/check-worktree.ts';
 import { CollectAbsentWorktreesUseCase } from '../use-cases/projects/collect-absent-worktrees.ts';
-import { DiscoverProjectsUseCase } from '../use-cases/projects/discover-projects.ts';
 import { FindWorktreeByPathUseCase } from '../use-cases/projects/find-worktree-by-path.ts';
 import { ListFilePreferencesUseCase } from '../use-cases/projects/list-file-preferences.ts';
 import { ReadInventoryUseCase } from '../use-cases/projects/read-inventory.ts';
@@ -139,16 +137,6 @@ export function composeProjects(
       lanes,
       laneKeys,
       events,
-    ),
-    discoverProjects: new DiscoverProjectsUseCase(
-      new DiscoverProjectsService(
-        projectFolderReader,
-        projectRepositoryReader,
-        { home: settings.projectHome, ...limits.discovery },
-      ),
-      listRegisteredProjects,
-      lanes,
-      laneKeys,
     ),
     browseProjectFolders: new BrowseProjectFoldersUseCase(
       new BrowseProjectFoldersService(

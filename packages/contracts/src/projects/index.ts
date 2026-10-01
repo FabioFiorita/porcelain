@@ -9,7 +9,6 @@ export {
 export {
   browseProjectFoldersQuerySchema,
   browseProjectFoldersResponseSchema,
-  discoverProjectsResponseSchema,
   listFilePreferencesParamsSchema,
   readInventoryResponseSchema,
   registerProjectRequestSchema,
@@ -22,7 +21,6 @@ export {
   setFilePreferenceParamsSchema,
   type BrowseProjectFoldersQuery,
   type BrowseProjectFoldersResponse,
-  type DiscoverProjectsResponse,
   type ListFilePreferencesParams,
   type ReadInventoryResponse,
   type RegisterProjectRequest,

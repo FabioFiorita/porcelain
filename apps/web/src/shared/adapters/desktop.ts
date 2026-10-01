@@ -47,6 +47,15 @@ export function desktopAppUpdate() {
   return desktopShell ? window.porcelainDesktop?.appUpdate : undefined;
 }
 
+export function desktopProjectPicker(address: string | undefined) {
+  if (!desktopShell || address === undefined) return undefined;
+  const target = new URL(address);
+  return target.protocol === window.location.protocol &&
+    target.host === window.location.host
+    ? window.porcelainDesktop?.pickProjectFolder
+    : undefined;
+}
+
 export function desktopCredentialStorage<S>(read: (saved: unknown) => S) {
   const credentials = desktopShell
     ? window.porcelainDesktop?.credentials

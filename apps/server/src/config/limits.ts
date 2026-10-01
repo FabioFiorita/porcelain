@@ -81,13 +81,6 @@ export type Limits = {
   projects: {
     presence: { graceMs: number };
     folders: { maxEntries: number };
-    discovery: {
-      maxRepositories: number;
-      maxFolders: number;
-      maxDepth: number;
-      maxEntries: number;
-      skippedNames: readonly string[];
-    };
     filePreferences: { maxPreferences: number };
     worktreeIds: { length: number };
   };
@@ -296,13 +289,6 @@ export const LIMITS: Limits = {
   projects: {
     presence: { graceMs: 30 * DAY_MS },
     folders: { maxEntries: DIRECTORY_ENTRIES },
-    discovery: {
-      maxRepositories: 50,
-      maxFolders: 500,
-      maxDepth: 3,
-      maxEntries: 2000,
-      skippedNames: ['node_modules', 'vendor', 'dist', 'build', 'target'],
-    },
     filePreferences: { maxPreferences: 2000 },
     worktreeIds: { length: WORKTREE_ID_LENGTH },
   },
