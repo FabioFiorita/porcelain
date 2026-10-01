@@ -67,6 +67,16 @@ const tableLanes: Readonly<
     any: ['inventory', 'repository', 'project'],
   },
   WorktreeCatalogStore: { save: ['inventory'] },
+  DeviceStore: { any: ['access'] },
+  PairingGrantStore: { any: ['access'] },
+  EnvironmentNameStore: { any: ['access'] },
+  RemoteAccessStore: { any: ['remoteAccess'] },
+  DeviceSightingStore: { any: ['access'] },
+  PairingAttemptStore: { any: ['access'] },
+  LiveTicketStore: { any: ['access'] },
+  RouteStateStore: { any: ['remoteAccess'] },
+  TunnelConnectionStore: { any: ['remoteAccess'] },
+  DeviceConnectionStore: { any: ['access'] },
 };
 const readsBeforeLane: Readonly<Record<string, string>> = {
   CheckWorktreeService:
@@ -77,6 +87,10 @@ const readsBeforeLane: Readonly<Record<string, string>> = {
   FindProjectService: 'resolves the project before the lane is keyed on it',
   ReadReviewSummaryService:
     'reads a summary link by its token, before any worktree is known',
+  CheckRequestOriginService:
+    'reads the remote-access snapshot for every request; queuing it in the remote-access lane would hold all requests while routes open',
+  IdentifyRequestClientService:
+    'reads the remote-access snapshot for every request; queuing it in the remote-access lane would hold all requests while routes open',
 };
 
 type Lane =
