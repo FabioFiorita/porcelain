@@ -1,4 +1,5 @@
 import type { WorktreeKey } from '@porcelain/kernel/models';
+import type { ConfirmWorktreeService } from '@porcelain/projects/services';
 import type {
   ReadPublishedReviewService,
   RecordReviewActivityService,
@@ -14,6 +15,7 @@ export class RefreshWorktreeReviewUseCase {
   private readonly checkWorktree: CheckWorktreeUseCasePort;
   private readonly readPublishedReview: ReadPublishedReviewService;
   private readonly readReviewEvidence: ReadReviewEvidenceUseCasePort;
+  private readonly confirmWorktree: ConfirmWorktreeService;
   private readonly recordReviewActivity: RecordReviewActivityService;
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
@@ -23,6 +25,7 @@ export class RefreshWorktreeReviewUseCase {
     checkWorktree: CheckWorktreeUseCasePort,
     readPublishedReview: ReadPublishedReviewService,
     readReviewEvidence: ReadReviewEvidenceUseCasePort,
+    confirmWorktree: ConfirmWorktreeService,
     recordReviewActivity: RecordReviewActivityService,
     lanes: Lanes,
     laneKeys: LaneKeys,
@@ -31,6 +34,7 @@ export class RefreshWorktreeReviewUseCase {
     this.checkWorktree = checkWorktree;
     this.readPublishedReview = readPublishedReview;
     this.readReviewEvidence = readReviewEvidence;
+    this.confirmWorktree = confirmWorktree;
     this.recordReviewActivity = recordReviewActivity;
     this.lanes = lanes;
     this.laneKeys = laneKeys;
@@ -53,6 +57,7 @@ export class RefreshWorktreeReviewUseCase {
           { worktreeId, layers: published.review.layers },
           { signal },
         );
+        this.confirmWorktree.execute({ worktree });
         return this.recordReviewActivity.execute({
           review: published.review,
           evidence,
