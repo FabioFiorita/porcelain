@@ -30,7 +30,12 @@ export type ProofCheckStep = {
 };
 
 export type AgentAction =
-  | { kind: 'publish-review'; title: string; step: 'changed' | 'context' }
+  | {
+      kind: 'publish-review';
+      title: string;
+      step: 'changed' | 'context';
+      summaryHtml?: string | undefined;
+    }
   | {
       kind: 'publish-proof';
       title: string;

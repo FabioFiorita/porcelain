@@ -202,15 +202,15 @@ async function agentRequest(
       body: action.body,
     });
   return action.kind === 'publish-review'
-    ? toolCall(
-        agent,
-        1,
-        'publish_review',
-        sampleReview(agent, 0, randomUUID(), randomUUID(), {
+    ? toolCall(agent, 1, 'publish_review', {
+        ...sampleReview(agent, 0, randomUUID(), randomUUID(), {
           title: action.title,
           kind: action.step,
         }),
-      )
+        ...(action.summaryHtml === undefined
+          ? {}
+          : { summaryHtml: action.summaryHtml }),
+      })
     : toolCall(agent, 1, 'create_comment', {
         anchor: { kind: 'file', filePath: action.path },
         body: action.body,

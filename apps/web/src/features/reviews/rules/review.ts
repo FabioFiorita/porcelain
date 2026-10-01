@@ -133,12 +133,18 @@ export type ReviewStep = ReviewLayer['steps'][number];
 
 type NotExplained = ReviewResponse['notExplained'][number];
 
-export function reviewSummaryUrl(summary: ReviewResponse['summary']) {
+export function reviewSummaryUrl(
+  summary: ReviewResponse['summary'],
+  address: string,
+) {
   const query = new URLSearchParams({
     expires: summary.expires,
     signature: summary.signature,
   });
-  return `/review-summaries/${encodeURIComponent(summary.token)}?${query}`;
+  return new URL(
+    `/review-summaries/${encodeURIComponent(summary.token)}?${query}`,
+    address,
+  ).href;
 }
 
 export function notExplainedLabel(

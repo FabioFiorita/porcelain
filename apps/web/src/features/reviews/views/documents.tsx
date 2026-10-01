@@ -162,7 +162,13 @@ function HandoffDocument(props: DocumentProps) {
   if (published.isError)
     return <PublicationFailure retry={() => void published.refetch()} />;
   if (published.data?.active)
-    return <PublishedOverview review={published.data} onOpen={props.onOpen} />;
+    return (
+      <PublishedOverview
+        review={published.data}
+        address={props.context.connection.address}
+        onOpen={props.onOpen}
+      />
+    );
   return <PlainChangesDocument {...props} />;
 }
 
