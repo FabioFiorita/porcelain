@@ -28,7 +28,7 @@ test('finding in a long file brings a match far below the fold into view in the 
     .element(pairedPage.getByText(needle, { exact: true }))
     .not.toBeInTheDocument();
 
-  await userEvent.keyboard('{Control>}f{/Control}');
+  await userEvent.keyboard('{ControlOrMeta>}f{/ControlOrMeta}');
   const find = pairedPage.getByRole('textbox', {
     name: 'Find in file',
     exact: true,
@@ -61,7 +61,7 @@ test('finding in a long file brings a match far below the fold into view in the 
   await expect
     .element(pairedPage.getByRole('textbox', { name: path, exact: true }))
     .toBeVisible();
-  await userEvent.keyboard('{Control>}f{/Control}');
+  await userEvent.keyboard('{ControlOrMeta>}f{/ControlOrMeta}');
   const search = pairedPage.getByRole('textbox', {
     name: 'Search',
     exact: true,

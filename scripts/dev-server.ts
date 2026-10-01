@@ -8,9 +8,9 @@ import {
   realpathSync,
   statSync,
 } from 'node:fs';
-import { chmod, cp, mkdtemp, rm, symlink } from 'node:fs/promises';
+import { chmod, cp, mkdir, mkdtemp, rm, symlink } from 'node:fs/promises';
 import { connect, createServer, type Server } from 'node:net';
-import { tmpdir } from 'node:os';
+import { tmpdir, userInfo } from 'node:os';
 import { delimiter, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
@@ -27,12 +27,28 @@ const unbundled = [
 const optionalModules = ['bufferutil', 'utf-8-validate'];
 const serverMount = '/opt/porcelain/server';
 const sandboxPath = '/opt/porcelain/bin';
-export const codingToolExecutable = join(serverMount, codingToolBundle);
+const seatbelt = '/usr/bin/sandbox-exec';
 const stopGraceMs = 10_000;
 const packageSchema = z.object({
   dependencies: z.record(z.string(), z.string()).optional(),
   optionalDependencies: z.record(z.string(), z.string()).optional(),
 });
+
+type Installation = {
+  server: string;
+  bin: string;
+  serverAt: string;
+  binAt: string;
+};
+
+type Sandbox = {
+  node: string;
+  git: string;
+  root: string;
+  installation: Installation;
+  codingTool: string;
+  port: number;
+};
 
 function locate(name: string, from: string): string | undefined {
   for (let directory = from; ; directory = dirname(directory)) {
@@ -130,24 +146,62 @@ function addons(directory: string): string[] {
     .map((path) => join(directory, path));
 }
 
+function linkedLibraries(binary: string): string[] {
+  const [command, args, pattern] =
+    process.platform === 'darwin'
+      ? (['otool', ['-L', binary], /^\s+(\/\S+)\s+\(compat/] as const)
+      : (['ldd', [binary], /(?:=>\s*)?(\/\S+)\s+\(0x/] as const);
+  let output: string;
+  try {
+    output = execFileSync(command, args, {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    });
+  } catch {
+    return [];
+  }
+  return output.split('\n').flatMap((line) => {
+    const path = pattern.exec(line)?.[1];
+    return path ? [path] : [];
+  });
+}
+
 function sharedLibraries(binaries: readonly string[]): string[] {
   const libraries = new Set<string>();
-  for (const binary of binaries) {
-    let output: string;
-    try {
-      output = execFileSync('ldd', [binary], {
-        encoding: 'utf8',
-        stdio: ['ignore', 'pipe', 'ignore'],
-      });
-    } catch {
-      continue;
-    }
-    for (const line of output.split('\n')) {
-      const path = /(?:=>\s*)?(\/\S+)\s+\(0x/.exec(line)?.[1];
-      if (path) libraries.add(path);
-    }
-  }
+  const pending = [...binaries];
+  for (let binary = pending.pop(); binary; binary = pending.pop())
+    for (const library of linkedLibraries(binary))
+      if (!libraries.has(library) && existsSync(library)) {
+        libraries.add(library);
+        if (process.platform === 'darwin') pending.push(library);
+      }
   return [...libraries];
+}
+
+function gitTemplates(execPath: string): string {
+  return resolve(execPath, '../../share/git-core');
+}
+
+function gitExecutables(git: string): {
+  named: string;
+  execPath: string;
+  templates: string;
+} {
+  const named = execFileSync(git, ['--exec-path'], { encoding: 'utf8' }).trim();
+  const execPath = realpathSync(named);
+  return { named, execPath, templates: gitTemplates(execPath) };
+}
+
+function gitSystemConfig(git: string): string[] {
+  try {
+    const path = execFileSync(git, ['var', 'GIT_CONFIG_SYSTEM'], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+    return existsSync(path) ? [path, realpathSync(path)] : [];
+  } catch {
+    return [];
+  }
 }
 
 function readOnly(path: string, at = path): string[] {
@@ -166,17 +220,9 @@ function libraryMounts(libraries: readonly string[]): string[] {
   });
 }
 
-function sandboxArguments(
-  server: string,
-  root: string,
-  bin: string,
-  git: string,
-): string[] {
-  const node = realpathSync(process.execPath);
-  const gitExecPath = realpathSync(
-    execFileSync(git, ['--exec-path'], { encoding: 'utf8' }).trim(),
-  );
-  const templates = '/usr/share/git-core';
+function bubblewrapArguments(sandbox: Sandbox): string[] {
+  const { node, git, root, installation } = sandbox;
+  const { execPath, templates } = gitExecutables(git);
   return [
     '--die-with-parent',
     '--new-session',
@@ -191,12 +237,14 @@ function sandboxArguments(
     '/tmp',
     ...readOnly(node),
     ...readOnly(git),
-    ...readOnly(gitExecPath),
+    ...readOnly(execPath),
     ...(existsSync(templates) ? readOnly(templates) : []),
     ...(existsSync('/etc/ld.so.cache') ? readOnly('/etc/ld.so.cache') : []),
-    ...libraryMounts(sharedLibraries([node, git, ...addons(server)])),
-    ...readOnly(server, serverMount),
-    ...readOnly(bin, sandboxPath),
+    ...libraryMounts(
+      sharedLibraries([node, git, ...addons(installation.server)]),
+    ),
+    ...readOnly(installation.server, installation.serverAt),
+    ...readOnly(installation.bin, installation.binAt),
     '--bind',
     root,
     root,
@@ -204,8 +252,69 @@ function sandboxArguments(
     root,
     '--',
     node,
-    join(serverMount, childBundle),
+    join(installation.serverAt, childBundle),
   ];
+}
+
+function quoted(path: string): string {
+  return JSON.stringify(path);
+}
+
+function filters(kind: 'literal' | 'subpath', paths: readonly string[]) {
+  return [...new Set(paths)]
+    .map((path) => `(${kind} ${quoted(path)})`)
+    .join(' ');
+}
+
+function ancestors(paths: readonly string[]): string[] {
+  const found = new Set<string>();
+  for (const path of paths)
+    for (
+      let directory = dirname(path);
+      !found.has(directory);
+      directory = dirname(directory)
+    )
+      found.add(directory);
+  return [...found];
+}
+
+function seatbeltProfile(sandbox: Sandbox): string {
+  const { node, git, root, installation, codingTool, port } = sandbox;
+  const { named, execPath, templates } = gitExecutables(git);
+  const gitFolders = [execPath, templates, named, gitTemplates(named)];
+  const libraries = sharedLibraries([
+    node,
+    git,
+    ...addons(installation.server),
+  ]).flatMap((library) => [library, realpathSync(library)]);
+  const folder = dirname(installation.server);
+  const programs = [node, git, codingTool];
+  const readable = [...programs, ...libraries, ...gitSystemConfig(git)];
+  const quiet = [
+    '/AppleInternal',
+    join(userInfo().homedir, '.CFUserTextEncoding'),
+    ...[execPath, named].map((path) => resolve(path, '../../share/locale')),
+  ];
+  return [
+    '(version 1)',
+    '(deny default)',
+    '(import "system.sb")',
+    '(allow process-fork)',
+    '(allow signal (target same-sandbox))',
+    '(allow process-info* (target same-sandbox))',
+    `(allow process-exec ${filters('literal', programs)} ${filters('subpath', [execPath, named, installation.bin])})`,
+    `(allow file-read* ${filters('literal', readable)} ${filters('subpath', [...gitFolders, folder, root])})`,
+    `(allow file-map-executable ${filters('literal', libraries)} ${filters('subpath', [installation.server])})`,
+    `(allow file-read-metadata ${filters('literal', ancestors([...readable, ...gitFolders, folder, root]))})`,
+    `(allow file-read-data ${filters('literal', ancestors([folder, root]))})`,
+    `(allow file-write* ${filters('subpath', [root])})`,
+    `(allow network-bind network-inbound (local ip "localhost:${port}"))`,
+    `(allow network-outbound (remote ip "localhost:${port}"))`,
+    `(allow network-bind network-outbound ${filters('subpath', [root])})`,
+    '(allow mach-lookup (global-name "com.apple.FSEvents"))',
+    '(deny system-info user-preference-read (with no-log))',
+    `(deny file-read* ${filters('literal', quiet)} (with no-log))`,
+  ].join('\n');
 }
 
 function relayTo(socketPath: string): Promise<{ relay: Server; port: number }> {
@@ -226,19 +335,75 @@ function relayTo(socketPath: string): Promise<{ relay: Server; port: number }> {
   });
 }
 
+function freePort(): Promise<number> {
+  const probe = createServer();
+  return new Promise((resolvePort, rejectPort) => {
+    probe.once('error', rejectPort);
+    probe.listen({ host: '127.0.0.1', port: 0 }, () => {
+      const address = probe.address();
+      probe.close(() =>
+        address === null || typeof address === 'string'
+          ? rejectPort(new Error('The loopback probe has no port'))
+          : resolvePort(address.port),
+      );
+    });
+  });
+}
+
 function serverOption(): string | undefined {
   const at = process.argv.indexOf('--server');
   return at === -1 ? undefined : process.argv[at + 1];
 }
 
+function scratchFolder(): string {
+  return process.platform === 'darwin' ? '/tmp' : tmpdir();
+}
+
+async function temporary(prefix: string, scratch: string[]): Promise<string> {
+  const path = realpathSync(await mkdtemp(join(scratchFolder(), prefix)));
+  scratch.push(path);
+  return path;
+}
+
+async function install(
+  given: string | undefined,
+  scratch: string[],
+): Promise<Installation> {
+  if (process.platform === 'linux') {
+    const bin = await temporary('porcelain-dev-bin-', scratch);
+    const built =
+      given === undefined
+        ? await temporary('porcelain-dev-build-', scratch)
+        : undefined;
+    if (built !== undefined) await buildIsolatedServer(built);
+    return {
+      server: realpathSync(given ?? built ?? ''),
+      bin,
+      serverAt: serverMount,
+      binAt: sandboxPath,
+    };
+  }
+  if (process.platform !== 'darwin')
+    throw new Error(
+      'The isolated development server requires Linux with bwrap or macOS',
+    );
+  const folder = await temporary('porcelain-dev-opt-', scratch);
+  const server = join(folder, 'server');
+  const bin = join(folder, 'bin');
+  await mkdir(bin);
+  if (given === undefined) await buildIsolatedServer(server);
+  else
+    await cp(realpathSync(given), server, {
+      recursive: true,
+      mode: constants.COPYFILE_FICLONE,
+    });
+  return { server, bin, serverAt: server, binAt: bin };
+}
+
 async function main() {
-  const root = await mkdtemp(join(tmpdir(), 'porcelain-dev-'));
-  const bin = await mkdtemp(join(tmpdir(), 'porcelain-dev-bin-'));
+  const scratch: string[] = [];
+  const root = await temporary('porcelain-dev-', scratch);
   const given = serverOption();
-  const built =
-    given === undefined
-      ? await mkdtemp(join(tmpdir(), 'porcelain-dev-build-'))
-      : undefined;
   let stopping = false;
   let relay: Server | undefined;
   let stopChild = () => undefined;
@@ -249,33 +414,58 @@ async function main() {
   process.on('SIGINT', stop);
   process.on('SIGTERM', stop);
   try {
-    if (process.platform !== 'linux')
-      throw new Error(
-        'The isolated development server requires Linux and bwrap',
-      );
-    const bwrap = hostExecutable('bwrap');
+    const confine =
+      process.platform === 'linux' ? hostExecutable('bwrap') : seatbelt;
     const git = hostExecutable('git');
+    const installation = await install(given, scratch);
+    const { bin } = installation;
+    const codingToolExecutable = join(installation.serverAt, codingToolBundle);
     await symlink(git, join(bin, 'git'));
-    if (built !== undefined) await buildIsolatedServer(built);
-    const server = realpathSync(given ?? built ?? '');
-    const network = await relayTo(join(root, 'network.sock'));
+    const network =
+      process.platform === 'linux'
+        ? await relayTo(join(root, 'network.sock'))
+        : { relay: undefined, port: await freePort() };
     relay = network.relay;
-    const child = spawn(bwrap, sandboxArguments(server, root, bin, git), {
-      cwd: root,
-      detached: true,
-      stdio: ['pipe', 'inherit', 'inherit'],
-      env: {
-        PATH: sandboxPath,
-        HOME: root,
-        TMPDIR: root,
-        PORCELAIN_DEV_ROOT: root,
-        PORCELAIN_DEV_BIN: bin,
-        PORCELAIN_DEV_PORT: String(network.port),
-        ...(process.env.PORCELAIN_DEV_SAMPLE === 'review'
-          ? { PORCELAIN_DEV_SAMPLE: 'review' }
-          : {}),
+    const sandbox: Sandbox = {
+      node: realpathSync(process.execPath),
+      git,
+      root,
+      installation,
+      codingTool: codingToolExecutable,
+      port: network.port,
+    };
+    const child = spawn(
+      confine,
+      process.platform === 'linux'
+        ? bubblewrapArguments(sandbox)
+        : [
+            '-p',
+            seatbeltProfile(sandbox),
+            sandbox.node,
+            join(installation.serverAt, childBundle),
+          ],
+      {
+        cwd: root,
+        detached: true,
+        stdio: ['pipe', 'pipe', 'pipe'],
+        env: {
+          PATH: installation.binAt,
+          HOME: root,
+          TMPDIR: root,
+          PORCELAIN_DEV_ROOT: root,
+          PORCELAIN_DEV_BIN: bin,
+          PORCELAIN_DEV_INSTALLATION: dirname(installation.serverAt),
+          PORCELAIN_DEV_CODING_TOOL: codingToolExecutable,
+          PORCELAIN_DEV_PORT: String(network.port),
+          ...(process.platform === 'darwin' ? { TRASH_FALLBACK: '1' } : {}),
+          ...(process.env.PORCELAIN_DEV_SAMPLE === 'review'
+            ? { PORCELAIN_DEV_SAMPLE: 'review' }
+            : {}),
+        },
       },
-    });
+    );
+    child.stdout.pipe(process.stdout);
+    child.stderr.pipe(process.stderr);
     stopChild = () => {
       child.stdin.end();
       setTimeout(() => child.kill('SIGKILL'), stopGraceMs).unref();
@@ -295,9 +485,8 @@ async function main() {
     process.off('SIGINT', stop);
     process.off('SIGTERM', stop);
     relay?.close();
-    await rm(root, { recursive: true, force: true });
-    await rm(bin, { recursive: true, force: true });
-    if (built !== undefined) await rm(built, { recursive: true, force: true });
+    for (const path of scratch)
+      await rm(path, { recursive: true, force: true });
   }
 }
 

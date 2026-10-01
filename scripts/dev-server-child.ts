@@ -36,6 +36,11 @@ if (!root) throw new Error('Missing development root');
 const port = Number(process.env.PORCELAIN_DEV_PORT ?? '0');
 const bin = process.env.PORCELAIN_DEV_BIN;
 if (!bin) throw new Error('Missing development PATH folder');
+const installation = process.env.PORCELAIN_DEV_INSTALLATION;
+if (!installation) throw new Error('Missing development installation folder');
+const codingToolExecutable = process.env.PORCELAIN_DEV_CODING_TOOL;
+if (!codingToolExecutable)
+  throw new Error('Missing development coding tool location');
 let server: Runtime | undefined;
 const listeningPort = () =>
   Number(new URL(server?.address ?? 'http://127.0.0.1:0').port);
@@ -551,7 +556,7 @@ try {
   fixtureReady = true;
   await writeFile(
     manifest,
-    `${JSON.stringify({ address: server.address, dataDirectory: state, repository, socketPath: server.socketPath, credentialFile, hitsFile, bin, fixture, routes: registeredRoutes() }, null, 2)}\n`,
+    `${JSON.stringify({ address: server.address, dataDirectory: state, repository, socketPath: server.socketPath, credentialFile, hitsFile, bin, installation, codingTool: codingToolExecutable, fixture, routes: registeredRoutes() }, null, 2)}\n`,
     { mode: 0o600 },
   );
   process.stdout.write(

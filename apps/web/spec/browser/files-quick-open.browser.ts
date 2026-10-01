@@ -20,7 +20,7 @@ test('quick open finds a worktree file by name and opens it', async ({
       opened.getByRole('treeitem', { name: repo.readme.path, exact: true }),
     )
     .toBeVisible();
-  await userEvent.keyboard('{Control>}p{/Control}');
+  await userEvent.keyboard('{ControlOrMeta>}p{/ControlOrMeta}');
   const search = opened.getByRole('combobox', {
     name: 'Find a file by name',
     exact: true,
@@ -37,7 +37,7 @@ test('quick open finds a worktree file by name and opens it', async ({
 test('quick open finds no file an ignore rule hides', async ({ server }) => {
   await page.getByRole('button', { name: 'Review', exact: true }).click();
   await page.getByRole('tab', { name: 'Files', exact: true }).click();
-  await userEvent.keyboard('{Control>}p{/Control}');
+  await userEvent.keyboard('{ControlOrMeta>}p{/ControlOrMeta}');
   const search = page.getByRole('combobox', {
     name: 'Find a file by name',
     exact: true,

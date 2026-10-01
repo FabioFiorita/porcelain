@@ -84,6 +84,7 @@ export type Session = {
   address: string;
   repository: string;
   projectHome: string;
+  installation: string;
   projectId: string;
   worktreeId: string;
   send(request: HttpRequest): Promise<HttpResponse>;

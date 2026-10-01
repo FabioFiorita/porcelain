@@ -213,6 +213,7 @@ function chromePath(): string {
     '/usr/bin/google-chrome-stable',
     '/usr/bin/google-chrome',
     '/usr/bin/chromium',
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
     ...builds,
   ];
   const found = paths.find((path) => path && existsSync(path));

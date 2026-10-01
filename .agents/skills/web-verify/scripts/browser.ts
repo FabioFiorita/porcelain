@@ -1,8 +1,10 @@
-import { fork, spawn } from 'node:child_process';
+import { fork } from 'node:child_process';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { availableParallelism, tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { DatabaseSync } from 'node:sqlite';
+import { setTimeout as sleep } from 'node:timers/promises';
 import { parseArgs } from 'node:util';
 import type { z } from 'zod';
 import {
@@ -35,6 +37,8 @@ const runnerFile = fileURLToPath(
   new URL('./browser-runner.ts', import.meta.url),
 );
 const browserLockVariable = 'PORCELAIN_BROWSER_LOCK_HELD';
+const browserSlotPollMs = 250;
+const sqliteBusy = 5;
 const coresPerBrowser = 4;
 const mostBrowsers = 4;
 const defaultBrowsers = Math.max(
@@ -547,34 +551,41 @@ async function main(): Promise<number> {
   return failed ? 1 : 0;
 }
 
-function withBrowserLock(): Promise<number> {
+function browserSlotTaken(error: unknown): boolean {
+  return (
+    error instanceof Error && 'errcode' in error && error.errcode === sqliteBusy
+  );
+}
+
+async function withBrowserLock(): Promise<number> {
   if (process.env[browserLockVariable] === '1' || process.argv[2] === '--list')
     return main();
-  const lock = join(
-    tmpdir(),
-    `porcelain-web-verify-${process.getuid?.() ?? 'local'}.lock`,
+  const slot = new DatabaseSync(
+    join(
+      tmpdir(),
+      `porcelain-web-verify-${process.getuid?.() ?? 'local'}.sqlite`,
+    ),
   );
-  process.stdout.write('Waiting for the host browser verification slot.\n');
-  return new Promise((done, fail) => {
-    const child = spawn(
-      'flock',
-      [
-        '--exclusive',
-        '--verbose',
-        lock,
-        process.execPath,
-        fileURLToPath(import.meta.url),
-        ...process.argv.slice(2),
-      ],
-      {
-        cwd: repositoryRoot,
-        env: { ...process.env, [browserLockVariable]: '1' },
-        stdio: 'inherit',
-      },
+  try {
+    process.stdout.write('Waiting for the host browser verification slot.\n');
+    const waiting = performance.now();
+    for (;;) {
+      try {
+        slot.exec('BEGIN EXCLUSIVE');
+        break;
+      } catch (error) {
+        if (!browserSlotTaken(error)) throw error;
+        await sleep(browserSlotPollMs);
+      }
+    }
+    process.stdout.write(
+      `Getting the host browser verification slot took ${Math.round(performance.now() - waiting)} ms.\n`,
     );
-    child.once('error', fail);
-    child.once('close', (status) => done(status ?? 1));
-  });
+    process.env[browserLockVariable] = '1';
+    return await main();
+  } finally {
+    slot.close();
+  }
 }
 
 try {

@@ -20,7 +20,7 @@ test('the find count follows a file that changes on disk and stays within its ma
     .element(pairedPage.getByText('needle three', { exact: true }))
     .toBeVisible();
 
-  await userEvent.keyboard('{Control>}f{/Control}');
+  await userEvent.keyboard('{ControlOrMeta>}f{/ControlOrMeta}');
   await pairedPage
     .getByRole('textbox', { name: 'Find in file', exact: true })
     .fill('needle');
