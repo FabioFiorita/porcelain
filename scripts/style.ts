@@ -805,6 +805,7 @@ function fastCheckProblems(): Problem[] {
     'arch:check',
     'test',
     'test:rules',
+    'probes:check',
   ];
   return required
     .filter((command) => !commands.includes(command))
