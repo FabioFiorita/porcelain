@@ -28,6 +28,15 @@ import { CommitForm } from './commit-form';
 import { GitActionError } from './git-action-message';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
+type InspectionFormProps<Action> = {
+  scope: GitScope;
+  context: ConnectionContext;
+  action: Action;
+  status: GitActionStatus;
+  onBusy: (busy: boolean) => void;
+  onLookAgain?: (() => Promise<void>) | undefined;
+};
+
 export function GitActionInspection({
   scope,
   context,
@@ -81,14 +90,7 @@ function CommitActionForm({
   status,
   onBusy,
   onLookAgain,
-}: {
-  scope: GitScope;
-  context: ConnectionContext;
-  action: 'commit' | 'amend';
-  status: GitActionStatus;
-  onBusy: (busy: boolean) => void;
-  onLookAgain?: (() => Promise<void>) | undefined;
-}) {
+}: InspectionFormProps<'commit' | 'amend'>) {
   const { connection } = context;
   const details = useGitStatus(scope, connection);
   if (details.pending)
@@ -152,14 +154,7 @@ function StashActionForm({
   status,
   onBusy,
   onLookAgain,
-}: {
-  scope: GitScope;
-  context: ConnectionContext;
-  action: FormAction;
-  status: GitActionStatus;
-  onBusy: (busy: boolean) => void;
-  onLookAgain?: (() => Promise<void>) | undefined;
-}) {
+}: InspectionFormProps<FormAction>) {
   const { connection } = context;
   const details = useGitStatus(scope, connection);
   if (details.pending)
@@ -192,14 +187,8 @@ function ActionForm({
   expectedStatus = status,
   onBusy,
   onLookAgain,
-}: {
-  scope: GitScope;
-  context: ConnectionContext;
-  action: FormAction;
-  status: GitActionStatus;
+}: InspectionFormProps<FormAction> & {
   expectedStatus?: GitActionStatus;
-  onBusy: (busy: boolean) => void;
-  onLookAgain?: (() => Promise<void>) | undefined;
 }) {
   const branch = status.branch;
   const [message, setMessage] = useState('Porcelain review');

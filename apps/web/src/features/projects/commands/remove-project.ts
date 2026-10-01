@@ -1,24 +1,19 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 import { ConnectionError } from '@/shared/api/connection-error';
 import { retainedFileDrafts } from '@/shared/query/file-drafts';
 import { queryKeys } from '@/shared/query/keys';
 import { projectsApi } from '../api';
-import { inventoryQueryOptions } from '../queries/inventory';
-import type { Inventory } from '../rules/inventory';
+import { useInventoryCache } from './inventory-cache';
 import { type Connection } from '@/shared/workspace/connection';
 
 export function useRemoveProject(
-  connection: Connection | null,
+  possibleConnection: Connection | null,
   close: () => void,
 ) {
-  if (!connection) throw new Error('A connected environment is required');
-  const client = useQueryClient();
-  const key = inventoryQueryOptions(
-    connection.environmentId,
-    connection,
-  ).queryKey;
+  const { connection, client, key, scope, update } =
+    useInventoryCache(possibleConnection);
   const mutation = useMutation({
-    scope: { id: `inventory:${connection.environmentId}` },
+    scope,
     mutationFn: async (projectId: string) => {
       const prefix = `[${JSON.stringify(projectId)},`;
       for (const [draftKey, draft] of retainedFileDrafts(connection))
@@ -36,17 +31,12 @@ export function useRemoveProject(
       return result;
     },
     onSuccess: async (_result, projectId) => {
-      await client.cancelQueries({ queryKey: key });
-      client.setQueryData<Inventory>(
-        key,
-        (inventory) =>
-          inventory && {
-            ...inventory,
-            projects: inventory.projects.filter(
-              (project) => project.id !== projectId,
-            ),
-          },
-      );
+      await update((inventory) => ({
+        ...inventory,
+        projects: inventory.projects.filter(
+          (project) => project.id !== projectId,
+        ),
+      }));
       const projectKey = queryKeys.reviewProject(
         connection.environmentId,
         projectId,

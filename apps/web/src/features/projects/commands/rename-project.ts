@@ -1,24 +1,18 @@
 import { renameProjectRequestSchema } from '@porcelain/contracts/projects';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 import { asMutation } from '@/shared/query/mutation';
 import { projectsApi } from '../api';
-import { inventoryQueryOptions } from '../queries/inventory';
-import type { Inventory } from '../rules/inventory';
+import { useInventoryCache } from './inventory-cache';
 import { type Connection } from '@/shared/workspace/connection';
 
 export function useRenameProject(
-  connection: Connection | null,
+  possibleConnection: Connection | null,
   close: () => void,
 ) {
-  if (!connection) throw new Error('A connected environment is required');
-  const client = useQueryClient();
-  const key = inventoryQueryOptions(
-    connection.environmentId,
-    connection,
-  ).queryKey;
+  const { connection, scope, update } = useInventoryCache(possibleConnection);
   const mutation = asMutation(
     useMutation({
-      scope: { id: `inventory:${connection.environmentId}` },
+      scope,
       mutationFn: async ({
         projectId,
         name,
@@ -36,19 +30,14 @@ export function useRenameProject(
         return result;
       },
       onSuccess: async (result) => {
-        await client.cancelQueries({ queryKey: key });
-        client.setQueryData<Inventory>(
-          key,
-          (inventory) =>
-            inventory && {
-              ...inventory,
-              projects: inventory.projects.map((project) =>
-                project.id === result.id
-                  ? { ...project, name: result.name }
-                  : project,
-              ),
-            },
-        );
+        await update((inventory) => ({
+          ...inventory,
+          projects: inventory.projects.map((project) =>
+            project.id === result.id
+              ? { ...project, name: result.name }
+              : project,
+          ),
+        }));
         close();
       },
     }),

@@ -3,45 +3,32 @@ import type { ListReviewedFilesResponse } from '@porcelain/contracts/reviews';
 
 type ReviewedMarksResponse = ListReviewedFilesResponse;
 
-type Intent = { path: string; fingerprint?: string; reviewedAt: string };
 type Queue = {
   tail: Promise<void>;
   confirmed: ReviewedMarksResponse | undefined;
   pending: Intent[];
 };
+type QueueContext = {
+  connection: { controller: AbortController };
+  key: readonly unknown[];
+};
+type ReviewedChange = { path: string; fingerprint?: string };
+type Intent = ReviewedChange & { reviewedAt: string };
 const queues = new WeakMap<object, Map<string, Queue>>();
 
 export function enqueueReviewed(
-  context: {
-    connection: { controller: AbortController };
-    key: readonly unknown[];
-  },
+  context: QueueContext,
   client: QueryClient,
-  change: { path: string; fingerprint?: string },
+  change: ReviewedChange,
   operation: () => Promise<ReviewedMarksResponse>,
 ) {
-  return enqueueReviewedOperation(context, client, [change], operation);
+  return enqueueReviewedMany(context, client, [change], operation);
 }
 
 export function enqueueReviewedMany<T extends ReviewedMarksResponse>(
-  context: {
-    connection: { controller: AbortController };
-    key: readonly unknown[];
-  },
+  context: QueueContext,
   client: QueryClient,
-  changes: readonly { path: string; fingerprint?: string }[],
-  operation: () => Promise<T>,
-) {
-  return enqueueReviewedOperation(context, client, changes, operation);
-}
-
-function enqueueReviewedOperation<T extends ReviewedMarksResponse>(
-  context: {
-    connection: { controller: AbortController };
-    key: readonly unknown[];
-  },
-  client: QueryClient,
-  changes: readonly { path: string; fingerprint?: string }[],
+  changes: readonly ReviewedChange[],
   operation: () => Promise<T>,
 ) {
   const signal = context.connection.controller.signal;

@@ -1,10 +1,13 @@
-import { usePublishedReview } from '../queries/published-review';
 import type { DocumentInteraction } from '../rules/documents';
 import { spansLabel } from '../rules/patch-focus';
-import { notExplainedLabel, type ReviewScope } from '../rules/review';
+import {
+  notExplainedLabel,
+  type ReviewResponse,
+  type ReviewScope,
+} from '../rules/review';
+import { ActiveReview } from './active-review';
 import { DocumentToolbar } from './document-toolbar';
 import { ReviewCodeDocument } from './review-code-document';
-import { ReviewEmpty } from './review-empty';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
 export function UnexplainedDocument({
@@ -16,21 +19,35 @@ export function UnexplainedDocument({
   context: ConnectionContext;
   interaction: DocumentInteraction;
 }) {
-  const published = usePublishedReview(scope, context);
-  const review = published.data?.active ? published.data : null;
-  if (published.isPending)
-    return (
-      <p role="status" className="p-4 text-sm">
-        Loading review…
-      </p>
-    );
-  if (!review)
-    return (
-      <ReviewEmpty
-        title="No review here"
-        description="Not explained lists the code a review leaves out. This worktree has no review now."
-      />
-    );
+  return (
+    <ActiveReview
+      scope={scope}
+      context={context}
+      absent="Not explained lists the code a review leaves out. This worktree has no review now."
+    >
+      {(review) => (
+        <UnexplainedCode
+          scope={scope}
+          context={context}
+          interaction={interaction}
+          review={review}
+        />
+      )}
+    </ActiveReview>
+  );
+}
+
+function UnexplainedCode({
+  scope,
+  context,
+  interaction,
+  review,
+}: {
+  scope: ReviewScope;
+  context: ConnectionContext;
+  interaction: DocumentInteraction;
+  review: ReviewResponse;
+}) {
   const gaps = review.notExplained;
   const focus = Object.fromEntries(
     gaps

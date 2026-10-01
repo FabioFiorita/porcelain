@@ -34,20 +34,6 @@
   "porcelain/web-views-no-transport": {
     "apps/web/src/app/workspace-provider.tsx": 1
   },
-  "style/duplicate-code": {
-    "apps/web/src/features/changes/queries/branch.ts": 1,
-    "apps/web/src/features/changes/queries/commit-diffs.ts": 1,
-    "apps/web/src/features/git-actions/views/git-action-inspection.tsx": 2,
-    "apps/web/src/features/projects/commands/remove-project.ts": 1,
-    "apps/web/src/features/projects/commands/rename-project.ts": 1,
-    "apps/web/src/features/reviews/commands/comments.ts": 2,
-    "apps/web/src/features/reviews/commands/reviewed-queue.ts": 2,
-    "apps/web/src/features/reviews/views/branch-document.tsx": 1,
-    "apps/web/src/features/reviews/views/commit-document.tsx": 1,
-    "apps/web/src/features/reviews/views/proof-document.tsx": 1,
-    "apps/web/src/features/reviews/views/unexplained-document.tsx": 1,
-    "apps/web/src/features/reviews/views/review-workspace.tsx": 2
-  },
   "typescript/no-deprecated": {
     "apps/web/src/app/workspace-provider.tsx": 1,
     "apps/web/src/features/changes/commands/read-current-changes.ts": 1,

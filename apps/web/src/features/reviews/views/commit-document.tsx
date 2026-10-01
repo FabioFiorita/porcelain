@@ -20,6 +20,7 @@ import type { DocumentInteraction } from '../rules/documents';
 import type { DiffContent, ReviewScope } from '../rules/review';
 import { CodeDocument } from './code-document';
 import { DocumentToolbar } from './document-toolbar';
+import { ReadMoreFiles } from './read-more-files';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
 const pathList = (file: CommitFile) => [
@@ -155,20 +156,11 @@ export function CommitDocument({
           </>
         )}
       />
-      {more > 0 && (
-        <div className="border-t px-4 py-3 text-center">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={readMore}
-            disabled={diffs.isPending}
-          >
-            {diffs.isPending
-              ? 'Reading…'
-              : `Read ${Math.min(more, DIFF_WINDOW_FILES)} more of ${more}`}
-          </Button>
-        </div>
-      )}
+      <ReadMoreFiles
+        more={more}
+        pending={diffs.isPending}
+        onReadMore={readMore}
+      />
     </div>
   );
 }

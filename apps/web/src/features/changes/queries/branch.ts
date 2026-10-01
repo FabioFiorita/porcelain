@@ -1,11 +1,9 @@
 import { queryOptions, useQuery } from '@tanstack/react-query';
-import { DIFF_WINDOW_FILES } from '@/config/limits';
-import { useBatchedReads } from './batched-reads';
+import { usePathDiffs } from './path-diffs';
 import { queryKeys } from '@/shared/query/keys';
 import { changesApi } from '../api';
 import type { BranchRange } from '../rules/branch';
-import { consecutiveBatches } from '../rules/diff-batches';
-import { type ChangesScope, type DiffContent } from '../rules/changes';
+import { type ChangesScope } from '../rules/changes';
 import {
   type Connection,
   requireConnection,
@@ -76,8 +74,9 @@ export function useBranchDiffs(
   paths: readonly (readonly string[])[],
 ) {
   const connected = requireConnection(connection);
-  const read = useBatchedReads({
-    batches: range ? consecutiveBatches(paths, DIFF_WINDOW_FILES) : [],
+  return usePathDiffs({
+    connection: connected,
+    paths: range ? paths : [],
     key: (batch) =>
       queryKeys.reviewSurface(connected.environmentId, scope, [
         'branch-diffs',
@@ -85,28 +84,13 @@ export function useBranchDiffs(
         range?.headOid,
         batch.map((entry) => entry.join('\0')),
       ]),
-    read: async (batch, signal) => {
-      if (!range) return [];
-      const request = connected.request(signal);
-      const data = await changesApi(connected).branchDiffs(
-        request.signal,
-        scope.worktreeId,
-        {
-          baseOid: range.baseOid,
-          headOid: range.headOid,
-          paths: batch.map((entry) => [...entry]),
-        },
-      );
-      request.signal.throwIfAborted();
-      return data.diffs.map(
-        (diff) => [diff.paths.join('\0'), diff.content] as const,
-      );
-    },
+    read: async (signal, batch) =>
+      range
+        ? changesApi(connected).branchDiffs(signal, scope.worktreeId, {
+            baseOid: range.baseOid,
+            headOid: range.headOid,
+            paths: batch,
+          })
+        : { diffs: [] },
   });
-  return {
-    patches: new Map<string, DiffContent>(read.entries),
-    isPending: read.pending,
-    isError: read.failed,
-    retry: read.retry,
-  };
 }
