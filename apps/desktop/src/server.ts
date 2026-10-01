@@ -1,8 +1,6 @@
-import { readDesktopLimits } from '@porcelain/server/desktop-settings';
-import { homedir } from 'node:os';
 import { join } from 'node:path';
 import {
-  openServiceUpdateRunner,
+  openAppManagedUpdateRunner,
   readServerSettings,
   startServer,
 } from '@porcelain/server/desktop';
@@ -18,7 +16,6 @@ const startup = hostMessage.parse(message);
 if (startup.kind !== 'start')
   throw new Error('The desktop server requires private startup configuration');
 const { profile, projectHome, packageRoot, session } = startup;
-const limits = readDesktopLimits();
 const signal = new AbortController();
 const settings = readServerSettings({
   dataDirectory: join(profile, 'server'),
@@ -32,12 +29,7 @@ try {
   const server = await startServer(settings, signal.signal, {
     desktopSession: session,
     version: undefined,
-    serviceUpdateRunner: openServiceUpdateRunner({
-      homeDirectory: homedir(),
-      packageRoot,
-      searchPath: process.env.PATH ?? '',
-      command: limits.installer,
-    }),
+    serviceUpdateRunner: openAppManagedUpdateRunner(),
   });
   let closing: Promise<void> | undefined;
   const close = () => {
