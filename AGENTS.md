@@ -47,6 +47,7 @@ Use the proof stages above for web work. Browser behavior cases run with Vitest 
 - `server-verify`: run the HTTP regression net, add a feature case, read the evidence.
 - `server-feature`: add, change or remove an endpoint end to end: contract, use case, route, scope, wiring, spec, net case, gates.
 - `web-verify`: browser behavior tests and Chrome DevTools CLI against a disposable server.
+- `desktop-verify`: build, sign and install the Mac app, where it keeps its data and logs, and its proof against the installed app on macOS.
 
 ## Working rules the tooling cannot see
 
