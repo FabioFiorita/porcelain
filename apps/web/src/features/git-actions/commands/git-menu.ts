@@ -32,6 +32,7 @@ type Menu = {
   pullStrategy: 'merge' | 'rebase';
   notify: (notice: GitNotice) => void;
   onProgress: (open: boolean) => void;
+  onResult: (notice: GitNotice) => void;
 };
 
 type Runner = ReturnType<typeof useGitAction>;
@@ -42,7 +43,8 @@ async function runNetwork(
   next: NetworkAction,
   displayedBranch: GitActionStatus['branch'],
 ) {
-  const { details, notify } = menu;
+  const { details } = menu;
+  const notify = menu.onResult;
   const label = networkTitle(next);
   const freshlyRead = !details.status;
   if (freshlyRead) menu.enableDetails();

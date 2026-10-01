@@ -26,6 +26,8 @@ import {
 import {
   Popover,
   PopoverContent,
+  PopoverDescription,
+  PopoverHeader,
   PopoverTitle,
   PopoverTrigger,
 } from '@/components/ui/popover';
@@ -33,6 +35,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { toast } from '@/components/ui/toast';
 import { usePreferences } from '@/shared/workspace/preferences';
 import { useGitMenu } from '../commands/git-menu';
+import type { GitNotice } from '../rules/feedback';
 import type { GitAction, GitScope } from '../rules/git-action';
 import { gitActionGroups, gitActions } from '../rules/git-action-options';
 import {
@@ -52,7 +55,7 @@ import {
 } from '../rules/status';
 import { GitActionIcon } from './git-action-icon';
 import { GitActionInspection } from './git-action-inspection';
-import { GitActionMessage } from './git-action-message';
+import { GitActionError, GitActionMessage } from './git-action-message';
 
 export function GitButton({
   scope,
@@ -74,6 +77,7 @@ export function GitButton({
   const { preferences } = usePreferences();
   const [busy, setBusy] = useState(false);
   const [progressOpen, setProgressOpen] = useState(false);
+  const [result, setResult] = useState<GitNotice | null>(null);
   const [action, setAction] = useState<GitAction | null>(null);
   const [openedStatus, setOpenedStatus] = useState<GitActionStatus | null>(
     null,
@@ -91,7 +95,11 @@ export function GitButton({
           ),
         type,
       }),
-    onProgress: setProgressOpen,
+    onProgress: (open) => {
+      if (open) setResult(null);
+      setProgressOpen(open);
+    },
+    onResult: setResult,
     refreshLook,
     onLooked: setOpenedStatus,
   });
@@ -124,8 +132,9 @@ export function GitButton({
     <>
       <ButtonGroup aria-label="Git controls" className="shrink-0">
         <Popover
-          open={running != null && progressOpen}
+          open={(running != null && progressOpen) || result != null}
           onOpenChange={(open) => {
+            if (!open) setResult(null);
             if (running) setProgressOpen(open);
           }}
         >
@@ -148,7 +157,7 @@ export function GitButton({
                 focusableWhenDisabled
                 className="aria-disabled:cursor-default"
                 onClick={() => {
-                  if (running) return;
+                  if (running || result) return;
                   if (primary.kind === 'commit') choose('commit');
                   else if (primary.kind === 'stash') choose('stash-apply');
                   else if (primary.kind === 'run')
@@ -179,21 +188,36 @@ export function GitButton({
             )}
           </PopoverTrigger>
           <PopoverContent align="end" className="w-80">
-            <PopoverTitle className="flex items-center">
-              <Spinner className="size-3.5" />
-              {running ? `${networkLabel(running.name)}…` : 'Git action…'}
-            </PopoverTitle>
-            <ol className="flex flex-col gap-0.5 font-mono text-[11px] leading-4">
-              {running?.operation?.receipt?.progress.length ? (
-                running.operation.receipt.progress.slice(-4).map((line) => (
-                  <li key={line} className="truncate" title={line}>
-                    {line}
-                  </li>
-                ))
-              ) : (
-                <li className="text-muted-foreground">Waiting for Git…</li>
-              )}
-            </ol>
+            {result && !running ? (
+              <PopoverHeader>
+                <PopoverTitle>{result.title}</PopoverTitle>
+                {result.description !== undefined &&
+                  (result.type === 'error' ? (
+                    <GitActionError text={result.description} />
+                  ) : (
+                    <PopoverDescription>
+                      <GitActionMessage text={result.description} />
+                    </PopoverDescription>
+                  ))}
+              </PopoverHeader>
+            ) : (
+              <>
+                <PopoverTitle>
+                  {running ? `${networkLabel(running.name)}…` : 'Git action…'}
+                </PopoverTitle>
+                <ol className="flex flex-col gap-0.5 font-mono text-[11px] leading-4">
+                  {running?.operation?.receipt?.progress.length ? (
+                    running.operation.receipt.progress.slice(-4).map((line) => (
+                      <li key={line} className="truncate" title={line}>
+                        {line}
+                      </li>
+                    ))
+                  ) : (
+                    <li className="text-muted-foreground">Waiting for Git…</li>
+                  )}
+                </ol>
+              </>
+            )}
           </PopoverContent>
         </Popover>
         <DropdownMenu
