@@ -94,7 +94,10 @@ function createLiveUpdates(
 
 function sameOriginAddress() {
   const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  return desktopLiveAddress() ?? `${protocol}//${location.host}/api/live`;
+  const desktop = desktopLiveAddress();
+  return desktop === undefined
+    ? `${protocol}//${location.host}/api/live`
+    : desktop;
 }
 
 function remoteAddress(address: string, ticket: string) {
