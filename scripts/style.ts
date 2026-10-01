@@ -76,6 +76,7 @@ const serverRoots = [
   '.agents/skills/server-verify/negative',
   '.agents/skills/web-verify/scripts',
   '.agents/skills/web-verify/feature-map',
+  '.agents/skills/desktop-verify/scripts',
 ].filter((root) => existsSync(root));
 const webRoots = ['apps/web/src', 'apps/web/spec', 'apps/web/vite.config.ts'];
 const allRoots = [...serverRoots, ...webRoots];

@@ -2808,6 +2808,22 @@ export function probeLoad(name: string): Promise<unknown> {
     errors: 1,
   },
   {
+    rule: 'typed-evaluation',
+    path: '.agents/skills/desktop-verify/scripts/feature-map.ts',
+    valid: `const saved = await page.evaluate(() => porcelainDesktop.credentials.read());
+await page.evaluate((value) => porcelainDesktop.credentials.write(value), saved);`,
+    invalid: `const saved = await page.evaluate('window.porcelainDesktop.credentials.read()');
+await page.evaluate(\`window.porcelainDesktop.credentials.write(\${JSON.stringify(saved)})\`);
+await page.waitForFunction("document.querySelector('.dark') !== null");`,
+    errors: 3,
+  },
+  {
+    rule: 'typed-evaluation',
+    path: 'apps/web/spec/kit/app.ts',
+    invalid: `export const theme = () => page.evaluateHandle('document.documentElement');`,
+    errors: 1,
+  },
+  {
     rule: 'use-case-computes',
     path: 'apps/server/src/use-cases/projects/find-worktree-by-path.ts',
     invalid: `import { NoWorktreeAtPathError } from '@porcelain/projects/errors';

@@ -572,6 +572,13 @@ function allowedNumberContext(node, value) {
   );
 }
 const rootScriptFile = /^scripts\/[^/]+\.ts$/;
+const evaluatingFile =
+  /^(?:scripts\/|\.agents\/skills\/|apps\/[^/]+\/spec\/|packages\/[^/]+\/spec\/)|\.spec\.tsx?$/;
+const evaluationMethods = new Set([
+  'evaluate',
+  'evaluateHandle',
+  'waitForFunction',
+]);
 const arithmeticOperators = new Set(['+', '-', '*', '/', '%', '**', '<<', '|']);
 const useCaseFile = /^apps\/server\/src\/use-cases\/.+\.ts$/;
 const adapterFile = /^apps\/server\/src\/adapters\//;
@@ -1647,6 +1654,30 @@ export default {
                 'A root script imports node, libraries, other scripts, architecture/ and the server app only; it never imports a package, by name or by a path into packages/: take what it needs from the server app or declare it in the script.',
             });
         });
+      },
+    },
+    'typed-evaluation': {
+      create(context) {
+        if (!evaluatingFile.test(repositoryPath(context))) return {};
+        return {
+          CallExpression(node) {
+            const source = node.arguments[0];
+            if (
+              node.callee.type !== 'MemberExpression' ||
+              !evaluationMethods.has(memberName(node.callee)) ||
+              (source?.type !== 'TemplateLiteral' &&
+                !(
+                  source?.type === 'Literal' && typeof source.value === 'string'
+                ))
+            )
+              return;
+            context.report({
+              node: source,
+              message:
+                'Pass a function, never source text, to evaluate: a typed function stops compiling when the desktop bridge or the page it reads changes, while a string only breaks at runtime on the machine that runs it.',
+            });
+          },
+        };
       },
     },
     'interfaces-hold-interfaces': {

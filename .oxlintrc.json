@@ -98,6 +98,7 @@
     "porcelain/interfaces-only-in-ports": "error",
     "porcelain/adapters-report-facts": "error",
     "porcelain/root-scripts-import-no-package": "error",
+    "porcelain/typed-evaluation": "error",
     "porcelain/web-no-module-mutable-binding": "error",
     "porcelain/web-no-context": "error",
     "porcelain/web-no-action-hooks": "error",

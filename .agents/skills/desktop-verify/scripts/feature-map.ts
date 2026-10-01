@@ -5,7 +5,23 @@ import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { _electron, type Page } from 'playwright';
 import { z } from 'zod';
-import { askOwner } from '../apps/server/src/cli/owner-client.ts';
+import type { DesktopBridge } from '@porcelain/contracts/desktop';
+import { askOwner } from '../../../../apps/server/src/cli/owner-client.ts';
+
+type RendererElement = {
+  querySelector(selector: string): RendererElement | null;
+};
+type RendererStyle = {
+  readonly paddingLeft: string;
+  getPropertyValue(name: string): string;
+};
+declare const porcelainDesktop: DesktopBridge;
+declare const document: {
+  readonly cookie: string;
+  querySelector(selector: string): RendererElement | null;
+};
+declare const parent: { readonly document: unknown };
+declare function getComputedStyle(element: RendererElement): RendererStyle;
 
 type DesktopProof = {
   executable: string;
@@ -283,27 +299,20 @@ async function reviewSummaries(input: DesktopProof) {
     await frame
       .locator('html[data-theme="dark"], html[data-theme="light"]')
       .waitFor();
-    const isolation = z
-      .object({
-        parentDenied: z.boolean(),
-        node: z.boolean(),
-        bridge: z.boolean(),
-      })
-      .parse(
-        await frame.evaluate(`(() => {
-      let parentDenied = false;
-      try {
-        void parent.document.body;
-      } catch {
-        parentDenied = true;
-      }
+    const isolation = await frame.evaluate(() => {
+      const parentDenied = (() => {
+        try {
+          return parent.document === null;
+        } catch {
+          return true;
+        }
+      })();
       return {
         parentDenied,
-        node: 'require' in window,
-        bridge: 'porcelainDesktop' in window,
+        node: 'require' in globalThis,
+        bridge: 'porcelainDesktop' in globalThis,
       };
-    })()`),
-      );
+    });
     requireProof(
       isolation.parentDenied && !isolation.node && !isolation.bridge,
       'A remote summary must not read the app, Node or the desktop bridge',
@@ -369,15 +378,15 @@ async function bridgeCapabilities(input: DesktopProof) {
       (url) => url.protocol === 'porcelain:' && url.pathname !== '/pair',
     );
     requireProof(
-      (await page.evaluate('window.porcelainDesktop.credentials.read()')) ===
-        null,
+      (await page.evaluate(() => porcelainDesktop.credentials.read())) === null,
       'A fresh app profile must have no saved credentials',
     );
     await page.evaluate(
-      `window.porcelainDesktop.credentials.write(${JSON.stringify(value)})`,
+      (saved) => porcelainDesktop.credentials.write(saved),
+      value,
     );
     requireProof(
-      (await page.evaluate('window.porcelainDesktop.credentials.read()')) ===
+      (await page.evaluate(() => porcelainDesktop.credentials.read())) ===
         value,
       'The preload must restore the exact opaque string',
     );
@@ -390,36 +399,33 @@ async function bridgeCapabilities(input: DesktopProof) {
       'Only the profile owner may read or write the encrypted file',
     );
     const current = await app.evaluate(({ app }) => app.getVersion());
-    const updates = z
-      .object({
-        current: z.string(),
-        available: z.string().nullable(),
-        states: z.array(z.string()),
-        unsubscribed: z.boolean(),
-        installError: z.string(),
-      })
-      .parse(
-        await page.evaluate(`(async () => {
-      const bridge = window.porcelainDesktop.appUpdate;
-      const states = [];
+    const updates = await page.evaluate(async () => {
+      const bridge = porcelainDesktop.appUpdate;
+      const states: string[] = [];
       let checking = false;
-      let finished = () => {};
-      const settled = new Promise((resolve) => { finished = resolve; });
+      const settled = Promise.withResolvers<void>();
       const unsubscribe = bridge.onState((state) => {
         states.push(state.status);
         if (state.status === 'checking') checking = true;
-        if (checking && state.status === 'idle') finished();
+        if (checking && state.status === 'idle') settled.resolve();
       });
       const result = await bridge.check();
-      await settled;
+      await settled.promise;
       unsubscribe();
       const count = states.length;
-      let installError = '';
-      try { await bridge.install(); } catch (error) { installError = error.message; }
-      await bridge.check();
-      return { current: bridge.current(), available: result.available, states, unsubscribed: states.length === count, installError };
-    })()`),
+      const installError = await bridge.install().then(
+        () => '',
+        (error: unknown) => (error instanceof Error ? error.message : ''),
       );
+      await bridge.check();
+      return {
+        current: bridge.current(),
+        available: result.available,
+        states,
+        unsubscribed: states.length === count,
+        installError,
+      };
+    });
     requireProof(
       updates.current === current,
       'The preload must expose the installed app version synchronously',
@@ -440,9 +446,8 @@ async function bridgeCapabilities(input: DesktopProof) {
       updates.installError.includes('unavailable for this local build'),
       'Installing without a release feed must reject',
     );
-    const denied = await app.evaluate(async ({ BrowserWindow, app }) => {
-      const main = BrowserWindow.getAllWindows()[0];
-      if (main === undefined) throw new Error('The main window is missing');
+    const rogueOpened = app.waitForEvent('window');
+    const rogueId = await app.evaluate(async ({ BrowserWindow, app }) => {
       const rogue = new BrowserWindow({
         show: false,
         webPreferences: {
@@ -452,26 +457,36 @@ async function bridgeCapabilities(input: DesktopProof) {
           nodeIntegration: false,
         },
       });
-      try {
-        await rogue.loadURL(
-          'data:text/html,<title>Untrusted bridge caller</title>',
-        );
-        const failures: unknown = await rogue.webContents
-          .executeJavaScript(`(async () => {
-          const bridge = window.porcelainDesktop;
-          const operations = [() => bridge.credentials.read(), () => bridge.credentials.write('untrusted'), () => bridge.credentials.clear(), () => bridge.appUpdate.check(), () => bridge.appUpdate.install()];
-          const failures = [];
-          for (const operation of operations) {
-            try { await operation(); failures.push(false); }
-            catch (error) { failures.push(error.message.includes('Untrusted desktop request')); }
-          }
-          return failures;
-        })()`);
-        return failures;
-      } finally {
-        rogue.destroy();
-      }
+      await rogue.loadURL(
+        'data:text/html,<title>Untrusted bridge caller</title>',
+      );
+      return rogue.id;
     });
+    const rogue = await rogueOpened;
+    const denied = await rogue.evaluate(async () => {
+      const bridge = porcelainDesktop;
+      const operations = [
+        () => bridge.credentials.read(),
+        () => bridge.credentials.write('untrusted'),
+        () => bridge.credentials.clear(),
+        () => bridge.appUpdate.check(),
+        () => bridge.appUpdate.install(),
+      ];
+      const failures: boolean[] = [];
+      for (const operation of operations)
+        failures.push(
+          await operation().then(
+            () => false,
+            (error: unknown) =>
+              error instanceof Error &&
+              error.message.includes('Untrusted desktop request'),
+          ),
+        );
+      return failures;
+    });
+    await app.evaluate(({ BrowserWindow }, id) => {
+      BrowserWindow.fromId(id)?.destroy();
+    }, rogueId);
     requireProof(
       isDeepStrictEqual(denied, [true, true, true, true, true]),
       'Every credential and app-update IPC operation must reject an untrusted window',
@@ -489,7 +504,7 @@ async function bridgeCapabilities(input: DesktopProof) {
       (url) => url.protocol === 'porcelain:' && url.pathname !== '/pair',
     );
     requireProof(
-      (await page.evaluate('window.porcelainDesktop.credentials.read()')) ===
+      (await page.evaluate(() => porcelainDesktop.credentials.read())) ===
         value,
       'Encrypted credentials must survive an app restart',
     );
@@ -497,21 +512,24 @@ async function bridgeCapabilities(input: DesktopProof) {
     await restarted.evaluate(({ safeStorage }) => {
       safeStorage.isAsyncEncryptionAvailable = () => Promise.resolve(false);
     });
-    const unavailable = await page.evaluate(`(async () => {
-      try { await window.porcelainDesktop.credentials.write('must-not-be-stored'); return false; }
-      catch (error) { return error.message.includes('unavailable'); }
-    })()`);
+    const unavailable = await page.evaluate(() =>
+      porcelainDesktop.credentials.write('must-not-be-stored').then(
+        () => false,
+        (error: unknown) =>
+          error instanceof Error && error.message.includes('unavailable'),
+      ),
+    );
     requireProof(
-      unavailable === true,
+      unavailable,
       'The preload must reject writes when safeStorage is unavailable',
     );
     requireProof(
       isDeepStrictEqual(await readFile(destination), encrypted),
       'Unavailable encryption must preserve the previous ciphertext',
     );
-    await page.evaluate('window.porcelainDesktop.credentials.clear()');
+    await page.evaluate(() => porcelainDesktop.credentials.clear());
     requireProof(
-      (await page.evaluate('window.porcelainDesktop.credentials.read()')) ===
+      (await page.evaluate(() => porcelainDesktop.credentials.read())) ===
         null && !existsSync(destination),
       'Clear must remove saved credentials even when encryption is unavailable',
     );
@@ -595,18 +613,12 @@ async function installedProject(input: DesktopProof) {
       ).status === 401,
       'The loopback server must refuse an incorrect desktop credential',
     );
-    const rendererAccess = z
-      .object({
-        cookies: z.string(),
-        bridge: z.boolean(),
-        node: z.boolean(),
-        credential: z.boolean(),
-      })
-      .parse(
-        await page.evaluate(
-          `({ cookies: document.cookie, bridge: !!window.porcelainDesktop, node: 'require' in window, credential: 'credential' in (window.porcelainDesktop ?? {}) })`,
-        ),
-      );
+    const rendererAccess = await page.evaluate(() => ({
+      cookies: document.cookie,
+      bridge: 'porcelainDesktop' in globalThis,
+      node: 'require' in globalThis,
+      credential: 'credential' in porcelainDesktop,
+    }));
     requireProof(
       rendererAccess.bridge &&
         rendererAccess.cookies === '' &&
@@ -692,13 +704,17 @@ async function installedProject(input: DesktopProof) {
       folderRequests.length === 0,
       'The native project flow must not query server folder browsing or discovery',
     );
-    const chrome = z
-      .object({ inset: z.string(), drag: z.string(), buttonDrag: z.string() })
-      .parse(
-        await page.evaluate(
-          `(() => { const header = document.querySelector('.desktop-sidebar-header'); return { inset: getComputedStyle(header).paddingLeft, drag: getComputedStyle(header).getPropertyValue('app-region'), buttonDrag: getComputedStyle(header.querySelector('button')).getPropertyValue('app-region') }; })()`,
-        ),
-      );
+    const chrome = await page.evaluate(() => {
+      const header = document.querySelector('.desktop-sidebar-header');
+      const button = header?.querySelector('button');
+      if (header == null || button == null)
+        throw new Error('The sidebar header and its button are missing');
+      return {
+        inset: getComputedStyle(header).paddingLeft,
+        drag: getComputedStyle(header).getPropertyValue('app-region'),
+        buttonDrag: getComputedStyle(button).getPropertyValue('app-region'),
+      };
+    });
     requireProof(
       chrome.inset === '82px' &&
         chrome.drag === 'drag' &&
@@ -750,7 +766,7 @@ async function installedProject(input: DesktopProof) {
     });
     await settingsPage.waitFor({ state: 'visible' });
     await settingsPage.getByRole('tab', { name: 'Dark', exact: true }).click();
-    await page.waitForFunction("document.querySelector('.dark') !== null");
+    await page.locator('.dark').first().waitFor({ state: 'attached' });
     requireProof(
       await app.evaluate(
         ({ nativeTheme }) => nativeTheme.themeSource === 'dark',
@@ -792,13 +808,15 @@ async function installedProject(input: DesktopProof) {
           view.setFullScreen(true);
         }),
     );
-    await page.waitForFunction(
-      "document.documentElement.classList.contains('desktop-fullscreen')",
-    );
+    await page
+      .locator('html.desktop-fullscreen')
+      .waitFor({ state: 'attached' });
     requireProof(
-      (await page.evaluate(
-        "getComputedStyle(document.querySelector('.desktop-sidebar-header')).paddingLeft",
-      )) === '12px',
+      (await page.evaluate(() => {
+        const header = document.querySelector('.desktop-sidebar-header');
+        if (header == null) throw new Error('The sidebar header is missing');
+        return getComputedStyle(header).paddingLeft;
+      })) === '12px',
       'Fullscreen must remove the traffic-light inset',
     );
     await app.evaluate(
@@ -810,9 +828,9 @@ async function installedProject(input: DesktopProof) {
           view.setFullScreen(false);
         }),
     );
-    await page.waitForFunction(
-      "!document.documentElement.classList.contains('desktop-fullscreen')",
-    );
+    await page
+      .locator('html.desktop-fullscreen')
+      .waitFor({ state: 'detached' });
     await page.screenshot({
       path: join(input.evidence, 'installed-project.png'),
     });
@@ -894,9 +912,7 @@ async function installedProject(input: DesktopProof) {
         )) === true,
         'Restarting must restore the maximized window',
       );
-      await restored.waitForFunction(
-        "document.querySelector('.dark') !== null",
-      );
+      await restored.locator('.dark').first().waitFor({ state: 'attached' });
       requireProof(
         await restarted.evaluate(
           ({ nativeTheme }) => nativeTheme.themeSource === 'dark',

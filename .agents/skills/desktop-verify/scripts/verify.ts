@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { mkdir, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
-import { desktopFeatures } from './desktop-feature-map.ts';
+import { desktopFeatures } from './feature-map.ts';
 
 const name = process.argv[2] ?? 'installed-project';
 const feature = desktopFeatures.find((entry) => entry.name === name);
