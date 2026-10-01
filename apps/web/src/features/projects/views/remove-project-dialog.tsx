@@ -51,9 +51,9 @@ function RemoveProjectContent({
         </AlertDialogTitle>
         <AlertDialogDescription>
           This removes the project and all its worktrees from the sidebar, and
-          deletes their saved reviews, comments, artifacts, preferences, and
-          operation history in Porcelain. Repository files and Git history stay
-          on disk.
+          deletes their published reviews and proof, reviewed marks, comments,
+          file preferences and Git action history in Porcelain. Repository files
+          and Git history stay on disk.
         </AlertDialogDescription>
       </AlertDialogHeader>
       <p className="break-all font-mono text-xs text-muted-foreground">
