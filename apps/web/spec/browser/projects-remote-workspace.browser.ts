@@ -130,6 +130,7 @@ test('the desktop app opens another computer’s worktree and HTML review, marks
     'changed',
     '<html><body><h1>Remote summary</h1><a href="#layer-1">Open remote layer</a></body></html>',
   );
+  await pairedPage.getByRole('button', { name: 'Review', exact: true }).click();
   await pairedPage.getByRole('tab', { name: 'Review', exact: true }).click();
   await pairedPage
     .getByRole('button', { name: 'Review summary', exact: true })

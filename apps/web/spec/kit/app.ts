@@ -238,7 +238,11 @@ async function remoteLink(
 
 export const app = {
   summary: () =>
-    page.frameLocator(page.getByTitle('Review summary', { exact: true })),
+    page.frameLocator(
+      page
+        .getByRole('region', { name: 'Published review', exact: true })
+        .getByTitle('Review summary', { exact: true }),
+    ),
   open,
   openReloadable,
   reload,
