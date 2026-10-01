@@ -42,7 +42,7 @@ export function OpenProjectDialog({
             <DialogTitle>Open project</DialogTitle>
             <DialogDescription>
               {opening.native
-                ? 'Choose a Git repository on this Mac.'
+                ? 'Choose a Git repository on this computer.'
                 : 'Browse for a repository on the Porcelain server.'}
             </DialogDescription>
           </div>
