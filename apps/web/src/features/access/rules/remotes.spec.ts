@@ -4,6 +4,7 @@ import {
   remoteLink,
   remoteLiveOpen,
   remoteStatus,
+  savedRemotes,
   syncRemoteConnections,
   withRemote,
 } from './remotes.ts';
@@ -82,6 +83,40 @@ describe('parseRemotes', () => {
 
   it('reads nothing from a value that is not a list', () => {
     expect(parseRemotes({ remotes: [remote] })).toEqual([]);
+  });
+});
+
+describe('savedRemotes', () => {
+  it('reads the remotes saved on this computer', () => {
+    expect(
+      savedRemotes({ status: 'saved', value: JSON.stringify([remote]) }),
+    ).toEqual({ kind: 'readable', remotes: [remote] });
+  });
+
+  it('reads an empty store as nothing saved yet, which later saves may fill', () => {
+    expect(savedRemotes({ status: 'empty' })).toEqual({
+      kind: 'readable',
+      remotes: undefined,
+    });
+  });
+
+  it('reports a store the app could not decrypt as unreadable, with its reason, so nothing saves over it', () => {
+    expect(
+      savedRemotes({
+        status: 'unreadable',
+        message: 'The saved credentials could not be read: Keychain denied',
+      }),
+    ).toEqual({
+      kind: 'unreadable',
+      message: 'The saved credentials could not be read: Keychain denied',
+    });
+  });
+
+  it('reports a decrypted store that is not a list it can read as unreadable instead of empty', () => {
+    expect(savedRemotes({ status: 'saved', value: '[{"broken"' })).toEqual({
+      kind: 'unreadable',
+      message: 'The saved remote computers are not in a form this app reads.',
+    });
   });
 });
 

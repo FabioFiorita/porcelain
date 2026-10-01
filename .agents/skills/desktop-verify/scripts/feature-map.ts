@@ -71,7 +71,7 @@ export const desktopFeatures = [
   {
     name: 'bridge-capabilities',
     promise:
-      'the installed preload persists one opaque credential string through encrypted storage and restart, refuses untrusted callers and unavailable encryption, clears saved credentials, exposes its app version, and reports local update checks and unavailable installation through removable state subscriptions',
+      'the installed preload persists one opaque credential string through encrypted storage and restart, reports credentials it cannot decrypt as unreadable and never saves over them, tells the owner in Settings, refuses untrusted callers and unavailable encryption, clears saved credentials, exposes its app version, and reports local update checks and unavailable installation through removable state subscriptions',
     run: bridgeCapabilities,
   },
   {
@@ -364,6 +364,10 @@ async function reviewSummaries(input: DesktopProof) {
   }
 }
 
+function savedCredentials(page: Page) {
+  return page.evaluate(() => porcelainDesktop.credentials.read());
+}
+
 async function bridgeCapabilities(input: DesktopProof) {
   const launch = () => launchDesktop(input);
   const value = JSON.stringify([
@@ -378,7 +382,7 @@ async function bridgeCapabilities(input: DesktopProof) {
       (url) => url.protocol === 'porcelain:' && url.pathname !== '/pair',
     );
     requireProof(
-      (await page.evaluate(() => porcelainDesktop.credentials.read())) === null,
+      isDeepStrictEqual(await savedCredentials(page), { status: 'empty' }),
       'A fresh app profile must have no saved credentials',
     );
     await page.evaluate(
@@ -386,8 +390,10 @@ async function bridgeCapabilities(input: DesktopProof) {
       value,
     );
     requireProof(
-      (await page.evaluate(() => porcelainDesktop.credentials.read())) ===
+      isDeepStrictEqual(await savedCredentials(page), {
+        status: 'saved',
         value,
+      }),
       'The preload must restore the exact opaque string',
     );
     requireProof(
@@ -504,11 +510,49 @@ async function bridgeCapabilities(input: DesktopProof) {
       (url) => url.protocol === 'porcelain:' && url.pathname !== '/pair',
     );
     requireProof(
-      (await page.evaluate(() => porcelainDesktop.credentials.read())) ===
+      isDeepStrictEqual(await savedCredentials(page), {
+        status: 'saved',
         value,
+      }),
       'Encrypted credentials must survive an app restart',
     );
     const encrypted = await readFile(destination);
+    await restarted.evaluate(({ safeStorage }) => {
+      safeStorage.decryptStringAsync = () =>
+        Promise.reject(new Error('Keychain access denied'));
+    });
+    requireProof(
+      isDeepStrictEqual(await savedCredentials(page), {
+        status: 'unreadable',
+        message:
+          'The saved credentials could not be read: Keychain access denied',
+      }),
+      'Credentials the app cannot decrypt must read as unreadable, not as empty',
+    );
+    const overwrite = await page.evaluate(() =>
+      porcelainDesktop.credentials.write('[]').then(
+        () => '',
+        (error: unknown) => (error instanceof Error ? error.message : ''),
+      ),
+    );
+    requireProof(
+      overwrite.includes('kept unchanged') &&
+        isDeepStrictEqual(await readFile(destination), encrypted),
+      'A write must never replace credentials the app could not read',
+    );
+    await page.reload();
+    await page.getByRole('button', { name: 'Settings', exact: true }).click();
+    const settings = page.getByRole('main', { name: 'Settings', exact: true });
+    await settings
+      .getByRole('button', { name: 'Remote computers', exact: true })
+      .click();
+    await settings
+      .getByText('Saved remote computers could not be read', { exact: true })
+      .waitFor();
+    requireProof(
+      isDeepStrictEqual(await readFile(destination), encrypted),
+      'Opening the app over unreadable credentials must not save over them',
+    );
     await restarted.evaluate(({ safeStorage }) => {
       safeStorage.isAsyncEncryptionAvailable = () => Promise.resolve(false);
     });
@@ -529,8 +573,8 @@ async function bridgeCapabilities(input: DesktopProof) {
     );
     await page.evaluate(() => porcelainDesktop.credentials.clear());
     requireProof(
-      (await page.evaluate(() => porcelainDesktop.credentials.read())) ===
-        null && !existsSync(destination),
+      isDeepStrictEqual(await savedCredentials(page), { status: 'empty' }) &&
+        !existsSync(destination),
       'Clear must remove saved credentials even when encryption is unavailable',
     );
     await closeDesktop(restarted);
@@ -541,6 +585,7 @@ async function bridgeCapabilities(input: DesktopProof) {
   return {
     encryptedCredentials: true,
     restartRestoresCredentials: true,
+    unreadableCredentialsKept: true,
     untrustedCallersRejected: true,
     unavailableEncryptionRejected: true,
     clearRemovesCredentials: true,

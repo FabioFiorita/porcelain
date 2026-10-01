@@ -2,9 +2,10 @@ import type { ReadInventoryResponse } from '@porcelain/contracts/projects';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { savedJson } from '@/shared/lib/saved-json';
-import { desktopCredentialStorage } from '@/shared/adapters/desktop';
+import { desktopCredentials } from '@/shared/adapters/desktop';
 import {
   parseRemotes,
+  savedRemotes,
   syncRemoteConnections,
   withRemote,
   type Remote,
@@ -96,14 +97,36 @@ function close(connection: Connection) {
 
 type RemotesState = {
   remotes: Remote[];
+  unreadable: string | undefined;
   save: (remote: Remote) => void;
   forget: (environmentId: string) => void;
 };
+
+function remotesStorage() {
+  const credentials = desktopCredentials();
+  if (!credentials) return savedJson(() => localStorage, parseRemotes);
+  let readable = false;
+  return {
+    async getItem() {
+      const saved = savedRemotes(await credentials.read());
+      if (saved.kind === 'unreadable') throw new Error(saved.message);
+      readable = true;
+      return saved.remotes === undefined ? null : { state: saved.remotes };
+    },
+    async setItem(_name: string, value: { state: Remote[] }) {
+      if (readable) await credentials.write(JSON.stringify(value.state));
+    },
+    async removeItem() {
+      await credentials.clear();
+    },
+  };
+}
 
 export const useRemotesStore = create<RemotesState>()(
   persist<RemotesState, [], [], Remote[]>(
     (set, get) => ({
       remotes: [],
+      unreadable: undefined,
       save: (remote) => set({ remotes: withRemote(get().remotes, remote) }),
       forget: (environmentId) =>
         set({
@@ -114,11 +137,13 @@ export const useRemotesStore = create<RemotesState>()(
     }),
     {
       name: 'porcelain.remotes',
-      storage:
-        desktopCredentialStorage(parseRemotes) ??
-        savedJson(() => localStorage, parseRemotes),
+      storage: remotesStorage(),
       partialize: ({ remotes }) => remotes,
       merge: (saved, current) => ({ ...current, remotes: parseRemotes(saved) }),
+      onRehydrateStorage: () => (_state, error) => {
+        if (error instanceof Error)
+          useRemotesStore.setState({ unreadable: error.message });
+      },
     },
   ),
 );
