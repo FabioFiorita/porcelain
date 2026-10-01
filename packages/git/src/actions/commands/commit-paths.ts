@@ -24,7 +24,6 @@ export async function commitPaths(
   preparation: GitActionCommand<'commit' | 'amend'>,
   paths: readonly string[],
   signal: AbortSignal,
-  verifyTarget?: () => Promise<void>,
 ): Promise<GitActionOutcome> {
   const intent = preparation.intent;
   const messageOnly = intent.action === 'amend' && paths.length === 0;
@@ -70,7 +69,6 @@ export async function commitPaths(
       mergeHeadOid !== (preparation.preview.mergeHeadOid ?? null)
     )
       throw new GitActionRejectedError('CHANGED_SINCE_LOOKED');
-    await verifyTarget?.();
     temporary = await mkdtemp(join(dirname(indexPath), 'porcelain-index-'));
     const indexFile = join(temporary, 'index');
     const original = await readFile(indexPath).catch((error: unknown) => {

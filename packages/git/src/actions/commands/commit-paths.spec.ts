@@ -73,7 +73,6 @@ const commit = (
     action?: 'commit' | 'amend';
     text?: string;
     seen?: Preview;
-    verifyTarget?: () => Promise<void>;
   } = {},
 ) =>
   commitPaths(
@@ -88,7 +87,6 @@ const commit = (
     },
     paths,
     AbortSignal.timeout(20_000),
-    options.verifyTarget,
   );
 
 const write = (path: string, content: string) => {
@@ -308,20 +306,6 @@ describe('commitPaths', () => {
       reason: 'CHECKOUT_BUSY',
     });
     expect(existsSync(join(checkout, '.git', 'index.lock'))).toBe(false);
-  });
-
-  it('stops before committing when the target check fails', async () => {
-    const base = head();
-    write('a.txt', 'a changed\n');
-    await expect(
-      commit(['a.txt'], {
-        verifyTarget: () => Promise.reject(new Error('target moved')),
-      }),
-    ).rejects.toThrow('target moved');
-    expect({ head: head(), status: git('status', '--porcelain') }).toEqual({
-      head: base,
-      status: ' M a.txt\n',
-    });
   });
 
   it('returns a hook rejection without committing or changing the index', async () => {

@@ -17,7 +17,6 @@ export interface GitActionWriter {
     expected: GitActionExpectation,
     signal: AbortSignal,
     onProgress?: (line: string) => void,
-    verifyTarget?: () => Promise<void>,
   ): Promise<GitActionOutcome>;
 }
 
