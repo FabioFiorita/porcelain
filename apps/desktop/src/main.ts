@@ -350,7 +350,18 @@ async function start() {
         ],
       },
       { role: 'editMenu' },
-      { role: 'viewMenu' },
+      app.isPackaged
+        ? {
+            label: 'View',
+            submenu: [
+              { role: 'resetZoom' },
+              { role: 'zoomIn' },
+              { role: 'zoomOut' },
+              { type: 'separator' },
+              { role: 'togglefullscreen' },
+            ],
+          }
+        : { role: 'viewMenu' },
       { role: 'windowMenu' },
     ]),
   );
