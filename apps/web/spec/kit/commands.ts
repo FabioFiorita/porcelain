@@ -19,6 +19,7 @@ declare module 'vitest/browser' {
     porcelainPairingLink: (
       label: string,
       server: ServerName,
+      trusted?: boolean,
     ) => Promise<PairingParts>;
     porcelainHits: (since: number, server: ServerName) => Promise<ServerHit[]>;
     porcelainProjectHome: (step: ProjectHomeStep) => Promise<string>;

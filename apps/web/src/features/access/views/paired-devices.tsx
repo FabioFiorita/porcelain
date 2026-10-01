@@ -11,7 +11,8 @@ import {
   ItemTitle,
 } from '@/components/ui/item';
 import { Spinner } from '@/components/ui/spinner';
-import { useRevokeAccess } from '../commands/share';
+import { Switch } from '@/components/ui/switch';
+import { useRevokeAccess, useSetDeviceTrust } from '../commands/share';
 import { usePairedAccess } from '../queries/share';
 import { connectionErrorMessage } from '../rules/connection-error-message';
 import { deviceRouteTitles } from '../rules/share';
@@ -20,6 +21,7 @@ import { type Connection } from '@/shared/workspace/connection';
 export function PairedDevices({ connection }: { connection: Connection }) {
   const access = usePairedAccess(connection);
   const revoke = useRevokeAccess(connection);
+  const trust = useSetDeviceTrust(connection);
   if (access.isPending) return <Spinner />;
   if (access.error)
     return (
@@ -65,8 +67,16 @@ export function PairedDevices({ connection }: { connection: Connection }) {
                 </ItemDescription>
               )}
             </ItemContent>
-            {!device.current && (
-              <ItemActions>
+            <ItemActions>
+              <Switch
+                aria-label={`${device.label} can update Porcelain`}
+                checked={device.trusted}
+                disabled={trust.pendingId === device.id}
+                onCheckedChange={(trusted) =>
+                  trust.submit({ id: device.id, trusted })
+                }
+              />
+              {!device.current && (
                 <Button
                   size="sm"
                   variant="outline"
@@ -76,8 +86,8 @@ export function PairedDevices({ connection }: { connection: Connection }) {
                 >
                   Revoke
                 </Button>
-              </ItemActions>
-            )}
+              )}
+            </ItemActions>
           </Item>
         ))}
         {access.data.grants.map((grant) => (
@@ -112,6 +122,13 @@ export function PairedDevices({ connection }: { connection: Connection }) {
           </Item>
         ))}
       </ItemGroup>
+      {trust.error && (
+        <Alert variant="destructive">
+          <AlertDescription>
+            {connectionErrorMessage(trust.error)}
+          </AlertDescription>
+        </Alert>
+      )}
       {revoke.error && (
         <Alert variant="destructive">
           <AlertDescription>

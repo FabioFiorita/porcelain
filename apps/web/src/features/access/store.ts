@@ -2,6 +2,7 @@ import type { ReadInventoryResponse } from '@porcelain/contracts/projects';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { savedJson } from '@/shared/lib/saved-json';
+import { desktopCredentialStorage } from '@/shared/adapters/desktop';
 import {
   parseRemotes,
   syncRemoteConnections,
@@ -109,7 +110,9 @@ export const useRemotesStore = create<RemotesState>()(
     }),
     {
       name: 'porcelain.remotes',
-      storage: savedJson(() => localStorage, parseRemotes),
+      storage:
+        desktopCredentialStorage(parseRemotes) ??
+        savedJson(() => localStorage, parseRemotes),
       partialize: ({ remotes }) => remotes,
       merge: (saved, current) => ({ ...current, remotes: parseRemotes(saved) }),
     },

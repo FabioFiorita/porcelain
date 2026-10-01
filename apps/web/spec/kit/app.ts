@@ -220,10 +220,14 @@ async function link(installation: 'this' | 'another') {
   });
 }
 
-async function remoteLink(server: ServerName = 'remote') {
+async function remoteLink(
+  server: ServerName = 'remote',
+  options: { trusted?: boolean } = {},
+) {
   const issued = await hostCommands.porcelainPairingLink(
     'Remote computer',
     server,
+    options.trusted ?? false,
   );
   return pairingLink({
     addresses: [issued.address],

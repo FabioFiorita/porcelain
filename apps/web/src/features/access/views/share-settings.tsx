@@ -5,6 +5,7 @@ import {
   ItemContent,
   ItemDescription,
   ItemGroup,
+  ItemTitle,
 } from '@/components/ui/item';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Spinner } from '@/components/ui/spinner';
@@ -12,9 +13,17 @@ import { desktopShell } from '@/shared/shell';
 import { useRemoteAccess } from '../queries/share';
 import { connectionErrorMessage } from '../rules/connection-error-message';
 import type { Environment, RemoteAccess } from '../rules/share';
-import { useAccessStore } from '../store';
+import {
+  useAccessStore,
+  useRemoteConnections,
+  type RemoteConnection,
+} from '../store';
+import { useRemoteStatus } from '../queries/remotes';
+import { remoteStatusText } from '../rules/remotes';
+import { desktopAppUpdate } from '@/shared/adapters/desktop';
 import { EnvironmentName } from './environment-name';
-import { ServiceUpdateSettings } from './service-update';
+import { RemoteServiceUpdate, ServiceUpdateSettings } from './service-update';
+import { AppUpdateSettings } from './app-update';
 import { PairDevice } from './pair-device';
 import { PairedDevices } from './paired-devices';
 import { RemoteRoutes } from './remote-routes';
@@ -75,12 +84,56 @@ export function ComputerSettings({
           <ItemGroup>
             <Item variant="outline">
               <ItemContent>
-                <ServiceUpdateSettings />
+                {desktopAppUpdate() ? (
+                  <AppUpdateSettings />
+                ) : (
+                  <ServiceUpdateSettings />
+                )}
               </ItemContent>
             </Item>
           </ItemGroup>
         </FieldSet>
+        <RemoteUpdates />
       </>
+    )
+  );
+}
+
+function RemoteUpdateRow({ entry }: { entry: RemoteConnection }) {
+  const status = useRemoteStatus(entry.remote);
+  const name = status.kind === 'online' ? status.name : entry.remote.name;
+  return (
+    <Item variant="outline" role="listitem" aria-label={name}>
+      <ItemContent>
+        <ItemTitle>{name}</ItemTitle>
+        {status.kind === 'online' ? (
+          <RemoteServiceUpdate
+            connection={entry.connection}
+            name={name}
+            deviceId={entry.remote.deviceId}
+          />
+        ) : (
+          <ItemDescription>
+            {remoteStatusText(status)}. Its update shows here once it answers.
+          </ItemDescription>
+        )}
+      </ItemContent>
+    </Item>
+  );
+}
+
+function RemoteUpdates() {
+  const remotes = useRemoteConnections();
+  return (
+    remotes.length > 0 && (
+      <FieldSet>
+        <FieldLegend variant="label">Remote computers</FieldLegend>
+        <ItemGroup aria-label="Remote computer updates">
+          {remotes.map((entry) => (
+            <RemoteUpdateRow key={entry.remote.environmentId} entry={entry} />
+          ))}
+        </ItemGroup>
+      </FieldSet>
     )
   );
 }

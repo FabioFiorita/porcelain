@@ -42,3 +42,31 @@ export function connectDesktopChrome(): () => void {
     );
   };
 }
+
+export function desktopAppUpdate() {
+  return desktopShell ? window.porcelainDesktop?.appUpdate : undefined;
+}
+
+export function desktopCredentialStorage<S>(read: (saved: unknown) => S) {
+  const credentials = desktopShell
+    ? window.porcelainDesktop?.credentials
+    : undefined;
+  if (!credentials) return undefined;
+  return {
+    async getItem() {
+      const stored = await credentials.read();
+      if (stored == null) return null;
+      try {
+        return { state: read(JSON.parse(stored)) };
+      } catch {
+        return { state: read(null) };
+      }
+    },
+    async setItem(_name: string, value: { state: S }) {
+      await credentials.write(JSON.stringify(value.state));
+    },
+    async removeItem() {
+      await credentials.clear();
+    },
+  };
+}

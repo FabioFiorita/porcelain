@@ -3,7 +3,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import { useStartServiceUpdate } from '../commands/share';
-import { useRemoteAccess, useServiceUpdate } from '../queries/share';
+import { useServiceUpdate } from '../queries/share';
 import { connectionErrorMessage } from '../rules/connection-error-message';
 import {
   type ServiceUpdate,
@@ -12,6 +12,18 @@ import {
 } from '../rules/service-update';
 import { useAccessStore } from '../store';
 import { type Connection } from '@/shared/workspace/connection';
+
+type UpdateTarget =
+  | { kind: 'local' }
+  | { kind: 'remote'; name: string; deviceId?: string | undefined };
+
+function trustHint(target: UpdateTarget): string {
+  if (target.kind === 'local')
+    return 'Only a browser on the computer that runs Porcelain, or a device its owner trusts, can update it.';
+  return target.deviceId
+    ? `Trust this app on ${target.name} to update it from here: run porcelain trust ${target.deviceId} there.`
+    : `Trust this app on ${target.name} to update it from here: run porcelain devices there, then porcelain trust with this app's id.`;
+}
 
 function Outcome({
   state,
@@ -57,14 +69,15 @@ function Outcome({
 
 function Offer({
   connection,
+  target,
   state,
   onStart,
 }: {
   connection: Connection;
+  target: UpdateTarget;
   state: ServiceUpdate;
   onStart: () => void;
 }) {
-  const remote = useRemoteAccess(connection);
   const start = useStartServiceUpdate(connection);
   const { latest } = state;
   if (!state.available || latest == null)
@@ -79,7 +92,7 @@ function Offer({
     <div className="flex flex-col gap-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm">Porcelain {latest} is available.</p>
-        {remote.data && (
+        {state.canUpdate && (
           <Button
             size="sm"
             disabled={start.isPending}
@@ -93,10 +106,8 @@ function Offer({
           </Button>
         )}
       </div>
-      {remote.managedElsewhere && (
-        <p className="text-xs text-muted-foreground">
-          Update it from a browser on the computer that runs Porcelain.
-        </p>
+      {!state.canUpdate && (
+        <p className="text-xs text-muted-foreground">{trustHint(target)}</p>
       )}
       {start.error && (
         <Alert variant="destructive">
@@ -109,7 +120,13 @@ function Offer({
   );
 }
 
-function UpdateContent({ connection }: { connection: Connection }) {
+function UpdateContent({
+  connection,
+  target,
+}: {
+  connection: Connection;
+  target: UpdateTarget;
+}) {
   const update = useServiceUpdate(connection);
   const [started, setStarted] = useState(false);
   const state = update.data;
@@ -141,9 +158,10 @@ function UpdateContent({ connection }: { connection: Connection }) {
         </div>
       ) : (
         <>
-          <Outcome state={state} started={started} />
+          <Outcome state={state} started={started && target.kind === 'local'} />
           <Offer
             connection={connection}
+            target={target}
             state={state}
             onStart={() => setStarted(true)}
           />
@@ -155,5 +173,26 @@ function UpdateContent({ connection }: { connection: Connection }) {
 
 export function ServiceUpdateSettings() {
   const connection = useAccessStore((state) => state.connection);
-  return connection && <UpdateContent connection={connection} />;
+  return (
+    connection && (
+      <UpdateContent connection={connection} target={{ kind: 'local' }} />
+    )
+  );
+}
+
+export function RemoteServiceUpdate({
+  connection,
+  name,
+  deviceId,
+}: {
+  connection: Connection;
+  name: string;
+  deviceId?: string | undefined;
+}) {
+  return (
+    <UpdateContent
+      connection={connection}
+      target={{ kind: 'remote', name, deviceId }}
+    />
+  );
 }

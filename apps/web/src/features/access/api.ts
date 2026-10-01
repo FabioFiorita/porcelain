@@ -12,6 +12,8 @@ import {
   renameEnvironmentRequestSchema,
   renameEnvironmentResponseSchema,
   revokeAccessRequestSchema,
+  setDeviceTrustRequestSchema,
+  setDeviceTrustResponseSchema,
   revokeAccessResponseSchema,
   setRemoteAccessRequestSchema,
   setRemoteAccessResponseSchema,
@@ -131,15 +133,38 @@ function createShareApi(transport: Transport) {
       requestJson(transport, '/api/access', listAccessResponseSchema, {
         signal,
       }),
-    issue: (signal: AbortSignal, label: string, addresses: string[]) =>
+    issue: (
+      signal: AbortSignal,
+      label: string,
+      addresses: string[],
+      trusted: boolean,
+    ) =>
       requestJson(transport, '/api/pairings', issuePairingResponseSchema, {
         method: 'POST',
         headers: json,
         body: JSON.stringify(
-          issuePairingRequestSchema.parse({ labels: [label], addresses }),
+          issuePairingRequestSchema.parse({
+            labels: [label],
+            addresses,
+            ...(trusted ? { trusted } : {}),
+          }),
         ),
         signal,
       }),
+    trust: (signal: AbortSignal, id: string, trusted: boolean) =>
+      requestJson(
+        transport,
+        '/api/access/trust',
+        setDeviceTrustResponseSchema,
+        {
+          method: 'POST',
+          headers: json,
+          body: JSON.stringify(
+            setDeviceTrustRequestSchema.parse({ id, trusted }),
+          ),
+          signal,
+        },
+      ),
     revoke: (signal: AbortSignal, id: string) =>
       requestJson(transport, '/api/access/revoke', revokeAccessResponseSchema, {
         method: 'POST',
@@ -231,7 +256,7 @@ export const remoteApi = {
     transport: Transport,
     link: RemoteLink,
     signal: AbortSignal,
-  ): Promise<string> {
+  ): Promise<{ credential: string; deviceId: string }> {
     let response: Response;
     try {
       response = await transport('/api/pair', {
@@ -253,7 +278,7 @@ export const remoteApi = {
     const paired = redeemPairingResponseSchema.parse(await response.json());
     if (!paired.credential)
       throw new ConnectionError('The remote paired but sent no credential.');
-    return paired.credential;
+    return { credential: paired.credential, deviceId: paired.device.id };
   },
   async describe(
     transport: Transport,

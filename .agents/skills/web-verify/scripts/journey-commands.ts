@@ -293,16 +293,20 @@ const porcelainFixture: BrowserCommand<[ServerName], RepoFixture> = async (
 };
 
 const porcelainPairingLink: BrowserCommand<
-  [string, ServerName],
+  [string, ServerName, boolean?],
   PairingParts
-> = async (_context, label, server) => {
+> = async (_context, label, server, trusted = false) => {
   const owner = await session(server);
   const [grant] = issuePairingResponseSchema.parse(
     await read(owner, {
       method: 'POST',
       path: '/pairings',
       target: 'owner',
-      body: { labels: [label], addresses: [owner.address] },
+      body: {
+        labels: [label],
+        addresses: [owner.address],
+        ...(trusted ? { trusted } : {}),
+      },
     }),
   ).grants;
   await keepEvidence();

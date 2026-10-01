@@ -14,12 +14,17 @@ export function useIssuePairing(connection: Connection) {
   const client = useQueryClient();
   const mutation = useMutation({
     scope: { id: `share:${connection.environmentId}` },
-    mutationFn: async (input: { label: string; addresses: string[] }) =>
+    mutationFn: async (input: {
+      label: string;
+      addresses: string[];
+      trusted: boolean;
+    }) =>
       issuedLink(
         await shareApi(connection).issue(
           connection.request().signal,
           input.label,
           input.addresses,
+          input.trusted,
         ),
       ),
     onSuccess: () =>
@@ -50,6 +55,28 @@ export function useRevokeAccess(connection: Connection) {
   return {
     submit: mutation.mutate,
     pendingId: mutation.isPending ? mutation.variables : undefined,
+    error: mutation.error,
+  };
+}
+
+export function useSetDeviceTrust(connection: Connection) {
+  const client = useQueryClient();
+  const mutation = useMutation({
+    scope: { id: `share:${connection.environmentId}` },
+    mutationFn: (input: { id: string; trusted: boolean }) =>
+      shareApi(connection).trust(
+        connection.request().signal,
+        input.id,
+        input.trusted,
+      ),
+    onSettled: () =>
+      client.invalidateQueries({
+        queryKey: pairedAccessQueryOptions(connection).queryKey,
+      }),
+  });
+  return {
+    submit: mutation.mutate,
+    pendingId: mutation.isPending ? mutation.variables.id : undefined,
     error: mutation.error,
   };
 }

@@ -20,7 +20,7 @@ async function addRemote(value: string): Promise<Remote> {
   )
     throw new ConnectionError('That link is for this computer.');
   const signal = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
-  const credential = await remoteApi.pair(
+  const { credential, deviceId } = await remoteApi.pair(
     remoteTransport(link.address),
     link,
     signal,
@@ -43,6 +43,7 @@ async function addRemote(value: string): Promise<Remote> {
     name: status.name,
     address: link.address,
     credential,
+    deviceId,
   };
 }
 
@@ -53,7 +54,7 @@ export function useAddRemote() {
     onSuccess: (remote) => {
       useRemotesStore.getState().save(remote);
       void client.invalidateQueries({
-        queryKey: remoteStatusQueryOptions(remote).queryKey,
+        predicate: (query) => query.queryKey.includes(remote.environmentId),
       });
     },
   });

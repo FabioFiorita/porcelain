@@ -7,6 +7,7 @@ export type Remote = {
   name: string;
   address: string;
   credential: string;
+  deviceId?: string | undefined;
 };
 
 export type RemoteLink = {
@@ -140,8 +141,17 @@ function savedRemote(value: unknown): Remote[] {
   const name = text(value, 'name');
   const address = text(value, 'address');
   const credential = text(value, 'credential');
+  const deviceId = text(value, 'deviceId');
   return environmentId && name !== undefined && address && credential
-    ? [{ environmentId, name, address, credential }]
+    ? [
+        {
+          environmentId,
+          name,
+          address,
+          credential,
+          ...(deviceId ? { deviceId } : {}),
+        },
+      ]
     : [];
 }
 

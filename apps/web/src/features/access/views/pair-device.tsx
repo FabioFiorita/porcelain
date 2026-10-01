@@ -6,6 +6,7 @@ import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Item, ItemContent, ItemMedia, ItemTitle } from '@/components/ui/item';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import {
   NativeSelect,
   NativeSelectOption,
@@ -34,6 +35,7 @@ export function PairDevice({
   const addresses = pairingAddresses(remote);
   const [label, setLabel] = useState('');
   const [chosen, setChosen] = useState<string | null>(null);
+  const [trusted, setTrusted] = useState(false);
   const issue = useIssuePairing(connection);
   const target = addresses.find(({ url }) => url === chosen) ?? addresses[0];
   if (target === undefined)
@@ -51,6 +53,7 @@ export function PairDevice({
             issue.submit({
               label: label.trim(),
               addresses: [target.url],
+              trusted,
             }),
           )
         }
@@ -91,6 +94,16 @@ export function PairDevice({
           Create pairing link
         </Button>
       </form>
+      <Field orientation="horizontal">
+        <Switch
+          id="pairing-trusted"
+          checked={trusted}
+          onCheckedChange={setTrusted}
+        />
+        <Label htmlFor="pairing-trusted">
+          The paired device can update Porcelain
+        </Label>
+      </Field>
       <p className="text-xs text-muted-foreground">
         The device will work only through {remoteRouteTitles[target.route]}. To
         use it through another way in too, pair it again through that one.
