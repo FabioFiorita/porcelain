@@ -34,7 +34,7 @@ export const desktopFeatures = [
   {
     name: 'installed-project',
     promise:
-      'the installed app starts its own server, opens a real Git project, survives window close, reopens from the Dock, retains its project, preferences and window after restart without browser pairing, and stops its server on Quit',
+      'the installed app starts its own server, opens a discovered real Git project, shows its desktop app version and update status, survives window close, reopens from the Dock, retains its project, preferences and window after restart without browser pairing, and stops its server on Quit',
     run: installedProject,
   },
 ];
@@ -323,12 +323,12 @@ async function installedProject(input: DesktopProof) {
     });
     const dialog = page.getByRole('dialog', { name: 'Open project' });
     await dialog.waitFor({ state: 'visible' });
-    await dialog.getByRole('button', { name: 'Enter a path' }).click();
     await dialog
-      .getByRole('textbox', { name: 'Repository path' })
-      .fill(input.repository);
-    await dialog
-      .getByRole('button', { name: 'Open project', exact: true })
+      .getByRole('region', { name: 'Found on this machine', exact: true })
+      .getByRole('button', {
+        name: `desktop-smoke ${input.repository}`,
+        exact: true,
+      })
       .click();
     await dialog.waitFor({ state: 'hidden' });
     await page
@@ -417,6 +417,16 @@ async function installedProject(input: DesktopProof) {
       ),
       'Appearance must update the native window',
     );
+    await settingsPage
+      .getByRole('button', { name: 'This computer', exact: true })
+      .click();
+    const appVersion = await app.evaluate(({ app }) => app.getVersion());
+    await settingsPage
+      .getByText(`Porcelain app ${appVersion}`, { exact: true })
+      .waitFor();
+    await settingsPage
+      .getByText('This is the newest version of the app.', { exact: true })
+      .waitFor();
     await settingsPage
       .getByRole('button', { name: 'Back', exact: true })
       .click();
@@ -577,6 +587,7 @@ async function installedProject(input: DesktopProof) {
       stableOrigin: true,
       nativeMenus: true,
       nativeAppearance: true,
+      desktopAppUpdates: true,
       windowRestored: true,
       maximizedRestored: true,
       fullscreenChrome: true,
