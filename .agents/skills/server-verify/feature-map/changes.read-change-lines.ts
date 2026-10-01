@@ -23,7 +23,7 @@ export default defineFeature({
   paired: true,
   intent: 'intended',
   behaviour:
-    "A reviewer reads a line range of a file either as committed at head or as it is in the worktree, to expand context around a diff. The range is clamped to the file's length and the answer states the range it actually returned. A range that ends before it starts is invalid input.",
+    "A reviewer reads a line range of a file either as committed at head or as it is in the worktree, to expand context around a diff. The range is clamped to the file's length and the answer states the range it actually returned. A path that is not in the version asked for is not found, at head as in the worktree. A range that ends before it starts is invalid input.",
   cases: [
     defineCase({
       name: 'worktree and head versions',
@@ -113,14 +113,10 @@ export default defineFeature({
         lines(session, { path: 'missing.md', from: 1, to: 2, at: 'worktree' }),
       ],
       expect({ responses, check }) {
-        check('head status', 422, responses[0]?.status);
+        check('head status', 404, responses[0]?.status);
         check(
           'head error body',
-          apiError(
-            422,
-            'Unprocessable Entity',
-            'Repository could not be inspected',
-          ),
+          apiError(404, 'Not Found', 'Path not found'),
           responses[0]?.body,
         );
         check('worktree status', 404, responses[1]?.status);

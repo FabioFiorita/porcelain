@@ -20,6 +20,7 @@ export class GitHeadTextReader implements HeadTextReader {
       signal,
     );
     if (blob.kind === 'too-large') return blob;
+    if (blob.kind === 'missing') return { kind: 'failed', failure: 'missing' };
     const text = decodedText(blob.bytes);
     return text === undefined
       ? { kind: 'failed', failure: 'unsupported-text' }
