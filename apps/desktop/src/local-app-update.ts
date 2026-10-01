@@ -5,7 +5,7 @@ import type {
 
 export class LocalAppUpdate {
   private readonly receive: (state: DesktopAppUpdateState) => void;
-  private state: DesktopAppUpdateState = { status: 'idle' };
+  private state: DesktopAppUpdateState = { status: 'unavailable' };
 
   constructor(receive: (state: DesktopAppUpdateState) => void) {
     this.receive = receive;
@@ -17,7 +17,7 @@ export class LocalAppUpdate {
 
   check(): Promise<DesktopAppUpdateCheck> {
     this.publish({ status: 'checking' });
-    this.publish({ status: 'idle' });
+    this.publish({ status: 'unavailable' });
     return Promise.resolve({ available: null });
   }
 

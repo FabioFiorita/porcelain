@@ -308,6 +308,7 @@ async function runFeature(
   try {
     server = await IsolatedServer.start(repositoryRoot, build);
     recorder.secret(server.credential);
+    recorder.secret(server.desktopCredential);
     cases = await runCases(feature, server, recorder, contracts);
   } catch (error) {
     setupError = message(error);

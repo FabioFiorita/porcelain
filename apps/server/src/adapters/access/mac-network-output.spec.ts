@@ -2,11 +2,16 @@ import { describe, expect, it } from 'vitest';
 import { macNetworkOutput } from '../../../spec/fixtures/mac-network-output.ts';
 import {
   macDefaultRoute,
-  macRouteTable,
-  macNeighbourTable,
+  macDefaultRoutes,
   macPhysicalInterface,
   macPrimaryService,
 } from './mac-network-output.ts';
+
+const router = {
+  interfaceName: 'en0',
+  metric: 0,
+  gateway: '192.168.1.1',
+};
 
 describe('Mac network output', () => {
   it('reads the default IPv4 route captured on this Mac', () => {
@@ -14,9 +19,6 @@ describe('Mac network output', () => {
       gateway: '192.168.1.1',
       interfaceName: 'en0',
     });
-    expect(macRouteTable(macNetworkOutput.route)).toBe(
-      'Iface Destination Gateway Flags RefCnt Use Metric Mask\nen0 00000000 0101a8c0 0003 0 0 0 00000000',
-    );
   });
 
   it('finds the primary network service macOS keeps in its configuration store', () => {
@@ -26,34 +28,60 @@ describe('Mac network output', () => {
     expect(macPrimaryService('<dictionary> {\n}\n')).toBeUndefined();
   });
 
-  it('reads the router hardware address macOS resolved for the primary service', () => {
-    expect(macNeighbourTable(macNetworkOutput.service)).toBe(
-      'IP address HW type Flags HW address Mask Device\n192.168.1.1 0x1 0x2 02:00:5e:10:00:01 * en0',
-    );
+  it('reads the default route with the router hardware address macOS resolved for the primary service', () => {
+    expect(
+      macDefaultRoutes(macNetworkOutput.route, macNetworkOutput.service),
+    ).toEqual([{ ...router, gatewayHardware: '02:00:5e:10:00:01' }]);
   });
 
   it('pads the hardware octets macOS prints without their leading zero', () => {
     expect(
-      macNeighbourTable(
+      macDefaultRoutes(
+        macNetworkOutput.route,
         macNetworkOutput.service.replace(
           'ARPResolvedHardwareAddress : 02:00:5e:10:00:01',
           'ARPResolvedHardwareAddress : 2:0:5e:10:0:1',
         ),
       ),
-    ).toBe(
-      'IP address HW type Flags HW address Mask Device\n192.168.1.1 0x1 0x2 02:00:5e:10:00:01 * en0',
-    );
+    ).toEqual([{ ...router, gatewayHardware: '02:00:5e:10:00:01' }]);
   });
 
-  it('leaves the router unknown while macOS has not resolved its hardware address', () => {
-    expect(
-      macNeighbourTable(
-        macNetworkOutput.service.replace(
-          /\s*ARPResolvedHardwareAddress : \S+\n/,
-          '\n',
-        ),
+  it.each([
+    [
+      'macOS has not resolved its hardware address',
+      macNetworkOutput.service.replace(
+        /\s*ARPResolvedHardwareAddress : \S+\n/,
+        '\n',
       ),
-    ).toBe('IP address HW type Flags HW address Mask Device');
+    ],
+    [
+      'macOS resolved an empty hardware address',
+      macNetworkOutput.service.replace(
+        'ARPResolvedHardwareAddress : 02:00:5e:10:00:01',
+        'ARPResolvedHardwareAddress : 0:0:0:0:0:0',
+      ),
+    ],
+    [
+      'the primary service resolved another router',
+      macNetworkOutput.service.replace(
+        'ARPResolvedIPAddress : 192.168.1.1',
+        'ARPResolvedIPAddress : 192.168.1.254',
+      ),
+    ],
+    [
+      'the primary service is on another interface',
+      macNetworkOutput.service.replace(
+        'InterfaceName : en0\n  NetworkSignature',
+        'InterfaceName : en7\n  NetworkSignature',
+      ),
+    ],
+    ['no primary service was read', ''],
+  ])('leaves the router hardware unknown while %s', (_, service) => {
+    expect(macDefaultRoutes(macNetworkOutput.route, service)).toEqual([router]);
+  });
+
+  it('reads no default route without an active default IPv4 route', () => {
+    expect(macDefaultRoutes('', macNetworkOutput.service)).toEqual([]);
   });
 
   it.each([

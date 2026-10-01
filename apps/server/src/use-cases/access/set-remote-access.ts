@@ -48,7 +48,7 @@ export class SetRemoteAccessUseCase {
       this.laneKeys.remoteAccess(),
       'write',
       async () => {
-        const changed = this.setRemoteAccess.execute(input);
+        const changed = await this.setRemoteAccess.execute(input);
         this.closeTunnelConnections.execute();
         return changed;
       },

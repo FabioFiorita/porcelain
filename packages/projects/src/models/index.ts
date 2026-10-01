@@ -15,7 +15,7 @@ export type {
   ReadProjectFolderInput,
 } from './project-folder.ts';
 export type {
-  DiscoveredProjectRepository,
+  ProjectRepository,
   RepositoryLocation,
 } from './project-repository.ts';
 export type { ProjectWorktrees } from './project-worktrees.ts';

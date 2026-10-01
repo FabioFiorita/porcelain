@@ -10,7 +10,12 @@ export type HttpRequest = {
   rawBody?: string;
   contentType?: string;
   headers?: Record<string, string>;
-  auth?: 'paired' | 'none' | { bearer: string } | { cookie: string };
+  auth?:
+    | 'paired'
+    | 'desktop'
+    | 'none'
+    | { bearer: string }
+    | { cookie: string };
   target?: 'network' | 'owner';
 };
 

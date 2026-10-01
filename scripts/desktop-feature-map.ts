@@ -55,13 +55,13 @@ export const desktopFeatures = [
   {
     name: 'bridge-capabilities',
     promise:
-      'the installed preload persists one opaque credential string through encrypted storage and restart, refuses untrusted callers and unavailable encryption, clears saved credentials, exposes its app version, and reports local update checks and unavailable installation through removable state subscriptions',
+      'the installed preload persists one opaque credential string through encrypted storage and restart, refuses untrusted callers and unavailable encryption, clears saved credentials, exposes its app version, and reports that the local build has no update feed, through checks and removable state subscriptions, and rejects installation',
     run: bridgeCapabilities,
   },
   {
     name: 'installed-project',
     promise:
-      'the installed app starts its own server, permits remote connections with scripts restricted to the app origin, opens only a manually selected Git project through its trusted native picker, cancels without registration or folder discovery, shows app updates, retains its project and preferences after restart, survives window close and stops its server on Quit',
+      'the installed app starts its own server, permits remote connections with scripts restricted to the app origin, opens only a manually selected Git project through its trusted native picker, cancels without registration or folder discovery, shows that the local build updates by reinstalling rather than claiming it is the newest, retains its project and preferences after restart, survives window close and stops its server on Quit',
     run: installedProject,
   },
 ];
@@ -408,7 +408,7 @@ async function bridgeCapabilities(input: DesktopProof) {
       const unsubscribe = bridge.onState((state) => {
         states.push(state.status);
         if (state.status === 'checking') checking = true;
-        if (checking && state.status === 'idle') finished();
+        if (checking && state.status === 'unavailable') finished();
       });
       const result = await bridge.check();
       await settled;
@@ -429,8 +429,9 @@ async function bridgeCapabilities(input: DesktopProof) {
       'A local app must not invent an available release',
     );
     requireProof(
-      updates.states.includes('checking') && updates.states.at(-1) === 'idle',
-      'Update subscriptions must observe a completed check',
+      updates.states.includes('checking') &&
+        updates.states.at(-1) === 'unavailable',
+      'Update subscriptions must observe a completed check that finds no update feed',
     );
     requireProof(
       updates.unsubscribed,
@@ -765,7 +766,10 @@ async function installedProject(input: DesktopProof) {
       .getByText(`Porcelain app ${appVersion}`, { exact: true })
       .waitFor();
     await settingsPage
-      .getByText('This is the newest version of the app.', { exact: true })
+      .getByText(
+        'This build updates by reinstalling; there is no update feed yet.',
+        { exact: true },
+      )
       .waitFor();
     await settingsPage
       .getByRole('button', { name: 'Back', exact: true })

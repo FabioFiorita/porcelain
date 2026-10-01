@@ -7,7 +7,7 @@ test('only the repository selected by browsing is registered', async ({
   server,
 }) => {
   const selected = await projectHome.repository('selected');
-  const unselected = await projectHome.repository('unselected');
+  await projectHome.repository('unselected');
   const registered = async () =>
     (await server.inventory()).projects.flatMap((project) =>
       project.worktrees.map((worktree) => worktree.path),
@@ -15,8 +15,6 @@ test('only the repository selected by browsing is registered', async ({
   await pairedPage
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
-  await expect.poll(registered).not.toContain(selected);
-  await expect.poll(registered).not.toContain(unselected);
   await pairedPage
     .getByRole('button', { name: 'Open project', exact: true })
     .click();
@@ -25,6 +23,12 @@ test('only the repository selected by browsing is registered', async ({
     exact: true,
   });
   await expect
+    .element(dialog.getByRole('button', { name: 'unselected', exact: true }))
+    .toBeVisible();
+  await expect
+    .element(dialog.getByRole('button', { name: 'selected', exact: true }))
+    .toBeVisible();
+  await expect
     .element(
       dialog.getByRole('region', {
         name: 'Found on this machine',
@@ -32,6 +36,7 @@ test('only the repository selected by browsing is registered', async ({
       }),
     )
     .not.toBeInTheDocument();
+  await expect.poll(registered).toHaveLength(1);
   await dialog.getByRole('button', { name: 'selected', exact: true }).click();
   await dialog
     .getByRole('button', { name: 'Open selected', exact: true })
@@ -41,5 +46,5 @@ test('only the repository selected by browsing is registered', async ({
     .element(pairedPage.getByRole('button', { name: 'selected', exact: true }))
     .toBeVisible();
   await expect.poll(registered).toContain(selected);
-  await expect.poll(registered).not.toContain(unselected);
+  await expect.poll(registered).toHaveLength(2);
 });

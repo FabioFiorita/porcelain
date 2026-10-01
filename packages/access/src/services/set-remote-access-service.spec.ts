@@ -12,14 +12,17 @@ import { FixedRuntimeStatusReader } from '../../spec/fakes/fixed-runtime-status-
 import { InMemoryRemoteAccessStore } from '../../spec/fakes/in-memory-remote-access-store.ts';
 import { InMemoryRouteStateStore } from '../../spec/fakes/in-memory-route-state-store.ts';
 import {
-  laptopNeighbourTable,
-  routeTableVia,
-} from '../../spec/fixtures/route-table.ts';
+  HOME_ROUTER_HARDWARE,
+  routesVia,
+} from '../../spec/fixtures/default-routes.ts';
 import { SetRemoteAccessService } from './set-remote-access-service.ts';
 
 const serviceUrl = 'http://127.0.0.1:4173';
 const tailnetHostname = 'laptop.tail0000.ts.net';
-const router = { gateway: '192.168.1.1', gatewayHardware: 'a4:91:b1:0c:7e:11' };
+const router = {
+  gateway: '192.168.1.1',
+  gatewayHardware: HOME_ROUTER_HARDWARE,
+};
 const home = { interfaceName: 'wlp2s0', subnet: '192.168.1.0/24', ...router };
 const office = { interfaceName: 'wlp2s0', subnet: '10.20.0.0/16', ...router };
 
@@ -41,8 +44,7 @@ function setup() {
   const routes = new InMemoryRouteStateStore();
   const network = new FixedNetworkAddressReader(
     [wifi('192.168.1.20/24')],
-    routeTableVia('wlp2s0'),
-    laptopNeighbourTable,
+    routesVia('wlp2s0', HOME_ROUTER_HARDWARE),
   );
   const service = new SetRemoteAccessService(
     settings,
@@ -59,10 +61,10 @@ function setup() {
 }
 
 describe('SetRemoteAccessService', () => {
-  it('saves a route turned on and shows it starting until it is opened', () => {
+  it('saves a route turned on and shows it starting until it is opened', async () => {
     const { settings, service } = setup();
 
-    expect(service.execute({ lan: true })).toEqual({
+    expect(await service.execute({ lan: true })).toEqual({
       routes: {
         lan: { enabled: true, status: { kind: 'starting' } },
         tailnet: { enabled: false, status: { kind: 'off' } },
@@ -80,16 +82,18 @@ describe('SetRemoteAccessService', () => {
     });
   });
 
-  it('turns the local network on for the network the computer is on now, which a second turn-on replaces', () => {
+  it('turns the local network on for the network the computer is on now, which a second turn-on replaces', async () => {
     const { settings, network, service } = setup();
-    service.execute({ lan: true });
+    await service.execute({ lan: true });
     network.replace([wifi('10.20.30.40/16')]);
 
-    expect(service.execute({ tailnet: true, tailnetHostname })).toMatchObject({
+    expect(
+      await service.execute({ tailnet: true, tailnetHostname }),
+    ).toMatchObject({
       lanNetwork: home,
       localNetwork: office,
     });
-    expect(service.execute({ lan: true })).toMatchObject({
+    expect(await service.execute({ lan: true })).toMatchObject({
       routes: { lan: { enabled: true, status: { kind: 'starting' } } },
       lanNetwork: office,
       localNetwork: office,
@@ -97,10 +101,10 @@ describe('SetRemoteAccessService', () => {
     expect(settings.read().lanNetwork).toEqual(office);
   });
 
-  it('forgets the network when the local network is turned off', () => {
+  it('forgets the network when the local network is turned off', async () => {
     const { settings, service } = setup();
-    service.execute({ lan: true });
-    const view = service.execute({ lan: false });
+    await service.execute({ lan: true });
+    const view = await service.execute({ lan: false });
 
     expect(view.lanNetwork).toBeUndefined();
     expect(view.localNetwork).toEqual(home);
@@ -111,11 +115,11 @@ describe('SetRemoteAccessService', () => {
     });
   });
 
-  it('refuses to turn the local network on while it cannot read the hardware address of the router, and changes nothing', () => {
+  it('refuses to turn the local network on while it cannot read the hardware address of the router, and changes nothing', async () => {
     const { settings, network, service } = setup();
-    network.replace([wifi('192.168.1.20/24')], routeTableVia('wlp2s0'), '');
+    network.replace([wifi('192.168.1.20/24')], routesVia('wlp2s0'));
 
-    expect(() => service.execute({ lan: true })).toThrow(
+    await expect(service.execute({ lan: true })).rejects.toThrow(
       UnidentifiedLocalNetworkError,
     );
     expect(settings.read()).toEqual({
@@ -125,14 +129,16 @@ describe('SetRemoteAccessService', () => {
     });
   });
 
-  it('refuses to turn the local network on while the computer is on no local network, and changes nothing', () => {
+  it('refuses to turn the local network on while the computer is on no local network, and changes nothing', async () => {
     const { settings, network, service } = setup();
-    network.replace([wifi('192.168.1.20/24')], '');
+    network.replace([wifi('192.168.1.20/24')], []);
 
-    expect(() =>
+    await expect(
       service.execute({ lan: true, tailnet: true, tailnetHostname }),
-    ).toThrow(NoLocalNetworkError);
-    expect(() => service.execute({ lan: true })).toThrow(NoLocalNetworkError);
+    ).rejects.toThrow(NoLocalNetworkError);
+    await expect(service.execute({ lan: true })).rejects.toThrow(
+      NoLocalNetworkError,
+    );
     expect(settings.read()).toEqual({
       lan: false,
       tailnet: false,
@@ -140,25 +146,25 @@ describe('SetRemoteAccessService', () => {
     });
   });
 
-  it('keeps a route that is turned off in its current state until it is closed', () => {
+  it('keeps a route that is turned off in its current state until it is closed', async () => {
     const { routes, service } = setup();
-    service.execute({ tailnet: true, tailnetHostname });
+    await service.execute({ tailnet: true, tailnetHostname });
     const open = { kind: 'on' as const, urls: ['http://100.64.0.9:4173'] };
     routes.save({
       states: { ...routes.read().states, tailnet: open },
       origins: open.urls,
     });
 
-    expect(service.execute({ tailnet: false }).routes.tailnet).toEqual({
+    expect((await service.execute({ tailnet: false })).routes.tailnet).toEqual({
       enabled: false,
       status: open,
     });
     expect(routes.read().origins).toEqual(open.urls);
   });
 
-  it('names the listener to forward Tailscale Serve to once the tailnet listens, and checks the name again when the tailnet is turned on again or its name changes', () => {
+  it('names the listener to forward Tailscale Serve to once the tailnet listens, and checks the name again when the tailnet is turned on again or its name changes', async () => {
     const { routes, service } = setup();
-    service.execute({ tailnet: true, tailnetHostname });
+    await service.execute({ tailnet: true, tailnetHostname });
     const failed = { kind: 'failed' as const, reason: 'unreachable' as const };
     routes.save({
       states: { ...routes.read().states, tailnet: failed },
@@ -170,7 +176,7 @@ describe('SetRemoteAccessService', () => {
       },
     });
 
-    expect(service.execute({ tailnet: true })).toMatchObject({
+    expect(await service.execute({ tailnet: true })).toMatchObject({
       routes: { tailnet: { enabled: true, status: { kind: 'starting' } } },
       tailnetHostname,
       tailnetTarget: 'http://127.0.0.1:41000',
@@ -180,18 +186,18 @@ describe('SetRemoteAccessService', () => {
       states: { ...routes.read().states, tailnet: failed },
     });
     expect(
-      service.execute({ tailnetHostname: 'desk.tail0000.ts.net' }).routes
-        .tailnet.status,
+      (await service.execute({ tailnetHostname: 'desk.tail0000.ts.net' }))
+        .routes.tailnet.status,
     ).toEqual({ kind: 'starting' });
   });
 
-  it('refuses a Tailscale name outside ts.net and turning the tailnet on without one, changing nothing', () => {
+  it('refuses a Tailscale name outside ts.net and turning the tailnet on without one, changing nothing', async () => {
     const { settings, service } = setup();
 
-    expect(() =>
+    await expect(
       service.execute({ tailnet: true, tailnetHostname: 'a.example.com' }),
-    ).toThrow(InvalidTailnetHostnameError);
-    expect(() => service.execute({ tailnet: true })).toThrow(
+    ).rejects.toThrow(InvalidTailnetHostnameError);
+    await expect(service.execute({ tailnet: true })).rejects.toThrow(
       MissingTailnetHostnameError,
     );
     expect(settings.read()).toEqual({
@@ -201,7 +207,7 @@ describe('SetRemoteAccessService', () => {
     });
   });
 
-  it('keeps knowing the listener Tailscale Serve forwards to while another route changes', () => {
+  it('keeps knowing the listener Tailscale Serve forwards to while another route changes', async () => {
     const { routes, service } = setup();
     const tailnetProxy = {
       hostname: 'laptop.tail0000.ts.net',
@@ -217,14 +223,17 @@ describe('SetRemoteAccessService', () => {
       origins: on.urls,
       tailnetProxy,
     });
-    service.execute({ lan: true });
+    await service.execute({ lan: true });
 
     expect(routes.read().tailnetProxy).toEqual(tailnetProxy);
   });
 
-  it('checks the tunnel again when Cloudflare is turned on again or its hostname changes', () => {
+  it('checks the tunnel again when Cloudflare is turned on again or its hostname changes', async () => {
     const { routes, service } = setup();
-    service.execute({ cloudflare: true, cloudflareHostname: 'a.example.com' });
+    await service.execute({
+      cloudflare: true,
+      cloudflareHostname: 'a.example.com',
+    });
     routes.save({
       states: {
         ...routes.read().states,
@@ -233,7 +242,9 @@ describe('SetRemoteAccessService', () => {
       origins: [],
     });
 
-    expect(service.execute({ cloudflare: true }).routes.cloudflare).toEqual({
+    expect(
+      (await service.execute({ cloudflare: true })).routes.cloudflare,
+    ).toEqual({
       enabled: true,
       status: { kind: 'starting' },
     });
@@ -245,7 +256,7 @@ describe('SetRemoteAccessService', () => {
       origins: ['https://a.example.com'],
     });
     expect(
-      service.execute({ cloudflareHostname: 'b.example.com' }),
+      await service.execute({ cloudflareHostname: 'b.example.com' }),
     ).toMatchObject({
       routes: { cloudflare: { enabled: true, status: { kind: 'starting' } } },
       cloudflareHostname: 'b.example.com',
@@ -253,12 +264,12 @@ describe('SetRemoteAccessService', () => {
     expect(routes.read().origins).toEqual([]);
   });
 
-  it('refuses to turn Cloudflare on without a hostname and changes nothing', () => {
+  it('refuses to turn Cloudflare on without a hostname and changes nothing', async () => {
     const { settings, service } = setup();
 
-    expect(() => service.execute({ tailnet: true, cloudflare: true })).toThrow(
-      MissingTunnelHostnameError,
-    );
+    await expect(
+      service.execute({ tailnet: true, cloudflare: true }),
+    ).rejects.toThrow(MissingTunnelHostnameError);
     expect(settings.read()).toEqual({
       lan: false,
       tailnet: false,
@@ -266,15 +277,15 @@ describe('SetRemoteAccessService', () => {
     });
   });
 
-  it('refuses a hostname that is not a public HTTPS hostname and changes nothing', () => {
+  it('refuses a hostname that is not a public HTTPS hostname and changes nothing', async () => {
     const { settings, service } = setup();
 
-    expect(() =>
+    await expect(
       service.execute({
         cloudflare: true,
         cloudflareHostname: 'porcelain.example.com/review',
       }),
-    ).toThrow(InvalidTunnelHostnameError);
+    ).rejects.toThrow(InvalidTunnelHostnameError);
     expect(settings.read().cloudflareHostname).toBeUndefined();
   });
 });

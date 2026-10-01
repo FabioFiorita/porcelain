@@ -1,12 +1,11 @@
 import { networkInterfaces } from 'node:os';
-import type { NetworkAddress } from '@porcelain/access/models';
+import type { DefaultRoute, NetworkAddress } from '@porcelain/access/models';
 import type { NetworkAddressReader } from '@porcelain/access/ports';
 import type { Limits } from '../../config/limits.ts';
 import { readMacPrimaryService, readMacRoute } from './mac-network-command.ts';
 import {
+  macDefaultRoutes,
   macPhysicalInterface,
-  macRouteTable,
-  macNeighbourTable,
 } from './mac-network-output.ts';
 
 export class MacNetworkAddressReader implements NetworkAddressReader {
@@ -30,11 +29,11 @@ export class MacNetworkAddressReader implements NetworkAddressReader {
     );
   }
 
-  routeTable(): string {
-    return macRouteTable(readMacRoute(this.limits));
-  }
-
-  neighbourTable(): string {
-    return macNeighbourTable(readMacPrimaryService(this.limits));
+  async defaultRoutes(): Promise<DefaultRoute[]> {
+    const [route, service] = await Promise.all([
+      readMacRoute(this.limits),
+      readMacPrimaryService(this.limits),
+    ]);
+    return macDefaultRoutes(route, service);
   }
 }

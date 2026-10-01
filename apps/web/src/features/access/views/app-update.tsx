@@ -5,7 +5,11 @@ import { Spinner } from '@/components/ui/spinner';
 import { desktopAppUpdate } from '@/shared/adapters/desktop';
 import { useInstallAppUpdate } from '../commands/app-update';
 import { useAppUpdate } from '../queries/app-update';
-import { appUpdateProgress, type AppUpdateState } from '../rules/app-update';
+import {
+  appUpdateProgress,
+  noUpdateMessage,
+  type AppUpdateState,
+} from '../rules/app-update';
 import { connectionErrorMessage } from '../rules/connection-error-message';
 
 export function AppUpdateSettings() {
@@ -41,7 +45,7 @@ export function AppUpdateSettings() {
         </div>
       ) : (
         <p className="text-xs text-muted-foreground">
-          This is the newest version of the app.
+          {noUpdateMessage(state)}
         </p>
       )}
       {(state.status === 'error' || install.error) && (

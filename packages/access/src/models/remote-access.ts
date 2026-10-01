@@ -88,6 +88,7 @@ export type DefaultRoute = {
   interfaceName: string;
   metric: number;
   gateway: string;
+  gatewayHardware?: string | undefined;
 };
 
 export type RouteAddresses = {

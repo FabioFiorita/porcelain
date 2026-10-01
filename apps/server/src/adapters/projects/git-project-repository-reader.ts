@@ -1,7 +1,7 @@
 import type { GitFactory } from '@porcelain/git/discovery';
 import { isRepositoryUnavailable } from '@porcelain/git/discovery';
 import type {
-  DiscoveredProjectRepository,
+  ProjectRepository,
   RepositoryLocation,
 } from '@porcelain/projects/models';
 import type { ProjectRepositoryReader } from '@porcelain/projects/ports';
@@ -16,7 +16,7 @@ export class GitProjectRepositoryReader implements ProjectRepositoryReader {
   private async inspect(
     input: RepositoryLocation,
     signal?: AbortSignal,
-  ): Promise<DiscoveredProjectRepository> {
+  ): Promise<ProjectRepository> {
     const { repository } = await this.git(input.path).listWorktrees(signal);
     return {
       commonDirectory: repository.commonDirectory,
@@ -32,7 +32,7 @@ export class GitProjectRepositoryReader implements ProjectRepositoryReader {
   async find(
     input: RepositoryLocation,
     signal?: AbortSignal,
-  ): Promise<DiscoveredProjectRepository | undefined> {
+  ): Promise<ProjectRepository | undefined> {
     try {
       return await this.inspect(input, signal);
     } catch (error) {

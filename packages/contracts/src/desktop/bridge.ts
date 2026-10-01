@@ -8,6 +8,7 @@ export const desktopAppUpdateCheckSchema = z.object({
 export const desktopAppUpdateStateSchema = z.discriminatedUnion('status', [
   z.object({ status: z.literal('idle') }),
   z.object({ status: z.literal('checking') }),
+  z.object({ status: z.literal('unavailable') }),
   z.object({ status: z.literal('available'), version: z.string() }),
   z.object({ status: z.literal('downloading'), version: z.string() }),
   z.object({ status: z.literal('verifying'), version: z.string() }),

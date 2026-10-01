@@ -378,16 +378,27 @@ function waitForReady(
   });
 }
 
-async function readManifest(
-  manifestPath: string,
-): Promise<{ manifest: Manifest; credential: string }> {
+async function readManifest(manifestPath: string): Promise<{
+  manifest: Manifest;
+  credential: string;
+  desktopCredential: string;
+}> {
   const manifest = manifestOf(JSON.parse(await readFile(manifestPath, 'utf8')));
   const secret = record(
     JSON.parse(await readFile(manifest.credentialFile, 'utf8')),
   );
   if (typeof secret.credential !== 'string' || secret.credential === '')
     throw new Error('Isolated server wrote no credential');
-  return { manifest, credential: secret.credential };
+  if (
+    typeof secret.desktopCredential !== 'string' ||
+    secret.desktopCredential === ''
+  )
+    throw new Error('Isolated server wrote no desktop session credential');
+  return {
+    manifest,
+    credential: secret.credential,
+    desktopCredential: secret.desktopCredential,
+  };
 }
 
 function hitsOf(lines: string): Hit[] {
@@ -416,12 +427,16 @@ export class ServerHandle {
   readonly projectHome: string;
   readonly socketPath: string;
   readonly credential: string;
+  readonly desktopCredential: string;
   readonly fixture: Fixture;
   readonly routes: readonly string[];
   private readonly hitsFile: string;
   private readonly bin: string;
 
-  protected constructor(manifest: Manifest, credential: string) {
+  protected constructor(
+    manifest: Manifest,
+    credentials: { credential: string; desktopCredential: string },
+  ) {
     this.address = manifest.address;
     this.repository = manifest.repository;
     this.projectHome = resolve(manifest.repository, '..');
@@ -430,12 +445,13 @@ export class ServerHandle {
     this.routes = manifest.routes;
     this.hitsFile = manifest.hitsFile;
     this.bin = manifest.bin;
-    this.credential = credential;
+    this.credential = credentials.credential;
+    this.desktopCredential = credentials.desktopCredential;
   }
 
   static async attach(manifestPath: string): Promise<ServerHandle> {
-    const { manifest, credential } = await readManifest(manifestPath);
-    return new ServerHandle(manifest, credential);
+    const { manifest, ...credentials } = await readManifest(manifestPath);
+    return new ServerHandle(manifest, credentials);
   }
 
   async hits(): Promise<Hit[]> {
@@ -596,6 +612,8 @@ export class ServerHandle {
     if ((request.target ?? 'network') === 'owner' || auth === 'none')
       return headers;
     if (auth === 'paired') headers.authorization = `Bearer ${this.credential}`;
+    else if (auth === 'desktop')
+      headers.authorization = `Bearer ${this.desktopCredential}`;
     else if ('bearer' in auth) headers.authorization = `Bearer ${auth.bearer}`;
     else headers.cookie = auth.cookie;
     return headers;
@@ -884,9 +902,14 @@ export class IsolatedServer extends ServerHandle {
     exited: Promise<void>,
     output: { stdout: string; stderr: string },
     manifestPath: string,
-    read: { manifest: Manifest; credential: string },
+    read: {
+      manifest: Manifest;
+      credential: string;
+      desktopCredential: string;
+    },
   ) {
-    super(read.manifest, read.credential);
+    const { manifest, ...credentials } = read;
+    super(manifest, credentials);
     this.child = child;
     this.exited = exited;
     this.output = output;

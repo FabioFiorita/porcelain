@@ -64,7 +64,11 @@ export type Limits = {
       probeTimeoutMs: number;
       strictTransportMaxAgeSeconds: number;
     };
-    networkDiscovery: { commandTimeoutMs: number; outputBytes: number };
+    networkDiscovery: {
+      commandTimeoutMs: number;
+      outputBytes: number;
+      processGroup: ProcessGroupLimits;
+    };
     pairingAttempts: {
       windowMs: number;
       attemptsPerPeer: number;
@@ -272,7 +276,11 @@ export const LIMITS: Limits = {
       probeTimeoutMs: 5 * SECOND_MS,
       strictTransportMaxAgeSeconds: YEAR_MS / SECOND_MS,
     },
-    networkDiscovery: { commandTimeoutMs: SECOND_MS, outputBytes: KIBIBYTE },
+    networkDiscovery: {
+      commandTimeoutMs: SECOND_MS,
+      outputBytes: KIBIBYTE,
+      processGroup: PROCESS_GROUP,
+    },
     pairingAttempts: {
       windowMs: MINUTE_MS,
       attemptsPerPeer: 10,

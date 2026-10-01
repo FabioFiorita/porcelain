@@ -5,7 +5,7 @@ import {
   UnsupportedFolderNameError,
 } from '@porcelain/projects/errors';
 import type {
-  DiscoveredProjectRepository,
+  ProjectRepository,
   ProjectFolderContents,
 } from '@porcelain/projects/models';
 import { ScriptedProjectFolderReader } from '../../spec/fakes/scripted-project-folder-reader.ts';
@@ -26,7 +26,7 @@ function folder(
   };
 }
 
-function setup(repositories: Record<string, DiscoveredProjectRepository> = {}) {
+function setup(repositories: Record<string, ProjectRepository> = {}) {
   const folders = new ScriptedProjectFolderReader();
   const reader = new ScriptedProjectRepositoryReader({ repositories });
   const service = new BrowseProjectFoldersService(folders, reader, {

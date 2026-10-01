@@ -19,11 +19,14 @@ type Preview = Parameters<typeof commitPaths>[1]['preview'];
 
 let checkout: string;
 
-const git = (...args: string[]) =>
+const gitWithInput = (input: string, ...args: string[]) =>
   execFileSync('git', ['-C', checkout, ...args], {
     encoding: 'utf8',
     stdio: 'pipe',
+    input,
   });
+
+const git = (...args: string[]) => gitWithInput('', ...args);
 
 const head = () => git('rev-parse', 'HEAD').trim();
 
@@ -214,15 +217,23 @@ describe('commitPaths', () => {
   });
 
   it('commits exactly 2,000 named files', async () => {
-    mkdirSync(join(checkout, 'many'));
     const paths = Array.from({ length: 2000 }, (_, index) => `many/${index}`);
-    for (const path of paths) write(path, `${path}\n`);
+    const blob = gitWithInput('many\n', 'hash-object', '-w', '--stdin').trim();
+    gitWithInput(
+      paths.map((path) => `100644 ${blob}\t${path}\n`).join(''),
+      'update-index',
+      '--index-info',
+    );
+    git('commit', '-q', '-m', 'many');
     await commit(paths);
-    expect(
-      git('ls-tree', '-r', '--name-only', 'HEAD', 'many').split('\n').length -
-        1,
-    ).toBe(2000);
-  }, 20_000);
+    expect({
+      committed: git('diff', '--name-only', 'HEAD~1', 'HEAD'),
+      status: git('status', '--porcelain'),
+    }).toEqual({
+      committed: `${paths.toSorted().join('\n')}\n`,
+      status: '',
+    });
+  });
 
   it('refuses more than 2,000 paths', async () => {
     const paths = Array.from({ length: 2001 }, (_, index) => `many/${index}`);
