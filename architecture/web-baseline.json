@@ -34,9 +34,6 @@
   "porcelain/web-views-no-transport": {
     "apps/web/src/app/workspace-provider.tsx": 1
   },
-  "style/duplicate-code": {
-    "apps/web/src/features/reviews/views/review-workspace.tsx": 2
-  },
   "typescript/no-deprecated": {
     "apps/web/src/app/workspace-provider.tsx": 1,
     "apps/web/src/features/changes/commands/read-current-changes.ts": 1,
