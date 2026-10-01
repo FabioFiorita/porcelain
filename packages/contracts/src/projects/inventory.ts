@@ -51,11 +51,6 @@ export const removeProjectResponseSchema = z.object({ deleted: z.boolean() });
 
 const projectLocationSchema = z.object({ name: z.string(), path: z.string() });
 
-export const discoverProjectsResponseSchema = z.object({
-  repositories: z.array(projectLocationSchema),
-  limited: z.boolean(),
-});
-
 export const browseProjectFoldersQuerySchema = z.strictObject({
   path: absolutePathSchema.optional(),
 });
@@ -101,9 +96,6 @@ export type RegisterProjectResponse = z.output<
 >;
 export type RemoveProjectResponse = z.output<
   typeof removeProjectResponseSchema
->;
-export type DiscoverProjectsResponse = z.output<
-  typeof discoverProjectsResponseSchema
 >;
 export type BrowseProjectFoldersQuery = z.output<
   typeof browseProjectFoldersQuerySchema

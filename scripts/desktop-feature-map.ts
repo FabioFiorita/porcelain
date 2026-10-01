@@ -61,7 +61,7 @@ export const desktopFeatures = [
   {
     name: 'installed-project',
     promise:
-      'the installed app starts its own server, serves a policy permitting remote HTTP and WebSocket connections with scripts restricted to the app origin, opens a discovered real Git project, shows its desktop app version and update status, survives window close, reopens from the Dock, retains its project, preferences and window after restart without browser pairing, and stops its server on Quit',
+      'the installed app starts its own server, permits remote connections with scripts restricted to the app origin, opens only a manually selected Git project through its trusted native picker, cancels without registration or folder discovery, shows app updates, retains its project and preferences after restart, survives window close and stops its server on Quit',
     run: installedProject,
   },
 ];
@@ -546,6 +546,11 @@ async function installedProject(input: DesktopProof) {
   try {
     const page = await app.firstWindow({ timeout: 30_000 });
     visiblePage = page;
+    const folderRequests: string[] = [];
+    page.on('request', (request) => {
+      if (/\/api\/projects\/(discover|folders)(\?|$)/u.test(request.url()))
+        folderRequests.push(request.url());
+    });
     page.on('pageerror', (error) => errors.push(error.message));
     page.on('console', (message) => {
       if (message.type() === 'error') errors.push(message.text());
@@ -612,6 +617,33 @@ async function installedProject(input: DesktopProof) {
     await page
       .getByRole('button', { name: 'Open project', exact: true })
       .waitFor();
+    const initial = await desktopRequest(page, '/api/inventory', 'GET');
+    requireProof(
+      inventory.parse(initial).projects.length === 0,
+      'Startup must not register the repository under the project home',
+    );
+    await app.evaluate(({ dialog, BrowserWindow }, repository) => {
+      dialog.showOpenDialog = async (...args: unknown[]) => {
+        const owner = args[0];
+        const options = args[1];
+        if (
+          owner !== BrowserWindow.getAllWindows()[0] ||
+          typeof options !== 'object' ||
+          options === null ||
+          Reflect.get(options, 'title') !== 'Open project' ||
+          Reflect.get(options, 'buttonLabel') !== 'Open project' ||
+          Reflect.get(options, 'defaultPath') !== repository ||
+          JSON.stringify(Reflect.get(options, 'properties')) !==
+            JSON.stringify(['openDirectory'])
+        )
+          throw new Error('The picker must be a single-folder native sheet');
+        return new Promise<{ canceled: boolean; filePaths: string[] }>(
+          (resolve) => {
+            Reflect.set(dialog, 'completeProjectSelection', resolve);
+          },
+        );
+      };
+    }, input.repository);
     await app.evaluate(({ Menu }) => {
       const item = Menu.getApplicationMenu()?.getMenuItemById('open-project');
       if (item == null)
@@ -620,14 +652,21 @@ async function installedProject(input: DesktopProof) {
     });
     const dialog = page.getByRole('dialog', { name: 'Open project' });
     await dialog.waitFor({ state: 'visible' });
-    await dialog
-      .getByRole('region', { name: 'Found on this machine', exact: true })
-      .getByRole('button', {
-        name: `desktop-smoke ${input.repository}`,
-        exact: true,
-      })
-      .click();
+    await completeProjectSelection(app, { canceled: true, filePaths: [] });
     await dialog.waitFor({ state: 'hidden' });
+    const canceled = await desktopRequest(page, '/api/inventory', 'GET');
+    requireProof(
+      inventory.parse(canceled).projects.length === 0,
+      'Canceling the native picker must not register a project',
+    );
+    await page
+      .getByRole('button', { name: 'Open project', exact: true })
+      .click();
+    await dialog.waitFor({ state: 'visible' });
+    await completeProjectSelection(app, {
+      canceled: false,
+      filePaths: [input.repository],
+    });
     await page
       .getByRole('button', { name: 'desktop-smoke', exact: true })
       .waitFor();
@@ -648,6 +687,10 @@ async function installedProject(input: DesktopProof) {
           ),
         ),
       'The real server must persist the opened project',
+    );
+    requireProof(
+      folderRequests.length === 0,
+      'The native project flow must not query server folder browsing or discovery',
     );
     const chrome = z
       .object({ inset: z.string(), drag: z.string(), buttonDrag: z.string() })
@@ -873,6 +916,9 @@ async function installedProject(input: DesktopProof) {
     );
     requireProof(errors.length === 0, `Renderer errors: ${errors.join('; ')}`);
     return {
+      nativePickerSelection: true,
+      canceledPickerDoesNotRegister: true,
+      noAutomaticDiscovery: true,
       openedProject: true,
       nativeDatabase: true,
       realGitHistory: true,
@@ -915,6 +961,18 @@ async function installedProject(input: DesktopProof) {
         appProcess.kill('SIGKILL');
       });
   }
+}
+
+async function completeProjectSelection(
+  app: Awaited<ReturnType<typeof _electron.launch>>,
+  selection: { canceled: boolean; filePaths: string[] },
+) {
+  await app.evaluate(({ dialog }, selection) => {
+    const complete: unknown = Reflect.get(dialog, 'completeProjectSelection');
+    if (typeof complete !== 'function')
+      throw new Error('The native project picker has not opened');
+    Reflect.apply(complete, dialog, [selection]);
+  }, selection);
 }
 
 function processAlive(pid: number): boolean {

@@ -1,6 +1,5 @@
 import {
   browseProjectFoldersResponseSchema,
-  discoverProjectsResponseSchema,
   listFilePreferencesResponseSchema,
   readInventoryResponseSchema,
   registerProjectRequestSchema,
@@ -25,13 +24,6 @@ function createProjectsApi(transport: Transport) {
         requestJson(transport, '/api/inventory', readInventoryResponseSchema, {
           signal,
         }),
-      discover: (signal: AbortSignal) =>
-        requestJson(
-          transport,
-          '/api/projects/discover',
-          discoverProjectsResponseSchema,
-          { signal },
-        ),
       browse: (signal: AbortSignal, path?: string) =>
         requestJson(
           transport,

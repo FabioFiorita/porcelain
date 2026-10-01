@@ -17,20 +17,3 @@ export type ProjectFolderRead =
   | { kind: 'missing' }
   | { kind: 'unreadable' }
   | { kind: 'unsupported-name' };
-
-export type DiscoveryFolder = { path: string; depth: number };
-
-export type DiscoveryWalk = {
-  queue: readonly DiscoveryFolder[];
-  next: number;
-  visited: ReadonlySet<string>;
-  candidates: readonly string[];
-  limited: boolean;
-};
-
-export type DiscoveryPolicy = {
-  maxDepth: number;
-  maxFolders: number;
-  skipHidden: boolean;
-  skippedNames: readonly string[];
-};

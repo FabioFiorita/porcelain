@@ -10,8 +10,6 @@ export type {
 export type { ListedWorktree } from './listed-worktree.ts';
 export type {
   FolderEntry,
-  DiscoveryPolicy,
-  DiscoveryWalk,
   ProjectFolderContents,
   ProjectFolderRead,
   ReadProjectFolderInput,

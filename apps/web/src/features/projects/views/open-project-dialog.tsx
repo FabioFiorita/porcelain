@@ -1,6 +1,7 @@
 import { Dialog as DialogPrimitive } from '@base-ui/react/dialog';
 import { FolderGit2Icon } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
 import {
   DialogContent,
   DialogDescription,
@@ -11,7 +12,6 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { connectionErrorMessage } from '@/features/access/index';
 import { useOpenProject } from '../commands/open-project';
 import { openProjectDialog } from '../overlays';
-import { ProjectDiscovery } from './project-discovery';
 import { ProjectFolderPicker } from './project-folder-picker';
 import { type Connection } from '@/shared/workspace/connection';
 
@@ -30,6 +30,7 @@ export function OpenProjectDialog({
   return (
     <DialogPrimitive.Root
       handle={openProjectDialog}
+      onOpenChange={opening.onOpenChange}
       onOpenChangeComplete={opening.onCloseChange}
     >
       <DialogContent className="flex max-h-[90svh] flex-col sm:max-w-lg">
@@ -40,22 +41,28 @@ export function OpenProjectDialog({
           <div className="flex min-w-0 flex-col gap-1">
             <DialogTitle>Open project</DialogTitle>
             <DialogDescription>
-              Find a repository on the Porcelain server.
+              {opening.native
+                ? 'Choose a Git repository on this Mac.'
+                : 'Browse for a repository on the Porcelain server.'}
             </DialogDescription>
           </div>
         </DialogHeader>
         <ScrollArea className="min-h-0 [&>[data-slot=scroll-area-viewport]]:max-h-[calc(90svh-8rem)]">
           <div className="flex flex-col gap-3 p-1">
-            <ProjectDiscovery
-              disabled={opening.isPending}
-              connection={connection}
-              onOpen={(path) => void opening.submit(path)}
-            />
-            <ProjectFolderPicker
-              disabled={opening.isPending}
-              connection={connection}
-              onOpen={(path) => void opening.submit(path)}
-            />
+            {opening.native ? (
+              <Button
+                disabled={opening.isPending}
+                onClick={() => opening.choose()}
+              >
+                Choose folder
+              </Button>
+            ) : (
+              <ProjectFolderPicker
+                disabled={opening.isPending}
+                connection={connection}
+                onOpen={(path) => void opening.submit(path)}
+              />
+            )}
             {opening.error && (
               <Alert variant="destructive">
                 <AlertDescription>

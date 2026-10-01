@@ -8,7 +8,6 @@ import type { CreateCommentThreadUseCase } from '../../use-cases/reviews/create-
 import type { DeleteCommentMessageUseCase } from '../../use-cases/reviews/delete-comment-message.ts';
 import type { DeleteResolvedCommentsUseCase } from '../../use-cases/reviews/delete-resolved-comments.ts';
 import type { EditCommentMessageUseCase } from '../../use-cases/reviews/edit-comment-message.ts';
-import type { DiscoverProjectsUseCase } from '../../use-cases/projects/discover-projects.ts';
 import type { DismissInterruptedGitActionUseCase } from '../../use-cases/git-actions/dismiss-interrupted-git-action.ts';
 import type { EditFileUseCase } from '../../use-cases/files/edit-file.ts';
 import type { GenerateCommitDraftUseCase } from '../../use-cases/git-actions/generate-commit-draft.ts';
@@ -83,7 +82,6 @@ import { readChangeDiffs } from '../routes/changes/read-change-diffs.ts';
 import { readChangeLines } from '../routes/changes/read-change-lines.ts';
 import { readGitStatus } from '../routes/changes/read-git-status.ts';
 import { browseProjectFolders } from '../routes/projects/browse-project-folders.ts';
-import { discoverProjects } from '../routes/projects/discover-projects.ts';
 import { listFilePreferences } from '../routes/projects/list-file-preferences.ts';
 import { readInventory } from '../routes/projects/read-inventory.ts';
 import { registerProject } from '../routes/projects/register-project.ts';
@@ -119,7 +117,6 @@ export type PairedUseCases = {
   };
   projects: {
     browseProjectFolders: Pick<BrowseProjectFoldersUseCase, 'execute'>;
-    discoverProjects: Pick<DiscoverProjectsUseCase, 'execute'>;
     listFilePreferences: Pick<ListFilePreferencesUseCase, 'execute'>;
     readInventory: Pick<ReadInventoryUseCase, 'execute'>;
     registerProject: Pick<RegisterProjectUseCase, 'execute'>;
@@ -307,9 +304,6 @@ export async function pairedScope(
   });
   server.register(listWorktreePaths, {
     useCase: options.application.files.listWorktreePaths,
-  });
-  server.register(discoverProjects, {
-    useCase: options.application.projects.discoverProjects,
   });
   server.register(browseProjectFolders, {
     useCase: options.application.projects.browseProjectFolders,
