@@ -35,8 +35,6 @@
     "apps/web/src/app/workspace-provider.tsx": 1
   },
   "style/duplicate-code": {
-    "apps/web/src/features/reviews/commands/comments.ts": 2,
-    "apps/web/src/features/reviews/commands/reviewed-queue.ts": 2,
     "apps/web/src/features/reviews/views/branch-document.tsx": 1,
     "apps/web/src/features/reviews/views/commit-document.tsx": 1,
     "apps/web/src/features/reviews/views/proof-document.tsx": 1,

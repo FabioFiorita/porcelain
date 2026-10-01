@@ -34,6 +34,9 @@ function commentContext(scope: ReviewScope, context: ConnectionContext) {
   };
 }
 
+type CommentContext = ReturnType<typeof commentContext>;
+type CommentRequest = ReturnType<CommentContext['request']>;
+
 function assertCommentScope(
   threads: CommentThread[],
   worktreeId: string,
@@ -66,7 +69,7 @@ type CommentQueue = { tail: Promise<void> };
 const commentQueues = new WeakMap<object, Map<string, CommentQueue>>();
 
 function enqueueComment<T>(
-  context: ReturnType<typeof commentContext>,
+  context: CommentContext,
   operation: () => Promise<T>,
 ) {
   const queryHash = JSON.stringify(context.key) ?? '';
@@ -124,24 +127,48 @@ export function useMarkCommentsSeen(
     },
   });
 }
+function useThreadsCommand<TVariables>(
+  scope: ReviewScope,
+  comments: ConnectionContext,
+  send: (
+    context: CommentContext,
+    request: CommentRequest,
+    input: TVariables,
+  ) => Promise<CommentThread[]>,
+  refreshesInventory = false,
+) {
+  const context = commentContext(scope, comments);
+  const client = useQueryClient();
+  return withSend(
+    useMutation({
+      mutationFn: (input: TVariables) =>
+        enqueueComment(context, async () => {
+          const request = context.request();
+          const result = await send(context, request, input);
+          request.signal.throwIfAborted();
+          const scoped = assertCommentScope(result, scope.worktreeId);
+          await mergeCommentThreads(
+            client,
+            context.key,
+            scoped,
+            refreshesInventory
+              ? queryKeys.inventory(context.connection.environmentId)
+              : undefined,
+          );
+          return scoped;
+        }),
+    }),
+  );
+}
+
 export function useCreateComment(
   scope: ReviewScope,
   comments: ConnectionContext,
 ) {
-  const context = commentContext(scope, comments);
-  const client = useQueryClient();
-  const create = withSend(
-    useMutation({
-      mutationFn: (input: NewComment) =>
-        enqueueComment(context, async () => {
-          const request = context.request();
-          const result = await context.api.create({ ...request, input });
-          request.signal.throwIfAborted();
-          const scoped = assertCommentScope(result, scope.worktreeId);
-          await mergeCommentThreads(client, context.key, scoped);
-          return scoped;
-        }),
-    }),
+  const create = useThreadsCommand(
+    scope,
+    comments,
+    ({ api }, request, input: NewComment) => api.create({ ...request, input }),
   );
   return { ...create, bodyLimit: COMMENT_BODY_LENGTH };
 }
@@ -150,29 +177,12 @@ export function useReplyComment(
   scope: ReviewScope,
   comments: ConnectionContext,
 ) {
-  const context = commentContext(scope, comments);
-  const client = useQueryClient();
-  const reply = withSend(
-    useMutation({
-      mutationFn: ({ threadId, body, messageId }: ReplyCommentInput) =>
-        enqueueComment(context, async () => {
-          const request = context.request();
-          const result = await context.api.reply({
-            ...request,
-            threadId,
-            input: { body, messageId },
-          });
-          request.signal.throwIfAborted();
-          const scoped = assertCommentScope(result, scope.worktreeId);
-          await mergeCommentThreads(
-            client,
-            context.key,
-            scoped,
-            queryKeys.inventory(context.connection.environmentId),
-          );
-          return scoped;
-        }),
-    }),
+  const reply = useThreadsCommand(
+    scope,
+    comments,
+    ({ api }, request, { threadId, body, messageId }: ReplyCommentInput) =>
+      api.reply({ ...request, threadId, input: { body, messageId } }),
+    true,
   );
   return { ...reply, bodyLimit: COMMENT_BODY_LENGTH };
 }
@@ -181,24 +191,11 @@ export function useResolveComment(
   scope: ReviewScope,
   comments: ConnectionContext,
 ) {
-  const context = commentContext(scope, comments);
-  const client = useQueryClient();
-  return withSend(
-    useMutation({
-      mutationFn: ({ threadId, resolved }: ResolveCommentInput) =>
-        enqueueComment(context, async () => {
-          const request = context.request();
-          const result = await context.api.resolve({
-            ...request,
-            threadId,
-            input: { resolved },
-          });
-          request.signal.throwIfAborted();
-          const scoped = assertCommentScope(result, scope.worktreeId);
-          await mergeCommentThreads(client, context.key, scoped);
-          return scoped;
-        }),
-    }),
+  return useThreadsCommand(
+    scope,
+    comments,
+    ({ api }, request, { threadId, resolved }: ResolveCommentInput) =>
+      api.resolve({ ...request, threadId, input: { resolved } }),
   );
 }
 
@@ -206,20 +203,11 @@ export function useEditComment(
   scope: ReviewScope,
   comments: ConnectionContext,
 ) {
-  const context = commentContext(scope, comments);
-  const client = useQueryClient();
-  const edit = withSend(
-    useMutation({
-      mutationFn: (input: EditCommentInput) =>
-        enqueueComment(context, async () => {
-          const request = context.request();
-          const result = await context.api.edit({ ...request, ...input });
-          request.signal.throwIfAborted();
-          const scoped = assertCommentScope(result, scope.worktreeId);
-          await mergeCommentThreads(client, context.key, scoped);
-          return scoped;
-        }),
-    }),
+  const edit = useThreadsCommand(
+    scope,
+    comments,
+    ({ api }, request, input: EditCommentInput) =>
+      api.edit({ ...request, ...input }),
   );
   return { ...edit, bodyLimit: COMMENT_BODY_LENGTH };
 }
