@@ -1,10 +1,10 @@
 import type { ZodTypeProvider } from '@fastify/type-provider-zod';
 import {
-  gitActionScopeSchema,
   runGitActionRejectedResponseSchema,
   runGitActionRequestSchema,
   runGitActionResponseSchema,
 } from '@porcelain/contracts/git-actions';
+import { worktreeParamsSchema } from '@porcelain/contracts/shared';
 import type { FastifyInstance } from 'fastify';
 import type { RunGitActionUseCase } from '../../../use-cases/git-actions/run-git-action.ts';
 import { errorResponses } from '../../schemas/error-responses.ts';
@@ -19,7 +19,7 @@ export function runGitAction(
     '/worktrees/:worktreeId/git/actions',
     {
       schema: {
-        params: gitActionScopeSchema,
+        params: worktreeParamsSchema,
         body: runGitActionRequestSchema,
         response: {
           ...errorResponses,

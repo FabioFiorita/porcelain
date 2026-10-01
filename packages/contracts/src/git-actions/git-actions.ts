@@ -34,10 +34,6 @@ const expectedFileSchema = z.strictObject({
   fingerprint: fingerprintSchema,
 });
 
-export const gitActionScopeSchema = z.strictObject({
-  worktreeId: worktreeIdSchema,
-});
-
 const gitActionRequestParamsSchema = z.strictObject({
   worktreeId: worktreeIdSchema,
   requestId: z.uuid(),
@@ -121,7 +117,6 @@ export const dismissInterruptedGitActionResponseSchema = z.object({
   dismissed: z.literal(true),
 });
 
-export type GitActionScope = z.output<typeof gitActionScopeSchema>;
 export type RunGitActionRequest = z.output<typeof runGitActionRequestSchema>;
 export type RunGitActionResponse = z.output<typeof runGitActionResponseSchema>;
 export type ReadGitActionReceiptParams = z.output<
