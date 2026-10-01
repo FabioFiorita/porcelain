@@ -21,15 +21,17 @@ import { WindowState } from './adapters/window-state.ts';
 import { EncryptedCredentials } from './adapters/encrypted-credentials.ts';
 import { LocalAppUpdate } from './local-app-update.ts';
 import { restoreWindowBounds } from './rules/window-bounds.ts';
-import {
-  desktopAddress,
-  registerDesktopScheme,
-  serveDesktop,
-} from './app-protocol.ts';
+import { registerDesktopScheme, serveDesktop } from './app-protocol.ts';
 import fixPath from 'fix-path';
 import { desktopSettings } from './settings.ts';
 import { startLocalServer } from './server-host.ts';
-import { localNavigation, externalNavigation } from './rules/navigation.ts';
+import {
+  desktopAddress,
+  externalNavigation,
+  localNavigation,
+} from './rules/navigation.ts';
+import { liveAddress, liveSocketHeaders } from './rules/live-socket.ts';
+import { trustedSender } from './rules/trusted-sender.ts';
 
 registerDesktopScheme();
 app.setName('Porcelain');
@@ -56,17 +58,22 @@ const appUpdate = new LocalAppUpdate((state) =>
   window?.webContents.send('porcelain:app-update-state', state),
 );
 
-function trustedSender(event: IpcMainEvent | IpcMainInvokeEvent): boolean {
-  return (
-    window !== undefined &&
-    event.sender === window.webContents &&
-    event.senderFrame === window.webContents.mainFrame &&
-    localNavigation(event.senderFrame.url, desktopAddress)
+function trusted(event: IpcMainEvent | IpcMainInvokeEvent): boolean {
+  return trustedSender(
+    {
+      contents: event.sender,
+      frame: event.senderFrame,
+      url: event.senderFrame?.url,
+    },
+    window && {
+      contents: window.webContents,
+      mainFrame: window.webContents.mainFrame,
+    },
   );
 }
 
 function authorize(event: IpcMainInvokeEvent): void {
-  if (!trustedSender(event)) throw new Error('Untrusted desktop request');
+  if (!trusted(event)) throw new Error('Untrusted desktop request');
 }
 
 function failure(error: unknown) {
@@ -113,7 +120,7 @@ async function openWindow() {
       preload: join(settings.packageRoot, 'desktop/preload.cjs'),
       additionalArguments: [
         `--porcelain-version=${app.getVersion()}`,
-        `--porcelain-live=${local.address.replace('http:', 'ws:')}/api/live`,
+        `--porcelain-live=${liveAddress(local.address)}`,
       ],
       sandbox: true,
       contextIsolation: true,
@@ -270,7 +277,7 @@ async function start() {
     return appUpdate.install();
   });
   ipcMain.on('porcelain:app-update-watch', (event) => {
-    if (trustedSender(event))
+    if (trusted(event))
       event.sender.send('porcelain:app-update-state', appUpdate.read());
   });
   fixPath();
@@ -326,52 +333,40 @@ async function start() {
   });
   stopServing = serveDesktop(server);
   session.defaultSession.webRequest.onBeforeSendHeaders(
-    { urls: [`${server.address.replace('http:', 'ws:')}/api/live`] },
+    { urls: [liveAddress(server.address)] },
     (details, callback) => {
-      const local = server;
-      if (
-        local === undefined ||
-        window === undefined ||
-        details.webContentsId !== window.webContents.id ||
-        details.frame !== window.webContents.mainFrame ||
-        details.initiatorOrigin !== desktopAddress ||
-        !localNavigation(window.webContents.getURL(), desktopAddress)
-      ) {
-        callback({ cancel: true });
-        return;
-      }
-      callback({
-        requestHeaders: {
-          ...details.requestHeaders,
-          Authorization: `Bearer ${local.credential}`,
-          Origin: new URL(local.address).origin,
-        },
-      });
+      const requestHeaders =
+        server &&
+        liveSocketHeaders(
+          {
+            url: details.url,
+            contentsId: details.webContentsId,
+            frame: details.frame,
+            initiatorOrigin: details.initiatorOrigin,
+            headers: details.requestHeaders,
+          },
+          window && {
+            contentsId: window.webContents.id,
+            mainFrame: window.webContents.mainFrame,
+            url: window.webContents.getURL(),
+          },
+          server,
+        );
+      callback(
+        requestHeaders === undefined ? { cancel: true } : { requestHeaders },
+      );
     },
   );
   ipcMain.on('porcelain:appearance', (event, value: unknown) => {
     const appearance = desktopAppearanceSchema.safeParse(value);
-    if (
-      window === undefined ||
-      event.sender !== window.webContents ||
-      event.senderFrame !== window.webContents.mainFrame ||
-      !localNavigation(event.senderFrame.url, desktopAddress) ||
-      !appearance.success
-    )
-      return;
+    if (window === undefined || !trusted(event) || !appearance.success) return;
     nativeTheme.themeSource = appearance.data;
     window.setBackgroundColor(
       nativeTheme.shouldUseDarkColors ? '#171717' : '#fafafa',
     );
   });
   ipcMain.on('porcelain:actions-ready', (event) => {
-    if (
-      window === undefined ||
-      event.sender !== window.webContents ||
-      event.senderFrame !== window.webContents.mainFrame ||
-      !localNavigation(event.senderFrame.url, desktopAddress)
-    )
-      return;
+    if (window === undefined || !trusted(event)) return;
     actionsReady = true;
     if (pendingAction !== undefined) {
       window.webContents.send('porcelain:action', pendingAction);

@@ -1,3 +1,5 @@
+export const desktopAddress = 'porcelain://app';
+
 export function localNavigation(url: string, origin: string): boolean {
   try {
     const target = new URL(url);
