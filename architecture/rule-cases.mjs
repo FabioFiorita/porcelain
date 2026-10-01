@@ -1426,6 +1426,39 @@ export class ReadHealthUseCase {
     errors: 1,
   },
   {
+    rule: 'no-blocking-child-process',
+    path: 'packages/process/src/commands/read-command.ts',
+    valid: `import { spawn } from 'node:child_process';
+
+export function startCommand(command: string, args: readonly string[]) {
+  return spawn(command, [...args], { stdio: ['ignore', 'pipe', 'ignore'] });
+}
+`,
+    invalid: `import { execFileSync } from 'node:child_process';
+
+export function readCommand(command: string, args: readonly string[]): string {
+  return execFileSync(command, args, { encoding: 'utf8' });
+}
+`,
+    errors: 1,
+  },
+  {
+    rule: 'no-blocking-child-process',
+    path: 'apps/server/src/adapters/access/mac-network-command.ts',
+    invalid: `import * as childProcess from 'child_process';
+import { execSync as run, spawnSync } from 'node:child_process';
+
+export function readRoute(): string {
+  run('/sbin/route -n get default');
+  spawnSync('/usr/sbin/scutil', []);
+  return childProcess.execFileSync('/sbin/route', ['-n', 'get', 'default'], {
+    encoding: 'utf8',
+  });
+}
+`,
+    errors: 3,
+  },
+  {
     rule: 'no-comments',
     path: 'packages/files/src/services/list-directory-service.ts',
     valid: `import type { ListDirectoryOptions } from '../models/list-directory.ts';

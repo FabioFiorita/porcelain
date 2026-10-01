@@ -390,6 +390,8 @@ const packageCode = /^packages\/([^/]+)\/(?:src|spec)\//;
 const nodeGlobalScope =
   /^(?:packages\/[^/]+\/src|apps\/server\/src\/(?:use-cases|ports))\//;
 const serverSource = /^(?:packages\/[^/]+|apps\/server)\/src\//;
+const childProcessModules = new Set(['node:child_process', 'child_process']);
+const blockingChildProcess = new Set(['execFileSync', 'execSync', 'spawnSync']);
 const serviceFile = /^packages\/[^/]+\/src\/services\//;
 const ruleFile = /^packages\/[^/]+\/src\/rules\//;
 const modelFile = /^packages\/[^/]+\/src\/models\//;
@@ -2247,6 +2249,40 @@ export default {
                 message:
                   'Import a module by a literal path; a computed import() hides a dependency from arch:check.',
               });
+          },
+        };
+      },
+    },
+    'no-blocking-child-process': {
+      create(context) {
+        if (!serverSource.test(repositoryPath(context)) || isSpec(context))
+          return {};
+        const namespaces = new Set();
+        const report = (node, name) =>
+          context.report({
+            node,
+            message: `${name} blocks the server's event loop until the command ends, stalling every request; run it with runCommand from @porcelain/process, which spawns it asynchronously with a deadline and an output limit.`,
+          });
+        return {
+          ImportDeclaration(node) {
+            if (!childProcessModules.has(node.source.value)) return;
+            for (const specifier of node.specifiers) {
+              if (specifier.type !== 'ImportSpecifier') {
+                namespaces.add(specifier.local.name);
+                continue;
+              }
+              const name = specifier.imported.name ?? specifier.imported.value;
+              if (blockingChildProcess.has(name)) report(specifier, name);
+            }
+          },
+          MemberExpression(node) {
+            const name = node.property.name ?? node.property.value;
+            if (
+              node.object.type === 'Identifier' &&
+              namespaces.has(node.object.name) &&
+              blockingChildProcess.has(name)
+            )
+              report(node, name);
           },
         };
       },
