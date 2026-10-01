@@ -259,7 +259,13 @@ async function host(): Promise<void> {
     server = await IsolatedServer.start(repositoryRoot, build);
     vite = spawn(
       resolve(repositoryRoot, 'apps/web/node_modules/.bin/vite'),
-      ['--host', '127.0.0.1', '--port', '0'],
+      [
+        '--host',
+        '127.0.0.1',
+        '--port',
+        '0',
+        ...(process.argv.includes('--desktop') ? ['--mode', 'desktop'] : []),
+      ],
       {
         cwd: resolve(repositoryRoot, 'apps/web'),
         env: { ...process.env, PORCELAIN_API_TARGET: server.address },
@@ -358,7 +364,7 @@ async function start(): Promise<void> {
   const log = openSync(logPath, 'a');
   const child = spawn(
     process.execPath,
-    [fileURLToPath(import.meta.url), 'host'],
+    [fileURLToPath(import.meta.url), 'host', ...process.argv.slice(3)],
     {
       cwd: repositoryRoot,
       detached: true,

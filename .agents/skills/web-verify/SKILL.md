@@ -73,7 +73,7 @@ pnpm devtools take_heapsnapshot 2 /absolute/evidence/heap.heapsnapshot
 pnpm devtools stop
 ```
 
-Use the page ID from `list_pages` and the evidence folder printed by `start`; do not assume page 2 or copy the example output path. `pair` issues a one-time grant for the disposable server and opens its connected review screen in that page. The wrapper forwards other Chrome DevTools CLI commands unchanged. Refer to the [official CLI guide](https://github.com/ChromeDevTools/chrome-devtools-mcp/blob/main/docs/cli.md) and each command's `--help` for supported flags. The CLI supports a subset of the MCP tools.
+`pnpm devtools start --desktop` serves the web as the desktop app shows it, like `pnpm dev --desktop`. Use the page ID from `list_pages` and the evidence folder printed by `start`; do not assume page 2 or copy the example output path. `pair` issues a one-time grant for the disposable server and opens its connected review screen in that page. The wrapper forwards other Chrome DevTools CLI commands unchanged. Refer to the [official CLI guide](https://github.com/ChromeDevTools/chrome-devtools-mcp/blob/main/docs/cli.md) and each command's `--help` for supported flags. The CLI supports a subset of the MCP tools.
 
 The wrapper needs Google Chrome or Chrome for Testing. If neither is installed, install the pinned Chrome for Testing build into the user cache:
 
