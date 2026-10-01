@@ -16,6 +16,11 @@ export const desktopAppUpdateStateSchema = z.discriminatedUnion('status', [
   z.object({ status: z.literal('installing'), version: z.string() }),
   z.object({ status: z.literal('error'), message: z.string() }),
 ]);
+export const desktopCredentialsSchema = z.discriminatedUnion('status', [
+  z.object({ status: z.literal('empty') }),
+  z.object({ status: z.literal('saved'), value: z.string() }),
+  z.object({ status: z.literal('unreadable'), message: z.string() }),
+]);
 export const desktopWindowStateSchema = z.object({
   bounds: z.object({
     x: z.number().int(),
@@ -28,6 +33,7 @@ export const desktopWindowStateSchema = z.object({
 export type DesktopAction = z.output<typeof desktopActionSchema>;
 export type DesktopAppearance = z.output<typeof desktopAppearanceSchema>;
 export type DesktopWindowState = z.output<typeof desktopWindowStateSchema>;
+export type DesktopCredentials = z.output<typeof desktopCredentialsSchema>;
 export type DesktopAppUpdateCheck = z.output<
   typeof desktopAppUpdateCheckSchema
 >;
@@ -37,7 +43,7 @@ export type DesktopAppUpdateState = z.output<
 export type DesktopBridge = {
   pickProjectFolder: () => Promise<string | null>;
   credentials: {
-    read: () => Promise<string | null>;
+    read: () => Promise<DesktopCredentials>;
     write: (value: string) => Promise<void>;
     clear: () => Promise<void>;
   };

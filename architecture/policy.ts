@@ -338,6 +338,7 @@ export const styleRules = [
   'manual-audits',
   'pre-push-hook',
   'code-outside-lint-roots',
+  'prose-outside-skills',
   'format-config',
   'vite-config',
   'route-tree',

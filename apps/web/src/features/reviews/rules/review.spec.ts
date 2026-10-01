@@ -15,22 +15,34 @@ describe('reviewSummaryUrl', () => {
     byteLength: 100,
   };
 
-  it('loads a local summary through the desktop app origin', () => {
-    expect(reviewSummaryUrl(summary, 'porcelain://app/project/worktree')).toBe(
+  it('loads a local summary from the desktop app, which serves this computer', () => {
+    expect(
+      reviewSummaryUrl(
+        summary,
+        'porcelain://app/project/worktree',
+        'porcelain://app',
+      ),
+    ).toBe(
       'porcelain://app/review-summaries/remote-review?expires=2026-10-01T00%3A00%3A00.000Z&signature=signed-link',
     );
   });
 
-  it('loads a remote summary from its HTTP computer with its signed query', () => {
-    expect(reviewSummaryUrl(summary, 'http://192.168.1.10:4738')).toBe(
-      'http://192.168.1.10:4738/review-summaries/remote-review?expires=2026-10-01T00%3A00%3A00.000Z&signature=signed-link',
+  it('loads a remote summary through the desktop app, naming the computer that published it', () => {
+    expect(
+      reviewSummaryUrl(summary, 'http://192.168.1.10:4738', 'porcelain://app'),
+    ).toBe(
+      'porcelain://app/remote-review-summaries/remote-review?computer=http%3A%2F%2F192.168.1.10%3A4738&expires=2026-10-01T00%3A00%3A00.000Z&signature=signed-link',
     );
   });
 
-  it('loads a remote summary from its HTTPS computer', () => {
-    expect(reviewSummaryUrl(summary, 'https://computer.example.invalid')).toBe(
+  it('loads a summary from its own computer, with its signed query, when the web runs outside the desktop app', () => {
+    expect([
+      reviewSummaryUrl(summary, 'http://192.168.1.10:4738', undefined),
+      reviewSummaryUrl(summary, 'https://computer.example.invalid', undefined),
+    ]).toEqual([
+      'http://192.168.1.10:4738/review-summaries/remote-review?expires=2026-10-01T00%3A00%3A00.000Z&signature=signed-link',
       'https://computer.example.invalid/review-summaries/remote-review?expires=2026-10-01T00%3A00%3A00.000Z&signature=signed-link',
-    );
+    ]);
   });
 });
 

@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { desktopAppAddress } from '@/shared/adapters/desktop';
 import { useTheme } from '@/shared/workspace/theme';
 import { useSummaryLayerRequests } from '../adapters/summary-messages';
 import type { OpenDocument } from '../rules/documents';
@@ -108,7 +109,7 @@ function SummaryFrame({
     <iframe
       ref={frame}
       title="Review summary"
-      src={`${reviewSummaryUrl(review.summary, address)}#theme=${dark ? 'dark' : 'light'}`}
+      src={`${reviewSummaryUrl(review.summary, address, desktopAppAddress())}#theme=${dark ? 'dark' : 'light'}`}
       sandbox="allow-scripts allow-forms allow-popups allow-modals"
       referrerPolicy="no-referrer"
       className="block min-h-0 w-full flex-1 border-0"

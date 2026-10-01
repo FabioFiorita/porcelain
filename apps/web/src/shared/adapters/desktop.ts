@@ -56,26 +56,12 @@ export function desktopProjectPicker(address: string | undefined) {
     : undefined;
 }
 
-export function desktopCredentialStorage<S>(read: (saved: unknown) => S) {
-  const credentials = desktopShell
-    ? window.porcelainDesktop?.credentials
+export function desktopAppAddress(): string | undefined {
+  return desktopShell && window.porcelainDesktop
+    ? `${window.location.protocol}//${window.location.host}`
     : undefined;
-  if (!credentials) return undefined;
-  return {
-    async getItem() {
-      const stored = await credentials.read();
-      if (stored == null) return null;
-      try {
-        return { state: read(JSON.parse(stored)) };
-      } catch {
-        return { state: read(null) };
-      }
-    },
-    async setItem(_name: string, value: { state: S }) {
-      await credentials.write(JSON.stringify(value.state));
-    },
-    async removeItem() {
-      await credentials.clear();
-    },
-  };
+}
+
+export function desktopCredentials() {
+  return desktopShell ? window.porcelainDesktop?.credentials : undefined;
 }

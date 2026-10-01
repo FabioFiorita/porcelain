@@ -3,7 +3,11 @@ import { join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { readDesktopLimits } from '@porcelain/server/desktop-settings';
 
-export function desktopSettings(userData: string, packageRoot: string) {
+export function desktopSettings(
+  userData: string,
+  logs: string,
+  packageRoot: string,
+) {
   const { values } = parseArgs({
     args: process.argv.slice(1),
     strict: false,
@@ -17,6 +21,7 @@ export function desktopSettings(userData: string, packageRoot: string) {
   const projectHome = values['project-home'];
   return {
     profile: typeof profile === 'string' ? resolve(profile) : userData,
+    logs: typeof profile === 'string' ? join(resolve(profile), 'logs') : logs,
     projectHome:
       typeof projectHome === 'string' ? resolve(projectHome) : homedir(),
     packageRoot,

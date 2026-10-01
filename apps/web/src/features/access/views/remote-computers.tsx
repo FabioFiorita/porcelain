@@ -1,6 +1,11 @@
-import { MonitorIcon, ServerIcon, Trash2Icon } from 'lucide-react';
+import {
+  KeyRoundIcon,
+  MonitorIcon,
+  ServerIcon,
+  Trash2Icon,
+} from 'lucide-react';
 import { useState } from 'react';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -128,8 +133,20 @@ function AddRemote() {
 
 export function RemoteComputers() {
   const remotes = useRemotesStore((state) => state.remotes);
+  const unreadable = useRemotesStore((state) => state.unreadable);
   return (
     <>
+      {unreadable !== undefined && (
+        <Alert variant="destructive">
+          <KeyRoundIcon />
+          <AlertTitle>Saved remote computers could not be read</AlertTitle>
+          <AlertDescription>
+            Porcelain keeps them as they are and saves no change over them.
+            Allow Porcelain to use its Keychain item, then reopen the app. A
+            computer added now lasts until the app quits. {unreadable}
+          </AlertDescription>
+        </Alert>
+      )}
       <FieldSet>
         <FieldLegend variant="label">Add a remote computer</FieldLegend>
         <ItemGroup>

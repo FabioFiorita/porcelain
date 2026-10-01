@@ -3,6 +3,7 @@ export {
   desktopAppearanceSchema,
   desktopAppUpdateCheckSchema,
   desktopAppUpdateStateSchema,
+  desktopCredentialsSchema,
   desktopWindowStateSchema,
 } from './bridge.ts';
 export type {
@@ -10,6 +11,7 @@ export type {
   DesktopAppearance,
   DesktopAppUpdateCheck,
   DesktopAppUpdateState,
+  DesktopCredentials,
   DesktopWindowState,
   DesktopBridge,
 } from './bridge.ts';

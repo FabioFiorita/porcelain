@@ -136,13 +136,28 @@ type NotExplained = ReviewResponse['notExplained'][number];
 export function reviewSummaryUrl(
   summary: ReviewResponse['summary'],
   address: string,
+  desktopApp: string | undefined,
 ) {
-  const query = new URLSearchParams({
+  const token = encodeURIComponent(summary.token);
+  const signed = {
     expires: summary.expires,
     signature: summary.signature,
-  });
+  };
+  const computer = new URL(address);
+  const app = desktopApp === undefined ? undefined : new URL(desktopApp);
+  if (
+    app !== undefined &&
+    (computer.protocol !== app.protocol || computer.host !== app.host)
+  )
+    return new URL(
+      `/remote-review-summaries/${token}?${new URLSearchParams({
+        computer: `${computer.protocol}//${computer.host}`,
+        ...signed,
+      })}`,
+      desktopApp,
+    ).href;
   return new URL(
-    `/review-summaries/${encodeURIComponent(summary.token)}?${query}`,
+    `/review-summaries/${token}?${new URLSearchParams(signed)}`,
     address,
   ).href;
 }

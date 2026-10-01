@@ -1,9 +1,15 @@
 import { net, protocol } from 'electron';
-import { localNavigation } from './rules/navigation.ts';
-import { desktopRequestOrigin } from './rules/request-origin.ts';
-import { desktopResponseContentSecurityPolicy } from './rules/content-security-policy.ts';
-
-export const desktopAddress = 'porcelain://app';
+import {
+  appRequestRefusal,
+  appRequestTarget,
+  forwardedRequestHeaders,
+  forwardedResponseHeaders,
+} from './rules/app-request.ts';
+import {
+  remoteSummaryHeaders,
+  remoteSummaryRequest,
+  remoteSummaryTarget,
+} from './rules/remote-summary.ts';
 
 export function registerDesktopScheme() {
   protocol.registerSchemesAsPrivileged([
@@ -19,66 +25,71 @@ export function registerDesktopScheme() {
   ]);
 }
 
+async function remoteSummary(
+  request: Request,
+  signal: AbortSignal,
+): Promise<Response> {
+  const target = remoteSummaryTarget(request.url);
+  if (request.method !== 'GET' || target === undefined)
+    return new Response('Unknown review summary', { status: 404 });
+  const response = await net
+    .fetch(target, { credentials: 'omit', redirect: 'manual', signal })
+    .catch(
+      () =>
+        new Response(
+          'The computer that published this summary is unreachable',
+          {
+            status: 502,
+          },
+        ),
+    );
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: remoteSummaryHeaders(response.headers),
+  });
+}
+
 export function serveDesktop(server: { address: string; credential: string }) {
   const lifetime = new AbortController();
   protocol.handle('porcelain', async (request) => {
-    if (
-      !localNavigation(request.url, desktopAddress) ||
-      !desktopRequestOrigin(request.headers.get('origin'))
-    )
-      return new Response('Unknown desktop origin', { status: 403 });
-    if (
-      'initiatorOrigin' in request &&
-      typeof request.initiatorOrigin === 'string' &&
-      !desktopRequestOrigin(request.initiatorOrigin)
-    )
-      return new Response('Unknown desktop initiator', { status: 403 });
-    const source = new URL(request.url);
-    const target = new URL(
-      `${source.pathname}${source.search}`,
-      server.address,
-    );
-    if (target.origin !== new URL(server.address).origin)
+    const refusal = appRequestRefusal({
+      url: request.url,
+      origin: request.headers.get('origin'),
+      initiatorOrigin:
+        'initiatorOrigin' in request &&
+        typeof request.initiatorOrigin === 'string'
+          ? request.initiatorOrigin
+          : undefined,
+    });
+    if (refusal !== undefined) return new Response(refusal, { status: 403 });
+    const signal = AbortSignal.any([request.signal, lifetime.signal]);
+    if (remoteSummaryRequest(new URL(request.url).pathname))
+      return remoteSummary(request, signal);
+    const target = appRequestTarget(request.url, server.address);
+    if (target === undefined)
       return new Response('Unknown server origin', { status: 403 });
-    const headers = new Headers(request.headers);
-    headers.delete('host');
-    headers.delete('cookie');
-    headers.delete('connection');
-    headers.delete('content-length');
-    headers.delete('accept-encoding');
-    headers.set('authorization', `Bearer ${server.credential}`);
-    headers.set('origin', new URL(server.address).origin);
     const response = await net
-      .fetch(target.toString(), {
+      .fetch(target, {
         method: request.method,
-        headers,
+        headers: forwardedRequestHeaders(request.headers, server),
         ...(request.method !== 'GET' && request.method !== 'HEAD'
           ? { body: await request.arrayBuffer() }
           : {}),
         redirect: 'manual',
-        signal: AbortSignal.any([request.signal, lifetime.signal]),
+        signal,
       })
       .catch((error: unknown) => {
-        if (lifetime.signal.aborted || request.signal.aborted)
-          return new Response(null, { status: 503 });
+        if (signal.aborted) return new Response(null, { status: 503 });
         throw error;
       });
-    const resultHeaders = new Headers(response.headers);
-    resultHeaders.delete('set-cookie');
-    resultHeaders.delete('content-encoding');
-    resultHeaders.delete('content-length');
-    if (!source.pathname.startsWith('/api/'))
-      resultHeaders.set(
-        'content-security-policy',
-        desktopResponseContentSecurityPolicy(
-          source.pathname,
-          resultHeaders.get('content-security-policy'),
-        ),
-      );
     return new Response(response.body, {
       status: response.status,
       statusText: response.statusText,
-      headers: resultHeaders,
+      headers: forwardedResponseHeaders(
+        new URL(request.url).pathname,
+        response.headers,
+      ),
     });
   });
   return () => {

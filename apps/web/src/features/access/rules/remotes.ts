@@ -1,4 +1,5 @@
 import type { ReadEnvironmentResponse } from '@porcelain/contracts/access';
+import type { DesktopCredentials } from '@porcelain/contracts/desktop';
 import { ENVIRONMENT_PROTOCOL } from '@porcelain/contracts/shared';
 import { parsePairingLink } from './pairing-link';
 
@@ -157,6 +158,24 @@ function savedRemote(value: unknown): Remote[] {
 
 export function parseRemotes(value: unknown): Remote[] {
   return Array.isArray(value) ? value.flatMap(savedRemote) : [];
+}
+
+type SavedRemotes =
+  | { kind: 'readable'; remotes: Remote[] | undefined }
+  | { kind: 'unreadable'; message: string };
+
+export function savedRemotes(saved: DesktopCredentials): SavedRemotes {
+  if (saved.status === 'unreadable')
+    return { kind: 'unreadable', message: saved.message };
+  if (saved.status === 'empty') return { kind: 'readable', remotes: undefined };
+  try {
+    return { kind: 'readable', remotes: parseRemotes(JSON.parse(saved.value)) };
+  } catch {
+    return {
+      kind: 'unreadable',
+      message: 'The saved remote computers are not in a form this app reads.',
+    };
+  }
 }
 
 export function withRemote(remotes: readonly Remote[], remote: Remote) {

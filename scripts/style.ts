@@ -76,6 +76,7 @@ const serverRoots = [
   '.agents/skills/server-verify/negative',
   '.agents/skills/web-verify/scripts',
   '.agents/skills/web-verify/feature-map',
+  '.agents/skills/desktop-verify/scripts',
 ].filter((root) => existsSync(root));
 const webRoots = ['apps/web/src', 'apps/web/spec', 'apps/web/vite.config.ts'];
 const allRoots = [...serverRoots, ...webRoots];
@@ -128,7 +129,7 @@ function disableDirectives(): Problem[] {
   );
 }
 
-function codeOutsideLintRoots(): Problem[] {
+function repositoryFiles(): string[] {
   const listed = spawnSync(
     'git',
     ['ls-files', '--cached', '--others', '--exclude-standard'],
@@ -137,17 +138,36 @@ function codeOutsideLintRoots(): Problem[] {
   if (listed.error) throw listed.error;
   return listed.stdout
     .split('\n')
+    .filter((path) => existsSync(path) && !path.startsWith('.claude/'));
+}
+
+function codeOutsideLintRoots(files: readonly string[]): Problem[] {
+  return files
     .filter(
       (path) =>
         lintedFile.test(path) &&
-        existsSync(path) &&
-        !path.startsWith('.claude/') &&
         !allRoots.some((root) => path === root || path.startsWith(`${root}/`)),
     )
     .map((path) =>
       problem(
         'code-outside-lint-roots',
         `${path}: code lives under a lint root (${allRoots.join(', ')}); a file outside them escapes lint, the disable-directive scan and the format check.`,
+      ),
+    );
+}
+
+function proseOutsideSkills(files: readonly string[]): Problem[] {
+  return files
+    .filter(
+      (path) =>
+        /\.(?:md|mdx|markdown)$/i.test(path) &&
+        path !== 'AGENTS.md' &&
+        !path.startsWith('.agents/skills/'),
+    )
+    .map((path) =>
+      problem(
+        'prose-outside-skills',
+        `${path}: the repository keeps prose only in AGENTS.md and the skills under .agents/skills/; code is the example and lint the rulebook, so move a workflow into its skill and drop architecture narration.`,
       ),
     );
 }
@@ -1103,11 +1123,13 @@ if (mode === 'format') {
   process.exitCode = result.status ?? 1;
 } else {
   process.exitCode = await lint();
+  const files = repositoryFiles();
   const problems = [
     ...disableDirectives(),
     ...strayLintConfigs(),
     ...strayFormatConfigs(),
-    ...codeOutsideLintRoots(),
+    ...codeOutsideLintRoots(files),
+    ...proseOutsideSkills(files),
     ...baselineHistoryProblems('.').map((found) =>
       problem('web-baseline', found),
     ),

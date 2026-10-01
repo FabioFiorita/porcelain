@@ -21,19 +21,26 @@ import { WindowState } from './adapters/window-state.ts';
 import { EncryptedCredentials } from './adapters/encrypted-credentials.ts';
 import { LocalAppUpdate } from './local-app-update.ts';
 import { restoreWindowBounds } from './rules/window-bounds.ts';
-import {
-  desktopAddress,
-  registerDesktopScheme,
-  serveDesktop,
-} from './app-protocol.ts';
+import { registerDesktopScheme, serveDesktop } from './app-protocol.ts';
 import fixPath from 'fix-path';
 import { desktopSettings } from './settings.ts';
 import { startLocalServer } from './server-host.ts';
-import { localNavigation, externalNavigation } from './rules/navigation.ts';
+import {
+  appDocument,
+  desktopAddress,
+  externalNavigation,
+} from './rules/navigation.ts';
+import { liveAddress, liveSocketHeaders } from './rules/live-socket.ts';
+import { trustedSender } from './rules/trusted-sender.ts';
 
 registerDesktopScheme();
 app.setName('Porcelain');
-const settings = desktopSettings(app.getPath('userData'), app.getAppPath());
+app.setAppLogsPath();
+const settings = desktopSettings(
+  app.getPath('userData'),
+  app.getPath('logs'),
+  app.getAppPath(),
+);
 app.setPath('userData', settings.profile);
 let server: Awaited<ReturnType<typeof startLocalServer>> | undefined;
 let window: BrowserWindow | undefined;
@@ -42,31 +49,61 @@ let closed = false;
 let actionsReady = false;
 let pendingAction: DesktopAction | undefined;
 let stopServing: (() => void) | undefined;
-const savedWindow = new WindowState(settings.profile);
+const savedWindow = new WindowState(
+  settings.profile,
+  settings.limits.desktop.windowStateSaveMs,
+);
 const credentials = new EncryptedCredentials(settings.profile, {
   available: async () =>
     (await safeStorage.isAsyncEncryptionAvailable()) &&
     (process.platform !== 'linux' ||
       safeStorage.getSelectedStorageBackend() !== 'basic_text'),
   encrypt: (value) => safeStorage.encryptStringAsync(value),
-  decrypt: async (value) =>
-    (await safeStorage.decryptStringAsync(value)).result,
+  decrypt: async (value) => {
+    const decrypted = await safeStorage.decryptStringAsync(value);
+    return {
+      value: decrypted.result,
+      reEncrypt: decrypted.shouldReEncrypt,
+    };
+  },
 });
 const appUpdate = new LocalAppUpdate((state) =>
   window?.webContents.send('porcelain:app-update-state', state),
 );
 
-function trustedSender(event: IpcMainEvent | IpcMainInvokeEvent): boolean {
-  return (
-    window !== undefined &&
-    event.sender === window.webContents &&
-    event.senderFrame === window.webContents.mainFrame &&
-    localNavigation(event.senderFrame.url, desktopAddress)
+function trusted(event: IpcMainEvent | IpcMainInvokeEvent): boolean {
+  return trustedSender(
+    {
+      contents: event.sender,
+      frame: event.senderFrame,
+      url: event.senderFrame?.url,
+    },
+    window && {
+      contents: window.webContents,
+      mainFrame: window.webContents.mainFrame,
+    },
   );
 }
 
 function authorize(event: IpcMainInvokeEvent): void {
-  if (!trustedSender(event)) throw new Error('Untrusted desktop request');
+  if (!trusted(event)) throw new Error('Untrusted desktop request');
+}
+
+function windowBackground(): string {
+  return nativeTheme.shouldUseDarkColors ? '#171717' : '#fafafa';
+}
+
+function windowState(view: BrowserWindow) {
+  return { bounds: view.getNormalBounds(), maximized: view.isMaximized() };
+}
+
+function openExternal(url: string): void {
+  if (externalNavigation(url))
+    void shell.openExternal(url).catch((error: unknown) => {
+      process.stderr.write(
+        `Porcelain: could not open ${url}: ${error instanceof Error ? error.message : 'unknown failure'}\n`,
+      );
+    });
 }
 
 function failure(error: unknown) {
@@ -89,7 +126,6 @@ async function openWindow() {
     window.focus();
     return;
   }
-  const origin = desktopAddress;
   const restored = restoreWindowBounds(
     savedWindow.read(),
     screen.getAllDisplays().map((display) => display.workArea),
@@ -107,13 +143,13 @@ async function openWindow() {
     title: 'Porcelain',
     titleBarStyle: 'hiddenInset',
     trafficLightPosition: { x: 16, y: 24 },
-    backgroundColor: nativeTheme.shouldUseDarkColors ? '#171717' : '#fafafa',
+    backgroundColor: windowBackground(),
     show: false,
     webPreferences: {
       preload: join(settings.packageRoot, 'desktop/preload.cjs'),
       additionalArguments: [
         `--porcelain-version=${app.getVersion()}`,
-        `--porcelain-live=${local.address.replace('http:', 'ws:')}/api/live`,
+        `--porcelain-live=${liveAddress(local.address)}`,
       ],
       sandbox: true,
       contextIsolation: true,
@@ -131,12 +167,12 @@ async function openWindow() {
   );
   const save = () => {
     if (!view.isDestroyed() && !view.isFullScreen())
-      savedWindow.write({
-        bounds: view.getNormalBounds(),
-        maximized: view.isMaximized(),
-      });
+      savedWindow.schedule(windowState(view));
   };
-  view.on('close', save);
+  view.on('close', () => {
+    save();
+    void savedWindow.flush();
+  });
   view.on('resize', save);
   view.on('move', save);
   view.on('maximize', save);
@@ -158,10 +194,12 @@ async function openWindow() {
   view.webContents.session.setPermissionCheckHandler(() => false);
   view.webContents.on('will-attach-webview', (event) => event.preventDefault());
   view.webContents.on('will-navigate', (event, url) => {
-    if (!localNavigation(url, origin)) event.preventDefault();
+    if (appDocument(url)) return;
+    event.preventDefault();
+    openExternal(url);
   });
   view.webContents.on('will-redirect', (event, url) => {
-    if (!localNavigation(url, origin)) event.preventDefault();
+    if (!appDocument(url)) event.preventDefault();
   });
   view.webContents.on('context-menu', (_event, params) => {
     if (params.isEditable)
@@ -180,7 +218,7 @@ async function openWindow() {
       });
   });
   view.webContents.setWindowOpenHandler(({ url }) => {
-    if (externalNavigation(url)) void shell.openExternal(url).catch(failure);
+    openExternal(url);
     return { action: 'deny' };
   });
   await view.loadURL(desktopAddress);
@@ -203,14 +241,10 @@ app.on('before-quit', (event) => {
   stopServing?.();
   process.stderr.write('Porcelain: stopping server\n');
   for (const view of BrowserWindow.getAllWindows()) {
-    if (!view.isFullScreen())
-      savedWindow.write({
-        bounds: view.getNormalBounds(),
-        maximized: view.isMaximized(),
-      });
+    if (!view.isFullScreen()) savedWindow.schedule(windowState(view));
     view.destroy();
   }
-  void (server?.close() ?? Promise.resolve())
+  void Promise.all([savedWindow.flush(), server?.close()])
     .catch((error: unknown) => {
       process.stderr.write(
         `${error instanceof Error ? error.message : 'Server shutdown failed'}\n`,
@@ -270,7 +304,7 @@ async function start() {
     return appUpdate.install();
   });
   ipcMain.on('porcelain:app-update-watch', (event) => {
-    if (trustedSender(event))
+    if (trusted(event))
       event.sender.send('porcelain:app-update-state', appUpdate.read());
   });
   fixPath();
@@ -315,7 +349,18 @@ async function start() {
         ],
       },
       { role: 'editMenu' },
-      { role: 'viewMenu' },
+      app.isPackaged
+        ? {
+            label: 'View',
+            submenu: [
+              { role: 'resetZoom' },
+              { role: 'zoomIn' },
+              { role: 'zoomOut' },
+              { type: 'separator' },
+              { role: 'togglefullscreen' },
+            ],
+          }
+        : { role: 'viewMenu' },
       { role: 'windowMenu' },
     ]),
   );
@@ -326,52 +371,38 @@ async function start() {
   });
   stopServing = serveDesktop(server);
   session.defaultSession.webRequest.onBeforeSendHeaders(
-    { urls: [`${server.address.replace('http:', 'ws:')}/api/live`] },
+    { urls: [liveAddress(server.address)] },
     (details, callback) => {
-      const local = server;
-      if (
-        local === undefined ||
-        window === undefined ||
-        details.webContentsId !== window.webContents.id ||
-        details.frame !== window.webContents.mainFrame ||
-        details.initiatorOrigin !== desktopAddress ||
-        !localNavigation(window.webContents.getURL(), desktopAddress)
-      ) {
-        callback({ cancel: true });
-        return;
-      }
-      callback({
-        requestHeaders: {
-          ...details.requestHeaders,
-          Authorization: `Bearer ${local.credential}`,
-          Origin: new URL(local.address).origin,
-        },
-      });
+      const requestHeaders =
+        server &&
+        liveSocketHeaders(
+          {
+            url: details.url,
+            contentsId: details.webContentsId,
+            frame: details.frame,
+            initiatorOrigin: details.initiatorOrigin,
+            headers: details.requestHeaders,
+          },
+          window && {
+            contentsId: window.webContents.id,
+            mainFrame: window.webContents.mainFrame,
+            url: window.webContents.getURL(),
+          },
+          server,
+        );
+      callback(
+        requestHeaders === undefined ? { cancel: true } : { requestHeaders },
+      );
     },
   );
   ipcMain.on('porcelain:appearance', (event, value: unknown) => {
     const appearance = desktopAppearanceSchema.safeParse(value);
-    if (
-      window === undefined ||
-      event.sender !== window.webContents ||
-      event.senderFrame !== window.webContents.mainFrame ||
-      !localNavigation(event.senderFrame.url, desktopAddress) ||
-      !appearance.success
-    )
-      return;
+    if (window === undefined || !trusted(event) || !appearance.success) return;
     nativeTheme.themeSource = appearance.data;
-    window.setBackgroundColor(
-      nativeTheme.shouldUseDarkColors ? '#171717' : '#fafafa',
-    );
+    window.setBackgroundColor(windowBackground());
   });
   ipcMain.on('porcelain:actions-ready', (event) => {
-    if (
-      window === undefined ||
-      event.sender !== window.webContents ||
-      event.senderFrame !== window.webContents.mainFrame ||
-      !localNavigation(event.senderFrame.url, desktopAddress)
-    )
-      return;
+    if (window === undefined || !trusted(event)) return;
     actionsReady = true;
     if (pendingAction !== undefined) {
       window.webContents.send('porcelain:action', pendingAction);
@@ -379,9 +410,7 @@ async function start() {
     }
   });
   nativeTheme.on('updated', () =>
-    window?.setBackgroundColor(
-      nativeTheme.shouldUseDarkColors ? '#171717' : '#fafafa',
-    ),
+    window?.setBackgroundColor(windowBackground()),
   );
   await openWindow();
 }

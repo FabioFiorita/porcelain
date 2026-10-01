@@ -5,7 +5,23 @@ import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { _electron, type Page } from 'playwright';
 import { z } from 'zod';
-import { askOwner } from '../apps/server/src/cli/owner-client.ts';
+import type { DesktopBridge } from '@porcelain/contracts/desktop';
+import { askOwner } from '../../../../apps/server/src/cli/owner-client.ts';
+
+type RendererElement = {
+  querySelector(selector: string): RendererElement | null;
+};
+type RendererStyle = {
+  readonly paddingLeft: string;
+  getPropertyValue(name: string): string;
+};
+declare const porcelainDesktop: DesktopBridge;
+declare const document: {
+  readonly cookie: string;
+  querySelector(selector: string): RendererElement | null;
+};
+declare const parent: { readonly document: unknown };
+declare function getComputedStyle(element: RendererElement): RendererStyle;
 
 type DesktopProof = {
   executable: string;
@@ -49,19 +65,19 @@ export const desktopFeatures = [
   {
     name: 'review-summaries',
     promise:
-      'the installed app renders local and remote signed HTML summaries inside isolated sandboxes, preserves their theme and layer links, and keeps app scripts restricted to its own origin',
+      'the installed app renders local and remote signed HTML summaries through its own origin inside isolated sandboxes, preserves their theme and layer links, refuses to let a summary show a website in its frame, and keeps app scripts restricted to its own origin',
     run: reviewSummaries,
   },
   {
     name: 'bridge-capabilities',
     promise:
-      'the installed preload persists one opaque credential string through encrypted storage and restart, refuses untrusted callers and unavailable encryption, clears saved credentials, exposes its app version, and reports that the local build has no update feed, through checks and removable state subscriptions, and rejects installation',
+      'the installed preload persists one opaque credential string through encrypted storage and restart, reports credentials it cannot decrypt as unreadable and never saves over them, tells the owner in Settings, refuses untrusted callers and unavailable encryption, clears saved credentials, exposes its app version, and reports that the local build has no update feed, through checks and removable state subscriptions, and rejects installation',
     run: bridgeCapabilities,
   },
   {
     name: 'installed-project',
     promise:
-      'the installed app starts its own server, permits remote connections with scripts restricted to the app origin, opens only a manually selected Git project through its trusted native picker, cancels without registration or folder discovery, shows that the local build updates by reinstalling rather than claiming it is the newest, retains its project and preferences after restart, survives window close and stops its server on Quit',
+      'the installed app starts its own server, permits remote connections with scripts restricted to the app origin, opens only a manually selected Git project through its trusted native picker, cancels without registration or folder discovery, offers no reload or developer tools menus, shows that the local build updates by reinstalling rather than claiming it is the newest, retains its project and preferences after restart, survives window close, keeps its server output in its logs folder and stops its server on Quit',
     run: installedProject,
   },
 ];
@@ -122,7 +138,7 @@ async function publishDesktopSummary(
   const publication = summaryPublication.parse(
     await desktopRequest(page, `/api/worktrees/${worktree.id}/review`, 'PUT', {
       expectedRevision: 0,
-      summaryHtml: `<html><body><h1>${title}</h1><a href="#layer-1">Open ${title} layer</a></body></html>`,
+      summaryHtml: `<html><body><h1>${title}</h1><a href="#layer-1">Open ${title} layer</a> <a href="https://example.com/">Leave for a website</a></body></html>`,
       layers: [
         {
           id: randomUUID(),
@@ -275,35 +291,33 @@ async function reviewSummaries(input: DesktopProof) {
       .waitFor();
     const frame = page
       .frames()
-      .find((entry) =>
-        entry.url().startsWith(`${status.address}/review-summaries/`),
+      .find(
+        (entry) =>
+          entry.url().startsWith('porcelain://app/remote-review-summaries/') &&
+          new URL(entry.url()).searchParams.get('computer') ===
+            new URL(status.address).origin,
       );
     if (frame === undefined)
-      throw new Error('The remote summary did not load from its own server');
+      throw new Error(
+        'The remote summary did not load through the app from its own computer',
+      );
     await frame
       .locator('html[data-theme="dark"], html[data-theme="light"]')
       .waitFor();
-    const isolation = z
-      .object({
-        parentDenied: z.boolean(),
-        node: z.boolean(),
-        bridge: z.boolean(),
-      })
-      .parse(
-        await frame.evaluate(`(() => {
-      let parentDenied = false;
-      try {
-        void parent.document.body;
-      } catch {
-        parentDenied = true;
-      }
+    const isolation = await frame.evaluate(() => {
+      const parentDenied = (() => {
+        try {
+          return parent.document === null;
+        } catch {
+          return true;
+        }
+      })();
       return {
         parentDenied,
-        node: 'require' in window,
-        bridge: 'porcelainDesktop' in window,
+        node: 'require' in globalThis,
+        bridge: 'porcelainDesktop' in globalThis,
       };
-    })()`),
-      );
+    });
     requireProof(
       isolation.parentDenied && !isolation.node && !isolation.bridge,
       'A remote summary must not read the app, Node or the desktop bridge',
@@ -330,17 +344,35 @@ async function reviewSummaries(input: DesktopProof) {
     requireProof(
       policy !== null &&
         policy.split('; ').includes("script-src 'self'") &&
-        policy.split('; ').includes("frame-src 'self' blob: http: https:"),
-      'The app must allow remote review frames while restricting its scripts',
+        policy.split('; ').includes("frame-src 'self' blob:"),
+      'The app must frame only itself and its blobs while restricting its scripts',
     );
     requireProof(errors.length === 0, `Renderer errors: ${errors.join('; ')}`);
     await page.screenshot({ path: join(input.evidence, 'remote-layer.png') });
+    await page
+      .getByRole('button', { name: 'Review summary', exact: true })
+      .click();
+    const refused = page.waitForEvent('console', {
+      predicate: (message) =>
+        message.text().includes("'https://example.com/'") &&
+        message.text().includes('frame-src'),
+      timeout: 10_000,
+    });
+    await summary
+      .getByRole('link', { name: 'Leave for a website', exact: true })
+      .click();
+    await refused;
+    requireProof(
+      page.frames().every((entry) => !entry.url().startsWith('https:')),
+      'A summary must not navigate its frame to a website inside the app window',
+    );
     return {
       localSummaryRendered: true,
       localThemeAndLayerLink: true,
       remoteSummaryRendered: true,
       remoteThemeAndLayerLink: true,
       summaryIsolated: true,
+      summaryCannotShowWebsites: true,
       appScriptPolicyRetained: true,
     };
   } catch (error) {
@@ -353,6 +385,10 @@ async function reviewSummaries(input: DesktopProof) {
     if (remote !== undefined) await closeDesktop(remote);
     await closeDesktop(local);
   }
+}
+
+function savedCredentials(page: Page) {
+  return page.evaluate(() => porcelainDesktop.credentials.read());
 }
 
 async function bridgeCapabilities(input: DesktopProof) {
@@ -369,16 +405,18 @@ async function bridgeCapabilities(input: DesktopProof) {
       (url) => url.protocol === 'porcelain:' && url.pathname !== '/pair',
     );
     requireProof(
-      (await page.evaluate('window.porcelainDesktop.credentials.read()')) ===
-        null,
+      isDeepStrictEqual(await savedCredentials(page), { status: 'empty' }),
       'A fresh app profile must have no saved credentials',
     );
     await page.evaluate(
-      `window.porcelainDesktop.credentials.write(${JSON.stringify(value)})`,
+      (saved) => porcelainDesktop.credentials.write(saved),
+      value,
     );
     requireProof(
-      (await page.evaluate('window.porcelainDesktop.credentials.read()')) ===
+      isDeepStrictEqual(await savedCredentials(page), {
+        status: 'saved',
         value,
+      }),
       'The preload must restore the exact opaque string',
     );
     requireProof(
@@ -390,36 +428,33 @@ async function bridgeCapabilities(input: DesktopProof) {
       'Only the profile owner may read or write the encrypted file',
     );
     const current = await app.evaluate(({ app }) => app.getVersion());
-    const updates = z
-      .object({
-        current: z.string(),
-        available: z.string().nullable(),
-        states: z.array(z.string()),
-        unsubscribed: z.boolean(),
-        installError: z.string(),
-      })
-      .parse(
-        await page.evaluate(`(async () => {
-      const bridge = window.porcelainDesktop.appUpdate;
-      const states = [];
+    const updates = await page.evaluate(async () => {
+      const bridge = porcelainDesktop.appUpdate;
+      const states: string[] = [];
       let checking = false;
-      let finished = () => {};
-      const settled = new Promise((resolve) => { finished = resolve; });
+      const settled = Promise.withResolvers<void>();
       const unsubscribe = bridge.onState((state) => {
         states.push(state.status);
         if (state.status === 'checking') checking = true;
-        if (checking && state.status === 'unavailable') finished();
+        if (checking && state.status === 'unavailable') settled.resolve();
       });
       const result = await bridge.check();
-      await settled;
+      await settled.promise;
       unsubscribe();
       const count = states.length;
-      let installError = '';
-      try { await bridge.install(); } catch (error) { installError = error.message; }
-      await bridge.check();
-      return { current: bridge.current(), available: result.available, states, unsubscribed: states.length === count, installError };
-    })()`),
+      const installError = await bridge.install().then(
+        () => '',
+        (error: unknown) => (error instanceof Error ? error.message : ''),
       );
+      await bridge.check();
+      return {
+        current: bridge.current(),
+        available: result.available,
+        states,
+        unsubscribed: states.length === count,
+        installError,
+      };
+    });
     requireProof(
       updates.current === current,
       'The preload must expose the installed app version synchronously',
@@ -441,9 +476,8 @@ async function bridgeCapabilities(input: DesktopProof) {
       updates.installError.includes('unavailable for this local build'),
       'Installing without a release feed must reject',
     );
-    const denied = await app.evaluate(async ({ BrowserWindow, app }) => {
-      const main = BrowserWindow.getAllWindows()[0];
-      if (main === undefined) throw new Error('The main window is missing');
+    const rogueOpened = app.waitForEvent('window');
+    const rogueId = await app.evaluate(async ({ BrowserWindow, app }) => {
       const rogue = new BrowserWindow({
         show: false,
         webPreferences: {
@@ -453,26 +487,36 @@ async function bridgeCapabilities(input: DesktopProof) {
           nodeIntegration: false,
         },
       });
-      try {
-        await rogue.loadURL(
-          'data:text/html,<title>Untrusted bridge caller</title>',
-        );
-        const failures: unknown = await rogue.webContents
-          .executeJavaScript(`(async () => {
-          const bridge = window.porcelainDesktop;
-          const operations = [() => bridge.credentials.read(), () => bridge.credentials.write('untrusted'), () => bridge.credentials.clear(), () => bridge.appUpdate.check(), () => bridge.appUpdate.install()];
-          const failures = [];
-          for (const operation of operations) {
-            try { await operation(); failures.push(false); }
-            catch (error) { failures.push(error.message.includes('Untrusted desktop request')); }
-          }
-          return failures;
-        })()`);
-        return failures;
-      } finally {
-        rogue.destroy();
-      }
+      await rogue.loadURL(
+        'data:text/html,<title>Untrusted bridge caller</title>',
+      );
+      return rogue.id;
     });
+    const rogue = await rogueOpened;
+    const denied = await rogue.evaluate(async () => {
+      const bridge = porcelainDesktop;
+      const operations = [
+        () => bridge.credentials.read(),
+        () => bridge.credentials.write('untrusted'),
+        () => bridge.credentials.clear(),
+        () => bridge.appUpdate.check(),
+        () => bridge.appUpdate.install(),
+      ];
+      const failures: boolean[] = [];
+      for (const operation of operations)
+        failures.push(
+          await operation().then(
+            () => false,
+            (error: unknown) =>
+              error instanceof Error &&
+              error.message.includes('Untrusted desktop request'),
+          ),
+        );
+      return failures;
+    });
+    await app.evaluate(({ BrowserWindow }, id) => {
+      BrowserWindow.fromId(id)?.destroy();
+    }, rogueId);
     requireProof(
       isDeepStrictEqual(denied, [true, true, true, true, true]),
       'Every credential and app-update IPC operation must reject an untrusted window',
@@ -490,30 +534,71 @@ async function bridgeCapabilities(input: DesktopProof) {
       (url) => url.protocol === 'porcelain:' && url.pathname !== '/pair',
     );
     requireProof(
-      (await page.evaluate('window.porcelainDesktop.credentials.read()')) ===
+      isDeepStrictEqual(await savedCredentials(page), {
+        status: 'saved',
         value,
+      }),
       'Encrypted credentials must survive an app restart',
     );
     const encrypted = await readFile(destination);
     await restarted.evaluate(({ safeStorage }) => {
+      safeStorage.decryptStringAsync = () =>
+        Promise.reject(new Error('Keychain access denied'));
+    });
+    requireProof(
+      isDeepStrictEqual(await savedCredentials(page), {
+        status: 'unreadable',
+        message:
+          'The saved credentials could not be read: Keychain access denied',
+      }),
+      'Credentials the app cannot decrypt must read as unreadable, not as empty',
+    );
+    const overwrite = await page.evaluate(() =>
+      porcelainDesktop.credentials.write('[]').then(
+        () => '',
+        (error: unknown) => (error instanceof Error ? error.message : ''),
+      ),
+    );
+    requireProof(
+      overwrite.includes('kept unchanged') &&
+        isDeepStrictEqual(await readFile(destination), encrypted),
+      'A write must never replace credentials the app could not read',
+    );
+    await page.reload();
+    await page.getByRole('button', { name: 'Settings', exact: true }).click();
+    const settings = page.getByRole('main', { name: 'Settings', exact: true });
+    await settings
+      .getByRole('button', { name: 'Remote computers', exact: true })
+      .click();
+    await settings
+      .getByText('Saved remote computers could not be read', { exact: true })
+      .waitFor();
+    requireProof(
+      isDeepStrictEqual(await readFile(destination), encrypted),
+      'Opening the app over unreadable credentials must not save over them',
+    );
+    await restarted.evaluate(({ safeStorage }) => {
       safeStorage.isAsyncEncryptionAvailable = () => Promise.resolve(false);
     });
-    const unavailable = await page.evaluate(`(async () => {
-      try { await window.porcelainDesktop.credentials.write('must-not-be-stored'); return false; }
-      catch (error) { return error.message.includes('unavailable'); }
-    })()`);
+    const unavailable = await page.evaluate(() =>
+      porcelainDesktop.credentials.write('must-not-be-stored').then(
+        () => false,
+        (error: unknown) =>
+          error instanceof Error && error.message.includes('unavailable'),
+      ),
+    );
     requireProof(
-      unavailable === true,
+      unavailable,
       'The preload must reject writes when safeStorage is unavailable',
     );
     requireProof(
       isDeepStrictEqual(await readFile(destination), encrypted),
       'Unavailable encryption must preserve the previous ciphertext',
     );
-    await page.evaluate('window.porcelainDesktop.credentials.clear()');
+    await page.evaluate(() => porcelainDesktop.credentials.clear());
     requireProof(
-      (await page.evaluate('window.porcelainDesktop.credentials.read()')) ===
-        null && !existsSync(destination),
+      isDeepStrictEqual(await savedCredentials(page), { status: 'empty' }) &&
+        !existsSync(destination),
       'Clear must remove saved credentials even when encryption is unavailable',
     );
     await closeDesktop(restarted);
@@ -524,6 +609,7 @@ async function bridgeCapabilities(input: DesktopProof) {
   return {
     encryptedCredentials: true,
     restartRestoresCredentials: true,
+    unreadableCredentialsKept: true,
     untrustedCallersRejected: true,
     unavailableEncryptionRejected: true,
     clearRemovesCredentials: true,
@@ -596,18 +682,12 @@ async function installedProject(input: DesktopProof) {
       ).status === 401,
       'The loopback server must refuse an incorrect desktop credential',
     );
-    const rendererAccess = z
-      .object({
-        cookies: z.string(),
-        bridge: z.boolean(),
-        node: z.boolean(),
-        credential: z.boolean(),
-      })
-      .parse(
-        await page.evaluate(
-          `({ cookies: document.cookie, bridge: !!window.porcelainDesktop, node: 'require' in window, credential: 'credential' in (window.porcelainDesktop ?? {}) })`,
-        ),
-      );
+    const rendererAccess = await page.evaluate(() => ({
+      cookies: document.cookie,
+      bridge: 'porcelainDesktop' in globalThis,
+      node: 'require' in globalThis,
+      credential: 'credential' in porcelainDesktop,
+    }));
     requireProof(
       rendererAccess.bridge &&
         rendererAccess.cookies === '' &&
@@ -693,13 +773,17 @@ async function installedProject(input: DesktopProof) {
       folderRequests.length === 0,
       'The native project flow must not query server folder browsing or discovery',
     );
-    const chrome = z
-      .object({ inset: z.string(), drag: z.string(), buttonDrag: z.string() })
-      .parse(
-        await page.evaluate(
-          `(() => { const header = document.querySelector('.desktop-sidebar-header'); return { inset: getComputedStyle(header).paddingLeft, drag: getComputedStyle(header).getPropertyValue('app-region'), buttonDrag: getComputedStyle(header.querySelector('button')).getPropertyValue('app-region') }; })()`,
-        ),
-      );
+    const chrome = await page.evaluate(() => {
+      const header = document.querySelector('.desktop-sidebar-header');
+      const button = header?.querySelector('button');
+      if (header == null || button == null)
+        throw new Error('The sidebar header and its button are missing');
+      return {
+        inset: getComputedStyle(header).paddingLeft,
+        drag: getComputedStyle(header).getPropertyValue('app-region'),
+        buttonDrag: getComputedStyle(button).getPropertyValue('app-region'),
+      };
+    });
     requireProof(
       chrome.inset === '82px' &&
         chrome.drag === 'drag' &&
@@ -745,13 +829,27 @@ async function installedProject(input: DesktopProof) {
       if (item == null) throw new Error('The native Settings menu is missing');
       Reflect.apply(item.click, item, [item, undefined, undefined]);
     });
+    const viewRoles = await app.evaluate(({ Menu }) =>
+      (Menu.getApplicationMenu()?.items ?? []).flatMap((menu) =>
+        (menu.submenu?.items ?? []).map((item) =>
+          (item.role ?? '').toLowerCase(),
+        ),
+      ),
+    );
+    requireProof(
+      viewRoles.includes('togglefullscreen') &&
+        !['reload', 'forcereload', 'toggledevtools'].some((role) =>
+          viewRoles.includes(role),
+        ),
+      'The installed app must offer no Reload or Developer Tools menu items',
+    );
     const settingsPage = page.getByRole('main', {
       name: 'Settings',
       exact: true,
     });
     await settingsPage.waitFor({ state: 'visible' });
     await settingsPage.getByRole('tab', { name: 'Dark', exact: true }).click();
-    await page.waitForFunction("document.querySelector('.dark') !== null");
+    await page.locator('.dark').first().waitFor({ state: 'attached' });
     requireProof(
       await app.evaluate(
         ({ nativeTheme }) => nativeTheme.themeSource === 'dark',
@@ -796,13 +894,15 @@ async function installedProject(input: DesktopProof) {
           view.setFullScreen(true);
         }),
     );
-    await page.waitForFunction(
-      "document.documentElement.classList.contains('desktop-fullscreen')",
-    );
+    await page
+      .locator('html.desktop-fullscreen')
+      .waitFor({ state: 'attached' });
     requireProof(
-      (await page.evaluate(
-        "getComputedStyle(document.querySelector('.desktop-sidebar-header')).paddingLeft",
-      )) === '12px',
+      (await page.evaluate(() => {
+        const header = document.querySelector('.desktop-sidebar-header');
+        if (header == null) throw new Error('The sidebar header is missing');
+        return getComputedStyle(header).paddingLeft;
+      })) === '12px',
       'Fullscreen must remove the traffic-light inset',
     );
     await app.evaluate(
@@ -814,9 +914,9 @@ async function installedProject(input: DesktopProof) {
           view.setFullScreen(false);
         }),
     );
-    await page.waitForFunction(
-      "!document.documentElement.classList.contains('desktop-fullscreen')",
-    );
+    await page
+      .locator('html.desktop-fullscreen')
+      .waitFor({ state: 'detached' });
     await page.screenshot({
       path: join(input.evidence, 'installed-project.png'),
     });
@@ -870,6 +970,11 @@ async function installedProject(input: DesktopProof) {
       'Quit must remove the owner socket',
     );
     requireProof(!processAlive(serverPid), 'Quit must stop the managed server');
+    requireProof(
+      (await readFile(join(input.profile, 'logs', 'server.log'), 'utf8'))
+        .length > 0,
+      'The app must keep its server output in the logs folder',
+    );
     const restarted = await launch();
     try {
       const restored = await restarted.firstWindow({ timeout: 30_000 });
@@ -898,9 +1003,7 @@ async function installedProject(input: DesktopProof) {
         )) === true,
         'Restarting must restore the maximized window',
       );
-      await restored.waitForFunction(
-        "document.querySelector('.dark') !== null",
-      );
+      await restored.locator('.dark').first().waitFor({ state: 'attached' });
       requireProof(
         await restarted.evaluate(
           ({ nativeTheme }) => nativeTheme.themeSource === 'dark',
@@ -934,6 +1037,8 @@ async function installedProject(input: DesktopProof) {
       remoteConnectionsAllowedByPolicy: true,
       stableOrigin: true,
       nativeMenus: true,
+      noDeveloperMenus: true,
+      serverLogKept: true,
       nativeAppearance: true,
       desktopAppUpdates: true,
       windowRestored: true,

@@ -3,6 +3,7 @@ import {
   desktopActionSchema,
   desktopAppUpdateCheckSchema,
   desktopAppUpdateStateSchema,
+  desktopCredentialsSchema,
   type DesktopAppUpdateState,
   type DesktopBridge,
 } from '@porcelain/contracts/desktop';
@@ -44,9 +45,7 @@ const bridge: DesktopBridge = {
       const value: unknown = await ipcRenderer.invoke(
         'porcelain:credentials-read',
       );
-      if (value !== null && typeof value !== 'string')
-        throw new Error('Invalid encrypted credential response');
-      return value;
+      return desktopCredentialsSchema.parse(value);
     },
     write: async (value) => {
       if (typeof value !== 'string')
