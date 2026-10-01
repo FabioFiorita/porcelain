@@ -25,7 +25,7 @@ import {
 import { useEffect, useRef, useState } from 'react';
 import { cn } from '@/shared/lib/utils';
 import type { CssVariables } from '@/shared/lib/css-variables';
-import { usePreferences } from '@/shared/workspace/preferences';
+import { usePreferences } from '@/features/access/index';
 import type { Diagram, DiagramBox } from '../rules/review';
 import { useFitOnResize } from '../adapters/diagram-fit';
 

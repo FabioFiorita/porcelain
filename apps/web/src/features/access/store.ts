@@ -1,6 +1,7 @@
 import type { ReadInventoryResponse } from '@porcelain/contracts/projects';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { useSyncExternalStore } from 'react';
 import { savedJson } from '@/shared/lib/saved-json';
 import { desktopCredentials } from '@/shared/adapters/desktop';
 import {
@@ -10,17 +11,30 @@ import {
   withRemote,
   type Remote,
 } from './rules/remotes';
-import { REQUEST_TIMEOUT_MS } from '@/shared/api/request-timeout';
+import {
+  defaultPreferences,
+  readPreferences,
+  resolvedTheme,
+  type Preferences,
+} from './rules/preferences';
+import { REQUEST_TIMEOUT_MS } from '@/config/limits';
 import {
   browserTransport,
   remoteTransport,
   type Transport,
 } from '@/shared/api/transport';
 import type { LiveUpdatePort } from '@/shared/live/port';
-import { remoteLiveUpdates, sameOriginLiveUpdates } from '@/shared/live/socket';
+import {
+  remoteLiveUpdates,
+  sameOriginLiveUpdates,
+  type LiveRetryTimer,
+} from '@/shared/live/socket';
 import { adoptFileDrafts } from '@/shared/query/file-drafts';
 import { createOperationStore } from '@/shared/query/operation-store';
-import type { Connection } from '@/shared/workspace/connection';
+import type {
+  Connection,
+  ConnectionContext,
+} from '@/shared/workspace/connection';
 
 export type RemoteConnection = { remote: Remote; connection: Connection };
 
@@ -71,11 +85,16 @@ function createConnection(environmentId: string, server: Server): Connection {
   return connection;
 }
 
+const liveRetry: LiveRetryTimer = (run, ms) => {
+  const timer = setTimeout(run, ms);
+  return () => clearTimeout(timer);
+};
+
 function localConnection(environmentId: string) {
   return createConnection(environmentId, {
     address: window.location.href,
     transport: browserTransport(fetch),
-    liveUpdates: sameOriginLiveUpdates(),
+    liveUpdates: sameOriginLiveUpdates(liveRetry),
     operationsKey: `porcelain-git-requests:${environmentId}`,
   });
 }
@@ -85,7 +104,7 @@ function remoteConnection(remote: Remote) {
   return createConnection(remote.environmentId, {
     address: remote.address,
     transport,
-    liveUpdates: remoteLiveUpdates(remote.address, transport),
+    liveUpdates: remoteLiveUpdates(remote.address, transport, liveRetry),
     operationsKey: `porcelain-git-requests:${remote.address}:${remote.environmentId}`,
   });
 }
@@ -212,4 +231,72 @@ export function useRemoteConnection(environmentId: string) {
       (entry) => entry.remote.environmentId === environmentId,
     ),
   );
+}
+
+export function useConnectedContext(remote?: Connection): ConnectionContext {
+  const local = useAccessStore((state) => state.connection);
+  if (remote) return { connection: remote };
+  if (!local) throw new Error('A connected environment is required');
+  return { connection: local };
+}
+
+type PreferencesState = {
+  preferences: Preferences;
+  setPreference: <K extends keyof Preferences>(
+    key: K,
+    value: Preferences[K],
+  ) => void;
+};
+
+const usePreferencesStore = create<PreferencesState>()(
+  persist<PreferencesState, [], [], Preferences>(
+    (set) => ({
+      preferences: defaultPreferences,
+      setPreference: (key, value) =>
+        set((state) => ({
+          preferences: { ...state.preferences, [key]: value },
+        })),
+    }),
+    {
+      name: 'porcelain.prototype.preferences',
+      storage: savedJson(() => localStorage, readPreferences),
+      partialize: ({ preferences }) => preferences,
+      merge: (saved, current) => ({
+        ...current,
+        preferences: readPreferences(saved),
+      }),
+    },
+  ),
+);
+
+const darkScheme = '(prefers-color-scheme: dark)';
+
+function subscribeToSystemTheme(onChange: () => void) {
+  const query = window.matchMedia(darkScheme);
+  query.addEventListener('change', onChange);
+  return () => query.removeEventListener('change', onChange);
+}
+
+function systemIsDark() {
+  return window.matchMedia(darkScheme).matches;
+}
+
+export function usePreferences() {
+  const preferences = usePreferencesStore((state) => state.preferences);
+  const setPreference = usePreferencesStore((state) => state.setPreference);
+  const systemDark = useSyncExternalStore(
+    subscribeToSystemTheme,
+    systemIsDark,
+    () => false,
+  );
+  return {
+    preferences,
+    setPreference,
+    resolvedTheme: resolvedTheme(preferences.appearance, systemDark),
+  };
+}
+
+export function useTheme() {
+  const { resolvedTheme: theme } = usePreferences();
+  return { dark: theme === 'dark' };
 }

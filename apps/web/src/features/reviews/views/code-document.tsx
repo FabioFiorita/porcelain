@@ -28,9 +28,8 @@ import {
   PIERRE_SURFACE_CSS,
   PIERRE_THEME,
 } from '@/shared/lib/pierre';
-import { usePreferences } from '@/shared/workspace/preferences';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
-import { useTheme } from '@/shared/workspace/theme';
+import { usePreferences, useTheme } from '@/features/access/index';
 import { type CodeEntry, codeTarget } from '../adapters/code-entries';
 import { useToggleReviewed } from '../commands/reviewed';
 import { useComments } from '../queries/comments';

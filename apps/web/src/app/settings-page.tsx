@@ -42,14 +42,14 @@ import {
   RemoteComputers,
   ServiceUpdateSettings,
   useAccessStore,
+  usePreferences,
   WaysInSettings,
+  type Preferences,
 } from '@/features/access/index';
 import { useInventory } from '@/features/projects/index';
 import { useDocumentTitle } from '@/shared/hooks/use-document-title';
 import { desktopShell } from '@/shared/shell';
 import { copyText } from '@/shared/workspace/copy';
-import type { Preferences } from '@/shared/workspace/preferences';
-import { usePreferences } from '@/shared/workspace/preferences';
 
 const mcpCommand = 'claude mcp add porcelain -- porcelain mcp';
 

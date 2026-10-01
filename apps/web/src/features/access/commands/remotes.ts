@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { ConnectionError } from '@/shared/api/connection-error';
-import { REQUEST_TIMEOUT_MS } from '@/shared/api/request-timeout';
+import { REQUEST_TIMEOUT_MS } from '@/config/limits';
 import { remoteTransport } from '@/shared/api/transport';
 import { dropFileDrafts, saveFileDrafts } from '@/shared/query/file-drafts';
 import { remoteApi } from '../api';

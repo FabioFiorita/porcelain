@@ -26,6 +26,8 @@ const lockedFuses = {
   [FuseV1Options.WasmTrapHandlers]: true,
 } satisfies FuseV1Config;
 
+const signingIdentity = process.env.PORCELAIN_MAC_SIGNING_IDENTITY?.trim();
+
 export async function buildDesktop(): Promise<string> {
   if (process.platform !== 'darwin')
     throw new Error('Build the local Mac app on macOS');
@@ -56,11 +58,16 @@ export async function buildDesktop(): Promise<string> {
         await flipFuses(resolve(buildPath, '../../..'), lockedFuses);
       },
     ],
-    osxSign: {
-      identity: '-',
-      identityValidation: false,
-      optionsForFile: () => ({ hardenedRuntime: false }),
-    },
+    osxSign: signingIdentity
+      ? {
+          identity: signingIdentity,
+          optionsForFile: () => ({ hardenedRuntime: false }),
+        }
+      : {
+          identity: '-',
+          identityValidation: false,
+          optionsForFile: () => ({ hardenedRuntime: false }),
+        },
     extendInfo: {
       NSLocalNetworkUsageDescription:
         'Porcelain can share your projects with devices you pair on your local network.',

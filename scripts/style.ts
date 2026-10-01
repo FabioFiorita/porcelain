@@ -761,6 +761,7 @@ const gateScripts: Readonly<Record<string, Readonly<Record<string, string>>>> =
       'verify:web': 'node .agents/skills/web-verify/scripts/browser.ts',
       check: 'node scripts/check.ts',
       'test:rules': 'node architecture/rule-tests.mjs',
+      'probes:check': 'node scripts/probes.ts --check',
     },
     'apps/web/package.json': {
       typecheck: 'tsc --noEmit && tsc --noEmit -p tsconfig.node.json',

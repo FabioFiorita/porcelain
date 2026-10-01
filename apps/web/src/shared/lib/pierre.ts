@@ -1,4 +1,8 @@
 import type { FileOptions, ThemesType } from '@pierre/diffs/react';
+import {
+  CONTENT_VERSION_HASH_OFFSET,
+  CONTENT_VERSION_HASH_PRIME,
+} from '@/config/limits';
 
 export const PIERRE_THEME: ThemesType = {
   light: 'pierre-light',
@@ -32,7 +36,7 @@ export const PIERRE_SURFACE_CSS = `
 }
 `;
 
-export type PierreDisplayOptions = {
+type PierreDisplayOptions = {
   overflow?: 'scroll' | 'wrap';
   diffStyle?: 'unified' | 'split';
 };
@@ -84,10 +88,10 @@ export const PIERRE_COMMENT_CSS = `
 `;
 
 export function contentVersion(value: string) {
-  let hash = 0x811c9dc5;
+  let hash = CONTENT_VERSION_HASH_OFFSET;
   for (let index = 0; index < value.length; index += 1) {
     hash ^= value.charCodeAt(index);
-    hash = Math.imul(hash, 0x01000193);
+    hash = Math.imul(hash, CONTENT_VERSION_HASH_PRIME);
   }
   return hash >>> 1;
 }

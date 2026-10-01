@@ -6,7 +6,7 @@ import { ButtonGroup } from '@/components/ui/button-group';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useChanges } from '@/features/changes/index';
 import { copyText } from '@/shared/workspace/copy';
-import { usePreferences } from '@/shared/workspace/preferences';
+import { usePreferences } from '@/features/access/index';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
 import {
   type FileDraft,

@@ -11,8 +11,7 @@ import {
   createEditor,
   usePierreFileEditor,
 } from '../adapters/pierre-file-editor';
-import { usePreferences } from '@/shared/workspace/preferences';
-import { useTheme } from '@/shared/workspace/theme';
+import { usePreferences, useTheme } from '@/features/access/index';
 
 export function FileEditor({
   owner,

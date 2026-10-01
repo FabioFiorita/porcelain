@@ -4,7 +4,7 @@ import { connectionErrorMessage } from '../rules/connection-error-message';
 import type { PairingCode } from '@porcelain/client/access/rules';
 import { useAccessStore } from '../store';
 import { ConnectionError } from '@/shared/api/connection-error';
-import { REQUEST_TIMEOUT_MS } from '@/shared/api/request-timeout';
+import { REQUEST_TIMEOUT_MS } from '@/config/limits';
 
 async function redeemPairing(link: PairingCode, signal: AbortSignal) {
   try {

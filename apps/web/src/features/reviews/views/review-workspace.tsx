@@ -249,6 +249,20 @@ export function ReviewWorkspace({
   );
 }
 
+type PaneContext = {
+  scope: { projectId: string; worktreeId: string };
+  context: ConnectionContext;
+  base: string | undefined;
+  setFocused: (pane: PaneIndex) => void;
+  onOpen: OpenDocument;
+  reveal?: (RevealComment & { pane: PaneIndex; key: string }) | undefined;
+  navigationTrigger: RefObject<HTMLButtonElement | null>;
+  navigatorIsMobile: boolean;
+  navigatorOpen: boolean;
+  navigatorOpenMobile: boolean;
+  tabControls: ReactNode;
+};
+
 function DocumentArea({
   reveal,
   scope,
@@ -266,23 +280,12 @@ function DocumentArea({
   navigatorOpen,
   navigatorOpenMobile,
   tabControls,
-}: {
-  scope: { projectId: string; worktreeId: string };
-  context: ConnectionContext;
+}: PaneContext & {
   worktreeId: string;
   entry: string | undefined;
   side: string | undefined;
-  base: string | undefined;
   onSearch: SetWorkspaceSearch;
   focused: PaneIndex;
-  setFocused: (pane: PaneIndex) => void;
-  onOpen: OpenDocument;
-  reveal?: (RevealComment & { pane: PaneIndex; key: string }) | undefined;
-  navigationTrigger: RefObject<HTMLButtonElement | null>;
-  navigatorIsMobile: boolean;
-  navigatorOpen: boolean;
-  navigatorOpenMobile: boolean;
-  tabControls: ReactNode;
 }) {
   const { connection } = context;
   const overview = useReviewOverview(scope, connection);
@@ -382,24 +385,13 @@ function PaneView({
   navigatorOpen,
   navigatorOpenMobile,
   tabControls,
-}: {
+}: PaneContext & {
   index: PaneIndex;
-  base: string | undefined;
-  context: ConnectionContext;
   layout: ReturnType<typeof useTabLayout>;
   split: boolean;
   focused: boolean;
-  setFocused: (pane: PaneIndex) => void;
-  scope: { projectId: string; worktreeId: string };
   layers: readonly Pick<ReviewLayer, 'id' | 'title'>[];
   handoff: 'review' | 'changes' | null;
-  onOpen: OpenDocument;
-  reveal?: (RevealComment & { pane: PaneIndex; key: string }) | undefined;
-  navigationTrigger: RefObject<HTMLButtonElement | null>;
-  navigatorIsMobile: boolean;
-  navigatorOpen: boolean;
-  navigatorOpenMobile: boolean;
-  tabControls: ReactNode;
 }) {
   const pane = layout.panes[index] ?? { tabs: [], pinned: [], active: null };
   const document = parseEntry(pane.active ?? undefined);

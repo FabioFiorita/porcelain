@@ -1,6 +1,6 @@
 import type { QueryClient } from '@tanstack/react-query';
 import { createRootRouteWithContext, Outlet } from '@tanstack/react-router';
-import { ThemeProvider } from '@/shared/workspace/theme';
+import { ThemeProvider } from '@/features/access/index';
 
 export const Route = createRootRouteWithContext<{
   queryClient: QueryClient;
