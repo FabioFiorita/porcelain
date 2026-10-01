@@ -80,19 +80,13 @@ const startServer = composeServer({
         },
       ],
       [
-        'Iface\tDestination\tGateway \tFlags\tRefCnt\tUse\tMetric\tMask\t\tMTU\tWindow\tIRTT',
-        'eth0\t00000000\t0101A8C0\t0003\t0\t0\t100\t00000000\t0\t0\t0',
-        'docker0\t000011AC\t00000000\t0001\t0\t0\t0\t0000FFFF\t0\t0\t0',
-        'tun0\t0000080A\t00000000\t0001\t0\t0\t0\t00FFFFFF\t0\t0\t0',
-        'eth0\t0001A8C0\t00000000\t0001\t0\t0\t100\t00FFFFFF\t0\t0\t0',
-        '',
-      ].join('\n'),
-      [
-        'IP address       HW type     Flags       HW address            Mask     Device',
-        '192.168.1.1      0x1         0x2         02:00:5e:10:00:01     *        eth0',
-        '172.17.0.2       0x1         0x2         02:42:ac:11:00:02     *        docker0',
-        '',
-      ].join('\n'),
+        {
+          interfaceName: 'eth0',
+          metric: 100,
+          gateway: '192.168.1.1',
+          gatewayHardware: '02:00:5e:10:00:01',
+        },
+      ],
     ),
   routeListenerRunner: () =>
     new InMemoryRouteListenerRunner(listeningPort, () => 41000),

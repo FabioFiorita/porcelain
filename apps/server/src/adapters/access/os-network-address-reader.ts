@@ -1,7 +1,9 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
+import { readFile } from 'node:fs/promises';
 import { networkInterfaces } from 'node:os';
-import type { NetworkAddress } from '@porcelain/access/models';
+import type { DefaultRoute, NetworkAddress } from '@porcelain/access/models';
 import type { NetworkAddressReader } from '@porcelain/access/ports';
+import { linuxDefaultRoutes } from './linux-network-output.ts';
 
 const ROUTE_TABLE = '/proc/net/route';
 const NEIGHBOUR_TABLE = '/proc/net/arp';
@@ -11,9 +13,9 @@ function physical(name: string): boolean {
   return !name.includes('/') && existsSync(`${INTERFACES}/${name}/device`);
 }
 
-function kernelTable(path: string): string {
+async function kernelTable(path: string): Promise<string> {
   try {
-    return readFileSync(path, 'utf8');
+    return await readFile(path, 'utf8');
   } catch {
     return '';
   }
@@ -35,11 +37,11 @@ export class OsNetworkAddressReader implements NetworkAddressReader {
     });
   }
 
-  routeTable(): string {
-    return kernelTable(ROUTE_TABLE);
-  }
-
-  neighbourTable(): string {
-    return kernelTable(NEIGHBOUR_TABLE);
+  async defaultRoutes(): Promise<DefaultRoute[]> {
+    const [routes, neighbours] = await Promise.all([
+      kernelTable(ROUTE_TABLE),
+      kernelTable(NEIGHBOUR_TABLE),
+    ]);
+    return linuxDefaultRoutes(routes, neighbours);
   }
 }

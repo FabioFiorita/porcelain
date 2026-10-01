@@ -1,35 +1,48 @@
-import { readCommand } from '@porcelain/process';
+import { runCommand } from '@porcelain/process';
 import type { Limits } from '../../config/limits.ts';
 import { macPrimaryService } from './mac-network-output.ts';
 
 type NetworkDiscoveryLimits = Limits['access']['networkDiscovery'];
 
-function output(
+async function output(
   command: string,
   args: readonly string[],
   limits: NetworkDiscoveryLimits,
-  input?: string,
-): string {
+  stdin?: string,
+): Promise<string> {
   try {
-    return readCommand({
+    const result = await runCommand({
       command,
       args,
+      stdin,
       timeoutMs: limits.commandTimeoutMs,
       maxBytes: limits.outputBytes,
-      ...(input === undefined ? {} : { input }),
+      processGroup: limits.processGroup,
     });
+    const completed =
+      result.stopped === undefined || result.stopped === 'lingering';
+    return completed && result.exitCode === 0
+      ? result.stdout.toString('utf8')
+      : '';
   } catch {
     return '';
   }
 }
 
-export function readMacRoute(limits: NetworkDiscoveryLimits): string {
+export function readMacRoute(limits: NetworkDiscoveryLimits): Promise<string> {
   return output('/sbin/route', ['-n', 'get', 'default'], limits);
 }
 
-export function readMacPrimaryService(limits: NetworkDiscoveryLimits): string {
+export async function readMacPrimaryService(
+  limits: NetworkDiscoveryLimits,
+): Promise<string> {
   const service = macPrimaryService(
-    output('/usr/sbin/scutil', [], limits, 'show State:/Network/Global/IPv4\n'),
+    await output(
+      '/usr/sbin/scutil',
+      [],
+      limits,
+      'show State:/Network/Global/IPv4\n',
+    ),
   );
   return service === undefined
     ? ''

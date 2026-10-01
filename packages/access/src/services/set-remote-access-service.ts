@@ -14,7 +14,7 @@ import type { NetworkAddressReader } from '../ports/network-address-reader.ts';
 import type { RemoteAccessStore } from '../ports/remote-access-store.ts';
 import type { RouteStateStore } from '../ports/route-state-store.ts';
 import type { RuntimeStatusReader } from '../ports/runtime-status-reader.ts';
-import { defaultRoutes, localNetwork } from '../rules/local-network.ts';
+import { localNetwork } from '../rules/local-network.ts';
 import {
   changedRemoteAccess,
   reachableOrigins,
@@ -43,11 +43,10 @@ export class SetRemoteAccessService {
     this.options = options;
   }
 
-  execute(input: RemoteAccessChange): RemoteAccess {
+  async execute(input: RemoteAccessChange): Promise<RemoteAccess> {
     const here = localNetwork(
       this.networkAddresses.list(),
-      defaultRoutes(this.networkAddresses.routeTable()),
-      this.networkAddresses.neighbourTable(),
+      await this.networkAddresses.defaultRoutes(),
     );
     const decision = changedRemoteAccess(
       this.remoteAccess.read(),

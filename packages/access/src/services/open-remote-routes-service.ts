@@ -12,11 +12,7 @@ import type { RemoteAccessStore } from '../ports/remote-access-store.ts';
 import type { RouteListenerRunner } from '../ports/route-listener-runner.ts';
 import type { RouteStateStore } from '../ports/route-state-store.ts';
 import type { TunnelProbe } from '../ports/tunnel-probe.ts';
-import {
-  defaultRoutes,
-  localNetwork,
-  sameNetwork,
-} from '../rules/local-network.ts';
+import { localNetwork, sameNetwork } from '../rules/local-network.ts';
 import {
   listenedState,
   reachableOrigins,
@@ -94,8 +90,7 @@ export class OpenRemoteRoutesService {
   ): Promise<RouteState> {
     const here = localNetwork(
       found,
-      defaultRoutes(this.networkAddresses.routeTable()),
-      this.networkAddresses.neighbourTable(),
+      await this.networkAddresses.defaultRoutes(),
     );
     if (!settings.lan || !sameNetwork(here, settings.lanNetwork)) {
       await this.routeListeners.close({ route: 'lan' });

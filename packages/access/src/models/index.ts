@@ -27,6 +27,7 @@ export type {
   CheckLocalRequestResult,
 } from './check-local-request.ts';
 export type {
+  DefaultRoute,
   ListenedRoute,
   ListenOutcome,
   NetworkAddress,

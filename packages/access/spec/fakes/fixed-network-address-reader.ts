@@ -1,36 +1,28 @@
-import type { NetworkAddress } from '../../src/models/remote-access.ts';
+import type {
+  DefaultRoute,
+  NetworkAddress,
+} from '../../src/models/remote-access.ts';
 import type { NetworkAddressReader } from '../../src/ports/network-address-reader.ts';
 
 export class FixedNetworkAddressReader implements NetworkAddressReader {
   private addresses: NetworkAddress[];
-  private table: string;
-  private neighbours: string;
+  private routes: DefaultRoute[];
 
-  constructor(addresses: NetworkAddress[], table: string, neighbours: string) {
+  constructor(addresses: NetworkAddress[], routes: DefaultRoute[]) {
     this.addresses = addresses;
-    this.table = table;
-    this.neighbours = neighbours;
+    this.routes = routes;
   }
 
   list(): NetworkAddress[] {
     return [...this.addresses];
   }
 
-  routeTable(): string {
-    return this.table;
+  async defaultRoutes(): Promise<DefaultRoute[]> {
+    return this.routes.map((route) => ({ ...route }));
   }
 
-  neighbourTable(): string {
-    return this.neighbours;
-  }
-
-  replace(
-    addresses: NetworkAddress[],
-    table = this.table,
-    neighbours = this.neighbours,
-  ): void {
+  replace(addresses: NetworkAddress[], routes = this.routes): void {
     this.addresses = addresses;
-    this.table = table;
-    this.neighbours = neighbours;
+    this.routes = routes;
   }
 }
