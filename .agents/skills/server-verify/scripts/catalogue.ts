@@ -13,6 +13,7 @@ function isFeature(value: unknown): value is Feature {
     typeof value.paired === 'boolean' &&
     (value.intent === 'observed' || value.intent === 'intended') &&
     typeof value.behaviour === 'string' &&
+    (value.sample === undefined || value.sample === 'perf') &&
     Array.isArray(value.cases) &&
     value.cases.every(isDefinedCase)
   );

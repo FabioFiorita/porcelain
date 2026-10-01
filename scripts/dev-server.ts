@@ -15,6 +15,7 @@ import { delimiter, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
 import { z } from 'zod';
+import { buildPerfSample } from './dev-perf-sample.ts';
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const childBundle = 'server/src/bootstrap/dev-server-child.mjs';
@@ -80,7 +81,11 @@ async function vendor(
       await vendor(dependency, source, into, copied);
 }
 
-export async function buildIsolatedServer(output: string): Promise<void> {
+export async function buildIsolatedServer(
+  output: string,
+  sample?: 'perf',
+): Promise<void> {
+  if (sample === 'perf') await buildPerfSample(output);
   await build({
     entryPoints: [join(repositoryRoot, 'scripts/dev-server-child.ts')],
     outfile: join(output, childBundle),
@@ -350,6 +355,10 @@ function freePort(): Promise<number> {
   });
 }
 
+function sampleOption(): 'perf' | undefined {
+  return process.env.PORCELAIN_DEV_SAMPLE === 'perf' ? 'perf' : undefined;
+}
+
 function serverOption(): string | undefined {
   const at = process.argv.indexOf('--server');
   return at === -1 ? undefined : process.argv[at + 1];
@@ -375,7 +384,7 @@ async function install(
       given === undefined
         ? await temporary('porcelain-dev-build-', scratch)
         : undefined;
-    if (built !== undefined) await buildIsolatedServer(built);
+    if (built !== undefined) await buildIsolatedServer(built, sampleOption());
     return {
       server: realpathSync(given ?? built ?? ''),
       bin,
@@ -391,7 +400,7 @@ async function install(
   const server = join(folder, 'server');
   const bin = join(folder, 'bin');
   await mkdir(bin);
-  if (given === undefined) await buildIsolatedServer(server);
+  if (given === undefined) await buildIsolatedServer(server, sampleOption());
   else
     await cp(realpathSync(given), server, {
       recursive: true,
@@ -458,8 +467,9 @@ async function main() {
           PORCELAIN_DEV_CODING_TOOL: codingToolExecutable,
           PORCELAIN_DEV_PORT: String(network.port),
           ...(process.platform === 'darwin' ? { TRASH_FALLBACK: '1' } : {}),
-          ...(process.env.PORCELAIN_DEV_SAMPLE === 'review'
-            ? { PORCELAIN_DEV_SAMPLE: 'review' }
+          ...(process.env.PORCELAIN_DEV_SAMPLE === 'review' ||
+          process.env.PORCELAIN_DEV_SAMPLE === 'perf'
+            ? { PORCELAIN_DEV_SAMPLE: process.env.PORCELAIN_DEV_SAMPLE }
             : {}),
         },
       },

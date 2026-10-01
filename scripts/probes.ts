@@ -59,7 +59,12 @@ const expectedSeconds: Record<ProbeGate, (probe: LoadedProbe) => number> = {
   typecheck: () => 3,
   test: () => 7,
   db: () => 2,
-  verify: (probe) => (probe.feature === undefined ? 46 : 2),
+  verify: (probe) =>
+    probe.feature === undefined
+      ? 46
+      : probe.feature.startsWith('perf.')
+        ? 15
+        : 2,
   'web-verify': (probe) => (probe.feature === undefined ? 150 : 12),
 };
 const moduleSchema = z.object({ default: probeSchema });

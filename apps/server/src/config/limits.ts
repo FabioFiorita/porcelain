@@ -475,3 +475,26 @@ export const LIMITS: Limits = {
     socketPathBytes: 103,
   },
 };
+
+type RouteBudget = { p95Ms: number; gitProcesses: number };
+
+export const ROUTE_BUDGET_REQUESTS = 5;
+
+export const ROUTE_BUDGETS = {
+  registerProject: { p95Ms: 150, gitProcesses: 7 },
+  readInventory: { p95Ms: 100, gitProcesses: 0 },
+  readChanges: { p95Ms: 600, gitProcesses: 6 },
+  readGitStatus: { p95Ms: 500, gitProcesses: 10 },
+  readTextFile: { p95Ms: 100, gitProcesses: 0 },
+  readChangeDiffs: { p95Ms: 600, gitProcesses: 8 },
+  listCommits: { p95Ms: 100, gitProcesses: 1 },
+  listFileCommits: { p95Ms: 250, gitProcesses: 2 },
+  listWorktreePaths: { p95Ms: 150, gitProcesses: 1 },
+  listDirectory: { p95Ms: 150, gitProcesses: 1 },
+  markReviewed: { p95Ms: 500, gitProcesses: 6 },
+  listReviewed: { p95Ms: 100, gitProcesses: 0 },
+  unmarkReviewed: { p95Ms: 100, gitProcesses: 0 },
+  createComment: { p95Ms: 100, gitProcesses: 0 },
+  listComments: { p95Ms: 100, gitProcesses: 0 },
+  readPublishedReview: { p95Ms: SECOND_MS, gitProcesses: 8 },
+} satisfies Record<string, RouteBudget>;

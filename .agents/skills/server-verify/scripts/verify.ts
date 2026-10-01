@@ -14,6 +14,7 @@ import {
   list,
   record,
   UnassertedExchanges,
+  type Budget,
   type Checks,
   type Feature,
 } from './feature.ts';
@@ -40,6 +41,15 @@ type CaseEvidence = {
   assertions: Assertion[];
   serverStderr: string;
   durationMs: number;
+  performance?: CasePerformance;
+};
+type CasePerformance = {
+  requests: number;
+  p50Ms: number;
+  p95Ms: number;
+  gitProcesses: { min: number; max: number };
+  budget: Budget;
+  overBudget: string[];
 };
 type RouteCoverage = {
   registered: readonly string[];
@@ -60,12 +70,13 @@ type FeatureResult = {
   routes: readonly string[];
   durationMs: number;
   durations: { case: string; durationMs: number }[];
+  budgets: ({ case: string } & CasePerformance)[];
 };
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = resolve(here, '../../../..');
 const usage =
-  'Usage: node .agents/skills/server-verify/scripts/verify.ts <feature>|--all|--list\n';
+  'Usage: node .agents/skills/server-verify/scripts/verify.ts <feature>|--all|--perf|--list\n';
 
 function routePattern(reach: string): RegExp {
   const escaped = reach
@@ -214,6 +225,56 @@ function checks(
   };
 }
 
+function rank(sorted: readonly number[], share: number): number {
+  return sorted[Math.max(0, Math.ceil(share * sorted.length) - 1)] ?? 0;
+}
+
+function performanceOf(
+  steps: readonly Step[],
+  budget: Budget,
+): CasePerformance {
+  const timed = steps.flatMap((step) =>
+    step.kind === 'http' &&
+    step.phase === 'request' &&
+    step.durationMs !== undefined &&
+    step.git !== undefined
+      ? [{ ms: step.durationMs, git: step.git.processes }]
+      : [],
+  );
+  const times = timed.map((entry) => entry.ms).sort((a, b) => a - b);
+  const processes = timed.map((entry) => entry.git);
+  const measured = {
+    requests: timed.length,
+    p50Ms: rank(times, 0.5),
+    p95Ms: rank(times, 0.95),
+    gitProcesses: {
+      min: Math.min(...processes),
+      max: Math.max(...processes),
+    },
+    budget,
+  };
+  return {
+    ...measured,
+    overBudget:
+      timed.length === 0
+        ? [
+            'its budget measured no request; a budget needs the perf sample, whose Git trace times and counts each request',
+          ]
+        : [
+            ...(measured.p95Ms > budget.p95Ms
+              ? [
+                  `p95 ${measured.p95Ms} ms is over its budget of ${budget.p95Ms} ms`,
+                ]
+              : []),
+            ...(measured.gitProcesses.max > budget.gitProcesses
+              ? [
+                  `${measured.gitProcesses.max} Git processes are over its budget of ${budget.gitProcesses}`,
+                ]
+              : []),
+          ],
+  };
+}
+
 function message(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
@@ -285,10 +346,13 @@ async function runCases(
       evidence.serverStderr = server.logs().stderr.slice(stderrFrom);
       evidence.durationMs = Math.round(performance.now() - startedAt);
     }
+    if (testCase.budget)
+      evidence.performance = performanceOf(evidence.steps, testCase.budget);
     evidence.assertionCount = assertions.length;
     evidence.passed =
       evidence.error === undefined &&
       evidence.unasserted === undefined &&
+      (evidence.performance?.overBudget.length ?? 0) === 0 &&
       assertions.every((entry) => entry.passed);
   }
   return cases;
@@ -306,7 +370,7 @@ async function runFeature(
   let setupError: string | undefined;
   let server: IsolatedServer | undefined;
   try {
-    server = await IsolatedServer.start(repositoryRoot, build);
+    server = await IsolatedServer.start(repositoryRoot, build, feature.sample);
     recorder.secret(server.credential);
     recorder.secret(server.desktopCredential);
     cases = await runCases(feature, server, recorder, contracts);
@@ -326,13 +390,31 @@ async function runFeature(
     (reach) => !requested.some((route) => routePattern(reach).test(route)),
   );
   const assertions = cases.flatMap((entry) => entry.assertions);
+  const traced = cases.reduce(
+    (sum, entry) =>
+      sum +
+      entry.steps.reduce(
+        (count, step) =>
+          count + (step.kind === 'http' ? (step.git?.processes ?? 0) : 0),
+        0,
+      ),
+    0,
+  );
   const failures = [
     ...(setupError ? [`setup: ${setupError}`] : []),
     ...(cases.length === 0 ? ['no case ran'] : []),
     ...unreached.map((reach) => `no case requested ${reach}`),
+    ...(feature.sample === 'perf' && traced === 0
+      ? [
+          'git trace: the perf sample recorded no Git process, so its budgets counted nothing',
+        ]
+      : []),
     ...cases.flatMap((entry) => [
       ...(entry.error ? [`${entry.name}: ${entry.error}`] : []),
       ...(entry.unasserted ? [`${entry.name}: ${entry.unasserted}`] : []),
+      ...(entry.performance?.overBudget ?? []).map(
+        (reason) => `${entry.name}: ${reason}`,
+      ),
       ...entry.assertions
         .filter((assertion) => !assertion.passed)
         .map((assertion) =>
@@ -410,6 +492,9 @@ async function runFeature(
     routes: server?.routes ?? [],
     durationMs,
     durations,
+    budgets: cases.flatMap((entry) =>
+      entry.performance ? [{ case: entry.name, ...entry.performance }] : [],
+    ),
   };
 }
 
@@ -428,7 +513,7 @@ const [features, negatives] = await Promise.all([
 if (argument === '--list') {
   for (const feature of features)
     process.stdout.write(
-      `${feature.feature} (${feature.intent}${feature.paired ? ', paired' : ''}, ${feature.cases.length} cases): ${reachesOf(feature).join(', ')}\n`,
+      `${feature.feature} (${feature.intent}${feature.paired ? ', paired' : ''}${feature.sample ? `, ${feature.sample} sample` : ''}, ${feature.cases.length} cases): ${reachesOf(feature).join(', ')}\n`,
     );
   for (const negative of negatives)
     process.stdout.write(
@@ -437,9 +522,13 @@ if (argument === '--list') {
   process.exit(0);
 }
 const chosen = (entries: Feature[]) =>
-  argument === '--all'
-    ? entries
-    : entries.filter((feature) => feature.feature === argument);
+  entries.filter((feature) =>
+    argument === '--all'
+      ? feature.sample === undefined
+      : argument === '--perf'
+        ? feature.sample === 'perf'
+        : feature.feature === argument,
+  );
 const selected = chosen(features);
 const selectedNegatives = chosen(negatives);
 if (selected.length === 0 && selectedNegatives.length === 0) {
@@ -453,7 +542,10 @@ const evidenceDirectory = await mkdtemp(
   join(tmpdir(), 'porcelain-server-verify-'),
 );
 const build = await mkdtemp(join(tmpdir(), 'porcelain-server-build-'));
-await buildIsolatedServer(build);
+await buildIsolatedServer(
+  build,
+  selected.some((feature) => feature.sample === 'perf') ? 'perf' : undefined,
+);
 const contracts = await contractSchemas();
 let interrupted = false;
 process.once('SIGINT', () => {
@@ -502,6 +594,17 @@ process.stdout.write('Slowest cases:\n');
 for (const timed of slowest)
   process.stdout.write(
     `  ${timed.durationMs} ms  ${timed.feature}: ${timed.case}\n`,
+  );
+const budgets = results.flatMap((entry) =>
+  entry.budgets.map((budgeted) => ({ feature: entry.feature, ...budgeted })),
+);
+if (budgets.length > 0)
+  process.stdout.write(
+    'Budgets (p50 / p95 ms of n requests, Git processes per request, budget):\n',
+  );
+for (const budgeted of budgets)
+  process.stdout.write(
+    `  ${budgeted.p50Ms} / ${budgeted.p95Ms} ms of ${budgeted.requests}, ${budgeted.gitProcesses.min === budgeted.gitProcesses.max ? budgeted.gitProcesses.max : `${budgeted.gitProcesses.min}-${budgeted.gitProcesses.max}`} Git, budget ${budgeted.budget.p95Ms} ms and ${budgeted.budget.gitProcesses} Git  ${budgeted.feature}: ${budgeted.case}\n`,
   );
 const registered = [...results, ...negativeResults].find(
   (entry) => entry.routes.length > 0,

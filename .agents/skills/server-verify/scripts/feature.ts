@@ -53,7 +53,17 @@ export type Fixture = {
     message: DraftedCommit;
     groups: DraftedCommit[];
   };
+  perf: PerfSample | null;
 };
+
+export type PerfSample = {
+  files: number;
+  commits: number;
+  worktrees: string[];
+  projects: string[];
+};
+
+export type Budget = { p95Ms: number; gitProcesses: number };
 
 export type DraftedCommit = { message: string; paths: string[] };
 
@@ -130,6 +140,7 @@ export type Outcome<State> = Checks & {
 
 type CaseBody<State> = {
   name: string;
+  budget?: Budget;
   request: (session: Session, state: State) => HttpRequest | HttpRequest[];
   expect: (outcome: Outcome<State>) => Promise<void> | void;
 };
@@ -149,13 +160,16 @@ export type CaseRunner = {
 
 class DefinedCase {
   readonly name: string;
+  readonly budget: Budget | undefined;
   readonly #run: (session: Session, runner: CaseRunner) => Promise<void>;
 
   constructor(
     name: string,
+    budget: Budget | undefined,
     run: (session: Session, runner: CaseRunner) => Promise<void>,
   ) {
     this.name = name;
+    this.budget = budget;
     this.#run = run;
   }
 
@@ -175,6 +189,7 @@ export type Feature = {
   intent: Intent;
   behaviour: string;
   locations?: readonly string[];
+  sample?: 'perf';
   cases: readonly DefinedCase[];
 };
 
@@ -208,7 +223,7 @@ export function defineCase<State>(value: Case<State>): DefinedCase;
 export function defineCase<State>(
   value: (CaseBody<undefined> & { setup?: undefined }) | Case<State>,
 ): DefinedCase {
-  return new DefinedCase(value.name, async (session, runner) => {
+  return new DefinedCase(value.name, value.budget, async (session, runner) => {
     runner.enter('setup');
     if (value.setup === undefined)
       return execute(value, undefined, session, runner);
