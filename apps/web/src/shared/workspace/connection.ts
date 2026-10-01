@@ -3,6 +3,7 @@ import type { LiveUpdatePort } from '@/shared/live/port';
 import type { OperationStore } from '@/shared/query/operation-store';
 
 export type Connection = {
+  address: string;
   environmentId: string;
   controller: AbortController;
   operations: OperationStore;

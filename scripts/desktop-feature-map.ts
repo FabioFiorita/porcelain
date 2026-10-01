@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs';
 import { readFile, stat, writeFile } from 'node:fs/promises';
 import { isDeepStrictEqual } from 'node:util';
 import { join } from 'node:path';
+import { randomUUID } from 'node:crypto';
 import { _electron, type Page } from 'playwright';
 import { z } from 'zod';
 import { askOwner } from '../apps/server/src/cli/owner-client.ts';
@@ -19,12 +20,38 @@ const inventory = z.object({
   ),
 });
 const access = z.object({ devices: z.array(z.object({ id: z.string() })) });
+const summaryProject = z.object({
+  id: z.string(),
+  worktrees: z.array(z.object({ id: z.string(), main: z.boolean() })),
+});
+const summaryPublication = z.object({
+  review: z
+    .object({
+      summary: z.object({
+        url: z.string(),
+      }),
+    })
+    .nullish(),
+});
+const remoteInventory = z.object({
+  environmentId: z.string(),
+  environment: z.object({ name: z.string() }),
+});
+const summaryPairing = z.object({
+  grants: z.array(z.object({ link: z.string() })),
+});
 
 function requireProof(condition: boolean, promise: string) {
   if (!condition) throw new Error(promise);
 }
 
 export const desktopFeatures = [
+  {
+    name: 'review-summaries',
+    promise:
+      'the installed app renders local and remote signed HTML summaries inside isolated sandboxes, preserves their theme and layer links, and keeps app scripts restricted to its own origin',
+    run: reviewSummaries,
+  },
   {
     name: 'bridge-capabilities',
     promise:
@@ -34,28 +61,302 @@ export const desktopFeatures = [
   {
     name: 'installed-project',
     promise:
-      'the installed app starts its own server, opens a real Git project, survives window close, reopens from the Dock, retains its project, preferences and window after restart without browser pairing, and stops its server on Quit',
+      'the installed app starts its own server, serves a policy permitting remote HTTP and WebSocket connections with scripts restricted to the app origin, opens a discovered real Git project, shows its desktop app version and update status, survives window close, reopens from the Dock, retains its project, preferences and window after restart without browser pairing, and stops its server on Quit',
     run: installedProject,
   },
 ];
 
-async function bridgeCapabilities(input: DesktopProof) {
+async function launchDesktop(input: DesktopProof) {
   const environment: Record<string, string> = {};
   for (const [name, value] of Object.entries(process.env))
     if (value !== undefined && name !== 'ELECTRON_RUN_AS_NODE')
       environment[name] = value;
-  const launch = () =>
-    _electron.launch({
-      executablePath: input.executable,
-      args: [
-        '--data-directory',
-        input.profile,
-        '--project-home',
-        input.repository,
+  return _electron.launch({
+    executablePath: input.executable,
+    args: [
+      '--data-directory',
+      input.profile,
+      '--project-home',
+      input.repository,
+    ],
+    env: environment,
+    timeout: 30_000,
+  });
+}
+
+async function desktopRequest(
+  page: Page,
+  path: string,
+  method: string,
+  body?: unknown,
+) {
+  return page.evaluate(
+    async ({ path, method, body }) => {
+      const response = await fetch(path, {
+        method,
+        headers: {
+          'x-porcelain-browser': '1',
+          'content-type': 'application/json',
+        },
+        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      });
+      if (!response.ok)
+        throw new Error(`${method} ${path}: ${response.status}`);
+      return response.json();
+    },
+    { path, method, body },
+  );
+}
+
+async function publishDesktopSummary(
+  page: Page,
+  repository: string,
+  title: string,
+) {
+  const project = summaryProject.parse(
+    await desktopRequest(page, '/api/projects', 'POST', { path: repository }),
+  );
+  const worktree = project.worktrees.find((entry) => entry.main);
+  if (worktree === undefined)
+    throw new Error('The summary project has no main worktree');
+  const publication = summaryPublication.parse(
+    await desktopRequest(page, `/api/worktrees/${worktree.id}/review`, 'PUT', {
+      expectedRevision: 0,
+      summaryHtml: `<html><body><h1>${title}</h1><a href="#layer-1">Open ${title} layer</a></body></html>`,
+      layers: [
+        {
+          id: randomUUID(),
+          title: `${title} layer`,
+          summary: 'A disposable review',
+          lanes: ['Docs'],
+          steps: [
+            {
+              id: randomUUID(),
+              lane: 0,
+              title: 'Readme',
+              text: 'Review the readme',
+              kind: 'context',
+              pointer: { path: 'README.md', startLine: 1, endLine: 1 },
+            },
+          ],
+        },
       ],
-      env: environment,
-      timeout: 30_000,
+    }),
+  );
+  if (publication.review == null)
+    throw new Error('The published summary is missing');
+  return { project, worktree, review: publication.review };
+}
+
+async function reviewSummaries(input: DesktopProof) {
+  const local = await launchDesktop(input);
+  let remote: Awaited<ReturnType<typeof launchDesktop>> | undefined;
+  let page: Page | undefined;
+  const errors: string[] = [];
+  try {
+    page = await local.firstWindow();
+    page.on('pageerror', (error) => errors.push(error.message));
+    page.on('console', (message) => {
+      if (message.type() === 'error') errors.push(message.text());
     });
+    await page
+      .getByRole('button', { name: 'Open project', exact: true })
+      .waitFor();
+    const here = await publishDesktopSummary(
+      page,
+      input.repository,
+      'Local summary',
+    );
+    await page.goto(
+      `porcelain://app/${here.project.id}/${here.worktree.id}?entry=handoff`,
+    );
+    const localSummary = page.frameLocator('iframe[title="Review summary"]');
+    await localSummary
+      .getByRole('heading', { name: 'Local summary', exact: true })
+      .waitFor();
+    const localFrame = page
+      .frames()
+      .find((frame) => frame.url().includes('/review-summaries/'));
+    if (localFrame === undefined)
+      throw new Error('The local summary frame is missing');
+    const localPolicy = await page.evaluate(
+      async (path) =>
+        (await fetch(path)).headers.get('content-security-policy'),
+      here.review.summary.url,
+    );
+    requireProof(
+      localPolicy ===
+        'sandbox allow-scripts allow-forms allow-popups allow-modals',
+      'The desktop protocol must retain the summary server sandbox policy',
+    );
+    await localFrame
+      .locator('html[data-theme="dark"], html[data-theme="light"]')
+      .waitFor();
+    await localSummary
+      .getByRole('link', { name: 'Open Local summary layer', exact: true })
+      .click();
+    await page
+      .getByRole('region', {
+        name: 'Review layer Local summary layer',
+        exact: true,
+      })
+      .waitFor();
+
+    const remoteProfile = join(input.profile, 'remote');
+    remote = await launchDesktop({ ...input, profile: remoteProfile });
+    const otherPage = await remote.firstWindow();
+    await otherPage
+      .getByRole('button', { name: 'Open project', exact: true })
+      .waitFor();
+    const there = await publishDesktopSummary(
+      otherPage,
+      input.repository,
+      'Remote summary',
+    );
+    const status = ownerStatus.parse(
+      await askOwner(
+        join(remoteProfile, 'server'),
+        'GET',
+        '/status',
+        undefined,
+        5000,
+      ),
+    );
+    const issued = summaryPairing.parse(
+      await askOwner(
+        join(remoteProfile, 'server'),
+        'POST',
+        '/pairings',
+        { labels: ['Desktop summary proof'], addresses: [status.address] },
+        5000,
+      ),
+    );
+    const grant = issued.grants[0];
+    if (grant === undefined)
+      throw new Error('The remote pairing grant is missing');
+    const other = remoteInventory.parse(
+      await desktopRequest(otherPage, '/api/inventory', 'GET'),
+    );
+    await page.getByRole('button', { name: 'Settings', exact: true }).click();
+    const settings = page.getByRole('main', { name: 'Settings', exact: true });
+    await settings
+      .getByRole('button', { name: 'Remote computers', exact: true })
+      .click();
+    await settings
+      .getByRole('textbox', { name: 'Pairing link', exact: true })
+      .fill(grant.link);
+    await settings.getByRole('button', { name: 'Add', exact: true }).click();
+    await settings
+      .getByRole('list', { name: 'Remote computers', exact: true })
+      .getByRole('listitem', { name: other.environment.name, exact: true })
+      .waitFor();
+    await settings.getByRole('button', { name: 'Back', exact: true }).click();
+    await settings.waitFor({ state: 'hidden' });
+    const computer = page.getByRole('group', {
+      name: other.environment.name,
+      exact: true,
+    });
+    if (!(await computer.isVisible()))
+      await page
+        .getByRole('button', { name: 'Toggle Sidebar', exact: true })
+        .click();
+    await computer.getByRole('button', { name: /Main worktree/ }).click();
+    await page.waitForURL(
+      (url) =>
+        url.pathname ===
+        `/remotes/${other.environmentId}/${there.project.id}/${there.worktree.id}`,
+    );
+    await page
+      .getByRole('button', { name: 'Review summary', exact: true })
+      .click();
+    const summary = page.frameLocator('iframe[title="Review summary"]');
+    await summary
+      .getByRole('heading', { name: 'Remote summary', exact: true })
+      .waitFor();
+    const frame = page
+      .frames()
+      .find((entry) =>
+        entry.url().startsWith(`${status.address}/review-summaries/`),
+      );
+    if (frame === undefined)
+      throw new Error('The remote summary did not load from its own server');
+    await frame
+      .locator('html[data-theme="dark"], html[data-theme="light"]')
+      .waitFor();
+    const isolation = z
+      .object({
+        parentDenied: z.boolean(),
+        node: z.boolean(),
+        bridge: z.boolean(),
+      })
+      .parse(
+        await frame.evaluate(`(() => {
+      let parentDenied = false;
+      try {
+        void parent.document.body;
+      } catch {
+        parentDenied = true;
+      }
+      return {
+        parentDenied,
+        node: 'require' in window,
+        bridge: 'porcelainDesktop' in window,
+      };
+    })()`),
+      );
+    requireProof(
+      isolation.parentDenied && !isolation.node && !isolation.bridge,
+      'A remote summary must not read the app, Node or the desktop bridge',
+    );
+    requireProof(
+      (await page
+        .locator('iframe[title="Review summary"]')
+        .getAttribute('sandbox')) ===
+        'allow-scripts allow-forms allow-popups allow-modals',
+      'The review iframe must retain its sandbox without same-origin access',
+    );
+    await summary
+      .getByRole('link', { name: 'Open Remote summary layer', exact: true })
+      .click();
+    await page
+      .getByRole('region', {
+        name: 'Review layer Remote summary layer',
+        exact: true,
+      })
+      .waitFor();
+    const policy = await page.evaluate(async () =>
+      (await fetch('/')).headers.get('content-security-policy'),
+    );
+    requireProof(
+      policy !== null &&
+        policy.split('; ').includes("script-src 'self'") &&
+        policy.split('; ').includes("frame-src 'self' blob: http: https:"),
+      'The app must allow remote review frames while restricting its scripts',
+    );
+    requireProof(errors.length === 0, `Renderer errors: ${errors.join('; ')}`);
+    await page.screenshot({ path: join(input.evidence, 'remote-layer.png') });
+    return {
+      localSummaryRendered: true,
+      localThemeAndLayerLink: true,
+      remoteSummaryRendered: true,
+      remoteThemeAndLayerLink: true,
+      summaryIsolated: true,
+      appScriptPolicyRetained: true,
+    };
+  } catch (error) {
+    if (page !== undefined && !page.isClosed())
+      await page
+        .screenshot({ path: join(input.evidence, 'failure.png') })
+        .catch(() => undefined);
+    throw error;
+  } finally {
+    if (remote !== undefined) await closeDesktop(remote);
+    await closeDesktop(local);
+  }
+}
+
+async function bridgeCapabilities(input: DesktopProof) {
+  const launch = () => launchDesktop(input);
   const value = JSON.stringify([
     { name: 'Desktop proof', credential: 'test-only-bearer' },
   ]);
@@ -233,22 +534,7 @@ async function bridgeCapabilities(input: DesktopProof) {
 
 async function installedProject(input: DesktopProof) {
   const errors: string[] = [];
-  const environment: Record<string, string> = {};
-  for (const [name, value] of Object.entries(process.env))
-    if (value !== undefined && name !== 'ELECTRON_RUN_AS_NODE')
-      environment[name] = value;
-  const launch = () =>
-    _electron.launch({
-      executablePath: input.executable,
-      args: [
-        '--data-directory',
-        input.profile,
-        '--project-home',
-        input.repository,
-      ],
-      env: environment,
-      timeout: 30_000,
-    });
+  const launch = () => launchDesktop(input);
   const app = await launch();
   const appProcess = app.process();
   app
@@ -272,6 +558,17 @@ async function installedProject(input: DesktopProof) {
       {
         timeout: 30_000,
       },
+    );
+    const contentSecurityPolicy = await page.evaluate(async () =>
+      (await fetch('/')).headers.get('content-security-policy'),
+    );
+    requireProof(
+      contentSecurityPolicy !== null &&
+        contentSecurityPolicy
+          .split('; ')
+          .includes("connect-src 'self' http: https: ws: wss:") &&
+        contentSecurityPolicy.split('; ').includes("script-src 'self'"),
+      'The installed desktop policy must allow remote HTTP and WebSocket connections while restricting scripts to the app origin',
     );
     const status = ownerStatus.parse(
       await askOwner(data, 'GET', '/status', undefined, 5000),
@@ -323,12 +620,12 @@ async function installedProject(input: DesktopProof) {
     });
     const dialog = page.getByRole('dialog', { name: 'Open project' });
     await dialog.waitFor({ state: 'visible' });
-    await dialog.getByRole('button', { name: 'Enter a path' }).click();
     await dialog
-      .getByRole('textbox', { name: 'Repository path' })
-      .fill(input.repository);
-    await dialog
-      .getByRole('button', { name: 'Open project', exact: true })
+      .getByRole('region', { name: 'Found on this machine', exact: true })
+      .getByRole('button', {
+        name: `desktop-smoke ${input.repository}`,
+        exact: true,
+      })
       .click();
     await dialog.waitFor({ state: 'hidden' });
     await page
@@ -417,6 +714,16 @@ async function installedProject(input: DesktopProof) {
       ),
       'Appearance must update the native window',
     );
+    await settingsPage
+      .getByRole('button', { name: 'This computer', exact: true })
+      .click();
+    const appVersion = await app.evaluate(({ app }) => app.getVersion());
+    await settingsPage
+      .getByText(`Porcelain app ${appVersion}`, { exact: true })
+      .waitFor();
+    await settingsPage
+      .getByText('This is the newest version of the app.', { exact: true })
+      .waitFor();
     await settingsPage
       .getByRole('button', { name: 'Back', exact: true })
       .click();
@@ -574,9 +881,11 @@ async function installedProject(input: DesktopProof) {
       dockReopens: true,
       restartKeepsProjectAndPreferences: true,
       privateDesktopSession: true,
+      remoteConnectionsAllowedByPolicy: true,
       stableOrigin: true,
       nativeMenus: true,
       nativeAppearance: true,
+      desktopAppUpdates: true,
       windowRestored: true,
       maximizedRestored: true,
       fullscreenChrome: true,

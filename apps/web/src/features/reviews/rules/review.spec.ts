@@ -3,8 +3,36 @@ import {
   mergeBranchChanges,
   mergeReviewChanges,
   reviewErrorMessage,
+  reviewSummaryUrl,
   summaryLayerNumber,
 } from './review.ts';
+
+describe('reviewSummaryUrl', () => {
+  const summary = {
+    token: 'remote-review',
+    expires: '2026-10-01T00:00:00.000Z',
+    signature: 'signed-link',
+    byteLength: 100,
+  };
+
+  it('loads a local summary through the desktop app origin', () => {
+    expect(reviewSummaryUrl(summary, 'porcelain://app/project/worktree')).toBe(
+      'porcelain://app/review-summaries/remote-review?expires=2026-10-01T00%3A00%3A00.000Z&signature=signed-link',
+    );
+  });
+
+  it('loads a remote summary from its HTTP computer with its signed query', () => {
+    expect(reviewSummaryUrl(summary, 'http://192.168.1.10:4738')).toBe(
+      'http://192.168.1.10:4738/review-summaries/remote-review?expires=2026-10-01T00%3A00%3A00.000Z&signature=signed-link',
+    );
+  });
+
+  it('loads a remote summary from its HTTPS computer', () => {
+    expect(reviewSummaryUrl(summary, 'https://computer.example.invalid')).toBe(
+      'https://computer.example.invalid/review-summaries/remote-review?expires=2026-10-01T00%3A00%3A00.000Z&signature=signed-link',
+    );
+  });
+});
 
 const list = {
   environmentId: '00000000-0000-4000-8000-000000000000',

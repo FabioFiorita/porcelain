@@ -24,6 +24,7 @@ import type { Connection } from '@/shared/workspace/connection';
 export type RemoteConnection = { remote: Remote; connection: Connection };
 
 type Server = {
+  address: string;
   transport: Transport;
   liveUpdates: LiveUpdatePort;
   operationsKey: string;
@@ -49,6 +50,7 @@ function createConnection(environmentId: string, server: Server): Connection {
   }
   const controller = new AbortController();
   const connection: Connection = {
+    address: server.address,
     environmentId,
     controller,
     operations: createOperationStore(
@@ -70,6 +72,7 @@ function createConnection(environmentId: string, server: Server): Connection {
 
 function localConnection(environmentId: string) {
   return createConnection(environmentId, {
+    address: window.location.href,
     transport: browserTransport(fetch),
     liveUpdates: sameOriginLiveUpdates(),
     operationsKey: `porcelain-git-requests:${environmentId}`,
@@ -79,6 +82,7 @@ function localConnection(environmentId: string) {
 function remoteConnection(remote: Remote) {
   const transport = remoteTransport(remote.address, remote.credential);
   return createConnection(remote.environmentId, {
+    address: remote.address,
     transport,
     liveUpdates: remoteLiveUpdates(remote.address, transport),
     operationsKey: `porcelain-git-requests:${remote.address}:${remote.environmentId}`,

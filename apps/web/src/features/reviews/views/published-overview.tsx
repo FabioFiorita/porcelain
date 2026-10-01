@@ -10,9 +10,11 @@ import { ReviewDiagram } from './lazy-review-diagram';
 
 export function PublishedOverview({
   review,
+  address,
   onOpen,
 }: {
   review: ReviewResponse;
+  address: string;
   onOpen: OpenDocument;
 }) {
   const [view, setView] = useState('summary');
@@ -81,7 +83,7 @@ export function PublishedOverview({
           />
         </>
       ) : (
-        <SummaryFrame review={review} onOpen={onOpen} />
+        <SummaryFrame review={review} address={address} onOpen={onOpen} />
       )}
     </section>
   );
@@ -89,9 +91,11 @@ export function PublishedOverview({
 
 function SummaryFrame({
   review,
+  address,
   onOpen,
 }: {
   review: ReviewResponse;
+  address: string;
   onOpen: OpenDocument;
 }) {
   const frame = useRef<HTMLIFrameElement>(null);
@@ -104,7 +108,7 @@ function SummaryFrame({
     <iframe
       ref={frame}
       title="Review summary"
-      src={`${reviewSummaryUrl(review.summary)}#theme=${dark ? 'dark' : 'light'}`}
+      src={`${reviewSummaryUrl(review.summary, address)}#theme=${dark ? 'dark' : 'light'}`}
       sandbox="allow-scripts allow-forms allow-popups allow-modals"
       referrerPolicy="no-referrer"
       className="block min-h-0 w-full flex-1 border-0"

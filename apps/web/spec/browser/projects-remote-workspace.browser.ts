@@ -1,7 +1,7 @@
 import { expect } from 'vitest';
 import { test } from '../kit/journey';
 
-test('the desktop app lists another computer under its own name in the sidebar, opens its worktree, marks a change reviewed there and shows what changes on it live', async ({
+test('the desktop app opens another computer’s worktree and HTML review, marks a change reviewed there and shows what changes on it live', async ({
   pairedPage,
   app,
   server,
@@ -123,4 +123,27 @@ test('the desktop app lists another computer under its own name in the sidebar, 
   await expect
     .poll(async () => (await server.text(readme)).text)
     .not.toContain(rewritten);
+
+  const layer = 'Remote review layer';
+  await remote.agent.publishReview(
+    layer,
+    'changed',
+    '<html><body><h1>Remote summary</h1><a href="#layer-1">Open remote layer</a></body></html>',
+  );
+  await pairedPage.getByRole('tab', { name: 'Review', exact: true }).click();
+  await pairedPage
+    .getByRole('button', { name: 'Review summary', exact: true })
+    .click();
+  await app
+    .summary()
+    .getByRole('link', { name: 'Open remote layer', exact: true })
+    .click();
+  await expect
+    .element(
+      pairedPage.getByRole('region', {
+        name: `Review layer ${layer}`,
+        exact: true,
+      }),
+    )
+    .toBeVisible();
 }, 30_000);

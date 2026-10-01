@@ -1,5 +1,5 @@
 import { expect, test as base } from 'vitest';
-import { agent } from './agent';
+import { agent, agentOn } from './agent';
 import { app, takeBrowserFailures, watchBrowser } from './app';
 import { codingTool } from './coding-tool';
 import { createFetchGate } from './fetch-gate';
@@ -67,6 +67,7 @@ export const test = base
   .extend('remote', { scope: 'file' }, async () => ({
     server: serverOn('remote'),
     repo: await sampleRepository('remote'),
+    agent: agentOn('remote'),
   }))
   .extend('agent', { scope: 'file' }, () => agent)
   .extend('codingTool', { scope: 'file' }, () => codingTool)
