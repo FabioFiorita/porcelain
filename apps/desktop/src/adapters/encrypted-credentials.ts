@@ -5,7 +5,7 @@ import { join } from 'node:path';
 type Encryption = {
   available: () => Promise<boolean>;
   encrypt: (value: string) => Promise<Buffer>;
-  decrypt: (value: Buffer) => Promise<string>;
+  decrypt: (value: Buffer) => Promise<{ value: string; reEncrypt: boolean }>;
 };
 
 export class EncryptedCredentials {
@@ -34,7 +34,10 @@ export class EncryptedCredentials {
       }
       if (!(await this.encryption.available()))
         throw new Error('Encrypted credential storage is unavailable');
-      return this.encryption.decrypt(encrypted);
+      const decrypted = await this.encryption.decrypt(encrypted);
+      if (decrypted.reEncrypt)
+        await this.store(decrypted.value).catch(() => undefined);
+      return decrypted.value;
     });
   }
 
@@ -42,16 +45,7 @@ export class EncryptedCredentials {
     return this.run(async () => {
       if (!(await this.encryption.available()))
         throw new Error('Encrypted credential storage is unavailable');
-      const encrypted = await this.encryption.encrypt(value);
-      await mkdir(this.profile, { recursive: true, mode: 0o700 });
-      const destination = join(this.profile, 'credentials.enc');
-      const temporary = `${destination}.${randomUUID()}.tmp`;
-      try {
-        await writeFile(temporary, encrypted, { flag: 'wx', mode: 0o600 });
-        await rename(temporary, destination);
-      } finally {
-        await rm(temporary, { force: true });
-      }
+      await this.store(value);
     });
   }
 
@@ -59,6 +53,19 @@ export class EncryptedCredentials {
     return this.run(() =>
       rm(join(this.profile, 'credentials.enc'), { force: true }),
     );
+  }
+
+  private async store(value: string): Promise<void> {
+    const encrypted = await this.encryption.encrypt(value);
+    await mkdir(this.profile, { recursive: true, mode: 0o700 });
+    const destination = join(this.profile, 'credentials.enc');
+    const temporary = `${destination}.${randomUUID()}.tmp`;
+    try {
+      await writeFile(temporary, encrypted, { flag: 'wx', mode: 0o600 });
+      await rename(temporary, destination);
+    } finally {
+      await rm(temporary, { force: true });
+    }
   }
 
   private run<T>(operation: () => Promise<T>): Promise<T> {

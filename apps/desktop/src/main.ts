@@ -59,8 +59,13 @@ const credentials = new EncryptedCredentials(settings.profile, {
     (process.platform !== 'linux' ||
       safeStorage.getSelectedStorageBackend() !== 'basic_text'),
   encrypt: (value) => safeStorage.encryptStringAsync(value),
-  decrypt: async (value) =>
-    (await safeStorage.decryptStringAsync(value)).result,
+  decrypt: async (value) => {
+    const decrypted = await safeStorage.decryptStringAsync(value);
+    return {
+      value: decrypted.result,
+      reEncrypt: decrypted.shouldReEncrypt,
+    };
+  },
 });
 const appUpdate = new LocalAppUpdate((state) =>
   window?.webContents.send('porcelain:app-update-state', state),

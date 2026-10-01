@@ -14,6 +14,7 @@ import { EncryptedCredentials } from './encrypted-credentials.ts';
 describe('EncryptedCredentials', () => {
   let profile = '';
   const encryptedValues = new Map<string, string>();
+  const staleKeys = new Set<string>();
   const encryption = {
     available: () => Promise.resolve(true),
     encrypt: (value: string) => {
@@ -25,7 +26,10 @@ describe('EncryptedCredentials', () => {
       const decrypted = encryptedValues.get(value.toString('hex'));
       return decrypted === undefined
         ? Promise.reject(new Error('Invalid ciphertext'))
-        : Promise.resolve(decrypted);
+        : Promise.resolve({
+            value: decrypted,
+            reEncrypt: staleKeys.has(value.toString('hex')),
+          });
     },
   };
   beforeEach(async () => {
@@ -109,6 +113,27 @@ describe('EncryptedCredentials', () => {
     expect(await readFile(join(profile, 'credentials.enc'), 'utf8')).toBe(
       'damaged',
     );
+  });
+  it('replaces the ciphertext with a fresh one when decryption asks for it', async () => {
+    const credentials = new EncryptedCredentials(profile, encryption);
+    await credentials.write('stale key');
+    const stale = await readFile(join(profile, 'credentials.enc'));
+    staleKeys.add(stale.toString('hex'));
+    expect(await credentials.read()).toBe('stale key');
+    const fresh = await readFile(join(profile, 'credentials.enc'));
+    expect(fresh.equals(stale)).toBe(false);
+    expect(await credentials.read()).toBe('stale key');
+  });
+  it('still returns the value when its re-encryption fails, keeping the old ciphertext', async () => {
+    await new EncryptedCredentials(profile, encryption).write('stale key');
+    const stale = await readFile(join(profile, 'credentials.enc'));
+    staleKeys.add(stale.toString('hex'));
+    const credentials = new EncryptedCredentials(profile, {
+      ...encryption,
+      encrypt: () => Promise.reject(new Error('Encryption failed')),
+    });
+    expect(await credentials.read()).toBe('stale key');
+    expect(await readFile(join(profile, 'credentials.enc'))).toEqual(stale);
   });
   it('clears saved credentials even when encryption is unavailable', async () => {
     await new EncryptedCredentials(profile, encryption).write(
