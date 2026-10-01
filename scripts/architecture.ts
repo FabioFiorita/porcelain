@@ -217,6 +217,9 @@ async function scan(sources: readonly string[]): Promise<CruiseReport> {
     ['ios', 'android'].map(async (platform) => {
       const result = await cruise([...mobileRoots, mobileConfig], {
         ...mobileOptions,
+        doNotFollow: {
+          path: 'node_modules|^apps/(?:web|server|desktop)/',
+        },
         enhancedResolveOptions: {
           ...mobileOptions.enhancedResolveOptions,
           extensions: [

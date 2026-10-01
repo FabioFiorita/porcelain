@@ -10,7 +10,7 @@ export default {
     {
       kind: 'replace',
       path: 'architecture/dependency-cruiser.cjs',
-      old: "path: '^(apps/server/src/|apps/web/src/|apps/desktop/src/|packages/)',",
+      old: "path: '^(apps/server/src/|apps/web/src/|apps/desktop/src/|apps/mobile/src/|packages/)',",
       new: "path: '^apps/server/src/',",
     },
     {
