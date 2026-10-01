@@ -25,7 +25,7 @@ Run commands from the repository root and report every result honestly.
 
 Budgets: `pnpm check` under 30 seconds, an ordinary task's proof under two minutes, a full checkpoint under five minutes. A check that breaks its budget is a tooling defect: fix or remove it in its own change, never skip it silently.
 
-Lefthook's pre-push runs `pnpm check`; when pushing, use that as the final fast check instead of manually running it immediately beforehand. Automatic CI runs only `pnpm check`. The runtime checkpoint and probe audit workflows run only on explicit dispatch. Porcelain is a solo developer project with no external users: keep proof proportional to the change and prioritize product progress. Hosted Actions require Fabio's approval while spending is blocked.
+Lefthook's pre-push runs `pnpm check`; when pushing, use that as the final fast check instead of manually running it immediately beforehand. Automatic CI runs only `pnpm check`. The runtime checkpoint and probe audit workflows run only on explicit dispatch. Porcelain is a solo developer project with no external users: keep proof proportional to the change and prioritize product progress.
 
 A change to server behaviour is not done until a behaviour spec states its promise (`server-spec`) and an affected HTTP case reaches it (`server-verify`). A guardrail change needs positive and negative fixture proof plus its affected wiring checks.
 
