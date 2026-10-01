@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { setTimeout as delay } from 'node:timers/promises';
 import { liveNoticeSchema } from '@porcelain/contracts/access';
 import {
   apiError,
@@ -20,6 +21,8 @@ import {
   worktreePath,
 } from '../scripts/fixture.ts';
 
+const headReflog = '.git/logs/HEAD';
+
 const worktreeNotice = (session: Session, change: string) => ({
   type: 'worktree',
   projectId: session.projectId,
@@ -35,7 +38,7 @@ export default defineFeature({
   paired: false,
   intent: 'observed',
   behaviour:
-    "A paired viewer opens a same-origin WebSocket at `/api/live`, is told it is ready, and subscribes to projects and worktrees. It is then told what changed but not the new data, so it knows what to read again: the inventory, a project's preferences, or a worktree's files, Git state, reviewed marks, comments or review. A Git action is the exception: its notice carries the receipt. Upgrades without a credential or from another origin are refused; a malformed subscription closes the connection.",
+    "A paired viewer opens a same-origin WebSocket at `/api/live`, is told it is ready, and subscribes to projects and worktrees. It is then told what changed but not the new data, so it knows what to read again: the inventory, a project's preferences, or a worktree's files, Git state, reviewed marks, comments or review. A Git action is the exception: its notice carries the receipt. Watching a repository never opens its reflogs, so a commit whose reflog is a named pipe stays stuck until its deadline ends it interrupted, and later Git changes are still announced. Upgrades without a credential or from another origin are refused; a malformed subscription closes the connection.",
   cases: [
     defineCase({
       name: 'inventory change is announced',
@@ -261,6 +264,64 @@ export default defineFeature({
           worktreeNotice(session, 'reviewed'),
           await state.connection.next(isWorktree('reviewed')),
         );
+      },
+    }),
+    defineCase({
+      name: 'the watcher never opens a reflog, so a commit whose reflog is a named pipe stays stuck',
+      async setup(session) {
+        const connection = await watching(session);
+        await session.remove(headReflog);
+        await session.fifo(headReflog);
+        await delay(300);
+        const path = 'piped.md';
+        await session.writeFile(path, 'Piped\n');
+        return {
+          connection,
+          requestId: randomUUID(),
+          path,
+          expected: {
+            ...(await expectation(session)),
+            files: [{ path, fingerprint: await fingerprintOf(session, path) }],
+          },
+        };
+      },
+      request: (session, state) => ({
+        method: 'POST',
+        path: gitPath(session, '/actions'),
+        body: {
+          requestId: state.requestId,
+          input: { action: 'commit', message: 'Piped', paths: [state.path] },
+          expected: state.expected,
+        },
+      }),
+      async expect({ response, state, session, check, checkPartial }) {
+        check('accepted', 202, response.status);
+        checkPartial(
+          'running receipt',
+          { requestId: state.requestId, state: 'running' },
+          response.body,
+        );
+        checkPartial(
+          'git-action notice',
+          {
+            type: 'git-action',
+            receipt: { requestId: state.requestId, state: 'interrupted' },
+          },
+          await state.connection.next(
+            (entry) =>
+              entry.type === 'git-action' &&
+              record(entry.receipt).state !== 'running',
+          ),
+        );
+        await session.git('branch', 'after-the-pipe');
+        check(
+          'later Git change',
+          worktreeNotice(session, 'git'),
+          await state.connection.next(isWorktree('git')),
+        );
+        await session.remove(headReflog);
+        await session.remove('.git/index.lock');
+        await session.remove(`.git/refs/heads/${session.fixture.branch}.lock`);
       },
     }),
     defineCase({

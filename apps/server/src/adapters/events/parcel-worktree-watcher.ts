@@ -24,17 +24,30 @@ import type {
 
 type Changed = (paths: readonly string[]) => void;
 
+type Subscription = parcelWatcher.AsyncSubscription;
+
 type FileWatchState = {
   root: string;
   ignored: string[];
   explicit: string[];
-  subscription: parcelWatcher.AsyncSubscription | undefined;
+  subscription: Subscription | undefined;
   supplements: Map<string, FSWatcher>;
   changed: Changed;
   closed: boolean;
 };
 
 const withoutUnreadableStat = () => undefined;
+const settledEitherWay = () => undefined;
+
+const unpublishedRepositoryPaths = [
+  'objects',
+  join('lfs', 'objects'),
+  'hooks',
+  'logs',
+  'worktrees/*/logs/**',
+  'fsmonitor--daemon',
+  'fsmonitor--daemon.ipc',
+];
 
 function backend(): parcelWatcher.Options {
   return process.platform === 'linux' ? { backend: 'inotify' } : {};
@@ -64,6 +77,7 @@ export class ParcelWorktreeWatcher implements WorktreeWatcher {
   private readonly gitDirectory: string;
   private readonly isTemporaryWrite: (path: string) => boolean;
   private readonly limits: Limits['git'];
+  private readonly turns = new Map<string, Promise<void>>();
 
   constructor(options: {
     worktrees: WorktreeAccessReader<ListedWorktree>;
@@ -126,28 +140,50 @@ export class ParcelWorktreeWatcher implements WorktreeWatcher {
     input: RepositoryWatchRequest,
   ): Promise<RepositoryWatch> {
     const { project, changed } = input;
-    const subscription = await parcelWatcher.subscribe(
+    const subscription = await this.subscribe(
       project.commonDirectory,
       (error, events) => {
         if (!error && events.length > 0) changed();
       },
       {
         ...backend(),
-        ignore: [
-          join(project.commonDirectory, 'objects'),
-          join(project.commonDirectory, 'lfs', 'objects'),
-          join(project.commonDirectory, 'hooks'),
-        ],
+        ignore: unpublishedRepositoryPaths.map((path) =>
+          path.includes('*') ? path : join(project.commonDirectory, path),
+        ),
       },
     );
     return { close: () => subscription.unsubscribe() };
   }
 
+  private async subscribe(
+    directory: string,
+    changed: parcelWatcher.SubscribeCallback,
+    options: parcelWatcher.Options,
+  ): Promise<Subscription> {
+    const subscription = await this.inTurn(directory, () =>
+      parcelWatcher.subscribe(directory, changed, options),
+    );
+    return {
+      unsubscribe: () =>
+        this.inTurn(directory, () => subscription.unsubscribe()),
+    };
+  }
+
+  private inTurn<T>(directory: string, step: () => Promise<T>): Promise<T> {
+    const result = (this.turns.get(directory) ?? Promise.resolve()).then(step);
+    const turn = result.then(settledEitherWay, settledEitherWay);
+    this.turns.set(directory, turn);
+    turn.then(() => {
+      if (this.turns.get(directory) === turn) this.turns.delete(directory);
+    }, settledEitherWay);
+    return result;
+  }
+
   private subscribeFiles(
     state: FileWatchState,
     ignored: readonly string[],
-  ): Promise<parcelWatcher.AsyncSubscription> {
-    return parcelWatcher.subscribe(
+  ): Promise<Subscription> {
+    return this.subscribe(
       state.root,
       (error, events) => {
         if (error) return state.changed([]);
@@ -231,7 +267,7 @@ export class ParcelWorktreeWatcher implements WorktreeWatcher {
     if (sameList(ignored, state.ignored)) return 'unchanged';
     await state.subscription?.unsubscribe();
     state.subscription = undefined;
-    let subscription: parcelWatcher.AsyncSubscription;
+    let subscription: Subscription;
     try {
       subscription = await this.subscribeFiles(state, ignored);
     } catch (error) {
