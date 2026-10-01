@@ -19,6 +19,12 @@
       "error",
       {
         "allow": ["layout"],
+        "contracts": [
+          {
+            "pattern": "^ResizableHandle$",
+            "allow": ["layout", "bg-transparent"]
+          }
+        ],
         "message": {
           "color": "\"{{className}}\" is not allowed on <{{component}}>, which owns its {{category}}. Use one of its variants, or compose the look in the feature view from layout classes on a parent; components/ui is never edited, so when no variant gives the look, ask the owner.",
           "typography": "\"{{className}}\" is not allowed on <{{component}}>, which owns its {{category}}. Use one of its variants, or compose the look in the feature view from layout classes on a parent; components/ui is never edited, so when no variant gives the look, ask the owner.",
