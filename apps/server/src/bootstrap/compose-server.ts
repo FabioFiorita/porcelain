@@ -105,6 +105,7 @@ const openServerWith =
       gitVersion,
       worktreeId,
       clock,
+      logger,
     });
     const context: ComposeContext = {
       lanes,

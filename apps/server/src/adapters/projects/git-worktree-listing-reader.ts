@@ -6,6 +6,7 @@ import type {
   WorktreeListing,
 } from '@porcelain/projects/models';
 import type { WorktreeListingReader } from '@porcelain/projects/ports';
+import type { Logger } from '../../ports/logger.ts';
 import type { LaunchLimit } from '../../runtime/launch-limit.ts';
 import type { SharedReads } from '../../runtime/shared-reads.ts';
 
@@ -15,6 +16,7 @@ type WorktreeListingOptions = {
   launchLimit: Pick<LaunchLimit, 'run'>;
   timeoutMs: number;
   worktreeId: (projectId: string, metadataIdentity: string) => string;
+  logger: Logger;
 };
 
 export class GitWorktreeListingReader implements WorktreeListingReader {
@@ -49,7 +51,12 @@ export class GitWorktreeListingReader implements WorktreeListingReader {
     } catch (failure) {
       signal?.throwIfAborted();
       if (expiry?.aborted) return { kind: 'timed-out', projectId: project.id };
-      if (!isRepositoryUnavailable(failure)) throw failure;
+      if (!isRepositoryUnavailable(failure))
+        this.options.logger.failure({
+          kind: 'worktree-listing',
+          projectId: project.id,
+          error: failure,
+        });
       return { kind: 'unavailable', projectId: project.id };
     }
     const { repository } = discovered;

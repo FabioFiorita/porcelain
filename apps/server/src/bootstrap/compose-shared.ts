@@ -57,6 +57,7 @@ import { gitSessionPerSignal } from '../adapters/projects/checkout-session.ts';
 import { GitWorktreeAccessReader } from '../adapters/projects/git-worktree-access-reader.ts';
 import { GitWorktreeListingReader } from '../adapters/projects/git-worktree-listing-reader.ts';
 import type { ServerSettings } from '../config/server-settings.ts';
+import type { Logger } from '../ports/logger.ts';
 import { LaunchLimit } from '../runtime/launch-limit.ts';
 import { SharedReads } from '../runtime/shared-reads.ts';
 import { ReadReviewEvidenceUseCase } from '../use-cases/reviews/read-review-evidence.ts';
@@ -71,6 +72,7 @@ type SharedDependencies = {
   gitVersion: Awaited<ReturnType<typeof readGitVersion>>;
   worktreeId: (projectId: string, metadataIdentity: string) => string;
   clock: Clock;
+  logger: Logger;
 };
 
 export function composeShared(dependencies: SharedDependencies) {
@@ -90,6 +92,7 @@ export function composeShared(dependencies: SharedDependencies) {
     launchLimit: new LaunchLimit(limits.inventory.listingLaunches),
     timeoutMs: limits.inventory.listingTimeoutMs,
     worktreeId: dependencies.worktreeId,
+    logger: dependencies.logger,
   });
   const worktreeAccess = new GitWorktreeAccessReader(catalog);
   const staleness = { staleAfterMs: limits.inventory.staleAfterMs };
