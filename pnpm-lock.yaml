@@ -310,6 +310,9 @@ importers:
       '@pierre/trees':
         specifier: 1.0.0-beta.6
         version: 1.0.0-beta.6(@pierre/theme@2.0.0)(@shikijs/themes@4.4.3)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(shiki@4.4.3)
+      '@porcelain/client':
+        specifier: workspace:*
+        version: link:../../packages/client
       '@porcelain/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
@@ -435,6 +438,8 @@ importers:
       '@porcelain/kernel':
         specifier: workspace:*
         version: link:../kernel
+
+  packages/client: {}
 
   packages/contracts:
     dependencies:

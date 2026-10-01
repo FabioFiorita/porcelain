@@ -1,7 +1,7 @@
 import type { ReadEnvironmentResponse } from '@porcelain/contracts/access';
 import type { DesktopCredentials } from '@porcelain/contracts/desktop';
 import { ENVIRONMENT_PROTOCOL } from '@porcelain/contracts/shared';
-import { parsePairingLink } from './pairing-link';
+import { parsePairingLink } from '@porcelain/client/access/rules';
 
 export type Remote = {
   environmentId: string;

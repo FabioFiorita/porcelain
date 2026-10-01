@@ -29,7 +29,7 @@ import { RequestError, requestJson } from '@/shared/api/request';
 import { REQUEST_TIMEOUT_MS } from '@/shared/api/request-timeout';
 import { perConnection } from '@/shared/api/per-connection';
 import { browserTransport, type Transport } from '@/shared/api/transport';
-import type { PairingCode } from './rules/pairing-link';
+import type { PairingCode } from '@porcelain/client/access/rules';
 import type { RemoteAnswer, RemoteLink } from './rules/remotes';
 
 type PairingPort = {

@@ -1,5 +1,29 @@
 export default [
   {
+    rule: 'web-rules-are-pure',
+    path: 'packages/client/src/features/access/rules/probe-rule.ts',
+    valid:
+      'export function readCode(fragment: string) { return new URLSearchParams(fragment).get("c"); }',
+    invalid: 'export function readCode() { return window.location.hash; }',
+    errors: 2,
+  },
+  {
+    rule: 'web-rules-are-pure',
+    path: 'packages/client/src/features/access/rules/index.ts',
+    valid: 'export { parsePairingLink } from "./pairing-link.ts";',
+    invalid: 'export { Platform } from "react-native";',
+    errors: 1,
+  },
+  {
+    rule: 'web-rules-are-pure',
+    path: 'apps/web/src/features/access/rules/probe-rule.ts',
+    valid:
+      'import { parsePairingLink } from "@porcelain/client/access/rules"; export const readCode = parsePairingLink;',
+    invalid:
+      'import { Button } from "@porcelain/client/access/views"; export const button = Button;',
+    errors: 1,
+  },
+  {
     rule: 'adapters-never-import-services',
     path: 'apps/server/src/adapters/files/checked-worktree-access-reader.ts',
     invalid: `import type { WorktreeCheck } from '@porcelain/kernel/models';

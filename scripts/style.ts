@@ -747,6 +747,7 @@ const gateScripts: Readonly<Record<string, Readonly<Record<string, string>>>> =
       prepare: 'lefthook install --reset-hooks-path',
       'typecheck:desktop': 'pnpm --filter @porcelain/desktop typecheck',
       'typecheck:web': 'pnpm --filter @porcelain/web typecheck',
+      'typecheck:client': 'pnpm --filter @porcelain/client typecheck',
       'lint:web': 'node scripts/style.ts lint web',
       'format:web:check': 'node scripts/style.ts format web',
       'verify:web': 'node .agents/skills/web-verify/scripts/browser.ts',

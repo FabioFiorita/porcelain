@@ -2,7 +2,7 @@ export { useWorkspaceRetry } from './adapters/workspace-retry';
 export { pairBrowser } from './commands/pairing';
 export { restoreSession } from './commands/restore-session';
 export { connectionErrorMessage } from './rules/connection-error-message';
-export { parsePairingLink } from './rules/pairing-link';
+export { parsePairingLink } from '@porcelain/client/access/rules';
 export { useRecheckRemote } from './commands/remotes';
 export { useRemoteStatus } from './queries/remotes';
 export {

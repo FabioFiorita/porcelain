@@ -6,6 +6,7 @@ import ruleCases from './rule-cases.mjs';
 import { manualAuditProblems } from './ci-policy.ts';
 import { preflightEdits } from './probe-edits.ts';
 import { settleBaseline } from './baseline.ts';
+import { classify, violation } from './policy.ts';
 
 const root = new URL('../', import.meta.url);
 const filename = fileURLToPath(
@@ -71,6 +72,59 @@ const cases = [
   },
 ];
 const started = performance.now();
+deepStrictEqual(
+  classify('packages/client/src/features/access/rules/index.ts'),
+  {
+    role: 'client-rules-api',
+    owner: 'client',
+  },
+);
+deepStrictEqual(
+  classify('packages/client/src/features/access/rules/pairing-link.ts'),
+  {
+    role: 'web-rule',
+    owner: 'client',
+  },
+);
+deepStrictEqual(
+  classify('packages/client/src/features/access/rules/pairing-link.spec.ts'),
+  {
+    role: 'web-rule-spec',
+    owner: 'client',
+  },
+);
+deepStrictEqual(
+  classify('packages/client/src/features/access/rules/nested/pairing-link.ts'),
+  undefined,
+);
+deepStrictEqual(
+  violation(
+    { role: 'web-rule', owner: 'client' },
+    { role: 'contract', owner: 'contracts' },
+  ),
+  undefined,
+);
+deepStrictEqual(
+  violation(
+    { role: 'web-rule', owner: 'client' },
+    { role: 'web-rule', owner: 'web' },
+  ),
+  'client-imports-client-and-contracts-only',
+);
+deepStrictEqual(
+  violation(
+    { role: 'view', owner: 'web' },
+    { role: 'client-rules-api', owner: 'client' },
+  ),
+  undefined,
+);
+deepStrictEqual(
+  violation(
+    { role: 'view', owner: 'web' },
+    { role: 'web-rule', owner: 'client' },
+  ),
+  'client-public-api-only',
+);
 for (const entry of cases)
   tester.run(entry.rule, plugin.rules[entry.rule], {
     valid: [{ filename, code: entry.valid }],

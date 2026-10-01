@@ -1,0 +1,11 @@
+{
+  "name": "@porcelain/client",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./access/rules": "./src/features/access/rules/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  }
+}

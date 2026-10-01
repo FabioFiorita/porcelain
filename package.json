@@ -12,6 +12,7 @@
     "arch:check": "node scripts/architecture.ts check",
     "probes": "node scripts/probes.ts",
     "typecheck:web": "pnpm --filter @porcelain/web typecheck",
+    "typecheck:client": "pnpm --filter @porcelain/client typecheck",
     "verify:web": "node .agents/skills/web-verify/scripts/browser.ts",
     "devtools": "node .agents/skills/web-verify/scripts/devtools.ts",
     "test": "vitest run",

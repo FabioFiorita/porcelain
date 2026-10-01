@@ -67,6 +67,7 @@ export const targetPackageExports: Record<string, Record<string, string>> = {
     './fakes': './spec/fakes/index.ts',
   },
   process: { '.': './src/index.ts' },
+  client: { './access/rules': './src/features/access/rules/index.ts' },
 };
 
 for (const name of ['access', 'git-actions', 'projects', 'reviews'])
@@ -149,6 +150,7 @@ export const roles = [
   'web-config',
   'web-limits',
   'web-entry',
+  'client-rules-api',
 ] as const;
 
 export type Role = (typeof roles)[number];
@@ -174,6 +176,7 @@ export const webRoles: ReadonlySet<Role> = new Set<Role>([
   'web-config',
   'web-limits',
   'web-entry',
+  'client-rules-api',
 ]);
 
 export const webDomains = [
@@ -253,6 +256,8 @@ export const shadcnRegistry: ReadonlySet<string> = new Set([
 ]);
 
 export const archRules = [
+  'client-imports-client-and-contracts-only',
+  'client-public-api-only',
   'code-outside-roots',
   'unclassified-package-export',
   'missing-target-package',
@@ -447,6 +452,20 @@ function classifyDomain(name: string, inside: string) {
 }
 
 function classifyPackage(name: string, inside: string) {
+  if (name === 'client') {
+    const feature = /^features\/([^/]+)\/rules\/([^/]+\.ts)$/.exec(inside);
+    if (!feature || !webDomainSet.has(feature[1] ?? '')) return;
+    const file = feature[2] ?? '';
+    if (!kebabFile.test(file.replace(/\.spec\.ts$/, '.ts'))) return;
+    return classified(
+      file === 'index.ts'
+        ? 'client-rules-api'
+        : file.endsWith('.spec.ts')
+          ? 'web-rule-spec'
+          : 'web-rule',
+      name,
+    );
+  }
   if (/\.test\.ts$/.test(inside)) return;
   if (/\.spec\.ts$/.test(inside)) return classified('test', name);
   if (domainSet.has(name)) return classifyDomain(name, inside);
@@ -551,6 +570,15 @@ const webCode = /\.tsx?$/;
 const kebabFile = /^[a-z0-9]+(?:-[a-z0-9]+)*\.tsx?$/;
 
 export function webPart(path: string): Role | undefined {
+  if (path.startsWith('packages/client/src/')) {
+    const classified = classifyPackage(
+      'client',
+      path.slice('packages/client/src/'.length),
+    );
+    return classified?.role === 'client-rules-api'
+      ? 'web-rule'
+      : classified?.role;
+  }
   if (path === 'apps/web/vite.config.ts') return 'web-config';
   if (/^apps\/web\/spec\/(?:browser|negative)\//.test(path))
     return 'browser-spec';
@@ -715,6 +743,7 @@ const everything: readonly Role[] = [
 ];
 
 export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
+  'client-rules-api': new Set(['web-rule']),
   desktop: new Set([
     'desktop',
     'desktop-gateway',
@@ -876,6 +905,7 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
   route: new Set(['feature-index', 'shell', 'web-shared', 'web-limits']),
   shell: new Set(['feature-index', 'shell', 'ui', 'web-shared', 'web-limits']),
   view: new Set([
+    'client-rules-api',
     'view',
     'query',
     'command',
@@ -889,6 +919,7 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
     'feature-index',
   ]),
   query: new Set([
+    'client-rules-api',
     'query',
     'api',
     'store',
@@ -898,6 +929,7 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
     'contract',
   ]),
   command: new Set([
+    'client-rules-api',
     'command',
     'query',
     'api',
@@ -907,10 +939,21 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
     'web-limits',
     'contract',
   ]),
-  store: new Set(['web-rule', 'web-shared', 'web-limits', 'contract']),
+  store: new Set([
+    'client-rules-api',
+    'web-rule',
+    'web-shared',
+    'web-limits',
+    'contract',
+  ]),
   live: new Set(['query', 'web-rule', 'web-shared', 'contract']),
   overlays: new Set(['contract']),
-  'web-rule': new Set(['web-rule', 'web-limits', 'contract']),
+  'web-rule': new Set([
+    'client-rules-api',
+    'web-rule',
+    'web-limits',
+    'contract',
+  ]),
   adapter: new Set([
     'adapter',
     'store',
@@ -919,8 +962,15 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
     'web-limits',
     'contract',
   ]),
-  api: new Set(['web-rule', 'web-shared', 'web-limits', 'contract']),
+  api: new Set([
+    'client-rules-api',
+    'web-rule',
+    'web-shared',
+    'web-limits',
+    'contract',
+  ]),
   'feature-index': new Set([
+    'client-rules-api',
     'view',
     'query',
     'command',
@@ -986,6 +1036,18 @@ export function violation(
   from: Classification,
   to: Classification,
 ): ArchRule | undefined {
+  if (
+    from.owner === 'client' &&
+    to.owner !== 'client' &&
+    to.owner !== 'contracts'
+  )
+    return 'client-imports-client-and-contracts-only';
+  if (
+    to.owner === 'client' &&
+    from.owner !== 'client' &&
+    to.role !== 'client-rules-api'
+  )
+    return 'client-public-api-only';
   if (from.role === 'test') return testViolation(from, to);
   if (
     from.role === 'fake' &&
@@ -1121,6 +1183,7 @@ const nodeModules = new Set(
 const storageEngineModule = /^(?:fs|child_process)(?:\/|$)/;
 
 export const externalPackages: Record<Role, readonly string[]> = {
+  'client-rules-api': [],
   desktop: ['electron', 'fix-path', 'zod'],
   'desktop-gateway': [],
   'desktop-server-api': [],
@@ -1261,6 +1324,7 @@ export function forbiddenExternal(role: Role, module: string): boolean {
 }
 
 const rolePurposes: Record<Role, string> = {
+  'client-rules-api': "a shared client feature's public pure rules entry",
   desktop: 'the Electron desktop app in apps/desktop/src',
   'desktop-gateway':
     'a desktop adapter in apps/desktop/src/adapters/ that wraps Electron and the operating system; only the desktop and its own specs reach it',
@@ -1338,6 +1402,10 @@ const rolePurposes: Record<Role, string> = {
 };
 
 const archRuleReasons = {
+  'client-imports-client-and-contracts-only':
+    'Keep shared client code independent of apps and server implementations; platform capabilities belong behind client ports implemented by each app.',
+  'client-public-api-only':
+    'Import shared client code through its planned package exports; a relative import into a feature bypasses its public boundary.',
   '<role>-cannot-import-<role>':
     'Reach that code through a role on this list, or move it to the role that owns it; allowedTargets in architecture/policy.ts keeps dependencies pointing one way, so no role breaks when one above it changes.',
   '<role>-cannot-import-external':

@@ -1,7 +1,7 @@
 import { MutationObserver, type QueryClient } from '@tanstack/react-query';
 import { accessApi } from '../api';
 import { connectionErrorMessage } from '../rules/connection-error-message';
-import type { PairingCode } from '../rules/pairing-link';
+import type { PairingCode } from '@porcelain/client/access/rules';
 import { useAccessStore } from '../store';
 import { ConnectionError } from '@/shared/api/connection-error';
 import { REQUEST_TIMEOUT_MS } from '@/shared/api/request-timeout';

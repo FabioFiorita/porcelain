@@ -66,7 +66,8 @@ const dialogRoles = new Set(['dialog', 'alertdialog']);
 const keyTargets = new Set([...globalObjects, 'document']);
 const keyEvents = new Set(['keydown', 'keyup', 'keypress']);
 const historyGlobals = new Set(['history']);
-const pureRuleModules = /^(?:@porcelain\/contracts(?:\/|$)|date-fns(?:\/|$))/;
+const pureRuleModules =
+  /^(?:@porcelain\/contracts(?:\/|$)|@porcelain\/client\/[^/]+\/rules$|date-fns(?:\/|$))/;
 const loopStatements = new Set([
   'ForStatement',
   'ForInStatement',
@@ -245,7 +246,10 @@ function webPath(context) {
 }
 
 function runtimeWeb(path) {
-  return path.startsWith(webSource) && webPart(path) !== 'ui';
+  return (
+    (path.startsWith(webSource) || path.startsWith('packages/client/src/')) &&
+    webPart(path) !== 'ui'
+  );
 }
 
 function inWeb(path) {
