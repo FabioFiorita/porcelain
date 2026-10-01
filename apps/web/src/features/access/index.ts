@@ -4,6 +4,7 @@ export { restoreSession } from './commands/restore-session';
 export { connectionErrorMessage } from './rules/connection-error-message';
 export { parsePairingLink } from '@porcelain/client/access/rules';
 export { useRecheckRemote } from './commands/remotes';
+export { useSignOutWhenUnauthorized } from './commands/unauthorized';
 export { useRemoteStatus } from './queries/remotes';
 export {
   remoteKey,
@@ -15,6 +16,7 @@ export {
 } from './rules/remotes';
 export {
   useAccessStore,
+  useConnectedContext,
   useRemoteConnection,
   useRemoteConnections,
   type RemoteConnection,

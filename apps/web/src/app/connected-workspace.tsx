@@ -10,6 +10,7 @@ import {
 import { Sidebar, SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
 import {
   RemoteUnavailable,
+  useConnectedContext,
   useRemoteConnections,
   type RemoteConnection,
   type RemoteStatus,
@@ -25,7 +26,6 @@ import {
 } from '@/features/projects/index';
 import { ReviewWorkspace, workspaceTitle } from '@/features/reviews/index';
 import { useDocumentTitle } from '@/shared/hooks/use-document-title';
-import { useConnectedContext } from '@/app/workspace-provider';
 import { ShortcutsDialog } from '@/app/shortcuts-dialog';
 import type {
   SetWorkspaceSearch,

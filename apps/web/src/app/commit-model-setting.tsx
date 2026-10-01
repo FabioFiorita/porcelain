@@ -1,4 +1,3 @@
-import { useConnectedContext } from '@/app/workspace-provider';
 import {
   NativeSelect,
   NativeSelectOptGroup,
@@ -9,6 +8,7 @@ import {
   resolveCommitModel,
 } from '@/features/git-actions/index';
 import { useCommitModels } from '@/features/git-actions/index';
+import { useConnectedContext } from '@/features/access/index';
 import { usePreferences } from '@/shared/workspace/preferences';
 
 export function CommitModelSetting() {

@@ -8,11 +8,11 @@ import type {
 } from '../rules/git-action';
 import { useGitOperation } from '../store';
 import { createId } from '@/shared/lib/id';
-import { refreshGitReceipt } from '@/shared/query/live-updates';
 import { asMutation } from '@/shared/query/mutation';
 import { isTerminal, operationKey } from '@/shared/query/operation-store';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 import { gitActionsApi } from '../api';
+import { refreshGitReceipt } from './live-updates';
 
 export function useGitAction(
   scope: GitScope,

@@ -1,24 +1,22 @@
 import type { LiveNotice } from '@porcelain/contracts/access';
 import type { RunGitActionResponse } from '@porcelain/contracts/git-actions';
-import type { QueryClient, QueryFilters } from '@tanstack/react-query';
+import {
+  LIVE_PATHS_PER_WORKTREE,
+  LIVE_PROJECTS,
+  LIVE_WORKTREES,
+} from '@porcelain/contracts/shared';
+import {
+  type QueryClient,
+  type QueryFilters,
+  useQueryClient,
+} from '@tanstack/react-query';
+import { useEffect } from 'react';
 import type { Connection } from '@/shared/workspace/connection';
 import { reviewSurfaceFilters } from '@/shared/query/keys';
 import { isTerminal } from '@/shared/query/operation-store';
+import { readGitReceipt } from './read-receipt';
 
 type Receipt = RunGitActionResponse;
-type LiveConnection = Pick<
-  Connection,
-  'environmentId' | 'controller' | 'operations' | 'liveUpdates'
->;
-type LiveOptions = {
-  readReceipt: (request: {
-    projectId: string;
-    worktreeId: string;
-    requestId: string;
-    signal: AbortSignal;
-  }) => Promise<Receipt>;
-  onUnauthorized: () => void;
-};
 
 type Watched = { projectId: string; worktreeId: string; paths: Set<string> };
 type FeatureLive = {
@@ -37,7 +35,7 @@ type FeatureLive = {
   ) => QueryFilters | null;
 };
 const featureLives = Object.values(
-  import.meta.glob<{ default: FeatureLive }>('../../features/*/live.ts', {
+  import.meta.glob<{ default: FeatureLive }>('../../*/live.ts', {
     eager: true,
   }),
 ).map((module) => module.default);
@@ -54,7 +52,7 @@ async function notifyFeatures(
   );
 }
 
-export function liveSubscription(client: QueryClient, environmentId: string) {
+function liveSubscription(client: QueryClient, environmentId: string) {
   const watched = new Map<string, Watched>();
   for (const query of client.getQueryCache().findAll({ type: 'active' })) {
     const [root, environment, projectId, worktreeId, surface, path] =
@@ -91,11 +89,11 @@ export function liveSubscription(client: QueryClient, environmentId: string) {
         (feature) =>
           feature.subscriptionProjects?.(client, environmentId) ?? [],
       )
-      .slice(0, 128),
-    worktrees: [...watched.values()].slice(0, 32).map((entry) => ({
+      .slice(0, LIVE_PROJECTS),
+    worktrees: [...watched.values()].slice(0, LIVE_WORKTREES).map((entry) => ({
       projectId: entry.projectId,
       worktreeId: entry.worktreeId,
-      paths: [...entry.paths].slice(0, 64),
+      paths: [...entry.paths].slice(0, LIVE_PATHS_PER_WORKTREE),
     })),
   };
 }
@@ -199,7 +197,7 @@ export async function refreshGitReceipt(
   }
 }
 
-export async function applyLiveNotice(
+async function applyLiveNotice(
   client: QueryClient,
   environmentId: string,
   notice: LiveNotice,
@@ -230,16 +228,16 @@ export async function applyLiveNotice(
   await notifyFeatures(client, environmentId, notice);
 }
 
-export function connectLiveQueries(
+function connectLiveQueries(
   client: QueryClient,
-  connection: LiveConnection,
-  { readReceipt, onUnauthorized }: LiveOptions,
+  connection: Connection,
+  onUnauthorized: () => void,
 ) {
   const lifecycle = new AbortController();
   const recoverPending = () => {
     for (const operation of connection.operations.list()) {
       if (operation.receipt && isTerminal(operation.receipt)) continue;
-      void readReceipt({
+      void readGitReceipt(connection, {
         projectId: operation.projectId,
         worktreeId: operation.worktreeId,
         requestId: operation.requestId,
@@ -326,4 +324,15 @@ export function connectLiveQueries(
     unsubscribeOperations?.();
     lifecycle.abort();
   };
+}
+
+export function useLiveQueries(
+  connection: Connection | null,
+  onUnauthorized: () => void,
+) {
+  const client = useQueryClient();
+  useEffect(() => {
+    if (!connection) return;
+    return connectLiveQueries(client, connection, onUnauthorized);
+  }, [client, connection, onUnauthorized]);
 }
