@@ -10,6 +10,8 @@ export type BrowserFailure = {
 
 const observed: BrowserFailure[] = [];
 const frameName = 'porcelain-app';
+const liveHoldKey = 'porcelain-kit-live-held';
+const liveReleaseEvent = 'porcelain-kit-live-release';
 let opened = false;
 let framed: HTMLIFrameElement | undefined;
 
@@ -87,6 +89,39 @@ function prepareFrame(name: string) {
   );
 }
 
+function holdLiveInFrame(name: string, key: string, releaseEvent: string) {
+  if (window.name !== name) return;
+  const held: Array<() => void> = [];
+  window.addEventListener(releaseEvent, () => {
+    for (const deliver of held.splice(0)) deliver();
+  });
+  class HeldSocket extends window.WebSocket {
+    override addEventListener(
+      type: string,
+      listener: EventListenerOrEventListenerObject,
+      options?: boolean | AddEventListenerOptions,
+    ) {
+      if (type !== 'message') {
+        super.addEventListener(type, listener, options);
+        return;
+      }
+      super.addEventListener(
+        type,
+        (event) => {
+          const deliver = () => {
+            if (typeof listener === 'function') listener.call(this, event);
+            else listener.handleEvent(event);
+          };
+          if (window.sessionStorage.getItem(key) === null) deliver();
+          else held.push(deliver);
+        },
+        options,
+      );
+    }
+  }
+  window.WebSocket = HeldSocket;
+}
+
 function isFailure(value: unknown): value is BrowserFailure {
   return (
     typeof value === 'object' &&
@@ -111,6 +146,9 @@ async function openReloadable(address: string) {
   claimOpening();
   await hostCommands.porcelainInitScript(
     `(${prepareFrame.toString()})(${JSON.stringify(frameName)})`,
+  );
+  await hostCommands.porcelainInitScript(
+    `(${holdLiveInFrame.toString()})(${[frameName, liveHoldKey, liveReleaseEvent].map((value) => JSON.stringify(value)).join(', ')})`,
   );
   const frame = document.createElement('iframe');
   frame.name = frameName;
@@ -175,6 +213,22 @@ async function failSessionRestore() {
       const frame = framed?.contentWindow;
       frame?.sessionStorage.removeItem(outageKey);
       frame?.dispatchEvent(new Event('online'));
+    },
+  };
+}
+
+function holdLive() {
+  const current = framed?.contentWindow;
+  if (current == null)
+    throw new Error(
+      'app.holdLive() holds the live notices of the app that app.openReloadable opened in its frame.',
+    );
+  current.sessionStorage.setItem(liveHoldKey, 'held');
+  return {
+    release() {
+      const frame = framed?.contentWindow;
+      frame?.sessionStorage.removeItem(liveHoldKey);
+      frame?.dispatchEvent(new Event(liveReleaseEvent));
     },
   };
 }
@@ -248,6 +302,7 @@ export const app = {
   reload,
   visited,
   failSessionRestore,
+  holdLive,
   link,
   remoteLink,
   address,

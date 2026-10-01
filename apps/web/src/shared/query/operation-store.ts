@@ -18,7 +18,6 @@ function parseRetainedOperation(value: unknown): Operation | null {
   if (!isRecord(value)) return null;
   const candidate = value;
   const parsedScope = worktreeParamsSchema.safeParse({
-    projectId: candidate.projectId,
     worktreeId: candidate.worktreeId,
   });
   const request = runGitActionRequestSchema.safeParse(candidate.request);
@@ -77,9 +76,12 @@ export function createOperationStore(persistence?: Persistence) {
   const persist = () => {
     if (!persistence) return;
     try {
-      const pending = [...operations.values()].filter(
-        (entry) => !entry.receipt || !isTerminal(entry.receipt),
-      );
+      const pending = [...operations.values()]
+        .filter((entry) => !entry.receipt || !isTerminal(entry.receipt))
+        .map((entry) => ({
+          ...entry,
+          request: runGitActionRequestSchema.encode(entry.request),
+        }));
       if (pending.length)
         persistence.storage.setItem(persistence.key, JSON.stringify(pending));
       else persistence.storage.removeItem(persistence.key);
