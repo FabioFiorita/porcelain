@@ -77,7 +77,7 @@ export const desktopFeatures = [
   {
     name: 'installed-project',
     promise:
-      'the installed app starts its own server, permits remote connections with scripts restricted to the app origin, opens only a manually selected Git project through its trusted native picker, cancels without registration or folder discovery, shows app updates, retains its project and preferences after restart, survives window close and stops its server on Quit',
+      'the installed app starts its own server, permits remote connections with scripts restricted to the app origin, opens only a manually selected Git project through its trusted native picker, cancels without registration or folder discovery, offers no reload or developer tools menus, shows app updates, retains its project and preferences after restart, survives window close, keeps its server output in its logs folder and stops its server on Quit',
     run: installedProject,
   },
 ];
@@ -828,6 +828,20 @@ async function installedProject(input: DesktopProof) {
       if (item == null) throw new Error('The native Settings menu is missing');
       Reflect.apply(item.click, item, [item, undefined, undefined]);
     });
+    const viewRoles = await app.evaluate(({ Menu }) =>
+      (Menu.getApplicationMenu()?.items ?? []).flatMap((menu) =>
+        (menu.submenu?.items ?? []).map((item) =>
+          (item.role ?? '').toLowerCase(),
+        ),
+      ),
+    );
+    requireProof(
+      viewRoles.includes('togglefullscreen') &&
+        !['reload', 'forcereload', 'toggledevtools'].some((role) =>
+          viewRoles.includes(role),
+        ),
+      'The installed app must offer no Reload or Developer Tools menu items',
+    );
     const settingsPage = page.getByRole('main', {
       name: 'Settings',
       exact: true,
@@ -952,6 +966,11 @@ async function installedProject(input: DesktopProof) {
       'Quit must remove the owner socket',
     );
     requireProof(!processAlive(serverPid), 'Quit must stop the managed server');
+    requireProof(
+      (await readFile(join(input.profile, 'logs', 'server.log'), 'utf8'))
+        .length > 0,
+      'The app must keep its server output in the logs folder',
+    );
     const restarted = await launch();
     try {
       const restored = await restarted.firstWindow({ timeout: 30_000 });
@@ -1014,6 +1033,8 @@ async function installedProject(input: DesktopProof) {
       remoteConnectionsAllowedByPolicy: true,
       stableOrigin: true,
       nativeMenus: true,
+      noDeveloperMenus: true,
+      serverLogKept: true,
       nativeAppearance: true,
       desktopAppUpdates: true,
       windowRestored: true,
