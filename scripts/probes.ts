@@ -61,7 +61,7 @@ const expectedSeconds: Record<ProbeGate, (probe: LoadedProbe) => number> = {
   db: () => 2,
   verify: (probe) =>
     probe.feature === undefined
-      ? 46
+      ? 70
       : probe.feature.startsWith('perf.')
         ? 15
         : 2,
