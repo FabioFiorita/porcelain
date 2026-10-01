@@ -35,7 +35,12 @@ import { trustedSender } from './rules/trusted-sender.ts';
 
 registerDesktopScheme();
 app.setName('Porcelain');
-const settings = desktopSettings(app.getPath('userData'), app.getAppPath());
+app.setAppLogsPath();
+const settings = desktopSettings(
+  app.getPath('userData'),
+  app.getPath('logs'),
+  app.getAppPath(),
+);
 app.setPath('userData', settings.profile);
 let server: Awaited<ReturnType<typeof startLocalServer>> | undefined;
 let window: BrowserWindow | undefined;

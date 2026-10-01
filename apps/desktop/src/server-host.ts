@@ -2,6 +2,7 @@ import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { utilityProcess } from 'electron';
 import type { desktopSettings } from './settings.ts';
 import { serverMessage } from './protocol.ts';
+import { ServerLog } from './adapters/server-log.ts';
 
 export async function startLocalServer(
   settings: ReturnType<typeof desktopSettings>,
@@ -14,8 +15,18 @@ export async function startLocalServer(
     stdio: 'pipe',
     cwd: settings.projectHome,
   });
-  child.stdout?.on('data', (chunk: Buffer) => process.stdout.write(chunk));
-  child.stderr?.on('data', (chunk: Buffer) => process.stderr.write(chunk));
+  const log = new ServerLog(
+    settings.logs,
+    settings.limits.desktop.serverLogBytes,
+  );
+  child.stdout?.on('data', (chunk: Buffer) => {
+    process.stdout.write(chunk);
+    log.append(chunk);
+  });
+  child.stderr?.on('data', (chunk: Buffer) => {
+    process.stderr.write(chunk);
+    log.append(chunk);
+  });
   const exited = new Promise<number>((resolveExit) =>
     child.once('exit', (code) => {
       process.stderr.write(`Porcelain server: exited ${code}\n`);
@@ -75,6 +86,7 @@ export async function startLocalServer(
       timeout.addEventListener('abort', expired, { once: true });
       await exited;
       timeout.removeEventListener('abort', expired);
+      await log.flush();
     },
   };
 }
