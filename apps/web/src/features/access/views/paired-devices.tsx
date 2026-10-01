@@ -11,6 +11,7 @@ import {
   ItemTitle,
 } from '@/components/ui/item';
 import { Spinner } from '@/components/ui/spinner';
+import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { useRevokeAccess, useSetDeviceTrust } from '../commands/share';
 import { usePairedAccess } from '../queries/share';
@@ -68,6 +69,7 @@ export function PairedDevices({ connection }: { connection: Connection }) {
               )}
             </ItemContent>
             <ItemActions>
+              <Label aria-hidden>Can update</Label>
               <Switch
                 aria-label={`${device.label} can update Porcelain`}
                 checked={device.trusted}
