@@ -12,7 +12,7 @@ import { asMutation } from '@/shared/query/mutation';
 import { isTerminal, operationKey } from '@/shared/query/operation-store';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 import { gitActionsApi } from '../api';
-import { refreshGitReceipt } from './live-updates';
+import { refreshGitReceipt } from './refresh-receipt';
 
 export function useGitAction(
   scope: GitScope,

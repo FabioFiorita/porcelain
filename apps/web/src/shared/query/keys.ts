@@ -33,3 +33,21 @@ export function reviewSurfaceFilters(
     predicate: (query) => surfaces.has(String(query.queryKey[prefix.length])),
   };
 }
+
+export const fileSurfaces: ReadonlySet<string> = new Set([
+  'changes',
+  'directory',
+  'text',
+  'paths',
+  'git-status',
+  'asset',
+  'html-preview',
+  'step-lines',
+]);
+
+export const gitSurfaces: ReadonlySet<string> = new Set([
+  'changes',
+  'git-status',
+  'paths',
+  'step-lines',
+]);

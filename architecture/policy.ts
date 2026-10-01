@@ -189,6 +189,7 @@ export const webDomains = [
   'history',
   'reviews',
   'preferences',
+  'live',
 ] as const;
 
 export const shadcnRegistry: ReadonlySet<string> = new Set([
