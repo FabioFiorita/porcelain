@@ -1,6 +1,7 @@
 import { net, protocol } from 'electron';
 import { localNavigation } from './rules/navigation.ts';
 import { desktopRequestOrigin } from './rules/request-origin.ts';
+import { desktopContentSecurityPolicy } from './rules/content-security-policy.ts';
 
 export const desktopAddress = 'porcelain://app';
 
@@ -69,7 +70,7 @@ export function serveDesktop(server: { address: string; credential: string }) {
     if (!source.pathname.startsWith('/api/'))
       resultHeaders.set(
         'content-security-policy',
-        `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' ${server.address.replace('http:', 'ws:')}/api/live; frame-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'`,
+        desktopContentSecurityPolicy(),
       );
     return new Response(response.body, {
       status: response.status,

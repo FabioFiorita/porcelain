@@ -34,7 +34,7 @@ export const desktopFeatures = [
   {
     name: 'installed-project',
     promise:
-      'the installed app starts its own server, opens a discovered real Git project, shows its desktop app version and update status, survives window close, reopens from the Dock, retains its project, preferences and window after restart without browser pairing, and stops its server on Quit',
+      'the installed app starts its own server, serves a policy permitting remote HTTP and WebSocket connections with scripts restricted to the app origin, opens a discovered real Git project, shows its desktop app version and update status, survives window close, reopens from the Dock, retains its project, preferences and window after restart without browser pairing, and stops its server on Quit',
     run: installedProject,
   },
 ];
@@ -272,6 +272,17 @@ async function installedProject(input: DesktopProof) {
       {
         timeout: 30_000,
       },
+    );
+    const contentSecurityPolicy = await page.evaluate(async () =>
+      (await fetch('/')).headers.get('content-security-policy'),
+    );
+    requireProof(
+      contentSecurityPolicy !== null &&
+        contentSecurityPolicy
+          .split('; ')
+          .includes("connect-src 'self' http: https: ws: wss:") &&
+        contentSecurityPolicy.split('; ').includes("script-src 'self'"),
+      'The installed desktop policy must allow remote HTTP and WebSocket connections while restricting scripts to the app origin',
     );
     const status = ownerStatus.parse(
       await askOwner(data, 'GET', '/status', undefined, 5000),
@@ -584,6 +595,7 @@ async function installedProject(input: DesktopProof) {
       dockReopens: true,
       restartKeepsProjectAndPreferences: true,
       privateDesktopSession: true,
+      remoteConnectionsAllowedByPolicy: true,
       stableOrigin: true,
       nativeMenus: true,
       nativeAppearance: true,
