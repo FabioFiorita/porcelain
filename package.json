@@ -26,6 +26,7 @@
     "prepare": "lefthook install --reset-hooks-path",
     "check": "node scripts/check.ts",
     "test:rules": "node architecture/rule-tests.mjs",
+    "probes:check": "node scripts/probes.ts --check",
     "typecheck:desktop": "pnpm --filter @porcelain/desktop typecheck",
     "desktop:build": "node scripts/build-desktop.ts",
     "desktop:install": "node scripts/install-desktop.ts",

@@ -12,6 +12,7 @@ const commands = [
   'arch:check',
   'test',
   'test:rules',
+  'probes:check',
 ];
 const started = performance.now();
 const results = await Promise.all(
