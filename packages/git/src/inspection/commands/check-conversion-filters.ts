@@ -10,6 +10,16 @@ import { runInspection } from './run-inspection.ts';
 
 const UNFILTERED = new Set(['unspecified', 'unset', 'set']);
 
+const VALUED_FILTER_PATHS = [
+  'ls-files',
+  '-z',
+  '--',
+  ':/',
+  ':(exclude,attr:!filter)',
+  ':(exclude,attr:-filter)',
+  ':(exclude,attr:filter)',
+];
+
 export function sessionConversionFilters(
   session: CheckoutSession,
   limits: GitLimits,
@@ -25,14 +35,20 @@ async function checkConversionFilters(
   limits: GitLimits,
   signal?: AbortSignal,
 ): Promise<string[]> {
-  const config = await runInspection(
-    checkout,
-    ['config', '--null', '--list'],
-    limits,
-    signal,
-    { maxBytes: limits.inspection.filterConfigBytes },
-  );
+  const [config, valued] = await Promise.all([
+    runInspection(checkout, ['config', '--null', '--list'], limits, signal, {
+      maxBytes: limits.inspection.filterConfigBytes,
+    }),
+    runInspection(checkout, VALUED_FILTER_PATHS, limits, signal, {
+      maxBytes: limits.inspection.filterPathsBytes,
+    }),
+  ]);
   const drivers = filterDrivers(config.toString('utf8'));
+  if (
+    valued.length === 0 &&
+    ![...drivers.keys()].some((driver) => UNFILTERED.has(driver))
+  )
+    return disabledFilterConfig(drivers.keys());
   const paths = await runInspection(
     checkout,
     ['ls-files', '-z'],
