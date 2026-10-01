@@ -35,8 +35,6 @@
     "apps/web/src/app/workspace-provider.tsx": 1
   },
   "style/duplicate-code": {
-    "apps/web/src/features/reviews/views/proof-document.tsx": 1,
-    "apps/web/src/features/reviews/views/unexplained-document.tsx": 1,
     "apps/web/src/features/reviews/views/review-workspace.tsx": 2
   },
   "typescript/no-deprecated": {
