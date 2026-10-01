@@ -21,6 +21,7 @@ import {
   UpdateProjectAvailabilityService,
 } from '@porcelain/projects/services';
 import { GitProjectRepositoryReader } from '../adapters/projects/git-project-repository-reader.ts';
+import { CoalescedWork } from '../runtime/coalesced-work.ts';
 import { BrowseProjectFoldersUseCase } from '../use-cases/projects/browse-project-folders.ts';
 import { CheckWorktreeUseCase } from '../use-cases/projects/check-worktree.ts';
 import { CollectAbsentWorktreesUseCase } from '../use-cases/projects/collect-absent-worktrees.ts';
@@ -70,17 +71,19 @@ export function composeProjects(
     clock,
   );
 
-  const refreshInventory = new RefreshInventoryUseCase(
-    listRegisteredProjects,
-    listKnownWorktrees,
-    listProjectWorktrees,
-    new MarkProjectsUnavailableService(inventory),
-    updateProjectAvailability,
-    recordWorktreePresence,
-    new RecordWorktreeCatalogService(catalog, clock),
-    lanes,
-    laneKeys,
-    events,
+  const refreshInventory = new CoalescedWork(
+    new RefreshInventoryUseCase(
+      listRegisteredProjects,
+      listKnownWorktrees,
+      listProjectWorktrees,
+      new MarkProjectsUnavailableService(inventory),
+      updateProjectAvailability,
+      recordWorktreePresence,
+      new RecordWorktreeCatalogService(catalog, clock),
+      lanes,
+      laneKeys,
+      events,
+    ),
   );
 
   return {
