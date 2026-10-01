@@ -8,8 +8,7 @@ import {
   resolveCommitModel,
 } from '@/features/git-actions/index';
 import { useCommitModels } from '@/features/git-actions/index';
-import { useConnectedContext } from '@/features/access/index';
-import { usePreferences } from '@/shared/workspace/preferences';
+import { useConnectedContext, usePreferences } from '@/features/access/index';
 
 export function CommitModelSetting() {
   const models = useCommitModels(useConnectedContext());

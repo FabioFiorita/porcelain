@@ -3,6 +3,7 @@ export { pairBrowser } from './commands/pairing';
 export { restoreSession } from './commands/restore-session';
 export { connectionErrorMessage } from './rules/connection-error-message';
 export { parsePairingLink } from '@porcelain/client/access/rules';
+export type { Preferences } from './rules/preferences';
 export { useRecheckRemote } from './commands/remotes';
 export { useSignOutWhenUnauthorized } from './commands/unauthorized';
 export { useRemoteStatus } from './queries/remotes';
@@ -17,6 +18,8 @@ export {
 export {
   useAccessStore,
   useConnectedContext,
+  usePreferences,
+  useTheme,
   useRemoteConnection,
   useRemoteConnections,
   type RemoteConnection,
@@ -33,3 +36,4 @@ export {
 } from './views/share-settings';
 export { RemoteComputers } from './views/remote-computers';
 export { RemoteUnavailable } from './views/remote-unavailable';
+export { ThemeProvider } from './views/theme';

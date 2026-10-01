@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { desktopAppAddress } from '@/shared/adapters/desktop';
-import { useTheme } from '@/shared/workspace/theme';
+import { useTheme } from '@/features/access/index';
 import { useSummaryLayerRequests } from '../adapters/summary-messages';
 import type { OpenDocument } from '../rules/documents';
 import { type ReviewResponse, reviewSummaryUrl } from '../rules/review';

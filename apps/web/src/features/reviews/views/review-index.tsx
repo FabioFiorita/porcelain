@@ -57,7 +57,7 @@ import { InlineComposer } from './inline-composer';
 import { BranchReadiness, ChangeReadiness } from './readiness-panel';
 import { ThreadCard } from './thread-card';
 import { groupSpecPaths } from '../rules/spec-paths';
-import { usePreferences } from '@/shared/workspace/preferences';
+import { usePreferences } from '@/features/access/index';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
 type Props = {

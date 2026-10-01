@@ -8,7 +8,7 @@ import {
 } from 'react';
 import { cn } from '@/shared/lib/utils';
 import { createPierreFileOptions } from '@/shared/lib/pierre';
-import { useTheme } from '@/shared/workspace/theme';
+import { useTheme } from '@/features/access/index';
 
 const EXTENSION: Record<string, string> = {
   ts: 'ts',

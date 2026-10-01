@@ -33,7 +33,7 @@ import {
 } from '@/components/ui/popover';
 import { Spinner } from '@/components/ui/spinner';
 import { toast } from '@/components/ui/toast';
-import { usePreferences } from '@/shared/workspace/preferences';
+import { usePreferences } from '@/features/access/index';
 import { useGitMenu } from '../commands/git-menu';
 import type { GitNotice } from '../rules/feedback';
 import type { GitAction, GitScope } from '../rules/git-action';

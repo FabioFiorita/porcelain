@@ -1,6 +1,7 @@
 import type { ReadInventoryResponse } from '@porcelain/contracts/projects';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { useSyncExternalStore } from 'react';
 import { savedJson } from '@/shared/lib/saved-json';
 import { desktopCredentials } from '@/shared/adapters/desktop';
 import {
@@ -10,6 +11,12 @@ import {
   withRemote,
   type Remote,
 } from './rules/remotes';
+import {
+  defaultPreferences,
+  readPreferences,
+  resolvedTheme,
+  type Preferences,
+} from './rules/preferences';
 import { REQUEST_TIMEOUT_MS } from '@/config/limits';
 import {
   browserTransport,
@@ -231,4 +238,65 @@ export function useConnectedContext(remote?: Connection): ConnectionContext {
   if (remote) return { connection: remote };
   if (!local) throw new Error('A connected environment is required');
   return { connection: local };
+}
+
+type PreferencesState = {
+  preferences: Preferences;
+  setPreference: <K extends keyof Preferences>(
+    key: K,
+    value: Preferences[K],
+  ) => void;
+};
+
+const usePreferencesStore = create<PreferencesState>()(
+  persist<PreferencesState, [], [], Preferences>(
+    (set) => ({
+      preferences: defaultPreferences,
+      setPreference: (key, value) =>
+        set((state) => ({
+          preferences: { ...state.preferences, [key]: value },
+        })),
+    }),
+    {
+      name: 'porcelain.prototype.preferences',
+      storage: savedJson(() => localStorage, readPreferences),
+      partialize: ({ preferences }) => preferences,
+      merge: (saved, current) => ({
+        ...current,
+        preferences: readPreferences(saved),
+      }),
+    },
+  ),
+);
+
+const darkScheme = '(prefers-color-scheme: dark)';
+
+function subscribeToSystemTheme(onChange: () => void) {
+  const query = window.matchMedia(darkScheme);
+  query.addEventListener('change', onChange);
+  return () => query.removeEventListener('change', onChange);
+}
+
+function systemIsDark() {
+  return window.matchMedia(darkScheme).matches;
+}
+
+export function usePreferences() {
+  const preferences = usePreferencesStore((state) => state.preferences);
+  const setPreference = usePreferencesStore((state) => state.setPreference);
+  const systemDark = useSyncExternalStore(
+    subscribeToSystemTheme,
+    systemIsDark,
+    () => false,
+  );
+  return {
+    preferences,
+    setPreference,
+    resolvedTheme: resolvedTheme(preferences.appearance, systemDark),
+  };
+}
+
+export function useTheme() {
+  const { resolvedTheme: theme } = usePreferences();
+  return { dark: theme === 'dark' };
 }

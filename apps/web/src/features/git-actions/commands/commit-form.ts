@@ -3,7 +3,6 @@ import {
   COMMIT_GROUPS,
 } from '@porcelain/contracts/shared';
 import { useForm, useSelector } from '@tanstack/react-form';
-import { usePreferences } from '@/shared/workspace/preferences';
 import { createId } from '@/shared/lib/id';
 import { resolveCommitModel } from '../rules/commit-model';
 import {
@@ -25,6 +24,8 @@ import { type ConnectionContext } from '@/shared/workspace/connection';
 const isAbort = (error: unknown) =>
   error instanceof DOMException && error.name === 'AbortError';
 
+type CommitModelChoice = { value: string; set: (value: string) => void };
+
 function useCommitFormState(
   {
     scope,
@@ -37,6 +38,7 @@ function useCommitFormState(
   }: CommitFormProps,
   context: ConnectionContext,
   files: { path: string; paths: string[]; kind: string }[],
+  commitModel: CommitModelChoice,
 ) {
   const form = useForm({
     defaultValues: commitFormDefaults(
@@ -84,8 +86,7 @@ function useCommitFormState(
   const git = useGitAction(scope, commitAction, context);
   const generator = useCommitDraft(scope, context, controllers);
   const models = useCommitModels(context);
-  const { preferences } = usePreferences();
-  const model = resolveCommitModel(models.data, preferences.commitModel);
+  const model = resolveCommitModel(models.data, commitModel.value);
   const commitPaths = [
     ...new Set(
       files
@@ -362,8 +363,9 @@ export function useCommitForm(
   props: CommitFormProps,
   context: ConnectionContext,
   files: { path: string; paths: string[]; kind: string }[],
+  commitModel: CommitModelChoice,
 ) {
-  const controls = useCommitFormState(props, context, files);
+  const controls = useCommitFormState(props, context, files, commitModel);
   const {
     state,
     form,
@@ -379,7 +381,6 @@ export function useCommitForm(
     setAdded,
     setExcluded,
   } = controls;
-  const { setPreference } = usePreferences();
   return {
     ...controls,
     messageLimit: COMMIT_MESSAGE_BYTES,
@@ -388,7 +389,7 @@ export function useCommitForm(
     generate: () => void generate(controls, 'message'),
     lookAgain: () => void lookAgain(controls),
     checkOutcome: () => void checkOutcome(controls),
-    setModel: (value: string) => setPreference('commitModel', value),
+    setModel: commitModel.set,
     toggleEditingFiles: () =>
       state.setState((current) => ({ editingFiles: !current.editingFiles })),
     setCurrentMessage: (value: string) => {

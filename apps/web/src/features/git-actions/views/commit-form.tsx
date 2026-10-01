@@ -25,15 +25,21 @@ import { useCommitForm } from '../commands/commit-form';
 import type { CommitFormProps } from '../rules/commit-form';
 import { useDraftCancellation } from '../adapters/form-lifetime';
 import { commitFiles } from '@/features/changes/index';
+import { usePreferences } from '@/features/access/index';
 
 export function CommitForm(
   props: CommitFormProps & { context: Parameters<typeof useCommitForm>[1] },
 ) {
   const { status, liveBranch, onLookAgain, replacedSubject } = props;
+  const { preferences, setPreference } = usePreferences();
   const form = useCommitForm(
     props,
     props.context,
     commitFiles(props.status.changes),
+    {
+      value: preferences.commitModel,
+      set: (value) => setPreference('commitModel', value),
+    },
   );
   useDraftCancellation(form.controllers);
   const {

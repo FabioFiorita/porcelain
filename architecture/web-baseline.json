@@ -1,19 +1,4 @@
 {
-  "porcelain/no-number-outside-limits": {
-    "apps/web/src/shared/workspace/preferences.tsx": 1
-  },
-  "porcelain/web-no-context": {
-    "apps/web/src/shared/workspace/preferences.tsx": 2
-  },
-  "porcelain/web-no-empty-catch": {
-    "apps/web/src/shared/workspace/preferences.tsx": 1
-  },
-  "porcelain/web-no-manual-memo": {
-    "apps/web/src/shared/workspace/preferences.tsx": 2
-  },
-  "porcelain/web-store-owns-storage": {
-    "apps/web/src/shared/workspace/preferences.tsx": 2
-  },
   "typescript/no-deprecated": {
     "apps/web/src/shared/workspace/copy.ts": 1
   },
