@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   desktopContentSecurityPolicy,
   desktopResponseContentSecurityPolicy,
+  summaryContentSecurityPolicy,
 } from './content-security-policy.ts';
 
 describe('desktop content security policy', () => {
@@ -13,12 +14,12 @@ describe('desktop content security policy', () => {
     ).toBe("connect-src 'self' http: https: ws: wss:");
   });
 
-  it('allows sandboxed review frames from HTTP and HTTPS computers', () => {
+  it('frames only the app and its own blobs, so no frame can show a website inside the window', () => {
     expect(
       desktopContentSecurityPolicy()
         .split('; ')
         .find((directive) => directive.startsWith('frame-src ')),
-    ).toBe("frame-src 'self' blob: http: https:");
+    ).toBe("frame-src 'self' blob:");
   });
 
   it('keeps the remaining directives unchanged, including scripts restricted to the app origin', () => {
@@ -68,5 +69,13 @@ describe('desktop response content security policy', () => {
     expect(
       desktopResponseContentSecurityPolicy('/review-summaries/token', null),
     ).toBe(desktopContentSecurityPolicy());
+  });
+});
+
+describe('summary content security policy', () => {
+  it('sandboxes a summary into an opaque origin that may run its own scripts, forms, popups and dialogs', () => {
+    expect(summaryContentSecurityPolicy()).toBe(
+      'sandbox allow-scripts allow-forms allow-popups allow-modals',
+    );
   });
 });

@@ -52,12 +52,12 @@ describe('trustedSender', () => {
     );
   });
 
-  it.each(['https://evil.example/', 'data:text/html,<title>x</title>'])(
-    'refuses the app window once it shows another document: %s',
-    (url) => {
-      expect(trustedSender({ contents, frame: mainFrame, url }, app)).toBe(
-        false,
-      );
-    },
-  );
+  it.each([
+    'https://evil.example/',
+    'data:text/html,<title>x</title>',
+    'porcelain://app/review-summaries/token?expires=x&signature=y',
+    'porcelain://app/remote-review-summaries/token?computer=http://evil.example',
+  ])('refuses the app window once it shows another document: %s', (url) => {
+    expect(trustedSender({ contents, frame: mainFrame, url }, app)).toBe(false);
+  });
 });

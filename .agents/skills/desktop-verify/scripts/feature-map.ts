@@ -65,7 +65,7 @@ export const desktopFeatures = [
   {
     name: 'review-summaries',
     promise:
-      'the installed app renders local and remote signed HTML summaries inside isolated sandboxes, preserves their theme and layer links, and keeps app scripts restricted to its own origin',
+      'the installed app renders local and remote signed HTML summaries through its own origin inside isolated sandboxes, preserves their theme and layer links, refuses to let a summary show a website in its frame, and keeps app scripts restricted to its own origin',
     run: reviewSummaries,
   },
   {
@@ -138,7 +138,7 @@ async function publishDesktopSummary(
   const publication = summaryPublication.parse(
     await desktopRequest(page, `/api/worktrees/${worktree.id}/review`, 'PUT', {
       expectedRevision: 0,
-      summaryHtml: `<html><body><h1>${title}</h1><a href="#layer-1">Open ${title} layer</a></body></html>`,
+      summaryHtml: `<html><body><h1>${title}</h1><a href="#layer-1">Open ${title} layer</a> <a href="https://example.com/">Leave for a website</a></body></html>`,
       layers: [
         {
           id: randomUUID(),
@@ -291,11 +291,16 @@ async function reviewSummaries(input: DesktopProof) {
       .waitFor();
     const frame = page
       .frames()
-      .find((entry) =>
-        entry.url().startsWith(`${status.address}/review-summaries/`),
+      .find(
+        (entry) =>
+          entry.url().startsWith('porcelain://app/remote-review-summaries/') &&
+          new URL(entry.url()).searchParams.get('computer') ===
+            new URL(status.address).origin,
       );
     if (frame === undefined)
-      throw new Error('The remote summary did not load from its own server');
+      throw new Error(
+        'The remote summary did not load through the app from its own computer',
+      );
     await frame
       .locator('html[data-theme="dark"], html[data-theme="light"]')
       .waitFor();
@@ -339,17 +344,35 @@ async function reviewSummaries(input: DesktopProof) {
     requireProof(
       policy !== null &&
         policy.split('; ').includes("script-src 'self'") &&
-        policy.split('; ').includes("frame-src 'self' blob: http: https:"),
-      'The app must allow remote review frames while restricting its scripts',
+        policy.split('; ').includes("frame-src 'self' blob:"),
+      'The app must frame only itself and its blobs while restricting its scripts',
     );
     requireProof(errors.length === 0, `Renderer errors: ${errors.join('; ')}`);
     await page.screenshot({ path: join(input.evidence, 'remote-layer.png') });
+    await page
+      .getByRole('button', { name: 'Review summary', exact: true })
+      .click();
+    const refused = page.waitForEvent('console', {
+      predicate: (message) =>
+        message.text().includes("'https://example.com/'") &&
+        message.text().includes('frame-src'),
+      timeout: 10_000,
+    });
+    await summary
+      .getByRole('link', { name: 'Leave for a website', exact: true })
+      .click();
+    await refused;
+    requireProof(
+      page.frames().every((entry) => !entry.url().startsWith('https:')),
+      'A summary must not navigate its frame to a website inside the app window',
+    );
     return {
       localSummaryRendered: true,
       localThemeAndLayerLink: true,
       remoteSummaryRendered: true,
       remoteThemeAndLayerLink: true,
       summaryIsolated: true,
+      summaryCannotShowWebsites: true,
       appScriptPolicyRetained: true,
     };
   } catch (error) {

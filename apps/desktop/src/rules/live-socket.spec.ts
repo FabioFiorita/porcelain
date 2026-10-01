@@ -66,14 +66,11 @@ describe('liveSocketHeaders', () => {
     },
   );
 
-  it('refuses once the app window shows another document', () => {
-    expect(
-      liveSocketHeaders(
-        socket,
-        { ...app, url: 'https://evil.example/' },
-        server,
-      ),
-    ).toBeUndefined();
+  it.each([
+    'https://evil.example/',
+    'porcelain://app/remote-review-summaries/token?computer=http://evil.example',
+  ])('refuses once the app window shows another document: %s', (url) => {
+    expect(liveSocketHeaders(socket, { ...app, url }, server)).toBeUndefined();
   });
 
   it.each([

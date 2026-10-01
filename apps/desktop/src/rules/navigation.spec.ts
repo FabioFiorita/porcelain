@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { localNavigation, externalNavigation } from './navigation.ts';
+import {
+  appDocument,
+  externalNavigation,
+  localNavigation,
+} from './navigation.ts';
 
 describe('desktop navigation', () => {
   it('recognises the desktop origin even though Node represents custom origins as opaque', () => {
@@ -51,5 +55,23 @@ describe('desktop navigation', () => {
     'unparseable',
   ])('refuses an unsafe external link: %s', (url) => {
     expect(externalNavigation(url)).toBe(false);
+  });
+});
+
+describe('appDocument', () => {
+  it.each(['porcelain://app/', 'porcelain://app/remotes/computer/p/w?entry=x'])(
+    'is the app itself: %s',
+    (url) => {
+      expect(appDocument(url)).toBe(true);
+    },
+  );
+  it.each([
+    'porcelain://app/review-summaries/token?expires=x&signature=y',
+    'porcelain://app/remote-review-summaries/token?computer=http://evil.example',
+    'porcelain://elsewhere/',
+    'https://evil.example/',
+    'unparseable',
+  ])('is not the app when it shows a summary or another origin: %s', (url) => {
+    expect(appDocument(url)).toBe(false);
   });
 });

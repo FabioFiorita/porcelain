@@ -26,9 +26,9 @@ import fixPath from 'fix-path';
 import { desktopSettings } from './settings.ts';
 import { startLocalServer } from './server-host.ts';
 import {
+  appDocument,
   desktopAddress,
   externalNavigation,
-  localNavigation,
 } from './rules/navigation.ts';
 import { liveAddress, liveSocketHeaders } from './rules/live-socket.ts';
 import { trustedSender } from './rules/trusted-sender.ts';
@@ -126,7 +126,6 @@ async function openWindow() {
     window.focus();
     return;
   }
-  const origin = desktopAddress;
   const restored = restoreWindowBounds(
     savedWindow.read(),
     screen.getAllDisplays().map((display) => display.workArea),
@@ -195,12 +194,12 @@ async function openWindow() {
   view.webContents.session.setPermissionCheckHandler(() => false);
   view.webContents.on('will-attach-webview', (event) => event.preventDefault());
   view.webContents.on('will-navigate', (event, url) => {
-    if (localNavigation(url, origin)) return;
+    if (appDocument(url)) return;
     event.preventDefault();
     openExternal(url);
   });
   view.webContents.on('will-redirect', (event, url) => {
-    if (!localNavigation(url, origin)) event.preventDefault();
+    if (!appDocument(url)) event.preventDefault();
   });
   view.webContents.on('context-menu', (_event, params) => {
     if (params.isEditable)

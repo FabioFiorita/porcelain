@@ -56,6 +56,12 @@ export function desktopProjectPicker(address: string | undefined) {
     : undefined;
 }
 
+export function desktopAppAddress(): string | undefined {
+  return desktopShell && window.porcelainDesktop
+    ? `${window.location.protocol}//${window.location.host}`
+    : undefined;
+}
+
 export function desktopCredentials() {
   return desktopShell ? window.porcelainDesktop?.credentials : undefined;
 }

@@ -1,4 +1,4 @@
-import { desktopAddress, localNavigation } from './navigation.ts';
+import { appDocument, desktopAddress } from './navigation.ts';
 
 export function liveAddress(server: string): string {
   const address = new URL('/api/live', server);
@@ -22,7 +22,7 @@ export function liveSocketHeaders<Frame>(
     request.contentsId !== app.contentsId ||
     request.frame !== app.mainFrame ||
     request.initiatorOrigin !== desktopAddress ||
-    !localNavigation(app.url, desktopAddress) ||
+    !appDocument(app.url) ||
     request.url !== liveAddress(server.address)
   )
     return undefined;

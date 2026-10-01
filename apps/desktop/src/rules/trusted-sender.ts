@@ -1,4 +1,4 @@
-import { desktopAddress, localNavigation } from './navigation.ts';
+import { appDocument } from './navigation.ts';
 
 export function trustedSender<Contents, Frame>(
   sender: { contents: Contents; frame: Frame | null; url: string | undefined },
@@ -10,6 +10,6 @@ export function trustedSender<Contents, Frame>(
     sender.frame !== null &&
     sender.frame === app.mainFrame &&
     sender.url !== undefined &&
-    localNavigation(sender.url, desktopAddress)
+    appDocument(sender.url)
   );
 }

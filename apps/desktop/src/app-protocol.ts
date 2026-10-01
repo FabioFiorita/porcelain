@@ -5,6 +5,11 @@ import {
   forwardedRequestHeaders,
   forwardedResponseHeaders,
 } from './rules/app-request.ts';
+import {
+  remoteSummaryHeaders,
+  remoteSummaryRequest,
+  remoteSummaryTarget,
+} from './rules/remote-summary.ts';
 
 export function registerDesktopScheme() {
   protocol.registerSchemesAsPrivileged([
@@ -20,6 +25,31 @@ export function registerDesktopScheme() {
   ]);
 }
 
+async function remoteSummary(
+  request: Request,
+  signal: AbortSignal,
+): Promise<Response> {
+  const target = remoteSummaryTarget(request.url);
+  if (request.method !== 'GET' || target === undefined)
+    return new Response('Unknown review summary', { status: 404 });
+  const response = await net
+    .fetch(target, { credentials: 'omit', redirect: 'manual', signal })
+    .catch(
+      () =>
+        new Response(
+          'The computer that published this summary is unreachable',
+          {
+            status: 502,
+          },
+        ),
+    );
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: remoteSummaryHeaders(response.headers),
+  });
+}
+
 export function serveDesktop(server: { address: string; credential: string }) {
   const lifetime = new AbortController();
   protocol.handle('porcelain', async (request) => {
@@ -33,6 +63,9 @@ export function serveDesktop(server: { address: string; credential: string }) {
           : undefined,
     });
     if (refusal !== undefined) return new Response(refusal, { status: 403 });
+    const signal = AbortSignal.any([request.signal, lifetime.signal]);
+    if (remoteSummaryRequest(new URL(request.url).pathname))
+      return remoteSummary(request, signal);
     const target = appRequestTarget(request.url, server.address);
     if (target === undefined)
       return new Response('Unknown server origin', { status: 403 });
@@ -44,11 +77,10 @@ export function serveDesktop(server: { address: string; credential: string }) {
           ? { body: await request.arrayBuffer() }
           : {}),
         redirect: 'manual',
-        signal: AbortSignal.any([request.signal, lifetime.signal]),
+        signal,
       })
       .catch((error: unknown) => {
-        if (lifetime.signal.aborted || request.signal.aborted)
-          return new Response(null, { status: 503 });
+        if (signal.aborted) return new Response(null, { status: 503 });
         throw error;
       });
     return new Response(response.body, {
