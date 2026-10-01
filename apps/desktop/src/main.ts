@@ -44,7 +44,10 @@ let closed = false;
 let actionsReady = false;
 let pendingAction: DesktopAction | undefined;
 let stopServing: (() => void) | undefined;
-const savedWindow = new WindowState(settings.profile);
+const savedWindow = new WindowState(
+  settings.profile,
+  settings.limits.desktop.windowStateSaveMs,
+);
 const credentials = new EncryptedCredentials(settings.profile, {
   available: async () =>
     (await safeStorage.isAsyncEncryptionAvailable()) &&
@@ -74,6 +77,14 @@ function trusted(event: IpcMainEvent | IpcMainInvokeEvent): boolean {
 
 function authorize(event: IpcMainInvokeEvent): void {
   if (!trusted(event)) throw new Error('Untrusted desktop request');
+}
+
+function windowBackground(): string {
+  return nativeTheme.shouldUseDarkColors ? '#171717' : '#fafafa';
+}
+
+function windowState(view: BrowserWindow) {
+  return { bounds: view.getNormalBounds(), maximized: view.isMaximized() };
 }
 
 function failure(error: unknown) {
@@ -114,7 +125,7 @@ async function openWindow() {
     title: 'Porcelain',
     titleBarStyle: 'hiddenInset',
     trafficLightPosition: { x: 16, y: 24 },
-    backgroundColor: nativeTheme.shouldUseDarkColors ? '#171717' : '#fafafa',
+    backgroundColor: windowBackground(),
     show: false,
     webPreferences: {
       preload: join(settings.packageRoot, 'desktop/preload.cjs'),
@@ -138,12 +149,12 @@ async function openWindow() {
   );
   const save = () => {
     if (!view.isDestroyed() && !view.isFullScreen())
-      savedWindow.write({
-        bounds: view.getNormalBounds(),
-        maximized: view.isMaximized(),
-      });
+      savedWindow.schedule(windowState(view));
   };
-  view.on('close', save);
+  view.on('close', () => {
+    save();
+    void savedWindow.flush();
+  });
   view.on('resize', save);
   view.on('move', save);
   view.on('maximize', save);
@@ -210,14 +221,10 @@ app.on('before-quit', (event) => {
   stopServing?.();
   process.stderr.write('Porcelain: stopping server\n');
   for (const view of BrowserWindow.getAllWindows()) {
-    if (!view.isFullScreen())
-      savedWindow.write({
-        bounds: view.getNormalBounds(),
-        maximized: view.isMaximized(),
-      });
+    if (!view.isFullScreen()) savedWindow.schedule(windowState(view));
     view.destroy();
   }
-  void (server?.close() ?? Promise.resolve())
+  void Promise.all([savedWindow.flush(), server?.close()])
     .catch((error: unknown) => {
       process.stderr.write(
         `${error instanceof Error ? error.message : 'Server shutdown failed'}\n`,
@@ -361,9 +368,7 @@ async function start() {
     const appearance = desktopAppearanceSchema.safeParse(value);
     if (window === undefined || !trusted(event) || !appearance.success) return;
     nativeTheme.themeSource = appearance.data;
-    window.setBackgroundColor(
-      nativeTheme.shouldUseDarkColors ? '#171717' : '#fafafa',
-    );
+    window.setBackgroundColor(windowBackground());
   });
   ipcMain.on('porcelain:actions-ready', (event) => {
     if (window === undefined || !trusted(event)) return;
@@ -374,9 +379,7 @@ async function start() {
     }
   });
   nativeTheme.on('updated', () =>
-    window?.setBackgroundColor(
-      nativeTheme.shouldUseDarkColors ? '#171717' : '#fafafa',
-    ),
+    window?.setBackgroundColor(windowBackground()),
   );
   await openWindow();
 }

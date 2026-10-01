@@ -46,6 +46,8 @@ export type Limits = {
     windowHeight: number;
     minWidth: number;
     minHeight: number;
+    windowStateSaveMs: number;
+    serverLogBytes: number;
   };
   access: {
     environment: { protocol: number };
@@ -248,6 +250,8 @@ export const LIMITS: Limits = {
     windowHeight: 840,
     minWidth: 800,
     minHeight: 600,
+    windowStateSaveMs: 500,
+    serverLogBytes: 5 * MEBIBYTE,
   },
   access: {
     environment: { protocol: ENVIRONMENT_PROTOCOL },
