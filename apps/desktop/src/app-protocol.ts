@@ -2,8 +2,10 @@ import { net, protocol } from 'electron';
 import {
   appRequestRefusal,
   appRequestTarget,
+  developmentWebPath,
   forwardedRequestHeaders,
   forwardedResponseHeaders,
+  forwardedWebRequestHeaders,
 } from './rules/app-request.ts';
 import {
   remoteSummaryHeaders,
@@ -50,7 +52,10 @@ async function remoteSummary(
   });
 }
 
-export function serveDesktop(server: { address: string; credential: string }) {
+export function serveDesktop(
+  server: { address: string; credential: string },
+  development: string | undefined,
+) {
   const lifetime = new AbortController();
   protocol.handle('porcelain', async (request) => {
     const refusal = appRequestRefusal({
@@ -64,15 +69,22 @@ export function serveDesktop(server: { address: string; credential: string }) {
     });
     if (refusal !== undefined) return new Response(refusal, { status: 403 });
     const signal = AbortSignal.any([request.signal, lifetime.signal]);
-    if (remoteSummaryRequest(new URL(request.url).pathname))
-      return remoteSummary(request, signal);
-    const target = appRequestTarget(request.url, server.address);
+    const pathname = new URL(request.url).pathname;
+    if (remoteSummaryRequest(pathname)) return remoteSummary(request, signal);
+    const web =
+      development !== undefined && developmentWebPath(pathname)
+        ? development
+        : undefined;
+    const target = appRequestTarget(request.url, web ?? server.address);
     if (target === undefined)
       return new Response('Unknown server origin', { status: 403 });
     const response = await net
       .fetch(target, {
         method: request.method,
-        headers: forwardedRequestHeaders(request.headers, server),
+        headers:
+          web === undefined
+            ? forwardedRequestHeaders(request.headers, server)
+            : forwardedWebRequestHeaders(request.headers),
         ...(request.method !== 'GET' && request.method !== 'HEAD'
           ? { body: await request.arrayBuffer() }
           : {}),
@@ -87,8 +99,9 @@ export function serveDesktop(server: { address: string; credential: string }) {
       status: response.status,
       statusText: response.statusText,
       headers: forwardedResponseHeaders(
-        new URL(request.url).pathname,
+        pathname,
         response.headers,
+        development === undefined ? 'built' : 'development',
       ),
     });
   });

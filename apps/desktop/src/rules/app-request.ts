@@ -1,4 +1,7 @@
-import { desktopResponseContentSecurityPolicy } from './content-security-policy.ts';
+import {
+  desktopResponseContentSecurityPolicy,
+  type DesktopWeb,
+} from './content-security-policy.ts';
 import { desktopAddress, localNavigation } from './navigation.ts';
 import { desktopRequestOrigin } from './request-origin.ts';
 
@@ -53,9 +56,21 @@ export function forwardedRequestHeaders(
   return forwarded;
 }
 
+export function developmentWebPath(pathname: string): boolean {
+  return !/^\/(?:api|review-summaries)(?:\/|$)/.test(pathname);
+}
+
+export function forwardedWebRequestHeaders(headers: Headers): Headers {
+  const forwarded = new Headers(headers);
+  for (const name of [...withheldRequestHeaders, 'authorization', 'origin'])
+    forwarded.delete(name);
+  return forwarded;
+}
+
 export function forwardedResponseHeaders(
   pathname: string,
   headers: Headers,
+  web: DesktopWeb,
 ): Headers {
   const forwarded = new Headers(headers);
   for (const name of withheldResponseHeaders) forwarded.delete(name);
@@ -65,6 +80,7 @@ export function forwardedResponseHeaders(
       desktopResponseContentSecurityPolicy(
         pathname,
         forwarded.get('content-security-policy'),
+        web,
       ),
     );
   return forwarded;
