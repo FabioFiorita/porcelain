@@ -1,5 +1,6 @@
 import { readChangesResponseSchema } from '@porcelain/contracts/changes';
 import {
+  apiError,
   defineCase,
   defineFeature,
   invalidRequest,
@@ -38,13 +39,19 @@ const modified = (
   supported: true,
 });
 
+const filtersUnsupported = apiError(
+  422,
+  'Unprocessable Entity',
+  'Git conversion filters are unsupported for worktree inspection',
+);
+
 export default defineFeature({
   feature: 'changes.read-changes',
   reaches: 'GET /api/worktrees/:worktreeId/changes',
   paired: true,
   intent: 'observed',
   behaviour:
-    "A reviewer reads a worktree's changes: one entry per changed path with a content fingerprint and every comparison it appears in (staged, unstaged, untracked or unmerged), plus the head commit, branch, any merge in progress and a status token that later reads use to detect that the worktree moved. The fingerprint is stable while the change is and moves when it does. A read that finds the worktree's catalog entry stale refreshes the catalog and still answers the same worktree. An unknown worktree is not found; a malformed worktree ID is invalid.",
+    "A reviewer reads a worktree's changes: one entry per changed path with a content fingerprint and every comparison it appears in (staged, unstaged, untracked or unmerged), plus the head commit, branch, any merge in progress and a status token that later reads use to detect that the worktree moved. The fingerprint is stable while the change is and moves when it does. A read that finds the worktree's catalog entry stale refreshes the catalog and still answers the same worktree. A worktree where a Git conversion filter applies to a tracked file is refused as unprocessable, whether a nested attributes file or the repository's info/attributes assigns it. An unknown worktree is not found; a malformed worktree ID is invalid.",
   cases: [
     defineCase({
       name: 'the sample unstaged change',
@@ -230,6 +237,49 @@ export default defineFeature({
         check('unknown error body', worktreeNotFound, responses[0]?.body);
         check('malformed status', 400, responses[1]?.status);
         check('malformed error body', invalidRequest, responses[1]?.body);
+      },
+    }),
+    defineCase({
+      name: 'a conversion filter on a tracked file refuses the read wherever it is assigned',
+      async setup(session) {
+        await read(session, {
+          method: 'POST',
+          path: worktreePath(session, '/files'),
+          body: { kind: 'create', path: 'nested', entryKind: 'directory' },
+        });
+        await session.writeFile('nested/tool.txt', 'tool\n');
+        await session.git('add', 'nested/tool.txt');
+        await session.writeFile(
+          'nested/.gitattributes',
+          'tool.txt filter=secret\n',
+        );
+      },
+      request: (session) => ({
+        method: 'GET',
+        path: worktreePath(session, '/changes'),
+      }),
+      async expect({ response, session, check, checkContract }) {
+        check('status', 422, response.status);
+        check('error body', filtersUnsupported, response.body);
+        const request = {
+          method: 'GET' as const,
+          path: worktreePath(session, '/changes'),
+        };
+        await session.remove('nested/.gitattributes');
+        checkContract(
+          'without the filter the read answers',
+          readChangesResponseSchema,
+          await read(session, request),
+        );
+        await session.writeFile(
+          '.git/info/attributes',
+          'nested/tool.txt filter=secret\n',
+        );
+        check(
+          'a filter in info/attributes refuses the read',
+          filtersUnsupported,
+          await read(session, request, 422),
+        );
       },
     }),
   ],
