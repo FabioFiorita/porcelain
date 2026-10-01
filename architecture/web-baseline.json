@@ -1,8 +1,5 @@
 {
   "typescript/no-deprecated": {
     "apps/web/src/shared/workspace/copy.ts": 1
-  },
-  "web-shared-cannot-import-ui": {
-    "apps/web/src/shared/workspace/copy.ts": 1
   }
 }

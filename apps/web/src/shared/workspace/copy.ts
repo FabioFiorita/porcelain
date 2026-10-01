@@ -1,14 +1,30 @@
-import { toast } from '@/components/ui/toast';
+type CopyNotice = {
+  title: string;
+  description: string;
+  type: 'success' | 'error';
+};
+type CopyListener = (notice: CopyNotice) => void;
+
+const listeners = new Set<CopyListener>();
+
+export function onCopyNotice(listener: CopyListener): () => void {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
+function announce(notice: CopyNotice) {
+  for (const listener of [...listeners]) listener(notice);
+}
 
 export function copyText(text: string, label: string) {
   const done = () =>
-    toast.add({
+    announce({
       title: `Copied ${label}`,
       description: text,
       type: 'success',
     });
   const failed = () =>
-    toast.add({
+    announce({
       title: `Could not copy ${label}`,
       description: text,
       type: 'error',

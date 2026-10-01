@@ -2,12 +2,15 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { createRouter, RouterProvider } from '@tanstack/react-router';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Toaster } from './components/ui/toast';
+import { toast, Toaster } from './components/ui/toast';
 import { TooltipProvider } from './components/ui/tooltip';
 import './app.css';
 import { createQueryClient } from '@/shared/query/client';
+import { onCopyNotice } from '@/shared/workspace/copy';
 import { WorkspaceProvider } from './app/workspace-provider';
 import { routeTree } from './routeTree.gen';
+
+onCopyNotice((notice) => toast.add(notice));
 
 const queryClient = createQueryClient();
 const router = createRouter({
