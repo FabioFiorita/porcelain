@@ -23,6 +23,10 @@
           {
             "pattern": "^ResizableHandle$",
             "allow": ["layout", "bg-transparent"]
+          },
+          {
+            "pattern": "^SidebarMenuSub$",
+            "allow": ["layout", "me-0", "pe-0"]
           }
         ],
         "message": {
