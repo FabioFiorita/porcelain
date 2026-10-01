@@ -14,6 +14,7 @@ import {
 import {
   allowedContractType,
   allowedProcessImport,
+  archRuleReason,
   archRules,
   classify,
   domainPackages,
@@ -410,17 +411,6 @@ function classifyAll(sources: readonly string[]): {
   return { classified, findings };
 }
 
-const cruiserReasons: Partial<Record<ArchRule, string>> = {
-  'web-routes-import-feature-index':
-    "a route reaches a feature through features/<domain>/index.ts only, so the feature's inside can move without touching routes",
-  'web-features-import-feature-index':
-    "a feature reaches another feature through its index.ts only, so each feature's inside stays its own",
-  'web-shared-imports-no-owner':
-    'shared/ and components/ui serve every owner and import none of them: no feature, no app shell, no route',
-  'web-nothing-imports-routes':
-    'routes are the leaves TanStack Router loads from the generated route tree; nothing else imports them',
-};
-
 function dependencyFindings(
   report: CruiseReport,
   classified: ReadonlyMap<string, Classification>,
@@ -428,7 +418,7 @@ function dependencyFindings(
   const result: Finding[] = report.summary.violations.map((entry) => ({
     rule: entry.rule.name,
     from: entry.from,
-    to: [entry.to, cruiserReasons[entry.rule.name]].filter(Boolean).join(': '),
+    to: entry.to,
   }));
   for (const module of report.modules) {
     const from = classified.get(module.source);
@@ -493,7 +483,7 @@ function dependencyFindings(
         result.push({
           rule: 'runtime-node-allow-list',
           from: module.source,
-          to: `${dependency.module}: runtime reaches Node only through the files architecture/policy.ts names for it; a new capability is a port with an adapter`,
+          to: dependency.module,
         });
       }
     }
@@ -542,6 +532,7 @@ try {
     (a, b) => b[1].length - a[1].length,
   )) {
     process.stdout.write(`${rule}: ${entries.length}\n`);
+    process.stdout.write(`  why: ${archRuleReason(rule)}\n`);
     for (const entry of all ? entries : entries.slice(0, 3))
       process.stdout.write(`  ${entry.from} -> ${entry.to}\n`);
     if (!all && entries.length > 3)

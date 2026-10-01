@@ -1257,3 +1257,235 @@ export function forbiddenExternal(role: Role, module: string): boolean {
   if (role === 'test') return false;
   return !allowedPackage(role, module);
 }
+
+const rolePurposes: Record<Role, string> = {
+  desktop: 'the Electron desktop app in apps/desktop/src',
+  'desktop-gateway':
+    'a desktop adapter in apps/desktop/src/adapters/ that wraps Electron and the operating system; only the desktop and its own specs reach it',
+  'desktop-server-api':
+    "the server's entry for the desktop app, bootstrap/desktop.ts and config/desktop-settings.ts",
+  transport:
+    "the server's HTTP, MCP and CLI edge, which turns a request into one use-case call",
+  'status-policy':
+    'http/status-policy.ts, which maps outcomes to HTTP statuses',
+  'use-case':
+    'a server use case in use-cases/<area>/, which runs domain services inside lanes',
+  installer: 'the server installer in installer/',
+  'installer-api': "installer/index.ts, the installer's public entry",
+  'domain-api': "a domain's services/index.ts, its public service entry",
+  service: "a domain service, the domain's operation logic",
+  'rule-api': 'a rules/index.ts, the public entry to pure rules',
+  rule: 'a pure rule',
+  'model-api': 'a models/index.ts, the public entry to models',
+  model: 'a model, the shape of domain data',
+  'port-api': 'a ports/index.ts, the public entry to ports',
+  port: 'a port, the interface a domain needs from the outside',
+  'error-api': 'an errors/index.ts, the public entry to named errors',
+  error: 'a named error',
+  'repository-api':
+    "the storage package's public entry, index.ts or repositories/<domain>/index.ts",
+  repository:
+    'storage internals: the SQLite schema and the repositories that implement domain ports',
+  'gateway-api': "a git or agents capability's index.ts, its public entry",
+  gateway:
+    'an adapter that implements ports over git, coding agents, the file system or the network (packages/git, packages/agents, apps/server/src/adapters)',
+  'process-api':
+    'packages/process index.ts, the one entry for running child processes',
+  process: 'packages/process internals, the only code that spawns a process',
+  runtime:
+    'the server runtime in apps/server/src/runtime: lanes, locks and the data directory',
+  'server-port':
+    'a server port in apps/server/src/ports, an interface server adapters implement',
+  bootstrap:
+    'the composition root in apps/server/src/bootstrap, which wires adapters into use cases',
+  contract:
+    'the HTTP contract in packages/contracts, the schemas server and clients share',
+  config: 'server configuration and limits in apps/server/src/config',
+  kernel: 'the kernel models and ports every package shares',
+  fake: 'a fake in spec/fakes/ that stands in for a port in specs',
+  fixture: 'spec data in spec/fixtures/',
+  capture:
+    'spec/fixtures/capture.ts, the script that records real output as fixtures',
+  'store-contract':
+    'a store contract in spec/contracts/, the spec every implementation of a store passes',
+  test: 'a .spec.ts behaviour spec',
+  route: 'a TanStack Router file in apps/web/src/routes/',
+  shell: 'the web app shell in apps/web/src/app/',
+  view: 'a feature view, which renders feature data and forwards events',
+  query: "a feature's queries/ file, which owns a read and its cache",
+  command: "a feature's commands/ file, which owns a write and its cache",
+  store:
+    "a feature's store.ts, the owner of shared client state and Web Storage",
+  live: "a feature's live.ts, which applies server notices to its queries",
+  overlays: "a feature's overlays.ts, the owner of its Base UI handles",
+  'web-rule': "a pure function in a feature's rules/",
+  adapter:
+    "a feature's adapters/ file, which wraps an imperative library such as Pierre or the editor",
+  api: "a feature's api.ts, the only code that talks to the server",
+  'feature-index':
+    "a feature's index.ts, its public face to routes, the shell and other features",
+  'web-shared': 'apps/web/src/shared/, which serves every owner',
+  ui: 'a shadcn registry component in components/ui/',
+  'browser-spec':
+    'a browser journey in apps/web/spec/browser/ or negative/, which drives the real app',
+  'browser-kit': 'the journey kit in apps/web/spec/kit/',
+  'web-rule-spec': 'a spec for a pure web rule',
+  'web-config': 'apps/web/vite.config.ts',
+  'web-limits': "apps/web/src/config/limits.ts, the web's limits",
+  'web-entry': 'main.tsx and the generated route tree, where the web starts',
+};
+
+const archRuleReasons = {
+  '<role>-cannot-import-<role>':
+    'Reach that code through a role on this list, or move it to the role that owns it; allowedTargets in architecture/policy.ts keeps dependencies pointing one way, so no role breaks when one above it changes.',
+  '<role>-cannot-import-external':
+    'Reach anything else through the role that wraps it, a port with a gateway, repository or adapter on the server or the feature api.ts in the web; libraries and the operating system then stay in the few files that wrap them.',
+  'code-outside-roots':
+    'Put the file where its line below says; code lives in src/ and spec/ only, because every gate reads those roots and a file elsewhere escapes typecheck, lint and this check.',
+  'unclassified-package-export':
+    'Remove the entry, or ask the owner to plan it in targetPackageExports in architecture/policy.ts; a package exposes only its planned entries, so its inside stays private.',
+  'missing-target-package':
+    'Restore the package, or ask the owner to drop it from targetPackageExports in architecture/policy.ts; the architecture plans every package and checks that it exists.',
+  'missing-target-export':
+    'Export each entry targetPackageExports plans for the package, pointing at a file that exists; other packages import a package through these entries only.',
+  'missing-server-structure':
+    'Restore the file requiredServerFiles in architecture/policy.ts names; the composition root, scopes, status policy, lanes and ports are the fixed shape every server feature builds on.',
+  'no-helpers-folder':
+    'Name the module after what it does and put it with its owner; a helpers folder collects code that has no owner.',
+  'flat-http-route':
+    'Put each endpoint in http/routes/<feature>/<operation>.ts; one file per endpoint, grouped by feature, keeps an endpoint findable from its path.',
+  'use-case-file-name':
+    'Name a use case use-cases/<domain>/<verb-noun>.ts after a domain package; the path says which operation the file runs and which domain owns it.',
+  'service-file-name':
+    'Name a domain service file *-service.ts; the result and lane checks find services by that name.',
+  'role-folder-is-flat':
+    'Keep the file directly in its role folder with a more precise name; a nested file gets no role, so no import rule can check it.',
+  'unclassified-source':
+    'Move the file to a folder architecture/policy.ts classifies; a file without a role escapes every import rule.',
+  'cross-package-import-must-use-package-name':
+    "Import another package by its @porcelain/<name> entry, never a relative path; a relative path skips the package's exports and reaches its inside.",
+  'unclassified-import-target':
+    'Import a file that has a role, or move the target to a classified folder; an import of an unclassified file cannot be checked.',
+  'import-outside-source-roots':
+    'Import only from src/ and spec/ roots or a dependency; product code never leans on tooling, scripts or other files the gates do not check as product code.',
+  'runtime-node-allow-list':
+    'Add a capability as a port with an adapter instead of reaching Node from the runtime; only the runtime files runtimeNodeModules in architecture/policy.ts names use Node, each for the modules listed, so the runtime stays small.',
+  'no-circular-source-imports':
+    'Break the cycle by moving the shared piece to a module both sides import; a cycle ties the modules into one and makes load order matter.',
+  'git-capability-dependency-order':
+    'A git capability imports only the ones before it, discovery, inspection, history, actions, with shared below all; move the code down to the capability both need, so the capabilities never form a cycle.',
+  'git-capability-public-api-only':
+    "Import another git capability through its index.ts; a capability's inside stays free to change.",
+  'infrastructure-layout':
+    'Keep git, agents and process code in the one capability layout; the same shape in every infrastructure package tells where commands, parsers and DTOs live.',
+  'test-imports-own-package-support-only':
+    "Use fakes and fixtures from the spec's own package or the kernel, and add the fake this package needs; another package's support ties two packages' specs together.",
+  'store-contract-runs-against-its-fake-storage-and-server-adapters-only':
+    "Run a package's store contract only from its own specs, storage specs or server specs; it proves each implementation of the store against one spec and is no general helper.",
+  'package-cannot-import-server':
+    'Move what a package needs from the server into a package; packages sit below the server, and only the desktop reaches it, through bootstrap/desktop.ts and config/desktop-settings.ts.',
+  'fake-imports-own-package-only':
+    "Build a fake on its own package and the kernel only, never on another owner's fake; each package's specs then stand alone.",
+  'fixture-imports-own-package-models-only':
+    'Build fixture data from its own package and the kernel models only; a fixture that pulls another package breaks when that package changes.',
+  'git-cannot-import-domain':
+    'Take shapes from the kernel; packages/git is infrastructure the domains reach through their ports, so a domain change never breaks git.',
+  'domain-cannot-import-another-domain':
+    'Move the shared piece into the kernel, or combine the domains in a server use case; each domain then changes alone.',
+  'domain-cannot-import-transport-contract':
+    'Use domain models and let the server map them to the contract; the contract is the HTTP shape, so the domain and the wire change apart.',
+  'contract-imports-kernel-rules-only':
+    'Import rules into a contract from the kernel only; server and clients share the contract, so it never pulls a domain into a client.',
+  'git-public-api-only':
+    'Import git through a capability entry, @porcelain/git/<capability>; its inside stays free to change.',
+  'domain-public-api-only':
+    "Import a domain through its services, rules, models, ports or errors entry; the files behind them stay the domain's own.",
+  'kernel-public-api-only':
+    'Import kernel rules and errors through @porcelain/kernel/rules and @porcelain/kernel/errors; the files behind them stay free to change.',
+  'storage-public-api-only':
+    'Import storage through @porcelain/storage or its repositories/<domain> entry; tables and queries stay private to storage.',
+  'agents-public-api-only':
+    'Import agents through @porcelain/agents/commit-planning; its inside stays free to change.',
+  'process-public-api-only':
+    'Import process through @porcelain/process; its inside stays free to change.',
+  'process-importable-by-git-agents-installer':
+    'Reach git or a coding agent through its port instead of running a process; only packages/git, packages/agents, the installer and the gateways serverProcessImporters names spawn processes, so every spawn lives in a few audited places.',
+  'no-undefined-union-result':
+    'Return a named outcome or throw a named error from execute, never undefined or null; the caller then handles every case by name.',
+  'models-file-shape':
+    'Name a Result outcome without undefined, void or null, and import a kernel type from @porcelain/kernel instead of declaring it again; one shape has one definition.',
+  'recording-fake-for-write-only-port':
+    'Give a port with a read-back an InMemory fake that specs read through the port; a Recording fake fits only ports whose methods answer nothing, so specs assert behaviour, not calls.',
+  'lane-per-table':
+    'Run the store call inside the lane that owns its table, as tableLanes in architecture/type-rules.ts names; a lane serializes the writes to its tables, so a call outside it races them.',
+  'lane-mode-matches-service':
+    "Call a service that writes inside a 'write' lane, lanes.background or lanes.finish; reads share a lane, so a write in a read lane races them.",
+  'unused-export':
+    'Delete the export or stop exporting it; an export nothing imports is surface every later change must keep working.',
+  'unused-dependency':
+    'Remove the dependency from apps/web/package.json; a dependency nothing imports costs install time and invites a second way to do one thing.',
+  'web-shadcn-ui-owner':
+    'Add a missing primitive through the shadcn CLI and compose product views in features/<domain>/views/; components/ui stays exactly what the registry serves.',
+  'web-shadcn-primitive-owner':
+    'Use the shadcn primitive from components/ui and its variants; a local copy under its name drifts from the registry.',
+  'web-no-runtime-fixture':
+    'Drive the web against the real isolated server; a mock in runtime code proves the mock, not the product.',
+  'web-routes-import-feature-index':
+    "Reach a feature from a route through features/<domain>/index.ts only, so the feature's inside can move without touching routes.",
+  'web-features-import-feature-index':
+    "Reach another feature through its index.ts only, so each feature's inside stays its own.",
+  'web-shared-imports-no-owner':
+    'Keep shared/ and components/ui free of features, the app shell and routes; they serve every owner and import none of them.',
+  'web-nothing-imports-routes':
+    'Import what a route uses from its feature instead; routes are the leaves TanStack Router loads from the generated route tree, and nothing else imports them.',
+  'web-baseline':
+    'Fix the new finding instead of raising architecture/web-baseline.json, and write a lower count down when one is fixed; the baseline only shrinks, so old debt never grows back.',
+} satisfies Record<
+  (typeof archRules)[number] | (typeof archRuleFamilies)[number],
+  string
+>;
+
+const unlistedPackage = 'a-package-policy-does-not-list';
+const nodeNames = [...nodeModules]
+  .filter((name) => !name.includes('/') && !name.startsWith('_'))
+  .toSorted();
+
+function series(noun: string, names: readonly string[]): string {
+  return `${noun}${names.length === 1 ? '' : 's'} ${names.join(', ')}`;
+}
+
+function listedRoles(names: readonly Role[]): string {
+  return names.length === 0 ? 'no other role' : `only ${names.join(', ')}`;
+}
+
+function externalAllowance(role: Role): string {
+  const packages = externalPackages[role];
+  const npm = !forbiddenExternal(role, unlistedPackage)
+    ? 'any npm package'
+    : packages.length === 0
+      ? 'no npm package'
+      : `only the npm ${series('package', packages)}`;
+  const allowed = nodeNames.filter((name) => !forbiddenExternal(role, name));
+  const refused = nodeNames.filter((name) => forbiddenExternal(role, name));
+  const node =
+    refused.length === 0
+      ? 'every Node built-in'
+      : allowed.length === 0
+        ? 'no Node built-in'
+        : allowed.length < refused.length
+          ? `only the Node ${series('built-in', allowed)}`
+          : `every Node built-in except ${refused.join(', ')}`;
+  return `${npm} and ${node}`;
+}
+
+export function archRuleReason(rule: ArchRule): string {
+  const named = archRules.find((name) => name === rule);
+  if (named !== undefined) return archRuleReasons[named];
+  const [, fromName, toName] = /^(.+)-cannot-import-(.+)$/.exec(rule) ?? [];
+  const from = roles.find((role) => role === fromName);
+  if (from === undefined) throw new Error(`${rule} names no role`);
+  const to = roles.find((role) => role === toName);
+  if (to === undefined)
+    return `${from} is ${rolePurposes[from]}; it imports ${externalAllowance(from)}. ${archRuleReasons['<role>-cannot-import-external']}`;
+  return `${from} is ${rolePurposes[from]}, and ${to} is ${rolePurposes[to]}. ${from} imports ${listedRoles([...allowedTargets[from]])}. ${archRuleReasons['<role>-cannot-import-<role>']}`;
+}
