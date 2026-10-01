@@ -336,7 +336,11 @@ function DocumentArea({
     scope,
     context,
     layers,
-    hasHandoff,
+    handoff: published.data?.active
+      ? ('review' as const)
+      : hasHandoff
+        ? ('changes' as const)
+        : null,
     base,
     onOpen,
     navigationTrigger,
@@ -370,7 +374,7 @@ function PaneView({
   scope,
   context,
   layers,
-  hasHandoff,
+  handoff,
   base,
   onOpen,
   navigationTrigger,
@@ -388,7 +392,7 @@ function PaneView({
   setFocused: (pane: PaneIndex) => void;
   scope: { projectId: string; worktreeId: string };
   layers: readonly Pick<ReviewLayer, 'id' | 'title'>[];
-  hasHandoff: boolean;
+  handoff: 'review' | 'changes' | null;
   onOpen: OpenDocument;
   reveal?: (RevealComment & { pane: PaneIndex; key: string }) | undefined;
   navigationTrigger: RefObject<HTMLButtonElement | null>;
@@ -449,7 +453,7 @@ function PaneView({
         trailing={!split || index === 1 ? tabControls : undefined}
       />
       {document == null ? (
-        <EmptyDocument hasHandoff={hasHandoff} onOpen={onOpen} />
+        <EmptyDocument handoff={handoff} onOpen={onOpen} />
       ) : (
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <ReviewBoundary key={pane.active}>
@@ -474,13 +478,13 @@ function PaneView({
 }
 
 function EmptyDocument({
-  hasHandoff,
+  handoff,
   onOpen,
 }: {
-  hasHandoff: boolean;
+  handoff: 'review' | 'changes' | null;
   onOpen: OpenDocument;
-  reveal?: (RevealComment & { pane: PaneIndex; key: string }) | undefined;
 }) {
+  const opens = handoff === 'review' ? 'the summary' : 'all changes';
   return (
     <div className="grid min-h-0 flex-1 place-items-center p-8">
       <Empty>
@@ -489,17 +493,17 @@ function EmptyDocument({
             <ReviewLayersIcon />
           </EmptyMedia>
           <EmptyTitle>
-            {hasHandoff ? 'Nothing open' : 'No changes to review'}
+            {handoff ? 'Nothing open' : 'No changes to review'}
           </EmptyTitle>
           <EmptyDescription>
-            {hasHandoff
-              ? 'Open the handoff, or choose a file or commit from the right.'
+            {handoff
+              ? `Open ${opens}, or choose a file or commit from the right.`
               : 'Browse files or history from the right.'}
           </EmptyDescription>
         </EmptyHeader>
-        {hasHandoff && (
+        {handoff && (
           <Button onClick={() => onOpen({ kind: 'handoff' })}>
-            Open all changes
+            {handoff === 'review' ? 'Open summary' : 'Open all changes'}
           </Button>
         )}
       </Empty>
