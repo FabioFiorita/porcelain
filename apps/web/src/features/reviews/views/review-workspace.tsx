@@ -206,7 +206,10 @@ export function ReviewWorkspace({
       <ResizablePanel id="review-document" minSize={480}>
         <section
           aria-label="Review content"
-          className="flex h-full min-w-0 flex-col overflow-hidden rounded-xl border bg-card"
+          className={cn(
+            'flex h-full min-w-0 flex-col overflow-hidden rounded-xl border bg-card',
+            sidebarOpen && desktop && 'mr-1',
+          )}
         >
           <ReviewBoundary>
             <InterruptedActionNotice scope={scope} context={context} />
@@ -234,14 +237,14 @@ export function ReviewWorkspace({
       </ResizablePanel>
       {sidebarOpen && desktop && (
         <>
-          <ResizableHandle className="w-2 after:w-2" />
+          <ResizableHandle />
           <ResizablePanel
             id="review-sidebar"
             defaultSize={320}
             minSize={260}
             maxSize={520}
           >
-            {sidebar}
+            <div className="h-full pl-1">{sidebar}</div>
           </ResizablePanel>
         </>
       )}

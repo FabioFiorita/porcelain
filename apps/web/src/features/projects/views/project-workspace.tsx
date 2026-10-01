@@ -54,13 +54,22 @@ export function ProjectWorkspace({
               minSize={220}
               maxSize={420}
             >
-              <ProjectNavigator {...navigator} />
+              <div className="h-full pr-1">
+                <ProjectNavigator {...navigator} />
+              </div>
             </ResizablePanel>
-            <ResizableHandle className="w-2 after:w-2" />
+            <ResizableHandle />
           </>
         )}
         <ResizablePanel id="document" minSize={isMobile ? 0 : 420}>
-          <div className="flex h-full min-h-0 min-w-0 flex-col">{children}</div>
+          <div
+            className={cn(
+              'flex h-full min-h-0 min-w-0 flex-col',
+              !isMobile && open && 'pl-1',
+            )}
+          >
+            {children}
+          </div>
         </ResizablePanel>
       </ResizablePanelGroup>
     </div>
