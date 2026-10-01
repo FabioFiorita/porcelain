@@ -99,7 +99,7 @@ export function ProjectNavigator({
       </header>
 
       <ScrollArea className="h-0 min-h-0 flex-1">
-        <div className="p-2">
+        <div className={remotes ? 'py-2 pr-2' : 'p-2'}>
           {remotes ? (
             <>
               <MachineSection name="This computer" icon={MonitorIcon}>
