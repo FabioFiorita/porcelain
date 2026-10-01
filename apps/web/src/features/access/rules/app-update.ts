@@ -18,3 +18,9 @@ export function appUpdateProgress(state: AppUpdateState): string | undefined {
       return undefined;
   }
 }
+
+export function noUpdateMessage(state: AppUpdateState): string {
+  return state.status === 'unavailable'
+    ? 'This build updates by reinstalling; there is no update feed yet.'
+    : 'This is the newest version of the app.';
+}

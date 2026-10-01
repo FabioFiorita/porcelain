@@ -2,13 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { LocalAppUpdate } from './local-app-update.ts';
 
 describe('LocalAppUpdate', () => {
-  it('reports no available release and publishes checking then idle', async () => {
+  it('reports that this build has no update feed, before and after a check that finds no release', async () => {
     const states: ReturnType<LocalAppUpdate['read']>[] = [];
     const update = new LocalAppUpdate((state) => states.push(state));
-    expect(update.read()).toEqual({ status: 'idle' });
+    expect(update.read()).toEqual({ status: 'unavailable' });
     expect(await update.check()).toEqual({ available: null });
-    expect(states).toEqual([{ status: 'checking' }, { status: 'idle' }]);
-    expect(update.read()).toEqual({ status: 'idle' });
+    expect(states).toEqual([{ status: 'checking' }, { status: 'unavailable' }]);
+    expect(update.read()).toEqual({ status: 'unavailable' });
   });
   it('rejects installation and publishes an error when no release feed exists', async () => {
     const states: ReturnType<LocalAppUpdate['read']>[] = [];
@@ -28,6 +28,6 @@ describe('LocalAppUpdate', () => {
     const update = new LocalAppUpdate(() => undefined);
     await expect(update.install()).rejects.toThrow();
     expect(await update.check()).toEqual({ available: null });
-    expect(update.read()).toEqual({ status: 'idle' });
+    expect(update.read()).toEqual({ status: 'unavailable' });
   });
 });
