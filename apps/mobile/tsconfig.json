@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "lib": ["ES2024", "DOM"],
+    "types": ["react"],
+    "moduleSuffixes": [".ios", ".android", ""]
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx", "spec/**/*.ts", "spec/**/*.tsx"]
+}

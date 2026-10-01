@@ -61,6 +61,9 @@ const packages = packageNames.flatMap((name) => [
 ]);
 
 const serverRoots = [
+  'apps/mobile/src',
+  'apps/mobile/spec',
+  'apps/mobile/app.config.ts',
   'apps/desktop/src',
   'apps/desktop/spec',
   'apps/server/src',
@@ -107,7 +110,10 @@ function filesUnder(path: string): string[] {
   return readdirSync(path, { withFileTypes: true }).flatMap((entry) => {
     const child = join(path, entry.name);
     if (entry.isDirectory())
-      return skippedDirectories.has(entry.name) ? [] : filesUnder(child);
+      return skippedDirectories.has(entry.name) ||
+        /^apps\/mobile\/(?:ios|android|\.expo)$/.test(child)
+        ? []
+        : filesUnder(child);
     return entry.isFile() ? [child] : [];
   });
 }
@@ -359,6 +365,7 @@ const manifestScriptsSchema = z.object({
 });
 
 const packageFolders = [
+  'apps/mobile',
   'apps/desktop',
   'apps/server',
   'apps/web',
@@ -748,6 +755,7 @@ const gateScripts: Readonly<Record<string, Readonly<Record<string, string>>>> =
       'typecheck:desktop': 'pnpm --filter @porcelain/desktop typecheck',
       'typecheck:web': 'pnpm --filter @porcelain/web typecheck',
       'typecheck:client': 'pnpm --filter @porcelain/client typecheck',
+      'typecheck:mobile': 'pnpm --filter @porcelain/mobile typecheck',
       'lint:web': 'node scripts/style.ts lint web',
       'format:web:check': 'node scripts/style.ts format web',
       'verify:web': 'node .agents/skills/web-verify/scripts/browser.ts',
@@ -763,30 +771,77 @@ const gateScripts: Readonly<Record<string, Readonly<Record<string, string>>>> =
     },
   };
 
+function fastCheckProblems(): Problem[] {
+  const program = parseSync(
+    'scripts/check.ts',
+    readFileSync('scripts/check.ts', 'utf8'),
+  ).program;
+  const commands = program.body.flatMap((statement) =>
+    statement.type === 'VariableDeclaration'
+      ? statement.declarations.flatMap((declaration) =>
+          declaration.id.type === 'Identifier' &&
+          declaration.id.name === 'commands' &&
+          declaration.init?.type === 'ArrayExpression'
+            ? declaration.init.elements.flatMap((element) =>
+                element?.type === 'Literal' && typeof element.value === 'string'
+                  ? [element.value]
+                  : [],
+              )
+            : [],
+        )
+      : [],
+  );
+  const required = [
+    'typecheck:server',
+    'typecheck:web',
+    'typecheck:client',
+    'typecheck:mobile',
+    'typecheck:desktop',
+    'lint:server',
+    'lint:web',
+    'format:server:check',
+    'format:web:check',
+    'arch:check',
+    'test',
+    'test:rules',
+  ];
+  return required
+    .filter((command) => !commands.includes(command))
+    .map((command) =>
+      problem(
+        'package-scripts',
+        `scripts/check.ts runs ${command}; a package script alone does not wire its check into the fast gate.`,
+      ),
+    );
+}
+
 function scriptProblems(): Problem[] {
   const manifests = [
     'package.json',
     ...packageFolders.map((folder) => join(folder, 'package.json')),
   ];
-  return manifests.flatMap((path) => {
-    const scripts = existsSync(path)
-      ? (manifestScriptsSchema.parse(strictJson(path)).scripts ?? {})
-      : {};
-    const expected = {
-      ...(path === 'package.json' ? {} : { typecheck: 'tsc --noEmit' }),
-      ...gateScripts[path],
-    };
-    return Object.entries(expected).flatMap(([name, command]) =>
-      scripts[name] === command
-        ? []
-        : [
-            problem(
-              'package-scripts',
-              `${path} runs "${command}" as ${name}; a gate cannot be switched off from a package script.`,
-            ),
-          ],
-    );
-  });
+  return [
+    ...fastCheckProblems(),
+    ...manifests.flatMap((path) => {
+      const scripts = existsSync(path)
+        ? (manifestScriptsSchema.parse(strictJson(path)).scripts ?? {})
+        : {};
+      const expected = {
+        ...(path === 'package.json' ? {} : { typecheck: 'tsc --noEmit' }),
+        ...gateScripts[path],
+      };
+      return Object.entries(expected).flatMap(([name, command]) =>
+        scripts[name] === command
+          ? []
+          : [
+              problem(
+                'package-scripts',
+                `${path} runs "${command}" as ${name}; a gate cannot be switched off from a package script.`,
+              ),
+            ],
+      );
+    }),
+  ];
 }
 
 const vitestConfigSchema = z.object({
@@ -841,6 +896,10 @@ const cruiserRules = [
   'web-features-import-feature-index',
   'web-shared-imports-no-owner',
   'web-nothing-imports-routes',
+  'mobile-routes-import-feature-index',
+  'mobile-features-import-feature-index',
+  'mobile-shared-imports-no-owner',
+  'mobile-nothing-imports-routes',
 ] as const;
 
 const reportsSpecDiscipline = (reporter: unknown): boolean =>
@@ -909,7 +968,7 @@ async function configModuleProblems(): Promise<Problem[]> {
         forbidden.find((rule) => rule.name === name)?.severity !== 'error',
     ) ||
     !isDeepStrictEqual(circular?.from, {
-      path: '^(apps/server/src/|apps/web/src/|apps/desktop/src/|packages/)',
+      path: '^(apps/server/src/|apps/web/src/|apps/desktop/src/|apps/mobile/src/|packages/)',
     }) ||
     !isDeepStrictEqual(circular?.to, { circular: true })
   )

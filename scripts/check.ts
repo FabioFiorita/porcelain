@@ -4,6 +4,7 @@ const commands = [
   'typecheck:server',
   'typecheck:web',
   'typecheck:client',
+  'typecheck:mobile',
   'typecheck:desktop',
   'lint:server',
   'lint:web',

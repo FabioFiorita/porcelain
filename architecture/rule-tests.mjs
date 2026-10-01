@@ -300,3 +300,32 @@ deepStrictEqual(
   { reported: 2, held: 2, problems: [] },
 );
 process.stdout.write('PASS shrink-only baseline settlement\n');
+
+deepStrictEqual(classify('apps/mobile/src/app/index.tsx'), {
+  role: 'route',
+  owner: 'mobile',
+});
+deepStrictEqual(classify('apps/mobile/src/shared/icons/tab-icon.android.ts'), {
+  role: 'web-shared',
+  owner: 'mobile',
+});
+deepStrictEqual(
+  classify('apps/mobile/src/features/files/views/files-screen.tsx'),
+  { role: 'view', owner: 'mobile' },
+);
+deepStrictEqual(
+  classify('apps/mobile/src/features/files/views/nested/view.tsx'),
+  undefined,
+);
+deepStrictEqual(
+  violation(
+    { role: 'view', owner: 'mobile' },
+    { role: 'web-shared', owner: 'mobile' },
+  ),
+  undefined,
+);
+deepStrictEqual(
+  violation({ role: 'view', owner: 'mobile' }, { role: 'api', owner: 'web' }),
+  'mobile-imports-mobile-client-and-contracts-only',
+);
+process.stdout.write('PASS mobile classification and app boundary\n');

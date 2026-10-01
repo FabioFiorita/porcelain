@@ -1,4 +1,7 @@
 node_modules/
+apps/mobile/.expo/
+apps/mobile/ios/
+apps/mobile/android/
 dist/
 .vite/
 *.tsbuildinfo

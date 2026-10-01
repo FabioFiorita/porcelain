@@ -41,7 +41,7 @@ type ModuleShape = {
 };
 
 const checkedFile =
-  /^(?:(?:packages\/[^/]+|apps\/(?:server|desktop))\/src\/.+\.ts|apps\/web\/src\/.+\.tsx?)$/;
+  /^(?:(?:packages\/[^/]+|apps\/(?:server|desktop))\/src\/.+\.ts|apps\/(?:web|mobile)\/src\/.+\.tsx?)$/;
 const skippedFile = /(?:\.spec|\.d)\.ts$|^apps\/web\/src\/components\/ui\//;
 const webSource = 'apps/web/src';
 const webCandidates = ['', '.ts', '.tsx', '/index.ts', '/index.tsx'];
@@ -105,11 +105,21 @@ function resolveModule(
   specifier: string,
   manifests: Map<string, Record<string, string>>,
 ): string | undefined {
-  if (from.startsWith('apps/web/') && /^(?:\.|@\/)/.test(specifier)) {
+  if (/^apps\/(?:web|mobile)\//.test(from) && /^(?:\.|@\/)/.test(specifier)) {
     const base = specifier.startsWith('@/')
       ? join(root, webSource, specifier.slice('@/'.length))
       : resolve(root, dirname(from), specifier);
-    const found = webCandidates
+    const candidates = from.startsWith('apps/mobile/')
+      ? [
+          '',
+          '.ios.ts',
+          '.ios.tsx',
+          '.android.ts',
+          '.android.tsx',
+          ...webCandidates,
+        ]
+      : webCandidates;
+    const found = candidates
       .map((suffix) => base + suffix)
       .find((path) => /\.tsx?$/.test(path) && existsSync(path));
     return found === undefined ? undefined : relative(root, found);
@@ -226,6 +236,7 @@ function projectConfigs(root: string): string[] {
     join(root, 'apps/desktop/tsconfig.json'),
     join(root, 'apps/server/tsconfig.json'),
     join(root, 'apps/web/tsconfig.json'),
+    join(root, 'apps/mobile/tsconfig.json'),
     join(root, 'apps/web/tsconfig.node.json'),
     ...packages,
   ].filter((path) => existsSync(path));
@@ -264,10 +275,18 @@ export function unusedExportFindings(root: string): UnusedExportFinding[] {
         else
           for (const name of imported.names)
             pending.push({ file: imported.file, name });
+    for (const file of shapes.keys())
+      if (/^apps\/mobile\/src\/app\/.+\.tsx$/.test(file))
+        pending.push({ file, name: 'default' });
     for (let binding = pending.pop(); binding; binding = pending.pop()) {
       const names = used.get(binding.file) ?? new Set<string>();
       if (names.has(binding.name)) continue;
       names.add(binding.name);
+      if (/^apps\/mobile\/.+\.ios\.tsx?$/.test(binding.file)) {
+        const sibling = binding.file.replace(/\.ios\./, '.android.');
+        if (shapes.has(sibling))
+          pending.push({ file: sibling, name: binding.name });
+      }
       used.set(binding.file, names);
       const shape = shapes.get(binding.file);
       if (!shape) continue;

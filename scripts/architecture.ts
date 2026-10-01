@@ -89,9 +89,11 @@ const sourceRoots = [
     `packages/${name}/spec`,
   ]),
 ].filter((root) => existsSync(join(repositoryRoot, root)));
+const mobileRoots = ['apps/mobile/src'];
+const mobileConfig = 'apps/mobile/app.config.ts';
 const webRoots = ['apps/web/src', 'apps/web/spec'];
 const webConfig = 'apps/web/vite.config.ts';
-const allRoots = [...sourceRoots, ...webRoots];
+const allRoots = [...sourceRoots, ...webRoots, ...mobileRoots];
 
 const ignoredDirectories = new Set(['node_modules', 'dist', '.vite', '.turbo']);
 const ignoredFile = /(?:^\.DS_Store|\.tsbuildinfo)$/;
@@ -104,7 +106,10 @@ function filesUnder(directory: string): string[] {
   }).flatMap((entry) => {
     const path = join(directory, entry.name);
     if (entry.isDirectory())
-      return ignoredDirectories.has(entry.name) ? [] : filesUnder(path);
+      return ignoredDirectories.has(entry.name) ||
+        /^apps\/mobile\/(?:ios|android|\.expo)$/.test(path)
+        ? []
+        : filesUnder(path);
     return entry.isFile() && !ignoredFile.test(entry.name) ? [path] : [];
   });
 }
@@ -114,6 +119,7 @@ function sourceFiles(directory: string): string[] {
 }
 
 const permittedOutsideRoots: readonly RegExp[] = [
+  /^apps\/mobile\/(?:package\.json|tsconfig\.json|app\.config\.ts|eas\.json)$/,
   /^(?:packages\/[^/]+|apps\/(?:server|desktop))\/(?:package|tsconfig)\.json$/,
   /^packages\/storage\/drizzle\/(?:meta\/)?[^/]+\.(?:sql|json)$/,
   /^packages\/storage\/drizzle\.config\.ts$/,
@@ -130,6 +136,7 @@ const webAsset = /^apps\/web\/src\/(?:[^/]+\.css|assets\/[^/]+)$/;
 function placementFindings(): Finding[] {
   const files = [...filesUnder('packages'), ...filesUnder('apps')];
   return files.flatMap((path) => {
+    if (/^apps\/mobile\/(?:src|spec)\/.+\.tsx?$/.test(path)) return [];
     if (webInside.test(path)) {
       if (/\.tsx?$/.test(path) || webAsset.test(path)) return [];
       return [
@@ -203,17 +210,44 @@ async function scan(sources: readonly string[]): Promise<CruiseReport> {
     JSON.parse(result.stdout),
   );
   const webReport = await webScan();
+  const mobileOptions = await extractDepcruiseOptions(
+    join(repositoryRoot, 'architecture/dependency-cruiser.cjs'),
+  );
+  const mobileReports = await Promise.all(
+    ['ios', 'android'].map(async (platform) => {
+      const result = await cruise([...mobileRoots, mobileConfig], {
+        ...mobileOptions,
+        enhancedResolveOptions: {
+          ...mobileOptions.enhancedResolveOptions,
+          extensions: [
+            `.${platform}.ts`,
+            `.${platform}.tsx`,
+            '.ts',
+            '.tsx',
+            '.js',
+            '.json',
+          ],
+        },
+      });
+      return cruiseReportSchema.parse(result.output);
+    }),
+  );
+  const mobileModules = mobileReports.flatMap((report) => report.modules);
+
   const report: CruiseReport = {
-    modules: [...server.modules, ...webReport.modules],
+    modules: [...server.modules, ...webReport.modules, ...mobileModules],
     summary: {
       totalCruised:
-        server.summary.totalCruised + webReport.summary.totalCruised,
+        server.summary.totalCruised +
+        webReport.summary.totalCruised +
+        mobileModules.length,
       totalDependenciesCruised:
         server.summary.totalDependenciesCruised +
         webReport.summary.totalDependenciesCruised,
       violations: [
         ...server.summary.violations,
         ...webReport.summary.violations,
+        ...mobileReports.flatMap((report) => report.summary.violations),
       ],
     },
   };
@@ -494,7 +528,7 @@ function dependencyFindings(
 try {
   if (process.argv[2] !== 'check')
     throw new Error('Usage: pnpm arch:check [--all]');
-  const sources = [...allRoots.flatMap(sourceFiles), webConfig];
+  const sources = [...allRoots.flatMap(sourceFiles), webConfig, mobileConfig];
   const report = await scan(sources);
   const { classified, findings } = classifyAll(sources);
   const found = [

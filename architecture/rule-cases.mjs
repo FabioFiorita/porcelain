@@ -1,5 +1,52 @@
 export default [
   {
+    rule: 'mobile-native-ui',
+    path: 'apps/mobile/src/features/files/views/files-screen.tsx',
+    valid:
+      "import { Button } from '@expo/ui'; export const Action = () => <Button label='Open' />;",
+    invalid:
+      "import { Pressable as Button } from 'react-native'; export const Action = () => <Button />;",
+    errors: 1,
+  },
+  {
+    rule: 'mobile-native-ui',
+    path: 'apps/mobile/src/shell/phone-tabs.tsx',
+    valid:
+      "import { View } from 'react-native'; export const Frame = () => <View />;",
+    invalid:
+      "import { Platform as System } from 'react-native'; export const kind = System.OS;",
+    errors: 1,
+  },
+  {
+    rule: 'mobile-native-ui',
+    path: 'apps/mobile/src/features/files/views/files-screen.tsx',
+    invalid: "export { TextInput as Field } from 'react-native';",
+    errors: 1,
+  },
+  {
+    rule: 'mobile-native-ui',
+    path: 'apps/mobile/src/shared/menu.ios.tsx',
+    valid: "export { Button } from '@expo/ui/swift-ui';",
+    invalid:
+      "import * as Native from 'react-native'; export const Button = Native.Pressable;",
+    errors: 1,
+  },
+  {
+    rule: 'mobile-native-ui',
+    path: 'apps/mobile/src/features/files/views/files-screen.tsx',
+    invalid: "export { Button } from '@expo/ui/swift-ui';",
+    errors: 1,
+  },
+  {
+    rule: 'web-views-no-await',
+    path: 'apps/mobile/src/features/access/views/settings-screen.tsx',
+    valid: 'export const pair = (command: () => void) => command();',
+    invalid:
+      'export const pair = async (command: () => Promise<void>) => { await command(); };',
+    errors: 1,
+  },
+
+  {
     rule: 'web-rules-are-pure',
     path: 'packages/client/src/features/access/rules/probe-rule.ts',
     valid:

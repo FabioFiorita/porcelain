@@ -4,7 +4,7 @@ module.exports = {
       name: 'no-circular-source-imports',
       severity: 'error',
       from: {
-        path: '^(apps/server/src/|apps/web/src/|apps/desktop/src/|packages/)',
+        path: '^(apps/server/src/|apps/web/src/|apps/desktop/src/|apps/mobile/src/|packages/)',
       },
       to: { circular: true },
     },
@@ -40,6 +40,39 @@ module.exports = {
       severity: 'error',
       from: { pathNot: '^apps/web/src/(?:routes/|routeTree\\.gen\\.ts$)' },
       to: { path: '^apps/web/src/routes/' },
+    },
+    {
+      name: 'mobile-routes-import-feature-index',
+      severity: 'error',
+      from: { path: '^apps/mobile/src/app/' },
+      to: {
+        path: '^apps/mobile/src/features/',
+        pathNot: '^apps/mobile/src/features/[^/]+/index\\.ts$',
+      },
+    },
+    {
+      name: 'mobile-features-import-feature-index',
+      severity: 'error',
+      from: { path: '^apps/mobile/src/features/([^/]+)/' },
+      to: {
+        path: '^apps/mobile/src/features/',
+        pathNot: [
+          '^apps/mobile/src/features/$1/',
+          '^apps/mobile/src/features/[^/]+/index\\.ts$',
+        ],
+      },
+    },
+    {
+      name: 'mobile-shared-imports-no-owner',
+      severity: 'error',
+      from: { path: '^apps/mobile/src/shared/' },
+      to: { path: '^apps/mobile/src/(?:features|shell|app)/' },
+    },
+    {
+      name: 'mobile-nothing-imports-routes',
+      severity: 'error',
+      from: { pathNot: '^apps/mobile/src/app/' },
+      to: { path: '^apps/mobile/src/app/' },
     },
   ],
   options: {

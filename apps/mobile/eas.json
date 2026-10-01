@@ -1,0 +1,19 @@
+{
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "ios": { "simulator": true },
+      "env": { "APP_VARIANT": "development" }
+    },
+    "preview": {
+      "distribution": "internal",
+      "env": { "APP_VARIANT": "preview" }
+    },
+    "production": {
+      "distribution": "store",
+      "autoIncrement": true,
+      "env": { "APP_VARIANT": "production" }
+    }
+  }
+}

@@ -247,7 +247,9 @@ function webPath(context) {
 
 function runtimeWeb(path) {
   return (
-    (path.startsWith(webSource) || path.startsWith('packages/client/src/')) &&
+    (path.startsWith(webSource) ||
+      path.startsWith('apps/mobile/src/') ||
+      path.startsWith('packages/client/src/')) &&
     webPart(path) !== 'ui'
   );
 }

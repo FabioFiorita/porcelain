@@ -4,6 +4,7 @@ import { posix } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { classify, nodeGlobalRoles, webPart } from './policy.ts';
 import { webRules } from './web-rules.mjs';
+import { mobileRules } from './mobile-rules.mjs';
 
 const domainPackage = '(?:projects|changes|reviews|files|git-actions|access)';
 const domainSource = new RegExp(
@@ -1182,6 +1183,7 @@ export default {
   meta: { name: 'porcelain' },
   rules: {
     ...webRules,
+    ...mobileRules,
     'operation-class-members': {
       create(context) {
         if (!operationFile.test(repositoryPath(context)) || isSpec(context))

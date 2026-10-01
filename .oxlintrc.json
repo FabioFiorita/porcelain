@@ -41,6 +41,7 @@
     ],
     "shadcn/no-raw-colors": "error",
     "porcelain/no-comments": "error",
+    "porcelain/mobile-native-ui": "error",
     "porcelain/models-are-types": "error",
     "porcelain/bootstrap-constructs-only": "error",
     "porcelain/no-null-in-domain": "error",

@@ -27,6 +27,7 @@
     ".agents/skills/desktop-verify/scripts/**/*.ts",
     "architecture/*.ts",
     "architecture/probes/*.ts",
-    "apps/server/src/adapters/files/node-opendir.d.ts"
+    "apps/server/src/adapters/files/node-opendir.d.ts",
+    "apps/mobile/app.config.ts"
   ]
 }

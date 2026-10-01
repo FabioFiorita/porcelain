@@ -1,0 +1,31 @@
+{
+  "name": "@porcelain/mobile",
+  "private": true,
+  "type": "module",
+  "main": "expo-router/entry",
+  "scripts": {
+    "dev": "expo start --dev-client",
+    "prebuild": "expo prebuild",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@expo/ui": "58.0.9",
+    "@porcelain/client": "workspace:*",
+    "expo": "58.0.0",
+    "expo-build-properties": "58.0.9",
+    "expo-dev-client": "58.0.9",
+    "expo-device": "58.0.3",
+    "expo-linking": "58.0.9",
+    "expo-router": "58.0.10",
+    "expo-secure-store": "58.0.1",
+    "expo-sqlite": "58.0.7",
+    "expo-symbols": "58.0.3",
+    "react": "19.3.0",
+    "react-native": "0.88.0-rc.3",
+    "react-native-safe-area-context": "5.9.1",
+    "react-native-screens": "4.28.0"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.18"
+  }
+}

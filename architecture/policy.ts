@@ -151,6 +151,7 @@ export const roles = [
   'web-limits',
   'web-entry',
   'client-rules-api',
+  'mobile-config',
 ] as const;
 
 export type Role = (typeof roles)[number];
@@ -256,6 +257,11 @@ export const shadcnRegistry: ReadonlySet<string> = new Set([
 ]);
 
 export const archRules = [
+  'mobile-imports-mobile-client-and-contracts-only',
+  'mobile-routes-import-feature-index',
+  'mobile-features-import-feature-index',
+  'mobile-shared-imports-no-owner',
+  'mobile-nothing-imports-routes',
   'client-imports-client-and-contracts-only',
   'client-public-api-only',
   'code-outside-roots',
@@ -569,7 +575,32 @@ const webDomainSet: ReadonlySet<string> = new Set(webDomains);
 const webCode = /\.tsx?$/;
 const kebabFile = /^[a-z0-9]+(?:-[a-z0-9]+)*\.tsx?$/;
 
+function mobilePart(path: string): Role | undefined {
+  if (path === 'apps/mobile/app.config.ts') return 'mobile-config';
+  if (/^apps\/mobile\/src\/shared\/rules\/.+\.spec\.ts$/.test(path))
+    return 'web-rule-spec';
+  if (/^apps\/mobile\/src\/shared\/rules\/[a-z-]+\.ts$/.test(path))
+    return 'web-rule';
+  const inside = path.slice('apps/mobile/src/'.length);
+  if (!path.startsWith('apps/mobile/src/')) return;
+  if (/^app\/(?:[^/]+\/)*[^/]+\.tsx$/.test(inside)) return 'route';
+  if (/^shell\/[^/]+(?:\.(?:ios|android))?\.tsx?$/.test(inside)) return 'shell';
+  if (
+    /^shared\/(?:[a-z-]+\/)?[a-z-]+(?:\.(?:ios|android))?\.tsx?$/.test(inside)
+  )
+    return 'web-shared';
+  const feature = /^features\/([^/]+)\/(.+)$/.exec(inside);
+  if (!feature || !webDomainSet.has(feature[1] ?? '')) return;
+  if (feature[2] === 'index.ts') return 'feature-index';
+  if (/^views\/[a-z-]+(?:\.(?:ios|android))?\.tsx$/.test(feature[2] ?? ''))
+    return 'view';
+  if (/^adapters\/[a-z-]+(?:\.(?:ios|android))?\.tsx?$/.test(feature[2] ?? ''))
+    return 'adapter';
+  return;
+}
+
 export function webPart(path: string): Role | undefined {
+  if (path.startsWith('apps/mobile/')) return mobilePart(path);
   if (path.startsWith('packages/client/src/')) {
     const classified = classifyPackage(
       'client',
@@ -705,6 +736,10 @@ export function classify(path: string): Classification | undefined {
   }
   if (path.startsWith('apps/server/src/'))
     return classifyServer(path.slice('apps/server/src/'.length));
+  if (path.startsWith('apps/mobile/')) {
+    const role = mobilePart(path);
+    return role === undefined ? undefined : classified(role, 'mobile');
+  }
   if (path.startsWith('apps/web/')) return classifyWeb(path);
   return;
 }
@@ -743,6 +778,7 @@ const everything: readonly Role[] = [
 ];
 
 export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
+  'mobile-config': new Set(['web-rule']),
   'client-rules-api': new Set(['web-rule']),
   desktop: new Set([
     'desktop',
@@ -1037,6 +1073,11 @@ export function violation(
   to: Classification,
 ): ArchRule | undefined {
   if (
+    from.owner === 'mobile' &&
+    !['mobile', 'client', 'contracts'].includes(to.owner)
+  )
+    return 'mobile-imports-mobile-client-and-contracts-only';
+  if (
     from.owner === 'client' &&
     to.owner !== 'client' &&
     to.owner !== 'contracts'
@@ -1183,6 +1224,7 @@ const nodeModules = new Set(
 const storageEngineModule = /^(?:fs|child_process)(?:\/|$)/;
 
 export const externalPackages: Record<Role, readonly string[]> = {
+  'mobile-config': ['expo'],
   'client-rules-api': [],
   desktop: ['electron', 'fix-path', 'zod'],
   'desktop-gateway': [],
@@ -1324,6 +1366,8 @@ export function forbiddenExternal(role: Role, module: string): boolean {
 }
 
 const rolePurposes: Record<Role, string> = {
+  'mobile-config':
+    'the Expo build configuration, which selects the installation identity and native plugins',
   'client-rules-api': "a shared client feature's public pure rules entry",
   desktop: 'the Electron desktop app in apps/desktop/src',
   'desktop-gateway':
@@ -1402,6 +1446,16 @@ const rolePurposes: Record<Role, string> = {
 };
 
 const archRuleReasons = {
+  'mobile-imports-mobile-client-and-contracts-only':
+    'Mobile owns native presentation and platform capabilities; shared behavior comes from the client and its contracts, never another app or a server implementation.',
+  'mobile-routes-import-feature-index':
+    'Expo Router routes compose the shell and public feature entries; importing a private view bypasses the feature boundary.',
+  'mobile-features-import-feature-index':
+    'Mobile features reach other features through their public entries so native views do not couple to another feature implementation.',
+  'mobile-shared-imports-no-owner':
+    'Shared native capabilities serve features and the shell and never import their owners.',
+  'mobile-nothing-imports-routes':
+    'Expo Router discovers routes; features and shared capabilities never import routes or acquire navigation ownership.',
   'client-imports-client-and-contracts-only':
     'Keep shared client code independent of apps and server implementations; platform capabilities belong behind client ports implemented by each app.',
   'client-public-api-only':
