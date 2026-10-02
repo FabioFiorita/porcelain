@@ -1,6 +1,6 @@
 import { Slot } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { View, useWindowDimensions } from 'react-native';
+import { useState } from 'react';
+import { View } from 'react-native';
 import {
   Host,
   NavigationSplitView,
@@ -12,27 +12,44 @@ import { TabletSidebar } from './tablet-sidebar';
 import { TabletContents } from './tablet-contents';
 
 export function TabletSplit() {
-  const { width, height } = useWindowDimensions();
-  const [visibility, setVisibility] = useState<NavigationSplitViewVisibility>(
-    width >= height ? 'all' : 'doubleColumn',
-  );
+  const [layout, setLayout] = useState<{
+    landscape: boolean | undefined;
+    visibility: NavigationSplitViewVisibility;
+  }>({ landscape: undefined, visibility: 'all' });
   const [compactColumn, setCompactColumn] =
     useState<NavigationSplitViewColumn>('detail');
-  useEffect(() => {
-    setVisibility(width >= height ? 'all' : 'doubleColumn');
-  }, [width, height]);
   return (
-    <Host style={{ flex: 1 }}>
+    <Host
+      style={{ flex: 1 }}
+      onLayoutContent={({ nativeEvent: { width, height } }) => {
+        if (width === 0 || height === 0) return;
+        const landscape = width >= height;
+        setLayout((previous) =>
+          previous.landscape === landscape
+            ? previous
+            : {
+                landscape,
+                visibility: landscape ? 'all' : 'doubleColumn',
+              },
+        );
+      }}
+    >
       <NavigationSplitView
         preferredCompactColumn={compactColumn}
         onPreferredCompactColumnChange={setCompactColumn}
-        columnVisibility={visibility}
-        onColumnVisibilityChange={setVisibility}
+        columnVisibility={layout.visibility}
+        onColumnVisibilityChange={(visibility) =>
+          setLayout((previous) => ({ ...previous, visibility }))
+        }
       >
         <NavigationSplitView.Sidebar>
           <TabletSidebar
             onNavigate={() => {
-              if (width < height) setVisibility('doubleColumn');
+              setLayout((previous) =>
+                previous.landscape === false
+                  ? { ...previous, visibility: 'doubleColumn' }
+                  : previous,
+              );
             }}
           />
         </NavigationSplitView.Sidebar>
