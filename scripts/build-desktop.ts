@@ -8,7 +8,11 @@ import {
   type FuseV1Config,
 } from '@electron/fuses';
 import { packager } from '@electron/packager';
-import { desktopCommand, root, stageDesktop } from './desktop-stage.ts';
+import {
+  desktopCommand,
+  root,
+  stageDesktop,
+} from '../apps/desktop/spec/kit/stage.ts';
 
 const output = join(root, 'dist/desktop');
 const stage = join(output, 'stage');

@@ -3231,7 +3231,7 @@ export function probeLoad(name: string): Promise<unknown> {
   },
   {
     rule: 'typed-evaluation',
-    path: '.agents/skills/desktop-verify/scripts/feature-map.ts',
+    path: 'apps/desktop/spec/e2e/bridge.e2e.ts',
     valid: `const saved = await page.evaluate(() => porcelainDesktop.credentials.read());
 await page.evaluate((value) => porcelainDesktop.credentials.write(value), saved);`,
     invalid: `const saved = await page.evaluate('window.porcelainDesktop.credentials.read()');

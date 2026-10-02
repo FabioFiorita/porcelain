@@ -96,6 +96,7 @@ const sourceRoots = [
     `packages/${name}/spec`,
   ]),
   '.agents/skills/server-verify/scripts',
+  '.agents/skills/desktop-verify/scripts',
 ].filter((root) => existsSync(join(repositoryRoot, root)));
 const mobileRoots = ['apps/mobile/src'];
 const mobileConfig = 'apps/mobile/app.config.ts';
@@ -139,6 +140,7 @@ function sourceFiles(directory: string): string[] {
 const permittedOutsideRoots: readonly RegExp[] = [
   /^apps\/mobile\/(?:package\.json|tsconfig\.json|app\.config\.ts|eas\.json|metro\.config\.cjs)$/,
   /^(?:packages\/[^/]+|apps\/(?:server|desktop))\/(?:package|tsconfig)\.json$/,
+  /^apps\/desktop\/playwright\.config\.ts$/,
   /^packages\/storage\/drizzle\/(?:meta\/)?[^/]+\.(?:sql|json)$/,
   /^packages\/storage\/drizzle\.config\.ts$/,
   /^packages\/storage\/scripts\/[^/]+\.ts$/,

@@ -60,6 +60,7 @@ const serverRoots = [
   mobileMetroFile,
   'apps/desktop/src',
   'apps/desktop/spec',
+  'apps/desktop/playwright.config.ts',
   'apps/server/src',
   'apps/server/spec',
   ...packages,
@@ -787,6 +788,7 @@ const gateScripts: Readonly<Record<string, Readonly<Record<string, string>>>> =
       'test:integration': 'vitest run --config vitest.config.ts',
       'test:e2e': 'playwright test',
     },
+    'apps/desktop/package.json': { 'test:e2e': 'playwright test' },
     'apps/server/package.json': {
       'test:integration':
         'vitest run --config ../../vitest.config.ts --project @porcelain/server-integration',
@@ -899,6 +901,15 @@ const playwrightConfigSchema = z.object({
       headless: z.unknown(),
       trace: z.unknown(),
     }),
+  }),
+});
+
+const desktopPlaywrightConfigSchema = z.object({
+  default: z.object({
+    testDir: z.unknown(),
+    globalSetup: z.unknown(),
+    retries: z.unknown(),
+    forbidOnly: z.unknown(),
   }),
 });
 
@@ -1032,6 +1043,23 @@ async function configModuleProblems(): Promise<Problem[]> {
       problem(
         'playwright-config',
         'apps/web/playwright.config.ts runs every e2e test once, with no retry and no .only, in headless Chromium, and keeps the trace of each failure.',
+      ),
+    );
+  const desktop = desktopPlaywrightConfigSchema.safeParse(
+    await load('apps/desktop/playwright.config.ts'),
+  );
+  const native = desktop.success ? desktop.data.default : undefined;
+  if (
+    native === undefined ||
+    native.testDir !== './spec/e2e' ||
+    native.globalSetup !== './spec/e2e/global-setup.ts' ||
+    native.retries !== 0 ||
+    native.forbidOnly !== true
+  )
+    problems.push(
+      problem(
+        'playwright-config',
+        'apps/desktop/playwright.config.ts runs every desktop e2e test in spec/e2e once, with no retry and no .only, after the global setup that refuses any host but macOS and stages Porcelain Dev.',
       ),
     );
   const cruiser = cruiserConfigSchema.safeParse(

@@ -28,7 +28,6 @@
     "features:check": "node scripts/feature-maps.ts",
     "desktop:build": "node scripts/build-desktop.ts",
     "desktop:install": "node scripts/install-desktop.ts",
-    "verify:desktop": "node .agents/skills/desktop-verify/scripts/verify.ts",
     "dev:mobile": "pnpm --filter @porcelain/mobile dev"
   },
   "devDependencies": {
@@ -37,6 +36,7 @@
     "@electron/packager": "20.3.0",
     "@electron/rebuild": "4.2.0",
     "@porcelain/contracts": "workspace:*",
+    "@porcelain/desktop": "workspace:*",
     "@shadcn/lint": "0.2.0",
     "@tanstack/router-generator": "1.167.34",
     "@types/babel__core": "7.20.5",

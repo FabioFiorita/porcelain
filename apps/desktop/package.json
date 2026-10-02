@@ -3,9 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "exports": {
+    "./kit/*": "./spec/kit/*.ts"
+  },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --config ../../vitest.config.ts --project @porcelain/desktop"
+    "test": "vitest run --config ../../vitest.config.ts --project @porcelain/desktop",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@porcelain/contracts": "workspace:*",
@@ -13,5 +17,8 @@
     "electron": "44.4.5",
     "fix-path": "5.0.0",
     "zod": "4.5.4"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0"
   }
 }

@@ -164,6 +164,10 @@ export const roles = [
   'web-test-kit',
   'web-test-config',
   'web-verify-cli',
+  'desktop-kit',
+  'desktop-e2e',
+  'desktop-e2e-kit',
+  'desktop-verify-cli',
   'web-rule-spec',
   'web-config',
   'web-limits',
@@ -847,6 +851,10 @@ export function classify(path: string): Classification | undefined {
     path === 'apps/server/src/config/desktop-settings.ts'
   )
     return classified('desktop-server-api', 'server');
+  if (path.startsWith('apps/desktop/spec/')) {
+    const role = desktopSpecPart(path);
+    return role === undefined ? undefined : classified(role, 'desktop');
+  }
   if (path.startsWith('apps/desktop/src/')) {
     if (path.endsWith('.spec.ts')) return classified('test', 'desktop');
     if (path.startsWith('apps/desktop/src/adapters/'))
@@ -865,7 +873,23 @@ export function classify(path: string): Classification | undefined {
   if (
     /^\.agents\/skills\/web-verify\/scripts\/[a-z]+(?:-[a-z]+)*\.ts$/.test(path)
   )
-    return classified('web-verify-cli', 'web-verify');
+    return classified('web-verify-cli', 'verify');
+  if (
+    /^\.agents\/skills\/desktop-verify\/scripts\/[a-z]+(?:-[a-z]+)*\.ts$/.test(
+      path,
+    )
+  )
+    return classified('desktop-verify-cli', 'verify');
+  return;
+}
+
+function desktopSpecPart(path: string): Role | undefined {
+  const inside = path.slice('apps/desktop/spec/'.length);
+  if (/^kit\/[a-z0-9]+(?:-[a-z0-9]+)*\.ts$/.test(inside)) return 'desktop-kit';
+  if (/^e2e\/[a-z0-9]+(?:-[a-z0-9]+)*\.e2e\.ts$/.test(inside))
+    return 'desktop-e2e';
+  if (/^e2e\/[a-z0-9]+(?:-[a-z0-9]+)*\.ts$/.test(inside))
+    return 'desktop-e2e-kit';
   return;
 }
 
@@ -1246,6 +1270,19 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
   'web-test-kit': new Set(['web-test-kit', 'server-kit', 'contract']),
   'web-test-config': new Set(['web-config', 'e2e-kit', 'integration-host']),
   'web-verify-cli': new Set(['web-verify-cli', 'server-kit', 'contract']),
+  'desktop-kit': new Set(['desktop-kit']),
+  'desktop-e2e': new Set(['desktop-e2e-kit', 'contract']),
+  'desktop-e2e-kit': new Set([
+    'desktop-e2e-kit',
+    'desktop-kit',
+    'server-kit',
+    'contract',
+  ]),
+  'desktop-verify-cli': new Set([
+    'desktop-verify-cli',
+    'web-verify-cli',
+    'desktop-kit',
+  ]),
   'web-rule-spec': new Set(['web-rule', 'web-limits', 'contract']),
   'web-config': new Set(),
   'web-limits': new Set(['contract']),
@@ -1266,6 +1303,7 @@ const serverKitClients: ReadonlySet<Role> = new Set<Role>([
   'e2e-kit',
   'integration-host',
   'web-verify-cli',
+  'desktop-e2e-kit',
 ]);
 
 function testViolation(
@@ -1551,6 +1589,10 @@ export const externalPackages: Record<Role, readonly string[]> = {
     'vitest',
   ],
   'web-verify-cli': ['playwright', 'zod'],
+  'desktop-kit': ['@electron/rebuild', 'esbuild', 'zod'],
+  'desktop-e2e': [],
+  'desktop-e2e-kit': ['@playwright/test'],
+  'desktop-verify-cli': ['playwright', 'zod', '@electron/fuses'],
   'web-rule-spec': [],
   'web-config': [],
   'web-limits': [],
@@ -1589,7 +1631,10 @@ function forbiddenNodeModule(role: Role, name: string): boolean {
     role === 'server-kit' ||
     role === 'integration-test' ||
     role === 'server-cli' ||
-    role === 'web-verify-cli'
+    role === 'web-verify-cli' ||
+    role === 'desktop-kit' ||
+    role === 'desktop-e2e-kit' ||
+    role === 'desktop-verify-cli'
   )
     return false;
   if (role === 'capture') return !captureNodeModules.has(base);
@@ -1754,6 +1799,14 @@ const rolePurposes: Record<Role, string> = {
     'apps/web/playwright.config.ts and apps/web/vitest.config.ts, the runners of the e2e and integration suites',
   'web-verify-cli':
     'the web control CLI in .agents/skills/web-verify/scripts/, which starts a disposable server through the server kit, Vite and a Playwright browser session, drives them for an agent and records evidence, and never asserts',
+  'desktop-kit':
+    'the desktop kit in apps/desktop/spec/kit/, which stages the app for development, packaging, the e2e tests and the desktop CLI, and launches it with a disposable profile and sample repository',
+  'desktop-e2e':
+    'a Playwright Electron e2e test in apps/desktop/spec/e2e/, which drives Porcelain Dev through a native flow with a fresh profile and Git repository',
+  'desktop-e2e-kit':
+    'the Playwright fixtures and global setup in apps/desktop/spec/e2e/, which stage Porcelain Dev, launch it per test, supply native dialogs at the Electron boundary and reach its server owner socket through the server kit',
+  'desktop-verify-cli':
+    'the desktop control CLI in .agents/skills/desktop-verify/scripts/, which launches Porcelain Dev through the desktop kit, drives its window through the shared web browser session and its menus, window and native picker through Electron, records evidence, and never asserts',
   'web-rule-spec': 'a spec for a pure web rule',
   'web-config': 'apps/web/vite.config.ts',
   'web-limits':
