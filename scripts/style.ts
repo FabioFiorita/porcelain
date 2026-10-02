@@ -789,7 +789,7 @@ const gateScripts: Readonly<Record<string, Readonly<Record<string, string>>>> =
       'lint:web': 'node scripts/style.ts lint web',
       'format:web:check': 'node scripts/style.ts format web',
       'verify:web': 'node .agents/skills/web-verify/scripts/browser.ts',
-      check: `turbo run ${fastTasks.join(' ')} --output-logs=errors-only --continue`,
+      check: `turbo run ${fastTasks.join(' ')} --output-logs=errors-only --continue --concurrency=100%`,
       'test:rules': 'node architecture/rule-tests.mjs',
       'probes:check': 'node scripts/probes.ts --check',
     },
