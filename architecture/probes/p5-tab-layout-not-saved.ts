@@ -6,7 +6,7 @@ export default {
     'the tab layout store keeps its panes in memory but saves none to browser storage, so a reload loses the open and pinned tabs',
   gate: 'web-verify',
   feature: 'apps/web/spec/e2e/reviews-reload-layout.e2e.ts',
-  rule: "Locator: getByRole('button', { name: 'Expand README.md', exact: true })",
+  rule: "Locator: getByRole('button', { name: 'Unpin README.md', exact: true })",
   edits: [
     {
       kind: 'replace',
