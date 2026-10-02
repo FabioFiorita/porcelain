@@ -2890,6 +2890,186 @@ describe('deriveProjectName probe', () => {
     errors: 1,
   },
   {
+    rule: 'spec-asserts',
+    path: 'apps/server/spec/integration/access-health.integration.ts',
+    valid:
+      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the changes of an unknown worktree are refused', async ({ session }) => {\n  const response = await session.send(unknownChanges());\n  const body = record(response.body);\n  expect(response.status).toBe(404);\n  expect(response.body).toStrictEqual(worktreeNotFound);\n});\n",
+    invalid:
+      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the changes of an unknown worktree are refused', async ({ session }) => {\n  const response = await session.send(unknownChanges());\n  const body = record(response.body);\n  expect(response.status).toBe(response.status);\n  expect(response.body).toStrictEqual(response.body);\n});\n",
+    errors: 1,
+  },
+  {
+    rule: 'spec-asserts',
+    path: 'apps/server/spec/integration/access-health.integration.ts',
+    valid:
+      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the changes of an unknown worktree are refused', async ({ session }) => {\n  const response = await session.send(unknownChanges());\n  const body = record(response.body);\n  expect(response.body).toStrictEqual(worktreeNotFound);\n});\n",
+    invalid:
+      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the changes of an unknown worktree are refused', async ({ session }) => {\n  const response = await session.send(unknownChanges());\n  const body = record(response.body);\n  expect(response.body).not.toStrictEqual('sentinel');\n});\n",
+    errors: 1,
+  },
+  {
+    rule: 'spec-asserts',
+    path: 'apps/server/spec/integration/access-health.integration.ts',
+    valid:
+      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the changes of an unknown worktree are refused with the error contract', async ({ session }) => {\n  const response = await session.send(unknownChanges());\n  const body = record(response.body);\n  expect(response.body).toEqual(expect.schemaMatching(apiErrorSchema));\n});\n",
+    invalid:
+      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the changes of an unknown worktree are refused with the error contract', async ({ session }) => {\n  const response = await session.send(unknownChanges());\n  const body = record(response.body);\n  expect(response.body).toEqual(expect.schemaMatching(z.unknown()));\n});\n",
+    errors: 1,
+  },
+  {
+    rule: 'spec-asserts',
+    path: 'apps/server/spec/integration/access-health.integration.ts',
+    valid:
+      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the changes of an unknown worktree are refused', async ({ session }) => {\n  const response = await session.send(unknownChanges());\n  const body = record(response.body);\n  expect(body.statusCode).toBe(404);\n});\n",
+    invalid:
+      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the changes of an unknown worktree are refused', async ({ session }) => {\n  const response = await session.send(unknownChanges());\n  const body = record(response.body);\n  expect({ refused: body.statusCode !== 200, statusCode: body.statusCode }).toStrictEqual({ refused: true, statusCode: 404 });\n});\n",
+    errors: 1,
+  },
+  {
+    rule: 'spec-asserts',
+    path: 'apps/server/spec/integration/access-health.integration.ts',
+    valid:
+      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the changes of an unknown worktree are refused', async ({ session }) => {\n  const response = await session.send(unknownChanges());\n  const body = record(response.body);\n  expect(body.error).toBe('Not Found');\n});\n",
+    invalid:
+      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the changes of an unknown worktree are refused', async ({ session }) => {\n  const response = await session.send(unknownChanges());\n  const body = record(response.body);\n  expect('Not').toBe('Not');\n});\n",
+    errors: 1,
+  },
+  {
+    rule: 'spec-asserts',
+    path: 'apps/server/spec/integration/access-health.integration.ts',
+    valid:
+      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the changes of an unknown worktree are refused', async ({ session }) => {\n  const response = await session.send(unknownChanges());\n  const body = record(response.body);\n  expect(response.body).toStrictEqual({ ...worktreeNotFound });\n});\n",
+    invalid:
+      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the changes of an unknown worktree are refused', async ({ session }) => {\n  const response = await session.send(unknownChanges());\n  const body = record(response.body);\n  expect(response.body).toStrictEqual({ ...record(response.body) });\n});\n",
+    errors: 1,
+  },
+  {
+    rule: 'spec-asserts',
+    path: 'apps/server/spec/integration/access-health.integration.ts',
+    valid:
+      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the changes of an unknown worktree are refused as JSON', async ({ session }) => {\n  const response = await session.send(unknownChanges());\n  const body = record(response.body);\n  expect(response.headers['content-type']).toBe('application/json; charset=utf-8');\n});\n",
+    invalid:
+      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the changes of an unknown worktree are refused as JSON', async ({ session }) => {\n  const response = await session.send(unknownChanges());\n  const body = record(response.body);\n  expect(response.headers['content-type']).toBe(response.headers['content-type']);\n});\n",
+    errors: 1,
+  },
+  {
+    rule: 'spec-asserts',
+    path: 'apps/server/spec/integration/access-health.integration.ts',
+    valid:
+      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the changes of an unknown worktree are refused', async ({ session }) => {\n  const response = await session.send(unknownChanges());\n  const body = record(response.body);\n  expect({ wrapped: response.body }).toStrictEqual({ wrapped: worktreeNotFound });\n});\n",
+    invalid:
+      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the changes of an unknown worktree are refused', async ({ session }) => {\n  const response = await session.send(unknownChanges());\n  const body = record(response.body);\n  expect({ wrapped: response.body }).toStrictEqual({ wrapped: body });\n});\n",
+    errors: 1,
+  },
+  {
+    rule: 'spec-asserts',
+    path: 'apps/server/spec/integration/access-health.integration.ts',
+    valid:
+      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the changes of an unknown worktree are refused with the error contract', async ({ session }) => {\n  const response = await session.send(unknownChanges());\n  const body = record(response.body);\n  expect(response.body).toEqual(expect.schemaMatching(apiErrorSchema));\n});\n",
+    invalid:
+      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the changes of an unknown worktree are refused with the error contract', async ({ session }) => {\n  const response = await session.send(unknownChanges());\n  const body = record(response.body);\n  expect(response.body).toEqual(expect.schemaMatching(apiErrorSchema.partial()));\n});\n",
+    errors: 1,
+  },
+  {
+    rule: 'spec-asserts',
+    path: 'apps/server/spec/integration/access-health.integration.ts',
+    valid:
+      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the changes of an unknown worktree are refused', async ({ session }) => {\n  const response = await session.send(unknownChanges());\n  const body = record(response.body);\n  expect([body.statusCode, body.message]).toStrictEqual([404, 'Worktree not found']);\n});\n",
+    invalid:
+      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the changes of an unknown worktree are refused', async ({ session }) => {\n  const response = await session.send(unknownChanges());\n  const body = record(response.body);\n  expect([body.statusCode, typeof body.message === 'string']).toStrictEqual([404, true]);\n});\n",
+    errors: 1,
+  },
+  {
+    rule: 'spec-asserts',
+    path: 'apps/server/spec/integration/access-health.integration.ts',
+    valid:
+      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the changes of an unknown worktree are refused', async ({ session }) => {\n  const response = await session.send(unknownChanges());\n  const body = record(response.body);\n  expect(text(body.message)).toBe('Worktree not found');\n});\n",
+    invalid:
+      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the changes of an unknown worktree are refused', async ({ session }) => {\n  const response = await session.send(unknownChanges());\n  const body = record(response.body);\n  expect(text(body.message).split(' ')[0]).toBe('Worktree');\n});\n",
+    errors: 1,
+  },
+  {
+    rule: 'spec-asserts',
+    path: 'apps/server/spec/integration/access-health.integration.ts',
+    valid:
+      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the changes of an unknown worktree are refused', async ({ session }) => {\n  const response = await session.send(unknownChanges());\n  const body = record(response.body);\n  expect(response.status).not.toBe(200);\n  expect(body.error).toBe('Not Found');\n});\n",
+    invalid:
+      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the changes of an unknown worktree are refused', async ({ session }) => {\n  const response = await session.send(unknownChanges());\n  const body = record(response.body);\n  expect(response.status).not.toBe(record(response.body).error);\n});\n",
+    errors: 1,
+  },
+  {
+    rule: 'spec-asserts',
+    path: 'apps/server/spec/integration/access-health.integration.ts',
+    valid:
+      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the health route answers', async ({ session }) => {\n  const response = await session.send(health());\n  const body = record(response.body);\n  expect(response.status).toBe(200);\n  expect(body.status).toBe('ok');\n});\n",
+    invalid:
+      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the health route answers', async ({ session }) => {\n  const response = await session.send(health());\n  const body = record(response.body);\n  const again = await session.send(health());\n  expect(response.status).toBe(again.status);\n  expect(response.body).toStrictEqual(again.body);\n});\n",
+    errors: 1,
+  },
+  {
+    rule: 'spec-asserts',
+    path: 'apps/server/spec/integration/access-health.integration.ts',
+    valid:
+      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the health route answers', async ({ session }) => {\n  const response = await session.send(health());\n  const body = record(response.body);\n  expect(body.status).toMatch(/^ok$/);\n});\n",
+    invalid:
+      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the health route answers', async ({ session }) => {\n  const response = await session.send(health());\n  const body = record(response.body);\n  expect(body.status).toMatch(/(?:)/);\n});\n",
+    errors: 1,
+  },
+  {
+    rule: 'spec-asserts',
+    path: 'apps/server/spec/integration/access-health.integration.ts',
+    valid:
+      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the health route answers', async ({ session }) => {\n  const response = await session.send(health());\n  const body = record(response.body);\n  expect(response.status).toBe(200);\n});\n",
+    invalid:
+      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the health route answers', async ({ session }) => {\n  const response = await session.send(health());\n  const body = record(response.body);\n  await session.send(health());\n});\n",
+    errors: 1,
+  },
+  {
+    rule: 'spec-asserts',
+    path: 'apps/server/spec/integration/access-health.integration.ts',
+    valid:
+      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the health route answers', async ({ session }) => {\n  const response = await session.send(health());\n  const body = record(response.body);\n  expect(response.body).toBeDefined();\n  expect(body.status).toBe('ok');\n});\n",
+    invalid:
+      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the health route answers', async ({ session }) => {\n  const response = await session.send(health());\n  const body = record(response.body);\n  expect(response.body).toBeDefined();\n  expect(response.status).toBeGreaterThan(0);\n  expect(response).toBeInstanceOf(Object);\n  expect(body.status).toBeTruthy();\n  expect(() => apiErrorSchema.parse(body)).not.toThrow();\n});\n",
+    errors: 1,
+  },
+  {
+    rule: 'spec-asserts',
+    path: 'apps/server/spec/integration/access-health.integration.ts',
+    valid:
+      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the health route answers', async ({ session }) => {\n  const response = await session.send(health());\n  const body = record(response.body);\n  expect(body.error).toBeUndefined();\n  expect(Object.keys(body)).toEqual(['status', 'environmentId']);\n});\n",
+    invalid:
+      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the health route answers', async ({ session }) => {\n  const response = await session.send(health());\n  const body = record(response.body);\n  expect(body.error).toBeUndefined();\n  expect(Object.keys(body.errors ?? {})).toEqual([]);\n  expect(text(body.status)).not.toHaveLength(0);\n  expect([]).toHaveLength(0);\n});\n",
+    errors: 1,
+  },
+  {
+    rule: 'spec-asserts',
+    path: 'apps/server/spec/integration/access-health.integration.ts',
+    valid:
+      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the health route answers', async ({ session }) => {\n  const response = await session.send(health());\n  const body = record(response.body);\n  const project = { name: 'App' };\n  expect(body.status).not.toBe(project.name);\n  expect(body.status).toBe('ok');\n});\n",
+    invalid:
+      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the health route answers', async ({ session }) => {\n  const response = await session.send(health());\n  const body = record(response.body);\n  const project = { name: 'App' };\n  expect(project.name).toBe('App');\n});\n",
+    errors: 1,
+  },
+  {
+    rule: 'spec-asserts',
+    path: 'packages/projects/src/rules/derive-project-name.spec.ts',
+    valid:
+      "it('names a project after its folder', () => {\n  expect(deriveProjectName(undefined, '/srv/app')).toBe('app');\n});\n",
+    invalid:
+      "it('names a project after its folder', () => {\n  expect(deriveProjectName(undefined, '/srv/app')).toBe(deriveProjectName(undefined, '/srv/app'));\n});\n",
+    errors: 1,
+  },
+  {
+    rule: 'spec-asserts',
+    path: 'packages/projects/src/rules/derive-project-name.spec.ts',
+    valid:
+      "it('calls back with the derived name', () => {\n  const seen: string[] = [];\n  derive('/srv/app', (name) => seen.push(name));\n  expect(seen).toEqual(['app']);\n});\n",
+    invalid:
+      "it('calls back with the derived name', () => {\n  const notify = vi.fn();\n  derive('/srv/app', notify);\n  expect(notify).toHaveBeenCalled();\n});\n",
+    errors: 1,
+  },
+  {
     rule: 'spec-behaviour-names',
     path: 'packages/reviews/src/services/mark-comments-seen-service.spec.ts',
     valid: `describe('MarkCommentsSeenService', () => {

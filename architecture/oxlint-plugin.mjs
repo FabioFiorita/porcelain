@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { classify, nodeGlobalRoles, webPart } from './policy.ts';
 import { webRules } from './web-rules.mjs';
 import { mobileRules } from './mobile-rules.mjs';
+import { hollowTests, testSource } from './hollow-tests.mjs';
 
 const domainPackage = '(?:projects|changes|reviews|files|git-actions|access)';
 const domainSource = new RegExp(
@@ -3204,7 +3205,18 @@ export default {
     },
     'spec-asserts': {
       create(context) {
-        if (!isSpec(context)) return {};
+        const spec = isSpec(context);
+        if (!spec && !testSource.test(normalizedFilename(context.filename)))
+          return {};
+        const hollow = {
+          Program(program) {
+            for (const report of hollowTests(program, context.sourceCode, {
+              spec,
+            }))
+              context.report(report);
+          },
+        };
+        if (!spec) return hollow;
         const suiteFunctions = new Set(['describe', 'suite']);
         const inSuiteBody = (statement) => {
           const block = statement.parent;
@@ -3218,6 +3230,7 @@ export default {
           );
         };
         return {
+          ...hollow,
           CallExpression(node) {
             if (
               caseFunctions.has(chainRoot(node.callee) ?? '') &&
