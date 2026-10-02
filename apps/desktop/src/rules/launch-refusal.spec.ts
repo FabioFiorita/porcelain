@@ -10,6 +10,11 @@ const plain = {
 describe('launchRefusal', () => {
   it('starts the installed app launched without debugging switches or Node variables', () => {
     expect(launchRefusal(plain)).toBeUndefined();
+    expect(
+      launchRefusal({ ...plain, arguments: [...plain.arguments, '--inspect'] }),
+    ).toBe(
+      'Porcelain refuses to start with the debugging switch --inspect: the app keeps credentials a debugger could read.',
+    );
   });
 
   it.each([
@@ -62,6 +67,14 @@ describe('launchRefusal', () => {
         environment: { ELECTRON_RUN_AS_NODE: '', NODE_OPTIONS: ' ' },
       }),
     ).toBeUndefined();
+    expect(
+      launchRefusal({
+        ...plain,
+        environment: { ELECTRON_RUN_AS_NODE: '1', NODE_OPTIONS: ' ' },
+      }),
+    ).toBe(
+      'Porcelain refuses to start with ELECTRON_RUN_AS_NODE set: the app never runs as Node or takes Node options.',
+    );
   });
 
   it.each([
@@ -76,6 +89,11 @@ describe('launchRefusal', () => {
       expect(
         launchRefusal({ ...plain, arguments: [argument] }),
       ).toBeUndefined();
+      expect(
+        launchRefusal({ ...plain, arguments: [argument, '--inspect'] }),
+      ).toBe(
+        'Porcelain refuses to start with the debugging switch --inspect: the app keeps credentials a debugger could read.',
+      );
     },
   );
 
@@ -87,5 +105,14 @@ describe('launchRefusal', () => {
         environment: { NODE_OPTIONS: '--inspect' },
       }),
     ).toBeUndefined();
+    expect(
+      launchRefusal({
+        packaged: true,
+        arguments: ['--inspect=0', '--remote-debugging-port=0'],
+        environment: { NODE_OPTIONS: '--inspect' },
+      }),
+    ).toBe(
+      'Porcelain refuses to start with the debugging switch --inspect: the app keeps credentials a debugger could read.',
+    );
   });
 });

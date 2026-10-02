@@ -14,6 +14,11 @@ const socket = {
   initiatorOrigin: 'porcelain://app',
   headers: { 'Sec-WebSocket-Version': '13' },
 };
+const admitted = {
+  'Sec-WebSocket-Version': '13',
+  Authorization: 'Bearer test-only-desktop-credential',
+  Origin: 'http://127.0.0.1:4321',
+};
 
 describe('liveAddress', () => {
   it('opens the live socket of an HTTP server over ws', () => {
@@ -40,12 +45,16 @@ describe('liveSocketHeaders', () => {
 
   it('refuses while the app window is closed', () => {
     expect(liveSocketHeaders(socket, undefined, server)).toBeUndefined();
+    expect(liveSocketHeaders(socket, app, server)).toEqual(admitted);
   });
 
   it('refuses a socket another window opens', () => {
     expect(
       liveSocketHeaders({ ...socket, contentsId: 8 }, app, server),
     ).toBeUndefined();
+    expect(
+      liveSocketHeaders({ ...socket, contentsId: 7 }, app, server),
+    ).toEqual(admitted);
   });
 
   it.each([{ name: 'summary' }, null, undefined])(
@@ -63,6 +72,13 @@ describe('liveSocketHeaders', () => {
       expect(
         liveSocketHeaders({ ...socket, initiatorOrigin }, app, server),
       ).toBeUndefined();
+      expect(
+        liveSocketHeaders(
+          { ...socket, initiatorOrigin: 'porcelain://app' },
+          app,
+          server,
+        ),
+      ).toEqual(admitted);
     },
   );
 
@@ -71,6 +87,13 @@ describe('liveSocketHeaders', () => {
     'porcelain://app/remote-review-summaries/token?computer=http://evil.example',
   ])('refuses once the app window shows another document: %s', (url) => {
     expect(liveSocketHeaders(socket, { ...app, url }, server)).toBeUndefined();
+    expect(
+      liveSocketHeaders(
+        socket,
+        { ...app, url: 'porcelain://app/project' },
+        server,
+      ),
+    ).toEqual(admitted);
   });
 
   it.each([
@@ -80,5 +103,12 @@ describe('liveSocketHeaders', () => {
     'wss://127.0.0.1:4321/api/live',
   ])('refuses any socket but the local live address: %s', (url) => {
     expect(liveSocketHeaders({ ...socket, url }, app, server)).toBeUndefined();
+    expect(
+      liveSocketHeaders(
+        { ...socket, url: 'ws://127.0.0.1:4321/api/live' },
+        app,
+        server,
+      ),
+    ).toEqual(admitted);
   });
 });

@@ -8,6 +8,7 @@ import {
 const token = '4f0a5c2e-8a43-4d4f-9b44-0f1f4ad5d0a1';
 const signature = 'a'.repeat(43);
 const expires = '2026-10-01T00:00:00.000Z';
+const published = `http://192.168.1.20:4738/review-summaries/${token}?expires=2026-10-01T00%3A00%3A00.000Z&signature=${signature}`;
 
 function proxied(computer: string, path = `/remote-review-summaries/${token}`) {
   const query = new URLSearchParams({ computer, expires, signature });
@@ -55,6 +56,9 @@ describe('remoteSummaryTarget', () => {
     'not a computer',
   ])('refuses a computer that is not a bare HTTP origin: %s', (computer) => {
     expect(remoteSummaryTarget(proxied(computer))).toBeUndefined();
+    expect(remoteSummaryTarget(proxied('http://192.168.1.20:4738'))).toBe(
+      published,
+    );
   });
 
   it.each([
@@ -66,6 +70,14 @@ describe('remoteSummaryTarget', () => {
     expect(
       remoteSummaryTarget(proxied('http://192.168.1.20:4738', path)),
     ).toBeUndefined();
+    expect(
+      remoteSummaryTarget(
+        proxied(
+          'http://192.168.1.20:4738',
+          `/remote-review-summaries/${token}`,
+        ),
+      ),
+    ).toBe(published);
   });
 
   it('refuses a link without its expiry or signature', () => {
@@ -74,6 +86,11 @@ describe('remoteSummaryTarget', () => {
         `porcelain://app/remote-review-summaries/${token}?computer=http://192.168.1.20:4738`,
       ),
     ).toBeUndefined();
+    expect(
+      remoteSummaryTarget(
+        `porcelain://app/remote-review-summaries/${token}?computer=http://192.168.1.20:4738&expires=${expires}&signature=${signature}`,
+      ),
+    ).toBe(published);
   });
 });
 

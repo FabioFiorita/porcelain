@@ -5,6 +5,11 @@ import {
   summaryContentSecurityPolicy,
 } from './content-security-policy.ts';
 
+const builtPolicy =
+  "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' http: https: ws: wss:; frame-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'";
+const developmentPolicy =
+  "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' http: https: ws: wss:; frame-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'";
+
 describe('desktop content security policy', () => {
   it('allows connections to user-entered HTTP and HTTPS computers and their WS and WSS live sockets', () => {
     expect(
@@ -12,6 +17,7 @@ describe('desktop content security policy', () => {
         .split('; ')
         .find((directive) => directive.startsWith('connect-src ')),
     ).toBe("connect-src 'self' http: https: ws: wss:");
+    expect(desktopContentSecurityPolicy('built')).toBe(builtPolicy);
   });
 
   it('frames only the app and its own blobs, so no frame can show a website inside the window', () => {
@@ -20,6 +26,7 @@ describe('desktop content security policy', () => {
         .split('; ')
         .find((directive) => directive.startsWith('frame-src ')),
     ).toBe("frame-src 'self' blob:");
+    expect(desktopContentSecurityPolicy('built')).toBe(builtPolicy);
   });
 
   it('keeps the remaining directives unchanged, including scripts restricted to the app origin', () => {
@@ -41,6 +48,7 @@ describe('desktop content security policy', () => {
       "object-src 'none'",
       "base-uri 'self'",
     ]);
+    expect(desktopContentSecurityPolicy('built')).toBe(builtPolicy);
   });
 
   it('differs for the development web only by admitting the inline script Vite injects for hot reload', () => {
@@ -53,6 +61,10 @@ describe('desktop content security policy', () => {
             : directive,
         ),
     );
+    expect([
+      desktopContentSecurityPolicy('built'),
+      desktopContentSecurityPolicy('development'),
+    ]).toEqual([builtPolicy, developmentPolicy]);
   });
 });
 

@@ -26,8 +26,15 @@ describe('WindowState', () => {
     await rm(profile, { recursive: true, force: true });
   });
 
-  it('restores nothing for a fresh profile', () => {
-    expect(new WindowState(profile, 10).read()).toBeUndefined();
+  it('restores nothing for a fresh profile until a state is saved', async () => {
+    const state = new WindowState(profile, 60_000);
+    expect(state.read()).toBeUndefined();
+    state.schedule(first);
+    await state.flush();
+    expect(state.read()).toEqual({
+      bounds: { x: 0, y: 0, width: 900, height: 700 },
+      maximized: false,
+    });
   });
 
   it('writes nothing while a window keeps moving, then saves only its last state', async () => {

@@ -22,6 +22,13 @@ describe('appRequestRefusal', () => {
         initiatorOrigin: undefined,
       }),
     ).toBeUndefined();
+    expect(
+      appRequestRefusal({
+        url: 'porcelain://app/project/worktree',
+        origin: null,
+        initiatorOrigin: 'https://evil.example',
+      }),
+    ).toBe('Unknown desktop initiator');
   });
 
   it('admits a request the app document makes', () => {
@@ -32,6 +39,13 @@ describe('appRequestRefusal', () => {
         initiatorOrigin: 'porcelain://app',
       }),
     ).toBeUndefined();
+    expect(
+      appRequestRefusal({
+        url: 'porcelain://app/api/inventory',
+        origin: 'https://evil.example',
+        initiatorOrigin: 'porcelain://app',
+      }),
+    ).toBe('Unknown desktop origin');
   });
 
   it.each([
@@ -88,6 +102,12 @@ describe('appRequestTarget', () => {
     'never leaves the server origin for a path that reads as another host: %s',
     (url) => {
       expect(appRequestTarget(url, server.address)).toBeUndefined();
+      expect(
+        appRequestTarget(
+          'porcelain://app/evil.example/api/inventory',
+          server.address,
+        ),
+      ).toBe('http://127.0.0.1:4321/evil.example/api/inventory');
     },
   );
 });
@@ -149,10 +169,12 @@ describe('forwardedResponseHeaders', () => {
 
   it('gives every page the app policy, which keeps scripts to the app, instead of the server one', () => {
     expect(
-      forwardedResponseHeaders('/project/worktree', answer, 'built')
-        .get('content-security-policy')
-        ?.split('; '),
-    ).toContain("script-src 'self'");
+      forwardedResponseHeaders('/project/worktree', answer, 'built').get(
+        'content-security-policy',
+      ),
+    ).toBe(
+      "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' http: https: ws: wss:; frame-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'",
+    );
   });
 
   it('leaves the policy of an API answer as the server sent it', () => {
@@ -165,10 +187,12 @@ describe('forwardedResponseHeaders', () => {
 
   it('admits the inline script Vite injects only into pages of the development web', () => {
     expect(
-      forwardedResponseHeaders('/project/worktree', answer, 'development')
-        .get('content-security-policy')
-        ?.split('; '),
-    ).toContain("script-src 'self' 'unsafe-inline'");
+      forwardedResponseHeaders('/project/worktree', answer, 'development').get(
+        'content-security-policy',
+      ),
+    ).toBe(
+      "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' http: https: ws: wss:; frame-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'",
+    );
   });
 });
 

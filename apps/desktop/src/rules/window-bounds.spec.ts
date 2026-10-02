@@ -12,13 +12,14 @@ describe('restoreWindowBounds', () => {
     expect(restoreWindowBounds(state, [display], minimum)).toEqual(state);
   });
   it('does not restore onto a disconnected display', () => {
+    const moved = { ...state, bounds: { ...state.bounds, x: 1600 } };
+    expect(restoreWindowBounds(moved, [display], minimum)).toBeUndefined();
     expect(
-      restoreWindowBounds(
-        { ...state, bounds: { ...state.bounds, x: 1600 } },
-        [display],
-        minimum,
-      ),
-    ).toBeUndefined();
+      restoreWindowBounds(moved, [display, { ...display, x: 1440 }], minimum),
+    ).toEqual({
+      bounds: { x: 1600, y: 50, width: 1000, height: 700 },
+      maximized: true,
+    });
   });
   it('restores a window on a display to the left of the primary display', () => {
     const left = { ...display, x: -1440 };
@@ -28,15 +29,20 @@ describe('restoreWindowBounds', () => {
     );
   });
   it('does not restore a window below the minimum size', () => {
+    const narrow = { ...state, bounds: { ...state.bounds, width: 700 } };
+    expect(restoreWindowBounds(narrow, [display], minimum)).toBeUndefined();
     expect(
-      restoreWindowBounds(
-        { ...state, bounds: { ...state.bounds, width: 700 } },
-        [display],
-        minimum,
-      ),
-    ).toBeUndefined();
+      restoreWindowBounds(narrow, [display], { width: 700, height: 600 }),
+    ).toEqual({
+      bounds: { x: 100, y: 50, width: 700, height: 700 },
+      maximized: true,
+    });
   });
   it('lets a fresh profile use the default window', () => {
     expect(restoreWindowBounds(undefined, [display], minimum)).toBeUndefined();
+    expect(restoreWindowBounds(state, [display], minimum)).toEqual({
+      bounds: { x: 100, y: 50, width: 1000, height: 700 },
+      maximized: true,
+    });
   });
 });

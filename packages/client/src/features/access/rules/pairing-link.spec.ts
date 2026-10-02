@@ -21,6 +21,13 @@ describe('remoteLink', () => {
     'https://example.com/pair#c=&e=installation',
   ])('refuses an unusable pairing link %j', (value) => {
     expect(remoteLink(value)).toBeUndefined();
+    expect(
+      remoteLink('https://example.com/pair#c=code&e=installation'),
+    ).toEqual({
+      address: 'https://example.com',
+      code: 'code',
+      environmentId: 'installation',
+    });
   });
 });
 
