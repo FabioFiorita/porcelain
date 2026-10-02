@@ -32,14 +32,14 @@ One file per feature the web offers, named `<domain>.<capability>.md`. Each says
 | [changes.step-lines](changes.step-lines.md) | / | A published review step that points at worktree lines shows those lines as they are on disk, and says the code changed once another writer rewrites them. |
 | [files.create](files.create.md) | / | At phone width, both creation buttons open an inline name editor and create the named entry on disk. |
 | [files.duplicate](files.duplicate.md) | / | Duplicating a file writes a copy named after it beside it and opens the copy, from the file menu or with Mod+D on the open file. |
-| [files.edit-conflict](files.edit-conflict.md) | / | Saving an edit to a file that changed on disk since it was opened is refused, the editor says so and keeps the draft, and the disk keeps the other change. |
-| [files.edit](files.edit.md) | / | Editing a file saves after a pause, with Done and when its tab closes, and the server holds each saved text. |
-| [files.editor-reopen](files.editor-reopen.md) | / | A live editor keeps its draft ownership across panes; closing it saves the draft, and reopening starts an editor with the saved text. |
-| [files.find-refresh](files.find-refresh.md) | / | When the file changes on disk under an open find, the count follows the new text and never names a match past its last one. |
-| [files.find](files.find.md) | / | Finding in a long file counts its matches and brings a match far below the fold into view, in the file view and in the editor. |
-| [files.html-preview](files.html-preview.md) | / | An HTML page opened from the file tree previews in a sandboxed frame with its local images inlined, and names the references it could not load. |
-| [files.image-preview](files.image-preview.md) | / | An image opened from the file tree shows as a picture, and a binary file is not shown as text and says why. |
-| [files.markdown-preview](files.markdown-preview.md) | / | A Markdown file opened from the file tree reads as formatted text and switches to its source, and one too large to read as text is not shown and says why. |
+| [files.edit-conflict](files.edit-conflict.md) | /$projectId/$worktreeId | Saving an edit to a file that changed on disk since it was opened is refused, the editor says so and keeps the draft, and the disk keeps the other change. |
+| [files.edit](files.edit.md) | /$projectId/$worktreeId | Editing a file saves after a pause, with Done and when its tab closes, and the server holds each saved text. |
+| [files.editor-reopen](files.editor-reopen.md) | /$projectId/$worktreeId | A live editor keeps its draft ownership across panes; closing it saves the draft, and reopening starts an editor with the saved text. |
+| [files.find-refresh](files.find-refresh.md) | /$projectId/$worktreeId | When the file changes on disk under an open find, the count follows the new text and never names a match past its last one. |
+| [files.find](files.find.md) | /$projectId/$worktreeId | Finding in a long file counts its matches and brings a match far below the fold into view, in the file view and in the editor. |
+| [files.html-preview](files.html-preview.md) | /$projectId/$worktreeId | An HTML page opened from the file tree previews in a sandboxed frame with its local images inlined, and names the references it could not load. |
+| [files.image-preview](files.image-preview.md) | /$projectId/$worktreeId | An image opened from the file tree shows as a picture, and a binary file is not shown as text and says why. |
+| [files.markdown-preview](files.markdown-preview.md) | /$projectId/$worktreeId | A Markdown file opened from the file tree reads as formatted text and switches to its source, and one too large to read as text is not shown and says why. |
 | [files.move](files.move.md) | / | Dragging a file onto a folder in the tree moves it into that folder on disk without opening it, and dragging one onto a folder that already holds that name is refused and keeps both files. |
 | [files.pin](files.pin.md) | / | Pinning a file lists it under Pinned above the file tree, where it opens the file and offers the same commands as the tree with Unpin file in place of Pin file, and the server keeps it pinned for the project until it is unpinned. |
 | [files.quick-open](files.quick-open.md) | / | Quick open finds a worktree file by name and opens it, and finds no file an ignore rule hides. |

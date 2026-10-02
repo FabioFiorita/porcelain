@@ -1,11 +1,10 @@
 ---
-route: /
+route: /$projectId/$worktreeId
 selectors:
   - "Review"
   - "Files"
   - "Open file"
   - "Find in file"
-  - "3 of 3"
 tests:
   - apps/web/spec/integration/files-find-refresh.test.tsx
 api:
@@ -16,51 +15,45 @@ api:
 
 ## What it is
 
-When the file changes on disk under an open find, the count follows the new text and never names a match past its last one.
+When the open file changes on disk while the find bar is open, the file view shows the new text and the match count is recomputed on it, never naming a match past the new last one.
 
 ## How a user reaches it
 
-- Review → Files → a file → right-click → Open file → Mod+F, while the file changes on disk
-- Shortcut: `Mod+F`
+- Review → Files → right-click a changed file → Open file → `Mod+F` (`SHORTCUTS.findInFile`), while another writer changes the file on disk.
 
 ## Driving it
 
-Start an instance first: `.agents/skills/web-verify/scripts/cli start`.
+`C=.agents/skills/web-verify/scripts/cli; $C start`. `$REPO` is the path `start` prints after `repository`.
 
-### The find count follows a file that changes on disk and stays within its matches
-
-Before driving, on the instance (the sample repository and project home are in the instance file):
-
-- write `notes.txt` in the sample repository
-- write `notes.txt` in the sample repository
+### Setup
 
 ```sh
-.agents/skills/web-verify/scripts/cli open /
+printf 'needle one\nneedle two\nneedle three\n' > "$REPO/notes.txt"
 ```
 
-1. `.agents/skills/web-verify/scripts/cli click --role button --name "Review"`
-   Look for: the page settles; take a snapshot to read what it shows.
-2. `.agents/skills/web-verify/scripts/cli click --role tab --name "Files"`
-   Look for: the page settles; take a snapshot to read what it shows.
-3. `.agents/skills/web-verify/scripts/cli click --role treeitem --name "notes.txt" --button right`
-   Look for: the page settles; take a snapshot to read what it shows.
-4. `.agents/skills/web-verify/scripts/cli click --role menuitem --name "Open file"`
-   Look for: the text “needle three” shows.
-5. `.agents/skills/web-verify/scripts/cli press ControlOrMeta+f`
-   Look for: the page settles; take a snapshot to read what it shows.
-6. `.agents/skills/web-verify/scripts/cli fill --role textbox --name "Find in file" "needle"`
-   Look for: the page settles; take a snapshot to read what it shows.
-7. `.agents/skills/web-verify/scripts/cli press Enter`
-   Look for: the page settles; take a snapshot to read what it shows.
-8. `.agents/skills/web-verify/scripts/cli press Enter`
-   Look for: the text “3 of 3” shows; the text “needle only” shows; the text “1 of 1” shows.
+A second write happens between steps 4 and 5.
 
-Then `.agents/skills/web-verify/scripts/cli snapshot` and `.agents/skills/web-verify/scripts/cli screenshot` record the end state, and `.agents/skills/web-verify/scripts/cli network` lists the requests the page sent.
+1. `$C open /`, `$C click --role button --name "Review"`, `$C click --role tab --name "Files"`
+   Look for: treeitem "notes.txt".
+2. `$C click --role treeitem --name "notes.txt" --button right`, then `$C click --role menuitem --name "Open file"`
+   Look for: tab "notes.txt Close notes.txt" selected; the code shows "needle one", "needle two", "needle three".
+3. `$C press ControlOrMeta+f`, then `$C fill --role textbox --name "Find in file" "needle"`
+   Look for: status "1 of 3".
+4. `$C press Enter`, then `$C press Enter`
+   Look for: status "2 of 3" after the first, "3 of 3" after the second.
+5. On disk: `printf 'needle only\n' > "$REPO/notes.txt"`, then `$C snapshot`
+   Look for: the code shows "needle only" and no longer "needle three"; textbox "Find in file" still holds "needle"; status "1 of 1" (not "3 of 1").
+6. `$C network`
+   Look for: a second `GET /api/worktrees/<id>/text?path=notes.txt` answered 200 after the disk write.
 
 ## What proves it works
 
-- `apps/web/spec/integration/files-find-refresh.test.tsx` (Browser Mode integration): the find count follows a file that changes on disk and stays within its matches.
+- Step 5: the view picked up the disk change without a reload and the status clamped to "1 of 1"; step 6 shows the refetch the live update triggered.
+- `apps/web/spec/integration/files-find-refresh.test.tsx`: after two `Enter` presses the status reads "3 of 3"; after the file is rewritten to one line, "needle only" shows and the status reads "1 of 1".
 
 ## Gotchas
 
-- The CLI browser is phone width (414 by 896), so the review panel opens from the Review button instead of standing beside the document.
+- The new text arrives through the server's file watcher and a live update; give it a moment and take `$C snapshot` again if it still shows the old lines.
+- `fill` leaves focus in "Find in file", which is where `Enter` must land to step; `Enter` anywhere else does not step.
+- A single click on `notes.txt` (untracked, so a change) opens its diff, not the file; use the tree menu's "Open file".
+- The CLI browser is 414 px wide: the tree lives in the sheet behind "Review", which closes when the file opens. At this width the "Changed on disk just now" note in the file header is hidden (it shows from the `xl` breakpoint up, for `FILE_DISK_CHANGE_NOTICE_MS` = 8000 ms).
