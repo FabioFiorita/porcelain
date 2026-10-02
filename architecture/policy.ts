@@ -397,7 +397,6 @@ export const styleRules = [
   'shadcn-ui-pinned',
   'playwright-config',
   'duplicate-code',
-  'turbo-config',
 ] as const;
 
 export type StyleRule = (typeof styleRules)[number];

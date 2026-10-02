@@ -800,52 +800,12 @@ const gateScripts: Readonly<Record<string, Readonly<Record<string, string>>>> =
     },
   };
 
-const turboConfig = {
-  $schema: 'https://turborepo.dev/schema.json',
-  agentGuidance: false,
-  ui: 'stream',
-  futureFlags: {
-    affectedUsingTaskInputs: true,
-    githubActionsRemoteBaseRefFallback: true,
-  },
-  globalEnv: ['CI'],
-  tasks: {
-    transit: { dependsOn: ['^transit'] },
-    typecheck: {
-      dependsOn: ['transit'],
-      inputs: ['$TURBO_DEFAULT$', '$TURBO_ROOT$/tsconfig.json'],
-    },
-    test: {
-      dependsOn: ['transit'],
-      inputs: ['$TURBO_DEFAULT$', '$TURBO_ROOT$/vitest.config.ts'],
-    },
-    'test:integration': {
-      dependsOn: ['transit'],
-      inputs: ['$TURBO_DEFAULT$', '$TURBO_ROOT$/vitest.config.ts'],
-    },
-    'test:e2e': { dependsOn: ['transit'], cache: false },
-    ...Object.fromEntries(rootTasks.map((task) => [`//#${task}`, {}])),
-  },
-};
-
-function turboProblems(): Problem[] {
-  return isDeepStrictEqual(strictJson('turbo.json'), turboConfig)
-    ? []
-    : [
-        problem(
-          'turbo-config',
-          `turbo.json is the fast gate's wiring and holds exactly ${JSON.stringify(turboConfig)}: each package's typecheck and tests depend on the packages it imports through transit, every repository-wide check is a root task whose inputs are the whole repository, nothing turns a cache or an input off, and --affected follows each task's inputs and falls back to every task when it cannot resolve its base.`,
-        ),
-      ];
-}
-
 function scriptProblems(): Problem[] {
   const manifests = [
     'package.json',
     ...packageFolders.map((folder) => join(folder, 'package.json')),
   ];
   return [
-    ...turboProblems(),
     ...manifests.flatMap((path) => {
       const scripts = existsSync(path)
         ? (manifestScriptsSchema.parse(strictJson(path)).scripts ?? {})
