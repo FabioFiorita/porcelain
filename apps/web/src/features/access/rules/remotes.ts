@@ -1,7 +1,7 @@
-import type { ReadEnvironmentResponse } from '@porcelain/contracts/access';
 import type { DesktopCredentials } from '@porcelain/contracts/desktop';
 import { ENVIRONMENT_PROTOCOL } from '@porcelain/contracts/shared';
-export { remoteLink, type RemoteLink } from '@porcelain/client/access/rules';
+import type { RemoteAnswer } from '@porcelain/client/access/rules';
+export { remoteLink } from '@porcelain/client/access/rules';
 
 export type Remote = {
   environmentId: string;
@@ -10,11 +10,6 @@ export type Remote = {
   credential: string;
   deviceId?: string | undefined;
 };
-
-export type RemoteAnswer =
-  | { kind: 'described'; environment: ReadEnvironmentResponse }
-  | { kind: 'unauthorized' }
-  | { kind: 'unreachable' };
 
 export type RemoteStatus =
   | { kind: 'checking' }

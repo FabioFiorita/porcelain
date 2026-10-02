@@ -1,5 +1,35 @@
 export default [
   {
+    rule: 'client-platform-through-ports',
+    path: 'packages/client/src/features/access/api.ts',
+    valid:
+      'export const name = (platform: { name(): string }) => platform.name();',
+    invalid: 'export const name = navigator.userAgent;',
+    errors: 1,
+  },
+  {
+    rule: 'web-store-owns-zustand',
+    path: 'packages/client/src/features/access/commands/pairing.ts',
+    valid: "import { accessStore } from '../store';",
+    invalid: "import { create } from 'zustand';",
+    errors: 1,
+  },
+  {
+    rule: 'web-queries-export-reads',
+    path: 'packages/client/src/features/access/queries/environments.ts',
+    valid:
+      "import { queryOptions } from '@tanstack/react-query'; export const environmentQueryOptions = () => queryOptions({ queryKey: ['environments'], queryFn: () => [] });",
+    invalid: 'export const defaultEnvironment = "local";',
+    errors: 1,
+  },
+  {
+    rule: 'web-api-owns-request',
+    path: 'packages/client/src/features/access/commands/pairing.ts',
+    valid: "import { ConnectionError } from '@porcelain/client/transport';",
+    invalid: "import { requestJson } from '@porcelain/client/transport';",
+    errors: 1,
+  },
+  {
     rule: 'mobile-native-ui',
     path: 'apps/mobile/src/shell/tablet-split.ios.tsx',
     valid:

@@ -68,6 +68,8 @@ export const targetPackageExports: Record<string, Record<string, string>> = {
   },
   process: { '.': './src/index.ts' },
   client: {
+    './access': './src/features/access/index.ts',
+    './access/api': './src/features/access/api.ts',
     './access/rules': './src/features/access/rules/index.ts',
     './transport': './src/shared/api/index.ts',
   },
@@ -154,6 +156,10 @@ export const roles = [
   'web-limits',
   'web-entry',
   'client-rules-api',
+  'client-feature-api',
+  'client-request-api',
+  'client-port',
+  'client-feature-spec',
   'client-transport-api',
   'client-transport-spec',
   'mobile-config',
@@ -183,6 +189,10 @@ export const webRoles: ReadonlySet<Role> = new Set<Role>([
   'web-limits',
   'web-entry',
   'client-rules-api',
+  'client-feature-api',
+  'client-request-api',
+  'client-port',
+  'client-feature-spec',
   'client-transport-api',
 ]);
 
@@ -473,16 +483,41 @@ function classifyPackage(name: string, inside: string) {
           : 'web-shared',
         name,
       );
-    const feature = /^features\/([^/]+)\/rules\/([^/]+\.ts)$/.exec(inside);
+    const feature = /^features\/([^/]+)\/(.+)$/.exec(inside);
     if (!feature || !webDomainSet.has(feature[1] ?? '')) return;
-    const file = feature[2] ?? '';
-    if (!kebabFile.test(file.replace(/\.spec\.ts$/, '.ts'))) return;
+    const part = feature[2] ?? '';
+    if (part === 'index.ts') return classified('client-feature-api', name);
+    if (part === 'api.ts') return classified('client-request-api', name);
+    if (part === 'api.spec.ts') return classified('client-feature-spec', name);
+    if (part === 'store.ts') return classified('store', name);
+    if (part === 'store.spec.ts')
+      return classified('client-feature-spec', name);
+    const member =
+      /^(rules|queries|commands|ports)\/([a-z]+(?:-[a-z]+)*(?:\.spec)?\.ts)$/.exec(
+        part,
+      );
+    if (!member) return;
+    const folder = member[1] ?? '';
+    const file = member[2] ?? '';
+    if (folder === 'rules')
+      return classified(
+        file === 'index.ts'
+          ? 'client-rules-api'
+          : file.endsWith('.spec.ts')
+            ? 'web-rule-spec'
+            : 'web-rule',
+        name,
+      );
+    if (file.endsWith('.spec.ts'))
+      return folder === 'ports'
+        ? undefined
+        : classified('client-feature-spec', name);
     return classified(
-      file === 'index.ts'
-        ? 'client-rules-api'
-        : file.endsWith('.spec.ts')
-          ? 'web-rule-spec'
-          : 'web-rule',
+      folder === 'queries'
+        ? 'query'
+        : folder === 'commands'
+          ? 'command'
+          : 'client-port',
       name,
     );
   }
@@ -622,7 +657,9 @@ export function webPart(path: string): Role | undefined {
     );
     return classified?.role === 'client-rules-api'
       ? 'web-rule'
-      : classified?.role;
+      : classified?.role === 'client-request-api'
+        ? 'api'
+        : classified?.role;
   }
   if (path === 'apps/web/vite.config.ts') return 'web-config';
   if (/^apps\/web\/spec\/(?:browser|negative)\//.test(path))
@@ -794,6 +831,32 @@ const everything: readonly Role[] = [
 export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
   'mobile-config': new Set(['web-rule']),
   'client-rules-api': new Set(['web-rule']),
+  'client-feature-api': new Set([
+    'query',
+    'command',
+    'store',
+    'client-port',
+    'client-rules-api',
+  ]),
+  'client-request-api': new Set([
+    'web-shared',
+    'client-port',
+    'client-rules-api',
+    'client-transport-api',
+    'web-rule',
+    'contract',
+  ]),
+  'client-port': new Set(['client-transport-api', 'web-rule', 'contract']),
+  'client-feature-spec': new Set([
+    'client-feature-api',
+    'client-request-api',
+    'client-port',
+    'client-transport-api',
+    'query',
+    'command',
+    'store',
+    'web-rule',
+  ]),
   'client-transport-api': new Set(['web-shared']),
   'client-transport-spec': new Set(['web-shared']),
   desktop: new Set([
@@ -957,6 +1020,7 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
   route: new Set(['feature-index', 'shell', 'web-shared', 'web-limits']),
   shell: new Set(['feature-index', 'shell', 'ui', 'web-shared', 'web-limits']),
   view: new Set([
+    'client-feature-api',
     'client-rules-api',
     'view',
     'query',
@@ -971,6 +1035,9 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
     'feature-index',
   ]),
   query: new Set([
+    'client-feature-api',
+    'client-request-api',
+    'client-port',
     'client-rules-api',
     'client-transport-api',
     'query',
@@ -982,6 +1049,9 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
     'contract',
   ]),
   command: new Set([
+    'client-feature-api',
+    'client-request-api',
+    'client-port',
     'client-rules-api',
     'client-transport-api',
     'command',
@@ -994,6 +1064,7 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
     'contract',
   ]),
   store: new Set([
+    'client-port',
     'client-rules-api',
     'client-transport-api',
     'web-rule',
@@ -1010,6 +1081,7 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
     'contract',
   ]),
   adapter: new Set([
+    'client-feature-api',
     'adapter',
     'store',
     'web-rule',
@@ -1018,6 +1090,8 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
     'contract',
   ]),
   api: new Set([
+    'client-feature-api',
+    'client-request-api',
     'client-rules-api',
     'client-transport-api',
     'web-rule',
@@ -1026,6 +1100,7 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
     'contract',
   ]),
   'feature-index': new Set([
+    'client-feature-api',
     'client-rules-api',
     'view',
     'query',
@@ -1112,6 +1187,8 @@ export function violation(
     to.owner === 'client' &&
     from.owner !== 'client' &&
     to.role !== 'client-rules-api' &&
+    to.role !== 'client-feature-api' &&
+    to.role !== 'client-request-api' &&
     to.role !== 'client-transport-api'
   )
     return 'client-public-api-only';
@@ -1252,6 +1329,10 @@ const storageEngineModule = /^(?:fs|child_process)(?:\/|$)/;
 export const externalPackages: Record<Role, readonly string[]> = {
   'mobile-config': ['expo'],
   'client-rules-api': [],
+  'client-feature-api': [],
+  'client-request-api': [],
+  'client-port': [],
+  'client-feature-spec': ['vitest'],
   'client-transport-api': [],
   'client-transport-spec': ['vitest'],
   desktop: ['electron', 'fix-path', 'zod'],
@@ -1397,6 +1478,14 @@ const rolePurposes: Record<Role, string> = {
   'mobile-config':
     'the Expo build configuration, which selects the installation identity and native plugins',
   'client-rules-api': "a shared client feature's public pure rules entry",
+  'client-feature-api':
+    'the shared feature entry for hooks, commands, stores and platform ports; request APIs have a separate entry that views cannot reach',
+  'client-request-api':
+    'the shared feature request API; only app APIs and shared reads and commands reach it',
+  'client-port':
+    'a platform capability supplied by app adapters to shared client behavior',
+  'client-feature-spec':
+    'a behavior spec for a shared feature with in-memory platform capabilities',
   'client-transport-api':
     'the shared client transport entry; feature APIs own requests and app adapters supply platform transport',
   'client-transport-spec':

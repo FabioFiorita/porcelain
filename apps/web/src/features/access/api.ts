@@ -1,6 +1,4 @@
 import {
-  readEnvironmentResponseSchema,
-  redeemPairingResponseSchema,
   issuePairingRequestSchema,
   issuePairingResponseSchema,
   listAccessResponseSchema,
@@ -33,7 +31,8 @@ import { perConnection } from '@porcelain/client/transport';
 import { browserTransport } from '@/shared/api/transport';
 import type { Transport } from '@porcelain/client/transport';
 import type { PairingCode } from '@porcelain/client/access/rules';
-import type { RemoteAnswer, RemoteLink } from './rules/remotes';
+import { createRemoteApi } from '@porcelain/client/access/api';
+import type { PairingPlatform } from '@porcelain/client/access';
 
 type PairingPort = {
   redeem(
@@ -254,54 +253,6 @@ function platformName() {
   return agent === '' ? 'Browser' : agent;
 }
 
-export const remoteApi = {
-  async pair(
-    transport: Transport,
-    link: RemoteLink,
-    signal: AbortSignal,
-  ): Promise<{ credential: string; deviceId: string }> {
-    let response: Response;
-    try {
-      response = await transport('/api/pair', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ code: link.code, platform: platformName() }),
-        signal,
-      });
-    } catch (error) {
-      throw new ConnectionError(
-        `Could not reach ${link.address}. Check that Porcelain runs there and that this computer reaches it.`,
-        { cause: error },
-      );
-    }
-    if (!response.ok)
-      throw new ConnectionError(
-        'That link was not accepted. It works once, for a few minutes; run porcelain pair again.',
-      );
-    const paired = redeemPairingResponseSchema.parse(await response.json());
-    if (!paired.credential)
-      throw new ConnectionError('The remote paired but sent no credential.');
-    return { credential: paired.credential, deviceId: paired.device.id };
-  },
-  async describe(
-    transport: Transport,
-    signal: AbortSignal,
-  ): Promise<RemoteAnswer> {
-    let response: Response;
-    try {
-      response = await transport('/api/environment', { signal });
-    } catch (error) {
-      const timedOut =
-        signal.reason instanceof DOMException &&
-        signal.reason.name === 'TimeoutError';
-      if (signal.aborted && !timedOut) throw error;
-      return { kind: 'unreachable' };
-    }
-    if (response.status === 401) return { kind: 'unauthorized' };
-    if (!response.ok) return { kind: 'unreachable' };
-    return {
-      kind: 'described',
-      environment: readEnvironmentResponseSchema.parse(await response.json()),
-    };
-  },
-};
+const remotePlatform: PairingPlatform = { name: platformName };
+
+export const remoteApi = createRemoteApi(remotePlatform);

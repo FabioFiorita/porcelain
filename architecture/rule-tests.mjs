@@ -71,6 +71,67 @@ const cases = [
   },
 ];
 const started = performance.now();
+for (const [file, role] of [
+  ['index.ts', 'client-feature-api'],
+  ['api.ts', 'client-request-api'],
+  ['api.spec.ts', 'client-feature-spec'],
+  ['store.ts', 'store'],
+  ['store.spec.ts', 'client-feature-spec'],
+  ['queries/environments.ts', 'query'],
+  ['commands/pairing.ts', 'command'],
+  ['commands/pairing.spec.ts', 'client-feature-spec'],
+  ['ports/credentials.ts', 'client-port'],
+])
+  deepStrictEqual(classify(`packages/client/src/features/access/${file}`), {
+    role,
+    owner: 'client',
+  });
+for (const file of [
+  'views/environment.tsx',
+  'adapters/credentials.ts',
+  'commands/nested/pairing.ts',
+  'ports/credentials.spec.ts',
+])
+  deepStrictEqual(
+    classify(`packages/client/src/features/access/${file}`),
+    undefined,
+  );
+for (const role of ['api', 'command', 'query'])
+  deepStrictEqual(
+    violation(
+      { role, owner: role === 'api' ? 'web' : 'client' },
+      { role: 'client-request-api', owner: 'client' },
+    ),
+    undefined,
+  );
+deepStrictEqual(
+  violation(
+    { role: 'view', owner: 'mobile' },
+    { role: 'client-request-api', owner: 'client' },
+  ),
+  'view-cannot-import-client-request-api',
+);
+deepStrictEqual(
+  violation(
+    { role: 'client-feature-api', owner: 'client' },
+    { role: 'client-request-api', owner: 'client' },
+  ),
+  'client-feature-api-cannot-import-client-request-api',
+);
+deepStrictEqual(
+  violation(
+    { role: 'view', owner: 'mobile' },
+    { role: 'client-feature-api', owner: 'client' },
+  ),
+  undefined,
+);
+deepStrictEqual(
+  violation(
+    { role: 'api', owner: 'web' },
+    { role: 'client-port', owner: 'client' },
+  ),
+  'client-public-api-only',
+);
 deepStrictEqual(classify('packages/client/src/shared/api/index.ts'), {
   role: 'client-transport-api',
   owner: 'client',
