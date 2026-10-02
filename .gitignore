@@ -13,3 +13,4 @@ dist/
 
 /dist-porcelain/
 .tanstack/
+test-results/

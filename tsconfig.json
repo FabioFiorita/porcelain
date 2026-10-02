@@ -21,7 +21,6 @@
     "scripts/**/*.ts",
     ".agents/skills/server-verify/scripts/**/*.ts",
     ".agents/skills/web-verify/scripts/**/*.ts",
-    ".agents/skills/web-verify/feature-map/**/*.ts",
     ".agents/skills/desktop-verify/scripts/**/*.ts",
     "architecture/*.ts",
     "architecture/probes/*.ts",

@@ -3,16 +3,16 @@ import type { Probe } from '../probe.ts';
 export default {
   decision: 'P5',
   plants:
-    'the wrong-text negative journey waits for a heading the app does show, so it passes',
+    'the wrong-text protection test waits for a heading the app does show, so the failing assertion it proves never fails',
   gate: 'web-verify',
-  feature: 'negative.wrong-text',
-  rule: 'negative.wrong-text: the planted journey passed',
+  feature: 'apps/web/spec/e2e/protections.e2e.ts',
+  rule: 'Error: expect(received).rejects.toThrow()',
   edits: [
     {
       kind: 'replace',
-      path: 'apps/web/spec/negative/wrong-text.browser.ts',
-      old: "      pairedPage.getByRole('heading', {\n        name: 'A heading Porcelain never shows',\n        exact: true,\n      }),",
-      new: "      pairedPage.getByRole('region', {\n        name: 'Review content',\n        exact: true,\n      }),",
+      path: 'apps/web/spec/e2e/protections.e2e.ts',
+      old: "        name: 'A heading Porcelain never shows',\n",
+      new: "        name: 'This browser is not paired',\n",
     },
   ],
 } satisfies Probe;

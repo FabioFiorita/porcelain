@@ -29,6 +29,7 @@
     "//#format:web:check": {},
     "//#arch:check": {},
     "//#test:rules": {},
-    "//#probes:check": {}
+    "//#probes:check": {},
+    "//#features:check": {}
   }
 }

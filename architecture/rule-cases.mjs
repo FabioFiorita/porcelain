@@ -3115,12 +3115,12 @@ describe('deriveProjectName probe', () => {
   },
   {
     rule: 'spec-behaviour-names',
-    path: 'apps/web/spec/browser/probe.browser.ts',
+    path: 'apps/web/spec/integration/probe.test.tsx',
     invalid: `import { expect } from 'vitest';
-import { test } from '../kit/journey';
+import { test } from './fixtures.tsx';
 
-test('access.pairing: works', async ({ pairedPage }) => {
-  await expect.element(pairedPage.getByRole('region', { name: 'Review content' })).toBeVisible();
+test('access.pairing: works', async ({ workspace }) => {
+  await expect.element(workspace.getByRole('region', { name: 'Review content' })).toBeVisible();
 });
 `,
     errors: 1,
@@ -3400,7 +3400,7 @@ export const probeRequest = requestJson;
   },
   {
     rule: 'web-browser-spec-no-mocks',
-    path: 'apps/web/spec/browser/probe.browser.ts',
+    path: 'apps/web/spec/integration/probe.test.tsx',
     invalid: `import { vi } from 'vitest';
 
 vi.fn();
@@ -3409,7 +3409,7 @@ vi.fn();
   },
   {
     rule: 'web-browser-spec-no-skips',
-    path: 'apps/web/spec/browser/probe.browser.ts',
+    path: 'apps/web/spec/integration/probe.test.tsx',
     invalid: `import { test } from 'vitest';
 
 test.skip('probe', () => undefined);
@@ -3418,12 +3418,12 @@ test.skip('probe', () => undefined);
   },
   {
     rule: 'web-browser-spec-no-skips',
-    path: 'apps/web/spec/browser/probe.browser.ts',
+    path: 'apps/web/spec/integration/probe.test.tsx',
     invalid: `import { expect } from 'vitest';
-import { test } from '../kit/journey';
+import { test } from './fixtures.tsx';
 
-test('the workspace opens after pairing', { retry: 2 }, async ({ pairedPage }) => {
-  await expect.element(pairedPage.getByRole('region', { name: 'Review content' })).toBeVisible();
+test('the workspace opens after pairing', { retry: 2 }, async ({ workspace }) => {
+  await expect.element(workspace.getByRole('region', { name: 'Review content' })).toBeVisible();
 });
 `,
     errors: 1,
@@ -3530,97 +3530,56 @@ export function useProbeWrite() {
     errors: 1,
   },
   {
-    rule: 'web-journey-asserts',
-    path: 'apps/web/spec/browser/probe.browser.ts',
-    invalid: `import { test } from '../kit/journey';
+    rule: 'web-browser-spec-no-mocks',
+    path: 'apps/web/spec/e2e/probe.e2e.ts',
+    valid: `import { expect, test } from './fixtures.ts';
 
-test('opening the commit dialog shows its form', async ({ pairedPage }) => {
-  await pairedPage.getByRole('button', { name: 'Commit', exact: true }).click();
+test('the workspace opens after pairing', async ({ pairedPage }) => {
+  await expect(pairedPage.getByRole('region', { name: 'Review content', exact: true })).toBeVisible();
+});
+`,
+    invalid: `import { expect, test } from './fixtures.ts';
+
+test('the inventory read fails', async ({ pairedPage }) => {
+  await pairedPage.route('**/api/inventory', (route) => route.fulfill({ status: 503 }));
+  await expect(pairedPage.getByRole('region', { name: 'Review content', exact: true })).toBeVisible();
+});
+`,
+    errors: 1,
+  },
+  {
+    rule: 'web-browser-spec-no-skips',
+    path: 'apps/web/spec/e2e/probe.e2e.ts',
+    invalid: `import { expect, test } from './fixtures.ts';
+
+test.fixme('the workspace opens after pairing', async ({ pairedPage }) => {
+  await expect(pairedPage.getByRole('region', { name: 'Review content', exact: true })).toBeVisible();
 });
 `,
     errors: 1,
   },
   {
     rule: 'web-journey-imports',
-    path: 'apps/web/spec/browser/probe.browser.ts',
-    invalid: `import { expect } from 'vitest';
-import { isContentChangedError } from '../../src/features/review/queries/review';
-import { test } from '../kit/journey';
+    path: 'apps/web/spec/e2e/probe.e2e.ts',
+    invalid: `import { expect, test } from '@playwright/test';
 
-test('a conflict is recognised by the review client', async ({ server }) => {
-  await expect.poll(async () => isContentChangedError(await server.health())).toBe(false);
-});
-`,
-    errors: 1,
-  },
-  {
-    rule: 'web-journey-locators',
-    path: 'apps/web/spec/browser/probe.browser.ts',
-    invalid: `import { expect } from 'vitest';
-import { test } from '../kit/journey';
-
-test('the workspace names its review region', async ({ pairedPage }) => {
-  const region = pairedPage.getByRole('region', { name: 'Review content', exact: true }).element();
-  await expect.element(region).toBeVisible();
-});
-`,
-    errors: 1,
-  },
-  {
-    rule: 'web-journey-locators',
-    path: 'apps/web/spec/browser/probe.browser.ts',
-    invalid: `import { expect } from 'vitest';
-import { test } from '../kit/journey';
-
-test('the workspace offers a commit button', async ({ pairedPage }) => {
-  await expect.element(pairedPage.getByTestId('commit-button')).toBeVisible();
-});
-`,
-    errors: 1,
-  },
-  {
-    rule: 'web-journey-locators',
-    path: 'apps/web/spec/browser/probe.browser.ts',
-    valid: `import { expect } from 'vitest';
-import { test } from '../kit/journey';
-
-test('marking a file reviewed presses its toggle', async ({ pairedPage }) => {
-  await pairedPage.getByRole('button', { name: 'Mark notes.md as reviewed', exact: true }).click();
-  await expect.element(pairedPage.getByRole('button', { name: /^Reviewed$/ })).toBeVisible();
-  await expect.element(pairedPage.getByText('Reviewed', { exact: true })).toBeVisible();
-  await expect.element(pairedPage.getByLabelText(new RegExp('^Comment'))).toBeVisible();
-});
-`,
-    invalid: `import { expect } from 'vitest';
-import { test } from '../kit/journey';
-
-test('marking a file reviewed presses its toggle', async ({ pairedPage }) => {
-  await pairedPage.getByRole('button', { name: 'Mark notes.md as reviewed' }).click();
-  await expect.element(pairedPage.getByText('Reviewed')).toBeVisible();
-  await expect.element(pairedPage.getByLabelText('Comment', { exact: false })).toBeVisible();
-});
-`,
-    errors: 3,
-  },
-  {
-    rule: 'web-journey-no-waits',
-    path: 'apps/web/spec/browser/probe.browser.ts',
-    invalid: `import { expect } from 'vitest';
-import { test } from '../kit/journey';
-
-test('the commit dialog opens after a click', async ({ pairedPage }) => {
-  await pairedPage.getByRole('button', { name: 'Commit', exact: true }).click();
-  await new Promise((done) => setTimeout(done, 500));
-  await expect.element(pairedPage.getByRole('dialog')).toBeVisible();
+test('the workspace opens after pairing', async ({ page }) => {
+  await expect(page.getByRole('region', { name: 'Review content', exact: true })).toBeVisible();
 });
 `,
     errors: 1,
   },
   {
     rule: 'web-journey-retrying-assertions',
-    path: 'apps/web/spec/browser/probe.browser.ts',
-    invalid: `import { expect } from 'vitest';
-import { test } from '../kit/journey';
+    path: 'apps/web/spec/e2e/probe.e2e.ts',
+    valid: `import { expect, test } from './fixtures.ts';
+
+test('a renamed project keeps its new name on the server', async ({ pairedPage, server }) => {
+  await expect(pairedPage.getByRole('button', { name: 'Rename', exact: true })).toBeEnabled();
+  await expect.poll(async () => (await server.project()).name).toBe('Renamed');
+});
+`,
+    invalid: `import { expect, test } from './fixtures.ts';
 
 test('a renamed project keeps its new name on the server', async ({ pairedPage, server }) => {
   await pairedPage.getByRole('button', { name: 'Rename', exact: true }).click();
@@ -3630,13 +3589,124 @@ test('a renamed project keeps its new name on the server', async ({ pairedPage, 
     errors: 1,
   },
   {
-    rule: 'web-journey-through-kit',
-    path: 'apps/web/spec/browser/probe.browser.ts',
-    invalid: `import { expect } from 'vitest';
-import { test } from '../kit/journey';
+    rule: 'web-journey-asserts',
+    path: 'apps/web/spec/e2e/probe.e2e.ts',
+    invalid: `import { test } from './fixtures.ts';
 
-test('the paired browser can read its inventory', async ({ pairedPage }) => {
-  await expect.element(pairedPage.getByRole('region', { name: 'Review content' })).toBeVisible();
+test('opening the commit dialog shows its form', async ({ pairedPage }) => {
+  await pairedPage.getByRole('button', { name: 'Commit', exact: true }).click();
+});
+`,
+    errors: 1,
+  },
+  {
+    rule: 'web-journey-asserts',
+    path: 'apps/web/spec/integration/probe.test.tsx',
+    invalid: `import { test } from './fixtures.tsx';
+
+test('opening the commit dialog shows its form', async ({ workspace }) => {
+  await workspace.getByRole('button', { name: 'Commit', exact: true }).click();
+});
+`,
+    errors: 1,
+  },
+  {
+    rule: 'web-journey-imports',
+    path: 'apps/web/spec/integration/probe.test.tsx',
+    invalid: `import { expect } from 'vitest';
+import { isContentChangedError } from '../../src/features/review/queries/review';
+import { test } from './fixtures.tsx';
+
+test('a conflict is recognised by the review client', async ({ server }) => {
+  await expect.poll(async () => isContentChangedError(await server.health())).toBe(false);
+});
+`,
+    errors: 1,
+  },
+  {
+    rule: 'web-journey-locators',
+    path: 'apps/web/spec/integration/probe.test.tsx',
+    invalid: `import { expect } from 'vitest';
+import { test } from './fixtures.tsx';
+
+test('the workspace names its review region', async ({ workspace }) => {
+  const region = workspace.getByRole('region', { name: 'Review content', exact: true }).element();
+  await expect.element(region).toBeVisible();
+});
+`,
+    errors: 1,
+  },
+  {
+    rule: 'web-journey-locators',
+    path: 'apps/web/spec/integration/probe.test.tsx',
+    invalid: `import { expect } from 'vitest';
+import { test } from './fixtures.tsx';
+
+test('the workspace offers a commit button', async ({ workspace }) => {
+  await expect.element(workspace.getByTestId('commit-button')).toBeVisible();
+});
+`,
+    errors: 1,
+  },
+  {
+    rule: 'web-journey-locators',
+    path: 'apps/web/spec/integration/probe.test.tsx',
+    valid: `import { expect } from 'vitest';
+import { test } from './fixtures.tsx';
+
+test('marking a file reviewed presses its toggle', async ({ workspace }) => {
+  await workspace.getByRole('button', { name: 'Mark notes.md as reviewed', exact: true }).click();
+  await expect.element(workspace.getByRole('button', { name: /^Reviewed$/ })).toBeVisible();
+  await expect.element(workspace.getByText('Reviewed', { exact: true })).toBeVisible();
+  await expect.element(workspace.getByLabelText(new RegExp('^Comment'))).toBeVisible();
+});
+`,
+    invalid: `import { expect } from 'vitest';
+import { test } from './fixtures.tsx';
+
+test('marking a file reviewed presses its toggle', async ({ workspace }) => {
+  await workspace.getByRole('button', { name: 'Mark notes.md as reviewed' }).click();
+  await expect.element(workspace.getByText('Reviewed')).toBeVisible();
+  await expect.element(workspace.getByLabelText('Comment', { exact: false })).toBeVisible();
+});
+`,
+    errors: 3,
+  },
+  {
+    rule: 'web-journey-no-waits',
+    path: 'apps/web/spec/integration/probe.test.tsx',
+    invalid: `import { expect } from 'vitest';
+import { test } from './fixtures.tsx';
+
+test('the commit dialog opens after a click', async ({ workspace }) => {
+  await workspace.getByRole('button', { name: 'Commit', exact: true }).click();
+  await new Promise((done) => setTimeout(done, 500));
+  await expect.element(workspace.getByRole('dialog')).toBeVisible();
+});
+`,
+    errors: 1,
+  },
+  {
+    rule: 'web-journey-retrying-assertions',
+    path: 'apps/web/spec/integration/probe.test.tsx',
+    invalid: `import { expect } from 'vitest';
+import { test } from './fixtures.tsx';
+
+test('a renamed project keeps its new name on the server', async ({ workspace, server }) => {
+  await workspace.getByRole('button', { name: 'Rename', exact: true }).click();
+  expect((await server.project()).name).toBe('Renamed');
+});
+`,
+    errors: 1,
+  },
+  {
+    rule: 'web-journey-through-kit',
+    path: 'apps/web/spec/integration/probe.test.tsx',
+    invalid: `import { expect } from 'vitest';
+import { test } from './fixtures.tsx';
+
+test('the paired browser can read its inventory', async ({ workspace }) => {
+  await expect.element(workspace.getByRole('region', { name: 'Review content' })).toBeVisible();
   await expect.poll(async () => (await fetch('/api/inventory')).status).toBe(200);
 });
 `,

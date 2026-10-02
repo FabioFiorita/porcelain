@@ -28,10 +28,6 @@ import {
 } from '../architecture/probe.ts';
 import { compilerFindings } from '../architecture/react-compiler.ts';
 import { pinProblems, uiFolder } from '../architecture/shadcn-pins.ts';
-import {
-  loadJourneys,
-  unmappedRoutes,
-} from '../.agents/skills/web-verify/scripts/catalogue.ts';
 import { manualAuditProblems } from '../architecture/ci-policy.ts';
 import {
   mobileGeneratedTypes,
@@ -74,10 +70,15 @@ const serverRoots = [
   'vitest.config.ts',
   '.agents/skills/server-verify/scripts',
   '.agents/skills/web-verify/scripts',
-  '.agents/skills/web-verify/feature-map',
   '.agents/skills/desktop-verify/scripts',
 ].filter((root) => existsSync(root));
-const webRoots = ['apps/web/src', 'apps/web/spec', 'apps/web/vite.config.ts'];
+const webRoots = [
+  'apps/web/src',
+  'apps/web/spec',
+  'apps/web/vite.config.ts',
+  'apps/web/vitest.config.ts',
+  'apps/web/playwright.config.ts',
+];
 const allRoots = [...serverRoots, ...webRoots];
 const roots = target === 'web' ? webRoots : serverRoots;
 
@@ -99,6 +100,7 @@ const skippedDirectories = new Set([
   'dist',
   '.vite',
   '.turbo',
+  'test-results',
 ]);
 
 function filesUnder(path: string): string[] {
@@ -209,7 +211,7 @@ const requiredRuns: Readonly<Record<string, readonly string[]>> = {
     'pnpm --filter @porcelain/web build',
     'pnpm db:check',
     'pnpm test:integration',
-    'pnpm verify:web --all',
+    'pnpm --filter @porcelain/web test:e2e',
   ],
 };
 
@@ -697,21 +699,6 @@ function filesOf(root: string): Map<string, string> {
   );
 }
 
-async function featureMapProblems(): Promise<Problem[]> {
-  try {
-    return unmappedRoutes(await loadJourneys()).map((found) =>
-      problem('web-feature-map', found),
-    );
-  } catch (error) {
-    return [
-      problem(
-        'web-feature-map',
-        error instanceof Error ? error.message : String(error),
-      ),
-    ];
-  }
-}
-
 async function routeTreeProblems(): Promise<Problem[]> {
   const web = 'apps/web';
   const routes = join(web, 'src', 'routes');
@@ -768,6 +755,7 @@ const rootTasks = [
   'arch:check',
   'test:rules',
   'probes:check',
+  'features:check',
 ] as const;
 const fastTasks = ['typecheck', 'test', ...rootTasks.slice(1)];
 
@@ -788,14 +776,16 @@ const gateScripts: Readonly<Record<string, Readonly<Record<string, string>>>> =
       prepare: 'lefthook install --reset-hooks-path',
       'lint:web': 'node scripts/style.ts lint web',
       'format:web:check': 'node scripts/style.ts format web',
-      'verify:web': 'node .agents/skills/web-verify/scripts/browser.ts',
       check: `turbo run ${fastTasks.join(' ')} --output-logs=errors-only --continue --concurrency=100%`,
       'test:rules': 'node architecture/rule-tests.mjs',
       'probes:check': 'node scripts/probes.ts --check',
+      'features:check': 'node scripts/feature-maps.ts',
     },
     'apps/web/package.json': {
       typecheck: 'tsc --noEmit && tsc --noEmit -p tsconfig.node.json',
       build: 'tsc --noEmit && tsc --noEmit -p tsconfig.node.json && vite build',
+      'test:integration': 'vitest run --config vitest.config.ts',
+      'test:e2e': 'playwright test',
     },
     'apps/server/package.json': {
       'test:integration':
@@ -900,17 +890,37 @@ const vitestConfigSchema = z.object({
   }),
 });
 
+const playwrightConfigSchema = z.object({
+  default: z.object({
+    retries: z.unknown(),
+    forbidOnly: z.unknown(),
+    use: z.object({
+      browserName: z.unknown(),
+      headless: z.unknown(),
+      trace: z.unknown(),
+    }),
+  }),
+});
+
 const browserConfigSchema = z.object({
   default: z.object({
     test: z.object({
-      include: z.unknown(),
-      retry: z.unknown(),
-      browser: z.object({
-        enabled: z.unknown(),
-        headless: z.unknown(),
-        provider: z.object({ name: z.unknown() }),
-        instances: z.array(z.object({ browser: z.unknown() })),
-      }),
+      allowOnly: z.unknown(),
+      passWithNoTests: z.unknown(),
+      projects: z.array(
+        z.object({
+          test: z.object({
+            include: z.array(z.string()),
+            retry: z.unknown(),
+            browser: z.object({
+              enabled: z.unknown(),
+              headless: z.unknown(),
+              provider: z.object({ name: z.unknown() }),
+              instances: z.array(z.object({ browser: z.unknown() })),
+            }),
+          }),
+        }),
+      ),
     }),
   }),
 });
@@ -974,25 +984,54 @@ async function configModuleProblems(): Promise<Problem[]> {
       ),
     );
   const browser = browserConfigSchema.safeParse(
-    await load('.agents/skills/web-verify/scripts/vitest.browser.config.ts'),
+    await load('apps/web/vitest.config.ts'),
   );
-  const run = browser.success ? browser.data.default.test : undefined;
+  const integration = browser.success ? browser.data.default.test : undefined;
+  const lanes = integration?.projects.map((project) => project.test) ?? [];
+  const included = lanes.flatMap((lane) => lane.include).toSorted();
+  const written = readdirSync('apps/web/spec/integration')
+    .filter((file) => file.endsWith('.test.tsx'))
+    .map((file) => `spec/integration/${file}`)
+    .toSorted();
   if (
-    run === undefined ||
-    run.retry !== 0 ||
-    !isDeepStrictEqual(run.include, [
-      'spec/browser/*.browser.ts',
-      'spec/negative/*.browser.ts',
-    ]) ||
-    run.browser.enabled !== true ||
-    run.browser.headless !== true ||
-    run.browser.provider.name !== 'playwright' ||
-    run.browser.instances.some((instance) => instance.browser !== 'chromium')
+    integration === undefined ||
+    integration.allowOnly !== false ||
+    integration.passWithNoTests !== false ||
+    lanes.length === 0 ||
+    !isDeepStrictEqual(included, written) ||
+    lanes.some(
+      (lane) =>
+        lane.retry !== 0 ||
+        lane.browser.enabled !== true ||
+        lane.browser.headless !== true ||
+        lane.browser.provider.name !== 'playwright' ||
+        lane.browser.instances.some(
+          (instance) => instance.browser !== 'chromium',
+        ),
+    )
   )
     problems.push(
       problem(
         'vitest-config',
-        'the browser Vitest config runs every journey and negative once, with no retry, in headless Chromium through the Playwright provider.',
+        'apps/web/vitest.config.ts runs every integration test in spec/integration exactly once across its lanes, with no retry and no .only, in headless Chromium through the Playwright provider.',
+      ),
+    );
+  const e2e = playwrightConfigSchema.safeParse(
+    await load('apps/web/playwright.config.ts'),
+  );
+  const flows = e2e.success ? e2e.data.default : undefined;
+  if (
+    flows === undefined ||
+    flows.retries !== 0 ||
+    flows.forbidOnly !== true ||
+    flows.use.browserName !== 'chromium' ||
+    flows.use.headless !== true ||
+    flows.use.trace !== 'retain-on-failure'
+  )
+    problems.push(
+      problem(
+        'playwright-config',
+        'apps/web/playwright.config.ts runs every e2e test once, with no retry and no .only, in headless Chromium, and keeps the trace of each failure.',
       ),
     );
   const cruiser = cruiserConfigSchema.safeParse(
@@ -1236,7 +1275,6 @@ if (mode === 'format') {
     ...(target === 'web'
       ? pinProblems('.').map((found) => problem('shadcn-ui-pinned', found))
       : []),
-    ...(target === 'web' ? await featureMapProblems() : []),
   ];
   for (const { rule, message } of problems)
     process.stderr.write(`error style(${rule}): ${message}\n`);

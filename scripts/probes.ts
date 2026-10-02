@@ -53,7 +53,31 @@ const gateCommands: Record<
     ...(probe.feature === undefined ? [] : [probe.feature]),
   ],
   perf: () => ['pnpm', '--filter', '@porcelain/server', 'test:perf'],
-  'web-verify': (probe) => ['pnpm', 'verify:web', probe.feature ?? '--all'],
+  'web-verify': (probe) =>
+    probe.feature?.endsWith('.e2e.ts') === true
+      ? [
+          'pnpm',
+          '--filter',
+          '@porcelain/web',
+          'exec',
+          'playwright',
+          'test',
+          probe.feature.replace(/^apps\/web\//, ''),
+        ]
+      : probe.feature === undefined
+        ? ['pnpm', 'test:integration']
+        : [
+            'pnpm',
+            '--filter',
+            '@porcelain/web',
+            'exec',
+            'vitest',
+            'run',
+            '--config',
+            'vitest.config.ts',
+            probe.feature.replace(/^apps\/web\//, ''),
+          ],
+  features: () => ['pnpm', 'features:check'],
 };
 const expectedSeconds: Record<ProbeGate, (probe: LoadedProbe) => number> = {
   lint: () => 5,
@@ -64,7 +88,8 @@ const expectedSeconds: Record<ProbeGate, (probe: LoadedProbe) => number> = {
   db: () => 2,
   integration: (probe) => (probe.feature === undefined ? 20 : 4),
   perf: () => 15,
-  'web-verify': (probe) => (probe.feature === undefined ? 150 : 12),
+  'web-verify': (probe) => (probe.feature === undefined ? 240 : 25),
+  features: () => 2,
 };
 const moduleSchema = z.object({ default: probeSchema });
 const localEnvironment = Object.fromEntries(

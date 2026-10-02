@@ -3297,7 +3297,9 @@ export default {
     },
     'spec-behaviour-names': {
       create(context) {
-        const journey = webPart(repositoryPath(context)) === 'browser-spec';
+        const journey = ['integration-spec', 'e2e-spec'].includes(
+          webPart(repositoryPath(context)),
+        );
         if (!isSpec(context) && !journey) return {};
         return {
           CallExpression(node) {

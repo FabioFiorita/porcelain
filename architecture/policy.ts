@@ -156,8 +156,14 @@ export const roles = [
   'feature-index',
   'web-shared',
   'ui',
-  'browser-spec',
-  'browser-kit',
+  'integration-spec',
+  'integration-kit',
+  'integration-host',
+  'e2e-spec',
+  'e2e-kit',
+  'web-test-kit',
+  'web-test-config',
+  'web-verify-cli',
   'web-rule-spec',
   'web-config',
   'web-limits',
@@ -195,8 +201,8 @@ export const webRoles: ReadonlySet<Role> = new Set<Role>([
   'feature-index',
   'web-shared',
   'ui',
-  'browser-spec',
-  'browser-kit',
+  'integration-spec',
+  'integration-kit',
   'web-rule-spec',
   'web-config',
   'web-limits',
@@ -389,7 +395,7 @@ export const styleRules = [
   'route-tree',
   'react-compiler',
   'shadcn-ui-pinned',
-  'web-feature-map',
+  'playwright-config',
   'duplicate-code',
   'turbo-config',
 ] as const;
@@ -695,9 +701,14 @@ export function webPart(path: string): Role | undefined {
   }
   if (path === 'apps/web/vite.config.ts') return 'web-config';
   if (/^apps\/web\/src\/[^/]+\.css$/.test(path)) return 'app-stylesheet';
-  if (/^apps\/web\/spec\/(?:browser|negative)\//.test(path))
-    return 'browser-spec';
-  if (path.startsWith('apps/web/spec/kit/')) return 'browser-kit';
+  if (/^apps\/web\/(?:playwright|vitest)\.config\.ts$/.test(path))
+    return 'web-test-config';
+  if (path === 'apps/web/spec/integration/host.ts') return 'integration-host';
+  if (path.startsWith('apps/web/spec/integration/'))
+    return path.endsWith('.test.tsx') ? 'integration-spec' : 'integration-kit';
+  if (path.startsWith('apps/web/spec/e2e/'))
+    return path.endsWith('.e2e.ts') ? 'e2e-spec' : 'e2e-kit';
+  if (path.startsWith('apps/web/spec/kit/')) return 'web-test-kit';
   if (!path.startsWith('apps/web/src/') || !webCode.test(path)) return;
   const inside = path.slice('apps/web/src/'.length);
   const parts = inside.split('/');
@@ -722,12 +733,23 @@ function classifyWeb(path: string): Classification | undefined {
   if (role === 'app-stylesheet') return classified(role, owner);
   const inside = path.slice('apps/web/'.length).split('/');
   const name = inside.at(-1) ?? '';
-  if (role === 'browser-spec')
-    return inside.length === 3 && /^[a-z0-9-]+\.browser\.ts$/.test(name)
+  if (role === 'web-test-config' || role === 'integration-host')
+    return classified(role, owner);
+  if (role === 'integration-spec')
+    return inside.length === 3 && /^[a-z0-9-]+\.test\.tsx$/.test(name)
       ? classified(role, owner)
       : undefined;
-  if (role === 'browser-kit')
-    return inside.length === 3 && kebabFile.test(name) && name.endsWith('.ts')
+  if (role === 'e2e-spec')
+    return inside.length === 3 &&
+      /^[a-z0-9-]+(?:\.desktop)?\.e2e\.ts$/.test(name)
+      ? classified(role, owner)
+      : undefined;
+  if (
+    role === 'integration-kit' ||
+    role === 'e2e-kit' ||
+    role === 'web-test-kit'
+  )
+    return inside.length === 3 && kebabFile.test(name)
       ? classified(role, owner)
       : undefined;
   if (role === 'web-rule-spec')
@@ -768,7 +790,7 @@ function classifyWeb(path: string): Classification | undefined {
 
 export function webLayout(path: string): string {
   if (path.startsWith('apps/web/spec/'))
-    return 'apps/web/spec/browser/<journey>.browser.ts holds the journeys, apps/web/spec/negative/<name>.browser.ts the planted journeys the runner must reject, and apps/web/spec/kit/<part>.ts the journey kit; nothing else';
+    return 'apps/web/spec/integration/<feature>.test.tsx holds the Browser Mode integration tests beside their kit files, apps/web/spec/e2e/<flow>.e2e.ts (or <flow>.desktop.e2e.ts) the Playwright e2e tests beside their kit files, and apps/web/spec/kit/<part>.ts the kit both suites share; nothing else';
   const inside = path.slice('apps/web/src/'.length);
   if (inside.startsWith('features/'))
     return `features/<domain>/ holds api.ts, store.ts, live.ts, overlays.ts, index.ts and the flat folders queries/, commands/, rules/ (.ts), adapters/ and views/ (.tsx); <domain> is one of ${webDomains.join(', ')}`;
@@ -840,6 +862,10 @@ export function classify(path: string): Classification | undefined {
     return role === undefined ? undefined : classified(role, 'mobile');
   }
   if (path.startsWith('apps/web/')) return classifyWeb(path);
+  if (
+    /^\.agents\/skills\/web-verify\/scripts\/[a-z]+(?:-[a-z]+)*\.ts$/.test(path)
+  )
+    return classified('web-verify-cli', 'web-verify');
   return;
 }
 
@@ -1203,8 +1229,23 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
     'contract',
   ]),
   ui: new Set(['ui', 'web-shared']),
-  'browser-spec': new Set(['browser-kit', 'contract']),
-  'browser-kit': new Set(['browser-kit', 'web-entry', 'contract']),
+  'integration-spec': new Set(['integration-kit', 'web-test-kit', 'contract']),
+  'integration-kit': new Set([
+    'integration-kit',
+    'web-test-kit',
+    'feature-index',
+    'shell',
+    'ui',
+    'web-shared',
+    'app-stylesheet',
+    'contract',
+  ]),
+  'integration-host': new Set(['web-test-kit', 'server-kit', 'contract']),
+  'e2e-spec': new Set(['e2e-kit', 'web-test-kit', 'contract']),
+  'e2e-kit': new Set(['e2e-kit', 'web-test-kit', 'server-kit', 'contract']),
+  'web-test-kit': new Set(['web-test-kit', 'server-kit', 'contract']),
+  'web-test-config': new Set(['web-config', 'e2e-kit', 'integration-host']),
+  'web-verify-cli': new Set(['web-verify-cli', 'server-kit', 'contract']),
   'web-rule-spec': new Set(['web-rule', 'web-limits', 'contract']),
   'web-config': new Set(),
   'web-limits': new Set(['contract']),
@@ -1219,6 +1260,13 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
 };
 
 const specSupportRoles: ReadonlySet<string> = new Set(['fake', 'fixture']);
+
+const serverKitClients: ReadonlySet<Role> = new Set<Role>([
+  'web-test-kit',
+  'e2e-kit',
+  'integration-host',
+  'web-verify-cli',
+]);
 
 function testViolation(
   from: Classification,
@@ -1240,7 +1288,8 @@ function testViolation(
   if (
     from.owner !== 'server' &&
     to.owner === 'server' &&
-    !(from.owner === 'desktop' && to.role === 'desktop-server-api')
+    !(from.owner === 'desktop' && to.role === 'desktop-server-api') &&
+    !(serverKitClients.has(from.role) && to.role === 'server-kit')
   )
     return 'package-cannot-import-server';
   if (
@@ -1299,7 +1348,8 @@ export function violation(
   if (
     from.owner !== 'server' &&
     to.owner === 'server' &&
-    !(from.owner === 'desktop' && to.role === 'desktop-server-api')
+    !(from.owner === 'desktop' && to.role === 'desktop-server-api') &&
+    !(serverKitClients.has(from.role) && to.role === 'server-kit')
   )
     return 'package-cannot-import-server';
   if (from.owner === 'git' && domainSet.has(to.owner))
@@ -1489,8 +1539,18 @@ export const externalPackages: Record<Role, readonly string[]> = {
   'feature-index': [],
   'web-shared': [],
   ui: [],
-  'browser-spec': [],
-  'browser-kit': [],
+  'integration-spec': [],
+  'integration-kit': [],
+  'integration-host': ['vitest'],
+  'e2e-spec': [],
+  'e2e-kit': ['@playwright/test', 'vite', 'zod'],
+  'web-test-kit': [],
+  'web-test-config': [
+    '@playwright/test',
+    '@vitest/browser-playwright',
+    'vitest',
+  ],
+  'web-verify-cli': ['playwright', 'zod'],
   'web-rule-spec': [],
   'web-config': [],
   'web-limits': [],
@@ -1528,7 +1588,8 @@ function forbiddenNodeModule(role: Role, name: string): boolean {
     role === 'test' ||
     role === 'server-kit' ||
     role === 'integration-test' ||
-    role === 'server-cli'
+    role === 'server-cli' ||
+    role === 'web-verify-cli'
   )
     return false;
   if (role === 'capture') return !captureNodeModules.has(base);
@@ -1677,9 +1738,22 @@ const rolePurposes: Record<Role, string> = {
     "a feature's index.ts, its public face to routes, the shell and other features",
   'web-shared': 'apps/web/src/shared/, which serves every owner',
   ui: 'a shadcn registry component in components/ui/',
-  'browser-spec':
-    'a browser journey in apps/web/spec/browser/ or negative/, which drives the real app',
-  'browser-kit': 'the journey kit in apps/web/spec/kit/',
+  'integration-spec':
+    'a Vitest Browser Mode integration test in apps/web/spec/integration/, which renders one feature in Chromium against a disposable real server',
+  'integration-kit':
+    'the browser side of the integration kit in apps/web/spec/integration/: the fixtures that pair, render one feature with the providers it needs and watch for failures, and the commands they send to the host; it may render features, the shell providers and shared code because rendering one feature is its job',
+  'integration-host':
+    "apps/web/spec/integration/host.ts, the Node side of the integration kit, whose browser commands start and stop each test's disposable server through the server kit",
+  'e2e-spec':
+    'a Playwright Test e2e test in apps/web/spec/e2e/, which drives the real app through a user flow against a disposable real server',
+  'e2e-kit':
+    'the Playwright fixtures in apps/web/spec/e2e/, which start Vite per worker and a disposable server per test through the server kit, pair, and watch for failures',
+  'web-test-kit':
+    'the kit both web suites share in apps/web/spec/kit/: typed server readers, the sample repository and agent, failure verdicts, and the Node-side world over the server kit, so no test reaches the server another way',
+  'web-test-config':
+    'apps/web/playwright.config.ts and apps/web/vitest.config.ts, the runners of the e2e and integration suites',
+  'web-verify-cli':
+    'the web control CLI in .agents/skills/web-verify/scripts/, which starts a disposable server through the server kit, Vite and a Playwright browser session, drives them for an agent and records evidence, and never asserts',
   'web-rule-spec': 'a spec for a pure web rule',
   'web-config': 'apps/web/vite.config.ts',
   'web-limits':

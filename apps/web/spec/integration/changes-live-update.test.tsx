@@ -1,0 +1,102 @@
+import { expect, test } from './fixtures.tsx';
+
+const note = 'live-note.md';
+
+test('an open file another writer rewrites on disk shows the new text without a reload', async ({
+  workspace,
+  repo,
+  server,
+}) => {
+  const readme = repo.readme.path;
+  const rewritten = 'Rewritten by another writer while the page is open.';
+  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace.getByRole('tab', { name: 'Files', exact: true }).click();
+  const file = workspace.getByRole('treeitem', { name: readme, exact: true });
+  await expect.element(file).toBeVisible();
+  await file.click({ button: 'right' });
+  await workspace
+    .getByRole('menuitem', { name: 'Open file', exact: true })
+    .click();
+  await expect
+    .element(workspace.getByText('A change to review.', { exact: true }))
+    .toBeVisible();
+  const source = workspace.getByRole('tab', { name: 'Source', exact: true });
+  await source.click();
+  await expect.element(source).toHaveAttribute('aria-selected', 'true');
+
+  await repo.write(readme, `# Sample repository\n\n${rewritten}\n`);
+  await expect
+    .poll(async () => (await server.text(readme)).text)
+    .toContain(rewritten);
+  await expect
+    .element(workspace.getByText(rewritten, { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(workspace.getByText('A change to review.', { exact: true }))
+    .not.toBeInTheDocument();
+  await expect.element(source).toHaveAttribute('aria-selected', 'true');
+});
+
+test('a file another writer creates on disk appears in the open file tree and changes list without a reload', async ({
+  workspace,
+  repo,
+  server,
+}) => {
+  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  const files = workspace.getByRole('tab', { name: 'Files', exact: true });
+  await files.click();
+  await expect
+    .element(
+      workspace.getByRole('treeitem', { name: repo.readme.path, exact: true }),
+    )
+    .toBeVisible();
+  await repo.write(note, 'Written by another writer.\n');
+  await expect
+    .poll(async () => (await server.changes()).changes.map(({ path }) => path))
+    .toContain(note);
+  await expect
+    .element(workspace.getByRole('treeitem', { name: note, exact: true }))
+    .toBeVisible();
+  await expect.element(files).toHaveAttribute('aria-selected', 'true');
+  await workspace.getByRole('tab', { name: 'Changes', exact: true }).click();
+  await expect
+    .element(
+      workspace.getByRole('button', {
+        name: `${note} · untracked`,
+        exact: true,
+      }),
+    )
+    .toBeVisible();
+});
+
+test('a file another writer removes from disk leaves the open changes list and file tree without a reload', async ({
+  workspace,
+  repo,
+  server,
+}) => {
+  await repo.write(note, 'Written by another writer.\n');
+  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace.getByRole('tab', { name: 'Changes', exact: true }).click();
+  const row = workspace.getByRole('button', {
+    name: `${note} · untracked`,
+    exact: true,
+  });
+  await expect.element(row).toBeVisible();
+  await repo.remove(note);
+  await expect
+    .poll(async () => (await server.changes()).changes.map(({ path }) => path))
+    .not.toContain(note);
+  await expect.element(row).not.toBeInTheDocument();
+  await expect
+    .element(workspace.getByRole('button', { name: /^README\.md · / }))
+    .toBeVisible();
+  await workspace.getByRole('tab', { name: 'Files', exact: true }).click();
+  await expect
+    .element(
+      workspace.getByRole('treeitem', { name: repo.readme.path, exact: true }),
+    )
+    .toBeVisible();
+  await expect
+    .element(workspace.getByRole('treeitem', { name: note, exact: true }))
+    .not.toBeInTheDocument();
+});

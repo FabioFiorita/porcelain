@@ -56,6 +56,7 @@ export const probeGates = [
   'integration',
   'perf',
   'web-verify',
+  'features',
 ] as const;
 
 export type ProbeGate = (typeof probeGates)[number];
@@ -106,7 +107,12 @@ export const ruleShapes: Readonly<
   'web-verify': {
     pattern: /^[^:\s][^:\n]*: \S.*$/,
     shape:
-      '<journey or runner part>: <reason>, as pnpm verify:web prints each failure under its FAIL or NOT REJECTED line',
+      '<label>: <detail>, as Vitest Browser Mode or Playwright Test prints a failed test',
+  },
+  features: {
+    pattern: /^\S[^\n]*: \S.*$/,
+    shape:
+      '<map file, route file or call site>: <reason>, as scripts/feature-maps.ts prints each problem',
   },
 };
 
@@ -129,7 +135,7 @@ export const probeSchema = z
         code: 'custom',
         path: ['feature'],
         message:
-          'only an integration or web-verify probe names the test file or journey its runner runs',
+          'only an integration or web-verify probe names the test file its runner runs',
       });
     const { pattern, shape } = ruleShapes[probe.gate];
     if (!pattern.test(probe.rule))

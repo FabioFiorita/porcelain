@@ -117,9 +117,33 @@ const skipMembers = new Set([
   'skipIf',
   'runIf',
 ]);
-const journeyImports = new Map([
-  ['vitest', new Set(['expect', 'describe'])],
-  ['vitest/browser', new Set(['page', 'userEvent'])],
+const journeyRoles = new Set(['integration-spec', 'e2e-spec']);
+const journeyImports = {
+  'integration-spec': {
+    local: /^(?:\.\/fixtures\.tsx|\.\.\/kit\/[a-z0-9-]+\.ts)$/,
+    packages: new Map([
+      ['vitest', new Set(['expect', 'describe'])],
+      ['vitest/browser', new Set(['page', 'userEvent'])],
+    ]),
+  },
+  'e2e-spec': {
+    local: /^(?:\.\/fixtures\.ts|\.\.\/kit\/[a-z0-9-]+\.ts)$/,
+    packages: new Map(),
+  },
+};
+const networkRoutes = new Set([
+  'route',
+  'routeWebSocket',
+  'routeFromHAR',
+  'unroute',
+  'unrouteAll',
+]);
+const playwrightSkips = new Set([
+  'fixme',
+  'slow',
+  'fail',
+  'setTimeout',
+  'configure',
 ]);
 const retryingAssertions = new Set(['element', 'poll']);
 const journeyLocatorReads = new Set([
@@ -195,13 +219,66 @@ function patternNode(node) {
   );
 }
 
+function journeyRole(context) {
+  const role = webPart(webPath(context));
+  return journeyRoles.has(role) ? role : undefined;
+}
+
 function journeyRule(visitors) {
   return {
     create(context) {
-      if (webPart(webPath(context)) !== 'browser-spec') return {};
-      return visitors(context);
+      const role = journeyRole(context);
+      if (role === undefined) return {};
+      return visitors(context, role);
     },
   };
+}
+
+function chainTop(node) {
+  let current = node;
+  while (
+    (current.parent?.type === 'MemberExpression' &&
+      current.parent.object === current) ||
+    (current.parent?.type === 'CallExpression' &&
+      current.parent.callee === current)
+  )
+    current = current.parent;
+  return current;
+}
+
+function chainMembers(node) {
+  const names = [];
+  let current = node;
+  while (
+    (current.parent?.type === 'MemberExpression' &&
+      current.parent.object === current) ||
+    (current.parent?.type === 'CallExpression' &&
+      current.parent.callee === current)
+  ) {
+    current = current.parent;
+    if (
+      current.type === 'MemberExpression' &&
+      current.property.type === 'Identifier'
+    )
+      names.push(current.property.name);
+  }
+  return names;
+}
+
+function awaitedExpect(node, role) {
+  if (node.callee.type !== 'Identifier' || node.callee.name !== 'expect')
+    return false;
+  const outer = chainTop(node).parent;
+  if (
+    outer?.type === 'CallExpression' &&
+    outer.callee.type === 'Identifier' &&
+    outer.callee.name === 'expect'
+  )
+    return awaitedExpect(outer, role);
+  if (outer?.type !== 'AwaitExpression') return false;
+  if (role === 'e2e-spec') return true;
+  const members = chainMembers(node);
+  return members.includes('rejects') || members.includes('resolves');
 }
 
 function expectCall(node) {
@@ -1023,10 +1100,21 @@ export const webRules = {
   },
   'web-browser-spec-no-mocks': {
     create(context) {
-      if (webPart(webPath(context)) !== 'browser-spec') return {};
+      const role = journeyRole(context);
+      if (role === undefined) return {};
       const message =
-        'Browser behaviour runs against the real isolated server; vi mocks, spies and stubs have no place in a browser case.';
+        'Browser behaviour runs against the real isolated server; vi mocks, spies, stubs and routed requests have no place in a browser case, and a race the test must reach goes through the kit fixtures that own it.';
       return {
+        CallExpression(node) {
+          if (
+            role === 'e2e-spec' &&
+            node.callee.type === 'MemberExpression' &&
+            !node.callee.computed &&
+            node.callee.property.type === 'Identifier' &&
+            networkRoutes.has(node.callee.property.name)
+          )
+            context.report({ node, message });
+        },
         ImportDeclaration(node) {
           if (sourceOf(node) !== 'vitest') return;
           for (const specifier of node.specifiers)
@@ -1047,16 +1135,19 @@ export const webRules = {
   },
   'web-browser-spec-no-skips': {
     create(context) {
-      if (webPart(webPath(context)) !== 'browser-spec') return {};
+      const role = journeyRole(context);
+      if (role === undefined) return {};
       const message =
-        'Every journey runs every time, once, and must pass at once; remove the skip, only, todo, fails or the options object that sets retry, repeats or a timeout. The runner alone repeats a new or changed journey.';
+        'Every test runs every time, once, and must pass at once; remove the skip, only, todo, fails, fixme, slow, fail, configure, setTimeout or the options object that sets retry, repeats or a timeout. Repetition is the runner option an investigation asks for.';
       return {
         MemberExpression(node) {
           if (
             testFunctions.has(rootName(node) ?? '') &&
             (node.computed ||
               (node.property.type === 'Identifier' &&
-                skipMembers.has(node.property.name)))
+                (skipMembers.has(node.property.name) ||
+                  (role === 'e2e-spec' &&
+                    playwrightSkips.has(node.property.name)))))
           )
             context.report({ node, message });
         },
@@ -1072,9 +1163,12 @@ export const webRules = {
       };
     },
   },
-  'web-journey-imports': journeyRule((context) => {
+  'web-journey-imports': journeyRule((context, role) => {
     const message =
-      'A journey imports test and its fixtures from ../kit/, expect and describe from vitest, page and userEvent from vitest/browser, and @porcelain/contracts; the app is reached only through the kit, which opens it the way a user does.';
+      role === 'e2e-spec'
+        ? 'An e2e test imports test, expect and its fixtures from ./fixtures.ts, the shared kit from ../kit/ and @porcelain/contracts; the app and the server are reached only through the fixtures, which open the app the way a user does.'
+        : 'An integration test imports test, expect and its fixtures from ./fixtures.tsx, the shared kit from ../kit/, expect and describe from vitest, page and userEvent from vitest/browser, and @porcelain/contracts; the feature is rendered only through the fixtures, which pair and provide it the way the app does.';
+    const allowed = journeyImports[role];
     const check = (node) => {
       const source = sourceOf(node);
       if (source === undefined) {
@@ -1082,8 +1176,8 @@ export const webRules = {
         return;
       }
       if (source.startsWith('@porcelain/contracts/')) return;
-      if (/^\.\.\/kit\/[a-z0-9-]+$/.test(source)) return;
-      const names = journeyImports.get(source);
+      if (allowed.local.test(source)) return;
+      const names = allowed.packages.get(source);
       if (names === undefined || node.type !== 'ImportDeclaration') {
         context.report({ node, message });
         return;
@@ -1104,14 +1198,14 @@ export const webRules = {
       ExportAllDeclaration: check,
     };
   }),
-  'web-journey-asserts': journeyRule((context) => {
+  'web-journey-asserts': journeyRule((context, role) => {
     const cases = [];
     const asserting = new Set();
     return {
       CallExpression(node) {
         const body = caseBody(node);
         if (body) cases.push({ node, body });
-        if (retryingMatcher(node))
+        if (retryingMatcher(node) || awaitedExpect(node, role))
           asserting.add(enclosingFunction(context, node));
       },
       'Program:exit'() {
@@ -1120,17 +1214,19 @@ export const webRules = {
             context.report({
               node,
               message:
-                'Every journey case asserts in its own body what the user sees, with expect.element, or what the server kept, with expect.poll; a case without one proves only that nothing threw.',
+                'Every test case asserts in its own body what the user sees, with an awaited Playwright expect or Vitest expect.element, or what the server kept, with expect.poll; a case without one proves only that nothing threw.',
             });
       },
     };
   }),
-  'web-journey-retrying-assertions': journeyRule((context) => ({
+  'web-journey-retrying-assertions': journeyRule((context, role) => ({
     CallExpression(node) {
       const message =
-        'A journey asserts with retrying expect.element for what the page shows and expect.poll over the kit for what the server kept; a synchronous expect reads one moment and races the app.';
+        role === 'e2e-spec'
+          ? 'An e2e test asserts with an awaited web-first expect for what the page shows and expect.poll over the kit for what the server kept; a synchronous expect reads one moment and races the app.'
+          : 'An integration test asserts with retrying expect.element for what the page shows and expect.poll over the kit for what the server kept; a synchronous expect reads one moment and races the feature, and a bare expect only awaits .rejects or .resolves.';
       if (node.callee.type === 'Identifier' && node.callee.name === 'expect') {
-        context.report({ node, message });
+        if (!awaitedExpect(node, role)) context.report({ node, message });
         return;
       }
       const kind = expectCall(node);
