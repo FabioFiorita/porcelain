@@ -16,10 +16,14 @@ import {
   Recorder,
 } from '../.agents/skills/server-verify/scripts/session.ts';
 
-const [simulatorId] = process.argv.slice(2);
-if (!simulatorId || !/^[0-9A-F-]{36}$/i.test(simulatorId))
+const [simulatorId, driver = 'maestro'] = process.argv.slice(2);
+if (
+  !simulatorId ||
+  !/^[0-9A-F-]{36}$/i.test(simulatorId) ||
+  (driver !== 'maestro' && driver !== 'agent-device')
+)
   throw new Error(
-    'Usage: node scripts/mobile-pairing.ts <iOS simulator id>; start Metro and open the development app first.',
+    'Usage: node scripts/mobile-pairing.ts <iOS simulator id> [maestro|agent-device]; start Metro and connect the development app first; close any Agent Device preview session before testing.',
   );
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const state = await mkdtemp(join(tmpdir(), 'porcelain-mobile-pairing-'));
@@ -28,6 +32,7 @@ const evidence = await mkdtemp(
 );
 const execute = promisify(execFile);
 const recorder = new Recorder();
+const driverSession = `porcelain-pairing-${randomUUID()}`;
 const servers: IsolatedServer[] = [];
 const links: string[] = [];
 const names: string[] = [];
@@ -75,15 +80,35 @@ try {
   if (!firstLink || !secondLink || !firstName || !secondName)
     throw new Error('Both real environment fixtures must be ready.');
   const run = await execute(
-    'maestro',
+    driver,
     [
-      '--udid',
-      simulatorId,
-      'test',
-      '.agents/skills/mobile-verify/flows/pairing.yaml',
-      '--test-output-dir',
-      evidence,
-      '--no-ansi',
+      ...(driver === 'maestro'
+        ? [
+            '--udid',
+            simulatorId,
+            'test',
+            '.agents/skills/mobile-verify/flows/pairing.yaml',
+            '--test-output-dir',
+            evidence,
+            '--no-ansi',
+          ]
+        : [
+            'test',
+            '.agents/skills/mobile-verify/flows/pairing.yaml',
+            '--maestro',
+            '--platform',
+            'ios',
+            '--udid',
+            simulatorId,
+            '--session',
+            driverSession,
+            '--metro-host',
+            'localhost',
+            '--metro-port',
+            '8081',
+            '--artifacts-dir',
+            evidence,
+          ]),
       '-e',
       `FIRST_PAIRING_LINK=${firstLink}`,
       '-e',
@@ -104,7 +129,7 @@ try {
     },
   );
   await writeFile(
-    join(evidence, 'maestro.log'),
+    join(evidence, `${driver}.log`),
     recorder.scrub(run.stdout + run.stderr),
   );
   for (const server of servers) {
@@ -148,7 +173,7 @@ try {
       );
   }
   process.stdout.write(
-    `PASS native pairing and restart against two real environments\nEvidence: ${evidence}\n`,
+    `PASS native pairing and restart against two real environments with ${driver}\nEvidence: ${evidence}\n`,
   );
 } catch (error) {
   await writeFile(

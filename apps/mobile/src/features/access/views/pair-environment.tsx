@@ -8,6 +8,7 @@ export function PairEnvironment({ onClose }: { onClose: () => void }) {
     <Column style={{ padding: 20 }}>
       <Text>Pair an environment</Text>
       <TextInput
+        testID="pairing-link"
         value={value}
         placeholder="Pairing link"
         keyboardType="url"

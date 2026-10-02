@@ -38,22 +38,23 @@ name: Three-column tablet destinations
 - assertVisible:
     text: Environments
     selected: true
-- assertVisible: No environments paired.
+- assertVisible: Add environment
 - tapOn: Hide Sidebar
 - assertNotVisible: Porcelain
 - assertVisible:
     text: Environments
     selected: true
-- assertVisible: No environments paired.
+- assertVisible: Add environment
 - tapOn: Show Sidebar
 - assertVisible:
     text: Settings
     selected: true
 - setOrientation: PORTRAIT
+- assertNotVisible: Porcelain
 - assertVisible:
     text: Environments
     selected: true
-- assertVisible: No environments paired.
+- assertVisible: Add environment
 - setOrientation: LANDSCAPE_LEFT
 - assertVisible: Porcelain
 - assertVisible:
@@ -62,7 +63,7 @@ name: Three-column tablet destinations
 - assertVisible:
     text: Environments
     selected: true
-- assertVisible: No environments paired.
+- assertVisible: Add environment
 - tapOn: Review
 - assertVisible:
     text: Review

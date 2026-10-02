@@ -2,25 +2,28 @@ appId: com.fabiofiorita.porcelain.dev
 name: Pair and restore multiple environments
 ---
 - launchApp
-- tapOn: Settings
+- runFlow: open-settings.yaml
 - assertVisible: Environments
 - tapOn: Add environment
 - assertVisible: Pair an environment
-- tapOn: Pairing link
+- tapOn:
+    id: pairing-link
 - inputText: invalid-link
 - tapOn: Pair
 - assertVisible: Paste the whole link porcelain pair printed, starting with http.
 - tapOn: Cancel
 - assertNotVisible: Pair an environment
 - tapOn: Add environment
-- tapOn: Pairing link
+- tapOn:
+    id: pairing-link
 - inputText: ${FIRST_PAIRING_LINK}
 - tapOn: Pair
 - assertNotVisible: Pair an environment
 - assertVisible: ${FIRST_ENVIRONMENT_NAME}
 - assertVisible: Online
 - tapOn: Add environment
-- tapOn: Pairing link
+- tapOn:
+    id: pairing-link
 - inputText: ${SECOND_PAIRING_LINK}
 - tapOn: Pair
 - assertNotVisible: Pair an environment
@@ -29,7 +32,24 @@ name: Pair and restore multiple environments
 - assertVisible: Online
 - stopApp
 - launchApp
-- tapOn: Settings
+- runFlow: open-settings.yaml
 - assertVisible: ${FIRST_ENVIRONMENT_NAME}
 - assertVisible: ${SECOND_ENVIRONMENT_NAME}
 - assertVisible: Online
+- longPressOn: ${FIRST_ENVIRONMENT_NAME}
+- tapOn: Forget environment
+- assertNotVisible: ${FIRST_ENVIRONMENT_NAME}
+- assertVisible: ${SECOND_ENVIRONMENT_NAME}
+- stopApp
+- launchApp
+- runFlow: open-settings.yaml
+- assertNotVisible: ${FIRST_ENVIRONMENT_NAME}
+- assertVisible: ${SECOND_ENVIRONMENT_NAME}
+- longPressOn: ${SECOND_ENVIRONMENT_NAME}
+- tapOn: Forget environment
+- assertNotVisible: ${SECOND_ENVIRONMENT_NAME}
+- stopApp
+- launchApp
+- runFlow: open-settings.yaml
+- assertNotVisible: ${FIRST_ENVIRONMENT_NAME}
+- assertNotVisible: ${SECOND_ENVIRONMENT_NAME}

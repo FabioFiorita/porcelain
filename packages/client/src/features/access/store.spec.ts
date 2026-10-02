@@ -18,6 +18,23 @@ const second: Remote = {
 };
 
 describe('saved environments', () => {
+  it('forgets only the selected environment and keeps the other one after restoring', async () => {
+    let saved = [first, second];
+    const storage = {
+      read: () => Promise.resolve(saved),
+      write: (remotes: readonly Remote[]) => {
+        saved = [...remotes];
+        return Promise.resolve();
+      },
+    };
+    const store = createAccessStore(storage);
+    await store.getState().load();
+    await store.getState().forget(first.environmentId);
+    expect(store.getState().remotes).toEqual([second]);
+    const restored = createAccessStore(storage);
+    await restored.getState().load();
+    expect(restored.getState().remotes).toEqual([second]);
+  });
   it('refuses a write before saved state has been read', async () => {
     const persisted: Remote[][] = [];
     const store = createAccessStore({

@@ -1,9 +1,12 @@
 import { Row, Text } from '@expo/ui';
 import type { Remote } from '@porcelain/client/access/rules';
 import { useEnvironmentStatus } from '../queries/environments';
+import { useForgetEnvironment } from '../commands/forget-environment';
+import { EnvironmentMenu } from './environment-menu';
 
 export function EnvironmentRow({ remote }: { remote: Remote }) {
   const status = useEnvironmentStatus(remote);
+  const command = useForgetEnvironment(remote);
   const label =
     status.data?.kind === 'online'
       ? 'Online'
@@ -17,9 +20,15 @@ export function EnvironmentRow({ remote }: { remote: Remote }) {
               ? 'Offline'
               : 'Checking';
   return (
-    <Row>
-      <Text>{remote.name}</Text>
-      <Text>{label}</Text>
-    </Row>
+    <EnvironmentMenu
+      onForget={() => command.forget()}
+      isPending={command.isPending}
+    >
+      <Row>
+        <Text>{remote.name}</Text>
+        <Text>{label}</Text>
+        {command.error ? <Text>{command.error.message}</Text> : null}
+      </Row>
+    </EnvironmentMenu>
   );
 }
