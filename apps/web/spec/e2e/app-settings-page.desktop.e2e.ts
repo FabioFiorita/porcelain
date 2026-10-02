@@ -1,7 +1,6 @@
 import { expect, test } from './fixtures.ts';
 
 test('Settings opens as its own page with one section at a time, and Back returns to the review', async ({
-  page,
   pairedPage,
 }) => {
   const review = pairedPage.getByRole('region', {
@@ -65,11 +64,11 @@ test('Escape leaves Settings, except while typing in one of its fields', async (
     exact: true,
   });
   await name.click();
-  page.keyboard.press('Escape');
+  await page.keyboard.press('Escape');
   await expect(settings).toBeVisible();
 
   await settings.getByRole('button', { name: 'Devices', exact: true }).click();
-  page.keyboard.press('Escape');
+  await page.keyboard.press('Escape');
   await expect(settings).not.toBeAttached();
   await expect(
     pairedPage.getByRole('region', { name: 'Review content', exact: true }),
@@ -77,7 +76,6 @@ test('Escape leaves Settings, except while typing in one of its fields', async (
 });
 
 test('Settings still opens once the last project is removed', async ({
-  page,
   pairedPage,
   server,
 }) => {

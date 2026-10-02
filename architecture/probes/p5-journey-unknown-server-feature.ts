@@ -2,17 +2,15 @@ import type { Probe } from '../probe.ts';
 
 export default {
   decision: 'P5',
-  plants:
-    'a journey relies on a server feature id the server net does not define',
-  gate: 'web-verify',
-  feature: 'projects.rename',
-  rule: 'feature-map/projects.rename.ts relies on server features the server net does not define: projects.retitle',
+  plants: 'a feature map lists an API route the server does not register',
+  gate: 'features',
+  rule: '.agents/skills/web-verify/features/projects.rename.md: api PATCH /api/projects/:projectId/title is no route the server registers',
   edits: [
     {
       kind: 'replace',
-      path: '.agents/skills/web-verify/feature-map/projects.rename.ts',
-      old: "  server: ['projects.rename'],",
-      new: "  server: ['projects.retitle'],",
+      path: '.agents/skills/web-verify/features/projects.rename.md',
+      old: '  - PATCH /api/projects/:projectId\n',
+      new: '  - PATCH /api/projects/:projectId/title\n',
     },
   ],
 } satisfies Probe;

@@ -10,15 +10,16 @@ test('turning on Spec files in Settings lists changed spec files after the other
   const rows = pairedPage.getByRole('button', {
     name: /^(README\.md|search\.spec\.ts|search\.ts)( · .+)?$/,
   });
-  const listed = async (names: readonly RegExp[]) => {
-    for (const [index, name] of names.entries())
-      await expect(rows.nth(index)).toHaveAccessibleName(name);
-  };
   await pairedPage.getByRole('button', { name: 'Review', exact: true }).click();
   await pairedPage.getByRole('tab', { name: 'Changes', exact: true }).click();
-  await listed([/^README\.md/, /^search\.spec\.ts/, /^search\.ts/]);
+  for (const [index, name] of [
+    /^README\.md/,
+    /^search\.spec\.ts/,
+    /^search\.ts/,
+  ].entries())
+    await expect(rows.nth(index)).toHaveAccessibleName(name);
 
-  page.keyboard.press('Escape');
+  await page.keyboard.press('Escape');
   await pairedPage
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
@@ -35,5 +36,10 @@ test('turning on Spec files in Settings lists changed spec files after the other
   await settings.getByRole('button', { name: 'Back', exact: true }).click();
 
   await pairedPage.getByRole('button', { name: 'Review', exact: true }).click();
-  await listed([/^README\.md/, /^search\.ts/, /^search\.spec\.ts/]);
+  for (const [index, name] of [
+    /^README\.md/,
+    /^search\.ts/,
+    /^search\.spec\.ts/,
+  ].entries())
+    await expect(rows.nth(index)).toHaveAccessibleName(name);
 });

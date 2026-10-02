@@ -1,5 +1,4 @@
-import type { Page } from '@playwright/test';
-import { expect, test, type Repo } from './fixtures.ts';
+import { expect, test, type Page, type Repo } from './fixtures.ts';
 
 async function refuseDisconnectWithDraft(page: Page, repo: Repo) {
   const readme = repo.readme.path;

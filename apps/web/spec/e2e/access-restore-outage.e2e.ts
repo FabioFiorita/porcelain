@@ -27,7 +27,7 @@ test('a reload while the server cannot answer keeps the address and shows the wo
   ).not.toBeAttached();
   await expect.poll(() => app.address().path).toBe(workspace);
 
-  outage.end();
+  await outage.end();
 
   await expect(
     opened.getByRole('region', { name: 'Review content', exact: true }),

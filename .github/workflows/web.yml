@@ -33,4 +33,5 @@ jobs:
       - run: bwrap --ro-bind / / --dev /dev --proc /proc --unshare-pid --unshare-ipc --unshare-net --new-session --die-with-parent -- true
       - run: pnpm db:check
       - run: node .agents/skills/server-verify/scripts/verify.ts --all
-      - run: pnpm verify:web --all
+      - run: pnpm --filter @porcelain/web test:integration
+      - run: pnpm --filter @porcelain/web test:e2e

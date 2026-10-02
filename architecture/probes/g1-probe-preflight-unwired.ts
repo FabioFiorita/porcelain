@@ -9,8 +9,8 @@ export default {
     {
       kind: 'replace',
       path: 'package.json',
-      old: ' test:rules probes:check --output-logs=errors-only',
-      new: ' test:rules --output-logs=errors-only',
+      old: ' test:rules probes:check features:check --output-logs=errors-only',
+      new: ' test:rules features:check --output-logs=errors-only',
     },
   ],
 } satisfies Probe;

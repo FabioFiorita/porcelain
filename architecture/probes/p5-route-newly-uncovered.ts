@@ -2,10 +2,9 @@ import type { Probe } from '../probe.ts';
 
 export default {
   decision: 'P5',
-  plants:
-    'a new web api call to publish a review that no journey drives through the UI',
-  gate: 'web-verify',
-  rule: 'coverage: PUT /api/worktrees/:worktreeId/review: the web calls it',
+  plants: 'a new web api call to publish a review that no feature map lists',
+  gate: 'features',
+  rule: 'the web calls PUT /api/worktrees/:param/review: no map file lists it in its api',
   edits: [
     {
       kind: 'append',

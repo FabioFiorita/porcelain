@@ -1,8 +1,5 @@
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import { createFailures } from '../kit/failures.ts';
-import { expect, test, watchFailures } from './fixtures.ts';
+import { expect, keptEvidence, test, watchFailures } from './fixtures.ts';
 
 test('a console error the test did not declare is reported as a failure', async ({
   browser,
@@ -12,7 +9,9 @@ test('a console error the test did not declare is reported as a failure', async 
   const observed = await watchFailures(context);
   const page = await context.newPage();
   await page.goto(`${baseURL ?? ''}/`);
-  await page.evaluate("console.error('A failure the journey never declared')");
+  await page.evaluate(() =>
+    console.error('A failure the journey never declared'),
+  );
   const failures = createFailures();
   await expect
     .poll(() => failures.unexpected(observed, []))
@@ -28,11 +27,14 @@ test('an uncaught error and an unhandled rejection in the page are reported as f
   const observed = await watchFailures(context);
   const page = await context.newPage();
   await page.goto(`${baseURL ?? ''}/`);
-  await page.evaluate(
-    "setTimeout(() => { throw new Error('An uncaught failure'); }); void Promise.reject(new Error('An unhandled rejection'));",
-  );
+  await page.evaluate(() => {
+    queueMicrotask(() => {
+      throw new Error('An uncaught failure');
+    });
+    void Promise.reject(new Error('An unhandled rejection'));
+  });
   await expect
-    .poll(() => createFailures().unexpected(observed, []).toSorted())
+    .poll(() => [...createFailures().unexpected(observed, [])].sort())
     .toEqual([
       'uncaught error: An uncaught failure',
       'unhandled rejection: An unhandled rejection',
@@ -48,7 +50,7 @@ test('a declared console error matches the one the page reports, and a declared 
   const observed = await watchFailures(context);
   const page = await context.newPage();
   await page.goto(`${baseURL ?? ''}/`);
-  await page.evaluate("console.error('A failure the journey declared')");
+  await page.evaluate(() => console.error('A failure the journey declared'));
   const failures = createFailures();
   failures.console(/the journey declared/);
   failures.console(/a failure that never comes/);
@@ -60,37 +62,39 @@ test('a declared console error matches the one the page reports, and a declared 
   await context.close();
 });
 
-test('an undeclared 5xx answer from the server is reported, a declared one is not, and a kit request never counts', () => {
+test('an undeclared 5xx answer from the server is reported, a declared one is not, and a kit request never counts', async () => {
   const failures = createFailures();
-  failures.response('POST /api/worktrees/:worktreeId/git/actions', 503);
-  expect(
-    failures.unexpected(
-      [],
-      [
-        {
-          method: 'POST',
-          route: '/api/worktrees/:worktreeId/git/actions',
-          path: '/api/worktrees/w/git/actions',
-          kit: false,
-          status: 503,
-        },
-        {
-          method: 'GET',
-          route: '/api/inventory',
-          path: '/api/inventory',
-          kit: false,
-          status: 500,
-        },
-        {
-          method: 'GET',
-          route: '/api/health',
-          path: '/api/health',
-          kit: true,
-          status: 502,
-        },
-      ],
-    ),
-  ).toEqual(['server answered GET /api/inventory with 500']);
+  failures.response('POST /probe/actions', 503);
+  await expect
+    .poll(() =>
+      failures.unexpected(
+        [],
+        [
+          {
+            method: 'POST',
+            route: '/probe/actions',
+            path: '/probe/actions',
+            kit: false,
+            status: 503,
+          },
+          {
+            method: 'GET',
+            route: '/probe/inventory',
+            path: '/probe/inventory',
+            kit: false,
+            status: 500,
+          },
+          {
+            method: 'GET',
+            route: '/probe/health',
+            path: '/probe/health',
+            kit: true,
+            status: 502,
+          },
+        ],
+      ),
+    )
+    .toEqual(['server answered GET /probe/inventory with 500']);
 });
 
 test('an assertion on a heading the app never shows fails', async ({
@@ -126,17 +130,8 @@ test('the evidence a test keeps holds no credential or pairing code', async ({
   await expect(
     pairedPage.getByRole('region', { name: 'Review content', exact: true }),
   ).toBeVisible();
-  const folder = await mkdtemp(join(tmpdir(), 'porcelain-e2e-evidence-'));
-  try {
-    await world.keepEvidence(folder);
-    const saved = [
-      await readFile(join(folder, 'kit.json'), 'utf8'),
-      await readFile(join(folder, 'server.json'), 'utf8'),
-    ].join('\n');
-    expect(saved).toContain('[redacted]');
-    expect(saved).not.toContain(world.server.credential);
-    expect(world.recorder.leaks(saved)).toBe(0);
-  } finally {
-    await rm(folder, { recursive: true, force: true });
-  }
+  const saved = await keptEvidence(world);
+  await expect.poll(() => saved).toContain('[redacted]');
+  await expect.poll(() => saved).not.toContain(world.server.credential);
+  await expect.poll(() => world.recorder.leaks(saved)).toBe(0);
 });

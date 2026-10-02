@@ -2,10 +2,9 @@ import type { Probe } from '../probe.ts';
 
 export default {
   decision: 'P5',
-  plants:
-    'the app reports a console error while it boots inside the frame the kit reloads',
+  plants: 'the app reports a console error while it boots again after a reload',
   gate: 'web-verify',
-  feature: 'reviews.reload-layout',
+  feature: 'apps/web/spec/e2e/reviews-reload-layout.e2e.ts',
   rule: 'met failures it did not declare through failures.console or failures.response: console error: A failure the reloaded app never declared',
   edits: [
     {

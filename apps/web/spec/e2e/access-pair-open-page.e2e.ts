@@ -13,7 +13,7 @@ test('a link entered in a tab already showing the not-paired page pairs the brow
   ).toBeVisible();
   await expect.poll(() => app.address().path).toBe('/pair');
 
-  app.follow(await app.link('this'));
+  await app.follow(await app.link('this'));
   await expect(
     unpairedPage.getByRole('region', { name: 'Review content', exact: true }),
   ).toBeVisible();

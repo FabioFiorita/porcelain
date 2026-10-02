@@ -90,6 +90,7 @@ const sourceRoots = [
   'apps/desktop/spec',
   'apps/server/src',
   'apps/server/spec',
+  '.agents/skills/web-verify/scripts',
   ...packageNames.flatMap((name) => [
     `packages/${name}/src`,
     `packages/${name}/spec`,
@@ -98,10 +99,20 @@ const sourceRoots = [
 const mobileRoots = ['apps/mobile/src'];
 const mobileConfig = 'apps/mobile/app.config.ts';
 const webRoots = ['apps/web/src', 'apps/web/spec'];
-const webConfig = 'apps/web/vite.config.ts';
+const webConfigs = [
+  'apps/web/vite.config.ts',
+  'apps/web/vitest.config.ts',
+  'apps/web/playwright.config.ts',
+];
 const allRoots = [...sourceRoots, ...webRoots, ...mobileRoots];
 
-const ignoredDirectories = new Set(['node_modules', 'dist', '.vite', '.turbo']);
+const ignoredDirectories = new Set([
+  'node_modules',
+  'dist',
+  '.vite',
+  '.turbo',
+  'test-results',
+]);
 const ignoredFile = /(?:^\.DS_Store|\.tsbuildinfo)$/;
 const codeFile = /\.[cm]?[jt]sx?$/;
 
@@ -130,7 +141,7 @@ const permittedOutsideRoots: readonly RegExp[] = [
   /^packages\/storage\/drizzle\/(?:meta\/)?[^/]+\.(?:sql|json)$/,
   /^packages\/storage\/drizzle\.config\.ts$/,
   /^packages\/storage\/scripts\/[^/]+\.ts$/,
-  /^apps\/web\/(?:package\.json|tsconfig(?:\.node)?\.json|components\.json|index\.html|vite\.config\.ts)$/,
+  /^apps\/web\/(?:package\.json|tsconfig(?:\.node)?\.json|components\.json|index\.html|(?:vite|vitest|playwright)\.config\.ts)$/,
   /^apps\/web\/public\/[^/]+$/,
 ];
 const insideRoot =
@@ -268,7 +279,7 @@ const webResolveSchema = z.object({
 
 async function webScan(): Promise<CruiseReport> {
   const result = await cruise(
-    [...webRoots, webConfig],
+    [...webRoots, ...webConfigs],
     await extractDepcruiseOptions(
       join(repositoryRoot, 'architecture/dependency-cruiser.cjs'),
     ),
@@ -639,7 +650,7 @@ try {
     throw new Error('Usage: pnpm arch:check [--all]');
   const sources = [
     ...allRoots.flatMap(sourceFiles),
-    webConfig,
+    ...webConfigs,
     mobileConfig,
     mobileMetroFile,
   ];

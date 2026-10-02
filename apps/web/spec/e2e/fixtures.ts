@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import {
@@ -10,7 +10,6 @@ import {
 import { pairingLink } from '@porcelain/contracts/access';
 import { buildIsolatedServer } from '@porcelain/server/kit/sandbox';
 import { createServer, type ViteDevServer } from 'vite';
-import { z } from 'zod';
 import { createFailures, failureMessage } from '../kit/failures.ts';
 import type { BrowserFailure, ServerName } from '../kit/protocol.ts';
 import { serverReaders } from '../kit/readers.ts';
@@ -24,6 +23,11 @@ import {
 } from './network.ts';
 
 export { expect };
+export type { Page };
+
+declare const navigation: { entries(): { url: string | null }[] };
+declare const location: { href: string };
+declare const window: { dispatchEvent(event: Event): boolean };
 
 export type Shell = 'web' | 'desktop';
 
@@ -203,20 +207,18 @@ async function appOf(page: Page, world: World, live: LiveFixture) {
     async follow(address: string) {
       await page.goto(address);
     },
-    visited: async () =>
-      z
-        .array(z.string())
-        .parse(
-          await page.evaluate(
-            "navigation.entries().map((entry) => new URL(entry.url ?? '', location.href).pathname)",
-          ),
-        ),
+    visited: () =>
+      page.evaluate(() =>
+        navigation
+          .entries()
+          .map((entry) => new URL(entry.url ?? '', location.href).pathname),
+      ),
     async failSessionRestore() {
       const end = await failInventory(page.context());
       return {
         async end() {
           await end();
-          await page.evaluate("window.dispatchEvent(new Event('online'))");
+          await page.evaluate(() => window.dispatchEvent(new Event('online')));
         },
       };
     },
@@ -262,25 +264,19 @@ type TestFixtures = {
 export const test = base.extend<TestFixtures, WorkerFixtures>({
   shell: ['web', { scope: 'worker', option: true }],
   build: [
-    async ({}, use) => {
+    async ({ shell: _shell }, use) => {
       const folder = await mkdtemp(join(tmpdir(), 'porcelain-e2e-server-'));
-      try {
-        await buildIsolatedServer(folder);
-        await use(folder);
-      } finally {
-        await rm(folder, { recursive: true, force: true });
-      }
+      await buildIsolatedServer(folder);
+      await use(folder);
+      await rm(folder, { recursive: true, force: true });
     },
     { scope: 'worker' },
   ],
   vite: [
     async ({ shell }, use) => {
       const vite = await startVite(shell);
-      try {
-        await use(vite);
-      } finally {
-        await vite.close();
-      }
+      await use(vite);
+      await vite.close();
     },
     { scope: 'worker' },
   ],
@@ -290,16 +286,13 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
   world: async ({ build, vite }, use, testInfo) => {
     const world = await World.start(repositoryRoot, build);
     vite.target(world.server.address);
-    try {
-      await use(world);
-    } finally {
-      await world.keepEvidence(testInfo.outputPath('server'));
-      const stopped = await world.stop();
-      if (stopped.length > 0)
-        throw new Error(
-          `The disposable servers did not stop: ${stopped.join('; ')}`,
-        );
-    }
+    await use(world);
+    await world.keepEvidence(testInfo.outputPath('server'));
+    const stopped = await world.stop();
+    if (stopped.length > 0)
+      throw new Error(
+        `The disposable servers did not stop: ${stopped.join('; ')}`,
+      );
   },
   observed: async ({ context }, use) => {
     await use(await watchFailures(context));
@@ -309,11 +302,8 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
   },
   live: async ({ context }, use) => {
     const router = await liveRouter(context);
-    try {
-      await use(router);
-    } finally {
-      router.releaseHeld();
-    }
+    await use(router);
+    router.releaseHeld();
   },
   failures: [
     async ({ world, observed, live: _live }, use, testInfo) => {
@@ -374,3 +364,14 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
     await use(page);
   },
 });
+
+export async function keptEvidence(world: World): Promise<string> {
+  const folder = await mkdtemp(join(tmpdir(), 'porcelain-e2e-evidence-'));
+  await world.keepEvidence(folder);
+  const saved = [
+    await readFile(join(folder, 'kit.json'), 'utf8'),
+    await readFile(join(folder, 'server.json'), 'utf8'),
+  ].join('\n');
+  await rm(folder, { recursive: true, force: true });
+  return saved;
+}

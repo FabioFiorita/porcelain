@@ -1,5 +1,4 @@
-import type { Page } from '@playwright/test';
-import { expect, test, type Repo } from './fixtures.ts';
+import { expect, test, type Page, type Repo } from './fixtures.ts';
 
 async function openBranchFile(page: Page, repo: Repo) {
   await repo.branch('feature');
