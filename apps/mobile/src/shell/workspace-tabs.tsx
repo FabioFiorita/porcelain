@@ -1,7 +1,7 @@
 import { NativeTabs } from 'expo-router/native-tabs';
 import { tabIcon } from '../shared/icons/tab-icon';
 
-export function PhoneTabs() {
+export function WorkspaceTabs() {
   return (
     <NativeTabs>
       <NativeTabs.Trigger name="index" accessibilityLabel="Review">

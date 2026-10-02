@@ -1,28 +1,40 @@
 appId: com.fabiofiorita.porcelain.dev
-name: Unpaired phone destinations
+name: Unpaired tablet split view
 ---
 - launchApp
-- assertNotVisible: Workspaces
-- assertVisible:
-    text: Review
-    selected: true
-- assertVisible: Select a worktree to continue.
+- setOrientation: LANDSCAPE_LEFT
+- assertVisible: Workspaces
+- assertVisible: No environments paired.
 - tapOn: Files
 - assertVisible:
     text: Files
     selected: true
 - assertVisible: Select a worktree to continue.
+- tapOn: Hide Sidebar
+- assertNotVisible: Workspaces
+- assertVisible:
+    text: Files
+    selected: true
+- tapOn: Show Sidebar
+- assertVisible: Workspaces
+- assertVisible:
+    text: Files
+    selected: true
 - tapOn: History
 - assertVisible:
     text: History
     selected: true
-- assertVisible: Select a worktree to continue.
 - tapOn: Settings
 - assertVisible:
     text: Settings
     selected: true
 - assertVisible: Environments
-- assertVisible: No environments paired.
+- setOrientation: PORTRAIT
+- assertVisible: Workspaces
+- assertVisible:
+    text: Settings
+    selected: true
+- tapOn: Previous Page
 - tapOn: Review
 - assertVisible:
     text: Review

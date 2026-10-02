@@ -25,7 +25,7 @@ export default [
   },
   {
     rule: 'mobile-native-ui',
-    path: 'apps/mobile/src/shell/phone-tabs.tsx',
+    path: 'apps/mobile/src/shell/workspace-tabs.tsx',
     valid:
       "import { View } from 'react-native'; export const Frame = () => <View />;",
     invalid:

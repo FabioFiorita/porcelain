@@ -1,1 +1,1 @@
-export { PhoneTabs as default } from '../shell/phone-tabs';
+export { RootShell as default } from '../shell/root-shell';
