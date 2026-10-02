@@ -147,9 +147,6 @@ importers:
       babel-plugin-react-compiler:
         specifier: 1.0.0
         version: 1.0.0
-      chrome-devtools-mcp:
-        specifier: 1.10.1
-        version: 1.10.1
       dependency-cruiser:
         specifier: 18.4.0
         version: 18.4.0
@@ -3825,19 +3822,6 @@ packages:
   chownr@3.0.0:
     resolution: {integrity: sha512-+IxzY9BZOQd/XuYPRmrvEVjF/nqj5kgT4kEq7VofrDoM1MxoRjEWkrCC3EtLi59TVawxTAn+orJwFQcrqEN1+g==}
     engines: {node: '>=18'}
-
-  chrome-devtools-mcp@1.10.1:
-    resolution: {integrity: sha512-Klw6HWDqHC/XS1JwZldd2r49aUhbUJN9m9Mvcx4SEueIPXtzuQX+QelxAViobv8YUkDZ7HWDrmViR6LeYK0wAw==}
-    engines: {node: ^20.19.0 || ^22.12.0 || >=23}
-    hasBin: true
-    peerDependencies:
-      '@blackwell-systems/gcf': ^2.2.2
-      '@toon-format/toon': ^4.1.0
-    peerDependenciesMeta:
-      '@blackwell-systems/gcf':
-        optional: true
-      '@toon-format/toon':
-        optional: true
 
   chunkify@5.0.0:
     resolution: {integrity: sha512-G8dj/3/Gm+1yL4oWSdwIxihZWFlgC4V2zYtIApacI0iPIRKBHlBGOGAiDUBZgrj4H8MBA8g8fPFwnJrWF3wl7Q==}
@@ -10600,8 +10584,6 @@ snapshots:
       readdirp: 5.1.1
 
   chownr@3.0.0: {}
-
-  chrome-devtools-mcp@1.10.1: {}
 
   chunkify@5.0.0: {}
 
