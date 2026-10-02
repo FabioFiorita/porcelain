@@ -11,13 +11,19 @@ import {
   unknownWorktreeId,
   worktreeNotFound,
 } from '../kit/answers.ts';
-import { read, toolCall, toolValue, worktreePath } from '../kit/requests.ts';
+import {
+  read,
+  toolCall,
+  toolValue,
+  worktreePath,
+  sendAll,
+  answered,
+} from '../kit/requests.ts';
 import { test } from '../kit/server-test.ts';
 import {
   list,
   record,
   type HttpRequest,
-  type HttpResponse,
   type Session,
 } from '../kit/session.ts';
 
@@ -36,11 +42,6 @@ const notTheAuthor = apiError(
   'Forbidden',
   'Only the author of a comment may change it',
 );
-const answered = (id: number) => ({
-  jsonrpc: '2.0',
-  id,
-  result: { content: [{ type: 'text' }] },
-});
 const messages = (session: Session, thread: string) =>
   worktreePath(session, `/comments/${thread}/messages`);
 const edit = (
@@ -69,12 +70,6 @@ const threads = async (session: Session) =>
   );
 const threadOf = async (session: Session, id: string) =>
   (await threads(session)).find((entry) => record(entry).id === id);
-
-async function sendAll(session: Session, requests: HttpRequest[]) {
-  const responses: HttpResponse[] = [];
-  for (const request of requests) responses.push(await session.send(request));
-  return responses;
-}
 
 test('the reviewer rewrites their comment in place, stamped and at the next revision, and the agent reads the new text', async ({
   session,

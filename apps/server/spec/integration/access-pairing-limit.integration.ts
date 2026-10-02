@@ -1,8 +1,8 @@
 import { expect } from 'vitest';
 import { apiError } from '../kit/answers.ts';
-import { issuePairing } from '../kit/requests.ts';
+import { issuePairing, sendAll } from '../kit/requests.ts';
 import { test } from '../kit/server-test.ts';
-import { record, type HttpRequest, type Session } from '../kit/session.ts';
+import { record, type HttpRequest } from '../kit/session.ts';
 
 const limited = apiError(
   429,
@@ -24,12 +24,6 @@ const fromPage = (code: string): HttpRequest => ({
   ...attempt(code),
   headers: { origin: 'http://page.example' },
 });
-
-async function sendAll(session: Session, requests: HttpRequest[]) {
-  const responses = [];
-  for (const request of requests) responses.push(await session.send(request));
-  return responses;
-}
 
 test('pages on other origins that exhaust their pairing attempts cannot keep a same-origin device from pairing', async ({
   session,

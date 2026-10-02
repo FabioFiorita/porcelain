@@ -3,7 +3,13 @@ import { createCommentThreadResponseSchema } from '@porcelain/contracts/reviews'
 import { expect } from 'vitest';
 import { invalidRequest } from '../kit/answers.ts';
 import { head } from '../kit/reads.ts';
-import { read, toolCall, toolValue, worktreePath } from '../kit/requests.ts';
+import {
+  read,
+  toolCall,
+  toolValue,
+  worktreePath,
+  answered,
+} from '../kit/requests.ts';
 import { test } from '../kit/server-test.ts';
 import { list, record, text, type HttpResponse } from '../kit/session.ts';
 
@@ -11,11 +17,6 @@ const BASE = 'refs/heads/main';
 const changeThreadId = randomUUID();
 const branchThreadId = randomUUID();
 const agentThreadId = randomUUID();
-const answered = (id: number) => ({
-  jsonrpc: '2.0',
-  id,
-  result: { content: [{ type: 'text' }] },
-});
 
 test('the agent reads a reviewer comment on the whole uncommitted change', async ({
   session,

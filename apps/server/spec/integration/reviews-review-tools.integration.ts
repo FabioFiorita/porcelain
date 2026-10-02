@@ -9,6 +9,7 @@ import {
   toolText,
   toolValue,
   worktreePath,
+  answered,
 } from '../kit/requests.ts';
 import { test } from '../kit/server-test.ts';
 import { list, record, text, type Session } from '../kit/session.ts';
@@ -36,11 +37,6 @@ const threads = async (session: Session) =>
   );
 const threadWith = (entries: unknown[], id: string) =>
   entries.filter((entry) => record(entry).id === id);
-const answered = (id: number) => ({
-  jsonrpc: '2.0',
-  id,
-  result: { content: [{ type: 'text' }] },
-});
 
 async function reviewerThread(session: Session) {
   const found = (await threads(session)).find(

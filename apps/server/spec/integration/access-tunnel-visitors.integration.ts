@@ -6,15 +6,10 @@ import {
   literally,
   unauthenticated,
 } from '../kit/answers.ts';
-import { eventually } from '../kit/reads.ts';
-import { issuePairing, read } from '../kit/requests.ts';
+import { tunnelOn } from '../kit/reads.ts';
+import { issuePairing } from '../kit/requests.ts';
 import { test } from '../kit/server-test.ts';
-import {
-  record,
-  type HttpRequest,
-  type HttpResponse,
-  type Session,
-} from '../kit/session.ts';
+import { record, type HttpRequest, type HttpResponse } from '../kit/session.ts';
 
 const TUNNEL_HOST = 'porcelain.example.com';
 const TUNNEL_PAGE = `https://${TUNNEL_HOST}`;
@@ -32,20 +27,6 @@ const limited = apiError(
   'Too Many Requests',
   'Too many pairing attempts. Wait a moment and try again.',
 );
-
-async function tunnelOn(session: Session) {
-  await read(session, {
-    method: 'PATCH',
-    path: '/api/remote-access',
-    body: { cloudflare: true, cloudflareHostname: TUNNEL_HOST },
-  });
-  await eventually(
-    session,
-    { method: 'GET', path: '/api/remote-access' },
-    (body) =>
-      record(record(record(body.routes).cloudflare).status).kind === 'on',
-  );
-}
 
 function throughTunnel(visitor: string | undefined): Record<string, string> {
   return {
@@ -77,7 +58,7 @@ function cookieOf(header: string | undefined) {
 test('a browser that pairs through the tunnel keeps a secure cookie and is told to use HTTPS only', async ({
   session,
 }) => {
-  await tunnelOn(session);
+  await tunnelOn(session, TUNNEL_HOST);
   const code = await issuePairing(session, 'Phone');
 
   const response = await session.send(
@@ -135,7 +116,7 @@ test('the cookie a tunnel visitor sends back stays for HTTPS only and works only
 test('each tunnel visitor has its own pairing attempt allowance', async ({
   session,
 }) => {
-  await tunnelOn(session);
+  await tunnelOn(session, TUNNEL_HOST);
 
   const failures: HttpResponse[] = [];
   for (let index = 0; index < 10; index += 1)

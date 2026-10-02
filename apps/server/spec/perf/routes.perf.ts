@@ -31,22 +31,15 @@ import {
 } from '../../src/config/limits.ts';
 import type { Recorder } from '../kit/isolated-server.ts';
 import { changes } from '../kit/reads.ts';
-import { read, sampleReview, worktreePath } from '../kit/requests.ts';
+import { read, sampleReview, worktreePath, sendAll } from '../kit/requests.ts';
 import { test } from '../kit/server-test.ts';
 import {
   list,
   record,
   type HttpRequest,
-  type HttpResponse,
   type PerfSample,
   type Session,
 } from '../kit/session.ts';
-
-async function sendAll(session: Session, requests: readonly HttpRequest[]) {
-  const responses: HttpResponse[] = [];
-  for (const request of requests) responses.push(await session.send(request));
-  return responses;
-}
 
 const repeated = (request: HttpRequest) =>
   Array.from({ length: ROUTE_BUDGET_REQUESTS }, () => request);

@@ -5,21 +5,17 @@ import {
 } from '@porcelain/contracts/access';
 import { expect } from 'vitest';
 import { apiError, invalidRequest } from '../kit/answers.ts';
-import { pairDevice, read } from '../kit/requests.ts';
+import { pairDevice, read, owner } from '../kit/requests.ts';
 import { test } from '../kit/server-test.ts';
-import { list, record, text, type HttpRequest } from '../kit/session.ts';
-
-const owner = (request: Omit<HttpRequest, 'target'>): HttpRequest => ({
-  ...request,
-  target: 'owner',
-});
-const ownerAccess = owner({ method: 'GET', path: '/access' });
-const notFound = apiError(404, 'Not Found', 'Device not found');
+import { list, record, text } from '../kit/session.ts';
 
 function listed(entries: unknown, id: unknown) {
   const entry = record(list(entries).find((item) => record(item).id === id));
   return { label: entry.label, trusted: entry.trusted };
 }
+
+const ownerAccess = owner({ method: 'GET', path: '/access' });
+const notFound = apiError(404, 'Not Found', 'Device not found');
 
 test('a pairing link issued as trusted is listed as trusted while pending and pairs a trusted device', async ({
   session,

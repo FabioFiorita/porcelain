@@ -3,6 +3,7 @@ import {
   record,
   text,
   type HttpRequest,
+  type HttpResponse,
   type Session,
 } from './session.ts';
 
@@ -136,4 +137,40 @@ export function receiptPath(
   worktreeId = session.worktreeId,
 ) {
   return `/api/worktrees/${worktreeId}/git/receipts/${requestId}`;
+}
+
+export async function sendAll(
+  session: Session,
+  requests: readonly HttpRequest[],
+): Promise<HttpResponse[]> {
+  const responses: HttpResponse[] = [];
+  for (const request of requests) responses.push(await session.send(request));
+  return responses;
+}
+
+export function owner(request: Omit<HttpRequest, 'target'>): HttpRequest {
+  return { ...request, target: 'owner' };
+}
+
+export function answered(id: number) {
+  return { jsonrpc: '2.0', id, result: { content: [{ type: 'text' }] } };
+}
+
+export async function pairBrowser(
+  session: Session,
+  headers: Record<string, string> = {},
+) {
+  const code = await issuePairing(session, 'Browser');
+  const paired = await session.read({
+    method: 'POST',
+    path: '/api/pair',
+    auth: 'none',
+    headers: { ...headers, 'x-porcelain-browser': '1' },
+    body: { code, platform: 'Browser' },
+  });
+  const cookie = /porcelain_device=[^;]+/.exec(
+    paired.headers['set-cookie'] ?? '',
+  )?.[0];
+  if (!cookie) throw new Error('Browser pairing set no device cookie');
+  return { cookie, deviceId: text(record(record(paired.body).device).id) };
 }

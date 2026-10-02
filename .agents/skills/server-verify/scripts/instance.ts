@@ -90,7 +90,7 @@ export function buildFingerprint(): string {
     if (!existsSync(absolute)) continue;
     const files = statSync(absolute).isDirectory()
       ? readdirSync(absolute, { recursive: true, withFileTypes: true })
-          .filter((entry) => entry.isFile())
+          .filter((entry) => entry.isFile() && !entry.name.endsWith('.spec.ts'))
           .map((entry) => join(entry.parentPath, entry.name))
       : [absolute];
     for (const file of files.sort()) {

@@ -2,25 +2,9 @@ import { readInventoryResponseSchema } from '@porcelain/contracts/projects';
 import { expect } from 'vitest';
 import { apiError, deviceCookieForm, unauthenticated } from '../kit/answers.ts';
 import { inventory } from '../kit/reads.ts';
-import { issuePairing, read } from '../kit/requests.ts';
+import { read, pairBrowser } from '../kit/requests.ts';
 import { test } from '../kit/server-test.ts';
 import { list, type Session } from '../kit/session.ts';
-
-async function browserCookie(session: Session) {
-  const code = await issuePairing(session, 'Browser');
-  const paired = await session.read({
-    method: 'POST',
-    path: '/api/pair',
-    auth: 'none',
-    headers: { 'x-porcelain-browser': '1' },
-    body: { code, platform: 'Browser' },
-  });
-  const cookie = /porcelain_device=[^;]+/.exec(
-    paired.headers['set-cookie'] ?? '',
-  )?.[0];
-  if (!cookie) throw new Error('Browser pairing set no device cookie');
-  return cookie;
-}
 
 async function devices(session: Session) {
   return list(
@@ -32,7 +16,7 @@ async function devices(session: Session) {
 test('a browser device cookie reads the inventory exactly as the bearer credential does and is refreshed', async ({
   session,
 }) => {
-  const cookie = await browserCookie(session);
+  const { cookie } = await pairBrowser(session);
   const before = await inventory(session);
 
   const response = await session.send({

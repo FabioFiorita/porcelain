@@ -6,7 +6,13 @@ import {
   unknownWorktreeId,
   worktreeNotFound,
 } from '../kit/answers.ts';
-import { read, toolCall, toolValue, worktreePath } from '../kit/requests.ts';
+import {
+  read,
+  toolCall,
+  toolValue,
+  worktreePath,
+  answered,
+} from '../kit/requests.ts';
 import { test } from '../kit/server-test.ts';
 import {
   list,
@@ -19,11 +25,6 @@ const answeredId = randomUUID();
 const notedId = randomUUID();
 const openId = randomUUID();
 const fromAgentId = randomUUID();
-const answered = (id: number) => ({
-  jsonrpc: '2.0',
-  id,
-  result: { content: [{ type: 'text' }] },
-});
 const anchor = { kind: 'file', filePath: 'README.md' };
 const threads = async (session: Session) =>
   list(

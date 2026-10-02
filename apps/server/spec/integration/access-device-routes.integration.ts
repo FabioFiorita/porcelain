@@ -2,33 +2,19 @@ import { listAccessResponseSchema } from '@porcelain/contracts/access';
 import { readInventoryResponseSchema } from '@porcelain/contracts/projects';
 import { expect } from 'vitest';
 import { unauthenticated } from '../kit/answers.ts';
-import { eventually } from '../kit/reads.ts';
-import { issuePairing, read } from '../kit/requests.ts';
+import { tunnelOn } from '../kit/reads.ts';
+import { issuePairing } from '../kit/requests.ts';
 import { test } from '../kit/server-test.ts';
-import { list, record, text, type Session } from '../kit/session.ts';
+import { list, record, text } from '../kit/session.ts';
 
 const TUNNEL_HOST = 'porcelain.example.com';
 const throughTunnel = { host: TUNNEL_HOST, origin: `https://${TUNNEL_HOST}` };
 const inventoryRead = { method: 'GET', path: '/api/inventory' } as const;
 
-async function tunnelOn(session: Session) {
-  await read(session, {
-    method: 'PATCH',
-    path: '/api/remote-access',
-    body: { cloudflare: true, cloudflareHostname: TUNNEL_HOST },
-  });
-  await eventually(
-    session,
-    { method: 'GET', path: '/api/remote-access' },
-    (body) =>
-      record(record(record(body.routes).cloudflare).status).kind === 'on',
-  );
-}
-
 test('the device paired on this computer is refused through the tunnel', async ({
   session,
 }) => {
-  await tunnelOn(session);
+  await tunnelOn(session, TUNNEL_HOST);
 
   const direct = await session.send(inventoryRead);
   const tunnelled = await session.send({

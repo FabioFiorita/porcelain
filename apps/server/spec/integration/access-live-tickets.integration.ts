@@ -10,7 +10,7 @@ import {
   unauthenticated,
   upgradeHeaders,
 } from '../kit/answers.ts';
-import { issuePairing, pairDevice, read } from '../kit/requests.ts';
+import { pairDevice, read, pairBrowser } from '../kit/requests.ts';
 import { test } from '../kit/server-test.ts';
 import {
   record,
@@ -21,22 +21,6 @@ import {
 
 const APP = 'http://app.example';
 const TICKETS = '/api/live/tickets';
-
-async function browserCookie(session: Session) {
-  const code = await issuePairing(session, 'Browser');
-  const paired = await session.read({
-    method: 'POST',
-    path: '/api/pair',
-    auth: 'none',
-    headers: { 'x-porcelain-browser': '1' },
-    body: { code, platform: 'Browser' },
-  });
-  const cookie = /porcelain_device=[^;]+/.exec(
-    paired.headers['set-cookie'] ?? '',
-  )?.[0];
-  if (!cookie) throw new Error('Browser pairing set no device cookie');
-  return cookie;
-}
 
 async function ticketFor(session: Session, credential?: string) {
   const issued = await read(session, {
@@ -208,7 +192,7 @@ test('the ticket of a revoked device is refused', async ({ session }) => {
 test('a ticket that was never issued, or an empty one, is refused without falling back to the device cookie', async ({
   session,
 }) => {
-  const cookie = await browserCookie(session);
+  const { cookie } = await pairBrowser(session);
   const sameOrigin = new URL(session.address).origin;
 
   const fromSameOrigin = await session.send(

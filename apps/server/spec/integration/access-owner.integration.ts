@@ -11,14 +11,10 @@ import {
   unauthenticated,
 } from '../kit/answers.ts';
 import { inventory } from '../kit/reads.ts';
-import { mcpHeaders, pairDevice, read } from '../kit/requests.ts';
+import { mcpHeaders, pairDevice, read, owner } from '../kit/requests.ts';
 import { test } from '../kit/server-test.ts';
 import { list, record, text, type HttpRequest } from '../kit/session.ts';
 
-const owner = (request: Omit<HttpRequest, 'target'>): HttpRequest => ({
-  ...request,
-  target: 'owner',
-});
 const ownerAccess = owner({ method: 'GET', path: '/access' });
 
 test('the owner socket reports where the server runs and is never cached', async ({

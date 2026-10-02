@@ -13,15 +13,9 @@ import {
   unknownWorktreeId,
   worktreeNotFound,
 } from '../kit/answers.ts';
-import { worktreePath } from '../kit/requests.ts';
+import { worktreePath, sendAll } from '../kit/requests.ts';
 import { test } from '../kit/server-test.ts';
-import {
-  list,
-  record,
-  type HttpRequest,
-  type HttpResponse,
-  type Session,
-} from '../kit/session.ts';
+import { list, record, type Session } from '../kit/session.ts';
 
 const comments = (session: Session, suffix = '') =>
   worktreePath(session, `/comments${suffix}`);
@@ -34,12 +28,6 @@ function thread(value: unknown, id: string) {
   const written = record(value);
   if (written.id !== id) throw new Error(`Thread ${id} was not written`);
   return written;
-}
-
-async function sendAll(session: Session, requests: HttpRequest[]) {
-  const responses: HttpResponse[] = [];
-  for (const request of requests) responses.push(await session.send(request));
-  return responses;
 }
 
 test('a worktree without comments lists no threads', async ({ session }) => {

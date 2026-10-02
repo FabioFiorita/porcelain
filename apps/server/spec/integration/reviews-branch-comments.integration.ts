@@ -2,18 +2,19 @@ import { randomUUID } from 'node:crypto';
 import { expect } from 'vitest';
 import { invalidRequest } from '../kit/answers.ts';
 import { head } from '../kit/reads.ts';
-import { read, toolCall, toolValue, worktreePath } from '../kit/requests.ts';
+import {
+  read,
+  toolCall,
+  toolValue,
+  worktreePath,
+  answered,
+} from '../kit/requests.ts';
 import { test } from '../kit/server-test.ts';
 import { list, record, text, type Session } from '../kit/session.ts';
 
 const BASE = 'refs/heads/main';
 const threadId = randomUUID();
 const agentThreadId = randomUUID();
-const answered = (id: number) => ({
-  jsonrpc: '2.0',
-  id,
-  result: { content: [{ type: 'text' }] },
-});
 
 async function branchNotes(session: Session) {
   const body = await read(session, {

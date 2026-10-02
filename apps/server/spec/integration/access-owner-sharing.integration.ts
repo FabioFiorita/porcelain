@@ -5,19 +5,11 @@ import {
 import { expect } from 'vitest';
 import { apiError, invalidRequest } from '../kit/answers.ts';
 import { eventually } from '../kit/reads.ts';
-import { read } from '../kit/requests.ts';
+import { read, owner } from '../kit/requests.ts';
 import { test } from '../kit/server-test.ts';
-import { record, type HttpRequest, type Session } from '../kit/session.ts';
+import { record, type Session } from '../kit/session.ts';
 
 const TAILNET_HOST = 'porcelain.tail0000.ts.net';
-const owner = (request: Omit<HttpRequest, 'target'>): HttpRequest => ({
-  ...request,
-  target: 'owner',
-});
-const remoteAccess = owner({ method: 'GET', path: '/remote-access' });
-const change = (body: unknown) =>
-  owner({ method: 'PATCH', path: '/remote-access', body });
-
 function status(body: Record<string, unknown>, route: string) {
   return record(record(record(body.routes)[route]).status);
 }
@@ -28,6 +20,10 @@ async function settled(session: Session, route: string, kind: string) {
     return current !== 'starting' && current === kind;
   });
 }
+
+const remoteAccess = owner({ method: 'GET', path: '/remote-access' });
+const change = (body: unknown) =>
+  owner({ method: 'PATCH', path: '/remote-access', body });
 
 test('the owner reads every sharing route off at first, with the address the service answers at', async ({
   session,

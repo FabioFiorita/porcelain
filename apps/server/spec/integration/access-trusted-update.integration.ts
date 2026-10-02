@@ -4,8 +4,8 @@ import {
 } from '@porcelain/contracts/access';
 import { expect } from 'vitest';
 import { apiError, unauthenticated } from '../kit/answers.ts';
-import { eventually } from '../kit/reads.ts';
-import { issuePairing, pairDevice, read } from '../kit/requests.ts';
+import { eventually, tunnelOn } from '../kit/reads.ts';
+import { pairDevice, read, pairBrowser } from '../kit/requests.ts';
 import { test } from '../kit/server-test.ts';
 import {
   list,
@@ -55,39 +55,6 @@ async function trustedDevice(session: Session, label: string) {
   const device = await pairDevice(session, label);
   await setTrust(session, device.deviceId, true);
   return device;
-}
-
-async function tunnelOn(session: Session) {
-  await read(session, {
-    method: 'PATCH',
-    path: '/api/remote-access',
-    body: { cloudflare: true, cloudflareHostname: TUNNEL_HOST },
-  });
-  await eventually(
-    session,
-    { method: 'GET', path: '/api/remote-access' },
-    (body) =>
-      record(record(record(body.routes).cloudflare).status).kind === 'on',
-  );
-}
-
-async function browserCookie(
-  session: Session,
-  headers: Record<string, string>,
-) {
-  const code = await issuePairing(session, 'Browser');
-  const paired = await session.read({
-    method: 'POST',
-    path: '/api/pair',
-    auth: 'none',
-    headers: { ...headers, 'x-porcelain-browser': '1' },
-    body: { code, platform: 'Browser' },
-  });
-  const cookie = /porcelain_device=[^;]+/.exec(
-    paired.headers['set-cookie'] ?? '',
-  )?.[0];
-  if (!cookie) throw new Error('Browser pairing set no device cookie');
-  return { cookie, deviceId: text(record(record(paired.body).device).id) };
 }
 
 test('the update status tells each caller whether it may start an update', async ({
@@ -228,7 +195,7 @@ test('a revoked trusted device is refused an update as unauthenticated and nothi
 test('a trusted device cannot update with its cookie from another origin and nothing starts', async ({
   session,
 }) => {
-  const browser = await browserCookie(session, {});
+  const browser = await pairBrowser(session);
   await setTrust(session, browser.deviceId, true);
   const before = await read(session, status);
 
@@ -279,8 +246,8 @@ test('a trusted bearer client on another origin starts an update it can read the
 test('a trusted browser on the web the server serves updates it with its cookie', async ({
   session,
 }) => {
-  await tunnelOn(session);
-  const browser = await browserCookie(session, throughTunnel);
+  await tunnelOn(session, TUNNEL_HOST);
+  const browser = await pairBrowser(session, throughTunnel);
   await setTrust(session, browser.deviceId, true);
   const before = await read(session, status);
 

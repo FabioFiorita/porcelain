@@ -7,7 +7,7 @@ import {
 import { expect } from 'vitest';
 import { apiError, credentialForm, unauthenticated } from '../kit/answers.ts';
 import { inventory } from '../kit/reads.ts';
-import { issuePairing, read } from '../kit/requests.ts';
+import { issuePairing, read, pairBrowser } from '../kit/requests.ts';
 import { test } from '../kit/server-test.ts';
 import { list, record, text, type Session } from '../kit/session.ts';
 
@@ -39,22 +39,6 @@ const rename = (
 });
 const projectName = async (session: Session) =>
   record(list((await inventory(session)).projects)[0]).name;
-
-async function browserCookie(session: Session) {
-  const code = await issuePairing(session, 'Browser');
-  const paired = await session.read({
-    method: 'POST',
-    path: '/api/pair',
-    auth: 'none',
-    headers: { 'x-porcelain-browser': '1' },
-    body: { code, platform: 'Browser' },
-  });
-  const cookie = /porcelain_device=[^;]+/.exec(
-    paired.headers['set-cookie'] ?? '',
-  )?.[0];
-  if (!cookie) throw new Error('Browser pairing set no device cookie');
-  return cookie;
-}
 
 test('a preflight from another origin is answered before any origin or credential check', async ({
   session,
@@ -185,7 +169,7 @@ test('a bearer client on another origin, or on an opaque one, reads and writes',
 test('a cookie, no credential or an unknown bearer cannot write from another origin', async ({
   session,
 }) => {
-  const cookie = await browserCookie(session);
+  const { cookie } = await pairBrowser(session);
   const name = await projectName(session);
 
   const withCookie = await session.send(
@@ -213,7 +197,7 @@ test('a cookie, no credential or an unknown bearer cannot write from another ori
 test('an empty or unknown bearer beside a valid cookie never authenticates by the cookie', async ({
   session,
 }) => {
-  const cookie = await browserCookie(session);
+  const { cookie } = await pairBrowser(session);
   const name = await projectName(session);
 
   const empty = await session.send(

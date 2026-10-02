@@ -4,16 +4,10 @@ import {
 } from '@porcelain/contracts/access';
 import { expect } from 'vitest';
 import { apiError, invalidRequest } from '../kit/answers.ts';
-import { eventually } from '../kit/reads.ts';
+import { tunnelOn } from '../kit/reads.ts';
 import { issuePairing, pairDevice, read } from '../kit/requests.ts';
 import { test } from '../kit/server-test.ts';
-import {
-  list,
-  record,
-  text,
-  type HttpRequest,
-  type Session,
-} from '../kit/session.ts';
+import { list, record, text, type HttpRequest } from '../kit/session.ts';
 
 const TUNNEL_HOST = 'porcelain.example.com';
 const throughTunnel = { host: TUNNEL_HOST, origin: `https://${TUNNEL_HOST}` };
@@ -51,20 +45,6 @@ function deviceTrust(listing: Record<string, unknown>, id: string) {
     list(listing.devices).find((entry) => record(entry).id === id),
   );
   return { label: device.label, trusted: device.trusted };
-}
-
-async function tunnelOn(session: Session) {
-  await read(session, {
-    method: 'PATCH',
-    path: '/api/remote-access',
-    body: { cloudflare: true, cloudflareHostname: TUNNEL_HOST },
-  });
-  await eventually(
-    session,
-    { method: 'GET', path: '/api/remote-access' },
-    (body) =>
-      record(record(record(body.routes).cloudflare).status).kind === 'on',
-  );
 }
 
 test('a paired device is untrusted until the owner trusts it, and untrusted again when the owner stops', async ({
@@ -154,7 +134,7 @@ test('trusting an unknown or revoked device is not found, a malformed request is
 test('a relayed request, a trusted device through the tunnel and a bearer client on another origin cannot change trust', async ({
   session,
 }) => {
-  await tunnelOn(session);
+  await tunnelOn(session, TUNNEL_HOST);
   const code = await issuePairing(session, 'Travel laptop');
   const paired = await read(session, {
     method: 'POST',

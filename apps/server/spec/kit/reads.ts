@@ -127,3 +127,17 @@ export async function eventually(
   }
   throw new Error(`${request.method} ${request.path} never reached the state`);
 }
+
+export async function tunnelOn(session: Session, hostname: string) {
+  await read(session, {
+    method: 'PATCH',
+    path: '/api/remote-access',
+    body: { cloudflare: true, cloudflareHostname: hostname },
+  });
+  await eventually(
+    session,
+    { method: 'GET', path: '/api/remote-access' },
+    (body) =>
+      record(record(record(body.routes).cloudflare).status).kind === 'on',
+  );
+}
