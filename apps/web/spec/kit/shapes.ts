@@ -53,7 +53,9 @@ export function agentOn(step: Step) {
 
 export type Agent = ReturnType<typeof agentOn>;
 
-export function projectHomeOn(step: (step: ProjectHomeStep) => Promise<string>) {
+export function projectHomeOn(
+  step: (step: ProjectHomeStep) => Promise<string>,
+) {
   return {
     repository: (name: string) => step({ kind: 'repository', name }),
     folder: (name: string) => step({ kind: 'folder', name }),
