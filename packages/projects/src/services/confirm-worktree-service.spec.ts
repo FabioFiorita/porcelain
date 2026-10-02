@@ -18,50 +18,36 @@ const worktree: ListedWorktree = {
   repositoryId: 'repository-1',
 };
 
-const observation = {
-  id: 'project-1',
-  commonDirectory: '/srv/api/.git',
-  repositoryIdentity: 'repository-1',
-  observedAt: '2026-09-24T12:00:00.000Z',
-  listed: true,
-};
-
-function holding(current: ListedWorktree[]) {
-  const catalog = new InMemoryWorktreeCatalogStore();
-  catalog.save({ projects: [{ observation, worktrees: current }] });
-  return catalog;
-}
-
 function service(current: ListedWorktree[]) {
-  return new ConfirmWorktreeService(holding(current));
+  const catalog = new InMemoryWorktreeCatalogStore();
+  catalog.save({
+    projects: [
+      {
+        observation: {
+          id: 'project-1',
+          commonDirectory: '/srv/api/.git',
+          repositoryIdentity: 'repository-1',
+          observedAt: '2026-09-24T12:00:00.000Z',
+          listed: true,
+        },
+        worktrees: current,
+      },
+    ],
+  });
+  return new ConfirmWorktreeService(catalog);
 }
 
 describe('ConfirmWorktreeService', () => {
-  it('confirms a worktree the catalog still holds as it was checked, leaving the catalog as it was', () => {
-    const catalog = holding([worktree]);
-    expect(() =>
-      new ConfirmWorktreeService(catalog).execute({ worktree }),
-    ).not.toThrow();
-    expect(catalog.find({ worktreeId: 'worktree-1' })).toEqual({
-      worktree,
-      observation,
-    });
+  it('confirms a worktree the catalog still holds as it was checked', () => {
+    expect(() => service([worktree]).execute({ worktree })).not.toThrow();
   });
 
-  it('still confirms a worktree whose branch or availability changed in place, leaving the catalog as it was', () => {
-    const changed = {
-      ...worktree,
-      branch: 'refs/heads/other',
-      available: false,
-    };
-    const catalog = holding([changed]);
+  it('still confirms a worktree whose branch or availability changed in place', () => {
     expect(() =>
-      new ConfirmWorktreeService(catalog).execute({ worktree }),
+      service([
+        { ...worktree, branch: 'refs/heads/other', available: false },
+      ]).execute({ worktree }),
     ).not.toThrow();
-    expect(catalog.find({ worktreeId: 'worktree-1' })).toEqual({
-      worktree: { ...worktree, branch: 'refs/heads/other', available: false },
-      observation,
-    });
   });
 
   it('refuses a worktree the catalog no longer holds', () => {

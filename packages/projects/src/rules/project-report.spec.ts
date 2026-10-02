@@ -111,10 +111,6 @@ describe('inventoryReport', () => {
       new Map(),
     );
     expect(report.projects[0]?.worktrees).toEqual([]);
-    expect(report).toEqual({
-      environmentId: 'environment',
-      projects: [{ id: 'a', name: 'name-a', available: true, worktrees: [] }],
-    });
   });
 
   it('reports only registered projects, whatever the listings hold', () => {

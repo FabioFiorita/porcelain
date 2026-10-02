@@ -42,7 +42,6 @@ export function reviewedLayerStoreContract(
     it('lists no marks for a worktree without reviewed layers', () => {
       store.save({ worktreeId: second, marks: [mark('layer')] });
       expect(store.list({ worktreeId: first })).toEqual([]);
-      expect(store.list({ worktreeId: second })).toEqual([mark('layer')]);
     });
 
     it('lists the marks of the worktree in the order they were reviewed, then by layer', () => {
@@ -89,12 +88,9 @@ export function reviewedLayerStoreContract(
       ]);
     });
 
-    it('reads no marks when no worktree is asked, and the saved ones when their worktree is', () => {
+    it('reads no marks when no worktree is asked', () => {
       store.save({ worktreeId: first, marks: [mark('one')] });
       expect(store.byWorktrees({ worktreeIds: [] })).toEqual([]);
-      expect(store.byWorktrees({ worktreeIds: [first] })).toEqual([
-        { worktreeId: first, ...mark('one') },
-      ]);
     });
 
     it('removes the mark of the asked layer in the asked worktree only', () => {

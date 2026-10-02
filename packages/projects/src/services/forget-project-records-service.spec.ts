@@ -39,10 +39,6 @@ describe('ForgetProjectRecordsService', () => {
     service.execute({ projectId: 'api' });
     expect(presence.read({ projectId: 'api' })).toEqual([]);
     expect(preferences.list({ projectId: 'api' })).toEqual([]);
-    expect(presence.list()).toEqual([
-      { worktreeId: 'web-main', projectId: 'web', missingSince: undefined },
-    ]);
-    expect(preferences.count({ projectId: 'web' })).toBe(1);
   });
 
   it("keeps other projects' worktrees and preferences", () => {

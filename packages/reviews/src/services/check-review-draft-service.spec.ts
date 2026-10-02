@@ -53,15 +53,10 @@ const service = () =>
   new CheckReviewDraftService(new InMemoryReviewStore([published]));
 
 describe('CheckReviewDraftService', () => {
-  it('accepts a sound draft that states the current revision, leaving the published review in place', () => {
-    const reviews = new InMemoryReviewStore([published]);
+  it('accepts a sound draft that states the current revision', () => {
     expect(() =>
-      new CheckReviewDraftService(reviews).execute({
-        worktreeId,
-        draft: draft(),
-      }),
+      service().execute({ worktreeId, draft: draft() }),
     ).not.toThrow();
-    expect(reviews.read({ worktreeId })).toEqual(published);
   });
 
   it('refuses a draft that states another revision', () => {

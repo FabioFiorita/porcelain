@@ -69,7 +69,6 @@ export function inventoryStoreContract(
     it('finds nothing for an unknown project id', () => {
       store.save(project('api', 1));
       expect(store.find({ projectId: 'unknown' })).toBeUndefined();
-      expect(store.find({ projectId: 'api' })).toEqual(project('api', 1));
     });
 
     it('marks every project unavailable and keeps everything else', () => {

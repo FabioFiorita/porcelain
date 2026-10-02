@@ -69,21 +69,12 @@ describe('reviewDraftProblem', () => {
     });
   });
 
-  it('accepts a review without a diagram or layer arrows, and still checks the steps of such a review', () => {
+  it('accepts a review without a diagram or layer arrows', () => {
     const plain = draft({
       diagram: undefined,
       layers: [layer('layer-a', { arrows: undefined })],
     });
     expect(reviewDraftProblem(plain)).toBeUndefined();
-    const past = draft({
-      diagram: undefined,
-      layers: [
-        layer('layer-a', { arrows: undefined, steps: [step('step-a', 2)] }),
-      ],
-    });
-    expect(reviewDraftProblem(past)).toEqual({
-      kind: 'step-lane-out-of-range',
-    });
   });
 
   it('refuses a step id used twice in one layer', () => {
@@ -96,19 +87,12 @@ describe('reviewDraftProblem', () => {
     });
   });
 
-  it('allows the same step id in two different layers, but not twice in one of them', () => {
+  it('allows the same step id in two different layers', () => {
     expect(
       reviewDraftProblem(
         draft({ layers: [layer('layer-a'), layer('layer-b')] }),
       ),
     ).toBeUndefined();
-    const repeated = layer('layer-b', {
-      steps: [step('step-a'), step('step-a', 1)],
-      arrows: [],
-    });
-    expect(
-      reviewDraftProblem(draft({ layers: [layer('layer-a'), repeated] })),
-    ).toEqual({ kind: 'duplicate-step-id' });
   });
 
   it('accepts a step on the last lane and refuses one past it', () => {

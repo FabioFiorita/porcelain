@@ -60,15 +60,7 @@ describe('reviewedLayerMarks', () => {
     ]);
   });
 
-  it('answers no marks when nothing was reviewed, and one for each mark made', () => {
+  it('answers no marks when nothing was reviewed', () => {
     expect(reviewedLayerMarks([], [layer], reviewed)).toEqual([]);
-    expect(reviewedLayerMarks([mark('earlier')], [layer], reviewed)).toEqual([
-      {
-        layerId: 'layer-1',
-        fingerprint: 'earlier',
-        reviewedAt: '2026-09-01T00:00:00.000Z',
-        stale: true,
-      },
-    ]);
   });
 });

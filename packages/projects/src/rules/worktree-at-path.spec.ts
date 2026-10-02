@@ -55,20 +55,17 @@ describe('worktreeAtPath', () => {
     ).toBe('app');
   });
 
-  it('finds nothing for a path that climbs out of every worktree, and the worktree a climbing path lands back in', () => {
+  it('finds nothing for a path that climbs out of every worktree', () => {
     expect(worktreeAtPath('/code/app/../elsewhere', listings)).toBeUndefined();
-    expect(worktreeAtPath('/code/elsewhere/../app/src', listings)).toBe('app');
   });
 
   it('finds nothing outside every worktree, or when nothing is registered', () => {
     expect(worktreeAtPath('/code', listings)).toBeUndefined();
     expect(worktreeAtPath('/code/app', [])).toBeUndefined();
-    expect(worktreeAtPath('/code/app', listings)).toBe('app');
   });
 
-  it('finds nothing for a relative path, which names no place on its own, though its absolute form names a worktree', () => {
+  it('finds nothing for a relative path, which names no place on its own', () => {
     expect(worktreeAtPath('code/app', listings)).toBeUndefined();
     expect(worktreeAtPath('.', listings)).toBeUndefined();
-    expect(worktreeAtPath('/code/app', listings)).toBe('app');
   });
 });

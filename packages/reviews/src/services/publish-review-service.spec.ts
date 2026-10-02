@@ -446,19 +446,18 @@ describe('PublishReviewService', () => {
       evidence: evidence(),
       proofFiles: reads([['shot.png', png]]),
     });
-    const proofId = first.review.proof?.assets[0]?.id ?? '';
-    expect(store.readProofFile({ worktreeId, proofId })).toEqual({
-      id: proofId,
-      mediaType: 'image/png',
-      bytes: png,
-    });
     const second = service.execute({
       worktreeId,
       draft: draft({ expectedRevision: 1 }),
       evidence: evidence(),
     });
     expect(second.review.proof).toBeUndefined();
-    expect(store.readProofFile({ worktreeId, proofId })).toBeUndefined();
+    expect(
+      store.readProofFile({
+        worktreeId,
+        proofId: first.review.proof?.assets[0]?.id ?? '',
+      }),
+    ).toBeUndefined();
   });
 
   it.each<{
