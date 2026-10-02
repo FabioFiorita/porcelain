@@ -428,11 +428,12 @@ const openTypes = new Set([
 ]);
 const kernelTypesFile = /^packages\/kernel\/src\/(?:models|ports)\//;
 const numberFreeFile = new RegExp(
-  `^(?:packages/[^/]+/src/|apps/server/src/|apps/web/src/)`,
+  `^(?:packages/[^/]+/src/|apps/(?:server|web|mobile)/src/)`,
 );
-const visualViewFile = /^apps\/web\/src\/(?:app|features\/[^/]+)\/views\//;
+const visualViewFile =
+  /^apps\/(?:web|mobile)\/src\/(?:app|features\/[^/]+)\/views\//;
 const limitsFile =
-  /^(?:packages\/contracts\/src\/shared\/limits|apps\/(?:server|web)\/src\/config\/limits)\.ts$/;
+  /^(?:packages\/contracts\/src\/shared\/limits|apps\/(?:server|web|mobile)\/src\/config\/limits)\.ts$/;
 const statusName = /(?:^|\.)status(?:Code)?$/i;
 const positionMethods = new Set(['slice', 'at', 'substring', 'padStart']);
 const FIELD_POSITION_MAX = 16;
@@ -1160,6 +1161,19 @@ function allowedSpecImport(filename, source) {
   if (source === 'vitest') return true;
   if (specNodeModule.test(source) || specPackageEntry.test(source)) return true;
   const path = normalizedFilename(filename);
+  const clientFeature =
+    /packages\/client\/src\/features\/([^/]+)\/(?:[^/]+\.spec\.ts|(?:commands|queries)\/[^/]+\.spec\.ts)$/.exec(
+      path,
+    );
+  if (
+    clientFeature &&
+    (source === `@porcelain/client/${clientFeature[1]}` ||
+      source === `@porcelain/client/${clientFeature[1]}/rules` ||
+      /^@porcelain\/contracts\/(?:shared|access|projects|changes|reviews|files|git-actions)$/.test(
+        source,
+      ))
+  )
+    return true;
   if (statusPolicySpec.test(path) && gitCapabilityEntry.test(source))
     return true;
   if (adapterSpec.test(path) && storageEntry.test(source)) return true;
@@ -2745,7 +2759,7 @@ export default {
         )
           return {};
         const message =
-          'An operational number above 1 lives in contracts/shared/limits.ts when the server enforces it too, otherwise in the server or web config/limits.ts, and arrives as a parameter or an option. Visual values in views are outside this rule.';
+          'An operational number above 1 lives in contracts/shared/limits.ts when the server enforces it too, otherwise in the server, web or mobile config/limits.ts, and arrives as a parameter or an option. Visual values in views are outside this rule.';
         const hiddenNumber = (node) => {
           const text = staticString(node, context);
           return text !== undefined && Number(text) > 1;

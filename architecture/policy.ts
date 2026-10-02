@@ -163,11 +163,13 @@ export const roles = [
   'client-transport-api',
   'client-transport-spec',
   'mobile-config',
+  'mobile-store',
 ] as const;
 
 export type Role = (typeof roles)[number];
 
 export const webRoles: ReadonlySet<Role> = new Set<Role>([
+  'mobile-store',
   'route',
   'shell',
   'view',
@@ -632,6 +634,7 @@ function mobilePart(path: string): Role | undefined {
     return 'web-rule';
   const inside = path.slice('apps/mobile/src/'.length);
   if (!path.startsWith('apps/mobile/src/')) return;
+  if (inside === 'config/limits.ts') return 'web-limits';
   if (/^app\/(?:[^/]+\/)*[^/]+\.tsx$/.test(inside)) return 'route';
   if (/^shell\/[^/]+(?:\.(?:ios|android))?\.tsx?$/.test(inside)) return 'shell';
   if (
@@ -641,6 +644,10 @@ function mobilePart(path: string): Role | undefined {
   const feature = /^features\/([^/]+)\/(.+)$/.exec(inside);
   if (!feature || !webDomainSet.has(feature[1] ?? '')) return;
   if (feature[2] === 'index.ts') return 'feature-index';
+  if (feature[2] === 'store.ts') return 'mobile-store';
+  if (feature[2] === 'api.ts') return 'api';
+  if (/^queries\/[a-z-]+\.ts$/.test(feature[2] ?? '')) return 'query';
+  if (/^commands\/[a-z-]+\.ts$/.test(feature[2] ?? '')) return 'command';
   if (/^views\/[a-z-]+(?:\.(?:ios|android))?\.tsx$/.test(feature[2] ?? ''))
     return 'view';
   if (/^adapters\/[a-z-]+(?:\.(?:ios|android))?\.tsx?$/.test(feature[2] ?? ''))
@@ -649,7 +656,10 @@ function mobilePart(path: string): Role | undefined {
 }
 
 export function webPart(path: string): Role | undefined {
-  if (path.startsWith('apps/mobile/')) return mobilePart(path);
+  if (path.startsWith('apps/mobile/')) {
+    const role = mobilePart(path);
+    return role === 'mobile-store' ? 'store' : role;
+  }
   if (path.startsWith('packages/client/src/')) {
     const classified = classifyPackage(
       'client',
@@ -829,6 +839,14 @@ const everything: readonly Role[] = [
 ];
 
 export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
+  'mobile-store': new Set([
+    'client-feature-api',
+    'client-rules-api',
+    'adapter',
+    'web-rule',
+    'web-shared',
+    'contract',
+  ]),
   'mobile-config': new Set(['web-rule']),
   'client-rules-api': new Set(['web-rule']),
   'client-feature-api': new Set([
@@ -846,8 +864,16 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
     'web-rule',
     'contract',
   ]),
-  'client-port': new Set(['client-transport-api', 'web-rule', 'contract']),
+  'client-port': new Set([
+    'client-port',
+    'client-transport-api',
+    'web-shared',
+    'web-rule',
+    'contract',
+  ]),
   'client-feature-spec': new Set([
+    'contract',
+    'client-rules-api',
     'client-feature-api',
     'client-request-api',
     'client-port',
@@ -1020,6 +1046,7 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
   route: new Set(['feature-index', 'shell', 'web-shared', 'web-limits']),
   shell: new Set(['feature-index', 'shell', 'ui', 'web-shared', 'web-limits']),
   view: new Set([
+    'mobile-store',
     'client-feature-api',
     'client-rules-api',
     'view',
@@ -1035,6 +1062,7 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
     'feature-index',
   ]),
   query: new Set([
+    'mobile-store',
     'client-feature-api',
     'client-request-api',
     'client-port',
@@ -1049,6 +1077,7 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
     'contract',
   ]),
   command: new Set([
+    'mobile-store',
     'client-feature-api',
     'client-request-api',
     'client-port',
@@ -1064,6 +1093,7 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
     'contract',
   ]),
   store: new Set([
+    'client-feature-api',
     'client-port',
     'client-rules-api',
     'client-transport-api',
@@ -1100,6 +1130,7 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
     'contract',
   ]),
   'feature-index': new Set([
+    'mobile-store',
     'client-feature-api',
     'client-rules-api',
     'view',
@@ -1327,6 +1358,7 @@ const nodeModules = new Set(
 const storageEngineModule = /^(?:fs|child_process)(?:\/|$)/;
 
 export const externalPackages: Record<Role, readonly string[]> = {
+  'mobile-store': [],
   'mobile-config': ['expo'],
   'client-rules-api': [],
   'client-feature-api': [],
@@ -1475,11 +1507,13 @@ export function forbiddenExternal(role: Role, module: string): boolean {
 }
 
 const rolePurposes: Record<Role, string> = {
+  'mobile-store':
+    'a native feature state binding, which injects platform adapters into shared vanilla state and supplies its React bindings to views, queries and commands',
   'mobile-config':
     'the Expo build configuration, which selects the installation identity and native plugins',
   'client-rules-api': "a shared client feature's public pure rules entry",
   'client-feature-api':
-    'the shared feature entry for hooks, commands, stores and platform ports; request APIs have a separate entry that views cannot reach',
+    'the shared feature entry for query options, commands, vanilla stores and platform ports; apps own React bindings and views cannot reach request APIs',
   'client-request-api':
     'the shared feature request API; only app APIs and shared reads and commands reach it',
   'client-port':
@@ -1562,7 +1596,8 @@ const rolePurposes: Record<Role, string> = {
   'browser-kit': 'the journey kit in apps/web/spec/kit/',
   'web-rule-spec': 'a spec for a pure web rule',
   'web-config': 'apps/web/vite.config.ts',
-  'web-limits': "apps/web/src/config/limits.ts, the web's limits",
+  'web-limits':
+    'the web or native app config/limits.ts, the owner of its operational limits',
   'web-entry': 'main.tsx and the generated route tree, where the web starts',
 };
 

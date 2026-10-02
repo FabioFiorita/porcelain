@@ -12,6 +12,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@porcelain/contracts": "workspace:*"
+    "@porcelain/contracts": "workspace:*",
+    "@tanstack/query-core": "5.102.8",
+    "zustand": "5.0.15"
   }
 }

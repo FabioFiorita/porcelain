@@ -1,0 +1,17 @@
+appId: com.fabiofiorita.porcelain.dev
+name: Pair and reconnect to a LAN environment
+---
+- stopApp
+- launchApp
+- tapOn: Settings
+- tapOn: Add environment
+- assertVisible: Pair an environment
+- tapOn: Pairing link
+- inputText: ${PAIRING_LINK}
+- tapOn: Pair
+- assertNotVisible: Pair an environment
+- assertVisible: Online
+- stopApp
+- launchApp
+- tapOn: Settings
+- assertVisible: Online

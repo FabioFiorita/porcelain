@@ -71,6 +71,29 @@ const cases = [
   },
 ];
 const started = performance.now();
+tester.run(
+  'no-number-outside-limits',
+  plugin.rules['no-number-outside-limits'],
+  {
+    valid: [
+      {
+        filename: fileURLToPath(
+          new URL('apps/mobile/src/config/limits.ts', root),
+        ),
+        code: 'export const REQUEST_TIMEOUT_MS = 15_000;',
+      },
+    ],
+    invalid: [
+      {
+        filename: fileURLToPath(
+          new URL('apps/mobile/src/shared/api/transport.ts', root),
+        ),
+        code: 'export const timeout = () => AbortSignal.timeout(15_000);',
+        errors: 1,
+      },
+    ],
+  },
+);
 for (const [file, role] of [
   ['index.ts', 'client-feature-api'],
   ['api.ts', 'client-request-api'],
@@ -356,6 +379,10 @@ deepStrictEqual(classify('apps/mobile/src/app/index.tsx'), {
   role: 'route',
   owner: 'mobile',
 });
+deepStrictEqual(classify('apps/mobile/src/config/limits.ts'), {
+  role: 'web-limits',
+  owner: 'mobile',
+});
 deepStrictEqual(classify('apps/mobile/src/shared/icons/tab-icon.android.ts'), {
   role: 'web-shared',
   owner: 'mobile',
@@ -380,3 +407,41 @@ deepStrictEqual(
   'mobile-imports-mobile-client-and-contracts-only',
 );
 process.stdout.write('PASS mobile classification and app boundary\n');
+for (const [file, role] of [
+  ['store.ts', 'mobile-store'],
+  ['api.ts', 'api'],
+  ['queries/environments.ts', 'query'],
+  ['commands/pairing.ts', 'command'],
+  ['adapters/environment-storage.ts', 'adapter'],
+])
+  deepStrictEqual(classify(`apps/mobile/src/features/access/${file}`), {
+    role,
+    owner: 'mobile',
+  });
+deepStrictEqual(
+  violation(
+    { role: 'mobile-store', owner: 'mobile' },
+    { role: 'adapter', owner: 'mobile' },
+  ),
+  undefined,
+);
+for (const role of ['query', 'command']) {
+  deepStrictEqual(
+    violation(
+      { role, owner: 'mobile' },
+      { role: 'mobile-store', owner: 'mobile' },
+    ),
+    undefined,
+  );
+  deepStrictEqual(
+    violation({ role, owner: 'mobile' }, { role: 'adapter', owner: 'mobile' }),
+    `${role}-cannot-import-adapter`,
+  );
+}
+deepStrictEqual(
+  violation({ role: 'store', owner: 'web' }, { role: 'adapter', owner: 'web' }),
+  'store-cannot-import-adapter',
+);
+process.stdout.write(
+  'PASS native platform composition and shared state boundaries\n',
+);

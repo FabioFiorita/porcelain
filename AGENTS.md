@@ -57,4 +57,4 @@ Use the proof stages above for web work. Browser behavior cases run with Vitest 
 - Write no prose documents: the workflow lives in skills, the rules in the tooling, the example in the code.
 - Before using a library, check its current documentation for a built-in pattern and prefer it over a helper.
 - Do not make the server bend to the old web code during its rebuild.
-- Limits live in `packages/contracts/src/shared/limits.ts` when the server enforces them, otherwise in `apps/server/src/config/limits.ts` or `apps/web/src/config/limits.ts`, nowhere else.
+- Limits live in `packages/contracts/src/shared/limits.ts` when the server enforces them, otherwise in `apps/server/src/config/limits.ts`, `apps/web/src/config/limits.ts` or `apps/mobile/src/config/limits.ts`, nowhere else.

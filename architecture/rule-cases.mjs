@@ -1,5 +1,73 @@
 export default [
   {
+    rule: 'no-number-outside-limits',
+    path: 'apps/mobile/src/shared/api/transport.ts',
+    valid:
+      "import { REQUEST_TIMEOUT_MS } from '../../config/limits'; export const timeout = () => AbortSignal.timeout(REQUEST_TIMEOUT_MS);",
+    invalid: 'export const timeout = () => AbortSignal.timeout(15_000);',
+    errors: 1,
+  },
+  {
+    rule: 'client-platform-through-ports',
+    path: 'packages/client/src/features/access/store.ts',
+    valid: "import { createStore } from 'zustand/vanilla';",
+    invalid: "import { create } from 'zustand';",
+    errors: 1,
+  },
+  {
+    rule: 'client-platform-through-ports',
+    path: 'packages/client/src/features/access/store.ts',
+    valid: "import { shallow } from 'zustand/vanilla/shallow';",
+    invalid: "import { useShallow } from 'zustand/react/shallow';",
+    errors: 1,
+  },
+  {
+    rule: 'spec-imports',
+    path: 'packages/client/src/features/access/commands/pairing.spec.ts',
+    valid:
+      "import { createAccessStore } from '@porcelain/client/access'; import type { Remote } from '@porcelain/client/access/rules'; import { ENVIRONMENT_PROTOCOL } from '@porcelain/contracts/shared';",
+    invalid:
+      "import { SettingsScreen } from '../../../../../../apps/mobile/src/features/access/views/settings-screen.tsx';",
+    errors: 1,
+  },
+  {
+    rule: 'client-platform-through-ports',
+    path: 'packages/client/src/features/access/queries/environments.ts',
+    valid: "import type { QueryFunctionContext } from '@tanstack/query-core';",
+    invalid: "import { useQuery } from '@tanstack/react-query';",
+    errors: 1,
+  },
+  {
+    rule: 'client-platform-through-ports',
+    path: 'packages/client/src/features/access/store.ts',
+    valid: "import { createStore } from 'zustand/vanilla';",
+    invalid: "import { useEffect } from 'react';",
+    errors: 1,
+  },
+  {
+    rule: 'web-store-owns-zustand',
+    path: 'apps/mobile/src/features/access/commands/pairing.ts',
+    valid: "import { accessStore } from '../store';",
+    invalid: "import { createStore } from 'zustand/vanilla';",
+    errors: 1,
+  },
+  {
+    rule: 'web-transport-owner',
+    path: 'apps/mobile/src/shared/api/transport.ts',
+    valid: 'export const send = (address: URL) => fetch(address);',
+    invalid:
+      'export const listen = (address: string) => new WebSocket(address);',
+    errors: 1,
+  },
+  {
+    rule: 'web-transport-owner',
+    path: 'apps/mobile/src/features/access/views/settings-screen.tsx',
+    valid: 'export const Settings = () => <Text>Environments</Text>;',
+    invalid:
+      'export const read = () => fetch("http://localhost/api/environment");',
+    errors: 1,
+  },
+  {
     rule: 'client-platform-through-ports',
     path: 'packages/client/src/features/access/api.ts',
     valid:

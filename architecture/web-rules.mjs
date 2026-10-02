@@ -453,14 +453,17 @@ export const webRules = {
       const path = webPath(context);
       if (!path.startsWith('packages/client/src/')) return {};
       const message =
-        'The shared client receives platform capabilities through ports; browser globals, Expo and native UI stay in their app adapters.';
+        'The shared client receives platform capabilities through ports and uses vanilla Zustand and Query core; React bindings, browser globals, Expo and native UI stay in each app so incompatible React runtimes cannot mix.';
       const check = (node) => {
         const source = sourceOf(node);
         if (
           source !== undefined &&
-          /^(?:react-native|react-dom|expo(?:-[^/]+)?|@expo\/[^/]+)(?:\/|$)/.test(
+          (/^(?:react(?:-native|-dom)?|@tanstack\/react-query|expo(?:-[^/]+)?|@expo\/[^/]+)(?:\/|$)/.test(
             source,
-          )
+          ) ||
+            source === 'zustand' ||
+            (source.startsWith('zustand/') &&
+              !/^zustand\/vanilla(?:\/|$)/.test(source)))
         )
           context.report({ node, message });
       };
@@ -716,7 +719,10 @@ export const webRules = {
     create(context) {
       const path = webPath(context);
       if (!runtimeWeb(path)) return {};
-      const inside = path.slice(webSource.length);
+      const inside = path.replace(
+        /^(?:apps\/(?:web|mobile)|packages\/client)\/src\//,
+        '',
+      );
       const globalCallee = (callee, names) =>
         (callee.type === 'Identifier' && names.has(callee.name)) ||
         (callee.type === 'MemberExpression' &&

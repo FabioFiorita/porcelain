@@ -1,1 +1,1 @@
-export { RootShell as default } from '../shell/root-shell';
+export { RootLayout as default } from '../shell/root-layout';
