@@ -22,6 +22,7 @@ import {
   type Shell,
 } from './catalogue.ts';
 import { calledRoutes, webCalls } from './web-routes.ts';
+import { verifyWebRouteDiscovery } from './web-route-proof.ts';
 
 type WorkerMessage = z.output<typeof workerMessageSchema>;
 
@@ -257,6 +258,7 @@ function list(journeys: readonly Journey[]) {
 }
 
 async function main(): Promise<number> {
+  verifyWebRouteDiscovery();
   const started = performance.now();
   const journeys = await loadJourneys();
   const { values, positionals } = parseArgs({
