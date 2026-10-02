@@ -139,6 +139,8 @@ export const roles = [
   'capture',
   'store-contract',
   'server-kit',
+  'integration-test',
+  'server-cli',
   'test',
   'route',
   'shell',
@@ -803,6 +805,18 @@ export function classify(path: string): Classification | undefined {
     return classified('fake', 'server');
   if (/^apps\/server\/spec\/kit\/[a-z]+(?:-[a-z]+)*\.ts$/.test(path))
     return classified('server-kit', 'server');
+  if (
+    /^apps\/server\/spec\/(?:integration\/[a-z0-9]+(?:-[a-z0-9]+)*\.integration|perf\/[a-z0-9]+(?:-[a-z0-9]+)*\.perf)\.ts$/.test(
+      path,
+    )
+  )
+    return classified('integration-test', 'server');
+  if (
+    /^\.agents\/skills\/server-verify\/scripts\/[a-z]+(?:-[a-z]+)*\.ts$/.test(
+      path,
+    )
+  )
+    return classified('server-cli', 'server');
   const packageFile = /^packages\/([^/]+)\/src\/(.+)$/.exec(path);
   if (packageFile)
     return classifyPackage(packageFile[1] ?? '', packageFile[2] ?? '');
@@ -1070,7 +1084,10 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
     'config',
     'server-port',
     'fake',
+    'contract',
   ]),
+  'integration-test': new Set(['server-kit', 'contract', 'config']),
+  'server-cli': new Set(['server-kit', 'server-cli']),
   test: new Set([
     ...everything,
     'fake',
@@ -1454,7 +1471,9 @@ export const externalPackages: Record<Role, readonly string[]> = {
   fixture: [],
   capture: [],
   'store-contract': ['vitest'],
-  'server-kit': ['esbuild', 'zod'],
+  'server-kit': ['esbuild', 'zod', 'vitest'],
+  'integration-test': ['vitest'],
+  'server-cli': ['zod'],
   test: [],
   route: [],
   shell: [],
@@ -1505,7 +1524,13 @@ function allowedPackage(role: Role, module: string): boolean {
 
 function forbiddenNodeModule(role: Role, name: string): boolean {
   const base = name.split('/')[0] ?? '';
-  if (role === 'test' || role === 'server-kit') return false;
+  if (
+    role === 'test' ||
+    role === 'server-kit' ||
+    role === 'integration-test' ||
+    role === 'server-cli'
+  )
+    return false;
   if (role === 'capture') return !captureNodeModules.has(base);
   if (base === 'child_process') return role !== 'process';
   if (role === 'kernel' || role === 'fake') return true;
@@ -1630,6 +1655,10 @@ const rolePurposes: Record<Role, string> = {
     'a store contract in spec/contracts/, the spec every implementation of a store passes',
   'server-kit':
     'the disposable-server kit in apps/server/spec/kit/, which builds the server, starts it sandboxed with the sample project, pairs, reads its state back, redacts secrets and stops only what it started, for integration tests, e2e setup and the verification CLIs',
+  'integration-test':
+    'a server integration test in apps/server/spec/integration/<feature>.integration.ts, or a route budget test in apps/server/spec/perf/<name>.perf.ts, which drives the built, sandboxed server over HTTP through the kit with a real database and real Git',
+  'server-cli':
+    'the server control CLI in .agents/skills/server-verify/scripts/, which an agent runs to start one sandboxed server through the kit, drive it, record numbered and redacted evidence and stop it; it drives and records but never asserts',
   test: 'a .spec.ts behaviour spec',
   route: 'a TanStack Router file in apps/web/src/routes/',
   shell: 'the web app shell in apps/web/src/app/',
