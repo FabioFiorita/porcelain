@@ -1,16 +1,16 @@
 export default [
   {
     rule: 'mobile-native-ui',
-    path: 'apps/mobile/src/shell/tablet-detail.ios.tsx',
+    path: 'apps/mobile/src/shell/tablet-split.ios.tsx',
     valid:
-      "import { Slot } from 'expo-router'; export const Detail = () => <Slot />;",
+      "import { SplitView } from 'expo-router/unstable-split-view'; export const Tablet = () => <SplitView />;",
     invalid:
       "import { PhoneTabs } from './phone-tabs'; export const Detail = () => <PhoneTabs />;",
     errors: 1,
   },
   {
     rule: 'mobile-native-ui',
-    path: 'apps/mobile/src/shell/tablet-detail.ios.tsx',
+    path: 'apps/mobile/src/shell/tablet-split.ios.tsx',
     valid: "import type { NativeTabsProps } from 'expo-router/native-tabs';",
     invalid:
       "import { NativeTabs as Tabs } from 'expo-router/native-tabs'; export const Detail = () => <Tabs />;",

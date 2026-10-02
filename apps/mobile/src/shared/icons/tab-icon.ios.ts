@@ -9,6 +9,6 @@ const symbols = {
   workspace: 'line.3.horizontal.decrease.circle',
 } satisfies Record<IconName, NonNullable<SFSymbolIcon['sf']>>;
 
-export function tabIcon(name: IconName): SFSymbolIcon {
+export function tabIcon(name: IconName) {
   return { sf: symbols[name] };
 }

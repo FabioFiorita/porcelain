@@ -39,7 +39,7 @@ export const mobileRules = {
           context.report({
             node,
             message:
-              'Keep NativeTabs in the phone shell; the tablet owns NavigationSplitView and its detail destinations, so embedding the phone navigator cannot replace the agreed tablet layout.',
+              'Keep NativeTabs in the phone shell; the tablet owns its root SplitView and master/detail selections, so embedding the phone navigator cannot replace the agreed tablet layout.',
           });
         if (source === 'react-native') {
           for (const specifier of node.specifiers ?? []) {

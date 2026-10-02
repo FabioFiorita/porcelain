@@ -1,22 +1,28 @@
 appId: com.fabiofiorita.porcelain.dev
-name: Unpaired tablet split view
+name: Three-column tablet destinations
 ---
 - launchApp
 - setOrientation: LANDSCAPE_LEFT
-- assertVisible: Workspaces
-- assertVisible: No environments paired.
+- assertVisible: Porcelain
+- tapOn: Review
+- assertVisible:
+    text: Review
+    selected: true
+- assertVisible: Changes
+- assertVisible: No worktree selected.
 - tapOn: Files
 - assertVisible:
     text: Files
     selected: true
 - assertVisible: Select a worktree to continue.
 - tapOn: Hide Sidebar
-- assertNotVisible: Workspaces
+- assertNotVisible: Porcelain
+- assertVisible: No worktree selected.
+- assertVisible: Select a worktree to continue.
 - assertVisible:
     text: Files
-    selected: true
 - tapOn: Show Sidebar
-- assertVisible: Workspaces
+- assertVisible: Porcelain
 - assertVisible:
     text: Files
     selected: true
@@ -29,18 +35,37 @@ name: Unpaired tablet split view
     text: Settings
     selected: true
 - assertVisible: Environments
-- setOrientation: PORTRAIT
-- assertVisible: Workspaces
+- assertVisible:
+    text: Environments
+    selected: true
+- assertVisible: No environments paired.
+- tapOn: Hide Sidebar
+- assertNotVisible: Porcelain
+- assertVisible:
+    text: Environments
+    selected: true
+- assertVisible: No environments paired.
+- tapOn: Show Sidebar
 - assertVisible:
     text: Settings
     selected: true
-- assertVisible: Review
-- assertVisible: Files
-- assertVisible: History
-- assertNotVisible: Previous Page
-- assertNotVisible: Next Page
+- setOrientation: PORTRAIT
+- assertVisible:
+    text: Environments
+    selected: true
+- assertVisible: No environments paired.
+- setOrientation: LANDSCAPE_LEFT
+- assertVisible: Porcelain
+- assertVisible:
+    text: Settings
+    selected: true
+- assertVisible:
+    text: Environments
+    selected: true
+- assertVisible: No environments paired.
 - tapOn: Review
 - assertVisible:
     text: Review
     selected: true
 - assertVisible: Select a worktree to continue.
+- assertVisible: Changes

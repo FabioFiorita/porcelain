@@ -8,7 +8,7 @@ export default {
   edits: [
     {
       kind: 'prepend',
-      path: 'apps/mobile/src/shell/tablet-detail.ios.tsx',
+      path: 'apps/mobile/src/shell/tablet-split.ios.tsx',
       content: "export { PhoneTabs } from './phone-tabs';\n",
     },
   ],
