@@ -8,7 +8,7 @@ export default {
   edits: [
     {
       kind: 'prepend',
-      path: 'apps/mobile/src/shared/worktree-empty.tsx',
+      path: 'apps/mobile/src/shared/worktree-empty.android.tsx',
       content: "\nexport function unusedMobile() { return 'unused'; }\n",
     },
   ],

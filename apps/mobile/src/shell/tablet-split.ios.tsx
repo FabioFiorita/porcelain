@@ -2,7 +2,6 @@ import {
   Host,
   List,
   NavigationSplitView,
-  RNHostView,
   Section,
   Text,
   type NavigationSplitViewColumn,
@@ -14,7 +13,7 @@ import {
   navigationTitle,
 } from '@expo/ui/swift-ui/modifiers';
 import { useState } from 'react';
-import { WorkspaceTabs } from './workspace-tabs';
+import { TabletDetail } from './tablet-detail';
 
 export function TabletSplit() {
   const [columnVisibility, setColumnVisibility] =
@@ -41,9 +40,7 @@ export function TabletSplit() {
           </List>
         </NavigationSplitView.Sidebar>
         <NavigationSplitView.Detail>
-          <RNHostView>
-            <WorkspaceTabs />
-          </RNHostView>
+          <TabletDetail />
         </NavigationSplitView.Detail>
       </NavigationSplitView>
     </Host>

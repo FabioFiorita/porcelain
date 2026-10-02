@@ -1,5 +1,30 @@
 export default [
   {
+    rule: 'mobile-native-ui',
+    path: 'apps/mobile/src/shell/tablet-detail.ios.tsx',
+    valid:
+      "import { Slot } from 'expo-router'; export const Detail = () => <Slot />;",
+    invalid:
+      "import { PhoneTabs } from './phone-tabs'; export const Detail = () => <PhoneTabs />;",
+    errors: 1,
+  },
+  {
+    rule: 'mobile-native-ui',
+    path: 'apps/mobile/src/shell/tablet-detail.ios.tsx',
+    valid: "import type { NativeTabsProps } from 'expo-router/native-tabs';",
+    invalid:
+      "import { NativeTabs as Tabs } from 'expo-router/native-tabs'; export const Detail = () => <Tabs />;",
+    errors: 1,
+  },
+  {
+    rule: 'mobile-native-ui',
+    path: 'apps/mobile/src/shell/phone-tabs.tsx',
+    valid:
+      "import { NativeTabs } from 'expo-router/native-tabs'; export const Phone = () => <NativeTabs />;",
+    invalid: "export { Platform } from 'react-native';",
+    errors: 1,
+  },
+  {
     rule: 'client-platform-through-ports',
     path: 'packages/client/src/shared/api/transport.ts',
     valid: 'export function address(value: string) { return new URL(value); }',
@@ -25,7 +50,7 @@ export default [
   },
   {
     rule: 'mobile-native-ui',
-    path: 'apps/mobile/src/shell/workspace-tabs.tsx',
+    path: 'apps/mobile/src/shell/phone-tabs.tsx',
     valid:
       "import { View } from 'react-native'; export const Frame = () => <View />;",
     invalid:

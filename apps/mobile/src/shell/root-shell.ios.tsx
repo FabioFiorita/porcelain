@@ -1,7 +1,7 @@
 import { DeviceType, deviceType } from 'expo-device';
 import { TabletSplit } from './tablet-split';
-import { WorkspaceTabs } from './workspace-tabs';
+import { PhoneTabs } from './phone-tabs';
 
 export function RootShell() {
-  return deviceType === DeviceType.TABLET ? <TabletSplit /> : <WorkspaceTabs />;
+  return deviceType === DeviceType.TABLET ? <TabletSplit /> : <PhoneTabs />;
 }

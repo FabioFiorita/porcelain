@@ -34,7 +34,11 @@ name: Unpaired tablet split view
 - assertVisible:
     text: Settings
     selected: true
-- tapOn: Previous Page
+- assertVisible: Review
+- assertVisible: Files
+- assertVisible: History
+- assertNotVisible: Previous Page
+- assertNotVisible: Next Page
 - tapOn: Review
 - assertVisible:
     text: Review

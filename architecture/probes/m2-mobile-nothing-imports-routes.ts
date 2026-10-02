@@ -8,7 +8,7 @@ export default {
   edits: [
     {
       kind: 'prepend',
-      path: 'apps/mobile/src/shell/workspace-tabs.tsx',
+      path: 'apps/mobile/src/shell/phone-tabs.tsx',
       content: "import '../app/files';\n",
     },
   ],

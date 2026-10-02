@@ -27,6 +27,6 @@ For behavior beyond the shell, use disposable real Porcelain servers. Pair throu
 
 Prove iPhone and iPad separately. A simulator proves LAN transport, not the iOS Local Network permission prompt; permission, denial and retry need a physical device. Android needs its own build and native proof. Report platform coverage explicitly.
 
-Run `flows/tablet-shell.yaml` on iPad for the native Split View. It proves sidebar hide/show preserves the selected destination and rotation preserves Settings. In portrait, the narrow native tab bar pages its destinations; use its Previous Page control to return to Review.
+Run `flows/tablet-shell.yaml` on iPad for the native Split View. It proves sidebar hide/show preserves the selected destination and rotation preserves Settings. All four destinations remain visible in the detail pane in portrait; the tablet does not embed the phone tab navigator or page its destination control.
 
 Run `pnpm check` at completion. For mobile guard changes, run the affected named probes from a clean committed checkout after stopping Metro; probes mutate runtime source. Never call an unimplemented destination or an untested platform complete.

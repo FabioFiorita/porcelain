@@ -1,1 +1,1 @@
-export { WorkspaceTabs as RootShell } from './workspace-tabs';
+export { PhoneTabs as RootShell } from './phone-tabs';

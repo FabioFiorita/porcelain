@@ -20,6 +20,27 @@ export const mobileRules = {
         'Use Expo UI for standard controls and .ios/.android capability modules for platform differences; custom touch controls and Platform branches duplicate native behavior.';
       const check = (node) => {
         const source = node.source?.value;
+        const runtime =
+          node.importKind !== 'type' &&
+          node.exportKind !== 'type' &&
+          ((node.specifiers?.length ?? 0) === 0 ||
+            node.specifiers.some(
+              (specifier) =>
+                specifier.importKind !== 'type' &&
+                specifier.exportKind !== 'type',
+            ));
+        if (
+          runtime &&
+          ((source === 'expo-router/native-tabs' &&
+            !path.endsWith('/shell/phone-tabs.tsx')) ||
+            (path.includes('/shell/tablet-') &&
+              /(?:^|\/)phone-tabs(?:\.tsx?)?$/.test(source ?? '')))
+        )
+          context.report({
+            node,
+            message:
+              'Keep NativeTabs in the phone shell; the tablet owns NavigationSplitView and its detail destinations, so embedding the phone navigator cannot replace the agreed tablet layout.',
+          });
         if (source === 'react-native') {
           for (const specifier of node.specifiers ?? []) {
             const name = specifier.imported?.name ?? specifier.local?.name;
