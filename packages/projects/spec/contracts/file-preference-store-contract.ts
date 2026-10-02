@@ -63,6 +63,9 @@ export function filePreferenceStoreContract(
       store.save({ projectId: 'api', preference: pinned('a.ts') });
       expect(store.find({ projectId: 'api', path: 'b.ts' })).toBeUndefined();
       expect(store.find({ projectId: 'web', path: 'a.ts' })).toBeUndefined();
+      expect(store.find({ projectId: 'api', path: 'a.ts' })).toEqual(
+        pinned('a.ts'),
+      );
     });
 
     it('replaces the preference of a path saved again', () => {

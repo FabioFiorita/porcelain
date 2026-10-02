@@ -71,9 +71,15 @@ describe('InvalidateReviewedMarksService', () => {
     expect(stalePaths(files, worktreeId)).toEqual([]);
   });
 
-  it('leaves other worktrees alone', () => {
+  it('leaves other worktrees alone while it makes the asked one stale', () => {
     const { service, files } = setup();
     service.execute({ worktreeId });
     expect(stalePaths(files, otherWorktreeId)).toEqual([]);
+    expect(stalePaths(files, worktreeId)).toEqual([
+      'README.md',
+      'src/app.ts',
+      'src/app.tsx',
+      'srcs/x.ts',
+    ]);
   });
 });

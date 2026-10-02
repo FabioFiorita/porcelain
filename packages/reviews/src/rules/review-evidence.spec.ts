@@ -85,7 +85,28 @@ describe('trackedComparisons', () => {
     ]);
   });
 
-  it('asks for nothing when nothing changed', () => {
+  it('asks for nothing when nothing changed, and for the one diff of a single changed file', () => {
     expect(trackedComparisons([])).toEqual([]);
+    expect(
+      trackedComparisons([
+        {
+          path: 'src/app.ts',
+          fingerprint: 'a',
+          comparisons: [tracked('unstaged', 'src/app.ts')],
+        },
+      ]),
+    ).toEqual([
+      {
+        scope: 'unstaged',
+        kind: 'modified',
+        oldPath: 'src/app.ts',
+        newPath: 'src/app.ts',
+        oldMode: '100644',
+        newMode: '100644',
+        oldOid: undefined,
+        newOid: undefined,
+        supported: true,
+      },
+    ]);
   });
 });

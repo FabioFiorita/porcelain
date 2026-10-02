@@ -29,22 +29,83 @@ describe('proofMediaType', () => {
   });
 
   it.each([
-    { name: 'an SVG document', content: bytes('<svg></svg>') },
-    { name: 'an HTML page', content: bytes('<!doctype html><script>') },
+    {
+      name: 'an SVG document',
+      content: bytes('<svg></svg>'),
+      neighbour: 'a PNG image',
+      named: bytes(0x89, 'PNG', 0x0d, 0x0a, 0x1a, 0x0a, 0),
+      mediaType: 'image/png',
+    },
+    {
+      name: 'an HTML page',
+      content: bytes('<!doctype html><script>'),
+      neighbour: 'a WebM video',
+      named: bytes(0x1a, 0x45, 0xdf, 0xa3, 0),
+      mediaType: 'video/webm',
+    },
     {
       name: 'a RIFF file that is not WebP',
       content: bytes('RIFF', 0, 0, 0, 0, 'WAVE'),
+      neighbour: 'a RIFF file that is WebP',
+      named: bytes('RIFF', 0, 0, 0, 0, 'WEBPVP8'),
+      mediaType: 'image/webp',
     },
-    { name: 'a PNG signature cut short', content: bytes(0x89, 'PNG') },
-    { name: 'a HEIC photo', content: bytes(0, 0, 0, 0x18, 'ftypheic') },
-    { name: 'an AVIF image', content: bytes(0, 0, 0, 0x1c, 'ftypavif') },
-    { name: 'a QuickTime movie', content: bytes(0, 0, 0, 0x14, 'ftypqt  ') },
-    { name: 'a 3GP video', content: bytes(0, 0, 0, 0x18, 'ftyp3gp4') },
-    { name: 'an ftyp box without a brand', content: bytes(0, 0, 0, 8, 'ftyp') },
-    { name: 'no bytes', content: bytes() },
-  ])('names nothing for $name', ({ content }) => {
-    expect(proofMediaType(content)).toBeUndefined();
-  });
+    {
+      name: 'a PNG signature cut short',
+      content: bytes(0x89, 'PNG'),
+      neighbour: 'the whole PNG signature',
+      named: bytes(0x89, 'PNG', 0x0d, 0x0a, 0x1a, 0x0a),
+      mediaType: 'image/png',
+    },
+    {
+      name: 'a HEIC photo',
+      content: bytes(0, 0, 0, 0x18, 'ftypheic'),
+      neighbour: 'an ISO MP4 box of the same size',
+      named: bytes(0, 0, 0, 0x18, 'ftypisom'),
+      mediaType: 'video/mp4',
+    },
+    {
+      name: 'an AVIF image',
+      content: bytes(0, 0, 0, 0x1c, 'ftypavif'),
+      neighbour: 'an MP4 version 2 box of the same size',
+      named: bytes(0, 0, 0, 0x1c, 'ftypmp42'),
+      mediaType: 'video/mp4',
+    },
+    {
+      name: 'a QuickTime movie',
+      content: bytes(0, 0, 0, 0x14, 'ftypqt  '),
+      neighbour: 'an AVC MP4 box of the same size',
+      named: bytes(0, 0, 0, 0x14, 'ftypavc1'),
+      mediaType: 'video/mp4',
+    },
+    {
+      name: 'a 3GP video',
+      content: bytes(0, 0, 0, 0x18, 'ftyp3gp4'),
+      neighbour: 'an ISO version 4 MP4 box of the same size',
+      named: bytes(0, 0, 0, 0x18, 'ftypiso4'),
+      mediaType: 'video/mp4',
+    },
+    {
+      name: 'an ftyp box without a brand',
+      content: bytes(0, 0, 0, 8, 'ftyp'),
+      neighbour: 'the same box with the M4V brand',
+      named: bytes(0, 0, 0, 8, 'ftypM4V '),
+      mediaType: 'video/mp4',
+    },
+    {
+      name: 'no bytes',
+      content: bytes(),
+      neighbour: 'a JPEG photo',
+      named: bytes(0xff, 0xd8, 0xff, 0xe0),
+      mediaType: 'image/jpeg',
+    },
+  ])(
+    'names nothing for $name, but $mediaType for $neighbour',
+    ({ content, named, mediaType }) => {
+      expect(proofMediaType(content)).toBeUndefined();
+      expect(proofMediaType(named)).toBe(mediaType);
+    },
+  );
 });
 
 describe('proofFilePaths', () => {
@@ -62,7 +123,12 @@ describe('proofFilePaths', () => {
     ).toEqual(['shots/a.png', 'run.webm']);
   });
 
-  it('lists nothing for a review without proof', () => {
+  it('lists nothing for a review without proof, and the attached path once it has some', () => {
     expect(proofFilePaths(undefined)).toEqual([]);
+    expect(
+      proofFilePaths({
+        assets: [{ kind: 'image', title: 'A', path: 'shots/a.png' }],
+      }),
+    ).toEqual(['shots/a.png']);
   });
 });

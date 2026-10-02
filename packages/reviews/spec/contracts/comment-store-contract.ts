@@ -132,11 +132,29 @@ export function commentStoreContract(
     it('finds nothing for an unknown thread id', () => {
       open(store, 'known');
       expect(store.find({ threadId: 'unknown' })).toBeUndefined();
+      expect(store.find({ threadId: 'known' })).toEqual({
+        id: 'known',
+        worktreeId: first,
+        anchor: { kind: 'file', filePath: 'README.md' },
+        resolved: false,
+        messages: [message('known-opening')],
+        revision: 1,
+      });
     });
 
     it('lists nothing for a worktree without threads', () => {
       open(store, 'elsewhere', second);
       expect(store.list({ worktreeId: first })).toEqual([]);
+      expect(store.list({ worktreeId: second })).toEqual([
+        {
+          id: 'elsewhere',
+          worktreeId: second,
+          anchor: { kind: 'file', filePath: 'README.md' },
+          resolved: false,
+          messages: [message('elsewhere-opening')],
+          revision: 1,
+        },
+      ]);
     });
 
     it('lists only the threads of the asked worktree, oldest first', () => {
@@ -178,6 +196,11 @@ export function commentStoreContract(
     it('finds nothing for an unknown message id', () => {
       open(store, 'thread');
       expect(store.findMessage({ messageId: 'unknown' })).toBeUndefined();
+      expect(store.findMessage({ messageId: 'thread-opening' })).toEqual({
+        ...message('thread-opening'),
+        threadId: 'thread',
+        worktreeId: first,
+      });
     });
 
     it('moves a thread to the next revision with the reply last when a reply is appended', () => {
@@ -277,6 +300,9 @@ export function commentStoreContract(
     it('reports no agent replies when no worktree is asked', () => {
       open(store, 'thread', first, { author: 'agent' });
       expect(store.listAgentReplies({ worktreeIds: [] })).toEqual([]);
+      expect(store.listAgentReplies({ worktreeIds: [first] })).toEqual([
+        { worktreeId: first, threadId: 'thread', revision: 1, resolved: false },
+      ]);
     });
 
     it('reports the revision of the agent write of each thread in the asked worktrees only', () => {
@@ -310,6 +336,9 @@ export function commentStoreContract(
 
     it('stops reporting an agent reply once a reviewer replies after it', () => {
       const thread = open(store, 'thread', first, { author: 'agent' });
+      expect(store.listAgentReplies({ worktreeIds: [first] })).toEqual([
+        { worktreeId: first, threadId: 'thread', revision: 1, resolved: false },
+      ]);
       reply(store, thread, 'follow-up', { author: 'reviewer' });
       expect(store.listAgentReplies({ worktreeIds: [first] })).toEqual([]);
     });

@@ -38,9 +38,12 @@ export function worktreePresenceStoreContract(
       opened.close();
     });
 
-    it('lists nothing before any presence is saved', () => {
+    it('lists nothing until a presence is saved', () => {
       expect(store.list()).toEqual([]);
       expect(store.read({ projectId: 'api' })).toEqual([]);
+      store.save({ rows: [present('one')] });
+      expect(store.list()).toEqual([present('one')]);
+      expect(store.read({ projectId: 'api' })).toEqual([present('one')]);
     });
 
     it('lists every saved worktree with its project and absence', () => {

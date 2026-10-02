@@ -100,10 +100,12 @@ describe('ListKnownWorktreesService', () => {
 
   it('answers an empty list for a project never listed', () => {
     const reader = catalog({});
-    expect(
-      new ListKnownWorktreesService(reader).execute({
-        projects: [project('api', true)],
-      }).listings[0]?.worktrees,
-    ).toEqual([]);
+    const result = new ListKnownWorktreesService(reader).execute({
+      projects: [project('api', true)],
+    });
+    expect(result.listings[0]?.worktrees).toEqual([]);
+    expect(result).toEqual({
+      listings: [{ projectId: 'api', available: true, worktrees: [] }],
+    });
   });
 });

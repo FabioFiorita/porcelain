@@ -72,10 +72,13 @@ function seen(seenThrough: number, owner = worktreeId): CommentSeenMark {
 const bothMarked = [mark('first'), mark('second')];
 
 describe('worktreeStatuses', () => {
-  it('gives no status to a worktree with no review and no agent reply', () => {
+  it('gives no status to a worktree with no review and no agent reply, and a pending one once it has a review', () => {
     expect(
       worktreeStatuses([], [], [], [], noTexts).get(worktreeId),
     ).toBeUndefined();
+    expect(
+      worktreeStatuses([review()], [], [], [], noTexts).get(worktreeId),
+    ).toBe('pending');
   });
 
   it('marks a worktree reviewed when every layer of its active review has a fresh mark', () => {
@@ -131,7 +134,7 @@ describe('worktreeStatuses', () => {
     ).toBe('pending');
   });
 
-  it('gives no review status for an inactive review or a review without layers', () => {
+  it('gives no review status for an inactive review or a review without layers, unlike an active review with layers', () => {
     const statuses = worktreeStatuses(
       [
         review({ active: false }),
@@ -144,6 +147,9 @@ describe('worktreeStatuses', () => {
     );
     expect(statuses.get(worktreeId)).toBeUndefined();
     expect(statuses.get(otherWorktreeId)).toBeUndefined();
+    expect(
+      worktreeStatuses([review()], bothMarked, [], [], noTexts).get(worktreeId),
+    ).toBe('reviewed');
   });
 
   it('reports an agent reply the owner has never seen, over the review status', () => {

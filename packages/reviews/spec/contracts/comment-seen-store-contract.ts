@@ -50,9 +50,12 @@ export function commentSeenStoreContract(
       ).toEqual([{ worktreeId: first, seenThrough: 1 }]);
     });
 
-    it('reads no marks when no worktree is asked', () => {
+    it('reads no marks when no worktree is asked, and the saved mark when its worktree is', () => {
       store.save({ worktreeId: first, seenThrough: 1 });
       expect(store.seenByWorktrees({ worktreeIds: [] })).toEqual([]);
+      expect(store.seenByWorktrees({ worktreeIds: [first] })).toEqual([
+        { worktreeId: first, seenThrough: 1 },
+      ]);
     });
   });
 }

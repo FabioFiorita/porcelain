@@ -69,6 +69,7 @@ export function reviewStoreContract(
     it('reads nothing for a worktree without a published review', () => {
       store.save(review(second));
       expect(store.read({ worktreeId: first })).toBeUndefined();
+      expect(store.read({ worktreeId: second })).toEqual(review(second));
     });
 
     it('reads a saved review back as it was saved', () => {
@@ -175,9 +176,12 @@ export function reviewStoreContract(
       ).toEqual([review(first), review(third)]);
     });
 
-    it('reads no reviews when no worktree is asked', () => {
+    it('reads no reviews when no worktree is asked, and the saved one when its worktree is', () => {
       store.save(review(first));
       expect(store.byWorktrees({ worktreeIds: [] })).toEqual([]);
+      expect(store.byWorktrees({ worktreeIds: [first] })).toEqual([
+        review(first),
+      ]);
     });
 
     it('finds the summary of a review by its token', () => {
@@ -192,13 +196,18 @@ export function reviewStoreContract(
       );
     });
 
-    it('finds no summary for an unknown token or a replaced review', () => {
+    it('finds no summary for an unknown token or a replaced review, only for the review that replaced it', () => {
       store.save(review(first, 1));
       store.save(review(first, 2));
       expect(store.findSummary({ token: 'unknown' })).toBeUndefined();
       expect(
         store.findSummary({ token: review(first, 1).summaryToken }),
       ).toBeUndefined();
+      expect(store.findSummary({ token: 'token-a-2' })).toEqual({
+        summaryHtml: '<p>Summary 2</p>',
+        summaryToken: 'token-a-2',
+        summarySecret: 'secret-2',
+      });
     });
 
     it('deactivates and reactivates the review at the asked revision', () => {

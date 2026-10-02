@@ -42,6 +42,7 @@ export function reviewedFileStoreContract(
     it('lists no marks for a worktree without reviewed files', () => {
       store.save({ worktreeId: second, marks: [mark('README.md')] });
       expect(store.list({ worktreeId: first })).toEqual([]);
+      expect(store.list({ worktreeId: second })).toEqual([mark('README.md')]);
     });
 
     it('lists the saved marks of the worktree in path order', () => {

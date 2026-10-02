@@ -61,10 +61,19 @@ export function worktreeCatalogStoreContract(
       opened.close();
     });
 
-    it('knows no worktree and no observation before the first save', () => {
+    it('knows no worktree and no observation until the first save', () => {
       expect(store.find({ worktreeId: 'main' })).toBeUndefined();
       expect(store.lastSeen({ projectId: 'api' })).toEqual([]);
       expect(store.listObservations()).toEqual([]);
+      store.save({ projects: [project('api', ['main'])] });
+      expect(store.find({ worktreeId: 'main' })).toEqual({
+        worktree: worktree('main', 'api'),
+        observation: observation('api'),
+      });
+      expect(store.lastSeen({ projectId: 'api' })).toEqual([
+        worktree('main', 'api'),
+      ]);
+      expect(store.listObservations()).toEqual([observation('api')]);
     });
 
     it('finds a saved worktree together with the observation of its project', () => {

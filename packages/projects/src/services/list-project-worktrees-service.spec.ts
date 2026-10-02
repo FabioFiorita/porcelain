@@ -118,6 +118,13 @@ describe('ListProjectWorktreesService', () => {
   it('reports an unlisted project with nothing seen before as empty', async () => {
     const reader = new ScriptedWorktreeListingReader();
     reader.answer({ kind: 'unavailable', projectId: project.id });
-    expect((await service(reader).execute({ project })).worktrees).toEqual([]);
+    const result = await service(reader).execute({ project });
+    expect(result.worktrees).toEqual([]);
+    expect(result).toEqual({
+      projectId: 'project-1',
+      available: false,
+      complete: false,
+      worktrees: [],
+    });
   });
 });

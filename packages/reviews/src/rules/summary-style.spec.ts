@@ -6,13 +6,14 @@ function page(head: string, body = '<h1>Summary</h1>') {
 }
 
 describe('summaryStyleWarnings', () => {
-  it('has nothing to say about a page with a style element', () => {
+  it('has nothing to say about a page with a style element, and warns about the same page without it', () => {
     expect(summaryStyleWarnings(page('<style>body{margin:0}</style>'))).toEqual(
       [],
     );
+    expect(summaryStyleWarnings(page(''))).toEqual(['missing-style']);
   });
 
-  it('accepts inline style attributes, quoted or not', () => {
+  it('accepts inline style attributes, quoted or not, and warns about the same heading without one', () => {
     expect(
       summaryStyleWarnings(page('', '<h1 style="color:red">Summary</h1>')),
     ).toEqual([]);
@@ -22,6 +23,9 @@ describe('summaryStyleWarnings', () => {
     expect(
       summaryStyleWarnings(page('', '<h1 style=color:red>Summary</h1>')),
     ).toEqual([]);
+    expect(summaryStyleWarnings(page('', '<h1>Summary</h1>'))).toEqual([
+      'missing-style',
+    ]);
   });
 
   it('accepts a linked stylesheet but not another kind of link', () => {
