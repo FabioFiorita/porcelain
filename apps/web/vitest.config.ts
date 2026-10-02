@@ -9,6 +9,7 @@ export default defineConfig({
   test: {
     include: ['spec/integration/*.test.tsx'],
     retry: 0,
+    attachmentsDir: 'test-results/integration/attachments',
     fileParallelism: false,
     allowOnly: false,
     passWithNoTests: false,
