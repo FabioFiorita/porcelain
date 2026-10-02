@@ -1,7 +1,7 @@
 import type { ReadEnvironmentResponse } from '@porcelain/contracts/access';
 import type { DesktopCredentials } from '@porcelain/contracts/desktop';
 import { ENVIRONMENT_PROTOCOL } from '@porcelain/contracts/shared';
-import { parsePairingLink } from '@porcelain/client/access/rules';
+export { remoteLink, type RemoteLink } from '@porcelain/client/access/rules';
 
 export type Remote = {
   environmentId: string;
@@ -9,12 +9,6 @@ export type Remote = {
   address: string;
   credential: string;
   deviceId?: string | undefined;
-};
-
-export type RemoteLink = {
-  address: string;
-  code: string;
-  environmentId: string;
 };
 
 export type RemoteAnswer =
@@ -29,18 +23,6 @@ export type RemoteStatus =
   | { kind: 'needs-pairing' }
   | { kind: 'other-server' }
   | { kind: 'incompatible' };
-
-export function remoteLink(value: string): RemoteLink | undefined {
-  const url = URL.parse(value.trim());
-  if (
-    !url ||
-    (url.protocol !== 'http:' && url.protocol !== 'https:') ||
-    url.pathname !== '/pair'
-  )
-    return undefined;
-  const pairing = parsePairingLink(url.hash);
-  return pairing ? { address: url.origin, ...pairing } : undefined;
-}
 
 export function remoteStatus(
   remote: Pick<Remote, 'environmentId'>,

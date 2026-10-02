@@ -1,1 +1,6 @@
-export { parsePairingLink, type PairingCode } from './pairing-link.ts';
+export {
+  parsePairingLink,
+  remoteLink,
+  type PairingCode,
+  type RemoteLink,
+} from './pairing-link.ts';
