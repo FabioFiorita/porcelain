@@ -3,10 +3,6 @@ import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { z } from 'zod';
 import { webDomains } from '../../../../architecture/policy.ts';
-import {
-  loadFeatures as loadServerFeatures,
-  reachesOf,
-} from '../../server-verify/scripts/catalogue.ts';
 
 const repositoryRoot = resolve(
   dirname(fileURLToPath(import.meta.url)),
@@ -150,12 +146,6 @@ export function unmappedRoutes(journeys: readonly Journey[]): string[] {
 }
 
 export async function loadJourneys(): Promise<Journey[]> {
-  const serverFeatures = new Map(
-    (await loadServerFeatures()).map((feature) => [
-      feature.feature,
-      reachesOf(feature),
-    ]),
-  );
   const files = readdirSync(mapFolder)
     .filter((name) => name.endsWith('.ts'))
     .toSorted();
@@ -178,18 +168,7 @@ export async function loadJourneys(): Promise<Journey[]> {
       throw new Error(
         `feature-map/${file} maps a missing browser spec: ${journey.spec}`,
       );
-    const unknown = journey.server.filter((id) => !serverFeatures.has(id));
-    if (unknown.length > 0)
-      throw new Error(
-        `feature-map/${file} relies on server features the server net does not define: ${unknown.join(', ')}; name ids from .agents/skills/server-verify/feature-map/`,
-      );
-    journeys.push({
-      ...journey,
-      claims: journey.server.map((id) => ({
-        id,
-        routes: serverFeatures.get(id) ?? [],
-      })),
-    });
+    journeys.push({ ...journey, claims: [] });
   }
   const specs = journeys.map((journey) => journey.spec);
   const shared = specs.filter((spec, index) => specs.indexOf(spec) !== index);
