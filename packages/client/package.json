@@ -3,9 +3,13 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./access/rules": "./src/features/access/rules/index.ts"
+    "./access/rules": "./src/features/access/rules/index.ts",
+    "./transport": "./src/shared/api/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@porcelain/contracts": "workspace:*"
   }
 }

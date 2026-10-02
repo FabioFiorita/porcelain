@@ -9,9 +9,9 @@ import {
   readTextFileResponseSchema,
   type EditFileRequest,
 } from '@porcelain/contracts/files';
-import { requestJson, RequestError } from '@/shared/api/request';
-import { perConnection } from '@/shared/api/per-connection';
-import type { Transport } from '@/shared/api/transport';
+import { requestJson, RequestError } from '@porcelain/client/transport';
+import { perConnection } from '@porcelain/client/transport';
+import type { Transport } from '@porcelain/client/transport';
 
 const worktreePath = (worktreeId: string) =>
   `/api/worktrees/${encodeURIComponent(worktreeId)}`;

@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { ConnectionError } from '@/shared/api/connection-error';
+import { ConnectionError } from '@porcelain/client/transport';
 import { REQUEST_TIMEOUT_MS } from '@/config/limits';
-import { remoteTransport } from '@/shared/api/transport';
+import { remoteTransport } from '@porcelain/client/transport';
 import { dropFileDrafts, saveFileDrafts } from '@/shared/query/file-drafts';
 import { remoteApi } from '../api';
 import { remoteStatusQueryOptions } from '../queries/remotes';
@@ -21,12 +21,12 @@ async function addRemote(value: string): Promise<Remote> {
     throw new ConnectionError('That link is for this computer.');
   const signal = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
   const { credential, deviceId } = await remoteApi.pair(
-    remoteTransport(link.address),
+    remoteTransport(link.address, undefined, fetch),
     link,
     signal,
   );
   const answer = await remoteApi.describe(
-    remoteTransport(link.address, credential),
+    remoteTransport(link.address, credential, fetch),
     signal,
   );
   const status = remoteStatus(link, answer);

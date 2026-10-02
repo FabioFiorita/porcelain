@@ -3,7 +3,7 @@ import {
   usePrefetchQuery,
   useSuspenseQuery,
 } from '@tanstack/react-query';
-import { ConnectionError } from '@/shared/api/connection-error';
+import { ConnectionError } from '@porcelain/client/transport';
 import { queryKeys } from '@/shared/query/keys';
 import type { ReviewScope } from '../rules/review';
 import { type ConnectionContext } from '@/shared/workspace/connection';

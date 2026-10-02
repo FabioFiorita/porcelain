@@ -2,8 +2,8 @@ import {
   issueLiveTicketResponseSchema,
   liveNoticeSchema,
 } from '@porcelain/contracts/access';
-import { RequestError, requestJson } from '../api/request';
-import type { Transport } from '../api/transport';
+import { RequestError, requestJson } from '@porcelain/client/transport';
+import type { Transport } from '@porcelain/client/transport';
 import { desktopLiveAddress } from '../adapters/desktop';
 import type { LiveSubscription, LiveUpdatePort } from '@/shared/live/port';
 import {

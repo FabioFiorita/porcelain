@@ -27,10 +27,11 @@ import {
   REQUEST_TIMEOUT_MS,
   WEB_PLATFORM_NAME_MAX_LENGTH,
 } from '@/config/limits';
-import { ConnectionError } from '@/shared/api/connection-error';
-import { RequestError, requestJson } from '@/shared/api/request';
-import { perConnection } from '@/shared/api/per-connection';
-import { browserTransport, type Transport } from '@/shared/api/transport';
+import { ConnectionError } from '@porcelain/client/transport';
+import { RequestError, requestJson } from '@porcelain/client/transport';
+import { perConnection } from '@porcelain/client/transport';
+import { browserTransport } from '@/shared/api/transport';
+import type { Transport } from '@porcelain/client/transport';
 import type { PairingCode } from '@porcelain/client/access/rules';
 import type { RemoteAnswer, RemoteLink } from './rules/remotes';
 

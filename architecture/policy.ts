@@ -67,7 +67,10 @@ export const targetPackageExports: Record<string, Record<string, string>> = {
     './fakes': './spec/fakes/index.ts',
   },
   process: { '.': './src/index.ts' },
-  client: { './access/rules': './src/features/access/rules/index.ts' },
+  client: {
+    './access/rules': './src/features/access/rules/index.ts',
+    './transport': './src/shared/api/index.ts',
+  },
 };
 
 for (const name of ['access', 'git-actions', 'projects', 'reviews'])
@@ -151,6 +154,8 @@ export const roles = [
   'web-limits',
   'web-entry',
   'client-rules-api',
+  'client-transport-api',
+  'client-transport-spec',
   'mobile-config',
 ] as const;
 
@@ -178,6 +183,7 @@ export const webRoles: ReadonlySet<Role> = new Set<Role>([
   'web-limits',
   'web-entry',
   'client-rules-api',
+  'client-transport-api',
 ]);
 
 export const webDomains = [
@@ -459,6 +465,15 @@ function classifyDomain(name: string, inside: string) {
 
 function classifyPackage(name: string, inside: string) {
   if (name === 'client') {
+    if (/^shared\/api\/[a-z-]+\.spec\.ts$/.test(inside))
+      return classified('client-transport-spec', name);
+    if (/^shared\/api\/[a-z-]+\.ts$/.test(inside))
+      return classified(
+        inside === 'shared/api/index.ts'
+          ? 'client-transport-api'
+          : 'web-shared',
+        name,
+      );
     const feature = /^features\/([^/]+)\/rules\/([^/]+\.ts)$/.exec(inside);
     if (!feature || !webDomainSet.has(feature[1] ?? '')) return;
     const file = feature[2] ?? '';
@@ -780,6 +795,8 @@ const everything: readonly Role[] = [
 export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
   'mobile-config': new Set(['web-rule']),
   'client-rules-api': new Set(['web-rule']),
+  'client-transport-api': new Set(['web-shared']),
+  'client-transport-spec': new Set(['web-shared']),
   desktop: new Set([
     'desktop',
     'desktop-gateway',
@@ -956,6 +973,7 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
   ]),
   query: new Set([
     'client-rules-api',
+    'client-transport-api',
     'query',
     'api',
     'store',
@@ -966,6 +984,7 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
   ]),
   command: new Set([
     'client-rules-api',
+    'client-transport-api',
     'command',
     'query',
     'api',
@@ -977,6 +996,7 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
   ]),
   store: new Set([
     'client-rules-api',
+    'client-transport-api',
     'web-rule',
     'web-shared',
     'web-limits',
@@ -1000,6 +1020,7 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
   ]),
   api: new Set([
     'client-rules-api',
+    'client-transport-api',
     'web-rule',
     'web-shared',
     'web-limits',
@@ -1016,7 +1037,12 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
     'web-rule',
     'adapter',
   ]),
-  'web-shared': new Set(['web-shared', 'web-limits', 'contract']),
+  'web-shared': new Set([
+    'client-transport-api',
+    'web-shared',
+    'web-limits',
+    'contract',
+  ]),
   ui: new Set(['ui', 'web-shared']),
   'browser-spec': new Set(['browser-kit', 'contract']),
   'browser-kit': new Set(['browser-kit', 'web-entry', 'contract']),
@@ -1086,7 +1112,8 @@ export function violation(
   if (
     to.owner === 'client' &&
     from.owner !== 'client' &&
-    to.role !== 'client-rules-api'
+    to.role !== 'client-rules-api' &&
+    to.role !== 'client-transport-api'
   )
     return 'client-public-api-only';
   if (from.role === 'test') return testViolation(from, to);
@@ -1226,6 +1253,8 @@ const storageEngineModule = /^(?:fs|child_process)(?:\/|$)/;
 export const externalPackages: Record<Role, readonly string[]> = {
   'mobile-config': ['expo'],
   'client-rules-api': [],
+  'client-transport-api': [],
+  'client-transport-spec': ['vitest'],
   desktop: ['electron', 'fix-path', 'zod'],
   'desktop-gateway': [],
   'desktop-server-api': [],
@@ -1369,6 +1398,10 @@ const rolePurposes: Record<Role, string> = {
   'mobile-config':
     'the Expo build configuration, which selects the installation identity and native plugins',
   'client-rules-api': "a shared client feature's public pure rules entry",
+  'client-transport-api':
+    'the shared client transport entry; feature APIs own requests and app adapters supply platform transport',
+  'client-transport-spec':
+    'a sibling behavior spec for the shared client transport; it reaches its own transport implementation only',
   desktop: 'the Electron desktop app in apps/desktop/src',
   'desktop-gateway':
     'a desktop adapter in apps/desktop/src/adapters/ that wraps Electron and the operating system; only the desktop and its own specs reach it',

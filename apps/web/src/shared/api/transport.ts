@@ -1,6 +1,5 @@
+import type { Transport } from '@porcelain/client/transport';
 import { reportUnauthorized } from './unauthorized';
-
-export type Transport = (path: string, init?: RequestInit) => Promise<Response>;
 
 export function browserTransport(
   transport: typeof fetch,
@@ -22,26 +21,5 @@ export function browserTransport(
     )
       reportUnauthorized();
     return response;
-  };
-}
-
-function crossOrigin(target: URL, init: RequestInit) {
-  return fetch(target, {
-    ...init,
-    mode: 'cors',
-    credentials: 'omit',
-    redirect: 'error',
-    cache: 'no-store',
-  });
-}
-
-export function remoteTransport(
-  address: string,
-  credential?: string,
-): Transport {
-  return (input, init) => {
-    const headers = new Headers(init?.headers);
-    if (credential) headers.set('authorization', `Bearer ${credential}`);
-    return crossOrigin(new URL(input, address), { ...init, headers });
   };
 }

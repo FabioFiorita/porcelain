@@ -72,6 +72,43 @@ const cases = [
   },
 ];
 const started = performance.now();
+deepStrictEqual(classify('packages/client/src/shared/api/index.ts'), {
+  role: 'client-transport-api',
+  owner: 'client',
+});
+deepStrictEqual(classify('packages/client/src/shared/api/request.ts'), {
+  role: 'web-shared',
+  owner: 'client',
+});
+deepStrictEqual(classify('packages/client/src/shared/api/request.spec.ts'), {
+  role: 'client-transport-spec',
+  owner: 'client',
+});
+deepStrictEqual(
+  classify('packages/client/src/shared/api/nested/request.ts'),
+  undefined,
+);
+deepStrictEqual(
+  violation(
+    { role: 'api', owner: 'web' },
+    { role: 'client-transport-api', owner: 'client' },
+  ),
+  undefined,
+);
+deepStrictEqual(
+  violation(
+    { role: 'view', owner: 'mobile' },
+    { role: 'client-transport-api', owner: 'client' },
+  ),
+  'view-cannot-import-client-transport-api',
+);
+deepStrictEqual(
+  violation(
+    { role: 'api', owner: 'web' },
+    { role: 'web-shared', owner: 'client' },
+  ),
+  'client-public-api-only',
+);
 deepStrictEqual(
   classify('packages/client/src/features/access/rules/index.ts'),
   {

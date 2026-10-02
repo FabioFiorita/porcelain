@@ -4,7 +4,7 @@ import {
   useMutation,
   useQueryClient,
 } from '@tanstack/react-query';
-import { ConnectionError } from '@/shared/api/connection-error';
+import { ConnectionError } from '@porcelain/client/transport';
 import { queryKeys } from '@/shared/query/keys';
 import { asMutation } from '@/shared/query/mutation';
 import { commentsQueryOptions } from '../queries/comments';

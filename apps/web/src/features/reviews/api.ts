@@ -27,11 +27,11 @@ import {
   updateCommentThreadRequestSchema,
   updateCommentThreadResponseSchema,
 } from '@porcelain/contracts/reviews';
-import { requestJson } from '@/shared/api/request';
+import { requestJson } from '@porcelain/client/transport';
 import type { CommentsPort } from './rules/comments';
 import type { ReviewRange, ReviewsPort } from './rules/reviewed';
-import { perConnection } from '@/shared/api/per-connection';
-import type { Transport } from '@/shared/api/transport';
+import { perConnection } from '@porcelain/client/transport';
+import type { Transport } from '@porcelain/client/transport';
 
 function worktreePath(worktreeId: string) {
   return `/api/worktrees/${encodeURIComponent(worktreeId)}`;

@@ -1,4 +1,4 @@
-import type { Transport } from '@/shared/api/transport';
+import type { Transport } from '@porcelain/client/transport';
 import type { LiveUpdatePort } from '@/shared/live/port';
 import type { OperationStore } from '@/shared/query/operation-store';
 

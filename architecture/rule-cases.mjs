@@ -1,5 +1,20 @@
 export default [
   {
+    rule: 'client-platform-through-ports',
+    path: 'packages/client/src/shared/api/transport.ts',
+    valid: 'export function address(value: string) { return new URL(value); }',
+    invalid: "import { Text } from '@expo/ui';",
+    errors: 1,
+  },
+  {
+    rule: 'client-platform-through-ports',
+    path: 'packages/client/src/shared/api/transport.ts',
+    valid:
+      'export function name(platform: { name: string }) { return platform.name; }',
+    invalid: 'export const platform = navigator.userAgent;',
+    errors: 1,
+  },
+  {
     rule: 'mobile-native-ui',
     path: 'apps/mobile/src/features/files/views/files-screen.tsx',
     valid:
@@ -3064,6 +3079,20 @@ export class CreateCommentThreadUseCase {
 
 export const probeRequest = requestJson;
 `,
+    errors: 1,
+  },
+  {
+    rule: 'web-api-owns-request',
+    path: 'apps/web/src/features/access/commands/pairing.ts',
+    valid: "import { RequestError } from '@porcelain/client/transport';",
+    invalid:
+      "import { requestJson as read } from '@porcelain/client/transport';",
+    errors: 1,
+  },
+  {
+    rule: 'web-api-owns-request',
+    path: 'apps/mobile/src/features/access/views/access-screen.tsx',
+    invalid: "import * as client from '@porcelain/client/transport';",
     errors: 1,
   },
   {

@@ -18,11 +18,8 @@ import {
   type Preferences,
 } from './rules/preferences';
 import { REQUEST_TIMEOUT_MS } from '@/config/limits';
-import {
-  browserTransport,
-  remoteTransport,
-  type Transport,
-} from '@/shared/api/transport';
+import { browserTransport } from '@/shared/api/transport';
+import { remoteTransport, type Transport } from '@porcelain/client/transport';
 import type { LiveUpdatePort } from '@/shared/live/port';
 import {
   remoteLiveUpdates,
@@ -100,7 +97,7 @@ function localConnection(environmentId: string) {
 }
 
 function remoteConnection(remote: Remote) {
-  const transport = remoteTransport(remote.address, remote.credential);
+  const transport = remoteTransport(remote.address, remote.credential, fetch);
   return createConnection(remote.environmentId, {
     address: remote.address,
     transport,
