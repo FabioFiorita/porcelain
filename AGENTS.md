@@ -4,9 +4,9 @@ This codebase is written and maintained by agents. No person reads the code; tru
 
 ## The rulebook is the tooling
 
-TypeScript, the architecture check, Oxlint and Oxfmt are the rules; the codebase is the example. When a rule blocks you, the rule wins: change the code, never the rule or a config. Never add a disable directive, an override, a cast, `any`, a comment, or a code file outside `src/` and `spec/` (feature-map cases, probes and tooling have their own homes and their own checks).
+TypeScript, the architecture check, Oxlint and Oxfmt are the rules; the codebase is the example. When a rule blocks you, the rule wins: change the code, never the rule or a config. Never add a disable directive, an override, a cast, `any`, a comment, or a code file outside `src/` and `spec/` (skill scripts, probes and tooling have their own homes and their own checks).
 
-Specs, verifier cases and journeys state promises. Never loosen, skip or delete one to get green. When the owner changes a behaviour, the spec, case or journey that states it changes in the same commit, and the commit message names the promise that changed; tightening a check is always allowed.
+Tests and feature maps state promises. Never loosen, skip or delete one to get green. When the owner changes a behaviour, the test or map entry that states it changes in the same commit, and the commit message names the promise that changed; tightening a check is always allowed.
 
 When a rule or a promise stands in the way of what the owner asked for, stop and ask the owner before working around it; never shape the product around a test. Without the owner in the session, finish what you can, say so in your report with the rule name and the case, and stop there.
 
@@ -14,38 +14,66 @@ Copy the nearest feature's shape, but not its duplication: before writing a comp
 
 A new rule needs a reason: a pattern that has already repeated, or a defect it would have caught. Ship it with Oxlint RuleTester valid and invalid examples. When an agent routes around a rule, fix the example code or the architecture before adding another rule; every rule is paid for by every future change.
 
-## Proof at each stage
+## Building a feature
+
+A feature crosses the repository in one order, and each part has one job. The architecture check and the lint enforce every role; copy the nearest feature at each step.
+
+1. **Contract.** Schemas in `packages/contracts/src/<area>/`, named after the operation (`<verbNoun>RequestSchema`, `<verbNoun>ResponseSchema` and their types). The server contract stays the server's contract: clients adapt to it, never the reverse.
+2. **Domain.** A new decision lives in `packages/<domain>/src/`: a service, its models and ports, one error class per failure, pure logic in `rules/`.
+3. **Server.** A use case in `apps/server/src/use-cases/<area>/` with one `execute`; a route in `apps/server/src/http/routes/<area>/` whose handler is one call to it, registered in its audience's scope; construction in `bootstrap/compose-<area>.ts`; every new error class mapped in `http/status-policy.ts`.
+4. **Client.** `packages/client/src/features/<area>/` serves web and mobile alike: `api.ts` talks to the server, `queries/` and `commands/` own reads, writes and the cache, `store.ts` owns shared client state and persists through the interfaces in `ports/`, and `rules/` holds pure functions. It imports no app, browser, DOM, Expo or React Native code.
+5. **Apps.** Each app owns its views and implements the client's ports in its `adapters/`.
+   - **Web** (`apps/web/src/features/<area>/`): views render feature data and forward events. A view may keep local UI state, effects and refs for its own UI, but never reaches the server, the Query client or the cache, and never awaits, chains or catches a command. `overlays.ts` owns Base UI handles; `adapters/` wraps Web Storage and imperative libraries such as Pierre and the editor. The React Compiler memoizes; write no `useMemo` or `useCallback`. Move a web file to its feature or shared owner when a change touches it.
+   - **Mobile** (`apps/mobile/src/features/<area>/`): native controls from Expo UI, content in React Native styled through Uniwind with the shared theme; `adapters/` implements the ports with SecureStore and SQLite; navigation lives in `app/` and `shell/`.
+   - **Desktop** (`apps/desktop/src/`): a thin Electron shell around the web. The main process owns windows, the server host, the Keychain and the native picker; the preload exposes them to the web as a typed bridge.
+6. **Proof.** In the same commit: the tests the change owes, and a feature-map entry for each new route, screen or flow.
+
+Use shadcn registry components for web UI primitives. Search with `pnpm --filter @porcelain/web exec shadcn list @shadcn --query <name>` and add a missing primitive through the shadcn CLI. Never edit a file in `components/ui`: `architecture/shadcn-pins.json` pins each file to what the registry serves; after `shadcn add` and the format, run `node scripts/shadcn-pin.ts`. Re-pinning an edited file or editing the pins is a guard change the owner approves. Compose product views in their feature folders from the existing variants and layout classes; when a look needs a new variant or a restyle the lint refuses, ask the owner.
+
+Limits live in `packages/contracts/src/shared/limits.ts` when the server enforces them, otherwise in `apps/server/src/config/limits.ts`, `apps/web/src/config/limits.ts` or `apps/mobile/src/config/limits.ts`, nowhere else.
+
+## Testing
+
+| Layer | Proves | Server | Web | Desktop | Mobile |
+|---|---|---|---|---|---|
+| Static | the code has the agreed shape | TypeScript, Oxlint, architecture check, Oxfmt | same, plus shadcn no-restyle | same | same |
+| Unit (Vitest) | one unit keeps its promise, fakes only at its ports | use cases, services, rules, parsers | `rules/`, stores | main-process modules | mobile rules; `packages/client` rules and stores |
+| Integration | real pieces work together | Vitest: the built server over HTTP, real database and Git, route budgets | Vitest Browser Mode: one feature in Chromium against a real server | Vitest on macOS: bridge handlers against a real server and the Keychain | `packages/client` against a real server, in Node |
+| E2E | a user flow works end to end | covered by integration | Playwright Test: the real app against a real server | Playwright Electron: Porcelain Dev | Maestro: flows, and view states reached by deep link into a server already in that state |
+
+How to write a test:
+
+- **Start from the promise, not the code.** Read what the unit is for: its contract, its feature-map entry, the owner's request. List the cases first: the success path, every failure by error class, the boundaries (empty, one, the limit, one past it) and hostile input (unknown ids, duplicates, traversal paths, repeated calls). Only then open the code, to check the list missed nothing. A wrong implementation must fail the test, and a reader must learn the behaviour from it without opening the code.
+- **Coverage is never a reason.** A file that forwards a call, re-exports, wires parts together or restates what TypeScript enforces gets no test of its own; the test of the behaviour it serves covers it. Never test a library we chose.
+- **A test must be able to catch a bug.** Before keeping one, ask whether it would still pass if every imported function returned `undefined`; if so, rewrite or delete it. Assert literal expected values and observable effects (state read back, files written, what the user sees), never only that something was called.
+- **Fake only at ports.** A fake is hand-written, typed by its port, and stores and fails like the real adapter. Git, files and the database are real wherever the unit is about them. There is never a runtime mock API.
+
+What a change owes: new logic owes a unit test; a new or changed route, client call or bridge handler owes an integration test; a new web view state or adapter behaviour owes a Browser Mode integration test; a new user flow or mobile view state owes an e2e test and a feature-map entry. Every change owes the static checks and verification.
+
+## Verification
+
+Before a change is called done, an agent drives the real app the way a user does and reads the evidence. Each surface has a skill (`server-verify`, `web-verify`, `desktop-verify`, `mobile-verify`) with its control CLI at `scripts/cli` and its feature map in `features/`. Run `scripts/cli start`, find the feature in the map, follow its drive steps, read what the evidence folder recorded, then `scripts/cli stop`. The report names the evidence folder and what it shows.
+
+The CLI is the only way to drive and collect evidence, so every agent and session does it the same way. Computer use or an in-app browser may look at an instance the CLI started, never drive it. When the CLI reports a missing tool, install that tool; never substitute another. Verification proves this change; a behaviour that must stay proven gets a test.
+
+## Proof and budgets
 
 Run commands from the repository root and report every result honestly.
 
-- **Ordinary change:** run `pnpm check` once at completion. It runs typecheck, lint, format, architecture, unit tests and the lint rule fixtures. For server behavior, run the affected HTTP features with `node .agents/skills/server-verify/scripts/verify.ts <feature>` and `pnpm db:check` if storage changed. For web behavior, write or update the journey that proves each new or changed behaviour in the same commit (a new route, control, menu or setting gets a feature-map entry and a journey), then run the affected journeys once; run `--all` when `components/ui` or `shared/` changed. Broaden the affected set for shared code or uncertain impact. Do not call a feature done without its focused proof.
-- **Race or flaky-test investigation:** request repetitions explicitly with `pnpm verify:web <journey> --repeat <count>`. Each repetition gets fresh state. Stop at the first failure and preserve the evidence. Repetition is an investigation tool, not a requirement for every change.
-- **Guardrail or verifier change:** a lint rule gets an invalid fixture, and a valid one where natural, in `architecture/rule-cases.mjs`; `pnpm check` fails while any Porcelain rule has none. Each architecture and style rule, each verifier protection and each gate's wiring keeps one probe in `architecture/probes/`. Run `pnpm check`, `pnpm probes --check` and the probes you touched by name with `pnpm probes <name>`. The whole probe run is an explicit maintenance audit, never a requirement for an ordinary edit or push.
-- **Completed cross-cutting migration or release:** run `pnpm check`, `pnpm db:check`, the full HTTP net, the web build and `pnpm verify:web --all` once. Use this checkpoint for shared infrastructure or contracts changes whose impact cannot be bounded. Stop the checkpoint at a failed stage and report incomplete coverage honestly. Browser and probe audits stop at the first failure and keep partial evidence.
+- `pnpm check` runs Turborepo over what changed: typecheck, lint, format, unit tests, the architecture check, the rule fixtures and the feature-map check. Lefthook runs it before each push; use that instead of running it by hand just before pushing. CI runs it and `pnpm test:integration` on what changed.
+- After a change, run the integration and e2e tests the affected feature-map entries name in `tests`, then verify. `pnpm test:e2e` runs on request, since it needs browsers, macOS or simulators.
+- A cross-cutting change or a release runs every suite once, `pnpm db:check` and the web build. Stop at the first failed stage and report incomplete coverage honestly.
+- A flaky test is investigated with its runner's repeat option, stopping at the first failure and keeping the evidence. Repetition is an investigation tool, not a requirement.
+- A guardrail change: a lint rule gets an invalid fixture, and a valid one where natural, in `architecture/rule-cases.mjs`; each architecture and style rule and each gate's wiring keeps one probe in `architecture/probes/`. Run `pnpm probes --check` and the probes you touched by name with `pnpm probes <name>`; the whole probe run is an explicit maintenance audit.
 
-Budgets: `pnpm check` under 30 seconds, an ordinary task's proof under two minutes, a full checkpoint under five minutes. A check that breaks its budget is a tooling defect: fix or remove it in its own change, never skip it silently.
+Budgets: `pnpm check` under 30 seconds, an ordinary task's proof under two minutes, a full checkpoint under five minutes. A check that breaks its budget is a tooling defect: fix or remove it in its own change, never skip it silently. Porcelain is a solo developer project with no external users: keep proof proportional to the change and prioritize product progress.
 
-Lefthook's pre-push runs `pnpm check`; when pushing, use that as the final fast check instead of manually running it immediately beforehand. Automatic CI runs only `pnpm check`. The runtime checkpoint and probe audit workflows run only on explicit dispatch. Porcelain is a solo developer project with no external users: keep proof proportional to the change and prioritize product progress.
-
-A change to server behaviour is not done until a behaviour spec states its promise (`server-spec`) and an affected HTTP case reaches it (`server-verify`). A guardrail change needs positive and negative fixture proof plus its affected wiring checks.
-
-## Web rebuild
-
-Move a web file to its app, feature or shared owner when a change touches it, keeping its behavior. The server contract stays the server's contract.
-
-Views render feature data and forward events. A view may keep local UI state, effects and refs for its own UI, but never reaches the server, the Query client or the cache, and never awaits, chains or catches a command. A feature's `api.ts` talks to the server, `queries/` and `commands/` own reads, writes and the cache, `store.ts` owns shared client state and Web Storage, `overlays.ts` owns Base UI handles, `rules/` holds pure functions, and `adapters/` wraps imperative libraries such as Pierre and the editor. The React Compiler memoizes; write no `useMemo` or `useCallback`.
-
-Use shadcn registry components for UI primitives. Search the installed registry with `pnpm --filter @porcelain/web exec shadcn list @shadcn --query <name>` and add a missing primitive through the shadcn CLI. Never edit a file in `components/ui`: it stays exactly what the shadcn CLI installed, and `architecture/shadcn-pins.json` pins each file to what the registry serves. After `shadcn add` and the format, run `node scripts/shadcn-pin.ts`, which pins the registry's version, never the file on disk; re-pinning an edited file or editing the pins is a guard change the owner approves. Do not create a local replacement in a feature view. Compose product-specific views in their feature folders from the existing variants and layout classes; when a look needs a new variant or a restyle the lint refuses, ask the owner.
-
-Use the proof stages above for web work. Browser behavior cases run with Vitest Browser Mode and its Playwright Chromium provider against a disposable real server. Agent inspection and performance use `pnpm devtools` through the `web-verify` skill. `pnpm dev --desktop` runs the desktop app unpackaged from the checkout, as Porcelain Dev with its own profile beside the installed app, and `pnpm devtools start --desktop` serves the web in Chrome as the desktop app shows it; never edit `shared/shell.ts` to preview desktop UI, and never build, install or launch the owner's installed app to test a change. Do not add a runtime mock API or a separate prototype.
+`pnpm dev --desktop` runs the desktop app unpackaged from the checkout as Porcelain Dev, with its own profile beside the installed app. Never edit `shared/shell.ts` to preview desktop UI, and never build, install or launch the owner's installed app to test a change.
 
 ## Skills
 
-- `server-spec`: whether a unit gets a spec, how to derive its cases from the promise, fakes and fixtures.
-- `server-verify`: run the HTTP regression net, add a feature case, read the evidence.
-- `server-feature`: add, change or remove an endpoint end to end: contract, use case, route, scope, wiring, spec, net case, gates.
-- `web-verify`: browser behavior tests and Chrome DevTools CLI against a disposable server.
-- `desktop-verify`: the development Mac app, its proof against an unpackaged build on macOS, the locked installed app and its check, and where each keeps its data and logs.
+- `server-verify`, `web-verify`, `desktop-verify`, `mobile-verify`: start a disposable instance, drive it through the feature map, read the evidence.
+- `maintain-verification`: the periodic pass that drives every mapped feature and corrects drift in the maps and CLIs.
 
 ## Working rules the tooling cannot see
 
@@ -56,5 +84,3 @@ Use the proof stages above for web work. Browser behavior cases run with Vitest 
 - Work in the area the owner gave you; ask before changing code outside it.
 - Write no prose documents: the workflow lives in skills, the rules in the tooling, the example in the code.
 - Before using a library, check its current documentation for a built-in pattern and prefer it over a helper.
-- Do not make the server bend to the old web code during its rebuild.
-- Limits live in `packages/contracts/src/shared/limits.ts` when the server enforces them, otherwise in `apps/server/src/config/limits.ts`, `apps/web/src/config/limits.ts` or `apps/mobile/src/config/limits.ts`, nowhere else.
