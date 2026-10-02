@@ -1531,7 +1531,7 @@ export const externalPackages: Record<Role, readonly string[]> = {
     '@vitest/browser-playwright',
     'vitest',
   ],
-  'web-verify-cli': ['playwright', 'vite', 'yaml', 'zod'],
+  'web-verify-cli': ['playwright', 'zod'],
   'web-rule-spec': [],
   'web-config': [],
   'web-limits': [],
@@ -1565,7 +1565,8 @@ function allowedPackage(role: Role, module: string): boolean {
 
 function forbiddenNodeModule(role: Role, name: string): boolean {
   const base = name.split('/')[0] ?? '';
-  if (role === 'test' || role === 'server-kit') return false;
+  if (role === 'test' || role === 'server-kit' || role === 'web-verify-cli')
+    return false;
   if (role === 'capture') return !captureNodeModules.has(base);
   if (base === 'child_process') return role !== 'process';
   if (role === 'kernel' || role === 'fake') return true;
