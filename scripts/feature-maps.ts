@@ -20,6 +20,7 @@ export type Surface = {
   pages: ((root: string) => Page[]) | undefined;
   sources: readonly string[];
   calls: (root: string) => { calls: ApiCall[]; problems: string[] };
+  flows?: string;
 };
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -129,7 +130,17 @@ const web: Surface = {
     ),
 };
 
-export const surfaces: readonly Surface[] = [web];
+const desktop: Surface = {
+  name: 'desktop',
+  features: '.agents/skills/desktop-verify/features',
+  domains: ['app', 'projects', 'access'],
+  pages: undefined,
+  sources: ['apps/desktop/src', 'apps/web/src'],
+  calls: () => ({ calls: [], problems: [] }),
+  flows: 'apps/desktop/spec/e2e',
+};
+
+export const surfaces: readonly Surface[] = [web, desktop];
 
 function frontmatter(text: string): { data: unknown; body: string } {
   const match = /^---\n([\s\S]*?)\n---\n([\s\S]*)$/.exec(text);
@@ -218,6 +229,14 @@ function surfaceProblems(
       if (!named.has(page.path))
         problems.push(
           `${page.file}: it renders the page at ${page.path}, which no ${surface.name} map file names as its route; write the map file of a feature on that page. __root and a layout route, whose folder holds child routes and whose page is its index, need none.`,
+        );
+  }
+  if (surface.flows !== undefined) {
+    const named = new Set(mapped.flatMap((entry) => entry.tests));
+    for (const flow of filesUnder(surface.flows))
+      if (flow.endsWith('.e2e.ts') && !named.has(flow))
+        problems.push(
+          `${flow}: it tests a native ${surface.name} feature that no ${surface.name} map file names in its tests; add it to the tests of the map file of the feature it proves, or write that map file.`,
         );
   }
   const source = surface.sources
