@@ -21,6 +21,10 @@ For Maestro, run `flows/connect-development.yaml` with `-e DEVELOPMENT_URL=<deve
 
 Cold launches use `flows/launch-development.yaml`: launch the app and await Review for at most 30 seconds before the journey's assertions. The owner approved this separate startup phase for iOS 27's slower development-client launch. Selected-tab, pairing, restart and context-menu assertions retain their own checks; do not replace them with the readiness check.
 
+The connection and cold-launch flows pass Expo SDK 58's `__expo_disable_fab`, `__expo_disable_auto_launch` and `__expo_disable_onboarding` flags to keep developer overlays out of native controls during proof. These flags apply to that process; cold restarts apply them again. After entering a pairing link, wait for the native sheet's keyboard animation to settle before tapping Pair. Maestro's iOS `hideKeyboard` gesture dismissed this sheet during proof, so do not use it here.
+
+Both launch helpers use `permissions: {}` to preserve the device's current permissions. Maestro's default grants every permission, including location, and that unrelated grant stalled on the iOS 26.5 iPad. These shell and loopback pairing journeys do not claim permission-prompt proof; keep physical Local Network permission, denial and retry in their own checkpoint.
+
 The initial shell journey covers unpaired navigation only. Run the Agent Device journey with semantic selectors, checking each destination's native content (`role=staticText` for SwiftUI text, not `role=text`) and Settings' empty-environment content. Its iOS AX backend can omit selected-tab traits; Maestro's XCTest selected-state assertions cover those separately. Preserve failures when a driver cannot substantiate a fact. Preserve an `.ad` recording with a selector destination guard and replay it. The initial recording replay diverged when Agent Device switched AX/XCTest backends and changed the native tab ancestry. Keep that failure as driver evidence; do not strip target identity metadata to make it pass. Maestro currently provides the repeatable shell regression. Run the same promise independently with Maestro:
 
 ```sh

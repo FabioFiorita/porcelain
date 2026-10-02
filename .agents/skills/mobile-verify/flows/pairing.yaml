@@ -9,6 +9,7 @@ name: Pair and restore multiple environments
 - tapOn:
     id: pairing-link
 - inputText: invalid-link
+- waitForAnimationToEnd
 - tapOn: Pair
 - assertVisible: Paste the whole link porcelain pair printed, starting with http.
 - tapOn: Cancel

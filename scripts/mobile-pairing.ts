@@ -55,6 +55,8 @@ try {
   for (const title of ['First', 'Second']) {
     const server = await IsolatedServer.start(root, state);
     servers.push(server);
+    recorder.secret(server.credential);
+    recorder.secret(server.desktopCredential);
     const name = `Mobile ${title} ${randomUUID().slice(0, 8)}`;
     names.push(name);
     if (journey === 'workspace') {
@@ -253,13 +255,52 @@ try {
   process.stderr.write(`FAIL native pairing; evidence: ${evidence}\n`);
   process.exitCode = 1;
 } finally {
-  await redact(evidence);
-  for (const server of servers) {
-    const failure = await server.stop();
-    if (failure) {
-      process.stderr.write(`${failure}\n`);
-      process.exitCode = 1;
+  try {
+    for (const [index, server] of servers.entries()) {
+      try {
+        const logs = recorder.redact(server.logs());
+        await writeFile(
+          join(evidence, `server-${index}-logs.json`),
+          JSON.stringify(logs, null, 2),
+          { mode: 0o600 },
+        );
+        const captured = recorder.redact({
+          hits: await server.hits(),
+          logs,
+        });
+        const serialized = JSON.stringify(captured, null, 2);
+        if (recorder.leaks(serialized) > 0)
+          throw new Error(
+            'Server evidence withheld: a secret survived redaction.',
+          );
+        await writeFile(
+          join(evidence, `server-${index}-receipts.json`),
+          serialized,
+          { mode: 0o600 },
+        );
+      } catch (error) {
+        const failure = recorder.scrub(
+          error instanceof Error ? error.message : String(error),
+        );
+        await writeFile(
+          join(evidence, `server-${index}-capture-failure.log`),
+          failure,
+        );
+        process.stderr.write(
+          `Could not preserve native server evidence: ${failure}\n`,
+        );
+        process.exitCode = 1;
+      }
     }
+    await redact(evidence);
+  } finally {
+    for (const server of servers) {
+      const failure = await server.stop();
+      if (failure) {
+        process.stderr.write(`${failure}\n`);
+        process.exitCode = 1;
+      }
+    }
+    await rm(state, { recursive: true, force: true });
   }
-  await rm(state, { recursive: true, force: true });
 }

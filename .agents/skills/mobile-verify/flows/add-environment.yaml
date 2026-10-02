@@ -5,6 +5,7 @@ name: Pair an environment
 - tapOn:
     id: pairing-link
 - inputText: ${PAIRING_LINK}
+- waitForAnimationToEnd
 - tapOn: Pair
 - assertNotVisible: Pair an environment
 - assertVisible: ${ENVIRONMENT_NAME}

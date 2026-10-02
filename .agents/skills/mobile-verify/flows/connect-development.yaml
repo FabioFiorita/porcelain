@@ -1,7 +1,7 @@
 appId: com.fabiofiorita.porcelain.dev
 name: Connect the owned development simulator
 ---
-- openLink: ${DEVELOPMENT_URL}
+- openLink: ${DEVELOPMENT_URL}&__expo_disable_fab=1&__expo_disable_auto_launch=1&__expo_disable_onboarding=1
 - runFlow:
     when:
       visible: (Abrir|Open)
@@ -9,6 +9,7 @@ name: Connect the owned development simulator
       - tapOn: (Abrir|Open)
 - launchApp:
     stopApp: false
+    permissions: {}
 - tapOn:
     text: Continue
     optional: true

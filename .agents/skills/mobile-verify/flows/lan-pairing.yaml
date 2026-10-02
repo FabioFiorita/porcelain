@@ -9,6 +9,7 @@ name: Pair and reconnect to a LAN environment
 - tapOn:
     id: pairing-link
 - inputText: ${PAIRING_LINK}
+- waitForAnimationToEnd
 - tapOn: Pair
 - assertNotVisible: Pair an environment
 - assertVisible: Online
