@@ -25,7 +25,7 @@ import { useCommitForm } from '../commands/commit-form';
 import type { CommitFormProps } from '../rules/commit-form';
 import { useDraftCancellation } from '../adapters/form-lifetime';
 import { commitFiles } from '@/features/changes/index';
-import { usePreferences } from '@/features/access/index';
+import { usePreferences } from '@/features/preferences/index';
 
 export function CommitForm(
   props: CommitFormProps & { context: Parameters<typeof useCommitForm>[1] },

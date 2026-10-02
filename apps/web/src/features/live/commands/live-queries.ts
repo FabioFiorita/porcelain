@@ -5,18 +5,34 @@ import {
   LIVE_PROJECTS,
   LIVE_WORKTREES,
 } from '@porcelain/contracts/shared';
-import {
-  type QueryClient,
-  type QueryFilters,
-  useQueryClient,
-} from '@tanstack/react-query';
+import { type QueryClient, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import type { Connection } from '@/shared/workspace/connection';
-import { reviewSurfaceFilters } from '@/shared/query/keys';
+import {
+  fileSurfaces,
+  gitSurfaces,
+  reviewSurfaceFilters,
+} from '@/shared/query/keys';
 import { isTerminal } from '@/shared/query/operation-store';
-import { readGitReceipt } from './read-receipt';
 
 type Receipt = RunGitActionResponse;
+
+type GitReceipts = {
+  read: (
+    connection: Connection,
+    request: {
+      projectId: string;
+      worktreeId: string;
+      requestId: string;
+      signal: AbortSignal;
+    },
+  ) => Promise<Receipt>;
+  refresh: (
+    client: QueryClient,
+    environmentId: string,
+    receipt: Receipt,
+  ) => Promise<void>;
+};
 
 type Watched = { projectId: string; worktreeId: string; paths: Set<string> };
 type FeatureLive = {
@@ -29,10 +45,6 @@ type FeatureLive = {
     environmentId: string,
     notice: LiveNotice,
   ) => Promise<void>;
-  gitReceiptFilters?: (
-    environmentId: string,
-    receipt: Receipt,
-  ) => QueryFilters | null;
 };
 const featureLives = Object.values(
   import.meta.glob<{ default: FeatureLive }>('../../*/live.ts', {
@@ -98,41 +110,6 @@ function liveSubscription(client: QueryClient, environmentId: string) {
   };
 }
 
-const FILE_SURFACES = new Set([
-  'changes',
-  'directory',
-  'text',
-  'paths',
-  'git-status',
-  'asset',
-  'html-preview',
-  'step-lines',
-]);
-const GIT_SURFACES = new Set(['changes', 'git-status', 'paths', 'step-lines']);
-
-async function refreshActiveQueries(
-  client: QueryClient,
-  filters: QueryFilters,
-) {
-  const active = client
-    .getQueryCache()
-    .findAll(filters)
-    .filter((query) => query.isActive());
-  await client.invalidateQueries(filters);
-  await Promise.all(
-    active.map(async (query) => {
-      while (query.state.isInvalidated && query.state.status === 'success') {
-        await query.fetch().catch(() => undefined);
-        if (query.state.fetchStatus === 'idle') break;
-      }
-      if (query.state.isInvalidated && query.state.status === 'success')
-        throw new Error(
-          'Git state refresh was interrupted. Check the action again.',
-        );
-    }),
-  );
-}
-
 async function invalidateSurfaces(
   client: QueryClient,
   environmentId: string,
@@ -144,67 +121,15 @@ async function invalidateSurfaces(
   );
 }
 
-const receiptRefreshes = new WeakMap<QueryClient, Map<string, Promise<void>>>();
-
-export async function refreshGitReceipt(
-  client: QueryClient,
-  environmentId: string,
-  receipt: Receipt,
-) {
-  if (
-    !isTerminal(receipt) ||
-    receipt.state === 'rejected' ||
-    receipt.state === 'no-change'
-  )
-    return;
-  let pending = receiptRefreshes.get(client);
-  if (!pending) {
-    pending = new Map();
-    receiptRefreshes.set(client, pending);
-  }
-  const key = JSON.stringify([
-    environmentId,
-    receipt.projectId,
-    receipt.worktreeId,
-    receipt.requestId,
-  ]);
-  const existing = pending.get(key);
-  if (existing) return existing;
-  const refresh = (async () => {
-    const surfaces =
-      receipt.action === 'fetch' || receipt.action === 'push'
-        ? new Set(['git-status', 'changes'])
-        : new Set([...GIT_SURFACES, ...FILE_SURFACES]);
-    const refreshes = await Promise.allSettled(
-      [
-        reviewSurfaceFilters(environmentId, receipt, surfaces),
-        ...featureLives.flatMap(
-          (feature) =>
-            feature.gitReceiptFilters?.(environmentId, receipt) ?? [],
-        ),
-      ].map((filters) => refreshActiveQueries(client, filters)),
-    );
-    const failed = refreshes.find(
-      (result): result is PromiseRejectedResult => result.status === 'rejected',
-    );
-    if (failed) throw failed.reason;
-  })();
-  pending.set(key, refresh);
-  try {
-    await refresh;
-  } finally {
-    pending.delete(key);
-  }
-}
-
 async function applyLiveNotice(
   client: QueryClient,
   environmentId: string,
   notice: LiveNotice,
+  receipts: GitReceipts,
 ) {
   if (notice.type === 'ready' || notice.type === 'heartbeat') return;
   if (notice.type === 'git-action') {
-    await refreshGitReceipt(client, environmentId, notice.receipt);
+    await receipts.refresh(client, environmentId, notice.receipt);
     return;
   }
   if (notice.type === 'inventory') {
@@ -216,12 +141,12 @@ async function applyLiveNotice(
     return;
   }
   if (notice.change === 'files') {
-    await invalidateSurfaces(client, environmentId, notice, FILE_SURFACES);
+    await invalidateSurfaces(client, environmentId, notice, fileSurfaces);
     await notifyFeatures(client, environmentId, notice);
     return;
   }
   if (notice.change === 'git') {
-    await invalidateSurfaces(client, environmentId, notice, GIT_SURFACES);
+    await invalidateSurfaces(client, environmentId, notice, gitSurfaces);
     await notifyFeatures(client, environmentId, notice);
     return;
   }
@@ -232,26 +157,33 @@ function connectLiveQueries(
   client: QueryClient,
   connection: Connection,
   onUnauthorized: () => void,
+  receipts: GitReceipts,
 ) {
   const lifecycle = new AbortController();
   const recoverPending = () => {
     for (const operation of connection.operations.list()) {
       if (operation.receipt && isTerminal(operation.receipt)) continue;
-      void readGitReceipt(connection, {
-        projectId: operation.projectId,
-        worktreeId: operation.worktreeId,
-        requestId: operation.requestId,
-        signal: connection.controller.signal,
-      })
+      void receipts
+        .read(connection, {
+          projectId: operation.projectId,
+          worktreeId: operation.worktreeId,
+          requestId: operation.requestId,
+          signal: connection.controller.signal,
+        })
         .then(async (receipt) => {
           if (connection.controller.signal.aborted || lifecycle.signal.aborted)
             return;
-          await applyLiveNotice(client, connection.environmentId, {
-            type: 'git-action',
-            projectId: receipt.projectId,
-            worktreeId: receipt.worktreeId,
-            receipt,
-          });
+          await applyLiveNotice(
+            client,
+            connection.environmentId,
+            {
+              type: 'git-action',
+              projectId: receipt.projectId,
+              worktreeId: receipt.worktreeId,
+              receipt,
+            },
+            receipts,
+          );
           if (
             !connection.controller.signal.aborted &&
             !lifecycle.signal.aborted
@@ -265,7 +197,12 @@ function connectLiveQueries(
     signal: AbortSignal.any([connection.controller.signal, lifecycle.signal]),
     onNotice: (notice) => {
       if (notice.type === 'ready') recoverPending();
-      void applyLiveNotice(client, connection.environmentId, notice).then(
+      void applyLiveNotice(
+        client,
+        connection.environmentId,
+        notice,
+        receipts,
+      ).then(
         () => {
           if (
             notice.type === 'git-action' &&
@@ -329,10 +266,11 @@ function connectLiveQueries(
 export function useLiveQueries(
   connection: Connection | null,
   onUnauthorized: () => void,
+  receipts: GitReceipts,
 ) {
   const client = useQueryClient();
   useEffect(() => {
     if (!connection) return;
-    return connectLiveQueries(client, connection, onUnauthorized);
-  }, [client, connection, onUnauthorized]);
+    return connectLiveQueries(client, connection, onUnauthorized, receipts);
+  }, [client, connection, onUnauthorized, receipts]);
 }

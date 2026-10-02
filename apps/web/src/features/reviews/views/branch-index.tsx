@@ -19,7 +19,7 @@ import { BranchBasePicker } from './branch-base-picker';
 import { ChangeRow, ROW } from './change-row';
 import { ReviewEmpty } from './review-empty';
 import { groupSpecPaths } from '../rules/spec-paths';
-import { usePreferences } from '@/features/access/index';
+import { usePreferences } from '@/features/preferences/index';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
 export function BranchIndex({
