@@ -12,7 +12,8 @@
     "./projects/rules": "./src/features/projects/rules/index.ts"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --config ../../vitest.config.ts --project @porcelain/client"
   },
   "dependencies": {
     "@porcelain/contracts": "workspace:*",

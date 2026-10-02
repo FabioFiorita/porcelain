@@ -13,7 +13,8 @@
     "./access": "./src/access/index.ts"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --config ../../vitest.config.ts --project @porcelain/contracts"
   },
   "dependencies": {
     "zod": "4.5.4"

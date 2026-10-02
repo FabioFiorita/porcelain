@@ -6,7 +6,8 @@
     "dev": "vite --host 127.0.0.1",
     "build": "tsc --noEmit && tsc --noEmit -p tsconfig.node.json && vite build",
     "preview": "vite preview --host 127.0.0.1",
-    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.node.json"
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.node.json",
+    "test": "vitest run --config ../../vitest.config.ts --project @porcelain/web"
   },
   "dependencies": {
     "@base-ui/react": "1.8.0",

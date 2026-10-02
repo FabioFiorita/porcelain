@@ -33,7 +33,10 @@ const required = [
   ...packages.filter(decides).map((name) => `@porcelain/${name}`),
 ];
 
-function problems(modules: ReadonlyArray<TestModule>): string[] {
+function problems(
+  modules: ReadonlyArray<TestModule>,
+  selected: ReadonlySet<string>,
+): string[] {
   const found: string[] = [];
   const ran = new Set<string>();
   for (const module of modules) {
@@ -47,20 +50,26 @@ function problems(modules: ReadonlyArray<TestModule>): string[] {
     }
   }
   for (const name of required)
-    if (!ran.has(name))
+    if (selected.has(name) && !ran.has(name))
       found.push(
         `${name} ran no spec; a package that decides keeps its specs.`,
       );
   return found;
 }
 
-const specDiscipline: Reporter = {
-  onTestRunEnd(modules) {
-    const found = problems(modules);
-    for (const problem of found) process.stderr.write(`${problem}\n`);
-    if (found.length > 0) process.exitCode = 1;
-  },
-};
+function specDiscipline(): Reporter {
+  let selected: ReadonlySet<string> = new Set(required);
+  return {
+    onInit(vitest) {
+      selected = new Set(vitest.projects.map((project) => project.name));
+    },
+    onTestRunEnd(modules) {
+      const found = problems(modules, selected);
+      for (const problem of found) process.stderr.write(`${problem}\n`);
+      if (found.length > 0) process.exitCode = 1;
+    },
+  };
+}
 
 export default defineConfig({
   test: {
@@ -68,7 +77,7 @@ export default defineConfig({
     maxWorkers: 6,
     passWithNoTests: false,
     allowOnly: false,
-    reporters: ['default', specDiscipline],
+    reporters: ['default', specDiscipline()],
     projects: [
       {
         test: {
