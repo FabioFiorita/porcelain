@@ -23,10 +23,23 @@ import type { WorkspaceSearch } from '@/shared/workspace/search';
 import { createFailures, failureMessage } from '../kit/failures.ts';
 import type { BrowserFailure, ServerName } from '../kit/protocol.ts';
 import { serverReaders } from '../kit/readers.ts';
-import { agentOn, projectHomeOn, sampleRepository } from '../kit/shapes.ts';
+import {
+  agentOn,
+  projectHomeOn,
+  sampleRepository,
+  type SampleRepository,
+} from '../kit/shapes.ts';
 import { host } from './commands.ts';
+import { createFetchGate, live } from './network.ts';
 
 export { expect };
+
+export type Repo = SampleRepository;
+export type { Agent } from '../kit/shapes.ts';
+export type Render = {
+  workspace: () => Promise<typeof page>;
+  navigator: () => Promise<typeof page>;
+};
 
 const observed: BrowserFailure[] = [];
 
@@ -44,7 +57,10 @@ console.error = (...values: unknown[]) => {
   reportError(...values);
 };
 window.addEventListener('error', (event) =>
-  observed.push({ kind: 'uncaught error', message: describeValue(event.error) }),
+  observed.push({
+    kind: 'uncaught error',
+    message: describeValue(event.error),
+  }),
 );
 window.addEventListener('unhandledrejection', (event) =>
   observed.push({
@@ -205,22 +221,47 @@ export const test = base
   .extend('codingTool', ({ world: _world }) => ({
     install: () => host.porcelainCodingTool(),
   }))
-  .extend('workspace', async ({ world: _world }, { onCleanup }) => {
-    onCleanup(await mount((connection) => <Workspace connection={connection} />));
-    await expect
-      .element(page.getByRole('region', { name: 'Review content', exact: true }))
-      .toBeVisible();
-    return page;
+  .extend('render', async ({ world: _world }, { onCleanup }) => {
+    let unmount: (() => void) | undefined;
+    onCleanup(() => unmount?.());
+    const show = async (view: (connection: Connection) => ReactNode) => {
+      if (unmount !== undefined)
+        throw new Error('A test renders one feature once.');
+      unmount = await mount(view);
+    };
+    const render: Render = {
+      async workspace() {
+        await show((connection) => <Workspace connection={connection} />);
+        await expect
+          .element(
+            page.getByRole('region', { name: 'Review content', exact: true }),
+          )
+          .toBeVisible();
+        return page;
+      },
+      async navigator() {
+        await show((connection) => <Navigator connection={connection} />);
+        await expect
+          .element(
+            page.getByRole('navigation', {
+              name: 'Projects and worktrees',
+              exact: true,
+            }),
+          )
+          .toBeVisible();
+        return page;
+      },
+    };
+    return render;
   })
-  .extend('navigator', async ({ world: _world }, { onCleanup }) => {
-    onCleanup(await mount((connection) => <Navigator connection={connection} />));
-    await expect
-      .element(
-        page.getByRole('navigation', {
-          name: 'Projects and worktrees',
-          exact: true,
-        }),
-      )
-      .toBeVisible();
-    return page;
+  .extend('workspace', ({ render }) => render.workspace())
+  .extend('navigator', ({ render }) => render.navigator())
+  .extend('fetchGate', ({ repo }, { onCleanup }) => {
+    const gate = createFetchGate(repo.readme.path);
+    onCleanup(() => gate.restore());
+    return gate;
+  })
+  .extend('live', ({ world: _world }, { onCleanup }) => {
+    onCleanup(() => live.restore());
+    return live;
   });

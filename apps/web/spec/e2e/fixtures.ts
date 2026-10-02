@@ -76,6 +76,25 @@ export async function watchFailures(context: BrowserContext) {
   return observed;
 }
 
+const appSource = '/src/';
+
+async function transformApp(
+  client: ViteDevServer['environments']['client'],
+  url = `${appSource}main.tsx`,
+  seen = new Set<string>(),
+): Promise<void> {
+  if (seen.has(url)) return;
+  seen.add(url);
+  await client.warmupRequest(url);
+  const module = await client.moduleGraph.getModuleByUrl(url);
+  if (module === undefined || module.type === 'css') return;
+  await Promise.all(
+    [...module.importedModules]
+      .filter((imported) => imported.url.startsWith(appSource))
+      .map((imported) => transformApp(client, imported.url, seen)),
+  );
+}
+
 async function startVite(shell: Shell) {
   let target = 'http://127.0.0.1';
   const retarget: Array<(address: string) => void> = [];
@@ -89,7 +108,6 @@ async function startVite(shell: Shell) {
       host: '127.0.0.1',
       port: 0,
       strictPort: false,
-      warmup: { clientFiles: ['./src/main.tsx'] },
       proxy: {
         '^/(api|review-summaries)(/|$)': {
           target,
@@ -105,6 +123,7 @@ async function startVite(shell: Shell) {
     },
   });
   await vite.listen();
+  await transformApp(vite.environments.client);
   const url = vite.resolvedUrls?.local[0];
   if (url === undefined) throw new Error('Vite printed no local address.');
   return {
@@ -212,6 +231,8 @@ async function appOf(page: Page, world: World, live: LiveFixture) {
 
 type LiveFixture = Awaited<ReturnType<typeof liveRouter>>;
 
+export type Repo = Awaited<ReturnType<typeof repositoryOf>>;
+
 type TestFixtures = {
   world: World;
   observed: BrowserFailure[];
@@ -275,7 +296,9 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
       await world.keepEvidence(testInfo.outputPath('server'));
       const stopped = await world.stop();
       if (stopped.length > 0)
-        throw new Error(`The disposable servers did not stop: ${stopped.join('; ')}`);
+        throw new Error(
+          `The disposable servers did not stop: ${stopped.join('; ')}`,
+        );
     }
   },
   observed: async ({ context }, use) => {

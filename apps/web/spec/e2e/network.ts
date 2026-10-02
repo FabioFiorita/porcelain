@@ -122,8 +122,7 @@ export async function holdNextPost(context: BrowserContext, ending: string) {
 }
 
 export async function failInventory(context: BrowserContext) {
-  const handler = (route: Route) =>
-    route.fulfill({ status: 503, body: '' });
+  const handler = (route: Route) => route.fulfill({ status: 503, body: '' });
   await context.route('**/api/inventory', handler);
   return () => context.unroute('**/api/inventory', handler);
 }
