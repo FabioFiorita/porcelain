@@ -53,7 +53,8 @@ export const probeGates = [
   'typecheck',
   'test',
   'db',
-  'verify',
+  'integration',
+  'perf',
   'web-verify',
 ] as const;
 
@@ -92,10 +93,15 @@ export const ruleShapes: Readonly<
     shape:
       '<problem>: <detail>, as check-migrations.ts prints one problem per line',
   },
-  verify: {
-    pattern: /^[^:\s][^:\n]*: \S.*$/,
+  integration: {
+    pattern:
+      /^(?:(?:[A-Z][A-Za-z]*)?Error: \S.*|[a-z0-9-]+\.integration\.ts > \S.*)$/,
     shape:
-      '<case or net part>: <reason>, as the net prints each failure under its FAIL line',
+      '<Name>Error: <message> or <file>.integration.ts > <test name>, as vitest prints a failed integration test, or the route coverage check',
+  },
+  perf: {
+    pattern: /^(?:[A-Z][A-Za-z]*)?Error: \S.*$/,
+    shape: '<Name>Error: <message>, as vitest prints a route over its budget',
   },
   'web-verify': {
     pattern: /^[^:\s][^:\n]*: \S.*$/,
@@ -116,14 +122,14 @@ export const probeSchema = z
   .superRefine((probe, context) => {
     if (
       probe.feature !== undefined &&
-      probe.gate !== 'verify' &&
+      probe.gate !== 'integration' &&
       probe.gate !== 'web-verify'
     )
       context.addIssue({
         code: 'custom',
         path: ['feature'],
         message:
-          'only a verify or web-verify probe names the feature or journey its runner runs',
+          'only an integration or web-verify probe names the test file or journey its runner runs',
       });
     const { pattern, shape } = ruleShapes[probe.gate];
     if (!pattern.test(probe.rule))

@@ -4,9 +4,9 @@ export default {
   decision: 'P5',
   plants:
     'the server asks the Claude CLI for streamed JSON, which the CLI would not answer with the envelope the server parses',
-  gate: 'verify',
-  rule: 'a message drafted for the selected change: status',
-  feature: 'git-actions.generate-commit-draft',
+  gate: 'integration',
+  rule: 'git-actions-generate-commit-draft.integration.ts > drafting a message for the selected change answers the drafted message',
+  feature: 'git-actions-generate-commit-draft',
   edits: [
     {
       kind: 'replace',

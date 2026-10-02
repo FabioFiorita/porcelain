@@ -45,11 +45,14 @@ const gateCommands: Record<
   typecheck: () => ['pnpm', 'typecheck:server'],
   test: () => ['pnpm', 'test'],
   db: () => ['pnpm', 'db:check'],
-  verify: (probe) => [
-    'node',
-    '.agents/skills/server-verify/scripts/verify.ts',
-    probe.feature ?? '--all',
+  integration: (probe) => [
+    'pnpm',
+    '--filter',
+    '@porcelain/server',
+    'test:integration',
+    ...(probe.feature === undefined ? [] : [probe.feature]),
   ],
+  perf: () => ['pnpm', '--filter', '@porcelain/server', 'test:perf'],
   'web-verify': (probe) => ['pnpm', 'verify:web', probe.feature ?? '--all'],
 };
 const expectedSeconds: Record<ProbeGate, (probe: LoadedProbe) => number> = {
@@ -59,12 +62,8 @@ const expectedSeconds: Record<ProbeGate, (probe: LoadedProbe) => number> = {
   typecheck: () => 3,
   test: () => 7,
   db: () => 2,
-  verify: (probe) =>
-    probe.feature === undefined
-      ? 70
-      : probe.feature.startsWith('perf.')
-        ? 15
-        : 2,
+  integration: (probe) => (probe.feature === undefined ? 20 : 4),
+  perf: () => 15,
   'web-verify': (probe) => (probe.feature === undefined ? 150 : 12),
 };
 const moduleSchema = z.object({ default: probeSchema });

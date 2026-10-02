@@ -4,9 +4,8 @@ export default {
   decision: 'F1',
   plants:
     'the Git status budget allows one Git process fewer than a status read launches on the perf sample',
-  gate: 'verify',
-  feature: 'perf.routes',
-  rule: 'read the Git status: 9 Git processes are over its budget of 8',
+  gate: 'perf',
+  rule: 'AssertionError: read the Git status: Git processes per request',
   edits: [
     {
       kind: 'replace',

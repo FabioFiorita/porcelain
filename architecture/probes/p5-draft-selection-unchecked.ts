@@ -4,9 +4,9 @@ export default {
   decision: 'P5',
   plants:
     'the server returns whatever groups the coding tool drafts, even when they leave a selected path out',
-  gate: 'verify',
-  rule: 'a draft that leaves a selected path out, or a model the tool does not serve: uncovered selection status',
-  feature: 'git-actions.generate-commit-draft',
+  gate: 'integration',
+  rule: 'git-actions-generate-commit-draft.integration.ts > a draft that leaves a selected path out, or a model the tool does not serve, is refused',
+  feature: 'git-actions-generate-commit-draft',
   edits: [
     {
       kind: 'replace',
