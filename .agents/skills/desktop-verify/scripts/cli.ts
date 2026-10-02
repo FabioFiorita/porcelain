@@ -96,8 +96,10 @@ function freePort(): Promise<number> {
   });
 }
 
-async function quit(electron: ElectronApplication): Promise<void> {
-  const child = electron.process();
+async function quit(
+  electron: ElectronApplication,
+  child: ReturnType<ElectronApplication['process']>,
+): Promise<void> {
   if (child.exitCode !== null || child.signalCode !== null) return;
   const timeout = AbortSignal.timeout(quitWithinMs);
   const expired = new Promise<void>((done) => {
@@ -165,6 +167,7 @@ async function serve(id: string, evidence: string, print: string) {
     await mkdtemp(join(tmpdir(), 'porcelain-desktop-verify-')),
   );
   let electron: ElectronApplication | undefined;
+  let child: ReturnType<ElectronApplication['process']> | undefined;
   let closeControl: (() => void) | undefined;
   let stopping = false;
   const stop = async () => {
@@ -176,7 +179,8 @@ async function serve(id: string, evidence: string, print: string) {
       process.stderr.write('The browser session was already detached.\n');
     }
     closeControl?.();
-    if (electron !== undefined) await quit(electron);
+    if (electron !== undefined && child !== undefined)
+      await quit(electron, child);
     const log = join(workspace, 'profile', 'logs', 'server.log');
     if (existsSync(log)) await cp(log, join(evidence, 'server.log'));
     await rm(workspace, { recursive: true, force: true });
@@ -207,13 +211,15 @@ async function serve(id: string, evidence: string, print: string) {
       }),
     );
     electron.on('close', () => {
+      if (stopping) return;
       writeFileSync(
         join(evidence, 'app-exited.txt'),
         `Porcelain Dev exited; instance ${id} stopped itself.\n`,
       );
       void stop();
     });
-    electron.process().stderr?.on('data', (chunk: Buffer) => {
+    child = electron.process();
+    child.stderr?.on('data', (chunk: Buffer) => {
       process.stderr.write(chunk);
     });
     const page = await electron.firstWindow();

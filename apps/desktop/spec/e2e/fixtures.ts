@@ -48,12 +48,14 @@ export function processAlive(pid: number): boolean {
 
 export class DesktopApp {
   readonly electron: ElectronApplication;
+  private readonly child: ReturnType<ElectronApplication['process']>;
   readonly profile: string;
   readonly errors: string[] = [];
   private readonly watched = new WeakSet<Page>();
 
   constructor(electron: ElectronApplication, profile: string) {
     this.electron = electron;
+    this.child = electron.process();
     this.profile = profile;
   }
 
@@ -175,7 +177,7 @@ export class DesktopApp {
   }
 
   quit(): Promise<void> {
-    const child = this.electron.process();
+    const child = this.child;
     if (child.exitCode !== null || child.signalCode !== null)
       return Promise.resolve();
     const timeout = AbortSignal.timeout(quitWithinMs);

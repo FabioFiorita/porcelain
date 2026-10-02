@@ -52,6 +52,7 @@ function fullscreen(app: DesktopApp, value: boolean) {
       new Promise<void>((resolveFullscreen) => {
         const view = BrowserWindow.getAllWindows()[0];
         if (view === undefined) throw new Error('The app window is missing');
+        view.focus();
         if (value) view.once('enter-full-screen', () => resolveFullscreen());
         else view.once('leave-full-screen', () => resolveFullscreen());
         view.setFullScreen(value);

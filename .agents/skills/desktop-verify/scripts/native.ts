@@ -161,6 +161,7 @@ async function changeWindow(
             settled();
             return;
           }
+          view.focus();
           if (value) view.once('enter-full-screen', () => settled());
           else view.once('leave-full-screen', () => settled());
           view.setFullScreen(value);
