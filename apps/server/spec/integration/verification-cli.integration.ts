@@ -5,7 +5,7 @@ import { readFile, readdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { expect } from 'vitest';
+import { expect, type TestContext } from 'vitest';
 import { test } from '../kit/server-test.ts';
 import { list, record, text } from '../kit/session.ts';
 
@@ -29,7 +29,7 @@ function cli(...args: string[]): Promise<Run> {
   });
 }
 
-async function started() {
+async function started(onTestFinished: TestContext['onTestFinished']) {
   const run = await cli('start');
   const [, id = '', address = '', evidence = ''] =
     /^instance (\S+)\nurl (\S+)\nevidence (\S+)\n$/.exec(run.stdout) ?? [];
@@ -40,6 +40,9 @@ async function started() {
     id,
     'instance.json',
   );
+  onTestFinished(async () => {
+    if (existsSync(instanceFile)) await cli('stop', '--instance', id);
+  });
   const instance = record(JSON.parse(await readFile(instanceFile, 'utf8')));
   return {
     run,
@@ -59,8 +62,10 @@ async function evidenceOf(folder: string) {
   return { names, text: contents.join('\n'), contents };
 }
 
-test('a CLI session records numbered, redacted evidence and never shows the instance credential', async () => {
-  const instance = await started();
+test('a CLI session records numbered, redacted evidence and never shows the instance credential', async ({
+  onTestFinished,
+}) => {
+  const instance = await started(onTestFinished);
   const issued = await cli(
     'request',
     'POST',
@@ -121,8 +126,10 @@ test('a CLI session records numbered, redacted evidence and never shows the inst
   expect(existsSync(instance.instanceFile)).toBe(false);
 });
 
-test('a CLI command refuses to drive an instance whose server code changed since start', async () => {
-  const instance = await started();
+test('a CLI command refuses to drive an instance whose server code changed since start', async ({
+  onTestFinished,
+}) => {
+  const instance = await started(onTestFinished);
   const saved = record(
     JSON.parse(await readFile(instance.instanceFile, 'utf8')),
   );
