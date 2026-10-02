@@ -4,7 +4,7 @@ export default {
   decision: 'M1',
   plants:
     'a feature command reaches the shared request function instead of its API',
-  gate: 'lint',
+  gate: 'web-lint',
   rule: 'porcelain(web-api-owns-request)',
   edits: [
     {
