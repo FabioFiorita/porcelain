@@ -201,13 +201,16 @@ const workflowRunsSchema = z.object({
 const requiredRuns: Readonly<Record<string, readonly string[]>> = {
   '.github/workflows/server.yml': [
     'pnpm check --affected',
+    'sudo apt-get update && sudo apt-get install --yes bubblewrap',
+    'sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0',
+    'bwrap --ro-bind / / --dev /dev --proc /proc --unshare-pid --unshare-ipc --unshare-net --new-session --die-with-parent -- true',
     'pnpm test:integration --affected',
   ],
   '.github/workflows/web.yml': [
     'pnpm check',
     'pnpm --filter @porcelain/web build',
     'pnpm db:check',
-    'node .agents/skills/server-verify/scripts/verify.ts --all',
+    'pnpm test:integration',
     'pnpm verify:web --all',
   ],
 };
@@ -795,6 +798,12 @@ const gateScripts: Readonly<Record<string, Readonly<Record<string, string>>>> =
     'apps/web/package.json': {
       typecheck: 'tsc --noEmit && tsc --noEmit -p tsconfig.node.json',
       build: 'tsc --noEmit && tsc --noEmit -p tsconfig.node.json && vite build',
+    },
+    'apps/server/package.json': {
+      'test:integration':
+        'vitest run --config ../../vitest.config.ts --project @porcelain/server-integration',
+      'test:perf':
+        'vitest run --config ../../vitest.config.ts --project @porcelain/server-perf',
     },
     'packages/storage/package.json': {
       'db:check': 'drizzle-kit check && node scripts/check-migrations.ts',

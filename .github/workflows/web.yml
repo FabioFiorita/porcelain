@@ -32,5 +32,5 @@ jobs:
         run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
       - run: bwrap --ro-bind / / --dev /dev --proc /proc --unshare-pid --unshare-ipc --unshare-net --new-session --die-with-parent -- true
       - run: pnpm db:check
-      - run: node .agents/skills/server-verify/scripts/verify.ts --all
+      - run: pnpm test:integration
       - run: pnpm verify:web --all

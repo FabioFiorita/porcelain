@@ -15,7 +15,7 @@ concurrency:
 jobs:
   checks:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
         with:
@@ -27,4 +27,8 @@ jobs:
           require-lockfile: true
       - run: pnpm install --frozen-lockfile
       - run: pnpm check --affected
+      - run: sudo apt-get update && sudo apt-get install --yes bubblewrap
+      - name: Allow unprivileged user namespaces, which Ubuntu 24.04 restricts through AppArmor and bwrap needs
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+      - run: bwrap --ro-bind / / --dev /dev --proc /proc --unshare-pid --unshare-ipc --unshare-net --new-session --die-with-parent -- true
       - run: pnpm test:integration --affected
