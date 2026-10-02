@@ -5,7 +5,7 @@ selectors:
   - "Apply stash"
   - "Git actions"
   - "Stash changes"
-  - "succeeded"
+  - "Git controls"
 tests:
   - apps/web/spec/integration/git-actions-suggested-step.test.tsx
 api:
@@ -17,46 +17,41 @@ api:
 
 ## What it is
 
-Once nothing is left to commit, pull or push, the Git button suggests applying the waiting stash, and following it brings the stashed changes back.
+The Git button (group "Git controls", left of Git actions) suggests the next step: Commit while anything changed, then Pull, then Push, and, once nothing is left to commit, pull or push, Apply stash for a waiting stash; following it brings the stashed changes back and keeps the stash.
 
 ## How a user reaches it
 
-- The Git button beside Git actions, once the changes are stashed → Apply stash
+- The Git button in group "Git controls": its accessible name is the suggestion ("Commit", "Pull", "Push", "Apply stash"); with nothing to suggest it reads "Commit" and is disabled with the hint "Nothing to commit, pull or push."
+- Apply stash opens dialog "Apply stash" (combobox "Stash", checkbox "Restore staged changes", button "Apply stash"). The Git actions menu has no Apply stash entry; only the suggestion offers it.
 
 ## Driving it
 
-Start an instance first: `.agents/skills/web-verify/scripts/cli start`.
+Start with `.agents/skills/web-verify/scripts/cli start`. No setup; `REPO` is the repository path `start` printed.
 
-### The Git button suggests applying a waiting stash once the tree is clean, and applying it brings the changes back
-
-```sh
-.agents/skills/web-verify/scripts/cli open /
-```
-
-After `open`, look for: the button “Commit” shows.
-After `open`, look for: the button “Apply stash” is gone.
-1. `.agents/skills/web-verify/scripts/cli click --role button --name "Git actions"`
-   Look for: the page settles; take a snapshot to read what it shows.
-2. `.agents/skills/web-verify/scripts/cli click --role menuitem --name "/^Stash changes/"`
-   Look for: the page settles; take a snapshot to read what it shows.
-3. `.agents/skills/web-verify/scripts/cli click --role button --name "Stash changes"`
-   Look for: the text “succeeded” shows.
-4. `.agents/skills/web-verify/scripts/cli press Escape`
-   Look for: the dialog “Stash changes” is gone; the button “Apply stash” shows; the button “Apply stash” reads 'Apply stash'.
-5. `.agents/skills/web-verify/scripts/cli click --role button --name "Apply stash"`
-   Look for: the page settles; take a snapshot to read what it shows.
+1. `.agents/skills/web-verify/scripts/cli snapshot`
+   Look for: group "Git controls" holds button "Commit" and button "Git actions"; no button "Apply stash".
+2. `.agents/skills/web-verify/scripts/cli click --role button --name "Git actions"`
+   Look for: menuitem starting "Stash changes".
+3. `.agents/skills/web-verify/scripts/cli click --role menuitem --name "/^Stash changes/"`
+   Look for: dialog "Stash changes".
+4. `.agents/skills/web-verify/scripts/cli click --role button --name "Stash changes"`
+   Look for: `status` "succeeded" in the dialog.
+5. `.agents/skills/web-verify/scripts/cli press Escape`
+   Look for: the dialog is gone; group "Git controls" now holds button "Apply stash" (visible text "Apply stash") instead of "Commit"; README.md is no longer listed.
 6. `.agents/skills/web-verify/scripts/cli click --role button --name "Apply stash"`
-   Look for: the text “succeeded” shows.
-7. `.agents/skills/web-verify/scripts/cli press Escape`
-   Look for: the button “Apply stash” is gone.
-
-Then `.agents/skills/web-verify/scripts/cli snapshot` and `.agents/skills/web-verify/scripts/cli screenshot` record the end state, and `.agents/skills/web-verify/scripts/cli network` lists the requests the page sent.
+   Look for: dialog "Apply stash" with combobox "Stash" showing "On main: Porcelain review · <id>" and button "Apply stash".
+7. `.agents/skills/web-verify/scripts/cli click --role button --name "Apply stash"`
+   Look for: `status` "succeeded" in the dialog.
+8. `.agents/skills/web-verify/scripts/cli press Escape`
+   Look for: the dialog is gone; the Git button is "Commit" again (no button "Apply stash"); README.md is listed again.
 
 ## What proves it works
 
-- `apps/web/spec/integration/git-actions-suggested-step.test.tsx` (Browser Mode integration): the Git button suggests applying a waiting stash once the tree is clean, and applying it brings the changes back.
-- The tests read back what the server kept through the kit: `server.changes()`, `server.gitStatus()`, `server.text()`.
+- After step 8: `tail -1 "$REPO/README.md"` prints `A change to review.` and `git -C "$REPO" stash list` still prints one entry, `stash@{0}: On main: Porcelain review` (apply keeps the stash).
+- `apps/web/spec/integration/git-actions-suggested-step.test.tsx`: the button "Apply stash" is absent while README.md is changed, appears (text "Apply stash") once the stash leaves the tree clean, applies the stash with "succeeded", restores README.md, keeps one stash, and disappears again.
 
 ## Gotchas
 
-- None known.
+- Steps 6 and 7 use the same name: in step 7 the dialog is modal, so the page behind it is hidden from the accessibility tree and `--name "Apply stash"` resolves to the dialog's button only.
+- The dialog's description reads "Every change, new files included, is set aside until you pop the stash.", the stash wording; that is the current copy, not a failed drive.
+- The stash stays after this feature; `git -C "$REPO" stash drop` removes it so later features start with the Git button reading "Commit".

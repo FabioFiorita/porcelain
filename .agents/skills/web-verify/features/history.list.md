@@ -4,9 +4,9 @@ selectors:
   - "Review"
   - "History"
   - "Merge commit"
-  - "topic"
   - "Commit graph"
   - "Open graph"
+  - "Start of history."
 tests:
   - apps/web/spec/integration/history-list.test.tsx
 api:
@@ -17,45 +17,52 @@ api:
 
 ## What it is
 
-The History list gives each commit its message, short id, author, age and ref chips without a graph beside it, and marks a merge commit with a merge icon.
+The History list gives each commit one row with its message, 7-character id, author, relative age and ref chips, without a graph beside it (the graph is a separate document behind "Open graph"), and marks a merge commit with a merge icon.
 
 ## How a user reaches it
 
-- Review → History
+- Phone width (the CLI): button "Review" → sheet "Worktree review" → tab "History".
+- Desktop width (1280 px and wider): tab "History" in the review sidebar ("Review sidebar").
+- Shortcut `Alt+3` selects the History surface (the sheet still needs "Review" at phone width); URL `?surface=history`.
 
 ## Driving it
 
-Start an instance first: `.agents/skills/web-verify/scripts/cli start`.
+Start with `.agents/skills/web-verify/scripts/cli start`. `REPO` is the repository path `start` printed.
 
-### History lists each commit message without a graph beside it and marks a merge commit with a merge icon
+### Setup
 
-Before driving, on the instance (the sample repository and project home are in the instance file):
-
-- create the branch `topic`
-- switch the sample repository to `topic`
-- write `topic.md` in the sample repository
-- commit everything in the sample repository as “Add the topic notes”
-- switch the sample repository to `undefined`
-- write `steps.md` in the sample repository
-- commit everything in the sample repository as “undefined”
-- merge `topic` with a merge commit
+A long subject on main and a branch merged back with a merge commit:
 
 ```sh
-.agents/skills/web-verify/scripts/cli open /
+git -C "$REPO" switch -c topic
+printf '# Topic\n' > "$REPO/topic.md"
+git -C "$REPO" add --all
+git -C "$REPO" commit -m "Add the topic notes"
+git -C "$REPO" switch main
+printf '# Steps\n' > "$REPO/steps.md"
+git -C "$REPO" add --all
+git -C "$REPO" commit -m "Describe every step the reviewer takes before approving the change"
+git -C "$REPO" merge --no-ff --no-edit topic
+git -C "$REPO" log -1 --format='%s %p'
 ```
 
-1. `.agents/skills/web-verify/scripts/cli click --role button --name "Review"`
-   Look for: the page settles; take a snapshot to read what it shows.
-2. `.agents/skills/web-verify/scripts/cli click --role tab --name "History"`
-   Look for: the img “Merge commit” shows; the text shows; the img “Merge commit” is gone; the text “topic” shows; the list “Commit graph” is gone; the button “Open graph” shows.
+The last line prints `Merge branch 'topic'` and two parent ids.
 
-Then `.agents/skills/web-verify/scripts/cli snapshot` and `.agents/skills/web-verify/scripts/cli screenshot` record the end state, and `.agents/skills/web-verify/scripts/cli network` lists the requests the page sent.
+1. `.agents/skills/web-verify/scripts/cli click --role button --name "Review"`
+   Look for: dialog "Worktree review" with tabs "Changes", "Files", "History".
+2. `.agents/skills/web-verify/scripts/cli click --role tab --name "History"`
+   Look for, in the snapshot of the sheet:
+   - four row buttons, the merge first (the two commits made in the same second may come in either order, a live run showed "Add the topic notes" above "Describe every step…"): one starting "Merge commit Merge branch 'topic'" that holds img "Merge commit" and the chip "main"; one starting "Describe every step the reviewer takes before approving the change" with that whole subject as text and no img "Merge commit"; one starting "Add the topic notes" with the chip "topic"; one starting "Initial commit";
+   - each row's name goes on with the 7-character id, "Porcelain Development" and the age;
+   - button "Open graph" in the header beside the branch name; no list "Commit graph"; text "Start of history." after the last row.
 
 ## What proves it works
 
-- `apps/web/spec/integration/history-list.test.tsx` (Browser Mode integration): History lists each commit message without a graph beside it and marks a merge commit with a merge icon.
-- The tests read back what the server kept through the kit: `server.commits()`.
+- The snapshot after step 2 matches `git -C "$REPO" log --format='%h %s %D' --decorate-refs='refs/*'`: the same four subjects in the same order, the same short ids and chips.
+- `apps/web/spec/integration/history-list.test.tsx`: in the review sidebar the merge row holds img "Merge commit"; the long subject is shown whole and its row has no merge icon; the "Add the topic notes" row shows the chip "topic"; no list "Commit graph" is rendered and button "Open graph" is.
 
 ## Gotchas
 
-- The CLI browser is phone width (414 by 896), so the review panel opens from the Review button instead of standing beside the document.
+- Rows are buttons named by their whole text; address one with a regex anchored at the start, such as `--name "/^Add the topic notes/"`. The merge row's name begins with the img label "Merge commit".
+- A long subject is truncated visually but its full text is in the accessibility tree; compare names in the snapshot, not the screenshot.
+- The setup leaves the branch, merge and files in place for the rest of the instance.

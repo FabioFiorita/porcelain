@@ -5,7 +5,6 @@ selectors:
   - "Message"
   - "Commit selected files"
   - "Committing…"
-  - "succeeded"
   - "Git actions"
   - "Stash changes"
   - "Pop stash"
@@ -21,67 +20,62 @@ api:
 
 ## What it is
 
-A Git action that settles while the live connection is down stays in progress until the app reconnects, then the app reads its receipt and shows how it ended, whether it succeeded or Git refused it.
+A Git action that settles while the live connection is down stays in progress ("Committing…", "Working…") until the app reconnects; then the app reads the action's receipt and shows how it ended, whether it succeeded or Git refused it.
 
 ## How a user reaches it
 
-- Commit → Commit selected files while the live connection is down, then it reconnects
+- Commit → Commit selected files, or Git actions → Pop stash → Pop stash, while the live connection is down (network blip, phone asleep); the outcome appears once it reconnects.
+- On every reconnect (and on the first live `ready` after a page load) the app reads `GET …/git/receipts/:requestId` for each action it still follows.
 
 ## Driving it
 
-Start an instance first: `.agents/skills/web-verify/scripts/cli start`.
+Start with `.agents/skills/web-verify/scripts/cli start`. The CLI cannot cut the live connection, so it drives only the connected path below; the race itself is left to the test (see Gotchas).
 
-### 1. A commit made while the live connection is down shows its outcome once the app reconnects and reads the receipt
+### Setup
+
+None for section 1. Section 2, with `REPO` the repository path `start` printed (skip the commit when section 1 already made it):
 
 ```sh
-.agents/skills/web-verify/scripts/cli open /
+git -C "$REPO" commit -am "Followed commit"
+printf 'Set aside\n' > "$REPO/README.md"
 ```
+
+Look for: the review lists README.md again (button "Mark README.md as reviewed").
+
+### 1. A commit shows its outcome
 
 1. `.agents/skills/web-verify/scripts/cli click --role button --name "Commit"`
-   Look for: the page settles; take a snapshot to read what it shows.
+   Look for: dialog "Commit changes" with textbox "Message".
 2. `.agents/skills/web-verify/scripts/cli fill --role textbox --name "Message" "Followed commit"`
-   Look for: the page settles; take a snapshot to read what it shows.
+   Look for: button "Commit selected files" is enabled.
 3. `.agents/skills/web-verify/scripts/cli click --role button --name "Commit selected files"`
-   Look for: the button “Committing…” is disabled; the text “succeeded” shows.
+   Look for: a `status` in the dialog reading "succeeded" (button "Committing…" shows only briefly).
 4. `.agents/skills/web-verify/scripts/cli press Escape`
-   Look for: the dialog is gone.
+   Look for: the dialog is gone; `git -C "$REPO" log -1 --format=%s` prints `Followed commit`.
 
-Then `.agents/skills/web-verify/scripts/cli snapshot` and `.agents/skills/web-verify/scripts/cli screenshot` record the end state, and `.agents/skills/web-verify/scripts/cli network` lists the requests the page sent.
-
-### 2. A stash pop refused while the live connection is down shows what Git said once the app reconnects and reads the receipt
-
-Before driving, on the instance (the sample repository and project home are in the instance file):
-
-- commit everything in the sample repository as “Followed commit”
-- write `README.md` in the sample repository
-- write `README.md` in the sample repository
-
-```sh
-.agents/skills/web-verify/scripts/cli open /
-```
+### 2. A refused stash pop shows what Git said
 
 1. `.agents/skills/web-verify/scripts/cli click --role button --name "Git actions"`
-   Look for: the page settles; take a snapshot to read what it shows.
+   Look for: menuitems starting "Stash changes" and "Pop stash".
 2. `.agents/skills/web-verify/scripts/cli click --role menuitem --name "/^Stash changes/"`
-   Look for: the page settles; take a snapshot to read what it shows.
+   Look for: dialog "Stash changes" with button "Stash changes".
 3. `.agents/skills/web-verify/scripts/cli click --role button --name "Stash changes"`
-   Look for: the text “succeeded” shows.
+   Look for: `status` "succeeded" in the dialog.
 4. `.agents/skills/web-verify/scripts/cli press Escape`
-   Look for: the dialog “Stash changes” is gone.
+   Look for: dialog "Stash changes" is gone. Then on disk: `printf 'Changed while the stash was set aside\n' > "$REPO/README.md"`, and the review lists README.md again (button "Mark README.md as reviewed").
 5. `.agents/skills/web-verify/scripts/cli click --role button --name "Git actions"`
-   Look for: the page settles; take a snapshot to read what it shows.
+   Look for: the menu is open.
 6. `.agents/skills/web-verify/scripts/cli click --role menuitem --name "/^Pop stash/"`
-   Look for: the page settles; take a snapshot to read what it shows.
+   Look for: dialog "Pop stash" with combobox "Stash" and button "Pop stash".
 7. `.agents/skills/web-verify/scripts/cli click --role button --name "Pop stash"`
-   Look for: the button “Working…” is disabled; the alert reads /would be overwritten/.
-
-Then `.agents/skills/web-verify/scripts/cli snapshot` and `.agents/skills/web-verify/scripts/cli screenshot` record the end state, and `.agents/skills/web-verify/scripts/cli network` lists the requests the page sent.
+   Look for: an `alert` in the dialog containing "would be overwritten"; `cat "$REPO/README.md"` still prints `Changed while the stash was set aside`.
 
 ## What proves it works
 
-- `apps/web/spec/integration/git-actions-follow-receipt.test.tsx` (Browser Mode integration): a commit made while the live connection is down shows its outcome once the app reconnects and reads the receipt; a stash pop refused while the live connection is down shows what Git said once the app reconnects and reads the receipt.
-- The tests read back what the server kept through the kit: `server.commits()`, `server.text()`.
+- Connected path: the dialog's `status` "succeeded" with the commit on disk, and the pop's `alert` "…would be overwritten…" with README.md untouched.
+- `apps/web/spec/integration/git-actions-follow-receipt.test.tsx`: with the live connection dropped, the commit lands on the server while the dialog keeps button "Committing…" disabled, and "succeeded" appears only after the connection is restored; the refused pop keeps button "Working…" disabled until reconnect, then shows the alert "would be overwritten" and the file keeps its local text.
 
 ## Gotchas
 
-- The tests hold or drop the live connection or a request to reach a race; the CLI cannot, so an agent drives the ordinary path and leaves the race to the tests.
+- Unreachable through the CLI: the promise is about a dropped live connection. The commands that would be needed: `cli live drop` before the submit click and `cli live restore` after it, then look for "Committing…" (or "Working…") staying disabled until the restore and the outcome appearing after it.
+- Section 2 leaves a stash and a modified README.md behind; `git -C "$REPO" stash drop` and `git -C "$REPO" checkout README.md` reset it, or start a fresh instance.
