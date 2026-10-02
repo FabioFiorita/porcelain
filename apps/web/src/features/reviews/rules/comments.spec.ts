@@ -181,5 +181,13 @@ describe('anchorBase', () => {
         comparison: { kind: 'worktree', scope: 'unstaged' },
       }),
     ).toBeUndefined();
+    expect(
+      anchorBase({
+        kind: 'file',
+        filePath: 'notes.md',
+        comparison: { kind: 'branch', base: 'refs/heads/checkpoint' },
+        revision: 'a'.repeat(40),
+      }),
+    ).toBe('refs/heads/checkpoint');
   });
 });

@@ -28,6 +28,9 @@ describe('appUpdateProgress', () => {
     [{ status: 'error' as const, message: 'No release feed' }],
   ])('shows no progress for %j', (state) => {
     expect(appUpdateProgress(state)).toBeUndefined();
+    expect(appUpdateProgress({ status: 'checking' })).toBe(
+      'Checking for a new version…',
+    );
   });
 });
 

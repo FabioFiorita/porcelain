@@ -18,6 +18,11 @@ const range = (count: number) => Array.from({ length: count }, (_, at) => at);
 describe('diffBatches', () => {
   it('asks for nothing when no diff is wanted', () => {
     expect(diffBatches([file(0)], [], limit)).toEqual([]);
+    expect(
+      diffBatches([file(0)], [unstaged(0)], limit).map(
+        (batch) => batch.selections.length,
+      ),
+    ).toEqual([1]);
   });
 
   it('keeps up to the request limit in one request', () => {
@@ -105,5 +110,6 @@ describe('consecutiveBatches', () => {
 
   it('reads nothing when nothing is shown', () => {
     expect(consecutiveBatches([], 3)).toEqual([]);
+    expect(consecutiveBatches(range(1), 3)).toEqual([[0]]);
   });
 });
