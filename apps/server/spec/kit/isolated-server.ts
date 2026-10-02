@@ -558,7 +558,7 @@ export class ServerHandle {
     return [
       ...new Set(
         (await this.allHits()).flatMap((hit) =>
-          hit.route === undefined
+          hit.route === undefined || hit.status === 401
             ? []
             : [`${hit.owner ? 'owner ' : ''}${hit.method} ${hit.route}`],
         ),

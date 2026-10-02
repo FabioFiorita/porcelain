@@ -47,7 +47,7 @@ export default async function setup(project: TestProject) {
     await rm(routes, { recursive: true, force: true });
     if (unrequested.length > 0)
       throw new Error(
-        `Route coverage: no integration test requested ${unrequested.join(', ')}; every registered route is requested by at least one test in apps/server/spec/integration/.`,
+        `Route coverage: no integration test requested ${unrequested.join(', ')}; every registered route is requested, past authentication, by at least one test in apps/server/spec/integration/.`,
       );
   };
 }
