@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { accessApi } from '../api';
 import { useAccessStore } from '../store';
-import { ConnectionError } from '@/shared/api/connection-error';
+import { ConnectionError } from '@porcelain/client/transport';
 import { saveFileDrafts } from '@/shared/query/file-drafts';
 import { unsavedDraftsMessage } from '../rules/connection-error-message';
 

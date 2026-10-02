@@ -448,6 +448,46 @@ function commandCalls(body, visitorKeys) {
 }
 
 export const webRules = {
+  'client-platform-through-ports': {
+    create(context) {
+      const path = webPath(context);
+      if (!path.startsWith('packages/client/src/')) return {};
+      const message =
+        'The shared client receives platform capabilities through ports; browser globals, Expo and native UI stay in their app adapters.';
+      const check = (node) => {
+        const source = sourceOf(node);
+        if (
+          source !== undefined &&
+          /^(?:react-native|react-dom|expo(?:-[^/]+)?|@expo\/[^/]+)(?:\/|$)/.test(
+            source,
+          )
+        )
+          context.report({ node, message });
+      };
+      return {
+        ImportDeclaration: check,
+        ImportExpression: check,
+        ExportNamedDeclaration: check,
+        ExportAllDeclaration: check,
+        'Program:exit'(program) {
+          for (const node of globalUses(
+            context,
+            program,
+            new Set([
+              'window',
+              'document',
+              'navigator',
+              'location',
+              'history',
+              'localStorage',
+              'sessionStorage',
+            ]),
+          ))
+            context.report({ node, message });
+        },
+      };
+    },
+  },
   'web-no-module-mutable-binding': {
     create(context) {
       if (!runtimeWeb(webPath(context))) return {};
@@ -645,7 +685,19 @@ export const webRules = {
       const check = (node) => {
         const specifier = sourceOf(node);
         if (specifier === undefined) return;
-        if (localTarget(path, specifier) === 'shared/api/request')
+        if (
+          localTarget(path, specifier) === 'shared/api/request' ||
+          (specifier === '@porcelain/client/transport' &&
+            (node.type === 'ImportExpression' ||
+              node.type === 'ExportAllDeclaration' ||
+              node.specifiers?.some(
+                (binding) =>
+                  binding.type === 'ImportNamespaceSpecifier' ||
+                  binding.imported?.name === 'requestJson' ||
+                  binding.imported?.value === 'requestJson' ||
+                  binding.local?.name === 'requestJson',
+              )))
+        )
           context.report({
             node,
             message:

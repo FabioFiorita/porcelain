@@ -11,9 +11,9 @@ import {
   setFilePreferenceResponseSchema,
   type SetFilePreferenceRequest,
 } from '@porcelain/contracts/projects';
-import { requestJson } from '@/shared/api/request';
-import { perConnection } from '@/shared/api/per-connection';
-import type { Transport } from '@/shared/api/transport';
+import { requestJson } from '@porcelain/client/transport';
+import { perConnection } from '@porcelain/client/transport';
+import type { Transport } from '@porcelain/client/transport';
 
 function createProjectsApi(transport: Transport) {
   const preferencesPath = (projectId: string) =>

@@ -4,9 +4,9 @@ import {
   readCommitFilesResponseSchema,
 } from '@porcelain/contracts/changes';
 import { COMMITS_PER_PAGE } from '@porcelain/contracts/shared';
-import { requestJson } from '@/shared/api/request';
-import { perConnection } from '@/shared/api/per-connection';
-import type { Transport } from '@/shared/api/transport';
+import { requestJson } from '@porcelain/client/transport';
+import { perConnection } from '@porcelain/client/transport';
+import type { Transport } from '@porcelain/client/transport';
 
 const worktreePath = (worktreeId: string) =>
   `/api/worktrees/${encodeURIComponent(worktreeId)}/commits`;

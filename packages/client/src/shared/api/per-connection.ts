@@ -1,4 +1,4 @@
-import type { Transport } from './transport';
+import type { Transport } from './transport.ts';
 
 export function perConnection<Api>(create: (transport: Transport) => Api) {
   const created = new WeakMap<Transport, Api>();

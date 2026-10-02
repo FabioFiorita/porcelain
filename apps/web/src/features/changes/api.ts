@@ -13,9 +13,9 @@ import {
   type ReadBranchDiffsRequest,
   type ReadChangeDiffsRequest,
 } from '@porcelain/contracts/changes';
-import { RequestError, requestJson } from '@/shared/api/request';
-import { perConnection } from '@/shared/api/per-connection';
-import type { Transport } from '@/shared/api/transport';
+import { RequestError, requestJson } from '@porcelain/client/transport';
+import { perConnection } from '@porcelain/client/transport';
+import type { Transport } from '@porcelain/client/transport';
 
 function createChangesApi(transport: Transport) {
   const worktreePath = (worktreeId: string) =>

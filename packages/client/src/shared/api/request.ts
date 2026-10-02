@@ -1,6 +1,6 @@
 import { apiErrorSchema, type ApiErrorCode } from '@porcelain/contracts/shared';
-import { ConnectionError } from './connection-error';
-import type { Transport } from './transport';
+import { ConnectionError } from './connection-error.ts';
+import type { Transport } from './transport.ts';
 
 type ResponseSchema<T> = { parse(value: unknown): T };
 

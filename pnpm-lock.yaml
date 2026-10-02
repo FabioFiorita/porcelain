@@ -491,7 +491,11 @@ importers:
         specifier: workspace:*
         version: link:../kernel
 
-  packages/client: {}
+  packages/client:
+    dependencies:
+      '@porcelain/contracts':
+        specifier: workspace:*
+        version: link:../contracts
 
   packages/contracts:
     dependencies:

@@ -7,11 +7,11 @@ import {
   runGitActionRejectedResponseSchema,
   runGitActionRequestSchema,
 } from '@porcelain/contracts/git-actions';
-import { RequestError, requestJson } from '@/shared/api/request';
+import { RequestError, requestJson } from '@porcelain/client/transport';
 import { GIT_ACTION_REJECTED_STATUSES } from '@/config/limits';
 import type { GitActionsPort } from './rules/git-action';
-import { perConnection } from '@/shared/api/per-connection';
-import type { Transport } from '@/shared/api/transport';
+import { perConnection } from '@porcelain/client/transport';
+import type { Transport } from '@porcelain/client/transport';
 
 function createGitActionsApi(transport: Transport): GitActionsPort {
   const path = (worktreeId: string) =>
