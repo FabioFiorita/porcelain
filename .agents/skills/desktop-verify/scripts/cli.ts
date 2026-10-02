@@ -4,7 +4,6 @@ import { existsSync, writeFileSync } from 'node:fs';
 import { cp, mkdtemp, realpath, rm } from 'node:fs/promises';
 import { createServer as createHttpServer } from 'node:http';
 import { createServer } from 'node:net';
-import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
@@ -164,7 +163,7 @@ function control(
 
 async function serve(id: string, evidence: string, print: string) {
   const workspace = await realpath(
-    await mkdtemp(join(tmpdir(), 'porcelain-desktop-verify-')),
+    await mkdtemp(join('/tmp', 'porcelain-desktop-verify-')),
   );
   let electron: ElectronApplication | undefined;
   let child: ReturnType<ElectronApplication['process']> | undefined;

@@ -88,7 +88,7 @@ osascript -e 'tell application "Terminal" to do script "cd ~/Code/<worktree> && 
 tail -f /tmp/desktop-e2e.log
 ```
 
-`caffeinate -u` declares user activity and wakes a sleeping display; the run hangs at its first full screen transition while the display sleeps. The tests that never touch credentials (`folder-picker`, `menus`, `window`) also run over SSH.
+`caffeinate -u` declares user activity and wakes a sleeping display. macOS finishes a full screen transition only on an awake, unlocked screen: while the session is locked the full screen test of `window.e2e.ts` fails with the window never entering or leaving full screen, so the owner unlocks the Mac for a full run. Check with `ioreg -n Root -d1 -a | grep -A1 CGSSessionScreenIsLocked`. The tests that never touch credentials or full screen (`folder-picker`, `menus`) also run over SSH.
 
 ## 5. The installed app
 

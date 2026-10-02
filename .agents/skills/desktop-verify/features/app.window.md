@@ -63,6 +63,6 @@ Look for: `app-exited.txt` and `server.log` in the evidence folder `start` print
 
 ## Gotchas
 
-- macOS never finishes a full screen transition while the display sleeps; `start` holds `caffeinate -d -u` for the instance's lifetime.
+- macOS finishes a full screen transition only on an awake, unlocked screen; `start` holds `caffeinate -d -u` for the instance's lifetime, but a locked session still leaves `window fullscreen` waiting.
 - Electron names the Quit item after the app, “Quit Porcelain Dev” here; `menu` alone prints the tree with the exact labels.
 - Restoring bounds and appearance across a restart needs the same profile, which a new `start` never reuses; the e2e test proves it.

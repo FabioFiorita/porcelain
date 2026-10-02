@@ -171,8 +171,17 @@ async function changeWindow(
     return '';
   }
   if (action === 'close') {
-    await electron.evaluate(({ BrowserWindow }) =>
-      BrowserWindow.getAllWindows()[0]?.close(),
+    await electron.evaluate(
+      ({ BrowserWindow }) =>
+        new Promise<void>((closed) => {
+          const view = BrowserWindow.getAllWindows()[0];
+          if (view === undefined) {
+            closed();
+            return;
+          }
+          view.once('closed', () => closed());
+          view.close();
+        }),
     );
     return '';
   }

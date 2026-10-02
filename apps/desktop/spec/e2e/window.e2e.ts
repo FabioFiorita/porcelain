@@ -46,19 +46,20 @@ function sidebarInset(page: Page) {
   });
 }
 
-function fullscreen(app: DesktopApp, value: boolean) {
-  return app.electron.evaluate(
-    ({ BrowserWindow }, value) =>
-      new Promise<void>((resolveFullscreen) => {
-        const view = BrowserWindow.getAllWindows()[0];
-        if (view === undefined) throw new Error('The app window is missing');
-        view.focus();
-        if (value) view.once('enter-full-screen', () => resolveFullscreen());
-        else view.once('leave-full-screen', () => resolveFullscreen());
-        view.setFullScreen(value);
-      }),
-    value,
-  );
+async function fullscreen(app: DesktopApp, value: boolean) {
+  await app.electron.evaluate(({ BrowserWindow }, value) => {
+    const view = BrowserWindow.getAllWindows()[0];
+    if (view === undefined) throw new Error('The app window is missing');
+    view.focus();
+    view.setFullScreen(value);
+  }, value);
+  await expect
+    .poll(() =>
+      app.electron.evaluate(({ BrowserWindow }) =>
+        BrowserWindow.getAllWindows()[0]?.isFullScreen(),
+      ),
+    )
+    .toBe(value);
 }
 
 test('the app serves its window from a private loopback server that refuses other callers and keeps its credential from the renderer', async ({
