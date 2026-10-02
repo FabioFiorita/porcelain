@@ -128,9 +128,8 @@ const porcelainProjectHome: BrowserCommand<
   string
 > = (context, step, server) => world(context).projectHome(step, server);
 
-const porcelainCodingTool: BrowserCommand<[], CodingToolReplies> = (
-  context,
-) => world(context).codingTool();
+const porcelainCodingTool: BrowserCommand<[], CodingToolReplies> = (context) =>
+  world(context).codingTool();
 
 export const hostCommands = {
   porcelainStart,
