@@ -1,7 +1,7 @@
 appId: com.fabiofiorita.porcelain.dev
 name: Pair and restore multiple environments
 ---
-- launchApp
+- runFlow: launch-development.yaml
 - runFlow: open-settings.yaml
 - assertVisible: Environments
 - tapOn: Add environment
@@ -31,7 +31,7 @@ name: Pair and restore multiple environments
 - assertVisible: ${SECOND_ENVIRONMENT_NAME}
 - assertVisible: Online
 - stopApp
-- launchApp
+- runFlow: launch-development.yaml
 - runFlow: open-settings.yaml
 - assertVisible: ${FIRST_ENVIRONMENT_NAME}
 - assertVisible: ${SECOND_ENVIRONMENT_NAME}
@@ -41,7 +41,7 @@ name: Pair and restore multiple environments
 - assertNotVisible: ${FIRST_ENVIRONMENT_NAME}
 - assertVisible: ${SECOND_ENVIRONMENT_NAME}
 - stopApp
-- launchApp
+- runFlow: launch-development.yaml
 - runFlow: open-settings.yaml
 - assertNotVisible: ${FIRST_ENVIRONMENT_NAME}
 - assertVisible: ${SECOND_ENVIRONMENT_NAME}
@@ -49,7 +49,7 @@ name: Pair and restore multiple environments
 - tapOn: Forget environment
 - assertNotVisible: ${SECOND_ENVIRONMENT_NAME}
 - stopApp
-- launchApp
+- runFlow: launch-development.yaml
 - runFlow: open-settings.yaml
 - assertNotVisible: ${FIRST_ENVIRONMENT_NAME}
 - assertNotVisible: ${SECOND_ENVIRONMENT_NAME}

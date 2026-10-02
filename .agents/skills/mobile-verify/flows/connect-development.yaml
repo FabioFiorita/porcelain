@@ -1,0 +1,17 @@
+appId: com.fabiofiorita.porcelain.dev
+name: Connect the owned development simulator
+---
+- openLink: ${DEVELOPMENT_URL}
+- runFlow:
+    when:
+      visible: (Abrir|Open)
+    commands:
+      - tapOn: (Abrir|Open)
+- launchApp:
+    stopApp: false
+- tapOn:
+    text: Continue
+    optional: true
+- extendedWaitUntil:
+    visible: Review
+    timeout: 30000

@@ -1,0 +1,7 @@
+appId: com.fabiofiorita.porcelain.dev
+name: Await bounded native startup
+---
+- launchApp
+- extendedWaitUntil:
+    visible: Review
+    timeout: 30000

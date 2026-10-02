@@ -1,7 +1,7 @@
 appId: com.fabiofiorita.porcelain.dev
 name: Unpaired phone destinations
 ---
-- launchApp
+- runFlow: launch-development.yaml
 - assertNotVisible: Workspaces
 - assertVisible:
     text: Review

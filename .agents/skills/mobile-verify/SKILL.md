@@ -11,9 +11,15 @@ Generate the iOS project with `pnpm --filter @porcelain/mobile exec expo prebuil
 
 Start Metro with `pnpm dev:mobile`. Development uses a native development client. A JavaScript change refreshes through Metro; changing native dependencies, plugins or module sources requires another local native build. Do not request a cloud build for an iteration.
 
+Keep native builds, simulator journeys, browser suites and the final check serial on the host. Code work may proceed in parallel. Use only the simulator owned by this session. For an isolated Metro server, run `pnpm --filter @porcelain/mobile exec expo start --dev-client --localhost --port <free-port> --max-workers 2`; keep that port throughout the device proof. Stop Metro and shut down the owned simulator before running checks or probes.
+
 Use the installed `xcodebuildmcp-cli` skill to discover simulators, inspect defaults and run `simulator build-and-run` against `apps/mobile/ios/PorcelainDev.xcworkspace`, scheme `PorcelainDev`, configuration `Debug`. Save its build duration and build/runtime log paths. Native compilation is a separate required stage, not part of the portable fast check.
 
 Open `com.fabiofiorita.porcelain.dev` with Agent Device. Connect the development client to the URL Metro serves. Check the server's listening address when an advertised IPv4 loopback URL fails: `--localhost` can bind only IPv6; `http://localhost:8081` reaches that listener.
+
+For Maestro, run `flows/connect-development.yaml` with `-e DEVELOPMENT_URL=<development-client-deep-link>` before the behavioral journey. Construct the development URL as `porcelain.dev://expo-development-client/?url=<encoded-Metro-URL>`. This setup accepts iOS's first-open confirmation, foregrounds the app and dismisses Expo's first-run developer-menu tutorial. Keep setup separate from the shell's selected-tab assertions; a completed deep-link command alone does not prove that the app opened.
+
+Cold launches use `flows/launch-development.yaml`: launch the app and await Review for at most 30 seconds before the journey's assertions. The owner approved this separate startup phase for iOS 27's slower development-client launch. Selected-tab, pairing, restart and context-menu assertions retain their own checks; do not replace them with the readiness check.
 
 The initial shell journey covers unpaired navigation only. Run the Agent Device journey with semantic selectors, checking each destination's native content (`role=staticText` for SwiftUI text, not `role=text`) and Settings' empty-environment content. Its iOS AX backend can omit selected-tab traits; Maestro's XCTest selected-state assertions cover those separately. Preserve failures when a driver cannot substantiate a fact. Preserve an `.ad` recording with a selector destination guard and replay it. The initial recording replay diverged when Agent Device switched AX/XCTest backends and changed the native tab ancestry. Keep that failure as driver evidence; do not strip target identity metadata to make it pass. Maestro currently provides the repeatable shell regression. Run the same promise independently with Maestro:
 
