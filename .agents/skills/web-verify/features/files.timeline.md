@@ -2,11 +2,11 @@
 route: /
 selectors:
   - "Review"
+  - "Worktree review"
   - "Files"
-  - "guide.md"
   - "Timeline"
-  - "Renamed from README.md"
-  - "Added as README.md"
+  - "Timeline of "
+  - "Renamed from"
   - "Start of this file’s history."
   - "Show timeline"
 tests:
@@ -21,69 +21,66 @@ api:
 
 ## What it is
 
-The timeline of a file lists the commits that changed it, newest first, following it back across a rename and naming the path it had, and opening one shows that commit with the diff of the file.
+A file's timeline lists the commits that changed it, newest first. It follows the file back across a rename and names the path it had then. Opening a commit shows that commit with the file's diff.
 
 ## How a user reaches it
 
-- Review → Files → file → Timeline, or right-click the file → Show timeline
+- Open a file document (Review → tab Files → click a file row), then button "Timeline" in its toolbar. Below 720 px the label is visually hidden, but the button keeps the name "Timeline".
+- Review → tab Files → right-click a file row → menuitem "Show timeline".
+- Review → tab Changes → right-click a change row → "Show timeline".
 
 ## Driving it
 
-Start an instance first: `.agents/skills/web-verify/scripts/cli start`.
+Start with `.agents/skills/web-verify/scripts/cli start`. Set `REPO` to the path it prints after `repository`.
 
-### 1. The timeline of a renamed file lists its commits across the rename and opens the diff of one
+### Setup
 
-Before driving, on the instance (the sample repository and project home are in the instance file):
-
-- commit everything in the sample repository as “Explain the change to review”
-- write `guide.md` in the sample repository
-- delete `README.md` from the sample repository
-- commit everything in the sample repository as “Move the readme to the guide”
+Before `open`. This makes three commits touching the file: the initial commit, a modification, and a rename to `guide.md`.
 
 ```sh
-.agents/skills/web-verify/scripts/cli open /
+git -C "$REPO" -c user.name=Verifier -c user.email=verify@example.invalid commit -am "Explain the change to review"
+git -C "$REPO" mv README.md guide.md
+git -C "$REPO" -c user.name=Verifier -c user.email=verify@example.invalid commit -m "Move the readme to the guide"
+git -C "$REPO" log --follow --format=%s -- guide.md
 ```
 
-1. `.agents/skills/web-verify/scripts/cli click --role button --name "Review"`
-   Look for: the page settles; take a snapshot to read what it shows.
-2. `.agents/skills/web-verify/scripts/cli click --role tab --name "Files"`
-   Look for: the page settles; take a snapshot to read what it shows.
-3. `.agents/skills/web-verify/scripts/cli click --role treeitem --name "guide.md"`
-   Look for: the page settles; take a snapshot to read what it shows.
-4. `.agents/skills/web-verify/scripts/cli click --role button --name "Timeline"`
-   Look for: the text “Renamed from README.md” shows; the text “Modified as README.md” shows; the text “Added as README.md” shows; the text “Start of this file’s history.” shows; the heading “Explain the change to review” shows; the text “A change to review.” shows.
+The last line prints `Move the readme to the guide`, `Explain the change to review`, `Initial commit`. The working tree is now clean.
 
-Then `.agents/skills/web-verify/scripts/cli snapshot` and `.agents/skills/web-verify/scripts/cli screenshot` record the end state, and `.agents/skills/web-verify/scripts/cli network` lists the requests the page sent.
+### 1. The timeline follows the rename and opens a commit
 
-### 2. The file tree opens the timeline of a file
+1. `.agents/skills/web-verify/scripts/cli open /`
+   Look for: button "Review".
+2. `.agents/skills/web-verify/scripts/cli click --role button --name "Review"`
+   Look for: dialog "Worktree review".
+3. `.agents/skills/web-verify/scripts/cli click --role tab --name "Files"`
+   Look for: treeitem "guide.md" in the tree of region "All files", and no treeitem "README.md".
+4. `.agents/skills/web-verify/scripts/cli click --role treeitem --name "guide.md"`
+   Look for: the dialog is gone; heading "guide.md" [level=1]; button "Timeline"; Page Title "guide.md — repository".
+5. `.agents/skills/web-verify/scripts/cli click --role button --name "Timeline"`
+   Look for: Page Title "Timeline of guide.md — repository"; list "Timeline of guide.md" holding, in order, buttons beginning "Move the readme to the guide", "Explain the change to review" and "Initial commit", with the texts "Renamed from README.md", "Modified as README.md" and "Added as README.md", then "Start of this file’s history.".
+6. `.agents/skills/web-verify/scripts/cli click --role button --name "/^Explain the change to review/"`
+   Look for: heading "Explain the change to review" [level=2] and the text "A change to review." in the README diff. The Page Title is the commit's 7-character id, from `git -C "$REPO" rev-parse --short=7 HEAD~1`, followed by " — repository".
 
-Before driving, on the instance (the sample repository and project home are in the instance file):
+### 2. The tree menu opens the timeline
 
-- commit everything in the sample repository as “Explain the change to review”
-- write `guide.md` in the sample repository
-- delete `README.md` from the sample repository
-- commit everything in the sample repository as “Move the readme to the guide”
-
-```sh
-.agents/skills/web-verify/scripts/cli open /
-```
-
-1. `.agents/skills/web-verify/scripts/cli click --role button --name "Review"`
-   Look for: the page settles; take a snapshot to read what it shows.
-2. `.agents/skills/web-verify/scripts/cli click --role tab --name "Files"`
-   Look for: the page settles; take a snapshot to read what it shows.
-3. `.agents/skills/web-verify/scripts/cli click --role treeitem --name "guide.md" --button right`
-   Look for: the page settles; take a snapshot to read what it shows.
-4. `.agents/skills/web-verify/scripts/cli click --role menuitem --name "Show timeline"`
-   Look for: the button “/^Move the readme to the guide/” shows.
-
-Then `.agents/skills/web-verify/scripts/cli snapshot` and `.agents/skills/web-verify/scripts/cli screenshot` record the end state, and `.agents/skills/web-verify/scripts/cli network` lists the requests the page sent.
+7. `.agents/skills/web-verify/scripts/cli click --role button --name "Review"`
+   Look for: dialog "Worktree review" on tab "Files".
+8. `.agents/skills/web-verify/scripts/cli click --role treeitem --name "guide.md" --button right`
+   Look for: menuitem "Show timeline".
+9. `.agents/skills/web-verify/scripts/cli click --role menuitem --name "Show timeline"`
+   Look for: the dialog is gone; list "Timeline of guide.md" with a button beginning "Move the readme to the guide".
+10. `.agents/skills/web-verify/scripts/cli network`
+    Look for: `GET /api/worktrees/<worktreeId>/file-commits?path=guide.md...`, `GET /api/worktrees/<worktreeId>/commits/<oid>/files` and `POST /api/worktrees/<worktreeId>/commits/<oid>/diffs`, all 2xx.
 
 ## What proves it works
 
-- `apps/web/spec/integration/files-timeline.test.tsx` (Browser Mode integration): the timeline of a renamed file lists its commits across the rename and opens the diff of one; the file tree opens the timeline of a file.
-- The tests read back what the server kept through the kit: `server.commits()`.
+- The three rows match `git log --follow -- guide.md`, and the oldest two name the old path `README.md`. That shows the server followed the rename.
+- `apps/web/spec/integration/files-timeline.test.tsx` makes the same commits. The first test opens guide.md, then Timeline, and asserts list "Timeline of guide.md" shows "Renamed from README.md", "Modified as README.md", "Added as README.md" and "Start of this file’s history.". It then asserts that opening "Explain the change to review" shows that heading and "A change to review.". The second test asserts that the tree menu's "Show timeline" shows the button "Move the readme to the guide…".
 
 ## Gotchas
 
-- The CLI browser is phone width (414 by 896), so the review panel opens from the Review button instead of standing beside the document.
+- Do the git setup before `open /`. The timeline is not refetched on focus, so commits made after it loads show only after `open /`.
+- After the setup README.md no longer exists, and the working tree is clean, so the Changes tab is empty. Clicking guide.md opens it as a file document, which is the one with the "Timeline" button. A changed file opens as a diff instead.
+- A commit row's name starts with its subject and continues with the short id, author and age, so address it with `/^<subject>/`.
+- At phone width the tree lives in the sheet behind button "Review". Each opened document closes it.
+- The timeline document tab is named after the file, like the file document tab: both read "guide.md Close guide.md", so `--role tab --name "guide.md Close guide.md"` is ambiguous once both are open; move between them with the buttons inside the documents ("Timeline") or the Page URL (`entry=timeline%3Aguide.md`, `entry=file%3Aguide.md`).
