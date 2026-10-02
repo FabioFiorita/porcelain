@@ -9,6 +9,7 @@ export {
   remoteStatus,
   withRemote,
   type Remote,
+  type RemoteStatus,
 } from '@porcelain/client/access/rules';
 export { remoteLink } from '@porcelain/client/access/rules';
 
