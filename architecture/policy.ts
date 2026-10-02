@@ -322,7 +322,6 @@ export const archRules = [
   'web-features-import-feature-index',
   'web-shared-imports-no-owner',
   'web-nothing-imports-routes',
-  'web-baseline',
 ] as const;
 
 export type ArchRule =
@@ -363,8 +362,6 @@ export const styleRules = [
   'vite-config',
   'route-tree',
   'react-compiler',
-  'web-baseline',
-  'web-journey-baseline',
   'shadcn-ui-pinned',
   'web-feature-map',
   'duplicate-code',
@@ -1599,8 +1596,6 @@ const archRuleReasons = {
     'Keep shared/ and components/ui free of features, the app shell and routes; they serve every owner and import none of them.',
   'web-nothing-imports-routes':
     'Import what a route uses from its feature instead; routes are the leaves TanStack Router loads from the generated route tree, and nothing else imports them.',
-  'web-baseline':
-    'Fix the new finding instead of raising architecture/web-baseline.json, and write a lower count down when one is fixed; the baseline only shrinks, so old debt never grows back.',
 } satisfies Record<
   (typeof archRules)[number] | (typeof archRuleFamilies)[number],
   string

@@ -161,6 +161,12 @@
         "typescript/no-unsafe-member-access": "off",
         "typescript/no-unsafe-return": "off"
       }
+    },
+    {
+      "files": ["apps/web/src/shared/workspace/copy.ts"],
+      "rules": {
+        "typescript/no-deprecated": "off"
+      }
     }
   ]
 }

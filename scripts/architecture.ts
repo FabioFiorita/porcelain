@@ -7,11 +7,6 @@ import extractDepcruiseOptions from 'dependency-cruiser/config-utl/extract-depcr
 import { z } from 'zod';
 import web from '../apps/web/vite.config.ts';
 import {
-  baselineHistoryProblems,
-  readBaseline,
-  settleBaseline,
-} from '../architecture/baseline.ts';
-import {
   allowedContractType,
   allowedProcessImport,
   archRuleReason,
@@ -534,7 +529,7 @@ try {
   const sources = [...allRoots.flatMap(sourceFiles), webConfig, mobileConfig];
   const report = await scan(sources);
   const { classified, findings } = classifyAll(sources);
-  const found = [
+  const violations: Finding[] = [
     ...findings,
     ...dependencyFindings(report, classified),
     ...packageExportFindings(),
@@ -542,21 +537,6 @@ try {
     ...placementFindings(),
     ...typeRuleFindings(repositoryRoot),
     ...unusedExportFindings(repositoryRoot),
-  ];
-  const settled = settleBaseline(
-    readBaseline(repositoryRoot),
-    (rule) => !rule.includes('/'),
-    found.map((finding) => ({ ...finding, file: finding.from })),
-  );
-  const violations: Finding[] = [
-    ...settled.reported,
-    ...[...settled.problems, ...baselineHistoryProblems(repositoryRoot)].map(
-      (problem) => ({
-        rule: 'web-baseline' as const,
-        from: problem,
-        to: 'architecture/web-baseline.json',
-      }),
-    ),
   ];
   const byRule = new Map<ArchRule, Finding[]>();
   for (const finding of violations) {
@@ -576,7 +556,7 @@ try {
       process.stdout.write(`  ... ${entries.length - 3} more (use --all)\n`);
   }
   process.stdout.write(
-    `${violations.length} violations; ${settled.held} web findings held by architecture/web-baseline.json; ${classified.size} of ${sources.length} source files classified; ${report.summary.totalDependenciesCruised} dependencies\n`,
+    `${violations.length} violations; ${classified.size} of ${sources.length} source files classified; ${report.summary.totalDependenciesCruised} dependencies\n`,
   );
   if (violations.length > 0) process.exitCode = 1;
 } catch (error) {

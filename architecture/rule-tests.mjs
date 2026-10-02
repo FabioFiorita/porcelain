@@ -5,7 +5,6 @@ import plugin from './oxlint-plugin.mjs';
 import ruleCases from './rule-cases.mjs';
 import { manualAuditProblems } from './ci-policy.ts';
 import { preflightEdits } from './probe-edits.ts';
-import { settleBaseline } from './baseline.ts';
 import { classify, violation } from './policy.ts';
 
 const root = new URL('../', import.meta.url);
@@ -291,52 +290,6 @@ throws(
 process.stdout.write(
   'PASS manual audit policy and read-only fixture preflight\n',
 );
-const held = 'apps/web/src/features/files/views/held.tsx';
-const rule = 'porcelain/web-no-empty-catch';
-const settled = (files) =>
-  settleBaseline(
-    { baseline: { [rule]: { [held]: 2 } }, problems: [] },
-    (name) => name.includes('/'),
-    Object.entries(files).flatMap(([file, count]) =>
-      Array.from({ length: count }, () => ({ rule, file })),
-    ),
-  );
-const summary = ({ reported, held: count, problems }) => ({
-  reported: reported.length,
-  held: count,
-  problems: problems.map((found) => /holds|down to|is fixed/.exec(found)?.[0]),
-});
-deepStrictEqual(summary(settled({ [held]: 2 })), {
-  reported: 0,
-  held: 2,
-  problems: [],
-});
-deepStrictEqual(summary(settled({ [held]: 3 })), {
-  reported: 3,
-  held: 0,
-  problems: ['holds'],
-});
-deepStrictEqual(summary(settled({ [held]: 1 })), {
-  reported: 0,
-  held: 1,
-  problems: ['down to'],
-});
-deepStrictEqual(summary(settled({})), {
-  reported: 0,
-  held: 0,
-  problems: ['is fixed'],
-});
-deepStrictEqual(
-  summary(
-    settled({
-      [held]: 2,
-      'apps/web/src/features/files/views/new.tsx': 1,
-      'packages/files/src/services/list.ts': 1,
-    }),
-  ),
-  { reported: 2, held: 2, problems: [] },
-);
-process.stdout.write('PASS shrink-only baseline settlement\n');
 
 deepStrictEqual(classify('apps/mobile/src/app/index.tsx'), {
   role: 'route',
