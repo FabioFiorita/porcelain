@@ -65,7 +65,7 @@ const specDiscipline: Reporter = {
 export default defineConfig({
   test: {
     root,
-    maxWorkers: 4,
+    maxWorkers: 6,
     passWithNoTests: false,
     allowOnly: false,
     reporters: ['default', specDiscipline],
