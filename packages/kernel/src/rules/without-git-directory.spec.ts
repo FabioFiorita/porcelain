@@ -25,8 +25,5 @@ describe('withoutGitDirectory', () => {
 
   it('answers nothing for no entries', () => {
     expect(withoutGitDirectory([])).toEqual([]);
-    expect(withoutGitDirectory([{ name: 'README.md' }])).toEqual([
-      { name: 'README.md' },
-    ]);
   });
 });

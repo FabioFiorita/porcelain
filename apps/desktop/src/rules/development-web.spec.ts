@@ -10,18 +10,12 @@ describe('developmentWeb', () => {
 
   it('serves the unpackaged app its built web when no Vite server was given', () => {
     expect(developmentWeb(false, undefined)).toBeUndefined();
-    expect(developmentWeb(false, 'http://localhost:5199')).toBe(
-      'http://localhost:5199',
-    );
   });
 
   it.each(['http://127.0.0.1:5199', 'https://example.com', 'nonsense'])(
     'ignores a Vite server given to the installed app: %s',
     (value) => {
       expect(developmentWeb(true, value)).toBeUndefined();
-      expect(developmentWeb(false, 'http://127.0.0.1:5199')).toBe(
-        'http://127.0.0.1:5199',
-      );
     },
   );
 

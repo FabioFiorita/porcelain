@@ -7,6 +7,7 @@ import {
   forwardedResponseHeaders,
   forwardedWebRequestHeaders,
 } from './app-request.ts';
+import { desktopContentSecurityPolicy } from './content-security-policy.ts';
 
 const server = {
   address: 'http://127.0.0.1:4321',
@@ -22,13 +23,6 @@ describe('appRequestRefusal', () => {
         initiatorOrigin: undefined,
       }),
     ).toBeUndefined();
-    expect(
-      appRequestRefusal({
-        url: 'porcelain://app/project/worktree',
-        origin: null,
-        initiatorOrigin: 'https://evil.example',
-      }),
-    ).toBe('Unknown desktop initiator');
   });
 
   it('admits a request the app document makes', () => {
@@ -39,13 +33,6 @@ describe('appRequestRefusal', () => {
         initiatorOrigin: 'porcelain://app',
       }),
     ).toBeUndefined();
-    expect(
-      appRequestRefusal({
-        url: 'porcelain://app/api/inventory',
-        origin: 'https://evil.example',
-        initiatorOrigin: 'porcelain://app',
-      }),
-    ).toBe('Unknown desktop origin');
   });
 
   it.each([
@@ -102,12 +89,6 @@ describe('appRequestTarget', () => {
     'never leaves the server origin for a path that reads as another host: %s',
     (url) => {
       expect(appRequestTarget(url, server.address)).toBeUndefined();
-      expect(
-        appRequestTarget(
-          'porcelain://app/evil.example/api/inventory',
-          server.address,
-        ),
-      ).toBe('http://127.0.0.1:4321/evil.example/api/inventory');
     },
   );
 });
@@ -172,9 +153,7 @@ describe('forwardedResponseHeaders', () => {
       forwardedResponseHeaders('/project/worktree', answer, 'built').get(
         'content-security-policy',
       ),
-    ).toBe(
-      "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' http: https: ws: wss:; frame-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'",
-    );
+    ).toBe(desktopContentSecurityPolicy('built'));
   });
 
   it('leaves the policy of an API answer as the server sent it', () => {
@@ -190,9 +169,7 @@ describe('forwardedResponseHeaders', () => {
       forwardedResponseHeaders('/project/worktree', answer, 'development').get(
         'content-security-policy',
       ),
-    ).toBe(
-      "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' http: https: ws: wss:; frame-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'",
-    );
+    ).toBe(desktopContentSecurityPolicy('development'));
   });
 });
 

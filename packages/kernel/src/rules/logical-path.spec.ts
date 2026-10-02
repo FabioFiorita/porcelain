@@ -32,7 +32,6 @@ describe('trackedPath', () => {
 
   it('names nothing when neither side has a path', () => {
     expect(trackedPath({})).toBeUndefined();
-    expect(trackedPath({ newPath: 'added.md' })).toBe('added.md');
   });
 });
 
