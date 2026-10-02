@@ -1,20 +1,24 @@
 import { useMutation } from '@tanstack/react-query';
 import { desktopProjectPicker } from '@/shared/adapters/desktop';
+import type { Project, WorktreeTarget } from '../rules/inventory';
 import { useProjectBrowserStore } from '../store';
 import { useRegisterProject } from './register-project';
 import { type Connection } from '@/shared/workspace/connection';
 
+type Opened = (target: WorktreeTarget) => Promise<void>;
+
+function openedWorktree(remote: string | null, project: Project) {
+  const worktree = project.worktrees.find((entry) => entry.available);
+  return worktree && { remote, projectId: project.id, worktreeId: worktree.id };
+}
+
 export function useOpenProject(
-  connection: Connection | null,
+  connection: Connection,
+  remote: string | null,
   close: () => void,
-  selectWorktree: (projectId: string, worktreeId: string) => Promise<void>,
+  selectWorktree: Opened,
 ) {
   const register = useRegisterProject(connection);
-  const picker = desktopProjectPicker(connection?.address);
-  const reset = () => {
-    register.reset();
-    useProjectBrowserStore.getState().reset();
-  };
   const submit = async (path: string) => {
     if (register.isPending) return;
     let project;
@@ -23,35 +27,42 @@ export function useOpenProject(
     } catch {
       return;
     }
-    const worktree = project.worktrees.find((entry) => entry.available);
-    reset();
+    const target = openedWorktree(remote, project);
+    useProjectBrowserStore.getState().reset();
     close();
-    if (worktree) await selectWorktree(project.id, worktree.id);
+    if (target) await selectWorktree(target);
   };
-  const selection = useMutation({
-    mutationFn: async () => {
-      const path = await picker?.();
-      if (path == null) {
-        close();
-        return;
-      }
-      await submit(path);
-    },
-  });
   return {
-    native: picker !== undefined,
-    isPending: register.isPending || selection.isPending,
-    error: register.error ?? selection.error,
-    onOpenChange: (open: boolean) => {
-      if (open && picker !== undefined) selection.mutate();
-    },
-    onCloseChange: (open: boolean) => {
-      if (!open && !register.isPending) {
-        reset();
-        selection.reset();
-      }
-    },
-    choose: selection.mutate,
+    isPending: register.isPending,
+    error: register.error,
     submit,
   };
+}
+
+export function resetProjectBrowser(open: boolean) {
+  if (!open) useProjectBrowserStore.getState().reset();
+}
+
+export function useNativeProjectPicker(
+  connection: Connection,
+  selectWorktree: Opened,
+  fail: (error: Error) => void,
+) {
+  const register = useRegisterProject(connection);
+  const picker = desktopProjectPicker(connection.address);
+  const selection = useMutation({
+    mutationFn: async (pick: () => Promise<string | null>) => {
+      const path = await pick();
+      if (path == null) return;
+      const target = openedWorktree(null, await register.submit(path));
+      if (target) await selectWorktree(target);
+    },
+    onError: fail,
+  });
+  return (
+    picker &&
+    (() => {
+      if (!selection.isPending) selection.mutate(picker);
+    })
+  );
 }

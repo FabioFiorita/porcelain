@@ -1,11 +1,6 @@
 import { Fragment } from 'react';
 import { formatForDisplay } from '@tanstack/react-hotkeys';
-import {
-  KeyboardIcon,
-  MonitorIcon,
-  PlusIcon,
-  SettingsIcon,
-} from 'lucide-react';
+import { KeyboardIcon, MonitorIcon, SettingsIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Empty,
@@ -18,6 +13,7 @@ import { SidebarMenuSubItem } from '@/components/ui/sidebar';
 import type { RemoteConnection } from '@/features/access/index';
 import type { Inventory, WorktreeTarget } from '../rules/inventory';
 import { MachineSection } from './machine-section';
+import { OpenProjectMenu } from './open-project-menu';
 import { RemoteMachine } from './remote-machine';
 import { RemoveProjectDialog } from './remove-project-dialog';
 import { RenameProjectDialog } from './rename-project-dialog';
@@ -31,7 +27,7 @@ type Props = {
   remotes: readonly RemoteConnection[] | undefined;
   selected: Pick<WorktreeTarget, 'remote' | 'worktreeId'> | undefined;
   onSelect: (target: WorktreeTarget) => void;
-  onOpenProject: () => void;
+  onOpenProject: (remote: RemoteConnection | null) => void;
   onOpenSettings: () => void;
   onOpenRemotes: () => void;
   onOpenShortcuts: () => void;
@@ -43,7 +39,7 @@ export function ProjectNavigator({
   remotes,
   selected,
   onSelect: select,
-  onOpenProject: openProject,
+  onOpenProject,
   onOpenSettings: openSettings,
   onOpenRemotes: openRemotes,
   onOpenShortcuts: openShortcuts,
@@ -86,16 +82,7 @@ export function ProjectNavigator({
             {inventory.environment.name}
           </span>
         </div>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          className="ml-auto"
-          aria-label="Open project"
-          title="Open project"
-          onClick={openProject}
-        >
-          <PlusIcon />
-        </Button>
+        <OpenProjectMenu remotes={remotes} onOpenProject={onOpenProject} />
       </header>
 
       <ScrollArea className="h-0 min-h-0 flex-1">

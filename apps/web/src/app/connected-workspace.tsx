@@ -1,5 +1,5 @@
 import { detectPlatform, useHotkey } from '@tanstack/react-hotkeys';
-import { linkOptions, useNavigate } from '@tanstack/react-router';
+import { useNavigate } from '@tanstack/react-router';
 import { type ReactNode, type RefObject, useRef, useState } from 'react';
 import {
   Empty,
@@ -26,6 +26,10 @@ import {
 } from '@/features/projects/index';
 import { ReviewWorkspace, workspaceTitle } from '@/features/reviews/index';
 import { useDocumentTitle } from '@/shared/hooks/use-document-title';
+import {
+  useOpenProjectOnThisComputer,
+  worktreeLocation,
+} from '@/app/desktop-actions';
 import { ShortcutsDialog } from '@/app/shortcuts-dialog';
 import type {
   SetWorkspaceSearch,
@@ -39,16 +43,6 @@ type Review = {
   search: WorkspaceSearch;
   inventory: Inventory;
 };
-
-function worktreeLocation(target: WorktreeTarget) {
-  const params = { projectId: target.projectId, worktreeId: target.worktreeId };
-  return target.remote === null
-    ? linkOptions({ to: '/$projectId/$worktreeId', params })
-    : linkOptions({
-        to: '/remotes/$environmentId/$projectId/$worktreeId',
-        params: { environmentId: target.remote, ...params },
-      });
-}
 
 export function ConnectedWorkspace({
   review,
@@ -90,6 +84,7 @@ export function ConnectedWorkspace({
   );
   const openWorktree = (target: WorktreeTarget) =>
     navigate({ ...worktreeLocation(target), replace: review === undefined });
+  const openHere = useOpenProjectOnThisComputer(local.connection, openWorktree);
   const openSettings = (section = 'appearance') => {
     setOpenMobile(false);
     void navigate({ to: '/settings/$section', params: { section } });
@@ -99,7 +94,12 @@ export function ConnectedWorkspace({
     connection: local.connection,
     remotes: desktopShell ? remotes : undefined,
     selected: shown,
-    onOpenProject: () => openProjectDialog.open(null),
+    onOpenProject: (entry: RemoteConnection | null) =>
+      entry
+        ? openProjectDialog.openWithPayload({
+            remote: entry.remote.environmentId,
+          })
+        : openHere(),
     onOpenSettings: () => openSettings(),
     onOpenRemotes: () => openSettings('remotes'),
     onOpenShortcuts: () => setShortcuts(true),

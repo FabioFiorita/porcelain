@@ -1,11 +1,43 @@
-import { useNavigate } from '@tanstack/react-router';
+import { linkOptions, useNavigate } from '@tanstack/react-router';
 import { useEffect } from 'react';
+import { toast } from '@/components/ui/toast';
+import {
+  connectionErrorMessage,
+  useRemoteConnections,
+} from '@/features/access/index';
 import {
   OpenProjectDialog,
   openProjectDialog,
+  useNativeProjectPicker,
+  type WorktreeTarget,
 } from '@/features/projects/index';
 import { onDesktopAction } from '@/shared/adapters/desktop';
 import type { Connection } from '@/shared/workspace/connection';
+
+export function worktreeLocation(target: WorktreeTarget) {
+  const params = { projectId: target.projectId, worktreeId: target.worktreeId };
+  return target.remote === null
+    ? linkOptions({ to: '/$projectId/$worktreeId', params })
+    : linkOptions({
+        to: '/remotes/$environmentId/$projectId/$worktreeId',
+        params: { environmentId: target.remote, ...params },
+      });
+}
+
+export function useOpenProjectOnThisComputer(
+  connection: Connection,
+  openWorktree: (target: WorktreeTarget) => Promise<void>,
+) {
+  const pick = useNativeProjectPicker(connection, openWorktree, (error) =>
+    toast.add({
+      title: 'Could not open the project',
+      description: connectionErrorMessage(error),
+      type: 'error',
+    }),
+  );
+  return () =>
+    pick ? pick() : openProjectDialog.openWithPayload({ remote: null });
+}
 
 export function DesktopActions({
   connection,
@@ -15,6 +47,10 @@ export function DesktopActions({
   empty: boolean;
 }) {
   const navigate = useNavigate();
+  const remotes = useRemoteConnections();
+  const openWorktree = (target: WorktreeTarget) =>
+    navigate({ ...worktreeLocation(target), replace: empty });
+  const openHere = useOpenProjectOnThisComputer(connection, openWorktree);
   useEffect(
     () =>
       onDesktopAction((action) => {
@@ -23,20 +59,15 @@ export function DesktopActions({
             to: '/settings/$section',
             params: { section: 'appearance' },
           });
-        else openProjectDialog.open(null);
+        else openHere();
       }),
-    [navigate],
+    [navigate, openHere],
   );
   return (
     <OpenProjectDialog
       connection={connection}
-      onOpened={(projectId, worktreeId) =>
-        navigate({
-          to: '/$projectId/$worktreeId',
-          params: { projectId, worktreeId },
-          replace: empty,
-        })
-      }
+      remotes={remotes}
+      onOpened={openWorktree}
     />
   );
 }
