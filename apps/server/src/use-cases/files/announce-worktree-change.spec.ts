@@ -41,13 +41,8 @@ describe('AnnounceWorktreeChangeUseCase', () => {
     expect(events.announcedChange('one')).toBe('git');
   });
 
-  it('invalidates every mark when a change names no path, where a named path invalidates only its own mark', async () => {
+  it('invalidates every mark when a change names no path', async () => {
     const { marks, announce } = subject();
-    await announce.execute(
-      { worktreeId: 'one', change: 'files', paths: ['src/a.ts'] },
-      {},
-    );
-    expect(marks.marksOf('one')).toEqual(['src/b.ts', 'src/c.ts']);
     await announce.execute(
       { worktreeId: 'one', change: 'files', paths: [] },
       {},

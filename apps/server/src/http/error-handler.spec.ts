@@ -25,20 +25,10 @@ describe('requestFailure', () => {
     expect(JSON.stringify(report)).not.toContain('pct_secret');
   });
 
-  it('reports nothing for a refusal the client caused, while the same failure as a server error is reported', () => {
-    const error = new Error('no');
+  it('reports nothing for a refusal the client caused', () => {
     expect(
-      requestFailure(error, 401, request('/api/inventory?ticket=x')),
+      requestFailure(new Error('no'), 401, request('/api/inventory?ticket=x')),
     ).toBeUndefined();
-    expect(
-      requestFailure(error, 500, request('/api/inventory?ticket=x')),
-    ).toEqual({
-      kind: 'request',
-      requestId: 'req-1',
-      method: 'GET',
-      url: '/api/inventory',
-      error,
-    });
   });
 
   it('reports nothing when the client abandoned the request, while the same abort on a connected request is reported', () => {

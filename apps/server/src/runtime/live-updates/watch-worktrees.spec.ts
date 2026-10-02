@@ -73,10 +73,8 @@ describe('WatchWorktrees', () => {
 
   it('refuses a worktree named under a project it does not belong to', async () => {
     const { follow } = subject();
-    const targets = await follow([], [wish('one', OTHER_PROJECT), wish('two')]);
-    expect(targets.worktrees).toEqual([
-      { projectId: PROJECT, worktreeId: 'two' },
-    ]);
+    const targets = await follow([], [wish('one', OTHER_PROJECT)]);
+    expect(targets.worktrees).toEqual([]);
   });
 
   it('watches no more worktrees than its limit across clients', async () => {

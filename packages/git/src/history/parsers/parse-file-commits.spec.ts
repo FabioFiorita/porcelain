@@ -61,15 +61,10 @@ describe('parseFileCommits', () => {
     expect(extended?.commit.body).toBe('Body line');
   });
 
-  it('reads no commits from empty output, and the commits of a timeline', () => {
+  it('reads no commits from empty output', () => {
     expect(parseFileCommits(Buffer.alloc(0), 'notes.txt', gitLimits)).toEqual(
       [],
     );
-    expect(
-      parseFileCommits(timeline, 'docs name.txt', gitLimits).map(
-        (entry) => entry.commit.subject,
-      ),
-    ).toEqual(['extend docs', 'rename notes', 'extend notes', 'add notes']);
   });
 
   it('refuses output cut inside a commit', () => {

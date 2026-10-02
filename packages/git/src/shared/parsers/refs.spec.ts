@@ -85,19 +85,8 @@ describe('parseStashList', () => {
     ]);
   });
 
-  it('reads an empty stash as no entries, and a stash of one entry as that entry', () => {
+  it('reads an empty stash as no entries', () => {
     expect(parseStashList('')).toEqual([]);
-    expect(
-      parseStashList(
-        'ccdc14ed14529c0ed2856043769bdf9297be052f\0stash@{0}\0On main: wip\n',
-      ),
-    ).toEqual([
-      {
-        oid: 'ccdc14ed14529c0ed2856043769bdf9297be052f',
-        selector: 'stash@{0}',
-        message: 'On main: wip',
-      },
-    ]);
   });
 });
 

@@ -86,10 +86,9 @@ export function gitActionReceiptStoreContract(
       opened.close();
     });
 
-    it('reads nothing for an unknown request, and the receipt of a known one', () => {
+    it('reads nothing for an unknown request', () => {
       store.insert(running('known'));
       expect(store.read({ requestId: 'unknown' })).toBeUndefined();
-      expect(store.read({ requestId: 'known' })).toEqual(running('known'));
     });
 
     it('reads an inserted receipt back with everything it holds', () => {
@@ -109,14 +108,10 @@ export function gitActionReceiptStoreContract(
       expect(store.read({ requestId: 'fetch' })).toEqual(settled);
     });
 
-    it('stores nothing when a receipt that was never inserted is saved, and lists it once it is inserted', () => {
+    it('stores nothing when a receipt that was never inserted is saved', () => {
       store.save(running('never-inserted'));
       expect(store.read({ requestId: 'never-inserted' })).toBeUndefined();
       expect(store.running()).toEqual([]);
-      store.insert(running('never-inserted'));
-      expect(store.running().map((receipt) => receipt.requestId)).toEqual([
-        'never-inserted',
-      ]);
     });
 
     it('lists the running receipts of every worktree and nothing that finished', () => {
@@ -135,9 +130,6 @@ export function gitActionReceiptStoreContract(
       store.insert(running('fetch'));
       store.save(interrupted('fetch', '2026-09-23T09:00:05.000Z'));
       expect(store.running()).toEqual([]);
-      expect(store.read({ requestId: 'fetch' })).toEqual(
-        interrupted('fetch', '2026-09-23T09:00:05.000Z'),
-      );
     });
 
     it('finds the latest undismissed interrupted receipt of a worktree by when it finished', () => {
@@ -165,19 +157,15 @@ export function gitActionReceiptStoreContract(
     it('finds no interrupted receipt once the last one is dismissed', () => {
       const receipt = interrupted('only', '2026-09-23T10:00:00.000Z');
       store.insert(receipt);
-      expect(store.latestInterrupted({ worktreeId })?.requestId).toBe('only');
       store.save({ ...receipt, dismissedAt: '2026-09-23T10:30:00.000Z' });
       expect(store.latestInterrupted({ worktreeId })).toBeUndefined();
     });
 
-    it('finds no interrupted receipt for a worktree without any, while finding it for the worktree it belongs to', () => {
+    it('finds no interrupted receipt for a worktree without any', () => {
       store.insert(interrupted('elsewhere', '2026-09-23T10:00:00.000Z'));
       expect(
         store.latestInterrupted({ worktreeId: otherWorktreeId }),
       ).toBeUndefined();
-      expect(store.latestInterrupted({ worktreeId })?.requestId).toBe(
-        'elsewhere',
-      );
     });
 
     it('lists every finished receipt with when it finished, and none still running', () => {

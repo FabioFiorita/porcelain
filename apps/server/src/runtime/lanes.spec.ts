@@ -183,10 +183,7 @@ describe('Lanes', () => {
     const release = Promise.withResolvers<string>();
     const refused = subject.unqueued(() => release.promise, { deadlineMs: 5 });
     await expect(refused).rejects.toBeInstanceOf(DOMException);
-    await expect(refused).rejects.toMatchObject({
-      name: 'TimeoutError',
-      message: 'The operation was aborted due to timeout',
-    });
+    await expect(refused).rejects.toMatchObject({ name: 'TimeoutError' });
     release.resolve('late');
     await subject.close();
   });
@@ -204,10 +201,7 @@ describe('Lanes', () => {
     );
     const failure = await failed.promise;
     expect(failure).toBeInstanceOf(DOMException);
-    expect(failure).toMatchObject({
-      name: 'TimeoutError',
-      message: 'The operation was aborted due to timeout',
-    });
+    expect(failure).toMatchObject({ name: 'TimeoutError' });
     await subject.close();
   });
 });

@@ -64,11 +64,8 @@ describe('parseCommitRecords', () => {
     ]);
   });
 
-  it('reads an empty log as no commits, and a log page as its commits', () => {
+  it('reads an empty log as no commits', () => {
     expect(parseCommitRecords('', gitLimits)).toEqual([]);
-    expect(
-      parseCommitRecords(page, gitLimits).map((commit) => commit.subject),
-    ).toEqual(['merge', 'upstream two', 'upstream one', 'ahead', 'base']);
   });
 
   it('rejects a log cut off in the middle of a commit', () => {

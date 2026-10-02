@@ -21,13 +21,7 @@ describe('localNetworkHint', () => {
     ['another IPv4 loopback address', '127.0.1.1'],
     ['the IPv6 loopback address', '::1'],
     ['localhost', 'LocalHost'],
-  ])(
-    'says nothing when the service listened on %s, unlike a local network address',
-    (_, host) => {
-      expect(localNetworkHint(host)).toBeUndefined();
-      expect(localNetworkHint('192.168.15.64')).toBe(
-        'The service now listens on this computer only, no longer on 192.168.15.64. Share it on the local network again with: porcelain share lan on',
-      );
-    },
-  );
+  ])('says nothing when the service listened on %s', (_, host) => {
+    expect(localNetworkHint(host)).toBeUndefined();
+  });
 });

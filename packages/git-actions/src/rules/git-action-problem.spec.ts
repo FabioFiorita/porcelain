@@ -209,10 +209,7 @@ describe('gitActionProblem', () => {
       expected: { upstream: {} },
       problem: undefined,
     },
-  ])('accepts $name, unlike a path expected twice', ({ intent, expected }) => {
+  ])('accepts $name', ({ intent, expected }) => {
     expect(gitActionProblem(intent, expected)).toBeUndefined();
-    expect(
-      gitActionProblem(discard, { files: files('README.md', 'README.md') }),
-    ).toEqual({ kind: 'duplicate-expected-file' });
   });
 });

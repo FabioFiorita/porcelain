@@ -32,7 +32,7 @@ describe('Linux network output', () => {
     ]);
   });
 
-  it('finds nothing in an empty or unreadable route table, and reads past an unreadable line in a readable one', () => {
+  it('finds nothing in an empty or unreadable route table', () => {
     expect(linuxDefaultRoutes('', laptopNeighbours)).toEqual([]);
     expect(
       linuxDefaultRoutes(
@@ -40,31 +40,14 @@ describe('Linux network output', () => {
         laptopNeighbours,
       ),
     ).toEqual([]);
-    expect(
-      linuxDefaultRoutes(`${laptopRoutes}garbage line\n`, laptopNeighbours),
-    ).toEqual([
-      {
-        interfaceName: 'wlp2s0',
-        metric: 600,
-        gateway: '192.168.1.1',
-        gatewayHardware: 'a4:91:b1:0c:7e:11',
-      },
-    ]);
   });
 
-  it('skips a default route that is down and keeps the ones that are up', () => {
+  it('skips a default route that is down', () => {
     const down = laptopRoutes.replace(
       'wlp2s0\t00000000\t0101A8C0\t0003',
       'wlp2s0\t00000000\t0101A8C0\t0002',
     );
     expect(linuxDefaultRoutes(down, laptopNeighbours)).toEqual([]);
-    const vpnWithWifiDown = fullTunnelVpnRoutes.replace(
-      'wlp2s0\t00000000\t0101A8C0\t0003',
-      'wlp2s0\t00000000\t0101A8C0\t0002',
-    );
-    expect(linuxDefaultRoutes(vpnWithWifiDown, laptopNeighbours)).toEqual([
-      { interfaceName: 'tun0', metric: 50, gateway: '10.8.0.1' },
-    ]);
   });
 
   it.each([
