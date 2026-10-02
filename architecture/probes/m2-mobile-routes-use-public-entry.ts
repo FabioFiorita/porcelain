@@ -8,9 +8,9 @@ export default {
   edits: [
     {
       kind: 'replace',
-      path: 'apps/mobile/src/app/files.tsx',
-      old: "export { FilesScreen as default } from '../features/files';",
-      new: "export { FilesScreen as default } from '../features/files/views/files-screen';",
+      path: 'apps/mobile/src/app/(files)/files.tsx',
+      old: "import { FilesScreen } from '../../features/files';",
+      new: "import { FilesScreen } from '../../features/files/views/files-screen';",
     },
   ],
 } satisfies Probe;

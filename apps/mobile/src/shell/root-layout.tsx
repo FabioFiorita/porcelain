@@ -1,11 +1,11 @@
 import '../app.css';
-import { RootShell } from './root-shell';
+import { ShellStartup } from './shell-startup';
 import { QueryProvider } from '../shared/query/provider';
 
 export function RootLayout() {
   return (
     <QueryProvider>
-      <RootShell />
+      <ShellStartup />
     </QueryProvider>
   );
 }

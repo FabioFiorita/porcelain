@@ -5,11 +5,14 @@ import {
   Host,
   NavigationSplitView,
   RNHostView,
+  Toolbar,
+  ToolbarItem,
   type NavigationSplitViewColumn,
   type NavigationSplitViewVisibility,
 } from '@expo/ui/swift-ui';
 import { TabletSidebar } from './tablet-sidebar';
 import { TabletContents } from './tablet-contents';
+import { WorkspacePicker } from '../features/projects';
 
 export function TabletSplit() {
   const [layout, setLayout] = useState<{
@@ -57,11 +60,18 @@ export function TabletSplit() {
           <TabletContents />
         </NavigationSplitView.Content>
         <NavigationSplitView.Detail>
-          <RNHostView>
-            <View style={{ flex: 1 }}>
-              <Slot />
-            </View>
-          </RNHostView>
+          <Toolbar>
+            <RNHostView>
+              <View style={{ flex: 1 }}>
+                <Slot />
+              </View>
+            </RNHostView>
+            <Toolbar.Content>
+              <ToolbarItem placement="topBarTrailing">
+                <WorkspacePicker presentation="tablet" />
+              </ToolbarItem>
+            </Toolbar.Content>
+          </Toolbar>
         </NavigationSplitView.Detail>
       </NavigationSplitView>
     </Host>

@@ -16,14 +16,16 @@ import {
   Recorder,
 } from '../.agents/skills/server-verify/scripts/session.ts';
 
-const [simulatorId, driver = 'maestro'] = process.argv.slice(2);
+const [simulatorId, driver = 'maestro', journey = 'pairing'] =
+  process.argv.slice(2);
 if (
   !simulatorId ||
   !/^[0-9A-F-]{36}$/i.test(simulatorId) ||
-  (driver !== 'maestro' && driver !== 'agent-device')
+  (driver !== 'maestro' && driver !== 'agent-device') ||
+  (journey !== 'pairing' && journey !== 'workspace')
 )
   throw new Error(
-    'Usage: node scripts/mobile-pairing.ts <iOS simulator id> [maestro|agent-device]; start Metro and connect the development app first; close any Agent Device preview session before testing.',
+    'Usage: node scripts/mobile-pairing.ts <iOS simulator id> [maestro|agent-device] [pairing|workspace]; start Metro and connect the development app first; close any Agent Device preview session before testing.',
   );
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const state = await mkdtemp(join(tmpdir(), 'porcelain-mobile-pairing-'));
@@ -36,6 +38,8 @@ const driverSession = `porcelain-pairing-${randomUUID()}`;
 const servers: IsolatedServer[] = [];
 const links: string[] = [];
 const names: string[] = [];
+const projectNames: string[] = [];
+const worktreeLabels: string[] = [];
 
 async function redact(folder: string): Promise<void> {
   for (const entry of await readdir(folder, { withFileTypes: true })) {
@@ -53,6 +57,35 @@ try {
     servers.push(server);
     const name = `Mobile ${title} ${randomUUID().slice(0, 8)}`;
     names.push(name);
+    if (journey === 'workspace') {
+      const before = await server.read(recorder, {
+        method: 'GET',
+        path: '/api/inventory',
+      });
+      const project = record(list(record(before.body).projects)[0]);
+      const main = record(
+        list(project.worktrees).find((tree) => record(tree).main),
+      );
+      const projectId = text(project.id);
+      const worktreeId = text(main.id);
+      const branch = `mobile-${title.toLowerCase()}`;
+      const projectName = `${name} project`;
+      const session = server.session(recorder, { projectId, worktreeId });
+      await session.git(
+        'worktree',
+        'add',
+        '-b',
+        branch,
+        join(server.projectHome, branch),
+      );
+      await server.read(recorder, {
+        method: 'PATCH',
+        path: `/api/projects/${encodeURIComponent(projectId)}`,
+        body: { name: projectName },
+      });
+      projectNames.push(projectName);
+      worktreeLabels.push(branch);
+    }
     await server.read(recorder, {
       method: 'PUT',
       path: '/api/environment/name',
@@ -77,8 +110,15 @@ try {
   }
   const [firstLink, secondLink] = links;
   const [firstName, secondName] = names;
+  const [firstProject, secondProject] = projectNames;
+  const [firstWorktree, secondWorktree] = worktreeLabels;
   if (!firstLink || !secondLink || !firstName || !secondName)
     throw new Error('Both real environment fixtures must be ready.');
+  if (
+    journey === 'workspace' &&
+    (!firstProject || !secondProject || !firstWorktree || !secondWorktree)
+  )
+    throw new Error('Both real project and worktree fixtures must be ready.');
   const run = await execute(
     driver,
     [
@@ -87,14 +127,14 @@ try {
             '--udid',
             simulatorId,
             'test',
-            '.agents/skills/mobile-verify/flows/pairing.yaml',
+            `.agents/skills/mobile-verify/flows/${journey}.yaml`,
             '--test-output-dir',
             evidence,
             '--no-ansi',
           ]
         : [
             'test',
-            '.agents/skills/mobile-verify/flows/pairing.yaml',
+            `.agents/skills/mobile-verify/flows/${journey}.yaml`,
             '--maestro',
             '--platform',
             'ios',
@@ -117,6 +157,18 @@ try {
       `FIRST_ENVIRONMENT_NAME=${firstName}`,
       '-e',
       `SECOND_ENVIRONMENT_NAME=${secondName}`,
+      ...(journey === 'workspace'
+        ? [
+            '-e',
+            `FIRST_PROJECT_NAME=${firstProject}`,
+            '-e',
+            `SECOND_PROJECT_NAME=${secondProject}`,
+            '-e',
+            `FIRST_WORKTREE_LABEL=${firstWorktree}`,
+            '-e',
+            `SECOND_WORKTREE_LABEL=${secondWorktree}`,
+          ]
+        : []),
     ],
     {
       cwd: root,
@@ -156,6 +208,13 @@ try {
         hit.route === '/api/environment' &&
         hit.status === 200,
     );
+    const inventoryReads = hits.filter(
+      (hit) =>
+        !hit.kit &&
+        hit.method === 'GET' &&
+        hit.route === '/api/inventory' &&
+        hit.status === 200,
+    );
     await writeFile(
       join(evidence, `server-${servers.indexOf(server)}.json`),
       JSON.stringify(recorder.redact({ devices, hits }), null, 2),
@@ -166,14 +225,15 @@ try {
         (device) => device.platform === 'iOS' || device.platform === 'iPadOS',
       ) ||
       paired.length !== 1 ||
-      authenticated.length < 3
+      authenticated.length < 3 ||
+      (journey === 'workspace' && inventoryReads.length < 2)
     )
       throw new Error(
-        'The native UI must pair one Apple mobile device and authenticate again after restarting.',
+        'The native UI must pair one Apple mobile device, authenticate after restarting and read each selected environment inventory.',
       );
   }
   process.stdout.write(
-    `PASS native pairing and restart against two real environments with ${driver}\nEvidence: ${evidence}\n`,
+    `PASS native ${journey} and restart against two real environments with ${driver}\nEvidence: ${evidence}\n`,
   );
 } catch (error) {
   await writeFile(

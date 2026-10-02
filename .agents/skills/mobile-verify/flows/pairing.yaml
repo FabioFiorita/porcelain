@@ -13,43 +13,19 @@ name: Pair and restore multiple environments
 - assertVisible: Paste the whole link porcelain pair printed, starting with http.
 - tapOn: Cancel
 - assertNotVisible: Pair an environment
-- tapOn: Add environment
-- tapOn:
-    id: pairing-link
-- inputText: ${FIRST_PAIRING_LINK}
-- tapOn: Pair
-- assertNotVisible: Pair an environment
-- assertVisible: ${FIRST_ENVIRONMENT_NAME}
-- assertVisible: Online
-- tapOn: Add environment
-- tapOn:
-    id: pairing-link
-- inputText: ${SECOND_PAIRING_LINK}
-- tapOn: Pair
-- assertNotVisible: Pair an environment
+- runFlow:
+    file: add-environment.yaml
+    env:
+      PAIRING_LINK: ${FIRST_PAIRING_LINK}
+      ENVIRONMENT_NAME: ${FIRST_ENVIRONMENT_NAME}
+- runFlow:
+    file: add-environment.yaml
+    env:
+      PAIRING_LINK: ${SECOND_PAIRING_LINK}
+      ENVIRONMENT_NAME: ${SECOND_ENVIRONMENT_NAME}
 - assertVisible: ${FIRST_ENVIRONMENT_NAME}
 - assertVisible: ${SECOND_ENVIRONMENT_NAME}
 - assertVisible: Online
 - stopApp
 - runFlow: launch-development.yaml
-- runFlow: open-settings.yaml
-- assertVisible: ${FIRST_ENVIRONMENT_NAME}
-- assertVisible: ${SECOND_ENVIRONMENT_NAME}
-- assertVisible: Online
-- longPressOn: ${FIRST_ENVIRONMENT_NAME}
-- tapOn: Forget environment
-- assertNotVisible: ${FIRST_ENVIRONMENT_NAME}
-- assertVisible: ${SECOND_ENVIRONMENT_NAME}
-- stopApp
-- runFlow: launch-development.yaml
-- runFlow: open-settings.yaml
-- assertNotVisible: ${FIRST_ENVIRONMENT_NAME}
-- assertVisible: ${SECOND_ENVIRONMENT_NAME}
-- longPressOn: ${SECOND_ENVIRONMENT_NAME}
-- tapOn: Forget environment
-- assertNotVisible: ${SECOND_ENVIRONMENT_NAME}
-- stopApp
-- runFlow: launch-development.yaml
-- runFlow: open-settings.yaml
-- assertNotVisible: ${FIRST_ENVIRONMENT_NAME}
-- assertNotVisible: ${SECOND_ENVIRONMENT_NAME}
+- runFlow: forget-environments.yaml

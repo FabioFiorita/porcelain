@@ -5,8 +5,13 @@ import { useReadEnvironments } from '../commands/pairing';
 import { useEnvironments, useEnvironmentStorageStatus } from '../store';
 import { EnvironmentRow } from './environment-row';
 import { PairEnvironment } from './pair-environment';
+import type { ProjectCleanup } from '../commands/forget-environment';
 
-export function SettingsScreen() {
+export function SettingsScreen({
+  forgetProjectEnvironment,
+}: {
+  forgetProjectEnvironment: ProjectCleanup;
+}) {
   const [pairing, setPairing] = useState(false);
   const remotes = useEnvironments();
   const storage = useEnvironmentStorageStatus();
@@ -47,7 +52,11 @@ export function SettingsScreen() {
             {remotes.length > 0 ? (
               <View className="overflow-hidden rounded-lg border border-border bg-card">
                 {remotes.map((remote) => (
-                  <EnvironmentRow key={remote.environmentId} remote={remote} />
+                  <EnvironmentRow
+                    key={remote.environmentId}
+                    remote={remote}
+                    forgetProjectEnvironment={forgetProjectEnvironment}
+                  />
                 ))}
               </View>
             ) : null}

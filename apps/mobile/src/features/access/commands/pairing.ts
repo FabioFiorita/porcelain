@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query';
-import { useEffect, useRef } from 'react';
+import { useRef, useEffect } from 'react';
 import { pairEnvironment } from '@porcelain/client/access';
 import { pairingPlatform, accessStore } from '../store';
 
@@ -29,9 +29,8 @@ export function usePairEnvironment(onPaired: () => void) {
 
 export function useReadEnvironments() {
   const mutation = useMutation({
+    scope: { id: 'access.environments' },
     mutationFn: () => accessStore.getState().load(),
   });
-  const read = mutation.mutate;
-  useEffect(() => read(), [read]);
-  return read;
+  return mutation.mutate;
 }

@@ -1,0 +1,59 @@
+appId: com.fabiofiorita.porcelain.dev
+name: Select and restore environment project and worktree without leaving Files
+---
+- runFlow: launch-development.yaml
+- runFlow: open-settings.yaml
+- runFlow:
+    file: add-environment.yaml
+    env:
+      PAIRING_LINK: ${FIRST_PAIRING_LINK}
+      ENVIRONMENT_NAME: ${FIRST_ENVIRONMENT_NAME}
+- runFlow:
+    file: add-environment.yaml
+    env:
+      PAIRING_LINK: ${SECOND_PAIRING_LINK}
+      ENVIRONMENT_NAME: ${SECOND_ENVIRONMENT_NAME}
+- tapOn: Files
+- assertVisible:
+    text: Files
+    selected: true
+- tapOn: Workspace
+- tapOn: Environment
+- tapOn: ${FIRST_ENVIRONMENT_NAME}
+- tapOn: ${FIRST_ENVIRONMENT_NAME}
+- tapOn: Project
+- tapOn: ${FIRST_PROJECT_NAME}
+- tapOn: ${FIRST_WORKTREE_LABEL}
+- assertVisible: ${FIRST_PROJECT_NAME} · ${FIRST_WORKTREE_LABEL}
+- assertVisible:
+    text: Files
+    selected: true
+- tapOn: ${FIRST_PROJECT_NAME} · ${FIRST_WORKTREE_LABEL}
+- tapOn: Environment
+- tapOn: ${SECOND_ENVIRONMENT_NAME}
+- tapOn: ${SECOND_ENVIRONMENT_NAME}
+- tapOn: Project
+- tapOn: ${SECOND_PROJECT_NAME}
+- tapOn: ${SECOND_WORKTREE_LABEL}
+- assertVisible: ${SECOND_PROJECT_NAME} · ${SECOND_WORKTREE_LABEL}
+- assertVisible:
+    text: Files
+    selected: true
+- tapOn: ${SECOND_PROJECT_NAME} · ${SECOND_WORKTREE_LABEL}
+- tapOn: Environment
+- tapOn: ${FIRST_ENVIRONMENT_NAME}
+- assertVisible: ${FIRST_PROJECT_NAME} · ${FIRST_WORKTREE_LABEL}
+- assertVisible:
+    text: Files
+    selected: true
+- stopApp
+- runFlow: launch-development.yaml
+- assertVisible: ${FIRST_PROJECT_NAME} · ${FIRST_WORKTREE_LABEL}
+- tapOn: ${FIRST_PROJECT_NAME} · ${FIRST_WORKTREE_LABEL}
+- tapOn: Environment
+- tapOn: ${SECOND_ENVIRONMENT_NAME}
+- assertVisible: ${SECOND_PROJECT_NAME} · ${SECOND_WORKTREE_LABEL}
+- runFlow: forget-environments.yaml
+- assertVisible: Workspace
+- assertNotVisible: ${FIRST_PROJECT_NAME} · ${FIRST_WORKTREE_LABEL}
+- assertNotVisible: ${SECOND_PROJECT_NAME} · ${SECOND_WORKTREE_LABEL}

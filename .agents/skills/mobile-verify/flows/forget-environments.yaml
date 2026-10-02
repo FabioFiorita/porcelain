@@ -1,0 +1,24 @@
+appId: com.fabiofiorita.porcelain.dev
+name: Forget both fixture environments and restore removal
+---
+- runFlow: open-settings.yaml
+- assertVisible: ${FIRST_ENVIRONMENT_NAME}
+- assertVisible: ${SECOND_ENVIRONMENT_NAME}
+- assertVisible: Online
+- longPressOn: ${FIRST_ENVIRONMENT_NAME}
+- tapOn: Forget environment
+- assertNotVisible: ${FIRST_ENVIRONMENT_NAME}
+- assertVisible: ${SECOND_ENVIRONMENT_NAME}
+- stopApp
+- runFlow: launch-development.yaml
+- runFlow: open-settings.yaml
+- assertNotVisible: ${FIRST_ENVIRONMENT_NAME}
+- assertVisible: ${SECOND_ENVIRONMENT_NAME}
+- longPressOn: ${SECOND_ENVIRONMENT_NAME}
+- tapOn: Forget environment
+- assertNotVisible: ${SECOND_ENVIRONMENT_NAME}
+- stopApp
+- runFlow: launch-development.yaml
+- runFlow: open-settings.yaml
+- assertNotVisible: ${FIRST_ENVIRONMENT_NAME}
+- assertNotVisible: ${SECOND_ENVIRONMENT_NAME}

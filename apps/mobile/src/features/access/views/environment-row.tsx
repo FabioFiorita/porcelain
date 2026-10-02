@@ -2,12 +2,21 @@ import { Host, RNHostView } from '@expo/ui';
 import { Text, View } from 'react-native';
 import type { Remote } from '@porcelain/client/access/rules';
 import { useEnvironmentStatus } from '../queries/environments';
-import { useForgetEnvironment } from '../commands/forget-environment';
+import {
+  useForgetEnvironment,
+  type ProjectCleanup,
+} from '../commands/forget-environment';
 import { EnvironmentMenu } from './environment-menu';
 
-export function EnvironmentRow({ remote }: { remote: Remote }) {
+export function EnvironmentRow({
+  remote,
+  forgetProjectEnvironment,
+}: {
+  remote: Remote;
+  forgetProjectEnvironment: ProjectCleanup;
+}) {
   const status = useEnvironmentStatus(remote);
-  const command = useForgetEnvironment(remote);
+  const command = useForgetEnvironment(remote, forgetProjectEnvironment);
   const label =
     status.data?.kind === 'online'
       ? 'Online'
