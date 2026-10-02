@@ -4,7 +4,7 @@ This codebase is written and maintained by agents. No person reads the code; tru
 
 ## The rulebook is the tooling
 
-TypeScript, the architecture check, Oxlint and Oxfmt are the rules; the codebase is the example. When a rule blocks you, the rule wins: change the code, never the rule, a config or a baseline. Never add a disable directive, an override, a cast, `any`, a comment, or a code file outside `src/` and `spec/` (feature-map cases, probes and tooling have their own homes and their own checks).
+TypeScript, the architecture check, Oxlint and Oxfmt are the rules; the codebase is the example. When a rule blocks you, the rule wins: change the code, never the rule or a config. Never add a disable directive, an override, a cast, `any`, a comment, or a code file outside `src/` and `spec/` (feature-map cases, probes and tooling have their own homes and their own checks).
 
 Specs, verifier cases and journeys state promises. Never loosen, skip or delete one to get green. When the owner changes a behaviour, the spec, case or journey that states it changes in the same commit, and the commit message names the promise that changed; tightening a check is always allowed.
 
@@ -31,11 +31,9 @@ A change to server behaviour is not done until a behaviour spec states its promi
 
 ## Web rebuild
 
-Move a web file to its app, feature or shared owner when a change touches it, keeping its behavior. The baseline cleanup is not a goal of its own. The server contract stays the server's contract.
+Move a web file to its app, feature or shared owner when a change touches it, keeping its behavior. The server contract stays the server's contract.
 
 Views render feature data and forward events. A view may keep local UI state, effects and refs for its own UI, but never reaches the server, the Query client or the cache, and never awaits, chains or catches a command. A feature's `api.ts` talks to the server, `queries/` and `commands/` own reads, writes and the cache, `store.ts` owns shared client state and Web Storage, `overlays.ts` owns Base UI handles, `rules/` holds pure functions, and `adapters/` wraps imperative libraries such as Pierre and the editor. The React Compiler memoizes; write no `useMemo` or `useCallback`.
-
-Existing web code still breaks many of these rules. `architecture/web-baseline.json` holds those findings per file and rule, and it only shrinks: a new finding or a growing count fails, a fixed finding must be written down, and nothing is added after the commit that introduces its rule. Keep the checks green by changing code, never a rule or the baseline.
 
 Use shadcn registry components for UI primitives. Search the installed registry with `pnpm --filter @porcelain/web exec shadcn list @shadcn --query <name>` and add a missing primitive through the shadcn CLI. Never edit a file in `components/ui`: it stays exactly what the shadcn CLI installed, and `architecture/shadcn-pins.json` pins each file to what the registry serves. After `shadcn add` and the format, run `node scripts/shadcn-pin.ts`, which pins the registry's version, never the file on disk; re-pinning an edited file or editing the pins is a guard change the owner approves. Do not create a local replacement in a feature view. Compose product-specific views in their feature folders from the existing variants and layout classes; when a look needs a new variant or a restyle the lint refuses, ask the owner.
 

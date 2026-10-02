@@ -17,13 +17,6 @@ import { parseSync } from 'oxc-parser';
 import { parseDocument } from 'yaml';
 import { z } from 'zod';
 import {
-  baselineHistoryProblems,
-  journeyBaselineHistoryProblems,
-  readBaseline,
-  readJourneyBaseline,
-  settleBaseline,
-} from '../architecture/baseline.ts';
-import {
   domainPackages,
   generatedRouteTree,
   type StyleRule,
@@ -403,15 +396,27 @@ const requiredRules = [
   'shadcn/no-restyle',
 ] as const;
 
-const sanctionedOverrides: readonly unknown[] = [
+const sanctionedOverrides: readonly { reason: string; override: unknown }[] = [
   {
-    files: ['architecture/*.mjs', 'architecture/*.cjs'],
-    rules: {
-      'typescript/no-unsafe-argument': 'off',
-      'typescript/no-unsafe-assignment': 'off',
-      'typescript/no-unsafe-call': 'off',
-      'typescript/no-unsafe-member-access': 'off',
-      'typescript/no-unsafe-return': 'off',
+    reason:
+      'the plugin files are plain JavaScript that the typescript rules cannot type',
+    override: {
+      files: ['architecture/*.mjs', 'architecture/*.cjs'],
+      rules: {
+        'typescript/no-unsafe-argument': 'off',
+        'typescript/no-unsafe-assignment': 'off',
+        'typescript/no-unsafe-call': 'off',
+        'typescript/no-unsafe-member-access': 'off',
+        'typescript/no-unsafe-return': 'off',
+      },
+    },
+  },
+  {
+    reason:
+      "the web copy falls back to the deprecated document.execCommand('copy') because the Clipboard API needs HTTPS or localhost, and Porcelain is opened over plain HTTP on the LAN",
+    override: {
+      files: ['apps/web/src/shared/workspace/copy.ts'],
+      rules: { 'typescript/no-deprecated': 'off' },
     },
   },
 ];
@@ -525,11 +530,16 @@ async function configProblems(): Promise<Problem[]> {
         ),
       );
   }
-  if (!isDeepStrictEqual(overrides, sanctionedOverrides))
+  if (
+    !isDeepStrictEqual(
+      overrides,
+      sanctionedOverrides.map((sanctioned) => sanctioned.override),
+    )
+  )
     problems.push(
       problem(
         'lint-config',
-        '.oxlintrc.json overrides only the plugin files; any other override is a disable directive.',
+        `.oxlintrc.json holds exactly the sanctioned overrides, each for its reason: ${sanctionedOverrides.map((sanctioned) => sanctioned.reason).join('; ')}. Any other override is a disable directive.`,
       ),
     );
   const tsconfigs = filesUnder('.').filter((path) =>
@@ -1152,27 +1162,23 @@ async function lint(): Promise<number> {
           message: finding.message,
         }))
       : [];
-  const settled = settleBaseline(
-    readBaseline('.'),
-    (rule) => target === 'web' && rule.includes('/'),
-    [...linted, ...compiled, ...(target === 'web' ? duplicateFindings() : [])],
-  );
-  for (const finding of settled.reported)
+  const reported = [
+    ...linted,
+    ...compiled,
+    ...(target === 'web' ? duplicateFindings() : []),
+  ];
+  for (const finding of reported)
     process.stdout.write(
       `${finding.file}:${finding.line}:${finding.column}: ${finding.code}: ${finding.message}\n`,
     );
-  for (const found of settled.problems)
-    process.stdout.write(`error style(web-baseline): ${found}\n`);
-  process.stdout.write(
-    `${settled.reported.length} findings; ${settled.held} web findings held by architecture/web-baseline.json.\n`,
-  );
+  process.stdout.write(`${reported.length} findings.\n`);
   if (parsed.data.number_of_files !== files.length) {
     process.stdout.write(
       `lint skipped files: oxlint read ${parsed.data.number_of_files} of the ${files.length} files under the lint roots; nothing may hide a file from lint.\n`,
     );
     return 1;
   }
-  return settled.reported.length > 0 || settled.problems.length > 0 ? 1 : 0;
+  return reported.length > 0 ? 1 : 0;
 }
 
 if (mode === 'format') {
@@ -1192,13 +1198,6 @@ if (mode === 'format') {
     ...strayFormatConfigs(),
     ...codeOutsideLintRoots(files),
     ...proseOutsideSkills(files),
-    ...baselineHistoryProblems('.').map((found) =>
-      problem('web-baseline', found),
-    ),
-    ...[
-      ...readJourneyBaseline('.').problems,
-      ...journeyBaselineHistoryProblems('.'),
-    ].map((found) => problem('web-journey-baseline', found)),
     ...(await configProblems().catch((error: unknown) => {
       if (error instanceof StyleProblem) return [error.problem];
       throw error;

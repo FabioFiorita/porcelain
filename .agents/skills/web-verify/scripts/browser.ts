@@ -12,10 +12,6 @@ import {
   type Run,
   type RunRequest,
 } from './browser-runner.ts';
-import {
-  journeyBaselineFile,
-  readJourneyBaseline,
-} from '../../../../architecture/baseline.ts';
 import { buildIsolatedServer } from '../../../../scripts/dev-server.ts';
 import type { Hit } from '../../server-verify/scripts/session.ts';
 import {
@@ -232,19 +228,6 @@ async function journeyOutcome(
   return { runs, routes, problems };
 }
 
-function coveredBaselineProblems(
-  covered: ReadonlySet<string>,
-  called: readonly string[],
-  held: readonly string[],
-): string[] {
-  return held
-    .filter((route) => covered.has(route) && called.includes(route))
-    .map(
-      (route) =>
-        `${route}: a journey now reaches it through the UI; remove it from ${journeyBaselineFile} so it cannot become uncovered again`,
-    );
-}
-
 function coverage(
   covered: ReadonlySet<string>,
   registered: readonly string[],
@@ -253,24 +236,13 @@ function coverage(
   const matched = calledRoutes(calls.calls, registered);
   const called = [...matched.routes.keys()].toSorted();
   const uncovered = called.filter((route) => !covered.has(route));
-  const held = readJourneyBaseline(repositoryRoot);
   const problems = [
     ...calls.problems,
     ...matched.problems,
-    ...held.problems,
-    ...uncovered
-      .filter((route) => !held.routes.includes(route))
-      .map(
-        (route) =>
-          `${route}: the web calls it (${(matched.routes.get(route) ?? []).map((call) => `${call.file}:${call.line}`).join(', ')}) and no journey reaches it through the UI; add a journey that drives it`,
-      ),
-    ...coveredBaselineProblems(covered, called, held.routes),
-    ...held.routes
-      .filter((route) => !called.includes(route))
-      .map(
-        (route) =>
-          `${route}: the web no longer calls it; remove it from ${journeyBaselineFile}`,
-      ),
+    ...uncovered.map(
+      (route) =>
+        `${route}: the web calls it (${(matched.routes.get(route) ?? []).map((call) => `${call.file}:${call.line}`).join(', ')}) and no journey reaches it through the UI; add a journey that drives it`,
+    ),
   ];
   return { called, uncovered, problems };
 }
@@ -463,7 +435,7 @@ async function main(): Promise<number> {
       const result = coverage(covered, [...registered]);
       const reached = result.called.length - result.uncovered.length;
       process.stdout.write(
-        `Coverage: ${reached} of ${result.called.length} routes the web calls are reached through the UI; ${result.uncovered.length} held by ${journeyBaselineFile}.\n`,
+        `Coverage: ${reached} of ${result.called.length} routes the web calls are reached through the UI.\n`,
       );
       for (const problem of result.problems)
         process.stdout.write(`  coverage: ${problem}\n`);
@@ -476,25 +448,6 @@ async function main(): Promise<number> {
         uncovered: result.uncovered,
         problems: result.problems,
       };
-    } else if (selected.length > 0) {
-      const calls = webCalls(repositoryRoot);
-      const matched = calledRoutes(calls.calls, [...registered]);
-      const held = readJourneyBaseline(repositoryRoot);
-      const problems = [
-        ...held.problems,
-        ...coveredBaselineProblems(
-          covered,
-          [...matched.routes.keys()],
-          held.routes,
-        ),
-      ];
-      for (const problem of problems)
-        process.stdout.write(`  coverage: ${problem}\n`);
-      if (problems.length > 0) failed = true;
-      report.coveredBaseline = { problems };
-      process.stdout.write(
-        'Selected journeys checked for stale baseline entries; full coverage is judged with --all.\n',
-      );
     } else process.stdout.write('Coverage is judged with --all.\n');
     coverageMs = Math.round(performance.now() - coverageStarted);
     report.passed = !failed;
