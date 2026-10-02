@@ -22,7 +22,10 @@ declare module 'vitest/browser' {
       trusted?: boolean,
     ) => Promise<PairingParts>;
     porcelainHits: (since: number, server: ServerName) => Promise<ServerHit[]>;
-    porcelainProjectHome: (step: ProjectHomeStep) => Promise<string>;
+    porcelainProjectHome: (
+      step: ProjectHomeStep,
+      server: ServerName,
+    ) => Promise<string>;
     porcelainCodingTool: () => Promise<CodingToolReplies>;
     porcelainInitScript: (content: string) => Promise<void>;
   }

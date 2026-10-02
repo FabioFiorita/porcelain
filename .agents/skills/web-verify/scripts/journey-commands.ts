@@ -327,15 +327,15 @@ const porcelainHits: BrowserCommand<[number, ServerName], ServerHit[]> = async (
   return (await (await handleOf(server)).hits()).slice(since);
 };
 
-const porcelainProjectHome: BrowserCommand<[ProjectHomeStep], string> = async (
-  _context,
-  step,
-) => {
+const porcelainProjectHome: BrowserCommand<
+  [ProjectHomeStep, ServerName],
+  string
+> = async (_context, step, server) => {
   if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(step.name))
     throw new Error(
       `${step.name} is not one lowercase folder name in the project home`,
     );
-  const home = await session();
+  const home = await session(server);
   const path = join(home.projectHome, step.name);
   if (step.kind === 'repository')
     await home.git('init', '--initial-branch', 'main', path);

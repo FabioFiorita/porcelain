@@ -3,6 +3,7 @@ import { agent, agentOn } from './agent';
 import { app, takeBrowserFailures, watchBrowser } from './app';
 import { codingTool } from './coding-tool';
 import { createFetchGate } from './fetch-gate';
+import { projectHomeOn } from './project-home';
 import { hostCommands } from './commands';
 import { sampleRepository } from './repo';
 import { server, serverOn } from './server';
@@ -68,6 +69,7 @@ export const test = base
     server: serverOn('remote'),
     repo: await sampleRepository('remote'),
     agent: agentOn('remote'),
+    projectHome: projectHomeOn('remote'),
   }))
   .extend('agent', { scope: 'file' }, () => agent)
   .extend('codingTool', { scope: 'file' }, () => codingTool)

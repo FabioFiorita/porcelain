@@ -4,6 +4,8 @@ import type { ReadInventoryResponse } from '@porcelain/contracts/projects';
 
 type Project = ReadInventoryResponse['projects'][number];
 
-export const openProjectDialog = Dialog.createHandle();
+export const openProjectDialog = Dialog.createHandle<{
+  remote: string | null;
+}>();
 export const renameProjectDialog = Dialog.createHandle<Project>();
 export const removeProjectDialog = AlertDialog.createHandle<Project>();

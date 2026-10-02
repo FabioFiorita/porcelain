@@ -84,7 +84,7 @@ export const desktopFeatures = [
     name: 'project',
     app: 'development',
     promise:
-      'the app starts its own server, permits remote connections with scripts restricted to the app origin, opens only a manually selected Git project through its trusted native picker, cancels without registration or folder discovery, offers no reload or developer tools menus unless it runs on a Vite server, shows that the local build updates by reinstalling rather than claiming it is the newest, retains its project and preferences after restart, survives window close, keeps its server output in its logs folder and stops its server on Quit',
+      'the app starts its own server, permits remote connections with scripts restricted to the app origin, opens only a manually selected Git project through its trusted native picker, which the Open Project menu and the Open project button open directly with no dialog before it, cancels without registration or folder discovery, offers no reload or developer tools menus unless it runs on a Vite server, shows that the local build updates by reinstalling rather than claiming it is the newest, retains its project and preferences after restart, survives window close, keeps its server output in its logs folder and stops its server on Quit',
     run: project,
   },
   {
@@ -755,10 +755,12 @@ async function project(input: DesktopProof) {
         throw new Error('The native Open Project menu is missing');
       Reflect.apply(item.click, item, [item, undefined, undefined]);
     });
-    const dialog = page.getByRole('dialog', { name: 'Open project' });
-    await dialog.waitFor({ state: 'visible' });
+    await projectPickerOpenedDirectly(app, page);
     await completeProjectSelection(app, { canceled: true, filePaths: [] });
-    await dialog.waitFor({ state: 'hidden' });
+    requireProof(
+      (await page.getByRole('dialog').count()) === 0,
+      'Canceling the native picker must leave no Open project dialog behind',
+    );
     const canceled = await desktopRequest(page, '/api/inventory', 'GET');
     requireProof(
       inventory.parse(canceled).projects.length === 0,
@@ -767,7 +769,7 @@ async function project(input: DesktopProof) {
     await page
       .getByRole('button', { name: 'Open project', exact: true })
       .click();
-    await dialog.waitFor({ state: 'visible' });
+    await projectPickerOpenedDirectly(app, page);
     await completeProjectSelection(app, {
       canceled: false,
       filePaths: [input.repository],
@@ -1104,8 +1106,30 @@ async function completeProjectSelection(
     const complete: unknown = Reflect.get(dialog, 'completeProjectSelection');
     if (typeof complete !== 'function')
       throw new Error('The native project picker has not opened');
+    Reflect.deleteProperty(dialog, 'completeProjectSelection');
     Reflect.apply(complete, dialog, [selection]);
   }, selection);
+}
+
+async function projectPickerOpenedDirectly(
+  app: Awaited<ReturnType<typeof _electron.launch>>,
+  page: Page,
+) {
+  const deadline = performance.now() + 10_000;
+  while (
+    !(await app.evaluate(
+      ({ dialog }) =>
+        typeof Reflect.get(dialog, 'completeProjectSelection') === 'function',
+    ))
+  ) {
+    if (performance.now() > deadline)
+      throw new Error('The native project picker did not open');
+    await new Promise((resolveWait) => setTimeout(resolveWait, 50));
+  }
+  requireProof(
+    (await page.getByRole('dialog').count()) === 0,
+    'The native project picker must open directly, with no Open project dialog before it',
+  );
 }
 
 function processAlive(pid: number): boolean {
