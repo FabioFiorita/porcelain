@@ -9,7 +9,10 @@ import { rebuild } from '@electron/rebuild';
 import { build } from 'esbuild';
 import { z } from 'zod';
 
-export const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+export const root = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  '../../../..',
+);
 const manifestSchema = z.object({
   name: z.string(),
   version: z.string().optional(),

@@ -4,7 +4,11 @@ import { resolve } from 'node:path';
 import { createInterface } from 'node:readline';
 import { parseArgs } from 'node:util';
 import { z } from 'zod';
-import { electronExecutable, root, stageDesktop } from './desktop-stage.ts';
+import {
+  electronExecutable,
+  root,
+  stageDesktop,
+} from '../apps/desktop/spec/kit/stage.ts';
 
 const webRoot = resolve(root, 'apps/web');
 const vite = resolve(webRoot, 'node_modules/.bin/vite');

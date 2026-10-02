@@ -3,7 +3,7 @@ import { cp, mkdir, rename, rm } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { buildDesktop } from './build-desktop.ts';
-import { desktopCommand } from './desktop-stage.ts';
+import { desktopCommand } from '../apps/desktop/spec/kit/stage.ts';
 
 const target = '/Applications/Porcelain.app';
 const staged = `/Applications/.Porcelain-install-${process.pid}.app`;

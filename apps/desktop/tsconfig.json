@@ -3,6 +3,7 @@
   "include": [
     "src/**/*.ts",
     "spec/**/*.ts",
+    "playwright.config.ts",
     "../server/src/adapters/files/node-opendir.d.ts"
   ],
   "compilerOptions": {
