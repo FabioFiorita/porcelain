@@ -120,6 +120,7 @@ export type Hit = {
 };
 
 const execute = promisify(execFile);
+export const kitHeaders = { 'x-porcelain-journey': 'kit' };
 const quietHeaders = new Set([
   'date',
   'connection',
@@ -149,6 +150,25 @@ export class Recorder {
   steps: Step[] = [];
   readonly cleanups: (() => void)[] = [];
   private readonly secrets = new Set<string>();
+  private readonly unread = new Map<object, string>();
+
+  statusRead(request: HttpRequest, response: HttpResponse): HttpResponse {
+    const key = {};
+    const { unread } = this;
+    unread.set(key, `${request.method} ${request.path}`);
+    return {
+      get status() {
+        unread.delete(key);
+        return response.status;
+      },
+      headers: response.headers,
+      body: response.body,
+    };
+  }
+
+  unreadStatuses(): string[] {
+    return [...this.unread.values()];
+  }
 
   secret(value: string) {
     if (value !== '') this.secrets.add(value);
@@ -462,8 +482,10 @@ async function readManifest(manifestPath: string): Promise<{
   };
 }
 
-function hitsOf(lines: string): (Hit & { owner: boolean })[] {
-  const requests = new Map<string, Hit & { owner: boolean }>();
+type LoggedHit = Hit & { owner: boolean; handled: boolean };
+
+function hitsOf(lines: string): LoggedHit[] {
+  const requests = new Map<string, LoggedHit>();
   for (const line of lines.split('\n').filter(Boolean)) {
     const entry = record(JSON.parse(line));
     const id = text(entry.id);
@@ -475,8 +497,10 @@ function hitsOf(lines: string): (Hit & { owner: boolean })[] {
         kit: entry.kit === true,
         status: undefined,
         owner: entry.owner === true,
+        handled: false,
       });
     const hit = requests.get(id);
+    if (entry.event === 'handled' && hit) hit.handled = true;
     if (entry.event === 'response' && hit && typeof entry.status === 'number')
       hit.status = entry.status;
   }
@@ -526,6 +550,7 @@ export class ServerHandle {
     const inventory = await this.read(new Recorder(), {
       method: 'GET',
       path: '/api/inventory',
+      headers: kitHeaders,
     });
     const [project, ...others] = list(record(inventory.body).projects).map(
       record,
@@ -549,8 +574,9 @@ export class ServerHandle {
   }
 
   async hits(): Promise<Hit[]> {
-    return (await this.allHits()).flatMap(({ owner, ...hit }) =>
-      owner ? [] : [hit],
+    return (await this.allHits()).flatMap(
+      ({ owner, method, route, path, kit, status }) =>
+        owner ? [] : [{ method, route, path, kit, status }],
     );
   }
 
@@ -558,7 +584,7 @@ export class ServerHandle {
     return [
       ...new Set(
         (await this.allHits()).flatMap((hit) =>
-          hit.route === undefined || hit.status === 401
+          hit.route === undefined || hit.kit || !hit.handled
             ? []
             : [`${hit.owner ? 'owner ' : ''}${hit.method} ${hit.route}`],
         ),
@@ -723,8 +749,8 @@ export class ServerHandle {
     return headers;
   }
 
-  send(recorder: Recorder, request: HttpRequest): Promise<HttpResponse> {
-    return this.transmit(recorder, request);
+  async send(recorder: Recorder, request: HttpRequest): Promise<HttpResponse> {
+    return recorder.statusRead(request, await this.transmit(recorder, request));
   }
 
   async read(

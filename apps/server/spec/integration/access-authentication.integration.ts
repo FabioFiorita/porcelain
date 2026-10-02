@@ -15,6 +15,8 @@ const unpairedRoutes = new Set([
   'POST /api/pair',
 ]);
 
+const PAIRED_ROUTES = 57;
+
 const methods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] as const;
 
 function pairedRoutes(routes: readonly string[]) {
@@ -66,6 +68,7 @@ test.for<{ credential: string; auth: NonNullable<HttpRequest['auth']> }>([
     const before = await inventory(session);
     const routes = pairedRoutes(server.routes);
     const answers = [];
+    expect(routes).toHaveLength(PAIRED_ROUTES);
 
     for (const route of routes) {
       const response = await session.send(requestFor(session, route, auth));

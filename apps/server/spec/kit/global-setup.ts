@@ -15,12 +15,24 @@ const routeLogSchema = z.object({
   requested: z.array(z.string()),
 });
 
-async function unrequestedRoutes(folder: string) {
+async function unrequestedRoutes(folder: string, project: TestProject) {
   const logs = await readdir(folder);
   const tests = (await readdir(integrationFolder)).filter((name) =>
     name.endsWith('.integration.ts'),
   );
-  if (logs.length !== tests.length) return [];
+  const ran = project.vitest.state
+    .getTestModules()
+    .filter((module) => module.project.name === project.name).length;
+  if (ran < tests.length) {
+    process.stderr.write(
+      `Route coverage: not judged, this run selected ${ran} of ${tests.length} integration files; a run of every file judges it.\n`,
+    );
+    return [];
+  }
+  if (logs.length !== ran)
+    throw new Error(
+      `Route coverage: ${ran} integration files ran but ${logs.length} wrote a route log; every file's server records the routes its tests reached.`,
+    );
   const registered = new Set<string>();
   const requested = new Set<string>();
   for (const name of logs) {
@@ -42,12 +54,16 @@ export default async function setup(project: TestProject) {
   project.provide('serverSample', perf ? 'perf' : 'none');
   project.provide('serverRoutes', routes);
   return async () => {
-    const unrequested = perf ? [] : await unrequestedRoutes(routes);
-    await rm(build, { recursive: true, force: true });
-    await rm(routes, { recursive: true, force: true });
+    let unrequested: string[] = [];
+    try {
+      if (!perf) unrequested = await unrequestedRoutes(routes, project);
+    } finally {
+      await rm(build, { recursive: true, force: true });
+      await rm(routes, { recursive: true, force: true });
+    }
     if (unrequested.length > 0)
       throw new Error(
-        `Route coverage: no integration test requested ${unrequested.join(', ')}; every registered route is requested, past authentication, by at least one test in apps/server/spec/integration/.`,
+        `Route coverage: no integration test requested ${unrequested.join(', ')}; every registered route is reached, through its handler, by a request of at least one test in apps/server/spec/integration/.`,
       );
   };
 }
