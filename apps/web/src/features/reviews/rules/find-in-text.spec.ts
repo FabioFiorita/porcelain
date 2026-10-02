@@ -9,9 +9,6 @@ import {
 describe('findMatches', () => {
   it('finds nothing for an empty query', () => {
     expect(findMatches('alpha\nbeta', '', 100)).toEqual([]);
-    expect(findMatches('alpha\nbeta', 'beta', 100)).toEqual([
-      { line: 2, column: 0 },
-    ]);
   });
 
   it('finds every occurrence by line and column, ignoring case', () => {

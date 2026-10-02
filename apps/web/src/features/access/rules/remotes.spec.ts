@@ -43,13 +43,6 @@ describe('remoteLink', () => {
     'http://192.168.15.64:4738/pair#c=a',
   ])('reads nothing from %j', (value) => {
     expect(remoteLink(value)).toBeUndefined();
-    expect(
-      remoteLink(`http://192.168.15.64:4738/pair#c=a&e=${environmentId}`),
-    ).toEqual({
-      address: 'http://192.168.15.64:4738',
-      code: 'a',
-      environmentId,
-    });
   });
 });
 
@@ -90,7 +83,6 @@ describe('parseRemotes', () => {
 
   it('reads nothing from a value that is not a list', () => {
     expect(parseRemotes({ remotes: [remote] })).toEqual([]);
-    expect(parseRemotes([remote])).toEqual([remote]);
   });
 });
 

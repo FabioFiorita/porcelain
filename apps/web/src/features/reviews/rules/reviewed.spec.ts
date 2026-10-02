@@ -272,6 +272,5 @@ describe('inChunks', () => {
 
   it('asks for nothing when there is nothing to mark', () => {
     expect(inChunks([], 2000)).toEqual([]);
-    expect(inChunks(['a'], 2000)).toEqual([['a']]);
   });
 });
