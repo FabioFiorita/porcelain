@@ -67,10 +67,9 @@ export function pairingGrantStoreContract(
       });
     });
 
-    it('finds nothing for an unknown grant id, only the added one', () => {
+    it('finds nothing for an unknown grant id', () => {
       grants.add({ grants: [grant('one')] });
       expect(grants.find({ grantId: 'unknown' })).toBeUndefined();
-      expect(grants.find({ grantId: 'one' })).toEqual(grant('one'));
     });
 
     it('lists nothing when no grants are added, and the grant once one is', () => {

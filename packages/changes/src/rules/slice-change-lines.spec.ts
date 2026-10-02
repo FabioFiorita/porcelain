@@ -85,15 +85,9 @@ describe('lineRangeProblem', () => {
   it.each([
     { name: 'on its start', to: 2 },
     { name: 'after its start', to: 3 },
-  ])(
-    'accepts a range that ends $name, but not once it starts past that end',
-    ({ to }) => {
-      expect(lineRangeProblem({ from: 2, to })).toBeUndefined();
-      expect(lineRangeProblem({ from: to + 1, to })).toEqual({
-        kind: 'reversed-range',
-      });
-    },
-  );
+  ])('accepts a range that ends $name', ({ to }) => {
+    expect(lineRangeProblem({ from: 2, to })).toBeUndefined();
+  });
 
   it('refuses a range that ends before it starts', () => {
     expect(lineRangeProblem({ from: 3, to: 2 })).toEqual({

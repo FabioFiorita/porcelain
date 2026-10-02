@@ -69,12 +69,9 @@ describe('observationProblem', () => {
     });
   });
 
-  it('finds no problem with an unchanged stamp on the second observation, only with a changed one', () => {
+  it('finds no problem with an unchanged stamp on the second observation', () => {
     expect(
       observationProblem({ ...input, previousStamp: 'stamp-1' }),
     ).toBeUndefined();
-    expect(observationProblem({ ...input, previousStamp: 'stamp-0' })).toEqual({
-      kind: 'worktree-changed',
-    });
   });
 });

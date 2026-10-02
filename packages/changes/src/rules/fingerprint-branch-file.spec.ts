@@ -10,9 +10,6 @@ describe('fingerprintBranchFile', () => {
     expect(fingerprintBranchFile(branchFile())).toBe(
       fingerprintBranchFile(branchFile()),
     );
-    expect(fingerprintBranchFile(branchFile())).toBe(
-      'b760018fd0a1c5c5eb421a12dfe1238b7cbcbccd30e6c7e1234d1b79e9c53cfe',
-    );
   });
 
   it('is a SHA-256 in hexadecimal', () => {

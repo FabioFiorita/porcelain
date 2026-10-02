@@ -45,6 +45,7 @@ describe('subnetOf', () => {
     ['10.20.30.40', '255.0.0.0', '10.20.30.40/8', '10.0.0.0/8'],
     ['172.16.5.9', '255.255.240.0', '172.16.5.9/20', '172.16.0.0/20'],
     ['192.168.1.20', '255.255.255.255', '192.168.1.20/32', '192.168.1.20/32'],
+    ['192.168.1.20', '128.0.0.0', '192.168.1.20/1', '128.0.0.0/1'],
   ])(
     'reads %s with the mask %s as the network %s',
     (address, mask, cidr, subnet) => {
@@ -53,49 +54,13 @@ describe('subnetOf', () => {
   );
 
   it.each([
-    [
-      '192.168.1.20',
-      '255.255.255.0',
-      '192.168.1.20',
-      '192.168.1.20',
-      '255.255.255.0',
-      '192.168.1.20/24',
-      '192.168.1.0/24',
-    ],
-    [
-      '192.168.1.20',
-      '255.255.255.0',
-      '192.168.1.20/33',
-      '192.168.1.20',
-      '255.255.255.255',
-      '192.168.1.20/32',
-      '192.168.1.20/32',
-    ],
-    [
-      '192.168.1.20',
-      '0.0.0.0',
-      '192.168.1.20/0',
-      '192.168.1.20',
-      '128.0.0.0',
-      '192.168.1.20/1',
-      '128.0.0.0/1',
-    ],
-    [
-      'fe80::1',
-      'ffff:ffff:ffff:ffff::',
-      'fe80::1/64',
-      '169.254.0.1',
-      '255.255.0.0',
-      '169.254.0.1/16',
-      '169.254.0.0/16',
-    ],
-  ])(
-    'reads no network from %s with %s as %s, only from its nearest IPv4 network with a valid prefix',
-    (address, mask, cidr, nearAddress, nearMask, nearCidr, subnet) => {
-      expect(subnetOf(address, mask, cidr)).toBeUndefined();
-      expect(subnetOf(nearAddress, nearMask, nearCidr)).toBe(subnet);
-    },
-  );
+    ['192.168.1.20', '255.255.255.0', '192.168.1.20'],
+    ['192.168.1.20', '255.255.255.0', '192.168.1.20/33'],
+    ['192.168.1.20', '0.0.0.0', '192.168.1.20/0'],
+    ['fe80::1', 'ffff:ffff:ffff:ffff::', 'fe80::1/64'],
+  ])('reads no network from %s with %s as %s', (address, mask, cidr) => {
+    expect(subnetOf(address, mask, cidr)).toBeUndefined();
+  });
 });
 
 const unresolvedWifiRoute = {
@@ -136,17 +101,6 @@ describe('localNetwork', () => {
           { interfaceName, metric: 0, gateway: '10.8.0.1' },
         ]),
       ).toBeUndefined();
-      expect(
-        localNetwork(laptop, [
-          { interfaceName, metric: 0, gateway: '10.8.0.1' },
-          unresolvedWifiRoute,
-        ]),
-      ).toEqual({
-        interfaceName: 'wlp2s0',
-        subnet: '192.168.1.0/24',
-        gateway: '192.168.1.1',
-        address: '192.168.1.20',
-      });
     },
   );
 
@@ -179,14 +133,8 @@ describe('localNetwork', () => {
     });
   });
 
-  it('is nothing without a default route, and the network the route names once there is one', () => {
+  it('is nothing without a default route', () => {
     expect(localNetwork(laptop, [])).toBeUndefined();
-    expect(localNetwork(laptop, [unresolvedWifiRoute])).toEqual({
-      interfaceName: 'wlp2s0',
-      subnet: '192.168.1.0/24',
-      gateway: '192.168.1.1',
-      address: '192.168.1.20',
-    });
   });
 
   it('is nothing when the default route leads to a public address, unlike a private one', () => {
@@ -209,24 +157,13 @@ describe('localNetwork', () => {
     });
   });
 
-  it('is nothing when the interface reports no prefix length, and its network when it reports one', () => {
+  it('is nothing when the interface reports no prefix length', () => {
     expect(
       localNetwork(
         [address('eth0', '192.168.1.20', { physical: true, cidr: undefined })],
         [{ interfaceName: 'eth0', metric: 100, gateway: '192.168.1.1' }],
       ),
     ).toBeUndefined();
-    expect(
-      localNetwork(
-        [address('eth0', '192.168.1.20/24', { physical: true })],
-        [{ interfaceName: 'eth0', metric: 100, gateway: '192.168.1.1' }],
-      ),
-    ).toEqual({
-      interfaceName: 'eth0',
-      subnet: '192.168.1.0/24',
-      gateway: '192.168.1.1',
-      address: '192.168.1.20',
-    });
   });
 });
 

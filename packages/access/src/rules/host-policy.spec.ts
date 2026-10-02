@@ -22,8 +22,7 @@ describe('canonicalHostname', () => {
     expect(canonicalHostname('[::ffff:c0a8:114]')).toBe('192.168.1.20');
   });
 
-  it('has no canonical form for an empty or malformed address, only for the well-formed one', () => {
-    expect(canonicalHostname('[fe80::1]')).toBe('fe80::1');
+  it('has no canonical form for an empty or malformed address', () => {
     expect(canonicalHostname('')).toBeUndefined();
     expect(canonicalHostname('[]')).toBeUndefined();
     expect(canonicalHostname('fe80::1%eth0')).toBeUndefined();

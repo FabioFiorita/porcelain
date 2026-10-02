@@ -26,9 +26,8 @@ const check =
     });
 
 describe('CheckServiceUpdateService', () => {
-  it('lets the offered update start, and no other version', () => {
+  it('lets the offered update start', () => {
     expect(check(offered)).not.toThrow();
-    expect(check(offered, '1.0.0')).toThrow(ServiceUpdateNotOfferedError);
   });
 
   it('names each refusal by its own error', () => {

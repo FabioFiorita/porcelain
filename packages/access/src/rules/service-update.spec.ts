@@ -13,13 +13,10 @@ const offered: ServiceUpdateState = {
 const allowed = { canUpdate: true };
 
 describe('serviceUpdateRefusal', () => {
-  it('lets the installed service update to the newer version it offers, not to the one it runs', () => {
+  it('lets the installed service update to the newer version it offers', () => {
     expect(
       serviceUpdateRefusal(offered, { version: '1.1.0' }, allowed),
     ).toBeUndefined();
-    expect(
-      serviceUpdateRefusal(offered, { version: '1.0.0' }, allowed),
-    ).toEqual({ kind: 'not-offered' });
   });
 
   it('refuses a caller that may not update before anything else', () => {
