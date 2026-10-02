@@ -9,6 +9,7 @@ const packages = readdirSync(join(root, 'packages'), { withFileTypes: true })
   .filter(
     (entry) =>
       entry.isDirectory() &&
+      entry.name !== 'theme' &&
       existsSync(join(root, 'packages', entry.name, 'src')),
   )
   .map((entry) => entry.name);

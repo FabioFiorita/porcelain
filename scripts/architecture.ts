@@ -31,6 +31,17 @@ import {
 } from '../architecture/policy.ts';
 import { typeRuleFindings } from '../architecture/type-rules.ts';
 import { unusedExportFindings } from '../architecture/unused-exports.ts';
+import {
+  mobileMetroFile,
+  mobileMetroValid,
+  mobileGeneratedTypes,
+  mobileGeneratedTypesValid,
+  mobileStyleFile,
+  mobileStylesValid,
+  themeManifestValid,
+  themeTokenFile,
+  themeTokensValid,
+} from '../architecture/theme-policy.ts';
 
 const dependencySchema = z.object({
   module: z.string(),
@@ -114,7 +125,7 @@ function sourceFiles(directory: string): string[] {
 }
 
 const permittedOutsideRoots: readonly RegExp[] = [
-  /^apps\/mobile\/(?:package\.json|tsconfig\.json|app\.config\.ts|eas\.json)$/,
+  /^apps\/mobile\/(?:package\.json|tsconfig\.json|app\.config\.ts|eas\.json|metro\.config\.cjs)$/,
   /^(?:packages\/[^/]+|apps\/(?:server|desktop))\/(?:package|tsconfig)\.json$/,
   /^packages\/storage\/drizzle\/(?:meta\/)?[^/]+\.(?:sql|json)$/,
   /^packages\/storage\/drizzle\.config\.ts$/,
@@ -131,6 +142,7 @@ const webAsset = /^apps\/web\/src\/(?:[^/]+\.css|assets\/[^/]+)$/;
 function placementFindings(): Finding[] {
   const files = [...filesUnder('packages'), ...filesUnder('apps')];
   return files.flatMap((path) => {
+    if (path === themeTokenFile || path === mobileStyleFile) return [];
     if (/^apps\/mobile\/(?:src|spec)\/.+\.tsx?$/.test(path)) return [];
     if (webInside.test(path)) {
       if (/\.tsx?$/.test(path) || webAsset.test(path)) return [];
@@ -162,6 +174,85 @@ function placementFindings(): Finding[] {
       },
     ];
   });
+}
+
+function themeFindings(): Finding[] {
+  const findings: Finding[] = [];
+  for (const path of filesUnder('packages/theme')) {
+    const source = readFileSync(join(repositoryRoot, path), 'utf8');
+    const valid =
+      path === themeTokenFile
+        ? themeTokensValid(source)
+        : path === 'packages/theme/package.json' &&
+          themeManifestValid(JSON.parse(source));
+    if (!valid)
+      findings.push({
+        rule: 'theme-data-only',
+        from: path,
+        to: 'the CSS token module and its dependency-free public export manifest',
+      });
+  }
+  if (
+    !existsSync(join(repositoryRoot, mobileMetroFile)) ||
+    !mobileMetroValid(
+      readFileSync(join(repositoryRoot, mobileMetroFile), 'utf8'),
+    )
+  )
+    findings.push({
+      rule: 'mobile-style-config',
+      from: mobileMetroFile,
+      to: 'the documented Uniwind Metro integration and its owned CSS and generated type paths',
+    });
+  if (
+    !existsSync(join(repositoryRoot, mobileGeneratedTypes)) ||
+    !mobileGeneratedTypesValid(
+      readFileSync(join(repositoryRoot, mobileGeneratedTypes), 'utf8'),
+    )
+  )
+    findings.push({
+      rule: 'mobile-style-config',
+      from: mobileGeneratedTypes,
+      to: 'the exact Uniwind-generated light/dark module augmentation',
+    });
+  if (
+    !existsSync(join(repositoryRoot, mobileStyleFile)) ||
+    !mobileStylesValid(
+      readFileSync(join(repositoryRoot, mobileStyleFile), 'utf8'),
+    )
+  )
+    findings.push({
+      rule: 'mobile-style-config',
+      from: mobileStyleFile,
+      to: 'the Tailwind, Uniwind and public shared theme imports followed only by native token declarations',
+    });
+  const styles = allRoots
+    .flatMap(filesUnder)
+    .filter((path) => path.endsWith('.css'));
+  for (const path of styles) {
+    const from = classify(path);
+    const source = readFileSync(join(repositoryRoot, path), 'utf8');
+    for (const imported of source.matchAll(
+      /@import\s+(?:url\(\s*)?['"]([^'"]+)['"]/g,
+    )) {
+      const specifier = imported[1] ?? '';
+      if (
+        !specifier.startsWith('@porcelain/theme') &&
+        !specifier.includes('packages/theme/')
+      )
+        continue;
+      if (
+        specifier !== '@porcelain/theme/tokens.css' ||
+        from?.role !== 'app-stylesheet' ||
+        !['web', 'mobile'].includes(from.owner)
+      )
+        findings.push({
+          rule: 'theme-imports-stylesheets-only',
+          from: path,
+          to: specifier,
+        });
+    }
+  }
+  return findings;
 }
 
 function isRepositoryPath(resolved: string): boolean {
@@ -210,23 +301,26 @@ async function scan(sources: readonly string[]): Promise<CruiseReport> {
   );
   const mobileReports = await Promise.all(
     ['ios', 'android'].map(async (platform) => {
-      const result = await cruise([...mobileRoots, mobileConfig], {
-        ...mobileOptions,
-        doNotFollow: {
-          path: 'node_modules|^apps/(?:web|server|desktop)/',
+      const result = await cruise(
+        [...mobileRoots, mobileConfig, mobileMetroFile],
+        {
+          ...mobileOptions,
+          doNotFollow: {
+            path: 'node_modules|^apps/(?:web|server|desktop)/',
+          },
+          enhancedResolveOptions: {
+            ...mobileOptions.enhancedResolveOptions,
+            extensions: [
+              `.${platform}.ts`,
+              `.${platform}.tsx`,
+              '.ts',
+              '.tsx',
+              '.js',
+              '.json',
+            ],
+          },
         },
-        enhancedResolveOptions: {
-          ...mobileOptions.enhancedResolveOptions,
-          extensions: [
-            `.${platform}.ts`,
-            `.${platform}.tsx`,
-            '.ts',
-            '.tsx',
-            '.js',
-            '.json',
-          ],
-        },
-      });
+      );
       return cruiseReportSchema.parse(result.output);
     }),
   );
@@ -260,7 +354,8 @@ async function scan(sources: readonly string[]): Promise<CruiseReport> {
       .filter(
         (dependency) =>
           dependency.couldNotResolve &&
-          /^(?:@porcelain\/|@\/)/.test(dependency.module),
+          /^(?:@porcelain\/|@\/)/.test(dependency.module) &&
+          !/^@porcelain\/theme(?:\/|$)/.test(dependency.module),
       )
       .map((dependency) => `${module.source} -> ${dependency.module}`),
   );
@@ -456,6 +551,22 @@ function dependencyFindings(
     const from = classified.get(module.source);
     if (!from) continue;
     for (const dependency of module.dependencies) {
+      if (
+        /^@porcelain\/theme(?:\/|$)/.test(dependency.module) ||
+        dependency.resolved.startsWith('packages/theme/')
+      ) {
+        result.push({
+          rule: 'theme-imports-stylesheets-only',
+          from: module.source,
+          to: dependency.module,
+        });
+        continue;
+      }
+      if (
+        dependency.resolved === mobileStyleFile &&
+        module.source === 'apps/mobile/src/shell/root-layout.tsx'
+      )
+        continue;
       if (webAsset.test(dependency.resolved)) continue;
       const to = classified.get(dependency.resolved);
       if (to) {
@@ -526,7 +637,12 @@ function dependencyFindings(
 try {
   if (process.argv[2] !== 'check')
     throw new Error('Usage: pnpm arch:check [--all]');
-  const sources = [...allRoots.flatMap(sourceFiles), webConfig, mobileConfig];
+  const sources = [
+    ...allRoots.flatMap(sourceFiles),
+    webConfig,
+    mobileConfig,
+    mobileMetroFile,
+  ];
   const report = await scan(sources);
   const { classified, findings } = classifyAll(sources);
   const violations: Finding[] = [
@@ -535,6 +651,7 @@ try {
     ...packageExportFindings(),
     ...structureFindings(sources, classified),
     ...placementFindings(),
+    ...themeFindings(),
     ...typeRuleFindings(repositoryRoot),
     ...unusedExportFindings(repositoryRoot),
   ];

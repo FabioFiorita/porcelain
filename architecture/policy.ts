@@ -67,6 +67,7 @@ export const targetPackageExports: Record<string, Record<string, string>> = {
     './fakes': './spec/fakes/index.ts',
   },
   process: { '.': './src/index.ts' },
+  theme: { './tokens.css': './src/tokens.css' },
   client: {
     './access': './src/features/access/index.ts',
     './access/api': './src/features/access/api.ts',
@@ -164,6 +165,10 @@ export const roles = [
   'client-transport-spec',
   'mobile-config',
   'mobile-store',
+  'theme-tokens',
+  'app-stylesheet',
+  'mobile-metro-config',
+  'mobile-generated-types',
 ] as const;
 
 export type Role = (typeof roles)[number];
@@ -277,6 +282,9 @@ export const shadcnRegistry: ReadonlySet<string> = new Set([
 ]);
 
 export const archRules = [
+  'theme-data-only',
+  'theme-imports-stylesheets-only',
+  'mobile-style-config',
   'mobile-imports-mobile-client-and-contracts-only',
   'mobile-routes-import-feature-index',
   'mobile-features-import-feature-index',
@@ -475,6 +483,10 @@ function classifyDomain(name: string, inside: string) {
 }
 
 function classifyPackage(name: string, inside: string) {
+  if (name === 'theme')
+    return inside === 'tokens.css'
+      ? classified('theme-tokens', name)
+      : undefined;
   if (name === 'client') {
     if (/^shared\/api\/[a-z-]+\.spec\.ts$/.test(inside))
       return classified('client-transport-spec', name);
@@ -627,6 +639,7 @@ const webCode = /\.tsx?$/;
 const kebabFile = /^[a-z0-9]+(?:-[a-z0-9]+)*\.tsx?$/;
 
 function mobilePart(path: string): Role | undefined {
+  if (path === 'apps/mobile/metro.config.cjs') return 'mobile-metro-config';
   if (path === 'apps/mobile/app.config.ts') return 'mobile-config';
   if (/^apps\/mobile\/src\/shared\/rules\/.+\.spec\.ts$/.test(path))
     return 'web-rule-spec';
@@ -634,6 +647,8 @@ function mobilePart(path: string): Role | undefined {
     return 'web-rule';
   const inside = path.slice('apps/mobile/src/'.length);
   if (!path.startsWith('apps/mobile/src/')) return;
+  if (inside === 'app.css') return 'app-stylesheet';
+  if (inside === 'config/uniwind-types.d.ts') return 'mobile-generated-types';
   if (inside === 'config/limits.ts') return 'web-limits';
   if (/^app\/(?:[^/]+\/)*[^/]+\.tsx$/.test(inside)) return 'route';
   if (/^shell\/[^/]+(?:\.(?:ios|android))?\.tsx?$/.test(inside)) return 'shell';
@@ -672,6 +687,7 @@ export function webPart(path: string): Role | undefined {
         : classified?.role;
   }
   if (path === 'apps/web/vite.config.ts') return 'web-config';
+  if (/^apps\/web\/src\/[^/]+\.css$/.test(path)) return 'app-stylesheet';
   if (/^apps\/web\/spec\/(?:browser|negative)\//.test(path))
     return 'browser-spec';
   if (path.startsWith('apps/web/spec/kit/')) return 'browser-kit';
@@ -696,6 +712,7 @@ function classifyWeb(path: string): Classification | undefined {
   const owner = 'web';
   const role = webPart(path);
   if (role === undefined) return;
+  if (role === 'app-stylesheet') return classified(role, owner);
   const inside = path.slice('apps/web/'.length).split('/');
   const name = inside.at(-1) ?? '';
   if (role === 'browser-spec')
@@ -839,6 +856,10 @@ const everything: readonly Role[] = [
 ];
 
 export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
+  'theme-tokens': new Set(),
+  'app-stylesheet': new Set(['theme-tokens']),
+  'mobile-metro-config': new Set(),
+  'mobile-generated-types': new Set(),
   'mobile-store': new Set([
     'client-feature-api',
     'client-rules-api',
@@ -1203,6 +1224,11 @@ export function violation(
   from: Classification,
   to: Classification,
 ): ArchRule | undefined {
+  if (to.owner === 'theme')
+    return from.role === 'app-stylesheet' &&
+      (from.owner === 'web' || from.owner === 'mobile')
+      ? undefined
+      : 'theme-imports-stylesheets-only';
   if (
     from.owner === 'mobile' &&
     !['mobile', 'client', 'contracts'].includes(to.owner)
@@ -1358,6 +1384,10 @@ const nodeModules = new Set(
 const storageEngineModule = /^(?:fs|child_process)(?:\/|$)/;
 
 export const externalPackages: Record<Role, readonly string[]> = {
+  'theme-tokens': [],
+  'app-stylesheet': [],
+  'mobile-metro-config': ['expo', 'uniwind'],
+  'mobile-generated-types': ['uniwind'],
   'mobile-store': [],
   'mobile-config': ['expo'],
   'client-rules-api': [],
@@ -1507,6 +1537,14 @@ export function forbiddenExternal(role: Role, module: string): boolean {
 }
 
 const rolePurposes: Record<Role, string> = {
+  'theme-tokens':
+    'the shared CSS custom properties, with no executable code, dependencies or product selectors',
+  'app-stylesheet':
+    'the web stylesheet or native app.css entry, which consumes the public visual tokens',
+  'mobile-metro-config':
+    'the native Metro entry that installs Uniwind with the enforced CSS entry and generated type path',
+  'mobile-generated-types':
+    'the exact Uniwind-generated light/dark declaration module, verified before it is exempt from handwritten code lint',
   'mobile-store':
     'a native feature state binding, which injects platform adapters into shared vanilla state and supplies its React bindings to views, queries and commands',
   'mobile-config':
@@ -1602,6 +1640,12 @@ const rolePurposes: Record<Role, string> = {
 };
 
 const archRuleReasons = {
+  'theme-data-only':
+    'The shared theme owns CSS token data only; code, dependencies and product selectors would couple behavior to presentation and escape a real package typecheck.',
+  'theme-imports-stylesheets-only':
+    'Only the web and native CSS entries consume the public theme export; server and shared client behavior remain independent of presentation.',
+  'mobile-style-config':
+    'Metro installs the documented Uniwind integration with one CSS entry and verified generated declarations; arbitrary configuration or declarations would escape native typecheck and lint.',
   'mobile-imports-mobile-client-and-contracts-only':
     'Mobile owns native presentation and platform capabilities; shared behavior comes from the client and its contracts, never another app or a server implementation.',
   'mobile-routes-import-feature-index':

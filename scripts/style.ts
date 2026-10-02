@@ -33,6 +33,10 @@ import {
   unmappedRoutes,
 } from '../.agents/skills/web-verify/scripts/catalogue.ts';
 import { manualAuditProblems } from '../architecture/ci-policy.ts';
+import {
+  mobileGeneratedTypes,
+  mobileMetroFile,
+} from '../architecture/theme-policy.ts';
 
 const [mode, target] = process.argv.slice(2);
 if (
@@ -57,6 +61,7 @@ const serverRoots = [
   'apps/mobile/src',
   'apps/mobile/spec',
   'apps/mobile/app.config.ts',
+  mobileMetroFile,
   'apps/desktop/src',
   'apps/desktop/spec',
   'apps/server/src',
@@ -839,7 +844,9 @@ function scriptProblems(): Problem[] {
         ? (manifestScriptsSchema.parse(strictJson(path)).scripts ?? {})
         : {};
       const expected = {
-        ...(path === 'package.json' ? {} : { typecheck: 'tsc --noEmit' }),
+        ...(path === 'package.json' || path === 'packages/theme/package.json'
+          ? {}
+          : { typecheck: 'tsc --noEmit' }),
         ...gateScripts[path],
       };
       return Object.entries(expected).flatMap(([name, command]) =>
@@ -936,7 +943,9 @@ async function configModuleProblems(): Promise<Problem[]> {
       (project) => project.test.expect.requireAssertions !== true,
     ) ||
     packageFolders.some(
-      (folder) => !named.has(`@porcelain/${basename(folder)}`),
+      (folder) =>
+        folder !== 'packages/theme' &&
+        !named.has(`@porcelain/${basename(folder)}`),
     )
   )
     problems.push(
@@ -1121,6 +1130,8 @@ async function lint(): Promise<number> {
       (path) =>
         lintedFile.test(path) &&
         path !== generatedRouteTree &&
+        path !== mobileGeneratedTypes &&
+        path !== mobileMetroFile &&
         !path.startsWith(`${uiFolder}/`),
     );
   const result = spawnSync(
@@ -1184,7 +1195,7 @@ async function lint(): Promise<number> {
 if (mode === 'format') {
   const result = spawnSync(
     join('node_modules', '.bin', 'oxfmt'),
-    ['--check', ...roots],
+    ['--check', ...roots, `!${mobileGeneratedTypes}`],
     { stdio: 'inherit' },
   );
   if (result.error) throw result.error;

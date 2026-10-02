@@ -1,5 +1,6 @@
-import { BottomSheet, FieldGroup, Host, ListItem, Text } from '@expo/ui';
+import { BottomSheet, Button, Host } from '@expo/ui';
 import { useState } from 'react';
+import { ScrollView, Text, View } from 'react-native';
 import { useReadEnvironments } from '../commands/pairing';
 import { useEnvironments, useEnvironmentStorageStatus } from '../store';
 import { EnvironmentRow } from './environment-row';
@@ -12,31 +13,62 @@ export function SettingsScreen() {
   const read = useReadEnvironments();
   return (
     <>
-      <Host style={{ flex: 1 }}>
-        <FieldGroup>
-          <FieldGroup.Section title="Environments">
+      <ScrollView
+        className="flex-1 bg-background"
+        contentInsetAdjustmentBehavior="automatic"
+      >
+        <View className="gap-6 px-6 py-8">
+          <Text
+            accessibilityRole="header"
+            className="text-xl font-semibold text-foreground"
+          >
+            Settings
+          </Text>
+          <View className="gap-3">
+            <Text
+              accessibilityRole="header"
+              className="text-sm font-medium text-muted-foreground"
+            >
+              Environments
+            </Text>
             {storage.status === 'loading' ? (
-              <Text>Reading saved environments…</Text>
+              <Text className="text-sm text-muted-foreground">
+                Reading saved environments…
+              </Text>
             ) : null}
-            {storage.error ? <Text>{storage.error}</Text> : null}
+            {storage.error ? (
+              <Text className="text-sm text-destructive">{storage.error}</Text>
+            ) : null}
             {storage.status === 'ready' && remotes.length === 0 ? (
-              <Text>No environments paired.</Text>
+              <Text className="text-sm text-muted-foreground">
+                No environments paired.
+              </Text>
             ) : null}
-            {remotes.map((remote) => (
-              <EnvironmentRow key={remote.environmentId} remote={remote} />
-            ))}
-            {storage.status === 'unreadable' ? (
-              <ListItem onPress={() => read()}>
-                Read saved environments again
-              </ListItem>
-            ) : storage.status === 'ready' ? (
-              <ListItem onPress={() => setPairing(true)}>
-                Add environment
-              </ListItem>
+            {remotes.length > 0 ? (
+              <View className="overflow-hidden rounded-lg border border-border bg-card">
+                {remotes.map((remote) => (
+                  <EnvironmentRow key={remote.environmentId} remote={remote} />
+                ))}
+              </View>
             ) : null}
-          </FieldGroup.Section>
-        </FieldGroup>
-      </Host>
+            <Host matchContents={{ vertical: true }}>
+              {storage.status === 'unreadable' ? (
+                <Button
+                  variant="text"
+                  label="Read saved environments again"
+                  onPress={() => read()}
+                />
+              ) : storage.status === 'ready' ? (
+                <Button
+                  variant="text"
+                  label="Add environment"
+                  onPress={() => setPairing(true)}
+                />
+              ) : null}
+            </Host>
+          </View>
+        </View>
+      </ScrollView>
       <BottomSheet isPresented={pairing} onDismiss={() => setPairing(false)}>
         {pairing ? <PairEnvironment onClose={() => setPairing(false)} /> : null}
       </BottomSheet>

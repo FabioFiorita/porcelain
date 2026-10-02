@@ -1,4 +1,5 @@
-import { Row, Text } from '@expo/ui';
+import { Host, RNHostView } from '@expo/ui';
+import { Text, View } from 'react-native';
 import type { Remote } from '@porcelain/client/access/rules';
 import { useEnvironmentStatus } from '../queries/environments';
 import { useForgetEnvironment } from '../commands/forget-environment';
@@ -20,15 +21,27 @@ export function EnvironmentRow({ remote }: { remote: Remote }) {
               ? 'Offline'
               : 'Checking';
   return (
-    <EnvironmentMenu
-      onForget={() => command.forget()}
-      isPending={command.isPending}
-    >
-      <Row>
-        <Text>{remote.name}</Text>
-        <Text>{label}</Text>
-        {command.error ? <Text>{command.error.message}</Text> : null}
-      </Row>
-    </EnvironmentMenu>
+    <Host matchContents={{ vertical: true }}>
+      <EnvironmentMenu
+        onForget={() => command.forget()}
+        isPending={command.isPending}
+      >
+        <RNHostView matchContents>
+          <View className="w-full gap-1 px-4 py-3">
+            <View className="flex-row items-center justify-between gap-4">
+              <Text className="flex-1 text-base font-medium text-card-foreground">
+                {remote.name}
+              </Text>
+              <Text className="text-xs text-muted-foreground">{label}</Text>
+            </View>
+            {command.error ? (
+              <Text className="text-sm text-destructive">
+                {command.error.message}
+              </Text>
+            ) : null}
+          </View>
+        </RNHostView>
+      </EnvironmentMenu>
+    </Host>
   );
 }
