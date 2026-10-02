@@ -107,6 +107,28 @@ export default defineConfig({
         },
       },
       {
+        test: {
+          name: '@porcelain/server-integration',
+          root,
+          include: ['apps/server/spec/integration/*.integration.ts'],
+          globalSetup: ['apps/server/spec/kit/global-setup.ts'],
+          expect: { requireAssertions: true },
+          testTimeout: 30_000,
+          hookTimeout: 60_000,
+        },
+      },
+      {
+        test: {
+          name: '@porcelain/server-perf',
+          root,
+          include: ['apps/server/spec/perf/*.perf.ts'],
+          globalSetup: ['apps/server/spec/kit/global-setup.ts'],
+          expect: { requireAssertions: true },
+          testTimeout: 60_000,
+          hookTimeout: 120_000,
+        },
+      },
+      {
         resolve: { alias: { '@': join(root, 'apps/web/src') } },
         test: {
           name: '@porcelain/web',

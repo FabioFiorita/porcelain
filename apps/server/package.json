@@ -9,7 +9,9 @@
   "scripts": {
     "start": "node --input-type=module --eval \"const { cli } = await import('./src/bootstrap/main.ts'); await cli.run();\"",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --config ../../vitest.config.ts --project @porcelain/server"
+    "test": "vitest run --config ../../vitest.config.ts --project @porcelain/server",
+    "test:integration": "vitest run --config ../../vitest.config.ts --project @porcelain/server-integration",
+    "test:perf": "vitest run --config ../../vitest.config.ts --project @porcelain/server-perf"
   },
   "dependencies": {
     "@fastify/cors": "11.3.0",

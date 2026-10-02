@@ -108,3 +108,32 @@ export function toolCall(
 export function toolResult(body: unknown) {
   return record(record(body).result);
 }
+
+export function toolText(body: unknown) {
+  return text(record(list(toolResult(body).content)[0]).text);
+}
+
+export function toolValue(body: unknown): unknown {
+  const value: unknown = JSON.parse(toolText(body));
+  return value;
+}
+
+export function worktreePath(session: Session, suffix = '') {
+  return `/api/worktrees/${session.worktreeId}${suffix}`;
+}
+
+export function gitPath(
+  session: Session,
+  suffix: string,
+  ids: { worktreeId?: string } = {},
+) {
+  return `/api/worktrees/${ids.worktreeId ?? session.worktreeId}/git${suffix}`;
+}
+
+export function receiptPath(
+  session: Session,
+  requestId: string,
+  worktreeId = session.worktreeId,
+) {
+  return `/api/worktrees/${worktreeId}/git/receipts/${requestId}`;
+}

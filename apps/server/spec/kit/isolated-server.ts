@@ -27,7 +27,6 @@ import {
   type Phase,
   type Session,
 } from './session.ts';
-import { Provenance } from './provenance.ts';
 
 type HttpStep = {
   phase: Phase;
@@ -148,7 +147,6 @@ const REQUEST_TIMEOUT_MS = 30_000;
 export class Recorder {
   phase: Phase = 'setup';
   steps: Step[] = [];
-  provenance = new Provenance();
   readonly cleanups: (() => void)[] = [];
   private readonly secrets = new Set<string>();
 
@@ -464,8 +462,8 @@ async function readManifest(manifestPath: string): Promise<{
   };
 }
 
-function hitsOf(lines: string): Hit[] {
-  const requests = new Map<string, Hit>();
+function hitsOf(lines: string): (Hit & { owner: boolean })[] {
+  const requests = new Map<string, Hit & { owner: boolean }>();
   for (const line of lines.split('\n').filter(Boolean)) {
     const entry = record(JSON.parse(line));
     const id = text(entry.id);
@@ -476,6 +474,7 @@ function hitsOf(lines: string): Hit[] {
         path: text(entry.path),
         kit: entry.kit === true,
         status: undefined,
+        owner: entry.owner === true,
       });
     const hit = requests.get(id);
     if (entry.event === 'response' && hit && typeof entry.status === 'number')
@@ -523,10 +522,28 @@ export class ServerHandle {
     return new ServerHandle(manifest, credentials);
   }
 
-  async hits(): Promise<Hit[]> {
+  private async allHits() {
     return existsSync(this.hitsFile)
       ? hitsOf(await readFile(this.hitsFile, 'utf8'))
       : [];
+  }
+
+  async hits(): Promise<Hit[]> {
+    return (await this.allHits()).flatMap(({ owner, ...hit }) =>
+      owner ? [] : [hit],
+    );
+  }
+
+  async requestedRoutes(): Promise<string[]> {
+    return [
+      ...new Set(
+        (await this.allHits()).flatMap((hit) =>
+          hit.route === undefined
+            ? []
+            : [`${hit.owner ? 'owner ' : ''}${hit.method} ${hit.route}`],
+        ),
+      ),
+    ].sort();
   }
 
   session(
@@ -589,7 +606,6 @@ export class ServerHandle {
             env: gitEnv,
           });
           step.output = stdout;
-          recorder.provenance.observe(`git ${subcommand}`, stdout);
           return stdout;
         } catch (error) {
           step.error = error instanceof Error ? error.message : String(error);
@@ -616,7 +632,6 @@ export class ServerHandle {
           path,
           bytes: Buffer.byteLength(content),
         });
-        recorder.provenance.observe(`file ${path}`, content);
         return content;
       },
       symlink: async (target, path) => {
@@ -656,7 +671,6 @@ export class ServerHandle {
           path,
           names,
         });
-        recorder.provenance.observe(`entries ${path}`, names);
         return names;
       },
       installCodingTool: async () => {
@@ -689,17 +703,8 @@ export class ServerHandle {
     return headers;
   }
 
-  async send(recorder: Recorder, request: HttpRequest): Promise<HttpResponse> {
-    if (recorder.phase === 'setup')
-      throw new Error(
-        `setup sent ${request.method} ${request.path} directly; setup reads go through read()`,
-      );
-    return recorder.provenance.exchange(
-      recorder.phase,
-      request,
-      await this.transmit(recorder, request),
-      false,
-    );
+  send(recorder: Recorder, request: HttpRequest): Promise<HttpResponse> {
+    return this.transmit(recorder, request);
   }
 
   async read(
@@ -712,12 +717,7 @@ export class ServerHandle {
       throw new Error(
         `${request.method} ${request.path} answered HTTP ${response.status}, not ${status}`,
       );
-    return recorder.provenance.exchange(
-      recorder.phase,
-      request,
-      response,
-      true,
-    );
+    return response;
   }
 
   private async transmit(
@@ -893,14 +893,12 @@ export class ServerHandle {
     socket.addEventListener('message', (event) => {
       const value = record(JSON.parse(String(event.data)));
       recorder.harvest(value);
-      recorder.provenance.observe('live notice', value);
       received.push(value);
       step.received.push(value);
       wake();
     });
     socket.addEventListener('close', (event) => {
       closed = { code: event.code, reason: event.reason };
-      recorder.provenance.observe('live close', closed);
       step.closed = closed;
       wake();
     });

@@ -158,9 +158,16 @@ const listeners: { host: RouteHost; routes: string[] }[] = [];
 const hitsFile = join(root, 'hits.jsonl');
 let fixtureReady = false;
 
-function recordHit(host: RouteHost, entry: Record<string, unknown>) {
-  if (!fixtureReady || typeof host.server.address() === 'string') return;
-  appendFileSync(hitsFile, `${JSON.stringify(entry)}\n`);
+function recordHit(
+  host: RouteHost,
+  entry: { id: string } & Record<string, unknown>,
+) {
+  if (!fixtureReady) return;
+  const owner = typeof host.server.address() === 'string';
+  appendFileSync(
+    hitsFile,
+    `${JSON.stringify(owner ? { ...entry, id: `owner-${entry.id}`, owner } : entry)}\n`,
+  );
 }
 
 subscribe('fastify.initialization', (message) => {
