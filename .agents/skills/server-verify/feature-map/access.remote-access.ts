@@ -8,11 +8,17 @@ import {
   defineCase,
   defineFeature,
   invalidRequest,
+} from '../scripts/feature.ts';
+import {
   record,
   text,
   type Session,
-} from '../scripts/feature.ts';
-import { eventually, issuePairing, read } from '../scripts/fixture.ts';
+} from '../../../../apps/server/spec/kit/session.ts';
+import { eventually } from '../scripts/fixture.ts';
+import {
+  issuePairing,
+  read,
+} from '../../../../apps/server/spec/kit/requests.ts';
 
 const tunnelHost = 'porcelain.example.com';
 const notOnThisComputer = apiError(

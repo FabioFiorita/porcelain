@@ -1,4 +1,5 @@
-import { defineCase, defineFeature, record } from '../scripts/feature.ts';
+import { defineCase, defineFeature } from '../scripts/feature.ts';
+import { record } from '../../../../apps/server/spec/kit/session.ts';
 
 const health = () => ({ method: 'GET' as const, path: '/api/health' });
 

@@ -113,7 +113,7 @@ async function desktop(): Promise<void> {
 async function browser(): Promise<void> {
   const server = spawn(
     process.execPath,
-    [resolve(root, 'scripts/dev-server.ts')],
+    [resolve(root, 'apps/server/spec/kit/sandbox.ts')],
     {
       cwd: root,
       detached: true,

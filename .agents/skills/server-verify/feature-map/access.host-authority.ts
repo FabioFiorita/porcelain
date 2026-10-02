@@ -3,13 +3,9 @@ import {
   readRemoteAccessResponseSchema,
   revokeAccessResponseSchema,
 } from '@porcelain/contracts/access';
-import {
-  apiError,
-  defineCase,
-  defineFeature,
-  type Session,
-} from '../scripts/feature.ts';
-import { read } from '../scripts/fixture.ts';
+import { apiError, defineCase, defineFeature } from '../scripts/feature.ts';
+import { type Session } from '../../../../apps/server/spec/kit/session.ts';
+import { read } from '../../../../apps/server/spec/kit/requests.ts';
 
 const notOnThisComputer = apiError(
   403,

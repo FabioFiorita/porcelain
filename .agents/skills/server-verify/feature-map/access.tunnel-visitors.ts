@@ -3,18 +3,18 @@ import {
   apiError,
   defineCase,
   defineFeature,
-  record,
   unauthenticated,
-  type HttpRequest,
-  type Session,
 } from '../scripts/feature.ts';
 import {
-  deviceCookieForm,
-  eventually,
+  record,
+  type HttpRequest,
+  type Session,
+} from '../../../../apps/server/spec/kit/session.ts';
+import { deviceCookieForm, eventually, literally } from '../scripts/fixture.ts';
+import {
   issuePairing,
-  literally,
   read,
-} from '../scripts/fixture.ts';
+} from '../../../../apps/server/spec/kit/requests.ts';
 
 const tunnelHost = 'porcelain.example.com';
 const tunnelPage = `https://${tunnelHost}`;

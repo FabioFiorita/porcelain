@@ -6,21 +6,25 @@ import {
   defineCase,
   defineFeature,
   invalidRequest,
+  unknownFingerprint,
+  unknownWorktreeId,
+} from '../scripts/feature.ts';
+import {
   list,
   record,
   text,
-  unknownFingerprint,
-  unknownWorktreeId,
   type Session,
-} from '../scripts/feature.ts';
+} from '../../../../apps/server/spec/kit/session.ts';
 import {
   eventually,
-  read,
-  sampleReview,
   watching,
   worktreeNotFound,
   worktreePath,
 } from '../scripts/fixture.ts';
+import {
+  read,
+  sampleReview,
+} from '../../../../apps/server/spec/kit/requests.ts';
 
 const layers = (session: Session) => worktreePath(session, '/reviewed-layers');
 const staleMark = apiError(

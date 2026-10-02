@@ -6,7 +6,7 @@ import {
   invalidRequest,
   unknownUuid,
 } from '../scripts/feature.ts';
-import { read } from '../scripts/fixture.ts';
+import { read } from '../../../../apps/server/spec/kit/requests.ts';
 
 const preferences = (projectId: string) =>
   `/api/projects/${projectId}/file-preferences`;

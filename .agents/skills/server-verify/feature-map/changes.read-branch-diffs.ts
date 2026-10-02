@@ -6,8 +6,8 @@ import {
   invalidRequest,
   unknownOid,
   unknownWorktreeId,
-  type Session,
 } from '../scripts/feature.ts';
+import { type Session } from '../../../../apps/server/spec/kit/session.ts';
 import { head, worktreeNotFound, worktreePath } from '../scripts/fixture.ts';
 
 const diffs = (session: Session, body: unknown) => ({

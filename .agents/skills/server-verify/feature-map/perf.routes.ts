@@ -31,21 +31,22 @@ import {
 import {
   defineCase,
   defineFeature,
-  list,
-  record,
   type ContractSchema,
-  type HttpRequest,
-  type HttpResponse,
   type Outcome,
-  type PerfSample,
-  type Session,
 } from '../scripts/feature.ts';
 import {
-  changes,
+  list,
+  record,
+  type HttpRequest,
+  type HttpResponse,
+  type PerfSample,
+  type Session,
+} from '../../../../apps/server/spec/kit/session.ts';
+import { changes, worktreePath } from '../scripts/fixture.ts';
+import {
   read,
   sampleReview,
-  worktreePath,
-} from '../scripts/fixture.ts';
+} from '../../../../apps/server/spec/kit/requests.ts';
 
 const repeated = (request: HttpRequest) =>
   Array.from({ length: ROUTE_BUDGET_REQUESTS }, () => request);

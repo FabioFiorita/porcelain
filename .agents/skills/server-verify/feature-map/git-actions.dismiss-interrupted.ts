@@ -12,11 +12,11 @@ import {
   fingerprintOf,
   gitPath,
   gitRoute,
-  read,
   receiptOf,
   settledReceipt,
   worktreePath,
 } from '../scripts/fixture.ts';
+import { read } from '../../../../apps/server/spec/kit/requests.ts';
 
 const alternates = '.git/objects/info/alternates';
 

@@ -1,12 +1,12 @@
+import { defineCase, defineFeature } from '../scripts/feature.ts';
 import {
-  defineCase,
-  defineFeature,
   list,
   record,
   text,
   type Session,
-} from '../scripts/feature.ts';
-import { read, worktreePath } from '../scripts/fixture.ts';
+} from '../../../../apps/server/spec/kit/session.ts';
+import { read } from '../../../../apps/server/spec/kit/requests.ts';
+import { worktreePath } from '../scripts/fixture.ts';
 
 const main = 'refs/heads/main';
 const feature = 'refs/heads/feature';

@@ -5,10 +5,12 @@ import {
   defineCase,
   defineFeature,
   invalidRequest,
+} from '../scripts/feature.ts';
+import {
   record,
   text,
   type Session,
-} from '../scripts/feature.ts';
+} from '../../../../apps/server/spec/kit/session.ts';
 import { inventory, watching } from '../scripts/fixture.ts';
 
 const notOnThisComputer = apiError(

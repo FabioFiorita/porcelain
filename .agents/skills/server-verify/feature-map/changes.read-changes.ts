@@ -4,11 +4,13 @@ import {
   defineCase,
   defineFeature,
   invalidRequest,
+  unknownWorktreeId,
+} from '../scripts/feature.ts';
+import {
   list,
   record,
-  unknownWorktreeId,
   type Session,
-} from '../scripts/feature.ts';
+} from '../../../../apps/server/spec/kit/session.ts';
 import { setTimeout as delay } from 'node:timers/promises';
 import {
   blobOf,
@@ -16,11 +18,11 @@ import {
   fingerprintOf,
   head,
   inventory,
-  read,
   workingBlobOf,
   worktreeNotFound,
   worktreePath,
 } from '../scripts/fixture.ts';
+import { read } from '../../../../apps/server/spec/kit/requests.ts';
 
 const modified = (
   session: Session,

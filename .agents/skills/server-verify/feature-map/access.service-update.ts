@@ -7,11 +7,14 @@ import {
   defineCase,
   defineFeature,
   invalidRequest,
+} from '../scripts/feature.ts';
+import {
   record,
   text,
   type Session,
-} from '../scripts/feature.ts';
-import { eventually, read } from '../scripts/fixture.ts';
+} from '../../../../apps/server/spec/kit/session.ts';
+import { eventually } from '../scripts/fixture.ts';
+import { read } from '../../../../apps/server/spec/kit/requests.ts';
 
 const updatePath = '/api/service/update';
 const status = { method: 'GET' as const, path: updatePath };

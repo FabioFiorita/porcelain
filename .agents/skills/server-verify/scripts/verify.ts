@@ -13,15 +13,25 @@ import {
   isRecord,
   list,
   record,
+} from '../../../../apps/server/spec/kit/session.ts';
+import {
   UnassertedExchanges,
   type Budget,
   type Checks,
   type Feature,
 } from './feature.ts';
 import { contractSchemas } from './contracts.ts';
-import { expectedWeakness, Provenance, type Claim } from './provenance.ts';
-import { IsolatedServer, Recorder, type Step } from './session.ts';
-import { buildIsolatedServer } from '../../../../scripts/dev-server.ts';
+import {
+  expectedWeakness,
+  Provenance,
+  type Claim,
+} from '../../../../apps/server/spec/kit/provenance.ts';
+import {
+  IsolatedServer,
+  Recorder,
+  type Step,
+} from '../../../../apps/server/spec/kit/isolated-server.ts';
+import { buildIsolatedServer } from '../../../../apps/server/spec/kit/sandbox.ts';
 
 type Assertion = {
   name: string;

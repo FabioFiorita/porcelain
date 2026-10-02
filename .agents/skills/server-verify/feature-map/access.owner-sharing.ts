@@ -7,11 +7,14 @@ import {
   defineCase,
   defineFeature,
   invalidRequest,
+} from '../scripts/feature.ts';
+import {
   record,
   type HttpRequest,
   type Session,
-} from '../scripts/feature.ts';
-import { eventually, read } from '../scripts/fixture.ts';
+} from '../../../../apps/server/spec/kit/session.ts';
+import { eventually } from '../scripts/fixture.ts';
+import { read } from '../../../../apps/server/spec/kit/requests.ts';
 
 const tailnetHost = 'porcelain.tail0000.ts.net';
 const owner = (request: Omit<HttpRequest, 'target'>): HttpRequest => ({

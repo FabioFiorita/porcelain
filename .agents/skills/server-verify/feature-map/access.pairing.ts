@@ -7,16 +7,17 @@ import {
   defineCase,
   defineFeature,
   invalidRequest,
+} from '../scripts/feature.ts';
+import {
   list,
   record,
   type Session,
-} from '../scripts/feature.ts';
+} from '../../../../apps/server/spec/kit/session.ts';
+import { credentialForm, deviceCookieForm } from '../scripts/fixture.ts';
 import {
-  credentialForm,
-  deviceCookieForm,
   issuePairing,
   read,
-} from '../scripts/fixture.ts';
+} from '../../../../apps/server/spec/kit/requests.ts';
 
 const invalidLink = apiError(
   401,

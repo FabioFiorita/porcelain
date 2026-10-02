@@ -4,10 +4,12 @@ import {
   defineCase,
   defineFeature,
   invalidRequest,
-  record,
   unknownWorktreeId,
-  type Session,
 } from '../scripts/feature.ts';
+import {
+  record,
+  type Session,
+} from '../../../../apps/server/spec/kit/session.ts';
 import { worktreeNotFound, worktreePath } from '../scripts/fixture.ts';
 
 const linesOf = (text: string) => text.replace(/\n$/, '').split('\n');

@@ -4,8 +4,8 @@ import {
   defineFeature,
   invalidRequest,
   unknownWorktreeId,
-  type Session,
 } from '../scripts/feature.ts';
+import { type Session } from '../../../../apps/server/spec/kit/session.ts';
 import { worktreeNotFound, worktreePath } from '../scripts/fixture.ts';
 
 const seen = (session: Session, throughRevision: unknown) => ({

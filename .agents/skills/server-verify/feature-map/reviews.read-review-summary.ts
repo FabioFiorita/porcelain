@@ -4,17 +4,18 @@ import {
   defineCase,
   defineFeature,
   invalidRequest,
+} from '../scripts/feature.ts';
+import {
   record,
   text,
   type Session,
-} from '../scripts/feature.ts';
+} from '../../../../apps/server/spec/kit/session.ts';
+import { literally, worktreePath } from '../scripts/fixture.ts';
 import {
-  literally,
   read,
   sampleReview,
-  sampleSummaryHtml,
-  worktreePath,
-} from '../scripts/fixture.ts';
+  SAMPLE_SUMMARY_HTML,
+} from '../../../../apps/server/spec/kit/requests.ts';
 
 async function summaryUrl(session: Session) {
   const current = (
@@ -75,7 +76,7 @@ export default defineFeature({
         );
         const html = text(response.body);
         const [published = '', closing = ''] =
-          sampleSummaryHtml.split('</body>');
+          SAMPLE_SUMMARY_HTML.split('</body>');
         const opening = `${published}<style id="porcelain-theme">`;
         const ending = `</script></body>${closing}`;
         checkMatch(

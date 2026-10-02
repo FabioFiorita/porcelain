@@ -2,10 +2,9 @@ import { apiErrorSchema } from '@porcelain/contracts/shared';
 import {
   defineCase,
   defineFeature,
-  record,
-  text,
   unknownWorktreeId,
 } from '../scripts/feature.ts';
+import { record, text } from '../../../../apps/server/spec/kit/session.ts';
 
 const unknownChanges = () => ({
   method: 'GET' as const,

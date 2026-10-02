@@ -6,8 +6,8 @@ import {
   invalidRequest,
   unknownFingerprint,
   unknownWorktreeId,
-  type Session,
 } from '../scripts/feature.ts';
+import { type Session } from '../../../../apps/server/spec/kit/session.ts';
 import {
   changes,
   gitPath,

@@ -4,9 +4,11 @@ import {
   unauthenticated,
   unknownOid,
   unknownUuid,
+} from '../scripts/feature.ts';
+import {
   type HttpRequest,
   type Session,
-} from '../scripts/feature.ts';
+} from '../../../../apps/server/spec/kit/session.ts';
 import { loadFeatures, reachesOf } from '../scripts/catalogue.ts';
 import { inventory } from '../scripts/fixture.ts';
 

@@ -1,15 +1,15 @@
 import { randomUUID } from 'node:crypto';
 import { readChangesResponseSchema } from '@porcelain/contracts/changes';
 import { readInventoryResponseSchema } from '@porcelain/contracts/projects';
+import { defineCase, defineFeature } from '../scripts/feature.ts';
 import {
-  defineCase,
-  defineFeature,
   list,
   record,
   type HttpRequest,
   type Session,
-} from '../scripts/feature.ts';
-import { eventually, gitRoute, read } from '../scripts/fixture.ts';
+} from '../../../../apps/server/spec/kit/session.ts';
+import { eventually, gitRoute } from '../scripts/fixture.ts';
+import { read } from '../../../../apps/server/spec/kit/requests.ts';
 
 const branch = 'linked';
 const inventory: HttpRequest = { method: 'GET', path: '/api/inventory' };

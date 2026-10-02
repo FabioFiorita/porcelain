@@ -26,7 +26,7 @@ import {
   type LiveOptions,
   type Phase,
   type Session,
-} from './feature.ts';
+} from './session.ts';
 import { Provenance } from './provenance.ts';
 
 type HttpStep = {
@@ -141,9 +141,9 @@ const issuedToken =
   /pc[a-z]_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}_([A-Za-z0-9_-]{43})/g;
 const setCookie = /(?:^|\n)[^=;\s]+=([^;\n]+)/g;
 const repositoryOptions = /^(?:-C|--git-dir|--work-tree|--namespace)(?:=|$)/;
-const readyTimeoutMs = 30_000;
-const stopTimeoutMs = 10_000;
-const requestTimeoutMs = 30_000;
+const READY_TIMEOUT_MS = 30_000;
+const STOP_TIMEOUT_MS = 10_000;
+const REQUEST_TIMEOUT_MS = 30_000;
 
 export class Recorder {
   phase: Phase = 'setup';
@@ -409,7 +409,7 @@ function waitForReady(
     const timeout = setTimeout(
       () =>
         rejectReady(new Error('Isolated server was not ready in 30 seconds')),
-      readyTimeoutMs,
+      READY_TIMEOUT_MS,
     );
     child.once('error', (error) => {
       clearTimeout(timeout);
@@ -817,7 +817,7 @@ export class ServerHandle {
           method,
           path: `${url.pathname}${url.search}`,
           headers,
-          timeout: requestTimeoutMs,
+          timeout: REQUEST_TIMEOUT_MS,
           agent: false,
           ...(target === 'owner'
             ? { socketPath: this.socketPath }
@@ -1005,7 +1005,7 @@ export class IsolatedServer extends ServerHandle {
     );
     const child = spawn(
       process.execPath,
-      ['scripts/dev-server.ts', '--server', build],
+      ['apps/server/spec/kit/sandbox.ts', '--server', build],
       {
         cwd: repositoryRoot,
         env: sample ? { ...env, PORCELAIN_DEV_SAMPLE: sample } : env,
@@ -1045,7 +1045,7 @@ export class IsolatedServer extends ServerHandle {
     const closed = await Promise.race([
       this.exited.then(() => true),
       new Promise<false>((resolveTimeout) => {
-        timer = setTimeout(() => resolveTimeout(false), stopTimeoutMs);
+        timer = setTimeout(() => resolveTimeout(false), STOP_TIMEOUT_MS);
       }),
     ]);
     if (timer) clearTimeout(timer);

@@ -6,15 +6,15 @@ import {
   defineFeature,
   invalidRequest,
   unknownWorktreeId,
-  type Session,
 } from '../scripts/feature.ts';
+import { type Session } from '../../../../apps/server/spec/kit/session.ts';
 import {
   credentialLink,
-  read,
   unreadablePath,
   worktreeNotFound,
   worktreePath,
 } from '../scripts/fixture.ts';
+import { read } from '../../../../apps/server/spec/kit/requests.ts';
 
 const text = (session: Session, path: string) => ({
   method: 'GET' as const,

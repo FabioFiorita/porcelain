@@ -1,10 +1,8 @@
 import { randomUUID } from 'node:crypto';
-import { defineCase, defineFeature, type Session } from '../scripts/feature.ts';
-import {
-  sampleReview,
-  unreadablePath,
-  worktreePath,
-} from '../scripts/fixture.ts';
+import { defineCase, defineFeature } from '../scripts/feature.ts';
+import { type Session } from '../../../../apps/server/spec/kit/session.ts';
+import { sampleReview } from '../../../../apps/server/spec/kit/requests.ts';
+import { unreadablePath, worktreePath } from '../scripts/fixture.ts';
 
 const longName = `${'n'.repeat(300)}.png`;
 const text = (session: Session) => ({

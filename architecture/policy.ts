@@ -138,6 +138,7 @@ export const roles = [
   'fixture',
   'capture',
   'store-contract',
+  'server-kit',
   'test',
   'route',
   'shell',
@@ -800,6 +801,8 @@ export function classify(path: string): Classification | undefined {
     return classified('fixture', 'server');
   if (/^apps\/server\/spec\/fakes\/.+\.ts$/.test(path))
     return classified('fake', 'server');
+  if (/^apps\/server\/spec\/kit\/[a-z]+(?:-[a-z]+)*\.ts$/.test(path))
+    return classified('server-kit', 'server');
   const packageFile = /^packages\/([^/]+)\/src\/(.+)$/.exec(path);
   if (packageFile)
     return classifyPackage(packageFile[1] ?? '', packageFile[2] ?? '');
@@ -1060,11 +1063,20 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
     'error-api',
     'store-contract',
   ]),
+  'server-kit': new Set([
+    'server-kit',
+    'bootstrap',
+    'transport',
+    'config',
+    'server-port',
+    'fake',
+  ]),
   test: new Set([
     ...everything,
     'fake',
     'fixture',
     'store-contract',
+    'server-kit',
     'test',
     'process',
   ]),
@@ -1442,6 +1454,7 @@ export const externalPackages: Record<Role, readonly string[]> = {
   fixture: [],
   capture: [],
   'store-contract': ['vitest'],
+  'server-kit': ['esbuild', 'zod'],
   test: [],
   route: [],
   shell: [],
@@ -1492,7 +1505,7 @@ function allowedPackage(role: Role, module: string): boolean {
 
 function forbiddenNodeModule(role: Role, name: string): boolean {
   const base = name.split('/')[0] ?? '';
-  if (role === 'test') return false;
+  if (role === 'test' || role === 'server-kit') return false;
   if (role === 'capture') return !captureNodeModules.has(base);
   if (base === 'child_process') return role !== 'process';
   if (role === 'kernel' || role === 'fake') return true;
@@ -1615,6 +1628,8 @@ const rolePurposes: Record<Role, string> = {
     'spec/fixtures/capture.ts, the script that records real output as fixtures',
   'store-contract':
     'a store contract in spec/contracts/, the spec every implementation of a store passes',
+  'server-kit':
+    'the disposable-server kit in apps/server/spec/kit/, which builds the server, starts it sandboxed with the sample project, pairs, reads its state back, redacts secrets and stops only what it started, for integration tests, e2e setup and the verification CLIs',
   test: 'a .spec.ts behaviour spec',
   route: 'a TanStack Router file in apps/web/src/routes/',
   shell: 'the web app shell in apps/web/src/app/',

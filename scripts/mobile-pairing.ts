@@ -5,16 +5,12 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
-import {
-  list,
-  record,
-  text,
-} from '../.agents/skills/server-verify/scripts/feature.ts';
-import { buildIsolatedServer } from './dev-server.ts';
+import { list, record, text } from '../apps/server/spec/kit/session.ts';
+import { buildIsolatedServer } from '../apps/server/spec/kit/sandbox.ts';
 import {
   IsolatedServer,
   Recorder,
-} from '../.agents/skills/server-verify/scripts/session.ts';
+} from '../apps/server/spec/kit/isolated-server.ts';
 
 const [simulatorId, driver = 'maestro', journey = 'pairing'] =
   process.argv.slice(2);

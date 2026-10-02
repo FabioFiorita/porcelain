@@ -8,18 +8,19 @@ import {
   apiError,
   defineCase,
   defineFeature,
+  unauthenticated,
+} from '../scripts/feature.ts';
+import {
   list,
   record,
   text,
-  unauthenticated,
   type Session,
-} from '../scripts/feature.ts';
+} from '../../../../apps/server/spec/kit/session.ts';
+import { credentialForm, inventory } from '../scripts/fixture.ts';
 import {
-  credentialForm,
-  inventory,
   issuePairing,
   read,
-} from '../scripts/fixture.ts';
+} from '../../../../apps/server/spec/kit/requests.ts';
 
 const app = 'http://app.example';
 const fromApp = { origin: app };

@@ -7,20 +7,20 @@ import { connect, createServer } from 'node:net';
 import { dirname, join } from 'node:path';
 import { promisify } from 'node:util';
 import { z } from 'zod';
-import { FixedNetworkAddressReader } from '../apps/server/spec/fakes/fixed-network-address-reader.ts';
-import { InMemoryRouteListenerRunner } from '../apps/server/spec/fakes/in-memory-route-listener-runner.ts';
-import { ScriptedServiceUpdateRunner } from '../apps/server/spec/fakes/scripted-service-update-runner.ts';
-import { ScriptedTunnelProbe } from '../apps/server/spec/fakes/scripted-tunnel-probe.ts';
-import { composeServer } from '../apps/server/src/bootstrap/compose-server.ts';
-import { askOwner } from '../apps/server/src/cli/owner-client.ts';
-import { readServerSettings } from '../apps/server/src/config/server-settings.ts';
-import type { Runtime } from '../apps/server/src/ports/runtime.ts';
-import { codingTool } from './dev-coding-tool.ts';
+import { FixedNetworkAddressReader } from '../fakes/fixed-network-address-reader.ts';
+import { InMemoryRouteListenerRunner } from '../fakes/in-memory-route-listener-runner.ts';
+import { ScriptedServiceUpdateRunner } from '../fakes/scripted-service-update-runner.ts';
+import { ScriptedTunnelProbe } from '../fakes/scripted-tunnel-probe.ts';
+import { composeServer } from '../../src/bootstrap/compose-server.ts';
+import { askOwner } from '../../src/cli/owner-client.ts';
+import { readServerSettings } from '../../src/config/server-settings.ts';
+import type { Runtime } from '../../src/ports/runtime.ts';
+import { codingTool } from './coding-tool.ts';
 import {
   changePerfSample,
   perfSample,
   placePerfSample,
-} from './dev-perf-sample.ts';
+} from './perf-sample.ts';
 
 const issuedPairingSchema = z.object({
   grants: z.array(z.object({ code: z.string() })),
@@ -205,8 +205,8 @@ function registeredRoutes() {
 }
 
 const sample = process.env.PORCELAIN_DEV_SAMPLE;
-const quietInventoryMs = 24 * 60 * 60 * 1000;
-const committed = '# Sample repository\n';
+const QUIET_INVENTORY_MS = 24 * 60 * 60 * 1000;
+const COMMITTED = '# Sample repository\n';
 const fixture = {
   folders: {
     home: 'home',
@@ -218,8 +218,8 @@ const fixture = {
   device: { label: 'Development setup', platform: 'Development' },
   readme: {
     path: 'README.md',
-    committed,
-    changed: `${committed}\nA change to review.\n`,
+    committed: COMMITTED,
+    changed: `${COMMITTED}\nA change to review.\n`,
   },
   initialCommit: 'Initial commit',
   web: {
@@ -230,7 +230,7 @@ const fixture = {
   summaryLinkLifetimeMs: 2000,
   liveTicketLifetimeMs: 1000,
   gitActionDeadlineMs: 1500,
-  inventoryStaleAfterMs: sample === 'perf' ? quietInventoryMs : 200,
+  inventoryStaleAfterMs: sample === 'perf' ? QUIET_INVENTORY_MS : 200,
   codingTool,
   serviceUpdate: {
     version: '1.0.0',
@@ -487,7 +487,7 @@ try {
         ...settings.limits,
         jobs: {
           ...settings.limits.jobs,
-          refreshInventoryMs: sample === 'perf' ? quietInventoryMs : 250,
+          refreshInventoryMs: sample === 'perf' ? QUIET_INVENTORY_MS : 250,
         },
         access: {
           ...settings.limits.access,

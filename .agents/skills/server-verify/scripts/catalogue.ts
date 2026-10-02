@@ -1,7 +1,8 @@
 import { readdir } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { isDefinedCase, isRecord, type Feature } from './feature.ts';
+import { isDefinedCase, type Feature } from './feature.ts';
+import { isRecord } from '../../../../apps/server/spec/kit/session.ts';
 
 const skillDirectory = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 

@@ -20,18 +20,18 @@ import type {
 import type {
   HttpRequest,
   Session,
-} from '../../server-verify/scripts/feature.ts';
+} from '../../../../apps/server/spec/kit/session.ts';
 import {
   read,
   sampleReview,
   toolCall,
   toolResult,
-} from '../../server-verify/scripts/fixture.ts';
+} from '../../../../apps/server/spec/kit/requests.ts';
 import {
   Recorder,
   ServerHandle,
   type IsolatedServer,
-} from '../../server-verify/scripts/session.ts';
+} from '../../../../apps/server/spec/kit/isolated-server.ts';
 
 export const journeyHeader = { 'x-porcelain-journey': 'kit' };
 const proofScreenshot = 'proof-screenshot.png';

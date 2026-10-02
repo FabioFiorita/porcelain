@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { createVitest, type Vite } from 'vitest/node';
 import { PlaywrightBrowserProvider } from '@vitest/browser-playwright';
 import { z } from 'zod';
-import { IsolatedServer } from '../../server-verify/scripts/session.ts';
+import { IsolatedServer } from '../../../../apps/server/spec/kit/isolated-server.ts';
 import { shellSchema, type Shell } from './catalogue.ts';
 import {
   journeyCommands,

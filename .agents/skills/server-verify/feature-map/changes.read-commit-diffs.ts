@@ -4,11 +4,13 @@ import {
   defineCase,
   defineFeature,
   invalidRequest,
-  record,
   unknownOid,
   unknownWorktreeId,
-  type Session,
 } from '../scripts/feature.ts';
+import {
+  record,
+  type Session,
+} from '../../../../apps/server/spec/kit/session.ts';
 import {
   threeCommits,
   worktreeNotFound,

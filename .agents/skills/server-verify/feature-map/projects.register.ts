@@ -4,10 +4,12 @@ import {
   defineCase,
   defineFeature,
   invalidRequest,
+} from '../scripts/feature.ts';
+import {
   list,
   record,
   text,
-} from '../scripts/feature.ts';
+} from '../../../../apps/server/spec/kit/session.ts';
 
 const byText = (left: string, right: string) => left.localeCompare(right);
 import { inventory } from '../scripts/fixture.ts';

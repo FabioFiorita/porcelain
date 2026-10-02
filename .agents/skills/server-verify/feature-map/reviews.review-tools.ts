@@ -1,22 +1,18 @@
 import { randomUUID } from 'node:crypto';
+import { apiError, defineCase, defineFeature } from '../scripts/feature.ts';
 import {
-  apiError,
-  defineCase,
-  defineFeature,
   list,
   record,
   text,
   type Session,
-} from '../scripts/feature.ts';
+} from '../../../../apps/server/spec/kit/session.ts';
 import {
   read,
   sampleReview,
   toolCall,
   toolResult,
-  toolText,
-  toolValue,
-  worktreePath,
-} from '../scripts/fixture.ts';
+} from '../../../../apps/server/spec/kit/requests.ts';
+import { toolText, toolValue, worktreePath } from '../scripts/fixture.ts';
 
 const layerId = randomUUID();
 const stepId = randomUUID();

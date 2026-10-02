@@ -1,12 +1,11 @@
 import { readInventoryResponseSchema } from '@porcelain/contracts/projects';
+import { defineCase, defineFeature } from '../scripts/feature.ts';
 import {
-  defineCase,
-  defineFeature,
   list,
   record,
   type HttpRequest,
   type Session,
-} from '../scripts/feature.ts';
+} from '../../../../apps/server/spec/kit/session.ts';
 import { eventually } from '../scripts/fixture.ts';
 
 const inventory: HttpRequest = { method: 'GET', path: '/api/inventory' };

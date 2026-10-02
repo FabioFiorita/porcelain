@@ -7,11 +7,13 @@ import {
   defineCase,
   defineFeature,
   invalidRequest,
+  unknownWorktreeId,
+} from '../scripts/feature.ts';
+import {
   list,
   record,
-  unknownWorktreeId,
   type Session,
-} from '../scripts/feature.ts';
+} from '../../../../apps/server/spec/kit/session.ts';
 import {
   blobOf,
   head,

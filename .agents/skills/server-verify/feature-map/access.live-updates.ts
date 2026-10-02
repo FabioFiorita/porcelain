@@ -5,21 +5,23 @@ import {
   apiError,
   defineCase,
   defineFeature,
-  list,
-  record,
   unauthenticated,
   upgradeHeaders,
-  type Session,
 } from '../scripts/feature.ts';
+import {
+  list,
+  record,
+  type Session,
+} from '../../../../apps/server/spec/kit/session.ts';
 import {
   expectation,
   fingerprintOf,
   gitPath,
   inventory,
-  sampleReview,
   watching,
   worktreePath,
 } from '../scripts/fixture.ts';
+import { sampleReview } from '../../../../apps/server/spec/kit/requests.ts';
 
 const headReflog = '.git/logs/HEAD';
 

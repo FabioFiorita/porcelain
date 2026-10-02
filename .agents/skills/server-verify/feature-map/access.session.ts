@@ -3,16 +3,17 @@ import {
   apiError,
   defineCase,
   defineFeature,
-  list,
   unauthenticated,
-  type Session,
 } from '../scripts/feature.ts';
 import {
-  deviceCookieForm,
-  inventory,
+  list,
+  type Session,
+} from '../../../../apps/server/spec/kit/session.ts';
+import { deviceCookieForm, inventory } from '../scripts/fixture.ts';
+import {
   issuePairing,
   read,
-} from '../scripts/fixture.ts';
+} from '../../../../apps/server/spec/kit/requests.ts';
 
 async function browserCookie(session: Session) {
   const code = await issuePairing(session, 'Browser');

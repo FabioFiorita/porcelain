@@ -1,9 +1,5 @@
-import {
-  apiError,
-  defineCase,
-  defineFeature,
-  type Session,
-} from '../scripts/feature.ts';
+import { apiError, defineCase, defineFeature } from '../scripts/feature.ts';
+import { type Session } from '../../../../apps/server/spec/kit/session.ts';
 import { worktreePath } from '../scripts/fixture.ts';
 
 const mebibyte = 1024 * 1024;

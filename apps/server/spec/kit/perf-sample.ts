@@ -25,7 +25,7 @@ export const perfSample = {
   bufferBytes: 1 << 20,
 };
 
-const author = 'Porcelain Sample <sample@example.invalid>';
+const AUTHOR = 'Porcelain Sample <sample@example.invalid>';
 
 type Git = (cwd: string, ...args: string[]) => Promise<unknown>;
 
@@ -56,7 +56,7 @@ function* stream(): Generator<string> {
   for (let commit = 0; commit <= perfSample.commits; commit += 1) {
     const when =
       perfSample.firstCommitSeconds + commit * perfSample.secondsBetweenCommits;
-    yield `commit refs/heads/main\nauthor ${author} ${when} +0000\ncommitter ${author} ${when} +0000\n`;
+    yield `commit refs/heads/main\nauthor ${AUTHOR} ${when} +0000\ncommitter ${AUTHOR} ${when} +0000\n`;
     yield data(
       commit === 0
         ? 'Add the sample modules'

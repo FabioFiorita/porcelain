@@ -8,18 +8,20 @@ import {
   defineCase,
   defineFeature,
   invalidRequest,
-  list,
-  record,
   unknownFingerprint,
   unknownWorktreeId,
-  type Session,
 } from '../scripts/feature.ts';
 import {
+  list,
+  record,
+  type Session,
+} from '../../../../apps/server/spec/kit/session.ts';
+import {
   fingerprintOf,
-  read,
   worktreeNotFound,
   worktreePath,
 } from '../scripts/fixture.ts';
+import { read } from '../../../../apps/server/spec/kit/requests.ts';
 
 const reviewed = (session: Session) => worktreePath(session, '/reviewed');
 const staleMark = apiError(

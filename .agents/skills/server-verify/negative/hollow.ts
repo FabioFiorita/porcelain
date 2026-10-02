@@ -2,9 +2,9 @@ import { z } from 'zod';
 import {
   defineCase,
   defineFeature,
-  record,
   unknownWorktreeId,
 } from '../scripts/feature.ts';
+import { record } from '../../../../apps/server/spec/kit/session.ts';
 
 const unknownChanges = () => ({
   method: 'GET' as const,

@@ -4,14 +4,15 @@ import {
   defineCase,
   defineFeature,
   invalidRequest,
-  list,
-  record,
   unknownWorktreeId,
-  type Session,
 } from '../scripts/feature.ts';
 import {
-  read,
-  toolCall,
+  list,
+  record,
+  type Session,
+} from '../../../../apps/server/spec/kit/session.ts';
+import { read, toolCall } from '../../../../apps/server/spec/kit/requests.ts';
+import {
   toolValue,
   worktreeNotFound,
   worktreePath,

@@ -3,18 +3,15 @@ import {
   defineCase,
   defineFeature,
   invalidRequest,
+} from '../scripts/feature.ts';
+import {
   list,
   record,
   text,
   type Session,
-} from '../scripts/feature.ts';
-import {
-  head,
-  read,
-  toolCall,
-  toolValue,
-  worktreePath,
-} from '../scripts/fixture.ts';
+} from '../../../../apps/server/spec/kit/session.ts';
+import { head, toolValue, worktreePath } from '../scripts/fixture.ts';
+import { read, toolCall } from '../../../../apps/server/spec/kit/requests.ts';
 
 const base = 'refs/heads/main';
 const threadId = randomUUID();

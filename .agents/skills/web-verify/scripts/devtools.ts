@@ -18,8 +18,8 @@ import {
   issuePairingResponseSchema,
   pairingLink,
 } from '@porcelain/contracts/access';
-import { buildIsolatedServer } from '../../../../scripts/dev-server.ts';
-import { IsolatedServer } from '../../server-verify/scripts/session.ts';
+import { buildIsolatedServer } from '../../../../apps/server/spec/kit/sandbox.ts';
+import { IsolatedServer } from '../../../../apps/server/spec/kit/isolated-server.ts';
 
 const repositoryRoot = resolve(
   dirname(fileURLToPath(import.meta.url)),

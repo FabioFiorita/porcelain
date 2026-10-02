@@ -3,13 +3,19 @@ import { readInventoryResponseSchema } from '@porcelain/contracts/projects';
 import {
   defineCase,
   defineFeature,
+  unauthenticated,
+} from '../scripts/feature.ts';
+import {
   list,
   record,
   text,
-  unauthenticated,
   type Session,
-} from '../scripts/feature.ts';
-import { eventually, issuePairing, read } from '../scripts/fixture.ts';
+} from '../../../../apps/server/spec/kit/session.ts';
+import { eventually } from '../scripts/fixture.ts';
+import {
+  issuePairing,
+  read,
+} from '../../../../apps/server/spec/kit/requests.ts';
 
 const tunnelHost = 'porcelain.example.com';
 const throughTunnel = { host: tunnelHost, origin: `https://${tunnelHost}` };

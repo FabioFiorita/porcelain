@@ -7,19 +7,21 @@ import {
   apiError,
   defineCase,
   defineFeature,
-  record,
-  text,
   unauthenticated,
   upgradeHeaders,
-  type HttpRequest,
-  type Session,
 } from '../scripts/feature.ts';
 import {
+  record,
+  text,
+  type HttpRequest,
+  type Session,
+} from '../../../../apps/server/spec/kit/session.ts';
+import {
   issuePairing,
-  liveTicketForm,
   pairDevice,
   read,
-} from '../scripts/fixture.ts';
+} from '../../../../apps/server/spec/kit/requests.ts';
+import { liveTicketForm } from '../scripts/fixture.ts';
 
 const app = 'http://app.example';
 const tickets = '/api/live/tickets';

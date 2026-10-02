@@ -2,9 +2,9 @@ import {
   defineCase,
   defineFeature,
   invalidRequest,
-  list,
   unknownUuid,
 } from '../scripts/feature.ts';
+import { list } from '../../../../apps/server/spec/kit/session.ts';
 import { inventory } from '../scripts/fixture.ts';
 
 export default defineFeature({

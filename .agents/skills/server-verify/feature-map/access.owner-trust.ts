@@ -8,12 +8,14 @@ import {
   defineCase,
   defineFeature,
   invalidRequest,
+} from '../scripts/feature.ts';
+import {
   list,
   record,
   text,
   type HttpRequest,
-} from '../scripts/feature.ts';
-import { pairDevice, read } from '../scripts/fixture.ts';
+} from '../../../../apps/server/spec/kit/session.ts';
+import { pairDevice, read } from '../../../../apps/server/spec/kit/requests.ts';
 
 const owner = (request: Omit<HttpRequest, 'target'>): HttpRequest => ({
   ...request,

@@ -19,7 +19,7 @@
     "db:generate": "pnpm --filter @porcelain/storage db:generate",
     "db:check": "pnpm --filter @porcelain/storage db:check",
     "dev": "node scripts/dev.ts",
-    "dev:server": "node scripts/dev-server.ts",
+    "dev:server": "node apps/server/spec/kit/sandbox.ts",
     "dev:web": "pnpm --filter @porcelain/web dev",
     "serve": "node scripts/serve.ts",
     "build:package": "node scripts/build-package.ts",

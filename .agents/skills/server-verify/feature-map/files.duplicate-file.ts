@@ -4,14 +4,14 @@ import {
   defineCase,
   defineFeature,
   invalidRequest,
-  type Session,
 } from '../scripts/feature.ts';
+import { type Session } from '../../../../apps/server/spec/kit/session.ts';
 import {
   credentialLink,
-  read,
   unreadablePath,
   worktreePath,
 } from '../scripts/fixture.ts';
+import { read } from '../../../../apps/server/spec/kit/requests.ts';
 
 const copy = (session: Session, path: string, destination: string) => ({
   method: 'POST' as const,

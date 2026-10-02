@@ -4,15 +4,14 @@ import {
   defineCase,
   defineFeature,
   invalidRequest,
-  record,
   unknownWorktreeId,
 } from '../scripts/feature.ts';
+import { record } from '../../../../apps/server/spec/kit/session.ts';
 import {
   read,
   sampleReview,
-  worktreeNotFound,
-  worktreePath,
-} from '../scripts/fixture.ts';
+} from '../../../../apps/server/spec/kit/requests.ts';
+import { worktreeNotFound, worktreePath } from '../scripts/fixture.ts';
 
 function withoutSummaryUrl(body: unknown) {
   const review = record(record(body).review);

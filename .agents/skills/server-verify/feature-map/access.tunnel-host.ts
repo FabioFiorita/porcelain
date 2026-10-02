@@ -1,10 +1,8 @@
+import { apiError, defineCase, defineFeature } from '../scripts/feature.ts';
 import {
-  apiError,
-  defineCase,
-  defineFeature,
   record,
   type Session,
-} from '../scripts/feature.ts';
+} from '../../../../apps/server/spec/kit/session.ts';
 import { eventually } from '../scripts/fixture.ts';
 
 const otherServerHost = 'porcelain.elsewhere.test';

@@ -4,7 +4,7 @@ import {
   type HttpRequest,
   type HttpResponse,
   type Phase,
-} from './feature.ts';
+} from './session.ts';
 
 type Part = 'status' | 'body' | 'header' | 'value';
 

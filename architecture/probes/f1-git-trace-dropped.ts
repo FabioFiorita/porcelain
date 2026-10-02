@@ -10,7 +10,7 @@ export default {
   edits: [
     {
       kind: 'replace',
-      path: 'scripts/dev-server-child.ts',
+      path: 'apps/server/spec/kit/sandboxed-server.ts',
       old: '  if (gitTrace !== null)\n    await writeFile(',
       new: "  if (gitTrace === '')\n    await writeFile(",
     },

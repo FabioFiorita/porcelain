@@ -1,7 +1,9 @@
 import { readEnvironmentResponseSchema } from '@porcelain/contracts/access';
 import { ENVIRONMENT_PROTOCOL } from '@porcelain/contracts/shared';
-import { defineCase, defineFeature, record } from '../scripts/feature.ts';
-import { inventory, read } from '../scripts/fixture.ts';
+import { defineCase, defineFeature } from '../scripts/feature.ts';
+import { record } from '../../../../apps/server/spec/kit/session.ts';
+import { inventory } from '../scripts/fixture.ts';
+import { read } from '../../../../apps/server/spec/kit/requests.ts';
 
 const describe = { method: 'GET' as const, path: '/api/environment' };
 

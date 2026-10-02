@@ -4,18 +4,20 @@ import {
   defineCase,
   defineFeature,
   invalidRequest,
-  text,
   unknownFingerprint,
   unknownWorktreeId,
-  type Session,
 } from '../scripts/feature.ts';
 import {
+  text,
+  type Session,
+} from '../../../../apps/server/spec/kit/session.ts';
+import {
   credentialLink,
-  read,
   unreadablePath,
   worktreeNotFound,
   worktreePath,
 } from '../scripts/fixture.ts';
+import { read } from '../../../../apps/server/spec/kit/requests.ts';
 
 const edit = (session: Session, body: unknown) => ({
   method: 'POST' as const,

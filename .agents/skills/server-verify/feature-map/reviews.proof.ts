@@ -8,18 +8,19 @@ import {
   defineCase,
   defineFeature,
   invalidRequest,
-  list,
-  record,
   unknownUuid,
   unknownWorktreeId,
-  type Session,
 } from '../scripts/feature.ts';
+import {
+  list,
+  record,
+  type Session,
+} from '../../../../apps/server/spec/kit/session.ts';
 import {
   read,
   sampleReview,
-  worktreeNotFound,
-  worktreePath,
-} from '../scripts/fixture.ts';
+} from '../../../../apps/server/spec/kit/requests.ts';
+import { worktreeNotFound, worktreePath } from '../scripts/fixture.ts';
 
 const layerId = randomUUID();
 const stepId = randomUUID();

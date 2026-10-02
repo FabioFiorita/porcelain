@@ -4,10 +4,10 @@ import {
   defineFeature,
   invalidRequest,
   unknownWorktreeId,
-  type Session,
 } from '../scripts/feature.ts';
+import { type Session } from '../../../../apps/server/spec/kit/session.ts';
+import { read } from '../../../../apps/server/spec/kit/requests.ts';
 import {
-  read,
   threeCommits,
   worktreeNotFound,
   worktreePath,

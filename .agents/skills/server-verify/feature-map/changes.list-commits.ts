@@ -3,14 +3,16 @@ import {
   defineCase,
   defineFeature,
   invalidRequest,
-  list,
-  record,
   unknownOid,
   unknownWorktreeId,
-  type Session,
 } from '../scripts/feature.ts';
 import {
-  read,
+  list,
+  record,
+  type Session,
+} from '../../../../apps/server/spec/kit/session.ts';
+import { read } from '../../../../apps/server/spec/kit/requests.ts';
+import {
   threeCommits,
   worktreeNotFound,
   worktreePath,

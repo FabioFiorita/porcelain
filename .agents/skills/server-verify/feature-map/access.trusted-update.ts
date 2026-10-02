@@ -6,19 +6,21 @@ import {
   apiError,
   defineCase,
   defineFeature,
+  unauthenticated,
+} from '../scripts/feature.ts';
+import {
   list,
   record,
   text,
-  unauthenticated,
   type HttpRequest,
   type Session,
-} from '../scripts/feature.ts';
+} from '../../../../apps/server/spec/kit/session.ts';
+import { eventually } from '../scripts/fixture.ts';
 import {
-  eventually,
   issuePairing,
   pairDevice,
   read,
-} from '../scripts/fixture.ts';
+} from '../../../../apps/server/spec/kit/requests.ts';
 
 const updatePath = '/api/service/update';
 const status = { method: 'GET', path: updatePath } as const;

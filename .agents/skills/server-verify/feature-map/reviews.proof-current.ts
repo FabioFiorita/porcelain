@@ -1,11 +1,11 @@
 import { randomUUID } from 'node:crypto';
+import { defineCase, defineFeature } from '../scripts/feature.ts';
 import {
-  defineCase,
-  defineFeature,
   record,
   type Session,
-} from '../scripts/feature.ts';
-import { sampleReview, worktreePath } from '../scripts/fixture.ts';
+} from '../../../../apps/server/spec/kit/session.ts';
+import { sampleReview } from '../../../../apps/server/spec/kit/requests.ts';
+import { worktreePath } from '../scripts/fixture.ts';
 
 const layerId = randomUUID();
 const stepId = randomUUID();

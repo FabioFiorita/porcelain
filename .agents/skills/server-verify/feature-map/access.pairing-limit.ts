@@ -1,11 +1,9 @@
+import { apiError, defineCase, defineFeature } from '../scripts/feature.ts';
 import {
-  apiError,
-  defineCase,
-  defineFeature,
   record,
   type HttpRequest,
-} from '../scripts/feature.ts';
-import { issuePairing } from '../scripts/fixture.ts';
+} from '../../../../apps/server/spec/kit/session.ts';
+import { issuePairing } from '../../../../apps/server/spec/kit/requests.ts';
 
 const limited = apiError(
   429,

@@ -8,18 +8,16 @@ import {
   defineCase,
   defineFeature,
   invalidRequest,
+  unauthenticated,
+} from '../scripts/feature.ts';
+import {
   list,
   record,
   text,
-  unauthenticated,
   type Session,
-} from '../scripts/feature.ts';
-import {
-  inventory,
-  pairDevice,
-  pairingLinkForm,
-  read,
-} from '../scripts/fixture.ts';
+} from '../../../../apps/server/spec/kit/session.ts';
+import { inventory, pairingLinkForm } from '../scripts/fixture.ts';
+import { pairDevice, read } from '../../../../apps/server/spec/kit/requests.ts';
 
 const notOnThisComputer = apiError(
   403,

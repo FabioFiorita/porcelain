@@ -1,9 +1,5 @@
-import {
-  apiError,
-  defineCase,
-  defineFeature,
-  type HttpRequest,
-} from '../scripts/feature.ts';
+import { apiError, defineCase, defineFeature } from '../scripts/feature.ts';
+import { type HttpRequest } from '../../../../apps/server/spec/kit/session.ts';
 
 const notFound = apiError(404, 'Not Found', 'Not Found');
 const page = (path: string): HttpRequest => ({

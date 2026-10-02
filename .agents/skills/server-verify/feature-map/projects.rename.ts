@@ -3,10 +3,9 @@ import {
   defineCase,
   defineFeature,
   invalidRequest,
-  list,
-  record,
   unknownUuid,
 } from '../scripts/feature.ts';
+import { list, record } from '../../../../apps/server/spec/kit/session.ts';
 import { inventory } from '../scripts/fixture.ts';
 
 function rejectedName(name: string, submitted: string, projectId?: string) {

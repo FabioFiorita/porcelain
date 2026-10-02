@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { isRecord, record } from './feature.ts';
+import { isRecord, record } from '../../../../apps/server/spec/kit/session.ts';
 
 const manifest = resolve(
   dirname(fileURLToPath(import.meta.url)),

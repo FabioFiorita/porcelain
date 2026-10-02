@@ -8,19 +8,20 @@ import {
   defineCase,
   defineFeature,
   invalidRequest,
+  unauthenticated,
+} from '../scripts/feature.ts';
+import {
   list,
   record,
   text,
-  unauthenticated,
   type HttpRequest,
-} from '../scripts/feature.ts';
+} from '../../../../apps/server/spec/kit/session.ts';
+import { inventory, pairingLinkForm } from '../scripts/fixture.ts';
 import {
-  inventory,
   mcpHeaders,
   pairDevice,
-  pairingLinkForm,
   read,
-} from '../scripts/fixture.ts';
+} from '../../../../apps/server/spec/kit/requests.ts';
 
 const owner = (request: Omit<HttpRequest, 'target'>): HttpRequest => ({
   ...request,

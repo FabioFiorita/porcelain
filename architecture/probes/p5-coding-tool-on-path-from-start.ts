@@ -10,7 +10,7 @@ export default {
   edits: [
     {
       kind: 'replace',
-      path: 'scripts/dev-server.ts',
+      path: 'apps/server/spec/kit/sandbox.ts',
       old: "    await symlink(git, join(bin, 'git'));\n",
       new: "    await symlink(git, join(bin, 'git'));\n    await symlink(codingToolExecutable, join(bin, 'claude'));\n",
     },

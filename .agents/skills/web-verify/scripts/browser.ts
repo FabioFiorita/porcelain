@@ -12,8 +12,8 @@ import {
   type Run,
   type RunRequest,
 } from './browser-runner.ts';
-import { buildIsolatedServer } from '../../../../scripts/dev-server.ts';
-import type { Hit } from '../../server-verify/scripts/session.ts';
+import { buildIsolatedServer } from '../../../../apps/server/spec/kit/sandbox.ts';
+import type { Hit } from '../../../../apps/server/spec/kit/isolated-server.ts';
 import {
   loadJourneys,
   negativeJourneys,

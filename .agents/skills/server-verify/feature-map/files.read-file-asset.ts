@@ -5,8 +5,8 @@ import {
   defineFeature,
   invalidRequest,
   unknownWorktreeId,
-  type Session,
 } from '../scripts/feature.ts';
+import { type Session } from '../../../../apps/server/spec/kit/session.ts';
 import {
   credentialLink,
   unreadablePath,

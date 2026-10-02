@@ -15,21 +15,22 @@ import { delimiter, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
 import { z } from 'zod';
-import { buildPerfSample } from './dev-perf-sample.ts';
+import { buildPerfSample } from './perf-sample.ts';
 
-const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const childBundle = 'server/src/bootstrap/dev-server-child.mjs';
-const codingToolBundle = 'coding-tool/claude.mjs';
+const kit = dirname(fileURLToPath(import.meta.url));
+const repositoryRoot = resolve(kit, '../../../..');
+const CHILD_BUNDLE = 'server/src/bootstrap/dev-server-child.mjs';
+const CODING_TOOL_BUNDLE = 'coding-tool/claude.mjs';
 const unbundled = [
   { name: 'better-sqlite3', via: [] },
   { name: '@parcel/watcher', via: [] },
   { name: '@stroncium/procfs', via: ['trash'] },
 ];
 const optionalModules = ['bufferutil', 'utf-8-validate'];
-const serverMount = '/opt/porcelain/server';
-const sandboxPath = '/opt/porcelain/bin';
-const seatbelt = '/usr/bin/sandbox-exec';
-const stopGraceMs = 10_000;
+const SERVER_MOUNT = '/opt/porcelain/server';
+const SANDBOX_PATH = '/opt/porcelain/bin';
+const SEATBELT = '/usr/bin/sandbox-exec';
+const STOP_GRACE_MS = 10_000;
 const packageSchema = z.object({
   dependencies: z.record(z.string(), z.string()).optional(),
   optionalDependencies: z.record(z.string(), z.string()).optional(),
@@ -87,8 +88,8 @@ export async function buildIsolatedServer(
 ): Promise<void> {
   if (sample === 'perf') await buildPerfSample(output);
   await build({
-    entryPoints: [join(repositoryRoot, 'scripts/dev-server-child.ts')],
-    outfile: join(output, childBundle),
+    entryPoints: [join(kit, 'sandboxed-server.ts')],
+    outfile: join(output, CHILD_BUNDLE),
     bundle: true,
     format: 'esm',
     platform: 'node',
@@ -102,11 +103,11 @@ export async function buildIsolatedServer(
   await build({
     stdin: {
       contents:
-        "import { runCodingTool } from './dev-coding-tool.ts'; runCodingTool();",
-      resolveDir: join(repositoryRoot, 'scripts'),
+        "import { runCodingTool } from './coding-tool.ts'; runCodingTool();",
+      resolveDir: kit,
       loader: 'ts',
     },
-    outfile: join(output, codingToolBundle),
+    outfile: join(output, CODING_TOOL_BUNDLE),
     bundle: true,
     format: 'esm',
     platform: 'node',
@@ -114,7 +115,7 @@ export async function buildIsolatedServer(
     banner: { js: `#!${realpathSync(process.execPath)}` },
     logLevel: 'warning',
   });
-  await chmod(join(output, codingToolBundle), 0o755);
+  await chmod(join(output, CODING_TOOL_BUNDLE), 0o755);
   await cp(
     join(repositoryRoot, 'packages/storage/drizzle'),
     join(output, 'server/drizzle'),
@@ -257,7 +258,7 @@ function bubblewrapArguments(sandbox: Sandbox): string[] {
     root,
     '--',
     node,
-    join(installation.serverAt, childBundle),
+    join(installation.serverAt, CHILD_BUNDLE),
   ];
 }
 
@@ -388,8 +389,8 @@ async function install(
     return {
       server: realpathSync(given ?? built ?? ''),
       bin,
-      serverAt: serverMount,
-      binAt: sandboxPath,
+      serverAt: SERVER_MOUNT,
+      binAt: SANDBOX_PATH,
     };
   }
   if (process.platform !== 'darwin')
@@ -424,11 +425,14 @@ async function main() {
   process.on('SIGTERM', stop);
   try {
     const confine =
-      process.platform === 'linux' ? hostExecutable('bwrap') : seatbelt;
+      process.platform === 'linux' ? hostExecutable('bwrap') : SEATBELT;
     const git = hostExecutable('git');
     const installation = await install(given, scratch);
     const { bin } = installation;
-    const codingToolExecutable = join(installation.serverAt, codingToolBundle);
+    const codingToolExecutable = join(
+      installation.serverAt,
+      CODING_TOOL_BUNDLE,
+    );
     await symlink(git, join(bin, 'git'));
     const network =
       process.platform === 'linux'
@@ -451,7 +455,7 @@ async function main() {
             '-p',
             seatbeltProfile(sandbox),
             sandbox.node,
-            join(installation.serverAt, childBundle),
+            join(installation.serverAt, CHILD_BUNDLE),
           ],
       {
         cwd: root,
@@ -478,7 +482,7 @@ async function main() {
     child.stderr.pipe(process.stderr);
     stopChild = () => {
       child.stdin.end();
-      setTimeout(() => child.kill('SIGKILL'), stopGraceMs).unref();
+      setTimeout(() => child.kill('SIGKILL'), STOP_GRACE_MS).unref();
     };
     if (stopping) stopChild();
     const code = await new Promise<number | null>((resolveExit, rejectExit) => {

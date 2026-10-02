@@ -1,6 +1,7 @@
 import { readHealthResponseSchema } from '@porcelain/contracts/access';
 import { defineCase, defineFeature } from '../scripts/feature.ts';
-import { inventory, pairDevice } from '../scripts/fixture.ts';
+import { inventory } from '../scripts/fixture.ts';
+import { pairDevice } from '../../../../apps/server/spec/kit/requests.ts';
 
 export default defineFeature({
   feature: 'access.health',

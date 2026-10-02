@@ -4,24 +4,26 @@ import {
   defineCase,
   defineFeature,
   invalidRequest,
-  list,
-  record,
   unknownOid,
   unknownWorktreeId,
-  type Session,
 } from '../scripts/feature.ts';
+import {
+  list,
+  record,
+  type Session,
+} from '../../../../apps/server/spec/kit/session.ts';
 import {
   expectation,
   fingerprintOf,
   gitPath,
   gitRoute,
   head,
-  read,
   receiptPath,
   settledReceipt,
   worktreeNotFound,
   worktreePath,
 } from '../scripts/fixture.ts';
+import { read } from '../../../../apps/server/spec/kit/requests.ts';
 
 const run = (
   session: Session,

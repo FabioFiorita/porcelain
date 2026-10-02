@@ -5,19 +5,23 @@ import {
   defineCase,
   defineFeature,
   invalidRequest,
+  unknownWorktreeId,
+} from '../scripts/feature.ts';
+import {
   list,
   record,
-  unknownWorktreeId,
   type Session,
-} from '../scripts/feature.ts';
+} from '../../../../apps/server/spec/kit/session.ts';
 import {
   eventually,
   inventory,
-  sampleReview,
-  sampleSummaryHtml,
   worktreeNotFound,
   worktreePath,
 } from '../scripts/fixture.ts';
+import {
+  sampleReview,
+  SAMPLE_SUMMARY_HTML,
+} from '../../../../apps/server/spec/kit/requests.ts';
 
 const layerId = randomUUID();
 const stepId = randomUUID();
@@ -63,7 +67,7 @@ export default defineFeature({
             revision: 1,
             active: true,
             diagnostics: 'current',
-            summary: { byteLength: Buffer.byteLength(sampleSummaryHtml) },
+            summary: { byteLength: Buffer.byteLength(SAMPLE_SUMMARY_HTML) },
             layers: [
               {
                 id: layerId,

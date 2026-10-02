@@ -7,12 +7,15 @@ import {
   defineCase,
   defineFeature,
   invalidRequest,
+} from '../scripts/feature.ts';
+import {
   list,
   record,
   text,
   type Session,
-} from '../scripts/feature.ts';
-import { fingerprintOf, head, read, worktreePath } from '../scripts/fixture.ts';
+} from '../../../../apps/server/spec/kit/session.ts';
+import { fingerprintOf, head, worktreePath } from '../scripts/fixture.ts';
+import { read } from '../../../../apps/server/spec/kit/requests.ts';
 
 const reviewed = (session: Session) => worktreePath(session, '/reviewed');
 const base = 'refs/heads/main';

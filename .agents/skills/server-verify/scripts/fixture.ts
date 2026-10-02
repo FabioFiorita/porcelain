@@ -1,12 +1,13 @@
 import { setTimeout as delay } from 'node:timers/promises';
+import { apiError } from './feature.ts';
 import {
-  apiError,
   list,
   record,
   text,
   type HttpRequest,
   type Session,
-} from './feature.ts';
+} from '../../../../apps/server/spec/kit/session.ts';
+import { read, toolResult } from '../../../../apps/server/spec/kit/requests.ts';
 
 export const worktreeNotFound = apiError(
   404,
@@ -45,14 +46,6 @@ export function receiptPath(
   worktreeId = session.worktreeId,
 ) {
   return fill(receiptRoute, { worktreeId, requestId });
-}
-
-export async function read(
-  session: Session,
-  request: HttpRequest,
-  status = 200,
-) {
-  return record((await session.read(request, status)).body);
 }
 
 export const inventory = (session: Session) =>
@@ -103,30 +96,6 @@ export async function head(session: Session) {
   return (await session.git('rev-parse', 'HEAD')).trim();
 }
 
-export async function issuePairing(session: Session, label = 'Verification') {
-  const issued = await read(session, {
-    method: 'POST',
-    path: '/pairings',
-    target: 'owner',
-    body: { labels: [label], addresses: [session.address] },
-  });
-  return text(record(list(issued.grants)[0]).code);
-}
-
-export async function pairDevice(session: Session, label = 'Second device') {
-  const code = await issuePairing(session, label);
-  const paired = await read(session, {
-    method: 'POST',
-    path: '/api/pair',
-    auth: 'none',
-    body: { code, platform: 'Verification' },
-  });
-  return {
-    credential: text(paired.credential),
-    deviceId: text(record(paired.device).id),
-  };
-}
-
 export async function settledReceipt(session: Session, requestId: string) {
   for (let attempt = 0; attempt < 100; attempt += 1) {
     const response = await session.read({
@@ -166,48 +135,6 @@ export async function threeCommits(session: Session) {
     .split('\n');
   if (!rename || !second || !initial) throw new Error('Expected three commits');
   return { rename, second, initial };
-}
-
-export const sampleSummaryHtml = '<html><body><h1>Summary</h1></body></html>';
-
-export function lineCount(value: string) {
-  return value.split('\n').length - 1;
-}
-
-export function sampleReview(
-  session: Session,
-  expectedRevision: number,
-  layerId: string,
-  stepId: string,
-  options: { path?: string; title?: string; kind?: 'changed' | 'context' } = {},
-) {
-  const line = lineCount(session.fixture.readme.changed);
-  return {
-    expectedRevision,
-    summaryHtml: sampleSummaryHtml,
-    layers: [
-      {
-        id: layerId,
-        title: options.title ?? 'Readme',
-        summary: 'Adds a line',
-        lanes: ['Docs'],
-        steps: [
-          {
-            id: stepId,
-            lane: 0,
-            title: 'New line',
-            text: 'A line is added',
-            kind: options.kind ?? 'changed',
-            pointer: {
-              path: options.path ?? session.fixture.readme.path,
-              startLine: line,
-              endLine: line,
-            },
-          },
-        ],
-      },
-    ],
-  };
 }
 
 export async function watching(session: Session) {
@@ -270,35 +197,6 @@ export const unreadablePath = apiError(
 );
 
 export const credentialLink = '../credential.json';
-
-export const mcpHeaders = (cwd: string) => ({
-  accept: 'application/json, text/event-stream',
-  'x-porcelain-cwd': cwd,
-});
-
-export function toolCall(
-  session: Session,
-  id: number,
-  name: string,
-  input: Record<string, unknown>,
-): HttpRequest {
-  return {
-    method: 'POST',
-    path: '/mcp',
-    target: 'owner',
-    headers: mcpHeaders(session.repository),
-    body: {
-      jsonrpc: '2.0',
-      id,
-      method: 'tools/call',
-      params: { name, arguments: input },
-    },
-  };
-}
-
-export function toolResult(body: unknown) {
-  return record(record(body).result);
-}
 
 export function toolText(body: unknown) {
   return text(record(list(toolResult(body).content)[0]).text);
