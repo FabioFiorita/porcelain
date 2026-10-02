@@ -50,6 +50,41 @@ async function redact(folder: string): Promise<void> {
   }
 }
 
+async function captureServerEvidence(
+  server: IsolatedServer,
+  index: number,
+): Promise<void> {
+  try {
+    const logs = recorder.redact(server.logs());
+    await writeFile(
+      join(evidence, `server-${index}-logs.json`),
+      JSON.stringify(logs, null, 2),
+      { mode: 0o600 },
+    );
+    const captured = recorder.redact({ hits: await server.hits(), logs });
+    const serialized = JSON.stringify(captured, null, 2);
+    if (recorder.leaks(serialized) > 0)
+      throw new Error('Server evidence withheld: a secret survived redaction.');
+    await writeFile(
+      join(evidence, `server-${index}-receipts.json`),
+      serialized,
+      { mode: 0o600 },
+    );
+  } catch (error) {
+    const failure = recorder.scrub(
+      error instanceof Error ? error.message : String(error),
+    );
+    await writeFile(
+      join(evidence, `server-${index}-capture-failure.log`),
+      failure,
+    );
+    process.stderr.write(
+      `Could not preserve native server evidence: ${failure}\n`,
+    );
+    process.exitCode = 1;
+  }
+}
+
 try {
   await buildIsolatedServer(state);
   for (const title of ['First', 'Second']) {
@@ -256,42 +291,8 @@ try {
   process.exitCode = 1;
 } finally {
   try {
-    for (const [index, server] of servers.entries()) {
-      try {
-        const logs = recorder.redact(server.logs());
-        await writeFile(
-          join(evidence, `server-${index}-logs.json`),
-          JSON.stringify(logs, null, 2),
-          { mode: 0o600 },
-        );
-        const captured = recorder.redact({
-          hits: await server.hits(),
-          logs,
-        });
-        const serialized = JSON.stringify(captured, null, 2);
-        if (recorder.leaks(serialized) > 0)
-          throw new Error(
-            'Server evidence withheld: a secret survived redaction.',
-          );
-        await writeFile(
-          join(evidence, `server-${index}-receipts.json`),
-          serialized,
-          { mode: 0o600 },
-        );
-      } catch (error) {
-        const failure = recorder.scrub(
-          error instanceof Error ? error.message : String(error),
-        );
-        await writeFile(
-          join(evidence, `server-${index}-capture-failure.log`),
-          failure,
-        );
-        process.stderr.write(
-          `Could not preserve native server evidence: ${failure}\n`,
-        );
-        process.exitCode = 1;
-      }
-    }
+    for (const [index, server] of servers.entries())
+      await captureServerEvidence(server, index);
     await redact(evidence);
   } finally {
     for (const server of servers) {
