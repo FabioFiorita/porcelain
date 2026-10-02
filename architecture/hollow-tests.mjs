@@ -14,15 +14,6 @@ const caseModifiers = new Set([
   'for',
 ]);
 const assertionEntries = new Set(['soft', 'poll', 'element']);
-const weakMatchers = new Set(['toBeDefined', 'toBeTruthy', 'toBeInstanceOf']);
-const negatedWeakMatchers = new Set([
-  'toThrow',
-  'toThrowError',
-  'toBeUndefined',
-  'toBeNull',
-  'toBeFalsy',
-  'toBeDefined',
-]);
 const equalityMatchers = new Set(['toBe', 'toEqual', 'toStrictEqual']);
 const comparisonOperators = new Set([
   '===',
@@ -492,44 +483,244 @@ function builtByTest(node, scope, seen = new Set()) {
   return fixture;
 }
 
-function weakness(assertion, scope) {
+const presenceMatchers = new Set([
+  'toBeDefined',
+  'toBeTruthy',
+  'toBeInstanceOf',
+]);
+const absenceMatchers = new Set(['toBeUndefined', 'toBeNull', 'toBeFalsy']);
+const throwMatchers = new Set(['toThrow', 'toThrowError']);
+const builtins = new Set([
+  'Array',
+  'BigInt',
+  'Boolean',
+  'Buffer',
+  'Date',
+  'JSON',
+  'Map',
+  'Math',
+  'Number',
+  'Object',
+  'Promise',
+  'Reflect',
+  'Set',
+  'String',
+  'Symbol',
+  'URL',
+  'URLSearchParams',
+  'decodeURIComponent',
+  'encodeURIComponent',
+  'expect',
+  'parseFloat',
+  'parseInt',
+  'structuredClone',
+]);
+const wrappers = new Set([
+  'AwaitExpression',
+  'ChainExpression',
+  'TSNonNullExpression',
+  'TSAsExpression',
+  'TSSatisfiesExpression',
+]);
+
+function unwrapped(node) {
+  let current = node;
+  while (current && wrappers.has(current.type))
+    current =
+      current.type === 'AwaitExpression'
+        ? current.argument
+        : current.expression;
+  return current;
+}
+
+function calleeKey(node) {
+  const callee = unwrapped(node);
+  if (callee?.type === 'Identifier') return callee.name;
+  if (callee?.type === 'ThisExpression') return 'this';
+  if (callee?.type === 'CallExpression' || callee?.type === 'NewExpression')
+    return calleeKey(callee.callee);
+  if (callee?.type === 'MemberExpression') {
+    const owner = calleeKey(callee.object);
+    const property = propertyOf(callee);
+    return owner && property !== '' ? `${owner}.${property}` : '';
+  }
+  return '';
+}
+
+function emptyValue(node) {
+  if (!node) return false;
+  if (node.type === 'Identifier') return node.name === 'undefined';
+  if (node.type === 'ArrayExpression') return node.elements.length === 0;
+  if (node.type === 'ObjectExpression') return node.properties.length === 0;
+  if (node.type === 'TemplateLiteral')
+    return (
+      node.expressions.length === 0 &&
+      node.quasis.every((quasi) => quasi.value.cooked === '')
+    );
+  return (
+    node.type === 'Literal' &&
+    !node.regex &&
+    (node.value === '' || node.value === null || node.value === false)
+  );
+}
+
+function countOf(node) {
+  const actual = unwrapped(node);
+  return (
+    actual?.type === 'MemberExpression' &&
+    ['length', 'size'].includes(propertyOf(actual))
+  );
+}
+
+function emptiness(assertion) {
   const { matcher, negated, expected, actual } = assertion;
   const [first] = expected;
-  if (mockMatcher.test(matcher)) return `${matcher} checks only a mock`;
-  if (!negated && weakMatchers.has(matcher))
-    return `${matcher} accepts almost any value`;
-  if (!negated && matcher === 'toBeUndefined')
-    return 'toBeUndefined checks only an absence';
-  if (negated && negatedWeakMatchers.has(matcher))
-    return `not.${matcher} accepts almost any value`;
-  if (
+  if (throwMatchers.has(matcher))
+    return negated && expected.length === 0 ? 'absence' : undefined;
+  let shape;
+  if (absenceMatchers.has(matcher)) shape = 'absence';
+  else if (presenceMatchers.has(matcher)) shape = 'presence';
+  else if (matcher === 'toHaveLength' && numberLiteral(first, [0]))
+    shape = 'absence';
+  else if (
+    equalityMatchers.has(matcher) &&
+    (emptyValue(first) || (countOf(actual) && numberLiteral(first, [0])))
+  )
+    shape = 'absence';
+  else if (
     !negated &&
     ((matcher === 'toBeGreaterThan' && numberLiteral(first, [0])) ||
-      (matcher === 'toBeGreaterThanOrEqual' && numberLiteral(first, [0, 1])))
+      (matcher === 'toBeGreaterThanOrEqual' && numberLiteral(first, [1])))
   )
-    return `${matcher}(${first.value}) accepts almost any count`;
-  if (matcher === 'toHaveLength' && numberLiteral(first, [0]))
-    return negated
-      ? 'not.toHaveLength(0) accepts almost any value'
-      : 'toHaveLength(0) checks only an absence';
+    return 'presence';
+  if (!shape || !negated) return shape;
+  return shape === 'absence' ? 'presence' : 'absence';
+}
+
+function producingCall(node, scope, path = [], seen = new Set()) {
+  const value = unwrapped(node);
+  if (value?.type === 'CallExpression')
+    return { call: value, path: path.join('.') };
+  if (value?.type === 'MemberExpression') {
+    const property = propertyOf(value);
+    if (property === '') return undefined;
+    return producingCall(value.object, scope, [property, ...path], seen);
+  }
+  if (value?.type !== 'Identifier' || seen.has(value.name)) return undefined;
+  const binding = scope.bindings.get(value.name);
+  if (binding?.kind !== 'const' || !binding.init) return undefined;
+  if (binding.declarator.id.type !== 'Identifier') return undefined;
+  return producingCall(
+    binding.init,
+    scope,
+    path,
+    new Set([...seen, value.name]),
+  );
+}
+
+function identity(assertion, scope) {
+  const { matcher, negated, expected, actual } = assertion;
+  if (negated || !equalityMatchers.has(matcher) || expected.length !== 1)
+    return undefined;
+  const first = producingCall(actual, scope);
+  const second = producingCall(expected[0], scope);
+  if (!first || !second || first.call === second.call) return undefined;
+  const key = calleeKey(first.call.callee);
   if (
-    negated &&
-    equalityMatchers.has(matcher) &&
-    first?.type === 'ArrayExpression' &&
-    first.elements.length === 0
+    !key ||
+    key !== calleeKey(second.call.callee) ||
+    first.path !== second.path
   )
-    return `not.${matcher}([]) accepts almost any value`;
-  if (
-    !negated &&
-    equalityMatchers.has(matcher) &&
-    first?.type === 'ArrayExpression' &&
-    first.elements.length === 0
-  )
-    return `${matcher}([]) checks only an absence`;
-  if (negated && equalityMatchers.has(matcher) && literal(first))
-    return 'it differs from a made-up value';
-  if (matcher === 'toMatch' && matchesEmpty(first))
-    return 'its pattern matches the empty string';
+    return undefined;
+  return key;
+}
+
+function spine(node, scope, keys, seen = new Set()) {
+  if (!node) return keys;
+  const value = unwrapped(node);
+  if (!value) return keys;
+  switch (value.type) {
+    case 'MemberExpression':
+      return spine(value.object, scope, keys, seen);
+    case 'CallExpression':
+    case 'NewExpression': {
+      const key = calleeKey(value.callee);
+      const root = /^[^.]+/.exec(key)?.[0] ?? '';
+      const helper =
+        value.callee.type === 'Identifier' &&
+        scope.bindings.get(value.callee.name)?.kind === 'function';
+      if (key && !builtins.has(root)) keys.add(key);
+      if (!key || builtins.has(root) || helper)
+        for (const argument of value.arguments)
+          spine(argument, scope, keys, seen);
+      if (value.callee.type === 'MemberExpression')
+        spine(value.callee.object, scope, keys, seen);
+      return keys;
+    }
+    case 'Identifier': {
+      const binding = scope.bindings.get(value.name);
+      if (
+        !seen.has(value.name) &&
+        (binding?.kind === 'const' || binding?.kind === 'let') &&
+        binding.init
+      )
+        spine(binding.init, scope, keys, new Set([...seen, value.name]));
+      return keys;
+    }
+    case 'ArrayExpression':
+      for (const element of value.elements) spine(element, scope, keys, seen);
+      return keys;
+    case 'ObjectExpression':
+      for (const property of value.properties)
+        spine(
+          property.type === 'Property' ? property.value : property,
+          scope,
+          keys,
+          seen,
+        );
+      return keys;
+    case 'SpreadElement':
+      return spine(value.argument, scope, keys, seen);
+    case 'ConditionalExpression':
+      spine(value.consequent, scope, keys, seen);
+      return spine(value.alternate, scope, keys, seen);
+    case 'LogicalExpression':
+      spine(value.left, scope, keys, seen);
+      return spine(value.right, scope, keys, seen);
+    case 'TemplateLiteral':
+      for (const expression of value.expressions)
+        spine(expression, scope, keys, seen);
+      return keys;
+    case 'BlockStatement':
+      for (const statement of value.body)
+        if (statement.type === 'ExpressionStatement')
+          spine(statement.expression, scope, keys, seen);
+      return keys;
+    default:
+      return keys;
+  }
+}
+
+function subjects(assertion, scope, owner) {
+  const keys = spine(assertion.actual, scope, new Set());
+  for (const statement of owner.body.type === 'BlockStatement'
+    ? owner.body.body
+    : [])
+    if (
+      statement.type === 'ExpressionStatement' &&
+      !some(
+        statement,
+        (node) => node.type === 'CallExpression' && expectEntry(node),
+        true,
+      )
+    )
+      spine(statement.expression, scope, keys);
+  return keys;
+}
+
+function permanentWeakness(assertion, scope) {
+  const { matcher, actual, expected } = assertion;
+  if (mockMatcher.test(matcher)) return `${matcher} checks only a mock`;
   let looseSchema = false;
   for (const argument of expected)
     walk(argument, (node) => {
@@ -555,23 +746,161 @@ function weakness(assertion, scope) {
     return 'its schema is not one exported from @porcelain/contracts';
   if (computedBoolean(actual))
     return 'its actual value is a boolean the test computed';
+  if (builtByTest(actual, scope))
+    return 'its actual value is a value the test built itself';
+  return undefined;
+}
+
+function copiesOf(node, key) {
+  return some(
+    node,
+    (entry) => {
+      const copied =
+        entry.type === 'SpreadElement'
+          ? [entry.argument]
+          : entry.type === 'CallExpression' &&
+              builtins.has(/^[^.]+/.exec(calleeKey(entry.callee))?.[0] ?? '')
+            ? entry.arguments
+            : [];
+      return copied.some((argument) => {
+        const value = unwrapped(argument);
+        return (
+          value?.type === 'CallExpression' && calleeKey(value.callee) === key
+        );
+      });
+    },
+    true,
+  );
+}
+
+function looseness(assertion, scope) {
+  const { matcher, negated, expected } = assertion;
+  const [first] = expected;
+  if (negated && throwMatchers.has(matcher))
+    return `not.${matcher} of one error accepts almost any other outcome`;
+  if (
+    !negated &&
+    matcher === 'toBeGreaterThanOrEqual' &&
+    numberLiteral(first, [0])
+  )
+    return 'toBeGreaterThanOrEqual(0) accepts any count';
+  if (negated && equalityMatchers.has(matcher) && literal(first))
+    return 'it differs from a made-up value';
+  if (matcher === 'toMatch' && matchesEmpty(first))
+    return 'its pattern matches the empty string';
+  if (builtFromActual(assertion, scope))
+    return 'its expected value is built from its actual value';
+  if (evaluatedAgain(assertion, scope))
+    return 'its expected value is the same expression evaluated again';
+  const produced = producingCall(assertion.actual, scope);
+  const key = produced && calleeKey(produced.call.callee);
+  if (key && expected.some((argument) => copiesOf(argument, key)))
+    return `its expected value is a copy of another result of ${key}`;
+  return undefined;
+}
+
+function judged(assertion, scope) {
+  const permanent = permanentWeakness(assertion, scope);
+  if (permanent) return { kind: 'weak', reason: permanent };
   if (
     some(
-      actual,
+      assertion.actual,
       (node) =>
         node.type === 'CallExpression' &&
         node.callee.type === 'MemberExpression' &&
         propertyOf(node.callee) === 'split',
     )
   )
-    return 'its actual value is a fragment cut from a text';
-  if (builtFromActual(assertion, scope))
-    return 'its expected value is built from its actual value';
-  if (evaluatedAgain(assertion, scope))
-    return 'its expected value is the same expression evaluated again';
-  if (builtByTest(actual, scope))
-    return 'its actual value is a value the test built itself';
-  return undefined;
+    return {
+      kind: 'conditional',
+      reason: 'its actual value is a fragment cut from a text',
+    };
+  const shape = emptiness(assertion);
+  if (shape)
+    return {
+      kind: 'conditional',
+      reason: `${assertion.negated ? 'not.' : ''}${assertion.matcher} checks only ${shape === 'absence' ? 'an absence' : 'that something is there'}`,
+    };
+  const same = identity(assertion, scope);
+  if (same)
+    return {
+      kind: 'conditional',
+      reason: `it compares two results of ${same}`,
+      keys: new Set([same]),
+    };
+  const loose = looseness(assertion, scope);
+  if (loose) return { kind: 'weak', reason: loose };
+  return { kind: 'strong' };
+}
+
+function rowsOf(call, body) {
+  const callee = call.callee;
+  if (
+    callee.type !== 'CallExpression' ||
+    callee.callee.type !== 'MemberExpression'
+  )
+    return new Set();
+  const modifier = propertyOf(callee.callee);
+  if (modifier === 'each')
+    return new Set(body.params.flatMap((param) => patternNames(param, [])));
+  if (modifier === 'for') return new Set(patternNames(body.params[0], []));
+  return new Set();
+}
+
+function readIdentifier(node) {
+  const parent = node.parent;
+  if (parent?.type === 'MemberExpression' && parent.property === node)
+    return parent.computed;
+  return !(
+    parent?.type === 'Property' &&
+    parent.key === node &&
+    !parent.computed &&
+    parent.value !== node
+  );
+}
+
+function readsRow(node, scope, rows, seen = new Set()) {
+  return some(
+    node,
+    (entry) => {
+      if (entry.type !== 'Identifier' || !readIdentifier(entry)) return false;
+      if (rows.has(entry.name)) return true;
+      const binding = scope.bindings.get(entry.name);
+      if (seen.has(entry.name) || !binding?.local || !binding.init)
+        return false;
+      return readsRow(
+        binding.init,
+        scope,
+        rows,
+        new Set([...seen, entry.name]),
+      );
+    },
+    true,
+  );
+}
+
+function actsOnRow(body, scope, rows) {
+  return (body.body.type === 'BlockStatement' ? body.body.body : []).some(
+    (statement) =>
+      !some(
+        statement,
+        (node) => node.type === 'CallExpression' && expectEntry(node),
+        true,
+      ) && readsRow(statement, scope, rows),
+  );
+}
+
+function ignoresRow(assertion, scope, rows) {
+  if (rows.size === 0) return false;
+  const produced = producingCall(assertion.actual, scope);
+  const callee = produced?.call.callee;
+  const binding =
+    callee?.type === 'Identifier' ? scope.bindings.get(callee.name) : undefined;
+  if (binding?.kind !== 'import' || !String(binding.source).startsWith('.'))
+    return false;
+  return ![assertion.actual, ...assertion.expected].some((node) =>
+    readsRow(node, scope, rows),
+  );
 }
 
 function localFunctions(program) {
@@ -610,6 +939,13 @@ function assertionsIn(body, functions, visited = new Set([body])) {
 export function hollowTests(program, sourceCode, { spec }) {
   const functions = localFunctions(program);
   const reports = [];
+  const scopes = new Map();
+  const scopeFor = (owner) => {
+    if (!scopes.has(owner))
+      scopes.set(owner, scopeOf(program, owner, sourceCode));
+    return scopes.get(owner);
+  };
+  const cases = [];
   walk(program, (node) => {
     if (node.type !== 'CallExpression') return;
     const body = caseBody(node);
@@ -637,19 +973,66 @@ export function hollowTests(program, sourceCode, { spec }) {
       });
       return;
     }
-    const scopes = new Map();
-    const reasons = [];
-    for (const { assertion, owner } of assertions) {
-      if (!scopes.has(owner))
-        scopes.set(owner, scopeOf(program, owner, sourceCode));
-      const reason = weakness(assertion, scopes.get(owner));
-      if (reason === undefined) return;
-      reasons.push(reason);
+    const rows = rowsOf(node, body);
+    const fixed = rows.size > 0 && !actsOnRow(body, scopeFor(body), rows);
+    cases.push({
+      report,
+      verdicts: assertions.map(({ assertion, owner }) => {
+        const scope = scopeFor(owner);
+        const verdict = judged(assertion, scope);
+        return {
+          ...verdict,
+          assertion,
+          keys: verdict.keys ?? subjects(assertion, scope, owner),
+          ignoresRow:
+            fixed &&
+            verdict.kind === 'strong' &&
+            owner === body &&
+            ignoresRow(assertion, scope, rows),
+        };
+      }),
+    });
+  });
+  const concrete = new Set();
+  for (const { verdicts } of cases)
+    for (const verdict of verdicts)
+      if (verdict.kind === 'strong' && !verdict.ignoresRow)
+        for (const key of verdict.keys) concrete.add(key);
+  for (const { report, verdicts } of cases) {
+    for (const verdict of verdicts)
+      if (verdict.ignoresRow)
+        reports.push({
+          node: verdict.assertion.call,
+          message:
+            'This assertion reads nothing from the row of its it.each, so every row repeats the same check; assert it once in the test that states that behaviour.',
+        });
+    if (
+      verdicts.some(
+        (verdict) => verdict.kind === 'strong' && !verdict.ignoresRow,
+      )
+    )
+      continue;
+    const unproven = verdicts.filter(
+      (verdict) =>
+        verdict.kind === 'conditional' &&
+        ![...verdict.keys].some((key) => concrete.has(key)),
+    );
+    const weak = verdicts.filter((verdict) => verdict.kind === 'weak');
+    if (weak.length === 0 && unproven.length === 0) continue;
+    if (weak.length === 0) {
+      const named = [
+        ...new Set(unproven.flatMap((verdict) => [...verdict.keys])),
+      ];
+      reports.push({
+        node: report,
+        message: `This test asserts only absences, identities or fragments (${[...new Set(unproven.map((verdict) => verdict.reason))].join('; ')}), and no test in this file asserts a concrete value produced by ${named.length > 0 ? named.join(', ') : 'its subject'}; assert what the subject produces for a valid input somewhere in this file.`,
+      });
+      continue;
     }
     reports.push({
       node: report,
-      message: `Every assertion in this test could pass for a defect (${[...new Set(reasons)].join('; ')}); assert the exact value the code under test must produce, read from it.`,
+      message: `Every assertion in this test could pass for a defect (${[...new Set(verdicts.filter((verdict) => verdict.kind !== 'strong').map((verdict) => verdict.reason))].join('; ')}); assert the exact value the code under test must produce, read from it.`,
     });
-  });
+  }
   return reports;
 }

@@ -3070,6 +3070,344 @@ describe('deriveProjectName probe', () => {
     errors: 1,
   },
   {
+    rule: 'spec-asserts',
+    path: 'apps/web/src/features/access/rules/remotes.spec.ts',
+    valid: `import { describe, expect, it } from 'vitest';
+import { remoteLink } from './remotes.ts';
+
+describe('remoteLink', () => {
+  it('reads the address, code and environment of a pairing link', () => {
+    expect(remoteLink('http://192.168.15.64:4738/pair#c=a&e=env')).toEqual({
+      address: 'http://192.168.15.64:4738',
+      code: 'a',
+      environmentId: 'env',
+    });
+  });
+
+  it.each(['', 'http://192.168.15.64:4738/pair#c=a'])('reads nothing from %j', (value) => {
+    expect(remoteLink(value)).toBeUndefined();
+  });
+});
+`,
+    invalid: `import { describe, expect, it } from 'vitest';
+import { remoteLink } from './remotes.ts';
+
+describe('remoteLink', () => {
+  it.each(['', 'http://192.168.15.64:4738/pair#c=a'])('reads nothing from %j', (value) => {
+    expect(remoteLink(value)).toBeUndefined();
+  });
+});
+`,
+    errors: 1,
+  },
+  {
+    rule: 'spec-asserts',
+    path: 'apps/web/src/features/access/rules/remotes.spec.ts',
+    valid: `import { describe, expect, it } from 'vitest';
+import { remoteLink } from './remotes.ts';
+
+describe('remoteLink', () => {
+  it('reads the address, code and environment of a pairing link', () => {
+    expect(remoteLink('http://192.168.15.64:4738/pair#c=a&e=env')).toEqual({
+      address: 'http://192.168.15.64:4738',
+      code: 'a',
+      environmentId: 'env',
+    });
+  });
+
+  it.each(['', 'http://192.168.15.64:4738/pair#c=a'])('reads nothing from %j', (value) => {
+    expect(remoteLink(value)).toBeUndefined();
+  });
+});
+`,
+    invalid: `import { describe, expect, it } from 'vitest';
+import { remoteLink } from './remotes.ts';
+
+describe('remoteLink', () => {
+  it('reads the address, code and environment of a pairing link', () => {
+    expect(remoteLink('http://192.168.15.64:4738/pair#c=a&e=env')).toEqual({
+      address: 'http://192.168.15.64:4738',
+      code: 'a',
+      environmentId: 'env',
+    });
+  });
+
+  it.each(['', 'http://192.168.15.64:4738/pair#c=a'])('reads nothing from %j', (value) => {
+    expect(remoteLink(value)).toBeUndefined();
+    expect(remoteLink('http://192.168.15.64:4738/pair#c=b&e=env')).toEqual({
+      address: 'http://192.168.15.64:4738',
+      code: 'b',
+      environmentId: 'env',
+    });
+  });
+});
+`,
+    errors: 1,
+  },
+  {
+    rule: 'spec-asserts',
+    path: 'apps/web/src/features/access/rules/remotes.spec.ts',
+    valid: `import { describe, expect, it } from 'vitest';
+import { remoteLink } from './remotes.ts';
+
+describe('remoteLink', () => {
+  it('reads the address, code and environment of a pairing link', () => {
+    expect(remoteLink('http://192.168.15.64:4738/pair#c=a&e=env')).toEqual({
+      address: 'http://192.168.15.64:4738',
+      code: 'a',
+      environmentId: 'env',
+    });
+  });
+});
+`,
+    invalid: `import { describe, expect, it } from 'vitest';
+import { remoteLink } from './remotes.ts';
+
+describe('remoteLink', () => {
+  it('reads the address, code and environment of a pairing link', () => {
+    expect(remoteLink('http://192.168.15.64:4738/pair#c=a&e=env')).toEqual({
+      address: 'http://192.168.15.64:4738',
+      code: 'a',
+      environmentId: 'env',
+    });
+  });
+
+  it('reads the same link the same way again', () => {
+    expect(remoteLink('http://192.168.15.64:4738/pair#c=a&e=env')).toEqual({
+      ...remoteLink('http://192.168.15.64:4738/pair#c=a&e=env'),
+    });
+  });
+});
+`,
+    errors: 1,
+  },
+  {
+    rule: 'spec-asserts',
+    path: 'packages/client/src/shared/api/per-connection.spec.ts',
+    valid: `import { describe, expect, it } from 'vitest';
+import { perConnection } from './per-connection.ts';
+
+describe('perConnection', () => {
+  it('builds the API of a connection from its transport', () => {
+    const api = perConnection((transport) => ({ transport }));
+    const transport = () => Promise.resolve(Response.json({}));
+    expect(api({ transport }).transport).toBe(transport);
+  });
+
+  it('shares one API across contexts for the same remote transport', () => {
+    const api = perConnection((transport) => ({ transport }));
+    const transport = () => Promise.resolve(Response.json({}));
+    expect(api({ transport })).toBe(api({ transport }));
+  });
+});
+`,
+    invalid: `import { describe, expect, it } from 'vitest';
+import { perConnection } from './per-connection.ts';
+
+describe('perConnection', () => {
+  it('shares one API across contexts for the same remote transport', () => {
+    const api = perConnection((transport) => ({ transport }));
+    const transport = () => Promise.resolve(Response.json({}));
+    expect(api({ transport })).toBe(api({ transport }));
+  });
+});
+`,
+    errors: 1,
+  },
+  {
+    rule: 'spec-asserts',
+    path: 'packages/changes/src/rules/fingerprint-branch-file.spec.ts',
+    valid: `import { describe, expect, it } from 'vitest';
+import { fingerprintBranchFile } from './fingerprint-branch-file.ts';
+
+describe('fingerprintBranchFile', () => {
+  it('gives the same file the same fingerprint', () => {
+    expect(fingerprintBranchFile(branchFile())).toBe(fingerprintBranchFile(branchFile()));
+  });
+
+  it('is a SHA-256 in hexadecimal', () => {
+    expect(fingerprintBranchFile(branchFile())).toMatch(/^[0-9a-f]{64}$/);
+  });
+});
+`,
+    invalid: `import { describe, expect, it } from 'vitest';
+import { fingerprintBranchFile } from './fingerprint-branch-file.ts';
+
+describe('fingerprintBranchFile', () => {
+  it('gives the same file the same fingerprint', () => {
+    expect(fingerprintBranchFile(branchFile())).toBe(fingerprintBranchFile(branchFile()));
+  });
+});
+`,
+    errors: 1,
+  },
+  {
+    rule: 'spec-asserts',
+    path: 'packages/kernel/src/rules/absence.spec.ts',
+    valid: `import { describe, expect, it } from 'vitest';
+
+describe('absence spelled every way, beside what each subject produces', () => {
+  it('names nothing when neither side has a path', () => {
+    expect(trackedPath({})).toBe(undefined);
+  });
+  it('answers nothing for no entries', () => {
+    expect(withoutGitDirectory([]).length).toBe(0);
+  });
+  it('reads no options from nothing', () => {
+    expect(parseOptions('')).toEqual({});
+  });
+  it('holds no marks when nothing was reviewed', () => {
+    expect(markSet([]).size).toBe(0);
+  });
+  it('labels a blank name with nothing', () => {
+    expect(label('   ')).toBe('');
+  });
+  it('refuses a token of the other kind', () => {
+    expect(accepts('pcd', token)).toBe(false);
+  });
+  it('finds no parent for the root', () => {
+    expect(parentOf('/')).toBeNull();
+  });
+  it('confirms a sound draft', () => {
+    expect(() => check(draft)).not.toThrow();
+  });
+  it('reads a list of remotes as a list', () => {
+    expect(parseRemotes([remote])).toBeInstanceOf(Array);
+  });
+
+  it('names the new path of an added file', () => {
+    expect(trackedPath({ newPath: 'a.md' })).toBe('a.md');
+  });
+  it('keeps every entry but the Git directory', () => {
+    expect(withoutGitDirectory([{ name: '.git' }, { name: 'a' }])).toEqual([{ name: 'a' }]);
+  });
+  it('reads a flag', () => {
+    expect(parseOptions('--all')).toEqual({ all: true });
+  });
+  it('holds a mark for each reviewed path', () => {
+    expect([...markSet(['a.md'])]).toEqual(['a.md']);
+  });
+  it('trims a label', () => {
+    expect(label(' Phone ')).toBe('Phone');
+  });
+  it('accepts a token of its own kind', () => {
+    expect(accepts('pcp', token)).toBe(true);
+  });
+  it('finds the parent of a file', () => {
+    expect(parentOf('/a/b')).toBe('/a');
+  });
+  it('refuses a draft with a duplicate step', () => {
+    expect(() => check(duplicated)).toThrow(DuplicateStepError);
+  });
+  it('reads the remotes of a list', () => {
+    expect(parseRemotes([remote])).toEqual([remote]);
+  });
+});
+`,
+    invalid: `import { describe, expect, it } from 'vitest';
+
+describe('absence spelled every way, alone', () => {
+  it('names nothing when neither side has a path', () => {
+    expect(trackedPath({})).toBe(undefined);
+  });
+  it('answers nothing for no entries', () => {
+    expect(withoutGitDirectory([]).length).toBe(0);
+  });
+  it('reads no options from nothing', () => {
+    expect(parseOptions('')).toEqual({});
+  });
+  it('holds no marks when nothing was reviewed', () => {
+    expect(markSet([]).size).toBe(0);
+  });
+  it('labels a blank name with nothing', () => {
+    expect(label('   ')).toBe('');
+  });
+  it('refuses a token of the other kind', () => {
+    expect(accepts('pcd', token)).toBe(false);
+  });
+  it('finds no parent for the root', () => {
+    expect(parentOf('/')).toBeNull();
+  });
+  it('confirms a sound draft', () => {
+    expect(() => check(draft)).not.toThrow();
+  });
+  it('reads a list of remotes as a list', () => {
+    expect(parseRemotes([remote])).toBeInstanceOf(Array);
+  });
+});
+`,
+    errors: 9,
+  },
+  {
+    rule: 'spec-asserts',
+    path: 'apps/desktop/src/rules/content-security-policy.spec.ts',
+    valid: `import { describe, expect, it } from 'vitest';
+import { desktopContentSecurityPolicy } from './content-security-policy.ts';
+
+describe('desktop content security policy', () => {
+  it('frames only the app and its own blobs', () => {
+    expect(
+      desktopContentSecurityPolicy('built')
+        .split('; ')
+        .find((directive) => directive.startsWith('frame-src ')),
+    ).toBe("frame-src 'self' blob:");
+  });
+
+  it('admits the inline script Vite injects only for the development web', () => {
+    expect(desktopContentSecurityPolicy('development')).toBe(
+      "default-src 'self'; script-src 'self' 'unsafe-inline'; frame-src 'self' blob:",
+    );
+  });
+});
+`,
+    invalid: `import { describe, expect, it } from 'vitest';
+import { desktopContentSecurityPolicy } from './content-security-policy.ts';
+
+describe('desktop content security policy', () => {
+  it('frames only the app and its own blobs', () => {
+    expect(
+      desktopContentSecurityPolicy('built')
+        .split('; ')
+        .find((directive) => directive.startsWith('frame-src ')),
+    ).toBe("frame-src 'self' blob:");
+  });
+});
+`,
+    errors: 1,
+  },
+  {
+    rule: 'spec-asserts',
+    path: 'packages/git/src/actions/commands/commit-paths.spec.ts',
+    valid: `import { describe, expect, it } from 'vitest';
+
+describe('commitPaths', () => {
+  it('commits the asked paths', async () => {
+    expect(await commit(['a.txt'])).toMatchObject({ state: 'committed' });
+  });
+
+  it('leaves no lock behind when a hook rejects the commit', async () => {
+    await commit(['b.txt']);
+    expect(readdirSync(gitDirectory).filter((entry) => entry === 'index.lock')).toEqual([]);
+  });
+});
+`,
+    invalid: `import { describe, expect, it, vi } from 'vitest';
+
+describe('commitPaths', () => {
+  it('commits the asked paths', async () => {
+    expect(await commit(['a.txt'])).toMatchObject({ state: 'committed' });
+  });
+
+  it('tells the hook about the commit', async () => {
+    const notify = vi.fn();
+    await commit(['b.txt'], notify);
+    expect(notify).toHaveBeenCalled();
+  });
+});
+`,
+    errors: 1,
+  },
+  {
     rule: 'spec-behaviour-names',
     path: 'packages/reviews/src/services/mark-comments-seen-service.spec.ts',
     valid: `describe('MarkCommentsSeenService', () => {
