@@ -4,7 +4,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { inject, test as base, type TestError } from 'vitest';
 import { IsolatedServer, Recorder } from './isolated-server.ts';
-import { list, record, type Session } from './session.ts';
+import type { Session } from './session.ts';
 
 declare module 'vitest' {
   export interface ProvidedContext {
@@ -20,26 +20,6 @@ const repositoryRoot = resolve(
   dirname(fileURLToPath(import.meta.url)),
   '../../../..',
 );
-
-async function sampleIds(server: IsolatedServer) {
-  const inventory = await server.read(new Recorder(), {
-    method: 'GET',
-    path: '/api/inventory',
-  });
-  const [project, ...others] = list(record(inventory.body).projects).map(
-    record,
-  );
-  const worktree = list(project?.worktrees)
-    .map(record)
-    .find((entry) => entry.main === true);
-  if (
-    others.length > 0 ||
-    typeof project?.id !== 'string' ||
-    typeof worktree?.id !== 'string'
-  )
-    throw new Error('The sample inventory is not one registered project');
-  return { projectId: project.id, worktreeId: worktree.id };
-}
 
 function scrubbed(error: TestError, recorder: Recorder) {
   for (const [key, value] of Object.entries(error))
@@ -82,7 +62,7 @@ export const test = base
     });
     return server;
   })
-  .extend('ids', { scope: 'file' }, ({ server }) => sampleIds(server))
+  .extend('ids', { scope: 'file' }, ({ server }) => server.sampleIds())
   .extend('recorder', async ({ server, onTestFailed }, { onCleanup }) => {
     const recorder = new Recorder();
     recorder.secret(server.credential);

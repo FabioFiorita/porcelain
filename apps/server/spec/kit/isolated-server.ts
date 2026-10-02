@@ -522,6 +522,26 @@ export class ServerHandle {
     return new ServerHandle(manifest, credentials);
   }
 
+  async sampleIds(): Promise<{ projectId: string; worktreeId: string }> {
+    const inventory = await this.read(new Recorder(), {
+      method: 'GET',
+      path: '/api/inventory',
+    });
+    const [project, ...others] = list(record(inventory.body).projects).map(
+      record,
+    );
+    const worktree = list(project?.worktrees)
+      .map(record)
+      .find((entry) => entry.main === true);
+    if (
+      others.length > 0 ||
+      typeof project?.id !== 'string' ||
+      typeof worktree?.id !== 'string'
+    )
+      throw new Error('The sample inventory is not one registered project');
+    return { projectId: project.id, worktreeId: worktree.id };
+  }
+
   private async allHits() {
     return existsSync(this.hitsFile)
       ? hitsOf(await readFile(this.hitsFile, 'utf8'))
@@ -969,7 +989,7 @@ export class ServerHandle {
 export class IsolatedServer extends ServerHandle {
   readonly manifestPath: string;
   private readonly child: ChildProcess;
-  private readonly exited: Promise<void>;
+  readonly exited: Promise<void>;
   private readonly output: { stdout: string; stderr: string };
 
   private constructor(
@@ -995,6 +1015,7 @@ export class IsolatedServer extends ServerHandle {
     repositoryRoot: string,
     build: string,
     sample?: 'perf',
+    onOutput?: (text: string) => void,
   ): Promise<IsolatedServer> {
     const env = Object.fromEntries(
       Object.entries(process.env).filter(
@@ -1016,7 +1037,11 @@ export class IsolatedServer extends ServerHandle {
     );
     child.stderr.on('data', (chunk: Buffer) => {
       output.stderr += chunk.toString('utf8');
+      onOutput?.(chunk.toString('utf8'));
     });
+    child.stdout.on('data', (chunk: Buffer) =>
+      onOutput?.(chunk.toString('utf8')),
+    );
     try {
       const manifestPath = await waitForReady(child, output);
       return new IsolatedServer(

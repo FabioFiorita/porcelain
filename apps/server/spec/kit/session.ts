@@ -61,27 +61,34 @@ export type PerfSample = {
 
 export type DraftedCommit = { message: string; paths: string[] };
 
-export type GitSubcommand =
-  | 'add'
-  | 'branch'
-  | 'checkout'
-  | 'commit'
-  | 'diff'
-  | 'for-each-ref'
-  | 'hash-object'
-  | 'init'
-  | 'log'
-  | 'merge'
-  | 'mv'
-  | 'push'
-  | 'remote'
-  | 'reset'
-  | 'rev-list'
-  | 'rev-parse'
-  | 'show'
-  | 'stash'
-  | 'switch'
-  | 'worktree';
+export const gitSubcommands = [
+  'add',
+  'blame',
+  'branch',
+  'cat-file',
+  'checkout',
+  'commit',
+  'diff',
+  'for-each-ref',
+  'hash-object',
+  'init',
+  'log',
+  'ls-files',
+  'merge',
+  'mv',
+  'push',
+  'remote',
+  'reset',
+  'rev-list',
+  'rev-parse',
+  'show',
+  'stash',
+  'status',
+  'switch',
+  'worktree',
+] as const;
+
+export type GitSubcommand = (typeof gitSubcommands)[number];
 
 export type Session = {
   fixture: Fixture;
