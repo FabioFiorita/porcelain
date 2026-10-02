@@ -71,6 +71,8 @@ pnpm --filter @porcelain/server test:integration projects-rename
 
 The argument filters by file name in `apps/server/spec/integration/`; name every file the change affects. A full run, without a filter, also fails when a registered route is requested by no test.
 
+When a change affects a route's cost or the Git work it starts, run `pnpm --filter @porcelain/server test:perf`, and when the cost moved, set that route's budget in `ROUTE_BUDGETS` (`apps/server/src/config/limits.ts`) from fresh measurements in the same commit: Git processes exactly as measured, wall time three times the worst p95 of a few runs, rounded up to 50 ms and at least 100 ms.
+
 ## 7. Stop
 
 ```sh
