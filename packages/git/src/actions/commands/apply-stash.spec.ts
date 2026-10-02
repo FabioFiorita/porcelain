@@ -215,7 +215,7 @@ describe('applyStash', () => {
     git('commit', '-q', '-am', 'conflicting');
     expect({
       outcome: await apply(oid, { action: 'stash-pop' }),
-      unmerged: git('ls-files', '--unmerged', '--', 'notes.txt') !== '',
+      unmerged: git('status', '--porcelain', '--', 'notes.txt'),
       stashes: stashes(),
     }).toMatchObject({
       outcome: {
@@ -223,7 +223,7 @@ describe('applyStash', () => {
         result: { stashOid: oid, stashRetained: true },
         refreshRequired: true,
       },
-      unmerged: true,
+      unmerged: 'UU notes.txt\n',
       stashes: `${oid}\n`,
     });
   });

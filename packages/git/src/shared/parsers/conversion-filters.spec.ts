@@ -59,8 +59,13 @@ describe('parseFilterAttributes', () => {
     ]);
   });
 
-  it('ignores a truncated trailing record in malformed input', () => {
+  it('ignores a truncated trailing record in malformed input and keeps the complete records before it', () => {
     expect(parseFilterAttributes('model.bin\0filter\0')).toEqual([]);
+    expect(
+      parseFilterAttributes(
+        'README.md\0filter\0unspecified\0model.bin\0filter\0',
+      ),
+    ).toEqual([{ path: 'README.md', filter: 'unspecified' }]);
   });
 });
 

@@ -53,10 +53,13 @@ describe('status policy', () => {
   });
 
   it('answers every domain and Git error with a deliberate status instead of an unexpected failure', () => {
-    const unexpected = errorClasses()
+    const unexpected = [
+      ...errorClasses(),
+      { name: 'unknown', instance: new Error('boom') },
+    ]
       .filter(({ instance }) => toStatusResponse(instance).statusCode === 500)
       .map(({ name }) => name);
-    expect(unexpected).toEqual([]);
+    expect(unexpected).toEqual(['unknown']);
   });
 
   it('answers an unknown failure as an unexpected failure', () => {

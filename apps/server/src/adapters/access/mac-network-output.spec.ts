@@ -80,8 +80,18 @@ describe('Mac network output', () => {
     expect(macDefaultRoutes(macNetworkOutput.route, service)).toEqual([router]);
   });
 
-  it('reads no default route without an active default IPv4 route', () => {
+  it('reads no default route without an active default IPv4 route, and the route once one is active', () => {
     expect(macDefaultRoutes('', macNetworkOutput.service)).toEqual([]);
+    expect(
+      macDefaultRoutes(macNetworkOutput.route, macNetworkOutput.service),
+    ).toEqual([
+      {
+        interfaceName: 'en0',
+        metric: 0,
+        gateway: '192.168.1.1',
+        gatewayHardware: '02:00:5e:10:00:01',
+      },
+    ]);
   });
 
   it.each([
@@ -95,9 +105,13 @@ describe('Mac network output', () => {
       'destination: 192.168.1',
     ),
   ])(
-    'refuses an absent, inactive or malformed default IPv4 route: %s',
+    'refuses an absent, inactive or malformed default IPv4 route, unlike the active one captured on this Mac: %s',
     (output) => {
       expect(macDefaultRoute(output)).toBeUndefined();
+      expect(macDefaultRoute(macNetworkOutput.route)).toEqual({
+        gateway: '192.168.1.1',
+        interfaceName: 'en0',
+      });
     },
   );
 

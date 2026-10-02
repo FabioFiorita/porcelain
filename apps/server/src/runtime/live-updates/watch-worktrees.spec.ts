@@ -73,8 +73,10 @@ describe('WatchWorktrees', () => {
 
   it('refuses a worktree named under a project it does not belong to', async () => {
     const { follow } = subject();
-    const targets = await follow([], [wish('one', OTHER_PROJECT)]);
-    expect(targets.worktrees).toEqual([]);
+    const targets = await follow([], [wish('one', OTHER_PROJECT), wish('two')]);
+    expect(targets.worktrees).toEqual([
+      { projectId: PROJECT, worktreeId: 'two' },
+    ]);
   });
 
   it('watches no more worktrees than its limit across clients', async () => {
@@ -124,13 +126,19 @@ describe('WatchWorktrees', () => {
     });
   });
 
-  it('reacts to nothing when every changed path was already announced by an edit', async () => {
+  it('reacts to nothing when every changed path was already announced by an edit, while the same change elsewhere is announced', async () => {
     const { watches, follow, watcher, events } = subject();
-    await follow([], [wish('one')]);
+    await follow([], [wish('one'), wish('two')]);
     watches.announce({ worktreeId: 'one', paths: ['src/a.ts'] });
     watcher.changeFiles('one', ['src/a.ts']);
+    watcher.changeFiles('two', ['src/a.ts']);
     await settle();
     expect(events.announced('one')).toBeUndefined();
+    expect(events.announced('two')).toEqual({
+      worktreeId: 'two',
+      change: 'files',
+      paths: ['src/a.ts'],
+    });
   });
 
   it('reacts to a change of an announced path once the announcement has expired', async () => {

@@ -14,7 +14,10 @@ describe('moveProblem', () => {
     { name: 'to a sibling', destination: 'guides' },
     { name: 'to a sibling that shares its prefix', destination: 'docs-old' },
     { name: 'into its parent', destination: 'archive/docs' },
-  ])('accepts a move $name', ({ destination }) => {
+  ])('accepts a move $name, unlike a move into itself', ({ destination }) => {
     expect(moveProblem('docs', destination)).toBeUndefined();
+    expect(moveProblem('docs', `docs/${destination}`)).toEqual({
+      kind: 'into-itself',
+    });
   });
 });

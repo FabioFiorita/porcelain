@@ -159,8 +159,25 @@ describe('parseRawDiffObjects', () => {
     ]);
   });
 
-  it('reads no files when the trees are the same', () => {
+  it('reads no files when the trees are the same, and the one file a single change names', () => {
     expect(parseRawDiffObjects(Buffer.alloc(0))).toEqual([]);
+    expect(
+      parseRawDiffObjects(
+        Buffer.from(
+          ':100644 100644 814f4a422927b82f5f8a43f8fab6d3839e3983f2 4cb29ea38f70d7c61b2a3a25b02e3bdf44905402 M\0a.txt\0',
+        ),
+      ),
+    ).toEqual([
+      {
+        status: 'M',
+        oldMode: '100644',
+        newMode: '100644',
+        oldOid: '814f4a422927b82f5f8a43f8fab6d3839e3983f2',
+        newOid: '4cb29ea38f70d7c61b2a3a25b02e3bdf44905402',
+        oldPath: 'a.txt',
+        newPath: 'a.txt',
+      },
+    ]);
   });
 
   it('rejects output cut off inside a path', () => {

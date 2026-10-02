@@ -181,9 +181,12 @@ describe('Lanes', () => {
   it('refuses unqueued work past its deadline even when the work ignores its signal', async () => {
     const subject = lanes();
     const release = Promise.withResolvers<string>();
-    await expect(
-      subject.unqueued(() => release.promise, { deadlineMs: 5 }),
-    ).rejects.toBeInstanceOf(DOMException);
+    const refused = subject.unqueued(() => release.promise, { deadlineMs: 5 });
+    await expect(refused).rejects.toBeInstanceOf(DOMException);
+    await expect(refused).rejects.toMatchObject({
+      name: 'TimeoutError',
+      message: 'The operation was aborted due to timeout',
+    });
     release.resolve('late');
     await subject.close();
   });
@@ -199,7 +202,12 @@ describe('Lanes', () => {
         ),
       { deadlineMs: 5, onFailure: (error) => failed.resolve(error) },
     );
-    expect(await failed.promise).toBeInstanceOf(DOMException);
+    const failure = await failed.promise;
+    expect(failure).toBeInstanceOf(DOMException);
+    expect(failure).toMatchObject({
+      name: 'TimeoutError',
+      message: 'The operation was aborted due to timeout',
+    });
     await subject.close();
   });
 });

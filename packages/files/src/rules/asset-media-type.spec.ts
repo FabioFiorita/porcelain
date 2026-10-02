@@ -31,14 +31,17 @@ describe('assetMediaType', () => {
     expect(assetMediaType('logo.png.md')).toBeUndefined();
   });
 
-  it('refuses text documents that are not previewable assets', () => {
+  it('refuses text documents that are not previewable assets, while the same name as an image is one', () => {
     expect(assetMediaType('README.md')).toBeUndefined();
     expect(assetMediaType('notes.txt')).toBeUndefined();
+    expect(assetMediaType('README.png')).toBe('image/png');
   });
 
-  it('does not take a dot in a folder or a leading dot as an extension', () => {
+  it('does not take a dot in a folder or a leading dot as an extension, only the dot of the file name', () => {
     expect(assetMediaType('assets.png/logo')).toBeUndefined();
     expect(assetMediaType('images/.png')).toBeUndefined();
     expect(assetMediaType('logo.')).toBeUndefined();
+    expect(assetMediaType('assets.png/logo.svg')).toBe('image/svg+xml');
+    expect(assetMediaType('images/a.png')).toBe('image/png');
   });
 });

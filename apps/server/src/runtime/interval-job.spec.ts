@@ -116,7 +116,7 @@ describe('IntervalJob', () => {
 
   it('does not report a run that failed because it was stopped', async () => {
     const { reports, logger } = reporting();
-    const { work } = counting(
+    const { runs, work } = counting(
       (signal) =>
         new Promise<void>((_resolve, reject) =>
           signal.addEventListener('abort', () => reject(signal.reason)),
@@ -125,6 +125,7 @@ describe('IntervalJob', () => {
     const job = new IntervalJob('job', work, { atStart: true }, logger);
     job.start();
     await job.stop();
+    expect(runs.map((run) => run.aborted)).toEqual([true]);
     expect(reports).toEqual([]);
   });
 

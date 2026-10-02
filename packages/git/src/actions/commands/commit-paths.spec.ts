@@ -335,7 +335,12 @@ describe('commitPaths', () => {
     writeFileSync(hook, '#!/bin/sh\nexit 1\n');
     chmodSync(hook, 0o755);
     write('a.txt', 'a changed\n');
-    await commit(['a.txt']);
+    expect(await commit(['a.txt'])).toMatchObject({
+      state: 'rejected',
+      reason: 'GIT_REJECTED',
+      refreshRequired: true,
+    });
+    expect(git('status', '--porcelain')).toBe(' M a.txt\n');
     expect(
       readdirSync(join(checkout, '.git')).filter(
         (entry) => entry === 'index.lock' || entry.startsWith('porcelain-'),

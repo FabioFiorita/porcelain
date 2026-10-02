@@ -35,8 +35,14 @@ describe('presentedUpdate', () => {
     ).toBe('updated');
   });
 
-  it('reports nothing before any update', () => {
+  it('reports nothing before any update, and the update once one is recorded', () => {
     expect(presentedUpdate(undefined, false)).toBeUndefined();
+    expect(presentedUpdate(installing, true)).toEqual({
+      from: '1.0.0',
+      target: '1.1.0',
+      stage: 'installing',
+      reason: undefined,
+    });
   });
 });
 
@@ -49,7 +55,8 @@ describe('publishedVersion', () => {
     ['output that is not JSON', 'npm ERR! 404'],
     ['a list of versions', '["1.2.3"]'],
     ['a string that is no version', '"latest"'],
-  ])('reads nothing from %s', (_, output) => {
+  ])('reads nothing from %s, unlike a version printed as JSON', (_, output) => {
     expect(publishedVersion(output)).toBeUndefined();
+    expect(publishedVersion('"1.2.3"')).toBe('1.2.3');
   });
 });

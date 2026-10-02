@@ -20,17 +20,30 @@ describe('expiredReceipts', () => {
     ).toEqual(['just-past', 'long-ago']);
   });
 
-  it('names nothing when nothing has finished', () => {
+  it('names nothing when nothing has finished, and a receipt once it finished long ago', () => {
     expect(expiredReceipts([], now, 30 * day)).toEqual([]);
+    expect(
+      expiredReceipts(
+        [{ requestId: 'long-ago', finishedAt: '2026-01-01T00:00:00.000Z' }],
+        now,
+        30 * day,
+      ),
+    ).toEqual(['long-ago']);
   });
 
   it('compares instants, not their spelling', () => {
     expect(
       expiredReceipts(
-        [{ requestId: 'offset', finishedAt: '2026-08-24T13:00:00.000+01:00' }],
+        [
+          { requestId: 'offset', finishedAt: '2026-08-24T13:00:00.000+01:00' },
+          {
+            requestId: 'offset-past',
+            finishedAt: '2026-08-24T12:59:59.999+01:00',
+          },
+        ],
         now,
         30 * day,
       ),
-    ).toEqual([]);
+    ).toEqual(['offset-past']);
   });
 });

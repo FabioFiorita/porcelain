@@ -78,6 +78,10 @@ describe('acquireDirectoryLock', () => {
     const second = acquireDirectoryLock(options(path, 500));
     await first.release();
     await expect(second).resolves.toBeDefined();
+    expect(existsSync(path)).toBe(true);
+    const lock = await second;
+    await lock.release();
+    expect(existsSync(path)).toBe(false);
   });
 
   it('never removes a lock another holder took after it', async () => {
