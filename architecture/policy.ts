@@ -72,6 +72,9 @@ export const targetPackageExports: Record<string, Record<string, string>> = {
     './access': './src/features/access/index.ts',
     './access/api': './src/features/access/api.ts',
     './access/rules': './src/features/access/rules/index.ts',
+    './projects': './src/features/projects/index.ts',
+    './projects/api': './src/features/projects/api.ts',
+    './projects/rules': './src/features/projects/rules/index.ts',
     './transport': './src/shared/api/index.ts',
   },
 };

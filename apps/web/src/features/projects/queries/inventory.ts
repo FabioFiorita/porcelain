@@ -3,29 +3,16 @@ import {
   useQuery,
   useSuspenseQuery,
 } from '@tanstack/react-query';
-import { ConnectionError } from '@porcelain/client/transport';
-import { projectsApi } from '../api';
+import { inventoryQueryOptions as clientInventoryQueryOptions } from '@porcelain/client/projects';
 import { type Connection } from '@/shared/workspace/connection';
 
 export function inventoryQueryOptions(
   environmentId: string,
   connection: Connection,
 ) {
-  return queryOptions({
-    queryKey: ['inventory', environmentId],
-    queryFn: async ({ signal }) => {
-      const connected = connection.request(signal);
-      const inventory = await projectsApi(connection).inventory.read(
-        connected.signal,
-      );
-      connected.signal.throwIfAborted();
-      if (inventory.environmentId !== environmentId)
-        throw new ConnectionError(
-          'The connected environment changed. Reopen Porcelain to continue safely.',
-        );
-      return inventory;
-    },
-  });
+  return queryOptions(
+    clientInventoryQueryOptions({ ...connection, environmentId }),
+  );
 }
 
 export function useInventory(connection: Connection | null) {

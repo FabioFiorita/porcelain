@@ -1,7 +1,10 @@
-import type { ReadInventoryResponse } from '@porcelain/contracts/projects';
+import type { Inventory, Project } from '@porcelain/client/projects/rules';
 
-export type Inventory = ReadInventoryResponse;
-export type Project = Inventory['projects'][number];
+export {
+  worktreeLabel,
+  type Inventory,
+  type Project,
+} from '@porcelain/client/projects/rules';
 export type WorktreeTarget = {
   remote: string | null;
   projectId: string;
@@ -36,10 +39,6 @@ export function firstWaitingWorktree(inventory: Inventory) {
         (worktree.status === 'replied' || worktree.status === 'pending'),
     ) ?? firstAvailableWorktree(inventory)
   );
-}
-
-export function worktreeLabel(branch: string | null | undefined) {
-  return branch?.replace(/^refs\/heads\//, '') ?? 'Detached HEAD';
 }
 
 export function projectPath(project: Project) {

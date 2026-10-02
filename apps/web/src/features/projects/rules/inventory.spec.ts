@@ -4,7 +4,6 @@ import {
   firstWaitingWorktree,
   projectPath,
   selectedWorktreeInProject,
-  worktreeLabel,
   type Inventory,
   type Project,
 } from './inventory.ts';
@@ -60,10 +59,5 @@ describe('project inventory decisions', () => {
     expect(firstAvailableWorktree(inventory)?.id).toBe('linked-ready');
     expect(firstWaitingWorktree(inventory)?.id).toBe('linked');
     expect(projectPath(project)).toBe('/repo');
-  });
-
-  it('shows branch names without the refs prefix and labels detached heads', () => {
-    expect(worktreeLabel('refs/heads/topic')).toBe('topic');
-    expect(worktreeLabel(null)).toBe('Detached HEAD');
   });
 });

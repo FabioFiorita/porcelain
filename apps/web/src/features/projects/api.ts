@@ -1,7 +1,6 @@
 import {
   browseProjectFoldersResponseSchema,
   listFilePreferencesResponseSchema,
-  readInventoryResponseSchema,
   registerProjectRequestSchema,
   registerProjectResponseSchema,
   removeProjectResponseSchema,
@@ -14,16 +13,14 @@ import {
 import { requestJson } from '@porcelain/client/transport';
 import { perConnection } from '@porcelain/client/transport';
 import type { Transport } from '@porcelain/client/transport';
+import { inventoryApi } from '@porcelain/client/projects/api';
 
 function createProjectsApi(transport: Transport) {
   const preferencesPath = (projectId: string) =>
     `/api/projects/${encodeURIComponent(projectId)}/file-preferences`;
   return {
     inventory: {
-      read: (signal: AbortSignal) =>
-        requestJson(transport, '/api/inventory', readInventoryResponseSchema, {
-          signal,
-        }),
+      read: inventoryApi({ transport }).read,
       browse: (signal: AbortSignal, path?: string) =>
         requestJson(
           transport,
