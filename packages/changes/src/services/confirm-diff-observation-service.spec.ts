@@ -18,8 +18,14 @@ const observation = {
 const service = new ConfirmDiffObservationService();
 
 describe('ConfirmDiffObservationService', () => {
-  it('accepts an observation that matches what the reviewer saw', () => {
+  it('accepts an observation that matches what the reviewer saw, and refuses one whose file differs', () => {
     expect(() => service.execute(observation)).not.toThrow();
+    expect(() =>
+      service.execute({
+        ...observation,
+        expectedFiles: [{ path: 'a.md', fingerprint: 'e'.repeat(64) }],
+      }),
+    ).toThrow(WorktreeChangedError);
   });
 
   it('refuses an observation whose status token moved', () => {

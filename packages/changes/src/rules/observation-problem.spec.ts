@@ -25,6 +25,18 @@ const input = {
 describe('observationProblem', () => {
   it('finds no problem in an observation that matches what the reviewer saw, including unfingerprinted files', () => {
     expect(observationProblem(input)).toBeUndefined();
+    expect(
+      observationProblem({
+        ...input,
+        fingerprints: {
+          ...observation,
+          changes: [
+            fileChange('a.md', [modified('unstaged', 'a.md')], fingerprint),
+            fileChange('b.md', [modified('unstaged', 'b.md')], fingerprint),
+          ],
+        },
+      }),
+    ).toEqual({ kind: 'worktree-changed' });
   });
 
   it('reports a changed worktree when the status token differs', () => {
@@ -57,9 +69,12 @@ describe('observationProblem', () => {
     });
   });
 
-  it('finds no problem with an unchanged stamp on the second observation', () => {
+  it('finds no problem with an unchanged stamp on the second observation, only with a changed one', () => {
     expect(
       observationProblem({ ...input, previousStamp: 'stamp-1' }),
     ).toBeUndefined();
+    expect(observationProblem({ ...input, previousStamp: 'stamp-0' })).toEqual({
+      kind: 'worktree-changed',
+    });
   });
 });

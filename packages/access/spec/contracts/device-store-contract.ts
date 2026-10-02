@@ -67,13 +67,17 @@ export function deviceStoreContract(
       expect(store.find({ deviceId: 'phone' })).toEqual(withoutAddress);
     });
 
-    it('finds nothing for an unknown device id', () => {
+    it('finds nothing for an unknown device id, only the paired one', () => {
       const store = open([device('phone')]);
       expect(store.find({ deviceId: 'unknown' })).toBeUndefined();
+      expect(store.find({ deviceId: 'phone' })).toEqual(device('phone'));
     });
 
-    it('lists no devices before any is paired', () => {
-      expect(open([]).list()).toEqual([]);
+    it('lists no devices before any is paired, and the device once one is', () => {
+      const empty = openSubject([]);
+      expect(empty.store.list()).toEqual([]);
+      empty.close();
+      expect(open([device('phone')]).list()).toEqual([device('phone')]);
     });
 
     it('lists every device, the first paired first', () => {

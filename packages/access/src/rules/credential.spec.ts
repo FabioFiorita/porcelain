@@ -17,11 +17,13 @@ describe('credential', () => {
 describe('parseCredential', () => {
   const { token } = credential('pcp', id, secret);
 
-  it('refuses a token of the other kind', () => {
+  it('refuses a token of the other kind and reads it as its own kind', () => {
     expect(parseCredential('pcd', token)).toBeUndefined();
+    expect(parseCredential('pcp', token)).toEqual({ id, secret });
   });
 
-  it('refuses a token with a malformed id or a truncated secret', () => {
+  it('refuses a token with a malformed id or a truncated secret, never the intact one', () => {
+    expect(parseCredential('pcp', token)).toEqual({ id, secret });
     expect(
       parseCredential('pcp', token.replace(id, 'not-a-uuid')),
     ).toBeUndefined();

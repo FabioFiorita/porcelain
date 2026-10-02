@@ -44,7 +44,7 @@ describe('RevokeDeviceService', () => {
     );
   });
 
-  it('drops the pending sighting of the device it revokes', () => {
+  it('drops the pending sighting of the device it revokes and keeps the sightings of other devices', () => {
     const { sightings, service } = setup();
     sightings.save({
       device: {
@@ -57,8 +57,29 @@ describe('RevokeDeviceService', () => {
         secretHash: 'hash',
       },
     });
+    sightings.save({
+      device: {
+        id: 'tablet',
+        label: 'Tablet',
+        platform: 'iPadOS',
+        createdAt: '2026-09-22T10:00:00.000Z',
+        lastSeenAt: '2026-09-23T10:01:00.000Z',
+        route: 'lan',
+        secretHash: 'tablet-hash',
+      },
+    });
     service.execute({ id: 'device' });
-    expect(sightings.take()).toEqual([]);
+    expect(sightings.take()).toEqual([
+      {
+        id: 'tablet',
+        label: 'Tablet',
+        platform: 'iPadOS',
+        createdAt: '2026-09-22T10:00:00.000Z',
+        lastSeenAt: '2026-09-23T10:01:00.000Z',
+        route: 'lan',
+        secretHash: 'tablet-hash',
+      },
+    ]);
   });
 
   it('reports an unknown id as not revoked', () => {

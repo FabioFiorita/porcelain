@@ -21,19 +21,58 @@ describe('tunnelHostname', () => {
   });
 
   it.each([
-    ['plain HTTP', 'http://porcelain.example.com'],
-    ['a path', 'porcelain.example.com/review'],
-    ['a port', 'porcelain.example.com:8443'],
-    ['a query', 'https://porcelain.example.com/?next=1'],
-    ['credentials', 'user@porcelain.example.com'],
-    ['a single label', 'porcelain'],
-    ['an IPv4 address', '203.0.113.5'],
-    ['an IPv6 address', '[2001:db8::1]'],
-    ['a bad label', 'porcelain_.example.com'],
-    ['nothing', '   '],
-  ])('refuses a hostname with %s', (_, value) => {
-    expect(tunnelHostname(value, 253)).toBeUndefined();
-  });
+    [
+      'plain HTTP',
+      'http://porcelain.example.com',
+      'https://porcelain.example.com',
+      'porcelain.example.com',
+    ],
+    [
+      'a path',
+      'porcelain.example.com/review',
+      'porcelain.example.com/',
+      'porcelain.example.com',
+    ],
+    [
+      'a port',
+      'porcelain.example.com:8443',
+      'porcelain.example.com',
+      'porcelain.example.com',
+    ],
+    [
+      'a query',
+      'https://porcelain.example.com/?next=1',
+      'https://porcelain.example.com/',
+      'porcelain.example.com',
+    ],
+    [
+      'credentials',
+      'user@porcelain.example.com',
+      'user.porcelain.example.com',
+      'user.porcelain.example.com',
+    ],
+    ['a single label', 'porcelain', 'porcelain.example', 'porcelain.example'],
+    [
+      'an IPv4 address',
+      '203.0.113.5',
+      '203.0.113.example',
+      '203.0.113.example',
+    ],
+    ['an IPv6 address', '[2001:db8::1]', 'db8.example.com', 'db8.example.com'],
+    [
+      'a bad label',
+      'porcelain_.example.com',
+      'porcelain-x.example.com',
+      'porcelain-x.example.com',
+    ],
+    ['nothing', '   ', ' a.b ', 'a.b'],
+  ])(
+    'refuses a hostname with %s, unlike its closest readable spelling',
+    (_, value, closest, hostname) => {
+      expect(tunnelHostname(value, 253)).toBeUndefined();
+      expect(tunnelHostname(closest, 253)).toBe(hostname);
+    },
+  );
 
   it('refuses a hostname longer than the limit', () => {
     expect(tunnelHostname('porcelain.example.com', 20)).toBeUndefined();

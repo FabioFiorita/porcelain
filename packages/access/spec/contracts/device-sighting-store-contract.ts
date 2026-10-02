@@ -23,8 +23,14 @@ export function deviceSightingStoreContract(
   openStore: () => DeviceSightingStore,
 ): void {
   describe(subject, () => {
-    it('finds nothing for a device that was never seen', () => {
-      expect(openStore().find({ deviceId: 'phone' })).toBeUndefined();
+    it('finds nothing for a device that was never seen, even after another device was', () => {
+      const store = openStore();
+      expect(store.find({ deviceId: 'phone' })).toBeUndefined();
+      store.save({ device: seen('tablet', EARLIER) });
+      expect(store.find({ deviceId: 'phone' })).toBeUndefined();
+      expect(store.find({ deviceId: 'tablet' })).toEqual(
+        seen('tablet', EARLIER),
+      );
     });
 
     it('finds the latest sighting saved for a device', () => {
@@ -46,8 +52,11 @@ export function deviceSightingStoreContract(
       expect(store.find({ deviceId: 'phone' })).toBeUndefined();
     });
 
-    it('hands nothing over when no device was seen', () => {
-      expect(openStore().take()).toEqual([]);
+    it('hands nothing over when no device was seen, and the sighting once one is', () => {
+      const store = openStore();
+      expect(store.take()).toEqual([]);
+      store.save({ device: seen('phone', EARLIER) });
+      expect(store.take()).toEqual([seen('phone', EARLIER)]);
     });
 
     it('forgets the pending sighting of a removed device and keeps the others', () => {

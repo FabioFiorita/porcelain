@@ -67,14 +67,17 @@ export function pairingGrantStoreContract(
       });
     });
 
-    it('finds nothing for an unknown grant id', () => {
+    it('finds nothing for an unknown grant id, only the added one', () => {
       grants.add({ grants: [grant('one')] });
       expect(grants.find({ grantId: 'unknown' })).toBeUndefined();
+      expect(grants.find({ grantId: 'one' })).toEqual(grant('one'));
     });
 
-    it('lists nothing when no grants are added', () => {
+    it('lists nothing when no grants are added, and the grant once one is', () => {
       grants.add({ grants: [] });
       expect(grants.list()).toEqual([]);
+      grants.add({ grants: [grant('one')] });
+      expect(grants.list()).toEqual([grant('one')]);
     });
 
     it('lists every grant, the first created first', () => {

@@ -38,7 +38,7 @@ describe('fingerprintChange', () => {
     ).not.toBe(sampleFingerprint);
   });
 
-  it('has no fingerprint when the worktree side of an unstaged edit could not be read', () => {
+  it('has no fingerprint when the worktree side of an unstaged edit could not be read, and one once it is read', () => {
     expect(
       fingerprintChange(
         'README.md',
@@ -46,9 +46,16 @@ describe('fingerprintChange', () => {
         new Map(),
       ),
     ).toBeUndefined();
+    expect(
+      fingerprintChange(
+        'README.md',
+        [modified('unstaged', 'README.md')],
+        new Map([['README.md', { digest: sampleDigest }]]),
+      ),
+    ).toBe(sampleFingerprint);
   });
 
-  it('has no fingerprint for an untracked file it could not read', () => {
+  it('has no fingerprint for an untracked file it could not read, and one for the file it read', () => {
     expect(
       fingerprintChange(
         'notes.txt',
@@ -56,9 +63,16 @@ describe('fingerprintChange', () => {
         new Map(),
       ),
     ).toBeUndefined();
+    expect(
+      fingerprintChange(
+        'notes.txt',
+        [{ scope: 'untracked', path: 'notes.txt' }],
+        new Map([['notes.txt', { digest: sampleDigest }]]),
+      ),
+    ).toBe('be4b0c10299dcb16432c0aead0507a726e2ea53bfcd976accb0c05b9dbc64d69');
   });
 
-  it('has no fingerprint for a staged addition whose blob is unknown', () => {
+  it('has no fingerprint for a staged addition whose blob is unknown, and one once its blob is known', () => {
     expect(
       fingerprintChange(
         'new.md',
@@ -72,6 +86,19 @@ describe('fingerprintChange', () => {
         new Map(),
       ),
     ).toBeUndefined();
+    expect(
+      fingerprintChange(
+        'new.md',
+        [
+          {
+            ...modified('staged', 'new.md', '9'.repeat(40)),
+            kind: 'added',
+            oldPath: undefined,
+          },
+        ],
+        new Map(),
+      ),
+    ).toBe('a8239ecac905a46558e241b725d478a387dadd37eaab9bd6487d9935dd1c2b8f');
   });
 
   it('fingerprints a staged deletion without any worktree side', () => {

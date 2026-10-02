@@ -49,10 +49,14 @@ describe('TakePairingAttemptService', () => {
     expect(() => service.execute({ peer, crossOrigin: false })).not.toThrow();
   });
 
-  it('keeps exhausted same-origin attempts from blocking a cross-origin redemption', () => {
+  it('keeps exhausted same-origin attempts from blocking a cross-origin redemption, which keeps its whole own budget', () => {
     const service = setup();
     exhaust(service, { peer, crossOrigin: false });
     expect(() => service.execute({ peer, crossOrigin: true })).not.toThrow();
+    service.execute({ peer, crossOrigin: true });
+    expect(() => service.execute({ peer, crossOrigin: true })).toThrow(
+      TooManyPairingAttemptsError,
+    );
   });
 
   it('holds cross-origin attempts to their own limits, per peer and overall', () => {

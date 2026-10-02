@@ -52,7 +52,20 @@ describe('assembleChanges', () => {
     expect(changes.map((change) => change.path)).toEqual(['GUIDE.md']);
   });
 
-  it('returns no changes for a clean worktree', () => {
+  it('returns no changes for a clean worktree, and one change for a single new file', () => {
     expect(assembleChanges([], new Map())).toEqual([]);
+    expect(
+      assembleChanges(
+        [{ scope: 'untracked', path: 'notes.txt' }],
+        new Map([['notes.txt', { digest: 'a'.repeat(64) }]]),
+      ),
+    ).toEqual([
+      {
+        path: 'notes.txt',
+        fingerprint:
+          '2184df0682ff5423d787fbf23a64e6754a677cbad6ce0bead382101f42358f8c',
+        comparisons: [{ scope: 'untracked', path: 'notes.txt' }],
+      },
+    ]);
   });
 });

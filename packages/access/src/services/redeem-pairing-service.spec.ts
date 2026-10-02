@@ -94,6 +94,14 @@ describe('RedeemPairingService', () => {
   it('pairs an untrusted device from an ordinary grant', () => {
     const { devices, service, code } = setup({ trusted: false });
     const { device } = service.execute({ code, platform: 'iOS', route: 'lan' });
+    expect(device).toEqual({
+      id: '00000000-0000-4000-8000-000000000001',
+      label: 'Phone',
+      platform: 'iOS',
+      createdAt: '2026-09-23T10:05:00.000Z',
+      lastSeenAt: '2026-09-23T10:05:00.000Z',
+      route: 'lan',
+    });
     expect(device.trusted).toBeUndefined();
     expect(devices.find({ deviceId: device.id })?.trusted).toBeUndefined();
   });
