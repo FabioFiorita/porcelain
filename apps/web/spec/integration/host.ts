@@ -3,7 +3,7 @@ import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { buildIsolatedServer } from '@porcelain/server/kit/sandbox';
-import type { BrowserCommand } from 'vitest/node';
+import type { BrowserCommand, BrowserCommandContext } from 'vitest/node';
 import type {
   CodingToolReplies,
   PairingParts,
@@ -17,13 +17,17 @@ import type {
 } from '../kit/protocol.ts';
 import { World } from '../kit/world.ts';
 
+type Lane = {
+  world: World | undefined;
+  target: string;
+  retarget: Array<(address: string) => void>;
+};
+
 const webRoot = resolve(import.meta.dirname, '../..');
 const repositoryRoot = resolve(webRoot, '../..');
 const evidenceRoot = join(webRoot, 'test-results', 'integration');
+const lanes = new Map<string, Lane>();
 let build: Promise<string> | undefined;
-let current: World | undefined;
-let target = 'http://127.0.0.1';
-const retarget: Array<(address: string) => void> = [];
 
 function serverBuild(): Promise<string> {
   build ??= mkdtemp(join(tmpdir(), 'porcelain-integration-server-')).then(
@@ -38,7 +42,18 @@ function serverBuild(): Promise<string> {
   return build;
 }
 
-function world(): World {
+function lane(name: string): Lane {
+  const found = lanes.get(name) ?? {
+    world: undefined,
+    target: 'http://127.0.0.1',
+    retarget: [],
+  };
+  lanes.set(name, found);
+  return found;
+}
+
+function world(context: BrowserCommandContext): World {
+  const current = lane(context.project.name).world;
   if (current === undefined)
     throw new Error(
       'The integration fixtures start a disposable server before a test reaches it.',
@@ -46,32 +61,35 @@ function world(): World {
   return current;
 }
 
-export const proxy = {
-  '^/(api|review-summaries)(/|$)': {
-    target,
-    ws: true,
-    configure(_proxy: unknown, options: { target?: unknown }) {
-      options.target = target;
-      retarget.push((address) => {
-        options.target = address;
-      });
+export function proxyFor(name: string) {
+  return {
+    '^/(api|review-summaries)(/|$)': {
+      target: lane(name).target,
+      ws: true,
+      configure(_proxy: unknown, options: { target?: unknown }) {
+        options.target = lane(name).target;
+        lane(name).retarget.push((address) => {
+          options.target = address;
+        });
+      },
     },
-  },
-};
+  };
+}
 
-const porcelainStart: BrowserCommand<[], void> = async () => {
-  if (current !== undefined) await current.stop();
-  current = await World.start(repositoryRoot, await serverBuild());
-  target = current.server.address;
-  for (const change of retarget) change(target);
+const porcelainStart: BrowserCommand<[], void> = async (context) => {
+  const current = lane(context.project.name);
+  if (current.world !== undefined) await current.world.stop();
+  current.world = await World.start(repositoryRoot, await serverBuild());
+  current.target = current.world.server.address;
+  for (const change of current.retarget) change(current.target);
 };
 
 const porcelainStop: BrowserCommand<[string], string[]> = async (
-  _context,
+  context,
   name,
 ) => {
-  const stopping = world();
-  current = undefined;
+  const stopping = world(context);
+  lane(context.project.name).world = undefined;
   await stopping.keepEvidence(
     join(evidenceRoot, name.replace(/[^a-z0-9]+/gi, '-').toLowerCase()),
   );
@@ -79,39 +97,40 @@ const porcelainStop: BrowserCommand<[string], string[]> = async (
 };
 
 const porcelainRead: BrowserCommand<[ServerRead], ServerAnswer> = (
-  _context,
+  context,
   request,
-) => world().read(request);
+) => world(context).read(request);
 
 const porcelainRepo: BrowserCommand<[RepoStep, ServerName], string> = (
-  _context,
+  context,
   step,
   server,
-) => world().repo(step, server);
+) => world(context).repo(step, server);
 
 const porcelainFixture: BrowserCommand<[ServerName], RepoFixture> = (
-  _context,
+  context,
   server,
-) => world().fixture(server);
+) => world(context).fixture(server);
 
 const porcelainPairingLink: BrowserCommand<
   [string, ServerName, boolean?],
   PairingParts
-> = (_context, label, server, trusted) =>
-  world().pairingLink(label, server, trusted);
+> = (context, label, server, trusted) =>
+  world(context).pairingLink(label, server, trusted);
 
 const porcelainHits: BrowserCommand<[ServerName], ServerHit[]> = (
-  _context,
+  context,
   server,
-) => world().hits(server);
+) => world(context).hits(server);
 
 const porcelainProjectHome: BrowserCommand<
   [ProjectHomeStep, ServerName],
   string
-> = (_context, step, server) => world().projectHome(step, server);
+> = (context, step, server) => world(context).projectHome(step, server);
 
-const porcelainCodingTool: BrowserCommand<[], CodingToolReplies> = () =>
-  world().codingTool();
+const porcelainCodingTool: BrowserCommand<[], CodingToolReplies> = (
+  context,
+) => world(context).codingTool();
 
 export const hostCommands = {
   porcelainStart,
