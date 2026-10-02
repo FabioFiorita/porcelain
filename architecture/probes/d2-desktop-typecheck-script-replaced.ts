@@ -8,9 +8,9 @@ export default {
   edits: [
     {
       kind: 'replace',
-      path: 'package.json',
-      old: '"typecheck:desktop": "pnpm --filter @porcelain/desktop typecheck"',
-      new: '"typecheck:desktop": "node -e 0"',
+      path: 'apps/desktop/package.json',
+      old: '"typecheck": "tsc --noEmit"',
+      new: '"typecheck": "node -e 0"',
     },
   ],
 } satisfies Probe;

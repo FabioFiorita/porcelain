@@ -388,6 +388,7 @@ export const styleRules = [
   'shadcn-ui-pinned',
   'web-feature-map',
   'duplicate-code',
+  'turbo-config',
 ] as const;
 
 export type StyleRule = (typeof styleRules)[number];

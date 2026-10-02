@@ -8,9 +8,9 @@ export default {
   edits: [
     {
       kind: 'replace',
-      path: 'scripts/check.ts',
-      old: "  'probes:check',\n",
-      new: '',
+      path: 'package.json',
+      old: ' test:rules probes:check --output-logs=errors-only',
+      new: ' test:rules --output-logs=errors-only',
     },
   ],
 } satisfies Probe;

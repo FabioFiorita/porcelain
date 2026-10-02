@@ -26,4 +26,5 @@ jobs:
           cache: true
           require-lockfile: true
       - run: pnpm install --frozen-lockfile
-      - run: pnpm check
+      - run: pnpm check --affected
+      - run: pnpm test:integration --affected

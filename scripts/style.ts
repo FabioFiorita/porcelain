@@ -10,7 +10,7 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { isDeepStrictEqual } from 'node:util';
-import { basename, join, relative, resolve } from 'node:path';
+import { basename, dirname, join, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { Generator, getConfig } from '@tanstack/router-generator';
 import { parseSync } from 'oxc-parser';
@@ -199,7 +199,10 @@ const workflowRunsSchema = z.object({
 });
 
 const requiredRuns: Readonly<Record<string, readonly string[]>> = {
-  '.github/workflows/server.yml': ['pnpm check'],
+  '.github/workflows/server.yml': [
+    'pnpm check --affected',
+    'pnpm test:integration --affected',
+  ],
   '.github/workflows/web.yml': [
     'pnpm check',
     'pnpm --filter @porcelain/web build',
@@ -246,7 +249,7 @@ function ciProblems(): Problem[] {
       : [
           problem(
             'ci-steps',
-            '.github/workflows/server.yml runs on every pull request and every push to main, so every change meets pnpm check.',
+            '.github/workflows/server.yml runs on every pull request and every push to main, so every change meets pnpm check and the integration tests.',
           ),
         ]),
     ...manualAuditProblems(documents).map((message) =>
@@ -755,9 +758,22 @@ async function routeTreeProblems(): Promise<Problem[]> {
   }
 }
 
+const rootTasks = [
+  'typecheck',
+  'lint:server',
+  'lint:web',
+  'format:server:check',
+  'format:web:check',
+  'arch:check',
+  'test:rules',
+  'probes:check',
+] as const;
+const fastTasks = ['typecheck', 'test', ...rootTasks.slice(1)];
+
 const gateScripts: Readonly<Record<string, Readonly<Record<string, string>>>> =
   {
     'package.json': {
+      typecheck: 'tsc --noEmit',
       'typecheck:server':
         "tsc --noEmit && pnpm --filter '@porcelain/server...' -r typecheck",
       'lint:server': 'node scripts/style.ts lint server',
@@ -765,16 +781,14 @@ const gateScripts: Readonly<Record<string, Readonly<Record<string, string>>>> =
       'arch:check': 'node scripts/architecture.ts check',
       probes: 'node scripts/probes.ts',
       test: 'vitest run',
+      'test:integration': 'turbo run test:integration',
+      'test:e2e': 'turbo run test:e2e',
       'db:check': 'pnpm --filter @porcelain/storage db:check',
       prepare: 'lefthook install --reset-hooks-path',
-      'typecheck:desktop': 'pnpm --filter @porcelain/desktop typecheck',
-      'typecheck:web': 'pnpm --filter @porcelain/web typecheck',
-      'typecheck:client': 'pnpm --filter @porcelain/client typecheck',
-      'typecheck:mobile': 'pnpm --filter @porcelain/mobile typecheck',
       'lint:web': 'node scripts/style.ts lint web',
       'format:web:check': 'node scripts/style.ts format web',
       'verify:web': 'node .agents/skills/web-verify/scripts/browser.ts',
-      check: 'node scripts/check.ts',
+      check: `turbo run ${fastTasks.join(' ')} --output-logs=errors-only`,
       'test:rules': 'node architecture/rule-tests.mjs',
       'probes:check': 'node scripts/probes.ts --check',
     },
@@ -787,49 +801,43 @@ const gateScripts: Readonly<Record<string, Readonly<Record<string, string>>>> =
     },
   };
 
-function fastCheckProblems(): Problem[] {
-  const program = parseSync(
-    'scripts/check.ts',
-    readFileSync('scripts/check.ts', 'utf8'),
-  ).program;
-  const commands = program.body.flatMap((statement) =>
-    statement.type === 'VariableDeclaration'
-      ? statement.declarations.flatMap((declaration) =>
-          declaration.id.type === 'Identifier' &&
-          declaration.id.name === 'commands' &&
-          declaration.init?.type === 'ArrayExpression'
-            ? declaration.init.elements.flatMap((element) =>
-                element?.type === 'Literal' && typeof element.value === 'string'
-                  ? [element.value]
-                  : [],
-              )
-            : [],
-        )
-      : [],
-  );
-  const required = [
-    'typecheck:server',
-    'typecheck:web',
-    'typecheck:client',
-    'typecheck:mobile',
-    'typecheck:desktop',
-    'lint:server',
-    'lint:web',
-    'format:server:check',
-    'format:web:check',
-    'arch:check',
-    'test',
-    'test:rules',
-    'probes:check',
-  ];
-  return required
-    .filter((command) => !commands.includes(command))
-    .map((command) =>
-      problem(
-        'package-scripts',
-        `scripts/check.ts runs ${command}; a package script alone does not wire its check into the fast gate.`,
-      ),
-    );
+const turboConfig = {
+  $schema: 'https://turborepo.dev/schema.json',
+  agentGuidance: false,
+  ui: 'stream',
+  futureFlags: {
+    affectedUsingTaskInputs: true,
+    githubActionsRemoteBaseRefFallback: true,
+  },
+  globalEnv: ['CI'],
+  tasks: {
+    transit: { dependsOn: ['^transit'] },
+    typecheck: {
+      dependsOn: ['transit'],
+      inputs: ['$TURBO_DEFAULT$', '$TURBO_ROOT$/tsconfig.json'],
+    },
+    test: {
+      dependsOn: ['transit'],
+      inputs: ['$TURBO_DEFAULT$', '$TURBO_ROOT$/vitest.config.ts'],
+    },
+    'test:integration': {
+      dependsOn: ['transit'],
+      inputs: ['$TURBO_DEFAULT$', '$TURBO_ROOT$/vitest.config.ts'],
+    },
+    'test:e2e': { dependsOn: ['transit'], cache: false },
+    ...Object.fromEntries(rootTasks.map((task) => [`//#${task}`, {}])),
+  },
+};
+
+function turboProblems(): Problem[] {
+  return isDeepStrictEqual(strictJson('turbo.json'), turboConfig)
+    ? []
+    : [
+        problem(
+          'turbo-config',
+          `turbo.json is the fast gate's wiring and holds exactly ${JSON.stringify(turboConfig)}: each package's typecheck and tests depend on the packages it imports through transit, every repository-wide check is a root task whose inputs are the whole repository, nothing turns a cache or an input off, and --affected follows each task's inputs and falls back to every task when it cannot resolve its base.`,
+        ),
+      ];
 }
 
 function scriptProblems(): Problem[] {
@@ -838,15 +846,19 @@ function scriptProblems(): Problem[] {
     ...packageFolders.map((folder) => join(folder, 'package.json')),
   ];
   return [
-    ...fastCheckProblems(),
+    ...turboProblems(),
     ...manifests.flatMap((path) => {
       const scripts = existsSync(path)
         ? (manifestScriptsSchema.parse(strictJson(path)).scripts ?? {})
         : {};
+      const folder = dirname(path);
       const expected = {
         ...(path === 'package.json' || path === 'packages/theme/package.json'
           ? {}
-          : { typecheck: 'tsc --noEmit' }),
+          : {
+              typecheck: 'tsc --noEmit',
+              test: `vitest run --config ../../vitest.config.ts --project @porcelain/${basename(folder)}`,
+            }),
         ...gateScripts[path],
       };
       return Object.entries(expected).flatMap(([name, command]) =>
