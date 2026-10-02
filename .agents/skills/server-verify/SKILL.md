@@ -1,101 +1,85 @@
 ---
 name: server-verify
-description: Run Porcelain's HTTP regression net against real isolated servers and collect redacted evidence per feature. Use when verifying server behaviour or a server change, before and after a refactor, or when adding or changing a server route.
+description: Start a disposable, sandboxed Porcelain server built from the current checkout, drive its HTTP routes with the control CLI, read the state and the numbered, redacted evidence it records, then run the affected integration tests and stop it. Use before calling a server change done, or to see what a route answers today.
 ---
 
 # Server verification
 
-The net exercises the server over HTTP, through the real isolated server that `scripts/dev-server.ts` starts in a sandbox: bwrap on Linux, the system sandbox (`sandbox-exec`) on macOS. It is evidence of wire behaviour, not a unit spec.
+The control CLI is `.agents/skills/server-verify/scripts/cli`, run by path from the repository root. It drives the real server and records what happened; it never asserts. The promise a change must keep stays proven by a test in `apps/server/spec/integration/`.
 
-## Commands
-
-Run from the repository root:
+## 1. Start an instance
 
 ```sh
-node .agents/skills/server-verify/scripts/verify.ts --list        # features, intent, case count and routes
-node .agents/skills/server-verify/scripts/verify.ts --all         # every feature
-node .agents/skills/server-verify/scripts/verify.ts --perf        # the performance budgets
-node .agents/skills/server-verify/scripts/verify.ts projects.rename
+.agents/skills/server-verify/scripts/cli start
 ```
 
-Coverage is whatever `--list` prints; there is no other list. Each feature runs against its own fresh isolated server, so no state leaks between features. Its cases run in order and share that server, so a later case may build on an earlier one.
+It builds the server from this checkout, starts one sandboxed instance (bwrap on Linux, `sandbox-exec` on macOS) with its own port, data and sample repository, and pairs with it. It prints the instance id, the URL and the evidence folder, never the credential. When a required tool is missing it stops and names what to install; install it, never substitute another tool. The instance stops itself after 30 minutes without a command. `doctor` checks the tools, that the instance is the one `start` started, that its port and health route answer and that its build is current:
 
-`negative/` holds features written the way the net must not accept, in the same format: `hollow` is the audit's five hollow patterns and `disguised` hides the same holes behind real-looking code. `--all` runs them after the features (or name one), each on its own server, and prints `REJECTED` only when every case made assertions, threw nothing and every assertion was weak; otherwise the run fails and names the assertion that counted. They count toward no total and no route. When the net learns to reject a new hollow pattern, add it here.
-
-A feature that declares `sample: 'perf'` (`feature-map/perf.*.ts`) runs only with `--perf` or by name, never in `--all`; `perf.routes` takes about 15 seconds. The run then builds one synthetic repository with `git fast-import` into its build folder (`scripts/dev-perf-sample.ts`: 30,000 files, 3,000 commits), and each perf server copies it in place of the sample repository and adds 301 uncommitted changes, three linked worktrees and three small unregistered projects with two worktrees each. Its inventory refreshes and goes stale after a day instead of 250 and 200 ms, so no background refresh lands inside a measurement, and Git's trace2 event target in the fixture's global config logs every Git process the server starts (the server strips `GIT_*` variables but keeps HOME; bwrap has no shell for a script on the PATH folder, and a Node shim would add about 23 ms to every Git process). A case with a `budget` from `ROUTE_BUDGETS` in `apps/server/src/config/limits.ts` sends `ROUTE_BUDGET_REQUESTS` requests; each request's step records its wall time and the Git processes started while it ran, with their arguments and durations, and the case fails when its slowest request exceeds `p95Ms` or a request starts more than `gitProcesses`, as does a perf feature whose trace logged no process. The run prints each budget beside its measurement. When a change moves a route's cost, set its budget from fresh measurements in the same commit: Git processes exactly as measured, wall time three times the worst p95 of a few runs rounded up to 50 ms and at least 100 ms.
-
-The command prints one line per feature, each failure under it, and the evidence folder. It exits 1 when any assertion fails or is weak, a case throws or makes no assertion, a request's status or body was never asserted, a declared route was never requested, the isolated server fails to start or stop, a feature made no assertion, or a negative feature was not rejected; it exits 2 on usage errors. Read the evidence before reporting. `<folder>/<feature>.json` (a negative feature's is `negative.<feature>.json`) holds the feature's intent, behaviour, reaches, counts, failures and durations, and for every case, in order and each tagged setup, request or follow-up, its steps: HTTP exchanges with the request (method, path with query, headers with credentials redacted, body) and the response (status, headers other than date, connection, keep-alive and content-length, body); host Git commands with their whole argument list and output or error; file writes and reads with their byte counts; symbolic links, FIFOs, removals and renames; folder listings with the names they found; and live connections with the messages sent and received and how they closed. Beside the steps each case holds every assertion with its expected and actual values, its sources and, when weak, why; the error it threw or the requests it left unasserted; its duration; and what the server wrote to standard error while it ran. The feature ends with the server's whole standard output and standard error. `<folder>/summary.json` totals the run, lists the registered routes and what reached them, and records each negative feature and whether it was rejected. Every case records its wall time (`durationMs`, setup to last assertion), every feature its own and its cases' (`durations`), and the run prints and records its ten slowest cases; they are numbers to read, not limits. A pass verifies only the cases in the evidence.
-
-Secrets never reach evidence or output, however short. The run collects every secret the session issued or sent: the paired credential, every credential, pairing code and live ticket by its form (`pcd_…`, `pcp_…`, `pct_…`) and every value of a `credential`, `code`, `link`, `signature`, `token` or `secret` field, every signed summary link with its token and signature, every bearer credential and cookie a case sends, and every cookie the server sets. It looks for them in every request and response body (JSON or raw), path and header, every live notice, Git's output, file contents and the server's output, then walks the whole evidence and replaces each one, and its URL-, HTML- and JSON-escaped forms, with `[redacted]`. A feature whose evidence would still hold a secret is not written; the run fails and says so.
-
-## Fixture
-
-The isolated server starts with one registered Git repository whose README.md is committed once and then changed without staging, one paired device whose bearer credential is the default for requests, a desktop session as the desktop app starts its server with (a request sends its private credential with `auth: 'desktop'`), and a web root holding the web shell, one hashed asset and a symbolic link that leads out of it. `scripts/dev-server-child.ts` writes what it created into the session manifest, and a case reads it from `session.fixture` (folder names, branch, device label and platform, the README's path and its committed and changed text, the initial commit's subject, the web root's files, the summary link lifetime, the Git action deadline, the catalog staleness window and the fake coding tool's command and replies); it never types those values again. A case discovers IDs from `session.projectId` and `session.worktreeId`, and takes values the server computes (fingerprints, status tokens) from a read and values Git computes (object IDs, patches) from `session.git(...)`. A case that needs more history or files creates them in its setup with `session.git(subcommand, ...args)`, `session.writeFile(...)`, `session.symlink(target, path)`, `session.fifo(path)`, `session.remove(path)` and `session.rename(from, to)`, which act on the sample repository from the host with fixed author and dates and are each recorded as a step; `session.readFile(path)` and `session.entries(path)` observe it (a listing may name the project home, `..`, but nothing above it). A case changes the host only through these helpers and `session.installCodingTool()`. `session.git` always runs `git -C <sample repository> <subcommand> ...args`: it refuses `-C`, `--git-dir`, `--work-tree` and `--namespace`, and any absolute path outside the project home, so the session, not the case, decides the repository; `session.rename` moves an entry within the project home. The owner socket (`target: 'owner'`) is reachable from the host.
-
-The fixture overrides five limits of the server's settings in `scripts/dev-server-child.ts`, and no other setting (besides the settings, it hands the server only the desktop session, the scripted updater and the running version described below):
-
-- the inventory refreshes every 250 ms instead of every 30 seconds, so a case that changes a repository on disk waits with `eventually` until the inventory shows it;
-- signed summary links expire after 2 seconds instead of an hour (`session.fixture.summaryLinkLifetimeMs`), so a case can watch one expire;
-- a live ticket expires after 1 second instead of 30 (`session.fixture.liveTicketLifetimeMs`), so a case can watch one expire;
-- a Git action's deadline is 1.5 seconds instead of two minutes (`session.fixture.gitActionDeadlineMs`), so the interrupted-action case settles in seconds;
-- a catalog entry is stale after 200 ms instead of a minute (`session.fixture.inventoryStaleAfterMs`), below the 250 ms inventory refresh, so worktree reads regularly find their entry stale and go through the refresh before answering.
-
-The review tools are reached with `toolCall(session, id, tool, input)` on the owner socket; `toolValue(body)` parses a tool's JSON answer, which counts as part of the body.
-
-The server starts with no coding command-line tool on its PATH. A case that needs one calls `session.installCodingTool()` in its setup, which links the fixture's fake coding tool, built from `scripts/dev-coding-tool.ts`, into the sandbox's PATH folder as `claude`, where it stays for the rest of the feature; it is recorded as a step. The server finds and runs it as it would the real CLI: it lists the Claude models, and the tool reads the prompt from standard input and answers in the Claude CLI's JSON envelope, whose structured output is `session.fixture.codingTool.message` for a prompt that asks for one message and `session.fixture.codingTool.groups` for one that asks for a sequence of commits, whatever the selection. It fails like the real CLI for an unknown option, a missing print mode, JSON output or JSON schema, a model other than `sonnet` or `haiku`, and a prompt that asks for neither. So a case that asks for the fixture's replies selects exactly their paths, and one that selects anything else proves the server's refusal. A feature that needs the refusal for a missing tool asserts it before any case installs the tool.
-
-The server never updates itself for real: `scripts/dev-server-child.ts` hands it a scripted updater (`apps/server/spec/fakes/scripted-service-update-runner.ts`) in place of the installed service's, so nothing runs npm or systemd. It runs as the installed service on one version, which is also the version `GET /api/environment` names (the child passes it to the server beside the updater), and offers a newer one; its first update fails with a reason and keeps the running version, its second ends updated on the newer one, each stage a few hundred milliseconds after the last. A case reads the versions from `GET /api/service/update` and waits for an update with `eventually`.
-
-The run bundles `scripts/dev-server-child.ts` and the fake coding tool with esbuild once, with the native packages it cannot bundle beside it and the migrations, and every isolated server runs that build. On Linux, bwrap mounts only the built server (at `/opt/porcelain/server`), the node and git binaries with Git's exec path and templates, the shared libraries those binaries and the native addons load, its PATH folder (at `/opt/porcelain/bin`) and the fixture folder; never the checkout, a shell or the rest of `/usr`. It runs in its own session, network, PID and IPC namespaces and dies with its parent; the host reaches the network listener at the same address through a relay over a Unix socket in the fixture folder, and the owner socket directly. macOS has no mount namespace, so each server gets its own folder in `/tmp` (whose listing stays short enough to browse, unlike the per-user temp folder) holding a clone of the build (`server`) and its PATH folder (`bin`), and runs under a profile written for that run that denies by default: besides the system libraries it reads only node, git with its exec path, templates, system configuration and libraries, that folder and the fixture folder, and it can list the folders above those two; it writes only the fixture folder; it executes only node, git, Git's exec path, the fake coding tool and its PATH folder; and its only network is its own loopback port, which the host reaches directly, and Unix sockets in the fixture folder. It stops when its standard input closes. There the server's trash falls back to `.Trash` in the fixture's home, since the system trash is outside the sandbox. `session.installation` names the folder that holds the server and its PATH folder, `/opt/porcelain` on Linux. On both, the server's HOME and TMPDIR are the fixture folder, and the sandbox's PATH is one host folder, read-only to the server, holding a symlink to git and nothing else until a case installs the fake coding tool there, so no commit-model tool on the host ever reaches it. Without a shell, through which Git reaches a local-path remote, and without a network, fetch, pull and push are verified up to the point where Git would contact the remote; no case needs more. The host's `session.git` runs without system or global configuration and with `core.hooksPath=/dev/null`, like the server's Git in the sandbox, and `session.writeFile`, `readFile`, `symlink`, `fifo`, `remove`, `rename` and `entries` resolve real paths, so a symbolic link cannot lead them out of the sample repository or, for `rename` and `entries`, the project home.
-
-## Descriptor format
-
-One feature is one file, `feature-map/<feature>.ts`, whose default export is the feature; the file name must equal `feature`. The types live in `scripts/feature.ts`; shared fixture helpers in `scripts/fixture.ts`.
-
-```ts
-export default defineFeature({
-  feature: 'projects.rename',
-  reaches: 'PATCH /api/projects/:projectId', // or a list; owner socket routes start with "owner "
-  paired: true, // its routes need a paired credential
-  intent: 'intended', // or 'observed'
-  behaviour: 'The owner gives a registered project a new display name ...',
-  cases: [
-    defineCase({
-      name: 'unknown project',
-      setup: inventory, // optional; its result is `state`
-      request: () => ({
-        method: 'PATCH',
-        path: `/api/projects/${unknownUuid}`,
-        body: { name: 'Ghost' },
-      }),
-      async expect({ response, state, session, check }) {
-        check('status', 404, response.status);
-        check(
-          'error body',
-          apiError(404, 'Not Found', 'Project not found'),
-          response.body,
-        );
-        check('inventory unchanged', state, await inventory(session)); // follow-up read
-      },
-    }),
-  ],
-});
+```sh
+.agents/skills/server-verify/scripts/cli doctor
 ```
 
-- `request` returns one request or a list sent in order; `response` is the last answer and `responses` all of them. A request defaults to the paired credential; `auth` can be `'desktop'` (the desktop session's credential), `'none'`, `{ bearer }` or `{ cookie }`.
-- `expect` asserts in code with `check` (deep equality), `checkPartial` (every key in the expected value matches), `checkContract` (the value satisfies a schema exported from `@porcelain/contracts/<area>`), `checkMatch` (a string matches a pattern) and `checkDiffers` (a value moved away from one observed earlier). Follow-up reads in `expect` are recorded as follow-up steps.
-- An assertion counts only when its actual value was taken from something the harness observed: a response's status, headers or body (or a part of it: a nested value, a list's length, the keys of an object), a live notice, a Git command's output, a file read with `session.readFile` or a folder listed with `session.entries`. A string counts only when it is a whole observed value (a Git command's output and a file's content also count trimmed and line by line); a slice of one is weak, so assert its shape with `checkMatch`. A value the case computed, such as a comparison or `typeof`, is weak, and so is a boolean the case computed beside observed values. The expected value must be independent of the response it checks: the same object, an object inside it, or a value read from that response for the assertion is weak, while a value observed in another exchange (a setup read, an earlier request) may be expected. An expected value that is a bare boolean or `{}` and a partial that holds `{}` are weak; `checkContract` with a schema that is not itself exported from `@porcelain/contracts`, derived ones included, is weak; `checkDiffers` is weak unless the value it must differ from was observed in an exchange before the one that produced the actual value. A weak assertion fails the case and counts toward nothing. The evidence names each assertion's sources and, when it is weak, why.
-- Every response the case requested must have its status and its body asserted; a case that leaves either unasserted fails, naming the request. Reading a property is not asserting it.
-- Setup reads go through `read(session, request, status?)` (or `session.read`), which fails the case unless the answer has that status (200 by default); a setup that calls `session.send` fails. A follow-up request either goes through `read` or has its status asserted.
-- `paired: true` puts every route in `reaches` into the `access.authentication` sweep, which refuses each one without a credential; there is no other list of paired routes.
-- `session.live()` opens `/api/live` as the paired viewer from the server's own origin; `session.live({ ticket, origin })` opens it with a live ticket instead, with no credential and the given origin or none; `upgradeHeaders(address)` probes its rejections over plain HTTP.
-- Every route in `reaches` must be requested by some case and answered; a request that never got a response, or a live connection that never opened, reaches nothing.
-- Every route the isolated server registers must be in some feature's `reaches`, and every reach must be a registered route; the run fails on either gap. `scripts/dev-server-child.ts` lists the network and owner routes it saw Fastify register (GET, POST, PUT, PATCH and DELETE; HEAD is GET without a body) in the session manifest, which only the development fixture writes, and `summary.json` records them.
+## 2. Find the route's contract
 
-## Intent
+The contracts in `packages/contracts/src/<area>/` describe every route: the request, params and response schemas named after the operation. For a rename, `renameProjectRequestSchema` and `renameProjectResponseSchema` in `packages/contracts/src/projects/inventory.ts`, served by `apps/server/src/http/routes/projects/rename-project.ts` at `PATCH /api/projects/:projectId`.
 
-`intended` behaviour was approved by the owner; change it only after agreeing the new behaviour. `observed` behaviour records what the server does today so a refactor cannot change it silently; it is not an endorsement. When an observed behaviour looks wrong, the case still asserts it and `feature-map/SURPRISES.md` names it. Fixing it means changing the server, the case and the surprise together.
+## 3. Drive it
 
-## Adding or changing a feature
+```sh
+.agents/skills/server-verify/scripts/cli request PATCH '/api/projects/{project}' name='Renamed project'
+```
 
-Write `behaviour` in domain language, cover the happy path and the main failure of every route the feature reaches (invalid input as the contract defines it, unknown IDs, conflicts; unauthenticated access is swept for every route of a feature that declares `paired: true`), run the affected feature and read its evidence. A cross-cutting checkpoint or release runs `--all` once, as `AGENTS.md` specifies. When changing the verifier, run `pnpm check`, `pnpm probes --check` and the verifier probes you touched by name. Keep the fixture minimal: extend `scripts/dev-server-child.ts` only when a route cannot be reached from a case's setup.
+`request <METHOD> <path> [field=value ...]` adds the credential and prints the status and the body. `field=value` pairs build a JSON body; `field:=json` sends a non-string, such as `'anchor:={"kind":"file","filePath":"README.md"}'`. `--owner` sends the request over the owner socket (`POST /pairings`, `GET /access`, `/mcp`), and `--anonymous` sends it without a credential. `ids` lists the placeholders the CLI fills in paths and values:
+
+```sh
+.agents/skills/server-verify/scripts/cli ids
+```
+
+`live --for <duration>` subscribes to the sample project and worktree and prints the live notices the server sends while you drive it from another shell:
+
+```sh
+.agents/skills/server-verify/scripts/cli live --for 10s
+```
+
+## 4. Read the state back
+
+```sh
+.agents/skills/server-verify/scripts/cli request GET /api/inventory
+.agents/skills/server-verify/scripts/cli git log -1 --oneline
+.agents/skills/server-verify/scripts/cli file README.md
+```
+
+`git <subcommand> [args...]` runs Git in the sample repository; `file <path>` reads a file there. `logs` prints the server's output:
+
+```sh
+.agents/skills/server-verify/scripts/cli logs
+```
+
+## 5. Read the evidence
+
+```sh
+.agents/skills/server-verify/scripts/cli evidence
+```
+
+Every command writes a numbered file there (`001-start.json`, `002-request.json`, ...): the command, its duration, and each request and response, Git call or file read, with credentials, pairing codes, tickets, tokens and cookies redacted by the kit's recorder. `stop` adds the server's output. Report the folder and what it shows.
+
+## 6. Run the affected integration tests
+
+```sh
+pnpm --filter @porcelain/server test:integration projects-rename
+```
+
+The argument filters by file name in `apps/server/spec/integration/`; name every file the change affects. A full run, without a filter, also fails when a registered route is requested by no test.
+
+## 7. Stop
+
+```sh
+.agents/skills/server-verify/scripts/cli stop
+```
+
+It stops only what `start` started, by its PID, removes the instance's data and credential and keeps the evidence folder.
+
+## Rules
+
+- When the server code changed since `start`, every driving command (`request`, `live`, `git`, `file`, `ids`) refuses with `server code changed since start, run start again`; run `stop`, then `start`.
+- With more than one running instance in this checkout, every command requires `--instance <id>` and lists the running instances instead of guessing.
