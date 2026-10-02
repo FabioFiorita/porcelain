@@ -149,11 +149,11 @@ test('a CLI command refuses to drive an instance whose server code changed since
   await cli('stop', '--instance', instance.id);
   const evidence = await evidenceOf(instance.evidence);
 
-  expect(refused.code).toBe(1);
-  expect(refused.stdout).toBe('');
   expect(refused.stderr, 'a stale build is refused').toBe(
     'server code changed since start, run start again\n',
   );
+  expect(refused.code).toBe(1);
+  expect(refused.stdout).toBe('');
   expect(evidence.names).toStrictEqual([
     '001-start.json',
     '002-refused.json',
