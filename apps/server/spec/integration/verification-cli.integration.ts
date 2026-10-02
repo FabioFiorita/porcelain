@@ -7,7 +7,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expect, type TestContext } from 'vitest';
 import { test } from '../kit/server-test.ts';
-import { list, record, text } from '../kit/session.ts';
+import { isRecord, list, record, text } from '../kit/session.ts';
 
 const repositoryRoot = resolve(
   dirname(fileURLToPath(import.meta.url)),
@@ -95,7 +95,8 @@ test('a CLI session records numbered, redacted evidence and never shows the inst
   const stopped = await cli('stop', '--instance', instance.id);
   const evidence = await evidenceOf(instance.evidence);
   const pairing = record(JSON.parse(evidence.contents[2] ?? '{}'));
-  const exchange = record(list(pairing.steps)[0]);
+  const steps: unknown[] = Array.isArray(pairing.steps) ? pairing.steps : [];
+  const exchange = isRecord(steps[0]) ? steps[0] : {};
 
   expect(instance.run.code).toBe(0);
   expect(evidence.names).toStrictEqual([
