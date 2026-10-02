@@ -2,17 +2,20 @@
 route: /
 selectors:
   - "Commit"
+  - "Commit changes"
   - "Generate with AI"
   - "Message"
   - "Commit selected files"
   - "Look again"
   - "Amend last"
+  - "Amend last commit"
   - "Single commit"
   - "succeeded"
-  - "Commit changes"
-  - "README.md"
+  - "The worktree changed since this draft was proposed"
   - "Use groups"
+  - "Message for commit"
   - "Commit groups in order"
+  - " · committed"
 tests:
   - apps/web/spec/integration/git-actions-stale-draft.test.tsx
 api:
@@ -25,102 +28,85 @@ api:
 
 ## What it is
 
-A drafted message whose files no longer match what the dialog looked at is flagged as stale and blocks the commit until the dialog looks again or the message is generated again, so a commit never pairs a draft with files it did not describe.
+A drafted message or group whose files no longer match what the dialog looked at is flagged stale and blocks the commit until it is generated again, so a commit never pairs a draft with content it did not describe.
 
 ## How a user reaches it
 
-- Commit → Generate with AI → Commit selected files → Look again
+- Group "Git controls" → button "Commit" → button "Generate with AI" (or tab "Use groups") → a file changes on disk → button "Commit selected files" (refused) → button "Look again".
+- The stale alert reads "The worktree changed since this draft was proposed. Generate it again before committing."
 
 ## Driving it
 
-Start an instance first: `.agents/skills/web-verify/scripts/cli start`.
+`C=.agents/skills/web-verify/scripts/cli; $C start`, then `REPO=<the repository path start printed>`.
 
-### 1. A draft the worktree moved past is refused, and after looking again the dialog says it is stale until it is generated again
+### Setup
 
-Before driving, on the instance (the sample repository and project home are in the instance file):
+Blocked: every case drafts with the coding CLI, and the CLI's default instance has none (sandbox PATH holds only `git`). CLI gap: `cli start --coding-tool` (or `cli coding-tool install` then `$C open /`), doing what the kit's `installCodingTool()` does. The fake drafts the message "Explain the change to review in the README" and the groups "Explain the change to review in the README" (README.md), "Add notes for the reviewer" (NOTES.md).
 
-- write `README.md` in the sample repository
+Below, STALE means the alert "The worktree changed since this draft was proposed. Generate it again before committing."
 
+### Case 1: a draft the worktree moved past is refused, and after Look again it stays stale until generated again
+
+No setup on a fresh instance (README.md modified).
+
+1. `$C open /`, `$C click --role button --name "Commit"`, `$C click --role button --name "Generate with AI"`
+   Look for: textbox "Message" holds "Explain the change to review in the README".
+2. On disk, with the dialog open: `printf 'Changed after the draft\n' > "$REPO/README.md"`
+3. `$C click --role button --name "Commit selected files"`
+   Look for: alert "changed since looked"; button "Look again".
+4. `$C click --role button --name "Look again"`
+   Look for: STALE shows; button "Commit selected files" disabled.
+5. `$C click --role tab --name "Amend last"`, then `$C click --role tab --name "Single commit"`
+   Look for: the dialog title goes "Amend last commit" then back to "Commit changes"; STALE still shows; "Commit selected files" still disabled.
+6. `$C click --role button --name "Generate with AI"`
+   Look for: STALE is gone; "Commit selected files" enabled.
+7. `$C click --role button --name "Commit selected files"`
+   Look for: status "succeeded". Disk: `git -C "$REPO" log -1 --format=%s` prints `Explain the change to review in the README`; `git -C "$REPO" status --porcelain` prints nothing.
+8. `$C press Escape`
+   Look for: dialog "Commit changes" is gone.
+
+### Case 2: a draft of content that changed after the dialog opened is flagged at once, and Look again lets it commit
+
+Fresh instance. Setup: `printf 'Seen when the dialog opened\n' > "$REPO/README.md"`, then `$C open /` and `$C snapshot` until the README.md diff shows "Seen when the dialog opened".
+
+1. `$C click --role button --name "Commit"`
+   Look for: dialog "Commit changes" listing "README.md".
+2. On disk, with the dialog open: `printf 'Changed before the draft\n' > "$REPO/README.md"`
+3. `$C click --role button --name "Generate with AI"`
+   Look for: Message holds the drafted text; STALE shows at once; "Commit selected files" disabled; button "Look again".
+4. `$C click --role button --name "Look again"`
+   Look for: STALE is gone.
+5. `$C click --role button --name "Commit selected files"`
+   Look for: status "succeeded". Disk: `cat "$REPO/README.md"` prints `Changed before the draft`; `git -C "$REPO" status --porcelain` prints nothing.
+6. `$C press Escape`
+   Look for: the dialog is gone.
+
+### Case 3: when a later group's file changes after drafting, the refusal and Look again flag the remaining groups stale
+
+Fresh instance. Setup on disk:
 ```sh
-.agents/skills/web-verify/scripts/cli open /
+git -C "$REPO" add --all && git -C "$REPO" -c user.name='Porcelain Verification' -c user.email=verify@example.invalid commit -m "Commit the sample change first"
+printf 'README.md drafted in groups\n' > "$REPO/README.md"
+printf 'NOTES.md drafted in groups\n' > "$REPO/NOTES.md"
 ```
+`$C open /`, then `$C snapshot` until buttons "Mark README.md as reviewed" and "Mark NOTES.md as reviewed" show.
 
-1. `.agents/skills/web-verify/scripts/cli click --role button --name "Commit"`
-   Look for: the page settles; take a snapshot to read what it shows.
-2. `.agents/skills/web-verify/scripts/cli click --role button --name "Generate with AI"`
-   Look for: the textbox “Message” holds drafted.
-3. `.agents/skills/web-verify/scripts/cli click --role button --name "Commit selected files"`
-   Look for: the alert reads /changed since looked/i.
-4. `.agents/skills/web-verify/scripts/cli click --role button --name "Look again"`
-   Look for: the text shows; the button “Commit selected files” is disabled.
-5. `.agents/skills/web-verify/scripts/cli click --role tab --name "Amend last"`
-   Look for: the page settles; take a snapshot to read what it shows.
-6. `.agents/skills/web-verify/scripts/cli click --role tab --name "Single commit"`
-   Look for: the text shows; the button “Commit selected files” is disabled.
-7. `.agents/skills/web-verify/scripts/cli click --role button --name "Generate with AI"`
-   Look for: the text is gone.
-8. `.agents/skills/web-verify/scripts/cli click --role button --name "Commit selected files"`
-   Look for: the text “succeeded” shows.
-9. `.agents/skills/web-verify/scripts/cli press Escape`
-   Look for: the dialog “Commit changes” is gone.
-
-Then `.agents/skills/web-verify/scripts/cli snapshot` and `.agents/skills/web-verify/scripts/cli screenshot` record the end state, and `.agents/skills/web-verify/scripts/cli network` lists the requests the page sent.
-
-### 2. A draft of content that changed after the dialog opened is flagged at once, and looking again lets it commit
-
-Before driving, on the instance (the sample repository and project home are in the instance file):
-
-- write `README.md` in the sample repository
-- write `README.md` in the sample repository
-
-```sh
-.agents/skills/web-verify/scripts/cli open /
-```
-
-After `open`, look for: the button “Commit” is enabled.
-1. `.agents/skills/web-verify/scripts/cli click --role button --name "Commit"`
-   Look for: the text “README.md” shows.
-2. `.agents/skills/web-verify/scripts/cli click --role button --name "Generate with AI"`
-   Look for: the textbox “Message” holds drafted; the text shows; the button “Commit selected files” is disabled.
-3. `.agents/skills/web-verify/scripts/cli click --role button --name "Look again"`
-   Look for: the text is gone.
-4. `.agents/skills/web-verify/scripts/cli click --role button --name "Commit selected files"`
-   Look for: the text “succeeded” shows.
-5. `.agents/skills/web-verify/scripts/cli press Escape`
-   Look for: the dialog “Commit changes” is gone.
-
-Then `.agents/skills/web-verify/scripts/cli snapshot` and `.agents/skills/web-verify/scripts/cli screenshot` record the end state, and `.agents/skills/web-verify/scripts/cli network` lists the requests the page sent.
-
-### 3. When the file of a later group changes after the groups were drafted, looking again after its refusal flags the remaining groups as stale
-
-Before driving, on the instance (the sample repository and project home are in the instance file):
-
-- put the fake coding tool on the server PATH as `claude` (the disposable server has no coding CLI until then)
-- commit everything in the sample repository as “Commit the sample change first”
-- write `README.md` in the sample repository
-- write `later` in the sample repository
-
-```sh
-.agents/skills/web-verify/scripts/cli open /
-```
-
-After `open`, look for: the button “Commit” is enabled.
-1. `.agents/skills/web-verify/scripts/cli click --role button --name "Commit"`
-   Look for: the page settles; take a snapshot to read what it shows.
-2. `.agents/skills/web-verify/scripts/cli click --role tab --name "Use groups"`
-   Look for: the textbox “Message for commit 1” holds groups[0]?.message ?? ''.
-3. `.agents/skills/web-verify/scripts/cli click --role button --name "Commit groups in order"`
-   Look for: the text “Commit 1 · committed” shows; the alert reads /changed since looked/i.
-4. `.agents/skills/web-verify/scripts/cli click --role button --name "Look again"`
-   Look for: the text shows; the button “Commit groups in order” is disabled.
-
-Then `.agents/skills/web-verify/scripts/cli snapshot` and `.agents/skills/web-verify/scripts/cli screenshot` record the end state, and `.agents/skills/web-verify/scripts/cli network` lists the requests the page sent.
+1. `$C click --role button --name "Commit"`, then `$C click --role tab --name "Use groups"`
+   Look for: textbox "Message for commit 1" holds "Explain the change to review in the README"; textbox "Message for commit 2" holds "Add notes for the reviewer".
+2. On disk: `printf 'Changed after the groups were drafted\n' > "$REPO/NOTES.md"`
+3. `$C click --role button --name "Commit groups in order"`
+   Look for: text "Commit 1 · committed"; alert "changed since looked". Disk: `git -C "$REPO" log -1 --format=%s` prints `Explain the change to review in the README`; `git -C "$REPO" status --porcelain` prints `?? NOTES.md`.
+4. `$C click --role button --name "Look again"`
+   Look for: STALE shows; button "Commit groups in order" disabled.
 
 ## What proves it works
 
-- `apps/web/spec/integration/git-actions-stale-draft.test.tsx` (Browser Mode integration): a draft the worktree moved past is refused, and after looking again the dialog says it is stale until it is generated again; a draft of content that changed after the dialog opened is flagged at once, and looking again lets it commit; when the file of a later group changes after the groups were drafted, looking again after its refusal flags the remaining groups as stale.
-- The tests read back what the server kept through the kit: `server.changes()`, `server.commits()`, `server.text()`.
+- STALE blocks the commit until "Generate with AI" runs again, the refused commit leaves history untouched, and the final commits land on disk as listed. `$C network` shows `POST /api/worktrees/<worktreeId>/git/commit-draft` and `POST /api/worktrees/<worktreeId>/git/actions`.
+- `apps/web/spec/integration/git-actions-stale-draft.test.tsx`: case 1 checks the refusal, STALE and the disabled commit across Amend last / Single commit, then a clean commit of the drafted subject; case 2 checks STALE right after the draft, its removal by Look again, the committed README text and no changes left; case 3 checks "Commit 1 · committed", the refusal, then STALE with "Commit groups in order" disabled.
 
 ## Gotchas
 
-- The disposable server has no coding CLI until the fake one is put on its PATH, so Generate with AI is unavailable on a fresh instance.
+- Unreachable through the CLI: needs the fake coding CLI on the server's PATH; the command needed is `cli start --coding-tool` (or `cli coding-tool install`).
+- The disk writes in the middle of a case must happen while the dialog is open: the dialog freezes the files and fingerprints it saw on opening, and staleness compares the draft against that look.
+- In groups mode there are both a tab "Single commit" and a button "Single commit" (clears the groups); address them by role.
+- Each case commits; run each case on a fresh instance (`$C stop`, `$C start`).

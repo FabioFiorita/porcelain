@@ -2,9 +2,15 @@
 route: /
 selectors:
   - "Review"
+  - "Discard changes to"
   - "Discard"
+  - "Cancel"
+  - "Discarded"
   - "Restore"
+  - "Restored"
+  - "Change no longer present"
   - "Look again"
+  - "Look at the diff again before discarding"
 tests:
   - apps/web/spec/integration/git-actions-discard.test.tsx
 api:
@@ -15,53 +21,56 @@ api:
 
 ## What it is
 
-Discarding a changed file returns it to the last commit and Restore brings the change back, while a file that changed after the dialog opened is refused and keeps its newer text.
+Discarding a changed file returns it to the last commit and the toast's Restore brings the change back; a file that changed on disk after the discard dialog opened is refused and keeps its newer text.
 
 ## How a user reaches it
 
-- Review → changed file → Discard → Discard, then Restore
+- Button "Review" (phone width; `Alt+Shift+R` toggles it) → Changes → button "README.md · unstaged" opens the change document → its header button "Discard changes to README.md" → alertdialog "Discard README.md?" → button "Discard".
+- Right-click the row "README.md · unstaged" in the review sheet → menuitem "Discard" → the same alertdialog.
+- After a discard, the toast "Discarded README.md" carries button "Restore" for 10 s (`DISCARD_RESTORE_TOAST_MS`).
 
 ## Driving it
 
-Start an instance first: `.agents/skills/web-verify/scripts/cli start`.
+`C=.agents/skills/web-verify/scripts/cli; $C start`, then `REPO=<the repository path start printed>`.
 
-### 1. Discarding a changed file returns it to the last commit, and Restore brings the change back
+### Setup
 
-```sh
-.agents/skills/web-verify/scripts/cli open /
-```
+None: a fresh instance has README.md modified ("# Sample repository\n\nA change to review.\n" over the committed "# Sample repository\n").
 
-1. `.agents/skills/web-verify/scripts/cli click --role button --name "Review"`
-   Look for: the page settles; take a snapshot to read what it shows.
-2. `.agents/skills/web-verify/scripts/cli click --role button --name "Discard"`
-   Look for: the text “Discarded README.md” shows.
-3. `.agents/skills/web-verify/scripts/cli click --role button --name "Restore"`
-   Look for: the text “Restored README.md” shows.
+### Case 1: discard returns the file to the last commit, and Restore brings the change back
 
-Then `.agents/skills/web-verify/scripts/cli snapshot` and `.agents/skills/web-verify/scripts/cli screenshot` record the end state, and `.agents/skills/web-verify/scripts/cli network` lists the requests the page sent.
+1. `$C open /`, then `$C click --role button --name "Review"`
+   Look for: the review sheet with button "README.md · unstaged".
+2. `$C click --role button --name "README.md · unstaged"`
+   Look for: the sheet closes; a README.md change document with button "Discard changes to README.md".
+3. `$C click --role button --name "Discard changes to README.md"`
+   Look for: alertdialog "Discard README.md?" reading "The file goes back to the last commit. You can restore the changes."; buttons "Cancel" and "Discard".
+4. `$C click --role button --name "Discard"`
+   Look for: the alertdialog is gone; in region "Notifications", dialog "Discarded README.md" with button "Restore"; the document reads "Change no longer present"; the Git button in group "Git controls" now reads "Apply stash" (the discarded change is kept as a stash until Restore). Disk: `cat "$REPO/README.md"` prints `# Sample repository`.
+5. `$C click --role button --name "Restore"` (within 10 s of step 4)
+   Look for: in region "Notifications", dialog "Restored README.md"; the Git button reads "Commit" again. Disk: `cat "$REPO/README.md"` prints `# Sample repository`, a blank line, `A change to review.`
 
-### 2. Discarding a file that changed after the dialog opened is refused and keeps the newer text
+### Case 2: a file that changed after the dialog opened is refused and keeps its newer text
 
-Before driving, on the instance (the sample repository and project home are in the instance file):
+Fresh instance, or after case 1's Restore.
 
-- write `README.md` in the sample repository
-
-```sh
-.agents/skills/web-verify/scripts/cli open /
-```
-
-1. `.agents/skills/web-verify/scripts/cli click --role button --name "Review"`
-   Look for: the page settles; take a snapshot to read what it shows.
-2. `.agents/skills/web-verify/scripts/cli click --role button --name "Discard"`
-   Look for: the alert reads /Look at the diff again before discarding\./; the button “Look again” shows.
-
-Then `.agents/skills/web-verify/scripts/cli snapshot` and `.agents/skills/web-verify/scripts/cli screenshot` record the end state, and `.agents/skills/web-verify/scripts/cli network` lists the requests the page sent.
+1. `$C open /`, `$C click --role button --name "Review"`, `$C click --role button --name "README.md · unstaged"`, `$C click --role button --name "Discard changes to README.md"`
+   Look for: alertdialog "Discard README.md?".
+2. On disk, with the dialog open: `printf 'Changed on disk after the discard dialog opened\n' > "$REPO/README.md"`
+3. `$C click --role button --name "Discard"`
+   Look for: an alert in the alertdialog reads "changed since looked Look at the diff again before discarding."; the "Cancel" button is now named "Look again" and the "Discard" button is gone. Disk: `cat "$REPO/README.md"` prints `Changed on disk after the discard dialog opened`.
+4. `$C click --role button --name "Look again"`
+   Look for: the alertdialog closes; the change document shows the newer text.
 
 ## What proves it works
 
-- `apps/web/spec/integration/git-actions-discard.test.tsx` (Browser Mode integration): discarding a changed file returns it to the last commit, and Restore brings the change back; discarding a file that changed after the dialog opened is refused and keeps the newer text.
-- The tests read back what the server kept through the kit: `server.text()`.
+- The file content on disk after each step (committed text after Discard, the change back after Restore, the newer text kept after the refusal). `$C network` shows `POST /api/worktrees/<worktreeId>/git/actions` for the discard and for the restore (a `stash-apply` of the recovery stash).
+- `apps/web/spec/integration/git-actions-discard.test.tsx`: case 1 asserts "Discarded README.md", the server text equal to the committed README, then "Restored README.md" and the changed README back; case 2 asserts the alert matches /Look at the diff again before discarding\./, the "Look again" button, and the server text equal to the newer text.
 
 ## Gotchas
 
-- The CLI browser is phone width (414 by 896), so the review panel opens from the Review button instead of standing beside the document.
+- The Restore toast closes after 10 s (`DISCARD_RESTORE_TOAST_MS`); click "Restore" as the very next command after "Discard".
+- Phone width: the review list lives in a sheet behind button "Review"; opening a row closes it.
+- The row's name is built at runtime from the file name and its change scopes joined by " + " ("README.md · unstaged" on a fresh instance); staging the file changes the name, so take a snapshot for the exact name after any `git add`.
+- Case 2's disk write must come after the alertdialog is open: the discard expects the fingerprint the dialog saw when it opened.
+- After case 1 without Restore, README.md has no change left and its Discard button is gone; restore the change with `printf '# Sample repository\n\nA change to review.\n' > "$REPO/README.md"`.

@@ -2,6 +2,8 @@
 route: /
 selectors:
   - "Commit"
+  - "Git controls"
+  - "Commit changes"
   - "Message"
   - "Commit selected files"
   - "succeeded"
@@ -15,36 +17,41 @@ api:
 
 ## What it is
 
-A commit with a typed message from the web succeeds and becomes the newest commit in the real repository history.
+The Commit dialog commits the selected changed files with a typed message, and that commit becomes the newest commit of the real repository.
 
 ## How a user reaches it
 
-- Commit → Message → Commit selected files
+- Workspace header, group "Git controls" → button "Commit" (the primary Git button; its name is "Commit" whenever there are changes to commit).
+- Group "Git controls" → button "Git actions" → menuitem "Commit… Commit selected files" (address it with `--name "/^Commit…/"`).
+- Inside the dialog, `ControlOrMeta+Enter` with focus in the form submits it, like the button "Commit selected files".
 
 ## Driving it
 
-Start an instance first: `.agents/skills/web-verify/scripts/cli start`.
+`C=.agents/skills/web-verify/scripts/cli; $C start`, then `REPO=<the repository path start printed>`.
 
-### A commit with a typed message succeeds and becomes the newest commit
+### Setup
 
-```sh
-.agents/skills/web-verify/scripts/cli open /
-```
+None: a fresh instance has README.md modified and unstaged, which is what the dialog commits.
 
-1. `.agents/skills/web-verify/scripts/cli click --role button --name "Commit"`
-   Look for: the dialog shows.
-2. `.agents/skills/web-verify/scripts/cli fill --role textbox --name "Message" "Browser commit"`
-   Look for: the page settles; take a snapshot to read what it shows.
-3. `.agents/skills/web-verify/scripts/cli click --role button --name "Commit selected files"`
-   Look for: the text “succeeded” shows.
-
-Then `.agents/skills/web-verify/scripts/cli snapshot` and `.agents/skills/web-verify/scripts/cli screenshot` record the end state, and `.agents/skills/web-verify/scripts/cli network` lists the requests the page sent.
+1. `$C open /`
+   Look for: Page Title "Changes — repository"; group "Git controls" with button "Commit" enabled.
+2. `$C click --role button --name "Commit"`
+   Look for: dialog "Commit changes"; the branch strip reads "main"; tabs "Single commit" [selected], "Amend last", "Use groups"; text "README.md" in the Files list "(1 of 1)"; textbox "Message" empty; button "Commit selected files" disabled.
+3. `$C fill --role textbox --name "Message" "Browser commit"`
+   Look for: button "Commit selected files" becomes enabled.
+4. `$C click --role button --name "Commit selected files"`
+   Look for: a status in the dialog reads "succeeded".
+   Disk: `git -C "$REPO" log -1 --format=%s` prints `Browser commit`; `git -C "$REPO" status --porcelain` prints nothing.
+5. `$C press Escape`
+   Look for: dialog "Commit changes" is gone; the Changes document no longer lists README.md (button "Mark README.md as reviewed" is gone).
 
 ## What proves it works
 
-- `apps/web/spec/integration/git-actions-commit.test.tsx` (Browser Mode integration): a commit with a typed message succeeds and becomes the newest commit.
-- The tests read back what the server kept through the kit: `server.commits()`.
+- The status "succeeded" in the dialog, and on disk `git -C "$REPO" log -1 --format=%s` = `Browser commit` with a clean working tree. `$C network` shows `POST /api/worktrees/<worktreeId>/git/actions` with status 200.
+- `apps/web/spec/integration/git-actions-commit.test.tsx`: fills Message, clicks "Commit selected files", sees "succeeded", and polls the server until the newest commit's subject is the typed message.
 
 ## Gotchas
 
-- None known.
+- After the commit the tree is clean, so the "Commit" button stays named "Commit" but is disabled ("Nothing to commit"). To drive it again in the same instance, write a change first: `printf '# Sample repository\n\nA change to review.\n' > "$REPO/README.md"`, then `$C snapshot` until button "Mark README.md as reviewed" is back.
+- The dialog lists the files as they were when it opened; a file written while it is open appears only after a refusal and "Look again" (see git-actions.stale-draft).
+- Pressing Escape while the commit is running does nothing: the dialog closes only when idle.
