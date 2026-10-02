@@ -1,9 +1,8 @@
-import { expect } from 'vitest';
 import { userEvent } from 'vitest/browser';
-import { test } from '../kit/journey';
+import { expect, test } from './fixtures.tsx';
 
 test('in a split view Alt+W closes the tab of the focused pane alone, and opening the split registers the tab shortcuts once', async ({
-  pairedPage,
+  workspace,
   repo,
 }) => {
   const warnings: string[] = [];
@@ -14,23 +13,23 @@ test('in a split view Alt+W closes the tab of the focused pane alone, and openin
   };
   const path = repo.readme.path;
   const tab = new RegExp(path);
-  await pairedPage.getByRole('button', { name: 'Review', exact: true }).click();
-  await pairedPage.getByRole('tab', { name: 'Files', exact: true }).click();
-  await pairedPage
+  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace.getByRole('tab', { name: 'Files', exact: true }).click();
+  await workspace
     .getByRole('treeitem', { name: path, exact: true })
     .click({ button: 'right' });
-  await pairedPage
+  await workspace
     .getByRole('menuitem', { name: 'Open file', exact: true })
     .click();
-  await pairedPage
+  await workspace
     .getByRole('tab', { name: tab, exact: true })
     .click({ button: 'right' });
-  await pairedPage.getByRole('menuitem', { name: /Open to the side/ }).click();
-  const left = pairedPage.getByRole('region', {
+  await workspace.getByRole('menuitem', { name: /Open to the side/ }).click();
+  const left = workspace.getByRole('region', {
     name: 'Left pane',
     exact: true,
   });
-  const right = pairedPage.getByRole('region', {
+  const right = workspace.getByRole('region', {
     name: 'Right pane',
     exact: true,
   });
@@ -42,7 +41,7 @@ test('in a split view Alt+W closes the tab of the focused pane alone, and openin
   await userEvent.keyboard('{Alt>}w{/Alt}');
   await expect.element(right).not.toBeInTheDocument();
   await expect
-    .element(pairedPage.getByRole('tab', { name: tab, exact: true }))
+    .element(workspace.getByRole('tab', { name: tab, exact: true }))
     .toBeVisible();
   await expect
     .poll(() => warnings.filter((line) => line.includes('already registered')))

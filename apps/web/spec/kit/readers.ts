@@ -30,8 +30,7 @@ import {
   listReviewedLayersResponseSchema,
   readPublishedReviewResponseSchema,
 } from '@porcelain/contracts/reviews';
-import { hostCommands } from './commands';
-import type { ServerName } from './protocol';
+import type { ServerAnswer, ServerHit } from './protocol.ts';
 
 type Schema<T> = { parse(value: unknown): T };
 
@@ -39,17 +38,21 @@ function query(values: Record<string, string>) {
   return `?${new URLSearchParams(values).toString()}`;
 }
 
-export function serverOn(name: ServerName) {
+export type ServerTransport = {
+  read: (request: {
+    target: 'network' | 'owner';
+    path: string;
+  }) => Promise<ServerAnswer>;
+  hits: () => Promise<ServerHit[]>;
+};
+
+export function serverReaders(transport: ServerTransport) {
   const read = async <T>(
     schema: Schema<T>,
     path: string,
     target: 'network' | 'owner' = 'network',
   ): Promise<T> => {
-    const answer = await hostCommands.porcelainRead({
-      server: name,
-      target,
-      path,
-    });
+    const answer = await transport.read({ target, path });
     if (answer.status !== 200)
       throw new Error(`The server answered ${path} with ${answer.status}.`);
     return schema.parse(answer.body);
@@ -66,7 +69,7 @@ export function serverOn(name: ServerName) {
     if (!worktree) throw new Error('The isolated server has no worktree.');
     return `/api/worktrees/${encodeURIComponent(worktree.id)}${suffix}`;
   };
-  const hits = () => hostCommands.porcelainHits(0, name);
+  const hits = transport.hits;
   return {
     liveTicketHits: async () =>
       (await hits()).filter(
@@ -166,4 +169,4 @@ export function serverOn(name: ServerName) {
   };
 }
 
-export const server = serverOn('this');
+export type ServerReaders = ReturnType<typeof serverReaders>;

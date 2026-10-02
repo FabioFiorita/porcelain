@@ -74,3 +74,8 @@ export type ServerHit = {
   kit: boolean;
   status: number | undefined;
 };
+
+export type BrowserFailure = {
+  kind: 'console error' | 'uncaught error' | 'unhandled rejection';
+  message: string;
+};

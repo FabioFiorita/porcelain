@@ -7,7 +7,9 @@
     "build": "tsc --noEmit && tsc --noEmit -p tsconfig.node.json && vite build",
     "preview": "vite preview --host 127.0.0.1",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.node.json",
-    "test": "vitest run --config ../../vitest.config.ts --project @porcelain/web"
+    "test": "vitest run --config ../../vitest.config.ts --project @porcelain/web",
+    "test:integration": "vitest run --config vitest.config.ts",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@base-ui/react": "1.8.0",
@@ -42,6 +44,8 @@
   },
   "devDependencies": {
     "@babel/core": "7.29.7",
+    "@playwright/test": "1.63.0",
+    "@porcelain/server": "workspace:*",
     "@rolldown/plugin-babel": "0.2.4",
     "@tailwindcss/vite": "4.3.3",
     "@tanstack/router-plugin": "1.168.36",

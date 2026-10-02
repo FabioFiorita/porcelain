@@ -9,10 +9,12 @@ import type {
   ServerHit,
   ServerName,
   ServerRead,
-} from './protocol';
+} from '../kit/protocol.ts';
 
 declare module 'vitest/browser' {
   interface BrowserCommands {
+    porcelainStart: () => Promise<void>;
+    porcelainStop: (name: string) => Promise<string[]>;
     porcelainRead: (request: ServerRead) => Promise<ServerAnswer>;
     porcelainRepo: (step: RepoStep, server: ServerName) => Promise<string>;
     porcelainFixture: (server: ServerName) => Promise<RepoFixture>;
@@ -21,14 +23,13 @@ declare module 'vitest/browser' {
       server: ServerName,
       trusted?: boolean,
     ) => Promise<PairingParts>;
-    porcelainHits: (since: number, server: ServerName) => Promise<ServerHit[]>;
+    porcelainHits: (server: ServerName) => Promise<ServerHit[]>;
     porcelainProjectHome: (
       step: ProjectHomeStep,
       server: ServerName,
     ) => Promise<string>;
     porcelainCodingTool: () => Promise<CodingToolReplies>;
-    porcelainInitScript: (content: string) => Promise<void>;
   }
 }
 
-export const hostCommands = commands;
+export const host = commands;
