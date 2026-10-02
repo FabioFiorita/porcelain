@@ -260,10 +260,8 @@ async function serve(id: string, evidence: string, print: string) {
 }
 
 async function start(): Promise<string> {
-  const problems = [macProblem(), electronProblem()].filter(
-    (problem) => problem !== undefined,
-  );
-  if (problems.length > 0) throw new Refusal(problems.join('\n'));
+  const problem = macProblem() ?? electronProblem();
+  if (problem !== undefined) throw new Refusal(problem);
   const id = randomBytes(3).toString('hex');
   const evidence = instances.evidenceFolder(id);
   const elapsed = await instances.supervise(
@@ -279,8 +277,9 @@ async function start(): Promise<string> {
 function doctor(): string {
   const checks = [
     `node ${process.versions.node}`,
-    macProblem() ?? 'macOS: ready',
-    electronProblem() ?? `Electron: ${electronExecutable()}`,
+    macProblem() ??
+      electronProblem() ??
+      `macOS: ready\nElectron: ${electronExecutable()}`,
   ];
   const live = instances.live();
   return `${checks.join('\n')}\nlive instances: ${live.map((instance) => `${instance.id} ${instance.detail.repository}`).join(', ') || 'none'}\n`;
