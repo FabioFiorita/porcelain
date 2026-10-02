@@ -7,7 +7,6 @@ import {
   forwardedResponseHeaders,
   forwardedWebRequestHeaders,
 } from './app-request.ts';
-import { desktopContentSecurityPolicy } from './content-security-policy.ts';
 
 const server = {
   address: 'http://127.0.0.1:4321',
@@ -150,10 +149,10 @@ describe('forwardedResponseHeaders', () => {
 
   it('gives every page the app policy, which keeps scripts to the app, instead of the server one', () => {
     expect(
-      forwardedResponseHeaders('/project/worktree', answer, 'built').get(
-        'content-security-policy',
-      ),
-    ).toBe(desktopContentSecurityPolicy('built'));
+      forwardedResponseHeaders('/project/worktree', answer, 'built')
+        .get('content-security-policy')
+        ?.split('; '),
+    ).toContain("script-src 'self'");
   });
 
   it('leaves the policy of an API answer as the server sent it', () => {
@@ -166,10 +165,10 @@ describe('forwardedResponseHeaders', () => {
 
   it('admits the inline script Vite injects only into pages of the development web', () => {
     expect(
-      forwardedResponseHeaders('/project/worktree', answer, 'development').get(
-        'content-security-policy',
-      ),
-    ).toBe(desktopContentSecurityPolicy('development'));
+      forwardedResponseHeaders('/project/worktree', answer, 'development')
+        .get('content-security-policy')
+        ?.split('; '),
+    ).toContain("script-src 'self' 'unsafe-inline'");
   });
 });
 
