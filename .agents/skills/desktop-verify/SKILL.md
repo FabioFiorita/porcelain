@@ -13,7 +13,7 @@ Development and proof never use the owner's installed app, `/Applications/Porcel
 
 `pnpm check` typechecks the desktop app and runs the specs beside it in `apps/desktop/src`. A guard of the host process (who may call the bridge, what the protocol forwards, which links leave the app, which launches the installed app refuses) is a pure function in `apps/desktop/src/rules/` with a spec that fails when the guard is deleted.
 
-A journey through UI only the desktop shell shows runs in Chromium with `shell: 'desktop'` (see `web-verify`); it gets the desktop web mode but no bridge, so it cannot prove the bridge, the protocol or the native menus. `pnpm devtools start --desktop` shows the web in Chrome as the app does, without the bridge. The HTTP net and the journeys run on Linux and macOS alike; see `server-verify` and `web-verify`.
+An e2e test through UI only the desktop shell shows runs in Chromium as the `desktop` Playwright project (see `web-verify`); it gets the desktop web mode but no bridge, so it cannot prove the bridge, the protocol or the native menus. `.agents/skills/web-verify/scripts/cli start --desktop` shows the web in Chromium as the app does, without the bridge. The HTTP net and the web suites run on Linux and macOS alike; see `server-verify` and `web-verify`.
 
 ## The development app
 
