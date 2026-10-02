@@ -1,0 +1,12 @@
+appId: com.fabiofiorita.porcelain.dev
+name: Cold launch and await bounded native startup
+---
+- launchApp:
+    permissions: {}
+- runFlow:
+    file: open-link.yaml
+    env:
+      LINK: porcelain.dev://?__expo_disable_fab=1&__expo_disable_auto_launch=1&__expo_disable_onboarding=1
+- extendedWaitUntil:
+    visible: Review
+    timeout: 30000

@@ -1,7 +1,7 @@
 appId: com.fabiofiorita.porcelain.dev
 name: Unpaired phone destinations
 ---
-- runFlow: launch-development.yaml
+- runFlow: connect.yaml
 - assertNotVisible: Workspaces
 - assertVisible:
     text: Review
@@ -24,6 +24,12 @@ name: Unpaired phone destinations
 - assertVisible: Environments
 - assertVisible: No environments paired.
 - tapOn: Review
+- assertVisible:
+    text: Review
+    selected: true
+- assertVisible: Select a worktree to continue.
+- stopApp
+- runFlow: launch.yaml
 - assertVisible:
     text: Review
     selected: true

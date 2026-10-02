@@ -7,7 +7,8 @@
     "dev": "expo start --dev-client",
     "prebuild": "expo prebuild",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --config ../../vitest.config.ts --project @porcelain/mobile"
+    "test": "vitest run --config ../../vitest.config.ts --project @porcelain/mobile",
+    "test:e2e": "vitest run --config ../../vitest.config.ts --project @porcelain/mobile-e2e && vitest run --config ../../vitest.config.ts --project @porcelain/mobile-e2e-tablet"
   },
   "dependencies": {
     "@expo/material-symbols": "0.1.1",
@@ -35,6 +36,7 @@
     "zustand": "5.0.15"
   },
   "devDependencies": {
+    "@porcelain/server": "workspace:*",
     "@types/react": "19.2.18"
   }
 }

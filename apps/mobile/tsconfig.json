@@ -8,5 +8,5 @@
     "types": ["react", "expo/types"],
     "moduleSuffixes": [".ios", ".android", ""]
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "spec/**/*.ts", "spec/**/*.tsx"]
+  "include": ["src/**/*.ts", "src/**/*.tsx"]
 }

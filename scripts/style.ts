@@ -71,6 +71,7 @@ const serverRoots = [
   '.agents/skills/server-verify/scripts',
   '.agents/skills/web-verify/scripts',
   '.agents/skills/desktop-verify/scripts',
+  '.agents/skills/mobile-verify/scripts',
 ].filter((root) => existsSync(root));
 const webRoots = [
   'apps/web/src',
@@ -769,7 +770,7 @@ const gateScripts: Readonly<Record<string, Readonly<Record<string, string>>>> =
       'format:server:check': 'node scripts/style.ts format server',
       'arch:check': 'node scripts/architecture.ts check',
       probes: 'node scripts/probes.ts',
-      test: 'vitest run --project !@porcelain/server-integration --project !@porcelain/server-perf',
+      test: 'vitest run --project !@porcelain/server-integration --project !@porcelain/server-perf --project !@porcelain/mobile-e2e*',
       'test:integration': 'turbo run test:integration',
       'test:e2e': 'turbo run test:e2e',
       'db:check': 'pnpm --filter @porcelain/storage db:check',
@@ -786,6 +787,10 @@ const gateScripts: Readonly<Record<string, Readonly<Record<string, string>>>> =
       build: 'tsc --noEmit && tsc --noEmit -p tsconfig.node.json && vite build',
       'test:integration': 'vitest run --config vitest.config.ts',
       'test:e2e': 'playwright test',
+    },
+    'apps/mobile/package.json': {
+      'test:e2e':
+        'vitest run --config ../../vitest.config.ts --project @porcelain/mobile-e2e && vitest run --config ../../vitest.config.ts --project @porcelain/mobile-e2e-tablet',
     },
     'apps/server/package.json': {
       'test:integration':
