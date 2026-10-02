@@ -83,20 +83,19 @@ export const test = base
     return server;
   })
   .extend('ids', { scope: 'file' }, ({ server }) => sampleIds(server))
-  .extend(
-    'session',
-    async ({ server, ids, onTestFailed }, { onCleanup }): Promise<Session> => {
-      const recorder = new Recorder();
-      recorder.secret(server.credential);
-      recorder.secret(server.desktopCredential);
-      recorder.phase = 'follow-up';
-      onTestFailed(({ task }) => {
-        for (const error of task.result?.errors ?? [])
-          scrubbed(error, recorder);
-      });
-      onCleanup(() => {
-        for (const cleanup of recorder.cleanups) cleanup();
-      });
-      return server.session(recorder, ids);
-    },
+  .extend('recorder', async ({ server, onTestFailed }, { onCleanup }) => {
+    const recorder = new Recorder();
+    recorder.secret(server.credential);
+    recorder.secret(server.desktopCredential);
+    recorder.phase = 'follow-up';
+    onTestFailed(({ task }) => {
+      for (const error of task.result?.errors ?? []) scrubbed(error, recorder);
+    });
+    onCleanup(() => {
+      for (const cleanup of recorder.cleanups) cleanup();
+    });
+    return recorder;
+  })
+  .extend('session', ({ server, ids, recorder }): Session =>
+    server.session(recorder, ids),
   );
