@@ -4,15 +4,18 @@ name: Pair and restore multiple environments
 - runFlow: connect.yaml
 - runFlow: open-settings.yaml
 - assertVisible: Environments
-- tapOn: Add environment
+- tapOn:
+    id: add-environment
 - assertVisible: Pair an environment
 - tapOn:
     id: pairing-link
 - inputText: invalid-link
 - waitForAnimationToEnd
-- tapOn: Pair
+- tapOn:
+    id: pair-environment
 - assertVisible: Paste the whole link porcelain pair printed, starting with http.
-- tapOn: Cancel
+- tapOn:
+    id: cancel-pairing
 - assertNotVisible: Pair an environment
 - runFlow:
     file: add-environment.yaml

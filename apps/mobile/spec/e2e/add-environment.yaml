@@ -1,12 +1,14 @@
 appId: com.fabiofiorita.porcelain.dev
 name: Pair an environment
 ---
-- tapOn: Add environment
+- tapOn:
+    id: add-environment
 - tapOn:
     id: pairing-link
 - inputText: ${PAIRING_LINK}
 - waitForAnimationToEnd
-- tapOn: Pair
+- tapOn:
+    id: pair-environment
 - assertNotVisible: Pair an environment
 - assertVisible: ${ENVIRONMENT_NAME}
 - assertVisible: Online
