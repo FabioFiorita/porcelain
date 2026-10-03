@@ -31,9 +31,9 @@ A JavaScript change needs no build: Metro serves it, and the CLI reloads the app
 It prints the instance id, the simulator id and the evidence folder; it never prints a credential or a pairing link. When it returns, the app runs the development client from this checkout's Metro, with Expo's developer menu, floating button and onboarding switched off, and is paired with the server: Settings lists one environment, “Mobile Verification …”, Online.
 
 - **Its own simulator.** `start` boots a simulator of its own, named `Porcelain verify <model>`: one it created earlier and that is shut down, or a new one, since a simulator's first boot is far heavier than later ones. It sets that simulator to US English, so system labels such as Open and Show Sidebar read the same on any host, reinstalls the development client there with an empty Keychain, and `stop` shuts that simulator down. It never boots, drives or shuts down a simulator it does not own. Keep one simulator live at a time on a shared host.
-- **Several instances.** With more than one live, every command needs `--instance <id>`.
-- **Stale code.** A command refuses once server or native code changed after `start`, and says which: server code needs `stop` and `start`; native code needs `stop`, `build` and `start`.
-- **Idle.** An instance that receives no command for 30 minutes stops itself; its evidence stays.
+- **Several instances.** Instances are registered for this checkout only. With more than one live, every command needs `--instance <id>`.
+- **Stale code.** A command refuses once server, CLI or native code changed after `start`, and says which: server or CLI code needs `stop` and `start`; native code needs `stop`, `build` and `start`.
+- **Idle.** An instance that receives no command for 30 minutes stops itself; every command counts, failed or not. Its evidence stays.
 
 ## 2. Find the screen or flow
 
@@ -66,7 +66,7 @@ Platform behaviour to expect:
 .agents/skills/mobile-verify/scripts/cli evidence
 ```
 
-The folder holds `000-start.txt` (device, simulator, Metro, server, the environment name and how long each start phase took), one numbered file per command (`001-open.txt`, `004-screenshot.png`, `005-snapshot.txt`, `006-logs.txt`), and `metro.log`, `server.log` and `supervisor.log`. Pairing codes, links and credentials are redacted from every text file. A screenshot taken while a link sits in the pairing field can show it; keep such a screenshot local. Read the snapshots and screenshots for what the app showed and `logs` for errors; the report names the evidence folder and what it shows.
+The folder holds `000-start.txt` (device, simulator, Metro, server, the environment name and how long each start phase took), one numbered file per command (`001-open.txt`, `004-screenshot.png`, `005-snapshot.txt`, `006-logs.txt`), and `metro.log`, `server.log` and `supervisor.log`. Pairing codes, links and credentials are redacted from every text file; `snapshot` prints the screen as it is so a next step can use what it shows. A screenshot taken while a link sits in the pairing field can show it; keep such a screenshot local. Read the snapshots and screenshots for what the app showed and `logs` for errors; the report names the evidence folder and what it shows.
 
 ## 5. Run the e2e tests the entry names
 
@@ -86,7 +86,7 @@ pnpm --filter @porcelain/mobile test:e2e
 .agents/skills/mobile-verify/scripts/cli stop
 ```
 
-`stop` ends only the instance the CLI started, by the PID in its instance file: it closes the agent-device session, stops Metro, shuts down its simulator and stops the server. The evidence folder stays.
+`stop` ends only the instance the CLI started: it signals the PID in its instance file only while that process's command line is the instance's supervisor, which closes the agent-device session, shuts down its simulator, stops Metro and stops the server; then it sends SIGKILL to whatever is left of its process group and of Metro after a timeout, and shuts the simulator down itself if it is still booted. A recorded PID that now belongs to another process is reported and never signalled. The evidence folder stays.
 
 ## Platform coverage
 

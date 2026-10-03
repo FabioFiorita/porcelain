@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { Refusal } from './instance.ts';
+import { Refusal, Usage } from '../../server-verify/scripts/core/cli.ts';
 
 const keyboardSettleMs = 1500;
 
@@ -51,7 +51,7 @@ export function selector(values: {
   if (values.id !== undefined) return `id=${JSON.stringify(values.id)}`;
   if (values.label !== undefined)
     return `label=${JSON.stringify(values.label)}`;
-  throw new Refusal(
+  throw new Usage(
     'Address the element with --id <testID> or --label <accessibility label>.',
   );
 }
