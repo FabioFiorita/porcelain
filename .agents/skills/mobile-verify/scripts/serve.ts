@@ -25,14 +25,44 @@ import {
 } from '../../../../apps/mobile/spec/kit/simulator.ts';
 import { missingTools } from '../../../../apps/mobile/spec/kit/tools.ts';
 import { refuseMissing } from '../../server-verify/scripts/core/cli.ts';
-import { agentDevice, fillField, type Target } from './device.ts';
+import type { Life } from '../../server-verify/scripts/core/registry.ts';
+import {
+  agentDevice,
+  connectHub,
+  disconnectHub,
+  fillField,
+  holdLease,
+  remoteSimulator,
+  resetRemoteApp,
+  type Target,
+} from './device.ts';
+import {
+  deviceHost,
+  freeHostPorts,
+  hostFileName,
+  hostProblems,
+  type DeviceHost,
+} from './host.ts';
 import { registry, scriptFingerprint } from './instance.ts';
 
 const startLimitMs = 25 * 60 * 1000;
 export const pairingLabel = 'Verification simulator';
+const optionsSchema = z.object({
+  kind: z.enum(['iphone', 'ipad']),
+  host: z
+    .object({
+      hub: z.string(),
+      tokenVariable: z.string(),
+      ports: z.array(z.number()),
+    })
+    .nullable(),
+});
+
+type Timings = Record<string, number>;
+type Booted = { target: Target & { udid: string }; name: string };
 
 async function phase<T>(
-  timings: Record<string, number>,
+  timings: Timings,
   name: string,
   work: () => Promise<T>,
 ): Promise<T> {
@@ -43,7 +73,11 @@ async function phase<T>(
 }
 
 function connect(target: Target, metro: Metro): void {
-  agentDevice(target, ['open', developmentLink(metro.url)]);
+  agentDevice(target, [
+    'open',
+    identity.bundleIdentifier,
+    developmentLink(metro.url),
+  ]);
   agentDevice(target, ['alert', 'accept', '5000'], { allowFailure: true });
   agentDevice(target, ['wait', 'text', 'Review', '60000']);
 }
@@ -61,16 +95,59 @@ function pair(target: Target, link: string): void {
   agentDevice(target, ['wait', 'text', 'Online', '30000']);
 }
 
+async function localSimulator(
+  life: Life,
+  timings: Timings,
+  kind: DeviceKind,
+  base: Target,
+): Promise<Booted> {
+  const simulator = await phase(timings, 'simulator', () =>
+    bootSimulator(kind, 'verify'),
+  );
+  const target = { ...base, udid: simulator.udid };
+  life.onStop(async () => {
+    agentDevice(target, ['close', '--shutdown'], { allowFailure: true });
+    await shutdownSimulator(simulator.udid);
+  });
+  await phase(timings, 'install', () =>
+    resetApp(simulator.udid, appPath, identity.bundleIdentifier),
+  );
+  return { target, name: simulator.name };
+}
+
+async function hostedSimulator(
+  life: Life,
+  timings: Timings,
+  kind: DeviceKind,
+  base: Target & { host: NonNullable<Target['host']> },
+): Promise<Booted> {
+  connectHub(base);
+  life.onStop(() => disconnectHub(base));
+  const simulator = await phase(timings, 'simulator', async () =>
+    remoteSimulator(base, kind),
+  );
+  const target = { ...base, udid: simulator.udid };
+  life.onStop(() => {
+    agentDevice(target, ['close', '--shutdown'], { allowFailure: true });
+  });
+  await phase(timings, 'install', async () => resetRemoteApp(target));
+  life.onStop(holdLease(target));
+  return { target, name: simulator.name };
+}
+
 export function serve(folder: string): Promise<void> {
   return registry.serve(folder, async (life) => {
-    const { kind } = z
-      .object({ kind: z.enum(['iphone', 'ipad']) })
-      .parse(life.options);
+    const { kind, host } = optionsSchema.parse(life.options);
     const evidence = registry.evidenceFolder(life.id);
     const session = `porcelain-mobile-${life.id}`;
-    const timings: Record<string, number> = {};
+    const timings: Timings = {};
     const native = nativeFingerprint();
     const script = scriptFingerprint();
+    const ports = host === null ? [] : await freeHostPorts(host, 2);
+    if (host !== null && ports.length < 2)
+      throw new Error(
+        `fewer than two of the ports in ${hostFileName} are free on this machine`,
+      );
     let udid = '(none)';
     life.onStop((reason) =>
       life
@@ -93,6 +170,7 @@ export function serve(folder: string): Promise<void> {
         label: pairingLabel,
         workspace: false,
         onOutput: (text) => appendFileSync(join(evidence, 'server.log'), text),
+        ...(ports[0] === undefined ? {} : { port: ports[0] }),
       });
     });
     life.onStop(async () => {
@@ -105,22 +183,21 @@ export function serve(folder: string): Promise<void> {
       environment.server.desktopCredential,
     );
     const metro = await phase(timings, 'metro', () =>
-      startMetro(join(evidence, 'metro.log')),
+      startMetro(join(evidence, 'metro.log'), ports[1]),
     );
     life.marker(`--localhost --port ${metro.port} --max-workers`);
     life.onStop(() => metro.stop());
-    const simulator = await phase(timings, 'simulator', () =>
-      bootSimulator(kind, 'verify'),
-    );
-    udid = simulator.udid;
-    const target = { udid, session, cwd: evidence };
-    life.onStop(async () => {
-      agentDevice(target, ['close', '--shutdown'], { allowFailure: true });
-      await shutdownSimulator(udid);
-    });
-    await phase(timings, 'install', () =>
-      resetApp(udid, appPath, identity.bundleIdentifier),
-    );
+    const hub =
+      host === null
+        ? null
+        : { hub: host.hub, tokenVariable: host.tokenVariable };
+    const base = { udid: undefined, session, cwd: evidence };
+    const simulator =
+      hub === null
+        ? await localSimulator(life, timings, kind, { ...base, host: null })
+        : await hostedSimulator(life, timings, kind, { ...base, host: hub });
+    const { target } = simulator;
+    udid = target.udid;
     await phase(timings, 'connect', async () => connect(target, metro));
     await phase(timings, 'pair', async () => pair(target, environment.link));
     const devices = await environment.devices();
@@ -132,6 +209,7 @@ export function serve(folder: string): Promise<void> {
           `instance ${life.id}`,
           `device ${kind}: ${simulator.name}`,
           `simulator ${udid}`,
+          ...(hub === null ? [] : [`device host ${hub.hub}`]),
           `metro ${metro.url}`,
           `server ${environment.server.address}`,
           `environment ${environment.name}`,
@@ -153,17 +231,26 @@ export function serve(folder: string): Promise<void> {
       repository: environment.server.repository,
       native,
       script,
+      host: hub,
     };
   });
 }
 
-export async function start(kind: DeviceKind): Promise<string> {
+export async function startProblems(
+  host: DeviceHost | undefined,
+): Promise<(string | undefined)[]> {
+  if (host !== undefined) return hostProblems(host);
   const problems = missingTools(['simulator', 'agent-device']);
-  refuseMissing([
-    ...problems,
-    problems.length === 0 ? buildProblem() : undefined,
-  ]);
+  return [...problems, problems.length === 0 ? buildProblem() : undefined];
+}
+
+export async function start(kind: DeviceKind): Promise<string> {
+  const host = deviceHost();
+  refuseMissing(await startProblems(host));
   const began = performance.now();
-  const instance = await registry.launch({ kind }, startLimitMs);
-  return `instance ${instance.id}\nsimulator ${instance.detail.udid} (${instance.detail.simulator})\nevidence ${instance.evidence}\nstarted in ${Math.round(performance.now() - began)} ms\n`;
+  const instance = await registry.launch(
+    { kind, host: host ?? null },
+    startLimitMs,
+  );
+  return `instance ${instance.id}\nsimulator ${instance.detail.udid} (${instance.detail.simulator})${instance.detail.host === null ? '' : ` on the device host ${instance.detail.host.hub}`}\nevidence ${instance.evidence}\nstarted in ${Math.round(performance.now() - began)} ms\n`;
 }

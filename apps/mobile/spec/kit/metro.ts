@@ -55,8 +55,11 @@ async function warmBundle(url: string, child: ChildProcess): Promise<void> {
   throw new Error(`Metro did not build the iOS bundle at ${url}`);
 }
 
-export async function startMetro(log: string): Promise<Metro> {
-  const port = await freePort();
+export async function startMetro(
+  log: string,
+  requestedPort?: number,
+): Promise<Metro> {
+  const port = requestedPort ?? (await freePort());
   const url = `http://localhost:${port}`;
   const output = openSync(log, 'a');
   const child = spawn(

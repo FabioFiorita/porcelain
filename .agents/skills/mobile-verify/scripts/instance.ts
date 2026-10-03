@@ -8,6 +8,7 @@ import {
   Registry,
   repositoryRoot,
 } from '../../server-verify/scripts/core/registry.ts';
+import { hostDetail } from './host.ts';
 
 export function scriptFingerprint(): string {
   return hashOf(repositoryRoot, [
@@ -31,6 +32,7 @@ export const registry = new Registry({
     repository: z.string(),
     native: z.string(),
     script: z.string(),
+    host: hostDetail,
   }),
   inputs: { roots: ['apps/mobile/spec/kit'], apps: [] },
   format: 'text',

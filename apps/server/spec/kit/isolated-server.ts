@@ -1037,6 +1037,7 @@ export class IsolatedServer extends ServerHandle {
     build: string,
     sample?: 'perf',
     onOutput?: (text: string) => void,
+    port?: number,
   ): Promise<IsolatedServer> {
     const env = Object.fromEntries(
       Object.entries(process.env).filter(
@@ -1045,7 +1046,12 @@ export class IsolatedServer extends ServerHandle {
     );
     const child = spawn(
       process.execPath,
-      ['apps/server/spec/kit/sandbox.ts', '--server', build],
+      [
+        'apps/server/spec/kit/sandbox.ts',
+        '--server',
+        build,
+        ...(port === undefined ? [] : ['--port', String(port)]),
+      ],
       {
         cwd: repositoryRoot,
         env: sample ? { ...env, PORCELAIN_DEV_SAMPLE: sample } : env,

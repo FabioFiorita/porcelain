@@ -7,7 +7,7 @@ description: Drive the real Porcelain mobile app, the Expo development client on
 
 The CLI at `.agents/skills/mobile-verify/scripts/cli` starts one disposable Porcelain server through the server kit, Metro on a free port and an iOS simulator of its own. It installs the development client, connects it to that Metro, pairs it with the server and drives it through agent-device, recording every command as a numbered evidence file. It never asserts and never runs tests: you read the evidence and decide, and the e2e tests the map names prove what must stay true.
 
-Run every command from the repository root, on macOS.
+Run every command from the repository root, on macOS, or on any machine that reaches a Mac's simulators through an agent-device hub (see [A simulator on another machine](#a-simulator-on-another-machine)).
 
 ## 0. Build the development client when native code changed
 
@@ -15,7 +15,7 @@ Run every command from the repository root, on macOS.
 .agents/skills/mobile-verify/scripts/cli build
 ```
 
-`build` runs Expo prebuild for iOS and `xcodebuild` for the simulator into `apps/mobile/ios/build`, and records the native fingerprint it built: the app's dependencies, `app.config.ts` and the build identity. It takes several minutes; never request a cloud build for an iteration. `ios/`, `android/` and `.expo/` are generated and disposable; owned native modules belong under `apps/mobile/modules/`.
+`build` runs Expo prebuild for iOS and `xcodebuild` for the simulator into `apps/mobile/ios/build`, and records the native fingerprint it built: the app's dependencies, `app.config.ts` and the build identity. It also leaves a copy of the app in `/tmp/porcelain-development-clients/<fingerprint>/`, which a remote `start` installs. It takes several minutes; never request a cloud build for an iteration. `ios/`, `android/` and `.expo/` are generated and disposable; owned native modules belong under `apps/mobile/modules/`.
 
 A JavaScript change needs no build: Metro serves it, and the CLI reloads the app when the JavaScript changed since the last command. `start`, every driving command and the e2e tests refuse while the native fingerprint differs from the built one, and say to run `build`.
 
@@ -87,6 +87,28 @@ pnpm --filter @porcelain/mobile test:e2e
 ```
 
 `stop` ends only the instance the CLI started: it signals the PID in its instance file only while that process's command line is the instance's supervisor, which closes the agent-device session, shuts down its simulator, stops Metro and stops the server; then it sends SIGKILL to whatever is left of its process group and of Metro after a timeout, and shuts the simulator down itself if it is still booted. A recorded PID that now belongs to another process is reported and never signalled. The evidence folder stays.
+
+## A simulator on another machine
+
+The CLI can run on a machine without Xcode and drive a simulator on a Mac, the device host. The setup must provide:
+
+- **A hub.** `agent-device proxy --port <port>` runs on the device host, and its URL is reachable from this machine, for example through an SSH tunnel.
+- **A token.** The hub's token sits in an environment variable on this machine; the file names the variable, never the token.
+- **Reachable ports.** Ports on this machine that the simulator reaches at `http://localhost:<port>`, for example through SSH remote forwards. The disposable server and Metro each take one.
+
+Describe them in `.mobile-device-host.json` at the repository root; it is ignored and stays on this machine.
+
+```json
+{
+  "hub": "http://127.0.0.1:4310",
+  "tokenVariable": "AGENT_DEVICE_DAEMON_AUTH_TOKEN",
+  "ports": [5173, 5183, 5193]
+}
+```
+
+Without the file the CLI drives this Mac's simulators as above. With it, `start` and `doctor` check the file, the token, the hub and the ports and say exactly what is missing; `start` then runs the server and Metro here on free ports from the list, connects agent-device to the hub, reinstalls the development client on the device host's `Porcelain verify <model>` simulator with an empty Keychain, and pairs it. `stop` shuts that simulator down and disconnects. `logs` records Metro and the server; the app's own log stays on the device host.
+
+Native builds stay on the device host. When it has no development client built for this checkout's native code, or no `Porcelain verify` simulator, `start` stops and names the command to run there, in a checkout of the same commit: `build` after a native change, and `start --device <kind>` then `stop` once to create the simulator.
 
 ## Platform coverage
 
