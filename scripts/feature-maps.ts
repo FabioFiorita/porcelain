@@ -135,6 +135,7 @@ const web: Surface = {
 
 const desktop: Surface = {
   name: 'desktop',
+  page: 'route',
   features: '.agents/skills/desktop-verify/features',
   domains: ['app', 'projects', 'access'],
   pages: undefined,
