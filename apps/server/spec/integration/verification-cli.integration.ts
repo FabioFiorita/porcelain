@@ -78,7 +78,7 @@ async function started(
   const surface = path === WEB_CLI ? 'web' : 'server';
   const file = instanceFile(root, surface, id);
   onTestFinished(async () => {
-    if (existsSync(file)) await cli(root, path, 'stop', '--instance', id);
+    await cli(root, path, 'stop', '--instance', id);
   });
   const instance = record(JSON.parse(await readFile(file, 'utf8')));
   return {
@@ -113,12 +113,7 @@ async function evidenceOf(folder: string) {
 
 async function checkoutCopy(onTestFinished: Finished): Promise<string> {
   const copy = await mkdtemp(join(tmpdir(), 'porcelain-checkout-'));
-  onTestFinished(async () => {
-    const instances = dirname(instanceFile(copy, 'server', ''));
-    for (const id of existsSync(instances) ? await readdir(instances) : [])
-      await cli(copy, SERVER_CLI, 'stop', '--instance', id);
-    await rm(copy, { recursive: true, force: true });
-  });
+  onTestFinished(() => rm(copy, { recursive: true, force: true }));
   const linked: string[] = [];
   await cp(repositoryRoot, copy, {
     recursive: true,
