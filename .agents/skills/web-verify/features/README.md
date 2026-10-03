@@ -2,6 +2,19 @@
 
 One file per feature the web offers, named `<domain>.<capability>.md`. Each says what the feature is, how a user reaches it, the exact CLI lines that drive it with the end state to look for, the tests that guard it and its gotchas. `pnpm check` runs `node scripts/feature-maps.ts`, which fails when a page route has no map, a map names a route, test, selector or API route that does not exist, or the web calls a route no map lists.
 
+What every map assumes about the CLI, proven in the live pass:
+
+- `start` gives a phone-width browser: the project navigator sits behind `Toggle Sidebar` and the review sidebar (Changes, Files, History) behind `Review`; opening a document closes that sheet.
+- `open` prints the URL and title of the first load, before the app redirects (`/` and "Porcelain"); the next command prints the settled ones. `press` prints the page only when it changed.
+- Right after `open` the diffs load after the toolbar; when a click answers "does not match any elements", run `snapshot` until the element shows. A wait command would be `cli wait --role <role> --name <name>`.
+- An address must match one element. Two panes, a file and its timeline, or the toolbar and diff-header mark buttons repeat a name; the maps say which address to use instead.
+- `network` lists only the requests since the last page load; `[FAILED] net::ERR_ABORTED` lines are requests the page cancelled and sent again.
+- The aria snapshot shows neither the editor's text nor an iframe's content; check those with `screenshot` or the disk.
+- `fill` on the file editor inserts its text at the caret (the start of the file) instead of replacing the file.
+- Disk setup runs in the `repository` folder `start` printed; the sample repository already commits as "Porcelain Development". `stop` and `start` give a clean instance in a few seconds, which most maps assume.
+- `start --desktop` adds This computer, Ways in, Devices and Remote computers. With Local network on, Devices mints a one-time pairing link shown as text, which pairs this browser again (`open "/pair#c=…&e=…"`) or, with its origin swapped for a second desktop instance's web URL, pairs that instance as a remote computer.
+- Agent actions (publishing a review or proof, agent comments and replies), a coding CLI on the server, drag and drop, cutting or holding the network, and reading server state directly have no command; the maps that need them say so in their first gotcha with the command that would be needed.
+
 | Feature | Route | What it does |
 | --- | --- | --- |
 | [access.device-trust](access.device-trust.md) | /settings/$section (desktop) | On Devices the owner lets a paired device update Porcelain and takes it back, and creates a pairing link whose device may update Porcelain. |
