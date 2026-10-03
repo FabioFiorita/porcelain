@@ -43,12 +43,12 @@ export function historyQueryOptions(
       pageParam: Continuation | undefined;
     }) => {
       const connected = connection.request(signal);
-      const page = await historyApi(connection).list(
-        connected.signal,
-        scope.worktreeId,
-        pageParam?.after,
-        pageParam?.tip,
-      );
+      const page = await historyApi(connection).list({
+        signal: connected.signal,
+        worktreeId: scope.worktreeId,
+        after: pageParam?.after,
+        tip: pageParam?.tip,
+      });
       connected.signal.throwIfAborted();
       return page;
     },

@@ -27,13 +27,13 @@ export function commitDiffsQueryOptions(
     ],
     queryFn: async ({ signal }: Pick<QueryFunctionContext, 'signal'>) => {
       const connected = connection.request(signal);
-      const result = await changesApi(connection).commitDiffs(
-        connected.signal,
-        scope.worktreeId,
+      const result = await changesApi(connection).commitDiffs({
+        signal: connected.signal,
+        worktreeId: scope.worktreeId,
         oid,
         parent,
-        paths.map((entry) => [...entry]),
-      );
+        paths: paths.map((entry) => [...entry]),
+      });
       connected.signal.throwIfAborted();
       if (result.commitOid !== oid)
         throw new ConnectionError(

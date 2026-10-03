@@ -36,10 +36,10 @@ export function useBranchBases(
     enabled,
     queryFn: async ({ signal }) => {
       const request = connected.request(signal);
-      const bases = await changesApi(connected).branchBases(
-        request.signal,
-        scope.worktreeId,
-      );
+      const bases = await changesApi(connected).branchBases({
+        signal: request.signal,
+        worktreeId: scope.worktreeId,
+      });
       request.signal.throwIfAborted();
       return bases;
     },

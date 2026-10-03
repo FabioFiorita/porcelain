@@ -13,10 +13,10 @@ export function useRegisterProject(possibleConnection: Connection | null) {
       mutationFn: async (path: string) => {
         await client.cancelQueries({ queryKey: key });
         const request = connection.request();
-        const project = await projectsApi(connection).inventory.register(
-          request.signal,
+        const project = await projectsApi(connection).inventory.register({
+          signal: request.signal,
           path,
-        );
+        });
         request.signal.throwIfAborted();
         return project;
       },

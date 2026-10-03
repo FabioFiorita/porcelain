@@ -1,32 +1,28 @@
 import {
-  issuePairingRequestSchema,
-  issuePairingResponseSchema,
-  listAccessResponseSchema,
-  readHealthResponseSchema,
-  readRemoteAccessResponseSchema,
-  readServiceUpdateResponseSchema,
-  startServiceUpdateRequestSchema,
-  startServiceUpdateResponseSchema,
-  renameEnvironmentRequestSchema,
-  renameEnvironmentResponseSchema,
-  revokeAccessRequestSchema,
-  setDeviceTrustRequestSchema,
-  setDeviceTrustResponseSchema,
-  revokeAccessResponseSchema,
-  setRemoteAccessRequestSchema,
-  setRemoteAccessResponseSchema,
-  type SetRemoteAccessRequest,
+  readHealthEndpoint,
+  redeemPairingEndpoint,
+  clearBrowserSessionEndpoint,
 } from '@porcelain/contracts/access';
+import { readInventoryEndpoint } from '@porcelain/contracts/projects';
 import {
-  readInventoryResponseSchema,
-  type ReadInventoryResponse,
-} from '@porcelain/contracts/projects';
+  listAccessEndpoint,
+  issuePairingEndpoint,
+  setDeviceTrustEndpoint,
+  revokeAccessEndpoint,
+  readRemoteAccessEndpoint,
+  readServiceUpdateEndpoint,
+  startServiceUpdateEndpoint,
+  renameEnvironmentEndpoint,
+  setRemoteAccessEndpoint,
+} from '@porcelain/contracts/access';
+import { type SetRemoteAccessRequest } from '@porcelain/contracts/access';
+import { type ReadInventoryResponse } from '@porcelain/contracts/projects';
 import {
   REQUEST_TIMEOUT_MS,
   WEB_PLATFORM_NAME_MAX_LENGTH,
 } from '@/config/limits';
 import { ConnectionError } from '@porcelain/client/transport';
-import { RequestError, requestJson } from '@porcelain/client/transport';
+import { RequestError, requestEndpoint } from '@porcelain/client/transport';
 import { perConnection } from '@porcelain/client/transport';
 import { browserTransport } from '@/shared/api/transport';
 import type { Transport } from '@porcelain/client/transport';
@@ -41,59 +37,60 @@ type PairingPort = {
 };
 
 type SessionPort = {
-  restore(signal: AbortSignal): Promise<ReadInventoryResponse | null>;
+  restore(request: {
+    signal: AbortSignal;
+  }): Promise<ReadInventoryResponse | null>;
   disconnect(): Promise<void>;
 };
 
 function createPairingApi(transport: Transport): PairingPort {
   return {
     async redeem({ code, environmentId, signal }) {
-      let health: unknown;
+      let health;
       try {
-        const response = await transport('/api/health', {
+        health = await requestEndpoint(transport, readHealthEndpoint, {
           signal,
-          redirect: 'error',
-          cache: 'no-store',
         });
-        if (!response.ok) throw new Error(`Health answered ${response.status}`);
-        health = await response.json();
       } catch (error) {
+        if (
+          !(error instanceof ConnectionError) &&
+          !(error instanceof RequestError)
+        )
+          throw new ConnectionError(
+            'That address answered, but it is not a Porcelain server.',
+          );
         throw new ConnectionError(
           'Could not reach Porcelain. Check that the server is running, then open the link again.',
           { cause: error },
         );
       }
-      const parsed = readHealthResponseSchema.safeParse(health);
-      if (!parsed.success)
-        throw new ConnectionError(
-          'That address answered, but it is not a Porcelain server.',
-        );
-      if (parsed.data.environmentId !== environmentId)
+      if (health.environmentId !== environmentId)
         throw new ConnectionError(
           'This link was made for a different Porcelain installation.',
         );
-      const response = await transport('/api/pair', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ code, platform: platformName() }),
-        signal,
-        redirect: 'error',
-        cache: 'no-store',
-      });
-      if (!response.ok)
-        throw new ConnectionError(
-          'This pairing link is not usable. Ask for a new one.',
-        );
-      const inventory = await transport('/api/inventory', {
-        signal,
-        redirect: 'error',
-        cache: 'no-store',
-      });
-      if (!inventory.ok)
-        throw new ConnectionError(
-          'Pairing succeeded but the workspace could not be loaded. Reload the page.',
-        );
-      return readInventoryResponseSchema.parse(await inventory.json());
+      try {
+        await requestEndpoint(transport, redeemPairingEndpoint, {
+          body: { code, platform: platformName() },
+          signal,
+        });
+      } catch (error) {
+        if (error instanceof RequestError)
+          throw new ConnectionError(
+            'This pairing link is not usable. Ask for a new one.',
+          );
+        throw error;
+      }
+      try {
+        return await requestEndpoint(transport, readInventoryEndpoint, {
+          signal,
+        });
+      } catch (error) {
+        if (error instanceof RequestError)
+          throw new ConnectionError(
+            'Pairing succeeded but the workspace could not be loaded. Reload the page.',
+          );
+        throw error;
+      }
     },
   };
 }
@@ -103,135 +100,110 @@ function createSessionApi(
   connectedTransport: Transport = restoringTransport,
 ): SessionPort {
   return {
-    async restore(signal) {
-      const response = await restoringTransport('/api/inventory', {
-        signal,
-        redirect: 'error',
-        cache: 'no-store',
-      });
-      if (response.status === 401) return null;
-      if (!response.ok)
-        throw new ConnectionError(
-          'Could not reach Porcelain to restore this browser session.',
+    async restore({ signal }) {
+      try {
+        return await requestEndpoint(
+          restoringTransport,
+          readInventoryEndpoint,
+          { signal },
         );
-      return readInventoryResponseSchema.parse(await response.json());
+      } catch (error) {
+        if (error instanceof RequestError && error.status === 401) return null;
+        if (error instanceof RequestError)
+          throw new ConnectionError(
+            'Could not reach Porcelain to restore this browser session.',
+          );
+        throw error;
+      }
     },
     async disconnect() {
-      const response = await connectedTransport('/api/session', {
-        method: 'DELETE',
-        redirect: 'error',
-        cache: 'no-store',
+      await requestEndpoint(connectedTransport, clearBrowserSessionEndpoint, {
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       });
-      if (!response.ok) throw new Error('Could not end the browser session');
     },
   };
 }
 
 function createShareApi(transport: Transport) {
-  const json = { 'content-type': 'application/json' };
   return {
-    list: (signal: AbortSignal) =>
-      requestJson(transport, '/api/access', listAccessResponseSchema, {
-        signal,
-      }),
-    issue: (
-      signal: AbortSignal,
-      label: string,
-      addresses: string[],
-      trusted: boolean,
-    ) =>
-      requestJson(transport, '/api/pairings', issuePairingResponseSchema, {
-        method: 'POST',
-        headers: json,
-        body: JSON.stringify(
-          issuePairingRequestSchema.parse({
-            labels: [label],
-            addresses,
-            ...(trusted ? { trusted } : {}),
-          }),
-        ),
-        signal,
-      }),
-    trust: (signal: AbortSignal, id: string, trusted: boolean) =>
-      requestJson(
-        transport,
-        '/api/access/trust',
-        setDeviceTrustResponseSchema,
-        {
-          method: 'POST',
-          headers: json,
-          body: JSON.stringify(
-            setDeviceTrustRequestSchema.parse({ id, trusted }),
-          ),
-          signal,
+    list: ({ signal }: { signal: AbortSignal }) =>
+      requestEndpoint(transport, listAccessEndpoint, { signal }),
+    issue: ({
+      signal,
+      label,
+      addresses,
+      trusted,
+    }: {
+      signal: AbortSignal;
+      label: string;
+      addresses: string[];
+      trusted: boolean;
+    }) =>
+      requestEndpoint(transport, issuePairingEndpoint, {
+        body: {
+          labels: [label],
+          addresses,
+          ...(trusted ? { trusted } : {}),
         },
-      ),
-    revoke: (signal: AbortSignal, id: string) =>
-      requestJson(transport, '/api/access/revoke', revokeAccessResponseSchema, {
-        method: 'POST',
-        headers: json,
-        body: JSON.stringify(revokeAccessRequestSchema.parse({ id })),
         signal,
       }),
-    remote: async (signal: AbortSignal) => {
+    trust: ({
+      signal,
+      id,
+      trusted,
+    }: {
+      signal: AbortSignal;
+      id: string;
+      trusted: boolean;
+    }) =>
+      requestEndpoint(transport, setDeviceTrustEndpoint, {
+        body: { id, trusted },
+        signal,
+      }),
+    revoke: ({ signal, id }: { signal: AbortSignal; id: string }) =>
+      requestEndpoint(transport, revokeAccessEndpoint, {
+        body: { id },
+        signal,
+      }),
+    remote: async ({ signal }: { signal: AbortSignal }) => {
       try {
-        return await requestJson(
-          transport,
-          '/api/remote-access',
-          readRemoteAccessResponseSchema,
-          { signal },
-        );
+        return await requestEndpoint(transport, readRemoteAccessEndpoint, {
+          signal,
+        });
       } catch (error) {
         if (error instanceof RequestError && error.status === 403) return null;
         throw error;
       }
     },
-    serviceUpdate: (signal: AbortSignal) =>
-      requestJson(
-        transport,
-        '/api/service/update',
-        readServiceUpdateResponseSchema,
-        { signal },
-      ),
-    startServiceUpdate: (signal: AbortSignal, version: string) =>
-      requestJson(
-        transport,
-        '/api/service/update',
-        startServiceUpdateResponseSchema,
-        {
-          method: 'POST',
-          headers: json,
-          body: JSON.stringify(
-            startServiceUpdateRequestSchema.parse({ version }),
-          ),
-          signal,
-        },
-      ),
-    rename: (signal: AbortSignal, name: string | null) =>
-      requestJson(
-        transport,
-        '/api/environment/name',
-        renameEnvironmentResponseSchema,
-        {
-          method: 'PUT',
-          headers: json,
-          body: JSON.stringify(renameEnvironmentRequestSchema.parse({ name })),
-          signal,
-        },
-      ),
-    setRemote: (signal: AbortSignal, change: SetRemoteAccessRequest) =>
-      requestJson(
-        transport,
-        '/api/remote-access',
-        setRemoteAccessResponseSchema,
-        {
-          method: 'PATCH',
-          headers: json,
-          body: JSON.stringify(setRemoteAccessRequestSchema.parse(change)),
-          signal,
-        },
-      ),
+    serviceUpdate: ({ signal }: { signal: AbortSignal }) =>
+      requestEndpoint(transport, readServiceUpdateEndpoint, { signal }),
+    startServiceUpdate: ({
+      signal,
+      version,
+    }: {
+      signal: AbortSignal;
+      version: string;
+    }) =>
+      requestEndpoint(transport, startServiceUpdateEndpoint, {
+        body: { version },
+        signal,
+      }),
+    rename: ({ signal, name }: { signal: AbortSignal; name: string | null }) =>
+      requestEndpoint(transport, renameEnvironmentEndpoint, {
+        body: { name },
+        signal,
+      }),
+    setRemote: ({
+      signal,
+      change,
+    }: {
+      signal: AbortSignal;
+      change: SetRemoteAccessRequest;
+    }) =>
+      requestEndpoint(transport, setRemoteAccessEndpoint, {
+        body: change,
+        signal,
+      }),
   };
 }
 

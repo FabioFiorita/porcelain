@@ -21,11 +21,11 @@ function fileTimelineQueryOptions(
     ],
     queryFn: async ({ signal }) => {
       const connected = connection.request(signal);
-      const timeline = await historyApi(connection).fileCommits(
-        connected.signal,
-        scope.worktreeId,
+      const timeline = await historyApi(connection).fileCommits({
+        signal: connected.signal,
+        worktreeId: scope.worktreeId,
         path,
-      );
+      });
       connected.signal.throwIfAborted();
       return timeline;
     },

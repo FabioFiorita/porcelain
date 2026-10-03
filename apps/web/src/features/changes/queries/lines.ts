@@ -26,14 +26,14 @@ export function useChangeLines(
     enabled,
     queryFn: async ({ signal }) => {
       const request = connection.request(signal);
-      const result = await changesApi(connection).lines(
-        request.signal,
-        scope.worktreeId,
+      const result = await changesApi(connection).lines({
+        signal: request.signal,
+        worktreeId: scope.worktreeId,
         path,
         from,
         to,
-        'worktree',
-      );
+        at: 'worktree',
+      });
       request.signal.throwIfAborted();
       return result;
     },

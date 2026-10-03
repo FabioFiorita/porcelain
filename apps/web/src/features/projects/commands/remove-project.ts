@@ -23,10 +23,10 @@ export function useRemoveProject(
           );
       await client.cancelQueries({ queryKey: key });
       const request = connection.request();
-      const result = await projectsApi(connection).inventory.remove(
-        request.signal,
+      const result = await projectsApi(connection).inventory.remove({
+        signal: request.signal,
         projectId,
-      );
+      });
       request.signal.throwIfAborted();
       return result;
     },

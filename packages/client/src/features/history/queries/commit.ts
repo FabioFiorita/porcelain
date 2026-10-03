@@ -26,12 +26,12 @@ export function commitQueryOptions(
     refetchOnReconnect: false,
     queryFn: async ({ signal }: Pick<QueryFunctionContext, 'signal'>) => {
       const connected = connection.request(signal);
-      const result = await historyApi(connection).commit(
-        connected.signal,
-        scope.worktreeId,
+      const result = await historyApi(connection).commit({
+        signal: connected.signal,
+        worktreeId: scope.worktreeId,
         oid,
         parent,
-      );
+      });
       connected.signal.throwIfAborted();
 
       return result;

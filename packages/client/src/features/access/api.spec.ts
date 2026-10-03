@@ -8,13 +8,17 @@ const environment = {
   protocol: ENVIRONMENT_PROTOCOL,
 };
 const api = createRemoteApi({ name: () => 'iOS' });
-type Transport = Parameters<typeof api.describe>[0];
+type Transport = Parameters<typeof api.describe>[0]['transport'];
 
 async function status(
   transport: Transport,
   signal = new AbortController().signal,
 ) {
-  return api.describe(transport, signal, environment.environmentId);
+  return api.describe({
+    transport: transport,
+    signal: signal,
+    environmentId: environment.environmentId,
+  });
 }
 
 describe('environment status', () => {
@@ -29,7 +33,9 @@ describe('environment status', () => {
       return Promise.resolve(
         path === '/api/environment'
           ? Response.json(environment)
-          : new Response(null, { status: code }),
+          : code === 200
+            ? Response.json({ kind: 'owner' })
+            : new Response(null, { status: code }),
       );
     });
     expect(paths).toEqual(['/api/environment', '/api/session']);

@@ -1,74 +1,47 @@
 import {
-  dismissInterruptedGitActionResponseSchema,
-  generateCommitDraftRequestSchema,
-  generateCommitDraftResponseSchema,
-  listCommitModelsResponseSchema,
-  readGitActionReceiptResponseSchema,
-  runGitActionRejectedResponseSchema,
-  runGitActionRequestSchema,
+  listCommitModelsEndpoint,
+  generateCommitDraftEndpoint,
+  runGitActionEndpoint,
+  dismissInterruptedGitActionEndpoint,
+  readGitActionReceiptEndpoint,
 } from '@porcelain/contracts/git-actions';
-import { RequestError, requestJson } from '@porcelain/client/transport';
-import { GIT_ACTION_REJECTED_STATUSES } from '@/config/limits';
+
+import { RequestError, requestEndpoint } from '@porcelain/client/transport';
+
 import type { GitActionsPort } from './rules/git-action';
 import { perConnection } from '@porcelain/client/transport';
 import type { Transport } from '@porcelain/client/transport';
 
 function createGitActionsApi(transport: Transport): GitActionsPort {
-  const path = (worktreeId: string) =>
-    `/api/worktrees/${encodeURIComponent(worktreeId)}/git`;
-  const json = (body: unknown) => ({
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(body),
-  });
   return {
     models: ({ signal }) =>
-      requestJson(
-        transport,
-        '/api/git/commit-models',
-        listCommitModelsResponseSchema,
-        { signal },
-      ),
+      requestEndpoint(transport, listCommitModelsEndpoint, { signal }),
     draft: ({ worktreeId, signal, input }) =>
-      requestJson(
-        transport,
-        `${path(worktreeId)}/commit-draft`,
-        generateCommitDraftResponseSchema,
-        {
-          method: 'POST',
-          ...json(generateCommitDraftRequestSchema.parse(input)),
-          signal,
-        },
-      ),
+      requestEndpoint(transport, generateCommitDraftEndpoint, {
+        params: { worktreeId },
+        body: input,
+        signal,
+      }),
     run: async ({ worktreeId, signal, input }) => {
-      const result = await requestJson(
-        transport,
-        `${path(worktreeId)}/actions`,
-        runGitActionRejectedResponseSchema,
-        {
-          method: 'POST',
-          ...json(runGitActionRequestSchema.encode(input)),
-          signal,
-        },
-        GIT_ACTION_REJECTED_STATUSES,
-      );
+      const result = await requestEndpoint(transport, runGitActionEndpoint, {
+        params: { worktreeId },
+        body: input,
+        signal,
+      });
       if ('requestId' in result) return result;
       throw new RequestError(result.statusCode, result.message);
     },
     dismissInterrupted: async ({ worktreeId, requestId, signal }) => {
-      await requestJson(
-        transport,
-        `${path(worktreeId)}/interrupted/${encodeURIComponent(requestId)}`,
-        dismissInterruptedGitActionResponseSchema,
-        { method: 'DELETE', signal },
-      );
+      await requestEndpoint(transport, dismissInterruptedGitActionEndpoint, {
+        params: { worktreeId, requestId },
+        signal,
+      });
     },
     receipt: ({ worktreeId, requestId, signal }) =>
-      requestJson(
-        transport,
-        `${path(worktreeId)}/receipts/${encodeURIComponent(requestId)}`,
-        readGitActionReceiptResponseSchema,
-        { signal },
-      ),
+      requestEndpoint(transport, readGitActionReceiptEndpoint, {
+        params: { worktreeId, requestId },
+        signal,
+      }),
   };
 }
 

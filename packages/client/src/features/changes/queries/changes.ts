@@ -23,10 +23,10 @@ export function changesQueryOptions(
     refetchOnReconnect: false,
     queryFn: async ({ signal }: Pick<QueryFunctionContext, 'signal'>) => {
       const connected = connection.request(signal);
-      const result = await changesApi(connection).list(
-        connected.signal,
-        scope.worktreeId,
-      );
+      const result = await changesApi(connection).list({
+        signal: connected.signal,
+        worktreeId: scope.worktreeId,
+      });
       connected.signal.throwIfAborted();
       if (
         result.environmentId !== connection.environmentId ||

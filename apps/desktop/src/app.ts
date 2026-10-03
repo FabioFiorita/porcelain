@@ -1,3 +1,5 @@
+import { liveUpdatesEndpoint } from '@porcelain/contracts/access';
+import { endpointPath } from '@porcelain/contracts/shared';
 import {
   app,
   BrowserWindow,
@@ -153,7 +155,7 @@ async function openWindow() {
       preload: join(settings.packageRoot, 'desktop/preload.cjs'),
       additionalArguments: [
         `--porcelain-version=${app.getVersion()}`,
-        `--porcelain-live=${liveAddress(local.address)}`,
+        `--porcelain-live=${liveAddress(local.address, endpointPath(liveUpdatesEndpoint, { query: {} }))}`,
       ],
       sandbox: true,
       contextIsolation: true,
@@ -375,7 +377,14 @@ async function start() {
   });
   stopServing = serveDesktop(server, settings.development);
   session.defaultSession.webRequest.onBeforeSendHeaders(
-    { urls: [liveAddress(server.address)] },
+    {
+      urls: [
+        liveAddress(
+          server.address,
+          endpointPath(liveUpdatesEndpoint, { query: {} }),
+        ),
+      ],
+    },
     (details, callback) => {
       const requestHeaders =
         server &&
@@ -392,7 +401,10 @@ async function start() {
             mainFrame: window.webContents.mainFrame,
             url: window.webContents.getURL(),
           },
-          server,
+          {
+            ...server,
+            livePath: endpointPath(liveUpdatesEndpoint, { query: {} }),
+          },
         );
       callback(
         requestHeaders === undefined ? { cancel: true } : { requestHeaders },
