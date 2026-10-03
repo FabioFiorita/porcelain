@@ -58,15 +58,15 @@ The CLI is the only way to drive and collect evidence, so every agent and sessio
 
 ## Proof and budgets
 
-Run commands from the repository root and report every result honestly.
+Run commands from the repository root and report every result honestly. Local proof stays small and fast; CI runs the heavy suites, free, on every push.
 
-- `pnpm check` runs Turborepo over what changed: typecheck, lint, format, unit tests, the architecture check, the rule fixtures and the feature-map check. Lefthook runs it before each push; use that instead of running it by hand just before pushing. CI runs it and `pnpm test:integration` on what changed.
-- After a change, run the integration and e2e tests the affected feature-map entries name in `tests`, then verify. `pnpm test:e2e` runs on request, since it needs browsers, macOS or simulators.
-- A cross-cutting change or a release runs every suite once, `pnpm db:check` and the web build. Stop at the first failed stage and report incomplete coverage honestly.
-- A flaky test is investigated with its runner's repeat option, stopping at the first failure and keeping the evidence. Repetition is an investigation tool, not a requirement.
-- A guardrail change: a lint rule gets an invalid fixture, and a valid one where natural, in `architecture/rule-cases.mjs`; each architecture and style rule and each gate's wiring keeps one probe in `architecture/probes/`. Run `pnpm probes --check` and the probes you touched by name with `pnpm probes <name>`; the whole probe run is an explicit maintenance audit.
+- **Locally, prove only what you changed.** Run `pnpm check` (typecheck, lint, format, unit tests, the architecture check, the rule fixtures and the feature-map check, through Turborepo's cache), the test files that state the promise you changed, by file name, and the verification of the changed feature through its CLI. Never run a whole suite locally: no full `pnpm test:integration`, no full `pnpm test:e2e`, no whole probe run. Lefthook runs `pnpm check` before each push.
+- **CI runs the rest.** Every push runs `pnpm check`, the integration suites and the web e2e suite on Linux, and the desktop and mobile e2e suites on macOS, each limited to what the change affects. After pushing, read the result with `gh run list --branch <branch>` and `gh run view <id> --log-failed`. A red run is fixed before new work starts, by the change that broke it.
+- **A cross-cutting change or a release** runs every suite once in CI through the workflow's full-run dispatch, plus `pnpm db:check` and the web build. Report incomplete coverage honestly.
+- **A flaky test** is investigated locally with its runner's repeat option on that one file, stopping at the first failure and keeping the evidence.
+- **A guardrail change:** a lint rule gets an invalid fixture, and a valid one where natural, in `architecture/rule-cases.mjs`; each architecture and style rule and each gate's wiring keeps one probe in `architecture/probes/`. Run `pnpm probes --check` and only the probes you touched, by name, with `pnpm probes <name>`.
 
-Budgets: `pnpm check` under 30 seconds, an ordinary task's proof under two minutes, a full checkpoint under five minutes. A check that breaks its budget is a tooling defect: fix or remove it in its own change, never skip it silently. Porcelain is a solo developer project with no external users: keep proof proportional to the change and prioritize product progress.
+Budgets: `pnpm check` under 30 seconds and an ordinary task's local proof under two minutes. A check that breaks its budget is a tooling defect: fix or remove it in its own change, never skip it silently. Porcelain is a solo developer project with no external users: keep proof proportional to the change and prioritize product progress.
 
 `pnpm dev --desktop` runs the desktop app unpackaged from the checkout as Porcelain Dev, with its own profile beside the installed app. Never edit `shared/shell.ts` to preview desktop UI, and never build, install or launch the owner's installed app to test a change.
 
