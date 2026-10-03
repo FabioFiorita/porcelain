@@ -37,7 +37,7 @@ Settings → Connection → "Disconnect this browser" ends this browser's sessio
 
 ## Driving it
 
-`C=.agents/skills/web-verify/scripts/cli; $C start`, then `REPO=<the repository path start printed>`. Drive this feature LAST in an instance: once disconnected, the browser cannot be paired again through the CLI.
+`C=.agents/skills/web-verify/scripts/cli; $C start`, then `REPO=<the repository path start printed>`. Once disconnected, `$C pair` pairs the browser again through a fresh one-time link.
 
 ### Setup
 
@@ -56,7 +56,7 @@ None before step 1. Step 5 writes README.md on disk in the middle of the flow (a
 5. `$C click --role button --name "Edit"`
    Look for: textbox "README.md" (the file editor) and status "Saves as you pause".
    Then on disk: `printf 'Changed on disk before the browser disconnects\n' > "$REPO/README.md"`
-6. `$C fill --role textbox --name "README.md" "A draft the browser cannot save"`
+6. `$C fill --role textbox --name "README.md" "A draft the browser cannot save"`, then `$C wait --text "Not saving: changed on disk"`
    Look for (within about 3 s, the autosave wait): status text "Not saving: changed on disk" and an alert "The file changed on disk since you opened it. Reload it before saving. Your draft is kept here." with buttons "Copy draft" and "Reload".
 7. `$C click --role button --name "Toggle Sidebar"`, then `$C click --role button --name "Settings"`
    Look for: main "Settings", Page URL `/settings/appearance`, Page Title "Settings".
@@ -75,22 +75,24 @@ None before step 1. Step 5 writes README.md on disk in the middle of the flow (a
     Look for: "Not saving: changed on disk" is gone; the editor closes (textbox "README.md" gone), the document shows the disk text "Changed on disk before the browser disconnects" and its button reads "Edit" again.
 12. `$C click --role button --name "Toggle Sidebar"`, `$C click --role button --name "Settings"`, `$C click --role button --name "Connection"`
     Look for: button "Disconnect this browser".
-13. `$C click --role button --name "Disconnect this browser"`
+13. `$C click --role button --name "Disconnect this browser"`, then `$C wait --text "This browser is not paired"`
     Look for: heading "This browser is not paired", the text `porcelain pair "This browser" --address http://127.0.0.1:<port>`, Page URL `/pair`.
 14. `$C open /`
     Look for: redirected to Page URL `/pair` with heading "This browser is not paired" again (the session is really gone, not just the page state).
     `$C network` lists only the requests since the last page load: run right after step 13 it shows `DELETE /api/session` answered 204; run after step 14 it shows `GET /api/inventory` answered 401.
+15. `$C server devices`
+    Look for: "Verification browser" still listed: the device stays paired, only this browser's session ended.
 
 ## What proves it works
 
 - Refusal: the alert "Save or discard unsaved file drafts before disconnecting.", README.md on disk still holding the outside change, one refused file write (409) and no `DELETE /api/session` in `$C network`.
 - Disconnect: heading "This browser is not paired" after the click, and still after `$C open /` (inventory now answers 401).
-- The device staying paired needs a server read the CLI lacks: `cli server devices` should list "Verification browser".
+- The device staying paired: `$C server devices` still lists "Verification browser" after step 14.
 - `apps/web/spec/e2e/access-disconnect.e2e.ts`: (1) the refusal alert shows, the server saw exactly one file write before and after the click, and README.md on disk keeps its outside change; (2) after Back, Resume edit, Reload and Disconnect, the not-paired heading shows and `server.devices()` still contains the browser's label.
 
 ## Gotchas
 
-- Disconnecting cannot be undone through the CLI: pairing again needs a fresh one-time link (CLI gap: `cli pair`). Drive this feature last, or `$C stop` and `$C start` afterwards.
+- To go on driving after step 15, `$C pair` and `$C wait --role region --name "Review content"`; the server then lists a second "Verification browser" device, since each pairing link pairs a new one.
 - The disk write must come after `Edit` has opened the editor and before `fill`; written earlier, the editor opens on the new text and the draft saves fine.
 - Navigate to Settings in-app (sidebar or `Alt+Shift+S`), never with `$C open /settings/connection` in case 1: a full page load discards the in-memory draft, so nothing blocks the disconnect.
 - `Alt+Shift+S` is ignored while focus is in the file editor; use the sidebar's `Settings` button.
