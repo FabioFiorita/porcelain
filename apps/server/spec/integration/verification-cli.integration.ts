@@ -489,21 +489,32 @@ test(
       cli(repositoryRoot, WEB_CLI, ...args, '--instance', instance.id);
     await web('open', '/');
 
+    const settled = await web('press', 'Escape');
+
     const clicked = await web('click', '--role', 'button', '--name', 'Commit');
     const pressed = await web('press', 'Escape');
     const network = await web('network', '--static');
+    const [, snapshotPath] =
+      /\[Snapshot\]\(([^)]+)\)/.exec(clicked.stdout) ?? [];
+    const clickedTree =
+      snapshotPath === undefined
+        ? clicked.stdout
+        : await readFile(join(instance.evidence, snapshotPath), 'utf8');
     await web('stop');
     const evidence = await evidenceOf(instance.evidence);
 
+    expect(settled.code).toBe(0);
     expect(clicked.code).toBe(0);
-    expect(clicked.stdout).toContain('dialog "Commit changes"');
-    expect(clicked.stdout).toContain('textbox "Message"');
+    expect(clickedTree).toContain('heading "Commit changes"');
+    expect(clickedTree).toContain('textbox "Message"');
+    if (snapshotPath !== undefined)
+      expect(clicked.stdout).not.toContain('textbox "Message"');
     expect(pressed.code).toBe(0);
     expect(pressed.stdout).toContain('button "Commit"');
     expect(pressed.stdout).not.toContain('dialog "Commit changes"');
     expect(network.code).toBe(0);
     expect(network.stdout).toContain('/@vite/client');
-    expect(evidence.text).toContain('dialog "Commit changes"');
+    expect(evidence.text).toContain('heading "Commit changes"');
   },
   WEB_CASE_MS,
 );

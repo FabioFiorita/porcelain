@@ -1,30 +1,25 @@
 ---
 name: maintain-verification
-description: Check maps changed since the recorded verification pass plus a small random sample, drive the selected features through their control CLIs, and correct proven drift. Drive every feature only when explicitly requested.
+description: Check changed maps plus three random unchanged maps, drive them through the verification CLIs, and correct drift. Full passes require an explicit request.
 ---
 
 # Maintain verification
 
-Run on request or from an explicitly configured schedule; this skill creates no schedule. The default pass reads and drives maps touched since `last-pass.json`'s commit, plus three randomly chosen unchanged maps. A full pass requires an explicit request. The server has no map: check its contract when a selected feature reaches it.
+Run on request or an existing schedule; do not create a schedule. Follow AGENTS.md for proof, sweeps and shipping. Scope: verification skills, `verify-core` and references to moved CLI files. Report product regressions with evidence; keep them out of this change.
 
-## Select the pass
+## Select
 
-1. Read `.agents/skills/maintain-verification/last-pass.json`. Its commit is the source snapshot checked by the last completed pass, not a claim that every feature was driven. `mode` and `maps` say what was covered. A `bootstrap` record is only an initial selection boundary; no earlier completed pass is known.
-2. Check that the commit exists and is an ancestor of HEAD. If not, stop and ask for the baseline; do not silently select everything or reset it.
-3. List maps changed since that commit, including local edits, using `git diff --name-only <commit> -- '.agents/skills/*-verify/features/*.md'`. Select every surviving map in that list, except `README.md`. A changed index requires comparing its links with the files beside it. A deleted map requires checking its former source and index entry, not driving a deleted feature.
-4. Pick three unchanged maps at random from `git ls-files '.agents/skills/*-verify/features/*.md'`, excluding indexes and the changed set. Use a random draw without replacement, and record the paths before reading them. Never include `app.installed-lock.md` unless the owner explicitly requested the installed-app check. A full pass selects all eligible maps instead and records that exclusion.
-5. Read commits since the baseline for unmapped routes, screens and flows. Name a concrete source path before reporting a missing map. Add any relevant existing map to the selection. Run `pnpm features:check` for the repository-wide indexes, selectors, tests and route coverage.
+1. Read `last-pass.json` beside this skill. `commit` is the checked source, `mode` and `maps` state coverage; `bootstrap` means no earlier completed pass is known. If the commit is missing or not an ancestor of HEAD, ask for a baseline.
+2. Select changed maps with `git diff --name-only <commit> -- '.agents/skills/*-verify/features/*.md'`. Check changed indexes and deletions against their files and source.
+3. Add three random unchanged maps without replacement from `git ls-files '.agents/skills/*-verify/features/*.md'`; exclude indexes and record the draw. Only an explicit full-pass request selects every map. Exclude `app.installed-lock.md` unless the owner requested that check.
+4. Read commits since the baseline for unmapped flows; add relevant maps. Run `pnpm features:check`.
 
-## Read, drive and correct
+## Drive
 
-Read each selected map against its source and the code it reaches. Drive its **Driving it** steps through the surface's verification skill, compare the recorded evidence with each promised end state, and stop every instance you started. Share one instance per surface where the map's setup allows it. After a failed drive, run `doctor`; restart an unhealthy instance before continuing.
+Read selected maps against source, then drive their steps through each surface's skill and compare the evidence. Share instances where setup permits; run `doctor` after failures and stop your instances. Correct map/CLI drift and drive it again.
 
-Map drift gets a corrected map. Behaviour the CLI cannot drive gets a CLI correction, its usage text and another drive. A product regression gets an evidence-backed report for the owner; keep it out of this maintenance commit. Sweep sibling skills, apps, importers, old paths, indexes and repository counters for copies of every correction. Run `pnpm check`, changed test files by name and affected probes by name; full suites belong to CI.
+## Record
 
-Scope: the four verification skill folders, `verify-core`, this skill and the necessary references to moved CLI files. Broader product changes need their own task. Commit only changed paths, at most one correction commit, and push the branch.
+After every selected map succeeds, update `last-pass.json`: checked source commit (before the checkpoint commit), UTC date, mode (`incremental` or `full`) and exact driven paths. Commit the checkpoint even for a clean pass.
 
-## Record and report
-
-After all selected maps have been read and driven successfully, update `last-pass.json` with the full hash of the source commit just checked, UTC date, `mode: "incremental"` or `"full"`, and the exact map paths driven. Commit the checkpoint with the corrections; if corrections need a new source commit first, a separate checkpoint commit is allowed. A clean pass still commits its checkpoint. The checkpoint commit itself is not the source baseline, avoiding a self-referential hash.
-
-If any selected feature cannot be reached, record the prerequisite, attempted step and evidence in the report, leave the checkpoint unchanged and report **blocked**. Never advance past work left unverified. Otherwise report **clean** or **changed**, the baseline and new source commit, selected/read/driven counts per surface, random sample, corrections, regressions and evidence folders. A partial pass never claims full feature coverage.
+Report **clean**, **changed** or **blocked**, coverage per surface, the random sample, corrections/regressions and evidence folders. If any selected feature is unreachable, name the prerequisite and attempted step, and leave the checkpoint unchanged. Partial coverage never claims a full pass.

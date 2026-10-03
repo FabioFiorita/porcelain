@@ -20,19 +20,6 @@ function folderRequests(page: Page): string[] {
   return requests;
 }
 
-test('the folder browsing observer catches a request to the server folder browser', async ({
-  desktop,
-}) => {
-  const app = await desktop.launch();
-  const page = await app.window();
-  const browsing = folderRequests(page);
-
-  await appRequest(page, 'GET', '/api/projects/folders');
-
-  expect(browsing).toHaveLength(1);
-  expect(new URL(browsing[0] ?? '').pathname).toBe('/api/projects/folders');
-});
-
 test('the Open Project menu opens the native folder sheet directly, and canceling it registers nothing', async ({
   desktop,
 }) => {

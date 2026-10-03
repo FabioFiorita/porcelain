@@ -241,6 +241,11 @@ function snapshot(browser: Browser): string {
   );
 }
 
+function withSnapshot(browser: Browser, output: string): string {
+  if (/^### Snapshot$/m.test(output)) return output;
+  return `${output}\n${snapshot(browser)}`;
+}
+
 async function run(
   browser: Browser,
   name: string | undefined,
@@ -267,7 +272,7 @@ async function run(
       locator,
       ...(values.button === undefined ? [] : [values.button]),
     ]);
-    return recorded(browser, 'click', args, `${output}\n${snapshot(browser)}`);
+    return recorded(browser, 'click', args, withSnapshot(browser, output));
   }
   if (name === 'fill') {
     const locator = target(values);
@@ -308,7 +313,7 @@ async function run(
   }
   if (name === 'press') {
     const output = cli(['press', rest[0] ?? 'Enter']);
-    return recorded(browser, 'press', args, `${output}\n${snapshot(browser)}`);
+    return recorded(browser, 'press', args, withSnapshot(browser, output));
   }
   if ((name === 'network' && rest[0] !== undefined) || name === 'live')
     return recorded(
