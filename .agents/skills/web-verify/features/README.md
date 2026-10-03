@@ -6,14 +6,17 @@ What every map assumes about the CLI, proven in the live pass:
 
 - `start` gives a phone-width browser: the project navigator sits behind `Toggle Sidebar` and the review sidebar (Changes, Files, History) behind `Review`; opening a document closes that sheet.
 - `open` prints the URL and title of the first load, before the app redirects (`/` and "Porcelain"); the next command prints the settled ones. `press` prints the page only when it changed.
-- Right after `open` the diffs load after the toolbar; when a click answers "does not match any elements", run `snapshot` until the element shows. A wait command would be `cli wait --role <role> --name <name>`.
-- An address must match one element. Two panes, a file and its timeline, or the toolbar and diff-header mark buttons repeat a name; the maps say which address to use instead.
+- Right after `start` or `open` the diffs load after the toolbar; `click`, `fill`, `select` and `drag` wait up to 10 s for their target, and `wait` waits for something a step expects (a disk write reaching the page, a dialog's status).
+- An address must match one element. Two panes, a file and its timeline, or the toolbar and diff-header mark buttons repeat a name; scope it with `--within-role`/`--within-name`, pick one with `--nth`, or use the address the map names.
 - `network` lists only the requests since the last page load; `[FAILED] net::ERR_ABORTED` lines are requests the page cancelled and sent again.
-- The aria snapshot shows neither the editor's text nor an iframe's content; check those with `screenshot` or the disk.
-- `fill` on the file editor inserts its text at the caret (the start of the file) instead of replacing the file.
+- The aria snapshot shows neither the editor's text nor an iframe's content nor a native select's choice; check those with `screenshot`, `wait --frame`, or the disk.
+- `fill` on the file editor replaces its whole text.
 - Disk setup runs in the `repository` folder `start` printed; the sample repository already commits as "Porcelain Development". `stop` and `start` give a clean instance in a few seconds, which most maps assume.
-- `start --desktop` adds This computer, Ways in, Devices and Remote computers. With Local network on, Devices mints a one-time pairing link shown as text, which pairs this browser again (`open "/pair#c=…&e=…"`) or, with its origin swapped for a second desktop instance's web URL, pairs that instance as a remote computer.
-- Agent actions (publishing a review or proof, agent comments and replies), a coding CLI on the server, drag and drop, cutting or holding the network, and reading server state directly have no command; the maps that need them say so in their first gotcha with the command that would be needed.
+- `start --desktop` adds This computer, Ways in, Devices and Remote computers. A remote computer is the second disposable server `remote start` runs, added from the link `remote pairing-link` prints.
+- `start --unpaired` begins on the not-paired page and `pair` pairs through a fresh link; `start --coding-tool` lets commits be drafted.
+- Agent actions (`agent publish-review`, `publish-proof`, `comment`, `reply`) go through the server's MCP route as an agent's would; `server …` prints what the server holds. A review publishes once per instance's worktree.
+- `network hold`/`fail` and `live drop` act from the browser's side, as the e2e fixtures do; release, restore or `stop` before handing the instance on.
+- The disposable servers sign a summary link for 2 seconds from the review read: a summary frame mounted later stays blank until `open` reads the review again.
 
 | Feature | Route | What it does |
 | --- | --- | --- |
