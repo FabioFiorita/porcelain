@@ -29,6 +29,7 @@ export class LiveConnections implements LiveConnector {
         connection.worktrees = new Map(
           targets.worktrees.map((entry) => [entry.worktreeId, entry.projectId]),
         );
+        channel.send({ type: 'subscribed' });
       },
       answered: () => {
         connection.answered = true;
