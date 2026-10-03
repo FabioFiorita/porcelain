@@ -9,7 +9,7 @@ export default {
     {
       kind: 'prepend',
       path: 'apps/mobile/src/shell/phone-tabs.tsx',
-      content: "import '../app/files';\n",
+      content: "import '../app/(files)/files';\n",
     },
   ],
 } satisfies Probe;

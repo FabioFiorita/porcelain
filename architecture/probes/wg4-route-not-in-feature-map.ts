@@ -2,16 +2,15 @@ import type { Probe } from '../probe.ts';
 
 export default {
   decision: 'WG4',
-  plants:
-    'the only feature map file for the worktree page names the root page instead, so no map names the worktree route',
+  plants: 'a new web page has no feature map naming its route',
   gate: 'features',
-  rule: 'apps/web/src/routes/_paired/$projectId/$worktreeId.tsx: it renders the page at /$projectId/$worktreeId, which no web map file names as its route',
+  rule: 'apps/web/src/routes/probe.tsx: it renders the page at /probe, which no web map file names as its route',
   edits: [
     {
-      kind: 'replace',
-      path: '.agents/skills/web-verify/features/access.restore-outage.md',
-      old: 'route: /$projectId/$worktreeId\n',
-      new: 'route: /\n',
+      kind: 'create',
+      path: 'apps/web/src/routes/probe.tsx',
+      content:
+        "import { createFileRoute } from '@tanstack/react-router';\nexport const Route = createFileRoute('/probe')({ component: ProbePage });\nfunction ProbePage() { return <main>Probe page</main>; }\n",
     },
   ],
 } satisfies Probe;

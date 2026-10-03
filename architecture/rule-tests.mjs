@@ -84,6 +84,8 @@ for (const path of [
   'architecture/mobile-rules.mjs',
   'architecture/hollow-tests.mjs',
   'architecture/react-compiler.ts',
+  'architecture/shadcn-pins.ts',
+  'architecture/ci-policy.ts',
   'scripts/style.ts',
 ]) {
   const source = readFileSync(new URL(path, root), 'utf8');
