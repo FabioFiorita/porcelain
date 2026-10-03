@@ -36,3 +36,4 @@ export {
   type FindWorktreeByPathRequest,
   type FindWorktreeByPathResponse,
 } from './worktree-path.ts';
+export * from './endpoints.ts';

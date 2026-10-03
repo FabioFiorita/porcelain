@@ -22,3 +22,4 @@ export {
   type ReadTextFileQuery,
   type ReadTextFileResponse,
 } from './files.ts';
+export * from './endpoints.ts';

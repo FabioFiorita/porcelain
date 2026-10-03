@@ -17,3 +17,10 @@ export const apiErrorSchema = z.object({
 
 export type ApiErrorCode = z.output<typeof apiErrorCodeSchema>;
 export type ApiError = z.output<typeof apiErrorSchema>;
+
+export const API_ERROR_STATUS: Readonly<Record<ApiErrorCode, number>> = {
+  content_changed: 409,
+  file_too_large: 422,
+  unsupported_text: 422,
+  worktree_changed: 409,
+};

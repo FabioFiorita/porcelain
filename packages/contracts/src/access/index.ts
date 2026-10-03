@@ -66,3 +66,4 @@ export {
   type SetRemoteAccessResponse,
 } from './remote-access.ts';
 export { pairingLink } from './pairing-link.ts';
+export * from './endpoints.ts';
