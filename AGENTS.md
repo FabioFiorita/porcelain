@@ -83,5 +83,4 @@ Budgets: `pnpm check` under 30 seconds and an ordinary task's local proof under 
 - When you ask the owner a question, wait for the answer before changing anything it decides.
 - Work in the area the owner gave you; ask before changing code outside it.
 - Write no prose documents: the workflow lives in skills, the rules in the tooling, the example in the code.
-- This repository is public. Test data, examples and docs never carry personal details: real machine names, network addresses, home paths, credentials, or other projects and workplaces. Use placeholder values: documentation addresses such as `192.0.2.10`, `example.com` hosts and generic names such as `linux-desktop`. The project's own identity (package name, bundle ids, license, commit authorship) is not personal data.
 - Before using a library, check its current documentation for a built-in pattern and prefer it over a helper.
