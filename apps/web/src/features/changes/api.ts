@@ -1,4 +1,1 @@
-export {
-  changesApi,
-  isWorktreeChangedError,
-} from '@porcelain/client/changes/api';
+export { changesApi } from '@porcelain/client/changes/api';

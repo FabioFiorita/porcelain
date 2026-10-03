@@ -21,17 +21,17 @@ export async function pairEnvironment(
       'Paste the whole link porcelain pair printed, starting with http.',
     );
   const api = createRemoteApi(platform);
-  const { credential, deviceId } = await api.pair(
-    remoteTransport(link.address, undefined, platform.send),
-    link,
-    signal,
-  );
+  const { credential, deviceId } = await api.pair({
+    transport: remoteTransport(link.address, undefined, platform.send),
+    link: link,
+    signal: signal,
+  });
   signal.throwIfAborted();
-  const answer = await api.describe(
-    remoteTransport(link.address, credential, platform.send),
-    signal,
-    link.environmentId,
-  );
+  const answer = await api.describe({
+    transport: remoteTransport(link.address, credential, platform.send),
+    signal: signal,
+    environmentId: link.environmentId,
+  });
   const status = remoteStatus(link, answer);
   if (status.kind !== 'online')
     throw new ConnectionError(

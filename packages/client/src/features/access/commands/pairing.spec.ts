@@ -44,7 +44,9 @@ function fixture(
                   createdAt: '2026-10-02T00:00:00Z',
                 },
               }
-            : { environmentId, name: 'Computer', version: null, protocol },
+            : url.pathname === '/api/session'
+              ? { kind: 'owner' }
+              : { environmentId, name: 'Computer', version: null, protocol },
         ),
       );
     },

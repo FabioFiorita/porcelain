@@ -4,7 +4,9 @@ import {
   type WorktreeConnection,
   type WorktreeScope,
 } from '../../../shared/api/connection.ts';
-import { filesApi, unreadableFileReason } from '../api.ts';
+import { filesApi } from '../api.ts';
+import { readTextFileEndpoint } from '@porcelain/contracts/files';
+import { isEndpointError } from '../../../shared/api/request.ts';
 
 export function textQueryOptions(
   scope: WorktreeScope,
@@ -24,11 +26,11 @@ export function textQueryOptions(
     queryFn: async ({ signal }: Pick<QueryFunctionContext, 'signal'>) => {
       const connected = connection.request(signal);
       try {
-        const result = await filesApi(connection).text(
-          connected.signal,
-          scope.worktreeId,
+        const result = await filesApi(connection).text({
+          signal: connected.signal,
+          worktreeId: scope.worktreeId,
           path,
-        );
+        });
         connected.signal.throwIfAborted();
         if (result.worktreeId !== scope.worktreeId)
           throw new ConnectionError(
@@ -37,7 +39,15 @@ export function textQueryOptions(
         return result;
       } catch (error) {
         connected.signal.throwIfAborted();
-        const reason = unreadableFileReason(error);
+        const reason = isEndpointError(
+          error,
+          readTextFileEndpoint,
+          'unsupported_text',
+        )
+          ? 'This file is binary or uses an unsupported text encoding.'
+          : isEndpointError(error, readTextFileEndpoint, 'file_too_large')
+            ? 'This file is too large to display as text.'
+            : null;
         if (reason) return { kind: 'unreadable' as const, reason };
         throw error;
       }

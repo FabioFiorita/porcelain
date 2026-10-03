@@ -1,31 +1,21 @@
+import { removeReviewedFileEndpoint } from '@porcelain/contracts/reviews';
 import type { ZodTypeProvider } from '@fastify/type-provider-zod';
-import {
-  removeReviewedFileQuerySchema,
-  removeReviewedFileResponseSchema,
-} from '@porcelain/contracts/reviews';
-import { worktreeParamsSchema } from '@porcelain/contracts/shared';
 import type { FastifyInstance } from 'fastify';
 import type { RemoveReviewedFilesUseCase } from '../../../use-cases/reviews/remove-reviewed-files.ts';
-import { errorResponses } from '../../schemas/error-responses.ts';
 
 export function removeReviewedFile(
   server: FastifyInstance,
   options: { useCase: Pick<RemoveReviewedFilesUseCase, 'execute'> },
 ) {
   const api = server.withTypeProvider<ZodTypeProvider>();
-  api.delete(
-    '/worktrees/:worktreeId/reviewed',
-    {
-      schema: {
-        params: worktreeParamsSchema,
-        querystring: removeReviewedFileQuerySchema,
-        response: { ...errorResponses, 200: removeReviewedFileResponseSchema },
-      },
-    },
-    async (request) =>
+  api.route({
+    method: removeReviewedFileEndpoint.method,
+    url: removeReviewedFileEndpoint.path,
+    schema: removeReviewedFileEndpoint.schema,
+    handler: async (request) =>
       options.useCase.execute(
         { ...request.params, ...request.query },
         { signal: request.disconnected },
       ),
-  );
+  });
 }

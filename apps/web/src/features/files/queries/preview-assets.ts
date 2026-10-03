@@ -21,11 +21,11 @@ function assetQueryOptions(
     ],
     queryFn: async ({ signal }) => {
       const connected = connection.request(signal);
-      const result = await filesApi(connection).asset(
-        connected.signal,
-        scope.worktreeId,
+      const result = await filesApi(connection).asset({
+        signal: connected.signal,
+        worktreeId: scope.worktreeId,
         path,
-      );
+      });
       connected.signal.throwIfAborted();
       return result;
     },
@@ -63,12 +63,12 @@ function htmlPreviewQueryOptions(
     queryFn: async ({ signal }) => {
       const connected = connection.request(signal);
       const result = await inlineHtmlAssets(html, path, async (paths) => {
-        const response = await filesApi(connection).previewAssets(
-          connected.signal,
-          scope.worktreeId,
-          path,
+        const response = await filesApi(connection).previewAssets({
+          signal: connected.signal,
+          worktreeId: scope.worktreeId,
+          document: path,
           paths,
-        );
+        });
         return new Map(
           response.assets.map((asset) => [
             asset.path,

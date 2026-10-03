@@ -28,11 +28,11 @@ function useSetFilePreference(
       },
       mutationFn: async (input: SetFilePreferenceRequest) => {
         const request = connection.request();
-        const response = await projectsApi(connection).filePreferences.set(
-          request.signal,
+        const response = await projectsApi(connection).filePreferences.set({
+          signal: request.signal,
           projectId,
           input,
-        );
+        });
         request.signal.throwIfAborted();
         return response;
       },

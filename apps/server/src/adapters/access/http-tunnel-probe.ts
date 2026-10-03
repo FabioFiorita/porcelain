@@ -1,11 +1,7 @@
 import type { TunnelAnswer, TunnelTarget } from '@porcelain/access/models';
 import type { TunnelProbe } from '@porcelain/access/ports';
-import { z } from 'zod';
-
-const healthSchema = z.object({
-  status: z.literal('ok'),
-  environmentId: z.string(),
-});
+import { readHealthEndpoint } from '@porcelain/contracts/access';
+import { endpointPath } from '@porcelain/contracts/shared';
 
 export class HttpTunnelProbe implements TunnelProbe {
   private readonly timeoutMs: number;
@@ -20,21 +16,25 @@ export class HttpTunnelProbe implements TunnelProbe {
   ): Promise<TunnelAnswer> {
     let response: Response;
     try {
-      response = await fetch(new URL('/api/health', input.origin), {
-        headers: { accept: 'application/json' },
-        redirect: 'error',
-        signal: AbortSignal.any([
-          ...(signal ? [signal] : []),
-          AbortSignal.timeout(this.timeoutMs),
-        ]),
-      });
+      response = await fetch(
+        new URL(endpointPath(readHealthEndpoint), input.origin),
+        {
+          method: readHealthEndpoint.method,
+          headers: { accept: 'application/json' },
+          redirect: 'error',
+          signal: AbortSignal.any([
+            ...(signal ? [signal] : []),
+            AbortSignal.timeout(this.timeoutMs),
+          ]),
+        },
+      );
     } catch {
       signal?.throwIfAborted();
       return { kind: 'unreachable' };
     }
     if (response.status >= 500) return { kind: 'unreachable' };
     if (!response.ok) return { kind: 'foreign' };
-    const health = healthSchema.safeParse(
+    const health = readHealthEndpoint.schema.response[200].safeParse(
       await response.json().catch(() => undefined),
     );
     return health.success

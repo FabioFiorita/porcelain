@@ -1,5 +1,6 @@
 export {
   apiErrorSchema,
+  API_ERROR_STATUS,
   type ApiError,
   type ApiErrorCode,
 } from './api-error.ts';
@@ -43,3 +44,9 @@ export {
   worktreeParamsSchema,
   type WorktreeParams,
 } from './worktree-params.ts';
+export {
+  endpointPath,
+  type Endpoint,
+  type EndpointRequest,
+  type EndpointResponse,
+} from './endpoint.ts';

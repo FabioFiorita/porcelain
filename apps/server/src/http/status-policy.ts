@@ -30,7 +30,11 @@ import {
   UnrelatedBranchError,
 } from '@porcelain/changes/errors';
 import type { RunGitActionResponse } from '@porcelain/contracts/git-actions';
-import type { ApiError, ApiErrorCode } from '@porcelain/contracts/shared';
+import {
+  API_ERROR_STATUS,
+  type ApiError,
+  type ApiErrorCode,
+} from '@porcelain/contracts/shared';
 import {
   ContentChangedError,
   CrossDeviceMoveError,
@@ -128,11 +132,12 @@ type ErrorClass = abstract new (...args: never[]) => Error;
 
 type StatusRule = {
   errors: readonly ErrorClass[];
-  statusCode: number;
   message?: string;
-  code?: ApiErrorCode;
   withoutBody?: true;
-};
+} & (
+  | { code: ApiErrorCode; statusCode?: never }
+  | { statusCode: number; code?: never }
+);
 
 type StatusResponse = {
   statusCode: number;
@@ -220,11 +225,10 @@ const rules: readonly StatusRule[] = [
   },
   {
     errors: [WorktreeChangedError],
-    statusCode: 409,
     message: 'Refresh status and retry inspection',
     code: 'worktree_changed',
   },
-  { errors: [ContentChangedError], statusCode: 409, code: 'content_changed' },
+  { errors: [ContentChangedError], code: 'content_changed' },
   {
     errors: [
       EntryExistsError,
@@ -301,8 +305,8 @@ const rules: readonly StatusRule[] = [
     ],
     statusCode: 422,
   },
-  { errors: [UnsupportedTextError], statusCode: 422, code: 'unsupported_text' },
-  { errors: [FileTooLargeError], statusCode: 422, code: 'file_too_large' },
+  { errors: [UnsupportedTextError], code: 'unsupported_text' },
+  { errors: [FileTooLargeError], code: 'file_too_large' },
   {
     errors: [DiskFullError],
     statusCode: 422,
@@ -395,14 +399,12 @@ export function toStatusResponse(error: unknown): StatusResponse {
     const rule = rules.find((entry) =>
       entry.errors.some((errorClass) => error instanceof errorClass),
     );
-    if (rule?.withoutBody)
-      return { statusCode: rule.statusCode, body: undefined };
-    if (rule)
-      return response(
-        rule.statusCode,
-        rule.message ?? error.message,
-        rule.code,
-      );
+    if (rule) {
+      const statusCode =
+        rule.code === undefined ? rule.statusCode : API_ERROR_STATUS[rule.code];
+      if (rule.withoutBody) return { statusCode, body: undefined };
+      return response(statusCode, rule.message ?? error.message, rule.code);
+    }
     if ('validation' in error) return response(400, INVALID_REQUEST);
   }
   if (isRepositoryUnavailable(error))

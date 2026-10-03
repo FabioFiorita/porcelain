@@ -1,80 +1,72 @@
-import { RequestError } from '../../shared/api/request.ts';
 import {
-  listDirectoryResponseSchema,
-  listWorktreePathsResponseSchema,
-  readFileAssetResponseSchema,
-  readPreviewAssetsRequestSchema,
-  readPreviewAssetsResponseSchema,
-  readTextFileResponseSchema,
+  listDirectoryEndpoint,
+  listWorktreePathsEndpoint,
+  readFileAssetEndpoint,
+  readPreviewAssetsEndpoint,
+  readTextFileEndpoint,
 } from '@porcelain/contracts/files';
-import { requestJson } from '../../shared/api/request.ts';
+
+import type { EndpointRequest } from '@porcelain/contracts/shared';
+import {
+  requestEndpoint,
+  type EndpointArguments,
+} from '../../shared/api/request.ts';
 import { perConnection } from '../../shared/api/per-connection.ts';
 import { type Transport } from '../../shared/api/transport.ts';
 
-const worktreePath = (worktreeId: string) =>
-  `/api/worktrees/${encodeURIComponent(worktreeId)}`;
-const pathQuery = (path: string) =>
-  `?${new URLSearchParams({ path }).toString()}`;
-
 function createFilesApi(transport: Transport) {
   return {
-    directory: (signal: AbortSignal, worktreeId: string, path: string) =>
-      requestJson(
-        transport,
-        `${worktreePath(worktreeId)}/directory${pathQuery(path)}`,
-        listDirectoryResponseSchema,
-        { signal },
-      ),
-    paths: (signal: AbortSignal, worktreeId: string) =>
-      requestJson(
-        transport,
-        `${worktreePath(worktreeId)}/paths`,
-        listWorktreePathsResponseSchema,
-        { signal },
-      ),
-    asset: (signal: AbortSignal, worktreeId: string, path: string) =>
-      requestJson(
-        transport,
-        `${worktreePath(worktreeId)}/asset${pathQuery(path)}`,
-        readFileAssetResponseSchema,
-        { signal },
-      ),
-    previewAssets: (
-      signal: AbortSignal,
-      worktreeId: string,
-      document: string,
-      paths: string[],
-    ) =>
-      requestJson(
-        transport,
-        `${worktreePath(worktreeId)}/preview-assets`,
-        readPreviewAssetsResponseSchema,
-        {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify(
-            readPreviewAssetsRequestSchema.parse({ document, paths }),
-          ),
-          signal,
-        },
-      ),
-    text: (signal: AbortSignal, worktreeId: string, path: string) =>
-      requestJson(
-        transport,
-        `${worktreePath(worktreeId)}/text${pathQuery(path)}`,
-        readTextFileResponseSchema,
-        { signal },
-      ),
+    directory: ({
+      signal,
+      worktreeId,
+      path,
+    }: EndpointArguments<typeof listDirectoryEndpoint>) =>
+      requestEndpoint(transport, listDirectoryEndpoint, {
+        params: { worktreeId },
+        query: { path },
+        signal,
+      }),
+    paths: ({
+      signal,
+      worktreeId,
+    }: EndpointArguments<typeof listWorktreePathsEndpoint>) =>
+      requestEndpoint(transport, listWorktreePathsEndpoint, {
+        params: { worktreeId },
+        signal,
+      }),
+    asset: ({
+      signal,
+      worktreeId,
+      path,
+    }: EndpointArguments<typeof readFileAssetEndpoint>) =>
+      requestEndpoint(transport, readFileAssetEndpoint, {
+        params: { worktreeId },
+        query: { path },
+        signal,
+      }),
+    previewAssets: ({
+      signal,
+      worktreeId,
+      document,
+      paths,
+    }: EndpointArguments<typeof readPreviewAssetsEndpoint> &
+      EndpointRequest<typeof readPreviewAssetsEndpoint>['body']) =>
+      requestEndpoint(transport, readPreviewAssetsEndpoint, {
+        params: { worktreeId },
+        body: { document, paths },
+        signal,
+      }),
+    text: ({
+      signal,
+      worktreeId,
+      path,
+    }: EndpointArguments<typeof readTextFileEndpoint>) =>
+      requestEndpoint(transport, readTextFileEndpoint, {
+        params: { worktreeId },
+        query: { path },
+        signal,
+      }),
   };
 }
 
 export const filesApi = perConnection(createFilesApi);
-
-export function unreadableFileReason(error: unknown) {
-  if (!(error instanceof RequestError) || error.status !== 422) return null;
-  if (error.code === 'unsupported_text')
-    return 'This file is binary or uses an unsupported text encoding.';
-  if (error.code === 'file_too_large')
-    return 'This file is too large to display as text.';
-  return null;
-}

@@ -1,8 +1,10 @@
+import { endpointPath } from '@porcelain/contracts/shared';
 import {
-  issueLiveTicketResponseSchema,
+  issueLiveTicketEndpoint,
+  liveUpdatesEndpoint,
   liveNoticeSchema,
 } from '@porcelain/contracts/access';
-import { RequestError, requestJson } from '@porcelain/client/transport';
+import { RequestError, requestEndpoint } from '@porcelain/client/transport';
 import type { Transport } from '@porcelain/client/transport';
 import { desktopLiveAddress } from '../adapters/desktop';
 import type { LiveSubscription, LiveUpdatePort } from '@/shared/live/port';
@@ -106,14 +108,14 @@ function sameOriginAddress() {
   const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
   const desktop = desktopLiveAddress();
   return desktop === undefined
-    ? `${protocol}//${location.host}/api/live`
+    ? `${protocol}//${location.host}${endpointPath(liveUpdatesEndpoint, { query: {} })}`
     : desktop;
 }
 
 function remoteAddress(address: string, ticket: string) {
   const origin = new URL(address);
   const protocol = origin.protocol === 'https:' ? 'wss:' : 'ws:';
-  return `${protocol}//${origin.host}/api/live?${new URLSearchParams({ ticket })}`;
+  return `${protocol}//${origin.host}${endpointPath(liveUpdatesEndpoint, { query: { ticket } })}`;
 }
 
 export function sameOriginLiveUpdates(later: LiveRetryTimer): LiveUpdatePort {
@@ -129,11 +131,10 @@ export function remoteLiveUpdates(
   later: LiveRetryTimer,
 ): LiveUpdatePort {
   return createLiveUpdates(async (signal) => {
-    const { ticket } = await requestJson(
+    const { ticket } = await requestEndpoint(
       transport,
-      '/api/live/tickets',
-      issueLiveTicketResponseSchema,
-      { method: 'POST', signal },
+      issueLiveTicketEndpoint,
+      { signal },
     );
     return new WebSocket(remoteAddress(address, ticket));
   }, later);

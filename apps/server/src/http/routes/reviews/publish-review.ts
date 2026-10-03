@@ -1,13 +1,8 @@
+import { publishReviewEndpoint } from '@porcelain/contracts/reviews';
 import type { Limits } from '../../../config/limits.ts';
 import type { ZodTypeProvider } from '@fastify/type-provider-zod';
-import {
-  publishReviewRequestSchema,
-  publishReviewResponseSchema,
-} from '@porcelain/contracts/reviews';
-import { worktreeParamsSchema } from '@porcelain/contracts/shared';
 import type { FastifyInstance } from 'fastify';
 import type { PublishReviewUseCase } from '../../../use-cases/reviews/publish-review.ts';
-import { errorResponses } from '../../schemas/error-responses.ts';
 
 export function publishReview(
   server: FastifyInstance,
@@ -17,20 +12,15 @@ export function publishReview(
   },
 ) {
   const api = server.withTypeProvider<ZodTypeProvider>();
-  api.put(
-    '/worktrees/:worktreeId/review',
-    {
-      bodyLimit: options.limits.reviewBodyBytes,
-      schema: {
-        params: worktreeParamsSchema,
-        body: publishReviewRequestSchema,
-        response: { ...errorResponses, 200: publishReviewResponseSchema },
-      },
-    },
-    async (request) =>
+  api.route({
+    method: publishReviewEndpoint.method,
+    url: publishReviewEndpoint.path,
+    schema: publishReviewEndpoint.schema,
+    bodyLimit: options.limits.reviewBodyBytes,
+    handler: async (request) =>
       options.useCase.execute(
         { ...request.params, ...request.body },
         { signal: request.disconnected },
       ),
-  );
+  });
 }

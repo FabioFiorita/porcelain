@@ -635,7 +635,6 @@ function classifyServer(inside: string) {
     if (
       /^(?:scopes|hooks|routes|mcp|protocol|presenters)\//.test(http) ||
       [
-        'schemas/error-responses.ts',
         'error-handler.ts',
         'server-factory.ts',
         'static-files.ts',
@@ -1032,7 +1031,7 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
     'contract',
   ]),
   'client-transport-api': new Set(['web-shared']),
-  'client-transport-spec': new Set(['web-shared']),
+  'client-transport-spec': new Set(['web-shared', 'contract']),
   desktop: new Set([
     'desktop',
     'desktop-gateway',
@@ -1467,6 +1466,12 @@ export function violation(
   )
     return 'client-public-api-only';
   if (from.role === 'test') return testViolation(from, to);
+  if (
+    from.role === 'gateway' &&
+    from.owner === 'server' &&
+    to.role === 'contract'
+  )
+    return;
   if (
     from.role === 'fake' &&
     to.owner !== from.owner &&

@@ -11,10 +11,10 @@ export function filePreferencesQueryOptions(
     queryKey: ['review', environmentId, projectId, 'file-preferences'],
     queryFn: async ({ signal }) => {
       const connected = connection.request(signal);
-      const response = await projectsApi(connection).filePreferences.list(
-        connected.signal,
+      const response = await projectsApi(connection).filePreferences.list({
+        signal: connected.signal,
         projectId,
-      );
+      });
       connected.signal.throwIfAborted();
       return response;
     },

@@ -21,11 +21,11 @@ export function useRenameProject(
         name: string;
       }) => {
         const request = connection.request();
-        const result = await projectsApi(connection).inventory.rename(
-          request.signal,
+        const result = await projectsApi(connection).inventory.rename({
+          signal: request.signal,
           projectId,
           name,
-        );
+        });
         request.signal.throwIfAborted();
         return result;
       },

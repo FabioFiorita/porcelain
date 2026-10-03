@@ -25,11 +25,11 @@ export function changeDiffsQueryOptions(
     retry: false,
     queryFn: async ({ signal }: Pick<QueryFunctionContext, 'signal'>) => {
       const connected = connection.request(signal);
-      const result = await changesApi(connection).diffs(
-        connected.signal,
-        scope.worktreeId,
+      const result = await changesApi(connection).diffs({
+        signal: connected.signal,
+        worktreeId: scope.worktreeId,
         input,
-      );
+      });
       connected.signal.throwIfAborted();
       if (
         result.environmentId !== connection.environmentId ||

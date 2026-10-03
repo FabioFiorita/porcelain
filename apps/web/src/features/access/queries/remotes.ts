@@ -11,14 +11,14 @@ export function remoteStatusQueryOptions(remote: Remote) {
   return queryOptions({
     queryKey: ['remote-status', remote.environmentId, remote.address],
     queryFn: ({ signal }) =>
-      remoteApi.describe(
-        remoteTransport(remote.address, remote.credential, fetch),
-        AbortSignal.any([
+      remoteApi.describe({
+        transport: remoteTransport(remote.address, remote.credential, fetch),
+        signal: AbortSignal.any([
           signal,
           AbortSignal.timeout(REMOTE_STATUS_TIMEOUT_MS),
         ]),
-        remote.environmentId,
-      ),
+        environmentId: remote.environmentId,
+      }),
     refetchInterval: (query) =>
       remoteStatus(remote, query.state.data).kind === 'other-server'
         ? false

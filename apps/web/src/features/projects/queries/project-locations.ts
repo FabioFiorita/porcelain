@@ -10,10 +10,10 @@ function projectFolderQueryOptions(
   return queryOptions({
     queryKey: ['project-folder', environmentId, path ?? null],
     queryFn: ({ signal }) =>
-      projectsApi(connection).inventory.browse(
-        connection.request(signal).signal,
+      projectsApi(connection).inventory.browse({
+        signal: connection.request(signal).signal,
         path,
-      ),
+      }),
     retry: false,
   });
 }

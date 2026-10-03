@@ -21,10 +21,10 @@ export function pathsQueryOptions(
     ],
     queryFn: async ({ signal }: Pick<QueryFunctionContext, 'signal'>) => {
       const connected = connection.request(signal);
-      const result = await filesApi(connection).paths(
-        connected.signal,
-        scope.worktreeId,
-      );
+      const result = await filesApi(connection).paths({
+        signal: connected.signal,
+        worktreeId: scope.worktreeId,
+      });
       connected.signal.throwIfAborted();
       if (result.worktreeId !== scope.worktreeId)
         throw new ConnectionError(

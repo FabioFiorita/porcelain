@@ -26,11 +26,11 @@ export function branchQueryOptions(
     refetchOnReconnect: false,
     queryFn: async ({ signal }: Pick<QueryFunctionContext, 'signal'>) => {
       const connected = connection.request(signal);
-      const result = await changesApi(connection).branch(
-        connected.signal,
-        scope.worktreeId,
+      const result = await changesApi(connection).branch({
+        signal: connected.signal,
+        worktreeId: scope.worktreeId,
         base,
-      );
+      });
       connected.signal.throwIfAborted();
       if (result.worktreeId !== scope.worktreeId)
         throw new ConnectionError(
@@ -58,11 +58,11 @@ export function branchDiffsQueryOptions(
     ],
     queryFn: async ({ signal }: Pick<QueryFunctionContext, 'signal'>) => {
       const connected = connection.request(signal);
-      const result = await changesApi(connection).branchDiffs(
-        connected.signal,
-        scope.worktreeId,
+      const result = await changesApi(connection).branchDiffs({
+        signal: connected.signal,
+        worktreeId: scope.worktreeId,
         input,
-      );
+      });
       connected.signal.throwIfAborted();
 
       return result;

@@ -20,16 +20,16 @@ async function addRemote(value: string): Promise<Remote> {
   )
     throw new ConnectionError('That link is for this computer.');
   const signal = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
-  const { credential, deviceId } = await remoteApi.pair(
-    remoteTransport(link.address, undefined, fetch),
-    link,
-    signal,
-  );
-  const answer = await remoteApi.describe(
-    remoteTransport(link.address, credential, fetch),
-    signal,
-    link.environmentId,
-  );
+  const { credential, deviceId } = await remoteApi.pair({
+    transport: remoteTransport(link.address, undefined, fetch),
+    link: link,
+    signal: signal,
+  });
+  const answer = await remoteApi.describe({
+    transport: remoteTransport(link.address, credential, fetch),
+    signal: signal,
+    environmentId: link.environmentId,
+  });
   const status = remoteStatus(link, answer);
   if (status.kind !== 'online')
     throw new ConnectionError(
