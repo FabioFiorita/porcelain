@@ -51,12 +51,16 @@ export class DesktopApp {
   private readonly child: ReturnType<ElectronApplication['process']>;
   readonly profile: string;
   readonly errors: string[] = [];
+  readonly output: string[] = [];
   private readonly watched = new WeakSet<Page>();
 
   constructor(electron: ElectronApplication, profile: string) {
     this.electron = electron;
     this.child = electron.process();
     this.profile = profile;
+    this.child.stderr?.on('data', (chunk: Buffer) => {
+      this.output.push(chunk.toString());
+    });
   }
 
   get serverData(): string {
@@ -185,7 +189,7 @@ export class DesktopApp {
       timeout.addEventListener(
         'abort',
         () => {
-          const message = `The app did not quit after stopping its server (process ${child.pid}, exit ${child.exitCode}, signal ${child.signalCode})`;
+          const message = `The app did not quit after stopping its server (process ${child.pid}, exit ${child.exitCode}, signal ${child.signalCode})\n${this.output.join('')}`;
           child.kill('SIGKILL');
           reject(new Error(message));
         },
@@ -272,6 +276,10 @@ async function keepFailure(
   testInfo: TestInfo,
 ): Promise<void> {
   for (const [index, desktop] of launched.entries()) {
+    await testInfo.attach(`app-${index}-main.log`, {
+      body: desktop.output.join(''),
+      contentType: 'text/plain',
+    });
     for (const [order, page] of desktop.electron.windows().entries())
       await page
         .screenshot({
@@ -313,6 +321,11 @@ export const test = base.extend<DesktopFixtures, WorkerFixtures>({
       );
       const desktop = new DesktopApp(electron, profile);
       launched.push(desktop);
+      await electron.evaluate(() => {
+        process.on('uncaughtExceptionMonitor', (error) => {
+          process.stderr.write(`${error.stack ?? error.message}\n`);
+        });
+      });
       return desktop;
     };
     await use({ ...workspace, launch });
