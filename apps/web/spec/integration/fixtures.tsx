@@ -46,6 +46,7 @@ type WatchedFailures = Failures & { reported: () => Promise<string[]> };
 
 const observed: BrowserFailure[] = [];
 let running: WatchedFailures | undefined;
+let watching = false;
 
 function describeValue(value: unknown): string {
   if (value instanceof Error) return value.message;
@@ -55,22 +56,27 @@ function describeValue(value: unknown): string {
 const resizeObserverNotice =
   'ResizeObserver loop completed with undelivered notifications.';
 
+function observe(failure: BrowserFailure) {
+  if (watching && failure.message !== resizeObserverNotice)
+    observed.push(failure);
+}
+
 const reportError = console.error.bind(console);
 console.error = (...values: unknown[]) => {
-  const message = values.map(describeValue).join(' ');
-  if (message !== resizeObserverNotice)
-    observed.push({ kind: 'console error', message });
+  observe({
+    kind: 'console error',
+    message: values.map(describeValue).join(' '),
+  });
   reportError(...values);
 };
-window.addEventListener('error', (event) => {
-  if (event.message !== resizeObserverNotice)
-    observed.push({
-      kind: 'uncaught error',
-      message: describeValue(event.error),
-    });
-});
+window.addEventListener('error', (event) =>
+  observe({
+    kind: 'uncaught error',
+    message: event.error === null ? event.message : describeValue(event.error),
+  }),
+);
 window.addEventListener('unhandledrejection', (event) =>
-  observed.push({
+  observe({
     kind: 'unhandled rejection',
     message: describeValue(event.reason),
   }),
@@ -174,6 +180,7 @@ async function mount(view: (connection: Connection) => ReactNode) {
   const root = createRoot(element);
   root.render(<Providers client={client}>{view(connection)}</Providers>);
   return () => {
+    watching = false;
     root.unmount();
     element.remove();
     useAccessStore.getState().clear();
@@ -200,6 +207,7 @@ export const test = base
     { auto: true },
     ({ task, world: _world }, { onCleanup }) => {
       observed.length = 0;
+      watching = true;
       const failures = createFailures();
       const reported = async () =>
         failures.unexpected([...observed], await host.porcelainHits('this'));
