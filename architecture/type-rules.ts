@@ -2,6 +2,7 @@ import { join } from 'node:path';
 import {
   API,
   SignatureKind,
+  SymbolFlags,
   TypeFlags,
   type Checker,
   type Project,
@@ -15,6 +16,7 @@ import {
 } from 'typescript/unstable/ast';
 import {
   isArrowFunction,
+  isArrayLiteralExpression,
   isCallExpression,
   isClassDeclaration,
   isConstructorDeclaration,
@@ -50,6 +52,18 @@ const modelFile = /\/packages\/[^/]+\/src\/models\/.+\.ts$/;
 const domainShapeFile = new RegExp(
   `/packages/(?:${domainPackages.join('|')})/src/(?:models|ports)/(?!index\\.ts$).+\\.ts$`,
 );
+const storePortFile =
+  /\/(?:packages\/[^/]+|apps\/server)\/src\/ports\/[^/]+\.ts$/;
+const startupOnlyErrors = new Map([
+  [
+    'packages/storage/src/errors/invalid-data-directory-error.ts',
+    'InvalidDataDirectoryError',
+  ],
+  [
+    'packages/storage/src/errors/unsupported-database-version-error.ts',
+    'UnsupportedDatabaseVersionError',
+  ],
+]);
 
 const repositoryTables = ['reviews', 'repository'];
 const tableLanes: Readonly<
@@ -481,6 +495,118 @@ function tableFindings(
   );
 }
 
+function storeLaneFindings(root: string, file: SourceFile): TypeFinding[] {
+  return file.statements.flatMap((node) => {
+    if (
+      !(isInterfaceDeclaration(node) || isTypeAliasDeclaration(node)) ||
+      !node.name.text.endsWith('Store')
+    )
+      return [];
+    if (Object.hasOwn(tableLanes, node.name.text)) return [];
+    return [
+      {
+        rule: 'lane-per-table',
+        from: where(root, node),
+        to: `${node.name.text} has no tableLanes entry; name the lane that owns its table so its calls cannot race writes`,
+      },
+    ];
+  });
+}
+
+function inheritsError(type: Type, seen: Set<number>): boolean {
+  if (seen.has(type.id)) return false;
+  seen.add(type.id);
+  if (type.getSymbol()?.name === 'Error') return true;
+  return (type.getBaseTypes() ?? []).some((base) => inheritsError(base, seen));
+}
+
+function statusPolicyFindings(root: string, project: Project): TypeFinding[] {
+  const policy = project.program.getSourceFile(
+    join(root, 'apps/server/src/http/status-policy.ts'),
+  );
+  if (!policy)
+    throw new Error(
+      'The HTTP status policy must be loaded to check domain errors.',
+    );
+  const declarations = descendants(policy).filter(isVariableDeclaration);
+  const rules = declarations.find(
+    (node) => isIdentifier(node.name) && node.name.text === 'rules',
+  );
+  if (
+    !rules ||
+    !rules.initializer ||
+    !isArrayLiteralExpression(rules.initializer)
+  )
+    throw new Error(
+      'The HTTP status rules must be an explicit array so every domain error mapping can be checked.',
+    );
+  const { checker } = project;
+  const mapped = new Set<string>();
+  for (const node of descendants(rules.initializer)) {
+    if (!isPropertyAssignment(node) || !isIdentifier(node.name)) continue;
+    if (
+      node.name.text !== 'errors' ||
+      !isArrayLiteralExpression(node.initializer)
+    )
+      continue;
+    for (const error of node.initializer.elements) {
+      const symbol = checker.getSymbolAtLocation(error);
+      if (!symbol) continue;
+      const original =
+        symbol.flags & SymbolFlags.Alias
+          ? checker.getAliasedSymbol(symbol)
+          : symbol;
+      for (const declaration of original.declarations)
+        mapped.add(`${declaration.path}:${declaration.index}`);
+    }
+  }
+  const entries = [
+    ...[...domainPackages, 'kernel'].map(
+      (name) => `packages/${name}/src/errors/index.ts`,
+    ),
+    'packages/storage/src/index.ts',
+  ];
+  const findings: TypeFinding[] = [];
+  for (const entry of entries) {
+    const file = project.program.getSourceFile(join(root, entry));
+    if (!file)
+      throw new Error(
+        `${entry} must be loaded to check exported domain errors.`,
+      );
+    const module = checker.getSymbolAtLocation(file);
+    if (!module) continue;
+    for (const exported of checker.getExportsOfModule(module)) {
+      const original =
+        exported.flags & SymbolFlags.Alias
+          ? checker.getAliasedSymbol(exported)
+          : exported;
+      for (const reference of original.declarations) {
+        const declaration = reference.resolve(project);
+        if (
+          !declaration ||
+          !isClassDeclaration(declaration) ||
+          !declaration.name
+        )
+          continue;
+        const name = declaration.name.text;
+        const type = checker.getTypeAtLocation(declaration);
+        if (!type || !inheritsError(type, new Set())) continue;
+        const path = declaration.getSourceFile().fileName;
+        const startupOnly =
+          startupOnlyErrors.get(path.slice(root.length + 1)) === name;
+        if (startupOnly || mapped.has(`${reference.path}:${reference.index}`))
+          continue;
+        findings.push({
+          rule: 'status-policy-complete',
+          from: where(root, declaration),
+          to: `${name} is exported but has no errors entry in apps/server/src/http/status-policy.ts; map its HTTP outcome so a new domain failure cannot silently become a 500`,
+        });
+      }
+    }
+  }
+  return findings;
+}
+
 function laneFindings(
   root: string,
   project: Project,
@@ -605,6 +731,8 @@ export function typeRuleFindings(root: string): TypeFinding[] {
     for (const config of configs) {
       const project = snapshot.getProject(config);
       if (!project) throw new Error(`TypeScript did not open ${config}`);
+      if (config.endsWith('apps/server/tsconfig.json'))
+        findings.push(...statusPolicyFindings(root, project));
       for (const name of project.program.getSourceFileNames()) {
         if (!name.startsWith(root) || name.includes('/node_modules/')) continue;
         const inServer = config.endsWith('apps/server/tsconfig.json');
@@ -616,6 +744,8 @@ export function typeRuleFindings(root: string): TypeFinding[] {
           findings.push(...recordingFindings(root, project, file));
           continue;
         }
+        if (storePortFile.test(name) && !checked.has(name))
+          findings.push(...storeLaneFindings(root, file));
         if (inServer) {
           if (useCaseFile.test(name))
             findings.push(

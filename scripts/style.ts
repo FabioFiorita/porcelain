@@ -30,6 +30,10 @@ import { compilerFindings } from '../architecture/react-compiler.ts';
 import { pinProblems, uiFolder } from '../architecture/shadcn-pins.ts';
 import { manualAuditProblems } from '../architecture/ci-policy.ts';
 import {
+  duplicateScope,
+  scanDuplicates,
+} from '../architecture/duplicate-policy.ts';
+import {
   mobileGeneratedTypes,
   mobileMetroFile,
 } from '../architecture/theme-policy.ts';
@@ -1107,65 +1111,33 @@ function webSources(): string[] {
   );
 }
 
-const cloneSchema = z.object({
-  duplicates: z.array(
-    z.object({
-      lines: z.number(),
-      firstFile: z.object({ name: z.string(), start: z.number() }),
-      secondFile: z.object({ name: z.string(), start: z.number() }),
-    }),
-  ),
-});
-
 function duplicateFindings(): Finding[] {
-  const scratch = mkdtempSync(join(tmpdir(), 'porcelain-duplicates-'));
-  try {
-    const result = spawnSync(
-      join('node_modules', '.bin', 'jscpd'),
-      [
-        '--format',
-        'typescript,tsx',
-        '--min-tokens',
-        '50',
-        '--min-lines',
-        '5',
-        '--mode',
-        'mild',
-        '--ignore',
-        '**/components/ui/**,**/routeTree.gen.ts,**/*.spec.ts',
-        '--absolute',
-        '--no-colors',
-        '--reporters',
-        'json',
-        '--output',
-        scratch,
-        'apps/web/src',
-      ],
-      { encoding: 'utf8' },
-    );
-    if (result.error) throw result.error;
-    if (result.status !== 0)
-      throw new Error(`jscpd failed:\n${result.stdout}${result.stderr}`);
-    const report = cloneSchema.parse(
-      JSON.parse(readFileSync(join(scratch, 'jscpd-report.json'), 'utf8')),
-    );
-    const at = (name: string) => relative('.', name);
-    return report.duplicates.flatMap((clone) =>
-      [
-        [clone.firstFile, clone.secondFile],
-        [clone.secondFile, clone.firstFile],
-      ].map(([here, there]) => ({
-        rule: 'style/duplicate-code',
-        file: at(here?.name ?? ''),
-        line: here?.start ?? 0,
-        column: 0,
-        code: 'error style(duplicate-code)',
-        message: `${clone.lines} lines here repeat ${at(there?.name ?? '')}:${there?.start ?? 0}; a second copy is extracted into its owner (components/ui, shared/ or the feature), never pasted.`,
-      })),
-    );
-  } finally {
-    rmSync(scratch, { recursive: true, force: true });
-  }
+  const scope = duplicateScope(
+    target === 'web' ? 'web' : 'repository',
+    packageNames,
+  );
+  const report = scanDuplicates(process.cwd(), scope);
+  const total = report.statistics.total;
+  const unit =
+    scope.metric === 'duplicatedLines' ? 'duplicated lines' : 'clones';
+  process.stdout.write(
+    `Duplicate code (${scope.name}): ${total.clones} clones, ${total.duplicatedLines} duplicated lines (limit ${scope.ceiling} ${unit}; the ceiling only moves down). ${scope.why}\n`,
+  );
+  if (!report.exceeded) return [];
+  const at = (name: string) => relative('.', name);
+  return report.duplicates.flatMap((clone) =>
+    [
+      [clone.firstFile, clone.secondFile],
+      [clone.secondFile, clone.firstFile],
+    ].map(([here, there]) => ({
+      rule: 'style/duplicate-code',
+      file: at(here?.name ?? ''),
+      line: here?.start ?? 0,
+      column: 0,
+      code: 'error style(duplicate-code)',
+      message: `${clone.lines} lines here repeat ${at(there?.name ?? '')}:${there?.start ?? 0}; ${scope.name} has ${report.count} ${unit}, above its ceiling of ${scope.ceiling}, which only moves down. ${scope.why} Extract the copy into its owner to keep fixes from drifting between copies.`,
+    })),
+  );
 }
 
 async function lint(): Promise<number> {
@@ -1218,11 +1190,7 @@ async function lint(): Promise<number> {
           message: finding.message,
         }))
       : [];
-  const reported = [
-    ...linted,
-    ...compiled,
-    ...(target === 'web' ? duplicateFindings() : []),
-  ];
+  const reported = [...linted, ...compiled, ...duplicateFindings()];
   for (const finding of reported)
     process.stdout.write(
       `${finding.file}:${finding.line}:${finding.column}: ${finding.code}: ${finding.message}\n`,
