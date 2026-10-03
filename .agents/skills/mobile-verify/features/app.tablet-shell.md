@@ -15,7 +15,7 @@ api: []
 
 ## What it is
 
-On iPad the app is Expo UI's SwiftUI three-column NavigationSplitView: the sidebar “Porcelain” lists Review, Files, History and Settings; the content column holds the destination's master list (“Changes” with “No worktree selected.”, or Settings' Environments section); Expo Router renders the detail column, whose toolbar carries the workspace picker. Collapsing the sidebar keeps the master and detail; rotating keeps Settings. In portrait iPadOS shows two columns. The tablet never embeds the phone's tab navigator. The owner chose the SwiftUI split view over Router's, which cannot customize its header.
+On iPad the app is Expo UI's SwiftUI three-column NavigationSplitView: the sidebar “Porcelain” lists Review, Files, History and Settings; the content column holds the destination's master pane (“Changes” with “No worktree selected.” in themed React Native content, or Settings' native Environments section); Expo Router renders the detail column, whose toolbar carries the workspace picker. Collapsing the sidebar keeps the master and detail; rotating keeps Settings. In portrait iPadOS shows two columns. The tablet never embeds the phone's tab navigator. The owner chose the SwiftUI split view over Router's, which cannot customize its header.
 
 ## How a user reaches it
 

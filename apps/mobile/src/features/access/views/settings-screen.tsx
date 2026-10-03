@@ -69,6 +69,7 @@ export function SettingsScreen({
                 />
               ) : storage.status === 'ready' ? (
                 <Button
+                  testID="add-environment"
                   variant="text"
                   label="Add environment"
                   onPress={() => setPairing(true)}
@@ -78,7 +79,12 @@ export function SettingsScreen({
           </View>
         </View>
       </ScrollView>
-      <BottomSheet isPresented={pairing} onDismiss={() => setPairing(false)}>
+      <BottomSheet
+        isPresented={pairing}
+        onDismiss={() => setPairing(false)}
+        contentPadding={0}
+        snapPoints={['half', 'full']}
+      >
         {pairing ? <PairEnvironment onClose={() => setPairing(false)} /> : null}
       </BottomSheet>
     </>

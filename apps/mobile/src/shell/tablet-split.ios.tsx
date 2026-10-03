@@ -62,7 +62,7 @@ export function TabletSplit() {
         <NavigationSplitView.Detail>
           <Toolbar>
             <RNHostView>
-              <View style={{ flex: 1 }}>
+              <View className="flex-1 bg-background">
                 <Slot />
               </View>
             </RNHostView>
