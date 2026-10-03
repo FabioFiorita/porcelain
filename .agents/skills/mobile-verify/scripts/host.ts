@@ -25,11 +25,18 @@ export type DeviceHost = z.output<typeof hostSchema>;
 export type HostDetail = z.output<typeof hostDetail>;
 
 export function mainCheckoutHostFile(): string {
-  const commonDirectory = execFileSync(
-    'git',
-    ['rev-parse', '--path-format=absolute', '--git-common-dir'],
-    { cwd: repositoryRoot, encoding: 'utf8' },
-  ).trim();
+  let commonDirectory: string;
+  try {
+    commonDirectory = execFileSync(
+      'git',
+      ['rev-parse', '--path-format=absolute', '--git-common-dir'],
+      { cwd: repositoryRoot, encoding: 'utf8', stdio: 'pipe' },
+    ).trim();
+  } catch {
+    throw new Refusal(
+      `${repositoryRoot} is not a git checkout; the mobile CLI runs inside a git checkout of Porcelain, whose main checkout holds ${hostFileName}.`,
+    );
+  }
   return join(dirname(commonDirectory), hostFileName);
 }
 
