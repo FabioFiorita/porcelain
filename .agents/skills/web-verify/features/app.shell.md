@@ -2,10 +2,12 @@
 route: /
 selectors:
   - "This browser is not paired"
+  - "porcelain pair"
+  - "Connection"
+  - "Disconnect this browser"
 tests:
   - apps/web/spec/e2e/app-shell.e2e.ts
 api:
-  - DELETE /api/session
   - GET /api/inventory
 ---
 
@@ -13,30 +15,34 @@ api:
 
 ## What it is
 
-A browser that was never paired finds no session on the real server and sees the instructions to pair it.
+A browser with no session asks the real server for its inventory, gets 401, is sent to `/pair`, and sees the instructions to pair it instead of the workspace.
 
 ## How a user reaches it
 
-- open Porcelain in a browser that was never paired
+- Open Porcelain (`/` or any workspace or settings address) in a browser that was never paired, or whose session ended.
 
 ## Driving it
 
-Start an instance first: `.agents/skills/web-verify/scripts/cli start`.
+`C=.agents/skills/web-verify/scripts/cli; $C start`. `start` always pairs the browser, so a never-paired browser needs a CLI gap; ending the session from Settings reaches the same code path (inventory answers 401) and is what the steps use.
 
-### A browser that was never paired sees how to pair it
+### Setup
 
-```sh
-.agents/skills/web-verify/scripts/cli open /
-```
+- Preferred, missing: `cli start --unpaired` (start without opening a pairing link).
+- Available: `$C open /settings/connection`, then `$C click --role button --name "Disconnect this browser"`; look for heading "This browser is not paired".
 
-After `open`, look for: the heading “This browser is not paired” shows.
-
-Then `.agents/skills/web-verify/scripts/cli snapshot` and `.agents/skills/web-verify/scripts/cli screenshot` record the end state, and `.agents/skills/web-verify/scripts/cli network` lists the requests the page sent.
+1. `$C open /`
+   Look for: Page URL `/pair`; heading "Porcelain" (level 1); heading "This browser is not paired"; the text "Run this on the machine hosting Porcelain, then open the link it prints on this device."; code `porcelain pair "This browser" --address http://127.0.0.1:<port>` naming the web origin the CLI started; no region "Review content".
+2. `$C open /settings/appearance`
+   Look for: also redirected to `/pair` with the same heading: every paired route is guarded.
+3. `$C network`
+   Look for: `GET /api/inventory` answered 401 for each load.
 
 ## What proves it works
 
-- `apps/web/spec/e2e/app-shell.e2e.ts` (Playwright e2e): a browser that was never paired sees how to pair it.
+- The not-paired heading and the `porcelain pair` command at `/pair` after loading `/`, with inventory answering 401.
+- `apps/web/spec/e2e/app-shell.e2e.ts`: a fresh browser context opening `/` sees the heading "This browser is not paired".
 
 ## Gotchas
 
-- None known.
+- The setup disconnects the instance's browser for good: nothing else can be driven until it is paired again (CLI gap `cli pair`). Drive this last, or `$C stop` and `$C start` afterwards.
+- `/pair` shows the not-paired page even in a paired browser; only a redirect from `/` (or another paired route) proves there is no session.
