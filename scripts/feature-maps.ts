@@ -145,7 +145,16 @@ const desktop: Surface = {
   domains: ['app', 'projects', 'access'],
   pages: undefined,
   sources: ['apps/desktop/src', 'apps/web/src'],
-  calls: () => ({ calls: [], problems: [] }),
+  calls: (from) =>
+    apiCalls(
+      from,
+      ['apps/desktop/src', 'packages/client/src'],
+      [
+        /^apps\/desktop\/src\/features\/[^/]+\/api\.ts$/,
+        /^packages\/client\/src\/features\/[^/]+\/api\.ts$/,
+      ],
+      ['apps/desktop/src'],
+    ),
   flows: 'apps/desktop/spec/e2e',
 };
 

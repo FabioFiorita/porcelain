@@ -14,6 +14,7 @@ import { typeRuleFindings } from './type-rules.ts';
 import { duplicateScope, scanDuplicates } from './duplicate-policy.ts';
 import { selectorAppears } from './feature-selectors.ts';
 import { guardrailCases } from './rule-cases.mjs';
+import { apiCalls, sameRoute } from '../scripts/api-calls.ts';
 
 function writeFiles(root, files) {
   for (const [name, source] of Object.entries(files)) {
@@ -50,6 +51,31 @@ function typeFixture(files) {
       ...files,
     });
     return typeRuleFindings(root);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+}
+
+function clientRoutesFixture(entry, source) {
+  const root = mkdtempSync(join(tmpdir(), 'porcelain-client-routes-'));
+  try {
+    writeFiles(root, { ...entry.files, [entry.app]: source });
+    const report = apiCalls(
+      root,
+      ['packages/client/src'],
+      [/^packages\/client\/src\/features\/[^/]+\/api\.ts$/],
+      [dirname(entry.app)],
+    );
+    deepStrictEqual(report.problems, []);
+    for (const route of entry.mapped)
+      strictEqual(
+        report.calls.some((call) => sameRoute(route, call)),
+        true,
+        route,
+      );
+    return report.calls
+      .filter((call) => !entry.mapped.some((route) => sameRoute(route, call)))
+      .map((call) => `${call.method} ${call.path}`);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -133,7 +159,14 @@ export function runGuardrailCases(named = []) {
     'Name an existing guardrail fixture rule.',
   );
   for (const entry of cases) {
-    if (entry.rule === 'feature-selector') {
+    if (entry.rule === 'client-route-reachability') {
+      deepStrictEqual(clientRoutesFixture(entry, entry.valid), [], entry.valid);
+      deepStrictEqual(
+        clientRoutesFixture(entry, entry.invalid),
+        entry.errors,
+        entry.invalid,
+      );
+    } else if (entry.rule === 'feature-selector') {
       strictEqual(
         selectorAppears(entry.valid, entry.selector),
         true,

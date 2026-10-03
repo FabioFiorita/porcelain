@@ -4372,7 +4372,117 @@ const duplicateFixtureSource = `export function matchPaths(paths: readonly strin
   return { needle, shown, more: ranked.length > shown.length };
 }`;
 
+const clientRouteFiles = {
+  'packages/client/package.json': JSON.stringify({
+    exports: { './files': './src/features/files/index.ts' },
+  }),
+  'packages/client/src/features/files/index.ts': `
+export { textQuery as textQueryOptions } from './queries/text.ts';
+export { unusedQuery as unusedQueryOptions } from './queries/unused.ts';`,
+  'packages/client/src/features/files/queries/text.ts': `
+import { readText as read } from '../api.ts';
+export const textQuery = () => ({ queryFn: () => read() });`,
+  'packages/client/src/features/files/queries/unused.ts': `
+import { publish as write } from '../api.ts';
+export const unusedQuery = () => ({ queryFn: () => write() });`,
+  'packages/client/src/features/files/api.ts': `
+import { readTextFileEndpoint } from '@porcelain/contracts/files';
+import { publishReviewEndpoint as publishEndpoint } from '@porcelain/contracts/reviews';
+import { requestEndpoint as request } from '../../shared/api/request.ts';
+export const readText = () => request(transport, readTextFileEndpoint, {});
+export const publish = () => request(transport, publishEndpoint, {});`,
+};
+
 export const guardrailCases = [
+  ...['web', 'desktop', 'mobile'].map((app) => ({
+    rule: 'client-route-reachability',
+    app: `apps/${app}/src/app.ts`,
+    files: clientRouteFiles,
+    mapped: ['GET /api/worktrees/:worktreeId/text'],
+    valid: `
+import { textQueryOptions as options } from '@porcelain/client/files';
+export const read = () => options();`,
+    invalid: `
+import { textQueryOptions as options, unusedQueryOptions as unused } from '@porcelain/client/files';
+export const read = () => options();
+export const write = () => unused();`,
+    errors: ['PUT /api/worktrees/:worktreeId/review'],
+  })),
+  ...[
+    {
+      'packages/client/src/features/files/index.ts': `
+export * from './forward.ts';`,
+      'packages/client/src/features/files/forward.ts': `
+export * from './index.ts';
+export { default as textQueryOptions, unusedQuery as unusedQueryOptions } from './queries/text.ts';`,
+      'packages/client/src/features/files/queries/text.ts': `
+import { readText, publish } from '../api.ts';
+const textQuery = () => ({ queryFn: () => readText() });
+export default textQuery;
+export const unusedQuery = () => ({ queryFn: () => publish() });`,
+    },
+    {
+      'packages/client/src/features/files/queries/text.ts': `
+import { readText, publish } from '../api.ts';
+const read = () => readText();
+const shadow = (publish: () => void) => publish();
+export const textQuery = () => ({ queryFn: () => { shadow(read); return read(); } });`,
+      'packages/client/src/features/files/api.ts': `
+import { readTextFileEndpoint } from '@porcelain/contracts/files';
+import { publishReviewEndpoint } from '@porcelain/contracts/reviews';
+import { requestEndpoint } from '../../shared/api/request.ts';
+const register = (callback) => callback;
+export const readText = () => requestEndpoint(transport, readTextFileEndpoint, {});
+export const publish = register(() => requestEndpoint(transport, publishReviewEndpoint, {}));`,
+    },
+  ].map((files) => ({
+    rule: 'client-route-reachability',
+    app: 'apps/web/src/app.ts',
+    files: { ...clientRouteFiles, ...files },
+    mapped: ['GET /api/worktrees/:worktreeId/text'],
+    valid: `
+import { textQueryOptions as options, type unusedQueryOptions } from '@porcelain/client/files';
+import '@porcelain/client/files';
+export const read = () => options();`,
+    invalid: `
+import { textQueryOptions as options, unusedQueryOptions as unused } from '@porcelain/client/files';
+export const read = () => options();
+export const write = () => unused();`,
+    errors: ['PUT /api/worktrees/:worktreeId/review'],
+  })),
+  {
+    rule: 'client-route-reachability',
+    app: 'apps/web/src/app.ts',
+    files: clientRouteFiles,
+    mapped: ['GET /api/worktrees/:worktreeId/text'],
+    valid: `
+import { textQueryOptions } from '@porcelain/client/files';
+export const read = () => textQueryOptions();`,
+    invalid: `
+import * as files from '@porcelain/client/files';
+export const read = () => files.textQueryOptions();
+export const write = () => files.unusedQueryOptions();`,
+    errors: ['PUT /api/worktrees/:worktreeId/review'],
+  },
+  {
+    rule: 'client-route-reachability',
+    app: 'apps/web/src/app.ts',
+    files: {
+      ...clientRouteFiles,
+      'packages/client/src/features/files/startup.ts': `
+import { publish } from './api.ts';
+publish();`,
+    },
+    mapped: ['GET /api/worktrees/:worktreeId/text'],
+    valid: `
+import { textQueryOptions } from '@porcelain/client/files';
+export const read = () => textQueryOptions();`,
+    invalid: `
+import { textQueryOptions } from '@porcelain/client/files';
+import '../../../packages/client/src/features/files/startup.ts';
+export const read = () => textQueryOptions();`,
+    errors: ['PUT /api/worktrees/:worktreeId/review'],
+  },
   {
     rule: 'lane-per-table',
     valid: {
