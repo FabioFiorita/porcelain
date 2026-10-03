@@ -12,13 +12,6 @@ selectors:
   - "Trust this app on "
   - "can update Porcelain"
   - "Update to "
-  - "Name of this computer"
-  - "Save"
-  - "Ways in"
-  - "Local network"
-  - "Devices"
-  - "Device name"
-  - "Create pairing link"
 tests:
   - apps/web/spec/e2e/access-remote-update.desktop.e2e.ts
 api:
@@ -40,46 +33,38 @@ Settings → This computer lists each remote computer's Porcelain update under "
 
 ## Driving it
 
-`C=.agents/skills/web-verify/scripts/cli`. Two desktop instances, set up as below. Every disposable server offers `1.0.0` → `1.1.0` through a scripted updater whose first attempt fails and second succeeds.
+`C=.agents/skills/web-verify/scripts/cli; $C start --desktop`. Every disposable server offers `1.0.0` → `1.1.0` through a scripted updater whose first attempt fails and second succeeds.
 
-### Setup: a second computer
+### Setup: a second computer, added from an untrusted link
 
-Two desktop instances stand in for two computers: B (the remote computer) and A (this desktop app). Every command then needs `--instance <id>`.
-
-1. `$C start --desktop` (B), then `$C start --desktop` (A). Note each instance id (`$B`, `$A`), B's web URL from its `web http://127.0.0.1:<port>` line (`$B_WEB`) and each `repository` path (`$REPO_B`, `$REPO_A`).
-2. Name B so its rows differ from A's (both default to the host name): `$C --instance $B open /settings/computer`, `$C --instance $B fill --role textbox --name "Name of this computer" "Remote box"`, `$C --instance $B click --role button --name "Save"`.
-   Look for: Page Title "Settings · Remote box".
-3. Mint a pairing link on B: `$C --instance $B click --role button --name "Ways in"`, `$C --instance $B click --role switch --name "Local network"`, `$C --instance $B click --role button --name "Devices"`, `$C --instance $B fill --role textbox --name "Device name" "Remote computer"`, `$C --instance $B click --role button --name "Create pairing link"`.
-   Look for: a paragraph holding `http://192.168.1.20:<port>/pair#c=pcp_…&e=…`. `192.168.1.20` is B's fake LAN address and nothing listens there, so build `$LINK` from `$B_WEB` followed by the `/pair#…` part. The link works once, for a few minutes.
-4. Add B on A: `$C --instance $A open /settings/remotes`, `$C --instance $A fill --role textbox --name "Pairing link" "$LINK"`, `$C --instance $A click --role button --name "Add"`.
-   Look for: list "Remote computers" with listitem "Remote box" containing "Online" and "http://127.0.0.1:<B port> · Porcelain 1.0.0".
+1. `$C remote start`
+   Look for: "remote computer Remote journey computer, project remote-sample" and its address.
+2. `LINK=$($C remote pairing-link | head -1)`, `$C open /settings/remotes`, `$C fill --role textbox --name "Pairing link" "$LINK"`, `$C click --role button --name "Add"`, then `$C wait --text "Online"`
+   Look for: listitem "Remote journey computer" with "Online"; `$C network` lists `POST <remote>/api/pair` 200 and `GET <remote>/api/environment` 200.
 
 ### An app the remote does not trust is told how to get trusted
 
-1. `$C --instance $A open /settings/computer`
-   Look for: group "Updates" (this computer: "Porcelain 1.0.0", "Porcelain 1.1.0 is available.", button "Update to 1.1.0"); group "Remote computers" with list "Remote computer updates" holding listitem "Remote box" with "Porcelain 1.0.0", "Porcelain 1.1.0 is available." and "Trust this app on Remote box to update it from here: run porcelain trust <device id> there."; no "Update to 1.1.0" button in that row.
+3. `$C open /settings/computer`, then `$C wait --text "/Trust this app on/"`
+   Look for: group "Updates" (this computer: "Porcelain 1.0.0", "Porcelain 1.1.0 is available.", button "Update to 1.1.0"); group "Remote computers" with list "Remote computer updates" holding listitem "Remote journey computer" with "Porcelain 1.0.0", "Porcelain 1.1.0 is available." and "Trust this app on Remote journey computer to update it from here: run porcelain trust <device id> there."; no "Update to 1.1.0" button in that row.
 
 ### A trusted app starts the update there
 
-2. Trust A on B: `$C --instance $B open /settings/devices`, `$C --instance $B click --role switch --name "Remote computer can update Porcelain"`
-   Look for: switch "Remote computer can update Porcelain" [checked] on listitem "Remote computer".
-3. `$C --instance $A open /settings/computer`
-   Look for: listitem "Remote box" now shows button "Update to 1.1.0" and no "Trust this app on …" text. The page now holds two buttons named "Update to 1.1.0" (this computer's and the remote's), so `click --name "Update to 1.1.0"` is refused as ambiguous.
-4. Reach the remote's button with the keyboard: `$C --instance $A click --role textbox --name "Name of this computer"`, `$C --instance $A press Tab` (skips the disabled "Save", lands on this computer's "Update to 1.1.0"), `$C --instance $A press Tab` (the remote's), `$C --instance $A press Enter`
-   Look for (after about 3 s): in listitem "Remote box", alert "The update to 1.1.0 failed, so Porcelain still runs 1.0.0." with "Could not install the persistent runtime: npm could not reach the registry", and button "Update to 1.1.0" offered again; group "Updates" (this computer) unchanged.
-5. Repeat step 4.
-   Look for (after about 4 s): listitem "Remote box" reads "Porcelain 1.1.0", alert "Updated from 1.0.0 to 1.1.0." and "This is the newest version."; this computer still reads "Porcelain 1.0.0".
-6. `$C --instance $B open /settings/computer`
-   Look for: B's own group "Updates" reads "Porcelain 1.1.0", "Updated from 1.0.0 to 1.1.0." and "This is the newest version.": the update ran on the remote.
+4. Add it again from a trusted link: `$C open /settings/remotes`, `$C click --role button --name "Remove Remote journey computer"`, `TRUSTED=$($C remote pairing-link --trusted | head -1)`, `$C fill --role textbox --name "Pairing link" "$TRUSTED"`, `$C click --role button --name "Add"`, then `$C wait --text "Online"`
+   Look for: listitem "Remote journey computer" with "Online" again (`--trusted` mints the link a device that may update Porcelain gets, as `porcelain trust` grants).
+5. `$C open /settings/computer`, then `$C wait --within-role listitem --within-name "Remote journey computer" --role button --name "Update to 1.1.0"`
+   Look for: listitem "Remote journey computer" now shows button "Update to 1.1.0" and no "Trust this app on …" text. The page holds two buttons named "Update to 1.1.0" (this computer's and the remote's), so address the remote's inside its listitem.
+6. `$C click --within-role listitem --within-name "Remote journey computer" --role button --name "Update to 1.1.0"`, then `$C wait --text "/The update to 1.1.0 failed/" --timeout 20000`
+   Look for: in listitem "Remote journey computer", alert "The update to 1.1.0 failed, so Porcelain still runs 1.0.0." with "Could not install the persistent runtime: npm could not reach the registry", and button "Update to 1.1.0" offered again; group "Updates" (this computer) unchanged.
+7. Repeat the click, then `$C wait --text "/Updated from 1.0.0 to 1.1.0/" --timeout 20000`
+   Look for: listitem "Remote journey computer" reads "Porcelain 1.1.0", alert "Updated from 1.0.0 to 1.1.0." and "This is the newest version."; this computer's group "Updates" still reads "Porcelain 1.0.0" with its own "Update to 1.1.0": the update ran on the remote.
 
 ## What proves it works
 
-- Steps 4 to 6: the row's progress text comes from the remote's `GET /api/service/update`, polled every 1 s (`SERVICE_UPDATE_POLL_MS`) while it runs. `$C network` lists the cross-origin `POST <remote>/api/service/update` with status 202. B's own Settings → This computer (step 6) reads the result back from the remote server.
+- Steps 6 and 7: the row's progress text comes from the remote's `GET /api/service/update`, polled every 1 s (`SERVICE_UPDATE_POLL_MS`) while it runs. `$C network` lists the cross-origin `POST <remote>/api/service/update` answered 202, once per click.
 - `apps/web/spec/e2e/access-remote-update.desktop.e2e.ts`: adds the remote ("Remote journey computer") from an untrusted link. It checks that its row in "Remote computer updates" shows the `Trust this app on … run porcelain trust <id> there.` text and no `Update to <latest>` button. Then it adds it again from a trusted link, clicks `Update to <latest>` in that row, and polls the remote until its update is running or has a last attempt.
 
 ## Gotchas
 
-- Name collision: this computer's own update section shows a button "Update to 1.1.0" too (this browser reaches its server over loopback, so it may update it). Once the remote is trusted, `--name "Update to 1.1.0"` matches two buttons and the CLI refuses it; step 4's keyboard path reaches the remote's button. Clicking this computer's button by mistake starts this server's own scripted update (`access.service-update`). CLI gap for a direct click: `cli click --within-role listitem --within-name "Remote box" --role button --name "Update to 1.1.0"`.
-- Both disposable servers default to the same host name. Rename the remote under its This computer section, or the rows are indistinguishable.
+- Name collision: this computer's own update section shows a button "Update to 1.1.0" too (this browser reaches its server over loopback, so it may update it). Once the remote is trusted, `--name "Update to 1.1.0"` alone matches two buttons and is refused; scope it with `--within-role listitem --within-name "Remote journey computer"`. Clicking this computer's button by mistake starts this server's own scripted update (`access.service-update`).
 - A remote that is not online shows "<status>. Its update shows here once it answers." in place of the update.
 - Desktop shell only. Without the desktop bridge, This computer shows the service update rather than the desktop app's own update (`desktopAppUpdate()` is undefined).
