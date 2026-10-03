@@ -58,6 +58,7 @@ test('renaming a file onto an existing name is refused and keeps both files', as
     name: 'Rename',
     exact: true,
   });
+  await expect.element(page.getByRole('menu')).toHaveFocus();
   await userEvent.keyboard('{ArrowDown}');
   await expect.element(renameAction).toHaveFocus();
   await userEvent.keyboard('{Enter}');
