@@ -335,7 +335,10 @@ function seatbeltProfile(sandbox: Sandbox): string {
   ].join('\n');
 }
 
-function relayTo(socketPath: string): Promise<{ relay: Server; port: number }> {
+function relayTo(
+  socketPath: string,
+  port: number,
+): Promise<{ relay: Server; port: number }> {
   const relay = createServer((incoming) => {
     const outgoing = connect(socketPath);
     incoming.pipe(outgoing).pipe(incoming);
@@ -344,7 +347,7 @@ function relayTo(socketPath: string): Promise<{ relay: Server; port: number }> {
   });
   return new Promise((resolveRelay, rejectRelay) => {
     relay.once('error', rejectRelay);
-    relay.listen({ host: '127.0.0.1', port: 0 }, () => {
+    relay.listen({ host: '127.0.0.1', port }, () => {
       const address = relay.address();
       if (address === null || typeof address === 'string')
         rejectRelay(new Error('The network relay has no port'));
@@ -372,9 +375,14 @@ function sampleOption(): 'perf' | undefined {
   return process.env.PORCELAIN_DEV_SAMPLE === 'perf' ? 'perf' : undefined;
 }
 
-function serverOption(): string | undefined {
-  const at = process.argv.indexOf('--server');
+function option(name: string): string | undefined {
+  const at = process.argv.indexOf(name);
   return at === -1 ? undefined : process.argv[at + 1];
+}
+
+function portOption(): number | undefined {
+  const port = option('--port');
+  return port === undefined ? undefined : Number(port);
 }
 
 function scratchFolder(): string {
@@ -425,7 +433,8 @@ async function install(
 async function main() {
   const scratch: string[] = [];
   const root = await temporary('porcelain-dev-', scratch);
-  const given = serverOption();
+  const given = option('--server');
+  const requested = portOption();
   let stopping = false;
   let relay: Server | undefined;
   let stopChild = () => undefined;
@@ -448,8 +457,8 @@ async function main() {
     await symlink(git, join(bin, 'git'));
     const network =
       process.platform === 'linux'
-        ? await relayTo(join(root, 'network.sock'))
-        : { relay: undefined, port: await freePort() };
+        ? await relayTo(join(root, 'network.sock'), requested ?? 0)
+        : { relay: undefined, port: requested ?? (await freePort()) };
     relay = network.relay;
     const sandbox: Sandbox = {
       node: realpathSync(process.execPath),

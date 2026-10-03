@@ -4,7 +4,6 @@ import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 import {
   buildDevelopmentClient,
-  buildProblem,
   identity,
   screenLink,
 } from '../../../../apps/mobile/spec/kit/development-client.ts';
@@ -20,13 +19,23 @@ import {
   runCli,
   Usage,
 } from '../../server-verify/scripts/core/cli.ts';
-import { agentDevice, fillField, selector, type Target } from './device.ts';
+import {
+  agentDevice,
+  connectHub,
+  disconnectHub,
+  fillField,
+  isHosted,
+  remoteBooted,
+  selector,
+  type Target,
+} from './device.ts';
+import { deviceHost } from './host.ts';
 import {
   registry,
   scriptFingerprint,
   type MobileInstance,
 } from './instance.ts';
-import { pairingLabel, serve, start } from './serve.ts';
+import { pairingLabel, serve, start, startProblems } from './serve.ts';
 
 const freshLink = '{pairing-link}';
 const holdMs = 1500;
@@ -54,7 +63,15 @@ function targetOf(instance: MobileInstance): Target {
     udid: instance.detail.udid,
     session: instance.detail.session,
     cwd: instance.evidence,
+    host: instance.detail.host,
   };
+}
+
+async function booted(instance: MobileInstance): Promise<boolean> {
+  const target = targetOf(instance);
+  return isHosted(target)
+    ? remoteBooted(target)
+    : isBooted(instance.detail.udid);
 }
 
 function linkOf(destination: string | undefined): string {
@@ -106,21 +123,20 @@ async function issueLink(instance: MobileInstance): Promise<MobileInstance> {
 }
 
 async function doctor(): Promise<string> {
-  const problems = missingTools(['simulator', 'agent-device']);
+  const host = deviceHost();
+  const problems = (await startProblems(host)).filter(
+    (problem) => problem !== undefined,
+  );
   const lines = [
     `node ${process.versions.node}`,
     ...(problems.length > 0
       ? problems.map((problem) => `FAIL ${problem}`)
-      : ['ok   Xcode simulators and agent-device are installed']),
+      : [
+          host === undefined
+            ? 'ok   Xcode simulators and agent-device are installed, and the development client is built for this native code'
+            : `ok   the device host ${host.hub} answers, its token is set and the ports are free`,
+        ]),
   ];
-  if (problems.length === 0) {
-    const unbuilt = buildProblem();
-    lines.push(
-      unbuilt === undefined
-        ? 'ok   the development client is built for this native code'
-        : `FAIL ${unbuilt}`,
-    );
-  }
   const live = registry
     .list()
     .filter((entry) => entry.alive)
@@ -135,7 +151,7 @@ async function doctor(): Promise<string> {
     const stale = registry.staleness(instance);
     lines.push(
       `instance ${instance.id} (${instance.detail.kind}, ${instance.detail.simulator})`,
-      `  ${(await isBooted(instance.detail.udid)) ? 'ok  ' : 'FAIL'} its simulator ${instance.detail.udid} is booted`,
+      `  ${(await booted(instance)) ? 'ok  ' : 'FAIL'} its simulator ${instance.detail.udid} is booted`,
       `  ${metro.includes('packager-status:running') ? 'ok  ' : 'FAIL'} Metro answers at ${instance.detail.metro}`,
       `  ${health === 200 ? 'ok  ' : 'FAIL'} the server health route answers 200`,
       `  ${stale === undefined ? 'ok   the server, native and CLI code match the checkout' : `FAIL ${stale}`}`,
@@ -145,7 +161,9 @@ async function doctor(): Promise<string> {
   return `${lines.join('\n')}\nlive instances: ${live.length}\n`;
 }
 
-function logs(instance: MobileInstance): string {
+function appLog(instance: MobileInstance): string {
+  if (instance.detail.host !== null)
+    return `(the app's log stays on the device host ${instance.detail.host.hub}; Metro's below carries the JavaScript log)\n`;
   const app = spawnSync(
     'xcrun',
     [
@@ -163,6 +181,10 @@ function logs(instance: MobileInstance): string {
     ],
     { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 },
   );
+  return `${app.stdout.split('\n').slice(-logTail).join('\n')}${app.stderr}`;
+}
+
+function logs(instance: MobileInstance): string {
   const tail = (name: string) => {
     const path = join(instance.evidence, name);
     return existsSync(path)
@@ -171,7 +193,7 @@ function logs(instance: MobileInstance): string {
   };
   return [
     `## app (last ${logWindow})`,
-    `${app.stdout.split('\n').slice(-logTail).join('\n')}${app.stderr}`,
+    appLog(instance),
     '## metro',
     tail('metro.log'),
     '## server',
@@ -218,7 +240,16 @@ async function command(args: readonly string[]): Promise<string> {
   });
   if (name === 'stop') {
     const report = await registry.stop(instance);
-    if (await isBooted(instance.detail.udid)) {
+    const target = targetOf(instance);
+    if (isHosted(target)) {
+      connectHub(target);
+      if (remoteBooted(target)) {
+        agentDevice(target, ['close', '--shutdown'], { allowFailure: true });
+        report.push(`shut down the simulator ${instance.detail.udid}`);
+      }
+      disconnectHub(target);
+    }
+    if (!isHosted(target) && (await isBooted(instance.detail.udid))) {
       await shutdownSimulator(instance.detail.udid);
       report.push(`shut down the simulator ${instance.detail.udid}`);
     }

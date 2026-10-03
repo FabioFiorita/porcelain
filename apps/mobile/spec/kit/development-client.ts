@@ -1,7 +1,12 @@
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { createWriteStream, existsSync, readFileSync } from 'node:fs';
-import { writeFile } from 'node:fs/promises';
+import {
+  constants,
+  createWriteStream,
+  existsSync,
+  readFileSync,
+} from 'node:fs';
+import { cp, rm, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { z } from 'zod';
 import { buildIdentity } from '../../src/shared/rules/build-identity.ts';
@@ -17,6 +22,7 @@ export const appPath = join(
   'Build/Products/Debug-iphonesimulator/PorcelainDev.app',
 );
 const fingerprintFile = join(derivedData, 'native-fingerprint');
+const sharedClients = '/tmp/porcelain-development-clients';
 const nativeInputs = [
   'apps/mobile/app.config.ts',
   'apps/mobile/src/shared/rules/build-identity.ts',
@@ -39,6 +45,10 @@ export function nativeFingerprint(): string {
       `${file}\0${readFileSync(join(repositoryRoot, file), 'utf8')}\0`,
     );
   return hash.digest('hex');
+}
+
+export function sharedClientPath(fingerprint: string): string {
+  return join(sharedClients, fingerprint, 'PorcelainDev.app');
 }
 
 export function builtFingerprint(): string | undefined {
@@ -112,6 +122,11 @@ export async function buildDevelopmentClient(log: string): Promise<void> {
     log,
   );
   await writeFile(fingerprintFile, `${fingerprint}\n`);
+  await rm(sharedClients, { recursive: true, force: true });
+  await cp(appPath, sharedClientPath(fingerprint), {
+    recursive: true,
+    mode: constants.COPYFILE_FICLONE,
+  });
 }
 
 export function developmentLink(metro: string): string {

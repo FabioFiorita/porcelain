@@ -45,12 +45,14 @@ export class Environment {
     label: string;
     workspace: boolean;
     onOutput?: (text: string) => void;
+    port?: number;
   }): Promise<Environment> {
     const server = await IsolatedServer.start(
       repositoryRoot,
       input.build,
       undefined,
       input.onOutput,
+      input.port,
     );
     const recorder = new Recorder();
     recorder.secret(server.credential);
