@@ -1,7 +1,5 @@
-import { readFile, rm, writeFile } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import { connect } from 'node:net';
-import { join } from 'node:path';
-import { setTimeout as delay } from 'node:timers/promises';
 import {
   type Recorder,
   ServerHandle,
@@ -9,22 +7,12 @@ import {
 import {
   gitSubcommands,
   type GitSubcommand,
-  type HttpRequest,
   type Session,
 } from '../../../../apps/server/spec/kit/session.ts';
-import {
-  buildFingerprint,
-  chosen,
-  isOurs,
-  missingTools,
-  recorderFor,
-  Refusal,
-  STALE_BUILD,
-  writeEvidence,
-  type Instance,
-} from './instance.ts';
+import { runCli, sandboxProblems, Usage } from './core/cli.ts';
+import { registry, STALE_BUILD, type ServerInstance } from './instance.ts';
+import { serve, start } from './start.ts';
 
-const STOP_LIMIT_MS = 15_000;
 const methods = [
   'GET',
   'HEAD',
@@ -49,11 +37,18 @@ const usage = `Usage: .agents/skills/server-verify/scripts/cli <command> [--inst
   logs                                    print the server's output
 `;
 
+type Driving = {
+  instance: ServerInstance;
+  session: Session;
+  recorder: Recorder;
+  visible: (text: string) => string;
+};
+
 function option(args: string[], name: string): string | undefined {
   const at = args.indexOf(name);
   if (at === -1) return undefined;
   const [, value] = args.splice(at, 2);
-  if (value === undefined) throw new Refusal(`${name} takes a value`);
+  if (value === undefined) throw new Usage(`${name} takes a value`);
   return value;
 }
 
@@ -73,16 +68,16 @@ function flag(args: string[], name: string): boolean {
   return at !== -1;
 }
 
-function placeholders(instance: Instance): Record<string, string> {
+function placeholders(instance: ServerInstance): Record<string, string> {
   return {
-    project: instance.projectId,
-    worktree: instance.worktreeId,
-    repository: instance.repository,
-    home: instance.projectHome,
+    project: instance.detail.projectId,
+    worktree: instance.detail.worktreeId,
+    repository: instance.detail.repository,
+    home: instance.detail.projectHome,
   };
 }
 
-function filled(text: string, instance: Instance): string {
+function filled(text: string, instance: ServerInstance): string {
   const values = placeholders(instance);
   const result = text.replace(
     /\{([a-z]+)\}/g,
@@ -90,7 +85,7 @@ function filled(text: string, instance: Instance): string {
   );
   const unknown = /\{([a-z]+)\}/.exec(result);
   if (unknown)
-    throw new Refusal(
+    throw new Usage(
       `unknown placeholder ${unknown[0]}; ids lists ${Object.keys(values)
         .map((name) => `{${name}}`)
         .join(' ')}`,
@@ -98,7 +93,7 @@ function filled(text: string, instance: Instance): string {
   return result;
 }
 
-function bodyOf(fields: readonly string[], instance: Instance) {
+function bodyOf(fields: readonly string[], instance: ServerInstance) {
   const body: Record<string, unknown> = {};
   for (const field of fields) {
     const json = /^([^=:]+):=(.*)$/s.exec(field);
@@ -109,7 +104,7 @@ function bodyOf(fields: readonly string[], instance: Instance) {
     } else if (text?.[1] !== undefined && text[2] !== undefined)
       body[text[1]] = filled(text[2], instance);
     else
-      throw new Refusal(
+      throw new Usage(
         `${field} is not field=value or field:=json; the pairs build a JSON body`,
       );
   }
@@ -119,7 +114,7 @@ function bodyOf(fields: readonly string[], instance: Instance) {
 function durationOf(value: string | undefined): number {
   const match = /^(\d+)(ms|s|m)$/.exec(value ?? '');
   if (!match?.[1] || !match[2])
-    throw new Refusal('live takes --for <duration>, such as 500ms, 10s or 2m');
+    throw new Usage('live takes --for <duration>, such as 500ms, 10s or 2m');
   const unit = { ms: 1, s: 1000, m: 60_000 }[match[2]] ?? 1;
   return Number(match[1]) * unit;
 }
@@ -127,31 +122,6 @@ function durationOf(value: string | undefined): number {
 function shown(value: unknown): string {
   if (value === undefined) return '';
   return typeof value === 'string' ? value : JSON.stringify(value, null, 2);
-}
-
-async function driven(
-  requested: string | undefined,
-  command: readonly string[],
-): Promise<{ instance: Instance; session: Session; recorder: Recorder }> {
-  const instance = await chosen(requested);
-  const recorder = recorderFor(instance);
-  if (buildFingerprint() !== instance.fingerprint) {
-    await writeEvidence(instance, 'refused', recorder, {
-      command,
-      refused: STALE_BUILD,
-    });
-    throw new Refusal(STALE_BUILD);
-  }
-  await writeFile(join(instance.folder, 'last-command'), '');
-  const handle = await ServerHandle.attach(instance.manifestPath);
-  return {
-    instance,
-    recorder,
-    session: handle.session(recorder, {
-      projectId: instance.projectId,
-      worktreeId: instance.worktreeId,
-    }),
-  };
 }
 
 function isMethod(value: string): value is (typeof methods)[number] {
@@ -175,224 +145,235 @@ function answering(address: string): Promise<boolean> {
 }
 
 async function finish(
-  instance: Instance,
+  instance: ServerInstance,
   name: string,
   recorder: Recorder,
   record: Record<string, unknown>,
 ) {
-  const file = await writeEvidence(instance, name, recorder, record);
+  const file = await registry.evidence(instance).json(name, record, recorder);
   process.stderr.write(`evidence: ${file}\n`);
 }
 
-async function main(argv: string[]): Promise<void> {
+function driven(
+  name: string,
+  requested: string | undefined,
+  argv: readonly string[],
+  work: (driving: Driving) => Promise<{ output: string; record: object }>,
+): Promise<string> {
+  const instance = registry.chosen(requested);
+  const started = performance.now();
+  return registry.drive(instance, argv, async () => {
+    const recorder = registry.redactor(instance).recorder();
+    const handle = await ServerHandle.attach(instance.detail.manifestPath);
+    const session = handle.session(recorder, {
+      projectId: instance.detail.projectId,
+      worktreeId: instance.detail.worktreeId,
+    });
+    const visible = (text: string) => registry.redactor(instance).known(text);
+    const { output, record } = await work({
+      instance,
+      session,
+      recorder,
+      visible,
+    });
+    await finish(instance, name, recorder, {
+      command: argv,
+      durationMs: Math.round(performance.now() - started),
+      ...record,
+      steps: recorder.steps,
+    });
+    return output;
+  });
+}
+
+async function doctor(
+  requested: string | undefined,
+  argv: readonly string[],
+): Promise<string> {
+  const started = performance.now();
+  const missing = sandboxProblems();
+  const instance = registry.chosen(requested);
+  const recorder = registry.redactor(instance).recorder();
+  const handle = await ServerHandle.attach(instance.detail.manifestPath);
+  const health = await handle
+    .send(recorder, { method: 'GET', path: '/api/health', auth: 'none' })
+    .then((response) => response.status)
+    .catch(() => 0);
+  const checks = [
+    {
+      check: 'the instance process is the one start started',
+      ok: registry.alive(instance),
+    },
+    {
+      check: `the port answers at ${instance.detail.address}`,
+      ok: await answering(instance.detail.address),
+    },
+    { check: 'the health route answers 200', ok: health === 200 },
+    {
+      check: 'the build matches the checkout',
+      ok: registry.fingerprint() === instance.fingerprint,
+    },
+  ];
+  await finish(instance, 'doctor', recorder, {
+    command: argv,
+    durationMs: Math.round(performance.now() - started),
+    missing,
+    checks,
+    steps: recorder.steps,
+  });
+  if (missing.length > 0 || checks.some((entry) => !entry.ok))
+    process.exitCode = 1;
+  return [
+    ...missing.map((problem) => `FAIL ${problem}`),
+    ...checks.map(
+      ({ check, ok }) =>
+        `${ok ? 'ok  ' : 'FAIL'} ${check}${ok || !check.startsWith('the build') ? '' : `: ${STALE_BUILD}`}`,
+    ),
+    '',
+  ].join('\n');
+}
+
+async function stop(
+  requested: string | undefined,
+  argv: readonly string[],
+): Promise<string> {
+  const started = performance.now();
+  const instance = registry.chosen(requested, { includeStopped: true });
+  const report = await registry.stop(instance);
+  await finish(instance, 'stop', registry.redactor(instance).recorder(), {
+    command: argv,
+    durationMs: Math.round(performance.now() - started),
+    stopped: instance.id,
+    report,
+  });
+  return `${report.map((line) => `${line}\n`).join('')}stopped ${instance.id}; evidence kept in ${instance.evidence}\n`;
+}
+
+function live(
+  requested: string | undefined,
+  argv: readonly string[],
+  rest: string[],
+): Promise<string> {
+  const duration = durationOf(option(rest, '--for'));
+  const paths = options(rest, '--path');
+  return driven(
+    'live',
+    requested,
+    argv,
+    async ({ instance, session, visible }) => {
+      const connection = await session.live();
+      const until = performance.now() + duration;
+      connection.send({
+        type: 'subscribe',
+        projects: [instance.detail.projectId],
+        worktrees: [
+          {
+            projectId: instance.detail.projectId,
+            worktreeId: instance.detail.worktreeId,
+            paths,
+          },
+        ],
+      });
+      for (
+        let remaining = until - performance.now();
+        remaining > 0;
+        remaining = until - performance.now()
+      ) {
+        const notice = await connection
+          .next(() => true, Math.ceil(remaining))
+          .catch(() => undefined);
+        if (notice === undefined) break;
+        process.stdout.write(`${visible(JSON.stringify(notice))}\n`);
+      }
+      connection.close();
+      return { output: '', record: {} };
+    },
+  );
+}
+
+async function main(argv: readonly string[]): Promise<string> {
   const args = [...argv];
   const requested = option(args, '--instance');
   const [command, ...rest] = args;
-  const started = performance.now();
-  const elapsed = () => Math.round(performance.now() - started);
-  if (command === 'start') {
-    const { start } = await import('./start.ts');
-    return start();
-  }
+  if (command === 'start') return start();
   if (command === 'serve' && rest[0] !== undefined) {
-    const { serve } = await import('./start.ts');
-    return serve(rest[0]);
+    await serve(rest[0]);
+    return '';
   }
-  if (command === 'evidence') {
-    process.stdout.write(`${(await chosen(requested)).evidence}\n`);
-    return;
-  }
+  if (command === 'evidence') return `${registry.chosen(requested).evidence}\n`;
   if (command === 'logs') {
-    const instance = await chosen(requested);
-    process.stdout.write(
-      recorderFor(instance).scrub(await readFile(instance.logFile, 'utf8')),
-    );
-    return;
+    const instance = registry.chosen(requested);
+    return registry
+      .redactor(instance)
+      .text(await readFile(instance.detail.logFile, 'utf8'));
   }
-  if (command === 'doctor') {
-    const missing = missingTools();
-    for (const problem of missing) process.stdout.write(`FAIL ${problem}\n`);
-    const instance = await chosen(requested);
-    const recorder = recorderFor(instance);
-    const handle = await ServerHandle.attach(instance.manifestPath);
-    const health = await handle
-      .send(recorder, { method: 'GET', path: '/api/health', auth: 'none' })
-      .then((response) => response.status)
-      .catch(() => 0);
-    const checks = [
-      {
-        check: 'the instance process is the one start started',
-        ok: isOurs(instance.pid, instance.folder),
-      },
-      {
-        check: `the port answers at ${instance.address}`,
-        ok: await answering(instance.address),
-      },
-      { check: 'the health route answers 200', ok: health === 200 },
-      {
-        check: 'the build matches the checkout',
-        ok: buildFingerprint() === instance.fingerprint,
-      },
-    ];
-    for (const { check, ok } of checks)
-      process.stdout.write(
-        `${ok ? 'ok  ' : 'FAIL'} ${check}${ok || !check.startsWith('the build') ? '' : `: ${STALE_BUILD}`}\n`,
-      );
-    await finish(instance, 'doctor', recorder, {
-      command: argv,
-      durationMs: elapsed(),
-      missing,
-      checks,
-      steps: recorder.steps,
+  if (command === 'doctor') return doctor(requested, argv);
+  if (command === 'stop') return stop(requested, argv);
+  if (command === 'live') return live(requested, argv, rest);
+  if (command === 'ids')
+    return driven(command, requested, argv, async ({ instance }) => {
+      const values = placeholders(instance);
+      return {
+        output: Object.entries(values)
+          .map(([name, value]) => `{${name}} ${value}\n`)
+          .join(''),
+        record: { values },
+      };
     });
-    if (missing.length > 0 || checks.some((entry) => !entry.ok))
-      process.exitCode = 1;
-    return;
-  }
-  if (command === 'stop') {
-    const instance = await chosen(requested, { includeStopped: true });
-    const recorder = recorderFor(instance);
-    if (isOurs(instance.pid, instance.folder)) {
-      process.kill(instance.pid, 'SIGTERM');
-      const deadline = performance.now() + STOP_LIMIT_MS;
-      while (isOurs(instance.pid, instance.folder)) {
-        if (performance.now() > deadline) {
-          process.kill(-instance.pid, 'SIGKILL');
-          break;
-        }
-        await delay(50);
-      }
-    }
-    await rm(instance.folder, { recursive: true, force: true });
-    await finish(instance, 'stop', recorder, {
-      command: argv,
-      durationMs: elapsed(),
-      stopped: instance.id,
-    });
-    process.stdout.write(
-      `stopped ${instance.id}; evidence kept in ${instance.evidence}\n`,
-    );
-    return;
-  }
-  if (command === 'ids') {
-    const { instance, recorder } = await driven(requested, argv);
-    const values = placeholders(instance);
-    for (const [name, value] of Object.entries(values))
-      process.stdout.write(`{${name}} ${value}\n`);
-    await finish(instance, 'ids', recorder, { command: argv, values });
-    return;
-  }
   if (command === 'request') {
     const owner = flag(rest, '--owner');
     const anonymous = flag(rest, '--anonymous');
     const [method = '', path, ...fields] = rest;
     const upper = method.toUpperCase();
     if (!isMethod(upper) || path === undefined)
-      throw new Refusal(
+      throw new Usage(
         `request takes <METHOD> <path> [field=value ...]; METHOD is one of ${methods.join(', ')}`,
       );
-    const { instance, recorder, session } = await driven(requested, argv);
-    const body = bodyOf(fields, instance);
-    const request: HttpRequest = {
-      method: upper,
-      path: filled(path, instance),
-      auth: anonymous ? 'none' : 'paired',
-      target: owner ? 'owner' : 'network',
-      ...(body === undefined ? {} : { body }),
-    };
-    const response = await session.send(request);
-    const visible = recorderFor(instance);
-    process.stdout.write(
-      visible.scrub(`HTTP ${response.status}\n${shown(response.body)}\n`),
+    return driven(
+      command,
+      requested,
+      argv,
+      async ({ instance, session, visible }) => {
+        const body = bodyOf(fields, instance);
+        const response = await session.send({
+          method: upper,
+          path: filled(path, instance),
+          auth: anonymous ? 'none' : 'paired',
+          target: owner ? 'owner' : 'network',
+          ...(body === undefined ? {} : { body }),
+        });
+        return {
+          output: visible(`HTTP ${response.status}\n${shown(response.body)}\n`),
+          record: {},
+        };
+      },
     );
-    await finish(instance, 'request', recorder, {
-      command: argv,
-      durationMs: elapsed(),
-      steps: recorder.steps,
-    });
-    return;
-  }
-  if (command === 'live') {
-    const duration = durationOf(option(rest, '--for'));
-    const paths = options(rest, '--path');
-    const { instance, recorder, session } = await driven(requested, argv);
-    const connection = await session.live();
-    const until = performance.now() + duration;
-    const visible = recorderFor(instance);
-    connection.send({
-      type: 'subscribe',
-      projects: [instance.projectId],
-      worktrees: [
-        {
-          projectId: instance.projectId,
-          worktreeId: instance.worktreeId,
-          paths,
-        },
-      ],
-    });
-    for (
-      let remaining = until - performance.now();
-      remaining > 0;
-      remaining = until - performance.now()
-    ) {
-      const notice = await connection
-        .next(() => true, Math.ceil(remaining))
-        .catch(() => undefined);
-      if (notice === undefined) break;
-      process.stdout.write(`${visible.scrub(JSON.stringify(notice))}\n`);
-    }
-    connection.close();
-    await finish(instance, 'live', recorder, {
-      command: argv,
-      durationMs: elapsed(),
-      steps: recorder.steps,
-    });
-    return;
   }
   if (command === 'git') {
     const [subcommand = '', ...gitArgs] = rest;
     if (!isGitSubcommand(subcommand))
-      throw new Refusal(
+      throw new Usage(
         `git runs one of ${gitSubcommands.join(', ')} in the sample repository`,
       );
-    const { instance, recorder, session } = await driven(requested, argv);
-    const output = await session
-      .git(subcommand, ...gitArgs)
-      .catch((error: unknown) => {
-        process.exitCode = 1;
-        return error instanceof Error ? error.message : String(error);
-      });
-    process.stdout.write(recorderFor(instance).scrub(output));
-    await finish(instance, 'git', recorder, {
-      command: argv,
-      durationMs: elapsed(),
-      steps: recorder.steps,
+    return driven(command, requested, argv, async ({ session, visible }) => {
+      const output = await session
+        .git(subcommand, ...gitArgs)
+        .catch((error: unknown) => {
+          process.exitCode = 1;
+          return error instanceof Error ? error.message : String(error);
+        });
+      return { output: visible(output), record: {} };
     });
-    return;
   }
   if (command === 'file') {
     const [path] = rest;
-    if (path === undefined) throw new Refusal('file takes <path>');
-    const { instance, recorder, session } = await driven(requested, argv);
-    const content = await session.readFile(path);
-    process.stdout.write(recorderFor(instance).scrub(content));
-    await finish(instance, 'file', recorder, {
-      command: argv,
-      durationMs: elapsed(),
-      path,
-      content,
+    if (path === undefined) throw new Usage('file takes <path>');
+    return driven(command, requested, argv, async ({ session, visible }) => {
+      const content = await session.readFile(path);
+      return { output: visible(content), record: { path, content } };
     });
-    return;
   }
-  process.stderr.write(usage);
-  process.exitCode = 2;
+  throw new Usage(usage);
 }
 
-try {
-  await main(process.argv.slice(2));
-} catch (error) {
-  process.stderr.write(
-    `${error instanceof Error ? error.message : String(error)}\n`,
-  );
-  process.exitCode = 1;
-}
+await runCli(main);

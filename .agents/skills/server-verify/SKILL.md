@@ -13,7 +13,7 @@ The control CLI is `.agents/skills/server-verify/scripts/cli`, run by path from 
 .agents/skills/server-verify/scripts/cli start
 ```
 
-It builds the server from this checkout, starts one sandboxed instance (bwrap on Linux, `sandbox-exec` on macOS) with its own port, data and sample repository, and pairs with it. It prints the instance id, the URL and the evidence folder, never the credential. When a required tool is missing it stops and names what to install; install it, never substitute another tool. The instance stops itself after 30 minutes without a command. `doctor` checks the tools, that the instance is the one `start` started, that its port and health route answer and that its build is current:
+It builds the server from this checkout, starts one sandboxed instance (bwrap on Linux, `sandbox-exec` on macOS) with its own port, data and sample repository, and pairs with it. It prints the instance id, the URL and the evidence folder, never the credential. When a required tool is missing it stops and names what to install; install it, never substitute another tool. The instance stops itself after 30 minutes without a command; every command counts, failed or not, and a running `live --for` keeps it awake. `doctor` checks the tools, that the instance is the one `start` started, that its port and health route answer and that its build is current:
 
 ```sh
 .agents/skills/server-verify/scripts/cli doctor
@@ -61,7 +61,7 @@ The contracts in `packages/contracts/src/<area>/` describe every route: the requ
 .agents/skills/server-verify/scripts/cli evidence
 ```
 
-Every command writes a numbered file there (`001-start.json`, `002-request.json`, ...): the command, its duration, and each request and response, Git call or file read, with credentials, pairing codes, tickets, tokens and cookies redacted by the kit's recorder. `stop` adds the server's output. Report the folder and what it shows.
+Every command writes a numbered file there (`001-start.json`, `002-request.json`, ...): the command, its duration, and each request and response, Git call or file read, with credentials, pairing codes, tickets, tokens and cookies redacted by the kit's recorder. `stop` adds the server's output; `supervisor.log` holds the instance supervisor's own output, redacted when it stops. A command's printed output keeps a value the next step needs, such as the code `POST /pairings` issues; the evidence never does. Report the folder and what it shows.
 
 ## 6. Run the affected integration tests
 
@@ -79,9 +79,9 @@ When a change affects a route's cost or the Git work it starts, run `pnpm --filt
 .agents/skills/server-verify/scripts/cli stop
 ```
 
-It stops only what `start` started, by its PID, removes the instance's data and credential and keeps the evidence folder.
+It stops only what `start` started: it signals the instance's PID only while that process's command line is the instance's supervisor, ends its process group and sends SIGKILL to whatever is left after 15 seconds. A recorded PID that now belongs to another process is reported and never signalled. It removes the instance's data and credential and keeps the evidence folder.
 
 ## Rules
 
-- When the server code changed since `start`, every driving command (`request`, `live`, `git`, `file`, `ids`) refuses with `server code changed since start, run start again`; run `stop`, then `start`.
-- With more than one running instance in this checkout, every command requires `--instance <id>` and lists the running instances instead of guessing.
+- When the server code (`apps/server/src`, the server kit and fakes, the workspace packages the server bundles, the migrations or `pnpm-lock.yaml`) or the CLI's own scripts changed since `start`, every driving command (`request`, `live`, `git`, `file`, `ids`) refuses with `server or CLI code changed since start, run start again`; run `stop`, then `start`.
+- Instances are registered per checkout: another worktree's instances are invisible here. With more than one running instance in this checkout, every command requires `--instance <id>` and lists the running instances instead of guessing.
