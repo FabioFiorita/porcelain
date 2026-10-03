@@ -5,10 +5,8 @@ import {
   redirect,
   useRouterState,
 } from '@tanstack/react-router';
-import { useState } from 'react';
 import { restoreSession, useAccessStore } from '@/features/access/index';
-import { ProjectWorkspaceProvider } from '@/features/projects/index';
-import { ReviewShell } from '@/app/review-shell';
+import { PairedShell } from '@/app/paired-shell';
 import { WorkspaceError } from '@/app/workspace-error';
 import { WorkspacePending } from '@/app/workspace-pending';
 import { DesktopActions } from '@/app/desktop-actions';
@@ -27,20 +25,14 @@ export const Route = createFileRoute('/_paired')({
 
 function PairedLayout() {
   const connection = useAccessStore((state) => state.connection);
-  const [navigatorOpen, setNavigatorOpen] = useState(true);
   const empty = useRouterState({
     select: (state) => state.location.pathname === '/',
   });
   return connection ? (
-    <ReviewShell>
-      <ProjectWorkspaceProvider
-        open={navigatorOpen}
-        onOpenChange={setNavigatorOpen}
-      >
-        <Outlet />
-        <DesktopActions connection={connection} empty={empty} />
-      </ProjectWorkspaceProvider>
-    </ReviewShell>
+    <PairedShell>
+      <Outlet />
+      <DesktopActions connection={connection} empty={empty} />
+    </PairedShell>
   ) : (
     <Navigate to="/pair" replace />
   );

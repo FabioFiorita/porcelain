@@ -1,4 +1,5 @@
 import { setTimeout as delay } from 'node:timers/promises';
+import { vi } from 'vitest';
 import { read, receiptPath, worktreePath } from './requests.ts';
 import {
   list,
@@ -56,18 +57,20 @@ export async function head(session: Session) {
   return (await session.git('rev-parse', 'HEAD')).trim();
 }
 
-export async function settledReceipt(session: Session, requestId: string) {
-  for (let attempt = 0; attempt < 100; attempt += 1) {
-    const response = await session.read({
-      method: 'GET',
-      path: receiptPath(session, requestId),
-    });
-    const receipt = record(response.body);
-    if (receipt.state !== 'running')
+export function settledReceipt(session: Session, requestId: string) {
+  return vi.waitFor(
+    async () => {
+      const response = await session.read({
+        method: 'GET',
+        path: receiptPath(session, requestId),
+      });
+      const receipt = record(response.body);
+      if (receipt.state === 'running')
+        throw new Error(`Git action ${requestId} did not settle`);
       return { status: response.status, receipt };
-    await delay(100);
-  }
-  throw new Error(`Git action ${requestId} did not settle`);
+    },
+    { timeout: 15_000, interval: 100 },
+  );
 }
 
 export async function expectation(session: Session) {
@@ -115,17 +118,22 @@ export async function watching(session: Session) {
   return connection;
 }
 
-export async function eventually(
+export function eventually(
   session: Session,
   request: HttpRequest,
   accept: (body: Record<string, unknown>) => boolean,
 ) {
-  for (let attempt = 0; attempt < 50; attempt += 1) {
-    const body = await read(session, request);
-    if (accept(body)) return body;
-    await delay(100);
-  }
-  throw new Error(`${request.method} ${request.path} never reached the state`);
+  return vi.waitFor(
+    async () => {
+      const body = await read(session, request);
+      if (!accept(body))
+        throw new Error(
+          `${request.method} ${request.path} never reached the state`,
+        );
+      return body;
+    },
+    { timeout: 10_000, interval: 100 },
+  );
 }
 
 export async function tunnelOn(session: Session, hostname: string) {

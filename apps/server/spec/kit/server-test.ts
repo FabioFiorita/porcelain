@@ -68,11 +68,18 @@ export const test = base
     recorder.secret(server.credential);
     recorder.secret(server.desktopCredential);
     recorder.phase = 'follow-up';
+    let failed = false;
     onTestFailed(({ task }) => {
+      failed = true;
       for (const error of task.result?.errors ?? []) scrubbed(error, recorder);
     });
     onCleanup(() => {
       for (const cleanup of recorder.cleanups) cleanup();
+      const unread = recorder.unreadStatuses();
+      if (!failed && unread.length > 0)
+        throw new Error(
+          `The test sent ${unread.join(', ')} and never read the status; assert every response it sends, or send a setup step through read(), which fails on an unexpected status.`,
+        );
     });
     return recorder;
   })

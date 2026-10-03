@@ -6,12 +6,16 @@ type Declared =
 
 export function createFailures() {
   const declared: Declared[] = [];
+  const accepted = new Set<string>();
   return {
     console(pattern: RegExp) {
       declared.push({ kind: 'console', pattern, seen: false });
     },
     response(route: string, status: number) {
       declared.push({ kind: 'response', route, status, seen: false });
+    },
+    accept(reported: readonly string[]) {
+      for (const failure of reported) accepted.add(failure);
     },
     unexpected(
       observed: readonly BrowserFailure[],
@@ -53,7 +57,7 @@ export function createFailures() {
               ? `declared console error ${String(entry.pattern)} never happened`
               : `declared ${entry.status} from ${entry.route} never happened`,
           ),
-      ];
+      ].filter((failure) => !accepted.has(failure));
     },
   };
 }

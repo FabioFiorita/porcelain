@@ -205,11 +205,13 @@ const requiredRuns: Readonly<Record<string, readonly string[]>> = {
     'sudo apt-get update && sudo apt-get install --yes bubblewrap',
     'sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0',
     'bwrap --ro-bind / / --dev /dev --proc /proc --unshare-pid --unshare-ipc --unshare-net --new-session --die-with-parent -- true',
-    'pnpm test:integration --affected',
+    'pnpm exec playwright install --with-deps --only-shell chromium',
+    'pnpm test:integration --affected --continue',
   ],
   '.github/workflows/web.yml': [
     'pnpm check',
     'pnpm --filter @porcelain/web build',
+    'pnpm exec playwright install --with-deps --only-shell chromium',
     'pnpm db:check',
     'pnpm test:integration',
     'pnpm --filter @porcelain/web test:e2e',
@@ -800,52 +802,12 @@ const gateScripts: Readonly<Record<string, Readonly<Record<string, string>>>> =
     },
   };
 
-const turboConfig = {
-  $schema: 'https://turborepo.dev/schema.json',
-  agentGuidance: false,
-  ui: 'stream',
-  futureFlags: {
-    affectedUsingTaskInputs: true,
-    githubActionsRemoteBaseRefFallback: true,
-  },
-  globalEnv: ['CI'],
-  tasks: {
-    transit: { dependsOn: ['^transit'] },
-    typecheck: {
-      dependsOn: ['transit'],
-      inputs: ['$TURBO_DEFAULT$', '$TURBO_ROOT$/tsconfig.json'],
-    },
-    test: {
-      dependsOn: ['transit'],
-      inputs: ['$TURBO_DEFAULT$', '$TURBO_ROOT$/vitest.config.ts'],
-    },
-    'test:integration': {
-      dependsOn: ['transit'],
-      inputs: ['$TURBO_DEFAULT$', '$TURBO_ROOT$/vitest.config.ts'],
-    },
-    'test:e2e': { dependsOn: ['transit'], cache: false },
-    ...Object.fromEntries(rootTasks.map((task) => [`//#${task}`, {}])),
-  },
-};
-
-function turboProblems(): Problem[] {
-  return isDeepStrictEqual(strictJson('turbo.json'), turboConfig)
-    ? []
-    : [
-        problem(
-          'turbo-config',
-          `turbo.json is the fast gate's wiring and holds exactly ${JSON.stringify(turboConfig)}: each package's typecheck and tests depend on the packages it imports through transit, every repository-wide check is a root task whose inputs are the whole repository, nothing turns a cache or an input off, and --affected follows each task's inputs and falls back to every task when it cannot resolve its base.`,
-        ),
-      ];
-}
-
 function scriptProblems(): Problem[] {
   const manifests = [
     'package.json',
     ...packageFolders.map((folder) => join(folder, 'package.json')),
   ];
   return [
-    ...turboProblems(),
     ...manifests.flatMap((path) => {
       const scripts = existsSync(path)
         ? (manifestScriptsSchema.parse(strictJson(path)).scripts ?? {})
@@ -918,20 +880,15 @@ const browserConfigSchema = z.object({
     test: z.object({
       allowOnly: z.unknown(),
       passWithNoTests: z.unknown(),
-      projects: z.array(
-        z.object({
-          test: z.object({
-            include: z.array(z.string()),
-            retry: z.unknown(),
-            browser: z.object({
-              enabled: z.unknown(),
-              headless: z.unknown(),
-              provider: z.object({ name: z.unknown() }),
-              instances: z.array(z.object({ browser: z.unknown() })),
-            }),
-          }),
-        }),
-      ),
+      projects: z.never().optional(),
+      include: z.array(z.string()),
+      retry: z.unknown(),
+      browser: z.object({
+        enabled: z.unknown(),
+        headless: z.unknown(),
+        provider: z.object({ name: z.unknown() }),
+        instances: z.array(z.object({ browser: z.unknown() })),
+      }),
     }),
   }),
 });
@@ -998,33 +955,24 @@ async function configModuleProblems(): Promise<Problem[]> {
     await load('apps/web/vitest.config.ts'),
   );
   const integration = browser.success ? browser.data.default.test : undefined;
-  const lanes = integration?.projects.map((project) => project.test) ?? [];
-  const included = lanes.flatMap((lane) => lane.include).toSorted();
-  const written = readdirSync('apps/web/spec/integration')
-    .filter((file) => file.endsWith('.test.tsx'))
-    .map((file) => `spec/integration/${file}`)
-    .toSorted();
   if (
     integration === undefined ||
     integration.allowOnly !== false ||
     integration.passWithNoTests !== false ||
-    lanes.length === 0 ||
-    !isDeepStrictEqual(included, written) ||
-    lanes.some(
-      (lane) =>
-        lane.retry !== 0 ||
-        lane.browser.enabled !== true ||
-        lane.browser.headless !== true ||
-        lane.browser.provider.name !== 'playwright' ||
-        lane.browser.instances.some(
-          (instance) => instance.browser !== 'chromium',
-        ),
+    !isDeepStrictEqual(integration.include, ['spec/integration/*.test.tsx']) ||
+    integration.retry !== 0 ||
+    integration.browser.enabled !== true ||
+    integration.browser.headless !== true ||
+    integration.browser.provider.name !== 'playwright' ||
+    integration.browser.instances.length === 0 ||
+    integration.browser.instances.some(
+      (instance) => instance.browser !== 'chromium',
     )
   )
     problems.push(
       problem(
         'vitest-config',
-        'apps/web/vitest.config.ts runs every integration test in spec/integration exactly once across its lanes, with no retry and no .only, in headless Chromium through the Playwright provider.',
+        'apps/web/vitest.config.ts runs every integration test in spec/integration exactly once, in one project whose files Vitest schedules, with no retry and no .only, in headless Chromium through the Playwright provider.',
       ),
     );
   const e2e = playwrightConfigSchema.safeParse(

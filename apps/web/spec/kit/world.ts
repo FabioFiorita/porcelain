@@ -6,6 +6,7 @@ import { editFileRequestSchema } from '@porcelain/contracts/files';
 import { readInventoryResponseSchema } from '@porcelain/contracts/projects';
 import {
   IsolatedServer,
+  kitHeaders,
   Recorder,
 } from '@porcelain/server/kit/isolated-server';
 import {
@@ -28,7 +29,6 @@ import type {
   ServerRead,
 } from './protocol.ts';
 
-const kitHeader = { 'x-porcelain-journey': 'kit' };
 const proofScreenshot = 'proof-screenshot.png';
 const onePixelPng = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
@@ -42,7 +42,7 @@ async function mainWorktree(agent: Session) {
   const response = await agent.send({
     method: 'GET',
     path: '/api/inventory',
-    headers: kitHeader,
+    headers: kitHeaders,
   });
   const worktree = readInventoryResponseSchema
     .parse(response.body)
@@ -101,7 +101,7 @@ async function agentActs(agent: Session, action: AgentAction) {
     await agent.writeFile(proofScreenshot, onePixelPng);
   const response = await agent.send({
     ...request,
-    headers: { ...request.headers, ...kitHeader },
+    headers: { ...request.headers, ...kitHeaders },
   });
   if (action.kind === 'publish-proof') await agent.remove(proofScreenshot);
   if (
@@ -119,14 +119,14 @@ async function prepareRemote(server: IsolatedServer, recorder: Recorder) {
   await read(kit, {
     method: 'PUT',
     path: '/api/environment/name',
-    headers: kitHeader,
+    headers: kitHeaders,
     body: { name: remoteComputerName },
   });
   const project = readInventoryResponseSchema.parse(
     await read(kit, {
       method: 'GET',
       path: '/api/inventory',
-      headers: kitHeader,
+      headers: kitHeaders,
     }),
   ).projects[0];
   if (project === undefined)
@@ -134,7 +134,7 @@ async function prepareRemote(server: IsolatedServer, recorder: Recorder) {
   await read(kit, {
     method: 'PATCH',
     path: `/api/projects/${encodeURIComponent(project.id)}`,
-    headers: kitHeader,
+    headers: kitHeaders,
     body: { name: remoteProjectName },
   });
 }
@@ -196,7 +196,7 @@ export class World {
       method: 'GET',
       path: request.path,
       target: request.target,
-      headers: kitHeader,
+      headers: kitHeaders,
     });
     return { status: response.status, body: response.body };
   }

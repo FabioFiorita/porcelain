@@ -122,13 +122,19 @@ const relay = createServer((incoming) => {
   outgoing.on('error', () => incoming.destroy());
 });
 
-type RouteOptions = { method: string | readonly string[]; url: string };
 type HitRequest = {
   id: string;
   method: string;
   url: string;
   routeOptions: { url?: string | undefined };
   headers: Record<string, string | string[] | undefined>;
+};
+type RouteHandler = (this: unknown, ...args: unknown[]) => unknown;
+type RouteOptions = {
+  method: string | readonly string[];
+  url: string;
+  websocket?: boolean;
+  handler: RouteHandler;
 };
 type RouteHost = {
   addHook(name: 'onRoute', hook: (route: RouteOptions) => void): unknown;
@@ -150,6 +156,15 @@ function isRouteHost(value: unknown): value is RouteHost {
     'addHook' in value &&
     typeof value.addHook === 'function' &&
     'server' in value
+  );
+}
+
+function isHandledRequest(value: unknown): value is { id: string } {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'id' in value &&
+    typeof value.id === 'string'
   );
 }
 
@@ -196,6 +211,14 @@ subscribe('fastify.initialization', (message) => {
     });
   });
   host.addHook('onRoute', (route) => {
+    const { handler } = route;
+    const requestAt = route.websocket === true ? 1 : 0;
+    route.handler = function handled(...args) {
+      const request = args[requestAt];
+      if (isHandledRequest(request))
+        recordHit(host, { event: 'handled', id: request.id });
+      return handler.apply(this, args);
+    };
     const methods =
       typeof route.method === 'string' ? [route.method] : route.method;
     for (const method of methods)

@@ -21,6 +21,14 @@
       "dependsOn": ["transit"],
       "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/vitest.config.ts"]
     },
+    "@porcelain/server#test:integration": {
+      "dependsOn": ["transit"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/vitest.config.ts",
+        "$TURBO_ROOT$/.agents/skills/server-verify/scripts/**"
+      ]
+    },
     "test:e2e": { "dependsOn": ["transit"], "cache": false },
     "//#typecheck": {},
     "//#lint:server": {},

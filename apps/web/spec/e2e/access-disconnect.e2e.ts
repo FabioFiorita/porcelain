@@ -27,7 +27,7 @@ async function refuseDisconnectWithDraft(page: Page, repo: Repo) {
   await settings
     .getByRole('button', { name: 'Disconnect this browser', exact: true })
     .click();
-  await expect(settings.getByRole('alert')).toContainText(
+  await expect(settings.getByRole('alert')).toHaveText(
     'Save or discard unsaved file drafts before disconnecting.',
   );
 }
@@ -75,7 +75,7 @@ test('disconnecting is refused while a file draft cannot be saved, and the file 
     .getByRole('button', { name: 'Disconnect this browser', exact: true })
     .click();
 
-  await expect(settings.getByRole('alert')).toContainText(
+  await expect(settings.getByRole('alert')).toHaveText(
     'Save or discard unsaved file drafts before disconnecting.',
   );
   await expect.poll(() => server.fileWriteCount()).toBe(1);

@@ -10,8 +10,8 @@ export default {
     {
       kind: 'replace',
       path: 'apps/web/vitest.config.ts',
-      old: '      retry: 0,\n',
-      new: '      retry: 2,\n',
+      old: '    retry: 0,\n',
+      new: '    retry: 2,\n',
     },
   ],
 } satisfies Probe;
