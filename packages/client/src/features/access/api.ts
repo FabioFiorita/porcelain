@@ -2,6 +2,7 @@ import {
   readEnvironmentResponseSchema,
   redeemPairingResponseSchema,
 } from '@porcelain/contracts/access';
+import { ENVIRONMENT_PROTOCOL } from '@porcelain/contracts/shared';
 import { ConnectionError } from '../../shared/api/connection-error.ts';
 import type { Transport } from '../../shared/api/transport.ts';
 import type { RemoteLink } from './rules/pairing-link.ts';
@@ -41,10 +42,25 @@ export function createRemoteApi(platform: PairingPlatform) {
     async describe(
       transport: Transport,
       signal: AbortSignal,
+      environmentId: string,
     ): Promise<RemoteAnswer> {
       let response: Response;
       try {
         response = await transport('/api/environment', { signal });
+        if (response.status === 401) return { kind: 'unauthorized' };
+        if (!response.ok) return { kind: 'unreachable' };
+        const environment = readEnvironmentResponseSchema.parse(
+          await response.json(),
+        );
+        if (
+          environment.environmentId !== environmentId ||
+          environment.protocol !== ENVIRONMENT_PROTOCOL
+        )
+          return { kind: 'described', environment };
+        response = await transport('/api/inventory', { signal });
+        if (response.status === 401) return { kind: 'unauthorized' };
+        if (!response.ok) return { kind: 'unreachable' };
+        return { kind: 'described', environment };
       } catch (error) {
         const timedOut =
           signal.reason instanceof DOMException &&
@@ -52,12 +68,6 @@ export function createRemoteApi(platform: PairingPlatform) {
         if (signal.aborted && !timedOut) throw error;
         return { kind: 'unreachable' };
       }
-      if (response.status === 401) return { kind: 'unauthorized' };
-      if (!response.ok) return { kind: 'unreachable' };
-      return {
-        kind: 'described',
-        environment: readEnvironmentResponseSchema.parse(await response.json()),
-      };
     },
   };
 }

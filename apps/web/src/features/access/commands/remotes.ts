@@ -28,6 +28,7 @@ async function addRemote(value: string): Promise<Remote> {
   const answer = await remoteApi.describe(
     remoteTransport(link.address, credential, fetch),
     signal,
+    link.environmentId,
   );
   const status = remoteStatus(link, answer);
   if (status.kind !== 'online')

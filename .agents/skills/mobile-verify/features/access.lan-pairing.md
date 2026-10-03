@@ -10,6 +10,7 @@ tests:
 api:
   - POST /api/pair
   - GET /api/environment
+  - GET /api/inventory
 ---
 
 # access.lan-pairing

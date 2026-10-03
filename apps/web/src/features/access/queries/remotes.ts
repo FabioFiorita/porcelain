@@ -17,6 +17,7 @@ export function remoteStatusQueryOptions(remote: Remote) {
           signal,
           AbortSignal.timeout(REMOTE_STATUS_TIMEOUT_MS),
         ]),
+        remote.environmentId,
       ),
     refetchInterval: (query) =>
       remoteStatus(remote, query.state.data).kind === 'other-server'
