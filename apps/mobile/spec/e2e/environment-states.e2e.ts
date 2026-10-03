@@ -1,11 +1,11 @@
 import { expect, test } from './fixtures.ts';
 
-test('Settings opened by deep link after a cold launch shows an environment whose server revoked the device as needing pairing and one whose server stopped as offline', async ({
+test('Settings opened by deep link after a cold launch shows an environment whose server runs as online and one whose server stopped as offline', async ({
   app,
   device,
   environments,
 }) => {
-  const first = await environments.start('Revoked');
+  const first = await environments.start('Running');
   const second = await environments.start('Stopped');
   expect(
     await app.run('pair-environments.yaml', {
@@ -18,15 +18,14 @@ test('Settings opened by deep link after a cold launch shows an environment whos
     name: 'Pair two environments that are online',
     status: 'passed',
   });
+  const platform = device.kind === 'ipad' ? 'iPadOS' : 'iOS';
+  expect(await first.devices()).toEqual([
+    { label: 'Native mobile proof', platform },
+  ]);
   expect(await second.devices()).toEqual([
-    {
-      label: 'Native mobile proof',
-      platform: device.kind === 'ipad' ? 'iPadOS' : 'iOS',
-    },
+    { label: 'Native mobile proof', platform },
   ]);
 
-  await first.revokeDevices();
-  expect(await first.devices()).toEqual([]);
   expect(await second.stop()).toBeUndefined();
 
   expect(
@@ -39,4 +38,7 @@ test('Settings opened by deep link after a cold launch shows an environment whos
     name: "A cold launch deep-linked into Settings shows each environment's state",
     status: 'passed',
   });
+  expect(
+    (await first.nativeHits('GET', '/api/environment')).length,
+  ).toBeGreaterThanOrEqual(2);
 });

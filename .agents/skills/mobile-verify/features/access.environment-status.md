@@ -32,12 +32,13 @@ Start an instance first: `.agents/skills/mobile-verify/scripts/cli start`.
 .agents/skills/mobile-verify/scripts/cli snapshot
 ```
 
-Look for: the environment “Mobile Verification …” marked “Online”. The other states need the server changed under the app (revoked, stopped); the e2e test sets them up, since the CLI keeps its server running for the whole session.
+Look for: the environment “Mobile Verification …” marked “Online”. The other states need the server changed under the app (stopped); the e2e test sets them up, since the CLI keeps its server running for the whole session.
 
 ## What proves it works
 
-- `apps/mobile/spec/e2e/environment-states.e2e.ts`: two real environments pair online; one server then revokes the device (it lists no device) and the other stops; a cold launch deep-linked straight into Settings shows “Needs pairing” and “Offline” and no environment “Online”.
+- `apps/mobile/spec/e2e/environment-states.e2e.ts`: two real environments pair online and each server holds one device labelled “Native mobile proof”; one server then stops, and a cold launch deep-linked straight into Settings shows the running one “Online” and the stopped one “Offline”.
 
 ## Gotchas
 
+- “Needs pairing” is unreachable against the real server today: the row reads `GET /api/environment`, which the server serves to anyone, so a server that revoked this device still answers 200 and the row stays “Online”. No test claims it until the client reads an authenticated route for the status.
 - “Another server” and “Update needed” need a different server at the same address or another protocol version; no real disposable server is in either state, so no test reaches them yet.

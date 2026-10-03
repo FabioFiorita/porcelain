@@ -67,7 +67,11 @@ function linkOf(destination: string | undefined): string {
   if (destination === undefined)
     throw new Refusal('open takes a screen such as /files or a deep link.');
   if (destination.startsWith('/')) return screenLink(destination);
-  if (destination.startsWith(`${identity.scheme}://`)) return destination;
+  const scheme = `${identity.scheme}://`;
+  if (destination.startsWith(scheme))
+    return destination.includes('?')
+      ? destination
+      : screenLink(destination.slice(scheme.length));
   throw new Refusal(
     `open takes a screen path starting with / or a ${identity.scheme}:// deep link.`,
   );

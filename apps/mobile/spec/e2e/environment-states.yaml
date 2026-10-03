@@ -13,9 +13,8 @@ name: A cold launch deep-linked into Settings shows each environment's state
 - assertVisible: ${FIRST_ENVIRONMENT_NAME}
 - assertVisible: ${SECOND_ENVIRONMENT_NAME}
 - extendedWaitUntil:
-    visible: Needs pairing
+    visible: Online
     timeout: 20000
 - extendedWaitUntil:
     visible: Offline
     timeout: 20000
-- assertNotVisible: Online

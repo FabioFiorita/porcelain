@@ -34,12 +34,12 @@ Start an instance first: `.agents/skills/mobile-verify/scripts/cli start`.
 .agents/skills/mobile-verify/scripts/cli snapshot
 ```
 
-Look for: History, then Settings listing the paired environment. `open` takes a screen path or a `porcelain.dev://` link and adds the developer-menu flags itself.
+Look for: History, then Settings listing the paired environment. `open` takes a screen path or a `porcelain.dev://` link and adds the developer-menu flags to a link that carries no query of its own.
 
 ## What proves it works
 
 - `apps/mobile/spec/e2e/destinations.e2e.ts`: on a fresh install the links open Files, History, Settings and Review with the tab selected and each one's empty state, and History again straight after a cold launch.
-- `apps/mobile/spec/e2e/environment-states.e2e.ts`: a cold launch followed by the Settings link shows environments needing pairing and offline.
+- `apps/mobile/spec/e2e/environment-states.e2e.ts`: a cold launch followed by the Settings link shows one environment online and the one whose server stopped offline.
 
 ## Gotchas
 
