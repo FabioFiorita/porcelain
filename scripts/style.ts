@@ -168,12 +168,13 @@ function proseOutsideSkills(files: readonly string[]): Problem[] {
       (path) =>
         /\.(?:md|mdx|markdown)$/i.test(path) &&
         path !== 'AGENTS.md' &&
+        path !== '.github/PULL_REQUEST_TEMPLATE.md' &&
         !path.startsWith('.agents/skills/'),
     )
     .map((path) =>
       problem(
         'prose-outside-skills',
-        `${path}: the repository keeps prose only in AGENTS.md and the skills under .agents/skills/; code is the example and lint the rulebook, so move a workflow into its skill and drop architecture narration.`,
+        `${path}: the repository keeps prose only in AGENTS.md, the pull request template and the skills under .agents/skills/; code is the example and lint the rulebook, so move a workflow into its skill and drop architecture narration.`,
       ),
     );
 }
