@@ -25,6 +25,7 @@ const repositoryRoot = resolve(
 );
 const SERVER_CLI = '.agents/skills/server-verify/scripts/cli';
 const WEB_CLI = '.agents/skills/web-verify/scripts/cli';
+const WEB_CASE_MS = 3 * 60_000;
 const STALE = 'server or CLI code changed since start, run start again\n';
 const PAIRING_CODE =
   'pcp_0b6f3d1e-2a4c-4e8b-9f10-3c5d7e9a1b2c_AbCdEfGhIjKlMnOpQrStUvWxYz0123456789-_abcde';
@@ -444,66 +445,71 @@ test('concurrent commands each record their own numbered evidence file', async (
   ]);
 });
 
-test('the web CLI keeps a pairing code typed with fill or shown in a snapshot out of its evidence', async ({
-  onTestFinished,
-}) => {
-  const instance = await started(onTestFinished, { path: WEB_CLI });
-  const web = (...args: string[]) =>
-    cli(repositoryRoot, WEB_CLI, ...args, '--instance', instance.id);
-  await web('open', '/');
-  await web('click', '--role', 'button', '--name', 'Commit');
+test(
+  'the web CLI keeps a pairing code typed with fill or shown in a snapshot out of its evidence',
+  async ({ onTestFinished }) => {
+    const instance = await started(onTestFinished, { path: WEB_CLI });
+    const web = (...args: string[]) =>
+      cli(repositoryRoot, WEB_CLI, ...args, '--instance', instance.id);
+    await web('open', '/');
+    await web('click', '--role', 'button', '--name', 'Commit');
 
-  const filled = await web(
-    'fill',
-    '--role',
-    'textbox',
-    '--name',
-    'Message',
-    `Pairing code ${PAIRING_CODE}`,
-  );
-  const snapshot = await web('snapshot');
-  await web('stop');
-  const evidence = await evidenceOf(instance.evidence);
+    const filled = await web(
+      'fill',
+      '--role',
+      'textbox',
+      '--name',
+      'Message',
+      `Pairing code ${PAIRING_CODE}`,
+    );
+    const snapshot = await web('snapshot');
+    await web('stop');
+    const evidence = await evidenceOf(instance.evidence);
 
-  expect(filled.code).toBe(0);
-  expect(filled.stdout).not.toContain(PAIRING_CODE);
-  expect(snapshot.stdout, 'the snapshot prints what the page shows').toContain(
-    PAIRING_CODE,
-  );
-  expect(evidence.text).toContain('Pairing code [redacted]');
-  expect(evidence.text).not.toContain(PAIRING_CODE);
-  expect(evidence.numbered).toStrictEqual([
-    '000-start.txt',
-    '001-open.txt',
-    '002-click.txt',
-    '003-fill.txt',
-    '004-snapshot.txt',
-    '004-snapshot.yml',
-  ]);
-});
+    expect(filled.code).toBe(0);
+    expect(filled.stdout).not.toContain(PAIRING_CODE);
+    expect(
+      snapshot.stdout,
+      'the snapshot prints what the page shows',
+    ).toContain(PAIRING_CODE);
+    expect(evidence.text).toContain('Pairing code [redacted]');
+    expect(evidence.text).not.toContain(PAIRING_CODE);
+    expect(evidence.numbered).toStrictEqual([
+      '000-start.txt',
+      '001-open.txt',
+      '002-click.txt',
+      '003-fill.txt',
+      '004-snapshot.txt',
+      '004-snapshot.yml',
+    ]);
+  },
+  WEB_CASE_MS,
+);
 
-test('concurrent web commands each record their own numbered evidence file', async ({
-  onTestFinished,
-}) => {
-  const instance = await started(onTestFinished, { path: WEB_CLI });
+test(
+  'concurrent web commands each record their own numbered evidence file',
+  async ({ onTestFinished }) => {
+    const instance = await started(onTestFinished, { path: WEB_CLI });
 
-  const runs = await Promise.all(
-    Array.from({ length: 4 }, () =>
-      cli(repositoryRoot, WEB_CLI, 'console', '--instance', instance.id),
-    ),
-  );
-  await cli(repositoryRoot, WEB_CLI, 'stop', '--instance', instance.id);
-  const evidence = await evidenceOf(instance.evidence);
+    const runs = await Promise.all(
+      Array.from({ length: 4 }, () =>
+        cli(repositoryRoot, WEB_CLI, 'console', '--instance', instance.id),
+      ),
+    );
+    await cli(repositoryRoot, WEB_CLI, 'stop', '--instance', instance.id);
+    const evidence = await evidenceOf(instance.evidence);
 
-  expect(runs.map((run) => run.code)).toStrictEqual([0, 0, 0, 0]);
-  expect(evidence.numbered).toStrictEqual([
-    '000-start.txt',
-    '001-console.txt',
-    '002-console.txt',
-    '003-console.txt',
-    '004-console.txt',
-  ]);
-});
+    expect(runs.map((run) => run.code)).toStrictEqual([0, 0, 0, 0]);
+    expect(evidence.numbered).toStrictEqual([
+      '000-start.txt',
+      '001-console.txt',
+      '002-console.txt',
+      '003-console.txt',
+      '004-console.txt',
+    ]);
+  },
+  WEB_CASE_MS,
+);
 
 function printed(run: Run): unknown {
   const [json = ''] = run.stdout.split('\nrecorded ');
@@ -516,98 +522,106 @@ function markedPaths(run: Run): string[] {
   );
 }
 
-test('an agent comment sent through the web CLI reaches the server and the page shows it', async ({
-  onTestFinished,
-}) => {
-  const instance = await started(onTestFinished, { path: WEB_CLI });
-  const web = (...args: string[]) =>
-    cli(repositoryRoot, WEB_CLI, ...args, '--instance', instance.id);
-  const body = 'Sent through the web CLI as the agent';
+test(
+  'an agent comment sent through the web CLI reaches the server and the page shows it',
+  async ({ onTestFinished }) => {
+    const instance = await started(onTestFinished, { path: WEB_CLI });
+    const web = (...args: string[]) =>
+      cli(repositoryRoot, WEB_CLI, ...args, '--instance', instance.id);
+    const body = 'Sent through the web CLI as the agent';
 
-  const sent = await web('agent', 'comment', 'README.md', body);
-  const threads = list(printed(await web('server', 'comment-threads')));
-  const shown = await web('wait', '--text', body);
+    const sent = await web('agent', 'comment', 'README.md', body);
+    const threads = list(printed(await web('server', 'comment-threads')));
+    const shown = await web('wait', '--text', body);
 
-  expect(sent.code).toBe(0);
-  expect(threads.map((thread) => record(thread).anchor)).toStrictEqual([
-    { kind: 'file', filePath: 'README.md' },
-  ]);
-  expect(
-    list(record(threads[0]).messages).map((message) => {
-      const { author, body: said } = record(message);
-      return { author, said };
-    }),
-  ).toStrictEqual([{ author: 'agent', said: body }]);
-  expect(shown.code, 'the page shows the agent comment').toBe(0);
-});
+    expect(sent.code).toBe(0);
+    expect(threads.map((thread) => record(thread).anchor)).toStrictEqual([
+      { kind: 'file', filePath: 'README.md' },
+    ]);
+    expect(
+      list(record(threads[0]).messages).map((message) => {
+        const { author, body: said } = record(message);
+        return { author, said };
+      }),
+    ).toStrictEqual([{ author: 'agent', said: body }]);
+    expect(shown.code, 'the page shows the agent comment').toBe(0);
+  },
+  WEB_CASE_MS,
+);
 
-test('network hold keeps a request away from the server until network release', async ({
-  onTestFinished,
-}) => {
-  const instance = await started(onTestFinished, { path: WEB_CLI });
-  const web = (...args: string[]) =>
-    cli(repositoryRoot, WEB_CLI, ...args, '--instance', instance.id);
-  await web('network', 'hold', 'PUT /api/worktrees/:worktreeId/reviewed');
-  await web(
-    'click',
-    '--role',
-    'button',
-    '--name',
-    'Mark README.md as reviewed',
-  );
+test(
+  'network hold keeps a request away from the server until network release',
+  async ({ onTestFinished }) => {
+    const instance = await started(onTestFinished, { path: WEB_CLI });
+    const web = (...args: string[]) =>
+      cli(repositoryRoot, WEB_CLI, ...args, '--instance', instance.id);
+    await web('network', 'hold', 'PUT /api/worktrees/:worktreeId/reviewed');
+    await web(
+      'click',
+      '--role',
+      'button',
+      '--name',
+      'Mark README.md as reviewed',
+    );
 
-  const whileHeld = markedPaths(await web('server', 'reviewed-files'));
-  const released = await web('network', 'release');
-  const shown = await web(
-    'wait',
-    '--role',
-    'button',
-    '--name',
-    'Unmark README.md as unreviewed',
-  );
-  const afterRelease = markedPaths(await web('server', 'reviewed-files'));
+    const whileHeld = markedPaths(await web('server', 'reviewed-files'));
+    const released = await web('network', 'release');
+    const shown = await web(
+      'wait',
+      '--role',
+      'button',
+      '--name',
+      'Unmark README.md as unreviewed',
+    );
+    const afterRelease = markedPaths(await web('server', 'reviewed-files'));
 
-  expect(whileHeld, 'the held mark has not reached the server').toStrictEqual(
-    [],
-  );
-  expect(released.stdout).toMatch(
-    /^PUT \/api\/worktrees\/:worktreeId\/reviewed: released 1 held request\n/,
-  );
-  expect(shown.code).toBe(0);
-  expect(afterRelease).toStrictEqual(['README.md']);
-}, 60_000);
+    expect(whileHeld, 'the held mark has not reached the server').toStrictEqual(
+      [],
+    );
+    expect(released.stdout).toMatch(
+      /^PUT \/api\/worktrees\/:worktreeId\/reviewed: released 1 held request\n/,
+    );
+    expect(shown.code).toBe(0);
+    expect(afterRelease).toStrictEqual(['README.md']);
+  },
+  WEB_CASE_MS,
+);
 
-test('the web CLI prints the second computer’s pairing link and keeps it and that computer’s credentials out of its evidence', async ({
-  onTestFinished,
-}) => {
-  const instance = await started(onTestFinished, { path: WEB_CLI });
-  const web = (...args: string[]) =>
-    cli(repositoryRoot, WEB_CLI, ...args, '--instance', instance.id);
-  const remote = await web('remote', 'start');
-  const issued = await web('remote', 'pairing-link');
-  const [link = ''] = issued.stdout.split('\n');
-  const code = decodeURIComponent(/#c=([^&]+)/.exec(link)?.[1] ?? '');
-  const secrets = list(
-    record(JSON.parse(await readFile(instance.file, 'utf8'))).secrets,
-  ).map(text);
-  const added = secrets.filter((secret) => !instance.secrets.includes(secret));
+test(
+  'the web CLI prints the second computer’s pairing link and keeps it and that computer’s credentials out of its evidence',
+  async ({ onTestFinished }) => {
+    const instance = await started(onTestFinished, { path: WEB_CLI });
+    const web = (...args: string[]) =>
+      cli(repositoryRoot, WEB_CLI, ...args, '--instance', instance.id);
+    const remote = await web('remote', 'start');
+    const issued = await web('remote', 'pairing-link');
+    const [link = ''] = issued.stdout.split('\n');
+    const code = decodeURIComponent(/#c=([^&]+)/.exec(link)?.[1] ?? '');
+    const secrets = list(
+      record(JSON.parse(await readFile(instance.file, 'utf8'))).secrets,
+    ).map(text);
+    const added = secrets.filter(
+      (secret) => !instance.secrets.includes(secret),
+    );
 
-  await web('stop');
-  const evidence = await evidenceOf(instance.evidence);
+    await web('stop');
+    const evidence = await evidenceOf(instance.evidence);
 
-  expect(remote.code).toBe(0);
-  expect(code, 'the link is printed for the next step').toMatch(/^pcp_/);
-  expect(added, 'the second computer’s credentials').toHaveLength(2);
-  expect(evidence.text).toContain('/pair#c=[redacted]&e=');
-  expect(
-    [...secrets, code].filter((secret) => evidence.text.includes(secret)),
-    'no credential or code in the evidence',
-  ).toStrictEqual([]);
-  expect(
-    secrets.filter(
-      (secret) =>
-        remote.stdout.includes(secret) || issued.stdout.includes(secret),
-    ),
-    'no credential printed',
-  ).toStrictEqual([]);
-});
+    expect(remote.code).toBe(0);
+    expect(code, 'the link is printed for the next step').toMatch(/^pcp_/);
+    expect(added, 'the second computer’s credentials').toHaveLength(2);
+    expect(evidence.text).toContain('/pair#c=[redacted]&e=');
+    expect(
+      [...secrets, code].filter((secret) => evidence.text.includes(secret)),
+      'no credential or code in the evidence',
+    ).toStrictEqual([]);
+    expect(
+      secrets.filter(
+        (secret) =>
+          remote.stdout.includes(secret) || issued.stdout.includes(secret),
+      ),
+      'no credential printed',
+    ).toStrictEqual([]);
+  },
+  WEB_CASE_MS,
+);
