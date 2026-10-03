@@ -8,6 +8,7 @@ import {
   screenLink,
 } from '../../../../apps/mobile/spec/kit/development-client.ts';
 import { issuePairingLink } from '../../../../apps/mobile/spec/kit/environment.ts';
+import { deviceHost } from '../../../../apps/mobile/spec/kit/device-host.ts';
 import {
   isBooted,
   shutdownSimulator,
@@ -29,7 +30,6 @@ import {
   selector,
   type Target,
 } from './device.ts';
-import { deviceHost } from './host.ts';
 import {
   registry,
   scriptFingerprint,
@@ -123,7 +123,7 @@ async function issueLink(instance: MobileInstance): Promise<MobileInstance> {
 }
 
 async function doctor(): Promise<string> {
-  const host = deviceHost();
+  const host = deviceHost().remote;
   const problems = (await startProblems(host)).filter(
     (problem) => problem !== undefined,
   );

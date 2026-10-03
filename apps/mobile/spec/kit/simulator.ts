@@ -2,13 +2,13 @@ import { execFile } from 'node:child_process';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { promisify } from 'node:util';
 import { z } from 'zod';
+import { hostFileName } from './device-host.ts';
 
 export type DeviceKind = 'iphone' | 'ipad';
 
 export type Simulator = { udid: string; name: string; kind: DeviceKind };
 
 const execute = promisify(execFile);
-const simulatorLimit = 2;
 const minimumRuntime = 26;
 const language = 'en-US';
 const locale = 'en_US';
@@ -106,7 +106,7 @@ async function devices() {
     .devices;
 }
 
-export async function bootedSimulators(): Promise<string[]> {
+async function bootedSimulators(): Promise<string[]> {
   return Object.values(
     devicesSchema.parse(
       JSON.parse(await simctl('list', 'devices', 'booted', '-j')),
@@ -118,9 +118,18 @@ export async function bootedSimulators(): Promise<string[]> {
 
 export function simulatorLimitProblem(
   booted: readonly string[],
+  limit: number | undefined,
 ): string | undefined {
-  if (booted.length < simulatorLimit) return undefined;
-  return `The device host already has ${booted.length} booted simulators (${booted.join(', ')}) and takes at most ${simulatorLimit} at once; each thread stops only its own instance with .agents/skills/mobile-verify/scripts/cli stop, so start again once one has stopped.`;
+  if (limit === undefined || booted.length < limit) return undefined;
+  return `The device host already has ${booted.length} booted simulators (${booted.join(', ')}) and simulatorLimit in ${hostFileName} allows ${limit} at once; each thread stops only its own instance with .agents/skills/mobile-verify/scripts/cli stop, so start again once one has stopped.`;
+}
+
+export async function localBootProblem(
+  limit: number | undefined,
+): Promise<string | undefined> {
+  return limit === undefined
+    ? undefined
+    : simulatorLimitProblem(await bootedSimulators(), limit);
 }
 
 export async function bootSimulator(

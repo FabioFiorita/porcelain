@@ -165,13 +165,18 @@ export function remoteBooted(target: Hosted): boolean {
 
 export function remoteBootProblem(
   target: Hosted & { udid: string },
+  limit: number | undefined,
 ): string | undefined {
+  if (limit === undefined) return undefined;
   const booted = remoteDevices(target).filter(
     (device) => device.kind === 'simulator' && device.booted,
   );
   return booted.some((device) => device.id === target.udid)
     ? undefined
-    : simulatorLimitProblem(booted.map((device) => device.name));
+    : simulatorLimitProblem(
+        booted.map((device) => device.name),
+        limit,
+      );
 }
 
 export function remoteSimulator(
