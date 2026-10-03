@@ -16,7 +16,7 @@ api:
 
 ## What it is
 
-Opening a one-time pairing link checks the server's health, redeems the code as a new device, opens the connected workspace, and leaves no code in the address bar.
+Opening a one-time pairing link checks the server's health, redeems the code as a new device, opens the connected workspace, and leaves no code in the address bar. A browser that is already paired and opens `/pair` without a link goes to its workspace instead of being told it is not paired.
 
 ## How a user reaches it
 
@@ -39,12 +39,14 @@ None. Pairing a second time needs a fresh link: in a `start --desktop` instance,
    Look for: `GET /api/health` 200, `POST /api/pair` 200, `GET /api/inventory` 200.
 4. `$C open /`
    Look for: the workspace again (region "Review content"), not `/pair`: the pairing left a working session.
+5. `$C open /pair`, then `$C snapshot`
+   Look for: region "Review content" and no heading "This browser is not paired": the paired browser is sent from `/pair` to its workspace (the CLI may still print Page URL `/pair` for the `open`; the `snapshot` prints the settled page).
 
 ## What proves it works
 
 - The workspace opened from a link, the address carrying no `#c=` fragment, and a reload staying in the workspace.
 - Server side, `cli server devices` (missing) should list "Verification browser".
-- `apps/web/spec/e2e/access-pairing.e2e.ts`: after opening a link, region "Review content" shows, the address fragment is empty, and `server.devices()` contains the link's label.
+- `apps/web/spec/e2e/access-pairing.e2e.ts`: after opening a link, region "Review content" shows, the address fragment is empty, and `server.devices()` contains the link's label; a paired browser that opens `/pair` sees region "Review content", no not-paired heading, and leaves `/pair`.
 
 ## Gotchas
 

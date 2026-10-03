@@ -16,11 +16,11 @@ api:
 
 ## What it is
 
-When a reload's session restore fails for a reason other than "not paired" (inventory answers an error, not 401), the page keeps the workspace address and shows the retrying workspace error instead of the not-paired page, and it opens the workspace by itself once the connection returns.
+When a reload's session restore fails for a reason other than "not paired" (inventory answers an error, not 401), the page keeps the workspace address and shows the retrying workspace error instead of the not-paired page, and it opens the workspace by itself once the connection returns. Opening `/pair` during the outage shows the same retrying error, not the not-paired page.
 
 ## How a user reaches it
 
-- Reload (or open) a workspace address `/<projectId>/<worktreeId>` while the server cannot answer.
+- Reload (or open) a workspace address `/<projectId>/<worktreeId>`, or `/pair` without a link, while the server cannot answer.
 - The error retries on the window's `online`, `focus` and `visibilitychange` events.
 
 ## Driving it
@@ -47,7 +47,7 @@ Healthy path the CLI can do today: after step 1, `$C open "$WORKSPACE"` shows re
 - During the outage: the workspace error at the unchanged address, never the not-paired page. After it: the workspace returns at the same address with the Files surface kept.
 - `$C network` during the outage: `GET /api/inventory` answered 503 (not 401), and no navigation to `/pair`.
 - `$C console` shows the expected error "Could not reach Porcelain to restore this browser session."
-- `apps/web/spec/e2e/access-restore-outage.e2e.ts`: pairs, opens Files, makes inventory answer 503 and reloads; asserts the workspace error, no not-paired heading and the same path; ends the outage and dispatches `online`; asserts "Review content", the same path and Files still selected.
+- `apps/web/spec/e2e/access-restore-outage.e2e.ts`: pairs, opens Files, makes inventory answer 503 and reloads; asserts the workspace error, no not-paired heading and the same path; ends the outage and dispatches `online`; asserts "Review content", the same path and Files still selected. A second case opens `/pair` in a paired browser during the outage, asserts the workspace error and no not-paired heading, and after the outage "Review content" away from `/pair`.
 
 ## Gotchas
 

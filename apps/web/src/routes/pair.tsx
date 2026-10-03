@@ -7,8 +7,10 @@ import {
   pairBrowser,
   parsePairingLink,
   PairingView,
+  restoreSession,
 } from '@/features/access/index';
 import { PAIRING_PENDING_MS } from '@/config/limits';
+import { WorkspaceError } from '@/app/workspace-error';
 
 export const Route = createFileRoute('/pair')({
   preload: false,
@@ -16,7 +18,11 @@ export const Route = createFileRoute('/pair')({
   pendingComponent: PairingView,
   loader: async ({ context, abortController }) => {
     const fragment = window.location.hash;
-    if (!fragment) return undefined;
+    if (!fragment) {
+      if (await restoreSession(context.queryClient))
+        redirect({ to: '/', replace: true, throw: true });
+      return undefined;
+    }
     window.history.replaceState(
       window.history.state,
       '',
@@ -31,6 +37,7 @@ export const Route = createFileRoute('/pair')({
     }
     redirect({ to: '/', replace: true, throw: true });
   },
+  errorComponent: WorkspaceError,
   component: PairRoute,
 });
 

@@ -65,5 +65,5 @@ A one-time link entered in a tab that already shows the not-paired page (`/pair`
 - Web mode (`$C start`) cannot mint a link: Settings → Devices exists only with `--desktop`, and `POST /api/pairings` is an owner route. A command that issues a link in either mode would be `cli pair`.
 - The link works once and expires after a few minutes ("Works once, until <time>"); mint it right before the steps.
 - Unpairing is one-way: if the link was lost, nothing else can be driven in that instance; `$C stop` and `$C start --desktop`.
-- `/pair` shows "This browser is not paired" even in a paired browser; disconnect first so the page really is the unpaired state.
+- A paired browser that opens `/pair` is sent to its workspace (access.pairing), so the steps disconnect first to reach the not-paired page.
 - The same-tab path depends on the tab already being at `/pair`; opening the link from any other path is a full load, which is `access.pairing`.

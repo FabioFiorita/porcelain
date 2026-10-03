@@ -45,4 +45,4 @@ A browser with no session asks the real server for its inventory, gets 401, is s
 ## Gotchas
 
 - The setup disconnects the instance's browser for good: nothing else can be driven until it is paired again (CLI gap `cli pair`). Drive this last, or `$C stop` and `$C start` afterwards.
-- `/pair` shows the not-paired page even in a paired browser; only a redirect from `/` (or another paired route) proves there is no session.
+- `/pair` shows the not-paired page only when the browser has no session; a paired browser that opens it is sent to its workspace.
