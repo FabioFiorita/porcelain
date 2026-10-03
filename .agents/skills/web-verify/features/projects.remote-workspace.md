@@ -9,12 +9,21 @@ selectors:
   - "Add"
   - "Back"
   - "Online"
+  - "This computer"
+  - "Main worktree"
+  - "Mark "
+  - "Unmark "
   - "Review"
   - "Files"
-  - "README.md"
   - "Open file"
   - "Source"
   - "Review summary"
+  - "Review layer "
+  - "Name of this computer"
+  - "Save"
+  - "Rename project"
+  - "Name"
+  - "Rename"
 tests:
   - apps/web/spec/e2e/projects-remote-workspace.desktop.e2e.ts
 api:
@@ -36,71 +45,75 @@ api:
 
 ## What it is
 
-The desktop app lists another computer under its own name and status in the sidebar, apart from this computer's projects, and opens its worktree in the full review workspace over that computer's own credential, with the machine in the tab title: a change marked reviewed lands on that computer only, what changes there shows live through a live ticket without a reload, and its HTML summary loads from that computer with working links to its review layers.
+The desktop app lists a remote computer as its own group in the sidebar, by name and status, apart from This computer's projects, and opens its worktree in the full review workspace over that computer's own credential, with the computer's name in the tab title: a reviewed mark lands on that computer only, a change on its disk shows live (through a live ticket) without a reload, and its HTML review summary loads from it with working links to its review layers.
 
 ## How a user reaches it
 
-- Settings → Remote computers → Add, then Toggle Sidebar → the remote computer → its worktree
+- Desktop shell only. Settings → `Remote computers` (`/settings/remotes`) → `Pairing link` → `Add`; then the sidebar (phone width: `Toggle Sidebar`, or `ControlOrMeta+b`) → group "<computer name>" → a worktree row of its project.
+- Route `/remotes/<environmentId>/<projectId>/<worktreeId>` (full page load works once the remote is saved; it redirects to `/` when the remote is unknown or the shell is not desktop).
+- An offline remote shows its status badge and `Open Remote computers` instead of projects.
 
 ## Driving it
 
-Start an instance first: `.agents/skills/web-verify/scripts/cli start --desktop`.
+Two instances: the remote computer B and the desktop app A. `C=.agents/skills/web-verify/scripts/cli; $C start --desktop` (B; id `$B`, repository `REPO_B`), then `$C start --desktop` (A; id `$A`, repository `REPO_A`). Every command needs `--instance`.
 
-### The desktop app opens another computer’s worktree and HTML review, marks a change reviewed there and shows what changes on it live
+### Setup
 
-Before driving, on the instance (the sample repository and project home are in the instance file):
+1. Name B: `$C --instance $B open /settings/computer`, `$C --instance $B fill --role textbox --name "Name of this computer" "Remote journey computer"`, `$C --instance $B click --role button --name "Save"`. Look for: Page Title "Settings · Remote journey computer".
+2. Rename B's project so it differs from A's "repository": `$C --instance $B open /`, `$C --instance $B click --role button --name "Toggle Sidebar"`, `$C --instance $B click --role button --name "repository" --button right`, `$C --instance $B click --role menuitem --name "Rename project"`, `$C --instance $B fill --role textbox --name "Name" "remote-sample"`, `$C --instance $B click --role button --name "Rename"`. Look for: project button "remote-sample".
+3. CLI gap: a pairing link issued on B for A's browser. Needed: `cli pairing-link --instance $B --label "Remote computer"`.
+4. CLI gap for step 12: an agent review on B. Needed: `cli agent publish-review --instance $B "Remote review layer" --files changed --html '<html><body><h1>Remote summary</h1><a href="#layer-1">Open remote layer</a></body></html>'`.
 
-- write `README.md` in the sample repository on the remote computer
-- as the agent, publish a review titled “Remote review layer” through the Porcelain MCP tools on the remote computer
+### Add the remote and open its worktree
 
-```sh
-.agents/skills/web-verify/scripts/cli open /
-```
+1. `$C --instance $A open /settings/remotes`
+   Look for: main "Settings"; textbox "Pairing link".
+2. `$C --instance $A fill --role textbox --name "Pairing link" "<link from setup 3>"`, then `$C --instance $A click --role button --name "Add"`
+   Look for: list "Remote computers" with listitem "Remote journey computer".
+3. `$C --instance $A click --role button --name "Back"`, then `$C --instance $A click --role button --name "Toggle Sidebar"`
+   Look for: group "This computer" holding project button "repository" only; group "Remote journey computer" with text "Online" holding project button "remote-sample" only.
+4. `$C --instance $A click --role button --name "/remote-sample.*Main worktree/"`
+   Look for: Page URL `/remotes/<B environmentId>/<projectId>/<worktreeId>`; Page Title "Changes — remote-sample · Remote journey computer"; the sheet closes; button "Mark README.md as reviewed".
 
-1. `.agents/skills/web-verify/scripts/cli click --role button --name "Toggle Sidebar"`
-   Look for: the page settles; take a snapshot to read what it shows.
-2. `.agents/skills/web-verify/scripts/cli click --role button --name "Settings"`
-   Look for: the page settles; take a snapshot to read what it shows.
-3. `.agents/skills/web-verify/scripts/cli click --role button --name "Remote computers"`
-   Look for: the page settles; take a snapshot to read what it shows.
-4. `.agents/skills/web-verify/scripts/cli fill --role textbox --name "Pairing link" "<await app.remoteLink()>"`
-   Look for: the page settles; take a snapshot to read what it shows.
-5. `.agents/skills/web-verify/scripts/cli click --role button --name "Add"`
-   Look for: the listitem shows.
-6. `.agents/skills/web-verify/scripts/cli click --role button --name "Back"`
-   Look for: the page settles; take a snapshot to read what it shows.
-7. `.agents/skills/web-verify/scripts/cli click --role button --name "Toggle Sidebar"`
-   Look for: the text “Online” shows; the button shows; the button is gone; the button shows; the button is gone.
-8. `.agents/skills/web-verify/scripts/cli click --role button --name "/Main worktree/"`
-   Look for: the page settles; take a snapshot to read what it shows.
-9. `.agents/skills/web-verify/scripts/cli click --role button --name "Review"`
-   Look for: the page settles; take a snapshot to read what it shows.
-10. `.agents/skills/web-verify/scripts/cli click --role tab --name "Files"`
-   Look for: the treeitem “README.md” shows.
-11. `.agents/skills/web-verify/scripts/cli click --role treeitem --name "README.md" --button right`
-   Look for: the page settles; take a snapshot to read what it shows.
-12. `.agents/skills/web-verify/scripts/cli click --role menuitem --name "Open file"`
-   Look for: the page settles; take a snapshot to read what it shows.
-13. `.agents/skills/web-verify/scripts/cli click --role tab --name "Source"`
-   Look for: the tab “Source” has aria-selected="true"; the text “Rewritten on the other computer while it is open.” shows.
-14. `.agents/skills/web-verify/scripts/cli click --role button --name "Review"`
-   Look for: the page settles; take a snapshot to read what it shows.
-15. `.agents/skills/web-verify/scripts/cli click --role tab --name "Review"`
-   Look for: the page settles; take a snapshot to read what it shows.
-16. `.agents/skills/web-verify/scripts/cli click --role button --name "Review summary"`
-   Look for: the page settles; take a snapshot to read what it shows.
-17. `.agents/skills/web-verify/scripts/cli click --role link --name "Open remote layer"`
-   Look for: the page settles; take a snapshot to read what it shows.
+### A reviewed mark lands on B only
 
-Then `.agents/skills/web-verify/scripts/cli snapshot` and `.agents/skills/web-verify/scripts/cli screenshot` record the end state, and `.agents/skills/web-verify/scripts/cli network` lists the requests the page sent.
+5. `$C --instance $A click --role button --name "Mark README.md as reviewed"`
+   Look for: button "Unmark README.md as unreviewed" (enabled).
+6. `$C --instance $A network`
+   Look for: `PUT /api/worktrees/<worktreeId>/reviewed` sent to B's address (`127.0.0.1:<B port>`), status 200; none to A's own server.
+
+### B's disk shows live
+
+7. `$C --instance $A click --role button --name "Review"`, then `$C --instance $A click --role tab --name "Files"`
+   Look for: treeitem "README.md".
+8. `$C --instance $A click --role treeitem --name "README.md" --button right`, then `$C --instance $A click --role menuitem --name "Open file"`
+   Look for: README.md opens as a file document.
+9. `$C --instance $A click --role tab --name "Source"`
+   Look for: tab "Source" selected, showing "# Sample repository" and "A change to review."; `$C --instance $A network` lists `POST /api/live/tickets` and `GET /api/live` to B's address.
+10. Disk on B: `printf '# Sample repository\n\nRewritten on the other computer while it is open.\n' > "$REPO_B/README.md"`
+    Look for (no reload): text "Rewritten on the other computer while it is open." in the open document. `cat "$REPO_A/README.md"` still ends with "A change to review.".
+
+### B's HTML review summary
+
+11. Run the agent publish from setup 4 (CLI gap).
+12. `$C --instance $A click --role button --name "Review"`, then `$C --instance $A click --role tab --name "Review"` (the Changes tab is labelled "Review" once a review exists), then `$C --instance $A click --role button --name "Review summary"`
+    Look for: region "Published review" holding the summary iframe titled "Review summary"; a `screenshot` shows the heading "Remote summary" and the link "Open remote layer" inside it, and `network` shows the summary loaded from B's address.
+13. CLI gap: click inside the frame. Needed: `cli click --frame "Review summary" --role link --name "Open remote layer"`.
+    Look for: region "Review layer Remote review layer".
+
+### This computer is untouched
+
+14. `$C --instance $A open /`
+    Look for: Page Title "Changes — repository"; button "Mark README.md as reviewed" (A's README carries no mark).
 
 ## What proves it works
 
-- `apps/web/spec/e2e/projects-remote-workspace.desktop.e2e.ts` (Playwright e2e): the desktop app opens another computer’s worktree and HTML review, marks a change reviewed there and shows what changes on it live.
-- The tests read back what the server kept through the kit: `server.inventory()`, `server.liveTicketHits()`, `server.project()`, `server.reviewedFiles()`, `server.text()`.
+- End state: the mark exists on B only (step 6 network targets B; step 14 shows A unmarked; `$C --instance $B open /` shows "Unmark README.md as unreviewed" on B); B's rewrite appears in A without a reload while A's own README is unchanged; the summary link opens B's review layer.
+- `apps/web/spec/e2e/projects-remote-workspace.desktop.e2e.ts`: the remote group lists only the remote project and This computer only the local one; its main worktree opens at `/remotes/<environmentId>/<projectId>/<worktreeId>` with the remote's name in the title; marking README.md reviewed records it on the remote server and leaves this server's marks empty; with the Source tab open the remote server records live ticket hits, a rewrite on the remote shows without reload and this server's text is unchanged; after the agent publishes "Remote review layer" on the remote, the summary's link opens region "Review layer Remote review layer" (read through `server.reviewedFiles()`, `server.liveTicketHits()`, `server.text()`, `server.inventory()` on both servers).
 
 ## Gotchas
 
-- Only the desktop app shows this; start the instance with `.agents/skills/web-verify/scripts/cli start --desktop`, which serves the web in the desktop Vite mode.
-- The CLI browser is phone width (414 by 896), so the review panel opens from the Review button instead of standing beside the document.
-- The tests start a second disposable server as the remote computer; the CLI starts one server, so pairing a remote needs a second instance started with `start` and a pairing link issued on it.
+- Unreachable through the CLI as it stands: it needs a second computer paired to A's browser and an agent publishing a review there. Needed: `cli pairing-link --instance <remote id> --label "Remote computer"`, `cli agent publish-review --instance <remote id> "<title>" --files changed --html '<html>…</html>'`, and `cli click --frame "<iframe title>" …` for the link inside the summary frame. Steps 1–10 and 14 run once the pairing link exists.
+- Desktop shell only: start both with `start --desktop`; A keeps remotes in browser `localStorage` (no Electron bridge).
+- The worktree row's accessible name concatenates branch label, path, project name, status and hidden "Main worktree"; both groups have a main worktree, so use the regex `/remote-sample.*Main worktree/`, which only B's row matches. Without the rename in setup 2 both projects are "repository" and every project address is ambiguous.
+- Phone width: the review sidebar is the `Review` sheet; the tree and the "Review" surface tab live there.

@@ -3,7 +3,9 @@ route: /
 selectors:
   - "Toggle Sidebar"
   - "Open project"
-  - "selected"
+  - "Browse for a folder"
+  - "Folder path"
+  - "Every worktree appears in the sidebar."
 tests:
   - apps/web/spec/e2e/projects-manual-selection.e2e.ts
 api:
@@ -15,43 +17,57 @@ api:
 
 ## What it is
 
-Repositories are registered only after explicit folder selection; opening the app does not discover or register other repositories.
+A repository is registered only when the owner browses to it and opens it; opening the app never discovers or registers other repositories, and the Open project dialog offers no "found on this machine" list.
 
 ## How a user reaches it
 
-- sidebar → Open project → browse → repository → Open
+- Sidebar (phone width: `Toggle Sidebar` first, or `ControlOrMeta+b`) → `Open project` (the plus button in the navigator header) → dialog "Open project" → click folders in "Browse for a folder" → `Open <folder>`.
+- In the desktop shell with remote computers added, `Open project` is a menu: choose `This computer`.
 
 ## Driving it
 
-Start an instance first: `.agents/skills/web-verify/scripts/cli start`.
+`C=.agents/skills/web-verify/scripts/cli; $C start` (web mode), then `REPO=<the repository path start printed>`. The dialog starts in the project home `$REPO/..` (the server's `projectHome`).
 
-### Only the repository selected by browsing is registered
+### Setup
 
-Before driving, on the instance (the sample repository and project home are in the instance file):
-
-- make the Git repository `selected` in the project home
-- make the Git repository `unselected` in the project home
+Two repositories beside the sample, each with one commit:
 
 ```sh
-.agents/skills/web-verify/scripts/cli open /
+for name in selected unselected; do
+  git init -q -b main "$REPO/../$name"
+  printf '# %s\n' "$name" > "$REPO/../$name/README.md"
+  git -C "$REPO/../$name" add README.md
+  git -C "$REPO/../$name" -c user.name=Verify -c user.email=verify@example.invalid commit -q -m "Initial commit"
+done
 ```
 
-1. `.agents/skills/web-verify/scripts/cli click --role button --name "Toggle Sidebar"`
-   Look for: the page settles; take a snapshot to read what it shows.
-2. `.agents/skills/web-verify/scripts/cli click --role button --name "Open project"`
-   Look for: the button “unselected” shows; the button “selected” shows; the region “Found on this machine” is gone.
-3. `.agents/skills/web-verify/scripts/cli click --role button --name "selected"`
-   Look for: the page settles; take a snapshot to read what it shows.
-4. `.agents/skills/web-verify/scripts/cli click --role button --name "Open selected"`
-   Look for: the dialog “Open project” is gone; the button “selected” shows.
+### Nothing is registered by opening the app
 
-Then `.agents/skills/web-verify/scripts/cli snapshot` and `.agents/skills/web-verify/scripts/cli screenshot` record the end state, and `.agents/skills/web-verify/scripts/cli network` lists the requests the page sent.
+1. `$C open /`
+   Look for: Page Title "Changes — repository".
+2. `$C click --role button --name "Toggle Sidebar"`
+   Look for: dialog "Sidebar" holding navigation "Projects and worktrees" with exactly one project button, "repository"; no button "selected" or "unselected".
+
+### Only the browsed repository is registered
+
+3. `$C click --role button --name "Open project"`
+   Look for: dialog "Open project" with text "Browse for a repository on the Porcelain server."; region "Browse for a folder" listing folder buttons including "selected", "unselected" and "repository"; no region "Found on this machine" anywhere in the dialog.
+4. `$C click --role button --name "selected"`
+   Look for: text "Every worktree appears in the sidebar."; button "Open selected" enabled; the breadcrumb (navigation "Folder path") ends in "selected".
+5. `$C click --role button --name "Open selected"`
+   Look for: dialog "Open project" is gone; Page URL `/<new projectId>/<worktreeId>`; Page Title "Changes — selected"; the sidebar sheet shows buttons "repository" and "selected" and still no "unselected".
+6. `$C network`
+   Look for: one `POST /api/projects` with status 200.
+7. `$C open /`, then `$C click --role button --name "Toggle Sidebar"`
+   Look for: after the reload the navigator still lists exactly "repository" and "selected" (the server kept the one registration and added nothing on its own).
 
 ## What proves it works
 
-- `apps/web/spec/e2e/projects-manual-selection.e2e.ts` (Playwright e2e): only the repository selected by browsing is registered.
-- The tests read back what the server kept through the kit: `server.inventory()`.
+- End state: after step 7 the server's inventory, as the navigator shows it after a reload, holds two projects: the sample and `selected`; `unselected` never appears although it is a repository in the same folder.
+- `apps/web/spec/e2e/projects-manual-selection.e2e.ts`: the dialog lists both folders and has no "Found on this machine" region, the server inventory holds one project before opening, and after `Open selected` it holds exactly two, including `selected` (read through `server.inventory()`).
 
 ## Gotchas
 
-- None known.
+- Phone width: the navigator is in the sidebar sheet behind `Toggle Sidebar`; after `Open selected` the sheet stays open.
+- Registering leaks into later features of the same instance: `/` opens the first worktree waiting for review, and the extra project stays listed. Remove it with right-click `selected` → `Remove from Porcelain` → confirm `Remove from Porcelain` (see `projects.remove`), or start a fresh instance.
+- Folder names must be unique in the project home listing: the list also holds the kit's own folders (`home`, `repository`, `state`, `web` and others), so do not name a new repository after one of them.

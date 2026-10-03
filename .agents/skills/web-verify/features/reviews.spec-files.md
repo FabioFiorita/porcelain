@@ -17,45 +17,53 @@ api:
 
 ## What it is
 
-Turning on Spec files in Settings lists changed spec files after the other changed files.
+The Settings switch "Spec files" (Appearance → Code) groups changed spec and test files after the other changed files and starts them collapsed, both in the Changes list of the review sidebar and in the Changes document. Off (the default), files keep the server's order.
+
+A spec file is one named `*.spec.*`, `*.test.*`, `*.browser.*`, `*_test.*`, `*_spec.*`, `test_*.py`, `*Test`/`*Tests`/`*Spec` (.java, .kt, .cs, .swift, .scala), or any file under a `spec`, `specs`, `__tests__` or `tests` folder (`apps/web/src/features/reviews/rules/spec-paths.ts`).
 
 ## How a user reaches it
 
-- Toggle Sidebar → Settings → Appearance → Spec files
+- Sidebar (phone width: `Toggle Sidebar` first) → `Settings` → Appearance section → switch `Spec files`.
+- `Alt+Shift+S` opens Settings on Appearance (ignored while focus is in a text field).
+- Route `/settings/appearance`.
 
 ## Driving it
 
-Start an instance first: `.agents/skills/web-verify/scripts/cli start`.
+`C=.agents/skills/web-verify/scripts/cli; $C start`, then `REPO=<the repository path start printed>`.
 
-### Turning on Spec files in Settings lists changed spec files after the other changed files
+### Setup
 
 ```sh
-.agents/skills/web-verify/scripts/cli open /
+printf 'export const spec = true;\n' > "$REPO/search.spec.ts"
+printf 'export const search = true;\n' > "$REPO/search.ts"
 ```
 
-1. `.agents/skills/web-verify/scripts/cli click --role button --name "Review"`
-   Look for: the page settles; take a snapshot to read what it shows.
-2. `.agents/skills/web-verify/scripts/cli click --role tab --name "Changes"`
-   Look for: the page settles; take a snapshot to read what it shows.
-3. `.agents/skills/web-verify/scripts/cli press Escape`
-   Look for: the page settles; take a snapshot to read what it shows.
-4. `.agents/skills/web-verify/scripts/cli click --role button --name "Toggle Sidebar"`
-   Look for: the page settles; take a snapshot to read what it shows.
-5. `.agents/skills/web-verify/scripts/cli click --role button --name "Settings"`
-   Look for: the page settles; take a snapshot to read what it shows.
-6. `.agents/skills/web-verify/scripts/cli click --role switch --name "Spec files"`
-   Look for: the page settles; take a snapshot to read what it shows.
-7. `.agents/skills/web-verify/scripts/cli click --role button --name "Back"`
-   Look for: the page settles; take a snapshot to read what it shows.
-8. `.agents/skills/web-verify/scripts/cli click --role button --name "Review"`
-   Look for: the page settles; take a snapshot to read what it shows.
+### Steps
 
-Then `.agents/skills/web-verify/scripts/cli snapshot` and `.agents/skills/web-verify/scripts/cli screenshot` record the end state, and `.agents/skills/web-verify/scripts/cli network` lists the requests the page sent.
+1. `$C open /`
+   Look for: paragraph "3 files" in region "Review content" (allow a moment for the watcher; repeat `$C open /` until it shows).
+2. `$C click --role button --name "Review"`, then `$C click --role tab --name "Changes"`
+   Look for: in the review sheet, below "All changes", the file rows in this order: button "README.md · unstaged", button "search.spec.ts · untracked", button "search.ts · untracked" (the text after "·" is the change scope).
+3. `$C press Escape`
+   Look for: the review sheet closes; button "Toggle Sidebar" is reachable.
+4. `$C click --role button --name "Toggle Sidebar"`, then `$C click --role button --name "Settings"`
+   Look for: Page URL `/settings/appearance`; switch "Spec files" not checked; text "Group them after the other files and start them collapsed."
+5. `$C click --role switch --name "Spec files"`
+   Look for: switch "Spec files" is checked.
+6. `$C click --role button --name "Back"`
+   Look for: region "Review content" shows again; in it the file sections run README.md, search.ts, then search.spec.ts, with search.spec.ts collapsed.
+7. `$C click --role button --name "Review"`
+   Look for: the Changes rows now in the order "README.md · unstaged", "search.ts · untracked", "search.spec.ts · untracked".
+8. Reset: `$C press Escape`, `$C click --role button --name "Toggle Sidebar"`, `$C click --role button --name "Settings"`, `$C click --role switch --name "Spec files"`, `$C click --role button --name "Back"`
+   Look for: switch "Spec files" unchecked before Back; the rows back in the order of step 2.
 
 ## What proves it works
 
-- `apps/web/spec/e2e/reviews-spec-files.e2e.ts` (Playwright e2e): turning on Spec files in Settings lists changed spec files after the other changed files.
+- The order in step 2 versus step 7 is the promise. The preference is kept by this browser (Web Storage `porcelain.prototype.preferences`, key `collapseSpecs`), not by the server: `$C open /` after step 6 keeps the grouped order, and no request is sent when the switch flips (`$C network` shows only reads such as `GET /api/worktrees/<worktreeId>/changes`).
+- `apps/web/spec/e2e/reviews-spec-files.e2e.ts` (web project, 414x896): with README.md, search.spec.ts and search.ts changed, the sidebar rows read README.md, search.spec.ts, search.ts; after turning on "Spec files" in Settings and going Back, they read README.md, search.ts, search.spec.ts.
 
 ## Gotchas
 
-- The CLI browser is phone width (414 by 896), so the review panel opens from the Review button instead of standing beside the document.
+- The setting persists in the browser for the rest of the instance and changes the order every later feature sees; run the reset in step 8.
+- The two setup files stay on disk and in every later feature's Changes list; remove them with `rm "$REPO/search.spec.ts" "$REPO/search.ts"` when done.
+- Phone width: the review sidebar is a sheet behind "Review" and covers the page; press `Escape` to close it before `Toggle Sidebar`. "Changes" exactly names the sidebar tab; the document tab's name is "Changes Close Changes", so the exact address stays unique.
