@@ -10,7 +10,7 @@ name: Forget both fixture environments and restore removal
 - assertNotVisible: ${FIRST_ENVIRONMENT_NAME}
 - assertVisible: ${SECOND_ENVIRONMENT_NAME}
 - stopApp
-- runFlow: launch-development.yaml
+- runFlow: launch.yaml
 - runFlow: open-settings.yaml
 - assertNotVisible: ${FIRST_ENVIRONMENT_NAME}
 - assertVisible: ${SECOND_ENVIRONMENT_NAME}
@@ -18,7 +18,7 @@ name: Forget both fixture environments and restore removal
 - tapOn: Forget environment
 - assertNotVisible: ${SECOND_ENVIRONMENT_NAME}
 - stopApp
-- runFlow: launch-development.yaml
+- runFlow: launch.yaml
 - runFlow: open-settings.yaml
 - assertNotVisible: ${FIRST_ENVIRONMENT_NAME}
 - assertNotVisible: ${SECOND_ENVIRONMENT_NAME}

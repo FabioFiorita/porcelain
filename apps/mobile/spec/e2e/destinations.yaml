@@ -1,0 +1,47 @@
+appId: com.fabiofiorita.porcelain.dev
+name: Deep links open each destination in its unpaired state
+---
+- runFlow: connect.yaml
+- runFlow:
+    file: open-link.yaml
+    env:
+      LINK: ${FILES_LINK}
+- assertVisible:
+    text: Files
+    selected: true
+- assertVisible: Select a worktree to continue.
+- runFlow:
+    file: open-link.yaml
+    env:
+      LINK: ${HISTORY_LINK}
+- assertVisible:
+    text: History
+    selected: true
+- assertVisible: Select a worktree to continue.
+- runFlow:
+    file: open-link.yaml
+    env:
+      LINK: ${SETTINGS_LINK}
+- assertVisible:
+    text: Settings
+    selected: true
+- assertVisible: Environments
+- assertVisible: No environments paired.
+- runFlow:
+    file: open-link.yaml
+    env:
+      LINK: ${REVIEW_LINK}
+- assertVisible:
+    text: Review
+    selected: true
+- assertVisible: Select a worktree to continue.
+- stopApp
+- runFlow: launch.yaml
+- runFlow:
+    file: open-link.yaml
+    env:
+      LINK: ${HISTORY_LINK}
+- assertVisible:
+    text: History
+    selected: true
+- assertVisible: Select a worktree to continue.

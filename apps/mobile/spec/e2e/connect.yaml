@@ -1,0 +1,16 @@
+appId: com.fabiofiorita.porcelain.dev
+name: Connect the freshly installed development client to this run's Metro
+---
+- runFlow:
+    file: open-link.yaml
+    env:
+      LINK: ${DEVELOPMENT_URL}
+- launchApp:
+    stopApp: false
+    permissions: {}
+- tapOn:
+    text: Continue
+    optional: true
+- extendedWaitUntil:
+    visible: Review
+    timeout: 30000

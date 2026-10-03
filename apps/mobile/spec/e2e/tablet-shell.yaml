@@ -1,7 +1,7 @@
 appId: com.fabiofiorita.porcelain.dev
 name: Three-column tablet destinations
 ---
-- runFlow: launch-development.yaml
+- runFlow: connect.yaml
 - setOrientation: LANDSCAPE_LEFT
 - assertVisible: Porcelain
 - tapOn: Review

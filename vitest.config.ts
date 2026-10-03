@@ -57,6 +57,14 @@ function problems(
   return found;
 }
 
+const mobileE2e = {
+  globalSetup: ['apps/mobile/spec/e2e/global-setup.ts'],
+  expect: { requireAssertions: true },
+  fileParallelism: false,
+  testTimeout: 15 * 60_000,
+  hookTimeout: 20 * 60_000,
+};
+
 function specDiscipline(): Reporter {
   let selected: ReadonlySet<string> = new Set(required);
   return {
@@ -85,6 +93,26 @@ export default defineConfig({
           root,
           include: ['apps/mobile/src/**/*.spec.ts'],
           expect: { requireAssertions: true },
+        },
+      },
+      {
+        test: {
+          name: '@porcelain/mobile-e2e',
+          root,
+          include: ['apps/mobile/spec/e2e/*.e2e.ts'],
+          exclude: ['apps/mobile/spec/e2e/*.tablet.e2e.ts'],
+          ...mobileE2e,
+        },
+      },
+      {
+        test: {
+          name: '@porcelain/mobile-e2e-tablet',
+          root,
+          include: [
+            'apps/mobile/spec/e2e/*.tablet.e2e.ts',
+            'apps/mobile/spec/e2e/pairing.e2e.ts',
+          ],
+          ...mobileE2e,
         },
       },
       {

@@ -1,7 +1,7 @@
 appId: com.fabiofiorita.porcelain.dev
 name: Pair and restore multiple environments
 ---
-- runFlow: launch-development.yaml
+- runFlow: connect.yaml
 - runFlow: open-settings.yaml
 - assertVisible: Environments
 - tapOn: Add environment
@@ -28,5 +28,5 @@ name: Pair and restore multiple environments
 - assertVisible: ${SECOND_ENVIRONMENT_NAME}
 - assertVisible: Online
 - stopApp
-- runFlow: launch-development.yaml
+- runFlow: launch.yaml
 - runFlow: forget-environments.yaml

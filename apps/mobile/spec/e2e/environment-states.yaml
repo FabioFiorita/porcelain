@@ -1,0 +1,20 @@
+appId: com.fabiofiorita.porcelain.dev
+name: A cold launch deep-linked into Settings shows each environment's state
+---
+- stopApp
+- runFlow: launch.yaml
+- runFlow:
+    file: open-link.yaml
+    env:
+      LINK: ${SETTINGS_LINK}
+- assertVisible:
+    text: Settings
+    selected: true
+- assertVisible: ${FIRST_ENVIRONMENT_NAME}
+- assertVisible: ${SECOND_ENVIRONMENT_NAME}
+- extendedWaitUntil:
+    visible: Online
+    timeout: 20000
+- extendedWaitUntil:
+    visible: Offline
+    timeout: 20000

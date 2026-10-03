@@ -15,6 +15,7 @@ export type Page = { file: string; path: string };
 
 export type Surface = {
   name: string;
+  page: 'route' | 'screen';
   features: string;
   domains: readonly string[];
   pages: ((root: string) => Page[]) | undefined;
@@ -36,6 +37,7 @@ const sourceFile = /\.(?:tsx?|css|html)$/;
 
 const entrySchema = z.strictObject({
   route: z.string().startsWith('/').optional(),
+  screen: z.string().startsWith('/').optional(),
   shell: z.literal('desktop').optional(),
   selectors: z.array(z.string().min(1)).min(1),
   tests: z.array(z.string().min(1)).min(1),
@@ -113,6 +115,7 @@ export function fileRoutes(folder: string): Page[] {
 
 const web: Surface = {
   name: 'web',
+  page: 'route',
   features: '.agents/skills/web-verify/features',
   domains: [...webDomains, 'app'],
   pages: () => fileRoutes('apps/web/src/routes'),
@@ -140,7 +143,47 @@ const desktop: Surface = {
   flows: 'apps/desktop/spec/e2e',
 };
 
-export const surfaces: readonly Surface[] = [web, desktop];
+export function expoScreens(folder: string, inside: string[] = []): Page[] {
+  return readdirSync(join(root, folder, ...inside), {
+    withFileTypes: true,
+  }).flatMap((entry) => {
+    if (entry.isDirectory())
+      return expoScreens(folder, [...inside, entry.name]);
+    const stem = entry.name.replace(/\.(?:ios|android)?\.?tsx?$/, '');
+    if (!/\.tsx?$/.test(entry.name) || stem === '_layout') return [];
+    const segments = [...inside, stem].filter(
+      (segment) => !/^\(.+\)$/.test(segment) && segment !== 'index',
+    );
+    return [
+      {
+        file: [folder, ...inside, entry.name].join('/'),
+        path: `/${segments.join('/')}`,
+      },
+    ];
+  });
+}
+
+const mobile: Surface = {
+  name: 'mobile',
+  page: 'screen',
+  features: '.agents/skills/mobile-verify/features',
+  domains: [...webDomains, 'app'],
+  pages: () => expoScreens('apps/mobile/src/app'),
+  sources: ['apps/mobile/src'],
+  calls: (from) =>
+    apiCalls(
+      from,
+      ['apps/mobile/src', 'packages/client/src'],
+      [
+        /^apps\/mobile\/src\/features\/[^/]+\/api\.ts$/,
+        /^apps\/mobile\/src\/shared\/api\/[^/]+\.ts$/,
+        /^packages\/client\/src\/features\/[^/]+\/api\.ts$/,
+        /^packages\/client\/src\/shared\/api\/[a-z-]+\.ts$/,
+      ],
+    ),
+};
+
+export const surfaces: readonly Surface[] = [web, desktop, mobile];
 
 function frontmatter(text: string): { data: unknown; body: string } {
   const match = /^---\n([\s\S]*?)\n---\n([\s\S]*)$/.exec(text);
@@ -215,20 +258,28 @@ function surfaceProblems(
   const pages = surface.pages?.(root);
   if (pages !== undefined) {
     const paths = new Set(pages.map((page) => page.path));
+    const pageOf = (entry: Entry) =>
+      surface.page === 'screen' ? entry.screen : entry.route;
     for (const entry of mapped)
-      if (entry.route === undefined)
+      if (
+        (surface.page === 'screen' ? entry.route : entry.screen) !== undefined
+      )
         problems.push(
-          `${entry.file}: route names the page this feature lives on`,
+          `${entry.file}: a ${surface.name} map file names its page as ${surface.page}`,
         );
-      else if (!paths.has(entry.route))
+      else if (pageOf(entry) === undefined)
         problems.push(
-          `${entry.file}: route ${entry.route} is no page under the routes folder (${[...paths].join(', ')})`,
+          `${entry.file}: ${surface.page} names the page this feature lives on`,
         );
-    const named = new Set(mapped.map((entry) => entry.route));
+      else if (!paths.has(pageOf(entry) ?? ''))
+        problems.push(
+          `${entry.file}: ${surface.page} ${pageOf(entry) ?? ''} is no page under the routes folder (${[...paths].join(', ')})`,
+        );
+    const named = new Set(mapped.map(pageOf));
     for (const page of pages)
       if (!named.has(page.path))
         problems.push(
-          `${page.file}: it renders the page at ${page.path}, which no ${surface.name} map file names as its route; write the map file of a feature on that page. __root and a layout route, whose folder holds child routes and whose page is its index, need none.`,
+          `${page.file}: it renders the page at ${page.path}, which no ${surface.name} map file names as its ${surface.page}; write the map file of a feature on that page. ${surface.page === 'screen' ? 'A _layout file needs none.' : '__root and a layout route, whose folder holds child routes and whose page is its index, need none.'}`,
         );
   }
   if (surface.flows !== undefined) {

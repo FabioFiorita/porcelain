@@ -1,7 +1,7 @@
 appId: com.fabiofiorita.porcelain.dev
 name: Select and restore environment project and worktree without leaving Files
 ---
-- runFlow: launch-development.yaml
+- runFlow: connect.yaml
 - runFlow: open-settings.yaml
 - runFlow:
     file: add-environment.yaml
@@ -47,7 +47,7 @@ name: Select and restore environment project and worktree without leaving Files
     text: Files
     selected: true
 - stopApp
-- runFlow: launch-development.yaml
+- runFlow: launch.yaml
 - assertVisible: ${FIRST_PROJECT_NAME} · ${FIRST_WORKTREE_LABEL}
 - tapOn: ${FIRST_PROJECT_NAME} · ${FIRST_WORKTREE_LABEL}
 - tapOn: Environment

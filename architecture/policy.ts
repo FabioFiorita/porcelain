@@ -185,6 +185,10 @@ export const roles = [
   'app-stylesheet',
   'mobile-metro-config',
   'mobile-generated-types',
+  'mobile-test-kit',
+  'mobile-e2e-spec',
+  'mobile-e2e-kit',
+  'mobile-verify-cli',
 ] as const;
 
 export type Role = (typeof roles)[number];
@@ -864,6 +868,22 @@ export function classify(path: string): Classification | undefined {
   }
   if (path.startsWith('apps/server/src/'))
     return classifyServer(path.slice('apps/server/src/'.length));
+  if (/^apps\/mobile\/spec\/kit\/[a-z]+(?:-[a-z]+)*\.ts$/.test(path))
+    return classified('mobile-test-kit', 'mobile');
+  if (
+    /^apps\/mobile\/spec\/e2e\/[a-z]+(?:-[a-z]+)*(?:\.tablet)?\.e2e\.ts$/.test(
+      path,
+    )
+  )
+    return classified('mobile-e2e-spec', 'mobile');
+  if (/^apps\/mobile\/spec\/e2e\/[a-z]+(?:-[a-z]+)*\.ts$/.test(path))
+    return classified('mobile-e2e-kit', 'mobile');
+  if (
+    /^\.agents\/skills\/mobile-verify\/scripts\/[a-z]+(?:-[a-z]+)*\.ts$/.test(
+      path,
+    )
+  )
+    return classified('mobile-verify-cli', 'mobile');
   if (path.startsWith('apps/mobile/')) {
     const role = mobilePart(path);
     return role === undefined ? undefined : classified(role, 'mobile');
@@ -1282,6 +1302,24 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
     'web-verify-cli',
     'desktop-kit',
   ]),
+  'mobile-test-kit': new Set([
+    'mobile-test-kit',
+    'server-kit',
+    'contract',
+    'web-rule',
+  ]),
+  'mobile-e2e-spec': new Set(['mobile-e2e-kit']),
+  'mobile-e2e-kit': new Set([
+    'mobile-e2e-kit',
+    'mobile-test-kit',
+    'server-kit',
+    'contract',
+  ]),
+  'mobile-verify-cli': new Set([
+    'mobile-verify-cli',
+    'mobile-test-kit',
+    'server-kit',
+  ]),
   'web-rule-spec': new Set(['web-rule', 'web-limits', 'contract']),
   'web-config': new Set(),
   'web-limits': new Set(['contract']),
@@ -1303,6 +1341,9 @@ const serverKitClients: ReadonlySet<Role> = new Set<Role>([
   'integration-host',
   'web-verify-cli',
   'desktop-e2e-kit',
+  'mobile-test-kit',
+  'mobile-e2e-kit',
+  'mobile-verify-cli',
 ]);
 
 function testViolation(
@@ -1350,7 +1391,8 @@ export function violation(
       : 'theme-imports-stylesheets-only';
   if (
     from.owner === 'mobile' &&
-    !['mobile', 'client', 'contracts'].includes(to.owner)
+    !['mobile', 'client', 'contracts'].includes(to.owner) &&
+    !(serverKitClients.has(from.role) && to.role === 'server-kit')
   )
     return 'mobile-imports-mobile-client-and-contracts-only';
   if (
@@ -1592,6 +1634,10 @@ export const externalPackages: Record<Role, readonly string[]> = {
   'desktop-e2e': [],
   'desktop-e2e-kit': ['@playwright/test'],
   'desktop-verify-cli': ['playwright', 'zod', '@electron/fuses'],
+  'mobile-test-kit': ['zod'],
+  'mobile-e2e-spec': [],
+  'mobile-e2e-kit': ['vitest'],
+  'mobile-verify-cli': ['zod'],
   'web-rule-spec': [],
   'web-config': [],
   'web-limits': [],
@@ -1633,7 +1679,10 @@ function forbiddenNodeModule(role: Role, name: string): boolean {
     role === 'web-verify-cli' ||
     role === 'desktop-kit' ||
     role === 'desktop-e2e-kit' ||
-    role === 'desktop-verify-cli'
+    role === 'desktop-verify-cli' ||
+    role === 'mobile-test-kit' ||
+    role === 'mobile-e2e-kit' ||
+    role === 'mobile-verify-cli'
   )
     return false;
   if (role === 'capture') return !captureNodeModules.has(base);
@@ -1806,6 +1855,14 @@ const rolePurposes: Record<Role, string> = {
     'the Playwright fixtures and global setup in apps/desktop/spec/e2e/, which stage Porcelain Dev, launch it per test, supply native dialogs at the Electron boundary and reach its server owner socket through the server kit',
   'desktop-verify-cli':
     'the desktop control CLI in .agents/skills/desktop-verify/scripts/, which launches Porcelain Dev through the desktop kit, drives its window through the shared web browser session and its menus, window and native picker through Electron, records evidence, and never asserts',
+  'mobile-test-kit':
+    'the kit the mobile e2e tests and the mobile control CLI share in apps/mobile/spec/kit/: the development client build and its native fingerprint, Metro, a simulator of its own and the disposable environments over the server kit',
+  'mobile-e2e-spec':
+    'a mobile e2e test in apps/mobile/spec/e2e/<flow>.e2e.ts (or <flow>.tablet.e2e.ts), which runs a Maestro flow against the simulator and asserts the disposable server state afterwards',
+  'mobile-e2e-kit':
+    'the Vitest side of the mobile e2e suite in apps/mobile/spec/e2e/: the global setup that boots its simulator and Metro and the fixtures that reset the app, start environments and run Maestro',
+  'mobile-verify-cli':
+    'the mobile control CLI in .agents/skills/mobile-verify/scripts/, which starts a disposable server, Metro and a simulator of its own through the kits, drives the development client through agent-device for an agent and records evidence, and never asserts',
   'web-rule-spec': 'a spec for a pure web rule',
   'web-config': 'apps/web/vite.config.ts',
   'web-limits':
