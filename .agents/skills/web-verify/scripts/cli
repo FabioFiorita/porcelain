@@ -1,2 +1,7 @@
 #!/bin/sh
+root="$(cd "$(dirname "$0")/../../../.." && pwd)"
+if [ ! -d "$root/node_modules" ]; then
+  echo "This checkout has no dependencies installed; run pnpm install in $root" >&2
+  exit 1
+fi
 exec node "$(dirname "$0")/cli.ts" "$@"
