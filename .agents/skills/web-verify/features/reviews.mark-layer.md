@@ -2,6 +2,7 @@
 route: /
 selectors:
   - "Review"
+  - "Review layer "
   - "Mark layer reviewed"
   - "Reviewed"
   - "Code changed since the review was written."
@@ -18,45 +19,43 @@ api:
 
 ## What it is
 
-Marking a layer of the agent's published review reviewed keeps the mark, a change to the layer's code turns it into a request to review the changed layer again, and unmarking removes the mark.
+A layer of the agent's published review can be marked reviewed as a whole. The mark is kept with the layer's fingerprint; when the layer's code changes on disk the mark goes stale and the button asks to review the changed layer again; pressing the pressed "Reviewed" button removes the mark.
 
 ## How a user reaches it
 
-- Review → Layers → layer → Mark layer reviewed
+- Review (sheet at phone width) → "1. Readme layer" → the layer toolbar button: "Mark layer reviewed" → "Reviewed" (aria-pressed true) → after a code change "Mark changed layer reviewed".
 
 ## Driving it
 
-Start an instance first: `.agents/skills/web-verify/scripts/cli start`.
+`C=.agents/skills/web-verify/scripts/cli; $C start` (prints `repository <path>`; call it `$REPO`).
 
-### Marking a published layer reviewed keeps the mark, a change to its code asks for review again, and unmarking removes it
+### Setup
 
-Before driving, on the instance (the sample repository and project home are in the instance file):
+- The agent publishes a review. CLI gap: `cli agent publish-review "Readme layer"` (one layer "Readme layer", one step "New line" pointing at README.md line 3, "A change to review.").
+- The README.md rewrite happens in the middle (step 4), not before driving.
 
-- as the agent, publish a review titled “Readme layer” through the Porcelain MCP tools
-- write `README.md` in the sample repository
-
-```sh
-.agents/skills/web-verify/scripts/cli open /
-```
-
-1. `.agents/skills/web-verify/scripts/cli click --role button --name "Review"`
-   Look for: the page settles; take a snapshot to read what it shows.
-2. `.agents/skills/web-verify/scripts/cli click --role button --name "/Readme layer/"`
-   Look for: the button “Mark layer reviewed” is enabled.
-3. `.agents/skills/web-verify/scripts/cli click --role button --name "Mark layer reviewed"`
-   Look for: the button “Reviewed” has aria-pressed="true"; the text “Code changed since the review was written.” shows; the button “Mark changed layer reviewed” is enabled.
-4. `.agents/skills/web-verify/scripts/cli click --role button --name "Mark changed layer reviewed"`
-   Look for: the button “Reviewed” has aria-pressed="true".
-5. `.agents/skills/web-verify/scripts/cli click --role button --name "Reviewed"`
-   Look for: the button “Mark layer reviewed” is enabled.
-
-Then `.agents/skills/web-verify/scripts/cli snapshot` and `.agents/skills/web-verify/scripts/cli screenshot` record the end state, and `.agents/skills/web-verify/scripts/cli network` lists the requests the page sent.
+1. `$C open /`
+   Look for: tab "Review Close Review", region "Published review".
+2. `$C click --role button --name "Review"`, then `$C click --role button --name "/Readme layer/"`
+   Look for: region "Review layer Readme layer" with button "Mark layer reviewed" enabled (aria-pressed false).
+3. `$C click --role button --name "Mark layer reviewed"`
+   Look for: button "Reviewed" with aria-pressed true.
+4. On disk: `printf '# Sample repository\n\nA revised change to review.\n' > "$REPO/README.md"`, then `$C snapshot`
+   Look for: status text "Code changed since the review was written." in article "Step New line"; the toolbar button is now "Mark changed layer reviewed" (aria-pressed false) and enabled.
+5. `$C click --role button --name "Mark changed layer reviewed"`
+   Look for: button "Reviewed" with aria-pressed true again.
+6. `$C click --role button --name "Reviewed"`
+   Look for: button "Mark layer reviewed" enabled.
 
 ## What proves it works
 
-- `apps/web/spec/integration/reviews-mark-layer.test.tsx` (Browser Mode integration): marking a published layer reviewed keeps the mark, a change to its code asks for review again, and unmarking removes it.
-- The tests read back what the server kept through the kit: `server.reviewedLayers()`.
+- The button label sequence Mark layer reviewed → Reviewed → Mark changed layer reviewed → Reviewed → Mark layer reviewed, with `$C network` showing `PUT /api/worktrees/<id>/reviewed-layers` 200 (steps 3, 5) and `DELETE /api/worktrees/<id>/reviewed-layers?layerId=...` 200 (step 6).
+- Persistence: after step 3, `$C open /` reloads onto the layer tab and still shows "Reviewed". Reading the marks and their stale flag needs `cli server reviewed-layers`.
+- `apps/web/spec/integration/reviews-mark-layer.test.tsx`: marking yields "Reviewed" pressed and `server.reviewedLayers()` holds one fresh mark; rewriting README.md shows "Code changed since the review was written.", an enabled "Mark changed layer reviewed" and a stale mark; marking again makes it fresh; unmarking leaves none.
 
 ## Gotchas
 
-- The CLI browser is phone width (414 by 896), so the review panel opens from the Review button instead of standing beside the document.
+- Unreachable through the CLI: the layer exists only after the agent publishes. Command needed: `cli agent publish-review "Readme layer"`.
+- The button is disabled while the marks or the review are being re-read after the disk change (it waits for the new fingerprint); snapshot again if step 4 shows it disabled.
+- Address the sidebar's layer button by `/Readme layer/` only while no layer tab is open; afterwards use `$C click --role tab --name "/Readme layer/"`.
+- The rewrite changes the sample README.md; restore it with `printf '# Sample repository\n\nA change to review.\n' > "$REPO/README.md"` before another feature.

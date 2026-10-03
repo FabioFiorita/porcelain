@@ -5,9 +5,8 @@ selectors:
   - "Message"
   - "Commit selected files"
   - "Committing…"
-  - "running"
   - "Outcome not yet confirmed"
-  - "interrupted"
+  - "A Git action was interrupted:"
 tests:
   - apps/web/spec/e2e/git-actions-reload-running.e2e.ts
 api:
@@ -19,43 +18,44 @@ api:
 
 ## What it is
 
-A Git action still running when the page reloads is still followed after the reload: the commit form waits for its outcome and refuses another commit, then shows how it ended once the app reads its receipt.
+A Git action still running when the page reloads is still followed after the reload: the app keeps its request in session storage, the commit form shows "Outcome not yet confirmed" and refuses another commit, then shows how the action ended once the app reads its receipt.
 
 ## How a user reaches it
 
-- Commit → Commit selected files → reload before the app hears its outcome → Commit
+- Commit → Commit selected files → reload (or the tab is restored) before the app hears the outcome → Commit again.
+- Any Git action from the Git button or Git actions menu is followed the same way; the commit form is the one the test drives.
 
 ## Driving it
 
-Start an instance first: `.agents/skills/web-verify/scripts/cli start`.
+Start with `.agents/skills/web-verify/scripts/cli start`. The CLI's server ends a blocked Git action after 1.5 seconds (`gitActionDeadlineMs: 1500`) and the page hears that over the live connection long before a CLI `open` can reload it, so the CLI reaches only the after-the-fact state below; the reload-while-running race needs a CLI gap (see Gotchas).
 
-### A commit still running when the page reloads is still followed: the commit form waits for its outcome, then shows it ended interrupted
+### Setup
 
-Before driving, on the instance (the sample repository and project home are in the instance file):
-
-- delete `.git/logs/HEAD` from the sample repository
-- replace `.git/logs/HEAD` with a named pipe, so Git blocks on it
+`REPO` is the repository path `start` printed. Make Git block on its reflog:
 
 ```sh
-.agents/skills/web-verify/scripts/cli open /
+rm "$REPO/.git/logs/HEAD"
+mkfifo "$REPO/.git/logs/HEAD"
 ```
 
 1. `.agents/skills/web-verify/scripts/cli click --role button --name "Commit"`
-   Look for: the page settles; take a snapshot to read what it shows.
+   Look for: dialog "Commit changes" with textbox "Message".
 2. `.agents/skills/web-verify/scripts/cli fill --role textbox --name "Message" "Commit across a reload"`
-   Look for: the page settles; take a snapshot to read what it shows.
+   Look for: button "Commit selected files" is enabled.
 3. `.agents/skills/web-verify/scripts/cli click --role button --name "Commit selected files"`
-   Look for: the button “Committing…” is disabled; the text “running” shows.
-4. `.agents/skills/web-verify/scripts/cli click --role button --name "Commit"`
-   Look for: the text “Outcome not yet confirmed” shows; the button “Commit selected files” is disabled; the text “interrupted” shows; the text “Outcome not yet confirmed” is gone.
-
-Then `.agents/skills/web-verify/scripts/cli snapshot` and `.agents/skills/web-verify/scripts/cli screenshot` record the end state, and `.agents/skills/web-verify/scripts/cli network` lists the requests the page sent.
+   Look for: button "Committing…" (disabled) and a `status` "running" in the dialog.
+4. `.agents/skills/web-verify/scripts/cli open /`
+   Look for: the page reloads to the workspace; region "Review content" shows the `status` "A Git action was interrupted: commit" (the 1.5-second deadline passed).
+5. `.agents/skills/web-verify/scripts/cli click --role button --name "Commit"`
+   Look for: dialog "Commit changes". If the reload beat the deadline, `status` "Outcome not yet confirmed" (or "running") shows with button "Commit selected files" disabled, then "interrupted" replaces it; otherwise the form opens fresh, because the page had already followed the action to its end.
 
 ## What proves it works
 
-- `apps/web/spec/e2e/git-actions-reload-running.e2e.ts` (Playwright e2e): a commit still running when the page reloads is still followed: the commit form waits for its outcome, then shows it ended interrupted.
-- The tests read back what the server kept through the kit: `server.changes()`.
+- After a reload while the action runs: "Outcome not yet confirmed" with Commit selected files disabled, then the `status` "interrupted" and "Outcome not yet confirmed" gone; `network` shows `GET /api/worktrees/<id>/git/receipts/<requestId>` with status 200 after the reload.
+- `git -C "$REPO" log --format=%s` still prints only `Initial commit`.
+- `apps/web/spec/e2e/git-actions-reload-running.e2e.ts`: with live notices held, the commit is running ("Committing…" disabled, "running") when the page reloads; after the reload the commit form shows "Outcome not yet confirmed" and a disabled Commit selected files; releasing the live notices shows "interrupted" and removes "Outcome not yet confirmed"; the server reports the commit as the interrupted action.
 
 ## Gotchas
 
-- The tests hold or drop the live connection or a request to reach a race; the CLI cannot, so an agent drives the ordinary path and leaves the race to the tests.
+- Unreachable through the CLI: the reload must happen while the page has not yet heard the outcome. The commands that would be needed: `cli live hold` before step 3 and `cli live release` after step 5 (or a longer deadline, `cli start --git-action-deadline-ms 60000`, then `cat "$REPO/.git/logs/HEAD" > /dev/null` to let the commit finish after the reload).
+- The server kills the stuck Git with SIGKILL, leaving lock files: run `rm -f "$REPO/.git/logs/HEAD" "$REPO"/.git/*.lock "$REPO/.git/refs/heads/main.lock"` and dismiss the notice with button "Got it" before driving another Git feature, or start a fresh instance.

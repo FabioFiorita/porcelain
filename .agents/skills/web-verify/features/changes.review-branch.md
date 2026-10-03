@@ -3,6 +3,12 @@ route: /
 selectors:
   - "Review"
   - "Branch"
+  - "Uncommitted"
+  - " · on the branch"
+  - "Mark reviewed"
+  - "Unmark "
+  - " as unreviewed"
+  - "Comment on "
   - "Comment"
   - "Waiting for the agent"
 tests:
@@ -26,69 +32,62 @@ api:
 
 ## What it is
 
-Reviewing the branch lists every file committed since it forked from the default branch, opens the diff of one, marks it reviewed in the branch review without touching the uncommitted review, and saves a comment on it against the branch comparison.
+The branch review lists every file committed on the checked-out branch since it forked from the default branch, opens one file's diff, marks it reviewed for the branch without touching the uncommitted review, and saves a comment on it anchored to the branch comparison.
 
 ## How a user reaches it
 
-- Review → Changes → Branch → file
+- Workspace → button "Review" → tab "Branch" (next to "Uncommitted"; the address gains `scope=branch`) → button "<file> · <status>" opens that file's branch diff (`entry=branch:<path>`); button "All branch changes" opens every file.
+- In the file's document: toolbar button "Mark <file> as reviewed" (text "Mark reviewed"), and button "Comment on <file> (<status>)" in the diff header.
+- Right-click a file row → menu "Mark as reviewed", "Comment", "Open diff", "Open file", "Show timeline", "Copy relative path".
 
 ## Driving it
 
-Start an instance first: `.agents/skills/web-verify/scripts/cli start`.
+`C=.agents/skills/web-verify/scripts/cli; $C start`, then `REPO=<the repository path start printed>`.
 
-### 1. Reviewing the branch lists the files committed since the default branch and opens the diff of one
-
-Before driving, on the instance (the sample repository and project home are in the instance file):
-
-- create the branch `feature`
-- switch the sample repository to `feature`
-- write `notes.md` in the sample repository
-- commit everything in the sample repository as “Add notes”
+### Setup
 
 ```sh
-.agents/skills/web-verify/scripts/cli open /
+git -C "$REPO" switch -c feature
+printf 'first line\nsecond line\n' > "$REPO/notes.md"
+git -C "$REPO" add --all && git -C "$REPO" commit -m "Add notes"
+git -C "$REPO" diff --name-only main feature   # prints README.md and notes.md
 ```
 
-1. `.agents/skills/web-verify/scripts/cli click --role button --name "Review"`
-   Look for: the page settles; take a snapshot to read what it shows.
-2. `.agents/skills/web-verify/scripts/cli click --role tab --name "Branch"`
-   Look for: the text “1 commit on feature since main” shows; the button “README.md · modified” shows.
-3. `.agents/skills/web-verify/scripts/cli click --role button --name "notes.md · added"`
-   Look for: the text “notes.md · on the branch” shows; the text “second line” shows.
+### 1. The branch lists its committed files and opens one
 
-Then `.agents/skills/web-verify/scripts/cli snapshot` and `.agents/skills/web-verify/scripts/cli screenshot` record the end state, and `.agents/skills/web-verify/scripts/cli network` lists the requests the page sent.
+1. `$C open /`
+   Look for: Page Title "Changes — repository".
+2. `$C click --role button --name "Review"`
+   Look for: tabs "Uncommitted" [selected] and "Branch".
+3. `$C click --role tab --name "Branch"`
+   Look for: text "1 commit on feature since main"; buttons "README.md · modified" and "notes.md · added"; the Page URL contains `scope=branch`.
+4. `$C click --role button --name "notes.md · added"`
+   Look for: the sheet closes; Page Title "notes.md — repository"; toolbar "notes.md" over "notes.md · on the branch"; text "second line"; the Page URL contains `entry=branch%3Anotes.md`.
 
-### 2. Marking a branch file reviewed keeps the mark in the branch review only
+### 2. Marking it reviewed keeps the mark in the branch review
 
-```sh
-.agents/skills/web-verify/scripts/cli open /
-```
+5. `$C click --text "Mark reviewed"`
+   Look for: the toolbar button reads "Reviewed"; the snapshot shows `button "Unmark notes.md as unreviewed" [pressed]`, enabled.
 
-1. `.agents/skills/web-verify/scripts/cli click --role button --name "Mark notes.md as reviewed"`
-   Look for: the button “Unmark notes.md as unreviewed” is enabled.
+### 3. A comment on it is saved against the branch
 
-Then `.agents/skills/web-verify/scripts/cli snapshot` and `.agents/skills/web-verify/scripts/cli screenshot` record the end state, and `.agents/skills/web-verify/scripts/cli network` lists the requests the page sent.
-
-### 3. A comment on a branch file is saved against the branch and waits for the agent
-
-```sh
-.agents/skills/web-verify/scripts/cli open /
-```
-
-1. `.agents/skills/web-verify/scripts/cli click --role button --name "Comment on notes.md (added)"`
-   Look for: the page settles; take a snapshot to read what it shows.
-2. `.agents/skills/web-verify/scripts/cli fill --role textbox --name "Comment" "Why a second line?"`
-   Look for: the page settles; take a snapshot to read what it shows.
-3. `.agents/skills/web-verify/scripts/cli click --role button --name "Comment"`
-   Look for: the text “Waiting for the agent” shows.
-
-Then `.agents/skills/web-verify/scripts/cli snapshot` and `.agents/skills/web-verify/scripts/cli screenshot` record the end state, and `.agents/skills/web-verify/scripts/cli network` lists the requests the page sent.
+6. `$C click --role button --name "Comment on notes.md (added)"`
+   Look for: textbox "Comment"; button "Comment" disabled.
+7. `$C fill --role textbox --name "Comment" "Why a second line?"`
+   Look for: button "Comment" enabled.
+8. `$C click --role button --name "Comment"`
+   Look for: a thread with "Why a second line?" and the state "Waiting for the agent".
 
 ## What proves it works
 
-- `apps/web/spec/e2e/changes-review-branch.e2e.ts` (Playwright e2e): reviewing the branch lists the files committed since the default branch and opens the diff of one; marking a branch file reviewed keeps the mark in the branch review only; a comment on a branch file is saved against the branch and waits for the agent.
-- The tests read back what the server kept through the kit: `server.branchChanges()`, `server.commentThreads()`, `server.reviewedFiles()`.
+- Reload with `$C open <the path and query of the printed Page URL>`: the document is still "notes.md · on the branch", the toolbar still reads "Reviewed", and the thread "Why a second line?" with "Waiting for the agent" is still there.
+- `$C network` shows `GET /api/worktrees/<worktreeId>/branch-changes` and `POST …/branch-changes/diffs` (200) for part 1, `PUT /api/worktrees/<worktreeId>/reviewed` (200) for part 2 and `GET …/reviewed?scope=branch&…` reads, and `POST /api/worktrees/<worktreeId>/comments` (200) for part 3.
+- That the uncommitted review stayed empty, and that the comment's anchor is `{ kind: 'file', filePath: 'notes.md', comparison: { kind: 'branch', base: 'refs/heads/main' }, revision: <branch tip> }`, has no UI readout: after part 3, Review → tab "Uncommitted" shows "No changed files" and "No changes", and its readiness counts the thread ("1 comment waiting on the agent", tab "Comments 1") because the comment list is the worktree's; the marks and the anchor themselves reading them needs `cli server reviewed-files` and `cli server comment-threads` (CLI gaps).
+- `apps/web/spec/e2e/changes-review-branch.e2e.ts`: asserts the server's branch files are README.md and notes.md, the count line, `scope=branch` and `entry=branch:notes.md`; that the branch marks hold `notes.md` while the worktree marks stay `[]`; and the saved thread's anchor and body.
 
 ## Gotchas
 
-- The CLI browser is phone width (414 by 896), so the review panel opens from the Review button instead of standing beside the document.
+- The file document renders the mark control twice (toolbar and diff header) under the same name "Mark notes.md as reviewed", so the role address is ambiguous; click the toolbar's visible text `--text "Mark reviewed"`, or right-click the row in the Branch list and use menuitem "Mark as reviewed".
+- Opening a file closes the Review sheet at phone width; reopen it with "Review" to see the Branch list again.
+- `git add --all` commits README.md's start-state change on `feature`, which is why "README.md · modified" is listed and the working tree is clean.
+- The setup leaves the repository on `feature` with a mark and a comment stored; `$C stop` and `$C start` before driving another feature.

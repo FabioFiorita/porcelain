@@ -1,13 +1,14 @@
 ---
-route: /
+route: /$projectId/$worktreeId
 selectors:
   - "Review"
   - "Comments"
-  - "Comment on the whole change"
-  - "Whole change"
-  - "Comment"
+  - "Uncommitted"
   - "Branch"
+  - "Comment on the whole change"
   - "Comment on the whole branch"
+  - "Comment"
+  - "Whole change"
   - "Whole branch"
 tests:
   - apps/web/spec/integration/reviews-change-comment.test.tsx
@@ -19,55 +20,59 @@ api:
 
 ## What it is
 
-A comment on the whole uncommitted change is saved without a file and waits for the agent, and one on the whole branch is saved against its base and the tip it was read at.
+A comment on the whole uncommitted change is saved with no file (anchor `{ kind: 'change' }`) and waits for the agent; one on the whole branch is saved against the branch base and the tip the branch had when it was read.
 
 ## How a user reaches it
 
-- Review → Comments → Comment on the whole change (Uncommitted) or Comment on the whole branch (Branch)
+- Review (phone; the right sidebar on desktop) → tab "Comments" → button "Comment on the whole change" while the "Uncommitted" tab is selected.
+- Review → tab "Branch" (tablist "Changes to review", URL gains `?scope=branch`) → tab "Comments" → button "Comment on the whole branch". It stays disabled until the branch changes have loaded.
+- `Alt+Shift+R` toggles the Review sheet at phone width.
 
 ## Driving it
 
-Start an instance first: `.agents/skills/web-verify/scripts/cli start`.
+Start with `.agents/skills/web-verify/scripts/cli start`. `$REPO` is the path `start` prints after `repository`.
 
-### The reviewer comments on the whole uncommitted change and then on the whole branch
+### Setup
 
-Before driving, on the instance (the sample repository and project home are in the instance file):
+None before step 1. Step 6 creates the branch on disk mid-drive, as the test does.
 
-- create the branch `feature`
-- switch the sample repository to `feature`
-- write `notes.md` in the sample repository
-- commit everything in the sample repository as “Add notes”
-
-```sh
-.agents/skills/web-verify/scripts/cli open /
-```
-
-1. `.agents/skills/web-verify/scripts/cli click --role button --name "Review"`
-   Look for: the page settles; take a snapshot to read what it shows.
-2. `.agents/skills/web-verify/scripts/cli click --role tab --name "Comments"`
-   Look for: the page settles; take a snapshot to read what it shows.
-3. `.agents/skills/web-verify/scripts/cli click --role button --name "Comment on the whole change"`
-   Look for: the text “Whole change” shows; the button “Comment” is disabled.
-4. `.agents/skills/web-verify/scripts/cli fill --role textbox --name "Comment" "Split this into two commits"`
-   Look for: the page settles; take a snapshot to read what it shows.
-5. `.agents/skills/web-verify/scripts/cli click --role button --name "Comment"`
-   Look for: the text “Split this into two commits” shows.
-6. `.agents/skills/web-verify/scripts/cli click --role tab --name "Branch"`
-   Look for: the button “Comment on the whole branch” is enabled.
-7. `.agents/skills/web-verify/scripts/cli click --role button --name "Comment on the whole branch"`
-   Look for: the page settles; take a snapshot to read what it shows.
-8. `.agents/skills/web-verify/scripts/cli fill --role textbox --name "Comment" "Ready to merge once the notes are in"`
-   Look for: the page settles; take a snapshot to read what it shows.
-9. `.agents/skills/web-verify/scripts/cli click --role button --name "Comment"`
-   Look for: the text “Ready to merge once the notes are in” shows; the text “Whole branch” shows.
-
-Then `.agents/skills/web-verify/scripts/cli snapshot` and `.agents/skills/web-verify/scripts/cli screenshot` record the end state, and `.agents/skills/web-verify/scripts/cli network` lists the requests the page sent.
+1. `.agents/skills/web-verify/scripts/cli open /`
+   Look for: Page Title "Changes — repository".
+2. `.agents/skills/web-verify/scripts/cli click --role button --name "Review"`
+   Look for: dialog "Worktree review" with tab "Uncommitted" selected and tabs "Changed files" and "Comments".
+3. `.agents/skills/web-verify/scripts/cli click --role tab --name "/^Comments/"`
+   Look for: button "Comment on the whole change"; buttons "open 0" and "resolved 0"; text "No open comments yet."
+4. `.agents/skills/web-verify/scripts/cli click --role button --name "Comment on the whole change"`
+   Look for: textbox "Comment" with the label text "Whole change" above it; button "Comment" is disabled.
+5. `.agents/skills/web-verify/scripts/cli fill --role textbox --name "Comment" "Split this into two commits"` then `.agents/skills/web-verify/scripts/cli click --role button --name "Comment"`
+   Look for: textbox "Comment" is gone and button "Comment on the whole change" is back; an article "Comment thread" with the text "You", button "Whole change" (title "Show the change"), the text "Split this into two commits" and "Waiting for the agent"; button "open 1"; the tab now reads "Comments 1".
+6. On disk:
+   ```sh
+   git -C "$REPO" switch -c feature
+   printf 'first line\n' > "$REPO/notes.md"
+   git -C "$REPO" add --all && git -C "$REPO" commit -m "Add notes"
+   git -C "$REPO" rev-parse --short=7 HEAD
+   ```
+   The last line prints the tip, call it `<tip>`.
+7. `.agents/skills/web-verify/scripts/cli click --role tab --name "Branch"`
+   Look for: Page URL ends with `?scope=branch` (or contains `scope=branch`); button "Comment on the whole branch" is enabled.
+8. `.agents/skills/web-verify/scripts/cli click --role button --name "Comment on the whole branch"`
+   Look for: textbox "Comment" with the label text "Whole branch · at <tip>".
+9. `.agents/skills/web-verify/scripts/cli fill --role textbox --name "Comment" "Ready to merge once the notes are in"` then `.agents/skills/web-verify/scripts/cli click --role button --name "Comment"`
+   Look for: a second article "Comment thread" with button "Whole branch in <tip>" and the text "Ready to merge once the notes are in"; the first thread still shows button "Whole change"; button "open 2".
+10. `.agents/skills/web-verify/scripts/cli network`
+    Look for: two `POST /api/worktrees/<id>/comments` answered 200 (steps 5 and 9).
 
 ## What proves it works
 
-- `apps/web/spec/integration/reviews-change-comment.test.tsx` (Browser Mode integration): the reviewer comments on the whole uncommitted change and then on the whole branch.
-- The tests read back what the server kept through the kit: `server.branchChanges()`, `server.commentThreads()`.
+- Step 9's two threads, with buttons "Whole change" and "Whole branch in <tip>", and step 10's two 200 POSTs.
+- Persistence: `.agents/skills/web-verify/scripts/cli open /`, then "Review" and tab `/^Comments/`, lists both threads again.
+- `apps/web/spec/integration/reviews-change-comment.test.tsx`: "Whole change" shows and the post button is disabled when the composer opens; after posting, `server.commentThreads()` holds `{ anchor: { kind: 'change' } }`; after the branch commit the branch button is enabled, and the branch thread is saved with `comparison: { kind: 'branch', base: 'refs/heads/main' }` and `revision` = the branch tip.
 
 ## Gotchas
 
-- The CLI browser is phone width (414 by 896), so the review panel opens from the Review button instead of standing beside the document.
+- Address the Comments tab with `/^Comments/`: once an open comment exists its name gains the count ("Comments 1").
+- The branch button reads the branch through the server's watcher; if step 7 shows it disabled, run `snapshot` again after a second.
+- The sample `README.md` change is committed with the notes in step 6 (`add --all`), so after step 6 the Uncommitted list is empty. That is expected.
+- `git commit` uses your global Git identity; if it has none, add `-c user.name=Verifier -c user.email=verifier@example.invalid` after `git -C "$REPO"`.
+- The instance keeps the branch `feature` and both threads; later comment features see them. `stop` and `start` for a clean instance.

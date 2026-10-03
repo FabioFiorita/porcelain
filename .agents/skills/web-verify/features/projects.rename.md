@@ -1,6 +1,7 @@
 ---
 route: /
 selectors:
+  - "Toggle Sidebar"
   - "repository"
   - "Rename project"
   - "Name"
@@ -15,41 +16,49 @@ api:
 
 ## What it is
 
-Renaming a project in the navigator shows the new name and the server keeps it.
+Renaming a project from the navigator's context menu changes only its label: the navigator and the tab title show the new name and the server keeps it; nothing on disk changes, and a blank name is refused.
 
 ## How a user reaches it
 
-- sidebar → project → right-click → Rename project
+- Sidebar (phone width: `Toggle Sidebar` first, or `ControlOrMeta+b`) → right-click the project button (e.g. "repository") → `Rename project` → dialog "Rename project" → textbox `Name` → `Rename` (or `Enter`; `Cancel` closes).
+- Remote computers' projects in the desktop shell cannot be renamed here.
 
 ## Driving it
 
-Start an instance first: `.agents/skills/web-verify/scripts/cli start`.
+`C=.agents/skills/web-verify/scripts/cli; $C start` (web mode).
 
-### Renaming a project in the navigator shows the new name and the server keeps it
+### Setup
 
-```sh
-.agents/skills/web-verify/scripts/cli open /
-```
+None.
 
-After `open`, look for: the button “repository” shows.
-1. `.agents/skills/web-verify/scripts/cli click --role button --name "repository" --button right`
-   Look for: the page settles; take a snapshot to read what it shows.
-2. `.agents/skills/web-verify/scripts/cli click --role menuitem --name "Rename project"`
-   Look for: the page settles; take a snapshot to read what it shows.
-3. `.agents/skills/web-verify/scripts/cli fill --role textbox --name "Name" " "`
-   Look for: the button “Rename” is disabled; the alert shows.
-4. `.agents/skills/web-verify/scripts/cli fill --role textbox --name "Name" "Browser renamed project"`
-   Look for: the page settles; take a snapshot to read what it shows.
-5. `.agents/skills/web-verify/scripts/cli click --role button --name "Rename"`
-   Look for: the button shows.
+### Rename the sample project
 
-Then `.agents/skills/web-verify/scripts/cli snapshot` and `.agents/skills/web-verify/scripts/cli screenshot` record the end state, and `.agents/skills/web-verify/scripts/cli network` lists the requests the page sent.
+1. `$C open /`
+   Look for: Page Title "Changes — repository".
+2. `$C click --role button --name "Toggle Sidebar"`
+   Look for: dialog "Sidebar" with project button "repository".
+3. `$C click --role button --name "repository" --button right`
+   Look for: context menu with menuitems "Copy path", "Rename project", "Remove from Porcelain".
+4. `$C click --role menuitem --name "Rename project"`
+   Look for: dialog "Rename project"; textbox "Name" focused with value "repository"; buttons "Cancel" and "Rename".
+5. `$C fill --role textbox --name "Name" " "`
+   Look for: textbox "Name" [invalid] with an alert under it reading "Too small: expected string to have >=1 characters"; button "Rename" disabled.
+6. `$C fill --role textbox --name "Name" "Browser renamed project"`
+   Look for: the alert is gone; button "Rename" enabled.
+7. `$C click --role button --name "Rename"`
+   Look for: dialog "Rename project" is gone; project button "Browser renamed project" in the sheet and no button "repository"; Page Title "Changes — Browser renamed project".
+8. `$C network`
+   Look for: `PATCH /api/projects/<projectId>` with status 200.
+9. `$C open /`, then `$C click --role button --name "Toggle Sidebar"`
+   Look for: after the reload the project button is still "Browser renamed project".
 
 ## What proves it works
 
-- `apps/web/spec/integration/projects-rename.test.tsx` (Browser Mode integration): renaming a project in the navigator shows the new name and the server keeps it.
-- The tests read back what the server kept through the kit: `server.project()`.
+- End state: the new name survives a full reload (step 9), so the server kept it; the PATCH answered 200; `ls "$REPO/.."` still shows the folder `repository` (only the label changed).
+- `apps/web/spec/integration/projects-rename.test.tsx`: a blank name disables `Rename` and shows an alert; renaming shows button "Browser renamed project" and the server's project name becomes it (read through `server.project()`).
 
 ## Gotchas
 
-- None known.
+- Phone width: the navigator is in the sidebar sheet behind `Toggle Sidebar`; the old map skipped this step.
+- Other maps address the project as "repository": rename it back in the same instance (steps 3–7 with "Browser renamed project" → "repository") before driving them.
+- Names are trimmed and limited in length by the server contract; control characters are refused with "The name must not contain control characters".

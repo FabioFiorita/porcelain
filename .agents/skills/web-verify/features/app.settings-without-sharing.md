@@ -1,11 +1,15 @@
 ---
-route: /
+route: /settings/$section
 selectors:
   - "Toggle Sidebar"
+  - "Projects and worktrees"
   - "Settings"
+  - "Settings sections"
   - "Appearance"
-  - "Sharing"
+  - "Git and agents"
+  - "Connection"
   - "Updates"
+  - "Sharing"
 tests:
   - apps/web/spec/e2e/app-settings-without-sharing.e2e.ts
 api:
@@ -18,37 +22,44 @@ api:
 
 ## What it is
 
-The web the server serves leaves sharing and remote computers to the desktop app: Settings keeps its preferences and Updates with no Sharing section, and the navigator still names this computer.
+The web the server serves (web mode) leaves sharing and remote computers to the desktop app: Settings lists only Appearance, Git and agents, Connection and Updates, with no Sharing, This computer, Ways in, Devices or Remote computers section, and the project navigator still names this computer.
 
 ## How a user reaches it
 
-- Toggle Sidebar → Settings
-- Shortcut: `Alt+Shift+S`
+- Sidebar (phone width: `Toggle Sidebar` first) → `Settings` → section buttons in navigation "Settings sections".
+- `Alt+Shift+S` opens Settings on Appearance (ignored while focus is in a text field).
+- Routes `/settings/appearance`, `/settings/git`, `/settings/connection`, `/settings/updates`; a desktop-only slug such as `/settings/devices` redirects to `/settings/appearance`.
 
 ## Driving it
 
-Start an instance first: `.agents/skills/web-verify/scripts/cli start`.
+`C=.agents/skills/web-verify/scripts/cli; $C start` (web mode; `--desktop` shows the other section list).
 
-### The web the server serves lists Appearance, Git and agents, Connection and Updates in Settings and no Sharing, and the navigator still names this computer
+### Setup
 
-```sh
-.agents/skills/web-verify/scripts/cli open /
-```
+None. Note the computer's name with `hostname` on the machine running the instance: the server names the environment after it (it is not renamed in a fresh instance).
 
-1. `.agents/skills/web-verify/scripts/cli click --role button --name "Toggle Sidebar"`
-   Look for: the text shows.
-2. `.agents/skills/web-verify/scripts/cli click --role button --name "Settings"`
-   Look for: the heading “Appearance” shows; the button “Sharing” is gone.
-3. `.agents/skills/web-verify/scripts/cli click --role button --name "Updates"`
-   Look for: the heading “Updates” shows; the text “Porcelain <offered.version ?? ''>” shows.
+### Steps
 
-Then `.agents/skills/web-verify/scripts/cli snapshot` and `.agents/skills/web-verify/scripts/cli screenshot` record the end state, and `.agents/skills/web-verify/scripts/cli network` lists the requests the page sent.
+1. `$C open /`
+   Look for: button "Toggle Sidebar" (the next command prints Page Title "Changes — repository").
+2. `$C click --role button --name "Toggle Sidebar"`
+   Look for: navigation "Projects and worktrees" whose header reads "Porcelain" and, under it, the `hostname` output; button "repository"; no group "This computer" (that group is desktop-only).
+3. `$C click --role button --name "Settings"`
+   Look for: Page URL `/settings/appearance`; Page Title "Settings"; main "Settings"; heading "Appearance"; navigation "Settings sections" holding exactly the buttons "Appearance", "Git and agents", "Connection", "Updates" and "Back"; no button "Sharing", "This computer", "Ways in", "Devices" or "Remote computers".
+4. `$C click --role button --name "Updates"`
+   Look for: Page URL `/settings/updates`; heading "Updates"; the CLI's server offers a scripted update, so the list reads "Porcelain 1.0.0", "Porcelain 1.1.0 is available." and button "Update to 1.1.0". (A server that runs outside the installed service shows "This server runs outside the installed service. Update it with npm, then run porcelain service update." instead.)
+5. `$C network`
+   Look for: `GET /api/service/update` with status 200.
+6. `$C open /settings/devices`
+   Look for: Page URL `/settings/appearance` (redirected); heading "Appearance".
 
 ## What proves it works
 
-- `apps/web/spec/e2e/app-settings-without-sharing.e2e.ts` (Playwright e2e): the web the server serves lists Appearance, Git and agents, Connection and Updates in Settings and no Sharing, and the navigator still names this computer.
-- The tests read back what the server kept through the kit: `server.inventory()`, `server.serviceUpdate()`.
+- The section list in step 3 and the redirect in step 6 prove the web mode has no sharing pages; step 2 proves the navigator still shows this computer's name.
+- `apps/web/spec/e2e/app-settings-without-sharing.e2e.ts` (web project, 414x896): the navigator shows `server.inventory().environment.name`; the four section buttons Appearance, Git and agents, Connection and Updates are visible and no Sharing button exists; Updates shows heading "Updates" and the text `Porcelain <version from GET /api/service/update>`.
 
 ## Gotchas
 
-- None known.
+- Do not click "Update to <version>" if an update is offered: it sends `POST /api/service/update` and starts a real update attempt on the disposable server.
+- The text after "Porcelain " depends on the server build's version, so compare it with the version the server reports, not with a fixed string.
+- Phone width: the navigator is in a sheet; click `Toggle Sidebar` before step 2's checks and before `Settings`.

@@ -1,13 +1,15 @@
 ---
-route: /
+route: /$projectId/$worktreeId
 selectors:
   - "Review"
+  - "Comments"
   - "Comment on the whole change"
   - "Comment"
   - "Resolve"
   - "Delete resolved"
   - "Delete"
   - "Close"
+  - "that changed"
 tests:
   - apps/web/spec/integration/reviews-delete-resolved-race.test.tsx
 api:
@@ -18,54 +20,44 @@ api:
 
 ## What it is
 
-A resolved thread the agent answers after the reviewer opened the confirmation is not deleted, and the dialog says it was kept because it changed.
+A resolved thread the agent answers after the reviewer opened the "Delete resolved" confirmation is not deleted: the server skips it because its revision changed, and the dialog turns into "Kept 1 thread that changed" with a Close button.
 
 ## How a user reaches it
 
-- Review → Comments → Resolved → Delete resolved, while the agent replies
+- Review (phone; the right sidebar on desktop) → tab "Comments" → filter button "resolved N" → "Delete resolved" → (the agent replies now) → "Delete".
 
 ## Driving it
 
-Start an instance first: `.agents/skills/web-verify/scripts/cli start`.
+Start with `.agents/skills/web-verify/scripts/cli start`.
 
-### A resolved thread the agent answers while the reviewer confirms the deletion is kept and the dialog says so
+### Setup
 
-Before driving, on the instance (the sample repository and project home are in the instance file):
+None before step 1. Step 6 needs an agent reply while the confirmation is open, which the CLI cannot send (see Gotchas). Steps 1 to 5 and the deletion without the race (`reviews.delete-resolved`) are drivable.
 
-- as the agent, reply to the thread through the Porcelain MCP tools
-
-```sh
-.agents/skills/web-verify/scripts/cli open /
-```
-
-1. `.agents/skills/web-verify/scripts/cli click --role button --name "Review"`
-   Look for: the page settles; take a snapshot to read what it shows.
-2. `.agents/skills/web-verify/scripts/cli click --role tab --name "/^Comments/"`
-   Look for: the page settles; take a snapshot to read what it shows.
-3. `.agents/skills/web-verify/scripts/cli click --role button --name "Comment on the whole change"`
-   Look for: the page settles; take a snapshot to read what it shows.
-4. `.agents/skills/web-verify/scripts/cli fill --role textbox --name "Comment" "Split this into two commits"`
-   Look for: the page settles; take a snapshot to read what it shows.
-5. `.agents/skills/web-verify/scripts/cli click --role button --name "Comment"`
-   Look for: the page settles; take a snapshot to read what it shows.
-6. `.agents/skills/web-verify/scripts/cli click --role button --name "Resolve"`
-   Look for: the page settles; take a snapshot to read what it shows.
-7. `.agents/skills/web-verify/scripts/cli click --role button --name "/^resolved/i"`
-   Look for: the page settles; take a snapshot to read what it shows.
-8. `.agents/skills/web-verify/scripts/cli click --role button --name "Delete resolved"`
-   Look for: the text “Delete 1 resolved thread?” shows.
-9. `.agents/skills/web-verify/scripts/cli click --role button --name "Delete"`
-   Look for: the text “Kept 1 thread that changed” shows.
-10. `.agents/skills/web-verify/scripts/cli click --role button --name "Close"`
-   Look for: the alertdialog is gone.
-
-Then `.agents/skills/web-verify/scripts/cli snapshot` and `.agents/skills/web-verify/scripts/cli screenshot` record the end state, and `.agents/skills/web-verify/scripts/cli network` lists the requests the page sent.
+1. `.agents/skills/web-verify/scripts/cli open /` then `.agents/skills/web-verify/scripts/cli click --role button --name "Review"` then `.agents/skills/web-verify/scripts/cli click --role tab --name "/^Comments/"`
+   Look for: dialog "Worktree review"; button "Comment on the whole change".
+2. `.agents/skills/web-verify/scripts/cli click --role button --name "Comment on the whole change"` then `.agents/skills/web-verify/scripts/cli fill --role textbox --name "Comment" "Split this into two commits"` then `.agents/skills/web-verify/scripts/cli click --role button --name "Comment"`
+   Look for: article "Comment thread" with "Split this into two commits".
+3. `.agents/skills/web-verify/scripts/cli click --role button --name "Resolve"`
+   Look for: text "No open comments yet."; button "resolved 1".
+4. `.agents/skills/web-verify/scripts/cli click --role button --name "/^resolved/i"`
+   Look for: article "Resolved comment thread"; button "Delete resolved".
+5. `.agents/skills/web-verify/scripts/cli click --role button --name "Delete resolved"`
+   Look for: alertdialog with heading "Delete 1 resolved thread?"; buttons "Cancel" and "Delete".
+6. CLI gap, with the alertdialog still open: `cli server comment-threads` (to read the thread id), then `cli agent reply <threadId> "Done, split into two commits"`.
+7. `.agents/skills/web-verify/scripts/cli click --role button --name "Delete"`
+   Look for: the alertdialog stays, now with heading "Kept 1 thread that changed", the text "The agent answered or someone reopened them after you confirmed, so they stay for you to read first." and button "Close" (no "Cancel" or "Delete").
+8. `.agents/skills/web-verify/scripts/cli click --role button --name "Close"`
+   Look for: the alertdialog is gone; the resolved thread "Split this into two commits" is still listed.
 
 ## What proves it works
 
-- `apps/web/spec/integration/reviews-delete-resolved-race.test.tsx` (Browser Mode integration): a resolved thread the agent answers while the reviewer confirms the deletion is kept and the dialog says so.
-- The tests read back what the server kept through the kit: `server.commentThreads()`.
+- Step 7's "Kept 1 thread that changed" and step 8's thread still listed; `.agents/skills/web-verify/scripts/cli network` shows `POST /api/worktrees/<id>/comments/resolved/deletion` answered 200 (the server reports the skipped thread in its answer instead of failing).
+- Persistence: after `open /`, Review → Comments → resolved still lists the thread, now with the agent's reply in it.
+- `apps/web/spec/integration/reviews-delete-resolved-race.test.tsx`: the reviewer resolves their own whole-change comment, opens "Delete resolved", the agent replies while "Delete 1 resolved thread?" is shown, Delete shows "Kept 1 thread that changed", Close removes the alertdialog, and `server.commentThreads()` still holds both messages.
 
 ## Gotchas
 
-- The CLI browser is phone width (414 by 896), so the review panel opens from the Review button instead of standing beside the document.
+- Unreachable through the CLI: the race needs an agent reply between steps 5 and 7, `cli agent reply <threadId> "Done, split into two commits"`, and reading the thread id needs `cli server comment-threads`.
+- Without step 6, "Delete" simply deletes the thread and the alertdialog closes (the promise of `reviews.delete-resolved`), so a drive that skips the gap proves nothing about the race.
+- Threads left by other features make "Resolve" ambiguous; `stop` and `start` for a clean instance.

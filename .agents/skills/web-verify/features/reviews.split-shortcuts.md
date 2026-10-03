@@ -3,8 +3,13 @@ route: /
 selectors:
   - "Review"
   - "Files"
-  - "README.md"
   - "Open file"
+  - "Open to the side"
+  - "Open documents"
+  - "Open documents, "
+  - " pane"
+  - "Close tab"
+  - "Open the tab to the side"
 tests:
   - apps/web/spec/integration/reviews-split-shortcuts.test.tsx
 api:
@@ -16,46 +21,38 @@ api:
 
 ## What it is
 
-In a split view the tab shortcuts act on the focused pane alone, and opening the split registers them once.
+With the document area split into two panes, the tab shortcuts act on the focused pane only: `Alt+W` closes the focused pane's active tab, and closing the last tab of the right pane folds the split back into one pane. Opening the split registers the tab shortcuts once (no "already registered" warning).
 
 ## How a user reaches it
 
-- Review → Files → README.md → Open file → tab → Open to the side
-- Shortcut: `Alt+W`
+- Split: right-click a tab → menuitem "Open to the side" (its name also carries the shortcut text), or `Alt+\` on the focused pane's active tab. Once split, the menu item reads "Open in the right pane" / "Open in the left pane".
+- Tab shortcuts (shortcuts dialog `Mod+/`, group "Tabs"): `Alt+ArrowRight` next tab, `Alt+ArrowLeft` previous tab, `Alt+W` close tab, `Alt+\` open the tab to the side. They are ignored while focus is in a text field.
+- The split works at phone width too: there is no breakpoint guard, the two panes share the 414px width.
 
 ## Driving it
 
-Start an instance first: `.agents/skills/web-verify/scripts/cli start`.
+`C=.agents/skills/web-verify/scripts/cli; $C start`. No setup: README.md is in the sample repository.
 
-### In a split view Alt+W closes the tab of the focused pane alone, and opening the split registers the tab shortcuts once
-
-```sh
-.agents/skills/web-verify/scripts/cli open /
-```
-
-1. `.agents/skills/web-verify/scripts/cli click --role button --name "Review"`
-   Look for: the page settles; take a snapshot to read what it shows.
-2. `.agents/skills/web-verify/scripts/cli click --role tab --name "Files"`
-   Look for: the page settles; take a snapshot to read what it shows.
-3. `.agents/skills/web-verify/scripts/cli click --role treeitem --name "README.md" --button right`
-   Look for: the page settles; take a snapshot to read what it shows.
-4. `.agents/skills/web-verify/scripts/cli click --role menuitem --name "Open file"`
-   Look for: the page settles; take a snapshot to read what it shows.
-5. `.agents/skills/web-verify/scripts/cli click --role tab --button right`
-   Look for: the page settles; take a snapshot to read what it shows.
-6. `.agents/skills/web-verify/scripts/cli click --role menuitem --name "/Open to the side/"`
-   Look for: the tab shows.
-7. `.agents/skills/web-verify/scripts/cli click --role tab`
-   Look for: the page settles; take a snapshot to read what it shows.
-8. `.agents/skills/web-verify/scripts/cli press Alt+w`
-   Look for: the region “Right pane” is gone; the tab shows.
-
-Then `.agents/skills/web-verify/scripts/cli snapshot` and `.agents/skills/web-verify/scripts/cli screenshot` record the end state, and `.agents/skills/web-verify/scripts/cli network` lists the requests the page sent.
+1. `$C open /`, then `$C click --role button --name "Review"`, then `$C click --role tab --name "Files"`
+   Look for: in the dialog, treeitem "README.md".
+2. `$C click --role treeitem --name "README.md" --button right`, then `$C click --role menuitem --name "Open file"`
+   Look for: the sheet closes; tab "README.md Close README.md" selected in tablist "Open documents".
+3. `$C click --role tab --name "/README.md/" --button right`, then `$C click --role menuitem --name "/Open to the side/"`
+   Look for: regions "Left pane" and "Right pane"; tablists "Open documents, left pane" (tabs "Changes Close Changes", "README.md Close README.md") and "Open documents, right pane" (tab "README.md Close README.md"). Page URL carries `side=`.
+4. `$C click --role button --name "Review"`, then `$C press Escape`
+   Look for: the sheet opens and closes; focus returns to the "Review" button, which only the right pane shows while split, so the right pane is now focused.
+5. `$C press Alt+w`
+   Look for: regions "Left pane" and "Right pane" gone; one tablist "Open documents" with tabs "Changes Close Changes" and "README.md Close README.md" (the left pane's README.md tab survived).
+6. `$C console`
+   Look for: no warning containing "already registered".
 
 ## What proves it works
 
-- `apps/web/spec/integration/reviews-split-shortcuts.test.tsx` (Browser Mode integration): in a split view Alt+W closes the tab of the focused pane alone, and opening the split registers the tab shortcuts once.
+- Step 5 closes only the right pane's tab (the split folds, the left pane keeps README.md) and step 6 shows no duplicate-registration warning.
+- `apps/web/spec/integration/reviews-split-shortcuts.test.tsx`: opens README.md, opens it to the side, sees the tab in region "Left pane", clicks the tab in region "Right pane", presses `Alt+W`, and expects "Right pane" gone, the README.md tab still visible, and no console warning containing "already registered".
 
 ## Gotchas
 
-- The CLI browser is phone width (414 by 896), so the review panel opens from the Review button instead of standing beside the document.
+- While split, both panes hold a tab named "README.md Close README.md", so `--role tab --name "/README.md/"` is ambiguous and the CLI cannot scope a click to one region. Focus the right pane through its own "Review" button (step 4) instead of clicking its tab. Without a deliberate focus, `Alt+W` acts on whichever pane last received pointer or focus, and closing the left pane's README.md leaves the split in place.
+- `Alt+\` from a pane opens the tab in the other pane and focuses it, so `press Alt+Backslash` right after step 2 is an alternative to the menu in step 3.
+- The tab layout is saved in localStorage; a split survives `open`. Reset by closing the right pane's tab (step 4 then 5) or closing the extra tabs.

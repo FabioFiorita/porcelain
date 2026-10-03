@@ -3,6 +3,10 @@ route: /
 selectors:
   - "Review"
   - "Branch"
+  - "All branch changes"
+  - "Read "
+  - " more of "
+  - "Reading…"
   - "Some patches could not be read."
 tests:
   - apps/web/spec/integration/changes-branch-read-more.test.tsx
@@ -16,46 +20,47 @@ api:
 
 ## What it is
 
-Reading more of a long branch keeps the diffs already shown on screen while the next ones load, and reads only the files it had not read yet.
+The Branch document ("All branch changes") reads diffs for the first 25 files (`DIFF_WINDOW_FILES`, `apps/web/src/config/limits.ts`); "Read N more of M" reads the next window only, keeping the diffs already on screen while it loads.
 
 ## How a user reaches it
 
-- Review → Changes → Branch → All branch changes → Read more
+- Workspace → button "Review" → tab "Branch" → button "All branch changes" (its name ends with the file count) → at the bottom of the document, button "Read <n> more of <m>" (shows "Reading…", disabled, while a read runs).
 
 ## Driving it
 
-Start an instance first: `.agents/skills/web-verify/scripts/cli start`.
+`C=.agents/skills/web-verify/scripts/cli; $C start`, then `REPO=<the repository path start printed>`.
 
-### Reading more of a long branch keeps the diffs already shown while the next ones load
+### Setup
 
-Before driving, on the instance (the sample repository and project home are in the instance file):
-
-- create the branch `feature`
-- switch the sample repository to `feature`
-- write ``notes-${String(index).padStart(2` in the sample repository
-- commit everything in the sample repository as “Add many notes”
+26 new notes plus the committed README.md change make 27 branch files, two more than one window:
 
 ```sh
-.agents/skills/web-verify/scripts/cli open /
+git -C "$REPO" switch -c feature
+for i in $(seq 0 25); do printf 'note %s\n' "$i" > "$REPO/notes-$(printf %02d "$i").md"; done
+git -C "$REPO" add --all && git -C "$REPO" commit -m "Add many notes"
+git -C "$REPO" diff --name-only main feature | wc -l   # prints 27
 ```
 
-1. `.agents/skills/web-verify/scripts/cli click --role button --name "Review"`
-   Look for: the page settles; take a snapshot to read what it shows.
-2. `.agents/skills/web-verify/scripts/cli click --role tab --name "Branch"`
-   Look for: the page settles; take a snapshot to read what it shows.
-3. `.agents/skills/web-verify/scripts/cli click --role button --name "/^All branch changes/u"`
-   Look for: the text “A change to review.” shows.
-4. `.agents/skills/web-verify/scripts/cli click --role button --name "Read 2 more of 2"`
-   Look for: the text “A change to review.” shows; the button “Read 2 more of 2” is gone; the text “Some patches could not be read.” is gone; the text “A change to review.” shows.
-
-Then `.agents/skills/web-verify/scripts/cli snapshot` and `.agents/skills/web-verify/scripts/cli screenshot` record the end state, and `.agents/skills/web-verify/scripts/cli network` lists the requests the page sent.
+1. `$C open /`
+   Look for: Page Title "Changes — repository".
+2. `$C click --role button --name "Review"`
+   Look for: tabs "Uncommitted" and "Branch".
+3. `$C click --role tab --name "Branch"`
+   Look for: text "1 commit on feature since main"; a button whose name starts "All branch changes" and ends "27"; rows "README.md · modified", "notes-00.md · added" … "notes-25.md · added".
+4. `$C click --role button --name "/^All branch changes/"`
+   Look for: the sheet closes; Page Title "Branch changes — repository"; toolbar "Branch" over "27 files changed"; heading "feature since main"; text "A change to review." (README.md's diff, the first file); button "Read 2 more of 2" at the bottom; no text "Some patches could not be read.".
+5. `$C click --role button --name "Read 2 more of 2"`
+   Look for: button "Read 2 more of 2" is gone (it may flash "Reading…"); text "A change to review." still shows; no text "Some patches could not be read.". Then `$C network`: a second `POST /api/worktrees/<worktreeId>/branch-changes/diffs` with 200.
 
 ## What proves it works
 
-- `apps/web/spec/integration/changes-branch-read-more.test.tsx` (Browser Mode integration): reading more of a long branch keeps the diffs already shown while the next ones load.
-- The tests read back what the server kept through the kit: `server.branchChanges()`.
+- `$C network` after step 5 shows a second `POST /api/worktrees/<worktreeId>/branch-changes/diffs` with 200, sent at the click: the first carried the 25 files of the first window, the second only the 2 new ones (the CLI log has no bodies; the count of requests is the evidence).
+- The README.md diff text stays visible through the read, so the window grew instead of replacing what was shown.
+- `apps/web/spec/integration/changes-branch-read-more.test.tsx`: holds the second diffs request open and asserts "A change to review." is still visible while it is pending, then that "Read 2 more of 2" and "Some patches could not be read." are gone after release.
 
 ## Gotchas
 
-- The CLI browser is phone width (414 by 896), so the review panel opens from the Review button instead of standing beside the document.
-- The tests hold or drop the live connection or a request to reach a race; the CLI cannot, so an agent drives the ordinary path and leaves the race to the tests.
+- The in-flight moment (diffs kept while the next window loads) is a race the test reaches by holding the request; the CLI cannot hold a request, so it sees only the end state. Needed: `cli network hold "POST /api/worktrees/*/branch-changes/diffs"` and `cli network release`.
+- notes-24.md and notes-25.md, the two files read last, sit at the bottom of a long document, off screen at 414 by 896, and the diff viewer may not render off-screen files; the network log is the dependable check that they were read.
+- `git add --all` commits README.md's start-state change too, which is why there are 27 files and README.md is first.
+- The setup leaves the repository on `feature`; `$C stop` and `$C start` before driving another feature.

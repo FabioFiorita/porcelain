@@ -1,6 +1,9 @@
 ---
 route: /
 selectors:
+  - "Review"
+  - "Worktree review"
+  - "Files"
   - "Change no longer present"
 tests:
   - apps/web/spec/integration/files-move.test.tsx
@@ -13,43 +16,54 @@ api:
 
 ## What it is
 
-Dragging a file onto a folder in the tree moves it into that folder on disk without opening it, and dragging one onto a folder that already holds that name is refused and keeps both files.
+Dragging a file onto a folder in the tree moves it into that folder on disk without opening it. Dragging a file onto a folder that already holds that name is refused, says so, and keeps both files.
 
 ## How a user reaches it
 
-- Review → Files → drag a file onto a folder
+- Review (phone width) → tab Files → drag a tree row onto a folder row (a mouse drag, or on touch a 400 ms long-press then drag).
+- There is no other path: no menu item, no keyboard move. Rename cannot move an entry either, because the tree refuses a name holding `/` (`Name cannot include "/".`).
 
 ## Driving it
 
-Start an instance first: `.agents/skills/web-verify/scripts/cli start`.
+Start with `.agents/skills/web-verify/scripts/cli start`. Set `REPO` to the path it prints after `repository`.
 
-### 1. Dragging a file onto a folder in the tree moves it into that folder on disk
+### Setup
 
-```sh
-.agents/skills/web-verify/scripts/cli open /
-```
-
-After `open`, look for: the treeitem “move-me.md” is gone.
-After `open`, look for: the text “Change no longer present” is gone.
-
-Then `.agents/skills/web-verify/scripts/cli snapshot` and `.agents/skills/web-verify/scripts/cli screenshot` record the end state, and `.agents/skills/web-verify/scripts/cli network` lists the requests the page sent.
-
-### 2. Dragging a file onto a folder that already holds that name is refused and keeps both files
+Before `open`:
 
 ```sh
-.agents/skills/web-verify/scripts/cli open /
+mkdir "$REPO/archive"
+printf 'Already in the folder\n' > "$REPO/archive/clash.md"
+printf 'Notes to move\n' > "$REPO/move-me.md"
+printf 'Notes that clash\n' > "$REPO/clash.md"
 ```
 
-After `open`, look for: the alert reads 'An entry already exists at that path'.
-After `open`, look for: the treeitem “clash.md” shows.
+CLI gap: the move itself needs a drag, which the CLI cannot do. The command it would need:
+`cli drag --role treeitem --name "move-me.md" --to-role treeitem --to-name "archive"`
 
-Then `.agents/skills/web-verify/scripts/cli snapshot` and `.agents/skills/web-verify/scripts/cli screenshot` record the end state, and `.agents/skills/web-verify/scripts/cli network` lists the requests the page sent.
+### Steps
+
+1. `.agents/skills/web-verify/scripts/cli open /`
+   Look for: Page Title "Changes — repository".
+2. `.agents/skills/web-verify/scripts/cli click --role button --name "Review"`
+   Look for: dialog "Worktree review".
+3. `.agents/skills/web-verify/scripts/cli click --role tab --name "Files"`
+   Look for: the tree in region "All files" with treeitems "archive" (a collapsed folder), "clash.md", "move-me.md" and "README.md".
+4. (CLI gap) `cli drag --role treeitem --name "move-me.md" --to-role treeitem --to-name "archive"`
+   Look for: treeitem "move-me.md" is gone from the root, the sheet stays open, and no text "Change no longer present" appears.
+   Disk: `ls "$REPO/archive"` prints `clash.md` and `move-me.md`; `test -e "$REPO/move-me.md" || echo moved` prints `moved`.
+5. (CLI gap) `cli drag --role treeitem --name "clash.md" --to-role treeitem --to-name "archive"`
+   Look for: an alert reading "An entry already exists at that path" under the tree, and treeitem "clash.md" still at the root.
+   Disk: `cat "$REPO/clash.md"` prints `Notes that clash`, and `cat "$REPO/archive/clash.md"` prints `Already in the folder`.
 
 ## What proves it works
 
-- `apps/web/spec/integration/files-move.test.tsx` (Browser Mode integration): dragging a file onto a folder in the tree moves it into that folder on disk; dragging a file onto a folder that already holds that name is refused and keeps both files.
-- The tests read back what the server kept through the kit: `server.directory()`, `server.text()`.
+- On disk: the moved file is under `archive/` and gone from the root. After the refused drag, both `clash.md` files keep their text.
+- `cli network` would show `POST /api/worktrees/<worktreeId>/files` with 2xx for the move, and an error status for the clash.
+- `apps/web/spec/integration/files-move.test.tsx` drags with Vitest's `userEvent.dragAndDrop`. It asserts that the server lists `move-me.md` under `archive` and no longer at the root, that the row is gone, and that "Change no longer present" never shows. For the clash it asserts the alert "An entry already exists at that path", that the row stays, and that both files keep their text.
 
 ## Gotchas
 
-- The CLI has no drag command; the tests drag one tree item onto another, and an agent checks the result through `.agents/skills/web-verify/scripts/cli snapshot` after moving the file another way.
+- Unreachable through the CLI: the move needs drag and drop. The command needed is `cli drag --role treeitem --name "<source row>" --to-role treeitem --to-name "<folder row>"`. Until then only the setup and the tree rows (steps 1 to 3) can be driven, and the test above is the proof.
+- A folder cannot be dropped into itself or its own descendants; the tree refuses that drop before any request is sent.
+- A move is refused while the file, or a file inside the moved folder, has an unsaved draft open in the editor.

@@ -2,7 +2,9 @@
 route: /
 selectors:
   - "Commit"
+  - "Commit changes"
   - "Commit model"
+  - "No coding CLI available"
   - "Generate with AI"
   - "Use groups"
   - "Commit selected files"
@@ -19,36 +21,37 @@ api:
 
 ## What it is
 
-Without a coding CLI on the server the commit dialog says no model is available and keeps drafting and groups disabled, and a message typed by hand still commits.
+Without a coding CLI on the server, the Commit dialog says no model is available, keeps drafting and groups disabled, and a message typed by hand still commits.
 
 ## How a user reaches it
 
-- Commit → Commit model, Generate with AI, Use groups
+- Group "Git controls" → button "Commit" → dialog "Commit changes": the select "Commit model", button "Generate with AI", tab "Use groups".
+- Group "Git controls" → button "Git actions" → menuitem "Commit… Commit selected files" (`--name "/^Commit…/"`).
 
 ## Driving it
 
-Start an instance first: `.agents/skills/web-verify/scripts/cli start`.
+`C=.agents/skills/web-verify/scripts/cli; $C start`, then `REPO=<the repository path start printed>`. The CLI's default instance has NO coding CLI (its sandbox PATH holds only `git`; the fake `claude` is installed only by the test kit's `codingTool.install()`), so this feature is the one a fresh instance reaches.
 
-### Without a coding CLI the commit dialog says drafting is unavailable, and a typed message still commits
+### Setup
 
-```sh
-.agents/skills/web-verify/scripts/cli open /
-```
+None.
 
-1. `.agents/skills/web-verify/scripts/cli click --role button --name "Commit"`
-   Look for: the combobox “Commit model” is disabled; the combobox “Commit model” holds 'No coding CLI available'; the button “Generate with AI” is disabled; the tab “Use groups” is disabled; the button “Commit selected files” is disabled.
-2. `.agents/skills/web-verify/scripts/cli fill --role textbox --name "Message" "Commit written by hand"`
-   Look for: the button “Commit selected files” is enabled.
-3. `.agents/skills/web-verify/scripts/cli click --role button --name "Commit selected files"`
-   Look for: the text “succeeded” shows.
-
-Then `.agents/skills/web-verify/scripts/cli snapshot` and `.agents/skills/web-verify/scripts/cli screenshot` record the end state, and `.agents/skills/web-verify/scripts/cli network` lists the requests the page sent.
+1. `$C open /`
+   Look for: button "Commit" enabled.
+2. `$C click --role button --name "Commit"`
+   Look for: dialog "Commit changes"; combobox "Commit model" [disabled] showing "No coding CLI available"; button "Generate with AI" [disabled]; tab "Use groups" [disabled]; button "Commit selected files" [disabled].
+3. `$C fill --role textbox --name "Message" "Commit written by hand"`
+   Look for: button "Commit selected files" enabled.
+4. `$C click --role button --name "Commit selected files"`
+   Look for: a status in the dialog reads "succeeded".
+   Disk: `git -C "$REPO" log -1 --format=%s` prints `Commit written by hand`.
 
 ## What proves it works
 
-- `apps/web/spec/integration/git-actions-commit-draft.test.tsx` (Browser Mode integration): without a coding CLI the commit dialog says drafting is unavailable, and a typed message still commits.
-- The tests read back what the server kept through the kit: `server.commitModels()`, `server.commits()`.
+- The disabled model select reading "No coding CLI available", then "succeeded" and the commit on disk. `$C network` shows `GET /api/git/commit-models` 200 (an empty list) and `POST /api/worktrees/<worktreeId>/git/actions` 200.
+- `apps/web/spec/integration/git-actions-commit-draft.test.tsx`: asserts the server lists no commit models, the select is disabled with display value "No coding CLI available", "Generate with AI", "Use groups" and "Commit selected files" are disabled, typing enables the commit, and the newest commit subject is the typed message.
 
 ## Gotchas
 
-- None known.
+- Drive this before anything installs a coding tool in the same instance: the server looks for `claude` on every `GET /api/git/commit-models`, and the web keeps the answer for 60 s (`COMMIT_MODELS_STALE_MS`); `open /` reloads it.
+- After the commit the tree is clean and "Commit" is disabled; write a change on disk to drive it again (see git-actions.commit).

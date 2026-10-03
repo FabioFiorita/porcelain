@@ -1,8 +1,12 @@
 ---
-route: /
+route: /$projectId/$worktreeId
 selectors:
+  - "Review"
+  - "Files"
   - "Preview"
   - "Source"
+  - "HTML preview"
+  - "Some assets could not be loaded: "
 tests:
   - apps/web/spec/integration/files-html-preview.test.tsx
 api:
@@ -14,43 +18,53 @@ api:
 
 ## What it is
 
-An HTML page opened from the file tree previews in a sandboxed frame with its local images inlined, and names the references it could not load.
+An HTML page opened from the file tree renders in a sandboxed frame with its local images inlined as `data:` URLs, names every reference it could not load, and switches to its source.
 
 ## How a user reaches it
 
-- Review → Files → page.html
+- Review → Files → click an `.html`/`.htm` file: a single click opens the page itself, even when it is a change (the tree menu's "Open file" or "Open" does the same).
+- In the file toolbar, tabs "Preview" and "Source"; Preview is the default unless Settings sets HTML files to open as source.
 
 ## Driving it
 
-Start an instance first: `.agents/skills/web-verify/scripts/cli start`.
+`C=.agents/skills/web-verify/scripts/cli; $C start`. `$REPO` is the path `start` prints after `repository`.
 
-### 1. An HTML page opened from the file tree previews with its local images and names the ones it could not load
+### Setup
 
-```sh
-.agents/skills/web-verify/scripts/cli open /
-```
-
-After `open`, look for: the field “page.html HTML preview” shows.
-After `open`, look for: the tab “Preview” has aria-selected="true".
-After `open`, look for: the text “/could not be loaded: .*logo\.svg/” is gone.
-
-Then `.agents/skills/web-verify/scripts/cli snapshot` and `.agents/skills/web-verify/scripts/cli screenshot` record the end state, and `.agents/skills/web-verify/scripts/cli network` lists the requests the page sent.
-
-### 2. Switching the HTML page to its source shows the markup instead of the preview
+A page with one local image that exists and one that does not:
 
 ```sh
-.agents/skills/web-verify/scripts/cli open /
+printf '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48"><rect width="48" height="48" fill="teal"/></svg>\n' > "$REPO/logo.svg"
+printf '<!doctype html><html><body><h1>Preview heading</h1><img src="logo.svg" alt="Preview logo"><img src="missing.png" alt="Missing picture"></body></html>\n' > "$REPO/page.html"
 ```
 
-1. `.agents/skills/web-verify/scripts/cli click --role tab --name "Source"`
-   Look for: the tab “Source” has aria-selected="true"; the text “/<h1>Preview heading<\/h1>/” shows; the text “/^Some assets could not be loaded/” is gone.
+### 1. The page previews with its local image and names the one it could not load
 
-Then `.agents/skills/web-verify/scripts/cli snapshot` and `.agents/skills/web-verify/scripts/cli screenshot` record the end state, and `.agents/skills/web-verify/scripts/cli network` lists the requests the page sent.
+1. `$C open /`, `$C click --role button --name "Review"`, `$C click --role tab --name "Files"`
+   Look for: treeitems "page.html" and "logo.svg".
+2. `$C click --role treeitem --name "page.html"`
+   Look for: the sheet closes; tab "page.html Close page.html" selected; tab "Preview" selected (`[selected]`) and tab "Source"; the paragraph starting "Sandboxed preview: scripts run"; status "Some assets could not be loaded: missing.png. This preview supports local static assets." (it names `missing.png` only, never `logo.svg`); an `iframe` (the aria snapshot prints it without a name or content).
+3. `$C screenshot`
+   Look for: the heading "Preview heading" and a teal 48 px square inside the frame.
+4. `$C network`
+   Look for: `GET /api/worktrees/<id>/text?path=page.html` answered 200 and `POST /api/worktrees/<id>/preview-assets` answered 200; no request to `logo.svg` or `missing.png` itself (the frame loads nothing from the network).
+
+### 2. Switching to Source shows the markup instead of the preview
+
+1. `$C click --role tab --name "Source"`
+   Look for: tab "Source" selected; the code shows `<!doctype html><html><body><h1>Preview heading</h1>…`; the "Some assets could not be loaded" status and the iframe are gone.
+2. `$C click --role tab --name "Preview"`
+   Look for: the `iframe` and the status about `missing.png` again.
 
 ## What proves it works
 
-- `apps/web/spec/integration/files-html-preview.test.tsx` (Browser Mode integration): an HTML page opened from the file tree previews with its local images and names the ones it could not load; switching the HTML page to its source shows the markup instead of the preview.
+- Scenario 1: the status names exactly `missing.png`, the screenshot shows the inlined teal logo, and the only asset traffic is the `preview-assets` POST.
+- Scenario 2: tab "Source" selected with the raw markup in the code view.
+- `apps/web/spec/integration/files-html-preview.test.tsx`: the frame labelled "page.html HTML preview" is visible, the status reads "Some assets could not be loaded: missing.png. This preview supports local static assets.", tab "Preview" has `aria-selected="true"` and nothing names `logo.svg` as missing; after clicking "Source" it is selected, `<h1>Preview heading</h1>` shows and the missing-assets status is gone.
 
 ## Gotchas
 
-- None known.
+- While assets are read the panel shows status "Loading preview…".
+- The frame is sandboxed (`allow-scripts` only, no same origin) with a CSP that allows only `data:` and `blob:` images; external URLs and references outside the page's folder are reported as missing, not fetched.
+- The display default is a per-browser preference: if an earlier feature in this instance set HTML files to open as source in Settings, the page opens on "Source"; click "Preview".
+- The CLI browser is 414 px wide: the tree lives in the sheet behind "Review", which closes when the page opens.

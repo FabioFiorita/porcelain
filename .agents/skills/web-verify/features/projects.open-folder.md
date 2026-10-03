@@ -3,7 +3,8 @@ route: /
 selectors:
   - "Toggle Sidebar"
   - "Open project"
-  - "plain"
+  - "Browse for a folder"
+  - "Folder path"
   - "No subfolders."
   - "Pick a folder that is a Git repository."
   - "Up"
@@ -19,66 +20,59 @@ api:
 
 ## What it is
 
-Browsing the server folders from the Open project dialog opens a Git repository as a registered project in the navigator, and a folder that is not a repository cannot be opened.
+The Open project dialog browses the server's folders, starting in its project home; a folder that is a Git repository opens as a registered project and its worktree is shown, while a folder that is not a repository cannot be opened.
 
 ## How a user reaches it
 
-- sidebar → Open project → Browse for a folder → folder → Open
+- Sidebar (phone width: `Toggle Sidebar` first, or `ControlOrMeta+b`) → `Open project` (plus button in the navigator header) → dialog "Open project" → region "Browse for a folder": click a folder to enter it, `Up` to go to the parent, a breadcrumb button (navigation "Folder path") to jump to an ancestor → `Open <folder>`.
+- Desktop shell with remote computers added: `Open project` is a menu → `This computer` (see `projects.open-remote`). The desktop app with its bridge opens the native folder picker instead of this dialog.
 
 ## Driving it
 
-Start an instance first: `.agents/skills/web-verify/scripts/cli start`.
+`C=.agents/skills/web-verify/scripts/cli; $C start` (web mode), then `REPO=<the repository path start printed>`. The dialog opens in the project home `$REPO/..`.
 
-### 1. A folder that is not a Git repository cannot be opened by browsing
+### Setup
 
-Before driving, on the instance (the sample repository and project home are in the instance file):
-
-- make the plain folder `plain` in the project home
+A plain folder and a repository with one commit beside the sample:
 
 ```sh
-.agents/skills/web-verify/scripts/cli open /
+mkdir "$REPO/../plain"
+git init -q -b main "$REPO/../browsed"
+printf '# Browsed\n' > "$REPO/../browsed/README.md"
+git -C "$REPO/../browsed" add README.md
+git -C "$REPO/../browsed" -c user.name=Verify -c user.email=verify@example.invalid commit -q -m "Initial commit"
 ```
 
-1. `.agents/skills/web-verify/scripts/cli click --role button --name "Toggle Sidebar"`
-   Look for: the page settles; take a snapshot to read what it shows.
-2. `.agents/skills/web-verify/scripts/cli click --role button --name "Open project"`
-   Look for: the page settles; take a snapshot to read what it shows.
-3. `.agents/skills/web-verify/scripts/cli click --role button --name "plain"`
-   Look for: the text “No subfolders.” shows; the text “Pick a folder that is a Git repository.” shows; the button “Open plain” is disabled.
+### A plain folder cannot be opened
 
-Then `.agents/skills/web-verify/scripts/cli snapshot` and `.agents/skills/web-verify/scripts/cli screenshot` record the end state, and `.agents/skills/web-verify/scripts/cli network` lists the requests the page sent.
+1. `$C open /`, then `$C click --role button --name "Toggle Sidebar"`
+   Look for: dialog "Sidebar" with button "Open project" and project button "repository".
+2. `$C click --role button --name "Open project"`
+   Look for: dialog "Open project", text "Browse for a repository on the Porcelain server."; folder buttons "plain", "browsed", "repository"; the project home is no repository, so text "Pick a folder that is a Git repository." and a disabled `Open porcelain-dev-…` button.
+3. `$C click --role button --name "plain"`
+   Look for: text "No subfolders."; text "Pick a folder that is a Git repository."; button "Open plain" disabled; button "Up" present.
 
-### 2. Browsing to a Git repository opens it as a project in the navigator and the server registers it
+### A repository opens as a project
 
-Before driving, on the instance (the sample repository and project home are in the instance file):
-
-- make the Git repository `browsed` in the project home
-- make the plain folder `plain` in the project home
-
-```sh
-.agents/skills/web-verify/scripts/cli open /
-```
-
-1. `.agents/skills/web-verify/scripts/cli click --role button --name "Toggle Sidebar"`
-   Look for: the page settles; take a snapshot to read what it shows.
-2. `.agents/skills/web-verify/scripts/cli click --role button --name "Open project"`
-   Look for: the page settles; take a snapshot to read what it shows.
-3. `.agents/skills/web-verify/scripts/cli click --role button --name "plain"`
-   Look for: the text “No subfolders.” shows.
-4. `.agents/skills/web-verify/scripts/cli click --role button --name "Up"`
-   Look for: the page settles; take a snapshot to read what it shows.
-5. `.agents/skills/web-verify/scripts/cli click --role button --name "browsed"`
-   Look for: the text “Every worktree appears in the sidebar.” shows.
-6. `.agents/skills/web-verify/scripts/cli click --role button --name "Open browsed"`
-   Look for: the dialog “Open project” is gone; the button “browsed” shows.
-
-Then `.agents/skills/web-verify/scripts/cli snapshot` and `.agents/skills/web-verify/scripts/cli screenshot` record the end state, and `.agents/skills/web-verify/scripts/cli network` lists the requests the page sent.
+4. `$C click --role button --name "Up"`
+   Look for: back in the project home (folder buttons "plain", "browsed" again).
+5. `$C click --role button --name "browsed"`
+   Look for: text "Every worktree appears in the sidebar."; button "Open browsed" enabled.
+6. `$C click --role button --name "Open browsed"`
+   Look for: dialog "Open project" is gone; Page URL `/<new projectId>/<worktreeId>`; Page Title "Changes — browsed"; the still-open sidebar sheet shows project buttons "browsed" and "repository", with the "browsed" worktree row pressed.
+7. `$C network`
+   Look for: `GET /api/projects/folders` (no query), `GET /api/projects/folders?path=…plain`, and one `POST /api/projects` with status 200; no POST while "plain" was shown.
+8. `$C open /`, then `$C click --role button --name "Toggle Sidebar"`
+   Look for: after the reload the navigator still lists "browsed" and "repository" and no "plain".
 
 ## What proves it works
 
-- `apps/web/spec/e2e/projects-open-folder.e2e.ts` (Playwright e2e): a folder that is not a Git repository cannot be opened by browsing; browsing to a Git repository opens it as a project in the navigator and the server registers it.
-- The tests read back what the server kept through the kit: `server.inventory()`.
+- End state: the plain folder never produces a request to register (step 7 shows the single POST came after choosing "browsed"), and after a reload the server's inventory, as the navigator shows it, still holds `browsed`.
+- `apps/web/spec/e2e/projects-open-folder.e2e.ts`: inside "plain" the dialog shows "No subfolders.", "Pick a folder that is a Git repository." and a disabled "Open plain", and the server never registers it; going `Up` and choosing "browsed" shows "Every worktree appears in the sidebar.", `Open browsed` closes the dialog, the navigator shows "browsed" and the server's inventory contains its path (read through `server.inventory()`).
 
 ## Gotchas
 
-- None known.
+- Phone width: the navigator is in the sidebar sheet behind `Toggle Sidebar`; the sheet stays open after the dialog closes.
+- The folder list also holds the kit's folders (`home`, `repository`, `state`, `web` and others): do not name test folders after them. Clicking the "repository" folder while the sample project is registered may collide with the sidebar's "repository" project button (the dialog is modal over the sheet, which should hide the sheet from the accessibility tree; if the click reports two matches, that is why). This map never clicks it.
+- Closing the dialog resets the browser to the project home; reopening starts there again.
+- Registering leaks into later features of the same instance (`/` opens the first worktree waiting for review). Remove `browsed` with right-click `browsed` → `Remove from Porcelain` → confirm (see `projects.remove`), or start a fresh instance.

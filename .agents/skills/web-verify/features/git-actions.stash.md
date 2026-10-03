@@ -2,11 +2,11 @@
 route: /
 selectors:
   - "Git actions"
-  - "Message"
   - "Stash changes"
-  - "succeeded"
-  - "Stash"
+  - "Message"
   - "Pop stash"
+  - "Stash"
+  - "Include untracked files"
 tests:
   - apps/web/spec/integration/git-actions-stash.test.tsx
 api:
@@ -18,75 +18,66 @@ api:
 
 ## What it is
 
-Stashing sets the changes aside and popping the stash brings them back, while popping over a file changed since is refused with what Git said and keeps the stash.
+Stashing sets the changes aside and popping the stash brings them back and drops it; popping over a file changed since is refused with what Git said, and the stash is kept.
 
 ## How a user reaches it
 
-- Git actions → Stash changes → Stash changes, then Git actions → Pop stash → Pop stash
+- Git actions → menuitem "Stash changes" (description "Set aside local changes") → dialog "Stash changes": textbox "Message" (prefilled "Porcelain review"), checkbox "Include untracked files" (checked) → button "Stash changes".
+- Git actions → menuitem "Pop stash" (description "Restore, then remove a stash") → dialog "Pop stash": combobox "Stash", checkbox "Restore staged changes" → button "Pop stash". Disabled with "No stash is available." when there is none.
 
 ## Driving it
 
-Start an instance first: `.agents/skills/web-verify/scripts/cli start`.
+Start with `.agents/skills/web-verify/scripts/cli start`. Section 1 needs no setup; `REPO` is the repository path `start` printed.
 
-### 1. Stashing sets the changes aside and popping the stash brings them back
-
-```sh
-.agents/skills/web-verify/scripts/cli open /
-```
+### 1. Stash and pop bring the changes back
 
 1. `.agents/skills/web-verify/scripts/cli click --role button --name "Git actions"`
-   Look for: the page settles; take a snapshot to read what it shows.
+   Look for: menuitems starting "Stash changes" and "Pop stash".
 2. `.agents/skills/web-verify/scripts/cli click --role menuitem --name "/^Stash changes/"`
-   Look for: the page settles; take a snapshot to read what it shows.
+   Look for: dialog "Stash changes" with textbox "Message" reading "Porcelain review" and checkbox "Include untracked files" checked.
 3. `.agents/skills/web-verify/scripts/cli fill --role textbox --name "Message" "Journey stash"`
-   Look for: the page settles; take a snapshot to read what it shows.
+   Look for: the textbox reads "Journey stash".
 4. `.agents/skills/web-verify/scripts/cli click --role button --name "Stash changes"`
-   Look for: the text “succeeded” shows.
+   Look for: `status` "succeeded" in the dialog.
 5. `.agents/skills/web-verify/scripts/cli press Escape`
-   Look for: the dialog “Stash changes” is gone.
+   Look for: dialog "Stash changes" is gone; README.md is no longer listed (no button "Mark README.md as reviewed"). On disk `git -C "$REPO" stash list` prints `stash@{0}: On main: Journey stash` and `git -C "$REPO" status --short` prints nothing.
 6. `.agents/skills/web-verify/scripts/cli click --role button --name "Git actions"`
-   Look for: the page settles; take a snapshot to read what it shows.
+   Look for: the menu is open; menuitem starting "Pop stash" is enabled.
 7. `.agents/skills/web-verify/scripts/cli click --role menuitem --name "/^Pop stash/"`
-   Look for: the combobox “Stash” reads /Journey stash/.
+   Look for: dialog "Pop stash" whose combobox "Stash" shows "On main: Journey stash · <7-character id>".
 8. `.agents/skills/web-verify/scripts/cli click --role button --name "Pop stash"`
-   Look for: the text “succeeded” shows.
+   Look for: `status` "succeeded" in the dialog.
 9. `.agents/skills/web-verify/scripts/cli press Escape`
-   Look for: the dialog “Pop stash” is gone.
+   Look for: dialog "Pop stash" is gone; README.md is listed again. `git -C "$REPO" stash list` prints nothing and `tail -1 "$REPO/README.md"` prints `A change to review.`
 
-Then `.agents/skills/web-verify/scripts/cli snapshot` and `.agents/skills/web-verify/scripts/cli screenshot` record the end state, and `.agents/skills/web-verify/scripts/cli network` lists the requests the page sent.
+### 2. Popping over a file changed since is refused and keeps the stash
 
-### 2. Popping a stash over a file changed since is refused with what Git said and keeps the stash
-
-Before driving, on the instance (the sample repository and project home are in the instance file):
-
-- write `README.md` in the sample repository
-
-```sh
-.agents/skills/web-verify/scripts/cli open /
-```
+On a fresh instance (or after section 1):
 
 1. `.agents/skills/web-verify/scripts/cli click --role button --name "Git actions"`
-   Look for: the page settles; take a snapshot to read what it shows.
+   Look for: the menu is open.
 2. `.agents/skills/web-verify/scripts/cli click --role menuitem --name "/^Stash changes/"`
-   Look for: the page settles; take a snapshot to read what it shows.
+   Look for: dialog "Stash changes".
 3. `.agents/skills/web-verify/scripts/cli click --role button --name "Stash changes"`
-   Look for: the text “succeeded” shows.
+   Look for: `status` "succeeded".
 4. `.agents/skills/web-verify/scripts/cli press Escape`
-   Look for: the dialog “Stash changes” is gone.
+   Look for: the dialog is gone. Then on disk: `printf 'Changed while the stash was set aside\n' > "$REPO/README.md"`; the review lists README.md again.
 5. `.agents/skills/web-verify/scripts/cli click --role button --name "Git actions"`
-   Look for: the page settles; take a snapshot to read what it shows.
+   Look for: the menu is open.
 6. `.agents/skills/web-verify/scripts/cli click --role menuitem --name "/^Pop stash/"`
-   Look for: the page settles; take a snapshot to read what it shows.
+   Look for: dialog "Pop stash" with the stash "On main: Porcelain review · <id>" selected.
 7. `.agents/skills/web-verify/scripts/cli click --role button --name "Pop stash"`
-   Look for: the alert reads /would be overwritten/.
-
-Then `.agents/skills/web-verify/scripts/cli snapshot` and `.agents/skills/web-verify/scripts/cli screenshot` record the end state, and `.agents/skills/web-verify/scripts/cli network` lists the requests the page sent.
+   Look for: an `alert` in the dialog with Git's message containing "would be overwritten".
 
 ## What proves it works
 
-- `apps/web/spec/integration/git-actions-stash.test.tsx` (Browser Mode integration): stashing sets the changes aside and popping the stash brings them back; popping a stash over a file changed since is refused with what Git said and keeps the stash.
-- The tests read back what the server kept through the kit: `server.changes()`, `server.gitStatus()`, `server.text()`.
+- Section 1: the disk checks after steps 5 and 9 (stash created with its message, then gone, README.md restored).
+- Section 2: `cat "$REPO/README.md"` still prints `Changed while the stash was set aside` and `git -C "$REPO" stash list` still prints `stash@{0}: On main: Porcelain review`.
+- `apps/web/spec/integration/git-actions-stash.test.tsx`: after the stash the server reports no changes and one stash "On main: Journey stash"; the pop dialog offers it, succeeds, restores README.md and leaves no stash; the refused pop shows the alert "would be overwritten", keeps the local text and keeps the stash "On main: Porcelain review".
 
 ## Gotchas
 
-- None known.
+- The menuitem names start with the label and continue with the description, so address them by `/^Stash changes/` and `/^Pop stash/`. While a dialog is open the page behind it is hidden from the accessibility tree, so button "Stash changes" or "Pop stash" resolves to the dialog's button only.
+- Escape closes the dialog only after the action settled.
+- Section 2 leaves a stash and a modified README.md; reset with `git -C "$REPO" checkout README.md && git -C "$REPO" stash pop`, or start a fresh instance.
+- Reopening "Pop stash" in the same page after section 1 still shows the previous run's `status` "succeeded" (and "Check outcome") before you click; judge step 7 by the alert that appears after the click, not by the status line.

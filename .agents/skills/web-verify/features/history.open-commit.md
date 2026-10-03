@@ -3,6 +3,9 @@ route: /
 selectors:
   - "Review"
   - "History"
+  - "Changes without code preview"
+  - "Binary change"
+  - "Copy id"
 tests:
   - apps/web/spec/integration/history-open-commit.test.tsx
 api:
@@ -15,56 +18,61 @@ api:
 
 ## What it is
 
-Opening a commit from History shows its message, the files it changed with the diff of each text file, and a binary change listed without a code preview that says why.
+Opening a commit from History shows its document: the message, author, full id and parent, how many files it changed, the diff of each text file, and a binary change listed under "Changes without code preview" with the reason "Binary change" instead of a code preview.
 
 ## How a user reaches it
 
-- Review → History → commit
+- Review → History → click a commit row (at phone width the sheet closes and the commit opens as a document tab named by its 7-character id).
+- A row of the Commit graph document (see history.graph).
+- URL `entry=commit:<full id>` on the workspace route.
 
 ## Driving it
 
-Start an instance first: `.agents/skills/web-verify/scripts/cli start`.
+Start with `.agents/skills/web-verify/scripts/cli start`. `REPO` is the repository path `start` printed.
 
-### 1. Opening a commit from History shows its message, its file and the diff of the line it added
+### 1. A commit shows its message, its file and the diff of the line it added
 
-Before driving, on the instance (the sample repository and project home are in the instance file):
-
-- commit everything in the sample repository as “Add a binary logo”
+Setup:
 
 ```sh
-.agents/skills/web-verify/scripts/cli open /
+git -C "$REPO" commit -am "Explain the change to review"
 ```
 
 1. `.agents/skills/web-verify/scripts/cli click --role button --name "Review"`
-   Look for: the page settles; take a snapshot to read what it shows.
+   Look for: dialog "Worktree review".
 2. `.agents/skills/web-verify/scripts/cli click --role tab --name "History"`
-   Look for: the heading “Add a binary logo” shows; the text “1 file changed” shows; the text “A change to review.” shows.
+   Look for: a row starting "Explain the change to review" above the "Initial commit" row.
+3. `.agents/skills/web-verify/scripts/cli click --role button --name "/^Explain the change to review/"`
+   Look for: the sheet closes; heading "Explain the change to review"; text "1 file changed" in the toolbar; "Porcelain Development", the full 40-character id and "against <7-character id>" under the heading; README.md's diff with the added line "A change to review."; Page Title "<7-character id> — repository"; buttons "Copy id" and "Copy message".
 
-Then `.agents/skills/web-verify/scripts/cli snapshot` and `.agents/skills/web-verify/scripts/cli screenshot` record the end state, and `.agents/skills/web-verify/scripts/cli network` lists the requests the page sent.
+### 2. A binary file is listed without a code preview and says it is a binary change
 
-### 2. A binary file in a commit is listed without a code preview and says it is a binary change
-
-Before driving, on the instance (the sample repository and project home are in the instance file):
-
-- write `logo.bin` in the sample repository
-- commit everything in the sample repository as “Add a binary logo”
+Setup (continuing from section 1, or on a fresh instance where README.md joins the commit and the toolbar reads "2 files changed"):
 
 ```sh
-.agents/skills/web-verify/scripts/cli open /
+printf 'PNG\000\001\002binary' > "$REPO/logo.bin"
+git -C "$REPO" add --all
+git -C "$REPO" commit -m "Add a binary logo"
+git -C "$REPO" show --stat --format=%s HEAD
 ```
 
-1. `.agents/skills/web-verify/scripts/cli click --role button --name "Review"`
-   Look for: the page settles; take a snapshot to read what it shows.
-2. `.agents/skills/web-verify/scripts/cli click --role tab --name "History"`
-   Look for: the heading “Add a binary logo” shows; the text “logo.bin” shows; the text “added · Binary change” shows.
+The last line shows `logo.bin | Bin 0 -> 12 bytes`.
 
-Then `.agents/skills/web-verify/scripts/cli snapshot` and `.agents/skills/web-verify/scripts/cli screenshot` record the end state, and `.agents/skills/web-verify/scripts/cli network` lists the requests the page sent.
+1. `.agents/skills/web-verify/scripts/cli click --role button --name "Review"`
+   Look for: dialog "Worktree review"; tab "History" is still the selected surface.
+2. `.agents/skills/web-verify/scripts/cli click --role tab --name "History"`
+   Look for: a row starting "Add a binary logo" at the top.
+3. `.agents/skills/web-verify/scripts/cli click --role button --name "/^Add a binary logo/"`
+   Look for: heading "Add a binary logo"; list "Changes without code preview" with an item reading "logo.bin" and "added · Binary change" (it reads "added · Reading the patch" for a moment first); no code view for logo.bin.
 
 ## What proves it works
 
-- `apps/web/spec/integration/history-open-commit.test.tsx` (Browser Mode integration): opening a commit from History shows its message, its file and the diff of the line it added; a binary file in a commit is listed without a code preview and says it is a binary change.
-- The tests read back what the server kept through the kit: `server.commits()`.
+- The commit document's content matches `git -C "$REPO" show --stat HEAD`: subject, file count, and the binary file named but not previewed.
+- `network` shows `GET /api/worktrees/<id>/commits/<oid>/files` and `POST /api/worktrees/<id>/commits/<oid>/diffs` answered 200 for the opened commit.
+- `apps/web/spec/integration/history-open-commit.test.tsx`: the opened commit shows heading "Explain the change to review", "1 file changed" and the added line "A change to review."; the binary commit shows heading "Add a binary logo" and, in list "Changes without code preview", "logo.bin" with "added · Binary change".
 
 ## Gotchas
 
-- The CLI browser is phone width (414 by 896), so the review panel opens from the Review button instead of standing beside the document.
+- Opening a commit closes the sheet; to open another commit, click "Review" again (the History surface stays selected).
+- Row names are the whole row text; address rows with a regex anchored at the start.
+- Both commits stay in the repository for the rest of the instance; start a fresh instance for features that expect the sample's single commit and its unstaged README change.

@@ -2,6 +2,13 @@
 route: /
 selectors:
   - "Mark all 2 files reviewed"
+  - "Mark all reviewed"
+  - "Unmark "
+  - "Marked "
+  - "Mark changed "
+  - "Changed since reviewed"
+  - "as reviewed"
+  - "as unreviewed"
 tests:
   - apps/web/spec/integration/reviews-mark-all.test.tsx
 api:
@@ -16,42 +23,41 @@ api:
 
 ## What it is
 
-Marking all changed files reviewed marks every one in one step, a file that changes on disk afterwards is offered for review again, and unmarking all clears every mark.
+The Changes document's toolbar button marks every changed file reviewed in one request; a file that changes on disk afterwards becomes eligible again ("Mark all 1 files reviewed"), and once everything is reviewed the same button reads "Unmark all" and clears every mark.
 
 ## How a user reaches it
 
-- All changes → Mark all reviewed
+- The Changes (handoff) document, shown when no review is published: toolbar button "Mark all reviewed", accessible name "Mark all <n> files reviewed"; it becomes "Unmark all" when every reviewable file is reviewed.
 
 ## Driving it
 
-Start an instance first: `.agents/skills/web-verify/scripts/cli start`.
+`C=.agents/skills/web-verify/scripts/cli; $C start` (prints `repository <path>`; call it `$REPO`).
 
-### Marking all changed files reviewed marks each one, a file changed on disk asks for review again, and unmarking all clears them
-
-Before driving, on the instance (the sample repository and project home are in the instance file):
-
-- write `NOTES.md` in the sample repository
-- write `NOTES.md` in the sample repository
+### Setup
 
 ```sh
-.agents/skills/web-verify/scripts/cli open /
+printf 'Notes to review\n' > "$REPO/NOTES.md"
 ```
 
-After `open`, look for: the button “Mark all 2 files reviewed” shows.
-1. `.agents/skills/web-verify/scripts/cli click --role button --name "Mark all 2 files reviewed"`
-   Look for: the button “Unmark all” is enabled; the button “Mark all 1 files reviewed” is enabled.
-2. `.agents/skills/web-verify/scripts/cli click --role button --name "Mark all 1 files reviewed"`
-   Look for: the button “Unmark all” is enabled.
-3. `.agents/skills/web-verify/scripts/cli click --role button --name "Unmark all"`
-   Look for: the button “Mark all 2 files reviewed” is enabled.
-
-Then `.agents/skills/web-verify/scripts/cli snapshot` and `.agents/skills/web-verify/scripts/cli screenshot` record the end state, and `.agents/skills/web-verify/scripts/cli network` lists the requests the page sent.
+1. `$C open /`
+   Look for: heading "Changes", text "2 files", button "Mark all 2 files reviewed" (text "Mark all reviewed"), buttons "Mark README.md as reviewed" and "Mark NOTES.md as reviewed".
+2. `$C click --role button --name "Mark all 2 files reviewed"`
+   Look for: button "Unmark all" enabled; status "Marked 2 files."; buttons "Unmark README.md as unreviewed" and "Unmark NOTES.md as unreviewed"; both diffs fold (buttons "Expand README.md", "Expand NOTES.md").
+3. On disk: `printf 'Notes changed after the review\n' > "$REPO/NOTES.md"`, then `$C snapshot`
+   Look for: button "Mark all 1 files reviewed" enabled; button "Mark changed NOTES.md as reviewed" with the badge text "Changed since reviewed"; README.md still "Unmark README.md as unreviewed".
+4. `$C click --role button --name "Mark all 1 files reviewed"`
+   Look for: button "Unmark all" enabled; status "Marked 1 file. Skipped 1." (README.md was already reviewed); "Unmark NOTES.md as unreviewed".
+5. `$C click --role button --name "Unmark all"`
+   Look for: button "Mark all 2 files reviewed" enabled; "Mark README.md as reviewed" and "Mark NOTES.md as reviewed".
 
 ## What proves it works
 
-- `apps/web/spec/integration/reviews-mark-all.test.tsx` (Browser Mode integration): marking all changed files reviewed marks each one, a file changed on disk asks for review again, and unmarking all clears them.
-- The tests read back what the server kept through the kit: `server.changes()`, `server.reviewedFiles()`.
+- The button labels in steps 2 to 5 and `$C network`: `PUT /api/worktrees/<id>/reviewed-bulk` 200 for steps 2 and 4, `DELETE /api/worktrees/<id>/reviewed-bulk` 200 for step 5.
+- Persistence: after step 2 or 4, `$C open /` still shows "Unmark all". Reading marks with their fingerprints needs `cli server reviewed-files`.
+- `apps/web/spec/integration/reviews-mark-all.test.tsx`: after marking all, both files are reviewed at their current fingerprints (`server.reviewedFiles()` against `server.changes()`); rewriting NOTES.md leaves only README.md reviewed as it is and offers "Mark all 1 files reviewed"; marking again covers both; "Unmark all" leaves no marks.
 
 ## Gotchas
 
-- None known.
+- The page follows the disk write through the server's watcher and the live connection; if step 3's snapshot still shows "Unmark all", snapshot again after a second.
+- Only shown while no review is published: with a published review the handoff tab shows the review overview instead and this button is gone.
+- Marks persist on the server and NOTES.md stays on disk; end with step 5 and `rm "$REPO/NOTES.md"` before another feature that counts files.
