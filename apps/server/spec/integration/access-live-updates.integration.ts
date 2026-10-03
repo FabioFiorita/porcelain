@@ -24,6 +24,37 @@ const worktreeNotice = (session: Session, change: string) => ({
 const isWorktree = (change: string) => (notice: Record<string, unknown>) =>
   notice.type === 'worktree' && notice.change === change;
 
+test('every subscription is confirmed, including an empty replacement', async ({
+  session,
+}) => {
+  const connection = await session.live();
+  expect(await connection.next(() => true)).toStrictEqual({ type: 'ready' });
+  connection.send({
+    type: 'subscribe',
+    projects: [session.projectId],
+    worktrees: [],
+  });
+  connection.send({ type: 'subscribe', projects: [], worktrees: [] });
+
+  for (let index = 0; index < 2; index += 1) {
+    const notice = await connection.next(() => true);
+    expect(notice).toStrictEqual({ type: 'subscribed' });
+    expect(notice).toEqual(expect.schemaMatching(liveNoticeSchema));
+  }
+});
+
+test('a file changed immediately after confirmation is announced by its watcher', async ({
+  session,
+}) => {
+  const connection = await watching(session);
+
+  await session.writeFile(session.fixture.readme.path, 'After confirmation\n');
+
+  expect(await connection.next(isWorktree('files'))).toStrictEqual(
+    worktreeNotice(session, 'files'),
+  );
+});
+
 test('renaming a project tells a watching viewer the inventory changed', async ({
   session,
 }) => {

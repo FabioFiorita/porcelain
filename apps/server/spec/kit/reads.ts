@@ -1,4 +1,3 @@
-import { setTimeout as delay } from 'node:timers/promises';
 import { vi } from 'vitest';
 import { read, receiptPath, worktreePath } from './requests.ts';
 import {
@@ -114,7 +113,7 @@ export async function watching(session: Session) {
       },
     ],
   });
-  await delay(300);
+  await connection.next((notice) => notice.type === 'subscribed');
   return connection;
 }
 

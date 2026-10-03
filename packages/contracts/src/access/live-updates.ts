@@ -26,6 +26,7 @@ export const liveSubscriptionSchema = z.strictObject({
 
 export const liveNoticeSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('ready') }),
+  z.object({ type: z.literal('subscribed') }),
   z.object({ type: z.literal('heartbeat') }),
   z.object({ type: z.literal('inventory') }),
   z.object({

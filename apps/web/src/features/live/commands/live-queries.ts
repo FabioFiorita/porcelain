@@ -127,7 +127,12 @@ async function applyLiveNotice(
   notice: LiveNotice,
   receipts: GitReceipts,
 ) {
-  if (notice.type === 'ready' || notice.type === 'heartbeat') return;
+  if (
+    notice.type === 'ready' ||
+    notice.type === 'subscribed' ||
+    notice.type === 'heartbeat'
+  )
+    return;
   if (notice.type === 'git-action') {
     await receipts.refresh(client, environmentId, notice.receipt);
     return;
