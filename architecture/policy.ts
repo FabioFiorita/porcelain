@@ -141,6 +141,7 @@ export const roles = [
   'server-kit',
   'integration-test',
   'server-cli',
+  'verify-core',
   'test',
   'route',
   'shell',
@@ -841,6 +842,12 @@ export function classify(path: string): Classification | undefined {
   )
     return classified('integration-test', 'server');
   if (
+    /^\.agents\/skills\/server-verify\/scripts\/core\/[a-z]+(?:-[a-z]+)*\.ts$/.test(
+      path,
+    )
+  )
+    return classified('verify-core', 'server');
+  if (
     /^\.agents\/skills\/server-verify\/scripts\/[a-z]+(?:-[a-z]+)*\.ts$/.test(
       path,
     )
@@ -1156,7 +1163,8 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
     'contract',
   ]),
   'integration-test': new Set(['server-kit', 'contract', 'config']),
-  'server-cli': new Set(['server-kit', 'server-cli']),
+  'server-cli': new Set(['server-kit', 'server-cli', 'verify-core']),
+  'verify-core': new Set(['verify-core', 'server-kit']),
   test: new Set([
     ...everything,
     'fake',
@@ -1288,7 +1296,12 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
   'e2e-kit': new Set(['e2e-kit', 'web-test-kit', 'server-kit', 'contract']),
   'web-test-kit': new Set(['web-test-kit', 'server-kit', 'contract']),
   'web-test-config': new Set(['web-config', 'e2e-kit', 'integration-host']),
-  'web-verify-cli': new Set(['web-verify-cli', 'server-kit', 'contract']),
+  'web-verify-cli': new Set([
+    'web-verify-cli',
+    'verify-core',
+    'server-kit',
+    'contract',
+  ]),
   'desktop-kit': new Set(['desktop-kit']),
   'desktop-e2e': new Set(['desktop-e2e-kit', 'contract']),
   'desktop-e2e-kit': new Set([
@@ -1300,6 +1313,7 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
   'desktop-verify-cli': new Set([
     'desktop-verify-cli',
     'web-verify-cli',
+    'verify-core',
     'desktop-kit',
   ]),
   'mobile-test-kit': new Set([
@@ -1317,6 +1331,7 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
   ]),
   'mobile-verify-cli': new Set([
     'mobile-verify-cli',
+    'verify-core',
     'mobile-test-kit',
     'server-kit',
   ]),
@@ -1343,6 +1358,13 @@ const serverKitClients: ReadonlySet<Role> = new Set<Role>([
   'desktop-e2e-kit',
   'mobile-test-kit',
   'mobile-e2e-kit',
+  'mobile-verify-cli',
+]);
+
+const verifyCoreClients: ReadonlySet<Role> = new Set<Role>([
+  'server-cli',
+  'web-verify-cli',
+  'desktop-verify-cli',
   'mobile-verify-cli',
 ]);
 
@@ -1392,7 +1414,8 @@ export function violation(
   if (
     from.owner === 'mobile' &&
     !['mobile', 'client', 'contracts'].includes(to.owner) &&
-    !(serverKitClients.has(from.role) && to.role === 'server-kit')
+    !(serverKitClients.has(from.role) && to.role === 'server-kit') &&
+    !(verifyCoreClients.has(from.role) && to.role === 'verify-core')
   )
     return 'mobile-imports-mobile-client-and-contracts-only';
   if (
@@ -1428,7 +1451,8 @@ export function violation(
     from.owner !== 'server' &&
     to.owner === 'server' &&
     !(from.owner === 'desktop' && to.role === 'desktop-server-api') &&
-    !(serverKitClients.has(from.role) && to.role === 'server-kit')
+    !(serverKitClients.has(from.role) && to.role === 'server-kit') &&
+    !(verifyCoreClients.has(from.role) && to.role === 'verify-core')
   )
     return 'package-cannot-import-server';
   if (from.owner === 'git' && domainSet.has(to.owner))
@@ -1603,6 +1627,7 @@ export const externalPackages: Record<Role, readonly string[]> = {
   'server-kit': ['esbuild', 'zod', 'vitest'],
   'integration-test': ['vitest'],
   'server-cli': ['zod'],
+  'verify-core': ['zod'],
   test: [],
   route: [],
   shell: [],
@@ -1676,6 +1701,7 @@ function forbiddenNodeModule(role: Role, name: string): boolean {
     role === 'server-kit' ||
     role === 'integration-test' ||
     role === 'server-cli' ||
+    role === 'verify-core' ||
     role === 'web-verify-cli' ||
     role === 'desktop-kit' ||
     role === 'desktop-e2e-kit' ||
@@ -1813,6 +1839,8 @@ const rolePurposes: Record<Role, string> = {
     'a server integration test in apps/server/spec/integration/<feature>.integration.ts, or a route budget test in apps/server/spec/perf/<name>.perf.ts, which drives the built, sandboxed server over HTTP through the kit with a real database and real Git',
   'server-cli':
     'the server control CLI in .agents/skills/server-verify/scripts/, which an agent runs to start one sandboxed server through the kit, drive it, record numbered and redacted evidence and stop it; it drives and records but never asserts',
+  'verify-core':
+    'the lifecycle core of the four control CLIs in .agents/skills/server-verify/scripts/core/: the per-checkout instance registry and instance files, ownership-checked process control, the idle supervisor, tool checks, numbered evidence redacted through the server kit recorder and the build fingerprint; it lives beside the server CLI because every surface starts the server through the server kit, and only the control CLIs import it',
   test: 'a .spec.ts behaviour spec',
   route: 'a TanStack Router file in apps/web/src/routes/',
   shell: 'the web app shell in apps/web/src/app/',
