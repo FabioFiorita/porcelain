@@ -39,7 +39,7 @@ Start with `.agents/skills/web-verify/scripts/cli start`. No setup; `REPO` is th
 5. `.agents/skills/web-verify/scripts/cli press Escape`
    Look for: the dialog is gone; group "Git controls" now holds button "Apply stash" (visible text "Apply stash") instead of "Commit"; README.md is no longer listed.
 6. `.agents/skills/web-verify/scripts/cli click --role button --name "Apply stash"`
-   Look for: dialog "Apply stash" with combobox "Stash" showing "On main: Porcelain review · <id>" and button "Apply stash".
+   Look for: dialog "Apply stash" with the description "Its changes come back into the working tree and the stash is kept.", combobox "Stash" showing "On main: Porcelain review · <id>" and button "Apply stash".
 7. `.agents/skills/web-verify/scripts/cli click --role button --name "Apply stash"`
    Look for: `status` "succeeded" in the dialog.
 8. `.agents/skills/web-verify/scripts/cli press Escape`
@@ -48,10 +48,9 @@ Start with `.agents/skills/web-verify/scripts/cli start`. No setup; `REPO` is th
 ## What proves it works
 
 - After step 8: `tail -1 "$REPO/README.md"` prints `A change to review.` and `git -C "$REPO" stash list` still prints one entry, `stash@{0}: On main: Porcelain review` (apply keeps the stash).
-- `apps/web/spec/integration/git-actions-suggested-step.test.tsx`: the button "Apply stash" is absent while README.md is changed, appears (text "Apply stash") once the stash leaves the tree clean, applies the stash with "succeeded", restores README.md, keeps one stash, and disappears again.
+- `apps/web/spec/integration/git-actions-suggested-step.test.tsx`: the button "Apply stash" is absent while README.md is changed, appears (text "Apply stash") once the stash leaves the tree clean, opens dialog "Apply stash" saying "Its changes come back into the working tree and the stash is kept." and nothing about setting changes aside, applies the stash with "succeeded", restores README.md, keeps one stash, and disappears again.
 
 ## Gotchas
 
 - Steps 6 and 7 use the same name: in step 7 the dialog is modal, so the page behind it is hidden from the accessibility tree and `--name "Apply stash"` resolves to the dialog's button only.
-- The dialog's description reads "Every change, new files included, is set aside until you pop the stash.", the stash wording; that is the current copy, not a failed drive.
 - The stash stays after this feature; `git -C "$REPO" stash drop` removes it so later features start with the Git button reading "Commit".

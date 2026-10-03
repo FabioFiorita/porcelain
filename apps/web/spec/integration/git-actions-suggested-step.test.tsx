@@ -41,6 +41,15 @@ test('the Git button suggests applying a waiting stash once the tree is clean, a
     name: 'Apply stash',
     exact: true,
   });
+  await expect
+    .element(
+      apply.getByText(
+        'Its changes come back into the working tree and the stash is kept.',
+        { exact: true },
+      ),
+    )
+    .toBeVisible();
+  await expect.element(apply.getByText(/set aside/)).not.toBeInTheDocument();
   await apply.getByRole('button', { name: 'Apply stash', exact: true }).click();
   await expect
     .element(apply.getByText('succeeded', { exact: true }))

@@ -360,7 +360,9 @@ export function GitButton({
                 <DialogDescription>
                   {selected?.id === 'stash-pop'
                     ? 'Its changes come back into the working tree and the stash is dropped.'
-                    : 'Every change, new files included, is set aside until you pop the stash.'}
+                    : selected?.id === 'stash-apply'
+                      ? 'Its changes come back into the working tree and the stash is kept.'
+                      : 'Every change, new files included, is set aside until you pop the stash.'}
                 </DialogDescription>
               </DialogHeader>
             )}
