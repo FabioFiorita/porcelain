@@ -15,11 +15,7 @@ import {
 } from '../../../../apps/mobile/spec/kit/simulator.ts';
 import { missingTools } from '../../../../apps/mobile/spec/kit/tools.ts';
 import { ServerHandle } from '../../../../apps/server/spec/kit/isolated-server.ts';
-import {
-  refuseMissing,
-  runCli,
-  Usage,
-} from '../../server-verify/scripts/core/cli.ts';
+import { refuseMissing, runCli, Usage } from '../../verify-core/cli.ts';
 import {
   agentDevice,
   connectHub,

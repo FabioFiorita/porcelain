@@ -4,10 +4,7 @@ import {
   hostFileName,
   type RemoteHost,
 } from '../../../../apps/mobile/spec/kit/device-host.ts';
-import {
-  onPath,
-  sandboxProblems,
-} from '../../server-verify/scripts/core/cli.ts';
+import { onPath, sandboxProblems } from '../../verify-core/cli.ts';
 
 const hubLimitMs = 5000;
 export const hostDetail = z

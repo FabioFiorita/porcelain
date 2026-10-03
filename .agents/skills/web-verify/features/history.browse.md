@@ -26,7 +26,7 @@ History lists the checked-out branch's commits down to "Start of history.", show
 
 ## Driving it
 
-Start with `.agents/skills/web-verify/scripts/cli start`. `REPO` is the repository path `start` printed.
+Start with `$C start`. `REPO` is the repository path `start` printed.
 
 ### Setup
 
@@ -36,18 +36,18 @@ git -C "$REPO" branch before-commit
 
 ### 1. A commit made on disk shows above the start of history
 
-1. `.agents/skills/web-verify/scripts/cli click --role button --name "Review"`
+1. `$C click --role button --name "Review"`
    Look for: dialog "Worktree review" with a tablist holding tabs "Changes", "Files", "History".
-2. `.agents/skills/web-verify/scripts/cli click --role tab --name "History"`
+2. `$C click --role tab --name "History"`
    Look for: tab "History" selected; Page URL has `surface=history`; Page Title "History — repository"; one row, a button whose name starts "Initial commit" and goes on with the 7-character id, "Porcelain Development", the age and the ref chips "before-commit" and "main"; text "Start of history." below it.
-3. On disk: `git -C "$REPO" commit -am "Commit made on disk"`, then `.agents/skills/web-verify/scripts/cli snapshot`
+3. On disk: `git -C "$REPO" commit -am "Commit made on disk"`, then `$C snapshot`
    Look for: a new first row, button starting "Commit made on disk" with ref chip "main"; the "Initial commit" row now carries only "before-commit"; "Start of history." still last. Run `snapshot` again if the watcher has not caught up yet.
 
 ### 2. Switching to a branch without that commit drops it
 
 Continue from section 1 (or on a fresh instance run the setup line and `git -C "$REPO" commit -am "Commit made on disk"` first, then steps 1 and 2 of section 1).
 
-1. On disk: `git -C "$REPO" switch before-commit`, then `.agents/skills/web-verify/scripts/cli snapshot`
+1. On disk: `git -C "$REPO" switch before-commit`, then `$C snapshot`
    Look for: the branch name above the list reads "before-commit"; no button starting "Commit made on disk"; the button starting "Initial commit" remains with the chip "before-commit" only (main still points at the commit made on disk).
 
 ## What proves it works

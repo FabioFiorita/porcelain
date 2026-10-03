@@ -10,7 +10,7 @@ export default {
   edits: [
     {
       kind: 'replace',
-      path: '.agents/skills/server-verify/scripts/core/processes.ts',
+      path: '.agents/skills/verify-core/processes.ts',
       old: 'if (leader !== undefined && !leader.command.includes(marker))',
       new: "if (leader !== undefined && leader.command === '')",
     },

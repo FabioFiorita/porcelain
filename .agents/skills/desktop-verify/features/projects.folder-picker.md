@@ -18,7 +18,7 @@ The Mac app opens a project through the native folder sheet instead of the web's
 ## How a user reaches it
 
 - File › Open Project… (⌘O)
-- the Open project button in the sidebar, or on the empty start page
+- the Open project button in the sidebar, including when no project is registered
 
 ## Driving it
 
@@ -43,7 +43,7 @@ After `dialog --cancel`, look for: one picker request with `ownerIsAppWindow: tr
 .agents/skills/desktop-verify/scripts/cli network
 ```
 
-After the snapshot, look for: a `desktop-smoke` button in the sidebar. `network` lists no request to `/api/projects/discover` or `/api/projects/folders`.
+After the snapshot, look for: a `desktop-smoke` button in the sidebar. `network` lists no request to `/api/projects/folders`.
 
 ## What proves it works
 

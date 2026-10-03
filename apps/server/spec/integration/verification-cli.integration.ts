@@ -275,10 +275,7 @@ test('a CLI command refuses to drive an instance once the CLI code changed since
 }) => {
   const copy = await checkoutCopy(onTestFinished);
   await started(onTestFinished, { root: copy });
-  await appendFile(
-    join(copy, '.agents/skills/server-verify/scripts/core/registry.ts'),
-    '\n',
-  );
+  await appendFile(join(copy, '.agents/skills/verify-core/registry.ts'), '\n');
 
   const refused = await cli(copy, SERVER_CLI, 'request', 'GET', '/api/health');
 
@@ -480,6 +477,44 @@ test(
       '004-snapshot.txt',
       '004-snapshot.yml',
     ]);
+  },
+  WEB_CASE_MS,
+);
+
+test(
+  'click and press print the changed page even when its URL stays the same, and network accepts static resources',
+  async ({ onTestFinished }) => {
+    const instance = await started(onTestFinished, { path: WEB_CLI });
+    const web = (...args: string[]) =>
+      cli(repositoryRoot, WEB_CLI, ...args, '--instance', instance.id);
+    await web('open', '/');
+
+    const settled = await web('press', 'Escape');
+
+    const clicked = await web('click', '--role', 'button', '--name', 'Commit');
+    const pressed = await web('press', 'Escape');
+    const network = await web('network', '--static');
+    const [, snapshotPath] =
+      /\[Snapshot\]\(([^)]+)\)/.exec(clicked.stdout) ?? [];
+    const clickedTree =
+      snapshotPath === undefined
+        ? clicked.stdout
+        : await readFile(join(instance.evidence, snapshotPath), 'utf8');
+    await web('stop');
+    const evidence = await evidenceOf(instance.evidence);
+
+    expect(settled.code).toBe(0);
+    expect(clicked.code).toBe(0);
+    expect(clickedTree).toContain('heading "Commit changes"');
+    expect(clickedTree).toContain('textbox "Message"');
+    if (snapshotPath !== undefined)
+      expect(clicked.stdout).not.toContain('textbox "Message"');
+    expect(pressed.code).toBe(0);
+    expect(pressed.stdout).toContain('button "Commit"');
+    expect(pressed.stdout).not.toContain('dialog "Commit changes"');
+    expect(network.code).toBe(0);
+    expect(network.stdout).toContain('/@vite/client');
+    expect(evidence.text).toContain('heading "Commit changes"');
   },
   WEB_CASE_MS,
 );

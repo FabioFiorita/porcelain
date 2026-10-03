@@ -14,7 +14,7 @@ async function registered(page: Page): Promise<string[]> {
 function folderRequests(page: Page): string[] {
   const requests: string[] = [];
   page.on('request', (request) => {
-    if (/\/api\/projects\/(discover|folders)(\?|$)/u.test(request.url()))
+    if (new URL(request.url()).pathname === '/api/projects/folders')
       requests.push(request.url());
   });
   return requests;

@@ -25,13 +25,13 @@ import {
   runCli,
   sandboxProblems,
   Usage,
-} from '../../server-verify/scripts/core/cli.ts';
+} from '../../verify-core/cli.ts';
 import {
   Registry,
   repositoryRoot as root,
   type Instance,
   type Life,
-} from '../../server-verify/scripts/core/registry.ts';
+} from '../../verify-core/registry.ts';
 import {
   daemonMarker,
   interact,

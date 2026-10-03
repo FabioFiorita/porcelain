@@ -74,6 +74,7 @@ const serverRoots = [
   'scripts',
   'vitest.config.ts',
   '.agents/skills/server-verify/scripts',
+  '.agents/skills/verify-core',
   '.agents/skills/web-verify/scripts',
   '.agents/skills/desktop-verify/scripts',
   '.agents/skills/mobile-verify/scripts',

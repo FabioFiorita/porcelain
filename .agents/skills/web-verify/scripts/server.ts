@@ -14,7 +14,7 @@ import type {
   Session,
 } from '../../../../apps/server/spec/kit/session.ts';
 import { serverReaders } from '../../../../apps/server/spec/kit/typed-readers.ts';
-import { Usage } from '../../server-verify/scripts/core/cli.ts';
+import { Usage } from '../../verify-core/cli.ts';
 
 export const serverOptions = {
   context: { type: 'boolean', default: false },

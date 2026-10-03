@@ -860,11 +860,7 @@ export function classify(path: string): Classification | undefined {
     )
   )
     return classified('integration-test', 'server');
-  if (
-    /^\.agents\/skills\/server-verify\/scripts\/core\/[a-z]+(?:-[a-z]+)*\.ts$/.test(
-      path,
-    )
-  )
+  if (/^\.agents\/skills\/verify-core\/[a-z]+(?:-[a-z]+)*\.ts$/.test(path))
     return classified('verify-core', 'server');
   if (
     /^\.agents\/skills\/server-verify\/scripts\/[a-z]+(?:-[a-z]+)*\.ts$/.test(
@@ -1887,7 +1883,7 @@ const rolePurposes: Record<Role, string> = {
   'server-cli':
     'the server control CLI in .agents/skills/server-verify/scripts/, which an agent runs to start one sandboxed server through the kit, drive it, record numbered and redacted evidence and stop it; it drives and records but never asserts',
   'verify-core':
-    'the lifecycle core of the four control CLIs in .agents/skills/server-verify/scripts/core/: the per-checkout instance registry and instance files, ownership-checked process control, the idle supervisor, tool checks, numbered evidence redacted through the server kit recorder and the build fingerprint; it lives beside the server CLI because every surface starts the server through the server kit, and only the control CLIs import it',
+    'the lifecycle core of the four control CLIs in .agents/skills/verify-core/: the per-checkout instance registry and instance files, ownership-checked process control, the idle supervisor, tool checks, numbered evidence redacted through the server kit recorder and the build fingerprint; it is shared by all four surfaces, and only the control CLIs import it',
   test: 'a .spec.ts behaviour spec',
   route: 'a TanStack Router file in apps/web/src/routes/',
   shell: 'the web app shell in apps/web/src/app/',

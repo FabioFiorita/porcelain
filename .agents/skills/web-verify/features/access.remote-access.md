@@ -38,7 +38,7 @@ Settings → Ways in turns the local network, the tailnet and a Cloudflare tunne
 
 ## Driving it
 
-Start with `.agents/skills/web-verify/scripts/cli start --desktop`, then run from the repository root with `C=.agents/skills/web-verify/scripts/cli`.
+Start with `$C start --desktop`, then run from the repository root with `C=.agents/skills/web-verify/scripts/cli`.
 
 ### Setup
 

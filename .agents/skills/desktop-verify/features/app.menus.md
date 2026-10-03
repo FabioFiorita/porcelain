@@ -15,7 +15,7 @@ api: []
 
 ## What it is
 
-The Mac app's application menu: Porcelain (About, Settings… with ⌘,, Services, Hide, Quit), File (Open Project… with ⌘O, Close), Edit, View and Window. Settings and Open Project send an action to the web, which opens Settings or the native folder sheet; an action sent before the page is ready waits for it. View offers zoom and full screen; Reload and Developer Tools appear only in an unpackaged app given a Vite server, the one `pnpm dev --desktop` runs, never in the verified or installed app.
+The Mac app's application menu: Porcelain (About, Settings… with ⌘,, Services, Hide, Quit), File (Open Project… with ⌘O, Close Window), Edit, View and Window. Settings and Open Project send an action to the web, which opens Settings or the native folder sheet; an action sent before the page is ready waits for it. View offers zoom and full screen; Reload and Developer Tools appear only in an unpackaged app given a Vite server, the one `pnpm dev --desktop` runs, never in the verified or installed app.
 
 ## How a user reaches it
 

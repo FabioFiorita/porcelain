@@ -27,7 +27,7 @@ Open graph opens the commit graph of the checked-out branch as a document tab ("
 
 ## Driving it
 
-Start with `.agents/skills/web-verify/scripts/cli start`. `REPO` is the repository path `start` printed.
+Start with `$C start`. `REPO` is the repository path `start` printed.
 
 ### Setup
 
@@ -48,15 +48,15 @@ git -C "$REPO" log -1 --format='%s %p'
 
 The last line prints `Merge branch 'topic'` and two parent ids. ("Add the topic notes" also carries the README change, which the switch took along.)
 
-1. `.agents/skills/web-verify/scripts/cli click --role button --name "Review"`
+1. `$C click --role button --name "Review"`
    Look for: dialog "Worktree review".
-2. `.agents/skills/web-verify/scripts/cli click --role tab --name "History"`
+2. `$C click --role tab --name "History"`
    Look for: four rows, the first starting "Merge commit Merge branch 'topic'", and button "Open graph".
-3. `.agents/skills/web-verify/scripts/cli click --role button --name "Open graph"`
+3. `$C click --role button --name "Open graph"`
    Look for: the sheet closes; tab starting "Graph" selected in tablist "Open documents"; Page Title "Commit graph — repository"; Page URL has `entry=graph`; list "Commit graph" whose first button starts "Merge commit Merge branch 'topic'" and holds img "Merge commit"; the row starting "Add the topic notes" carries the chip "topic". The lanes are an `aria-hidden` SVG (test id `history-graph`): check them in a `screenshot`, two lanes joining at the merge dot.
-4. `.agents/skills/web-verify/scripts/cli open "<path and query of the Page URL from step 3>"`
+4. `$C open "<path and query of the Page URL from step 3>"`
    Look for: after the reload, tab "Graph" is still selected and list "Commit graph" shows again.
-5. `.agents/skills/web-verify/scripts/cli click --role button --name "/^Merge commit ?Merge branch 'topic'/"`
+5. `$C click --role button --name "/^Merge commit ?Merge branch 'topic'/"`
    Look for: heading starting "Merge branch 'topic'"; tab "Graph" no longer selected (a commit tab named by the 7-character id is); Page Title "<7-character id> — repository"; the toolbar shows tabs "1st parent · <id>" and "2nd parent · <id>".
 
 ## What proves it works

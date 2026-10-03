@@ -10,7 +10,7 @@ export default {
   edits: [
     {
       kind: 'replace',
-      path: '.agents/skills/server-verify/scripts/core/registry.ts',
+      path: '.agents/skills/verify-core/registry.ts',
       old: 'this.fingerprint() !== instance.fingerprint,',
       new: "this.fingerprint() === '',",
     },

@@ -10,7 +10,7 @@ import {
   simulatorLimitProblem,
   type DeviceKind,
 } from '../../../../apps/mobile/spec/kit/simulator.ts';
-import { Refusal, Usage } from '../../server-verify/scripts/core/cli.ts';
+import { Refusal, Usage } from '../../verify-core/cli.ts';
 import { hubToken, hubUrl, type HostDetail } from './host.ts';
 
 const keyboardSettleMs = 1500;

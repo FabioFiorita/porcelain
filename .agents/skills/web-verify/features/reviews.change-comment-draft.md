@@ -28,7 +28,7 @@ A whole-branch comment being written keeps its text when a new commit lands on t
 
 ## Driving it
 
-Start with `.agents/skills/web-verify/scripts/cli start`. `$REPO` is the path `start` prints after `repository`.
+Start with `$C start`. `$REPO` is the path `start` prints after `repository`.
 
 ### Setup
 
@@ -40,15 +40,15 @@ git -C "$REPO" add --all && git -C "$REPO" commit -m "Add notes"
 
 Do not make the second commit yet: it lands in step 6, while the draft is open.
 
-1. `.agents/skills/web-verify/scripts/cli open /`
+1. `$C open /`
    Look for: Page Title "Changes — repository".
-2. `.agents/skills/web-verify/scripts/cli click --role button --name "Review"`
+2. `$C click --role button --name "Review"`
    Look for: dialog "Worktree review" with tabs "Uncommitted" and "Branch", "Changed files" and "Comments".
-3. `.agents/skills/web-verify/scripts/cli click --role tab --name "Branch"`
+3. `$C click --role tab --name "Branch"`
    Look for: tab "Branch" selected; Page URL contains `scope=branch`.
-4. `.agents/skills/web-verify/scripts/cli click --role tab --name "/^Comments/"`
+4. `$C click --role tab --name "/^Comments/"`
    Look for: button "Comment on the whole branch" (enabled once the branch changes load).
-5. `.agents/skills/web-verify/scripts/cli click --role button --name "Comment on the whole branch"` then `.agents/skills/web-verify/scripts/cli fill --role textbox --name "Comment" "Split the notes before merging"`
+5. `$C click --role button --name "Comment on the whole branch"` then `$C fill --role textbox --name "Comment" "Split the notes before merging"`
    Look for: the label text `Whole branch · at <first tip>` above textbox "Comment", where `<first tip>` is `git -C "$REPO" rev-parse --short=7 HEAD`; the snapshot shows the textbox holding "Split the notes before merging".
 6. On disk, with the composer still open:
    ```sh
@@ -57,17 +57,17 @@ Do not make the second commit yet: it lands in step 6, while the draft is open.
    git -C "$REPO" rev-parse --short=7 HEAD
    ```
    The last line prints `<new tip>`.
-7. `.agents/skills/web-verify/scripts/cli snapshot`
+7. `$C snapshot`
    Look for: the label text `Whole branch · at <new tip>`; textbox "Comment" still holds "Split the notes before merging".
-8. `.agents/skills/web-verify/scripts/cli click --role button --name "Comment"`
+8. `$C click --role button --name "Comment"`
    Look for: textbox "Comment" is gone; an article "Comment thread" with button `Whole branch in <new tip>` and the text "Split the notes before merging".
-9. `.agents/skills/web-verify/scripts/cli network`
+9. `$C network`
    Look for: one `POST /api/worktrees/<id>/comments` answered 200 after a later `GET /api/worktrees/<id>/branch-changes`.
 
 ## What proves it works
 
 - Steps 7 and 8: the draft survives the commit, the label follows the new tip, and the saved thread names `<new tip>`, not `<first tip>`.
-- Persistence: `.agents/skills/web-verify/scripts/cli open /`, "Review", tab "Branch", tab `/^Comments/` lists the thread with `Whole branch in <new tip>`.
+- Persistence: `$C open /`, "Review", tab "Branch", tab `/^Comments/` lists the thread with `Whole branch in <new tip>`.
 - `apps/web/spec/integration/reviews-change-comment-draft.test.tsx`: after the second commit the composer shows `Whole branch · at <tip>` for the new tip and still holds the draft; after posting, `server.commentThreads()` holds one thread whose `anchor.revision` is the new tip.
 
 ## Gotchas

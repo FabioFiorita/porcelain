@@ -39,7 +39,7 @@ On Settings → Devices the owner lets a paired device update Porcelain and take
 
 ## Driving it
 
-Start with `.agents/skills/web-verify/scripts/cli start --desktop`, then run from the repository root with `C=.agents/skills/web-verify/scripts/cli`.
+Start with `$C start --desktop`, then run from the repository root with `C=.agents/skills/web-verify/scripts/cli`.
 
 ### Setup
 

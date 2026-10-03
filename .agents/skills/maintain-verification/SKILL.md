@@ -1,33 +1,25 @@
 ---
 name: maintain-verification
-description: Periodic pass that keeps Porcelain's verification skills honest. It reads every feature-map entry against the source, drives every feature live through its surface's control CLI, and ships at most one commit of proven corrections to the maps and CLIs. Use for a scheduled maintenance run or when asked to audit the verification skills or feature maps.
+description: Check changed maps plus three random unchanged maps, drive them through the verification CLIs, and correct drift. Full passes require an explicit request.
 ---
 
 # Maintain verification
 
-This pass keeps `server-verify`, `web-verify`, `desktop-verify` and `mobile-verify` true to the app. Every map entry gets a source reading and a live drive.
+Run on request or an existing schedule; do not create a schedule. Follow AGENTS.md for proof, sweeps and shipping. Scope: verification skills, `verify-core` and references to moved CLI files. Report product regressions with evidence; keep them out of this change.
 
-## Outcome
+## Select
 
-End in exactly one, and say which:
+1. Read `last-pass.json` beside this skill. `commit` is the checked source, `mode` and `maps` state coverage; `bootstrap` means no earlier completed pass is known. If the commit is missing or not an ancestor of HEAD, ask for a baseline.
+2. Select changed maps with `git diff --name-only <commit> -- '.agents/skills/*-verify/features/*.md'`. Check changed indexes and deletions against their files and source.
+3. Add three random unchanged maps without replacement from `git ls-files '.agents/skills/*-verify/features/*.md'`; exclude indexes and record the draw. Only an explicit full-pass request selects every map. Exclude `app.installed-lock.md` unless the owner requested that check.
+4. Read commits since the baseline for unmapped flows; add relevant maps. Run `pnpm features:check`.
 
-- **clean:** every feature was read and driven; nothing to correct. No commit.
-- **changed:** one commit of proven corrections to maps or CLIs, pushed.
-- **blocked:** coverage could not finish, or a proven correction could not ship. Name exactly what blocked it.
+## Drive
 
-## Edit scope
+Read selected maps against source, then drive their steps through each surface's skill and compare the evidence. Share instances where setup permits; run `doctor` after failures and stop your instances. Correct map/CLI drift and drive it again.
 
-Only the four skill folders: their `SKILL.md`, `features/` and `scripts/`. When the app no longer does what a map entry says, decide which it is: the map drifted (fix the map) or the product regressed (report it, and leave the map stating the promise).
+## Record
 
-## Pass
+After every selected map succeeds, update `last-pass.json`: checked source commit (before the checkpoint commit), UTC date, mode (`incremental` or `full`) and exact driven paths. Commit the checkpoint even for a clean pass.
 
-1. **Index.** For each surface, compare `features/README.md` with the files beside it and fix missing, extra or dead entries. Run `pnpm features:check`.
-2. **Source wave.** One read-only subagent per feature file, in parallel. Each reads the feature's source from its frontmatter and the code it reaches, and returns how the feature works now, any drift from the entry with file and line, and the drive steps as `scripts/cli` lines.
-3. **Reconcile.** Spot-check the cited drift. Look through the commits since the last pass for routes, screens or flows no map names, and name the source path of each before calling it missing.
-4. **Live pass.** Required even when the source looks clean. Per surface, `start` one instance and drive every feature with its map's steps, checking each end state against the evidence. After a failed drive, run `doctor`; when it reports trouble, `stop` and `start` again rather than driving a broken instance. Surfaces may run in parallel. Record a feature that can't be reached with the prerequisite it needs (macOS, a simulator, a physical device) and the step attempted. `stop` every instance at the end.
-5. **Triage.** A wrong or missing step or description is map drift: fix it. Working behaviour the CLI can't drive is a CLI gap: fix the CLI and its usage text, and drive the feature again. Broken behaviour is a product regression: record it for the owner and keep it out of the commit.
-6. **Ship.** For **changed**: re-read every changed file, commit only those paths and push the branch.
-
-## Report
-
-The outcome; features read and driven per surface; unreachable features with their prerequisite; drift fixed; CLI gaps fixed; product regressions found, each with its evidence folder and the step that failed.
+Report **clean**, **changed** or **blocked**, coverage per surface, the random sample, corrections/regressions and evidence folders. If any selected feature is unreachable, name the prerequisite and attempted step, and leave the checkpoint unchanged. Partial coverage never claims a full pass.

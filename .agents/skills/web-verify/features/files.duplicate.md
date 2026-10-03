@@ -26,7 +26,7 @@ Duplicating a file writes a copy beside it, named `<stem> copy<extension>` (then
 
 ## Driving it
 
-Start with `.agents/skills/web-verify/scripts/cli start`. Set `REPO` to the path it prints after `repository`.
+Start with `$C start`. Set `REPO` to the path it prints after `repository`.
 
 ### Setup
 
@@ -38,23 +38,23 @@ printf 'Notes to copy\n' > "$REPO/notes.md"
 
 ### Steps
 
-1. `.agents/skills/web-verify/scripts/cli open /`
+1. `$C open /`
    Look for: Page Title "Changes — repository".
-2. `.agents/skills/web-verify/scripts/cli click --role button --name "Review"`
+2. `$C click --role button --name "Review"`
    Look for: dialog "Worktree review".
-3. `.agents/skills/web-verify/scripts/cli click --role tab --name "Files"`
+3. `$C click --role tab --name "Files"`
    Look for: tab "Files" [selected], with treeitem "notes.md" and treeitem "README.md" in the tree of region "All files".
-4. `.agents/skills/web-verify/scripts/cli click --role treeitem --name "notes.md" --button right`
+4. `$C click --role treeitem --name "notes.md" --button right`
    Look for: a menu with menuitems "Rename", "Duplicate", "Open diff", "Open file", "Show timeline", "Pin file", "Hide file", "Copy relative path", "Copy full path", "Move to trash".
-5. `.agents/skills/web-verify/scripts/cli click --role menuitem --name "Duplicate"`
+5. `$C click --role menuitem --name "Duplicate"`
    Look for: dialog "Worktree review" is gone; heading "notes copy.md" [level=1]; Page Title "notes copy.md — repository".
    Disk: `cat "$REPO/notes copy.md"` prints `Notes to copy`, and `cat "$REPO/notes.md"` still prints `Notes to copy`.
-6. `.agents/skills/web-verify/scripts/cli click --role button --name "Review"`
+6. `$C click --role button --name "Review"`
    Look for: dialog "Worktree review" with tab "Files" selected and treeitem "notes copy.md" (selected) in the tree.
-7. `.agents/skills/web-verify/scripts/cli press ControlOrMeta+d`
+7. `$C press ControlOrMeta+d`
    Look for: the dialog is gone; Page Title "notes copy copy.md — repository"; heading "notes copy copy.md" [level=1].
    Disk: `ls "$REPO"` lists `notes copy copy.md`.
-8. `.agents/skills/web-verify/scripts/cli network`
+8. `$C network`
    Look for: two `POST /api/worktrees/<worktreeId>/files` requests with a 2xx status.
 
 ## What proves it works

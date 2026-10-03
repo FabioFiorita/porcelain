@@ -2,8 +2,8 @@ import { appendFileSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { IsolatedServer } from '../../../../apps/server/spec/kit/isolated-server.ts';
 import { buildIsolatedServer } from '../../../../apps/server/spec/kit/sandbox.ts';
-import { refuseMissing, sandboxProblems } from './core/cli.ts';
-import { repositoryRoot } from './core/registry.ts';
+import { refuseMissing, sandboxProblems } from '../../verify-core/cli.ts';
+import { repositoryRoot } from '../../verify-core/registry.ts';
 import { registry } from './instance.ts';
 
 const READY_LIMIT_MS = 60 * 1000;

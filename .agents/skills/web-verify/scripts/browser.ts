@@ -1,13 +1,10 @@
 import { spawnSync } from 'node:child_process';
 import { join } from 'node:path';
 import { z } from 'zod';
-import { Refusal, Usage } from '../../server-verify/scripts/core/cli.ts';
-import type {
-  Evidence,
-  Redactor,
-} from '../../server-verify/scripts/core/evidence.ts';
-import type { BuildInputs } from '../../server-verify/scripts/core/fingerprint.ts';
-import { repositoryRoot } from '../../server-verify/scripts/core/registry.ts';
+import { Refusal, Usage } from '../../verify-core/cli.ts';
+import type { Evidence, Redactor } from '../../verify-core/evidence.ts';
+import type { BuildInputs } from '../../verify-core/fingerprint.ts';
+import { repositoryRoot } from '../../verify-core/registry.ts';
 import { networkCommand } from './network.ts';
 
 const playwright = join(repositoryRoot, 'node_modules/.bin/playwright');
@@ -40,6 +37,7 @@ export const interactionOptions = {
   'to-text': { type: 'string' },
   timeout: { type: 'string' },
   status: { type: 'string' },
+  static: { type: 'boolean', default: false },
 } as const;
 
 export const interactionUsage = `  open <route>            open a route of the web app
@@ -57,7 +55,7 @@ export const interactionUsage = `  open <route>            open a route of the w
   snapshot                record the accessibility tree as Playwright's aria snapshot
   screenshot              record a screenshot
   console                 record the console messages
-  network                 record the requests the page sent
+  network [--static]      record requests; --static includes scripts, styles and images
   network hold "<METHOD> <path>" | release
                           hold every matching request until release
   network fail "<METHOD> <path>" --status <code> | restore
@@ -85,6 +83,7 @@ export type Interaction = Address & {
   'to-text'?: string | undefined;
   timeout?: string | undefined;
   status?: string | undefined;
+  static?: boolean | undefined;
 };
 
 export type Browser = {
@@ -234,6 +233,19 @@ function fillCode(locator: string, value: string): string {
 }`;
 }
 
+function snapshot(browser: Browser): string {
+  return runCode(
+    browser.session,
+    browser.cwd,
+    "async page => page.locator('body').ariaSnapshot()",
+  );
+}
+
+function withSnapshot(browser: Browser, output: string): string {
+  if (/^### Snapshot$/m.test(output)) return output;
+  return `${output}\n${snapshot(browser)}`;
+}
+
 async function run(
   browser: Browser,
   name: string | undefined,
@@ -255,16 +267,12 @@ async function run(
   if (name === 'click') {
     const locator = target(values);
     await appear(browser, 'click', args, locator, values);
-    return recorded(
-      browser,
+    const output = cli([
       'click',
-      args,
-      cli([
-        'click',
-        locator,
-        ...(values.button === undefined ? [] : [values.button]),
-      ]),
-    );
+      locator,
+      ...(values.button === undefined ? [] : [values.button]),
+    ]);
+    return recorded(browser, 'click', args, withSnapshot(browser, output));
   }
   if (name === 'fill') {
     const locator = target(values);
@@ -303,8 +311,10 @@ async function run(
       `${locator} showed after ${tookMs} ms\n`,
     );
   }
-  if (name === 'press')
-    return recorded(browser, 'press', args, cli(['press', rest[0] ?? 'Enter']));
+  if (name === 'press') {
+    const output = cli(['press', rest[0] ?? 'Enter']);
+    return recorded(browser, 'press', args, withSnapshot(browser, output));
+  }
   if ((name === 'network' && rest[0] !== undefined) || name === 'live')
     return recorded(
       browser,
@@ -322,14 +332,14 @@ async function run(
       browser,
       name,
       args,
-      cli(['--raw', name === 'console' ? 'console' : 'requests']),
+      cli([
+        '--raw',
+        name === 'console' ? 'console' : 'requests',
+        ...(name === 'network' && values.static ? ['--static'] : []),
+      ]),
     );
   if (name === 'snapshot') {
-    const tree = runCode(
-      browser.session,
-      browser.cwd,
-      "async page => page.locator('body').ariaSnapshot()",
-    );
+    const tree = snapshot(browser);
     const claimed = await browser.evidence.claim('snapshot', 'txt');
     const file = await browser.evidence.attach(claimed, 'yml', `${tree}\n`);
     await browser.evidence.write(claimed, args, `aria snapshot in ${file}\n`);
