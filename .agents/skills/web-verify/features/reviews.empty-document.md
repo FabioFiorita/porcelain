@@ -56,6 +56,6 @@ With every tab closed, the document pane says "Nothing open" and offers one butt
 
 ## Gotchas
 
-- After step 6 the summary iframe stays blank, with no request for its page, until the next `open /` loads it (seen in the 2026-10-03 drive); right after the publish in step 4 and after a reload it loads. The promise here is the reopened handoff tab and its frame, not the frame's content.
+- The disposable server signs a summary link for 2 seconds (`summaryLinkLifetimeMs`) from the review read, so the frame step 6 mounts stays blank (its link answers 404); `$C open /` reads the review again and the frame loads. The promise here is the reopened handoff tab and its frame, not the frame's content.
 - Once a review with layers is published the handoff tab is renamed "Review" and its close button is "Close Review"; "Close Changes" no longer exists. The test clicks "Close Changes" right after publishing, before the page has received the review; an agent driving by hand sees "Close Review".
 - The tab layout is saved in localStorage per worktree; a closed tab stays closed across `open`. Reset with `$C click --role button --name "Open all changes"` (or "Open summary").
