@@ -3,6 +3,7 @@ import { deepStrictEqual, throws } from 'node:assert/strict';
 import { RuleTester } from 'oxlint/plugins-dev';
 import plugin from './oxlint-plugin.mjs';
 import ruleCases from './rule-cases.mjs';
+import { runGuardrailCases } from './guardrail-tests.mjs';
 import { manualAuditProblems } from './ci-policy.ts';
 import { preflightEdits } from './probe-edits.ts';
 import { classify, violation } from './policy.ts';
@@ -78,6 +79,7 @@ const cases = [
   },
 ];
 const started = performance.now();
+runGuardrailCases();
 tester.run(
   'no-number-outside-limits',
   plugin.rules['no-number-outside-limits'],

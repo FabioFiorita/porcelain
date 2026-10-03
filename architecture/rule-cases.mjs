@@ -4343,3 +4343,178 @@ export const probeLive = createPairingLive;
     errors: 1,
   },
 ];
+
+const duplicateFixtureSource = `export function matchPaths(paths: readonly string[], query: string) {
+  const needle = query.trim().toLowerCase();
+  const found = paths.filter((path) => path.toLowerCase().includes(needle));
+  const ranked = found.toSorted((left, right) => left.length - right.length);
+  const shown = ranked.slice(0, 20).map((path) => ({ path, name: path.split('/').at(-1) ?? path }));
+  return { needle, shown, more: ranked.length > shown.length };
+}`;
+
+export const guardrailCases = [
+  {
+    rule: 'lane-per-table',
+    valid: {
+      'apps/server/src/ports/device-connection-store.ts':
+        'export interface DeviceConnectionStore { insert(): void; }',
+    },
+    invalid: {
+      'apps/server/src/ports/new-connection-store.ts':
+        'export interface NewConnectionStore { insert(): void; }',
+    },
+    errors: ['lane-per-table'],
+  },
+  {
+    rule: 'lane-per-table',
+    files: {
+      'apps/server/src/use-cases/reviews/read-review.ts':
+        "import { ReadReviewService } from '../../../../../packages/reviews/src/services/read-review-service.ts'; export class ReadReviewUseCase { constructor(private readonly service: ReadReviewService, private readonly lanes: { run(key: string, mode: string, body: () => string[]): string[] }, private readonly laneKeys: { reviews(): string }) {} execute() { return this.lanes.run(this.laneKeys.reviews(), 'read', () => this.service.execute()); } }",
+    },
+    valid: {
+      'packages/reviews/src/ports/review-store.ts':
+        'export interface ReviewStore { list(): string[]; }',
+      'packages/reviews/src/services/read-review-service.ts':
+        "import type { ReviewStore as Store } from '../ports/review-store.ts'; export class ReadReviewService { constructor(private readonly store: Store) {} execute(): string[] { return this.store.list(); } }",
+    },
+    invalid: {
+      'packages/reviews/src/ports/review-store.ts':
+        'export interface NewReviewStore { list(): string[]; }',
+      'packages/reviews/src/services/read-review-service.ts':
+        "import type { NewReviewStore as Store } from '../ports/review-store.ts'; export class ReadReviewService { constructor(private readonly store: Store) {} execute(): string[] { return this.store.list(); } }",
+    },
+    errors: ['lane-per-table'],
+  },
+  {
+    rule: 'lane-per-table',
+    valid: {
+      'packages/reviews/src/ports/review-store.ts':
+        'export interface ReviewStore { save(): void; }',
+    },
+    invalid: {
+      'packages/reviews/src/ports/new-review-store.ts':
+        'export interface NewReviewStore { save(): void; }',
+    },
+    errors: ['lane-per-table'],
+  },
+  {
+    rule: 'lane-per-table',
+    valid: {
+      'packages/access/src/ports/device-store.ts':
+        'export type DeviceStore = { save(): void };',
+    },
+    invalid: {
+      'packages/access/src/ports/new-device-store.ts':
+        'export type NewDeviceStore = { save(): void };',
+    },
+    errors: ['lane-per-table'],
+  },
+  {
+    rule: 'status-policy-complete',
+    files: {
+      'packages/kernel/src/errors/failure.ts':
+        'class DomainFailure extends Error {} export class ReviewFailure extends DomainFailure {} export class Helper {}',
+      'packages/kernel/src/errors/index.ts': "export * from './failure.ts';",
+    },
+    valid: {
+      'apps/server/src/http/status-policy.ts':
+        "import { ReviewFailure } from '../../../../packages/kernel/src/errors/index.ts'; export const rules = [{ errors: [ReviewFailure], statusCode: 409 }];",
+    },
+    invalid: {},
+    errors: ['status-policy-complete'],
+  },
+  {
+    rule: 'status-policy-complete',
+    files: {
+      'packages/reviews/src/errors/new-review-error.ts':
+        'export class NewReviewError extends Error {}',
+      'packages/reviews/src/errors/index.ts':
+        "export { NewReviewError as PublicReviewError } from './new-review-error.ts';",
+    },
+    valid: {
+      'apps/server/src/http/status-policy.ts':
+        "import { PublicReviewError as Outcome } from '../../../../packages/reviews/src/errors/index.ts'; export const rules = [{ errors: [Outcome], statusCode: 409 }];",
+    },
+    invalid: {
+      'apps/server/src/http/status-policy.ts':
+        "import { PublicReviewError as Outcome } from '../../../../packages/reviews/src/errors/index.ts'; export const decoy = { errors: [Outcome] }; export const rules = [];",
+    },
+    errors: ['status-policy-complete'],
+  },
+  {
+    rule: 'status-policy-complete',
+    files: {
+      'packages/reviews/src/errors/new-review-error.ts':
+        'export class NewReviewError extends Error {} export class OtherReviewError extends Error {}',
+      'packages/reviews/src/errors/index.ts':
+        "export * from './new-review-error.ts';",
+    },
+    valid: {
+      'apps/server/src/http/status-policy.ts':
+        "import { NewReviewError, OtherReviewError } from '../../../../packages/reviews/src/errors/index.ts'; export const rules = [{ errors: [NewReviewError, OtherReviewError], statusCode: 409 }];",
+    },
+    invalid: {
+      'apps/server/src/http/status-policy.ts':
+        "import { NewReviewError } from '../../../../packages/reviews/src/errors/index.ts'; export const rules = [{ errors: [NewReviewError], statusCode: 409 }];",
+    },
+    errors: ['status-policy-complete'],
+  },
+  {
+    rule: 'status-policy-complete',
+    files: {
+      'packages/storage/src/errors/invalid-data-directory-error.ts':
+        'export class InvalidDataDirectoryError extends Error {}',
+      'packages/storage/src/errors/unsupported-database-version-error.ts':
+        'export class UnsupportedDatabaseVersionError extends Error {}',
+      'packages/storage/src/index.ts':
+        "export * from './errors/invalid-data-directory-error.ts'; export * from './errors/unsupported-database-version-error.ts';",
+    },
+    valid: {},
+    invalid: {
+      'packages/storage/src/errors/invalid-data-directory-error.ts':
+        'export class InvalidDataDirectoryError extends Error {} export class RuntimeStorageError extends Error {}',
+    },
+    errors: ['status-policy-complete'],
+  },
+  ...[
+    ['Review', '<Button>Review</Button>', 'export class ReviewService {}'],
+    ['Name', 'label="Name"', 'const environmentName = "local";'],
+    ['Unmark ', 'label="Unmark all"', 'const label = "reUnmark all";'],
+    [
+      'review-file',
+      'data-testid="review-file"',
+      'data-testid="review-file-menu"',
+    ],
+    ['a+b', 'label="a+b"', 'label="aab"'],
+    ['Timeline of ', '`Timeline of ${path}`', 'const readTimeline = path;'],
+  ].map(([selector, valid, invalid]) => ({
+    rule: 'feature-selector',
+    selector,
+    valid,
+    invalid,
+  })),
+  ...[
+    ['apps/server/src/copy.ts', 'packages/reviews/src/copy.ts'],
+    ['packages/client/src/copy.ts', 'packages/reviews/src/copy.ts'],
+    ['apps/mobile/src/copy.ts', 'apps/desktop/src/copy.ts'],
+    ['apps/web/src/copy.ts', 'packages/client/src/copy.ts'],
+    ['apps/web/src/copy.ts', 'apps/web/src/copy-again.ts', 'web'],
+  ].map(([first, second, scope = 'repository']) => ({
+    rule: 'duplicate-code',
+    first,
+    second,
+    scope,
+    valid: 'export const label = "Unique";',
+    invalid: duplicateFixtureSource,
+  })),
+  {
+    rule: 'duplicate-count-ratchet',
+    source: duplicateFixtureSource,
+    ceiling: 7,
+    valid: {
+      before: { duplicatedLines: 7, clones: 1, rejected: false },
+      afterDeletion: { duplicatedLines: 7, clones: 1, rejected: false },
+    },
+    invalid: { duplicatedLines: 14, clones: 2, rejected: true },
+  },
+];
