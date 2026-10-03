@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
 import type {
   ActionInput,
   Expectation,
@@ -23,7 +24,14 @@ export function useGitAction(
   const client = useQueryClient();
   const { operations } = connection;
   const key = operationKey(scope, action);
-  const operation = useGitOperation(operations, key);
+  const [settledBefore] = useState(() => {
+    const previous = operations.get(key);
+    return previous?.receipt && isTerminal(previous.receipt)
+      ? previous.requestId
+      : null;
+  });
+  const followed = useGitOperation(operations, key);
+  const operation = followed?.requestId === settledBefore ? null : followed;
   const request = () => ({ ...scope, ...connection.request() });
   async function accept(receipt: Receipt) {
     connection.controller.signal.throwIfAborted();
