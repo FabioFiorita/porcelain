@@ -1,26 +1,27 @@
 import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
-import { StrictMode, Suspense, useRef, useState, type ReactNode } from 'react';
+import { Suspense, useRef, useState, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { expect, test as base } from 'vitest';
 import { page } from 'vitest/browser';
 import '@/app.css';
-import { ReviewShell } from '@/app/review-shell';
-import { WorkspaceProvider } from '@/app/workspace-provider';
-import { toast, Toaster } from '@/components/ui/toast';
-import { TooltipProvider } from '@/components/ui/tooltip';
-import { pairBrowser, useAccessStore } from '@/features/access/index';
-import { ThemeProvider } from '@/features/preferences/index';
+import { AppProviders } from '@/app/app-providers';
+import { PairedShell } from '@/app/paired-shell';
 import {
-  ProjectNavigator,
-  ProjectWorkspaceProvider,
-  useInventory,
-} from '@/features/projects/index';
+  pairBrowser,
+  restoreSession,
+  useAccessStore,
+} from '@/features/access/index';
+import { ThemeProvider } from '@/features/preferences/index';
+import { ProjectNavigator, useInventory } from '@/features/projects/index';
 import { ReviewWorkspace } from '@/features/reviews/index';
 import { createQueryClient } from '@/shared/query/client';
-import { onCopyNotice } from '@/shared/workspace/copy';
 import type { Connection } from '@/shared/workspace/connection';
 import type { WorkspaceSearch } from '@/shared/workspace/search';
-import { createFailures, failureMessage } from '../kit/failures.ts';
+import {
+  createFailures,
+  failureMessage,
+  type Failures,
+} from '../kit/failures.ts';
 import type { BrowserFailure, ServerName } from '../kit/protocol.ts';
 import { serverReaders } from '../kit/readers.ts';
 import {
@@ -41,37 +42,46 @@ export type Render = {
   navigator: () => Promise<typeof page>;
 };
 
+type WatchedFailures = Failures & { reported: () => Promise<string[]> };
+
 const observed: BrowserFailure[] = [];
+let running: WatchedFailures | undefined;
 
 function describeValue(value: unknown): string {
   if (value instanceof Error) return value.message;
   return typeof value === 'string' ? value : JSON.stringify(value);
 }
 
+const resizeObserverNotice =
+  'ResizeObserver loop completed with undelivered notifications.';
+
 const reportError = console.error.bind(console);
 console.error = (...values: unknown[]) => {
-  observed.push({
-    kind: 'console error',
-    message: values.map(describeValue).join(' '),
-  });
+  const message = values.map(describeValue).join(' ');
+  if (message !== resizeObserverNotice)
+    observed.push({ kind: 'console error', message });
   reportError(...values);
 };
-window.addEventListener('error', (event) =>
-  observed.push({
-    kind: 'uncaught error',
-    message: describeValue(event.error),
-  }),
-);
+window.addEventListener('error', (event) => {
+  if (event.message !== resizeObserverNotice)
+    observed.push({
+      kind: 'uncaught error',
+      message: describeValue(event.error),
+    });
+});
 window.addEventListener('unhandledrejection', (event) =>
   observed.push({
     kind: 'unhandled rejection',
     message: describeValue(event.reason),
   }),
 );
-onCopyNotice((notice) => toast.add(notice));
 
-export function takeObserved(): BrowserFailure[] {
-  return observed.splice(0);
+export function runningFailures(): WatchedFailures {
+  if (running === undefined)
+    throw new Error(
+      'The automatic failures fixture watches every test; none is running.',
+    );
+  return running;
 }
 
 function readersOf(server: ServerName) {
@@ -89,23 +99,17 @@ function Providers({
   children: ReactNode;
 }) {
   return (
-    <StrictMode>
-      <TooltipProvider>
-        <QueryClientProvider client={client}>
-          <WorkspaceProvider>
-            <Toaster>
-              <ThemeProvider>
-                <ReviewShell>
-                  <ProjectWorkspaceProvider open onOpenChange={() => {}}>
-                    <Suspense>{children}</Suspense>
-                  </ProjectWorkspaceProvider>
-                </ReviewShell>
-              </ThemeProvider>
-            </Toaster>
-          </WorkspaceProvider>
-        </QueryClientProvider>
-      </TooltipProvider>
-    </StrictMode>
+    <AppProviders
+      query={(app) => (
+        <QueryClientProvider client={client}>{app}</QueryClientProvider>
+      )}
+    >
+      <ThemeProvider>
+        <PairedShell>
+          <Suspense>{children}</Suspense>
+        </PairedShell>
+      </ThemeProvider>
+    </AppProviders>
   );
 }
 
@@ -157,7 +161,8 @@ async function pairedConnection(client: QueryClient): Promise<Connection> {
     new AbortController().signal,
   );
   const { connection } = useAccessStore.getState();
-  if (connection === null) throw new Error('Pairing left no connection.');
+  if (!(await restoreSession(client)) || connection === null)
+    throw new Error('Pairing left no session the paired routes restore.');
   return connection;
 }
 
@@ -194,15 +199,19 @@ export const test = base
     'failures',
     { auto: true },
     ({ task, world: _world }, { onCleanup }) => {
-      takeObserved();
+      observed.length = 0;
       const failures = createFailures();
+      const reported = async () =>
+        failures.unexpected([...observed], await host.porcelainHits('this'));
+      const watched: WatchedFailures = { ...failures, reported };
+      running = watched;
       onCleanup(async () => {
-        const hits = await host.porcelainHits('this');
-        const unexpected = failures.unexpected(takeObserved(), hits);
+        running = undefined;
+        const unexpected = await reported();
         if (unexpected.length > 0)
           throw new Error(failureMessage(task.name, unexpected));
       });
-      return failures;
+      return watched;
     },
   )
   .extend('server', ({ world: _world }) => readersOf('this'))

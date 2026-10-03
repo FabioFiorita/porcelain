@@ -1,16 +1,10 @@
 import { QueryClientProvider } from '@tanstack/react-query';
 import { createRouter, RouterProvider } from '@tanstack/react-router';
-import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { toast, Toaster } from './components/ui/toast';
-import { TooltipProvider } from './components/ui/tooltip';
 import './app.css';
 import { createQueryClient } from '@/shared/query/client';
-import { onCopyNotice } from '@/shared/workspace/copy';
-import { WorkspaceProvider } from './app/workspace-provider';
+import { AppProviders } from './app/app-providers';
 import { routeTree } from './routeTree.gen';
-
-onCopyNotice((notice) => toast.add(notice));
 
 const queryClient = createQueryClient();
 const router = createRouter({
@@ -29,15 +23,11 @@ declare module '@tanstack/react-router' {
 const root = document.getElementById('root');
 if (!root) throw new Error('Missing application root');
 createRoot(root).render(
-  <StrictMode>
-    <TooltipProvider>
-      <QueryClientProvider client={queryClient}>
-        <WorkspaceProvider>
-          <Toaster>
-            <RouterProvider router={router} />
-          </Toaster>
-        </WorkspaceProvider>
-      </QueryClientProvider>
-    </TooltipProvider>
-  </StrictMode>,
+  <AppProviders
+    query={(app) => (
+      <QueryClientProvider client={queryClient}>{app}</QueryClientProvider>
+    )}
+  >
+    <RouterProvider router={router} />
+  </AppProviders>,
 );
