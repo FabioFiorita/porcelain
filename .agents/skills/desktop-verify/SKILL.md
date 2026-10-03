@@ -84,7 +84,7 @@ Read renderer state with typed functions against `DesktopBridge` (lint refuses s
 `safeStorage` fails over SSH with “User interaction is not allowed”, so run the tests, and any instance that writes credentials, in a Terminal window of the logged-in session and read the log afterwards:
 
 ```sh
-osascript -e 'tell application "Terminal" to do script "cd ~/Code/<worktree> && caffeinate -d -u pnpm --filter @porcelain/desktop test:e2e > /tmp/desktop-e2e.log 2>&1; echo exit $? >> /tmp/desktop-e2e.log"'
+osascript -e 'tell application "Terminal" to do script "cd <checkout> && caffeinate -d -u pnpm --filter @porcelain/desktop test:e2e > /tmp/desktop-e2e.log 2>&1; echo exit $? >> /tmp/desktop-e2e.log"'
 tail -f /tmp/desktop-e2e.log
 ```
 

@@ -33,15 +33,15 @@ describe('readServiceConfiguration', () => {
       path,
       JSON.stringify({
         dataDirectory: '/home/u/.porcelain',
-        host: '192.168.15.64',
+        host: '192.0.2.10',
         port: 4738,
-        allowedHosts: ['192.168.15.64'],
+        allowedHosts: ['192.0.2.10'],
       }),
     );
     expect(await readServiceConfiguration(path)).toEqual({
       dataDirectory: '/home/u/.porcelain',
       port: 4738,
-      host: '192.168.15.64',
+      host: '192.0.2.10',
     });
   });
 

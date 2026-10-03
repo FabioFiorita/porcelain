@@ -3077,14 +3077,14 @@ import { remoteLink } from './remotes.ts';
 
 describe('remoteLink', () => {
   it('reads the address, code and environment of a pairing link', () => {
-    expect(remoteLink('http://192.168.15.64:4738/pair#c=a&e=env')).toEqual({
-      address: 'http://192.168.15.64:4738',
+    expect(remoteLink('http://192.0.2.10:4738/pair#c=a&e=env')).toEqual({
+      address: 'http://192.0.2.10:4738',
       code: 'a',
       environmentId: 'env',
     });
   });
 
-  it.each(['', 'http://192.168.15.64:4738/pair#c=a'])('reads nothing from %j', (value) => {
+  it.each(['', 'http://192.0.2.10:4738/pair#c=a'])('reads nothing from %j', (value) => {
     expect(remoteLink(value)).toBeUndefined();
   });
 });
@@ -3093,7 +3093,7 @@ describe('remoteLink', () => {
 import { remoteLink } from './remotes.ts';
 
 describe('remoteLink', () => {
-  it.each(['', 'http://192.168.15.64:4738/pair#c=a'])('reads nothing from %j', (value) => {
+  it.each(['', 'http://192.0.2.10:4738/pair#c=a'])('reads nothing from %j', (value) => {
     expect(remoteLink(value)).toBeUndefined();
   });
 });
@@ -3108,14 +3108,14 @@ import { remoteLink } from './remotes.ts';
 
 describe('remoteLink', () => {
   it('reads the address, code and environment of a pairing link', () => {
-    expect(remoteLink('http://192.168.15.64:4738/pair#c=a&e=env')).toEqual({
-      address: 'http://192.168.15.64:4738',
+    expect(remoteLink('http://192.0.2.10:4738/pair#c=a&e=env')).toEqual({
+      address: 'http://192.0.2.10:4738',
       code: 'a',
       environmentId: 'env',
     });
   });
 
-  it.each(['', 'http://192.168.15.64:4738/pair#c=a'])('reads nothing from %j', (value) => {
+  it.each(['', 'http://192.0.2.10:4738/pair#c=a'])('reads nothing from %j', (value) => {
     expect(remoteLink(value)).toBeUndefined();
   });
 });
@@ -3125,17 +3125,17 @@ import { remoteLink } from './remotes.ts';
 
 describe('remoteLink', () => {
   it('reads the address, code and environment of a pairing link', () => {
-    expect(remoteLink('http://192.168.15.64:4738/pair#c=a&e=env')).toEqual({
-      address: 'http://192.168.15.64:4738',
+    expect(remoteLink('http://192.0.2.10:4738/pair#c=a&e=env')).toEqual({
+      address: 'http://192.0.2.10:4738',
       code: 'a',
       environmentId: 'env',
     });
   });
 
-  it.each(['', 'http://192.168.15.64:4738/pair#c=a'])('reads nothing from %j', (value) => {
+  it.each(['', 'http://192.0.2.10:4738/pair#c=a'])('reads nothing from %j', (value) => {
     expect(remoteLink(value)).toBeUndefined();
-    expect(remoteLink('http://192.168.15.64:4738/pair#c=b&e=env')).toEqual({
-      address: 'http://192.168.15.64:4738',
+    expect(remoteLink('http://192.0.2.10:4738/pair#c=b&e=env')).toEqual({
+      address: 'http://192.0.2.10:4738',
       code: 'b',
       environmentId: 'env',
     });
@@ -3152,8 +3152,8 @@ import { remoteLink } from './remotes.ts';
 
 describe('remoteLink', () => {
   it('reads the address, code and environment of a pairing link', () => {
-    expect(remoteLink('http://192.168.15.64:4738/pair#c=a&e=env')).toEqual({
-      address: 'http://192.168.15.64:4738',
+    expect(remoteLink('http://192.0.2.10:4738/pair#c=a&e=env')).toEqual({
+      address: 'http://192.0.2.10:4738',
       code: 'a',
       environmentId: 'env',
     });
@@ -3165,16 +3165,16 @@ import { remoteLink } from './remotes.ts';
 
 describe('remoteLink', () => {
   it('reads the address, code and environment of a pairing link', () => {
-    expect(remoteLink('http://192.168.15.64:4738/pair#c=a&e=env')).toEqual({
-      address: 'http://192.168.15.64:4738',
+    expect(remoteLink('http://192.0.2.10:4738/pair#c=a&e=env')).toEqual({
+      address: 'http://192.0.2.10:4738',
       code: 'a',
       environmentId: 'env',
     });
   });
 
   it('reads the same link the same way again', () => {
-    expect(remoteLink('http://192.168.15.64:4738/pair#c=a&e=env')).toEqual({
-      ...remoteLink('http://192.168.15.64:4738/pair#c=a&e=env'),
+    expect(remoteLink('http://192.0.2.10:4738/pair#c=a&e=env')).toEqual({
+      ...remoteLink('http://192.0.2.10:4738/pair#c=a&e=env'),
     });
   });
 });

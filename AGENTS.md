@@ -66,7 +66,7 @@ Run commands from the repository root and report every result honestly. Local pr
 - **A flaky test** is investigated locally with its runner's repeat option on that one file, stopping at the first failure and keeping the evidence.
 - **A guardrail change:** a lint rule gets an invalid fixture, and a valid one where natural, in `architecture/rule-cases.mjs`; each architecture and style rule and each gate's wiring keeps one probe in `architecture/probes/`. Run `pnpm probes --check` and only the probes you touched, by name, with `pnpm probes <name>`.
 
-Budgets: `pnpm check` under 30 seconds and an ordinary task's local proof under two minutes. A check that breaks its budget is a tooling defect: fix or remove it in its own change, never skip it silently. Porcelain is a solo developer project with no external users: keep proof proportional to the change and prioritize product progress. Test harnesses and CI take the simplest setup that works; add isolation, retries, extra jobs or pins only after a real failure shows the need, and only for that case.
+Budgets: `pnpm check` under 30 seconds and an ordinary task's local proof under two minutes. A check that breaks its budget is a tooling defect: fix or remove it in its own change, never skip it silently. Keep proof proportional to the change and prioritize product progress. Test harnesses and CI take the simplest setup that works; add isolation, retries, extra jobs or pins only after a real failure shows the need, and only for that case.
 
 `pnpm dev --desktop` runs the desktop app unpackaged from the checkout as Porcelain Dev, with its own profile beside the installed app. Never edit `shared/shell.ts` to preview desktop UI, and never build, install or launch the owner's installed app to test a change.
 
@@ -83,4 +83,5 @@ Budgets: `pnpm check` under 30 seconds and an ordinary task's local proof under 
 - When you ask the owner a question, wait for the answer before changing anything it decides.
 - Work in the area the owner gave you; ask before changing code outside it.
 - Write no prose documents: the workflow lives in skills, the rules in the tooling, the example in the code.
+- This repository is public. Never commit personal details: people's names or email addresses, machine names, network addresses, home paths, credentials, or other projects and workplaces. Examples use placeholder values: documentation addresses such as `192.0.2.10`, `example.com` hosts and generic names.
 - Before using a library, check its current documentation for a built-in pattern and prefer it over a helper.

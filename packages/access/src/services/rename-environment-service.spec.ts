@@ -9,7 +9,7 @@ function setup() {
     store,
     rename: new RenameEnvironmentService(
       store,
-      new FixedHostNameReader('fabio-desktop'),
+      new FixedHostNameReader('studio-desktop'),
     ),
   };
 }
@@ -28,7 +28,7 @@ describe('RenameEnvironmentService', () => {
     const { rename, store } = setup();
     rename.execute({ name: 'Workstation' });
     expect(rename.execute({ name: undefined })).toEqual({
-      name: 'fabio-desktop',
+      name: 'studio-desktop',
       custom: false,
     });
     expect(store.read()).toEqual({ name: undefined });

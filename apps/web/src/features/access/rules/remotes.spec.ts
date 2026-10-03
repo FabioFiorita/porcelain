@@ -12,13 +12,13 @@ import {
 const environmentId = '1bc3e6b1-f849-4176-93b2-850147d4ebb3';
 const remote = {
   environmentId,
-  name: 'beelink',
-  address: 'http://192.168.15.64:4738',
+  name: 'home-server',
+  address: 'http://192.0.2.10:4738',
   credential: 'pcd_secret',
 };
 const environment = {
   environmentId,
-  name: 'beelink',
+  name: 'home-server',
   version: '1.2.0',
   protocol: 1,
 };
@@ -26,11 +26,9 @@ const environment = {
 describe('remoteLink', () => {
   it('reads the address, code and installation from the link porcelain pair prints', () => {
     expect(
-      remoteLink(
-        ` http://192.168.15.64:4738/pair#c=pcp_code&e=${environmentId} `,
-      ),
+      remoteLink(` http://192.0.2.10:4738/pair#c=pcp_code&e=${environmentId} `),
     ).toEqual({
-      address: 'http://192.168.15.64:4738',
+      address: 'http://192.0.2.10:4738',
       code: 'pcp_code',
       environmentId,
     });
@@ -38,9 +36,9 @@ describe('remoteLink', () => {
 
   it.each([
     'not a link',
-    'ftp://192.168.15.64/pair#c=a&e=b',
-    'http://192.168.15.64:4738/#c=a&e=b',
-    'http://192.168.15.64:4738/pair#c=a',
+    'ftp://192.0.2.10/pair#c=a&e=b',
+    'http://192.0.2.10:4738/#c=a&e=b',
+    'http://192.0.2.10:4738/pair#c=a',
   ])('reads nothing from %j', (value) => {
     expect(remoteLink(value)).toBeUndefined();
   });
@@ -53,7 +51,7 @@ describe('remoteStatus', () => {
     [{ kind: 'unreachable' as const }, { kind: 'offline' }],
     [
       { kind: 'described' as const, environment },
-      { kind: 'online', name: 'beelink', version: '1.2.0' },
+      { kind: 'online', name: 'home-server', version: '1.2.0' },
     ],
     [
       {
@@ -162,7 +160,7 @@ describe('syncRemoteConnections', () => {
 
   it.each([
     ['a new credential', { ...remote, credential: 'pcd_new' }],
-    ['a new address', { ...remote, address: 'http://192.168.15.65:4738' }],
+    ['a new address', { ...remote, address: 'http://192.0.2.11:4738' }],
   ])('replaces the connection of a remote paired with %s', (_, changed) => {
     const old = { opened: 'pcd_secret' };
     const { next, closed } = syncRemoteConnections(
@@ -178,13 +176,13 @@ describe('syncRemoteConnections', () => {
 
 describe('remoteLiveOpen', () => {
   it('opens live updates for an online remote in the desktop app', () => {
-    expect(remoteLiveOpen({ kind: 'online', name: 'beelink' }, true)).toBe(
+    expect(remoteLiveOpen({ kind: 'online', name: 'home-server' }, true)).toBe(
       true,
     );
   });
 
   it('keeps live updates closed in the web the server serves', () => {
-    expect(remoteLiveOpen({ kind: 'online', name: 'beelink' }, false)).toBe(
+    expect(remoteLiveOpen({ kind: 'online', name: 'home-server' }, false)).toBe(
       false,
     );
   });
