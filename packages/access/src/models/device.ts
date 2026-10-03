@@ -1,0 +1,31 @@
+export type DeviceRoute = 'loopback' | 'lan' | 'tailnet' | 'tunnel';
+
+export type Device = {
+  id: string;
+  label: string;
+  platform: string;
+  createdAt: string;
+  lastSeenAt: string;
+  lastSeenAddress?: string | undefined;
+  route: DeviceRoute;
+  routeInferred?: boolean | undefined;
+  trusted?: boolean | undefined;
+};
+
+export type StoredDevice = Device & {
+  secretHash: string;
+  revokedAt?: string | undefined;
+};
+
+export type DeviceDetailLimits = {
+  labelLength: number;
+  platformLength: number;
+};
+
+export type DeviceKey = { deviceId: string };
+
+export type DeviceSighting = { device: StoredDevice };
+
+export type DeviceRevocation = { device: StoredDevice; revokedAt: string };
+
+export type DeviceTrust = { device: StoredDevice; trusted: boolean };

@@ -1,0 +1,16 @@
+{
+  "name": "@porcelain/kernel",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./models": "./src/models/index.ts",
+    "./ports": "./src/ports/index.ts",
+    "./rules": "./src/rules/index.ts",
+    "./errors": "./src/errors/index.ts",
+    "./fakes": "./spec/fakes/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --config ../../vitest.config.ts --project @porcelain/kernel"
+  }
+}

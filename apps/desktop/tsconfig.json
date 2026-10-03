@@ -1,25 +1,12 @@
 {
-  "files": [],
-  "references": [
-    {
-      "path": "./tsconfig.node.json"
-    },
-    {
-      "path": "./tsconfig.web.json"
-    }
+  "extends": "../../tsconfig.json",
+  "include": [
+    "src/**/*.ts",
+    "spec/**/*.ts",
+    "playwright.config.ts",
+    "../server/src/adapters/files/node-opendir.d.ts"
   ],
   "compilerOptions": {
-    "baseUrl": ".",
-    "paths": {
-      "@renderer/*": ["../web/src/*"],
-      "@main/*": ["src/main/*"],
-      "@preload/*": ["src/preload/*"],
-      "@backend/*": ["../daemon/src/*"],
-      "@porcelain/daemon/*": ["../daemon/src/*"],
-      "@shared/*": ["../../packages/shared/src/*"],
-      "@porcelain/shared/*": ["../../packages/shared/src/*"],
-      "@porcelain/contracts": ["../../packages/contracts/src/index.ts"],
-      "@porcelain/contracts/*": ["../../packages/contracts/src/*"]
-    }
+    "lib": ["ES2024"]
   }
 }

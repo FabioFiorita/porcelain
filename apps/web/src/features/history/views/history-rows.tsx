@@ -1,0 +1,69 @@
+import { Button } from '@/components/ui/button';
+import { Spinner } from '@/components/ui/spinner';
+import { HistorySentinel } from '../adapters/history-sentinel';
+import type { useHistory } from '../queries/history';
+import { CommitRow } from './commit-row';
+
+type History = ReturnType<typeof useHistory>;
+
+export function HistoryRows({
+  commits,
+  history,
+  selected,
+  onSelect,
+}: {
+  commits: History['commits'];
+  history: History;
+  selected: string;
+  onSelect: (oid: string) => void;
+}) {
+  return (
+    <div className="px-1.5 py-2">
+      {commits.map((commit) => (
+        <CommitRow
+          key={commit.oid}
+          commit={commit}
+          selected={selected === commit.oid}
+          onSelect={() => onSelect(commit.oid)}
+        />
+      ))}
+      <HistoryEnd history={history} />
+    </div>
+  );
+}
+
+export function HistoryEnd({ history }: { history: History }) {
+  return (
+    <>
+      {history.isFetchingNextPage ? (
+        <p className="flex items-center gap-2 px-2 py-3 text-[11px] text-muted-foreground">
+          <Spinner className="size-3.5" />
+          Loading older commits…
+        </p>
+      ) : history.isFetchNextPageError ? (
+        <div className="flex items-center gap-2 px-2 py-2 text-[11px] text-muted-foreground">
+          <span>Couldn&apos;t load older commits</span>
+          <Button size="xs" variant="outline" onClick={history.loadNextPage}>
+            Retry
+          </Button>
+        </div>
+      ) : history.nextAfter == null ? (
+        <p className="px-2 py-3 text-[11px] text-muted-foreground">
+          {history.boundary === 'shallow'
+            ? 'Shallow clone: older history is not available.'
+            : history.boundary === 'wide'
+              ? 'Too many branches meet here to continue past this point.'
+              : 'Start of history.'}
+        </p>
+      ) : null}
+      <HistorySentinel
+        enabled={
+          history.hasNextPage &&
+          !history.isFetchingNextPage &&
+          !history.isFetchNextPageError
+        }
+        onVisible={history.loadNextPage}
+      />
+    </>
+  );
+}

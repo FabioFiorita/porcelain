@@ -1,50 +1,19 @@
 {
-  "cli": {
-    "version": ">= 21.4.0",
-    "appVersionSource": "remote"
-  },
   "build": {
     "development": {
       "developmentClient": true,
       "distribution": "internal",
-      "channel": "development",
-      "android": {
-        "buildType": "apk"
-      },
-      "env": {
-        "APP_VARIANT": "development"
-      }
-    },
-    "development-simulator": {
-      "extends": "development",
-      "ios": {
-        "simulator": true
-      }
+      "ios": { "simulator": true },
+      "env": { "APP_VARIANT": "development" }
     },
     "preview": {
       "distribution": "internal",
-      "channel": "preview",
-      "environment": "preview",
-      "autoIncrement": true,
-      "env": {
-        "APP_VARIANT": "production"
-      }
+      "env": { "APP_VARIANT": "preview" }
     },
     "production": {
       "distribution": "store",
-      "channel": "production",
-      "environment": "production",
       "autoIncrement": true,
-      "env": {
-        "APP_VARIANT": "production"
-      }
-    }
-  },
-  "submit": {
-    "production": {
-      "ios": {
-        "ascAppId": "6796720233"
-      }
+      "env": { "APP_VARIANT": "production" }
     }
   }
 }

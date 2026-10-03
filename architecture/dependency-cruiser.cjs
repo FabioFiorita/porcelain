@@ -1,0 +1,88 @@
+module.exports = {
+  forbidden: [
+    {
+      name: 'no-circular-source-imports',
+      severity: 'error',
+      from: {
+        path: '^(apps/server/src/|apps/web/src/|apps/desktop/src/|apps/mobile/src/|packages/)',
+      },
+      to: { circular: true },
+    },
+    {
+      name: 'web-routes-import-feature-index',
+      severity: 'error',
+      from: { path: '^apps/web/src/routes/' },
+      to: {
+        path: '^apps/web/src/features/',
+        pathNot: '^apps/web/src/features/[^/]+/index\\.ts$',
+      },
+    },
+    {
+      name: 'web-features-import-feature-index',
+      severity: 'error',
+      from: { path: '^apps/web/src/features/([^/]+)/' },
+      to: {
+        path: '^apps/web/src/features/',
+        pathNot: [
+          '^apps/web/src/features/$1/',
+          '^apps/web/src/features/[^/]+/index\\.ts$',
+        ],
+      },
+    },
+    {
+      name: 'web-shared-imports-no-owner',
+      severity: 'error',
+      from: { path: '^apps/web/src/(?:shared|components/ui)/' },
+      to: { path: '^apps/web/src/(?:features|app|routes)/' },
+    },
+    {
+      name: 'web-nothing-imports-routes',
+      severity: 'error',
+      from: { pathNot: '^apps/web/src/(?:routes/|routeTree\\.gen\\.ts$)' },
+      to: { path: '^apps/web/src/routes/' },
+    },
+    {
+      name: 'mobile-routes-import-feature-index',
+      severity: 'error',
+      from: { path: '^apps/mobile/src/app/' },
+      to: {
+        path: '^apps/mobile/src/features/',
+        pathNot: '^apps/mobile/src/features/[^/]+/index\\.ts$',
+      },
+    },
+    {
+      name: 'mobile-features-import-feature-index',
+      severity: 'error',
+      from: { path: '^apps/mobile/src/features/([^/]+)/' },
+      to: {
+        path: '^apps/mobile/src/features/',
+        pathNot: [
+          '^apps/mobile/src/features/$1/',
+          '^apps/mobile/src/features/[^/]+/index\\.ts$',
+        ],
+      },
+    },
+    {
+      name: 'mobile-shared-imports-no-owner',
+      severity: 'error',
+      from: { path: '^apps/mobile/src/shared/' },
+      to: { path: '^apps/mobile/src/(?:features|shell|app)/' },
+    },
+    {
+      name: 'mobile-nothing-imports-routes',
+      severity: 'error',
+      from: { pathNot: '^apps/mobile/src/app/' },
+      to: { path: '^apps/mobile/src/app/' },
+    },
+  ],
+  options: {
+    tsConfig: { fileName: 'tsconfig.json' },
+    tsPreCompilationDeps: true,
+    doNotFollow: { path: 'node_modules' },
+    enhancedResolveOptions: {
+      exportsFields: ['exports'],
+      conditionNames: ['import', 'node', 'default'],
+      extensions: ['.ts', '.tsx', '.js', '.mjs', '.cjs', '.json'],
+    },
+  },
+};

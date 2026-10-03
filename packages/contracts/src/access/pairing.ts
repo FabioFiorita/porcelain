@@ -1,0 +1,112 @@
+import { z } from 'zod';
+import { pairingLinkSchema } from './pairing-link.ts';
+import type { Principal } from './principal.ts';
+import {
+  DEVICE_LABEL_LENGTH,
+  DEVICE_PLATFORM_LENGTH,
+  PAIRING_ADDRESSES,
+  PAIRING_CODE_LENGTH,
+  PAIRING_LABELS,
+} from '../shared/limits.ts';
+
+export const redeemPairingRequestSchema = z.strictObject({
+  code: z.string().min(1).max(PAIRING_CODE_LENGTH),
+  platform: z.string().min(1).max(DEVICE_PLATFORM_LENGTH),
+  label: z.string().min(1).max(DEVICE_LABEL_LENGTH).optional(),
+});
+export const redeemPairingResponseSchema = z.object({
+  device: z.object({
+    id: z.string(),
+    label: z.string(),
+    platform: z.string(),
+    createdAt: z.string(),
+  }),
+  credential: z.string().optional(),
+});
+
+const pairingGrantSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+  addresses: z.array(z.string()),
+  createdAt: z.string(),
+  expiresAt: z.string(),
+  trusted: z.boolean(),
+});
+const deviceRouteSchema = z.enum(['loopback', 'lan', 'tailnet', 'tunnel']);
+
+const deviceSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+  platform: z.string(),
+  createdAt: z.string(),
+  lastSeenAt: z.string(),
+  lastSeenAddress: z.string().optional(),
+  route: deviceRouteSchema,
+  routeInferred: z.boolean().optional(),
+  trusted: z.boolean(),
+  current: z.boolean().optional(),
+});
+
+export const listAccessResponseSchema = z.object({
+  grants: z.array(pairingGrantSchema),
+  devices: z.array(deviceSchema),
+});
+
+export const issuePairingRequestSchema = z.strictObject({
+  labels: z
+    .array(z.string().min(1).max(DEVICE_LABEL_LENGTH))
+    .min(1)
+    .max(PAIRING_LABELS),
+  addresses: z.array(z.url()).min(1).max(PAIRING_ADDRESSES),
+  trusted: z.boolean().optional(),
+});
+export const issuePairingResponseSchema = z.object({
+  grants: z.array(
+    z.object({
+      grant: pairingGrantSchema,
+      code: z.string(),
+      link: pairingLinkSchema,
+    }),
+  ),
+});
+
+export const revokeAccessRequestSchema = z.strictObject({
+  id: z.string().min(1),
+});
+export const revokeAccessResponseSchema = z.object({
+  revoked: z.boolean(),
+  kind: z.enum(['grant', 'device']).optional(),
+});
+
+export const setDeviceTrustRequestSchema = z.strictObject({
+  id: z.string().min(1),
+  trusted: z.boolean(),
+});
+export const setDeviceTrustResponseSchema = z.object({
+  id: z.string(),
+  trusted: z.boolean(),
+});
+
+export const clearBrowserSessionResponseSchema = z.undefined();
+
+type RedeemPairingRequest = z.output<typeof redeemPairingRequestSchema>;
+export type DeviceRoute = z.output<typeof deviceRouteSchema>;
+export type RedeemPairingInput = RedeemPairingRequest & { route: DeviceRoute };
+export type RedeemPairingResponse = z.output<
+  typeof redeemPairingResponseSchema
+>;
+export type ListAccessRequest = { viewer: Principal };
+export type ListAccessResponse = z.output<typeof listAccessResponseSchema>;
+export type IssuePairingRequest = z.output<typeof issuePairingRequestSchema>;
+export type IssuePairingResponse = z.output<typeof issuePairingResponseSchema>;
+export type RevokeAccessRequest = z.output<typeof revokeAccessRequestSchema>;
+export type RevokeAccessResponse = z.output<typeof revokeAccessResponseSchema>;
+export type SetDeviceTrustRequest = z.output<
+  typeof setDeviceTrustRequestSchema
+>;
+export type SetDeviceTrustResponse = z.output<
+  typeof setDeviceTrustResponseSchema
+>;
+export type ClearBrowserSessionResponse = z.output<
+  typeof clearBrowserSessionResponseSchema
+>;

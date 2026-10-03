@@ -1,0 +1,32 @@
+appId: com.fabiofiorita.porcelain.dev
+name: Pair and restore multiple environments
+---
+- runFlow: connect.yaml
+- runFlow: open-settings.yaml
+- assertVisible: Environments
+- tapOn: Add environment
+- assertVisible: Pair an environment
+- tapOn:
+    id: pairing-link
+- inputText: invalid-link
+- waitForAnimationToEnd
+- tapOn: Pair
+- assertVisible: Paste the whole link porcelain pair printed, starting with http.
+- tapOn: Cancel
+- assertNotVisible: Pair an environment
+- runFlow:
+    file: add-environment.yaml
+    env:
+      PAIRING_LINK: ${FIRST_PAIRING_LINK}
+      ENVIRONMENT_NAME: ${FIRST_ENVIRONMENT_NAME}
+- runFlow:
+    file: add-environment.yaml
+    env:
+      PAIRING_LINK: ${SECOND_PAIRING_LINK}
+      ENVIRONMENT_NAME: ${SECOND_ENVIRONMENT_NAME}
+- assertVisible: ${FIRST_ENVIRONMENT_NAME}
+- assertVisible: ${SECOND_ENVIRONMENT_NAME}
+- assertVisible: Online
+- stopApp
+- runFlow: launch.yaml
+- runFlow: forget-environments.yaml

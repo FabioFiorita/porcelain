@@ -1,0 +1,19 @@
+{
+  "name": "@porcelain/git",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./discovery": "./src/discovery/index.ts",
+    "./inspection": "./src/inspection/index.ts",
+    "./history": "./src/history/index.ts",
+    "./actions": "./src/actions/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --config ../../vitest.config.ts --project @porcelain/git"
+  },
+  "dependencies": {
+    "@porcelain/kernel": "workspace:*",
+    "@porcelain/process": "workspace:*"
+  }
+}

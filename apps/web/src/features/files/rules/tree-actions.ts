@@ -1,0 +1,127 @@
+import { FILE_NAME_SUFFIX_START } from '@/config/limits';
+
+export function nextCreatePath(
+  kind: 'file' | 'directory',
+  folder: string,
+  exists: (path: string) => boolean,
+) {
+  const base = kind === 'file' ? 'untitled' : 'new-folder';
+  const path = (name: string) =>
+    `${folder}${name}${kind === 'directory' ? '/' : ''}`;
+  if (!exists(path(base))) return path(base);
+  let suffix = FILE_NAME_SUFFIX_START;
+  while (exists(path(`${base}-${suffix}`))) suffix += 1;
+  return path(`${base}-${suffix}`);
+}
+
+export function duplicatePath(path: string, exists: (path: string) => boolean) {
+  const slash = path.lastIndexOf('/') + 1;
+  const name = path.slice(slash);
+  const dot = name.lastIndexOf('.');
+  const stem = dot > 0 ? name.slice(0, dot) : name;
+  const extension = dot > 0 ? name.slice(dot) : '';
+  const candidate = (suffix: string) =>
+    `${path.slice(0, slash)}${stem} copy${suffix}${extension}`;
+  if (!exists(candidate(''))) return candidate('');
+  let suffix = FILE_NAME_SUFFIX_START;
+  while (exists(candidate(` ${suffix}`))) suffix += 1;
+  return candidate(` ${suffix}`);
+}
+
+export function topLevelDraggedPaths(paths: readonly string[]) {
+  return paths.filter(
+    (path) =>
+      !paths.some(
+        (parent) =>
+          parent !== path && parent.endsWith('/') && path.startsWith(parent),
+      ),
+  );
+}
+
+export function canDropPaths(paths: readonly string[], directoryPath: string) {
+  return !paths.some(
+    (path) => path.endsWith('/') && directoryPath.startsWith(path),
+  );
+}
+
+export function entryName(path: string) {
+  return path.replace(/\/$/, '').split('/').at(-1) ?? path;
+}
+
+export function directoryPaths(paths: readonly string[]) {
+  return paths.filter((path) => path.endsWith('/'));
+}
+
+export function selectedDirectories(path: string) {
+  return path
+    .split('/')
+    .slice(0, -1)
+    .map((_, index, segments) => `${segments.slice(0, index + 1).join('/')}/`);
+}
+
+export type TreeAction =
+  | 'new-file'
+  | 'new-folder'
+  | 'rename'
+  | 'duplicate'
+  | 'open'
+  | 'open-file'
+  | 'open-diff'
+  | 'timeline'
+  | 'pin'
+  | 'hide'
+  | 'copy-relative'
+  | 'copy-full'
+  | 'trash';
+
+export function treeActions(input: {
+  folder: boolean;
+  link: boolean;
+  changed: boolean;
+  openable: boolean;
+  hiddenEntry: string | null;
+  ownHidden: boolean;
+  hiddenName: string;
+  pinned?: boolean | undefined;
+}) {
+  const actions: { id: TreeAction; label: string }[] = [];
+  if (input.folder && !input.link) {
+    actions.push({ id: 'new-file', label: 'New file' });
+    actions.push({ id: 'new-folder', label: 'New folder' });
+  }
+  if (!input.link) actions.push({ id: 'rename', label: 'Rename' });
+  if (input.openable && !input.folder && !input.link)
+    actions.push({ id: 'duplicate', label: 'Duplicate' });
+  if (input.openable) {
+    actions.push(
+      input.changed
+        ? { id: 'open-diff', label: 'Open diff' }
+        : { id: 'open', label: 'Open' },
+    );
+    if (input.changed) actions.push({ id: 'open-file', label: 'Open file' });
+    if (!input.folder && !input.link)
+      actions.push({ id: 'timeline', label: 'Show timeline' });
+  }
+  if (input.pinned !== undefined)
+    actions.push({
+      id: 'pin',
+      label: input.pinned ? 'Unpin file' : 'Pin file',
+    });
+  actions.push({
+    id: 'hide',
+    label:
+      input.hiddenEntry === null
+        ? input.folder
+          ? 'Hide folder'
+          : 'Hide file'
+        : input.ownHidden
+          ? input.folder
+            ? 'Show folder'
+            : 'Show file'
+          : `Show ${input.hiddenName}`,
+  });
+  actions.push({ id: 'copy-relative', label: 'Copy relative path' });
+  actions.push({ id: 'copy-full', label: 'Copy full path' });
+  actions.push({ id: 'trash', label: 'Move to trash' });
+  return actions;
+}

@@ -1,0 +1,19 @@
+{
+  "name": "@porcelain/agents",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./commit-planning": "./src/commit-planning/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --config ../../vitest.config.ts --project @porcelain/agents"
+  },
+  "dependencies": {
+    "@porcelain/process": "workspace:*",
+    "zod": "4.5.4"
+  },
+  "devDependencies": {
+    "@types/node": "24.13.3"
+  }
+}

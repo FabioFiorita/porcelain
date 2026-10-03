@@ -1,0 +1,146 @@
+import { describe, expect, it } from 'vitest';
+import {
+  localNetworkNote,
+  routeFailure,
+  tailscaleServeCommand,
+  type RemoteAccess,
+} from './share.ts';
+
+const home = {
+  interfaceName: 'wlp2s0',
+  subnet: '192.168.1.0/24',
+  gateway: '192.168.1.1',
+  gatewayHardware: 'a4:91:b1:0c:7e:11',
+};
+const cafe = {
+  interfaceName: 'wlp2s0',
+  subnet: '10.20.0.0/16',
+  gateway: '10.20.0.1',
+  gatewayHardware: '10:20:30:40:50:60',
+};
+
+function remote(
+  lan: RemoteAccess['routes']['lan'],
+  networks: Pick<RemoteAccess, 'lanNetwork' | 'localNetwork'>,
+): RemoteAccess {
+  const off = { enabled: false, status: { kind: 'off' as const } };
+  return {
+    routes: { lan, tailnet: off, cloudflare: off },
+    ...networks,
+    serviceUrl: 'http://127.0.0.1:4173',
+  };
+}
+
+const paused = { enabled: true, status: { kind: 'paused' as const } };
+
+describe('localNetworkNote', () => {
+  it('names the one network turning the local network on would listen on', () => {
+    expect(
+      localNetworkNote(
+        remote(
+          { enabled: false, status: { kind: 'off' } },
+          { localNetwork: home },
+        ),
+      ),
+    ).toBe(
+      'Turning it on listens on 192.168.1.0/24 on wlp2s0 only, and pauses on any other network.',
+    );
+  });
+
+  it('says there is nothing to turn on while the computer is on no local network', () => {
+    expect(
+      localNetworkNote(remote({ enabled: false, status: { kind: 'off' } }, {})),
+    ).toBe('This computer is not on a local network right now.');
+  });
+
+  it('names the network it listens on', () => {
+    expect(
+      localNetworkNote(
+        remote(
+          {
+            enabled: true,
+            status: { kind: 'on', urls: ['http://192.168.1.20:4173'] },
+          },
+          { lanNetwork: home, localNetwork: home },
+        ),
+      ),
+    ).toBe('Listening on 192.168.1.0/24 on wlp2s0 only.');
+  });
+
+  it('explains a pause on another network and where it listens again', () => {
+    expect(
+      localNetworkNote(
+        remote(paused, { lanNetwork: home, localNetwork: cafe }),
+      ),
+    ).toBe(
+      'Paused on this network. It was turned on for 192.168.1.0/24 on wlp2s0, and listens again there, or here once you turn it on for this network.',
+    );
+  });
+
+  it('explains a pause while the computer is on no local network', () => {
+    expect(localNetworkNote(remote(paused, { lanNetwork: home }))).toBe(
+      'Paused: this computer is not on a local network. Porcelain listens again when it is back on 192.168.1.0/24 on wlp2s0.',
+    );
+  });
+
+  it('explains the pause of a local network turned on before its network was kept', () => {
+    expect(localNetworkNote(remote(paused, { localNetwork: cafe }))).toBe(
+      'Paused on this network. It was turned on before Porcelain kept the network it was turned on for; turn it on for this network to listen here.',
+    );
+  });
+
+  it('explains a pause on a network that looks like its own but has another router', () => {
+    expect(
+      localNetworkNote(
+        remote(paused, {
+          lanNetwork: home,
+          localNetwork: { ...home, gatewayHardware: '10:20:30:40:50:60' },
+        }),
+      ),
+    ).toBe(
+      'Paused on this network. It looks like 192.168.1.0/24 on wlp2s0, but its router is another one, so this is another network; turn it on for this network to listen here.',
+    );
+  });
+
+  it('explains a pause while the router of this network cannot be identified', () => {
+    const { gatewayHardware: _, ...unknownRouter } = home;
+    expect(
+      localNetworkNote(
+        remote(paused, { lanNetwork: home, localNetwork: unknownRouter }),
+      ),
+    ).toBe(
+      'Paused. Porcelain cannot tell this network from another one yet, because the hardware address of its router is not known.',
+    );
+  });
+
+  it('says why it cannot be turned on while the router of this network cannot be identified', () => {
+    const { gatewayHardware: _, ...unknownRouter } = home;
+    expect(
+      localNetworkNote(
+        remote(
+          { enabled: false, status: { kind: 'off' } },
+          { localNetwork: unknownRouter },
+        ),
+      ),
+    ).toBe(
+      'Porcelain cannot tell this network from another one yet, because the hardware address of its router is not known. Try again in a moment.',
+    );
+  });
+});
+
+describe('tailscaleServeCommand', () => {
+  it('forwards HTTPS on the Tailscale name to the listener Porcelain keeps for it', () => {
+    expect(tailscaleServeCommand('http://127.0.0.1:41000')).toBe(
+      'tailscale serve --bg --https=443 http://127.0.0.1:41000',
+    );
+  });
+});
+
+describe('routeFailure', () => {
+  it('tells the owner what to set up in Tailscale when nothing answers at its name, not what to check in cloudflared', () => {
+    expect(routeFailure('tailnet', 'unreachable')).toContain(
+      'you ran the command below',
+    );
+    expect(routeFailure('cloudflare', 'unreachable')).toContain('cloudflared');
+  });
+});

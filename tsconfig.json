@@ -1,0 +1,32 @@
+{
+  "compilerOptions": {
+    "target": "ES2024",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2024"],
+    "types": ["node"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "verbatimModuleSyntax": true,
+    "allowImportingTsExtensions": true,
+    "erasableSyntaxOnly": true,
+    "skipLibCheck": true,
+    "noEmit": true
+  },
+  "include": [
+    "vitest.config.ts",
+    "scripts/**/*.ts",
+    ".agents/skills/server-verify/scripts/**/*.ts",
+    ".agents/skills/web-verify/scripts/**/*.ts",
+    ".agents/skills/desktop-verify/scripts/**/*.ts",
+    ".agents/skills/mobile-verify/scripts/**/*.ts",
+    "apps/mobile/spec/**/*.ts",
+    "architecture/*.ts",
+    "architecture/probes/*.ts",
+    "apps/server/src/adapters/files/node-opendir.d.ts",
+    "apps/mobile/app.config.ts"
+  ]
+}

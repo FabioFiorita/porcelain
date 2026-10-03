@@ -1,0 +1,160 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+@import '@fontsource-variable/geist';
+@import '@porcelain/theme/tokens.css';
+
+@custom-variant light (&:not(.dark));
+@custom-variant dark (&:is(.dark, .dark *));
+
+.desktop-shell .desktop-sidebar-header {
+  padding-left: 82px;
+  app-region: drag;
+}
+
+.desktop-shell
+  :is(button, input, textarea, select, a, [role='button'], [role='separator']) {
+  app-region: no-drag;
+}
+
+.desktop-shell .desktop-workspace-without-navigator {
+  padding-top: 52px;
+}
+
+.desktop-shell .desktop-workspace-without-navigator::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 44px;
+  app-region: drag;
+}
+
+.desktop-fullscreen .desktop-sidebar-header {
+  padding-left: 12px;
+}
+
+.desktop-fullscreen .desktop-workspace-without-navigator {
+  padding-top: 8px;
+}
+
+.desktop-fullscreen .desktop-workspace-without-navigator::before {
+  display: none;
+}
+
+@theme inline {
+  --font-heading: var(--font-sans);
+  --font-sans: 'Geist Variable', sans-serif;
+}
+
+:root {
+  color-scheme: light;
+}
+
+.dark {
+  color-scheme: dark;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  button:not(:disabled),
+  [role='button']:not(:disabled) {
+    cursor: pointer;
+  }
+  html {
+    @apply font-sans;
+  }
+}
+
+.pierre-preview {
+  display: block;
+  border-block: 1px solid var(--border);
+  background: var(--card);
+}
+
+.pierre-preview-scroll {
+  max-height: min(65svh, 48rem);
+  overflow: auto;
+}
+
+.pierre-preview-scroll > * {
+  min-width: 100%;
+}
+
+.pierre-preview-empty {
+  border-block: 1px solid var(--border);
+  padding: 2rem 1.5rem;
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+}
+
+[data-slot='file-tree'] {
+  --trees-indent-guide-bg-override: transparent;
+  color-scheme: inherit;
+  --trees-bg-override: transparent;
+  --trees-fg-override: var(--foreground);
+  --trees-fg-muted-override: var(--muted-foreground);
+  --trees-bg-muted-override: var(--muted);
+  --trees-accent-override: var(--accent);
+  --trees-input-bg-override: var(--muted);
+  --trees-search-fg-override: var(--foreground);
+  --trees-focus-ring-color-override: var(--ring);
+  --trees-border-color-override: var(--border);
+  --trees-border-radius-override: var(--radius-md);
+  display: block;
+}
+
+:root {
+  --workspace-stage: var(--muted);
+  --workspace-selected: var(--background);
+  --workspace-glass: var(--sidebar);
+  --workspace-glass-tint: color-mix(in oklch, var(--sidebar) 88%, transparent);
+  --workspace-edge: color-mix(in oklch, var(--foreground) 7%, transparent);
+}
+
+.workspace-shell {
+  background: var(--workspace-stage);
+}
+
+.workspace-glass,
+.workspace-sidebar [data-slot='sidebar-inner'] {
+  background: var(--workspace-glass);
+  box-shadow: 0 0 0 1px var(--workspace-edge);
+}
+
+.workspace-sidebar [data-slot='sidebar-inner'] {
+  border-radius: var(--radius-xl);
+  --tw-ring-shadow: 0 0 #0000;
+}
+
+@supports ((backdrop-filter: blur(12px)) or
+  (-webkit-backdrop-filter: blur(12px))) {
+  .workspace-glass,
+  .workspace-sidebar [data-slot='sidebar-inner'] {
+    background: var(--workspace-glass-tint);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workspace-shell [data-slot='sidebar-container'],
+  .workspace-shell [data-slot='sidebar-gap'] {
+    transition: none;
+  }
+}
+
+.dark {
+  --workspace-selected: var(--accent);
+}
+
+.workspace-choice[aria-pressed='true'] {
+  background: var(--workspace-selected);
+  box-shadow:
+    inset 0 0 0 1px var(--workspace-edge),
+    0 1px 2px var(--workspace-edge);
+}

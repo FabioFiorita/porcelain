@@ -1,16 +1,12 @@
 {
-  "extends": "expo/tsconfig.base",
+  "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "strict": true,
-    "paths": {
-      "@/*": ["./src/*"],
-      "@/assets/*": ["./assets/*"],
-      "@porcelain/contracts": ["../../packages/contracts/src/index.ts"],
-      "@porcelain/contracts/*": ["../../packages/contracts/src/*"],
-      "@porcelain/client-runtime/*": ["../../packages/client-runtime/src/*"],
-      "@porcelain/shared/*": ["../../packages/shared/src/*"]
-    }
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "lib": ["ES2024", "DOM"],
+    "types": ["react", "expo/types"],
+    "moduleSuffixes": [".ios", ".android", ""]
   },
-  "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts", "nativewind-env.d.ts"],
-  "exclude": ["**/*.test.ts", "**/*.test.tsx", "**/test-support.tsx"]
+  "include": ["src/**/*.ts", "src/**/*.tsx"]
 }

@@ -1,0 +1,19 @@
+{
+  "name": "@porcelain/files",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./services": "./src/services/index.ts",
+    "./rules": "./src/rules/index.ts",
+    "./models": "./src/models/index.ts",
+    "./ports": "./src/ports/index.ts",
+    "./errors": "./src/errors/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --config ../../vitest.config.ts --project @porcelain/files"
+  },
+  "dependencies": {
+    "@porcelain/kernel": "workspace:*"
+  }
+}

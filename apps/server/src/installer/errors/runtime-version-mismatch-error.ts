@@ -1,0 +1,10 @@
+import { InstallerError } from './installer-error.ts';
+
+export class RuntimeVersionMismatchError extends InstallerError {
+  override readonly name = 'RuntimeVersionMismatchError';
+  constructor(reported: string | undefined, expected: string) {
+    super(
+      `Persistent runtime reported ${reported ?? 'no version'} instead of ${expected}.`,
+    );
+  }
+}

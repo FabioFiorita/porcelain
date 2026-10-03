@@ -1,0 +1,81 @@
+import { userEvent } from 'vitest/browser';
+import { expect, test } from './fixtures.tsx';
+
+const before = 'draft-notes.md';
+const after = 'final-notes.md';
+
+test('renaming a file in the tree moves it on disk and shows the new name', async ({
+  render,
+  repo,
+  server,
+}) => {
+  await repo.write(before, 'Notes to rename\n');
+  const opened = await render.workspace();
+  await opened.getByRole('button', { name: 'Review', exact: true }).click();
+  await opened.getByRole('tab', { name: 'Files', exact: true }).click();
+  await opened
+    .getByRole('treeitem', { name: before, exact: true })
+    .click({ button: 'right' });
+  await opened.getByRole('menuitem', { name: 'Rename', exact: true }).click();
+  const name = opened.getByRole('textbox', { name: /rename/i });
+  await expect.element(name).toBeVisible();
+  await name.fill(after);
+  await userEvent.keyboard('{Enter}');
+  await expect
+    .element(opened.getByRole('treeitem', { name: after, exact: true }))
+    .toBeVisible();
+  await expect
+    .element(opened.getByRole('treeitem', { name: before, exact: true }))
+    .not.toBeInTheDocument();
+  await expect
+    .element(opened.getByText('Change no longer present', { exact: true }))
+    .not.toBeInTheDocument();
+  await expect
+    .poll(async () =>
+      (await server.directory('')).entries.map((entry) => entry.name),
+    )
+    .toContain(after);
+  await expect
+    .poll(async () =>
+      (await server.directory('')).entries.map((entry) => entry.name),
+    )
+    .not.toContain(before);
+});
+
+test('renaming a file onto an existing name is refused and keeps both files', async ({
+  render,
+  repo,
+  server,
+}) => {
+  await repo.write(after, 'Notes to rename\n');
+  const page = await render.workspace();
+  await page.getByRole('button', { name: 'Review', exact: true }).click();
+  await page.getByRole('tab', { name: 'Files', exact: true }).click();
+  await page
+    .getByRole('treeitem', { name: after, exact: true })
+    .click({ button: 'right' });
+  const renameAction = page.getByRole('menuitem', {
+    name: 'Rename',
+    exact: true,
+  });
+  await expect.element(page.getByRole('menu')).toHaveFocus();
+  await userEvent.keyboard('{ArrowDown}');
+  await expect.element(renameAction).toHaveFocus();
+  await userEvent.keyboard('{Enter}');
+  const name = page.getByRole('textbox', { name: /rename/i });
+  await expect.element(name).toBeVisible();
+  await name.fill(repo.readme.path);
+  await userEvent.keyboard('{Enter}');
+  await expect
+    .element(page.getByText('Invalid name', { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(page.getByRole('treeitem', { name: after, exact: true }))
+    .toBeVisible();
+  await expect
+    .poll(async () => (await server.text(repo.readme.path)).text)
+    .toBe(repo.readme.changed);
+  await expect
+    .poll(async () => (await server.text(after)).text)
+    .toBe('Notes to rename\n');
+});

@@ -1,0 +1,104 @@
+import type { ReadEnvironmentService } from '@porcelain/access/services';
+import type {
+  PublishReviewRequest,
+  PublishReviewToolResponse,
+} from '@porcelain/contracts/reviews';
+import type { WorktreeParams } from '@porcelain/contracts/shared';
+import type { ReadBinaryFilesService } from '@porcelain/files/services';
+import { proofFilePaths } from '@porcelain/reviews/rules';
+import type {
+  CheckReviewDraftService,
+  ResolvePublishedReviewService,
+  PublishReviewService,
+} from '@porcelain/reviews/services';
+import type { ConfirmWorktreeService } from '@porcelain/projects/services';
+import type { EventPublisher } from '../../ports/event-publisher.ts';
+import type { LaneKeys } from '../../runtime/lane-keys.ts';
+import type { Lanes } from '../../runtime/lanes.ts';
+import type { OperationContext } from '../../ports/operation-context.ts';
+import type { ReadReviewEvidenceUseCasePort } from '../../ports/read-review-evidence-use-case-port.ts';
+import type { CheckWorktreeUseCasePort } from '../../ports/check-worktree-use-case-port.ts';
+
+export class PublishReviewUseCase {
+  private readonly checkWorktree: CheckWorktreeUseCasePort;
+  private readonly confirmWorktree: ConfirmWorktreeService;
+  private readonly checkReviewDraft: CheckReviewDraftService;
+  private readonly readReviewEvidence: ReadReviewEvidenceUseCasePort;
+  private readonly readBinaryFiles: ReadBinaryFilesService;
+  private readonly publishReview: PublishReviewService;
+  private readonly readEnvironment: ReadEnvironmentService;
+  private readonly resolvePublishedReview: ResolvePublishedReviewService;
+  private readonly lanes: Lanes;
+  private readonly laneKeys: LaneKeys;
+  private readonly events: EventPublisher;
+
+  constructor(
+    checkWorktree: CheckWorktreeUseCasePort,
+    confirmWorktree: ConfirmWorktreeService,
+    checkReviewDraft: CheckReviewDraftService,
+    readReviewEvidence: ReadReviewEvidenceUseCasePort,
+    readBinaryFiles: ReadBinaryFilesService,
+    publishReview: PublishReviewService,
+    readEnvironment: ReadEnvironmentService,
+    resolvePublishedReview: ResolvePublishedReviewService,
+    lanes: Lanes,
+    laneKeys: LaneKeys,
+    events: EventPublisher,
+  ) {
+    this.checkWorktree = checkWorktree;
+    this.confirmWorktree = confirmWorktree;
+    this.checkReviewDraft = checkReviewDraft;
+    this.readReviewEvidence = readReviewEvidence;
+    this.readBinaryFiles = readBinaryFiles;
+    this.publishReview = publishReview;
+    this.readEnvironment = readEnvironment;
+    this.resolvePublishedReview = resolvePublishedReview;
+    this.lanes = lanes;
+    this.laneKeys = laneKeys;
+    this.events = events;
+  }
+
+  async execute(
+    input: WorktreeParams & PublishReviewRequest,
+    context: OperationContext,
+  ): Promise<PublishReviewToolResponse> {
+    const { worktreeId, ...draft } = input;
+    const worktree = await this.checkWorktree.execute(
+      { worktreeId, requireAvailableProject: false },
+      context,
+    );
+    const published = await this.lanes.run(
+      this.laneKeys.reviews(worktree),
+      'write',
+      async ({ signal }) => {
+        this.checkReviewDraft.execute({ worktreeId, draft });
+        const evidence = await this.readReviewEvidence.execute(
+          { worktreeId, layers: draft.layers },
+          { signal },
+        );
+        const proofFiles = await this.readBinaryFiles.execute(
+          { worktreeId, paths: proofFilePaths(draft.proof) },
+          signal,
+        );
+        this.confirmWorktree.execute({ worktree });
+        const { review, warnings } = this.publishReview.execute({
+          worktreeId,
+          draft,
+          evidence,
+          proofFiles,
+        });
+        return {
+          review: this.resolvePublishedReview.execute({
+            environmentId: this.readEnvironment.execute().environmentId,
+            review,
+            evidence,
+          }),
+          warnings,
+        };
+      },
+      { callerSignal: context.signal },
+    );
+    this.events.worktreeChanged({ worktreeId, change: 'review' });
+    return published;
+  }
+}

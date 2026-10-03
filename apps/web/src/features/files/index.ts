@@ -1,48 +1,14 @@
-/**
- * Web Files feature public entry point.
- *
- * Other Web regions import this module only — never a Files implementation file.
- */
-
-export type { DirEntry, FileView, RepoScope } from '@porcelain/contracts/files'
-export { useFilesCut, useFilesCutStore } from './files-cut'
-export { useFilesInterestBridge } from './files-interests'
-export {
-  applyFilesForeignDependencies,
-  useFilesActions,
-  useFilesScopeActions,
-  useWriteTextFile,
-} from './files-mutations'
-export {
-  applyFilesNotification,
-  invalidateAllFiles,
-  useFilesNotificationSubscription,
-} from './files-notifications'
-export {
-  normalizeProjectRoot,
-  projectAbsoluteFromRelative,
-  projectRelativeFromAbsolute,
-  treePathFromAbsolute,
-} from './files-path'
-export {
-  useFileContent,
-  useFilePreview,
-  useFilePreviewSrc,
-  useFilesScope,
-  useFilesTree,
-  usePinnedFiles,
-  usePrefetchFileContent,
-  useRefreshFilesTree,
-  useWorktreeProfile,
-  useWorktreeProfileAt,
-} from './files-queries'
-export {
-  filesQueryMatchesEffect,
-  invalidateAllFilesQueries,
-  invalidateFilesEffects,
-} from './files-query-filter'
-export {
-  filesQueryKey,
-  isFilesQueryKey,
-  isFilesTreeQueryKey,
-} from './files-query-key'
+export { FileTypeIcon, PierreIconSprite } from './views/file-type-icon';
+export { ImagePreview } from './views/image-preview';
+export { MarkdownView } from './views/markdown-view';
+export { isImagePath } from './rules/html-assets';
+export { useTextContents } from './queries/text';
+export { FileEditor } from './views/lazy-file-editor';
+export { HtmlPreview } from './views/html-preview';
+export { useDirectory } from './queries/directory';
+export { useTextFile } from './queries/text';
+export { useFileDraft } from './commands/edit-file';
+export type { FileDraft, FileDraftState } from './store';
+export { FileNavigation } from './views/file-navigation';
+export { useDiskChangeNotice } from './adapters/disk-change';
+export { useUnsavedDraftsGuard } from './adapters/unsaved-drafts';
