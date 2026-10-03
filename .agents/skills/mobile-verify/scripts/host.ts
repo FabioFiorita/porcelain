@@ -43,7 +43,8 @@ export function deviceHost(): DeviceHost | undefined {
       '  "tokenVariable": the name of the environment variable that holds the hub token, such as "AGENT_DEVICE_DAEMON_AUTH_TOKEN"',
       '  "ports": at least two ports from 1024 up that the simulator reaches on this machine at http://localhost:<port>',
       ...parsed.error.issues.map(
-        (issue) => `wrong: ${issue.path.join('.') || 'the file'}: ${issue.message}`,
+        (issue) =>
+          `wrong: ${issue.path.join('.') || 'the file'}: ${issue.message}`,
       ),
     ].join('\n'),
   );
