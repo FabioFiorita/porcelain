@@ -31,7 +31,7 @@ export const serverUsage = `  agent publish-review "<title>" [--context] [--summ
   agent publish-proof "<title>" --check "<name>=pass|fail|skipped" [--output "<name>=<text>"] --screenshot "<title>"
   agent comment <path> "<body>"
   agent reply <threadId|latest> "<body>"
-  server reviewed-files [<branch ref>] | reviewed-layers | comment-threads | project | devices | receipt <requestId>
+  server reviewed-files [<branch ref>] | reviewed-layers | comment-threads | project | devices | pending-links | receipt <requestId>
                           print the server's state as JSON
       agent and server take --remote to act on the second computer
   pair                    pair the browser through a fresh one-time link
@@ -195,14 +195,16 @@ export async function serverRead(
             ? await readers.project()
             : what === 'devices'
               ? await readers.devices()
-              : what === 'receipt'
-                ? await readers.receipt(
-                    required(argument, 'the Git action request id'),
-                  )
-                : undefined;
+              : what === 'pending-links'
+                ? await readers.pendingLinks()
+                : what === 'receipt'
+                  ? await readers.receipt(
+                      required(argument, 'the Git action request id'),
+                    )
+                  : undefined;
   if (state === undefined)
     throw new Usage(
-      'Use server reviewed-files [<branch ref>], reviewed-layers, comment-threads, project, devices or receipt <requestId>.',
+      'Use server reviewed-files [<branch ref>], reviewed-layers, comment-threads, project, devices, pending-links or receipt <requestId>.',
     );
   return `${JSON.stringify(state, null, 2)}\n`;
 }

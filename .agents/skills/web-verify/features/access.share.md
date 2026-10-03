@@ -65,7 +65,7 @@ None on disk. The default server has two paired devices, both bound to "This com
 6. `$C click --role button --name "Create pairing link"`
    Look for:
    - img "Pairing QR code" and the text "Scan on My phone";
-   - the Pairing link text starting `http://192.168.1.20:<port>/pair#c=pcp_`; button "Copy link";
+   - the Pairing link text starting `http://192.168.1.20:<port>/pair#c=[redacted]`; button "Copy link";
    - listitem "My phone" containing "Pending link", with a button "Cancel the link for My phone";
    - listitem "Verification browser" containing "This browser" and "This computer", with no "Revoke Verification browser" button;
    - listitem "Development setup" containing "This computer", with a button "Revoke Development setup".
@@ -79,7 +79,7 @@ None on disk. The default server has two paired devices, both bound to "This com
 ## What proves it works
 
 - Step 8's reload reads `GET /api/access` back: the server forgot the revoked device and keeps the pending link. `$C network` lists `POST /api/pairings` (step 6) and `POST /api/access/revoke` (steps 7 and 9) with status 200.
-- To prove the link pairs, use `access.device-trust` steps 10–11: `$C open "/pair#c=…&e=…"` with the link's fragment pairs this browser as the new device.
+- `$C server pending-links` after step 6 lists the "My phone" link. Redeeming a link is `access.pairing`.
 - `apps/web/spec/e2e/access-share.desktop.e2e.ts`:
   - the "Turn on a way in …" hint, then Local network on and the note that the link opens through Local network and the device works only through the way in it pairs over;
   - the QR code, a link matching `^http://192.168.1.20:\d+/pair#c=pcp_`, and server pending links `['My phone']`;
@@ -92,5 +92,5 @@ None on disk. The default server has two paired devices, both bound to "This com
 - Revoking "Development setup" lasts for the life of the instance, and `access.device-trust` needs that device. Run that feature first or start a new instance. Never revoke this browser: its row has no Revoke button. Pairing it again needs a new instance.
 - Local network stays on after step 3. With more than one way in on (for example after `access.remote-access`), an "Opens through" select appears and the note names the chosen way in.
 - A link works once, for 15 minutes. Its expiry time shows as "Works once, until <time>".
-- `192.168.1.20` is the server's fake LAN address. Nothing listens there, so the link cannot be opened as printed. Open its `/pair#…` part on this instance instead (see What proves it works).
+- `192.168.1.20` is the server's fake LAN address, so nothing listens there, and the CLI prints the code as `[redacted]`.
 - `Escape` on the Settings page leaves Settings.

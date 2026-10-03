@@ -333,7 +333,7 @@ async function run(
     const claimed = await browser.evidence.claim('snapshot', 'txt');
     const file = await browser.evidence.attach(claimed, 'yml', `${tree}\n`);
     await browser.evidence.write(claimed, args, `aria snapshot in ${file}\n`);
-    return `${browser.redactor.known(tree)}\nrecorded ${file}\n`;
+    return `${browser.redactor.text(tree)}\nrecorded ${file}\n`;
   }
   if (name === 'screenshot') {
     const claimed = await browser.evidence.claim('screenshot', 'txt');
