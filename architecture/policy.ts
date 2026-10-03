@@ -362,6 +362,7 @@ export const archRules = [
   'models-file-shape',
   'recording-fake-for-write-only-port',
   'lane-per-table',
+  'status-policy-complete',
   'lane-mode-matches-service',
   'worktree-use-case-checks',
   'unused-export',
@@ -2047,6 +2048,8 @@ const archRuleReasons = {
     'Give a port with a read-back an InMemory fake that specs read through the port; a Recording fake fits only ports whose methods answer nothing, so specs assert behaviour, not calls.',
   'lane-per-table':
     'Run the store call inside the lane that owns its table, as tableLanes in architecture/type-rules.ts names; a lane serializes the writes to its tables, so a call outside it races them.',
+  'status-policy-complete':
+    'Map every exported domain error in http/status-policy.ts, except the explicit startup-only errors; an unmapped domain failure silently becomes a 500 instead of its intended HTTP outcome.',
   'lane-mode-matches-service':
     "Call a service that writes inside a 'write' lane, lanes.background or lanes.finish; reads share a lane, so a write in a read lane races them.",
   'worktree-use-case-checks':

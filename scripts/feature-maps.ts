@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { parseDocument } from 'yaml';
 import { z } from 'zod';
 import { webDomains } from '../architecture/policy.ts';
+import { selectorAppears } from '../architecture/feature-selectors.ts';
 import {
   apiCalls,
   sameRoute,
@@ -299,15 +300,14 @@ function surfaceProblems(
   }
   const { calls, problems: unread, sharedSources = [] } = surface.calls(root);
   problems.push(...unread);
-  const source = [...surface.sources.flatMap(filesUnder), ...sharedSources]
+  const sources = [...surface.sources.flatMap(filesUnder), ...sharedSources]
     .filter((file) => sourceFile.test(file))
-    .map((file) => readFileSync(join(root, file), 'utf8'))
-    .join('\n');
+    .map((file) => readFileSync(join(root, file), 'utf8'));
   for (const entry of mapped) {
     for (const selector of entry.selectors)
-      if (!source.includes(selector))
+      if (!sources.some((source) => selectorAppears(source, selector)))
         problems.push(
-          `${entry.file}: selector "${selector}" appears nowhere in ${surface.sources.join(', ')}; name a test id or accessible name the app renders`,
+          `${entry.file}: selector "${selector}" appears nowhere as a quoted literal or on word boundaries in ${surface.sources.join(', ')}; name a test id or accessible name the app renders so the map can drive it`,
         );
     for (const test of entry.tests)
       if (!existsSync(join(root, test)))
