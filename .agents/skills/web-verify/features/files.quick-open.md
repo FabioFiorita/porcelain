@@ -26,7 +26,7 @@ Quick open searches every worktree file name and opens the one chosen. Files an 
 
 ## Driving it
 
-Start with `.agents/skills/web-verify/scripts/cli start`. Set `REPO` to the path it prints after `repository`.
+Start with `$C start`. Set `REPO` to the path it prints after `repository`.
 
 ### Setup
 
@@ -40,30 +40,30 @@ printf 'ignored output\n' > "$REPO/build.log"
 
 ### 1. Find a file by name and open it
 
-1. `.agents/skills/web-verify/scripts/cli open /`
+1. `$C open /`
    Look for: Page Title "Changes — repository".
-2. `.agents/skills/web-verify/scripts/cli click --role button --name "Review"`
+2. `$C click --role button --name "Review"`
    Look for: dialog "Worktree review".
-3. `.agents/skills/web-verify/scripts/cli click --role tab --name "Files"`
+3. `$C click --role tab --name "Files"`
    Look for: treeitem "README.md" in the tree of region "All files".
-4. `.agents/skills/web-verify/scripts/cli press ControlOrMeta+p`
+4. `$C press ControlOrMeta+p`
    Look for: dialog "Find a file" with combobox "Find a file by name" and options listing the worktree files (`.gitignore`, `README.md`, `quick-target.md`).
-5. `.agents/skills/web-verify/scripts/cli fill --role combobox --name "Find a file by name" "quick"`
+5. `$C fill --role combobox --name "Find a file by name" "quick"`
    Look for: exactly one option, "quick-target.md".
-6. `.agents/skills/web-verify/scripts/cli click --role option --name "quick-target.md"`
+6. `$C click --role option --name "quick-target.md"`
    Look for: both dialogs are gone; heading "Quick target" (the rendered Markdown) and heading "quick-target.md" [level=1]; Page Title "quick-target.md — repository".
 
 ### 2. An ignored file is not offered
 
-7. `.agents/skills/web-verify/scripts/cli click --role button --name "Review"`
+7. `$C click --role button --name "Review"`
    Look for: dialog "Worktree review" on tab "Files".
-8. `.agents/skills/web-verify/scripts/cli press ControlOrMeta+p`
+8. `$C press ControlOrMeta+p`
    Look for: combobox "Find a file by name", empty.
-9. `.agents/skills/web-verify/scripts/cli fill --role combobox --name "Find a file by name" "build.log"`
+9. `$C fill --role combobox --name "Find a file by name" "build.log"`
    Look for: the text "No file matches that name." and no option. The tree behind still lists `build.log` (marked ignored); only quick open leaves it out.
-10. `.agents/skills/web-verify/scripts/cli press Escape`
+10. `$C press Escape`
     Look for: dialog "Find a file" is gone.
-11. `.agents/skills/web-verify/scripts/cli network`
+11. `$C network`
     Look for: `GET /api/worktrees/<worktreeId>/paths` and `GET /api/worktrees/<worktreeId>/text?path=quick-target.md`, both 200.
 
 ## What proves it works

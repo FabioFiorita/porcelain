@@ -30,21 +30,21 @@ A comment on the whole uncommitted change is saved with no file (anchor `{ kind:
 
 ## Driving it
 
-Start with `.agents/skills/web-verify/scripts/cli start`. `$REPO` is the path `start` prints after `repository`.
+Start with `$C start`. `$REPO` is the path `start` prints after `repository`.
 
 ### Setup
 
 None before step 1. Step 6 creates the branch on disk mid-drive, as the test does.
 
-1. `.agents/skills/web-verify/scripts/cli open /`
+1. `$C open /`
    Look for: Page Title "Changes — repository".
-2. `.agents/skills/web-verify/scripts/cli click --role button --name "Review"`
+2. `$C click --role button --name "Review"`
    Look for: dialog "Worktree review" with tab "Uncommitted" selected and tabs "Changed files" and "Comments".
-3. `.agents/skills/web-verify/scripts/cli click --role tab --name "/^Comments/"`
+3. `$C click --role tab --name "/^Comments/"`
    Look for: button "Comment on the whole change"; buttons "open 0" and "resolved 0"; text "No open comments yet."
-4. `.agents/skills/web-verify/scripts/cli click --role button --name "Comment on the whole change"`
+4. `$C click --role button --name "Comment on the whole change"`
    Look for: textbox "Comment" with the label text "Whole change" above it; button "Comment" is disabled.
-5. `.agents/skills/web-verify/scripts/cli fill --role textbox --name "Comment" "Split this into two commits"` then `.agents/skills/web-verify/scripts/cli click --role button --name "Comment"`
+5. `$C fill --role textbox --name "Comment" "Split this into two commits"` then `$C click --role button --name "Comment"`
    Look for: textbox "Comment" is gone and button "Comment on the whole change" is back; an article "Comment thread" with the text "You", button "Whole change" (title "Show the change"), the text "Split this into two commits" and "Waiting for the agent"; button "open 1"; the tab now reads "Comments 1".
 6. On disk:
    ```sh
@@ -54,19 +54,19 @@ None before step 1. Step 6 creates the branch on disk mid-drive, as the test doe
    git -C "$REPO" rev-parse --short=7 HEAD
    ```
    The last line prints the tip, call it `<tip>`.
-7. `.agents/skills/web-verify/scripts/cli click --role tab --name "Branch"`
+7. `$C click --role tab --name "Branch"`
    Look for: Page URL ends with `?scope=branch` (or contains `scope=branch`); button "Comment on the whole branch" is enabled.
-8. `.agents/skills/web-verify/scripts/cli click --role button --name "Comment on the whole branch"`
+8. `$C click --role button --name "Comment on the whole branch"`
    Look for: textbox "Comment" with the label text "Whole branch · at <tip>".
-9. `.agents/skills/web-verify/scripts/cli fill --role textbox --name "Comment" "Ready to merge once the notes are in"` then `.agents/skills/web-verify/scripts/cli click --role button --name "Comment"`
+9. `$C fill --role textbox --name "Comment" "Ready to merge once the notes are in"` then `$C click --role button --name "Comment"`
    Look for: a second article "Comment thread" with button "Whole branch in <tip>" and the text "Ready to merge once the notes are in"; the first thread still shows button "Whole change"; button "open 2".
-10. `.agents/skills/web-verify/scripts/cli network`
+10. `$C network`
     Look for: two `POST /api/worktrees/<id>/comments` answered 200 (steps 5 and 9).
 
 ## What proves it works
 
 - Step 9's two threads, with buttons "Whole change" and "Whole branch in <tip>", and step 10's two 200 POSTs.
-- Persistence: `.agents/skills/web-verify/scripts/cli open /`, then "Review" and tab `/^Comments/`, lists both threads again.
+- Persistence: `$C open /`, then "Review" and tab `/^Comments/`, lists both threads again.
 - `apps/web/spec/integration/reviews-change-comment.test.tsx`: "Whole change" shows and the post button is disabled when the composer opens; after posting, `server.commentThreads()` holds `{ anchor: { kind: 'change' } }`; after the branch commit the branch button is enabled, and the branch thread is saved with `comparison: { kind: 'branch', base: 'refs/heads/main' }` and `revision` = the branch tip.
 
 ## Gotchas

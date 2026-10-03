@@ -28,7 +28,7 @@ A Git action that outlives its deadline ends interrupted ("outcome unknown"); th
 
 ## Driving it
 
-Start with `.agents/skills/web-verify/scripts/cli start` (phone width is fine). The CLI's server sets the Git action deadline to 1.5 seconds (`gitActionDeadlineMs: 1500` in `apps/server/spec/kit/sandboxed-server.ts`), so a Git that blocks ends interrupted on its own.
+Start with `$C start` (phone width is fine). The CLI's server sets the Git action deadline to 1.5 seconds (`gitActionDeadlineMs: 1500` in `apps/server/spec/kit/sandboxed-server.ts`), so a Git that blocks ends interrupted on its own.
 
 ### Setup
 
@@ -39,23 +39,23 @@ rm "$REPO/.git/logs/HEAD"
 mkfifo "$REPO/.git/logs/HEAD"
 ```
 
-1. `.agents/skills/web-verify/scripts/cli click --role button --name "Commit"`
+1. `$C click --role button --name "Commit"`
    Look for: dialog "Commit changes" with textbox "Message" and button "Commit selected files"; README.md listed under Files.
-2. `.agents/skills/web-verify/scripts/cli fill --role textbox --name "Message" "Stuck commit"`
+2. `$C fill --role textbox --name "Message" "Stuck commit"`
    Look for: the textbox holds "Stuck commit"; button "Commit selected files" is enabled.
-3. `.agents/skills/web-verify/scripts/cli click --role button --name "Commit selected files"`
+3. `$C click --role button --name "Commit selected files"`
    Look for: button "Committing…" (disabled) and status "running" for about 1.5 seconds; a CLI command often lands after it, so go on to step 4.
-4. `.agents/skills/web-verify/scripts/cli wait --text "outcome unknown"`, then `.agents/skills/web-verify/scripts/cli snapshot`
+4. `$C wait --text "outcome unknown"`, then `$C snapshot`
    Look for: inside dialog "Commit changes", an `alert` reading "outcome unknown"; button "Commit selected files" is back.
-5. `.agents/skills/web-verify/scripts/cli press Escape`
+5. `$C press Escape`
    Look for: the dialog is gone; at the top of region "Review content" a `status` with "A Git action was interrupted: commit", "Check the current changes before trying again." and button "Got it". README.md is still listed as changed (`git -C "$REPO" status --short` prints ` M README.md`).
-6. `.agents/skills/web-verify/scripts/cli open /`
+6. `$C open /`
    Look for: the same notice is still there after the reload (the server kept it).
-7. `.agents/skills/web-verify/scripts/cli click --role button --name "Got it"`
+7. `$C click --role button --name "Got it"`
    Look for: the `status` "A Git action was interrupted: commit" is gone.
-8. `.agents/skills/web-verify/scripts/cli network`
-   Look for: `DELETE /api/worktrees/<id>/git/interrupted/<requestId>` answered 200. (`network` lists only the requests since the last page load: the `POST /api/worktrees/<id>/git/actions` answered 202 shows only in a `network` taken before step 6.) `.agents/skills/web-verify/scripts/cli server receipt <requestId>`, with the id from that DELETE, prints `"action": "commit"`, `"state": "interrupted"` and `"reason": "OUTCOME_UNKNOWN"`: dismissing the notice keeps the receipt.
-9. `.agents/skills/web-verify/scripts/cli open /`
+8. `$C network`
+   Look for: `DELETE /api/worktrees/<id>/git/interrupted/<requestId>` answered 200. (`network` lists only the requests since the last page load: the `POST /api/worktrees/<id>/git/actions` answered 202 shows only in a `network` taken before step 6.) `$C server receipt <requestId>`, with the id from that DELETE, prints `"action": "commit"`, `"state": "interrupted"` and `"reason": "OUTCOME_UNKNOWN"`: dismissing the notice keeps the receipt.
+9. `$C open /`
    Look for: the notice does not come back.
 
 ## What proves it works

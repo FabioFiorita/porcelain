@@ -27,7 +27,7 @@ A Git action still running when the page reloads is still followed after the rel
 
 ## Driving it
 
-Start with `.agents/skills/web-verify/scripts/cli start`; `REPO` is the repository path it printed. The CLI's server ends a blocked Git action after 1.5 seconds (`gitActionDeadlineMs: 1500`); cutting the live connection before the commit keeps the page from hearing that outcome, so the reload happens while the page still follows a running action, as the test's held live notices do.
+Start with `$C start`; `REPO` is the repository path it printed. The CLI's server ends a blocked Git action after 1.5 seconds (`gitActionDeadlineMs: 1500`); cutting the live connection before the commit keeps the page from hearing that outcome, so the reload happens while the page still follows a running action, as the test's held live notices do.
 
 ### Setup
 
@@ -38,17 +38,17 @@ rm "$REPO/.git/logs/HEAD"
 mkfifo "$REPO/.git/logs/HEAD"
 ```
 
-1. `.agents/skills/web-verify/scripts/cli click --role button --name "Commit"`
+1. `$C click --role button --name "Commit"`
    Look for: dialog "Commit changes" with textbox "Message".
-2. `.agents/skills/web-verify/scripts/cli fill --role textbox --name "Message" "Commit across a reload"`
+2. `$C fill --role textbox --name "Message" "Commit across a reload"`
    Look for: button "Commit selected files" is enabled.
-3. `.agents/skills/web-verify/scripts/cli live drop`, then `.agents/skills/web-verify/scripts/cli click --role button --name "Commit selected files"`
+3. `$C live drop`, then `$C click --role button --name "Commit selected files"`
    Look for: button "Committing…" [disabled] in the dialog.
-4. `.agents/skills/web-verify/scripts/cli open /`
+4. `$C open /`
    Look for: the page reloads to the workspace (new live connections still close); region "Review content" shows the status "A Git action was interrupted: commit" once the app has read the receipt.
-5. `.agents/skills/web-verify/scripts/cli click --role button --name "Commit"`
+5. `$C click --role button --name "Commit"`
    Look for: dialog "Commit changes" with status "Outcome not yet confirmed" and button "Commit selected files" [disabled]: the reloaded page still follows the commit.
-6. `.agents/skills/web-verify/scripts/cli live restore`, then `.agents/skills/web-verify/scripts/cli wait --text "interrupted"`
+6. `$C live restore`, then `$C wait --text "interrupted"`
    Look for: "the live connection is back after <n> ms"; the dialog's status now reads "interrupted" and "Outcome not yet confirmed" is gone.
 
 ## What proves it works

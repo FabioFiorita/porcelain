@@ -1,5 +1,5 @@
 import { browserNetwork } from '../../../../apps/server/spec/kit/browser-network.ts';
-import { Usage } from '../../server-verify/scripts/core/cli.ts';
+import { Usage } from '../../verify-core/cli.ts';
 
 type Run = (code: string) => string;
 

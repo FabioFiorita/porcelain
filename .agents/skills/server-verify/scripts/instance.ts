@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { Registry } from './core/registry.ts';
+import { Registry } from '../../verify-core/registry.ts';
 
 export const STALE_BUILD =
   'server or CLI code changed since start, run start again';

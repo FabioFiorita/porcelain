@@ -27,6 +27,7 @@
         "$TURBO_DEFAULT$",
         "$TURBO_ROOT$/vitest.config.ts",
         "$TURBO_ROOT$/.agents/skills/server-verify/scripts/**",
+        "$TURBO_ROOT$/.agents/skills/verify-core/**",
         "$TURBO_ROOT$/.agents/skills/web-verify/scripts/**"
       ]
     },

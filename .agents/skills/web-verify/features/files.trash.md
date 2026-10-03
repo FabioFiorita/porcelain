@@ -26,7 +26,7 @@ Moving a file to the trash from the tree, after a confirmation, moves it to the 
 
 ## Driving it
 
-Start with `.agents/skills/web-verify/scripts/cli start`. Set `REPO` to the path it prints after `repository`.
+Start with `$C start`. Set `REPO` to the path it prints after `repository`.
 
 ### Setup
 
@@ -41,33 +41,33 @@ On Linux the sandboxed server keeps its XDG data home in the instance folder, so
 
 ### 1. Trash removes the file
 
-1. `.agents/skills/web-verify/scripts/cli open /`
+1. `$C open /`
    Look for: Page Title "Changes — repository".
-2. `.agents/skills/web-verify/scripts/cli click --role button --name "Review"`
+2. `$C click --role button --name "Review"`
    Look for: dialog "Worktree review".
-3. `.agents/skills/web-verify/scripts/cli click --role tab --name "Files"`
+3. `$C click --role tab --name "Files"`
    Look for: treeitems "old-notes.md" and "gone-notes.md" in the tree of region "All files".
-4. `.agents/skills/web-verify/scripts/cli click --role treeitem --name "old-notes.md" --button right`
+4. `$C click --role treeitem --name "old-notes.md" --button right`
    Look for: a menu whose last menuitem is "Move to trash".
-5. `.agents/skills/web-verify/scripts/cli click --role menuitem --name "Move to trash"`
+5. `$C click --role menuitem --name "Move to trash"`
    Look for: alertdialog "Move old-notes.md to the trash?" with buttons "Cancel" and "Move to trash". The file is untracked, so the description begins "This is part of the agent’s changes."
-6. `.agents/skills/web-verify/scripts/cli click --role button --name "Move to trash"`
+6. `$C click --role button --name "Move to trash"`
    Look for: the alertdialog is gone and treeitem "old-notes.md" is gone; the sheet stays open.
    Disk: `test -e "$REPO/old-notes.md" || echo gone` prints `gone`; `grep -l 'old-notes.md' "$REPO"/../data/Trash/info/*.trashinfo` prints one file. The content sits under `$REPO/../data/Trash/files/`.
 
 ### 2. Trashing a file already removed is refused
 
-7. `.agents/skills/web-verify/scripts/cli click --role treeitem --name "gone-notes.md" --button right`
+7. `$C click --role treeitem --name "gone-notes.md" --button right`
    Look for: the menu opens.
-8. `.agents/skills/web-verify/scripts/cli click --role menuitem --name "Move to trash"`
+8. `$C click --role menuitem --name "Move to trash"`
    Look for: alertdialog "Move gone-notes.md to the trash?".
 9. With the dialog open, remove the file on disk: `rm "$REPO/gone-notes.md"`.
-10. `.agents/skills/web-verify/scripts/cli click --role button --name "Move to trash"`
+10. `$C click --role button --name "Move to trash"`
     Look for: inside the alertdialog, an alert reading "Path not found"; the dialog stays open.
-11. `.agents/skills/web-verify/scripts/cli click --role button --name "Cancel"`
+11. `$C click --role button --name "Cancel"`
     Look for: the alertdialog is gone; treeitem "README.md" still shows.
     Disk: `test -e "$REPO/README.md" && echo kept` prints `kept`.
-12. `.agents/skills/web-verify/scripts/cli network`
+12. `$C network`
     Look for: `POST /api/worktrees/<worktreeId>/files` with a 2xx status (step 6), then one with an error status (step 10).
 
 ## What proves it works

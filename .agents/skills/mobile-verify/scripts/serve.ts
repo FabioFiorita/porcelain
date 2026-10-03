@@ -31,11 +31,8 @@ import {
   type DeviceKind,
 } from '../../../../apps/mobile/spec/kit/simulator.ts';
 import { missingTools } from '../../../../apps/mobile/spec/kit/tools.ts';
-import {
-  Refusal,
-  refuseMissing,
-} from '../../server-verify/scripts/core/cli.ts';
-import type { Life } from '../../server-verify/scripts/core/registry.ts';
+import { Refusal, refuseMissing } from '../../verify-core/cli.ts';
+import type { Life } from '../../verify-core/registry.ts';
 import {
   agentDevice,
   connectHub,

@@ -1,3 +1,3 @@
 #!/bin/sh
-. "$(dirname "$0")/../../server-verify/scripts/core/preflight.sh"
+. "$(dirname "$0")/../../verify-core/preflight.sh"
 exec node "$(dirname "$0")/cli.ts" "$@"
