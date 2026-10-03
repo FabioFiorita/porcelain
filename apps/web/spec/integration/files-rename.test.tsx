@@ -73,6 +73,15 @@ test('renaming a file onto an existing name is refused and keeps both files', as
     .element(page.getByRole('treeitem', { name: after, exact: true }))
     .toBeVisible();
   await expect
+    .element(
+      page.getByRole('button', {
+        name: `Close ${after}`,
+        exact: true,
+        includeHidden: true,
+      }),
+    )
+    .not.toBeInTheDocument();
+  await expect
     .poll(async () => (await server.text(repo.readme.path)).text)
     .toBe(repo.readme.changed);
   await expect

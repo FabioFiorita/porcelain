@@ -137,10 +137,7 @@ function FileTreeMenuAction({
         action.id === 'trash') && <Separator />}
       <Item
         variant={action.id === 'trash' ? 'destructive' : 'default'}
-        onPointerDownCapture={() => onAction(action.id)}
-        onKeyDownCapture={(event) => {
-          if (event.key === 'Enter' || event.key === ' ') onAction(action.id);
-        }}
+        onClick={() => onAction(action.id)}
       >
         <Icon />
         {action.label}
