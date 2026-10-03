@@ -65,7 +65,7 @@ A failed test keeps screenshots, the server log and renderer errors in `apps/des
 
 ## The installed app's lock
 
-`pnpm desktop:build` and `pnpm desktop:install` are the owner's. After the owner installs a build that changes the lock (`features/app.installed-lock.md`), check it:
+`pnpm desktop:build` and `pnpm desktop:install` are the owner's. After the owner installs a build that changes the lock (`features/app.installed-lock.md`), and only when the owner asks, check it:
 
 ```sh
 $C installed-check
