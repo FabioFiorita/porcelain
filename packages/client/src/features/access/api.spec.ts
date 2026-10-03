@@ -42,8 +42,12 @@ describe('environment status', () => {
       { ...environment, environmentId: 'another-environment' },
     ],
     [
-      'another protocol',
+      'a newer protocol',
       { ...environment, protocol: ENVIRONMENT_PROTOCOL + 1 },
+    ],
+    [
+      'an older protocol',
+      { ...environment, protocol: ENVIRONMENT_PROTOCOL - 1 },
     ],
   ])(
     'returns the descriptor of %s without an authenticated read',

@@ -100,6 +100,11 @@ describe('pairing an environment', () => {
       protocol: ENVIRONMENT_PROTOCOL + 1,
       message: 'version',
     },
+    {
+      environmentId: 'installation',
+      protocol: ENVIRONMENT_PROTOCOL - 1,
+      message: 'version',
+    },
   ])(
     'does not save an incompatible or different installation $environmentId/$protocol',
     async ({ environmentId, protocol, message }) => {
