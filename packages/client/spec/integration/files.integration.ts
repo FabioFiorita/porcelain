@@ -1,0 +1,65 @@
+import { mkdir } from 'node:fs/promises';
+import { join } from 'node:path';
+import { expect } from 'vitest';
+import { QueryClient } from '@tanstack/query-core';
+import { test } from '@porcelain/server/kit/server-test';
+import { directoryQueryOptions } from '@porcelain/client/files';
+import { pathsQueryOptions } from '@porcelain/client/files';
+import { textQueryOptions } from '@porcelain/client/files';
+import { connection } from '../kit/connection.ts';
+
+test('browse nested paths and read exact Unicode text through the paired transport', async ({
+  server,
+  session,
+}) => {
+  await mkdir(join(session.repository, 'notes'));
+  await session.writeFile('notes/a #&?.md', 'Olá 🌿\nSecond line\n');
+  const { connected, scope } = await connection(server, session);
+  const cache = new QueryClient();
+  const root = await cache.query(directoryQueryOptions(scope, connected, ''));
+  expect(root.entries).toContainEqual({ name: 'notes', kind: 'directory' });
+  const nested = await cache.query(
+    directoryQueryOptions(scope, connected, 'notes'),
+  );
+  expect(nested).toEqual({
+    worktreeId: scope.worktreeId,
+    path: 'notes',
+    entries: [{ name: 'a #&?.md', kind: 'file' }],
+  });
+  const paths = await cache.query(pathsQueryOptions(scope, connected));
+  expect(paths.paths).toContain('notes/a #&?.md');
+  const file = await cache.query(
+    textQueryOptions(scope, connected, 'notes/a #&?.md'),
+  );
+  expect(file).toMatchObject({
+    worktreeId: scope.worktreeId,
+    path: 'notes/a #&?.md',
+    encoding: 'utf-8',
+    byteLength: 22,
+    text: 'Olá 🌿\nSecond line\n',
+  });
+});
+
+test('missing files retain the server error and binary files explain why text is unavailable', async ({
+  server,
+  session,
+}) => {
+  await session.writeFile('binary.dat', new Uint8Array([0, 1, 2]));
+  const { connected, scope } = await connection(server, session);
+  const cache = new QueryClient();
+  await expect(
+    cache.query({
+      ...textQueryOptions(scope, connected, 'missing.md'),
+      retry: false,
+    }),
+  ).rejects.toMatchObject({ status: 404 });
+  await expect(
+    cache.query({
+      ...textQueryOptions(scope, connected, 'binary.dat'),
+      retry: false,
+    }),
+  ).resolves.toEqual({
+    kind: 'unreadable',
+    reason: 'This file is binary or uses an unsupported text encoding.',
+  });
+});

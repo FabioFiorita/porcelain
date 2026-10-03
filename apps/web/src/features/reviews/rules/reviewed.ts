@@ -102,12 +102,6 @@ export type ReviewableItem = Pick<
   'path' | 'fingerprint' | 'reviewStatus'
 >;
 
-export function reviewedScopeKey(range: ReviewRange): string[] {
-  return range.kind === 'branch'
-    ? ['reviewed', 'branch', range.branch ?? '']
-    : ['reviewed'];
-}
-
 export function bulkMarkPlan(entries: readonly ReviewableItem[]) {
   const report: BulkReviewReport = { marked: [], skipped: [], failed: [] };
   const files: { path: string; fingerprint: string }[] = [];

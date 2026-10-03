@@ -1,7 +1,7 @@
+import { changeDiffsQueryOptions } from '@porcelain/client/changes';
 import { DIFFS_PER_REQUEST } from '@porcelain/contracts/shared';
 import { useBatchedReads } from './batched-reads';
-import { queryKeys } from '@/shared/query/keys';
-import { changesApi, isWorktreeChangedError } from '../api';
+import { isWorktreeChangedError } from '../api';
 import {
   selectionKey,
   type ChangesScope,
@@ -37,26 +37,17 @@ export function useChangeDiffs(
   const read = useBatchedReads({
     batches,
     key: (batch) =>
-      queryKeys.reviewSurface(connection.environmentId, scope, [
-        'change-diffs',
-        statusToken,
-        batch.expectedFiles.map(
-          (file) => `${file.path}:${file.fingerprint ?? ''}`,
-        ),
-        batch.selections.map(selectionKey),
-      ]),
+      changeDiffsQueryOptions(scope, connection, {
+        expectedStatusToken: statusToken,
+        expectedFiles: batch.expectedFiles,
+        selections: batch.selections,
+      }).queryKey,
     read: async (batch, signal) => {
-      const request = connection.request(signal);
-      const data = await changesApi(connection).diffs(
-        request.signal,
-        scope.worktreeId,
-        {
-          expectedStatusToken: statusToken,
-          expectedFiles: batch.expectedFiles,
-          selections: batch.selections,
-        },
-      );
-      request.signal.throwIfAborted();
+      const data = await changeDiffsQueryOptions(scope, connection, {
+        expectedStatusToken: statusToken,
+        expectedFiles: batch.expectedFiles,
+        selections: batch.selections,
+      }).queryFn({ signal });
       return data.diffs.map(
         ({ selection, content }) => [selectionKey(selection), content] as const,
       );

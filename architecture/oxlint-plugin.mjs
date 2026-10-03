@@ -1134,7 +1134,13 @@ function moduleVisitors(check) {
 
 function isSpec(context) {
   const path = normalizedFilename(context.filename);
-  return specSource.test(path) || storeContractSource.test(path);
+  return (
+    specSource.test(path) ||
+    storeContractSource.test(path) ||
+    /packages\/client\/spec\/integration\/[a-z]+(?:-[a-z]+)*\.integration\.ts$/.test(
+      path,
+    )
+  );
 }
 
 function chainRoot(node) {
@@ -1162,6 +1168,22 @@ function allowedSpecImport(filename, source) {
   if (source === 'vitest') return true;
   if (specNodeModule.test(source) || specPackageEntry.test(source)) return true;
   const path = normalizedFilename(filename);
+  if (
+    /packages\/client\/spec\/integration\/[a-z]+(?:-[a-z]+)*\.integration\.ts$/.test(
+      path,
+    )
+  )
+    return (
+      /^@porcelain\/client\/(?:files|changes|history|reviews|transport)(?:\/api)?$/.test(
+        source,
+      ) ||
+      /^@porcelain\/contracts\/(?:shared|files|changes|reviews|projects)$/.test(
+        source,
+      ) ||
+      /^@porcelain\/server\/kit\/[a-z-]+$/.test(source) ||
+      source === '@tanstack/query-core' ||
+      /^\.\.\/kit\/[a-z-]+\.ts$/.test(source)
+    );
   const clientFeature =
     /packages\/client\/src\/features\/([^/]+)\/(?:[^/]+\.spec\.ts|(?:commands|queries)\/[^/]+\.spec\.ts)$/.exec(
       path,

@@ -7,7 +7,7 @@ import {
 import { ConnectionError } from '@porcelain/client/transport';
 import { queryKeys } from '@/shared/query/keys';
 import { asMutation } from '@/shared/query/mutation';
-import { commentsQueryOptions } from '../queries/comments';
+import { commentsQueryOptions } from '@porcelain/client/reviews';
 import type {
   CommentThread,
   DeleteCommentInput,
@@ -25,7 +25,7 @@ function commentContext(scope: ReviewScope, context: ConnectionContext) {
   const { connection } = context;
   return {
     api: commentsApi(connection),
-    key: commentsQueryOptions(scope, context).queryKey,
+    key: commentsQueryOptions(scope, context.connection).queryKey,
     connection,
     request: (signal?: AbortSignal) => ({
       ...scope,

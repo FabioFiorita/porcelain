@@ -1,8 +1,8 @@
 import {
-  listReviewedFilesResponseSchema,
-  listReviewedLayersResponseSchema,
-  readProofFileResponseSchema,
-  readPublishedReviewResponseSchema,
+  reviewsApi as sharedReviewsApi,
+  commentsApi as sharedCommentsApi,
+} from '@porcelain/client/reviews/api';
+import {
   removeReviewedFileResponseSchema,
   removeReviewedFilesRequestSchema,
   removeReviewedFilesResponseSchema,
@@ -20,7 +20,6 @@ import {
   deleteResolvedCommentsResponseSchema,
   editCommentMessageRequestSchema,
   editCommentMessageResponseSchema,
-  listCommentThreadsResponseSchema,
   markCommentsSeenResponseSchema,
   replyToCommentRequestSchema,
   replyToCommentResponseSchema,
@@ -59,13 +58,7 @@ function createCommentsApi(transport: Transport): CommentsPort {
   const threadPath = (worktreeId: string, threadId: string) =>
     `${path(worktreeId)}/${encodeURIComponent(threadId)}`;
   return {
-    list: ({ worktreeId, signal }) =>
-      requestJson(
-        transport,
-        path(worktreeId),
-        listCommentThreadsResponseSchema,
-        { signal },
-      ),
+    ...sharedCommentsApi({ transport }),
     create: async ({ worktreeId, signal, input }) => [
       await requestJson(
         transport,
@@ -152,30 +145,9 @@ function createReviewsApi(transport: Transport): ReviewsPort {
   const layers = (worktreeId: string) =>
     `${worktreePath(worktreeId)}/reviewed-layers`;
   return {
-    review: async ({ worktreeId, signal }) =>
-      (
-        await requestJson(
-          transport,
-          `${worktreePath(worktreeId)}/review`,
-          readPublishedReviewResponseSchema,
-          { signal },
-        )
-      ).review ?? null,
-    proofFile: ({ worktreeId, proofId, signal }) =>
-      requestJson(
-        transport,
-        `${worktreePath(worktreeId)}/review/proof?${new URLSearchParams({ proofId })}`,
-        readProofFileResponseSchema,
-        { signal },
-      ),
+    ...sharedReviewsApi({ transport }),
     reviewed: {
-      list: ({ worktreeId, signal, range }) =>
-        requestJson(
-          transport,
-          `${reviewed(worktreeId)}${range.kind === 'branch' ? `?${new URLSearchParams({ scope: 'branch', ...onBranch(range) })}` : ''}`,
-          listReviewedFilesResponseSchema,
-          { signal },
-        ),
+      ...sharedReviewsApi({ transport }).reviewed,
       set: ({ worktreeId, signal, range, input }) =>
         requestJson(
           transport,
@@ -239,13 +211,7 @@ function createReviewsApi(transport: Transport): ReviewsPort {
         ),
     },
     reviewedLayers: {
-      list: ({ worktreeId, signal }) =>
-        requestJson(
-          transport,
-          layers(worktreeId),
-          listReviewedLayersResponseSchema,
-          { signal },
-        ),
+      ...sharedReviewsApi({ transport }).reviewedLayers,
       set: ({ worktreeId, signal, input }) =>
         requestJson(
           transport,

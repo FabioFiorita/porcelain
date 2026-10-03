@@ -261,6 +261,26 @@ class RouteReader {
     return loaded;
   }
 
+  importedFiles(folders: readonly string[]): ReadonlySet<string> {
+    const imported = new Set<string>();
+    const visit = (file: string) => {
+      if (imported.has(file)) return;
+      imported.add(file);
+      const module = this.module(file);
+      for (const binding of [
+        ...module.imports.values(),
+        ...module.exports.values(),
+      ])
+        if (binding.from !== file) visit(binding.from);
+      for (const from of module.exportAll) visit(from);
+    };
+    for (const folder of folders)
+      for (const file of filesUnder(this.root, folder))
+        if (/\.tsx?$/.test(file) && !/\.(?:spec|d)\.ts$/.test(file))
+          visit(file);
+    return imported;
+  }
+
   private functionsNamed(
     module: Module,
     name: string,
@@ -373,17 +393,27 @@ export function apiCalls(
   root: string,
   folders: readonly string[],
   layer: readonly RegExp[],
+  importedFrom?: readonly string[],
 ): {
   calls: ApiCall[];
   problems: string[];
+  sharedSources: string[];
 } {
   const reader = new RouteReader(root);
+  const imported =
+    importedFrom === undefined ? undefined : reader.importedFiles(importedFrom);
   const calls: ApiCall[] = [];
   const problems: string[] = [];
   const files = folders
     .flatMap((folder) => filesUnder(root, folder))
     .map((path) => path.replaceAll('\\', '/'))
     .filter((path) => layer.some((pattern) => pattern.test(path)))
+    .filter(
+      (path) =>
+        !path.startsWith('packages/client/src/') ||
+        imported === undefined ||
+        imported.has(path),
+    )
     .toSorted();
   for (const file of files) {
     const module = reader.module(file);
@@ -432,7 +462,13 @@ export function apiCalls(
       },
     }).visit(parseSync(file, source).program);
   }
-  return { calls, problems };
+  return {
+    calls,
+    problems,
+    sharedSources: [...(imported ?? [])].filter((file) =>
+      file.startsWith('packages/client/src/'),
+    ),
+  };
 }
 
 function segmentsMatch(route: string[], call: string[]): boolean {

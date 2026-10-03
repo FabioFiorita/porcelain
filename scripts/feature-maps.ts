@@ -20,7 +20,11 @@ export type Surface = {
   domains: readonly string[];
   pages: ((root: string) => Page[]) | undefined;
   sources: readonly string[];
-  calls: (root: string) => { calls: ApiCall[]; problems: string[] };
+  calls: (root: string) => {
+    calls: ApiCall[];
+    problems: string[];
+    sharedSources?: readonly string[];
+  };
   flows?: string;
 };
 
@@ -130,6 +134,7 @@ const web: Surface = {
         /^packages\/client\/src\/features\/[^/]+\/api\.ts$/,
         /^packages\/client\/src\/shared\/api\/[a-z-]+\.ts$/,
       ],
+      ['apps/web/src'],
     ),
 };
 
@@ -181,6 +186,7 @@ const mobile: Surface = {
         /^packages\/client\/src\/features\/[^/]+\/api\.ts$/,
         /^packages\/client\/src\/shared\/api\/[a-z-]+\.ts$/,
       ],
+      ['apps/mobile/src'],
     ),
 };
 
@@ -291,8 +297,9 @@ function surfaceProblems(
           `${flow}: it tests a native ${surface.name} feature that no ${surface.name} map file names in its tests; add it to the tests of the map file of the feature it proves, or write that map file.`,
         );
   }
-  const source = surface.sources
-    .flatMap(filesUnder)
+  const { calls, problems: unread, sharedSources = [] } = surface.calls(root);
+  problems.push(...unread);
+  const source = [...surface.sources.flatMap(filesUnder), ...sharedSources]
     .filter((file) => sourceFile.test(file))
     .map((file) => readFileSync(join(root, file), 'utf8'))
     .join('\n');
@@ -311,8 +318,6 @@ function surfaceProblems(
           `${entry.file}: api ${api} is no route the server registers under apps/server/src/http`,
         );
   }
-  const { calls, problems: unread } = surface.calls(root);
-  problems.push(...unread);
   for (const entry of mapped)
     for (const api of entry.api)
       if (routes.includes(api) && !calls.some((call) => sameRoute(api, call)))

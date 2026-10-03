@@ -252,6 +252,38 @@ deepStrictEqual(
   ),
   'client-public-api-only',
 );
+deepStrictEqual(
+  classify('packages/client/spec/integration/files.integration.ts'),
+  {
+    role: 'client-integration-test',
+    owner: 'client',
+  },
+);
+deepStrictEqual(classify('packages/client/spec/kit/connection.ts'), {
+  role: 'client-test-kit',
+  owner: 'client',
+});
+deepStrictEqual(
+  violation(
+    { role: 'client-integration-test', owner: 'client' },
+    { role: 'server-kit', owner: 'server' },
+  ),
+  undefined,
+);
+deepStrictEqual(
+  violation(
+    { role: 'client-integration-test', owner: 'client' },
+    { role: 'bootstrap', owner: 'server' },
+  ),
+  'client-imports-client-and-contracts-only',
+);
+deepStrictEqual(
+  violation(
+    { role: 'query', owner: 'client' },
+    { role: 'server-kit', owner: 'server' },
+  ),
+  'client-imports-client-and-contracts-only',
+);
 for (const entry of cases)
   tester.run(entry.rule, plugin.rules[entry.rule], {
     valid: [{ filename, code: entry.valid }],

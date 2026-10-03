@@ -774,7 +774,7 @@ const gateScripts: Readonly<Record<string, Readonly<Record<string, string>>>> =
       'format:server:check': 'node scripts/style.ts format server',
       'arch:check': 'node scripts/architecture.ts check',
       probes: 'node scripts/probes.ts',
-      test: 'vitest run --project !@porcelain/server-integration --project !@porcelain/server-perf --project !@porcelain/mobile-e2e*',
+      test: 'vitest run --project !@porcelain/client-integration --project !@porcelain/server-integration --project !@porcelain/server-perf --project !@porcelain/mobile-e2e*',
       'test:integration': 'turbo run test:integration',
       'test:e2e': 'turbo run test:e2e',
       'db:check': 'pnpm --filter @porcelain/storage db:check',
@@ -802,6 +802,11 @@ const gateScripts: Readonly<Record<string, Readonly<Record<string, string>>>> =
         'vitest run --config ../../vitest.config.ts --project @porcelain/server-integration',
       'test:perf':
         'vitest run --config ../../vitest.config.ts --project @porcelain/server-perf',
+    },
+    'packages/client/package.json': {
+      typecheck: 'tsc --noEmit && tsc --noEmit -p tsconfig.spec.json',
+      'test:integration':
+        'vitest run --config ../../vitest.config.ts --project @porcelain/client-integration',
     },
     'packages/storage/package.json': {
       'db:check': 'drizzle-kit check && node scripts/check-migrations.ts',

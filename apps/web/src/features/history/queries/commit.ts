@@ -1,40 +1,7 @@
-import { queryOptions, useSuspenseQuery } from '@tanstack/react-query';
-import { historyApi } from '../api';
+import { commitQueryOptions } from '@porcelain/client/history';
+import { useSuspenseQuery } from '@tanstack/react-query';
 import type { HistoryScope } from '../rules/connection';
 import { type Connection } from '@/shared/workspace/connection';
-
-function commitQueryOptions(
-  environmentId: string,
-  scope: HistoryScope,
-  oid: string,
-  parent: number,
-  connection: Connection,
-) {
-  return queryOptions({
-    queryKey: [
-      'review',
-      environmentId,
-      scope.projectId,
-      scope.worktreeId,
-      'commit',
-      oid,
-      parent,
-    ],
-    queryFn: async ({ signal }) => {
-      const connected = connection.request(signal);
-      const commit = await historyApi(connection).commit(
-        connected.signal,
-        scope.worktreeId,
-        oid,
-        parent,
-      );
-      connected.signal.throwIfAborted();
-      return commit;
-    },
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
-  });
-}
 
 export function useCommit(
   connection: Connection | null,
@@ -43,13 +10,6 @@ export function useCommit(
   parent = 1,
 ) {
   if (!connection) throw new Error('A connected environment is required');
-  return useSuspenseQuery(
-    commitQueryOptions(
-      connection.environmentId,
-      scope,
-      oid,
-      parent,
-      connection,
-    ),
-  ).data;
+  return useSuspenseQuery(commitQueryOptions(scope, connection, oid, parent))
+    .data;
 }

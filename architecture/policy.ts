@@ -75,6 +75,14 @@ export const targetPackageExports: Record<string, Record<string, string>> = {
     './projects': './src/features/projects/index.ts',
     './projects/api': './src/features/projects/api.ts',
     './projects/rules': './src/features/projects/rules/index.ts',
+    './files': './src/features/files/index.ts',
+    './files/api': './src/features/files/api.ts',
+    './changes': './src/features/changes/index.ts',
+    './changes/api': './src/features/changes/api.ts',
+    './history': './src/features/history/index.ts',
+    './history/api': './src/features/history/api.ts',
+    './reviews': './src/features/reviews/index.ts',
+    './reviews/api': './src/features/reviews/api.ts',
     './transport': './src/shared/api/index.ts',
   },
 };
@@ -178,6 +186,8 @@ export const roles = [
   'client-request-api',
   'client-port',
   'client-feature-spec',
+  'client-integration-test',
+  'client-test-kit',
   'client-transport-api',
   'client-transport-spec',
   'mobile-config',
@@ -818,6 +828,14 @@ export function nestedInRoleFolder(path: string): boolean {
 
 export function classify(path: string): Classification | undefined {
   if (nestedInRoleFolder(path)) return;
+  if (
+    /^packages\/client\/spec\/integration\/[a-z]+(?:-[a-z]+)*\.integration\.ts$/.test(
+      path,
+    )
+  )
+    return classified('client-integration-test', 'client');
+  if (/^packages\/client\/spec\/kit\/[a-z]+(?:-[a-z]+)*\.ts$/.test(path))
+    return classified('client-test-kit', 'client');
   const packageFake = /^packages\/([^/]+)\/spec\/fakes\/.+\.ts$/.exec(path);
   if (packageFake) return classified('fake', packageFake[1] ?? '');
   const capture = /^packages\/([^/]+)\/spec\/fixtures\/capture\.ts$/.exec(path);
@@ -1000,6 +1018,21 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
     'command',
     'store',
     'web-rule',
+  ]),
+  'client-integration-test': new Set([
+    'client-feature-api',
+    'client-request-api',
+    'client-transport-api',
+    'client-test-kit',
+    'server-kit',
+    'contract',
+  ]),
+  'client-test-kit': new Set([
+    'client-test-kit',
+    'server-kit',
+    'client-transport-api',
+    'web-shared',
+    'contract',
   ]),
   'client-transport-api': new Set(['web-shared']),
   'client-transport-spec': new Set(['web-shared']),
@@ -1351,6 +1384,8 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
 const specSupportRoles: ReadonlySet<string> = new Set(['fake', 'fixture']);
 
 const serverKitClients: ReadonlySet<Role> = new Set<Role>([
+  'client-integration-test',
+  'client-test-kit',
   'web-test-kit',
   'e2e-kit',
   'integration-host',
@@ -1421,7 +1456,8 @@ export function violation(
   if (
     from.owner === 'client' &&
     to.owner !== 'client' &&
-    to.owner !== 'contracts'
+    to.owner !== 'contracts' &&
+    !(serverKitClients.has(from.role) && to.role === 'server-kit')
   )
     return 'client-imports-client-and-contracts-only';
   if (
@@ -1540,6 +1576,8 @@ export function allowedProcessImport(
 }
 
 export const nodeGlobalRoles: ReadonlySet<Role> = new Set<Role>([
+  'client-integration-test',
+  'client-test-kit',
   'desktop',
   'desktop-gateway',
   'gateway',
@@ -1581,6 +1619,8 @@ export const externalPackages: Record<Role, readonly string[]> = {
   'client-request-api': [],
   'client-port': [],
   'client-feature-spec': ['vitest'],
+  'client-integration-test': ['vitest', '@tanstack/query-core'],
+  'client-test-kit': ['vitest'],
   'client-transport-api': [],
   'client-transport-spec': ['vitest'],
   desktop: ['electron', 'fix-path', 'zod'],
@@ -1698,6 +1738,8 @@ function forbiddenNodeModule(role: Role, name: string): boolean {
   const base = name.split('/')[0] ?? '';
   if (
     role === 'test' ||
+    role === 'client-integration-test' ||
+    role === 'client-test-kit' ||
     role === 'server-kit' ||
     role === 'integration-test' ||
     role === 'server-cli' ||
@@ -1780,6 +1822,10 @@ const rolePurposes: Record<Role, string> = {
     'a platform capability supplied by app adapters to shared client behavior',
   'client-feature-spec':
     'a behavior spec for a shared feature with in-memory platform capabilities',
+  'client-integration-test':
+    'a shared client read tested through its public API against a disposable real server',
+  'client-test-kit':
+    'shared client integration setup using the public server kit and injected transport',
   'client-transport-api':
     'the shared client transport entry; feature APIs own requests and app adapters supply platform transport',
   'client-transport-spec':

@@ -1,7 +1,7 @@
 import { REVIEWED_FILE_MARKS } from '@porcelain/contracts/shared';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { asMutation } from '@/shared/query/mutation';
-import { reviewedQueryOptions } from '../queries/reviewed';
+import { reviewedQueryOptions } from '@porcelain/client/reviews';
 import { reviewErrorMessage, type ReviewScope } from '../rules/review';
 import {
   bulkMarkPlan,
@@ -28,7 +28,7 @@ function reviewedContext(
   const { connection } = context;
   return {
     api: reviewsApi(connection).reviewed,
-    key: reviewedQueryOptions(scope, context, range).queryKey,
+    key: reviewedQueryOptions(scope, context.connection, range).queryKey,
     connection,
     request: (signal?: AbortSignal) => ({
       ...scope,
