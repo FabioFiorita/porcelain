@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import type { ReadInventoryResponse } from '@porcelain/contracts/projects';
-import type { InventoryConnection } from '@porcelain/client/projects';
 import {
   inventoryQueryOptions,
   inventoryScopeQueryOptions,
@@ -26,7 +25,7 @@ function connection(
   const controller = new AbortController();
   const requests: { path: string; signal: AbortSignal | null | undefined }[] =
     [];
-  const connected: InventoryConnection = {
+  const connected: Parameters<typeof inventoryQueryOptions>[0] = {
     environmentId,
     ...(cacheIdentity === undefined ? {} : { cacheIdentity }),
     request: (signal) => ({

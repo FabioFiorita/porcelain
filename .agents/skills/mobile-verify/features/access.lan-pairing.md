@@ -1,9 +1,9 @@
 ---
 screen: /settings
 selectors:
-  - "Add environment"
+  - "add-environment"
   - "pairing-link"
-  - "Pair"
+  - "pair-environment"
   - "Online"
 tests:
   - apps/mobile/spec/e2e/pairing.e2e.ts
@@ -29,9 +29,9 @@ This is a checkpoint against a real LAN server, not a disposable one. Start an i
 
 ```sh
 .agents/skills/mobile-verify/scripts/cli open /settings
-.agents/skills/mobile-verify/scripts/cli tap --label "Add environment"
+.agents/skills/mobile-verify/scripts/cli tap --id add-environment
 .agents/skills/mobile-verify/scripts/cli fill '<the LAN link>' --id pairing-link
-.agents/skills/mobile-verify/scripts/cli tap --label Pair
+.agents/skills/mobile-verify/scripts/cli tap --id pair-environment
 .agents/skills/mobile-verify/scripts/cli snapshot
 ```
 

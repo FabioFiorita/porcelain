@@ -2,7 +2,6 @@ export {
   inventoryQueryOptions,
   inventoryScopeQueryOptions,
 } from './queries/inventory.ts';
-export type { InventoryConnection } from './ports/inventory-connection.ts';
 export {
   createProjectSelectionStore,
   type ProjectSelectionStore,
