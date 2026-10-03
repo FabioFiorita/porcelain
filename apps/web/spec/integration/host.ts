@@ -1,9 +1,11 @@
-import { rmSync } from 'node:fs';
-import { mkdtemp } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import type { IncomingMessage } from 'node:http';
 import { join, resolve } from 'node:path';
-import { buildIsolatedServer } from '@porcelain/server/kit/sandbox';
-import type { BrowserCommand, BrowserCommandContext } from 'vitest/node';
+import { temporaryServerBuild } from '@porcelain/server/kit/sandbox';
+import type {
+  BrowserCommand,
+  BrowserCommandContext,
+  TestProject,
+} from 'vitest/node';
 import type {
   CodingToolReplies,
   PairingParts,
@@ -17,43 +19,35 @@ import type {
 } from '../kit/protocol.ts';
 import { World } from '../kit/world.ts';
 
-type Lane = {
-  world: World | undefined;
-  target: string;
-  retarget: Array<(address: string) => void>;
-};
+declare module 'vitest' {
+  export interface ProvidedContext {
+    serverBuild: string;
+  }
+}
 
 const webRoot = resolve(import.meta.dirname, '../..');
 const repositoryRoot = resolve(webRoot, '../..');
 const evidenceRoot = join(webRoot, 'test-results', 'integration');
-const lanes = new Map<string, Lane>();
-let build: Promise<string> | undefined;
+const sessionCookie = 'porcelain-session';
+const worlds = new Map<string, World>();
+let proxied: { target?: unknown } | undefined;
 
-function serverBuild(): Promise<string> {
-  build ??= mkdtemp(join(tmpdir(), 'porcelain-integration-server-')).then(
-    async (folder) => {
-      process.once('exit', () =>
-        rmSync(folder, { recursive: true, force: true }),
-      );
-      await buildIsolatedServer(folder);
-      return folder;
-    },
-  );
-  return build;
+export default async function setup(project: TestProject) {
+  const build = await temporaryServerBuild();
+  project.provide('serverBuild', build.folder);
+  return build.remove;
 }
 
-function lane(name: string): Lane {
-  const found = lanes.get(name) ?? {
-    world: undefined,
-    target: 'http://127.0.0.1',
-    retarget: [],
-  };
-  lanes.set(name, found);
-  return found;
+function sessionOf(cookies: string | undefined): string | undefined {
+  for (const cookie of cookies?.split(';') ?? []) {
+    const [name, value] = cookie.trim().split('=');
+    if (name === sessionCookie) return value;
+  }
+  return undefined;
 }
 
 function world(context: BrowserCommandContext): World {
-  const current = lane(context.project.name).world;
+  const current = worlds.get(context.sessionId);
   if (current === undefined)
     throw new Error(
       'The integration fixtures start a disposable server before a test reaches it.',
@@ -61,27 +55,40 @@ function world(context: BrowserCommandContext): World {
   return current;
 }
 
-export function proxyFor(name: string) {
-  return {
-    '^/(api|review-summaries)(/|$)': {
-      target: lane(name).target,
-      ws: true,
-      configure(_proxy: unknown, options: { target?: unknown }) {
-        options.target = lane(name).target;
-        lane(name).retarget.push((address) => {
-          options.target = address;
-        });
-      },
+export const serverProxy = {
+  '^/(api|review-summaries)(/|$)': {
+    target: 'http://127.0.0.1',
+    ws: true,
+    configure(_proxy: unknown, options: { target?: unknown }) {
+      proxied = options;
     },
-  };
-}
+    bypass(request: IncomingMessage) {
+      const session = sessionOf(request.headers.cookie);
+      const address =
+        session === undefined ? undefined : worlds.get(session)?.server.address;
+      if (proxied === undefined || address === undefined) return false;
+      proxied.target = address;
+      return undefined;
+    },
+  },
+};
 
 const porcelainStart: BrowserCommand<[], void> = async (context) => {
-  const current = lane(context.project.name);
-  if (current.world !== undefined) await current.world.stop();
-  current.world = await World.start(repositoryRoot, await serverBuild());
-  current.target = current.world.server.address;
-  for (const change of current.retarget) change(current.target);
+  await worlds.get(context.sessionId)?.stop();
+  worlds.set(
+    context.sessionId,
+    await World.start(
+      repositoryRoot,
+      context.project.getProvidedContext().serverBuild,
+    ),
+  );
+  await context.context.addCookies([
+    {
+      name: sessionCookie,
+      value: context.sessionId,
+      url: new URL(context.page.url()).origin,
+    },
+  ]);
 };
 
 const porcelainStop: BrowserCommand<[string], string[]> = async (
@@ -89,7 +96,7 @@ const porcelainStop: BrowserCommand<[string], string[]> = async (
   name,
 ) => {
   const stopping = world(context);
-  lane(context.project.name).world = undefined;
+  worlds.delete(context.sessionId);
   await stopping.keepEvidence(
     join(evidenceRoot, name.replace(/[^a-z0-9]+/gi, '-').toLowerCase()),
   );

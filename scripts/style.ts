@@ -869,20 +869,15 @@ const browserConfigSchema = z.object({
     test: z.object({
       allowOnly: z.unknown(),
       passWithNoTests: z.unknown(),
-      projects: z.array(
-        z.object({
-          test: z.object({
-            include: z.array(z.string()),
-            retry: z.unknown(),
-            browser: z.object({
-              enabled: z.unknown(),
-              headless: z.unknown(),
-              provider: z.object({ name: z.unknown() }),
-              instances: z.array(z.object({ browser: z.unknown() })),
-            }),
-          }),
-        }),
-      ),
+      projects: z.never().optional(),
+      include: z.array(z.string()),
+      retry: z.unknown(),
+      browser: z.object({
+        enabled: z.unknown(),
+        headless: z.unknown(),
+        provider: z.object({ name: z.unknown() }),
+        instances: z.array(z.object({ browser: z.unknown() })),
+      }),
     }),
   }),
 });
@@ -949,33 +944,24 @@ async function configModuleProblems(): Promise<Problem[]> {
     await load('apps/web/vitest.config.ts'),
   );
   const integration = browser.success ? browser.data.default.test : undefined;
-  const lanes = integration?.projects.map((project) => project.test) ?? [];
-  const included = lanes.flatMap((lane) => lane.include).toSorted();
-  const written = readdirSync('apps/web/spec/integration')
-    .filter((file) => file.endsWith('.test.tsx'))
-    .map((file) => `spec/integration/${file}`)
-    .toSorted();
   if (
     integration === undefined ||
     integration.allowOnly !== false ||
     integration.passWithNoTests !== false ||
-    lanes.length === 0 ||
-    !isDeepStrictEqual(included, written) ||
-    lanes.some(
-      (lane) =>
-        lane.retry !== 0 ||
-        lane.browser.enabled !== true ||
-        lane.browser.headless !== true ||
-        lane.browser.provider.name !== 'playwright' ||
-        lane.browser.instances.some(
-          (instance) => instance.browser !== 'chromium',
-        ),
+    !isDeepStrictEqual(integration.include, ['spec/integration/*.test.tsx']) ||
+    integration.retry !== 0 ||
+    integration.browser.enabled !== true ||
+    integration.browser.headless !== true ||
+    integration.browser.provider.name !== 'playwright' ||
+    integration.browser.instances.length === 0 ||
+    integration.browser.instances.some(
+      (instance) => instance.browser !== 'chromium',
     )
   )
     problems.push(
       problem(
         'vitest-config',
-        'apps/web/vitest.config.ts runs every integration test in spec/integration exactly once across its lanes, with no retry and no .only, in headless Chromium through the Playwright provider.',
+        'apps/web/vitest.config.ts runs every integration test in spec/integration exactly once, in one project whose files Vitest schedules, with no retry and no .only, in headless Chromium through the Playwright provider.',
       ),
     );
   const e2e = playwrightConfigSchema.safeParse(
