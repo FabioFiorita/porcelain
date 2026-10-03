@@ -105,8 +105,9 @@ export function PairDevice({
         </Label>
       </Field>
       <p className="text-xs text-muted-foreground">
-        The device will work only through {remoteRouteTitles[target.route]}. To
-        use it through another way in too, pair it again through that one.
+        The link opens through {remoteRouteTitles[target.route]}. The device
+        will work only through the way in it pairs over. To use it through
+        another way in too, pair it again through that one.
       </p>
       {issue.error && (
         <Alert variant="destructive">

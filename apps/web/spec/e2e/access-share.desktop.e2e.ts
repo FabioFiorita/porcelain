@@ -36,7 +36,7 @@ test('Settings → Devices creates a one-time pairing link for one way in with i
 
   await expect(
     settings.getByText(
-      'The device will work only through Local network. To use it through another way in too, pair it again through that one.',
+      'The link opens through Local network. The device will work only through the way in it pairs over. To use it through another way in too, pair it again through that one.',
       { exact: true },
     ),
   ).toBeVisible();

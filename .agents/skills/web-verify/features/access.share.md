@@ -59,7 +59,7 @@ None on disk. The default server has two paired devices, both bound to "This com
 3. `$C click --role switch --name "Local network"`
    Look for: switch "Local network" checked and the text `http://192.168.1.20:<port>`. A badge "Starting" may show first; run `$C snapshot` again after a second.
 4. `$C click --role button --name "Devices"`
-   Look for: textbox "Device name"; the text "The device will work only through Local network. To use it through another way in too, pair it again through that one."
+   Look for: textbox "Device name"; the text "The link opens through Local network. The device will work only through the way in it pairs over. To use it through another way in too, pair it again through that one."
 5. `$C fill --role textbox --name "Device name" "My phone"`
    Look for: button "Create pairing link" enabled.
 6. `$C click --role button --name "Create pairing link"`
@@ -81,7 +81,7 @@ None on disk. The default server has two paired devices, both bound to "This com
 - Step 8's reload reads `GET /api/access` back: the server forgot the revoked device and keeps the pending link. `$C network` lists `POST /api/pairings` (step 6) and `POST /api/access/revoke` (steps 7 and 9) with status 200.
 - To prove the link pairs, use `access.device-trust` steps 10–11: `$C open "/pair#c=…&e=…"` with the link's fragment pairs this browser as the new device.
 - `apps/web/spec/e2e/access-share.desktop.e2e.ts`:
-  - the "Turn on a way in …" hint, then Local network on and the "work only through Local network" note;
+  - the "Turn on a way in …" hint, then Local network on and the note that the link opens through Local network and the device works only through the way in it pairs over;
   - the QR code, a link matching `^http://192.168.1.20:\d+/pair#c=pcp_`, and server pending links `['My phone']`;
   - "This browser" and "This computer" on its own row, both devices on route `loopback`, no Revoke button on its own row, and "Pending link" on My phone;
   - after revoking "Development setup", the server lists only its own browser. Its browser is named "Journey browser"; the CLI's is "Verification browser".

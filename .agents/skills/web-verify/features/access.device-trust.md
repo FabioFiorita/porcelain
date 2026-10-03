@@ -82,4 +82,4 @@ None on disk. The default server has two paired devices: "Development setup" (th
 - Local network stays on and trust changes stay for the life of the instance. `access.share` revokes "Development setup", so run this feature first or start a new instance.
 - Each trust switch is disabled while its own request is pending. Click it again only after it settles.
 - `Escape` on the Settings page leaves Settings (goes back).
-- The redeemed device is listed as "This computer", not "Local network": the CLI's browser redeems the link from the loopback origin, so the server binds the new credential to the way in the redeem arrived through, although the form said "The device will work only through Local network" (seen live; a device on the real LAN would be bound to Local network).
+- The redeemed device is listed as "This computer", not "Local network": the CLI's browser redeems the link from the loopback origin, and the server binds the new credential to the way in the link was redeemed through, as the form says ("The device will work only through the way in it pairs over"); a device that opens the link on the real LAN is bound to Local network.
