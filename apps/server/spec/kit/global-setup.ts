@@ -4,7 +4,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { TestProject } from 'vitest/node';
 import { z } from 'zod';
-import { buildIsolatedServer } from './sandbox.ts';
+import { temporaryServerBuild } from './sandbox.ts';
 
 const integrationFolder = resolve(
   dirname(fileURLToPath(import.meta.url)),
@@ -47,10 +47,9 @@ async function unrequestedRoutes(folder: string, project: TestProject) {
 
 export default async function setup(project: TestProject) {
   const perf = project.name === '@porcelain/server-perf';
-  const build = await mkdtemp(join(tmpdir(), 'porcelain-server-build-'));
+  const build = await temporaryServerBuild(perf ? 'perf' : undefined);
   const routes = await mkdtemp(join(tmpdir(), 'porcelain-server-routes-'));
-  await buildIsolatedServer(build, perf ? 'perf' : undefined);
-  project.provide('serverBuild', build);
+  project.provide('serverBuild', build.folder);
   project.provide('serverSample', perf ? 'perf' : 'none');
   project.provide('serverRoutes', routes);
   return async () => {
@@ -58,7 +57,7 @@ export default async function setup(project: TestProject) {
     try {
       if (!perf) unrequested = await unrequestedRoutes(routes, project);
     } finally {
-      await rm(build, { recursive: true, force: true });
+      await build.remove();
       await rm(routes, { recursive: true, force: true });
     }
     if (unrequested.length > 0)

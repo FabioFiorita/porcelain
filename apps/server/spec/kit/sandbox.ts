@@ -82,6 +82,18 @@ async function vendor(
       await vendor(dependency, source, into, copied);
 }
 
+export async function temporaryServerBuild(sample?: 'perf') {
+  const folder = await mkdtemp(join(tmpdir(), 'porcelain-server-build-'));
+  const remove = () => rm(folder, { recursive: true, force: true });
+  try {
+    await buildIsolatedServer(folder, sample);
+  } catch (error) {
+    await remove();
+    throw error;
+  }
+  return { folder, remove };
+}
+
 export async function buildIsolatedServer(
   output: string,
   sample?: 'perf',
