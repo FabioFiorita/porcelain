@@ -27,9 +27,9 @@ For the owner, not for proof. It runs the real app unpackaged from the checkout 
 
 `start` checks its tools and stops with what to install: macOS, and Electron in `node_modules` (`pnpm install --frozen-lockfile`). `doctor` runs the same checks and lists the live instances. Then it stages the app as Porcelain Dev in `dist/desktop/verify/`, with the web built in `desktop` mode and served by the app's own server as the installed app serves it, and launches it through Playwright Electron with a temporary profile (`--data-directory`) and a sample Git repository, `desktop-smoke`, as its project home. It prints the instance id, the evidence folder, the repository and the profile. It holds `caffeinate -d -u` while the instance lives, so the display stays awake: macOS never finishes a full screen transition while it sleeps.
 
-- **Several instances.** Each `start` makes a new one; with more than one live, every command needs `--instance <id>`.
-- **Stale code.** A command refuses once the desktop, web or server code changed after `start`; run `start` again.
-- **Idle.** An instance with no command for 30 minutes stops itself; so does one whose app quits. The evidence stays.
+- **Several instances.** Each `start` makes a new one, registered for this checkout only; with more than one live, every command needs `--instance <id>`.
+- **Stale code.** A command refuses once the desktop, web, server or CLI code changed after `start`; run `start` again.
+- **Idle.** An instance with no command for 30 minutes stops itself; every command counts, failed or not. So does one whose app quits. The evidence stays.
 - **Keychain.** Credentials go through `safeStorage`, which needs the Keychain of the logged-in session (section 4); start the instance there when the feature writes credentials.
 
 ### Find the feature
@@ -61,7 +61,7 @@ When the window is not where the map says, take a `snapshot` first. A map line t
 .agents/skills/desktop-verify/scripts/cli stop
 ```
 
-The folder holds `000-start.txt`, one numbered file per command, the supervisor log with the app's output, and after `stop` the server's `server.log`. Pairing codes and bearers are written as `[redacted]`. `stop` ends only the instance the CLI started, by the PID in its instance file, quits the app and removes its profile and repository; the evidence stays. The report names the evidence folder and what it shows.
+The folder holds `000-start.txt`, one numbered file per command, the supervisor log with the app's output, and after `stop` the server's `server.log`. Credentials, pairing codes and links, share signatures, bearers and the control token are written as `[redacted]` in every text file; `snapshot` prints the window as it is so a next step can use what it shows. `stop` ends only the instance the CLI started: it signals the PID in its instance file only while that process's command line is the instance's supervisor, quits the app, removes its profile and repository, then sends SIGKILL to whatever is left of its process group and browser session after a timeout; a recorded PID that now belongs to another process is reported and never signalled. The evidence stays. The report names the evidence folder and what it shows.
 
 ## 3. Test: Playwright Electron e2e
 

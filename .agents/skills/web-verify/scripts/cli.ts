@@ -1,12 +1,9 @@
-import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
-import { randomBytes } from 'node:crypto';
+import { spawn } from 'node:child_process';
 import { openSync, writeFileSync } from 'node:fs';
 import { mkdtemp, rm } from 'node:fs/promises';
-import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
-import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import {
   issuePairingResponseSchema,
@@ -21,15 +18,25 @@ import {
 import { read } from '../../../../apps/server/spec/kit/requests.ts';
 import { buildIsolatedServer } from '../../../../apps/server/spec/kit/sandbox.ts';
 import {
-  Instances,
+  freePort,
+  refuseMissing,
+  runCli,
+  sandboxProblems,
+  Usage,
+} from '../../server-verify/scripts/core/cli.ts';
+import {
+  Registry,
+  repositoryRoot as root,
+} from '../../server-verify/scripts/core/registry.ts';
+import {
+  daemonMarker,
+  interact,
   interactionOptions,
   interactionUsage,
-  Refusal,
-  repositoryRoot as root,
-  runCli,
+  playwrightCli,
+  webInputs,
 } from './browser.ts';
 
-const self = fileURLToPath(import.meta.url);
 const vite = join(root, 'apps/web/node_modules/.bin/vite');
 const readyTimeoutMs = 60 * 1000;
 const viewport = { width: 414, height: 896 };
@@ -40,22 +47,24 @@ const usage = `Usage: .agents/skills/web-verify/scripts/cli <command> [--instanc
   evidence                print the evidence folder and what it holds
 ${interactionUsage}`;
 
-const instances = new Instances(
-  'web',
-  z.object({
+const registry = new Registry({
+  name: 'web',
+  cli: new URL('./cli.ts', import.meta.url).href,
+  detail: z.object({
     web: z.string(),
+    session: z.string(),
     repository: z.string(),
     projectHome: z.string(),
     desktop: z.boolean(),
   }),
-  [
-    'apps/web/src',
-    'apps/web/index.html',
-    'apps/web/vite.config.ts',
-    'apps/server/src',
-    'packages',
-  ],
-);
+  inputs: webInputs,
+  format: 'text',
+  stale: (instance, changed) =>
+    changed
+      ? `The web, server or CLI code changed since instance ${instance.id} started; run start again so the evidence shows the code you changed.`
+      : undefined,
+  stopWithinMs: 20_000,
+});
 
 async function chromiumProblem(): Promise<string | undefined> {
   try {
@@ -67,76 +76,36 @@ async function chromiumProblem(): Promise<string | undefined> {
   }
 }
 
-function sandboxProblem(): string | undefined {
-  if (process.platform !== 'linux') return undefined;
-  const result = spawnSync('bwrap', ['--version'], { encoding: 'utf8' });
-  return result.status === 0
-    ? undefined
-    : 'The disposable server runs inside bubblewrap on Linux and bwrap is not on PATH. Install it with: sudo apt-get install bubblewrap';
-}
-
-function freePort(): Promise<number> {
-  return new Promise((done, fail) => {
-    const probe = createServer();
-    probe.once('error', fail);
-    probe.listen(0, '127.0.0.1', () => {
-      const bound = probe.address();
-      probe.close(() =>
-        typeof bound === 'object' && bound !== null
-          ? done(bound.port)
-          : fail(new Error('No free port for Vite')),
-      );
-    });
-  });
-}
-
 async function reachable(url: string, deadline: number): Promise<void> {
   for (;;) {
-    try {
-      const response = await fetch(url);
-      if (response.ok) return;
-    } catch {
-      if (Date.now() > deadline)
-        throw new Error(`Vite did not answer ${url} in time`);
-    }
+    const answered = await fetch(url).then(
+      (response) => response.ok,
+      () => false,
+    );
+    if (answered) return;
     if (Date.now() > deadline)
       throw new Error(`Vite did not answer ${url} in time`);
     await sleep(200);
   }
 }
 
-async function serve(
-  id: string,
-  desktop: boolean,
-  evidence: string,
-  print: string,
-): Promise<void> {
-  const build = await mkdtemp(join(tmpdir(), 'porcelain-web-verify-server-'));
-  let server: IsolatedServer | undefined;
-  let web: ChildProcess | undefined;
-  let stopping = false;
-  const stop = async () => {
-    if (stopping) return;
-    stopping = true;
-    try {
-      instances.browser({ id, evidence }, ['close']);
-    } catch {
-      process.stderr.write('The browser session was already closed.\n');
-    }
-    web?.kill('SIGTERM');
-    await server?.stop();
-    await rm(build, { recursive: true, force: true });
-    instances.forget(id);
-    process.exit(0);
-  };
-  process.on('SIGTERM', () => void stop());
-  process.on('SIGINT', () => void stop());
-  try {
+function serve(folder: string): Promise<void> {
+  return registry.serve(folder, async (life) => {
+    const { desktop } = z.object({ desktop: z.boolean() }).parse(life.options);
+    const evidence = registry.evidenceFolder(life.id);
+    const session = `web-${life.id}`;
+    const build = await mkdtemp(join(tmpdir(), 'porcelain-web-verify-server-'));
+    life.onStop(() => rm(build, { recursive: true, force: true }));
     await buildIsolatedServer(build);
-    server = await IsolatedServer.start(root, build);
+    const server = await IsolatedServer.start(root, build);
+    life.onStop(async () => {
+      await server.stop();
+    });
+    life.secret(server.credential, server.desktopCredential);
     const port = await freePort();
     const origin = `http://127.0.0.1:${port}`;
-    web = spawn(
+    const log = openSync(join(evidence, 'vite.log'), 'a');
+    const web = spawn(
       vite,
       [
         '--mode',
@@ -150,20 +119,23 @@ async function serve(
       {
         cwd: join(root, 'apps/web'),
         env: { ...process.env, PORCELAIN_API_TARGET: server.address },
-        stdio: [
-          'ignore',
-          openSync(join(evidence, 'vite.log'), 'a'),
-          openSync(join(evidence, 'vite.log'), 'a'),
-        ],
+        stdio: ['ignore', log, log],
       },
     );
+    life.onStop(() => {
+      web.kill('SIGTERM');
+    });
     await reachable(`${origin}/src/main.tsx`, Date.now() + readyTimeoutMs);
     const config = join(evidence, 'browser.json');
     writeFileSync(
       config,
       `${JSON.stringify({ browser: { browserName: 'chromium', isolated: true, launchOptions: { headless: true }, contextOptions: { viewport } }, outputDir: join(evidence, 'browser') }, null, 2)}\n`,
     );
-    instances.browser({ id, evidence }, [
+    life.marker(daemonMarker(session));
+    life.onStop(() => {
+      playwrightCli(session, evidence, ['close']);
+    });
+    playwrightCli(session, evidence, [
       'open',
       '--config',
       config,
@@ -182,65 +154,49 @@ async function serve(
     ).grants;
     if (grant === undefined)
       throw new Error('The disposable server issued no pairing grant.');
-    instances.browser({ id, evidence }, [
+    life.secret(grant.link.code);
+    playwrightCli(session, evidence, [
       'goto',
       `${origin}${pairingLink({ addresses: [''], code: grant.link.code, environmentId: grant.link.environmentId })}`,
     ]);
-    writeFileSync(
-      join(evidence, '000-start.txt'),
-      `instance ${id}\nweb ${origin}\nmode ${desktop ? 'desktop' : 'web'}\nrepository ${server.repository}\nproject home ${server.projectHome}\nThe browser opened the app through a one-time pairing link; its code is not recorded.\n`,
-    );
-    instances.save({
-      id,
-      pid: process.pid,
-      evidence,
-      fingerprint: print,
-      startedAt: new Date().toISOString(),
-      lastCommandAt: Date.now(),
-      commands: 0,
-      detail: {
-        web: origin,
-        repository: server.repository,
-        projectHome: server.projectHome,
-        desktop,
-      },
-    });
-  } catch (error) {
-    writeFileSync(
-      join(evidence, 'start-failed.txt'),
-      `${error instanceof Error ? (error.stack ?? error.message) : String(error)}\n`,
-    );
-    await stop();
-    return;
-  }
-  await instances.idle(id, evidence, stop);
+    await life
+      .evidence()
+      .note(
+        '000-start.txt',
+        `instance ${life.id}\nweb ${origin}\nmode ${desktop ? 'desktop' : 'web'}\nrepository ${server.repository}\nproject home ${server.projectHome}\nThe browser opened the app through a one-time pairing link; its code is not recorded.\n`,
+      );
+    return {
+      web: origin,
+      session,
+      repository: server.repository,
+      projectHome: server.projectHome,
+      desktop,
+    };
+  });
 }
 
 async function start(desktop: boolean): Promise<string> {
-  const problems = [sandboxProblem(), await chromiumProblem()].filter(
-    (problem) => problem !== undefined,
-  );
-  if (problems.length > 0) throw new Refusal(problems.join('\n'));
-  const id = randomBytes(3).toString('hex');
-  const evidence = instances.evidenceFolder(id);
-  const elapsed = await instances.supervise(
-    self,
-    id,
-    [desktop ? 'desktop' : 'web', evidence, instances.fingerprint()],
-    readyTimeoutMs * 2,
-  );
-  const started = instances.chosen(id);
-  return `instance ${id}\nweb ${started.detail.web}\nevidence ${evidence}\nrepository ${started.detail.repository}\nstarted in ${elapsed} ms\n`;
+  refuseMissing([...sandboxProblems(), await chromiumProblem()]);
+  const started = performance.now();
+  const instance = await registry.launch({ desktop }, readyTimeoutMs * 2);
+  return `instance ${instance.id}\nweb ${instance.detail.web}\nevidence ${instance.evidence}\nrepository ${instance.detail.repository}\nstarted in ${Math.round(performance.now() - started)} ms\n`;
 }
 
 async function doctor(): Promise<string> {
+  const sandbox = sandboxProblems();
   const checks = [
     `node ${process.versions.node}`,
-    sandboxProblem() ?? 'bubblewrap: ready',
+    ...(sandbox.length > 0 ? sandbox : ['server sandbox and Git: ready']),
     (await chromiumProblem()) ?? "Playwright's Chromium: ready",
   ];
-  const live = instances.live();
-  return `${checks.join('\n')}\nlive instances: ${live.map((instance) => `${instance.id} ${instance.detail.web}${instance.detail.desktop ? ' (desktop)' : ''}`).join(', ') || 'none'}\n`;
+  const live = registry
+    .list()
+    .filter((entry) => entry.alive)
+    .map(
+      ({ instance }) =>
+        `${instance.id} ${instance.detail.web}${instance.detail.desktop ? ' (desktop)' : ''}`,
+    );
+  return `${checks.join('\n')}\nlive instances: ${live.join(', ') || 'none'}\n`;
 }
 
 async function command(args: readonly string[]): Promise<string> {
@@ -254,27 +210,39 @@ async function command(args: readonly string[]): Promise<string> {
     strict: true,
   });
   const [name, ...rest] = positionals;
-  if (name === 'serve') {
-    const [id = '', mode = 'web', evidence = '', print = ''] = rest;
-    await serve(id, mode === 'desktop', evidence, print);
+  if (name === 'serve' && rest[0] !== undefined) {
+    await serve(rest[0]);
     return '';
   }
   if (name === 'start') return start(values.desktop);
   if (name === 'doctor') return doctor();
-  const instance = instances.chosen(values.instance);
-  if (name === 'stop') return instances.stop(instance);
-  if (name === 'evidence') return instances.listing(instance);
-  instances.current(instance, 'The web or server code');
-  const output = instances.interact(
-    instance,
-    instance.detail.web,
-    name,
-    rest,
-    values,
-    args,
-  );
-  if (output === undefined) throw new Refusal(usage);
-  return output;
+  if (name === undefined) throw new Usage(usage);
+  const instance = registry.chosen(values.instance, {
+    includeStopped: name === 'stop',
+  });
+  if (name === 'stop') {
+    const report = await registry.stop(instance);
+    return `${report.map((line) => `${line}\n`).join('')}stopped ${instance.id}\nevidence ${instance.evidence}\n`;
+  }
+  const evidence = registry.evidence(instance);
+  if (name === 'evidence') return evidence.listing();
+  return registry.drive(instance, args, async () => {
+    const output = await interact(
+      {
+        session: instance.detail.session,
+        cwd: instance.evidence,
+        origin: instance.detail.web,
+        evidence,
+        redactor: registry.redactor(instance),
+      },
+      name,
+      rest,
+      values,
+      args,
+    );
+    if (output === undefined) throw new Usage(usage);
+    return output;
+  });
 }
 
 await runCli(command);

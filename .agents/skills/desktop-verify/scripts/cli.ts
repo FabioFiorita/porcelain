@@ -1,23 +1,32 @@
 import { spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
-import { existsSync, writeFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { cp, mkdtemp, realpath, rm } from 'node:fs/promises';
 import { createServer as createHttpServer } from 'node:http';
-import { createServer } from 'node:net';
 import { join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { launchOptions, sampleRepository } from '@porcelain/desktop/kit/launch';
 import { electronExecutable, stageDesktop } from '@porcelain/desktop/kit/stage';
 import { _electron, type ElectronApplication } from 'playwright';
 import { z } from 'zod';
 import {
-  Instances,
+  freePort,
+  Refusal,
+  refuseMissing,
+  runCli,
+  Usage,
+} from '../../server-verify/scripts/core/cli.ts';
+import {
+  Registry,
+  repositoryRoot as root,
+} from '../../server-verify/scripts/core/registry.ts';
+import {
+  daemonMarker,
+  interact,
   interactionOptions,
   interactionUsage,
-  Refusal,
-  repositoryRoot as root,
-  runCli,
+  playwrightCli,
+  webInputs,
 } from '../../web-verify/scripts/browser.ts';
 import { checkInstalledApp } from './installed.ts';
 import {
@@ -26,7 +35,6 @@ import {
   type NativeRequest,
 } from './native.ts';
 
-const self = fileURLToPath(import.meta.url);
 const stagedApp = join(root, 'dist/desktop/verify');
 const readyWithinMs = 10 * 60 * 1000;
 const quitWithinMs = 15_000;
@@ -44,25 +52,28 @@ ${interactionUsage.replace('open a route of the web app', 'open a route of porce
   installed-check         check the lock of the installed /Applications/Porcelain.app as a black box; needs no instance
 `;
 
-const instances = new Instances(
-  'desktop',
-  z.object({
+const registry = new Registry({
+  name: 'desktop',
+  cli: new URL('./cli.ts', import.meta.url).href,
+  detail: z.object({
+    session: z.string(),
     workspace: z.string(),
     profile: z.string(),
     repository: z.string(),
     control: z.string(),
     token: z.string(),
   }),
-  [
-    'apps/desktop/src',
-    'apps/desktop/spec/kit',
-    'apps/web/src',
-    'apps/web/index.html',
-    'apps/web/vite.config.ts',
-    'apps/server/src',
-    'packages',
-  ],
-);
+  inputs: {
+    roots: ['apps/desktop/src', 'apps/desktop/spec/kit', ...webInputs.roots],
+    apps: ['apps/desktop', ...webInputs.apps],
+  },
+  format: 'text',
+  stale: (instance, changed) =>
+    changed
+      ? `The desktop, web, server or CLI code changed since instance ${instance.id} started; run start again so the evidence shows the code you changed.`
+      : undefined,
+  stopWithinMs: 30_000,
+});
 
 function macProblem(): string | undefined {
   return process.platform === 'darwin'
@@ -78,21 +89,6 @@ function electronProblem(): string | undefined {
   } catch {
     return 'Electron is not installed for apps/desktop. Install it with: pnpm install --frozen-lockfile';
   }
-}
-
-function freePort(): Promise<number> {
-  return new Promise((done, fail) => {
-    const probe = createServer();
-    probe.once('error', fail);
-    probe.listen(0, '127.0.0.1', () => {
-      const bound = probe.address();
-      probe.close(() =>
-        typeof bound === 'object' && bound !== null
-          ? done(bound.port)
-          : fail(new Error('No free port for the DevTools endpoint')),
-      );
-    });
-  });
 }
 
 async function quit(
@@ -161,34 +157,19 @@ function control(
   });
 }
 
-async function serve(id: string, evidence: string, print: string) {
-  const workspace = await realpath(
-    await mkdtemp(join('/tmp', 'porcelain-desktop-verify-')),
-  );
-  let electron: ElectronApplication | undefined;
-  let child: ReturnType<ElectronApplication['process']> | undefined;
-  let closeControl: (() => void) | undefined;
-  let stopping = false;
-  const stop = async () => {
-    if (stopping) return;
-    stopping = true;
-    try {
-      instances.browser({ id, evidence }, ['detach']);
-    } catch {
-      process.stderr.write('The browser session was already detached.\n');
-    }
-    closeControl?.();
-    if (electron !== undefined && child !== undefined)
-      await quit(electron, child);
-    const log = join(workspace, 'profile', 'logs', 'server.log');
-    if (existsSync(log)) await cp(log, join(evidence, 'server.log'));
-    await rm(workspace, { recursive: true, force: true });
-    instances.forget(id);
-    process.exit(0);
-  };
-  process.on('SIGTERM', () => void stop());
-  process.on('SIGINT', () => void stop());
-  try {
+function serve(folder: string): Promise<void> {
+  return registry.serve(folder, async (life) => {
+    const evidence = registry.evidenceFolder(life.id);
+    const session = `desktop-${life.id}`;
+    const workspace = await realpath(
+      await mkdtemp(join('/tmp', 'porcelain-desktop-verify-')),
+    );
+    const profile = join(workspace, 'profile');
+    life.onStop(async () => {
+      const log = join(profile, 'logs', 'server.log');
+      if (existsSync(log)) await cp(log, join(evidence, 'server.log'));
+      await rm(workspace, { recursive: true, force: true });
+    });
     spawn('caffeinate', ['-d', '-u', '-w', String(process.pid)], {
       detached: true,
       stdio: 'ignore',
@@ -199,9 +180,8 @@ async function serve(id: string, evidence: string, print: string) {
       web: true,
     });
     const repository = await sampleRepository(workspace);
-    const profile = join(workspace, 'profile');
     const devtools = await freePort();
-    electron = await _electron.launch(
+    const electron = await _electron.launch(
       launchOptions({
         app: stagedApp,
         profile,
@@ -209,15 +189,21 @@ async function serve(id: string, evidence: string, print: string) {
         switches: [`--remote-debugging-port=${devtools}`],
       }),
     );
+    const child = electron.process();
+    life.onStop(() => quit(electron, child));
     electron.on('close', () => {
-      if (stopping) return;
-      writeFileSync(
-        join(evidence, 'app-exited.txt'),
-        `Porcelain Dev exited; instance ${id} stopped itself.\n`,
-      );
-      void stop();
+      if (life.stopping()) return;
+      life
+        .evidence()
+        .note(
+          'app-exited.txt',
+          `Porcelain Dev exited; instance ${life.id} stopped itself.\n`,
+        )
+        .then(
+          () => life.stop('the app exited'),
+          () => life.stop('the app exited'),
+        );
     });
-    child = electron.process();
     child.stderr?.on('data', (chunk: Buffer) => {
       process.stderr.write(chunk);
     });
@@ -226,57 +212,40 @@ async function serve(id: string, evidence: string, print: string) {
       (url) => url.protocol === 'porcelain:' && url.pathname !== '/pair',
     );
     await nativeCommand(electron, { command: 'hold-picker' });
-    instances.browser({ id, evidence }, [
+    life.marker(daemonMarker(session));
+    life.onStop(() => {
+      playwrightCli(session, evidence, ['detach']);
+    });
+    playwrightCli(session, evidence, [
       'attach',
       `--cdp=http://127.0.0.1:${devtools}`,
     ]);
     const token = randomBytes(16).toString('hex');
+    life.secret(token);
     const served = await control(electron, token);
-    closeControl = served.close;
-    writeFileSync(
-      join(evidence, '000-start.txt'),
-      `instance ${id}\napp ${stagedApp} (Porcelain Dev, unpackaged)\nprofile ${profile}\nrepository ${repository}\nThe native folder picker is held: a picker the app opens waits for dialog <folder> or dialog --cancel.\n`,
-    );
-    instances.save({
-      id,
-      pid: process.pid,
-      evidence,
-      fingerprint: print,
-      startedAt: new Date().toISOString(),
-      lastCommandAt: Date.now(),
-      commands: 0,
-      detail: {
-        workspace,
-        profile,
-        repository,
-        control: served.address,
-        token,
-      },
-    });
-  } catch (error) {
-    writeFileSync(
-      join(evidence, 'start-failed.txt'),
-      `${error instanceof Error ? (error.stack ?? error.message) : String(error)}\n`,
-    );
-    await stop();
-    return;
-  }
-  await instances.idle(id, evidence, stop);
+    life.onStop(served.close);
+    await life
+      .evidence()
+      .note(
+        '000-start.txt',
+        `instance ${life.id}\napp ${stagedApp} (Porcelain Dev, unpackaged)\nprofile ${profile}\nrepository ${repository}\nThe native folder picker is held: a picker the app opens waits for dialog <folder> or dialog --cancel.\n`,
+      );
+    return {
+      session,
+      workspace,
+      profile,
+      repository,
+      control: served.address,
+      token,
+    };
+  });
 }
 
 async function start(): Promise<string> {
-  const problem = macProblem() ?? electronProblem();
-  if (problem !== undefined) throw new Refusal(problem);
-  const id = randomBytes(3).toString('hex');
-  const evidence = instances.evidenceFolder(id);
-  const elapsed = await instances.supervise(
-    self,
-    id,
-    [evidence, instances.fingerprint()],
-    readyWithinMs,
-  );
-  const started = instances.chosen(id);
-  return `instance ${id}\nevidence ${evidence}\nrepository ${started.detail.repository}\nprofile ${started.detail.profile}\nstarted in ${elapsed} ms\n`;
+  refuseMissing([macProblem() ?? electronProblem()]);
+  const started = performance.now();
+  const instance = await registry.launch({}, readyWithinMs);
+  return `instance ${instance.id}\nevidence ${instance.evidence}\nrepository ${instance.detail.repository}\nprofile ${instance.detail.profile}\nstarted in ${Math.round(performance.now() - started)} ms\n`;
 }
 
 function doctor(): string {
@@ -286,8 +255,11 @@ function doctor(): string {
       electronProblem() ??
       `macOS: ready\nElectron: ${electronExecutable()}`,
   ];
-  const live = instances.live();
-  return `${checks.join('\n')}\nlive instances: ${live.map((instance) => `${instance.id} ${instance.detail.repository}`).join(', ') || 'none'}\n`;
+  const live = registry
+    .list()
+    .filter((entry) => entry.alive)
+    .map(({ instance }) => `${instance.id} ${instance.detail.repository}`);
+  return `${checks.join('\n')}\nlive instances: ${live.join(', ') || 'none'}\n`;
 }
 
 function nativeRequest(name: string, rest: readonly string[], cancel: boolean) {
@@ -318,53 +290,60 @@ async function command(args: readonly string[]): Promise<string> {
     strict: true,
   });
   const [name, ...rest] = positionals;
-  if (name === 'serve') {
-    const [id = '', evidence = '', print = ''] = rest;
-    await serve(id, evidence, print);
+  if (name === 'serve' && rest[0] !== undefined) {
+    await serve(rest[0]);
     return '';
   }
   if (name === 'start') return start();
   if (name === 'doctor') return doctor();
   if (name === 'installed-check') {
-    const problem = macProblem();
-    if (problem !== undefined) throw new Refusal(problem);
+    refuseMissing([macProblem()]);
     return checkInstalledApp(
-      join(
-        instances.home,
-        'evidence',
-        `installed-${randomBytes(3).toString('hex')}`,
-      ),
+      registry.evidenceFolder(`installed-${randomBytes(4).toString('hex')}`),
     );
   }
-  const instance = instances.chosen(values.instance);
-  if (name === 'stop') return instances.stop(instance);
-  if (name === 'evidence') return instances.listing(instance);
-  instances.current(instance, 'The desktop, web or server code');
-  const native =
-    name === undefined ? undefined : nativeRequest(name, rest, values.cancel);
-  if (native !== undefined) {
-    const response = await fetch(`${instance.detail.control}/`, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-porcelain-control': instance.detail.token,
-      },
-      body: JSON.stringify(native),
-    });
-    const output = await response.text();
-    if (!response.ok) throw new Refusal(output.trim());
-    return `${output}\nrecorded ${instances.record(instance, native.command, args, output)}\n`;
+  if (name === undefined) throw new Usage(usage);
+  const instance = registry.chosen(values.instance, {
+    includeStopped: name === 'stop',
+  });
+  if (name === 'stop') {
+    const report = await registry.stop(instance);
+    return `${report.map((line) => `${line}\n`).join('')}stopped ${instance.id}\nevidence ${instance.evidence}\n`;
   }
-  const output = instances.interact(
-    instance,
-    appOrigin,
-    name,
-    rest,
-    values,
-    args,
-  );
-  if (output === undefined) throw new Refusal(usage);
-  return output;
+  const evidence = registry.evidence(instance);
+  if (name === 'evidence') return evidence.listing();
+  return registry.drive(instance, args, async () => {
+    const native = nativeRequest(name, rest, values.cancel);
+    if (native !== undefined) {
+      const response = await fetch(`${instance.detail.control}/`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-porcelain-control': instance.detail.token,
+        },
+        body: JSON.stringify(native),
+      });
+      const output = await response.text();
+      if (!response.ok) throw new Refusal(output.trim());
+      const file = await evidence.record(native.command, args, output);
+      return `${registry.redactor(instance).text(output)}\nrecorded ${file}\n`;
+    }
+    const output = await interact(
+      {
+        session: instance.detail.session,
+        cwd: instance.evidence,
+        origin: appOrigin,
+        evidence,
+        redactor: registry.redactor(instance),
+      },
+      name,
+      rest,
+      values,
+      args,
+    );
+    if (output === undefined) throw new Usage(usage);
+    return output;
+  });
 }
 
 await runCli(command);

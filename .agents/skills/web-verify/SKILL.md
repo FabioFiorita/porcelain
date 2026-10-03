@@ -20,9 +20,9 @@ Run every command from the repository root.
 It prints the instance id, the web URL, the evidence folder and the sample repository the server serves; it never prints a credential. The browser is already paired through a one-time link, phone width (414 by 896), on the workspace of the sample project.
 
 - **Desktop mode.** A feature whose map says `shell: desktop` lives in UI only the desktop app shows. Start with `start --desktop`: the web is served in the desktop Vite mode, the one `pnpm dev --desktop` uses, without the desktop bridge. Use `desktop-verify` for the desktop app itself.
-- **Several instances.** Each `start` makes a new instance. With more than one live, every command needs `--instance <id>`.
-- **Stale code.** A command refuses once the web or server code changed after `start`; run `start` again so the evidence shows the code you changed.
-- **Idle.** An instance that receives no command for 30 minutes stops itself; its evidence stays.
+- **Several instances.** Each `start` makes a new instance, registered for this checkout only; another worktree's instances are invisible here. With more than one live, every command needs `--instance <id>`.
+- **Stale code.** A command refuses once the web, server or CLI code changed after `start`; run `start` again so the evidence shows the code you changed.
+- **Idle.** An instance that receives no command for 30 minutes stops itself; every command counts, failed or not. Its evidence stays.
 
 ## 2. Find the feature
 
@@ -54,7 +54,7 @@ When the page is not where the map says, take a `snapshot` before acting further
 .agents/skills/web-verify/scripts/cli evidence
 ```
 
-The folder holds one numbered file per command (`001-open.txt`, `004-screenshot.png`, `010-snapshot.yml`, `009-trace.json`), the browser session's own page snapshots and console logs in `browser/`, and the Vite and supervisor logs. Read the snapshots and screenshots for what the page showed, `console` for errors, and `network` for the requests and their statuses. The report names the evidence folder and what it shows.
+The folder holds one numbered file per command (`001-open.txt`, `004-screenshot.png`, `010-snapshot.yml`, `009-trace.json`), the browser session's own page snapshots and console logs in `browser/`, and the Vite and supervisor logs. Credentials, pairing codes and links, share signatures and bearers are redacted from every text file, including what `fill` typed and what `browser/` holds; a screenshot can still show them, so keep it local. `snapshot` prints the page as it is, a link the page shows included, so a next step can use it; its evidence file is redacted. Read the snapshots and screenshots for what the page showed, `console` for errors, and `network` for the requests and their statuses. The report names the evidence folder and what it shows.
 
 ### Performance
 
@@ -85,7 +85,7 @@ pnpm --filter @porcelain/web exec playwright test spec/e2e/<file>.e2e.ts
 .agents/skills/web-verify/scripts/cli stop
 ```
 
-`stop` ends only the instance the CLI started, by the PID in its instance file: the browser session, Vite and the disposable server. The evidence folder stays.
+`stop` ends only the instance the CLI started: it signals the PID in its instance file only while that process's command line is the instance's supervisor, which closes the browser session, Vite and the disposable server, then sends SIGKILL to whatever is left of its process group and of the browser session after a timeout. A recorded PID that now belongs to another process is reported and never signalled. The evidence folder stays.
 
 ## Add or correct a map entry
 
