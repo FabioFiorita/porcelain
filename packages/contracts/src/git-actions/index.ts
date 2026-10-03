@@ -1,5 +1,4 @@
 export {
-  generateCommitDraftRequestSchema,
   generateCommitDraftResponseSchema,
   listCommitModelsResponseSchema,
   type GenerateCommitDraftRequest,
@@ -7,13 +6,9 @@ export {
   type ListCommitModelsResponse,
 } from './commit-draft.ts';
 export {
-  dismissInterruptedGitActionParamsSchema,
   dismissInterruptedGitActionResponseSchema,
-  readGitActionReceiptParamsSchema,
   readGitActionReceiptResponseSchema,
-  runGitActionRejectedResponseSchema,
   runGitActionRequestSchema,
-  runGitActionResponseSchema,
   type DismissInterruptedGitActionParams,
   type DismissInterruptedGitActionResponse,
   type ReadGitActionReceiptParams,

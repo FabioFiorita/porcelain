@@ -1,8 +1,6 @@
 export {
   listBranchBasesResponseSchema,
-  readBranchChangesQuerySchema,
   readBranchChangesResponseSchema,
-  readBranchDiffsRequestSchema,
   readBranchDiffsResponseSchema,
   type ListBranchBasesResponse,
   type ReadBranchChangesQuery,
@@ -11,9 +9,7 @@ export {
   type ReadBranchDiffsResponse,
 } from './branch-changes.ts';
 export {
-  readChangeDiffsRequestSchema,
   readChangeDiffsResponseSchema,
-  readChangeLinesQuerySchema,
   readChangeLinesResponseSchema,
   readChangesResponseSchema,
   type ReadChangeDiffsRequest,
@@ -23,11 +19,7 @@ export {
   type ReadChangesResponse,
 } from './changes.ts';
 export {
-  readCommitDiffsParamsSchema,
-  readCommitDiffsRequestSchema,
   readCommitDiffsResponseSchema,
-  readCommitFilesParamsSchema,
-  readCommitFilesQuerySchema,
   readCommitFilesResponseSchema,
   type ReadCommitDiffsParams,
   type ReadCommitDiffsRequest,
@@ -37,9 +29,7 @@ export {
   type ReadCommitFilesResponse,
 } from './commit-changes.ts';
 export {
-  listCommitsQuerySchema,
   listCommitsResponseSchema,
-  listFileCommitsQuerySchema,
   listFileCommitsResponseSchema,
   type ListCommitsQuery,
   type ListCommitsResponse,
