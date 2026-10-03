@@ -61,7 +61,7 @@ The contracts in `packages/contracts/src/<area>/` describe every route: the requ
 .agents/skills/server-verify/scripts/cli evidence
 ```
 
-Every command writes a numbered file there (`001-start.json`, `002-request.json`, ...): the command, its duration, and each request and response, Git call or file read, with credentials, pairing codes, tickets, tokens and cookies redacted by the kit's recorder. `stop` adds the server's output; `supervisor.log` holds the instance supervisor's own output, redacted when it stops. A command's printed output keeps a value the next step needs, such as the code `POST /pairings` issues; the evidence never does. Report the folder and what it shows.
+Every command writes a numbered file there (`001-start.json`, `002-request.json`, ...): the command, its duration, and each request and response, Git call or file read, with credentials, pairing codes, tickets, tokens and cookies redacted by the kit's recorder. `stop` adds the server's output; `server.log` holds that output as it runs and `supervisor.log` the instance supervisor's own, both redacted when it stops. A command's printed output keeps a value the next step needs, such as the code `POST /pairings` issues; the evidence never does. Report the folder and what it shows.
 
 ## 6. Run the affected integration tests
 
@@ -79,7 +79,7 @@ When a change affects a route's cost or the Git work it starts, run `pnpm --filt
 .agents/skills/server-verify/scripts/cli stop
 ```
 
-It stops only what `start` started: it signals the instance's PID only while that process's command line is the instance's supervisor, ends its process group and sends SIGKILL to whatever is left after 15 seconds. A recorded PID that now belongs to another process is reported and never signalled. It removes the instance's data and credential and keeps the evidence folder.
+It stops only what `start` started: it signals the instance's PID only while that process's command line is the instance's supervisor, gives it 15 seconds, then ends whatever is left of its process group, such as the sandboxed server of a supervisor that is gone, with SIGTERM and after 5 seconds SIGKILL. A recorded PID that now belongs to another process is reported and never signalled. It removes the instance's data and credential and keeps the evidence folder.
 
 ## Rules
 
