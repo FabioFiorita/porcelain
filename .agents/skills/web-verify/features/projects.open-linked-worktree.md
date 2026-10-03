@@ -63,17 +63,19 @@ Check: `git -C "$REPO" worktree list` prints two lines, `$REPO … [main]` and `
    Look for: dialog "Open project" is gone; Page URL `/<new projectId>/<main worktreeId>` (not `/`); Page Title "Changes — repository"; in the sheet, project button "repository" with two worktree rows: one whose name contains "Main worktree" and is pressed, one labelled "linked".
 8. `$C network`
    Look for: `DELETE /api/projects/<old projectId>` 200 and `POST /api/projects` 200.
+9. `$C back`
+   Look for: Page URL `/<old projectId>/<old worktreeId>?entry=handoff`, the page step 1 opened, and not `/`: neither the empty `/` of steps 3 and 4 nor any other `/` entry was left in the history between it and the new worktree.
 
 ## What proves it works
 
 - End state: the URL is the new project's main worktree and the main row is pressed; the registration holds both worktrees (two rows under "repository").
-- The history promise (no `/` entry left behind to go Back to) cannot be read through the CLI; see Gotchas.
+- The history: step 9's `back` skips straight past the empty workspace to the page before the removal.
 - `apps/web/spec/e2e/projects-open-linked-worktree.e2e.ts`: after removal the URL is `/` and a reload shows "Select a worktree"; opening the main repository path closes the dialog, the server registers one project with 2 worktrees, the URL is that project's main worktree, the button matching /Main worktree/ is pressed, and the navigation history holds exactly that one entry (read through `server.inventory()` and `navigation.entries()`).
 
 ## Gotchas
 
-- CLI gap for the history promise: there is no command to read the browser history or go Back. Needed: `cli history` (prints `navigation.entries()` pathnames; the last entry must be `/<projectId>/<worktreeId>` with the `/` from step 4 replaced, not followed) or `cli back` (must not land on the empty `/`). Note that `open` itself pushes history entries, unlike the test's `page.reload()`.
+- The test reloads where step 4 uses `open /`; both leave one `/` entry, which opening the repository replaces. A `back` that lands on `/` means the empty workspace was pushed, not replaced.
 - Phone width: the navigator is in the sidebar sheet; after removing the project and after opening the repository the sheet stays open.
 - The worktree row's accessible name is built from its branch label, path, project name, status and the hidden "Main worktree" text, so address it by `--name "/Main worktree/"` and never by an exact name.
-- The project gets a new id: any URL saved from before step 3 now redirects to `/`. File preferences, reviewed marks and comments of the old project are gone.
+- The project gets a new id: a URL saved from before step 3 names a project the server no longer has (in the 2026-10-03 drive, step 9's page showed an empty workspace, "No changes to review", rather than redirecting). File preferences, reviewed marks and comments of the old project are gone.
 - Remove the linked worktree afterwards if the instance continues: `git -C "$REPO" worktree remove "$REPO/../linked" && git -C "$REPO" branch -D linked`.

@@ -35,9 +35,9 @@ A changed file's reviewed control in its diff header marks it reviewed at its cu
 1. `$C open /`
    Look for: region "Review content", heading "Changes", button "Mark README.md as reviewed".
 2. `$C click --role button --name "Mark README.md as reviewed"`
-   Look for: button "Unmark README.md as unreviewed" (aria-pressed true, enabled); the toolbar's mark-all button now reads "Unmark all".
+   Look for: button "Unmark README.md as unreviewed" [pressed]; the toolbar's mark-all button now reads "Unmark all". `$C server reviewed-files` lists README.md in `marks`.
 3. `$C click --role button --name "Unmark README.md as unreviewed"`
-   Look for: button "Mark README.md as reviewed" enabled; toolbar button "Mark all 1 files reviewed".
+   Look for: button "Mark README.md as reviewed" enabled; toolbar button "Mark all 1 files reviewed". `$C server reviewed-files` shows `"marks": []`.
 4. `$C press r`
    Look for: button "Unmark README.md as unreviewed" (the shortcut marked the focused, first entry).
 5. `$C press r`
@@ -46,7 +46,7 @@ A changed file's reviewed control in its diff header marks it reviewed at its cu
 ## What proves it works
 
 - The control flips in steps 2 to 5 and `$C network` shows `PUT /api/worktrees/<id>/reviewed` (mark) and `DELETE /api/worktrees/<id>/reviewed?...` (unmark), each 200.
-- Persistence: after step 2 or 4, `$C open /` still shows "Unmark README.md as unreviewed". Reading marks back directly needs `cli server reviewed-files`.
+- Persistence: `$C server reviewed-files` reads the mark after steps 2 and 4 and none after 3 and 5; `$C open /` after step 2 or 4 still shows "Unmark README.md as unreviewed".
 - `apps/web/spec/integration/reviews-mark-file.test.tsx`: clicking "Mark README.md as reviewed" yields an enabled "Unmark README.md as unreviewed" and `server.reviewedFiles()` lists README.md; unmarking removes it.
 
 ## Gotchas
@@ -55,4 +55,4 @@ A changed file's reviewed control in its diff header marks it reviewed at its cu
 - `R` acts only in the active document of the focused pane, on the focused entry (the first one until `J`/`K`, a line click or a header toggle moves it).
 - The button is disabled while its request is pending; snapshot again if it still shows a spinner.
 - Marks persist on the server; leave README.md unmarked for the next feature.
-- Right after `start` or `open /`, the diff loads after the toolbar: a click on "Mark README.md as reviewed" sent too early fails with "does not match any elements" (seen live on the first command after `start`). Run `$C snapshot` until the button shows, then click. CLI gap: `cli wait --role button --name "Mark README.md as reviewed"`.
+- Right after `start` or `open /`, the diff loads after the toolbar; `click` waits up to 10 s for the button to show, so step 2 needs no snapshot first.

@@ -45,7 +45,7 @@ mkfifo "$REPO/.git/logs/HEAD"
    Look for: the textbox holds "Stuck commit"; button "Commit selected files" is enabled.
 3. `.agents/skills/web-verify/scripts/cli click --role button --name "Commit selected files"`
    Look for: button "Committing…" (disabled) and status "running" for about 1.5 seconds; a CLI command often lands after it, so go on to step 4.
-4. `.agents/skills/web-verify/scripts/cli snapshot`
+4. `.agents/skills/web-verify/scripts/cli wait --text "outcome unknown"`, then `.agents/skills/web-verify/scripts/cli snapshot`
    Look for: inside dialog "Commit changes", an `alert` reading "outcome unknown"; button "Commit selected files" is back.
 5. `.agents/skills/web-verify/scripts/cli press Escape`
    Look for: the dialog is gone; at the top of region "Review content" a `status` with "A Git action was interrupted: commit", "Check the current changes before trying again." and button "Got it". README.md is still listed as changed (`git -C "$REPO" status --short` prints ` M README.md`).
@@ -54,7 +54,7 @@ mkfifo "$REPO/.git/logs/HEAD"
 7. `.agents/skills/web-verify/scripts/cli click --role button --name "Got it"`
    Look for: the `status` "A Git action was interrupted: commit" is gone.
 8. `.agents/skills/web-verify/scripts/cli network`
-   Look for: `DELETE /api/worktrees/<id>/git/interrupted/<requestId>` answered 200. (`network` lists only the requests since the last page load: the `POST /api/worktrees/<id>/git/actions` answered 202 shows only in a `network` taken before step 6.)
+   Look for: `DELETE /api/worktrees/<id>/git/interrupted/<requestId>` answered 200. (`network` lists only the requests since the last page load: the `POST /api/worktrees/<id>/git/actions` answered 202 shows only in a `network` taken before step 6.) `.agents/skills/web-verify/scripts/cli server receipt <requestId>`, with the id from that DELETE, prints `"action": "commit"`, `"state": "interrupted"` and `"reason": "OUTCOME_UNKNOWN"`: dismissing the notice keeps the receipt.
 9. `.agents/skills/web-verify/scripts/cli open /`
    Look for: the notice does not come back.
 
@@ -67,5 +67,5 @@ mkfifo "$REPO/.git/logs/HEAD"
 ## Gotchas
 
 - The server kills the stuck Git with SIGKILL, so its lock files stay behind and every later Git action in this instance fails or hangs. Clean up before driving another feature: `rm -f "$REPO/.git/logs/HEAD" "$REPO"/.git/*.lock "$REPO/.git/refs/heads/main.lock"` (a live run left `.git/HEAD.lock` and `.git/next-index-<pid>.lock`), or `stop` and `start` a fresh instance.
-- The CLI cannot read the receipt back; the test does it with `server.receipt(requestId)`. The command that would be needed: `cli server receipt <requestId>` (the request id is the last path segment of the DELETE in `network`).
+- The request id for `server receipt` is the last path segment of the DELETE in `network`.
 - Escape closes the dialog only once the action has settled (the dialog refuses to close while busy); wait for the alert first.
