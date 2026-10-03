@@ -3,7 +3,7 @@ import { Usage } from '../../server-verify/scripts/core/cli.ts';
 
 type Run = (code: string) => string;
 
-const reconnectWithinMs = 10_000;
+const reconnectWithinMs = 15_000;
 
 const ensure = `const context = page.context();
   if (context.porcelainNetwork === undefined) {

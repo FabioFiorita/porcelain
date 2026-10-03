@@ -46,12 +46,14 @@ export const interactionUsage = `  open <route>            open a route of the w
   back                    go back in the browser history
   click <address> [--button right]
   fill <address> <value>  fill a field; the file editor's text is replaced
+  select <address> <option>
+                          choose an option of a native select by its label or value
   press <key>             press a key, such as Escape or ControlOrMeta+p
   drag <address> <to>     drag onto --to-role <role> --to-name <name>, --to-testid or --to-text
   wait <address>          wait until the element shows, up to --timeout <ms> (10000)
       An address is --role <role> --name <name>, --testid <id> or --text <text>,
       scoped by --within-role <role> --within-name <name>, --frame "<iframe title>"
-      and --nth <index>; click, fill and drag first wait for it like wait does.
+      and --nth <index>; click, fill, select and drag first wait for it like wait does.
   snapshot                record the accessibility tree as Playwright's aria snapshot
   screenshot              record a screenshot
   console                 record the console messages
@@ -272,6 +274,16 @@ async function run(
       'fill',
       args,
       cli(['run-code', fillCode(locator, rest[0] ?? '')]),
+    );
+  }
+  if (name === 'select') {
+    const locator = target(values);
+    await appear(browser, 'select', args, locator, values);
+    return recorded(
+      browser,
+      'select',
+      args,
+      cli(['select', locator, rest[0] ?? '']),
     );
   }
   if (name === 'drag') {
