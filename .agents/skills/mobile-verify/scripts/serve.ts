@@ -107,9 +107,13 @@ export async function serve(
     stopping = true;
     log(`stopping: ${reason}`);
     if (simulator !== undefined)
-      agentDevice({ udid: simulator.udid, session, cwd: evidence }, ['close'], {
-        allowFailure: true,
-      });
+      agentDevice(
+        { udid: simulator.udid, session, cwd: evidence },
+        ['close', '--shutdown'],
+        {
+          allowFailure: true,
+        },
+      );
     metro?.stop();
     if (simulator !== undefined)
       await shutdownSimulator(simulator.udid).catch((error: unknown) =>

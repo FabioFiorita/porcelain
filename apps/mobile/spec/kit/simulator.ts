@@ -12,6 +12,7 @@ const minimumRuntime = 26;
 const language = 'en-US';
 const locale = 'en_US';
 const settleMs = 500;
+const shutdownLimitMs = 60 * 1000;
 const families: Record<DeviceKind, string> = { iphone: 'iPhone', ipad: 'iPad' };
 const preferred: Record<DeviceKind, readonly string[]> = {
   iphone: ['iPhone 17', 'iPhone 18 Pro'],
@@ -166,7 +167,16 @@ export async function isBooted(udid: string): Promise<boolean> {
 
 export async function shutdownSimulator(udid: string): Promise<void> {
   if (await isBooted(udid)) await simctl('shutdown', udid);
-  while ((await stateOf(udid)) === 'Shutting Down') await sleep(settleMs);
+  const deadline = Date.now() + shutdownLimitMs;
+  for (
+    let state = await stateOf(udid);
+    state !== 'Shutdown' && state !== undefined;
+    state = await stateOf(udid)
+  ) {
+    if (Date.now() > deadline)
+      throw new Error(`The simulator ${udid} is still ${state}.`);
+    await sleep(settleMs);
+  }
 }
 
 export async function resetApp(
