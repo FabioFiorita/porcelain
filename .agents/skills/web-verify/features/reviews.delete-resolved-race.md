@@ -32,7 +32,7 @@ Start with `.agents/skills/web-verify/scripts/cli start`.
 
 ### Setup
 
-None before step 1. Step 6 needs an agent reply while the confirmation is open, which the CLI cannot send (see Gotchas). Steps 1 to 5 and the deletion without the race (`reviews.delete-resolved`) are drivable.
+None before step 1. Step 6 has the agent reply while the confirmation is open.
 
 1. `.agents/skills/web-verify/scripts/cli open /` then `.agents/skills/web-verify/scripts/cli click --role button --name "Review"` then `.agents/skills/web-verify/scripts/cli click --role tab --name "/^Comments/"`
    Look for: dialog "Worktree review"; button "Comment on the whole change".
@@ -44,11 +44,12 @@ None before step 1. Step 6 needs an agent reply while the confirmation is open, 
    Look for: article "Resolved comment thread"; button "Delete resolved".
 5. `.agents/skills/web-verify/scripts/cli click --role button --name "Delete resolved"`
    Look for: alertdialog with heading "Delete 1 resolved thread?"; buttons "Cancel" and "Delete".
-6. CLI gap, with the alertdialog still open: `cli server comment-threads` (to read the thread id), then `cli agent reply <threadId> "Done, split into two commits"`.
+6. With the alertdialog still open: `.agents/skills/web-verify/scripts/cli agent reply latest "Done, split into two commits"` (`latest` is the thread with the newest message; `.agents/skills/web-verify/scripts/cli server comment-threads` prints every thread id).
+   Look for: "the agent's reply reached the server" with the thread now holding both messages; the alertdialog still reads "Delete 1 resolved thread?".
 7. `.agents/skills/web-verify/scripts/cli click --role button --name "Delete"`
    Look for: the alertdialog stays, now with heading "Kept 1 thread that changed", the text "The agent answered or someone reopened them after you confirmed, so they stay for you to read first." and button "Close" (no "Cancel" or "Delete").
 8. `.agents/skills/web-verify/scripts/cli click --role button --name "Close"`
-   Look for: the alertdialog is gone; the resolved thread "Split this into two commits" is still listed.
+   Look for: the alertdialog is gone; the resolved thread "Split this into two commits" is still listed. `.agents/skills/web-verify/scripts/cli server comment-threads` shows the thread `"resolved": true` with both messages.
 
 ## What proves it works
 
@@ -58,6 +59,5 @@ None before step 1. Step 6 needs an agent reply while the confirmation is open, 
 
 ## Gotchas
 
-- Unreachable through the CLI: the race needs an agent reply between steps 5 and 7, `cli agent reply <threadId> "Done, split into two commits"`, and reading the thread id needs `cli server comment-threads`.
-- Without step 6, "Delete" simply deletes the thread and the alertdialog closes (the promise of `reviews.delete-resolved`), so a drive that skips the gap proves nothing about the race.
+- Without step 6, "Delete" simply deletes the thread and the alertdialog closes (the promise of `reviews.delete-resolved`), so a drive that skips the agent reply proves nothing about the race.
 - Threads left by other features make "Resolve" ambiguous; `stop` and `start` for a clean instance.

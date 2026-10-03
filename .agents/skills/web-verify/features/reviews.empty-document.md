@@ -28,23 +28,23 @@ With every tab closed, the document pane says "Nothing open" and offers one butt
 
 ## Driving it
 
-`C=.agents/skills/web-verify/scripts/cli; $C start`. The first half needs nothing; the second half needs the agent to publish a review, which the CLI cannot do.
+`C=.agents/skills/web-verify/scripts/cli; $C start`. The first half needs nothing; the second half has the agent publish a review.
 
 ### Setup
 
 - None for steps 1 to 3.
-- Before step 4: the agent publishes a review. CLI gap: `cli agent publish-review "Readme layer"` (the kit's sample review: one layer "Readme layer" with one step "New line" on README.md line 3; `agent.publishReview` in `apps/web/spec/kit/shapes.ts`).
+- Step 4 publishes the kit's sample review: one layer "Readme layer" with one step "New line" on README.md line 3, as the test's `agent.publishReview` does.
 
 1. `$C open /`
    Look for: tab "Changes Close Changes" selected, heading "Changes", button "Mark all 1 files reviewed".
 2. `$C click --role button --name "Close Changes"`
-   Look for: text "Nothing open", text "No open tabs" in the tablist "Open documents", button "Open all changes"; no button "Open summary".
+   Look for: tablist "Open documents" reading "No open tabs"; text "Nothing open Open all changes, or choose a file or commit from the right."; button "Open all changes"; no button "Open summary".
 3. `$C click --role button --name "Open all changes"`
    Look for: tab "Changes Close Changes" selected again, heading "Changes"; text "Nothing open" gone. Page URL carries `entry=handoff`.
-4. (After `cli agent publish-review "Readme layer"`.) `$C snapshot`
-   Look for: the handoff tab is now named "Review Close Review" and the pane shows region "Published review" (heading "Review", "1 layers").
+4. `$C agent publish-review "Readme layer"`, then `$C wait --role tab --name "Review Close Review"` and `$C snapshot`
+   Look for: the handoff tab is now tab "Review Close Review" [selected] and the pane shows region "Published review" (heading "Review", paragraph "1 layers").
 5. `$C click --role button --name "Close Review"`
-   Look for: text "Nothing open", button "Open summary"; no button "Open all changes".
+   Look for: text "Nothing open Open the summary, or choose a file or commit from the right."; button "Open summary"; no button "Open all changes".
 6. `$C click --role button --name "Open summary"`
    Look for: tab "Review Close Review" selected, region "Published review" with an iframe titled "Review summary".
 
@@ -56,6 +56,6 @@ With every tab closed, the document pane says "Nothing open" and offers one butt
 
 ## Gotchas
 
-- Unreachable through the CLI (second half only): the published review needs an agent action. Command needed: `cli agent publish-review "Readme layer"`.
+- After step 6 the summary iframe stays blank, with no request for its page, until the next `open /` loads it (seen in the 2026-10-03 drive); right after the publish in step 4 and after a reload it loads. The promise here is the reopened handoff tab and its frame, not the frame's content.
 - Once a review with layers is published the handoff tab is renamed "Review" and its close button is "Close Review"; "Close Changes" no longer exists. The test clicks "Close Changes" right after publishing, before the page has received the review; an agent driving by hand sees "Close Review".
 - The tab layout is saved in localStorage per worktree; a closed tab stays closed across `open`. Reset with `$C click --role button --name "Open all changes"` (or "Open summary").

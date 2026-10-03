@@ -31,17 +31,17 @@ A comment the agent left for you and checks that ran before the latest code chan
 
 ### Setup
 
-- The agent publishes a review with two passing checks. CLI gap: `cli agent publish-proof "Readme layer" --check "Unit tests=pass" --check "Save journey=pass" --screenshot "Saved notice"`.
-- The agent comments on README.md. CLI gap: `cli agent comment README.md "Should the note mention the new flag?"`.
+- The agent publishes a review with two passing checks: `$C agent publish-proof "Readme layer" --check "Unit tests=pass" --check "Save journey=pass" --screenshot "Saved notice"`.
+- The agent comments on README.md: `$C agent comment README.md "Should the note mention the new flag?"`.
 
 1. `$C open /`
    Look for: tab "Review Close Review", region "Published review".
 2. `$C click --role button --name "Review"`
-   Look for: in the dialog, region "Readiness" with buttons "2 checks passed" and "1 comment waiting on you".
-3. On disk: `printf '# Sample repository\n\nA change to review.\nAnother line.\n' > "$REPO/README.md"`, then `$C snapshot`
-   Look for: in region "Readiness", button "Checks ran before the latest changes" in place of "2 checks passed"; "1 comment waiting on you" still there; the proof row reads "Proof · outdated".
+   Look for: in the dialog, region "Readiness" with header button "Readiness 2 things to check" and buttons "0 of 1 file reviewed", "No marks went stale", "Every change explained", "1 comment waiting on you" and "2 checks passed".
+3. On disk: `printf '# Sample repository\n\nA change to review.\nAnother line.\n' > "$REPO/README.md"`, then `$C wait --role button --name "Checks ran before the latest changes"` and `$C snapshot`
+   Look for: in region "Readiness", button "Checks ran before the latest changes" in place of "2 checks passed"; "1 comment waiting on you" still there; header "Readiness 3 things to check"; the proof row reads "Proof · outdated".
 4. `$C click --role button --name "Checks ran before the latest changes"`
-   Look for: the sheet closes; region "Proof" with heading "Proof", subtitle starting "Published " and containing "checks outdated", and alert "These checks ran before the latest changes".
+   Look for: the sheet closes; Page Title "Proof — repository"; region "Proof" with heading "Proof", paragraph "Published <date, time> · checks outdated · 1 attachment", and alert "These checks ran before the latest changes The code changed after the agent published this proof. Ask it to run the checks again.".
 
 ## What proves it works
 
@@ -50,6 +50,5 @@ A comment the agent left for you and checks that ran before the latest code chan
 
 ## Gotchas
 
-- Unreachable through the CLI: both the proof and the agent's comment are agent actions. Commands needed: `cli agent publish-proof ...` and `cli agent comment README.md "..."` as above.
-- The sheet stays open across the disk write; if step 3 still shows "2 checks passed", snapshot again after a second (the server's watcher and the live connection carry the change).
+- The sheet stays open across the disk write; the server's watcher and the live connection carry the change, which the `wait` in step 3 follows.
 - Restore README.md afterwards: `printf '# Sample repository\n\nA change to review.\n' > "$REPO/README.md"`.

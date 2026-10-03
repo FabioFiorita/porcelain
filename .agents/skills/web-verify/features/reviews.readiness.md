@@ -44,12 +44,12 @@ The readiness panel at the top of the review sidebar counts reviewed files, mark
 
 ## Driving it
 
-`C=.agents/skills/web-verify/scripts/cli; $C start` (prints `repository <path>`; call it `$REPO`). Steps 1 to 8 need no agent; steps 9 and 10 need the agent's proof.
+`C=.agents/skills/web-verify/scripts/cli; $C start` (prints `repository <path>`; call it `$REPO`). Steps 1 to 8 need no agent; step 9 has the agent publish its proof.
 
 ### Setup
 
 - None up front. The disk writes come in steps 7 and 8.
-- Before step 9: CLI gap `cli agent publish-proof "Readme layer" --check "Unit tests=pass" --check "Save journey=fail" --screenshot "Saved notice"`.
+- Step 9 publishes the agent's proof with `$C agent publish-proof`.
 
 1. `$C open /`, then `$C click --role button --name "Review"`
    Look for: in the dialog, region "Readiness" with buttons "0 of 1 file reviewed", "No marks went stale", "No review published", "No open comments", "No checks attached"; header button "Readiness 3 things to check".
@@ -63,14 +63,14 @@ The readiness panel at the top of the review sidebar counts reviewed files, mark
    Look for: button "Unmark README.md as unreviewed" enabled.
 6. `$C click --role button --name "Review"`
    Look for: lines "1 of 1 file reviewed" and "1 comment waiting on the agent".
-7. On disk: `printf '# Sample repository\n\nA change to review.\nAnother line.\n' > "$REPO/README.md"`, then `$C snapshot`
+7. On disk: `printf '# Sample repository\n\nA change to review.\nAnother line.\n' > "$REPO/README.md"`, then `$C wait --role button --name "1 mark changed since reviewed"` and `$C snapshot`
    Look for: lines "1 mark changed since reviewed" and "0 of 1 file reviewed"; header button "Readiness 5 things to check".
-8. On disk: `printf 'A note the review leaves out.\n' > "$REPO/notes.md"`, then `$C snapshot`
+8. On disk: `printf 'A note the review leaves out.\n' > "$REPO/notes.md"`, then `$C wait --role button --name "0 of 2 files reviewed"`
    Look for: line "0 of 2 files reviewed".
-9. (After `cli agent publish-proof ...`.) `$C snapshot`
-   Look for: lines "1 line in 1 file not explained" and "1 of 2 checks failing"; header button "Readiness 5 things to check".
+9. `$C agent publish-proof "Readme layer" --check "Unit tests=pass" --check "Save journey=fail" --screenshot "Saved notice"`, then `$C wait --role button --name "1 of 2 checks failing"` and `$C snapshot`
+   Look for: lines "0 of 2 files reviewed", "1 mark changed since reviewed", "1 line in 1 file not explained", "1 comment waiting on the agent" and "1 of 2 checks failing"; header button "Readiness 5 things to check".
 10. `$C click --role button --name "1 of 2 checks failing"`
-    Look for: the sheet closes; region "Proof" with heading "Proof" and alert "1 check failed".
+    Look for: the sheet closes; Page Title "Proof — repository"; region "Proof" with heading "Proof" and alert "1 check failed The agent reported this work as not passing yet.".
 
 ## What proves it works
 
@@ -80,8 +80,7 @@ The readiness panel at the top of the review sidebar counts reviewed files, mark
 
 ## Gotchas
 
-- Unreachable through the CLI (steps 9 and 10 only): the proof is an agent action. Command needed: `cli agent publish-proof ...` as above.
 - Phone width: the panel lives in the review sheet; the comment and mark controls (steps 3 to 5) are in the document behind it, so close the sheet with `Escape` first.
 - `fill` leaves focus in the textbox; the composer's submit button is "Comment" exactly, distinct from the header's "Comment on README.md (unstaged · modified)".
-- The panel follows disk writes through the watcher and the live connection; snapshot again if a line has not changed yet.
+- The panel follows disk writes and the agent's publish through the watcher and the live connection, which the `wait` lines follow.
 - This leaves a comment, a mark, notes.md and a changed README.md behind; restore with `rm "$REPO/notes.md"` and `printf '# Sample repository\n\nA change to review.\n' > "$REPO/README.md"` (the comment stays on the server).

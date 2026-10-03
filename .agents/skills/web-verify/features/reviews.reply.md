@@ -32,18 +32,18 @@ Start with `.agents/skills/web-verify/scripts/cli start`.
 
 ### Setup
 
-The promise starts from an agent comment on README.md: `cli agent comment README.md "Should this line stay?"`, which the CLI lacks. With it, the thread shows inline under README.md with the badge "From the agent" and steps 2 to 5 run as written (skip step 1). Without it, step 1 makes a reviewer thread to drive the same reply mechanics; it already reads "Waiting for the agent", so it proves less.
+The agent comments on README.md: `.agents/skills/web-verify/scripts/cli agent comment README.md "Should this line stay?"`.
 
-1. Fallback for the gap: `.agents/skills/web-verify/scripts/cli open /` then `.agents/skills/web-verify/scripts/cli click --role button --name "Comment on README.md (unstaged · modified)"` then `.agents/skills/web-verify/scripts/cli fill --role textbox --name "Comment" "Should this line stay?"` then `.agents/skills/web-verify/scripts/cli click --role button --name "Comment"`
-   Look for: article "Comment thread" under README.md with "Should this line stay?" and button "Reply".
+1. `.agents/skills/web-verify/scripts/cli open /`, then `.agents/skills/web-verify/scripts/cli wait --text "Should this line stay?"`
+   Look for: article "Comment thread" under README.md with "Agent Whole file From the agent", buttons "Reply" and "Resolve", and "Should this line stay?".
 2. `.agents/skills/web-verify/scripts/cli click --role button --name "Reply"`
-   Look for: textbox "Reply"; button "Post reply" is disabled; button "Reply" is gone while the form is open.
+   Look for: textbox "Reply"; button "Post reply" [disabled]; button "Reply" is gone while the form is open.
 3. `.agents/skills/web-verify/scripts/cli fill --role textbox --name "Reply" "   "`
-   Look for: button "Post reply" is still disabled.
+   Look for: button "Post reply" still [disabled].
 4. `.agents/skills/web-verify/scripts/cli fill --role textbox --name "Reply" "Yes, it documents the change"` then `.agents/skills/web-verify/scripts/cli click --role button --name "Post reply"`
-   Look for: textbox "Reply" is gone; the same article now holds "Should this line stay?" followed by "Yes, it documents the change"; the badge text "Waiting for the agent" (it read "From the agent" before, with the agent comment).
+   Look for: textbox "Reply" is gone; the same article now reads "Agent Whole file Waiting for the agent" and holds "Should this line stay?" followed by "You … Yes, it documents the change" and "The agent reads this when you ask it to check its comments.".
 5. `.agents/skills/web-verify/scripts/cli network`
-   Look for: one `POST /api/worktrees/<id>/comments/<threadId>/replies` answered 200 (step 4 only).
+   Look for: one `POST /api/worktrees/<id>/comments/<threadId>/replies` answered 200 (step 4 only). `.agents/skills/web-verify/scripts/cli server comment-threads` holds one thread with the agent's message and then the reviewer's reply.
 
 ## What proves it works
 
@@ -53,6 +53,5 @@ The promise starts from an agent comment on README.md: `cli agent comment README
 
 ## Gotchas
 
-- Unreachable through the CLI: replying to an agent comment needs `cli agent comment README.md "Should this line stay?"` first; the step 1 fallback only proves the reply mechanics on a reviewer thread.
 - "Reply" names both the button and, while the form is open, the textbox (its label). Keep `--role` on every address.
 - "Reply" must be unique: another open thread in this instance adds a second button. `stop` and `start` for a clean instance.

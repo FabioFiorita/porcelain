@@ -25,26 +25,26 @@ Showing the comment list marks the agent's comments as seen and clears the workt
 
 ## Driving it
 
-Start with `.agents/skills/web-verify/scripts/cli start`.
+`C=.agents/skills/web-verify/scripts/cli; $C start`.
 
 ### Setup
 
-Unreachable through the CLI: both agent comments need `cli agent comment README.md "I added a line to the readme"` (before step 1) and `cli agent comment README.md "I also checked the other files"` (at step 6). The reviewer's steps are below, written for when that gap is filled. Reading the flag back from the server needs `cli server project` (the main worktree's `status`), or use the navigator dot as below.
+The agent comments on README.md: `$C agent comment README.md "I added a line to the readme"`. `$C server project` reads the flag back: the main worktree's `"status": "replied"` while it is raised, and no `status` once cleared.
 
-1. `.agents/skills/web-verify/scripts/cli open /`
-   Look for: the text "I added a line to the readme" inline under README.md (badge "From the agent").
-2. `.agents/skills/web-verify/scripts/cli click --role button --name "Toggle Sidebar"`
-   Look for: navigation "Projects and worktrees" with the main worktree row (button starting "main") holding img "The agent replied". Then `.agents/skills/web-verify/scripts/cli press Escape`.
-3. `.agents/skills/web-verify/scripts/cli click --role button --name "Review"` then `.agents/skills/web-verify/scripts/cli click --role tab --name "/^Comments/"`
-   Look for: dialog "Worktree review" listing "I added a line to the readme"; tab "Comments 1".
-4. `.agents/skills/web-verify/scripts/cli network`
+1. `$C open /`, then `$C wait --text "I added a line to the readme"`
+   Look for: the comment inline under README.md, with the badge text "From the agent".
+2. `$C click --role button --name "Toggle Sidebar"`
+   Look for: navigation "Projects and worktrees" with the main worktree row (button "main <repository path> repository The agent replied Main worktree") holding img "The agent replied". Then `$C press Escape`.
+3. `$C click --role button --name "Review"`, then `$C click --role tab --name "/^Comments/"`
+   Look for: dialog "Worktree review" with tab "Comments 1" selected; region "Comments" listing "I added a line to the readme" with "From the agent".
+4. `$C network`
    Look for: `POST /api/worktrees/<id>/comments/seen` answered 200.
-5. `.agents/skills/web-verify/scripts/cli press Escape` then `.agents/skills/web-verify/scripts/cli click --role button --name "Toggle Sidebar"`
-   Look for: dialog "Worktree review" is gone; the worktree row no longer has img "The agent replied". Then `.agents/skills/web-verify/scripts/cli press Escape`.
-6. CLI gap: `cli agent comment README.md "I also checked the other files"`.
-   Look for: the text "I also checked the other files" inline under README.md; "Toggle Sidebar" shows img "The agent replied" again (seen only inline does not clear it).
-7. `.agents/skills/web-verify/scripts/cli click --role button --name "Review"` then `.agents/skills/web-verify/scripts/cli click --role tab --name "/^Comments/"`
-   Look for: the list shows "I also checked the other files"; a second `POST .../comments/seen` answered 200 in `network`; the navigator dot is gone again.
+5. `$C press Escape`, then `$C click --role button --name "Toggle Sidebar"`
+   Look for: dialog "Worktree review" is gone; the worktree row no longer has img "The agent replied"; `$C server project` shows no `status` on the worktree. Then `$C press Escape`.
+6. `$C agent comment README.md "I also checked the other files"`, then `$C wait --text "/I also checked the other files/"`
+   Look for: the new comment inline under README.md; `$C server project` shows `"status": "replied"` again, and `$C click --role button --name "Toggle Sidebar"` shows img "The agent replied" back (seen only inline does not clear it). Then `$C press Escape`.
+7. `$C click --role button --name "Review"`, then `$C click --role tab --name "/^Comments/"`
+   Look for: tab "Comments 2" selected listing "I also checked the other files"; a newer `POST .../comments/seen` answered 200 in `$C network`; `$C server project` shows no `status` again.
 
 ## What proves it works
 
@@ -54,6 +54,6 @@ Unreachable through the CLI: both agent comments need `cli agent comment README.
 
 ## Gotchas
 
-- Unreachable through the CLI: agent comments need `cli agent comment <path> "<body>"`; without them there is no flag to clear and nothing to mark seen.
+- The list may send `POST .../comments/seen` twice per view; each answers 200.
 - With resolved threads present, the list marks seen only after both the "open" and the "resolved" filter were shown; click button `/^resolved/i` too.
 - At phone width the navigator is a sheet behind "Toggle Sidebar"; close it with `Escape` before clicking "Review".

@@ -33,7 +33,7 @@ Inside a layer of the agent's published review, each step's code carries the sam
 
 ### Setup
 
-- The agent publishes a review. CLI gap: `cli agent publish-review "Readme layer"` (one layer "Readme layer", one step "New line" pointing at README.md line 3).
+- The agent publishes a review: `$C agent publish-review "Readme layer"` (one layer "Readme layer", one step "New line" pointing at README.md line 3).
 
 1. `$C open /`
    Look for: the handoff tab "Review Close Review" and region "Published review".
@@ -42,19 +42,18 @@ Inside a layer of the agent's published review, each step's code carries the sam
 3. `$C click --role button --name "/Readme layer/"`
    Look for: the sheet closes; tab "1. Readme layer Close 1. Readme layer" selected; region "Review layer Readme layer" with heading "Readme layer", article "Step New line", buttons "Collapse README.md" and "Mark README.md as reviewed".
 4. `$C click --role button --name "Mark README.md as reviewed"`
-   Look for: button "Unmark README.md as unreviewed" (aria-pressed true, enabled).
+   Look for: button "Unmark README.md as unreviewed" [pressed]. Then `$C server reviewed-files`: `marks` holds README.md with its fingerprint.
 5. `$C click --role button --name "Unmark README.md as unreviewed"`
-   Look for: button "Mark README.md as reviewed" enabled again.
+   Look for: button "Mark README.md as reviewed" again. Then `$C server reviewed-files`: `marks` is `[]`.
 
 ## What proves it works
 
 - The control flips in steps 4 and 5, and `$C network` shows `PUT /api/worktrees/<id>/reviewed` then `DELETE /api/worktrees/<id>/reviewed?...` each answered 200.
-- Persistence: after step 4, `$C open /` reloads onto the saved layer tab (the last tab opened) and still shows "Unmark README.md as unreviewed". Reading the marks back directly needs `cli server reviewed-files`.
+- Persistence: `$C server reviewed-files` after steps 4 and 5 reads the mark, then none, from the server; after step 4, `$C open /` also reloads onto the saved layer tab (the last tab opened) and still shows "Unmark README.md as unreviewed".
 - `apps/web/spec/integration/reviews-layer-file-mark.test.tsx`: in region "Review layer Readme layer", "Mark README.md as reviewed" turns into an enabled "Unmark README.md as unreviewed" and `server.reviewedFiles()` lists README.md; unmarking removes it.
 
 ## Gotchas
 
-- Unreachable through the CLI: the layer exists only after the agent publishes. Command needed: `cli agent publish-review "Readme layer"`.
 - Phone width: the review sidebar is a sheet behind the "Review" button; choosing the layer closes it.
 - The sidebar's layer button has a number prefix; address it by `/Readme layer/`. Once the layer tab is open its "Close 1. Readme layer" button also matches that pattern, so go back to the layer with `$C click --role tab --name "/Readme layer/"` instead.
 - Marks persist on the server across steps; unmark before handing the instance to another feature.
