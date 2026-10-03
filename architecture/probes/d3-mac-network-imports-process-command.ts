@@ -10,7 +10,7 @@ export default {
       kind: 'prepend',
       path: 'apps/server/src/adapters/access/mac-network-command.ts',
       content:
-        "import '../../../../../packages/process/src/commands/read-command.ts';\n",
+        "import '../../../../../packages/process/src/commands/run-command.ts';\n",
     },
   ],
 } satisfies Probe;

@@ -6,7 +6,9 @@ const workflowSchema = z.object({
   jobs: z.record(
     z.string(),
     z.object({
-      strategy: z.object({ matrix: z.unknown() }).optional(),
+      strategy: z
+        .object({ matrix: z.unknown(), 'fail-fast': z.unknown().optional() })
+        .optional(),
       steps: z.array(z.object({ run: z.string().optional() })),
     }),
   ),
@@ -69,6 +71,7 @@ export function manualAuditProblems(
   if (
     count === 0 ||
     extra.length > 0 ||
+    only.job.strategy?.['fail-fast'] !== false ||
     !isDeepStrictEqual(only.job.strategy?.matrix, { shard: shards })
   )
     problems.push(

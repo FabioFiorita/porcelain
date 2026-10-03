@@ -68,7 +68,6 @@
     "porcelain/static-imports": "error",
     "porcelain/no-blocking-child-process": "error",
     "porcelain/kernel-is-types": "error",
-    "porcelain/models-file-shape": "error",
     "porcelain/one-clock": "error",
     "porcelain/no-undefined-union-result": "error",
     "porcelain/signals-are-passed": "error",

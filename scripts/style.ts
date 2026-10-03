@@ -171,7 +171,7 @@ function codeOutsideLintRoots(files: readonly string[]): Problem[] {
     .map((path) =>
       problem(
         'code-outside-lint-roots',
-        `${path}: code lives under a lint root (${allRoots.join(', ')}); a file outside them escapes lint, the disable-directive scan and the format check, because code outside the roots escapes lint and format checks.`,
+        `${path}: put code under a lint root (${allRoots.join(', ')}), because a file outside them escapes lint, disable-directive scanning and format checks.`,
       ),
     );
 }

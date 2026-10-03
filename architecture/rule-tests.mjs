@@ -432,7 +432,7 @@ const audit = {
   on: { workflow_dispatch: null },
   jobs: {
     probes: {
-      strategy: { matrix: { shard: [1, 2] } },
+      strategy: { matrix: { shard: [1, 2] }, 'fail-fast': false },
       steps: [{ run: 'pnpm probes --shard ${{ matrix.shard }}/2' }],
     },
   },
@@ -516,6 +516,25 @@ ok(
       ],
     ]),
   ).some((problem) => problem.startsWith('.github/workflows/web.yml')),
+);
+
+ok(
+  manualAuditProblems(
+    new Map([
+      [
+        path,
+        {
+          ...audit,
+          jobs: {
+            probes: {
+              ...audit.jobs.probes,
+              strategy: { ...audit.jobs.probes.strategy, 'fail-fast': true },
+            },
+          },
+        },
+      ],
+    ]),
+  ).some((problem) => problem.includes('audit shards')),
 );
 
 const source = new Map([['fixture.ts', 'old']]);
