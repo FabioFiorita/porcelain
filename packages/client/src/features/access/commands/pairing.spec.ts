@@ -74,7 +74,7 @@ describe('pairing an environment', () => {
         body: undefined,
       },
       {
-        path: '/api/inventory',
+        path: '/api/session',
         authorization: 'Bearer paired-credential',
         body: undefined,
       },

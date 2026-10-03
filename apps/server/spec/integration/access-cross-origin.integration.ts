@@ -7,7 +7,13 @@ import {
 import { expect } from 'vitest';
 import { apiError, credentialForm, unauthenticated } from '../kit/answers.ts';
 import { inventory } from '../kit/reads.ts';
-import { issuePairing, read, pairBrowser } from '../kit/requests.ts';
+import {
+  issuePairing,
+  owner,
+  pairBrowser,
+  pairDevice,
+  read,
+} from '../kit/requests.ts';
 import { test } from '../kit/server-test.ts';
 import { list, record, text, type Session } from '../kit/session.ts';
 
@@ -164,6 +170,40 @@ test('a bearer client on another origin, or on an opaque one, reads and writes',
     name: 'From a file page',
   });
   expect(await projectName(session)).toBe('From a file page');
+});
+
+test('a bearer client on another origin reads whose session it holds until its device is revoked', async ({
+  session,
+}) => {
+  const device = await pairDevice(session, 'Status check');
+  const readSession = () =>
+    session.send({
+      method: 'GET',
+      path: '/api/session',
+      headers: fromApp,
+      auth: { bearer: device.credential },
+    });
+
+  const paired = await readSession();
+  await read(
+    session,
+    owner({
+      method: 'POST',
+      path: '/access/revoke',
+      body: { id: device.deviceId },
+    }),
+  );
+  const revoked = await readSession();
+
+  expect(paired.status).toBe(200);
+  expect(paired.body).toStrictEqual({
+    kind: 'device',
+    deviceId: device.deviceId,
+  });
+  expect(paired.headers['access-control-allow-origin']).toBe('*');
+  expect(revoked.status).toBe(401);
+  expect(revoked.body).toStrictEqual(unauthenticated);
+  expect(revoked.headers['access-control-allow-origin']).toBe('*');
 });
 
 test('a cookie, no credential or an unknown bearer cannot write from another origin', async ({

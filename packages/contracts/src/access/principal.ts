@@ -6,3 +6,8 @@ const principalSchema = z.discriminatedUnion('kind', [
 ]);
 
 export type Principal = z.output<typeof principalSchema>;
+
+export const readSessionResponseSchema = principalSchema;
+
+export type ReadSessionRequest = { viewer: Principal };
+export type ReadSessionResponse = z.output<typeof readSessionResponseSchema>;

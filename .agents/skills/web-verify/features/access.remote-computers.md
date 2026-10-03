@@ -16,7 +16,7 @@ tests:
   - apps/web/spec/e2e/access-remote-computers.desktop.e2e.ts
 api:
   - GET /api/environment
-  - GET /api/inventory
+  - GET /api/session
   - POST /api/pair
 ---
 
@@ -70,7 +70,7 @@ The desktop app pairs with another Porcelain from the link `porcelain pair` prin
 ## What proves it works
 
 - Steps 3, 5 and 7: each refusal shows its alert, and the list stays empty.
-- Step 8: "Online" means the remote answered `GET /api/environment` and authenticated `GET /api/inventory` with the new credential; `$C network` run right after it lists the cross-origin `POST <remote>/api/pair` (200) and `GET <remote>/api/environment` (200). Step 11 reads the new device on the remote under the label its link was issued for.
+- Step 8: "Online" means the remote answered `GET /api/environment` and authenticated `GET /api/session` with the new credential; `$C network` run right after it lists the cross-origin `POST <remote>/api/pair` (200), `GET <remote>/api/environment` (200) and `GET <remote>/api/session` (200). Step 11 reads the new device on the remote under the label its link was issued for.
 - `apps/web/spec/e2e/access-remote-computers.desktop.e2e.ts` also revokes the remote device, reloads Settings, and checks “Needs pairing” before forgetting it. It starts a second server named "Remote journey computer". It checks the empty state and the "Paste the whole link …" refusal, and "That link is for this computer." for a link with this server's id. With a real link from the remote, it checks the listitem named after the remote containing "Online", and that the remote's devices include "Remote computer". A reused link gets "That link was not accepted …". `Remove <name>` brings back "No remote computers yet".
 
 ## Gotchas

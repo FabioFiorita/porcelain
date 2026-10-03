@@ -12,7 +12,7 @@ tests:
   - apps/mobile/spec/e2e/environment-states.e2e.ts
 api:
   - GET /api/environment
-  - GET /api/inventory
+  - GET /api/session
 ---
 
 # app.deep-links

@@ -13,7 +13,7 @@ tests:
   - apps/mobile/spec/e2e/tablet-shell.tablet.e2e.ts
 api:
   - GET /api/environment
-  - GET /api/inventory
+  - GET /api/session
 ---
 
 # access.settings
@@ -49,4 +49,4 @@ To see the empty state, forget that environment (`access.forget-environment`) an
 ## Gotchas
 
 - The unreadable-storage state needs a broken Keychain entry; no test reaches it yet.
-- Each environment row reads `GET /api/environment` and authenticated `GET /api/inventory` from its own server to show its status; `access.environment-status` covers the statuses.
+- Each environment row reads `GET /api/environment` and authenticated `GET /api/session` from its own server to show its status; `access.environment-status` covers the statuses.

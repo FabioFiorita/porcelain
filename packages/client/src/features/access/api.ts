@@ -57,7 +57,7 @@ export function createRemoteApi(platform: PairingPlatform) {
           environment.protocol !== ENVIRONMENT_PROTOCOL
         )
           return { kind: 'described', environment };
-        response = await transport('/api/inventory', { signal });
+        response = await transport('/api/session', { signal });
         if (response.status === 401) return { kind: 'unauthorized' };
         if (!response.ok) return { kind: 'unreachable' };
         return { kind: 'described', environment };
