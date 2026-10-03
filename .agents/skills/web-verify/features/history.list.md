@@ -27,7 +27,7 @@ The History list gives each commit one row with its message, 7-character id, aut
 
 ## Driving it
 
-Start with `.agents/skills/web-verify/scripts/cli start`. `REPO` is the repository path `start` printed.
+Start with `$C start`. `REPO` is the repository path `start` printed.
 
 ### Setup
 
@@ -48,9 +48,9 @@ git -C "$REPO" log -1 --format='%s %p'
 
 The last line prints `Merge branch 'topic'` and two parent ids.
 
-1. `.agents/skills/web-verify/scripts/cli click --role button --name "Review"`
+1. `$C click --role button --name "Review"`
    Look for: dialog "Worktree review" with tabs "Changes", "Files", "History".
-2. `.agents/skills/web-verify/scripts/cli click --role tab --name "History"`
+2. `$C click --role tab --name "History"`
    Look for, in the snapshot of the sheet:
    - four row buttons, the merge first (the two commits made in the same second may come in either order, a live run showed "Add the topic notes" above "Describe every step…"): one starting "Merge commit Merge branch 'topic'" that holds img "Merge commit" and the chip "main"; one starting "Describe every step the reviewer takes before approving the change" with that whole subject as text and no img "Merge commit"; one starting "Add the topic notes" with the chip "topic"; one starting "Initial commit";
    - each row's name goes on with the 7-character id, "Porcelain Development" and the age;

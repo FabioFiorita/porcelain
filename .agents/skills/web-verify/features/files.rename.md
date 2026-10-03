@@ -28,7 +28,7 @@ Renaming a tree entry moves it on disk and shows the new name without opening it
 
 ## Driving it
 
-Start with `.agents/skills/web-verify/scripts/cli start`. Set `REPO` to the path it prints after `repository`.
+Start with `$C start`. Set `REPO` to the path it prints after `repository`.
 
 ### Setup
 
@@ -40,19 +40,19 @@ printf 'Notes to rename\n' > "$REPO/draft-notes.md"
 
 ### 1. Rename moves the file on disk
 
-1. `.agents/skills/web-verify/scripts/cli open /`
+1. `$C open /`
    Look for: Page Title "Changes — repository".
-2. `.agents/skills/web-verify/scripts/cli click --role button --name "Review"`
+2. `$C click --role button --name "Review"`
    Look for: dialog "Worktree review".
-3. `.agents/skills/web-verify/scripts/cli click --role tab --name "Files"`
+3. `$C click --role tab --name "Files"`
    Look for: treeitem "draft-notes.md" in the tree of region "All files".
-4. `.agents/skills/web-verify/scripts/cli click --role treeitem --name "draft-notes.md" --button right`
+4. `$C click --role treeitem --name "draft-notes.md" --button right`
    Look for: a menu whose first menuitem is "Rename".
-5. `.agents/skills/web-verify/scripts/cli click --role menuitem --name "Rename"`
+5. `$C click --role menuitem --name "Rename"`
    Look for: textbox "Rename draft-notes.md" in the row, holding `draft-notes.md`.
-6. `.agents/skills/web-verify/scripts/cli fill --role textbox --name "/^Rename /" "final-notes.md"`
+6. `$C fill --role textbox --name "/^Rename /" "final-notes.md"`
    Look for: the textbox holds `final-notes.md`.
-7. `.agents/skills/web-verify/scripts/cli press Enter`
+7. `$C press Enter`
    Look for: treeitem "final-notes.md" shows, treeitem "draft-notes.md" is gone, the sheet "Worktree review" stays open, and no text "Change no longer present" appears.
    Disk: `ls "$REPO"` lists `final-notes.md` and not `draft-notes.md`; `cat "$REPO/final-notes.md"` prints `Notes to rename`.
 
@@ -60,18 +60,18 @@ printf 'Notes to rename\n' > "$REPO/draft-notes.md"
 
 Continue in the open sheet; `final-notes.md` exists from part 1.
 
-8. `.agents/skills/web-verify/scripts/cli click --role treeitem --name "final-notes.md" --button right`
+8. `$C click --role treeitem --name "final-notes.md" --button right`
    Look for: the menu opens.
-9. `.agents/skills/web-verify/scripts/cli press ArrowDown`
+9. `$C press ArrowDown`
    Look for: menuitem "Rename" has focus.
-10. `.agents/skills/web-verify/scripts/cli press Enter`
+10. `$C press Enter`
     Look for: textbox "Rename final-notes.md".
-11. `.agents/skills/web-verify/scripts/cli fill --role textbox --name "/^Rename /" "README.md"`
+11. `$C fill --role textbox --name "/^Rename /" "README.md"`
     Look for: the textbox holds `README.md`.
-12. `.agents/skills/web-verify/scripts/cli press Enter`
+12. `$C press Enter`
     Look for: a toast in region "Notifications" with "Invalid name" and `"README.md" already exists.`; treeitem "final-notes.md" still shows.
     Disk: `cat "$REPO/README.md"` prints `# Sample repository`, a blank line, `A change to review.`; `cat "$REPO/final-notes.md"` prints `Notes to rename`.
-13. `.agents/skills/web-verify/scripts/cli network`
+13. `$C network`
     Look for: one `POST /api/worktrees/<worktreeId>/files` with a 2xx status (the step 7 rename), and none after step 12.
 
 ## What proves it works

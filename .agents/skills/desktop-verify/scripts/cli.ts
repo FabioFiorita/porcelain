@@ -15,11 +15,11 @@ import {
   refuseMissing,
   runCli,
   Usage,
-} from '../../server-verify/scripts/core/cli.ts';
+} from '../../verify-core/cli.ts';
 import {
   Registry,
   repositoryRoot as root,
-} from '../../server-verify/scripts/core/registry.ts';
+} from '../../verify-core/registry.ts';
 import {
   daemonMarker,
   interact,

@@ -10,7 +10,7 @@ export default {
   edits: [
     {
       kind: 'replace',
-      path: '.agents/skills/server-verify/scripts/core/evidence.ts',
+      path: '.agents/skills/verify-core/evidence.ts',
       old: 'JSON.stringify(recorder.redact(record), null, 2)',
       new: 'JSON.stringify(record, null, 2)',
     },

@@ -32,7 +32,7 @@ The navigator header names the computer Porcelain runs on. It shows the host nam
 
 ## Driving it
 
-Start with `.agents/skills/web-verify/scripts/cli start --desktop`, then run from the repository root with `C=.agents/skills/web-verify/scripts/cli`.
+Start with `$C start --desktop`, then run from the repository root with `C=.agents/skills/web-verify/scripts/cli`.
 
 ### Setup
 

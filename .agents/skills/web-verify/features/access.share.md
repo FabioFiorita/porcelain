@@ -43,7 +43,7 @@ On the computer that runs Porcelain, Settings → Devices creates a one-time pai
 
 ## Driving it
 
-Start with `.agents/skills/web-verify/scripts/cli start --desktop`, then run from the repository root with `C=.agents/skills/web-verify/scripts/cli`.
+Start with `$C start --desktop`, then run from the repository root with `C=.agents/skills/web-verify/scripts/cli`.
 
 ### Setup
 

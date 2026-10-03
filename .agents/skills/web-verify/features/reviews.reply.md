@@ -28,27 +28,27 @@ A blank reply cannot be posted, and a written reply to the agent's comment joins
 
 ## Driving it
 
-Start with `.agents/skills/web-verify/scripts/cli start`.
+Start with `$C start`.
 
 ### Setup
 
-The agent comments on README.md: `.agents/skills/web-verify/scripts/cli agent comment README.md "Should this line stay?"`.
+The agent comments on README.md: `$C agent comment README.md "Should this line stay?"`.
 
-1. `.agents/skills/web-verify/scripts/cli open /`, then `.agents/skills/web-verify/scripts/cli wait --text "Should this line stay?"`
+1. `$C open /`, then `$C wait --text "Should this line stay?"`
    Look for: article "Comment thread" under README.md with "Agent Whole file From the agent", buttons "Reply" and "Resolve", and "Should this line stay?".
-2. `.agents/skills/web-verify/scripts/cli click --role button --name "Reply"`
+2. `$C click --role button --name "Reply"`
    Look for: textbox "Reply"; button "Post reply" [disabled]; button "Reply" is gone while the form is open.
-3. `.agents/skills/web-verify/scripts/cli fill --role textbox --name "Reply" "   "`
+3. `$C fill --role textbox --name "Reply" "   "`
    Look for: button "Post reply" still [disabled].
-4. `.agents/skills/web-verify/scripts/cli fill --role textbox --name "Reply" "Yes, it documents the change"` then `.agents/skills/web-verify/scripts/cli click --role button --name "Post reply"`
+4. `$C fill --role textbox --name "Reply" "Yes, it documents the change"` then `$C click --role button --name "Post reply"`
    Look for: textbox "Reply" is gone; the same article now reads "Agent Whole file Waiting for the agent" and holds "Should this line stay?" followed by "You … Yes, it documents the change" and "The agent reads this when you ask it to check its comments.".
-5. `.agents/skills/web-verify/scripts/cli network`
-   Look for: one `POST /api/worktrees/<id>/comments/<threadId>/replies` answered 200 (step 4 only). `.agents/skills/web-verify/scripts/cli server comment-threads` holds one thread with the agent's message and then the reviewer's reply.
+5. `$C network`
+   Look for: one `POST /api/worktrees/<id>/comments/<threadId>/replies` answered 200 (step 4 only). `$C server comment-threads` holds one thread with the agent's message and then the reviewer's reply.
 
 ## What proves it works
 
 - Step 4's two messages in one article and the "Waiting for the agent" badge; step 5's single 200 reply request.
-- Persistence: `.agents/skills/web-verify/scripts/cli open /` shows the thread with both messages.
+- Persistence: `$C open /` shows the thread with both messages.
 - `apps/web/spec/integration/reviews-reply.test.tsx`: after the agent comments "Should this line stay?", "Post reply" is disabled for an empty and a whitespace reply and the server conversation is unchanged; after posting, the reply and "Waiting for the agent" show and `server.commentThreads()` reads `agent: Should this line stay?`, `reviewer: Yes, it documents the change` in one thread.
 
 ## Gotchas

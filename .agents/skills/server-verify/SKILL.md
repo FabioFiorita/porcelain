@@ -24,11 +24,13 @@ The server has no feature map: the contract is the map. Schemas live in `package
 ```sh
 $C request PATCH '/api/projects/{project}' name='Renamed project'
 $C request POST '/api/worktrees/{worktree}/comments' 'anchor:={"kind":"file","filePath":"README.md"}' body=Hello
+$C request GET "/api/projects/folders?path={home}"
 $C request GET /api/inventory
 $C git log -1 --oneline
 $C live --for 10s
 ```
 
+- Query parameters go in the quoted path; percent-encode values containing spaces, `&` or `#`. Body pairs do not set query parameters.
 - `field=value` sends a string, `field:=json` anything else. `{project}`, `{worktree}`, `{repository}` and `{home}` are filled in (`$C ids` prints them).
 - Owner routes (`POST /pairings`, `GET /access`, `/mcp`) answer only over the owner socket: add `--owner`.
 - `live --for` keeps printing while you drive from another shell.

@@ -25,7 +25,7 @@ Dragging a file onto a folder in the tree moves it into that folder on disk with
 
 ## Driving it
 
-Start with `.agents/skills/web-verify/scripts/cli start`. Set `REPO` to the path it prints after `repository`.
+Start with `$C start`. Set `REPO` to the path it prints after `repository`.
 
 ### Setup
 
@@ -42,23 +42,23 @@ The move is a drag: `drag` presses on the source row, moves onto the target row 
 
 ### Steps
 
-1. `.agents/skills/web-verify/scripts/cli open /`
+1. `$C open /`
    Look for: Page Title "Changes — repository".
-2. `.agents/skills/web-verify/scripts/cli click --role button --name "Review"`
+2. `$C click --role button --name "Review"`
    Look for: dialog "Worktree review".
-3. `.agents/skills/web-verify/scripts/cli click --role tab --name "Files"`
+3. `$C click --role tab --name "Files"`
    Look for: the tree in region "All files" with treeitems "archive" (a collapsed folder), "clash.md", "move-me.md" and "README.md".
-4. `.agents/skills/web-verify/scripts/cli drag --role treeitem --name "move-me.md" --to-role treeitem --to-name "archive"`
+4. `$C drag --role treeitem --name "move-me.md" --to-role treeitem --to-name "archive"`
    Look for: treeitem "move-me.md" is gone from the root, dialog "Worktree review" stays open, and no text "Change no longer present" appears.
    Disk: `ls "$REPO/archive"` prints `clash.md` and `move-me.md`; `test -e "$REPO/move-me.md" || echo moved` prints `moved`.
-5. `.agents/skills/web-verify/scripts/cli drag --role treeitem --name "clash.md" --to-role treeitem --to-name "archive"`
+5. `$C drag --role treeitem --name "clash.md" --to-role treeitem --to-name "archive"`
    Look for: alert "An entry already exists at that path" under the tree, and treeitem "clash.md" still at the root.
    Disk: `cat "$REPO/clash.md"` prints `Notes that clash`, and `cat "$REPO/archive/clash.md"` prints `Already in the folder`.
 
 ## What proves it works
 
 - On disk: the moved file is under `archive/` and gone from the root. After the refused drag, both `clash.md` files keep their text.
-- `.agents/skills/web-verify/scripts/cli network` shows `POST /api/worktrees/<worktreeId>/files` answered 200 for the move and 409 for the clash.
+- `$C network` shows `POST /api/worktrees/<worktreeId>/files` answered 200 for the move and 409 for the clash.
 - `apps/web/spec/integration/files-move.test.tsx` drags with Vitest's `userEvent.dragAndDrop`. It asserts that the server lists `move-me.md` under `archive` and no longer at the root, that the row is gone, and that "Change no longer present" never shows. For the clash it asserts the alert "An entry already exists at that path", that the row stays, and that both files keep their text.
 
 ## Gotchas

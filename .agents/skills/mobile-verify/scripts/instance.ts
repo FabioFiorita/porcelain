@@ -3,11 +3,8 @@ import {
   buildCommand,
   nativeFingerprint,
 } from '../../../../apps/mobile/spec/kit/development-client.ts';
-import { hashOf } from '../../server-verify/scripts/core/fingerprint.ts';
-import {
-  Registry,
-  repositoryRoot,
-} from '../../server-verify/scripts/core/registry.ts';
+import { hashOf } from '../../verify-core/fingerprint.ts';
+import { Registry, repositoryRoot } from '../../verify-core/registry.ts';
 import { hostDetail } from './host.ts';
 
 export function scriptFingerprint(): string {

@@ -31,7 +31,7 @@ A file's timeline lists the commits that changed it, newest first. It follows th
 
 ## Driving it
 
-Start with `.agents/skills/web-verify/scripts/cli start`. Set `REPO` to the path it prints after `repository`.
+Start with `$C start`. Set `REPO` to the path it prints after `repository`.
 
 ### Setup
 
@@ -48,28 +48,28 @@ The last line prints `Move the readme to the guide`, `Explain the change to revi
 
 ### 1. The timeline follows the rename and opens a commit
 
-1. `.agents/skills/web-verify/scripts/cli open /`
+1. `$C open /`
    Look for: button "Review".
-2. `.agents/skills/web-verify/scripts/cli click --role button --name "Review"`
+2. `$C click --role button --name "Review"`
    Look for: dialog "Worktree review".
-3. `.agents/skills/web-verify/scripts/cli click --role tab --name "Files"`
+3. `$C click --role tab --name "Files"`
    Look for: treeitem "guide.md" in the tree of region "All files", and no treeitem "README.md".
-4. `.agents/skills/web-verify/scripts/cli click --role treeitem --name "guide.md"`
+4. `$C click --role treeitem --name "guide.md"`
    Look for: the dialog is gone; heading "guide.md" [level=1]; button "Timeline"; Page Title "guide.md — repository".
-5. `.agents/skills/web-verify/scripts/cli click --role button --name "Timeline"`
+5. `$C click --role button --name "Timeline"`
    Look for: Page Title "Timeline of guide.md — repository"; list "Timeline of guide.md" holding, in order, buttons beginning "Move the readme to the guide", "Explain the change to review" and "Initial commit", with the texts "Renamed from README.md", "Modified as README.md" and "Added as README.md", then "Start of this file’s history.".
-6. `.agents/skills/web-verify/scripts/cli click --role button --name "/^Explain the change to review/"`
+6. `$C click --role button --name "/^Explain the change to review/"`
    Look for: heading "Explain the change to review" [level=2] and the text "A change to review." in the README diff. The Page Title is the commit's 7-character id, from `git -C "$REPO" rev-parse --short=7 HEAD~1`, followed by " — repository".
 
 ### 2. The tree menu opens the timeline
 
-7. `.agents/skills/web-verify/scripts/cli click --role button --name "Review"`
+7. `$C click --role button --name "Review"`
    Look for: dialog "Worktree review" on tab "Files".
-8. `.agents/skills/web-verify/scripts/cli click --role treeitem --name "guide.md" --button right`
+8. `$C click --role treeitem --name "guide.md" --button right`
    Look for: menuitem "Show timeline".
-9. `.agents/skills/web-verify/scripts/cli click --role menuitem --name "Show timeline"`
+9. `$C click --role menuitem --name "Show timeline"`
    Look for: the dialog is gone; list "Timeline of guide.md" with a button beginning "Move the readme to the guide".
-10. `.agents/skills/web-verify/scripts/cli network`
+10. `$C network`
     Look for: `GET /api/worktrees/<worktreeId>/file-commits?path=guide.md...`, `GET /api/worktrees/<worktreeId>/commits/<oid>/files` and `POST /api/worktrees/<worktreeId>/commits/<oid>/diffs`, all 2xx.
 
 ## What proves it works

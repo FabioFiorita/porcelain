@@ -27,7 +27,7 @@ A commit's full id or its whole message (subject plus body) is copied from its H
 
 ## Driving it
 
-Start with `.agents/skills/web-verify/scripts/cli start`. `REPO` is the repository path `start` printed.
+Start with `$C start`. `REPO` is the repository path `start` printed.
 
 ### Setup
 
@@ -38,23 +38,23 @@ git -C "$REPO" rev-parse HEAD
 
 Keep the 40-character id the second line prints; it is what the toasts must show.
 
-1. `.agents/skills/web-verify/scripts/cli click --role button --name "Review"`
+1. `$C click --role button --name "Review"`
    Look for: dialog "Worktree review".
-2. `.agents/skills/web-verify/scripts/cli click --role tab --name "History"`
+2. `$C click --role tab --name "History"`
    Look for: a row, button starting "Explain the change to review", above the "Initial commit" row.
-3. `.agents/skills/web-verify/scripts/cli click --role button --name "/^Explain the change to review/" --button right`
+3. `$C click --role button --name "/^Explain the change to review/" --button right`
    Look for: a menu with menuitems "Copy commit id" and "Copy message".
-4. `.agents/skills/web-verify/scripts/cli click --role menuitem --name "Copy commit id"`
+4. `$C click --role menuitem --name "Copy commit id"`
    Look for: in region "Notifications", a toast titled "Copied commit id" whose description is the full id from the setup.
-5. `.agents/skills/web-verify/scripts/cli click --role button --name "/^Explain the change to review/" --button right`
+5. `$C click --role button --name "/^Explain the change to review/" --button right`
    Look for: the menu again.
-6. `.agents/skills/web-verify/scripts/cli click --role menuitem --name "Copy message"`
+6. `$C click --role menuitem --name "Copy message"`
    Look for: a toast titled "Copied commit message" with the description "Explain the change to review".
-7. `.agents/skills/web-verify/scripts/cli click --role button --name "/^Explain the change to review/"`
+7. `$C click --role button --name "/^Explain the change to review/"`
    Look for: the sheet closes; heading "Explain the change to review"; Page Title "<7-character id> — repository"; toolbar buttons "Copy id" and "Copy message".
-8. `.agents/skills/web-verify/scripts/cli click --role button --name "Copy message"`
+8. `$C click --role button --name "Copy message"`
    Look for: a new toast "Copied commit message" with "Explain the change to review".
-9. `.agents/skills/web-verify/scripts/cli click --role button --name "Copy id"`
+9. `$C click --role button --name "Copy id"`
    Look for: a new toast "Copied commit id" with the full id.
 
 ## What proves it works

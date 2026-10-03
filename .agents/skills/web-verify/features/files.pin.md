@@ -28,7 +28,7 @@ Pinning a file lists it under "Pinned" above the file tree. There it opens the f
 
 ## Driving it
 
-Start with `.agents/skills/web-verify/scripts/cli start`. Set `REPO` to the path it prints after `repository`.
+Start with `$C start`. Set `REPO` to the path it prints after `repository`.
 
 ### Setup
 
@@ -40,35 +40,35 @@ printf '# Guide\n\nPinned reading\n' > "$REPO/guide.md"
 
 ### Steps
 
-1. `.agents/skills/web-verify/scripts/cli open /`
+1. `$C open /`
    Look for: Page Title "Changes — repository".
-2. `.agents/skills/web-verify/scripts/cli click --role button --name "Review"`
+2. `$C click --role button --name "Review"`
    Look for: dialog "Worktree review".
-3. `.agents/skills/web-verify/scripts/cli click --role tab --name "Files"`
+3. `$C click --role tab --name "Files"`
    Look for: treeitem "guide.md" in the tree of region "All files", and no region "Pinned files".
-4. `.agents/skills/web-verify/scripts/cli click --role treeitem --name "guide.md" --button right`
+4. `$C click --role treeitem --name "guide.md" --button right`
    Look for: menuitem "Pin file".
-5. `.agents/skills/web-verify/scripts/cli click --role menuitem --name "Pin file"`
+5. `$C click --role menuitem --name "Pin file"`
    Look for: region "Pinned files" holding button "guide.md" and button "Unpin guide.md"; the sheet stays open.
-6. `.agents/skills/web-verify/scripts/cli click --role treeitem --name "guide.md" --button right`
+6. `$C click --role treeitem --name "guide.md" --button right`
    Look for: menu "guide.md actions" with menuitems "Rename", "Duplicate", "Open diff", "Open file", "Show timeline", "Unpin file", "Hide file", "Copy relative path", "Copy full path", "Move to trash", and no menuitem "Pin file".
-7. `.agents/skills/web-verify/scripts/cli press Escape`
+7. `$C press Escape`
    Look for: the menu is gone; dialog "Worktree review" still shows.
-8. `.agents/skills/web-verify/scripts/cli click --role button --name "guide.md" --button right`
+8. `$C click --role button --name "guide.md" --button right`
    Look for: the same menuitems as step 6, with "Unpin file" and without "Pin file".
-9. `.agents/skills/web-verify/scripts/cli press Escape`
+9. `$C press Escape`
    Look for: the menu is gone.
-10. `.agents/skills/web-verify/scripts/cli click --role treeitem --name "README.md"`
+10. `$C click --role treeitem --name "README.md"`
     Look for: the dialog is gone and the text "A change to review." shows (README's diff).
-11. `.agents/skills/web-verify/scripts/cli click --role button --name "Review"`
+11. `$C click --role button --name "Review"`
     Look for: dialog "Worktree review" on tab "Files", still showing region "Pinned files".
-12. `.agents/skills/web-verify/scripts/cli click --role button --name "guide.md"`
+12. `$C click --role button --name "guide.md"`
     Look for: the dialog is gone; Page Title "guide.md — repository"; the text "Pinned reading" shows.
-13. `.agents/skills/web-verify/scripts/cli open /`, then `.agents/skills/web-verify/scripts/cli click --role button --name "Review"` and `.agents/skills/web-verify/scripts/cli click --role tab --name "Files"`
+13. `$C open /`, then `$C click --role button --name "Review"` and `$C click --role tab --name "Files"`
     Look for: after the full reload, region "Pinned files" still holds button "guide.md" (the server kept the pin).
-14. `.agents/skills/web-verify/scripts/cli click --role button --name "Unpin guide.md"`
+14. `$C click --role button --name "Unpin guide.md"`
     Look for: region "Pinned files" is gone; treeitem "guide.md" remains in the tree.
-15. `.agents/skills/web-verify/scripts/cli network`
+15. `$C network`
     Look for: two `PUT /api/projects/<projectId>/file-preferences` requests with a 2xx status (pin and unpin), and `GET /api/projects/<projectId>/file-preferences` after the reload.
 
 ## What proves it works

@@ -10,7 +10,7 @@ export default {
   edits: [
     {
       kind: 'replace',
-      path: '.agents/skills/server-verify/scripts/core/evidence.ts',
+      path: '.agents/skills/verify-core/evidence.ts',
       old: '    recorder.harvestText(text);\n',
       new: '',
     },

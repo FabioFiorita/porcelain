@@ -9,7 +9,7 @@ import {
   type GitSubcommand,
   type Session,
 } from '../../../../apps/server/spec/kit/session.ts';
-import { runCli, sandboxProblems, Usage } from './core/cli.ts';
+import { runCli, sandboxProblems, Usage } from '../../verify-core/cli.ts';
 import { registry, STALE_BUILD, type ServerInstance } from './instance.ts';
 import { serve, start } from './start.ts';
 
@@ -29,6 +29,8 @@ const usage = `Usage: .agents/skills/server-verify/scripts/cli <command> [--inst
   evidence                                print the evidence folder
   request <METHOD> <path> [field=value | field:=json ...] [--owner] [--anonymous]
                                           send a request with the credential; {project} {worktree} {repository} {home} are filled
+                                          query parameters go in the quoted path: GET "/api/projects/folders?path={home}"
+                                          field=value pairs build the JSON body, not the query
   live --for <duration> [--path <path> ...]
                                           record the live notices for the sample project and worktree, such as --for 10s
   git <subcommand> [args...]              run Git in the sample repository

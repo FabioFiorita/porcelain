@@ -21,7 +21,7 @@ import { buildFingerprint, type BuildInputs } from './fingerprint.ts';
 import { endGroup, endLeader, endMatching, processes } from './processes.ts';
 
 const core = dirname(fileURLToPath(import.meta.url));
-export const repositoryRoot = resolve(core, '../../../../..');
+export const repositoryRoot = resolve(core, '../../..');
 const idleLimitMs = 30 * 60 * 1000;
 const idlePollMs = 30 * 1000;
 const heartbeatMs = 10 * 1000;

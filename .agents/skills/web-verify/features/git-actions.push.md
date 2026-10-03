@@ -25,7 +25,7 @@ Pushing a branch without an upstream to a remote whose URL Porcelain cannot use 
 
 ## Driving it
 
-Start with `.agents/skills/web-verify/scripts/cli start`. Everything runs on the one server; no second computer is involved.
+Start with `$C start`. Everything runs on the one server; no second computer is involved.
 
 ### Setup
 
@@ -35,13 +35,13 @@ Start with `.agents/skills/web-verify/scripts/cli start`. Everything runs on the
 git -C "$REPO" remote add origin git://127.0.0.1:9/remote.git
 ```
 
-1. `.agents/skills/web-verify/scripts/cli click --role button --name "Git actions"`
+1. `$C click --role button --name "Git actions"`
    Look for: menuitem starting "Push" is enabled; menuitem starting "Pull" has `aria-disabled="true"` and reads "No upstream branch to pull from."
-2. `.agents/skills/web-verify/scripts/cli click --role menuitem --name "/^Push/"`
+2. `$C click --role menuitem --name "/^Push/"`
    Look for: a `dialog` "Push did not run" anchored to the Git button, with an `alert` reading "The remote URL is not one Porcelain can use. It supports a local path, SSH, and HTTPS without a user name, password or query in the URL. Change it with git remote set-url, or run this action from a terminal." (`git remote set-url` in code style).
-3. Wait about 6 seconds (longer than a toast lasts), then `.agents/skills/web-verify/scripts/cli snapshot`
+3. Wait about 6 seconds (longer than a toast lasts), then `$C snapshot`
    Look for: dialog "Push did not run" is still there (it does not time out like a toast).
-4. `.agents/skills/web-verify/scripts/cli press Escape`
+4. `$C press Escape`
    Look for: dialog "Push did not run" is gone.
 
 ## What proves it works

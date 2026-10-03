@@ -1,14 +1,16 @@
 # Web feature map
 
+`C=.agents/skills/web-verify/scripts/cli`, from the repository root; every map uses `$C` for commands.
+
 One file per feature the web offers, named `<domain>.<capability>.md`. Each says what the feature is, how a user reaches it, the exact CLI lines that drive it with the end state to look for, the tests that guard it and its gotchas. `pnpm check` runs `node scripts/feature-maps.ts`, which fails when a page route has no map, a map names a route, test, selector or API route that does not exist, or the web calls a route no map lists.
 
 What every map assumes about the CLI, proven in the live pass:
 
 - `start` gives a phone-width browser: the project navigator sits behind `Toggle Sidebar` and the review sidebar (Changes, Files, History) behind `Review`; opening a document closes that sheet.
-- `open` prints the URL and title of the first load, before the app redirects (`/` and "Porcelain"); the next command prints the settled ones. `press` prints the page only when it changed.
+- `open` prints the URL and title of the first load, before the app redirects (`/` and "Porcelain"); the next command prints the settled ones. `click` and `press` include a snapshot even for changes at the same URL; they append one only when Playwright supplied none.
 - Right after `start` or `open` the diffs load after the toolbar; `click`, `fill`, `select` and `drag` wait up to 10 s for their target, and `wait` waits for something a step expects (a disk write reaching the page, a dialog's status).
 - An address must match one element. Two panes, a file and its timeline, or the toolbar and diff-header mark buttons repeat a name; scope it with `--within-role`/`--within-name`, pick one with `--nth`, or use the address the map names.
-- `network` lists only the requests since the last page load; `[FAILED] net::ERR_ABORTED` lines are requests the page cancelled and sent again.
+- `network` lists only the requests since the last page load; add `--static` to include successful scripts, styles and images; `[FAILED] net::ERR_ABORTED` lines are requests the page cancelled and sent again.
 - The aria snapshot shows neither the editor's text nor an iframe's content nor a native select's choice; check those with `screenshot`, `wait --frame`, or the disk.
 - `fill` on the file editor replaces its whole text.
 - Disk setup runs in the `repository` folder `start` printed; the sample repository already commits as "Porcelain Development". `stop` and `start` give a clean instance in a few seconds, which most maps assume.
