@@ -66,7 +66,7 @@ Run commands from the repository root and report every result honestly. Local pr
 - **A flaky test** is investigated locally with its runner's repeat option on that one file, stopping at the first failure and keeping the evidence.
 - **A guardrail change:** a lint rule gets an invalid fixture, and a valid one where natural, in `architecture/rule-cases.mjs`; each architecture and style rule and each gate's wiring keeps one probe in `architecture/probes/`. Run `pnpm probes --check` and only the probes you touched, by name, with `pnpm probes <name>`.
 
-Budgets: `pnpm check` under 30 seconds and an ordinary task's local proof under two minutes. A check that breaks its budget is a tooling defect: fix or remove it in its own change, never skip it silently. Porcelain is a solo developer project with no external users: keep proof proportional to the change and prioritize product progress.
+Budgets: `pnpm check` under 30 seconds and an ordinary task's local proof under two minutes. A check that breaks its budget is a tooling defect: fix or remove it in its own change, never skip it silently. Porcelain is a solo developer project with no external users: keep proof proportional to the change and prioritize product progress. Test harnesses and CI take the simplest setup that works; add isolation, retries, extra jobs or pins only after a real failure shows the need, and only for that case.
 
 `pnpm dev --desktop` runs the desktop app unpackaged from the checkout as Porcelain Dev, with its own profile beside the installed app. Never edit `shared/shell.ts` to preview desktop UI, and never build, install or launch the owner's installed app to test a change.
 
