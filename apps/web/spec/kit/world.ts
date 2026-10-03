@@ -1,23 +1,15 @@
-import { randomUUID } from 'node:crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { issuePairingResponseSchema } from '@porcelain/contracts/access';
-import { editFileRequestSchema } from '@porcelain/contracts/files';
-import { readInventoryResponseSchema } from '@porcelain/contracts/projects';
+import { agentActs } from '@porcelain/server/kit/agent';
 import {
   IsolatedServer,
   kitHeaders,
   Recorder,
 } from '@porcelain/server/kit/isolated-server';
-import {
-  read,
-  sampleReview,
-  toolCall,
-  toolResult,
-} from '@porcelain/server/kit/requests';
-import type { HttpRequest, Session } from '@porcelain/server/kit/session';
+import { prepareRemote } from '@porcelain/server/kit/remote-computer';
+import { pairingGrant } from '@porcelain/server/kit/requests';
+import type { Session } from '@porcelain/server/kit/session';
 import type {
-  AgentAction,
   CodingToolReplies,
   PairingParts,
   ProjectHomeStep,
@@ -28,116 +20,6 @@ import type {
   ServerName,
   ServerRead,
 } from './protocol.ts';
-
-const proofScreenshot = 'proof-screenshot.png';
-const onePixelPng = Buffer.from(
-  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
-  'base64',
-);
-
-export const remoteComputerName = 'Remote journey computer';
-export const remoteProjectName = 'remote-sample';
-
-async function mainWorktree(agent: Session) {
-  const response = await agent.send({
-    method: 'GET',
-    path: '/api/inventory',
-    headers: kitHeaders,
-  });
-  const worktree = readInventoryResponseSchema
-    .parse(response.body)
-    .projects[0]?.worktrees.find((entry) => entry.main);
-  if (worktree === undefined)
-    throw new Error('The isolated server has no main worktree.');
-  return worktree.id;
-}
-
-async function agentRequest(
-  agent: Session,
-  action: AgentAction,
-): Promise<HttpRequest> {
-  if (action.kind === 'edit-file')
-    return {
-      method: 'POST',
-      path: `/api/worktrees/${encodeURIComponent(await mainWorktree(agent))}/files`,
-      body: editFileRequestSchema.parse(action.edit),
-    };
-  if (action.kind === 'publish-proof') {
-    const layerId = randomUUID();
-    return toolCall(agent, 1, 'publish_review', {
-      ...sampleReview(agent, 0, layerId, randomUUID(), { title: action.title }),
-      proof: {
-        checks: action.checks.map((check) => ({ ...check, layerId })),
-        assets: [
-          { kind: 'image', title: action.screenshot, path: proofScreenshot },
-        ],
-      },
-    });
-  }
-  if (action.kind === 'reply')
-    return toolCall(agent, 1, 'reply_to_comment', {
-      threadId: action.threadId,
-      body: action.body,
-    });
-  return action.kind === 'publish-review'
-    ? toolCall(agent, 1, 'publish_review', {
-        ...sampleReview(agent, 0, randomUUID(), randomUUID(), {
-          title: action.title,
-          kind: action.step,
-        }),
-        ...(action.summaryHtml === undefined
-          ? {}
-          : { summaryHtml: action.summaryHtml }),
-      })
-    : toolCall(agent, 1, 'create_comment', {
-        anchor: { kind: 'file', filePath: action.path },
-        body: action.body,
-      });
-}
-
-async function agentActs(agent: Session, action: AgentAction) {
-  const request = await agentRequest(agent, action);
-  if (action.kind === 'publish-proof')
-    await agent.writeFile(proofScreenshot, onePixelPng);
-  const response = await agent.send({
-    ...request,
-    headers: { ...request.headers, ...kitHeaders },
-  });
-  if (action.kind === 'publish-proof') await agent.remove(proofScreenshot);
-  if (
-    response.status !== 200 ||
-    (action.kind !== 'edit-file' && toolResult(response.body).isError === true)
-  )
-    throw new Error(
-      `The agent's ${action.kind} was refused: ${JSON.stringify(response.body)}`,
-    );
-  return '';
-}
-
-async function prepareRemote(server: IsolatedServer, recorder: Recorder) {
-  const kit = server.session(recorder, { projectId: '', worktreeId: '' });
-  await read(kit, {
-    method: 'PUT',
-    path: '/api/environment/name',
-    headers: kitHeaders,
-    body: { name: remoteComputerName },
-  });
-  const project = readInventoryResponseSchema.parse(
-    await read(kit, {
-      method: 'GET',
-      path: '/api/inventory',
-      headers: kitHeaders,
-    }),
-  ).projects[0];
-  if (project === undefined)
-    throw new Error('The remote computer has no project.');
-  await read(kit, {
-    method: 'PATCH',
-    path: `/api/projects/${encodeURIComponent(project.id)}`,
-    headers: kitHeaders,
-    body: { name: remoteProjectName },
-  });
-}
 
 export class World {
   readonly recorder = new Recorder();
@@ -203,7 +85,10 @@ export class World {
 
   async repo(step: RepoStep, server: ServerName): Promise<string> {
     const repository = await this.session(server);
-    if (step.kind === 'agent') return agentActs(repository, step.action);
+    if (step.kind === 'agent') {
+      await agentActs(repository, step.action);
+      return '';
+    }
     if (step.kind === 'write') {
       await repository.writeFile(step.path, step.text);
       return '';
@@ -251,26 +136,7 @@ export class World {
     server: ServerName,
     trusted = false,
   ): Promise<PairingParts> {
-    const owner = await this.session(server);
-    const [grant] = issuePairingResponseSchema.parse(
-      await read(owner, {
-        method: 'POST',
-        path: '/pairings',
-        target: 'owner',
-        body: {
-          labels: [label],
-          addresses: [owner.address],
-          ...(trusted ? { trusted } : {}),
-        },
-      }),
-    ).grants;
-    if (grant === undefined)
-      throw new Error('The owner issued no pairing grant');
-    return {
-      code: grant.link.code,
-      environmentId: grant.link.environmentId,
-      address: owner.address,
-    };
+    return pairingGrant(await this.session(server), label, trusted);
   }
 
   async hits(server: ServerName): Promise<ServerHit[]> {

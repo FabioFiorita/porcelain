@@ -1,3 +1,4 @@
+import { issuePairingResponseSchema } from '@porcelain/contracts/access';
 import {
   list,
   record,
@@ -23,6 +24,31 @@ export async function issuePairing(session: Session, label = 'Verification') {
     body: { labels: [label], addresses: [session.address] },
   });
   return text(record(list(issued.grants)[0]).code);
+}
+
+export async function pairingGrant(
+  session: Session,
+  label: string,
+  trusted = false,
+) {
+  const [grant] = issuePairingResponseSchema.parse(
+    await read(session, {
+      method: 'POST',
+      path: '/pairings',
+      target: 'owner',
+      body: {
+        labels: [label],
+        addresses: [session.address],
+        ...(trusted ? { trusted } : {}),
+      },
+    }),
+  ).grants;
+  if (grant === undefined) throw new Error('The owner issued no pairing grant');
+  return {
+    code: grant.link.code,
+    environmentId: grant.link.environmentId,
+    address: session.address,
+  };
 }
 
 export async function pairDevice(session: Session, label = 'Second device') {

@@ -1,4 +1,11 @@
-import type { EditFileRequest } from '@porcelain/contracts/files';
+import type { AgentAction } from '@porcelain/server/kit/session';
+
+export type {
+  AgentAction,
+  Hit as ServerHit,
+  ProofCheckStep,
+} from '@porcelain/server/kit/session';
+export type { ServerAnswer } from '@porcelain/server/kit/typed-readers';
 
 export type ServerName = 'this' | 'remote';
 
@@ -7,8 +14,6 @@ export type ServerRead = {
   target: 'network' | 'owner';
   path: string;
 };
-
-export type ServerAnswer = { status: number; body: unknown };
 
 export type RepoStep =
   | { kind: 'write'; path: string; text: string }
@@ -22,29 +27,6 @@ export type RepoStep =
   | { kind: 'fifo'; path: string }
   | { kind: 'remote'; name: string; url: string }
   | { kind: 'agent'; action: AgentAction };
-
-export type ProofCheckStep = {
-  name: string;
-  result: 'pass' | 'fail' | 'skipped';
-  output?: string;
-};
-
-export type AgentAction =
-  | {
-      kind: 'publish-review';
-      title: string;
-      step: 'changed' | 'context';
-      summaryHtml?: string | undefined;
-    }
-  | {
-      kind: 'publish-proof';
-      title: string;
-      checks: ProofCheckStep[];
-      screenshot: string;
-    }
-  | { kind: 'comment'; path: string; body: string }
-  | { kind: 'reply'; threadId: string; body: string }
-  | { kind: 'edit-file'; edit: EditFileRequest };
 
 export type RepoFixture = {
   branch: string;
@@ -66,14 +48,6 @@ export type CodingToolReplies = {
 };
 
 export type ProjectHomeStep = { kind: 'repository' | 'folder'; name: string };
-
-export type ServerHit = {
-  method: string;
-  route: string | undefined;
-  path: string;
-  kit: boolean;
-  status: number | undefined;
-};
 
 export type BrowserFailure = {
   kind: 'console error' | 'uncaught error' | 'unhandled rejection';

@@ -19,6 +19,7 @@ import {
   text,
   type DraftedCommit,
   type Fixture,
+  type Hit,
   type PerfSample,
   type HttpRequest,
   type HttpResponse,
@@ -27,6 +28,8 @@ import {
   type Phase,
   type Session,
 } from './session.ts';
+
+export type { Hit } from './session.ts';
 
 type HttpStep = {
   phase: Phase;
@@ -109,14 +112,6 @@ type Manifest = {
   codingTool: string;
   fixture: Fixture;
   routes: string[];
-};
-
-export type Hit = {
-  method: string;
-  route: string | undefined;
-  path: string;
-  kit: boolean;
-  status: number | undefined;
 };
 
 const execute = promisify(execFile);
