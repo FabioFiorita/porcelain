@@ -9,7 +9,7 @@ export function askServerOwner(
   path: string,
   body?: unknown,
 ): Promise<unknown> {
-  return askOwner(dataDirectory, method, path, body, ANSWER_WITHIN_MS);
+  return askOwner(dataDirectory, { method, path }, body, ANSWER_WITHIN_MS);
 }
 
 export async function ownerStatus(dataDirectory: string) {

@@ -24,6 +24,21 @@ const worktreeNotice = (session: Session, change: string) => ({
 const isWorktree = (change: string) => (notice: Record<string, unknown>) =>
   notice.type === 'worktree' && notice.change === change;
 
+test('a paired viewer requesting live updates without an upgrade gets an empty not-found response', async ({
+  session,
+  server,
+}) => {
+  const response = await session.send({
+    method: 'GET',
+    path: '/api/live',
+    headers: { origin: session.address },
+  });
+
+  expect(response.status).toBe(404);
+  expect(response.body).toBeUndefined();
+  expect(await server.requestedRoutes()).toContain('GET /api/live');
+});
+
 test('every subscription is confirmed, including an empty replacement', async ({
   session,
 }) => {

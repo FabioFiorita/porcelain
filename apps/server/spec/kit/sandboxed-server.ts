@@ -1,3 +1,4 @@
+import { issuePairingEndpoint } from '@porcelain/contracts/access';
 import { execFile } from 'node:child_process';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { subscribe } from 'node:diagnostics_channel';
@@ -558,8 +559,7 @@ try {
   const [grant] = issuedPairingSchema.parse(
     await askOwner(
       state,
-      'POST',
-      '/pairings',
+      issuePairingEndpoint,
       {
         labels: [fixture.device.label],
         addresses: [new URL(server.address).origin],

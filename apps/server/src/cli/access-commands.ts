@@ -1,4 +1,10 @@
 import {
+  issuePairingEndpoint,
+  listAccessEndpoint,
+  revokeAccessEndpoint,
+  setDeviceTrustEndpoint,
+} from '@porcelain/contracts/access';
+import {
   issuePairingResponseSchema,
   pairingLink,
   listAccessResponseSchema,
@@ -52,8 +58,7 @@ export async function issuePairings(
   const answer = issuePairingResponseSchema.parse(
     await askOwner(
       dataDirectory,
-      'POST',
-      '/pairings',
+      issuePairingEndpoint,
       pairing,
       limits.owner.requestTimeoutMs,
     ),
@@ -84,8 +89,7 @@ export async function listAccess(
   const listing = listAccessResponseSchema.parse(
     await askOwner(
       dataDirectory,
-      'GET',
-      '/access',
+      listAccessEndpoint,
       undefined,
       limits.owner.requestTimeoutMs,
     ),
@@ -121,8 +125,7 @@ export async function revokeAccess(
   const answer = revokeAccessResponseSchema.parse(
     await askOwner(
       dataDirectory,
-      'POST',
-      '/access/revoke',
+      revokeAccessEndpoint,
       { id },
       limits.owner.requestTimeoutMs,
     ),
@@ -150,8 +153,7 @@ export async function setDeviceTrust(
   const answer = setDeviceTrustResponseSchema.parse(
     await askOwner(
       dataDirectory,
-      'POST',
-      '/access/trust',
+      setDeviceTrustEndpoint,
       change,
       limits.owner.requestTimeoutMs,
     ),

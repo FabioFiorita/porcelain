@@ -1,5 +1,5 @@
+import { readHealthEndpoint } from '@porcelain/contracts/access';
 import type { ZodTypeProvider } from '@fastify/type-provider-zod';
-import { readHealthResponseSchema } from '@porcelain/contracts/access';
 import type { FastifyInstance } from 'fastify';
 import type { ReadHealthUseCase } from '../../../use-cases/access/read-health.ts';
 
@@ -8,14 +8,11 @@ export function readHealth(
   options: { useCase: Pick<ReadHealthUseCase, 'execute'> },
 ) {
   const api = server.withTypeProvider<ZodTypeProvider>();
-  api.get(
-    '/health',
-    {
-      schema: {
-        response: { 200: readHealthResponseSchema },
-      },
-    },
-    async (request) =>
+  api.route({
+    method: readHealthEndpoint.method,
+    url: readHealthEndpoint.path,
+    schema: readHealthEndpoint.schema,
+    handler: async (request) =>
       options.useCase.execute({ signal: request.disconnected }),
-  );
+  });
 }
