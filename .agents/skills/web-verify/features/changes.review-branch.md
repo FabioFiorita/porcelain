@@ -67,7 +67,7 @@ git -C "$REPO" diff --name-only main feature   # prints README.md and notes.md
 ### 2. Marking it reviewed keeps the mark in the branch review
 
 5. `$C click --text "Mark reviewed"`
-   Look for: the toolbar button reads "Reviewed"; the snapshot shows `button "Unmark notes.md as unreviewed" [pressed]`, enabled.
+   Look for: the toolbar button reads "Reviewed"; the snapshot shows `button "Unmark notes.md as unreviewed" [pressed]`, enabled. `$C server reviewed-files refs/heads/feature` lists notes.md; `$C server reviewed-files` (the uncommitted review) lists none.
 
 ### 3. A comment on it is saved against the branch
 
@@ -76,13 +76,13 @@ git -C "$REPO" diff --name-only main feature   # prints README.md and notes.md
 7. `$C fill --role textbox --name "Comment" "Why a second line?"`
    Look for: button "Comment" enabled.
 8. `$C click --role button --name "Comment"`
-   Look for: a thread with "Why a second line?" and the state "Waiting for the agent".
+   Look for: a thread with "Why a second line?" and the state "Waiting for the agent". `$C server comment-threads` shows its anchor `{ "kind": "file", "filePath": "notes.md", "comparison": { "kind": "branch", "base": "refs/heads/main" }, "revision": <branch tip>, … }` and body "Why a second line?".
 
 ## What proves it works
 
 - Reload with `$C open <the path and query of the printed Page URL>`: the document is still "notes.md · on the branch", the toolbar still reads "Reviewed", and the thread "Why a second line?" with "Waiting for the agent" is still there.
 - `$C network` shows `GET /api/worktrees/<worktreeId>/branch-changes` and `POST …/branch-changes/diffs` (200) for part 1, `PUT /api/worktrees/<worktreeId>/reviewed` (200) for part 2 and `GET …/reviewed?scope=branch&…` reads, and `POST /api/worktrees/<worktreeId>/comments` (200) for part 3.
-- That the uncommitted review stayed empty, and that the comment's anchor is `{ kind: 'file', filePath: 'notes.md', comparison: { kind: 'branch', base: 'refs/heads/main' }, revision: <branch tip> }`, has no UI readout: after part 3, Review → tab "Uncommitted" shows "No changed files" and "No changes", and its readiness counts the thread ("1 comment waiting on the agent", tab "Comments 1") because the comment list is the worktree's; the marks and the anchor themselves reading them needs `cli server reviewed-files` and `cli server comment-threads` (CLI gaps).
+- The uncommitted review stayed empty and the comment is anchored to the branch: `$C server reviewed-files` lists no mark while `$C server reviewed-files refs/heads/feature` lists notes.md, and `$C server comment-threads` shows the branch comparison against `refs/heads/main` at the branch tip. In the UI, after part 3, Review → tab "Uncommitted" shows "No changed files" and "No changes", and its readiness counts the thread ("1 comment waiting on the agent", tab "Comments 1") because the comment list is the worktree's.
 - `apps/web/spec/e2e/changes-review-branch.e2e.ts`: asserts the server's branch files are README.md and notes.md, the count line, `scope=branch` and `entry=branch:notes.md`; that the branch marks hold `notes.md` while the worktree marks stay `[]`; and the saved thread's anchor and body.
 
 ## Gotchas

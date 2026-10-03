@@ -62,7 +62,7 @@ git -C "$REPO" add --all && git -C "$REPO" commit -m "Add notes"
 8. `$C fill --role textbox --name "Comment" "Against the checkpoint"`
    Look for: button "Comment" enabled.
 9. `$C click --role button --name "Comment"`
-   Look for: a thread with "Against the checkpoint" and the state "Waiting for the agent".
+   Look for: a thread with "Against the checkpoint" and the state "Waiting for the agent". `$C server comment-threads` shows its anchor `{ "kind": "file", "filePath": "notes.md", "comparison": { "kind": "branch", "base": "refs/heads/checkpoint" }, "revision": <branch tip>, … }`.
 10. `$C click --role button --name "Review"`
     Look for: button "Compare against checkpoint".
 11. `$C click --role button --name "Compare against checkpoint"`
@@ -78,7 +78,7 @@ git -C "$REPO" add --all && git -C "$REPO" commit -m "Add notes"
 
 - Step 14's Page URL: the base comes back as `refs/heads/checkpoint` although step 12 had cleared it. Reopening Review then shows button "Compare against checkpoint".
 - The comment persisted on the server: `$C open <the path and query of the printed Page URL>` still shows the thread "Against the checkpoint". `$C network` shows `POST /api/worktrees/<worktreeId>/comments` with 200 and later `GET /api/worktrees/<worktreeId>/comments` with 200.
-- The anchor's stored comparison (`{ kind: 'branch', base: 'refs/heads/checkpoint' }`) has no UI readout; reading it needs `cli server comment-threads` (CLI gap).
+- The anchor's stored comparison: `$C server comment-threads` after step 9 shows `"comparison": { "kind": "branch", "base": "refs/heads/checkpoint" }`, which the reveal in step 14 brings back.
 - `apps/web/spec/e2e/changes-branch-comment-reveal.e2e.ts`: asserts the saved thread's anchor comparison is the checkpoint base, that switching to main clears `base`, and that the reveal sets `base=refs/heads/checkpoint` and `entry=branch:notes.md`.
 
 ## Gotchas
