@@ -108,7 +108,7 @@ export class Evidence {
     const serialized = `${JSON.stringify(recorder.redact(record), null, 2)}\n`;
     const content =
       recorder.leaks(serialized) > 0
-        ? `${JSON.stringify({ command: record.command, withheld }, null, 2)}\n`
+        ? `${JSON.stringify({ command: name, withheld }, null, 2)}\n`
         : serialized;
     const file = await this.claim(name, 'json');
     await writeFile(file, content, { mode: 0o600 });
