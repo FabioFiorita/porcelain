@@ -111,33 +111,35 @@ function remoteDevices(target: Hosted) {
   return devicesSchema.parse(JSON.parse(result.stdout)).data.devices;
 }
 
-export function connectHub(target: Hosted): void {
+function hub(target: Hosted, args: readonly string[]) {
   const result = spawnSync(
     'agent-device',
-    [
-      'connect',
-      'proxy',
-      '--daemon-base-url',
-      hubUrl(target.host),
-      '--session',
-      target.session,
-      '--force',
-    ],
-    {
-      cwd: target.cwd,
-      encoding: 'utf8',
-      env: environmentOf(target.host),
-    },
+    [...args, '--session', target.session],
+    { cwd: target.cwd, encoding: 'utf8', env: environmentOf(target.host) },
   );
   if (result.error) throw result.error;
-  if (result.status !== 0)
+  return {
+    ok: result.status === 0,
+    output: `${result.stdout}${result.stderr}`.trim(),
+  };
+}
+
+export function connectHub(target: Hosted): void {
+  const connected = hub(target, [
+    'connect',
+    'proxy',
+    '--daemon-base-url',
+    hubUrl(target.host),
+    '--force',
+  ]);
+  if (!connected.ok)
     throw new Refusal(
-      `agent-device could not connect to the hub at ${target.host.hub}: ${`${result.stdout}${result.stderr}`.trim()}`,
+      `agent-device could not connect to the hub at ${target.host.hub}: ${connected.output}`,
     );
 }
 
 export function disconnectHub(target: Hosted): void {
-  run({ ...target, udid: undefined }, ['disconnect']);
+  hub(target, ['disconnect']);
 }
 
 export function holdLease(target: Hosted): () => void {
