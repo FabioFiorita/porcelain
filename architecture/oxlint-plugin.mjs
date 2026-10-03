@@ -46,13 +46,6 @@ const routeMethods = new Set([
   'route',
   'all',
 ]);
-const requestKeys = new Set([
-  'params',
-  'body',
-  'querystring',
-  'query',
-  'headers',
-]);
 
 function normalizedFilename(filename) {
   return filename.replaceAll('\\', '/');
@@ -348,7 +341,6 @@ const nodeGlobals = new Set([
   'console',
   'queueMicrotask',
 ]);
-const featureMethods = new Set(['get', 'post', 'put', 'patch', 'delete']);
 const routeHook = /^(?:on|pre)[A-Z]|^(?:handler|errorHandler)$/;
 const pureConstructors = new Set(['Map', 'Set', 'RegExp']);
 const pureCrypto = new Set(['createHash', 'timingSafeEqual']);
@@ -473,6 +465,29 @@ function allowedNumberContext(node, value) {
   if (node.raw?.startsWith('0o')) return true;
   const status = value >= 100 && value <= 599;
   if (status && parent?.type === 'Property' && parent.key === current)
+    return true;
+  if (
+    status &&
+    parent?.type === 'MemberExpression' &&
+    parent.computed &&
+    parent.property === current &&
+    parent.object.type === 'MemberExpression' &&
+    ['responses', 'response'].includes(memberName(parent.object))
+  )
+    return true;
+  const errors = parent?.parent?.parent;
+  const definition = errors?.parent?.parent;
+  if (
+    status &&
+    parent?.type === 'Property' &&
+    parent.value === current &&
+    errors?.type === 'Property' &&
+    errors.key.type === 'Identifier' &&
+    errors.key.name === 'errors' &&
+    definition?.type === 'CallExpression' &&
+    definition.callee.type === 'Identifier' &&
+    definition.callee.name === 'defineEndpoint'
+  )
     return true;
   if (
     status &&
@@ -1168,6 +1183,8 @@ function allowedSpecImport(filename, source) {
   if (source === 'vitest') return true;
   if (specNodeModule.test(source) || specPackageEntry.test(source)) return true;
   const path = normalizedFilename(filename);
+  if (/packages\/contracts\/src\/.+\.spec\.ts$/.test(path) && source === 'zod')
+    return true;
   if (
     /packages\/client\/spec\/integration\/[a-z]+(?:-[a-z]+)*\.integration\.ts$/.test(
       path,
@@ -1189,9 +1206,10 @@ function allowedSpecImport(filename, source) {
       path,
     );
   if (
-    clientFeature &&
-    (source === `@porcelain/client/${clientFeature[1]}` ||
-      source === `@porcelain/client/${clientFeature[1]}/rules` ||
+    (clientFeature ||
+      /packages\/client\/src\/shared\/api\/[^/]+\.spec\.ts$/.test(path)) &&
+    (source === `@porcelain/client/${clientFeature?.[1]}` ||
+      source === `@porcelain/client/${clientFeature?.[1]}/rules` ||
       /^@porcelain\/contracts\/(?:shared|access|projects|changes|reviews|files|git-actions)$/.test(
         source,
       ))
@@ -1295,11 +1313,11 @@ export default {
                   continue;
                 }
                 const method = propertyName(member, context);
-                if (!featureMethods.has(method ?? '')) {
+                if (method !== 'route') {
                   context.report({
                     node: member,
                     message:
-                      'A feature route calls only get, post, put, patch or delete on the server instance; no hooks, plugins or computed methods.',
+                      'A feature route calls api.route with its contract endpoint; no hooks, plugins or computed methods.',
                   });
                   continue;
                 }
@@ -1309,13 +1327,13 @@ export default {
                     node: call,
                     message: 'A feature route file registers one endpoint.',
                   });
-                if (call.arguments.length !== 3)
+                if (call.arguments.length !== 1)
                   context.report({
                     node: call,
                     message:
-                      'Register a feature route as (path, options, handler).',
+                      'Register a feature route as api.route({ method, url, schema, handler }).',
                   });
-                const options = call.arguments[1];
+                const options = call.arguments[0];
                 if (options?.type !== 'ObjectExpression') {
                   context.report({
                     node: options ?? call,
@@ -1326,7 +1344,8 @@ export default {
                 for (const property of options.properties)
                   if (
                     property.type !== 'Property' ||
-                    routeHook.test(propertyName(property, context) ?? '')
+                    (propertyName(property, context) !== 'handler' &&
+                      routeHook.test(propertyName(property, context) ?? ''))
                   )
                     context.report({
                       node: property,
@@ -1419,11 +1438,11 @@ export default {
             const callee = node.callee;
             if (
               callee.type !== 'MemberExpression' ||
-              !featureMethods.has(propertyName(callee, context) ?? '') ||
-              !isFunction(node.arguments[2])
+              propertyName(callee, context) !== 'route' ||
+              !isFunction(objectProperty(node.arguments[0], 'handler')?.value)
             )
               return;
-            const handler = node.arguments[2];
+            const handler = objectProperty(node.arguments[0], 'handler').value;
             const call = routeHandlerCall(handler);
             if (!call) {
               context.report({
@@ -1682,6 +1701,13 @@ export default {
         return moduleVisitors((node) => {
           const source = moduleSource(node);
           if (source === undefined) return;
+          if (
+            path === 'scripts/api-calls.ts' &&
+            /^@porcelain\/contracts\/(?:access|changes|files|git-actions|projects|reviews|shared)$/.test(
+              source,
+            )
+          )
+            return;
           const target = source.startsWith('.')
             ? posix.join(posix.dirname(path), source)
             : source;
@@ -3702,14 +3728,27 @@ export default {
               if (
                 specifier.type === 'ImportSpecifier' &&
                 specifier.imported.type === 'Identifier' &&
-                /Schema$/.test(specifier.imported.name)
+                /Endpoint$/.test(specifier.imported.name)
               )
                 contractSchemas.add(specifier.local.name);
           },
           CallExpression(node) {
             const callee = node.callee;
-            if (callee.type !== 'MemberExpression' || callee.computed) return;
+            if (callee.type !== 'MemberExpression') return;
             if (isUseCaseExecute(callee)) useCaseCalls += 1;
+            if (
+              callee.object.type === 'Identifier' &&
+              callee.object.name === 'api' &&
+              callee.computed
+            ) {
+              registrations += 1;
+              context.report({
+                node,
+                message:
+                  'Register the imported contract endpoint with api.route.',
+              });
+              return;
+            }
             if (
               callee.object.type !== 'Identifier' ||
               callee.object.name !== 'api' ||
@@ -3718,52 +3757,32 @@ export default {
             )
               return;
             registrations += 1;
+            const options = node.arguments[0];
+            const method = objectProperty(options, 'method')?.value;
+            const url = objectProperty(options, 'url')?.value;
+            const schema = objectProperty(options, 'schema')?.value;
+            const handler = objectProperty(options, 'handler')?.value;
+            const endpointMember = (member, field) =>
+              member?.type === 'MemberExpression' &&
+              !member.computed &&
+              member.object.type === 'Identifier' &&
+              contractSchemas.has(member.object.name) &&
+              member.property.type === 'Identifier' &&
+              member.property.name === field;
             if (
-              callee.property.name === 'route' ||
-              callee.property.name === 'all'
-            ) {
-              context.report({
-                node,
-                message:
-                  'Register a feature route with one HTTP method: api.get, api.post, api.put, api.patch or api.delete.',
-              });
-              return;
-            }
-            const schema = objectProperty(node.arguments[1], 'schema');
-            const response = objectProperty(schema?.value, 'response');
-            const requestSchemas =
-              schema?.value.type === 'ObjectExpression'
-                ? schema.value.properties.filter(
-                    (entry) =>
-                      entry.type === 'Property' &&
-                      entry.key.type === 'Identifier' &&
-                      requestKeys.has(entry.key.name),
-                  )
-                : [];
-            const responseSchemas =
-              response?.value.type === 'ObjectExpression'
-                ? response.value.properties.filter(
-                    (entry) => entry.type === 'Property',
-                  )
-                : [];
-            const contractSchema = (entry) =>
-              entry.value.type === 'Identifier' &&
-              contractSchemas.has(entry.value.name);
-            const handler = node.arguments[2];
-            if (
-              node.arguments[0]?.type !== 'Literal' ||
-              typeof node.arguments[0].value !== 'string' ||
-              !response ||
-              response.value.type !== 'ObjectExpression' ||
-              handler?.type !== 'ArrowFunctionExpression' ||
-              !requestSchemas.every(contractSchema) ||
-              responseSchemas.length === 0 ||
-              !responseSchemas.every(contractSchema)
+              callee.property.name !== 'route' ||
+              node.arguments.length !== 1 ||
+              !endpointMember(method, 'method') ||
+              !endpointMember(url, 'path') ||
+              !endpointMember(schema, 'schema') ||
+              method.object.name !== url.object.name ||
+              method.object.name !== schema.object.name ||
+              handler?.type !== 'ArrowFunctionExpression'
             )
               context.report({
                 node,
                 message:
-                  'A feature route needs a literal path, imported contract schemas for input and output, and one arrow handler.',
+                  'Register method, url and schema from the same imported contract endpoint, with one arrow handler.',
               });
             if (handler?.type !== 'ArrowFunctionExpression') return;
             if (page) {

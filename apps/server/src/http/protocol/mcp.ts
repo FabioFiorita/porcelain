@@ -1,3 +1,4 @@
+import { reviewMcpEndpoint } from '@porcelain/contracts/access';
 import { httpErrors } from '@fastify/sensible';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
@@ -31,11 +32,14 @@ export function reviewMcp(
   options: { useCases: ReviewMcpUseCases; limits: Limits['http'] },
 ) {
   server.all(
-    '/mcp',
-    { bodyLimit: options.limits.reviewBodyBytes },
+    reviewMcpEndpoint.path,
+    {
+      bodyLimit: options.limits.reviewBodyBytes,
+      schema: { response: reviewMcpEndpoint.schema.response },
+    },
     async (request, reply) => {
-      if (request.method !== 'POST') {
-        reply.header('Allow', 'POST');
+      if (request.method !== reviewMcpEndpoint.method) {
+        reply.header('Allow', reviewMcpEndpoint.method);
         throw httpErrors.methodNotAllowed();
       }
       const cwd = request.headers['x-porcelain-cwd'];

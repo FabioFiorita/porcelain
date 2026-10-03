@@ -773,9 +773,9 @@ export const webRules = {
               node.specifiers?.some(
                 (binding) =>
                   binding.type === 'ImportNamespaceSpecifier' ||
-                  binding.imported?.name === 'requestJson' ||
-                  binding.imported?.value === 'requestJson' ||
-                  binding.local?.name === 'requestJson',
+                  binding.imported?.name === 'requestEndpoint' ||
+                  binding.imported?.value === 'requestEndpoint' ||
+                  binding.local?.name === 'requestEndpoint',
               )))
         )
           context.report({

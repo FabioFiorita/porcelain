@@ -1,7 +1,8 @@
 import { changeDiffsQueryOptions } from '@porcelain/client/changes';
 import { DIFFS_PER_REQUEST } from '@porcelain/contracts/shared';
 import { useBatchedReads } from './batched-reads';
-import { isWorktreeChangedError } from '../api';
+import { readChangeDiffsEndpoint } from '@porcelain/contracts/changes';
+import { isEndpointError } from '@porcelain/client/transport';
 import {
   selectionKey,
   type ChangesScope,
@@ -53,7 +54,8 @@ export function useChangeDiffs(
       );
     },
     retry: (_failureCount, error) => {
-      if (isWorktreeChangedError(error)) recover(statusToken);
+      if (isEndpointError(error, readChangeDiffsEndpoint, 'worktree_changed'))
+        recover(statusToken);
       return false;
     },
   });

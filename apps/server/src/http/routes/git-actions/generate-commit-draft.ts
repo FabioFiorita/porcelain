@@ -1,31 +1,21 @@
+import { generateCommitDraftEndpoint } from '@porcelain/contracts/git-actions';
 import type { ZodTypeProvider } from '@fastify/type-provider-zod';
-import {
-  generateCommitDraftRequestSchema,
-  generateCommitDraftResponseSchema,
-} from '@porcelain/contracts/git-actions';
-import { worktreeParamsSchema } from '@porcelain/contracts/shared';
 import type { FastifyInstance } from 'fastify';
 import type { GenerateCommitDraftUseCase } from '../../../use-cases/git-actions/generate-commit-draft.ts';
-import { errorResponses } from '../../schemas/error-responses.ts';
 
 export function generateCommitDraft(
   server: FastifyInstance,
   options: { useCase: Pick<GenerateCommitDraftUseCase, 'execute'> },
 ) {
   const api = server.withTypeProvider<ZodTypeProvider>();
-  api.post(
-    '/worktrees/:worktreeId/git/commit-draft',
-    {
-      schema: {
-        params: worktreeParamsSchema,
-        body: generateCommitDraftRequestSchema,
-        response: { ...errorResponses, 200: generateCommitDraftResponseSchema },
-      },
-    },
-    async (request) =>
+  api.route({
+    method: generateCommitDraftEndpoint.method,
+    url: generateCommitDraftEndpoint.path,
+    schema: generateCommitDraftEndpoint.schema,
+    handler: async (request) =>
       options.useCase.execute(
         { ...request.params, ...request.body },
         { signal: request.disconnected },
       ),
-  );
+  });
 }

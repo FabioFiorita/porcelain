@@ -1,9 +1,11 @@
+import { reviewMcpEndpoint } from '@porcelain/contracts/access';
+import type { Endpoint } from '@porcelain/contracts/shared';
 import { request as httpRequest } from 'node:http';
 import { ownerSocketPath } from '../config/owner-socket-settings.ts';
 import { OwnerRequestError } from './errors/owner-request-error.ts';
 import { OwnerSocketTimeoutError } from './errors/owner-socket-timeout-error.ts';
 
-type OwnerMethod = 'GET' | 'POST' | 'PATCH';
+type OwnerMethod = Endpoint['method'];
 
 type OwnerExchange = {
   method: OwnerMethod;
@@ -90,8 +92,7 @@ function messageFrom(answer: OwnerAnswer): string {
 
 export async function askOwner(
   dataDirectory: string,
-  method: OwnerMethod,
-  path: string,
+  endpoint: Pick<Endpoint, 'method' | 'path'>,
   body: unknown,
   timeoutMs: number,
 ): Promise<unknown> {
@@ -99,8 +100,8 @@ export async function askOwner(
   let answer: OwnerAnswer;
   try {
     answer = await exchange(socketPath, {
-      method,
-      path,
+      method: endpoint.method,
+      path: endpoint.path,
       body: body === undefined ? undefined : JSON.stringify(body),
       timeoutMs,
       timeoutMessage: 'The server did not answer in time.',
@@ -127,8 +128,8 @@ export async function relayToOwner(
 ): Promise<OwnerAnswer> {
   try {
     return await exchange(socketPath, {
-      method: 'POST',
-      path: '/mcp',
+      method: reviewMcpEndpoint.method,
+      path: reviewMcpEndpoint.path,
       body: JSON.stringify(message),
       headers: {
         accept: 'application/json, text/event-stream',

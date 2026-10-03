@@ -1,86 +1,89 @@
 import {
-  browseProjectFoldersResponseSchema,
-  listFilePreferencesResponseSchema,
-  registerProjectRequestSchema,
-  registerProjectResponseSchema,
-  removeProjectResponseSchema,
-  renameProjectRequestSchema,
-  renameProjectResponseSchema,
-  setFilePreferenceRequestSchema,
-  setFilePreferenceResponseSchema,
-  type SetFilePreferenceRequest,
+  browseProjectFoldersEndpoint,
+  registerProjectEndpoint,
+  renameProjectEndpoint,
+  removeProjectEndpoint,
+  listFilePreferencesEndpoint,
+  setFilePreferenceEndpoint,
 } from '@porcelain/contracts/projects';
-import { requestJson } from '@porcelain/client/transport';
+import { type SetFilePreferenceRequest } from '@porcelain/contracts/projects';
+import { requestEndpoint } from '@porcelain/client/transport';
 import { perConnection } from '@porcelain/client/transport';
 import type { Transport } from '@porcelain/client/transport';
 import { inventoryApi } from '@porcelain/client/projects/api';
 
 function createProjectsApi(transport: Transport) {
-  const preferencesPath = (projectId: string) =>
-    `/api/projects/${encodeURIComponent(projectId)}/file-preferences`;
   return {
     inventory: {
       read: inventoryApi({ transport }).read,
-      browse: (signal: AbortSignal, path?: string) =>
-        requestJson(
-          transport,
-          path === undefined
-            ? '/api/projects/folders'
-            : `/api/projects/folders?${new URLSearchParams({ path })}`,
-          browseProjectFoldersResponseSchema,
-          { signal },
-        ),
-      register: (signal: AbortSignal, path: string) =>
-        requestJson(transport, '/api/projects', registerProjectResponseSchema, {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify(registerProjectRequestSchema.parse({ path })),
+      browse: ({
+        signal,
+        path,
+      }: {
+        signal: AbortSignal;
+        path?: string | undefined;
+      }) =>
+        requestEndpoint(transport, browseProjectFoldersEndpoint, {
+          query: { path },
           signal,
         }),
-      rename: (signal: AbortSignal, projectId: string, name: string) =>
-        requestJson(
-          transport,
-          `/api/projects/${encodeURIComponent(projectId)}`,
-          renameProjectResponseSchema,
-          {
-            method: 'PATCH',
-            headers: { 'content-type': 'application/json' },
-            body: JSON.stringify(renameProjectRequestSchema.parse({ name })),
-            signal,
-          },
-        ),
-      remove: (signal: AbortSignal, projectId: string) =>
-        requestJson(
-          transport,
-          `/api/projects/${encodeURIComponent(projectId)}`,
-          removeProjectResponseSchema,
-          { method: 'DELETE', signal },
-        ),
+      register: ({ signal, path }: { signal: AbortSignal; path: string }) =>
+        requestEndpoint(transport, registerProjectEndpoint, {
+          body: { path },
+          signal,
+        }),
+      rename: ({
+        signal,
+        projectId,
+        name,
+      }: {
+        signal: AbortSignal;
+        projectId: string;
+        name: string;
+      }) =>
+        requestEndpoint(transport, renameProjectEndpoint, {
+          params: { projectId },
+          body: { name },
+          signal,
+        }),
+      remove: ({
+        signal,
+        projectId,
+      }: {
+        signal: AbortSignal;
+        projectId: string;
+      }) =>
+        requestEndpoint(transport, removeProjectEndpoint, {
+          params: { projectId },
+          signal,
+        }),
     },
     filePreferences: {
-      list: (signal: AbortSignal, projectId: string) =>
-        requestJson(
-          transport,
-          preferencesPath(projectId),
-          listFilePreferencesResponseSchema,
-          { signal },
-        ),
-      set: (
-        signal: AbortSignal,
-        projectId: string,
-        input: SetFilePreferenceRequest,
-      ) =>
-        requestJson(
-          transport,
-          preferencesPath(projectId),
-          setFilePreferenceResponseSchema,
-          {
-            method: 'PUT',
-            headers: { 'content-type': 'application/json' },
-            body: JSON.stringify(setFilePreferenceRequestSchema.parse(input)),
-            signal,
-          },
-        ),
+      list: ({
+        signal,
+        projectId,
+      }: {
+        signal: AbortSignal;
+        projectId: string;
+      }) =>
+        requestEndpoint(transport, listFilePreferencesEndpoint, {
+          params: { projectId },
+          signal,
+        }),
+      set: ({
+        signal,
+        projectId,
+        input,
+      }: {
+        signal: AbortSignal;
+        projectId: string;
+        input: SetFilePreferenceRequest;
+      }) =>
+        requestEndpoint(transport, setFilePreferenceEndpoint, {
+          params: { projectId },
+          body: input,
+          signal,
+        }),
     },
   };
 }

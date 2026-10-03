@@ -59,3 +59,8 @@ export type IssueLiveTicketRequest = { viewer: Principal; route: DeviceRoute };
 export type IssueLiveTicketResponse = z.output<
   typeof issueLiveTicketResponseSchema
 >;
+
+export const liveUpdatesQuerySchema = z.object({
+  ticket: z.string().optional(),
+});
+export const liveUpgradeResponseSchema = z.undefined();

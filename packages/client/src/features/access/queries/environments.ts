@@ -16,11 +16,15 @@ export function environmentQueryOptions(
       remote.deviceId,
     ],
     queryFn: async ({ signal }: QueryFunctionContext) => {
-      const answer = await createRemoteApi(platform).describe(
-        remoteTransport(remote.address, remote.credential, platform.send),
+      const answer = await createRemoteApi(platform).describe({
+        transport: remoteTransport(
+          remote.address,
+          remote.credential,
+          platform.send,
+        ),
         signal,
-        remote.environmentId,
-      );
+        environmentId: remote.environmentId,
+      });
       return remoteStatus(remote, answer);
     },
   };

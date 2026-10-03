@@ -1,20 +1,46 @@
 import { describe, expect, it } from 'vitest';
-import { requestJson } from './request.ts';
+import {
+  readEnvironmentEndpoint,
+  clearBrowserSessionEndpoint,
+} from '@porcelain/contracts/access';
+import {
+  editFileEndpoint,
+  readTextFileEndpoint,
+  type EditFileRequest,
+} from '@porcelain/contracts/files';
+import {
+  listCommitsEndpoint,
+  readChangeDiffsEndpoint,
+} from '@porcelain/contracts/changes';
+import { runGitActionEndpoint } from '@porcelain/contracts/git-actions';
+import { requestEndpoint, isEndpointError, RequestError } from './request.ts';
 
-describe('requestJson', () => {
-  it('parses a successful response and forwards the cancellation signal', async () => {
+const worktreeId = '0123456789abcdef0123456789abcdef';
+const environment = {
+  environmentId: 'remote',
+  name: 'Computer',
+  version: null,
+  protocol: 1,
+};
+
+describe('requestEndpoint', () => {
+  it('uses the contract method, parses the response and forwards cancellation', async () => {
     const controller = new AbortController();
     const received: { path: string; init: RequestInit | undefined }[] = [];
-    const value = await requestJson(
+    const value = await requestEndpoint(
       (path, init) => {
         received.push({ path, init });
-        return Promise.resolve(Response.json({ environmentId: 'remote' }));
+        return Promise.resolve(Response.json(environment));
       },
-      '/api/environment',
-      { parse: (body: unknown) => body },
-      { method: 'GET', signal: controller.signal },
+      readEnvironmentEndpoint,
+      { signal: controller.signal },
     );
-    expect(value).toEqual({ environmentId: 'remote' });
+    expect(value).toEqual({
+      environmentId: 'remote',
+      name: 'Computer',
+      version: undefined,
+      protocol: 1,
+    });
     expect(received).toEqual([
       {
         path: '/api/environment',
@@ -28,38 +54,197 @@ describe('requestJson', () => {
     ]);
   });
 
-  it('preserves the server status, error message and conflict code', async () => {
-    const response = Response.json(
-      {
-        statusCode: 409,
-        error: 'Conflict',
-        message: 'The file changed on disk.',
-        code: 'content_changed',
-      },
-      { status: 409 },
-    );
+  it('encodes query codecs and reserved characters once', async () => {
+    const paths: string[] = [];
     await expect(
-      requestJson(
-        () => Promise.resolve(response),
-        '/api/files',
-        { parse: (body: unknown) => body },
-        { method: 'POST' },
+      requestEndpoint(
+        (path) => {
+          paths.push(path);
+          return Promise.resolve(
+            Response.json(
+              { statusCode: 404, error: 'Not Found', message: 'Missing' },
+              { status: 404 },
+            ),
+          );
+        },
+        readTextFileEndpoint,
+        { params: { worktreeId }, query: { path: 'a b/#?.txt' } },
       ),
-    ).rejects.toMatchObject({
+    ).rejects.toThrow('Missing');
+    await expect(
+      requestEndpoint(
+        (path) => {
+          paths.push(path);
+          return Promise.resolve(new Response(null, { status: 503 }));
+        },
+        listCommitsEndpoint,
+        {
+          params: { worktreeId },
+          query: { after: ['a'.repeat(40), 'b'.repeat(40)] },
+        },
+      ),
+    ).rejects.toThrow('503');
+    expect(paths).toEqual([
+      '/api/worktrees/0123456789abcdef0123456789abcdef/text?path=a+b%2F%23%3F.txt',
+      `/api/worktrees/0123456789abcdef0123456789abcdef/commits?after=${'a'.repeat(40)}%2C${'b'.repeat(40)}`,
+    ]);
+  });
+
+  it('validates a body before sending and supplies the JSON header', async () => {
+    const requests: RequestInit[] = [];
+    const body: EditFileRequest = {
+      kind: 'write',
+      path: 'README.md',
+      text: 'Saved',
+      expectedFingerprint: 'a'.repeat(64),
+    };
+    await expect(
+      requestEndpoint(
+        (_path, init) => {
+          if (init) requests.push(init);
+          return Promise.resolve(new Response(null, { status: 503 }));
+        },
+        editFileEndpoint,
+        { params: { worktreeId }, body },
+      ),
+    ).rejects.toThrow('503');
+    expect(requests).toEqual([
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+        redirect: 'error',
+        cache: 'no-store',
+      },
+    ]);
+    await expect(
+      requestEndpoint(
+        () => {
+          throw new Error('Must not send');
+        },
+        editFileEndpoint,
+        {
+          params: { worktreeId },
+          body: { ...body, expectedFingerprint: 'bad' },
+        },
+      ),
+    ).rejects.toThrow();
+  });
+
+  it('preserves declared errors and checks their declared status', async () => {
+    const error = await requestEndpoint(
+      () =>
+        Promise.resolve(
+          Response.json(
+            {
+              statusCode: 409,
+              error: 'Conflict',
+              message: 'The file changed on disk.',
+              code: 'content_changed',
+            },
+            { status: 409 },
+          ),
+        ),
+      editFileEndpoint,
+      {
+        params: { worktreeId },
+        body: {
+          kind: 'write',
+          path: 'README.md',
+          text: 'Saved',
+          expectedFingerprint: 'a'.repeat(64),
+        },
+      },
+    ).catch((error: unknown) => error);
+    expect(error).toMatchObject({
       name: 'RequestError',
       status: 409,
       message: 'The file changed on disk.',
       code: 'content_changed',
     });
+    expect(isEndpointError(error, editFileEndpoint, 'content_changed')).toBe(
+      true,
+    );
+    expect(
+      isEndpointError(
+        new RequestError(422, 'Wrong status', 'content_changed'),
+        editFileEndpoint,
+        'content_changed',
+      ),
+    ).toBe(false);
+    expect(
+      isEndpointError(error, readChangeDiffsEndpoint, 'worktree_changed'),
+    ).toBe(false);
   });
 
-  it('reports an unreadable rejection as a request failure', async () => {
+  it('does not treat an undeclared code as a typed endpoint error', async () => {
     await expect(
-      requestJson(
+      requestEndpoint(
+        () =>
+          Promise.resolve(
+            Response.json(
+              {
+                statusCode: 409,
+                error: 'Conflict',
+                message: 'Conflict',
+                code: 'content_changed',
+              },
+              { status: 409 },
+            ),
+          ),
+        readEnvironmentEndpoint,
+        {},
+      ),
+    ).rejects.toMatchObject({ status: 409, code: undefined });
+  });
+
+  it('parses a declared non-success receipt rather than throwing for its status', async () => {
+    const error = {
+      statusCode: 409,
+      error: 'Conflict',
+      message: 'Expectation mismatch',
+    };
+    await expect(
+      requestEndpoint(
+        () => Promise.resolve(Response.json(error, { status: 409 })),
+        runGitActionEndpoint,
+        {
+          params: { worktreeId },
+          body: {
+            requestId: '8d349263-380b-4f05-946c-09f8220e5c93',
+            input: {
+              action: 'fetch',
+              remoteName: 'origin',
+              sourceRef: 'refs/heads/main',
+            },
+            expected: {
+              headOid: undefined,
+              branch: undefined,
+              inProgress: undefined,
+              mergeHeadOid: undefined,
+            },
+          },
+        },
+      ),
+    ).resolves.toEqual(error);
+  });
+
+  it('accepts an empty success response without trying to parse JSON', async () => {
+    await expect(
+      requestEndpoint(
+        () => Promise.resolve(new Response(null, { status: 204 })),
+        clearBrowserSessionEndpoint,
+        {},
+      ),
+    ).resolves.toBeUndefined();
+  });
+
+  it('reports an unreadable rejection and retains transport failures', async () => {
+    await expect(
+      requestEndpoint(
         () => Promise.resolve(new Response('unavailable', { status: 503 })),
-        '/api/environment',
-        { parse: (body: unknown) => body },
-        { method: 'GET' },
+        readEnvironmentEndpoint,
+        {},
       ),
     ).rejects.toMatchObject({
       name: 'RequestError',
@@ -67,64 +252,36 @@ describe('requestJson', () => {
       message: 'Request failed (503)',
       code: undefined,
     });
-  });
-
-  it('parses explicitly accepted responses even when their status is an error', async () => {
-    const receipt = { status: 'rejected' };
-    await expect(
-      requestJson(
-        () => Promise.resolve(Response.json(receipt, { status: 409 })),
-        '/api/git/requests',
-        { parse: (body: unknown) => body },
-        { method: 'POST' },
-        [409],
-      ),
-    ).resolves.toEqual(receipt);
-  });
-
-  it('reports an unreachable server while retaining the transport failure', async () => {
     const failure = new TypeError('Network request failed');
     await expect(
-      requestJson(
+      requestEndpoint(
         () => Promise.reject(failure),
-        '/api/environment',
-        { parse: (body: unknown) => body },
-        { method: 'GET' },
+        readEnvironmentEndpoint,
+        {},
       ),
-    ).rejects.toMatchObject({
-      name: 'ConnectionError',
-      cause: failure,
-      message: 'Could not reach Porcelain. Try again.',
-    });
+    ).rejects.toMatchObject({ name: 'ConnectionError', cause: failure });
   });
 
-  it('keeps a cancelled request distinct from an unreachable server', async () => {
+  it('keeps cancellation distinct from an unreachable server', async () => {
     const controller = new AbortController();
     const cancelled = new Error('Workspace disconnected');
     controller.abort(cancelled);
     await expect(
-      requestJson(
+      requestEndpoint(
         () => Promise.reject(cancelled),
-        '/api/environment',
-        { parse: (body: unknown) => body },
-        { method: 'GET', signal: controller.signal },
+        readEnvironmentEndpoint,
+        { signal: controller.signal },
       ),
     ).rejects.toBe(cancelled);
   });
 
-  it('rejects a response that the contract parser refuses', async () => {
-    const invalid = new Error('Invalid environment response');
+  it('rejects a successful response that violates its schema', async () => {
     await expect(
-      requestJson(
+      requestEndpoint(
         () => Promise.resolve(Response.json({ malformed: true })),
-        '/api/environment',
-        {
-          parse() {
-            throw invalid;
-          },
-        },
-        { method: 'GET' },
+        readEnvironmentEndpoint,
+        {},
       ),
-    ).rejects.toBe(invalid);
+    ).rejects.toThrow();
   });
 });

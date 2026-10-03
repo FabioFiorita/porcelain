@@ -1,10 +1,5 @@
+import { readReviewSummaryPageEndpoint } from '@porcelain/contracts/reviews';
 import type { ZodTypeProvider } from '@fastify/type-provider-zod';
-import {
-  readReviewSummaryNotFoundResponseSchema,
-  readReviewSummaryParamsSchema,
-  readReviewSummaryQuerySchema,
-  readReviewSummaryResponseSchema,
-} from '@porcelain/contracts/reviews';
 import type { FastifyInstance } from 'fastify';
 import type { ReadReviewSummaryUseCase } from '../../../use-cases/reviews/read-review-summary.ts';
 import { summaryPage } from '../../presenters/summary-page.ts';
@@ -14,19 +9,11 @@ export function readReviewSummaryPage(
   options: { useCase: Pick<ReadReviewSummaryUseCase, 'execute'> },
 ) {
   const api = server.withTypeProvider<ZodTypeProvider>();
-  api.get(
-    '/review-summaries/:token',
-    {
-      schema: {
-        params: readReviewSummaryParamsSchema,
-        querystring: readReviewSummaryQuerySchema,
-        response: {
-          200: readReviewSummaryResponseSchema,
-          404: readReviewSummaryNotFoundResponseSchema,
-        },
-      },
-    },
-    async (request, reply) =>
+  api.route({
+    method: readReviewSummaryPageEndpoint.method,
+    url: readReviewSummaryPageEndpoint.path,
+    schema: readReviewSummaryPageEndpoint.schema,
+    handler: async (request, reply) =>
       reply
         .type('text/html; charset=utf-8')
         .send(
@@ -37,5 +24,5 @@ export function readReviewSummaryPage(
             ),
           ),
         ),
-  );
+  });
 }

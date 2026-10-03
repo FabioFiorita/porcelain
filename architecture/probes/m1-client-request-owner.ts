@@ -11,7 +11,7 @@ export default {
       kind: 'prepend',
       path: 'apps/web/src/features/access/commands/pairing.ts',
       content:
-        "import { requestJson as directRequest } from '@porcelain/client/transport';\n",
+        "import { requestEndpoint as directRequest } from '@porcelain/client/transport';\n",
     },
   ],
 } satisfies Probe;

@@ -15,7 +15,9 @@ export function inventoryQueryOptions(connection: WorktreeConnection) {
     ],
     queryFn: async ({ signal }: Pick<QueryFunctionContext, 'signal'>) => {
       const connected = connection.request(signal);
-      const inventory = await inventoryApi(connection).read(connected.signal);
+      const inventory = await inventoryApi(connection).read({
+        signal: connected.signal,
+      });
       connected.signal.throwIfAborted();
       if (inventory.environmentId !== connection.environmentId)
         throw new ConnectionError(

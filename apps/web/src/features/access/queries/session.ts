@@ -4,6 +4,6 @@ import { accessApi } from '../api';
 export function sessionQueryOptions() {
   return queryOptions({
     queryKey: ['access', 'session'],
-    queryFn: ({ signal }) => accessApi.session.restore(signal),
+    queryFn: ({ signal }) => accessApi.session.restore({ signal }),
   });
 }

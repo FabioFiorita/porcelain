@@ -20,12 +20,12 @@ export function useIssuePairing(connection: Connection) {
       trusted: boolean;
     }) =>
       issuedLink(
-        await shareApi(connection).issue(
-          connection.request().signal,
-          input.label,
-          input.addresses,
-          input.trusted,
-        ),
+        await shareApi(connection).issue({
+          signal: connection.request().signal,
+          label: input.label,
+          addresses: input.addresses,
+          trusted: input.trusted,
+        }),
       ),
     onSuccess: () =>
       client.invalidateQueries({
@@ -46,7 +46,7 @@ export function useRevokeAccess(connection: Connection) {
   const mutation = useMutation({
     scope: { id: `share:${connection.environmentId}` },
     mutationFn: (id: string) =>
-      shareApi(connection).revoke(connection.request().signal, id),
+      shareApi(connection).revoke({ signal: connection.request().signal, id }),
     onSettled: () =>
       client.invalidateQueries({
         queryKey: pairedAccessQueryOptions(connection).queryKey,
@@ -64,11 +64,11 @@ export function useSetDeviceTrust(connection: Connection) {
   const mutation = useMutation({
     scope: { id: `share:${connection.environmentId}` },
     mutationFn: (input: { id: string; trusted: boolean }) =>
-      shareApi(connection).trust(
-        connection.request().signal,
-        input.id,
-        input.trusted,
-      ),
+      shareApi(connection).trust({
+        signal: connection.request().signal,
+        id: input.id,
+        trusted: input.trusted,
+      }),
     onSettled: () =>
       client.invalidateQueries({
         queryKey: pairedAccessQueryOptions(connection).queryKey,
@@ -87,7 +87,10 @@ export function useSetRemoteAccess(connection: Connection) {
   const mutation = useMutation({
     scope: { id: `remote-access:${connection.environmentId}` },
     mutationFn: (change: SetRemoteAccessRequest) =>
-      shareApi(connection).setRemote(connection.request().signal, change),
+      shareApi(connection).setRemote({
+        signal: connection.request().signal,
+        change,
+      }),
     onSuccess: async (remote) => {
       await client.cancelQueries({ queryKey: key });
       client.setQueryData(key, remote);
@@ -105,7 +108,10 @@ export function useRenameEnvironment(connection: Connection) {
   const mutation = useMutation({
     scope: { id: `environment-name:${connection.environmentId}` },
     mutationFn: (name: string | null) =>
-      shareApi(connection).rename(connection.request().signal, name),
+      shareApi(connection).rename({
+        signal: connection.request().signal,
+        name,
+      }),
     onSuccess: () =>
       client.invalidateQueries({
         queryKey: queryKeys.inventory(connection.environmentId),
@@ -125,10 +131,10 @@ export function useStartServiceUpdate(connection: Connection) {
   const mutation = useMutation({
     scope: { id: `service-update:${connection.environmentId}` },
     mutationFn: (version: string) =>
-      shareApi(connection).startServiceUpdate(
-        connection.request().signal,
+      shareApi(connection).startServiceUpdate({
+        signal: connection.request().signal,
         version,
-      ),
+      }),
     onSuccess: async (state) => {
       await client.cancelQueries({ queryKey: key });
       client.setQueryData(key, state);

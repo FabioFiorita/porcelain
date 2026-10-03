@@ -1,4 +1,8 @@
 import {
+  readRemoteAccessEndpoint,
+  setRemoteAccessEndpoint,
+} from '@porcelain/contracts/access';
+import {
   readRemoteAccessResponseSchema,
   setRemoteAccessResponseSchema,
   type ReadRemoteAccessResponse,
@@ -155,8 +159,7 @@ async function readSharing(dataDirectory: string, limits: Limits) {
   return readRemoteAccessResponseSchema.parse(
     await askOwner(
       dataDirectory,
-      'GET',
-      '/remote-access',
+      readRemoteAccessEndpoint,
       undefined,
       limits.owner.requestTimeoutMs,
     ),
@@ -196,8 +199,7 @@ export async function shareRemoteAccess(
   const changed = setRemoteAccessResponseSchema.parse(
     await askOwner(
       dataDirectory,
-      'PATCH',
-      '/remote-access',
+      setRemoteAccessEndpoint,
       requested,
       limits.owner.requestTimeoutMs,
     ),

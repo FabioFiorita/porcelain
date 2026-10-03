@@ -23,11 +23,11 @@ export function directoryQueryOptions(
     ],
     queryFn: async ({ signal }: Pick<QueryFunctionContext, 'signal'>) => {
       const connected = connection.request(signal);
-      const result = await filesApi(connection).directory(
-        connected.signal,
-        scope.worktreeId,
+      const result = await filesApi(connection).directory({
+        signal: connected.signal,
+        worktreeId: scope.worktreeId,
         path,
-      );
+      });
       connected.signal.throwIfAborted();
       if (result.worktreeId !== scope.worktreeId)
         throw new ConnectionError(

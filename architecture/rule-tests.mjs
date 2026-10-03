@@ -590,3 +590,26 @@ deepStrictEqual(
 process.stdout.write(
   'PASS CSS-only theme ownership and native styling configuration\n',
 );
+
+deepStrictEqual(
+  violation(
+    { role: 'gateway', owner: 'server' },
+    { role: 'contract', owner: 'contracts' },
+  ),
+  undefined,
+);
+deepStrictEqual(
+  violation(
+    { role: 'client-transport-spec', owner: 'client' },
+    { role: 'contract', owner: 'contracts' },
+  ),
+  undefined,
+);
+
+deepStrictEqual(
+  violation(
+    { role: 'gateway', owner: 'git' },
+    { role: 'contract', owner: 'contracts' },
+  ),
+  'gateway-cannot-import-contract',
+);

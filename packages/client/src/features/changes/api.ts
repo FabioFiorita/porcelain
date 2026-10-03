@@ -1,132 +1,140 @@
 import {
-  listBranchBasesResponseSchema,
-  readBranchChangesResponseSchema,
-  readBranchDiffsRequestSchema,
-  readBranchDiffsResponseSchema,
-  readChangeDiffsRequestSchema,
-  readChangeDiffsResponseSchema,
-  readChangeLinesResponseSchema,
-  readChangesResponseSchema,
-  readCommitDiffsRequestSchema,
-  readCommitDiffsResponseSchema,
-  readGitStatusResponseSchema,
+  readChangesEndpoint,
+  readChangeDiffsEndpoint,
+  readChangeLinesEndpoint,
+  readBranchChangesEndpoint,
+  readBranchDiffsEndpoint,
+  listBranchBasesEndpoint,
+  readCommitDiffsEndpoint,
+  readGitStatusEndpoint,
+} from '@porcelain/contracts/changes';
+import {
   type ReadBranchDiffsRequest,
   type ReadChangeDiffsRequest,
 } from '@porcelain/contracts/changes';
-import { RequestError, requestJson } from '../../shared/api/request.ts';
+import { requestEndpoint } from '../../shared/api/request.ts';
 import { perConnection } from '../../shared/api/per-connection.ts';
 import { type Transport } from '../../shared/api/transport.ts';
 
 function createChangesApi(transport: Transport) {
-  const worktreePath = (worktreeId: string) =>
-    `/api/worktrees/${encodeURIComponent(worktreeId)}`;
   return {
-    list: (signal: AbortSignal, worktreeId: string) =>
-      requestJson(
-        transport,
-        `${worktreePath(worktreeId)}/changes`,
-        readChangesResponseSchema,
-        { signal },
-      ),
-    diffs: (
-      signal: AbortSignal,
-      worktreeId: string,
-      input: ReadChangeDiffsRequest,
-    ) =>
-      requestJson(
-        transport,
-        `${worktreePath(worktreeId)}/changes/diffs`,
-        readChangeDiffsResponseSchema,
-        {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify(readChangeDiffsRequestSchema.encode(input)),
-          signal,
+    list: ({
+      signal,
+      worktreeId,
+    }: {
+      signal: AbortSignal;
+      worktreeId: string;
+    }) =>
+      requestEndpoint(transport, readChangesEndpoint, {
+        params: { worktreeId },
+        signal,
+      }),
+    diffs: ({
+      signal,
+      worktreeId,
+      input,
+    }: {
+      signal: AbortSignal;
+      worktreeId: string;
+      input: ReadChangeDiffsRequest;
+    }) =>
+      requestEndpoint(transport, readChangeDiffsEndpoint, {
+        params: { worktreeId },
+        body: input,
+        signal,
+      }),
+    lines: ({
+      signal,
+      worktreeId,
+      path,
+      from,
+      to,
+      at,
+    }: {
+      signal: AbortSignal;
+      worktreeId: string;
+      path: string;
+      from: number;
+      to: number;
+      at: 'head' | 'worktree';
+    }) =>
+      requestEndpoint(transport, readChangeLinesEndpoint, {
+        params: { worktreeId },
+        query: { path, from, to, at },
+        signal,
+      }),
+    branch: ({
+      signal,
+      worktreeId,
+      base,
+    }: {
+      signal: AbortSignal;
+      worktreeId: string;
+      base?: string | undefined;
+    }) =>
+      requestEndpoint(transport, readBranchChangesEndpoint, {
+        params: { worktreeId },
+        query: { base },
+        signal,
+      }),
+    branchDiffs: ({
+      signal,
+      worktreeId,
+      input,
+    }: {
+      signal: AbortSignal;
+      worktreeId: string;
+      input: ReadBranchDiffsRequest;
+    }) =>
+      requestEndpoint(transport, readBranchDiffsEndpoint, {
+        params: { worktreeId },
+        body: input,
+        signal,
+      }),
+    branchBases: ({
+      signal,
+      worktreeId,
+    }: {
+      signal: AbortSignal;
+      worktreeId: string;
+    }) =>
+      requestEndpoint(transport, listBranchBasesEndpoint, {
+        params: { worktreeId },
+        signal,
+      }),
+    commitDiffs: ({
+      signal,
+      worktreeId,
+      oid,
+      parent,
+      paths,
+    }: {
+      signal: AbortSignal;
+      worktreeId: string;
+      oid: string;
+      parent: number;
+      paths: string[][];
+    }) =>
+      requestEndpoint(transport, readCommitDiffsEndpoint, {
+        params: { worktreeId, oid },
+        body: {
+          ...(parent === 1 ? {} : { parent }),
+          paths,
         },
-      ),
-    lines: (
-      signal: AbortSignal,
-      worktreeId: string,
-      path: string,
-      from: number,
-      to: number,
-      at: 'head' | 'worktree',
-    ) =>
-      requestJson(
-        transport,
-        `${worktreePath(worktreeId)}/changes/lines?${new URLSearchParams({ path, from: String(from), to: String(to), at }).toString()}`,
-        readChangeLinesResponseSchema,
-        { signal },
-      ),
-    branch: (signal: AbortSignal, worktreeId: string, base?: string) =>
-      requestJson(
-        transport,
-        `${worktreePath(worktreeId)}/branch-changes${base === undefined ? '' : `?${new URLSearchParams({ base }).toString()}`}`,
-        readBranchChangesResponseSchema,
-        { signal },
-      ),
-    branchDiffs: (
-      signal: AbortSignal,
-      worktreeId: string,
-      input: ReadBranchDiffsRequest,
-    ) =>
-      requestJson(
-        transport,
-        `${worktreePath(worktreeId)}/branch-changes/diffs`,
-        readBranchDiffsResponseSchema,
-        {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify(readBranchDiffsRequestSchema.parse(input)),
-          signal,
-        },
-      ),
-    branchBases: (signal: AbortSignal, worktreeId: string) =>
-      requestJson(
-        transport,
-        `${worktreePath(worktreeId)}/branch-bases`,
-        listBranchBasesResponseSchema,
-        { signal },
-      ),
-    commitDiffs: (
-      signal: AbortSignal,
-      worktreeId: string,
-      oid: string,
-      parent: number,
-      paths: string[][],
-    ) =>
-      requestJson(
-        transport,
-        `${worktreePath(worktreeId)}/commits/${encodeURIComponent(oid)}/diffs`,
-        readCommitDiffsResponseSchema,
-        {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify(
-            readCommitDiffsRequestSchema.parse({
-              ...(parent === 1 ? {} : { parent }),
-              paths,
-            }),
-          ),
-          signal,
-        },
-      ),
-    status: (signal: AbortSignal, worktreeId: string) =>
-      requestJson(
-        transport,
-        `${worktreePath(worktreeId)}/git/status`,
-        readGitStatusResponseSchema,
-        { signal },
-      ),
+        signal,
+      }),
+    status: ({
+      signal,
+      worktreeId,
+    }: {
+      signal: AbortSignal;
+      worktreeId: string;
+    }) =>
+      requestEndpoint(transport, readGitStatusEndpoint, {
+        params: { worktreeId },
+        signal,
+      }),
   };
 }
 
 export const changesApi = perConnection(createChangesApi);
-
-export function isWorktreeChangedError(error: unknown) {
-  return (
-    error instanceof RequestError &&
-    error.status === 409 &&
-    error.code === 'worktree_changed'
-  );
-}

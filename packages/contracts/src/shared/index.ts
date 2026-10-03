@@ -43,3 +43,9 @@ export {
   worktreeParamsSchema,
   type WorktreeParams,
 } from './worktree-params.ts';
+export {
+  endpointPath,
+  type Endpoint,
+  type EndpointRequest,
+  type EndpointResponse,
+} from './endpoint.ts';

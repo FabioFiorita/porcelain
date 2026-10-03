@@ -3,7 +3,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { FileDraft, type FileDraftState } from '@/features/files/store';
 import type { EditFileRequest as FileEdit } from '@porcelain/contracts/files';
 import type { FilesScope } from '../rules/scope';
-import { isContentChangedError } from '../api';
+import { editFileEndpoint } from '@porcelain/contracts/files';
+import { isEndpointError } from '@porcelain/client/transport';
 import { createId } from '@/shared/lib/id';
 import { useFileDraftState } from '../store';
 import {
@@ -112,11 +113,11 @@ async function executeFileWrite(
         throw new ConnectionError(
           'Save or discard the unsaved draft before moving this entry.',
         );
-    const result = await filesApi(connection).edit(
-      request.signal,
-      scope.worktreeId,
+    const result = await filesApi(connection).edit({
+      signal: request.signal,
+      worktreeId: scope.worktreeId,
       input,
-    );
+    });
     request.signal.throwIfAborted();
     return result;
   } finally {
@@ -206,7 +207,8 @@ export function useFileDraft(
               throw new Error('The server did not confirm the saved version.');
             return result.contentFingerprint;
           },
-          isContentChangedError,
+          (error) =>
+            isEndpointError(error, editFileEndpoint, 'content_changed'),
         );
   if (!(existing instanceof FileDraft)) entries.set(key, draft);
   const state = useFileDraftState(draft);
@@ -224,7 +226,11 @@ export function useFileDraftSaving(
   }) => void,
 ) {
   return {
-    changedOnDisk: isContentChangedError(state.error),
+    changedOnDisk: isEndpointError(
+      state.error,
+      editFileEndpoint,
+      'content_changed',
+    ),
     change: (text: string) => draft.change(text),
     copyDraft: () => copyText(draft.snapshot().text, 'draft'),
     notifyUnsaved: (path: string) =>

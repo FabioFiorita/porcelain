@@ -1,5 +1,71 @@
 export default [
   {
+    rule: 'no-number-outside-limits',
+    path: 'apps/server/src/adapters/access/http-tunnel-probe.ts',
+    valid: 'export const schema = readHealthEndpoint.responses[200];',
+    invalid: 'export const schema = responses[200];',
+    errors: 1,
+  },
+
+  {
+    rule: 'spec-imports',
+    path: 'packages/contracts/src/shared/endpoint.spec.ts',
+    valid: "import { z } from 'zod';",
+    invalid:
+      "import { readHealth } from '@porcelain/server/src/http/routes/access/read-health';",
+    errors: 1,
+  },
+
+  {
+    rule: 'feature-route-shape',
+    path: 'apps/server/src/http/routes/files/read-text-file.ts',
+    valid: `import { readTextFileEndpoint as endpoint } from '@porcelain/contracts/files'; api.route({ method: endpoint.method, url: endpoint.path, schema: endpoint.schema, handler: async (request) => options.useCase.execute(request.params, { signal: request.disconnected }) });`,
+    invalid: `import { readTextFileEndpoint as endpoint, readFileAssetEndpoint as other } from '@porcelain/contracts/files'; api.route({ method: endpoint.method, url: other.path, schema: endpoint.schema, handler: async (request) => options.useCase.execute(request.params, { signal: request.disconnected }) });`,
+    errors: 1,
+  },
+  {
+    rule: 'feature-route-shape',
+    path: 'apps/server/src/http/routes/files/read-text-file.ts',
+    invalid: `import { readTextFileEndpoint as endpoint } from '@porcelain/contracts/files'; api.route({ method: 'GET', url: endpoint.path, schema: endpoint.schema, handler: async (request) => options.useCase.execute(request.params, { signal: request.disconnected }) });`,
+    errors: 1,
+  },
+  {
+    rule: 'feature-route-shape',
+    path: 'apps/server/src/http/routes/files/read-text-file.ts',
+    invalid: `import { readTextFileEndpoint as endpoint } from '@porcelain/contracts/files'; api.route({ method: endpoint.method, url: '/worktrees/:worktreeId/text', schema: endpoint.schema, handler: async (request) => options.useCase.execute(request.params, { signal: request.disconnected }) });`,
+    errors: 1,
+  },
+  {
+    rule: 'feature-route-shape',
+    path: 'apps/server/src/http/routes/files/read-text-file.ts',
+    invalid: `import { readTextFileEndpoint as endpoint } from '@porcelain/contracts/files'; api.route({ method: endpoint.method, url: endpoint.path, schema: {}, handler: async (request) => options.useCase.execute(request.params, { signal: request.disconnected }) });`,
+    errors: 1,
+  },
+  {
+    rule: 'root-scripts-import-no-package',
+    path: 'scripts/api-calls.ts',
+    valid: "import * as files from '@porcelain/contracts/files';",
+    invalid: "import { filesApi } from '@porcelain/client/files/api';",
+    errors: 1,
+  },
+  {
+    rule: 'spec-imports',
+    path: 'packages/client/src/shared/api/request.spec.ts',
+    valid: "import { readTextFileEndpoint } from '@porcelain/contracts/files';",
+    invalid:
+      "import { ReadTextFileUseCase } from '@porcelain/server/src/use-cases/files/read-text-file';",
+    errors: 1,
+  },
+  {
+    rule: 'no-number-outside-limits',
+    path: 'packages/contracts/src/files/endpoints.ts',
+    valid:
+      'export const endpoint = defineEndpoint({ errors: { content_changed: 409 } });',
+    invalid: 'export const endpoint = defineEndpoint({ limit: 409 });',
+    errors: 1,
+  },
+
+  {
     rule: 'spec-imports',
     path: 'packages/client/spec/integration/files.integration.ts',
     valid:
@@ -103,7 +169,7 @@ export default [
     rule: 'web-api-owns-request',
     path: 'packages/client/src/features/access/commands/pairing.ts',
     valid: "import { ConnectionError } from '@porcelain/client/transport';",
-    invalid: "import { requestJson } from '@porcelain/client/transport';",
+    invalid: "import { requestEndpoint } from '@porcelain/client/transport';",
     errors: 1,
   },
   {
@@ -1055,24 +1121,14 @@ function statusOf(receipt: { state: string }): number {
     path: 'apps/server/src/http/routes/access/clear-browser-session.ts',
     valid: `export function clearBrowserSession(
 ) {
-  api.delete(
-    '/session',
-    {
-    },
-    async (request, reply) =>
+  api.route({ method: endpoint.method, url: endpoint.path, schema: endpoint.schema, handler: async (request, reply) =>
       reply
         .code(204)
-        .send(await options.useCase.execute({ signal: request.disconnected })),
-  );
+        .send(await options.useCase.execute({ signal: request.disconnected })) });
 }`,
     invalid: `export function clearBrowserSession(
 ) {
-  api.delete(
-    '/session',
-    {
-    },
-    async (_request, reply) => reply.code(204).send(),
-  );
+  api.route({ method: endpoint.method, url: endpoint.path, schema: endpoint.schema, handler: async (_request, reply) => reply.code(204).send() });
 }`,
     errors: 1,
   },
@@ -1081,30 +1137,20 @@ function statusOf(receipt: { state: string }): number {
     path: 'apps/server/src/http/routes/changes/read-changes.ts',
     valid: `export function readChanges(
 ) {
-  api.get(
-    '/worktrees/:worktreeId/changes',
-    {
-    },
-    async (request) =>
+  api.route({ method: endpoint.method, url: endpoint.path, schema: endpoint.schema, handler: async (request) =>
       options.useCase.execute(request.params, {
         signal: request.disconnected,
-      }),
-  );
+      }) });
 }`,
     invalid: `export function readChanges(
 ) {
-  api.get(
-    '/worktrees/:worktreeId/changes',
-    {
-    },
-    async (request) => {
+  api.route({ method: endpoint.method, url: endpoint.path, schema: endpoint.schema, handler: async (request) => {
       const { worktreeId } = request.params;
       return options.useCase.execute(
         { worktreeId },
         { signal: request.disconnected },
       );
-    },
-  );
+    } });
 }`,
     errors: 1,
   },
@@ -1115,26 +1161,16 @@ function statusOf(receipt: { state: string }): number {
   server: FastifyInstance,
 ) {
   const api = server.withTypeProvider<ZodTypeProvider>();
-  api.get(
-    '/worktrees/:worktreeId/changes',
-    {
-    },
-      options.useCase.execute(request.params, {
-      }),
-  );
+  api.route({ method: endpoint.method, url: endpoint.path, schema: endpoint.schema, handler: options.useCase.execute(request.params, {
+      }) });
 }`,
     invalid: `export function readChanges(
   server: FastifyInstance,
 ) {
   const api = server.withTypeProvider<ZodTypeProvider>();
   api.addHook('preHandler', async () => undefined);
-  api.get(
-    '/worktrees/:worktreeId/changes',
-    {
-    },
-      options.useCase.execute(request.params, {
-      }),
-  );
+  api.route({ method: endpoint.method, url: endpoint.path, schema: endpoint.schema, handler: options.useCase.execute(request.params, {
+      }) });
 }`,
     errors: 1,
   },
@@ -1145,51 +1181,27 @@ function statusOf(receipt: { state: string }): number {
   server: FastifyInstance,
 ) {
   const api = server.withTypeProvider<ZodTypeProvider>();
-  api.get(
-    '/worktrees/:worktreeId/changes',
-    {
-      schema: {
-        params: worktreeParamsSchema,
-      },
-    },
-      options.useCase.execute(request.params, {
-      }),
-  );
+  api.route({ method: endpoint.method, url: endpoint.path, schema: endpoint.schema, handler: options.useCase.execute(request.params, {
+      }) });
 }`,
     invalid: `export function readChanges(
   server: FastifyInstance,
 ) {
   const api = server.withTypeProvider<ZodTypeProvider>();
-  api.get(
-    '/worktrees/:worktreeId/changes',
-    {
-      preHandler: async () => undefined,
-      schema: {
-        params: worktreeParamsSchema,
-      },
-    },
-      options.useCase.execute(request.params, {
-      }),
-  );
+  api.route({ method: endpoint.method, url: endpoint.path, schema: endpoint.schema, preHandler: async () => undefined, handler: options.useCase.execute(request.params, {
+      }) });
 }`,
     errors: 1,
   },
   {
     rule: 'feature-route-shape',
     path: 'apps/server/src/http/routes/access/read-health.ts',
-    valid: `import { readHealthResponseSchema } from '@porcelain/contracts/access';
+    valid: `import { readHealthEndpoint as endpoint } from '@porcelain/contracts/access';
+import { readHealthResponseSchema } from '@porcelain/contracts/access';
 export function readHealth(
 ) {
-  api.get(
-    '/health',
-    {
-      schema: {
-        response: { 200: readHealthResponseSchema },
-      },
-    },
-    async (request) =>
-      options.useCase.execute({ signal: request.disconnected }),
-  );
+  api.route({ method: endpoint.method, url: endpoint.path, schema: endpoint.schema, handler: async (request) =>
+      options.useCase.execute({ signal: request.disconnected }) });
 }`,
     invalid: `import { readHealthResponseSchema } from '@porcelain/contracts/access';
 export function readHealth(
@@ -1211,19 +1223,12 @@ export function readHealth(
   {
     rule: 'feature-route-shape',
     path: 'apps/server/src/http/routes/access/read-health.ts',
-    valid: `import { readHealthResponseSchema } from '@porcelain/contracts/access';
+    valid: `import { readHealthEndpoint as endpoint } from '@porcelain/contracts/access';
+import { readHealthResponseSchema } from '@porcelain/contracts/access';
 export function readHealth(
 ) {
-  api.get(
-    '/health',
-    {
-      schema: {
-        response: { 200: readHealthResponseSchema },
-      },
-    },
-    async (request) =>
-      options.useCase.execute({ signal: request.disconnected }),
-  );
+  api.route({ method: endpoint.method, url: endpoint.path, schema: endpoint.schema, handler: async (request) =>
+      options.useCase.execute({ signal: request.disconnected }) });
 }`,
     invalid: `import { readHealthResponseSchema } from '@porcelain/contracts/access';
 export function readHealth(
@@ -3725,9 +3730,9 @@ export class CreateCommentThreadUseCase {
   {
     rule: 'web-api-owns-request',
     path: 'apps/web/src/features/access/queries/probe-query.ts',
-    invalid: `import { requestJson } from '@/shared/api/request';
+    invalid: `import { requestEndpoint } from '@/shared/api/request';
 
-export const probeRequest = requestJson;
+export const probeRequest = requestEndpoint;
 `,
     errors: 1,
   },
@@ -3736,7 +3741,7 @@ export const probeRequest = requestJson;
     path: 'apps/web/src/features/access/commands/pairing.ts',
     valid: "import { RequestError } from '@porcelain/client/transport';",
     invalid:
-      "import { requestJson as read } from '@porcelain/client/transport';",
+      "import { requestEndpoint as read } from '@porcelain/client/transport';",
     errors: 1,
   },
   {

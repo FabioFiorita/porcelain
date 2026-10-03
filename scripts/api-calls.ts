@@ -1,14 +1,26 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
-import {
-  parseSync,
-  Visitor,
-  type Argument,
-  type ArrowFunctionExpression,
-  type Expression,
-  type Function as FunctionNode,
-} from 'oxc-parser';
+import { parseSync, Visitor } from 'oxc-parser';
 import { z } from 'zod';
+import * as access from '@porcelain/contracts/access';
+import * as changes from '@porcelain/contracts/changes';
+import * as files from '@porcelain/contracts/files';
+import * as gitActions from '@porcelain/contracts/git-actions';
+import * as projects from '@porcelain/contracts/projects';
+import * as reviews from '@porcelain/contracts/reviews';
+import type { Endpoint } from '@porcelain/contracts/shared';
+
+const contractEndpoints = new Map<string, Endpoint>();
+for (const [name, value] of Object.entries({
+  ...access,
+  ...changes,
+  ...files,
+  ...gitActions,
+  ...projects,
+  ...reviews,
+}))
+  if ('method' in value && 'responses' in value)
+    contractEndpoints.set(name, value);
 
 export type ApiCall = {
   method: string;
@@ -17,25 +29,20 @@ export type ApiCall = {
   line: number;
 };
 
-type Callable = FunctionNode | ArrowFunctionExpression;
 type Module = {
   file: string;
-  values: Map<string, Expression[]>;
-  functions: Map<string, Callable[]>;
+  endpoints: Map<string, Endpoint>;
+  callers: Map<string, string>;
   imports: Map<string, { from: string; name: string }>;
   exports: Map<string, { from: string; name: string }>;
   exportAll: string[];
 };
 
-const unknown = '\u0001';
-const alternativesLimit = 32;
 const transportCallee = /(?:^|[a-z])(?:transport|Transport)$/;
 const serverRouteFolders = [
   'apps/server/src/http/routes',
   'apps/server/src/http/protocol',
 ];
-const serverRoute =
-  /\b(?:api|server)\.(get|post|put|patch|delete)\(\s*'(\/[^']*)'/g;
 const clientManifestSchema = z.object({
   exports: z.record(z.string(), z.string()),
 });
@@ -82,26 +89,9 @@ function moduleFile(
   return found === undefined ? undefined : relative(root, found);
 }
 
-function push<T>(map: Map<string, T[]>, name: string, value: T) {
-  map.set(name, [...(map.get(name) ?? []), value]);
-}
-
-function combine(parts: readonly string[][]): string[] {
-  return parts
-    .reduce<string[]>(
-      (joined, options) =>
-        joined
-          .flatMap((prefix) => options.map((option) => prefix + option))
-          .slice(0, alternativesLimit),
-      [''],
-    )
-    .filter((value, index, all) => all.indexOf(value) === index);
-}
-
 class RouteReader {
   private readonly root: string;
   private readonly modules = new Map<string, Module>();
-  private readonly resolving = new Set<Callable>();
   private readonly clientExports: Readonly<Record<string, string>>;
 
   constructor(root: string) {
@@ -118,8 +108,8 @@ class RouteReader {
     if (known) return known;
     const loaded: Module = {
       file,
-      values: new Map(),
-      functions: new Map(),
+      endpoints: new Map(),
+      callers: new Map(),
       imports: new Map(),
       exports: new Map(),
       exportAll: [],
@@ -127,20 +117,30 @@ class RouteReader {
     this.modules.set(file, loaded);
     const source = readFileSync(join(this.root, file), 'utf8');
     new Visitor({
-      VariableDeclarator(node) {
-        if (node.id.type !== 'Identifier' || node.init === null) return;
-        if (
-          node.init.type === 'ArrowFunctionExpression' ||
-          node.init.type === 'FunctionExpression'
-        )
-          push(loaded.functions, node.id.name, node.init);
-        else push(loaded.values, node.id.name, node.init);
-      },
-      FunctionDeclaration(node) {
-        if (node.id) push(loaded.functions, node.id.name, node);
-      },
       ImportDeclaration: (node) => {
         if (node.importKind === 'type') return;
+        for (const specifier of node.specifiers)
+          if (
+            specifier.type === 'ImportSpecifier' &&
+            specifier.importKind !== 'type' &&
+            specifier.imported.type === 'Identifier' &&
+            ['requestEndpoint', 'endpointPath'].includes(
+              specifier.imported.name,
+            )
+          )
+            loaded.callers.set(specifier.local.name, specifier.imported.name);
+        if (node.source.value.startsWith('@porcelain/contracts/')) {
+          for (const specifier of node.specifiers)
+            if (
+              specifier.type === 'ImportSpecifier' &&
+              specifier.imported.type === 'Identifier'
+            ) {
+              const endpoint = contractEndpoints.get(specifier.imported.name);
+              if (endpoint)
+                loaded.endpoints.set(specifier.local.name, endpoint);
+            }
+          return;
+        }
         const from = moduleFile(
           this.root,
           file,
@@ -231,12 +231,6 @@ class RouteReader {
           });
         else {
           loaded.exports.set('default', { from: file, name: 'default' });
-          if (
-            declaration.type === 'FunctionDeclaration' ||
-            declaration.type === 'FunctionExpression' ||
-            declaration.type === 'ArrowFunctionExpression'
-          )
-            push(loaded.functions, 'default', declaration);
         }
       },
       ExportAllDeclaration: (node) => {
@@ -280,113 +274,6 @@ class RouteReader {
           visit(file);
     return imported;
   }
-
-  private functionsNamed(
-    module: Module,
-    name: string,
-    seen = new Set<string>(),
-  ): [Module, Callable][] {
-    const key = `${module.file}:${name}`;
-    if (seen.has(key)) return [];
-    seen.add(key);
-    const local = module.functions.get(name) ?? [];
-    if (local.length > 0) return local.map((callable) => [module, callable]);
-    const imported = module.imports.get(name) ?? module.exports.get(name);
-    if (imported !== undefined)
-      return this.functionsNamed(
-        this.module(imported.from),
-        imported.name,
-        seen,
-      );
-    return module.exportAll.flatMap((file) =>
-      this.functionsNamed(this.module(file), name, seen),
-    );
-  }
-
-  private returned(module: Module, callable: Callable): string[] {
-    if (this.resolving.has(callable) || callable.body === null)
-      return [unknown];
-    this.resolving.add(callable);
-    try {
-      if (callable.body.type !== 'BlockStatement')
-        return this.value(module, callable.body);
-      const found = callable.body.body.findLast(
-        (statement) => statement.type === 'ReturnStatement',
-      );
-      return found?.type === 'ReturnStatement' && found.argument !== null
-        ? this.value(module, found.argument)
-        : [unknown];
-    } finally {
-      this.resolving.delete(callable);
-    }
-  }
-
-  value(module: Module, node: Expression | Argument): string[] {
-    if (node.type === 'Literal')
-      return typeof node.value === 'string' ? [node.value] : [unknown];
-    if (node.type === 'TemplateLiteral')
-      return combine(
-        node.quasis.flatMap((quasi, index) => {
-          const expression = node.expressions[index];
-          const text = [quasi.value.cooked ?? quasi.value.raw];
-          return expression === undefined
-            ? [text]
-            : [text, this.value(module, expression)];
-        }),
-      );
-    if (node.type === 'ConditionalExpression')
-      return [
-        ...this.value(module, node.consequent),
-        ...this.value(module, node.alternate),
-      ];
-    if (node.type === 'ParenthesizedExpression')
-      return this.value(module, node.expression);
-    if (node.type === 'Identifier') {
-      const values = module.values.get(node.name) ?? [];
-      return values.length === 0
-        ? [unknown]
-        : values.flatMap((value) => this.value(module, value));
-    }
-    if (node.type === 'CallExpression' && node.callee.type === 'Identifier') {
-      const callables = this.functionsNamed(module, node.callee.name);
-      return callables.length === 0
-        ? [unknown]
-        : callables.flatMap(([owner, callable]) =>
-            this.returned(owner, callable),
-          );
-    }
-    return [unknown];
-  }
-}
-
-function methodOf(init: Argument | undefined): string | undefined {
-  if (init?.type !== 'ObjectExpression') return 'GET';
-  for (const property of init.properties)
-    if (
-      property.type === 'Property' &&
-      !property.computed &&
-      property.key.type === 'Identifier' &&
-      property.key.name === 'method'
-    )
-      return property.value.type === 'Literal' &&
-        typeof property.value.value === 'string'
-        ? property.value.value
-        : undefined;
-  return 'GET';
-}
-
-function routePath(value: string): string | undefined {
-  const start = value.indexOf('/api/');
-  if (start === -1) return undefined;
-  const path = value.slice(start).split('?')[0] ?? '';
-  return path
-    .split('/')
-    .map((segment) =>
-      segment !== '' && segment.replaceAll(unknown, '') === ''
-        ? ':param'
-        : segment,
-    )
-    .join('/');
 }
 
 export function apiCalls(
@@ -418,47 +305,40 @@ export function apiCalls(
   for (const file of files) {
     const module = reader.module(file);
     const source = readFileSync(join(root, file), 'utf8');
-    const site = (
-      offset: number,
-      path: Argument | undefined,
-      init: Argument | undefined,
-    ) => {
-      if (path?.type === 'Identifier' && !module.values.has(path.name)) return;
-      const line = lineOf(source, offset);
-      const method = methodOf(init);
-      const paths =
-        path === undefined
-          ? []
-          : reader
-              .value(module, path)
-              .map(routePath)
-              .filter((value) => value !== undefined);
-      if (method === undefined || paths.length === 0) {
-        problems.push(
-          `${file}:${line}: the feature-map check cannot read the route this call reaches; build the path from literals, encodeURIComponent and path helpers, and name the method as a literal.`,
-        );
-        return;
-      }
-      for (const found of new Set(paths))
-        calls.push({ method, path: found, file, line });
-    };
     new Visitor({
       CallExpression(node) {
         if (node.callee.type !== 'Identifier') return;
-        if (node.callee.name === 'requestJson')
-          site(node.start, node.arguments[1], node.arguments[3]);
-        else if (
+        const operation = module.callers.get(node.callee.name);
+        if (operation === 'requestEndpoint' || operation === 'endpointPath') {
+          const reference =
+            node.arguments[operation === 'requestEndpoint' ? 1 : 0];
+          const endpoint =
+            reference?.type === 'Identifier'
+              ? module.endpoints.get(reference.name)
+              : undefined;
+          const line = lineOf(source, node.start);
+          if (endpoint === undefined) {
+            problems.push(
+              `${file}:${line}: call an endpoint imported from its contract so features:check can name its route.`,
+            );
+            return;
+          }
+          calls.push({
+            method: endpoint.method,
+            path: `${endpoint.prefix}${endpoint.path}`,
+            file,
+            line,
+          });
+        } else if (
           node.callee.name === 'fetch' ||
           transportCallee.test(node.callee.name)
-        )
-          site(node.start, node.arguments[0], node.arguments[1]);
-      },
-      NewExpression(node) {
-        if (
-          node.callee.type === 'Identifier' &&
-          node.callee.name === 'WebSocket'
-        )
-          site(node.start, node.arguments[0], undefined);
+        ) {
+          const input = node.arguments[0];
+          if (input?.type === 'Identifier') return;
+          problems.push(
+            `${file}:${lineOf(source, node.start)}: call through requestEndpoint; the contract owns HTTP paths, methods and schemas.`,
+          );
+        }
       },
     }).visit(parseSync(file, source).program);
   }
@@ -471,34 +351,45 @@ export function apiCalls(
   };
 }
 
-function segmentsMatch(route: string[], call: string[]): boolean {
-  return (
-    route.length === call.length &&
-    route.every(
-      (segment, index) =>
-        segment === call[index] ||
-        (segment.startsWith(':') && call[index] === ':param'),
-    )
-  );
-}
-
 export function sameRoute(route: string, call: ApiCall): boolean {
-  const [method = '', path = ''] = route.split(' ');
-  return (
-    method === call.method &&
-    segmentsMatch(path.split('/'), call.path.split('/'))
-  );
+  return route === `${call.method} ${call.path}`;
 }
 
 export function serverRoutes(root: string): string[] {
+  const reader = new RouteReader(root);
   const routes = new Set<string>();
   for (const file of serverRouteFolders.flatMap((folder) =>
     filesUnder(root, folder),
-  ))
-    for (const [, method = '', path = ''] of readFileSync(
-      join(root, file),
-      'utf8',
-    ).matchAll(serverRoute))
-      routes.add(`${method.toUpperCase()} /api${path}`);
+  )) {
+    const module = reader.module(file);
+    const source = readFileSync(join(root, file), 'utf8');
+    new Visitor({
+      CallExpression(node) {
+        if (
+          node.callee.type !== 'MemberExpression' ||
+          node.callee.property.type !== 'Identifier' ||
+          node.callee.property.name !== 'route'
+        )
+          return;
+        const options = node.arguments[0];
+        if (options?.type !== 'ObjectExpression') return;
+        const method = options.properties.find(
+          (property) =>
+            property.type === 'Property' &&
+            property.key.type === 'Identifier' &&
+            property.key.name === 'method',
+        );
+        if (
+          method?.type !== 'Property' ||
+          method.value.type !== 'MemberExpression' ||
+          method.value.object.type !== 'Identifier'
+        )
+          return;
+        const endpoint = module.endpoints.get(method.value.object.name);
+        if (endpoint)
+          routes.add(`${endpoint.method} ${endpoint.prefix}${endpoint.path}`);
+      },
+    }).visit(parseSync(file, source).program);
+  }
   return [...routes].toSorted();
 }
