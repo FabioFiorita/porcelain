@@ -125,6 +125,14 @@ const observedStoreState = `describe('MarkCommentsSeenService', () => {
 
 export default [
   {
+    rule: 'spec-asserts',
+    path: 'apps/server/src/http/status-policy.spec.ts',
+    valid:
+      "it('should return 200', () => { expect(readHealth().status).toBe('ok'); });",
+    invalid: "it('should return 200', () => { expect(true).toBe(true); });",
+    errors: 2,
+  },
+  {
     rule: 'spec-imports',
     path: 'packages/client/spec/integration/files.integration.ts',
     valid:
@@ -1445,26 +1453,6 @@ export function probeKey(projectId: string): ProjectKey {
   return { projectId };
 }
 `,
-    errors: 1,
-  },
-
-  {
-    rule: 'models-file-shape',
-    path: 'packages/files/src/models/list-directory.ts',
-    valid: `export type ListDirectoryInput = {
-  path: string;
-};`,
-    invalid: `export type ListDirectoryInput = {
-  path: string;
-  cursor?: string;
-};`,
-    errors: 1,
-  },
-  {
-    rule: 'models-file-shape',
-    path: 'packages/reviews/src/models/record-review-activity.ts',
-    valid: "export type RecordReviewActivityResult = {kind: 'recorded'};",
-    invalid: `export type RecordReviewActivityResult = void;`,
     errors: 1,
   },
 

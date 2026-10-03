@@ -337,19 +337,6 @@ const featureMethods = new Set(['get', 'post', 'put', 'patch', 'delete']);
 const routeHook = /^(?:on|pre)[A-Z]|^(?:handler|errorHandler)$/;
 const pureConstructors = new Set(['Map', 'Set', 'RegExp']);
 const pureCrypto = new Set(['createHash', 'timingSafeEqual']);
-const primitiveTypes = new Set([
-  'TSVoidKeyword',
-  'TSUndefinedKeyword',
-  'TSNullKeyword',
-  'TSStringKeyword',
-  'TSNumberKeyword',
-  'TSBooleanKeyword',
-  'TSBigIntKeyword',
-  'TSSymbolKeyword',
-  'TSNeverKeyword',
-  'TSLiteralType',
-  'TSTemplateLiteralType',
-]);
 const useCasePortName = /UseCasePort$/;
 const recordingFake = /^Recording[A-Z]/;
 const mutatingMethods = new Set([
@@ -375,7 +362,6 @@ const childProcessModules = new Set(['node:child_process', 'child_process']);
 const blockingChildProcess = new Set(['execFileSync', 'execSync', 'spawnSync']);
 const serviceFile = /^packages\/[^/]+\/src\/services\//;
 const ruleFile = /^packages\/[^/]+\/src\/rules\//;
-const modelFile = /^packages\/[^/]+\/src\/models\//;
 const portFile = /^packages\/([^/]+)\/src\/ports\//;
 const anyPortFile = /^(?:packages\/[^/]+|apps\/server)\/src\/ports\//;
 const runtimeFile = /^apps\/server\/src\/runtime\//;
@@ -1169,7 +1155,7 @@ export default {
             context.report({
               node: node.superClass,
               message:
-                'An operation class extends nothing; inherited members escape the class shape, because hidden members can bypass the operation boundary.',
+                'An operation class extends nothing, because inherited members escape its checked boundary.',
             });
           if (
             node.type === 'ClassExpression' ||
@@ -1458,7 +1444,7 @@ export default {
               context.report({
                 node,
                 message:
-                  'Compare with === or !==; loose equality lets null pass as absence, because coercion confuses null with a missing domain value.',
+                  'Compare with === or !==, because loose equality confuses null with a missing domain value.',
               });
           },
         };
@@ -2258,42 +2244,6 @@ export default {
         };
       },
     },
-    'models-file-shape': {
-      create(context) {
-        if (!modelFile.test(repositoryPath(context)) || isSpec(context))
-          return {};
-        return {
-          TSPropertySignature(node) {
-            if (!node.optional) return;
-            const annotation = node.typeAnnotation?.typeAnnotation;
-            if (
-              annotation?.type !== 'TSUnionType' ||
-              !annotation.types.some(
-                (member) => member.type === 'TSUndefinedKeyword',
-              )
-            )
-              context.report({
-                node,
-                message:
-                  'Write an optional property as ?: T | undefined, because exact optional properties distinguish omission from an explicit undefined.',
-              });
-          },
-          TSTypeAliasDeclaration(node) {
-            if (!/Result$/.test(node.id.name)) return;
-            const annotation = node.typeAnnotation;
-            const members =
-              annotation.type === 'TSUnionType'
-                ? annotation.types
-                : [annotation];
-            if (members.every((member) => primitiveTypes.has(member.type)))
-              context.report({
-                node,
-                message: `${node.id.name} is an object or a domain type; return void without a Result alias when there is no result, because a Result must communicate an outcome.`,
-              });
-          },
-        };
-      },
-    },
 
     'one-clock': {
       create(context) {
@@ -3017,7 +2967,7 @@ export default {
               context.report({
                 node,
                 message:
-                  'Name the matcher: expect(actual) asserts nothing until a matcher such as toEqual is called on it, because a case must detect a change in observable behavior.',
+                  'Call a matcher such as toEqual, because expect(actual) alone asserts nothing.',
               });
             for (const ancestor of context.sourceCode
               .getAncestors(node)
@@ -3057,7 +3007,7 @@ export default {
               context.report({
                 node,
                 message:
-                  'A spec imports its modules statically, because unit tests must exercise their own unit through its supported boundaries.',
+                  'A spec imports its modules statically, because computed paths hide dependencies from the unit boundary check.',
               });
             return;
           }

@@ -585,7 +585,7 @@ export const webRules = {
               context.report({
                 node: declaration,
                 message:
-                  'Module-level mutable bindings bypass subscribers; put client state and counters in the feature store.ts, because mutations outside the store do not notify subscribers.',
+                  'Put client state and counters in the feature store.ts, because module-level mutable bindings bypass subscribers.',
               });
           }
         },
