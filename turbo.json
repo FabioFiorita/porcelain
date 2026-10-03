@@ -31,6 +31,10 @@
       ]
     },
     "test:e2e": { "dependsOn": ["transit"], "cache": false },
+    "@porcelain/desktop#test:e2e": {
+      "dependsOn": ["transit", "@porcelain/web#transit"],
+      "cache": false
+    },
     "//#typecheck": {},
     "//#lint:server": {},
     "//#lint:web": {},
