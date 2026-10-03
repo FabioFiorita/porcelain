@@ -59,7 +59,7 @@ export const interactionUsage = `  open <route>            open a route of the w
   console                 record the console messages
   network                 record the requests the page sent
   network hold "<METHOD> <path>" | release
-                          hold the next matching request until release
+                          hold every matching request until release
   network fail "<METHOD> <path>" --status <code> | restore
                           answer matching requests with the status until restore
   live drop | restore     cut the live connection and let it reconnect

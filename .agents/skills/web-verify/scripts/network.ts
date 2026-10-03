@@ -51,12 +51,11 @@ function hold(spec: string | undefined) {
   const { label, code } = matcher(spec);
   return `async page => {
   ${ensure}
-  const held = { label: ${JSON.stringify(label)}, caught: false };
-  held.gate = await network.holdNext(${code});
-  held.gate.requested.then(() => { held.caught = true; });
+  const held = { label: ${JSON.stringify(label)}, count: 0 };
+  held.gate = await network.hold(${code}, { onHold: () => { held.count += 1; } });
   held.gate.arm();
   context.porcelainHeld.push(held);
-  return 'holding the next ' + held.label + ' until network release';
+  return 'holding every ' + held.label + ' until network release';
 }`;
 }
 
@@ -65,7 +64,7 @@ const release = `async page => {
   const held = context.porcelainHeld.splice(0);
   for (const entry of held) entry.gate.release();
   if (held.length === 0) return 'no request was being held';
-  return held.map((entry) => entry.label + (entry.caught ? ': a held request went on' : ': no request matched, so nothing was held')).join('\\n');
+  return held.map((entry) => entry.label + ': ' + (entry.count === 0 ? 'no request matched, so nothing was held' : 'released ' + entry.count + ' held request' + (entry.count === 1 ? '' : 's'))).join('\\n');
 }`;
 
 function fail(spec: string | undefined, status: number) {

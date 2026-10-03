@@ -31,6 +31,8 @@ export type RoutedContext = {
 
 export type RequestMatch = (request: RoutedRequest) => boolean;
 
+type HoldOptions = { once?: boolean; onHold?: () => void };
+
 export type HeldRequest = {
   requested: Promise<void>;
   arm(): void;
@@ -77,16 +79,17 @@ export function browserNetwork(context: RoutedContext) {
     },
     connected: () => sockets.size > 0,
   };
-  async function holdNext(
+  async function hold(
     matches: RequestMatch,
-    onHold: () => void = () => {},
+    { once = false, onHold = () => {} }: HoldOptions = {},
   ): Promise<HeldRequest> {
     let armed = false;
     let held = false;
+    let open = false;
     const requested = Promise.withResolvers<void>();
     const released = Promise.withResolvers<void>();
     await context.route('**/api/**', async (call) => {
-      if (armed && !held && matches(call.request())) {
+      if (armed && !open && !(once && held) && matches(call.request())) {
         held = true;
         onHold();
         requested.resolve();
@@ -99,9 +102,17 @@ export function browserNetwork(context: RoutedContext) {
       arm() {
         armed = true;
       },
-      release: () => released.resolve(),
+      release: () => {
+        open = true;
+        released.resolve();
+      },
     };
   }
+  const holdNext = (matches: RequestMatch, onHold?: () => void) =>
+    hold(
+      matches,
+      onHold === undefined ? { once: true } : { once: true, onHold },
+    );
   async function fail(matches: RequestMatch, status: number) {
     const handler: CallHandler = (call) =>
       matches(call.request())
@@ -110,5 +121,5 @@ export function browserNetwork(context: RoutedContext) {
     await context.route('**/api/**', handler);
     return () => context.unroute('**/api/**', handler);
   }
-  return { live, holdNext, fail };
+  return { live, hold, holdNext, fail };
 }
