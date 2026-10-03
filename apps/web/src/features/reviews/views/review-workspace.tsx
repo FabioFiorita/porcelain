@@ -76,6 +76,7 @@ export function ReviewWorkspace({
   const [focusedPane, setFocusedPane] = useState<PaneIndex>(0);
   const desktopTrigger = useRef<HTMLButtonElement>(null);
   const mobileTrigger = useRef<HTMLButtonElement>(null);
+  const mobileSheet = useRef<HTMLDivElement>(null);
   const {
     isMobile: navigatorIsMobile,
     open: navigatorOpen,
@@ -185,7 +186,13 @@ export function ReviewWorkspace({
           <PanelRightIcon />
         </SheetTrigger>
         <SheetContent
-          finalFocus={mobileTrigger}
+          ref={mobileSheet}
+          finalFocus={() => {
+            const active = document.activeElement;
+            const stayed =
+              active === document.body || mobileSheet.current?.contains(active);
+            return stayed ? mobileTrigger.current : false;
+          }}
           className="w-[min(90vw,22rem)]!"
           showCloseButton={false}
         >
