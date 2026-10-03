@@ -585,7 +585,7 @@ export const webRules = {
               context.report({
                 node: declaration,
                 message:
-                  'Module-level mutable bindings bypass subscribers; put client state and counters in the feature store.ts.',
+                  'Module-level mutable bindings bypass subscribers; put client state and counters in the feature store.ts, because mutations outside the store do not notify subscribers.',
               });
           }
         },
@@ -597,21 +597,21 @@ export const webRules = {
     modules: reactModules,
     allowed: never,
     message: (name) =>
-      `\`${name}\` is not ours here: shared client state is the feature store.ts and server data is Query; a provider hides who owns the value.`,
+      `\`${name}\` is not ours here: shared client state is the feature store.ts and server data is Query; a provider hides who owns the value, because a provider hides ownership of shared client state.`,
   }),
   'web-no-action-hooks': hookBan({
     names: new Set(['useOptimistic', 'useActionState', 'useFormStatus']),
     modules: reactModules,
     allowed: never,
     message: (name) =>
-      `\`${name}\` is not ours here: writes are commands/ mutations, optimistic updates live in the command, and form state is TanStack Form.`,
+      `\`${name}\` is not ours here: writes are commands/ mutations, optimistic updates live in the command, and form state is TanStack Form, because writes and optimistic updates need one command owner.`,
   }),
   'web-no-manual-memo': hookBan({
     names: new Set(['useMemo', 'useCallback']),
     modules: reactModules,
     allowed: never,
     message: (name) =>
-      `\`${name}\` is not ours here: the React Compiler memoizes every component; hand memoization hides what it cannot compile.`,
+      `\`${name}\` is not ours here: the React Compiler memoizes every component; hand memoization hides what it cannot compile, because hand memoization hides failures of the compiler used by the build.`,
   }),
   'web-store-owns-zustand': {
     create(context) {
@@ -623,7 +623,7 @@ export const webRules = {
             context.report({
               node,
               message:
-                'Zustand is created in the feature store.ts only; a view reads it through the hooks store.ts exports.',
+                'Zustand is created in the feature store.ts only; a view reads it through the hooks store.ts exports, because a second store splits state ownership and subscriptions.',
             });
         },
       };
@@ -659,7 +659,7 @@ export const webRules = {
           if (name !== undefined && readHooks.has(name))
             context.report({
               node,
-              message: `\`${name}\` belongs to features/<domain>/queries/: one queryOptions factory and the read hook views use, per resource.`,
+              message: `\`${name}\` belongs to features/<domain>/queries/: one queryOptions factory and the read hook views use, per resource, because duplicated read definitions can use inconsistent keys or freshness.`,
             });
         },
         Property(node) {
@@ -672,7 +672,7 @@ export const webRules = {
             context.report({
               node,
               message:
-                'A query key is built in features/<domain>/queries/ only; elsewhere read it from the factory as options.queryKey.',
+                'A query key is built in features/<domain>/queries/ only; elsewhere read it from the factory as options.queryKey, because duplicated read definitions can use inconsistent keys or freshness.',
             });
         },
       };
@@ -682,7 +682,7 @@ export const webRules = {
     create(context) {
       if (webPart(webPath(context)) !== 'query') return {};
       const message =
-        'A queries/ file exports only queryOptions factories and read hooks; pure decisions belong in rules/, and re-exports belong in index.ts.';
+        'A queries/ file exports only queryOptions factories and read hooks; pure decisions belong in rules/, and re-exports belong in index.ts, because mixing decisions with reads hides their independent owner.';
       const readName = (name) =>
         /^use[A-Z]/.test(name) || /QueryOptions$/.test(name);
       return {
@@ -717,7 +717,7 @@ export const webRules = {
     modules: queryModules,
     allowed: (path) => webPart(path) === 'command',
     message: (name) =>
-      `\`${name}\` belongs to features/<domain>/commands/: one mutation and the command hook views use, per write.`,
+      `\`${name}\` belongs to features/<domain>/commands/: one mutation and the command hook views use, per write, because one command must own mutation completion and optimistic updates.`,
   }),
   'web-cache-writes-in-commands': {
     create(context) {
@@ -730,7 +730,7 @@ export const webRules = {
           if (name !== undefined && cacheWrites.has(name))
             context.report({
               node,
-              message: `\`${name}\` writes the Query cache, which only a command in features/<domain>/commands/ or the feature live.ts does; everyone else reads it.`,
+              message: `\`${name}\` writes the Query cache, which only a command in features/<domain>/commands/ or the feature live.ts does; everyone else reads it, because uncoordinated cache changes can race optimistic mutations.`,
             });
         },
       };
@@ -817,7 +817,7 @@ export const webRules = {
             context.report({
               node,
               message:
-                'Network requests belong in shared/api; a feature reaches them through its api.ts.',
+                'Network requests belong in shared/api; a feature reaches them through its api.ts, because connection setup and errors need one transport owner.',
             });
         },
         NewExpression(node) {
@@ -828,7 +828,7 @@ export const webRules = {
             context.report({
               node,
               message:
-                'Live connections belong in shared/live; a feature hears them through its live.ts.',
+                'Live connections belong in shared/live; a feature hears them through its live.ts, because connection setup and errors need one transport owner.',
             });
         },
       };
@@ -846,7 +846,7 @@ export const webRules = {
             context.report({
               node,
               message:
-                'A timer lives in features/<domain>/commands/ or the feature store.ts, where the work it delays is owned; a view never schedules.',
+                'A timer lives in features/<domain>/commands/ or the feature store.ts, where the work it delays is owned; a view never schedules, because the owner of delayed work must also own its cancellation.',
             });
         },
       };
@@ -857,7 +857,7 @@ export const webRules = {
       const path = webPath(context);
       if (webPart(path) !== 'web-rule') return {};
       const message =
-        'features/<domain>/rules/ holds pure functions: no React, no I/O, only sibling rules, config/limits.ts, contracts and date-fns.';
+        'features/<domain>/rules/ holds pure functions: no React, no I/O, only sibling rules, config/limits.ts, contracts and date-fns, because a decision must not depend on browser state or perform effects.';
       const check = (node) => {
         const specifier = sourceOf(node);
         if (specifier === undefined) return;
@@ -889,7 +889,7 @@ export const webRules = {
       context.report({
         node,
         message:
-          'A view does not await: it calls a command hook and renders the command state; the async work lives in commands/.',
+          'A view does not await: it calls a command hook and renders the command state; the async work lives in commands/, because commands must own completion state across view unmounts.',
       });
     },
     ForOfStatement(node) {
@@ -897,7 +897,7 @@ export const webRules = {
         context.report({
           node,
           message:
-            'A view does not await: it calls a command hook and renders the command state; the async work lives in commands/.',
+            'A view does not await: it calls a command hook and renders the command state; the async work lives in commands/, because commands must own completion state across view unmounts.',
         });
     },
   })),
@@ -908,7 +908,7 @@ export const webRules = {
       context.report({
         node,
         message:
-          'A view does not sequence promise completion: put success and error work in a command hook and let the view forward the event.',
+          'A view does not sequence promise completion: put success and error work in a command hook and let the view forward the event, because commands must own completion state across view unmounts.',
       });
     },
   })),
@@ -917,14 +917,14 @@ export const webRules = {
       context.report({
         node,
         message:
-          'A view does not catch: a failed command reports through its hook state and the route error view; recovery lives in commands/.',
+          'A view does not catch: a failed command reports through its hook state and the route error view; recovery lives in commands/, because command failures must reach command state or the error view.',
       });
     },
   })),
   'web-views-no-command-loops': viewRule((context) => {
     const bodies = [];
     const message =
-      'A view does not loop over a command: a write that spans many items is one command in commands/ that takes the list.';
+      'A view does not loop over a command: a write that spans many items is one command in commands/ that takes the list, because one command must coordinate completion of a multi-item write.';
     return {
       ...Object.fromEntries(
         [...loopStatements].map((type) => [
@@ -961,7 +961,7 @@ export const webRules = {
         context.report({
           node,
           message:
-            'A view reads data through the feature hooks in queries/, commands/ and store.ts, not through TanStack Query, Zustand or the query client directly.',
+            'A view reads data through the feature hooks in queries/, commands/ and store.ts, not through TanStack Query, Zustand or the query client directly, because feature hooks own query and store subscriptions.',
         });
         return;
       }
@@ -978,7 +978,7 @@ export const webRules = {
           context.report({
             node: specifierNode,
             message:
-              'A view gets route data as props from its route, which reads loader data, params and search; the view stays reusable outside that route.',
+              'A view gets route data as props from its route, which reads loader data, params and search; the view stays reusable outside that route, because feature hooks own query and store subscriptions.',
           });
     },
   })),
@@ -993,7 +993,7 @@ export const webRules = {
         context.report({
           node,
           message:
-            'A view calls feature hooks from queries/ and commands/, never the transport, the live socket or the feature api.ts.',
+            'A view calls feature hooks from queries/ and commands/, never the transport, the live socket or the feature api.ts, because transport calls bypass command state and query lifecycle.',
         });
     };
     return {
@@ -1009,7 +1009,7 @@ export const webRules = {
         context.report({
           node,
           message:
-            'A view receives feature data; the contract is read and parsed in api.ts, queries/ and commands/.',
+            'A view receives feature data; the contract is read and parsed in api.ts, queries/ and commands/, because transport shapes must be converted before reaching a view.',
         });
     },
   })),
@@ -1023,7 +1023,7 @@ export const webRules = {
         context.report({
           node,
           message:
-            'A dialog is Dialog, AlertDialog or Sheet from components/ui, which bring the role, the focus trap, Escape and the overlay; a page is a route. A hand-set dialog role copies them badly and fools the journeys that find it.',
+            'A dialog is Dialog, AlertDialog or Sheet from components/ui, which bring the role, the focus trap, Escape and the overlay; a page is a route. A hand-set dialog role copies them badly and fools the journeys that find it, because registry dialogs provide focus trapping, Escape and accessible roles.',
         });
     },
   })),
@@ -1041,7 +1041,7 @@ export const webRules = {
       context.report({
         node,
         message:
-          'A keyboard shortcut is useHotkey from @tanstack/react-hotkeys with its keys in shared/workspace/shortcuts.ts, which scopes it and lists it in the shortcuts dialog; a window or document key listener fights every other shortcut and the editor. A key that belongs to one element is its onKeyDown.',
+          'A keyboard shortcut is useHotkey from @tanstack/react-hotkeys with its keys in shared/workspace/shortcuts.ts, which scopes it and lists it in the shortcuts dialog; a window or document key listener fights every other shortcut and the editor. A key that belongs to one element is its onKeyDown, because global key listeners fight other shortcuts and the editor.',
       });
     },
   })),
@@ -1064,7 +1064,7 @@ export const webRules = {
             context.report({
               node,
               message:
-                'An empty catch swallows the failure; let it reach the command state or the error view, or handle it by name.',
+                'An empty catch swallows the failure; let it reach the command state or the error view, or handle it by name, because swallowing errors hides failed commands from the user.',
             });
         },
       };
@@ -1092,7 +1092,7 @@ export const webRules = {
             context.report({
               node,
               message:
-                'Forwarding generic props through another primitive duplicates shadcn; use its registry component and variants in the feature view.',
+                'Forwarding generic props through another primitive duplicates shadcn; use its registry component and variants in the feature view, because another generic primitive duplicates the registry component.',
             });
         },
       };
@@ -1103,7 +1103,7 @@ export const webRules = {
       const role = journeyRole(context);
       if (role === undefined) return {};
       const message =
-        'Browser behaviour runs against the real isolated server; vi mocks, spies, stubs and routed requests have no place in a browser case, and a race the test must reach goes through the kit fixtures that own it.';
+        'Browser behaviour runs against the real isolated server; vi mocks, spies, stubs and routed requests have no place in a browser case, and a race the test must reach goes through the kit fixtures that own it, because mocked transport cannot prove the real app and server agree.';
       return {
         CallExpression(node) {
           if (
@@ -1138,7 +1138,7 @@ export const webRules = {
       const role = journeyRole(context);
       if (role === undefined) return {};
       const message =
-        'Every test runs every time, once, and must pass at once; remove the skip, only, todo, fails, fixme, slow, fail, configure, setTimeout or the options object that sets retry, repeats or a timeout. Repetition is the runner option an investigation asks for.';
+        'Every test runs every time, once, and must pass at once; remove the skip, only, todo, fails, fixme, slow, fail, configure, setTimeout or the options object that sets retry, repeats or a timeout. Repetition is the runner option an investigation asks for, because retries and skips can hide an intermittent product failure.';
       return {
         MemberExpression(node) {
           if (
@@ -1166,8 +1166,8 @@ export const webRules = {
   'web-journey-imports': journeyRule((context, role) => {
     const message =
       role === 'e2e-spec'
-        ? 'An e2e test imports test, expect and its fixtures from ./fixtures.ts, the shared kit from ../kit/ and @porcelain/contracts; the app and the server are reached only through the fixtures, which open the app the way a user does.'
-        : 'An integration test imports test, expect and its fixtures from ./fixtures.tsx, the shared kit from ../kit/, expect and describe from vitest, page and userEvent from vitest/browser, and @porcelain/contracts; the feature is rendered only through the fixtures, which pair and provide it the way the app does.';
+        ? 'An e2e test imports test, expect and its fixtures from ./fixtures.ts, the shared kit from ../kit/ and @porcelain/contracts; the app and the server are reached only through the fixtures, which open the app the way a user does, because fixtures own isolation and pair the app as a user would.'
+        : 'An integration test imports test, expect and its fixtures from ./fixtures.tsx, the shared kit from ../kit/, expect and describe from vitest, page and userEvent from vitest/browser, and @porcelain/contracts; the feature is rendered only through the fixtures, which pair and provide it the way the app does, because fixtures own isolation and pair the app as a user would.';
     const allowed = journeyImports[role];
     const check = (node) => {
       const source = sourceOf(node);
@@ -1214,7 +1214,7 @@ export const webRules = {
             context.report({
               node,
               message:
-                'Every test case asserts in its own body what the user sees, with an awaited Playwright expect or Vitest expect.element, or what the server kept, with expect.poll; a case without one proves only that nothing threw.',
+                'Every test case asserts in its own body what the user sees, with an awaited Playwright expect or Vitest expect.element, or what the server kept, with expect.poll; a case without one proves only that nothing threw, because a case without an assertion proves only that nothing threw.',
             });
       },
     };
@@ -1223,8 +1223,8 @@ export const webRules = {
     CallExpression(node) {
       const message =
         role === 'e2e-spec'
-          ? 'An e2e test asserts with an awaited web-first expect for what the page shows and expect.poll over the kit for what the server kept; a synchronous expect reads one moment and races the app.'
-          : 'An integration test asserts with retrying expect.element for what the page shows and expect.poll over the kit for what the server kept; a synchronous expect reads one moment and races the feature, and a bare expect only awaits .rejects or .resolves.';
+          ? 'An e2e test asserts with an awaited web-first expect for what the page shows and expect.poll over the kit for what the server kept; a synchronous expect reads one moment and races the app, because a synchronous read races the app and server.'
+          : 'An integration test asserts with retrying expect.element for what the page shows and expect.poll over the kit for what the server kept; a synchronous expect reads one moment and races the feature, and a bare expect only awaits .rejects or .resolves, because a synchronous read races the app and server.';
       if (node.callee.type === 'Identifier' && node.callee.name === 'expect') {
         if (!awaitedExpect(node, role)) context.report({ node, message });
         return;
@@ -1253,7 +1253,7 @@ export const webRules = {
         context.report({
           node,
           message:
-            'A journey finds elements by role, label or text, the way a user and assistive technology do; CSS selectors, test ids and element reads couple it to markup and read one moment.',
+            'A journey finds elements by role, label or text, the way a user and assistive technology do; CSS selectors, test ids and element reads couple it to markup and read one moment, because markup selectors couple user journeys to implementation details.',
         });
         return;
       }
@@ -1267,13 +1267,13 @@ export const webRules = {
       context.report({
         node,
         message:
-          'A journey names an element exactly: pass exact: true with a string name, or a RegExp that states its own bounds; a substring match finds another element whose label contains the text, and a product label is never renamed to dodge one.',
+          'A journey names an element exactly: pass exact: true with a string name, or a RegExp that states its own bounds; a substring match finds another element whose label contains the text, and a product label is never renamed to dodge one, because markup selectors couple user journeys to implementation details.',
       });
     },
   })),
   'web-journey-no-waits': journeyRule((context) => {
     const message =
-      'A journey never waits a fixed time; expect.element and expect.poll retry until the page or the server catches up and fail with what they last saw.';
+      'A journey never waits a fixed time; expect.element and expect.poll retry until the page or the server catches up and fail with what they last saw, because fixed delays race machines with different speeds.';
     return {
       CallExpression(node) {
         const name =

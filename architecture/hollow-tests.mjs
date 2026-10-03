@@ -961,7 +961,7 @@ export function hollowTests(program, sourceCode, { spec }) {
           reports.push({
             node: assertion.call,
             message:
-              'Name the matcher: expect(actual) asserts nothing until a matcher such as toEqual is called on it.',
+              'Call a matcher such as toEqual, because expect(actual) alone asserts nothing.',
           });
       return;
     }
@@ -1025,13 +1025,13 @@ export function hollowTests(program, sourceCode, { spec }) {
       ];
       reports.push({
         node: report,
-        message: `This test asserts only absences, identities or fragments (${[...new Set(unproven.map((verdict) => verdict.reason))].join('; ')}), and no test in this file asserts a concrete value produced by ${named.length > 0 ? named.join(', ') : 'its subject'}; assert what the subject produces for a valid input somewhere in this file.`,
+        message: `This test asserts only absences, identities or fragments (${[...new Set(unproven.map((verdict) => verdict.reason))].join('; ')}), and no test in this file asserts a concrete value produced by ${named.length > 0 ? named.join(', ') : 'its subject'}; assert what the subject produces for a valid input somewhere in this file, because an absence check cannot prove a concrete result.`,
       });
       continue;
     }
     reports.push({
       node: report,
-      message: `Every assertion in this test could pass for a defect (${[...new Set(verdicts.filter((verdict) => verdict.kind !== 'strong').map((verdict) => verdict.reason))].join('; ')}); assert the exact value the code under test must produce, read from it.`,
+      message: `Every assertion in this test could pass for a defect (${[...new Set(verdicts.filter((verdict) => verdict.kind !== 'strong').map((verdict) => verdict.reason))].join('; ')}); assert the exact value the code under test must produce, because these assertions cannot distinguish a defective result.`,
     });
   }
   return reports;

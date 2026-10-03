@@ -9,9 +9,9 @@ export default {
     {
       kind: 'replace',
       path: '.oxlintrc.json',
-      old: '    "porcelain/no-comments": "error",',
+      old: '    "porcelain/models-are-types": "error",',
       new: `    // keep comments out of code
-    "porcelain/no-comments": "error",`,
+    "porcelain/models-are-types": "error",`,
     },
   ],
 } satisfies Probe;

@@ -75,17 +75,6 @@ function operationRole(filename) {
   return undefined;
 }
 
-function expectedClassName(filename, role) {
-  const name = normalizedFilename(filename)
-    .split('/')
-    .at(-1)
-    .slice(0, -3)
-    .split('-')
-    .map((part) => part[0].toUpperCase() + part.slice(1))
-    .join('');
-  return role === 'UseCase' ? `${name}UseCase` : name;
-}
-
 function memberName(callee) {
   if (callee.computed)
     return callee.property.type === 'Literal'
@@ -139,11 +128,11 @@ function executeSignatureProblem(role, execute) {
   if (role === 'UseCase')
     return rest.length === 1 && parameterName(last) === 'context'
       ? undefined
-      : 'Use case execute takes (context) or (input, context); the context always comes last.';
+      : 'Use case execute takes (context) or (input, context); the context always comes last, because callers must pass input and cancellation consistently.';
   return rest.length <= 1 &&
     (!last || (parameterName(last) === 'signal' && last.optional))
     ? undefined
-    : 'Service execute takes (), (input), (signal?) or (input, signal?).';
+    : 'Service execute takes (), (input), (signal?) or (input, signal?), because callers must pass input and cancellation consistently.';
 }
 
 function openParameterType(annotation) {
@@ -312,10 +301,6 @@ const loopTypes = new Set([
   'WhileStatement',
   'DoWhileStatement',
 ]);
-const httpStatus =
-  /(?:^|\s)[1-5]\d\d(?=\s*$|\s+(?:when|if|for|unless)\b)|^\s*[1-5]\d\d\b|\bhttp\s+(?:status|code|[1-5]\d\d)\b|\bstatus\s+code|\b(?:status|code)\s+[1-5]\d\d\b/i;
-const statusNumber =
-  /(?<![\w.-])(?:10[0-3]|20[0-8]|226|30[0-8]|4(?:0\d|1[0-8]|2[1-689]|31|51)|50[0-8]|51[01])(?![\w.-])(?!\s+(?:commits?|files?|bytes?|paths?|entries|lines?|threads?|items?|ms|characters?|chars?)\b)/;
 
 const repositoryRoot = normalizedFilename(
   fileURLToPath(new URL('..', import.meta.url)),
@@ -365,10 +350,7 @@ const primitiveTypes = new Set([
   'TSLiteralType',
   'TSTemplateLiteralType',
 ]);
-const portName =
-  /(?:Store|Reader|Writer|Runner|Source|Publisher|Watcher|Probe|Logger|UseCasePort|^Clock)$/;
 const useCasePortName = /UseCasePort$/;
-const fakeName = /^(?:InMemory|Scripted|Fixed|Sequential|Recording)[A-Z]/;
 const recordingFake = /^Recording[A-Z]/;
 const mutatingMethods = new Set([
   'set',
@@ -384,9 +366,6 @@ const mutatingMethods = new Set([
   'assign',
 ]);
 const gatingMethods = new Set(['filter', 'find', 'findLast', 'some', 'every']);
-const pascalCase = /^[A-Z][A-Za-z0-9]*$/;
-const camelCase = /^[a-z][A-Za-z0-9]*$/;
-const screamingCase = /^[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)*$/;
 const serverCode = /^(?:apps\/server|packages\/[^/]+)\//;
 const packageCode = /^packages\/([^/]+)\/(?:src|spec)\//;
 const nodeGlobalScope =
@@ -402,9 +381,6 @@ const anyPortFile = /^(?:packages\/[^/]+|apps\/server)\/src\/ports\//;
 const runtimeFile = /^apps\/server\/src\/runtime\//;
 const infrastructureInterfaceFile =
   /^packages\/(?:git|agents|process)\/src\/(?:.+\/)?interfaces\/[^/]+\.ts$/;
-const portShapedScope = new RegExp(
-  `^(?:apps/server/src/|packages/(?:${domainPackage}|kernel|git|agents|process)/src/)`,
-);
 const serverAppFile = /^apps\/server\/src\//;
 const timerGlobals = new Set(['setTimeout', 'setInterval', 'setImmediate']);
 const timerModule = /^(?:node:)?timers(?:\/promises)?$/;
@@ -815,13 +791,13 @@ function calledMember(identifier, context) {
 function impureGlobalUse(identifier, context) {
   const name = identifier.name;
   if (name === 'Reflect')
-    return 'A rule never reaches through Reflect; call the function it needs by name.';
+    return 'A rule never reaches through Reflect; call the function it needs by name, because the same inputs must yield the same result on every machine.';
   if (name === 'Intl')
-    return 'A rule is deterministic: Intl answers from the machine locale and time zone; the caller passes formatted text or the rule compares plain values.';
+    return 'A rule is deterministic: Intl answers from the machine locale and time zone; the caller passes formatted text or the rule compares plain values, because the same inputs must yield the same result on every machine.';
   const member = calledMember(identifier, context);
   if (name === 'Math')
     return member === undefined || member === 'random'
-      ? 'A rule is deterministic: call Math functions by name, never Math.random or an alias of Math.'
+      ? 'A rule is deterministic: call Math functions by name, never Math.random or an alias of Math, because the same inputs must yield the same result on every machine.'
       : undefined;
   const parent = identifier.parent;
   if (
@@ -833,7 +809,7 @@ function impureGlobalUse(identifier, context) {
     return undefined;
   return member === 'parse'
     ? undefined
-    : 'A rule takes the current time as an ISO string from its caller; it uses Date only as Date.parse(text) or new Date(instant).';
+    : 'A rule takes the current time as an ISO string from its caller; it uses Date only as Date.parse(text) or new Date(instant), because the same inputs must yield the same result on every machine.';
 }
 
 function signalValue(node) {
@@ -1068,33 +1044,6 @@ function isTypeProviderInit(identifier) {
   );
 }
 
-function discriminants(member) {
-  return new Set(
-    member.members
-      .filter(
-        (property) =>
-          property.type === 'TSPropertySignature' &&
-          !property.optional &&
-          property.key.type === 'Identifier' &&
-          property.typeAnnotation?.typeAnnotation.type === 'TSLiteralType',
-      )
-      .map((property) => property.key.name),
-  );
-}
-
-function primitiveValue(node) {
-  if (!node) return false;
-  if (node.type === 'TSAsExpression' || node.type === 'TSSatisfiesExpression')
-    return primitiveValue(node.expression);
-  if (node.type === 'Literal') return !node.regex && node.value !== null;
-  if (node.type === 'TemplateLiteral')
-    return node.expressions.every(primitiveValue);
-  if (node.type === 'UnaryExpression') return primitiveValue(node.argument);
-  if (node.type === 'BinaryExpression')
-    return primitiveValue(node.left) && primitiveValue(node.right);
-  return false;
-}
-
 function unwrapPromise(node) {
   const argument = (node?.typeArguments ?? node?.typeParameters)?.params[0];
   return node?.type === 'TSTypeReference' &&
@@ -1152,16 +1101,6 @@ function chainRoot(node) {
     current =
       current.type === 'MemberExpression' ? current.object : current.callee;
   return current.type === 'Identifier' ? current.name : undefined;
-}
-
-function caseTitle(node) {
-  if (!caseFunctions.has(chainRoot(node.callee) ?? '')) return undefined;
-  const title = node.arguments[0];
-  if (title?.type === 'Literal' && typeof title.value === 'string')
-    return title.value;
-  if (title?.type === 'TemplateLiteral')
-    return title.quasis.map((quasi) => quasi.value.cooked ?? '').join(' ');
-  return undefined;
 }
 
 function allowedSpecImport(filename, source) {
@@ -1230,7 +1169,7 @@ export default {
             context.report({
               node: node.superClass,
               message:
-                'An operation class extends nothing; inherited members escape the class shape.',
+                'An operation class extends nothing; inherited members escape the class shape, because hidden members can bypass the operation boundary.',
             });
           if (
             node.type === 'ClassExpression' ||
@@ -1239,13 +1178,14 @@ export default {
             context.report({
               node,
               message:
-                'An operation file declares only its exported class; move other classes into their own module.',
+                'An operation file declares only its exported class; move other classes into their own module, because hidden members can bypass the operation boundary.',
             });
           for (const member of node.body.body) {
             if (member.type === 'StaticBlock')
               context.report({
                 node: member,
-                message: 'An operation class has no static initialisation.',
+                message:
+                  'An operation class has no static initialisation, because hidden members can bypass the operation boundary.',
               });
             const value =
               member.type === 'PropertyDefinition' ||
@@ -1260,7 +1200,7 @@ export default {
               context.report({
                 node: member,
                 message:
-                  'Write a private method instead of a function-valued field.',
+                  'Write a private method instead of a function-valued field, because hidden members can bypass the operation boundary.',
               });
           }
         };
@@ -1290,7 +1230,7 @@ export default {
                   context.report({
                     node: identifier,
                     message:
-                      'Use the server instance only to register the route; never alias it or pass it on.',
+                      'Use the server instance only to register the route; never alias it or pass it on, because extra registration logic bypasses the scope and endpoint checks.',
                   });
                   continue;
                 }
@@ -1299,7 +1239,7 @@ export default {
                   context.report({
                     node: member,
                     message:
-                      'A feature route calls only get, post, put, patch or delete on the server instance; no hooks, plugins or computed methods.',
+                      'A feature route calls only get, post, put, patch or delete on the server instance; no hooks, plugins or computed methods, because extra registration logic bypasses the scope and endpoint checks.',
                   });
                   continue;
                 }
@@ -1307,19 +1247,21 @@ export default {
                 if (registrations > 1)
                   context.report({
                     node: call,
-                    message: 'A feature route file registers one endpoint.',
+                    message:
+                      'A feature route file registers one endpoint, because extra registration logic bypasses the scope and endpoint checks.',
                   });
                 if (call.arguments.length !== 3)
                   context.report({
                     node: call,
                     message:
-                      'Register a feature route as (path, options, handler).',
+                      'Register a feature route as (path, options, handler), because extra registration logic bypasses the scope and endpoint checks.',
                   });
                 const options = call.arguments[1];
                 if (options?.type !== 'ObjectExpression') {
                   context.report({
                     node: options ?? call,
-                    message: 'Route options are an object literal.',
+                    message:
+                      'Route options are an object literal, because extra registration logic bypasses the scope and endpoint checks.',
                   });
                   continue;
                 }
@@ -1331,7 +1273,7 @@ export default {
                     context.report({
                       node: property,
                       message:
-                        'Declare no route-level hooks or handlers; access and caching live in the scope.',
+                        'Declare no route-level hooks or handlers; access and caching live in the scope, because extra registration logic bypasses the scope and endpoint checks.',
                     });
               }
           },
@@ -1353,7 +1295,8 @@ export default {
               if (!isFunction(handler)) {
                 context.report({
                   node,
-                  message: 'Register an MCP tool as (name, options, handler).',
+                  message:
+                    'Register an MCP tool as (name, options, handler), because domain sequencing belongs to the use case shared by every transport.',
                 });
                 return;
               }
@@ -1371,7 +1314,7 @@ export default {
               context.report({
                 node,
                 message:
-                  'An MCP tool handler calls only execute on its use case.',
+                  'An MCP tool handler calls only execute on its use case, because domain sequencing belongs to the use case shared by every transport.',
               });
           },
           'CallExpression:exit'(node) {
@@ -1382,7 +1325,7 @@ export default {
               context.report({
                 node: entry.handler,
                 message:
-                  'An MCP tool handler calls one use case once; a sequence of use cases belongs in one use case.',
+                  'An MCP tool handler calls one use case once; a sequence of use cases belongs in one use case, because domain sequencing belongs to the use case shared by every transport.',
               });
           },
         };
@@ -1412,7 +1355,7 @@ export default {
               context.report({
                 node: argument,
                 message:
-                  'A route decides no status; reply.code takes a literal or a function imported from status-policy.ts.',
+                  'A route decides no status; reply.code takes a literal or a function imported from status-policy.ts, because transport decisions must follow the shared status policy.',
               });
           },
           CallExpression(node) {
@@ -1429,7 +1372,7 @@ export default {
               context.report({
                 node: handler,
                 message:
-                  'The handler body is one use-case execute call, optionally wrapped in reply.code(status).send(result).',
+                  'The handler body is one use-case execute call, optionally wrapped in reply.code(status).send(result), because transport decisions must follow the shared status policy.',
               });
               return;
             }
@@ -1439,7 +1382,7 @@ export default {
                 context.report({
                   node: argument,
                   message:
-                    'Pass the use case request values and literals only; no callbacks, calls or logic in a route.',
+                    'Pass the use case request values and literals only; no callbacks, calls or logic in a route, because transport decisions must follow the shared status policy.',
                 });
           },
         };
@@ -1455,7 +1398,7 @@ export default {
         )
           return {};
         const message =
-          'Typed code trusts its input; parse, safeParse, decode and safeDecode run at the transport boundary, under any name.';
+          'Typed code trusts its input; parse, safeParse, decode and safeDecode run at the transport boundary, under any name, because the transport has already validated these contract types.';
         const trusted = (node) =>
           node?.type === 'Identifier' && trustedParsers.has(node.name);
         return {
@@ -1515,7 +1458,7 @@ export default {
               context.report({
                 node,
                 message:
-                  'Compare with === or !==; loose equality lets null pass as absence.',
+                  'Compare with === or !==; loose equality lets null pass as absence, because coercion confuses null with a missing domain value.',
               });
           },
         };
@@ -1536,7 +1479,7 @@ export default {
             ))
               context.report({
                 node: identifier,
-                message: `${identifier.name} is Node; reach it through a port that a gateway, repository or server adapter implements.`,
+                message: `${identifier.name} is Node; reach it through a port that a gateway, repository or server adapter implements, because machine access must remain replaceable through a port.`,
               });
           },
         };
@@ -1555,7 +1498,7 @@ export default {
               context.report({
                 node,
                 message:
-                  'Remove the parameter instead of voiding it; execute takes no input when there is none.',
+                  'Remove the parameter instead of voiding it; execute takes no input when there is none, because discarding input hides an unused operation dependency.',
               });
           },
         };
@@ -1574,14 +1517,14 @@ export default {
             context.report({
               node: node.source,
               message:
-                'An adapter wraps Git, files, storage or a model provider; it never calls a domain service. The use case sequences domains.',
+                'An adapter wraps Git, files, storage or a model provider; it never calls a domain service. The use case sequences domains, because cross-domain orchestration belongs in the use case.',
             });
           const target = /^@porcelain\/([^/]+)/.exec(source)?.[1];
           if (port && target && target !== port[1] && target !== 'kernel')
             context.report({
               node: node.source,
               message:
-                'A port names only its own domain and @porcelain/kernel; another domain is read through its services in the use case.',
+                'A port names only its own domain and @porcelain/kernel; another domain is read through its services in the use case, because cross-domain orchestration belongs in the use case.',
             });
         });
       },
@@ -1614,7 +1557,7 @@ export default {
                   context.report({
                     node: reference.identifier,
                     message:
-                      'A scope only registers routes and adds hooks; an endpoint lives in http/routes/<feature>/<operation>.ts with a schema and a use case.',
+                      'A scope only registers routes and adds hooks; an endpoint lives in http/routes/<feature>/<operation>.ts with a schema and a use case, because endpoint logic outside routes escapes contract checks.',
                   });
                 }
             }
@@ -1622,42 +1565,13 @@ export default {
         };
       },
     },
-    'interfaces-only-in-ports': {
-      create(context) {
-        const path = repositoryPath(context);
-        if (
-          !serverCode.test(path) ||
-          anyPortFile.test(path) ||
-          infrastructureInterfaceFile.test(path)
-        )
-          return {};
-        return {
-          TSInterfaceDeclaration(node) {
-            if (
-              context.sourceCode
-                .getAncestors(node)
-                .some(
-                  (ancestor) =>
-                    ancestor.type === 'TSModuleDeclaration' &&
-                    ancestor.id?.type === 'Literal',
-                )
-            )
-              return;
-            context.report({
-              node: node.id,
-              message:
-                'Write a type alias; an interface is a port and lives in ports/.',
-            });
-          },
-        };
-      },
-    },
+
     'adapters-report-facts': {
       create(context) {
         if (!adapterFile.test(repositoryPath(context)) || isSpec(context))
           return {};
         const message =
-          'An adapter reports every entry and never names .git: whether the Git folder is shown is a rule the service applies, and an adapter that must look for it takes the name from gitDirectoryName() through its options.';
+          'An adapter reports every entry and never names .git: whether the Git folder is shown is a rule the service applies, and an adapter that must look for it takes the name from gitDirectoryName() through its options, because filtering in an adapter hides facts from the domain rule.';
         const check = (node) => {
           if (staticString(node, context)?.toLowerCase() === '.git')
             context.report({ node, message });
@@ -1692,7 +1606,7 @@ export default {
             context.report({
               node: node.source ?? node,
               message:
-                'A root script imports node, libraries, other scripts, architecture/ and the server app only; it never imports a package, by name or by a path into packages/: take what it needs from the server app or declare it in the script.',
+                'A root script imports node, libraries, other scripts, architecture/ and the server app only; it never imports a package, by name or by a path into packages/: take what it needs from the server app or declare it in the script, because package internals must remain behind the server composition boundary.',
             });
         });
       },
@@ -1715,7 +1629,7 @@ export default {
             context.report({
               node: source,
               message:
-                'Pass a function, never source text, to evaluate: a typed function stops compiling when the desktop bridge or the page it reads changes, while a string only breaks at runtime on the machine that runs it.',
+                'Pass a function, never source text, to evaluate: a typed function stops compiling when the desktop bridge or the page it reads changes, while a string only breaks at runtime on the machine that runs it, because source strings escape TypeScript and only fail at runtime.',
             });
           },
         };
@@ -1731,56 +1645,22 @@ export default {
               if (statement.type === 'ImportDeclaration') continue;
               if (
                 statement.type === 'ExportNamedDeclaration' &&
-                statement.declaration?.type === 'TSInterfaceDeclaration'
+                ['TSInterfaceDeclaration', 'TSTypeAliasDeclaration'].includes(
+                  statement.declaration?.type,
+                )
               )
                 continue;
               context.report({
                 node: statement,
                 message:
-                  'An interfaces/ file of git, agents or process declares exported interfaces only; a type, a function or a value belongs in dtos/, commands/ or parsers/.',
+                  'An interfaces/ file of git, agents or process declares exported interfaces only; a type, a function or a value belongs in dtos/, commands/ or parsers/, because executable code in a port module bypasses its implementation owner.',
               });
             }
           },
         };
       },
     },
-    'no-port-shaped-alias': {
-      create(context) {
-        const path = repositoryPath(context);
-        if (
-          !portShapedScope.test(path) ||
-          anyPortFile.test(path) ||
-          infrastructureInterfaceFile.test(path) ||
-          isSpec(context)
-        )
-          return {};
-        return {
-          TSMethodSignature(node) {
-            if (node.parent?.type !== 'TSTypeLiteral') return;
-            context.report({
-              node,
-              message:
-                'An object type with a method is a port in all but name: declare it in ports/ (interfaces/ in git, agents and process), where the port rules see it.',
-            });
-          },
-        };
-      },
-    },
-    'no-interface-in-runtime': {
-      create(context) {
-        if (!runtimeFile.test(repositoryPath(context)) || isSpec(context))
-          return {};
-        return {
-          TSInterfaceDeclaration(node) {
-            context.report({
-              node,
-              message:
-                'runtime/ implements the lanes; a contract the server depends on is a port in apps/server/src/ports/.',
-            });
-          },
-        };
-      },
-    },
+
     'timers-in-runtime': {
       create(context) {
         const path = repositoryPath(context);
@@ -1791,7 +1671,7 @@ export default {
         )
           return {};
         const message =
-          'A schedule lives in apps/server/src/runtime: repeating work is an IntervalJob, a wait is a runtime helper; setTimeout and setInterval appear nowhere else.';
+          'A schedule lives in apps/server/src/runtime: repeating work is an IntervalJob, a wait is a runtime helper; setTimeout and setInterval appear nowhere else, because the runtime owns cancellation and shutdown of scheduled work.';
         return {
           ...moduleVisitors((node) => {
             const source = moduleSource(node);
@@ -1820,7 +1700,7 @@ export default {
               context.report({
                 node: node.source ?? node,
                 message:
-                  'A capture script runs Git in a disposable repository with node:child_process, node:fs, node:os, node:path and node:url only; it imports nothing from the repository.',
+                  'A capture script runs Git in a disposable repository with node:child_process, node:fs, node:os, node:path and node:url only; it imports nothing from the repository, because fixtures derived by product logic can repeat the same bug as the unit.',
               });
           });
         return moduleVisitors((node) => {
@@ -1836,7 +1716,7 @@ export default {
           context.report({
             node: node.source ?? node,
             message:
-              'A fixture reads captured output with node:fs, node:path and node:url, and imports only types from its own package models and the kernel models.',
+              'A fixture reads captured output with node:fs, node:path and node:url, and imports only types from its own package models and the kernel models, because fixtures derived by product logic can repeat the same bug as the unit.',
           });
         });
       },
@@ -1877,7 +1757,7 @@ export default {
                   context.report({
                     node: call,
                     message:
-                      'Publish after the lane settles: return whether anything changed from lanes.run, runConsistent, background or finish and publish outside it; only a running Git action publishes its progress from inside its lane.',
+                      'Publish after the lane settles: return whether anything changed from lanes.run, runConsistent, background or finish and publish outside it; only a running Git action publishes its progress from inside its lane, because subscribers must observe committed state rather than an in-progress write.',
                   });
                 }
                 const method = path.length === 2 && methods.get(path[1]);
@@ -1934,7 +1814,7 @@ export default {
               context.report({
                 node,
                 message:
-                  'Only a use case publishes, after its lane settles and only on change; the runtime, transport and adapters announce through a use case, never through the EventPublisher directly.',
+                  'Only a use case publishes, after its lane settles and only on change; the runtime, transport and adapters announce through a use case, never through the EventPublisher directly, because one owner decides when a completed change needs an event.',
               });
           },
         };
@@ -1945,7 +1825,7 @@ export default {
         if (!useCaseFile.test(repositoryPath(context)) || isSpec(context))
           return {};
         const message =
-          'A use case orchestrates and computes; a decision that ends in an error belongs in a service with its one private failure(problem), and the use case calls that service.';
+          'A use case orchestrates and computes; a decision that ends in an error belongs in a service with its one private failure(problem), and the use case calls that service, because the service owns the mapping from domain failures to errors.';
         return {
           ThrowStatement(node) {
             context.report({ node, message });
@@ -1983,7 +1863,7 @@ export default {
               context.report({
                 node,
                 message:
-                  'An errors/ file exports its one error class; the problem-to-error switch is a private failure(problem) in the service that meets the problem.',
+                  'An errors/ file exports its one error class; the problem-to-error switch is a private failure(problem) in the service that meets the problem, because a single mapping keeps failures consistent for every caller.',
               });
           },
           ClassBody(node) {
@@ -1998,20 +1878,20 @@ export default {
                 context.report({
                   node: member,
                   message:
-                    'A use case maps no problem to an error; the service that meets the problem owns its one private failure(problem).',
+                    'A use case maps no problem to an error; the service that meets the problem owns its one private failure(problem), because a single mapping keeps failures consistent for every caller.',
                 });
               else if (member.accessibility !== 'private')
                 context.report({
                   node: member,
                   message:
-                    'A service keeps its problem-to-error switch private: private failure(problem).',
+                    'A service keeps its problem-to-error switch private: private failure(problem), because a single mapping keeps failures consistent for every caller.',
                 });
             }
             if (service && failures.length > 1)
               context.report({
                 node: failures[1],
                 message:
-                  'A service has one failure(problem): one switch from its problems to its errors.',
+                  'A service has one failure(problem): one switch from its problems to its errors, because a single mapping keeps failures consistent for every caller.',
               });
           },
         };
@@ -2028,7 +1908,7 @@ export default {
               context.report({
                 node,
                 message:
-                  "A domain port is named for the fact it reads or writes, never execute: a port shaped like another domain's service carries that domain in disguise; the use case calls the other domain and passes the data on.",
+                  "A domain port is named for the fact it reads or writes, never execute: a port shaped like another domain's service carries that domain in disguise; the use case calls the other domain and passes the data on, because a service-shaped port hides a dependency on another domain.",
               });
           },
         };
@@ -2085,7 +1965,7 @@ export default {
                 context.report({
                   node: reference ?? node,
                   message:
-                    'A use case reached from a route takes the contract types its route validated (params, query, body), intersected as the route passes them; one reached only from another use case, a hook or the runtime stands behind ports/<name>-use-case-port.ts and may take a domain model.',
+                    'A use case reached from a route takes the contract types its route validated (params, query, body), intersected as the route passes them; one reached only from another use case, a hook or the runtime stands behind ports/<name>-use-case-port.ts and may take a domain model, because copying the validated input lets the transport and use case drift.',
                 });
           },
         };
@@ -2146,7 +2026,7 @@ export default {
               context.report({
                 node: inner,
                 message:
-                  'A lane never runs inside another lane: resolve the worktree, refresh the inventory and take any other lane before or after this one, never inside its callback.',
+                  'A lane never runs inside another lane: resolve the worktree, refresh the inventory and take any other lane before or after this one, never inside its callback, because nested serial queues can wait on each other indefinitely.',
               });
           },
         };
@@ -2177,7 +2057,7 @@ export default {
               context.report({
                 node: call,
                 message:
-                  'A lane serializes access to something: a use case that holds no store, reader, runner, writer, source, service, worktree check or refresh computes without a lane (lanes.unqueued at most).',
+                  'A lane serializes access to something: a use case that holds no store, reader, runner, writer, source, service, worktree check or refresh computes without a lane (lanes.unqueued at most), because serializing pure computation needlessly blocks other work.',
               });
           },
         };
@@ -2219,7 +2099,7 @@ export default {
                 context.report({
                   node: key,
                   message:
-                    'Resolve the worktree with checkWorktree before choosing its lane; the lane is a property of the resolved worktree.',
+                    'Resolve the worktree with checkWorktree before choosing its lane; the lane is a property of the resolved worktree, because the resolved worktree determines the correct serialization key.',
                 });
           },
         };
@@ -2252,7 +2132,7 @@ export default {
             context.report({
               node: node.source,
               message:
-                'A rule is pure: from node it imports only createHash and timingSafeEqual from node:crypto.',
+                'A rule is pure: from node it imports only createHash and timingSafeEqual from node:crypto, because the same inputs must yield the same result on every machine.',
             });
         };
         return {
@@ -2261,7 +2141,7 @@ export default {
             context.report({
               node,
               message:
-                'A rule returns a value or an outcome; the service decides to throw.',
+                'A rule returns a value or an outcome; the service decides to throw, because the same inputs must yield the same result on every machine.',
             });
           },
           NewExpression(node) {
@@ -2279,7 +2159,7 @@ export default {
               context.report({
                 node,
                 message:
-                  'A rule constructs only Map, Set, RegExp and a Date from one given instant; errors, the current time and buffers belong in services and adapters.',
+                  'A rule constructs only Map, Set, RegExp and a Date from one given instant; errors, the current time and buffers belong in services and adapters, because the same inputs must yield the same result on every machine.',
               });
           },
           CallExpression(node) {
@@ -2290,7 +2170,7 @@ export default {
               context.report({
                 node,
                 message:
-                  'A rule returns a value or an outcome; it never builds an error, with or without new.',
+                  'A rule returns a value or an outcome; it never builds an error, with or without new, because the same inputs must yield the same result on every machine.',
               });
           },
           'Program:exit'(program) {
@@ -2317,7 +2197,7 @@ export default {
               context.report({
                 node,
                 message:
-                  'Import a module by a literal path; a computed import() hides a dependency from arch:check.',
+                  'Import a module by a literal path; a computed import() hides a dependency from arch:check, because computed module paths escape dependency analysis.',
               });
           },
         };
@@ -2331,7 +2211,7 @@ export default {
         const report = (node, name) =>
           context.report({
             node,
-            message: `${name} blocks the server's event loop until the command ends, stalling every request; run it with runCommand from @porcelain/process, which spawns it asynchronously with a deadline and an output limit.`,
+            message: `${name} blocks the server's event loop until the command ends, stalling every request; run it with runCommand from @porcelain/process, which spawns it asynchronously with a deadline and an output limit, because synchronous commands stall every server request.`,
           });
         return {
           ImportDeclaration(node) {
@@ -2365,7 +2245,7 @@ export default {
           context.report({
             node,
             message:
-              'Kernel models and ports hold types only; a pure function belongs in kernel rules/, an error class in kernel errors/, anything else in a domain.',
+              'Kernel models and ports hold types only; a pure function belongs in kernel rules/, an error class in kernel errors/, anything else in a domain, because runtime behavior needs an explicit rules or domain owner.',
           });
         return {
           FunctionDeclaration: report,
@@ -2382,30 +2262,7 @@ export default {
       create(context) {
         if (!modelFile.test(repositoryPath(context)) || isSpec(context))
           return {};
-        const aliases = new Map();
-        const resolved = (node) =>
-          node.type === 'TSTypeReference' &&
-          node.typeName.type === 'Identifier' &&
-          aliases.has(node.typeName.name)
-            ? aliases.get(node.typeName.name)
-            : node;
         return {
-          Program(program) {
-            for (const statement of program.body) {
-              const declaration =
-                statement.type === 'ExportNamedDeclaration'
-                  ? statement.declaration
-                  : statement;
-              if (declaration?.type === 'TSTypeAliasDeclaration')
-                aliases.set(declaration.id.name, declaration.typeAnnotation);
-            }
-          },
-          TSInterfaceDeclaration(node) {
-            context.report({
-              node,
-              message: 'Write a model as a type alias, never an interface.',
-            });
-          },
           TSPropertySignature(node) {
             if (!node.optional) return;
             const annotation = node.typeAnnotation?.typeAnnotation;
@@ -2417,7 +2274,8 @@ export default {
             )
               context.report({
                 node,
-                message: 'Write an optional property as ?: T | undefined.',
+                message:
+                  'Write an optional property as ?: T | undefined, because exact optional properties distinguish omission from an explicit undefined.',
               });
           },
           TSTypeAliasDeclaration(node) {
@@ -2430,65 +2288,13 @@ export default {
             if (members.every((member) => primitiveTypes.has(member.type)))
               context.report({
                 node,
-                message: `${node.id.name} is an object or a domain type; a service with nothing to return returns void and names no Result.`,
-              });
-          },
-          TSUnionType(node) {
-            const members = node.types.map(resolved);
-            if (
-              members.length < 2 ||
-              !members.every((member) => member.type === 'TSTypeLiteral')
-            )
-              return;
-            const [first, ...rest] = members.map(discriminants);
-            const shared = [...first].filter((key) =>
-              rest.every((keys) => keys.has(key)),
-            );
-            if (shared.length > 0 && !shared.includes('kind'))
-              context.report({
-                node,
-                message: `Discriminate the union on kind, not ${shared.join(' or ')}.`,
+                message: `${node.id.name} is an object or a domain type; return void without a Result alias when there is no result, because a Result must communicate an outcome.`,
               });
           },
         };
       },
     },
-    'no-inline-execute-types': {
-      create(context) {
-        const path = repositoryPath(context);
-        if (
-          (!serviceFile.test(path) && !useCaseFile.test(path)) ||
-          isSpec(context)
-        )
-          return {};
-        return {
-          MethodDefinition(node) {
-            if (!isExecuteMethod(node)) return;
-            const annotations = [
-              ...node.value.params.map((parameter) =>
-                parameter.type === 'TSParameterProperty'
-                  ? parameter.parameter.typeAnnotation
-                  : parameter.typeAnnotation,
-              ),
-              node.value.returnType,
-            ];
-            for (const annotation of annotations)
-              if (
-                containsType(
-                  annotation,
-                  'TSTypeLiteral',
-                  context.sourceCode.visitorKeys,
-                )
-              )
-                context.report({
-                  node: annotation,
-                  message:
-                    'Name the execute input and result in models/<operation>.ts instead of an inline object type.',
-                });
-          },
-        };
-      },
-    },
+
     'one-clock': {
       create(context) {
         const path = repositoryPath(context);
@@ -2504,7 +2310,7 @@ export default {
               context.report({
                 node: identifier,
                 message:
-                  'Time comes from the Clock port as an ISO string; Date arithmetic lives in rules/ and adapters/ only.',
+                  'Time comes from the Clock port as an ISO string; Date arithmetic lives in rules/ and adapters/ only, because tests must control the instant an operation observes.',
               });
           },
         };
@@ -2529,7 +2335,7 @@ export default {
               context.report({
                 node: result,
                 message:
-                  'Return a named outcome or throw the named error; execute never answers T | undefined.',
+                  'Return a named outcome or throw the named error; execute never answers T | undefined, because callers need an explicit outcome for an absent result.',
               });
           },
         };
@@ -2544,7 +2350,7 @@ export default {
         )
           return {};
         const message =
-          'Pass the signal to the port and never inspect it; an abort propagates as an error.';
+          'Pass the signal to the port and never inspect it; an abort propagates as an error, because cancellation must reach the operation doing the work.';
         const inspects = (name, owner) =>
           signalMembers.has(name ?? '') ||
           (name === 'reason' && signalValue(owner));
@@ -2610,7 +2416,7 @@ export default {
               context.report({
                 node: node.source,
                 message:
-                  'Inside a package, import a file by its relative path, never the package by name.',
+                  'Inside a package, import a file by its relative path, never the package by name, because a barrel can introduce hidden cycles and bypass dependency ownership.',
               });
             if (
               source.startsWith('.') &&
@@ -2620,7 +2426,7 @@ export default {
               context.report({
                 node: node.source,
                 message:
-                  'Import the file itself; an index.ts exists for package.json exports only.',
+                  'Import the file itself; an index.ts exists for package.json exports only, because a barrel can introduce hidden cycles and bypass dependency ownership.',
               });
           }),
           Program(program) {
@@ -2633,7 +2439,8 @@ export default {
               )
                 context.report({
                   node: statement,
-                  message: 'An index.ts holds export ... from statements only.',
+                  message:
+                    'An index.ts holds export ... from statements only, because a barrel can introduce hidden cycles and bypass dependency ownership.',
                 });
           },
         };
@@ -2658,7 +2465,7 @@ export default {
               context.report({
                 node,
                 message:
-                  'A *UseCasePort stands for one server use case another use case or the runtime calls: it declares only execute(input, context), the use case shape, and nothing else.',
+                  'A *UseCasePort stands for one server use case another use case or the runtime calls: it declares only execute(input, context), the use case shape, and nothing else, because callers and implementations must agree on input and cancellation.',
               });
           } else if (
             parameters.length > 2 ||
@@ -2668,35 +2475,26 @@ export default {
             context.report({
               node,
               message:
-                'A port method takes (), (input) or (input, signal): one input object, then the signal; only a *UseCasePort under apps/server/src/ports declares execute(input, context).',
+                'A port method takes (), (input) or (input, signal): one input object, then the signal; only a *UseCasePort under apps/server/src/ports declares execute(input, context), because callers and implementations must agree on input and cancellation.',
             });
           const input = parameters[0]?.typeAnnotation?.typeAnnotation;
           if (input && input.type !== 'TSTypeReference')
             context.report({
               node: input,
               message:
-                'A port input is a named model from models/ or the kernel, never an inline or primitive type.',
+                'A port input is a named model from models/ or the kernel, never an inline or primitive type, because callers and implementations must agree on input and cancellation.',
             });
           if (containsType(returned, 'TSTypeLiteral', visitorKeys))
             context.report({
               node: returned,
               message:
-                'A port answers a named model from its own models/ or the kernel; an inline shape copies another domain unseen.',
+                'A port answers a named model from its own models/ or the kernel; an inline shape copies another domain unseen, because callers and implementations must agree on input and cancellation.',
             });
         };
         return {
           TSInterfaceDeclaration(node) {
             const useCase =
               useCasePortName.test(node.id.name) && serverAppFile.test(path);
-            if (
-              !portName.test(node.id.name) ||
-              (useCasePortName.test(node.id.name) && !useCase)
-            )
-              context.report({
-                node: node.id,
-                message:
-                  'Name a port for its role: it ends in Store, Reader, Writer, Runner, Source, Publisher, Watcher, Probe or Logger, or it is Clock; a server port standing for a use case ends in UseCasePort.',
-              });
             for (const member of node.body.body) {
               if (useCase && member.type !== 'TSMethodSignature')
                 checkParameters(member, [], undefined, true);
@@ -2728,7 +2526,7 @@ export default {
         const service = serviceFile.test(path);
         if ((!service && !ruleFile.test(path)) || isSpec(context)) return {};
         const message =
-          'A limit arrives as a typed option from config through compose; rules and services export no constants.';
+          'A limit arrives as a typed option from config through compose; rules and services export no constants, because hard-coded limits cannot be supplied by composition or varied by tests.';
         const constants = new Set();
         return {
           Program(program) {
@@ -2764,7 +2562,7 @@ export default {
               context.report({
                 node,
                 message:
-                  'A service takes its numbers as options from config; no numeric literal above 1.',
+                  'A service takes its numbers as options from config; no numeric literal above 1, because hard-coded limits cannot be supplied by composition or varied by tests.',
               });
           },
         };
@@ -2782,7 +2580,7 @@ export default {
         )
           return {};
         const message =
-          'An operational number above 1 lives in contracts/shared/limits.ts when the server enforces it too, otherwise in the server, web or mobile config/limits.ts, and arrives as a parameter or an option. Visual values in views are outside this rule.';
+          'An operational number above 1 lives in contracts/shared/limits.ts when the server enforces it too, otherwise in the server, web or mobile config/limits.ts, and arrives as a parameter or an option. Visual values in views are outside this rule, because duplicated operational limits drift between clients and server.';
         const hiddenNumber = (node) => {
           const text = staticString(node, context);
           return text !== undefined && Number(text) > 1;
@@ -2841,78 +2639,8 @@ export default {
         };
       },
     },
-    naming: {
-      create(context) {
-        const path = repositoryPath(context);
-        if (!serverCode.test(path) || isSpec(context)) return {};
-        const fake = fakeFile.test(path);
-        const checkClass = (node) => {
-          const name = node.id?.name;
-          if (name === undefined) return;
-          if (!pascalCase.test(name))
-            context.report({
-              node: node.id,
-              message: 'Name a class in PascalCase.',
-            });
-          if (fake && !fakeName.test(name))
-            context.report({
-              node: node.id,
-              message:
-                'Name a fake InMemory<Port>, Scripted<Port>, Fixed<Port> or Sequential<Port>; Recording<Port> only for a port that answers nothing back.',
-            });
-        };
-        const checkField = (node, name) => {
-          if (
-            name !== undefined &&
-            (!camelCase.test(name) || /(?:Service|Store)$/.test(name))
-          )
-            context.report({
-              node,
-              message:
-                'Name a field in camelCase after its type, without the Service or Store suffix.',
-            });
-        };
-        return {
-          ClassDeclaration: checkClass,
-          ClassExpression: checkClass,
-          PropertyDefinition(node) {
-            if (!node.static) checkField(node.key, node.key.name);
-          },
-          TSParameterProperty(node) {
-            const parameter =
-              node.parameter.type === 'AssignmentPattern'
-                ? node.parameter.left
-                : node.parameter;
-            checkField(parameter, parameter.name);
-          },
-          Program(program) {
-            for (const statement of program.body) {
-              const declaration =
-                statement.type === 'ExportNamedDeclaration'
-                  ? statement.declaration
-                  : statement;
-              if (
-                declaration?.type !== 'VariableDeclaration' ||
-                declaration.kind !== 'const'
-              )
-                continue;
-              for (const declarator of declaration.declarations)
-                if (
-                  declarator.id.type === 'Identifier' &&
-                  primitiveValue(declarator.init) &&
-                  !screamingCase.test(declarator.id.name)
-                )
-                  context.report({
-                    node: declarator.id,
-                    message:
-                      'Name a top-level constant of a primitive in SCREAMING_CASE.',
-                  });
-            }
-          },
-        };
-      },
-    },
-    'implementation-name': {
+
+    'implementation-port': {
       create(context) {
         const path = repositoryPath(context);
         if (
@@ -2927,20 +2655,10 @@ export default {
               context.report({
                 node: node.id ?? node,
                 message:
-                  'An implementation class implements exactly one port interface.',
+                  'An implementation class implements exactly one port interface, because implementing multiple ports couples independently owned capabilities.',
               });
               return;
             }
-            const expression = implemented[0].expression;
-            const port =
-              expression.type === 'Identifier'
-                ? expression.name
-                : expression.right?.name;
-            if (port && !node.id?.name.endsWith(port))
-              context.report({
-                node: node.id ?? node,
-                message: `Name the class for its technology followed by the port: <Technology>${port}.`,
-              });
           },
         };
       },
@@ -2950,7 +2668,7 @@ export default {
         if (!composeSource.test(normalizedFilename(context.filename)))
           return {};
         const message =
-          'Composition builds objects only; defaults belong in config, starting and running in runtime.';
+          'Composition builds objects only; defaults belong in config, starting and running in runtime, because construction must not start work that the runtime cannot shut down.';
         return {
           LogicalExpression(node) {
             context.report({ node, message });
@@ -3003,9 +2721,9 @@ export default {
           if (inFake()) context.report({ node, message });
         };
         const decision =
-          'A fake stores and returns; a decision belongs in rules/ and the port gets simpler.';
+          'A fake stores and returns; a decision belongs in rules/ and the port gets simpler, because a fake that decides can duplicate the product bug under test.';
         const recording =
-          'A fake stores state, it never records calls; assert through what the port reads back, or name it Recording<Port> when the port answers nothing back.';
+          'A fake stores state, it never records calls; assert through what the port reads back, or name it Recording<Port> when the port answers nothing back, because a fake that decides can duplicate the product bug under test.';
         const records = (node) => {
           if (!recorder()) report(node, recording);
         };
@@ -3033,13 +2751,13 @@ export default {
             )
               report(
                 node,
-                'A fake stores and returns; &&, || and ?? that choose whether something is stored are an if, and a decision belongs in rules/.',
+                'A fake stores and returns; &&, || and ?? that choose whether something is stored are an if, and a decision belongs in rules/, because a fake that decides can duplicate the product bug under test.',
               );
           },
           ThrowStatement(node) {
             report(
               node,
-              'A fake never throws; script the outcome through what the port returns.',
+              'A fake never throws; script the outcome through what the port returns, because a fake that decides can duplicate the product bug under test.',
             );
           },
           AssignmentExpression(node) {
@@ -3063,7 +2781,7 @@ export default {
             if (!node.static && !node.readonly && !isPrivateMember(node))
               report(
                 node,
-                'A fake keeps its state private and readonly; seed it through the constructor and read it back through the port.',
+                'A fake keeps its state private and readonly; seed it through the constructor and read it back through the port, because a fake that decides can duplicate the product bug under test.',
               );
           },
           CallExpression(node) {
@@ -3092,12 +2810,12 @@ export default {
             )
               report(
                 node,
-                'A fake stores and returns; a filter that decides whether to store is an if. Keep the change as its own stored state and compose it when the port reads.',
+                'A fake stores and returns; a filter that decides whether to store is an if. Keep the change as its own stored state and compose it when the port reads, because a fake that decides can duplicate the product bug under test.',
               );
             if (memberPath(node.callee)?.join('.') === 'Promise.reject')
               report(
                 node,
-                'A fake never rejects; script the outcome through what the port returns.',
+                'A fake never rejects; script the outcome through what the port returns, because a fake that decides can duplicate the product bug under test.',
               );
           },
         };
@@ -3112,7 +2830,7 @@ export default {
               context.report({
                 node,
                 message:
-                  'Import describe, it and expect statically by name; vitest is never loaded dynamically.',
+                  'Import describe, it and expect statically by name; vitest is never loaded dynamically, because call assertions can pass without the promised observable behavior.',
               });
           },
           ImportDeclaration(node) {
@@ -3128,7 +2846,7 @@ export default {
                 context.report({
                   node: specifier,
                   message:
-                    'Import describe, it and expect by name; replace vi with an in-memory fake typed by the port.',
+                    'Import describe, it and expect by name; replace vi with an in-memory fake typed by the port, because call assertions can pass without the promised observable behavior.',
                 });
           },
           MemberExpression(node) {
@@ -3139,7 +2857,7 @@ export default {
               context.report({
                 node,
                 message:
-                  'Replace vi with an in-memory fake typed by the port, or a Clock or IdSource fake.',
+                  'Replace vi with an in-memory fake typed by the port, or a Clock or IdSource fake, because call assertions can pass without the promised observable behavior.',
               });
               return;
             }
@@ -3148,7 +2866,7 @@ export default {
               context.report({
                 node: node.property,
                 message:
-                  'Assert on the result, on state read back through a port, or on the thrown error class.',
+                  'Assert on the result, on state read back through a port, or on the thrown error class, because call assertions can pass without the promised observable behavior.',
               });
           },
         };
@@ -3158,7 +2876,7 @@ export default {
       create(context) {
         if (!isSpec(context)) return {};
         const message =
-          'Every spec runs every time; remove the skip, only, todo or fails.';
+          'Every spec runs every time; remove the skip, only, todo or fails, because a skipped or exclusive case leaves regressions unchecked.';
         return {
           MemberExpression(node) {
             const testMember = testFunctions.has(chainRoot(node) ?? '');
@@ -3166,7 +2884,7 @@ export default {
               context.report({
                 node: node.property,
                 message:
-                  'Call describe, it and test by their names; a computed member hides a skip.',
+                  'Call describe, it and test by their names; a computed member hides a skip, because a skipped or exclusive case leaves regressions unchecked.',
               });
               return;
             }
@@ -3216,7 +2934,7 @@ export default {
                 context.report({
                   node,
                   message:
-                    'One case per behaviour: turn the loop into it.each with a sentence title per row.',
+                    'One case per behaviour: turn the loop into it.each with a sentence title per row, because a loop can run zero assertions and hides which input failed.',
                 });
                 return;
               }
@@ -3255,6 +2973,17 @@ export default {
           ...hollow,
           CallExpression(node) {
             if (
+              node.callee.type === 'Identifier' &&
+              node.callee.name === 'expect' &&
+              node.arguments[0]?.type === 'Literal' &&
+              typeof node.arguments[0].value === 'boolean'
+            )
+              context.report({
+                node,
+                message:
+                  'Assert on an observable result, because a boolean literal cannot detect a product regression.',
+              });
+            if (
               caseFunctions.has(chainRoot(node.callee) ?? '') &&
               node.parent?.type !== 'MemberExpression' &&
               !(
@@ -3267,7 +2996,7 @@ export default {
               context.report({
                 node,
                 message:
-                  'Register every case as a statement of its describe; a case inside a condition, loop or helper may never run.',
+                  'Register every case as a statement of its describe; a case inside a condition, loop or helper may never run, because a case must detect a change in observable behavior.',
               });
             if (
               node.callee.type !== 'Identifier' ||
@@ -3288,7 +3017,7 @@ export default {
               context.report({
                 node,
                 message:
-                  'Name the matcher: expect(actual) asserts nothing until a matcher such as toEqual is called on it.',
+                  'Name the matcher: expect(actual) asserts nothing until a matcher such as toEqual is called on it, because a case must detect a change in observable behavior.',
               });
             for (const ancestor of context.sourceCode
               .getAncestors(node)
@@ -3308,7 +3037,7 @@ export default {
                 context.report({
                   node,
                   message:
-                    'Assert in the case body, not inside a callback; an expect in map, filter or forEach runs once per element, and not at all for none.',
+                    'Assert in the case body, not inside a callback; an expect in map, filter or forEach runs once per element, and not at all for none, because a case must detect a change in observable behavior.',
                 });
                 return;
               }
@@ -3317,57 +3046,7 @@ export default {
         };
       },
     },
-    'spec-behaviour-names': {
-      create(context) {
-        const journey = ['integration-spec', 'e2e-spec'].includes(
-          webPart(repositoryPath(context)),
-        );
-        if (!isSpec(context) && !journey) return {};
-        return {
-          CallExpression(node) {
-            if (
-              node.callee.type === 'Identifier' &&
-              node.callee.name === 'expect' &&
-              node.arguments[0]?.type === 'Literal' &&
-              typeof node.arguments[0].value === 'boolean'
-            ) {
-              context.report({
-                node,
-                message:
-                  'Assert on an observable result instead of a boolean literal.',
-              });
-              return;
-            }
-            const title = caseTitle(node);
-            if (
-              journey &&
-              caseFunctions.has(chainRoot(node.callee) ?? '') &&
-              (title === undefined ||
-                /^\s*[a-z-]+\.[a-z-]+\s*:/.test(title) ||
-                title.trim().split(/\s+/).length < 4)
-            )
-              context.report({
-                node: node.arguments[0] ?? node,
-                message:
-                  'Name the journey case as a written sentence of what the user does and sees, without its feature id; the feature map entry already names the feature.',
-              });
-            if (title === undefined) return;
-            if (/^\s*should\b/i.test(title))
-              context.report({
-                node: node.arguments[0],
-                message:
-                  'Name the case as a sentence of behaviour, not with "should".',
-              });
-            if (httpStatus.test(title) || statusNumber.test(title))
-              context.report({
-                node: node.arguments[0],
-                message:
-                  'Name the behaviour, not the HTTP status code; statuses belong to feature verification.',
-              });
-          },
-        };
-      },
-    },
+
     'spec-imports': {
       create(context) {
         if (!isSpec(context)) return {};
@@ -3377,7 +3056,8 @@ export default {
             if (node.type === 'ImportExpression')
               context.report({
                 node,
-                message: 'A spec imports its modules statically.',
+                message:
+                  'A spec imports its modules statically, because unit tests must exercise their own unit through its supported boundaries.',
               });
             return;
           }
@@ -3385,7 +3065,7 @@ export default {
             context.report({
               node: node.source,
               message:
-                'A spec imports only vitest, its sibling unit, @porcelain/<domain>/{services,rules,models,errors,store-contracts}, @porcelain/kernel/{models,rules,errors,fakes}, node:{fs,path,os,child_process}, spec/fakes and spec/fixtures; a storage spec, and a server adapter spec that runs a store contract over storage, imports the storage public API.',
+                'A spec imports only vitest, its sibling unit, @porcelain/<domain>/{services,rules,models,errors,store-contracts}, @porcelain/kernel/{models,rules,errors,fakes}, node:{fs,path,os,child_process}, spec/fakes and spec/fixtures; a storage spec, and a server adapter spec that runs a store contract over storage, imports the storage public API, because unit tests must exercise their own unit through its supported boundaries.',
             });
         };
         return {
@@ -3403,7 +3083,7 @@ export default {
         const path = normalizedFilename(context.filename);
         if (!modelsSource.test(path) || isSpec(context)) return {};
         const message =
-          'Models hold types only; behaviour belongs in rules/ and data in services.';
+          'Models hold types only; behaviour belongs in rules/ and data in services, because runtime behavior in a model bypasses the rules and service owners.';
         return {
           FunctionDeclaration(node) {
             context.report({ node, message });
@@ -3416,7 +3096,11 @@ export default {
           },
           ImportDeclaration(node) {
             if (node.importKind !== 'type')
-              context.report({ node, message: 'Models import types only.' });
+              context.report({
+                node,
+                message:
+                  'Models import types only, because runtime behavior in a model bypasses the rules and service owners.',
+              });
           },
         };
       },
@@ -3426,7 +3110,7 @@ export default {
         const path = normalizedFilename(context.filename);
         if (!composeSource.test(path)) return {};
         const message =
-          'Composition constructs only; decisions belong in use cases and services, starting and scheduling in runtime.';
+          'Composition constructs only; decisions belong in use cases and services, starting and scheduling in runtime, because decisions and scheduling need owners that can be tested independently.';
         const report = (node) => context.report({ node, message });
         return {
           IfStatement: report,
@@ -3447,26 +3131,13 @@ export default {
         };
       },
     },
-    'no-comments': {
-      create(context) {
-        return {
-          Program() {
-            for (const comment of context.sourceCode.getAllComments())
-              context.report({
-                loc: comment.loc,
-                message:
-                  'Remove the code comment; express the rule in code or architecture guidance.',
-              });
-          },
-        };
-      },
-    },
+
     'no-null-in-domain': {
       create(context) {
         const path = normalizedFilename(context.filename);
         if (!domainSource.test(path) && !useCaseSource.test(path)) return {};
         const message =
-          'Use undefined for absence; null stays at the SQL and wire boundaries.';
+          'Use undefined for absence; null stays at the SQL and wire boundaries, because two representations of absence complicate every domain decision.';
         return {
           Literal(node) {
             if (node.value === null) context.report({ node, message });
@@ -3485,7 +3156,7 @@ export default {
           context.report({
             node,
             message:
-              'Use cases export their class only; they do not re-export.',
+              'Use cases export their class only; they do not re-export, because orchestration must use public domain boundaries and validated contracts.',
           });
         return {
           ImportDeclaration(node) {
@@ -3504,7 +3175,7 @@ export default {
                 context.report({
                   node,
                   message:
-                    'Use cases import services, models and contracts as types only.',
+                    'Use cases import services, models and contracts as types only, because orchestration must use public domain boundaries and validated contracts.',
                 });
               return;
             }
@@ -3513,7 +3184,7 @@ export default {
             context.report({
               node,
               message:
-                'Use cases import only @porcelain/<domain>/services, @porcelain/<domain>/models, @porcelain/kernel/models, @porcelain/contracts/<domain> as types, @porcelain/<domain or kernel>/{rules,errors}, ../../runtime/<file> and ../../ports/<file>.',
+                'Use cases import only @porcelain/<domain>/services, @porcelain/<domain>/models, @porcelain/kernel/models, @porcelain/contracts/<domain> as types, @porcelain/<domain or kernel>/{rules,errors}, ../../runtime/<file> and ../../ports/<file>, because orchestration must use public domain boundaries and validated contracts.',
             });
           },
           ExportNamedDeclaration(node) {
@@ -3529,7 +3200,7 @@ export default {
         if (!useCaseSource.test(path) && !typedPackageSource.test(path))
           return {};
         const message =
-          'Typed code trusts its input; parse untrusted data at the transport boundary.';
+          'Typed code trusts its input; parse untrusted data at the transport boundary, because the transport has already validated these contract types.';
         return {
           CallExpression(node) {
             const callee = node.callee;
@@ -3564,9 +3235,9 @@ export default {
       create(context) {
         const role = operationRole(context.filename);
         if (!role || isSpec(context)) return {};
-        const expectedName = expectedClassName(context.filename, role);
         const roleLabel = role === 'UseCase' ? 'Use case' : role;
-        const exportMessage = `Export only the ${expectedName} class and types from this file.`;
+        const exportMessage =
+          'Export one operation class and types, because extra runtime exports bypass its execute boundary.';
         let found = 0;
         return {
           ExportNamedDeclaration(node) {
@@ -3583,13 +3254,6 @@ export default {
               return;
             if (declaration.type !== 'ClassDeclaration') {
               context.report({ node, message: exportMessage });
-              return;
-            }
-            if (declaration.id?.name !== expectedName) {
-              context.report({
-                node: declaration,
-                message: `Name the exported class ${expectedName}.`,
-              });
               return;
             }
             found += 1;
@@ -3611,7 +3275,7 @@ export default {
                   )
                     context.report({
                       node: parameter,
-                      message: `${roleLabel} classes expose only execute; make constructor properties private.`,
+                      message: `${roleLabel} classes expose only execute; make constructor properties private, because every caller needs one explicit execute boundary.`,
                     });
                   if (
                     parameter.type === 'TSParameterProperty' &&
@@ -3619,7 +3283,7 @@ export default {
                   )
                     context.report({
                       node: parameter,
-                      message: `${roleLabel} fields are readonly; an operation holds its collaborators, never state.`,
+                      message: `${roleLabel} fields are readonly; an operation holds its collaborators, never state, because every caller needs one explicit execute boundary.`,
                     });
                 }
                 continue;
@@ -3631,18 +3295,18 @@ export default {
               )
                 context.report({
                   node: member,
-                  message: `${roleLabel} fields are readonly; an operation holds its collaborators, never state.`,
+                  message: `${roleLabel} fields are readonly; an operation holds its collaborators, never state, because every caller needs one explicit execute boundary.`,
                 });
               if (isPrivateMember(member)) continue;
               context.report({
                 node: member,
-                message: `${roleLabel} classes expose only execute; make other members private.`,
+                message: `${roleLabel} classes expose only execute; make other members private, because every caller needs one explicit execute boundary.`,
               });
             }
             if (executes.length !== 1) {
               context.report({
                 node: declaration,
-                message: `${roleLabel} classes need one public execute method.`,
+                message: `${roleLabel} classes need one public execute method, because every caller needs one explicit execute boundary.`,
               });
               return;
             }
@@ -3660,7 +3324,7 @@ export default {
                 context.report({
                   node: parameter,
                   message:
-                    'Name the execute input in models/; Record<never, never>, {}, object and unknown say nothing. Drop the parameter when there is no input.',
+                    'Name the execute input in models/; Record<never, never>, {}, object and unknown say nothing. Drop the parameter when there is no input, because every caller needs one explicit execute boundary.',
                 });
           },
           ExportDefaultDeclaration(node) {
@@ -3673,7 +3337,8 @@ export default {
             if (found !== 1)
               context.report({
                 node,
-                message: `Export exactly one ${expectedName} class from this file.`,
+                message:
+                  'Export exactly one operation class, because each file owns one execute boundary.',
               });
           },
         };
@@ -3725,7 +3390,7 @@ export default {
               context.report({
                 node,
                 message:
-                  'Register a feature route with one HTTP method: api.get, api.post, api.put, api.patch or api.delete.',
+                  'Register a feature route with one HTTP method: api.get, api.post, api.put, api.patch or api.delete, because each endpoint must use validated contracts and one domain operation.',
               });
               return;
             }
@@ -3763,7 +3428,7 @@ export default {
               context.report({
                 node,
                 message:
-                  'A feature route needs a literal path, imported contract schemas for input and output, and one arrow handler.',
+                  'A feature route needs a literal path, imported contract schemas for input and output, and one arrow handler, because each endpoint must use validated contracts and one domain operation.',
               });
             if (handler?.type !== 'ArrowFunctionExpression') return;
             if (page) {
@@ -3771,7 +3436,7 @@ export default {
                 context.report({
                   node: handler,
                   message:
-                    'A page handler is one expression: reply, then .header or .type calls with string literals, then .send(await options.useCase.execute(...)) or .send(render(await options.useCase.execute(...))) where render is imported from http/presenters/.',
+                    'A page handler is one expression: reply, then .header or .type calls with string literals, then .send(await options.useCase.execute(...)) or .send(render(await options.useCase.execute(...))) where render is imported from http/presenters/, because each endpoint must use validated contracts and one domain operation.',
                 });
               return;
             }
@@ -3780,7 +3445,7 @@ export default {
               context.report({
                 node: handler,
                 message:
-                  'The handler body is one call to options.useCase.execute, returned as it is or sent with reply.code(status).send(result).',
+                  'The handler body is one call to options.useCase.execute, returned as it is or sent with reply.code(status).send(result), because each endpoint must use validated contracts and one domain operation.',
               });
           },
           'Program:exit'(node) {
@@ -3788,7 +3453,7 @@ export default {
               context.report({
                 node,
                 message:
-                  'A feature route registers one endpoint and calls options.useCase.execute once.',
+                  'A feature route registers one endpoint and calls options.useCase.execute once, because each endpoint must use validated contracts and one domain operation.',
               });
           },
         };

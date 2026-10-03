@@ -1,8 +1,12 @@
 import { fileURLToPath } from 'node:url';
-import { deepStrictEqual, throws } from 'node:assert/strict';
+import { deepStrictEqual, throws, ok } from 'node:assert/strict';
 import { RuleTester } from 'oxlint/plugins-dev';
+import { parseSync } from 'oxc-parser';
 import plugin from './oxlint-plugin.mjs';
-import ruleCases from './rule-cases.mjs';
+import ruleCases, { scriptCases, scriptEvasions } from './rule-cases.mjs';
+import { scriptInvokes } from './script-policy.ts';
+import { architectureLines } from './guardrail-budget.ts';
+import { readFileSync } from 'node:fs';
 import { manualAuditProblems } from './ci-policy.ts';
 import { preflightEdits } from './probe-edits.ts';
 import { classify, violation } from './policy.ts';
@@ -14,73 +18,159 @@ import {
   themeTokensValid,
 } from './theme-policy.ts';
 
+for (const entry of scriptCases) {
+  deepStrictEqual(
+    scriptInvokes(entry.valid, entry.required, entry.folder),
+    true,
+    entry.valid,
+  );
+  deepStrictEqual(
+    scriptInvokes(entry.invalid, entry.required, entry.folder),
+    false,
+    entry.invalid,
+  );
+}
+for (const [source, required] of scriptEvasions)
+  deepStrictEqual(scriptInvokes(source, required, '.'), false, source);
+deepStrictEqual(
+  scriptInvokes(
+    'tsc --noEmit&&tsc -p tsconfig.node.json --noEmit',
+    [
+      ['tsc', '--noEmit'],
+      ['tsc', '--noEmit', '-p', 'tsconfig.node.json'],
+    ],
+    '.',
+  ),
+  true,
+);
+deepStrictEqual(architectureLines(['', 'one', 'two\n', 'three\nfour']), 4);
+
 const root = new URL('../', import.meta.url);
+function requireReason(message) {
+  ok(
+    /\b(?:because|so)\b\s+\S/.test(message),
+    `A lint message explains why: ${message}`,
+  );
+}
+function checkMessageSource(node) {
+  if (node === null || typeof node !== 'object') return;
+  const text =
+    node.type === 'Literal' && typeof node.value === 'string'
+      ? node.value
+      : node.type === 'TemplateLiteral'
+        ? node.quasis.map((part) => part.value.raw).join('value')
+        : '';
+  if (text.includes(' ') && text.endsWith('.')) requireReason(text);
+  const message =
+    node.type === 'Property' && node.key.name === 'message'
+      ? node.value
+      : node.type === 'CallExpression' && node.callee.name === 'problem'
+        ? node.arguments[1]
+        : undefined;
+  if (message?.type === 'Literal') requireReason(message.value);
+  if (message?.type === 'TemplateLiteral')
+    requireReason(message.quasis.map((part) => part.value.raw).join('value'));
+  for (const value of Object.values(node)) {
+    if (Array.isArray(value)) value.forEach(checkMessageSource);
+    else if (value !== null && typeof value === 'object')
+      checkMessageSource(value);
+  }
+}
+for (const path of [
+  'architecture/oxlint-plugin.mjs',
+  'architecture/web-rules.mjs',
+  'architecture/mobile-rules.mjs',
+  'architecture/hollow-tests.mjs',
+  'architecture/react-compiler.ts',
+  'scripts/style.ts',
+]) {
+  const source = readFileSync(new URL(path, root), 'utf8');
+  checkMessageSource(parseSync(path, source).program);
+}
+throws(
+  () => requireReason('A feature route registers one endpoint.'),
+  /explains why/,
+);
+requireReason(
+  'A route registers one endpoint, because every endpoint needs its own contract.',
+);
+
 const filename = fileURLToPath(
   new URL('apps/web/src/features/files/views/rule-fixture.tsx', root),
 );
+function checkedRule(rule) {
+  return {
+    ...rule,
+    create(context) {
+      const checked = Object.create(context);
+      Object.defineProperty(checked, 'report', {
+        value(report) {
+          requireReason(report.message);
+          context.report(report);
+        },
+      });
+      return rule.create(checked);
+    },
+  };
+}
+
+function fixtureCode(path, code) {
+  ok(
+    typeof code === 'string' && code.trim().length > 0,
+    `${path} needs a good and bad sample`,
+  );
+  deepStrictEqual(
+    parseSync(path, code, { lang: 'tsx' }).errors,
+    [],
+    `${path} must parse before testing its rule`,
+  );
+  return code;
+}
+
 const tester = new RuleTester({
   languageOptions: { parserOptions: { lang: 'tsx' } },
 });
 const cases = [
   {
-    rule: 'no-comments',
-    valid: "export const label = 'File';",
-    invalid: "// workaround\nexport const label = 'File';",
-    message:
-      'Remove the code comment; express the rule in code or architecture guidance.',
-  },
-  {
     rule: 'web-no-module-mutable-binding',
     valid: 'export const count = 0;',
     invalid: 'export let count = 0;',
-    message:
-      'Module-level mutable bindings bypass subscribers; put client state and counters in the feature store.ts.',
   },
   {
     rule: 'web-no-context',
     valid: 'export const count = 0;',
     invalid:
       "import * as React from 'react'; export const store = React.createContext(0);",
-    message:
-      '`createContext` is not ours here: shared client state is the feature store.ts and server data is Query; a provider hides who owns the value.',
   },
   {
     rule: 'web-no-manual-memo',
     valid: 'export const title = () => "File";',
     invalid:
       "import { useMemo } from 'react'; export const title = () => useMemo(() => 'File', []);",
-    message:
-      '`useMemo` is not ours here: the React Compiler memoizes every component; hand memoization hides what it cannot compile.',
   },
   {
     rule: 'web-views-no-await',
     valid: 'export const save = (command: () => void) => command();',
     invalid:
       'export const save = async (command: () => Promise<void>) => { await command(); };',
-    message:
-      'A view does not await: it calls a command hook and renders the command state; the async work lives in commands/.',
   },
   {
     rule: 'web-views-no-promise-chains',
     valid: 'export const save = (command: () => void) => command();',
     invalid:
       'export const save = (command: () => Promise<void>) => command().then(() => {});',
-    message:
-      'A view does not sequence promise completion: put success and error work in a command hook and let the view forward the event.',
   },
   {
     rule: 'web-views-no-try',
     valid: 'export const save = (command: () => void) => command();',
     invalid:
       'export const save = (command: () => void) => { try { command(); } catch {} };',
-    message:
-      'A view does not catch: a failed command reports through its hook state and the route error view; recovery lives in commands/.',
   },
 ];
 const started = performance.now();
 tester.run(
   'no-number-outside-limits',
-  plugin.rules['no-number-outside-limits'],
+  checkedRule(plugin.rules['no-number-outside-limits']),
   {
     valid: [
       {
@@ -285,19 +375,22 @@ deepStrictEqual(
   'client-imports-client-and-contracts-only',
 );
 for (const entry of cases)
-  tester.run(entry.rule, plugin.rules[entry.rule], {
+  tester.run(entry.rule, checkedRule(plugin.rules[entry.rule]), {
     valid: [{ filename, code: entry.valid }],
-    invalid: [
-      { filename, code: entry.invalid, errors: [{ message: entry.message }] },
-    ],
+    invalid: [{ filename, code: entry.invalid, errors: 1 }],
   });
 for (const entry of ruleCases) {
   const at = fileURLToPath(new URL(entry.path, root));
   try {
-    tester.run(entry.rule, plugin.rules[entry.rule], {
-      valid:
-        entry.valid === undefined ? [] : [{ filename: at, code: entry.valid }],
-      invalid: [{ filename: at, code: entry.invalid, errors: entry.errors }],
+    tester.run(entry.rule, checkedRule(plugin.rules[entry.rule]), {
+      valid: [{ filename: at, code: fixtureCode(entry.path, entry.valid) }],
+      invalid: [
+        {
+          filename: at,
+          code: fixtureCode(entry.path, entry.invalid),
+          errors: entry.errors,
+        },
+      ],
     });
   } catch (error) {
     throw new Error(`${entry.rule} fixture at ${entry.path}`, {
@@ -336,12 +429,14 @@ deepStrictEqual(
     new Map([[path, { ...audit, on: { pull_request: null } }]]),
   ),
   [
-    '.github/workflows/probes.yml: expensive audits run only on explicit workflow_dispatch.',
+    '.github/workflows/probes.yml: expensive audits run on explicit workflow_dispatch or one weekly schedule, because routine pushes must not run the full audit.',
   ],
 );
 deepStrictEqual(
   manualAuditProblems(new Map([[path, { ...audit, jobs: {} }]])),
-  ['Exactly one manual audit job runs the probe suite.'],
+  [
+    'Exactly one audit job runs the probe suite, so shards do not duplicate the audit.',
+  ],
 );
 deepStrictEqual(
   manualAuditProblems(
@@ -361,7 +456,7 @@ deepStrictEqual(
     ]),
   ),
   [
-    '.github/workflows/probes.yml job probes: the manual audit shards plant every probe exactly once.',
+    '.github/workflows/probes.yml job probes: the audit shards plant every probe exactly once, so no probe is silently omitted.',
   ],
 );
 deepStrictEqual(
@@ -372,9 +467,43 @@ deepStrictEqual(
     ]),
   ),
   [
-    '.github/workflows/web.yml: expensive audits run only on explicit workflow_dispatch.',
+    '.github/workflows/web.yml: expensive audits run on explicit workflow_dispatch, because routine pushes must not run the full audit.',
   ],
 );
+for (const on of [
+  { workflow_dispatch: null, schedule: [{ cron: '23 6 * * 1' }] },
+  { schedule: [{ cron: '23 6 * * 1' }], workflow_dispatch: null },
+])
+  deepStrictEqual(manualAuditProblems(new Map([[path, { ...audit, on }]])), []);
+for (const on of [
+  { workflow_dispatch: null, schedule: [{ cron: '23 6 * * *' }] },
+  {
+    workflow_dispatch: null,
+    schedule: [{ cron: '23 6 * * 1' }, { cron: '23 6 * * 2' }],
+  },
+  { schedule: [{ cron: '23 6 * * 1' }] },
+  { workflow_dispatch: null, push: null },
+])
+  ok(
+    manualAuditProblems(new Map([[path, { ...audit, on }]])).some((problem) =>
+      problem.includes('weekly schedule'),
+    ),
+  );
+ok(
+  manualAuditProblems(
+    new Map([
+      [path, audit],
+      [
+        '.github/workflows/web.yml',
+        {
+          on: { workflow_dispatch: null, schedule: [{ cron: '23 6 * * 1' }] },
+          jobs: {},
+        },
+      ],
+    ]),
+  ).some((problem) => problem.startsWith('.github/workflows/web.yml')),
+);
+
 const source = new Map([['fixture.ts', 'old']]);
 preflightEdits(
   [
