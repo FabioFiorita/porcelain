@@ -1,0 +1,5 @@
+version = 1
+name = "porcelain"
+
+[setup]
+script = "pnpm install"
