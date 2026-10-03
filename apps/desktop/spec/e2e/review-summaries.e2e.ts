@@ -99,6 +99,7 @@ test('a local signed summary renders through the app origin in its sandbox, keep
       exact: true,
     }),
   ).toBeVisible();
+  expect(app.electron.windows()).toHaveLength(1);
   expect(app.errors).toEqual([]);
 });
 

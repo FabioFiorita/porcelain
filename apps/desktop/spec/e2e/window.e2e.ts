@@ -123,6 +123,53 @@ test('the sidebar leaves room for the traffic lights with its button clickable, 
   expect(app.errors).toEqual([]);
 });
 
+test('delayed events after window destruction do not throw, and Quit stops the server', async ({
+  desktop,
+}) => {
+  const app = await desktop.launch();
+  await app.window();
+  const { pid } = await app.server();
+
+  const delayed = await app.electron.evaluate(async ({ BrowserWindow }) => {
+    const view = BrowserWindow.getAllWindows()[0];
+    if (view === undefined) throw new Error('The app window is missing');
+    const contents = view.webContents;
+    const closed = new Promise<void>((resolveClosed) =>
+      view.once('closed', () => resolveClosed()),
+    );
+    view.close();
+    await closed;
+
+    const errors: string[] = [];
+    for (const event of [
+      'show',
+      'hide',
+      'minimize',
+      'maximize',
+      'restore',
+      'enter-full-screen',
+      'leave-full-screen',
+      'ready-to-show',
+    ]) {
+      try {
+        view.emit(event);
+      } catch (error) {
+        errors.push(error instanceof Error ? error.message : String(error));
+      }
+    }
+    try {
+      contents.emit('did-finish-load');
+    } catch (error) {
+      errors.push(error instanceof Error ? error.message : String(error));
+    }
+    return { destroyed: view.isDestroyed(), errors };
+  });
+  expect(delayed).toEqual({ destroyed: true, errors: [] });
+  await app.quit();
+  expect(existsSync(join(app.serverData, 'server.sock'))).toBe(false);
+  expect(processAlive(pid)).toBe(false);
+});
+
 test('closing the last window keeps the same server, the Dock reopens the window, and Quit stops the server, removes its socket and keeps its log', async ({
   desktop,
 }) => {

@@ -47,10 +47,9 @@ Open Project from the menu is driven in `projects.folder-picker`.
 
 ## What proves it works
 
-- `apps/desktop/spec/e2e/menus.e2e.ts` (Playwright Electron): the Settings menu opens Settings with the app version and the reinstall line; the View menu is exactly zoom and full screen, with no Reload or Developer Tools item; delayed visibility, full screen and load events after the window closes do not throw or block Quit.
+- `apps/desktop/spec/e2e/menus.e2e.ts` (Playwright Electron): the Settings menu opens Settings with the app version and the reinstall line; the View menu is exactly zoom and full screen, with no Reload or Developer Tools item.
 - `apps/desktop/spec/e2e/folder-picker.e2e.ts` (Playwright Electron): the Open Project menu opens the native sheet directly.
 
 ## Gotchas
 
 - `menu <path>` matches labels with or without their trailing “…”, segment by segment.
-- macOS can deliver visibility events after a window is destroyed. Electron 44's internal visibility listener still calls native window methods, so the app removes window listeners on `closed` and guards its delayed load and show callbacks. The menu test delivers those events after closing and then quits, without retries.
