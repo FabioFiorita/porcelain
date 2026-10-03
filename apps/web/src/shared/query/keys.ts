@@ -18,8 +18,6 @@ export const queryKeys = {
     scope: ReviewScope,
     surface: readonly unknown[],
   ) => [...queryKeys.review(environmentId, scope), ...surface] as const,
-  comments: (environmentId: string, scope: ReviewScope) =>
-    queryKeys.reviewSurface(environmentId, scope, ['comments']),
 };
 
 export function reviewSurfaceFilters(
