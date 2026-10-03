@@ -31,7 +31,7 @@ export const serverUsage = `  agent publish-review "<title>" [--context] [--summ
   agent publish-proof "<title>" --check "<name>=pass|fail|skipped" [--output "<name>=<text>"] --screenshot "<title>"
   agent comment <path> "<body>"
   agent reply <threadId|latest> "<body>"
-  server reviewed-files | reviewed-layers | comment-threads | project | receipt <requestId>
+  server reviewed-files [<branch ref>] | reviewed-layers | comment-threads | project | devices | receipt <requestId>
                           print the server's state as JSON
       agent and server take --remote to act on the second computer
   pair                    pair the browser through a fresh one-time link
@@ -183,22 +183,26 @@ export async function serverRead(
 ): Promise<string> {
   const { handle, session } = await attach(manifest);
   const readers = readersOf(handle, session);
-  const [what, id] = rest;
+  const [what, argument] = rest;
   const state =
     what === 'reviewed-files'
-      ? await readers.reviewedFiles()
+      ? await readers.reviewedFiles(argument)
       : what === 'reviewed-layers'
         ? await readers.reviewedLayers()
         : what === 'comment-threads'
           ? await readers.commentThreads()
           : what === 'project'
             ? await readers.project()
-            : what === 'receipt'
-              ? await readers.receipt(required(id, 'the Git action request id'))
-              : undefined;
+            : what === 'devices'
+              ? await readers.devices()
+              : what === 'receipt'
+                ? await readers.receipt(
+                    required(argument, 'the Git action request id'),
+                  )
+                : undefined;
   if (state === undefined)
     throw new Usage(
-      'Use server reviewed-files, reviewed-layers, comment-threads, project or receipt <requestId>.',
+      'Use server reviewed-files [<branch ref>], reviewed-layers, comment-threads, project, devices or receipt <requestId>.',
     );
   return `${JSON.stringify(state, null, 2)}\n`;
 }
