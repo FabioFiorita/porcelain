@@ -1,5 +1,11 @@
 import { deepStrictEqual, strictEqual } from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  unlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -52,24 +58,14 @@ function typeFixture(files) {
 function duplicateFixture(entry, source) {
   const root = mkdtempSync(join(tmpdir(), 'porcelain-clone-rule-'));
   try {
-    const scope = duplicateScope('repository', ['reviews', 'client']);
+    const scope = {
+      ...duplicateScope(entry.scope, ['reviews', 'client']),
+      ceiling: 0,
+    };
     for (const folder of scope.sources)
       mkdirSync(join(root, folder), { recursive: true });
     writeFiles(root, { [entry.first]: source, [entry.second]: source });
-    if (entry.fillerLines > 0) {
-      const unique = Array.from(
-        { length: entry.fillerLines },
-        (_, index) => `export const unique${index} = ${index};`,
-      ).join('\n');
-      writeFiles(root, { 'packages/reviews/src/unique.ts': unique });
-    }
     const report = scanDuplicates(root, scope);
-    if (entry.fillerLines > 0)
-      strictEqual(
-        report.statistics.total.percentage < 1,
-        true,
-        'This fixture must fit under the old 1% ceiling to prove the ratchet catches it.',
-      );
     return {
       rejected: report.exceeded,
       pairs: report.duplicates.map((clone) =>
@@ -79,6 +75,49 @@ function duplicateFixture(entry, source) {
         ].toSorted((left, right) => left.localeCompare(right)),
       ),
     };
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+}
+
+function duplicateRatchetFixture(entry) {
+  const root = mkdtempSync(join(tmpdir(), 'porcelain-clone-ratchet-'));
+  try {
+    const scope = {
+      ...duplicateScope('repository', ['reviews', 'client']),
+      ceiling: entry.ceiling,
+    };
+    for (const folder of scope.sources)
+      mkdirSync(join(root, folder), { recursive: true });
+    const unique = Array.from(
+      { length: 800 },
+      (_, index) => `export const unique${index} = ${index};`,
+    ).join('\n');
+    writeFiles(root, {
+      'apps/server/src/copy.ts': entry.source,
+      'packages/reviews/src/copy.ts': entry.source,
+      'packages/client/src/unique.ts': unique,
+    });
+    const before = scanDuplicates(root, scope);
+    unlinkSync(join(root, 'packages/client/src/unique.ts'));
+    const afterDeletion = scanDuplicates(root, scope);
+    strictEqual(
+      afterDeletion.statistics.total.percentage >
+        before.statistics.total.percentage,
+      true,
+    );
+    writeFiles(root, { 'apps/server/src/copy-again.ts': entry.source });
+    const afterCopy = scanDuplicates(root, scope);
+    const result = (report) => ({
+      duplicatedLines: report.statistics.total.duplicatedLines,
+      clones: report.statistics.total.clones,
+      rejected: report.exceeded,
+    });
+    deepStrictEqual(
+      { before: result(before), afterDeletion: result(afterDeletion) },
+      entry.valid,
+    );
+    deepStrictEqual(result(afterCopy), entry.invalid);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -105,6 +144,8 @@ export function runGuardrailCases(named = []) {
         false,
         entry.selector,
       );
+    } else if (entry.rule === 'duplicate-count-ratchet') {
+      duplicateRatchetFixture(entry);
     } else if (entry.rule === 'duplicate-code') {
       deepStrictEqual(duplicateFixture(entry, entry.valid), {
         rejected: false,
@@ -135,7 +176,9 @@ export function runGuardrailCases(named = []) {
   deepStrictEqual(duplicateScope('web', []), {
     name: 'web',
     sources: ['apps/web/src'],
-    threshold: 0,
+    metric: 'clones',
+    ceiling: 0,
+    why: 'Keep web logic in one owner so fixes cannot drift between copies.',
   });
   process.stdout.write(`PASS ${cases.length} guardrail fixtures\n`);
 }

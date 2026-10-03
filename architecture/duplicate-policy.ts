@@ -6,6 +6,10 @@ import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const REPOSITORY_DUPLICATION_CEILING = {
+  count: 591,
+  why: 'Count duplicated lines so deleting unique code cannot trip the ceiling.',
+};
 const reportSchema = z.object({
   duplicates: z.array(
     z.object({
@@ -28,7 +32,13 @@ export function duplicateScope(
   packageNames: readonly string[],
 ) {
   if (target === 'web')
-    return { name: 'web', sources: ['apps/web/src'], threshold: 0 };
+    return {
+      name: 'web',
+      sources: ['apps/web/src'],
+      metric: 'clones' as const,
+      ceiling: 0,
+      why: 'Keep web logic in one owner so fixes cannot drift between copies.',
+    };
   return {
     name: 'repository',
     sources: [
@@ -38,13 +48,19 @@ export function duplicateScope(
       'apps/mobile/src',
       ...packageNames.map((name) => `packages/${name}/src`),
     ],
-    threshold: 0.831,
+    metric: 'duplicatedLines' as const,
+    ceiling: REPOSITORY_DUPLICATION_CEILING.count,
+    why: REPOSITORY_DUPLICATION_CEILING.why,
   };
 }
 
 export function scanDuplicates(
   from: string,
-  scope: { sources: readonly string[]; threshold: number },
+  scope: {
+    sources: readonly string[];
+    metric: 'clones' | 'duplicatedLines';
+    ceiling: number;
+  },
 ) {
   const scratch = mkdtempSync(join(tmpdir(), 'porcelain-duplicates-'));
   try {
@@ -77,9 +93,11 @@ export function scanDuplicates(
     const report = reportSchema.parse(
       JSON.parse(readFileSync(join(scratch, 'jscpd-report.json'), 'utf8')),
     );
+    const count = report.statistics.total[scope.metric];
     return {
       ...report,
-      exceeded: report.statistics.total.percentage > scope.threshold,
+      count,
+      exceeded: count > scope.ceiling,
     };
   } finally {
     rmSync(scratch, { recursive: true, force: true });

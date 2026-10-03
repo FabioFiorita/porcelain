@@ -4344,6 +4344,14 @@ export const probeLive = createPairingLive;
   },
 ];
 
+const duplicateFixtureSource = `export function matchPaths(paths: readonly string[], query: string) {
+  const needle = query.trim().toLowerCase();
+  const found = paths.filter((path) => path.toLowerCase().includes(needle));
+  const ranked = found.toSorted((left, right) => left.length - right.length);
+  const shown = ranked.slice(0, 20).map((path) => ({ path, name: path.split('/').at(-1) ?? path }));
+  return { needle, shown, more: ranked.length > shown.length };
+}`;
+
 export const guardrailCases = [
   {
     rule: 'lane-per-table',
@@ -4486,22 +4494,27 @@ export const guardrailCases = [
     invalid,
   })),
   ...[
-    ['apps/server/src/copy.ts', 'packages/reviews/src/copy.ts', 800],
+    ['apps/server/src/copy.ts', 'packages/reviews/src/copy.ts'],
     ['packages/client/src/copy.ts', 'packages/reviews/src/copy.ts'],
     ['apps/mobile/src/copy.ts', 'apps/desktop/src/copy.ts'],
     ['apps/web/src/copy.ts', 'packages/client/src/copy.ts'],
-  ].map(([first, second, fillerLines = 0]) => ({
+    ['apps/web/src/copy.ts', 'apps/web/src/copy-again.ts', 'web'],
+  ].map(([first, second, scope = 'repository']) => ({
     rule: 'duplicate-code',
     first,
     second,
-    fillerLines,
+    scope,
     valid: 'export const label = "Unique";',
-    invalid: `export function matchPaths(paths: readonly string[], query: string) {
-  const needle = query.trim().toLowerCase();
-  const found = paths.filter((path) => path.toLowerCase().includes(needle));
-  const ranked = found.toSorted((left, right) => left.length - right.length);
-  const shown = ranked.slice(0, 20).map((path) => ({ path, name: path.split('/').at(-1) ?? path }));
-  return { needle, shown, more: ranked.length > shown.length };
-}`,
+    invalid: duplicateFixtureSource,
   })),
+  {
+    rule: 'duplicate-count-ratchet',
+    source: duplicateFixtureSource,
+    ceiling: 7,
+    valid: {
+      before: { duplicatedLines: 7, clones: 1, rejected: false },
+      afterDeletion: { duplicatedLines: 7, clones: 1, rejected: false },
+    },
+    invalid: { duplicatedLines: 14, clones: 2, rejected: true },
+  },
 ];
