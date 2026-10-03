@@ -35,6 +35,7 @@ import { pairingLabel, serve, start } from './serve.ts';
 
 const stopLimitMs = 60 * 1000;
 const freshLink = '{pairing-link}';
+const holdMs = 1500;
 const logWindow = '10m';
 const logTail = 400;
 const usage = `Usage: .agents/skills/mobile-verify/scripts/cli <command> [--instance <id>]
@@ -179,7 +180,7 @@ function logs(instance: Instance): string {
       '--style',
       'compact',
       '--predicate',
-      'process == "PorcelainDev"',
+      'process == "PorcelainDev" AND NOT subsystem BEGINSWITH "com.apple.dt.xctest" AND (subsystem BEGINSWITH "com.facebook.react" OR messageType == error OR messageType == fault)',
     ],
     { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 },
   );
@@ -250,15 +251,18 @@ async function command(args: readonly string[]): Promise<string> {
     const accepted = agentDevice(target, ['alert', 'accept', '3000'], {
       allowFailure: true,
     });
-    const settled = `${output}\n${accepted}`;
+    const settled = accepted.trim().startsWith('accepted')
+      ? `${output}\naccepted the system confirmation to open the link\n`
+      : output;
     return `${note}${scrubber(current.secrets)(settled)}\nrecorded ${record(current, 'open', args, settled)}\n`;
   }
   if (name === 'tap') {
-    const output = agentDevice(target, [
-      values.long ? 'longpress' : 'press',
-      selector(values),
-      '--settle',
-    ]);
+    const output = agentDevice(
+      target,
+      values.long
+        ? ['longpress', selector(values), String(holdMs), '--settle']
+        : ['press', selector(values), '--settle'],
+    );
     return `${note}${output}\nrecorded ${record(current, 'tap', args, output)}\n`;
   }
   if (name === 'fill') {

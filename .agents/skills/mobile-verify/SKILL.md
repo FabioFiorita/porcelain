@@ -30,7 +30,7 @@ A JavaScript change needs no build: Metro serves it, and the CLI reloads the app
 
 It prints the instance id, the simulator id and the evidence folder; it never prints a credential or a pairing link. When it returns, the app runs the development client from this checkout's Metro, with Expo's developer menu, floating button and onboarding switched off, and is paired with the server: Settings lists one environment, “Mobile Verification …”, Online.
 
-- **Its own simulator.** `start` boots a simulator of its own, named `Porcelain verify <model>`: one it created earlier and that is shut down, or a new one, since a simulator's first boot is far heavier than later ones. It reinstalls the development client there with an empty Keychain, and `stop` shuts that simulator down. It never boots, drives or shuts down a simulator it does not own. Keep one simulator live at a time on a shared host.
+- **Its own simulator.** `start` boots a simulator of its own, named `Porcelain verify <model>`: one it created earlier and that is shut down, or a new one, since a simulator's first boot is far heavier than later ones. It sets that simulator to US English, so system labels such as Open and Show Sidebar read the same on any host, reinstalls the development client there with an empty Keychain, and `stop` shuts that simulator down. It never boots, drives or shuts down a simulator it does not own. Keep one simulator live at a time on a shared host.
 - **Several instances.** With more than one live, every command needs `--instance <id>`.
 - **Stale code.** A command refuses once server or native code changed after `start`, and says which: server code needs `stop` and `start`; native code needs `stop`, `build` and `start`.
 - **Idle.** An instance that receives no command for 30 minutes stops itself; its evidence stays.
@@ -56,7 +56,7 @@ When the app is not where the map says, take a `snapshot` before acting further:
 
 Platform behaviour to expect:
 
-- SwiftUI text shows as `staticText` in a snapshot.
+- `tap --label` matches a label exactly, as the snapshot prints it; a long label such as an environment name is taken whole from the snapshot.
 - agent-device's iOS accessibility backend can omit a native tab's selected trait; read selection from a screenshot. The Maestro e2e tests assert selection through XCTest.
 - On iPad in portrait iPadOS hides the sidebar behind Show Sidebar; `open <screen>` reaches any destination without it.
 

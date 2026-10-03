@@ -74,7 +74,11 @@ function connect(target: Target, metro: Metro): void {
 }
 
 function pair(target: Target, link: string): void {
-  agentDevice(target, ['open', screenLink('/settings')]);
+  agentDevice(target, [
+    'open',
+    identity.bundleIdentifier,
+    screenLink('/settings'),
+  ]);
   agentDevice(target, ['alert', 'accept', '5000'], { allowFailure: true });
   agentDevice(target, ['press', 'label="Add environment"', '--settle']);
   fillField(target, 'id="pairing-link"', link);

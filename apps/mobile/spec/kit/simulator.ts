@@ -1,4 +1,5 @@
 import { execFile } from 'node:child_process';
+import { setTimeout as sleep } from 'node:timers/promises';
 import { promisify } from 'node:util';
 import { z } from 'zod';
 
@@ -8,6 +9,9 @@ export type Simulator = { udid: string; name: string; kind: DeviceKind };
 
 const execute = promisify(execFile);
 const minimumRuntime = 26;
+const language = 'en-US';
+const locale = 'en_US';
+const settleMs = 500;
 const families: Record<DeviceKind, string> = { iphone: 'iPhone', ipad: 'iPad' };
 const preferred: Record<DeviceKind, readonly string[]> = {
   iphone: ['iPhone 17', 'iPhone 18 Pro'],
@@ -115,17 +119,54 @@ export async function bootSimulator(
     (await simctl('create', name, type.identifier, runtime.identifier)).trim();
   await simctl('boot', udid);
   await simctl('bootstatus', udid, '-b');
+  const languages = await simctl(
+    'spawn',
+    udid,
+    'defaults',
+    'read',
+    '-g',
+    'AppleLanguages',
+  ).catch(() => '');
+  if (!languages.trimStart().startsWith(`(\n    "${language}"`)) {
+    await simctl(
+      'spawn',
+      udid,
+      'defaults',
+      'write',
+      '-g',
+      'AppleLanguages',
+      '-array',
+      language,
+    );
+    await simctl(
+      'spawn',
+      udid,
+      'defaults',
+      'write',
+      '-g',
+      'AppleLocale',
+      locale,
+    );
+    await shutdownSimulator(udid);
+    await simctl('boot', udid);
+    await simctl('bootstatus', udid, '-b');
+  }
   return { udid, name, kind };
 }
 
-export async function isBooted(udid: string): Promise<boolean> {
+async function stateOf(udid: string): Promise<string | undefined> {
   return Object.values(await devices())
     .flat()
-    .some((device) => device.udid === udid && device.state === 'Booted');
+    .find((device) => device.udid === udid)?.state;
+}
+
+export async function isBooted(udid: string): Promise<boolean> {
+  return (await stateOf(udid)) === 'Booted';
 }
 
 export async function shutdownSimulator(udid: string): Promise<void> {
   if (await isBooted(udid)) await simctl('shutdown', udid);
+  while ((await stateOf(udid)) === 'Shutting Down') await sleep(settleMs);
 }
 
 export async function resetApp(

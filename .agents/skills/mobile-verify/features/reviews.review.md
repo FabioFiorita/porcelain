@@ -53,4 +53,3 @@ Look for: the same empty state again, with the Review tab or sidebar row selecte
 
 - The empty state is the only state: the screen reads nothing from the server, so a paired server whose project has no review shows exactly this. A data-driven empty state does not exist yet.
 - agent-device's iOS accessibility backend can omit the selected trait of a native tab; read selection from the screenshot, and leave the selected-state assertion to the Maestro e2e test.
-- SwiftUI text shows as `staticText` in the snapshot, not `text`.
