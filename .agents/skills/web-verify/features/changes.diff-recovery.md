@@ -38,23 +38,26 @@ printf 'A second changed file.\n' > "$REPO/second.md"
 printf '# Sample repository\n\nAn earlier change to review.\n' > "$REPO/README.md"
 ```
 
-CLI gap: the race needs the diff request held until the file is rewritten, which the CLI cannot do. Needed: `cli network hold "POST /api/worktrees/*/changes/diffs"` before step 5 and `cli network release` after the rewrite in step 6. Without it the CLI drives the ordinary path below, where the live update refreshes the list before the diff request and no 409 happens.
+The race needs the README.md diff request to reach the server only after the rewrite, and the page must not hear of the rewrite first: `network hold` keeps the diff requests waiting and `live drop` keeps the live update away, as the test holds the diff request and the live notices.
 
-1. `$C open /`
-   Look for: Page Title "Changes — repository"; text "2 files".
+1. `$C open /`, then `$C wait --text "2 files"`
+   Look for: text "2 files".
 2. `$C click --role button --name "Review"`
    Look for: button "All changes"; rows "README.md · unstaged" and "second.md · unstaged".
 3. `$C click --role button --name "All changes"`
-   Look for: the sheet closes; heading "Changes" (All changes is the document titled "Changes", the one the workspace opens on); text "An earlier change to review." and "A second changed file."; no "Loading changes…".
-4. `$C click --role button --name "Review"`
-   Look for: rows "README.md · unstaged" and "second.md · unstaged" again.
-5. `$C click --role button --name "README.md · unstaged"`
-   Look for: the sheet closes; Page Title "README.md — repository"; the Page URL contains `entry=change%3AREADME.md`; text "An earlier change to review." and no "A second changed file.".
-6. On disk: `printf '# Sample repository\n\nA newer change to review.\n' > "$REPO/README.md"`
-7. `$C snapshot`
-   Look for: text "A newer change to review."; "An earlier change to review.", "Loading changes…" and "The changes in this document could not be read." are absent.
+   Look for: the sheet closes; heading "Changes" (All changes is the document titled "Changes", the one the workspace opens on); code holding "An earlier change to review." and "A second changed file."; no "Loading changes…".
+4. `$C click --role button --name "Review"`, then `$C network hold "POST /api/worktrees/:worktreeId/changes/diffs"`
+   Look for: rows "README.md · unstaged" and "second.md · unstaged" again; "holding every POST /api/worktrees/:worktreeId/changes/diffs until network release".
+5. `$C click --role button --name "README.md · unstaged"`, then `$C live drop`
+   Look for: the sheet closes; Page Title "README.md — repository"; the Page URL contains `entry=change%3AREADME.md`; `$C snapshot` shows "Loading changes…" while the diff request waits.
+6. On disk: `printf '# Sample repository\n\nA newer change to review.\n' > "$REPO/README.md"`, then `$C network release`
+   Look for: "POST /api/worktrees/:worktreeId/changes/diffs: released <n> held requests".
+7. `$C wait --text "A newer change to review."`, then `$C snapshot`
+   Look for: code holding "A newer change to review."; "An earlier change to review.", "Loading changes…" and "The changes in this document could not be read." are absent (this happens with the live connection still down).
 8. `$C network`
-   Look for: after the rewrite, a `GET /api/worktrees/<worktreeId>/changes` and a `POST /api/worktrees/<worktreeId>/changes/diffs`, both 200. A `POST …/changes/diffs` with 409 followed by exactly one `GET …/changes` and one 200 diff means the race itself was hit.
+   Look for: after the release, one `POST /api/worktrees/<worktreeId>/changes/diffs` answered 409, then exactly one `GET /api/worktrees/<worktreeId>/changes` 200 and one `POST …/changes/diffs` 200 (the recovery). `[FAILED] net::ERR_ABORTED` diff lines are requests the page cancelled itself.
+9. `$C live restore`
+   Look for: "the live connection is back after <n> ms"; the reconnect reads the list and the diff once more, both 200.
 
 ## What proves it works
 
@@ -63,7 +66,8 @@ CLI gap: the race needs the diff request held until the file is rewritten, which
 
 ## Gotchas
 
-- Unreachable through the CLI: the 409 recovery needs a diff request held across a disk write; needed `cli network hold "POST /api/worktrees/*/changes/diffs"` and `cli network release`. Chaining the write right before the click (`printf … > "$REPO/README.md"; $C click …`) can hit the race but is not dependable, because the watcher and live socket usually refresh the list first. A live run of files.edit hit it by chance: closing the editor tab with an unsaved draft (which saves it) while the Changes document reloaded gave `POST …/changes/diffs` 409, then a 200, with no failure notice; that is the recovery this feature promises, but it is not a dependable trigger.
+- Both the hold and `live drop` are needed: with only the hold, the live update refreshes the list and the page cancels the held request before the release.
+- Release within 15 s of step 5: a request held past the web's request timeout (`REQUEST_TIMEOUT_MS`) fails on its own, which is a different path.
 - Opening a document closes the Review sheet at phone width; reopen it with "Review" before clicking a row.
 - If "The changes in this document could not be read." appears, button "Load the changes again" retries; seeing it at all after the rewrite is the regression this feature guards.
 - `git add --all` in the setup commits README.md's start-state change; the README.md shown afterwards is the setup's rewrite.

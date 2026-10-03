@@ -48,17 +48,17 @@ None: the sample repository's `README.md` is already modified, so the tree menu 
    Look for: the sheet closes; tab "README.md Close README.md" is selected; heading "Sample repository" (Markdown opens in Reader); button "Edit".
 6. `$C click --role button --name "Edit"`
    Look for: textbox "README.md" (the editor; it may first show status "Loading editor…"), status "Saves as you pause", paragraph "Saving edits the changes you are reviewing.", button "Done".
-7. `$C fill --role textbox --name "README.md" "Browser autosave marker"`
-   Look for: status "Unsaved changes", then after 3 seconds status "Saved". Run `$C snapshot` again if it still reads "Unsaved changes" or "Saving…".
-   Disk: `grep -c "Browser autosave marker" "$REPO/README.md"` prints `1`.
+7. `$C fill --role textbox --name "README.md" "Browser autosave marker"`, then `$C wait --text "Saved"`
+   Look for: status "Unsaved changes", then about 3 seconds later status "Saved".
+   Disk: `cat "$REPO/README.md"` prints `Browser autosave marker` (`fill` replaces the editor's whole text).
 8. `$C fill --role textbox --name "README.md" "Browser shortcut marker"` then `$C press ControlOrMeta+s`
-   Look for: status "Saved" right away (no 3 second wait). Disk: `grep -c "Browser shortcut marker" "$REPO/README.md"` prints `1`.
+   Look for: status "Saved" right away (no 3 second wait). Disk: `cat "$REPO/README.md"` prints `Browser shortcut marker`.
 9. `$C fill --role textbox --name "README.md" "Browser done marker"` then `$C click --role button --name "Done"`
-   Look for: textbox "README.md" is gone; button "Edit" is back; the Reader's first paragraph holds "Browser done marker" (after the earlier markers, see Gotchas). Disk: `grep -c "Browser done marker" "$REPO/README.md"` prints `1`.
+   Look for: textbox "README.md" is gone; button "Edit" is back; the Reader shows paragraph "Browser done marker". Disk: `cat "$REPO/README.md"` prints `Browser done marker`.
 10. `$C click --role button --name "Edit"` then `$C fill --role textbox --name "README.md" "Browser close marker"`
     Look for: status "Unsaved changes".
 11. `$C click --role button --name "Close README.md"`
-    Look for: tab "README.md Close README.md" is gone; tab "Changes Close Changes" is selected. Disk: `grep -c "Browser close marker" "$REPO/README.md"` prints `1`.
+    Look for: tab "README.md Close README.md" is gone; tab "Changes Close Changes" is selected. Disk: `cat "$REPO/README.md"` prints `Browser close marker`.
 12. `$C network`
     Look for: four `POST /api/worktrees/<id>/files` answered 200, one per save (steps 7, 8, 9, 11), and `GET /api/worktrees/<id>/text?path=README.md` answered 200 when the file opened.
 
@@ -71,7 +71,7 @@ None: the sample repository's `README.md` is already modified, so the tree menu 
 ## Gotchas
 
 - The autosave waits `FILE_AUTOSAVE_WAIT_MS` = 3000 ms after the last change (`apps/web/src/config/limits.ts`); each new fill restarts it. Use `press ControlOrMeta+s` (focus must be in the editor, which `fill` leaves it in) or Done for an immediate save.
-- `fill` on the editor does not replace the file: the CLI's fill inserts its text at the caret, which sits at the start of the file, so the markers pile up in front of `# Sample repository` (after step 11 the first line reads `Browser close markerBrowser autosave markerBrowser shortcut markerBrowser done marker# Sample repository`). Check the disk with `grep -c`, never an exact `cat`.
+- `fill` on the editor selects its whole text and types over it, so each save holds exactly the filled text.
 - The CLI browser is 414 px wide: the review sidebar lives in a sheet behind the "Review" button, and the sheet closes when a document opens. Click "Review" again to get back to the tree.
 - The tab strip is saved per worktree in localStorage and survives `open /`; tabs left by an earlier feature in the same instance (a second "README.md" tab or a split) make "Close README.md" or "Edit" ambiguous. `$C stop` and `$C start` for a clean instance.
 - The edits change `README.md` in the sample repository for every later feature in this instance; restore it with `printf '# Sample repository\n\nA change to review.\n' > "$REPO/README.md"`.

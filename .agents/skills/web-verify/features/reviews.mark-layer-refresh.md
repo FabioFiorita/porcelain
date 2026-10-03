@@ -42,11 +42,11 @@ After a layer's code changes, the web re-reads the published review to get the l
 3. `$C click --role button --name "Mark layer reviewed"`
    Look for: button "Reviewed" [pressed].
 4. `$C network hold "GET /api/worktrees/:worktreeId/review"`
-   Look for: "holding the next GET /api/worktrees/:worktreeId/review until network release".
+   Look for: "holding every GET /api/worktrees/:worktreeId/review until network release".
 5. On disk: `printf '# Sample repository\n\nA revised change to review.\n' > "$REPO/README.md"`, then `$C wait --role button --name "Mark changed layer reviewed"` and `$C snapshot`
    Look for: button "Mark changed layer reviewed" [disabled] while the review read is held; `$C server reviewed-layers` already shows the mark `"stale": true`.
 6. `$C network release`
-   Look for: "GET /api/worktrees/:worktreeId/review: a held request went on". Then `$C snapshot`: button "Mark changed layer reviewed" enabled and status "Code changed since the review was written." in article "Step New line".
+   Look for: "GET /api/worktrees/:worktreeId/review: released 1 held request". Then `$C snapshot`: button "Mark changed layer reviewed" enabled and status "Code changed since the review was written." in article "Step New line".
 7. `$C click --role button --name "Mark changed layer reviewed"`
    Look for: button "Reviewed" [pressed]; no alert "The layer mark could not be updated. Try again."; `$C server reviewed-layers` shows `"stale": false`.
 8. `$C network`

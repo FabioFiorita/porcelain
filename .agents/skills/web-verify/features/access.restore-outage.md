@@ -25,22 +25,23 @@ When a reload's session restore fails for a reason other than "not paired" (inve
 
 ## Driving it
 
-`C=.agents/skills/web-verify/scripts/cli; $C start`. Only the healthy reload can be driven; the outage needs a CLI gap (first gotcha).
-
-### Setup
-
-- CLI gap: make `GET /api/inventory` answer 503 and later restore it. Needed commands: `cli network fail "GET /api/inventory" --status 503` and `cli network restore` (which should also dispatch the window `online` event, as the test does).
+`C=.agents/skills/web-verify/scripts/cli; $C start`. `network fail` answers `GET /api/inventory` with 503 from the browser's side, the outage the test makes; `network restore` ends it and dispatches the window `online` event, as the test does.
 
 1. `$C open /`, `$C click --role button --name "Review"`, `$C click --role tab --name "Files"`
-   Look for: tab "Files" selected; Page URL `/<projectId>/<worktreeId>?surface=files` (call it `$WORKSPACE`).
-2. `cli network fail "GET /api/inventory" --status 503` (missing), then `$C open "$WORKSPACE"`
-   Look for: alert text "Could not display the workspace." and "Porcelain will retry when the connection returns or this window becomes active again."; NO heading "This browser is not paired"; Page URL still `$WORKSPACE`.
-3. `cli network restore` (missing)
-   Look for: without another `open`, region "Review content" appears; Page URL still `$WORKSPACE`.
+   Look for: tab "Files" selected; Page URL `/<projectId>/<worktreeId>?…surface=files` (call its path and query `$WORKSPACE`).
+2. `$C network fail "GET /api/inventory" --status 503`, then `$C open "$WORKSPACE"` and `$C wait --text "Could not display the workspace."`
+   Look for: alert with "Could not display the workspace." and "Porcelain will retry when the connection returns or this window becomes active again."; NO heading "This browser is not paired"; Page URL still `$WORKSPACE`. `$C network` lists `GET /api/inventory` answered 503 (not 401); `$C console` holds "ConnectionError: Could not reach Porcelain to restore this browser session.".
+3. `$C network restore`, then `$C wait --role region --name "Review content"`
+   Look for: "restored 1 failing route and dispatched the window online event"; without another `open`, region "Review content" appears; Page URL still `$WORKSPACE`.
 4. `$C click --role button --name "Review"`
-   Look for: tab "Files" still selected (the `surface=files` search survived).
+   Look for: tab "Files" [selected] (the `surface=files` search survived).
 
-Healthy path the CLI can do today: after step 1, `$C open "$WORKSPACE"` shows region "Review content" at the same URL, and step 4 shows tab "Files" selected.
+### The pairing page during the outage
+
+5. `$C network fail "GET /api/inventory" --status 503`, then `$C open /pair` and `$C wait --text "Could not display the workspace."`
+   Look for: the workspace error, not the heading "This browser is not paired".
+6. `$C network restore`, then `$C wait --role region --name "Review content"`
+   Look for: region "Review content": the paired browser left `/pair` for its workspace.
 
 ## What proves it works
 
@@ -51,7 +52,6 @@ Healthy path the CLI can do today: after step 1, `$C open "$WORKSPACE"` shows re
 
 ## Gotchas
 
-- Unreachable through the CLI: it cannot fail a request or cut the network. Needed: `cli network fail "GET /api/inventory" --status 503` and `cli network restore` (restore dispatching `online`).
-- The retry fires on `online`, `focus` or `visibilitychange`; a headless page rarely gets focus or visibility events, so without a dispatched `online` the error stays until the next `open`, and an `open` is a new load, not the self-recovery the promise is about.
+- The retry fires on `online`, `focus` or `visibilitychange`; a headless page rarely gets focus or visibility events, so the `online` event `network restore` dispatches is what brings the workspace back. An `open` would be a new load, not the self-recovery the promise is about.
 - The console error "Could not reach Porcelain to restore this browser session." is expected during the outage.
 - Phone width: the review panel is a sheet behind `Review`.
