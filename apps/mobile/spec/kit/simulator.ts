@@ -8,6 +8,7 @@ export type DeviceKind = 'iphone' | 'ipad';
 export type Simulator = { udid: string; name: string; kind: DeviceKind };
 
 const execute = promisify(execFile);
+const simulatorLimit = 2;
 const minimumRuntime = 26;
 const language = 'en-US';
 const locale = 'en_US';
@@ -103,6 +104,23 @@ async function deviceFor(kind: DeviceKind) {
 async function devices() {
   return devicesSchema.parse(JSON.parse(await simctl('list', 'devices', '-j')))
     .devices;
+}
+
+export async function bootedSimulators(): Promise<string[]> {
+  return Object.values(
+    devicesSchema.parse(
+      JSON.parse(await simctl('list', 'devices', 'booted', '-j')),
+    ).devices,
+  )
+    .flat()
+    .map((device) => device.name);
+}
+
+export function simulatorLimitProblem(
+  booted: readonly string[],
+): string | undefined {
+  if (booted.length < simulatorLimit) return undefined;
+  return `The device host already has ${booted.length} booted simulators (${booted.join(', ')}) and takes at most ${simulatorLimit} at once; each thread stops only its own instance with .agents/skills/mobile-verify/scripts/cli stop, so start again once one has stopped.`;
 }
 
 export async function bootSimulator(

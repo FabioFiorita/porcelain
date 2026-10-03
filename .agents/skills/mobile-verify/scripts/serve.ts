@@ -18,13 +18,18 @@ import {
   type Metro,
 } from '../../../../apps/mobile/spec/kit/metro.ts';
 import {
+  bootedSimulators,
   bootSimulator,
   resetApp,
   shutdownSimulator,
+  simulatorLimitProblem,
   type DeviceKind,
 } from '../../../../apps/mobile/spec/kit/simulator.ts';
 import { missingTools } from '../../../../apps/mobile/spec/kit/tools.ts';
-import { refuseMissing } from '../../server-verify/scripts/core/cli.ts';
+import {
+  Refusal,
+  refuseMissing,
+} from '../../server-verify/scripts/core/cli.ts';
 import type { Life } from '../../server-verify/scripts/core/registry.ts';
 import {
   agentDevice,
@@ -32,6 +37,7 @@ import {
   disconnectHub,
   fillField,
   holdLease,
+  remoteBootProblem,
   remoteSimulator,
   resetRemoteApp,
   type Target,
@@ -102,6 +108,8 @@ async function localSimulator(
   kind: DeviceKind,
   base: Target,
 ): Promise<Booted> {
+  const crowded = simulatorLimitProblem(await bootedSimulators());
+  if (crowded !== undefined) throw new Refusal(crowded);
   const simulator = await phase(timings, 'simulator', () =>
     bootSimulator(kind, 'verify'),
   );
@@ -130,6 +138,8 @@ async function hostedSimulator(
     remoteSimulator(base, kind),
   );
   const target = { ...base, udid: simulator.udid };
+  const crowded = remoteBootProblem(target);
+  if (crowded !== undefined) throw new Refusal(crowded);
   life.onStop(() => {
     agentDevice(target, ['close', '--shutdown'], { allowFailure: true });
   });

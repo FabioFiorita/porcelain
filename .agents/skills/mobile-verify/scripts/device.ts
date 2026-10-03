@@ -6,7 +6,10 @@ import {
   nativeFingerprint,
   sharedClientPath,
 } from '../../../../apps/mobile/spec/kit/development-client.ts';
-import type { DeviceKind } from '../../../../apps/mobile/spec/kit/simulator.ts';
+import {
+  simulatorLimitProblem,
+  type DeviceKind,
+} from '../../../../apps/mobile/spec/kit/simulator.ts';
 import { Refusal, Usage } from '../../server-verify/scripts/core/cli.ts';
 import { hubToken, hubUrl, type HostDetail } from './host.ts';
 
@@ -158,6 +161,17 @@ export function remoteBooted(target: Hosted): boolean {
   return remoteDevices(target).some(
     (device) => device.id === target.udid && device.booted,
   );
+}
+
+export function remoteBootProblem(
+  target: Hosted & { udid: string },
+): string | undefined {
+  const booted = remoteDevices(target).filter(
+    (device) => device.kind === 'simulator' && device.booted,
+  );
+  return booted.some((device) => device.id === target.udid)
+    ? undefined
+    : simulatorLimitProblem(booted.map((device) => device.name));
 }
 
 export function remoteSimulator(

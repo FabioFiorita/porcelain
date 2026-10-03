@@ -6,8 +6,10 @@ import { buildIsolatedServer } from '@porcelain/server/kit/sandbox';
 import { buildProblem, mobileRoot } from '../kit/development-client.ts';
 import { startMetro } from '../kit/metro.ts';
 import {
+  bootedSimulators,
   bootSimulator,
   shutdownSimulator,
+  simulatorLimitProblem,
   type DeviceKind,
 } from '../kit/simulator.ts';
 import { missingTools } from '../kit/tools.ts';
@@ -33,6 +35,8 @@ export default async function setup(project: TestProject) {
     throw new Error(
       `The mobile e2e tests need macOS with a simulator, Maestro and the development client:\n${[...problems, ...(unbuilt === undefined ? [] : [unbuilt])].join('\n')}`,
     );
+  const crowded = simulatorLimitProblem(await bootedSimulators());
+  if (crowded !== undefined) throw new Error(crowded);
   const kind: DeviceKind = project.name.endsWith('-tablet') ? 'ipad' : 'iphone';
   const evidence = join(mobileRoot, 'test-results', 'e2e', kind);
   await rm(evidence, { recursive: true, force: true });
