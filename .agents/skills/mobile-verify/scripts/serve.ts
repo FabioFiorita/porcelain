@@ -73,7 +73,11 @@ async function phase<T>(
 }
 
 function connect(target: Target, metro: Metro): void {
-  agentDevice(target, ['open', developmentLink(metro.url)]);
+  agentDevice(target, [
+    'open',
+    identity.bundleIdentifier,
+    developmentLink(metro.url),
+  ]);
   agentDevice(target, ['alert', 'accept', '5000'], { allowFailure: true });
   agentDevice(target, ['wait', 'text', 'Review', '60000']);
 }
