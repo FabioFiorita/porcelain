@@ -32,19 +32,21 @@ function WorkspaceIndex() {
   });
   const connection = useAccessStore((state) => state.connection);
   const inventory = useInventory(connection);
-  const requested = selectedWorktreeInProject(inventory, worktree);
   const target =
-    requested ??
-    selectedWorktreeInProject(inventory, firstWaitingWorktree(inventory)?.id);
+    worktree === undefined
+      ? selectedWorktreeInProject(
+          inventory,
+          firstWaitingWorktree(inventory)?.id,
+        )
+      : selectedWorktreeInProject(inventory, worktree);
   if (target && settled)
     return (
       <Navigate
         to="/$projectId/$worktreeId"
         params={{ projectId: target.projectId, worktreeId: target.worktree.id }}
-        search={requested ? search : {}}
+        search={worktree === undefined ? {} : search}
         replace
       />
     );
-  if (worktree !== undefined && settled) return <Navigate to="/" replace />;
-  return <ConnectedWorkspace />;
+  return <ConnectedWorkspace missing={worktree !== undefined} />;
 }

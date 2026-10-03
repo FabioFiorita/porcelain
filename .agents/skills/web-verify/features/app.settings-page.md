@@ -17,6 +17,7 @@ selectors:
   - "Remove from Porcelain"
   - "No projects registered"
   - "Select a worktree"
+  - "Worktree no longer present"
 tests:
   - apps/web/spec/e2e/app-settings-page.desktop.e2e.ts
 api:
@@ -84,11 +85,11 @@ None.
 2. `$C click --role menuitem --name "Remove from Porcelain"`
    Look for: alertdialog "Remove repository from Porcelain?" with buttons "Cancel" and "Remove from Porcelain".
 3. `$C click --role button --name "Remove from Porcelain"`
-   Look for: the dialog closes; text "No projects registered" in the still-open sidebar sheet; Page URL `/`; Page Title "Porcelain". `$C network` shows `DELETE /api/projects/<projectId>` with status 2xx.
+   Look for: the dialog closes; text "No projects registered" in the still-open sidebar sheet; Page URL `/?worktree=<worktreeId>`; Page Title "Porcelain". `$C network` shows `DELETE /api/projects/<projectId>` with status 2xx.
 4. `$C click --role button --name "Settings"`
    Look for: Page URL `/settings/appearance`; heading "Appearance".
 5. `$C click --role button --name "Back"`
-   Look for: Page URL `/`; text "Select a worktree".
+   Look for: Page URL `/?worktree=<worktreeId>`; text "Worktree no longer present".
 
 ## What proves it works
 
@@ -97,7 +98,7 @@ None.
 - `apps/web/spec/e2e/app-settings-page.desktop.e2e.ts` (desktop project, 414x896):
   - Settings opens as main "Settings" with heading "Appearance" and "Diff layout", Git and agents replaces it, Back returns to region "Review content";
   - Escape inside textbox "Name of this computer" keeps Settings, Escape after clicking Devices leaves it;
-  - after removing the project through the alertdialog, "No projects registered" shows, Settings still opens on Appearance, and Back shows "Select a worktree".
+  - after removing the project through the alertdialog, "No projects registered" shows, Settings still opens on Appearance, and Back shows "Worktree no longer present".
 
 ## Gotchas
 

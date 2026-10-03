@@ -6,6 +6,7 @@ selectors:
   - "Remove from Porcelain"
   - "No projects registered"
   - "Select a worktree"
+  - "Worktree no longer present"
   - "Open project"
   - "Folder path"
   - "Every worktree appears in the sidebar."
@@ -49,7 +50,7 @@ Check: `git -C "$REPO" worktree list` prints two lines, `$REPO … [main]` and `
 2. `$C click --role button --name "repository" --button right`, then `$C click --role menuitem --name "Remove from Porcelain"`
    Look for: alertdialog "Remove repository from Porcelain?" with buttons "Cancel" and "Remove from Porcelain".
 3. `$C click --role button --name "Remove from Porcelain"`
-   Look for: the alertdialog is gone; text "No projects registered" in the sheet; Page URL `/`; Page Title "Porcelain".
+   Look for: the alertdialog is gone; text "No projects registered" in the sheet; Page URL `/?worktree=<old worktreeId>`; text "Worktree no longer present"; Page Title "Porcelain".
 4. `$C open /`
    Look for: after the full reload, Page URL stays `/`; text "Select a worktree"; button "Toggle Sidebar".
 
@@ -64,18 +65,18 @@ Check: `git -C "$REPO" worktree list` prints two lines, `$REPO … [main]` and `
 8. `$C network`
    Look for: `DELETE /api/projects/<old projectId>` 200 and `POST /api/projects` 200.
 9. `$C back`
-   Look for: Page URL `/<old projectId>/<old worktreeId>?entry=handoff`, the page step 1 opened, and not `/`: neither the empty `/` of steps 3 and 4 nor any other `/` entry was left in the history between it and the new worktree.
+   Look for: Page URL `/?worktree=<old worktreeId>`, the page step 3 left, saying "Worktree no longer present" (that project is gone) without opening the new worktree in its place; not `/`: the empty `/` of step 4 was replaced, not left in the history.
 
 ## What proves it works
 
 - End state: the URL is the new project's main worktree and the main row is pressed; the registration holds both worktrees (two rows under "repository").
-- The history: step 9's `back` skips straight past the empty workspace to the page before the removal.
-- `apps/web/spec/e2e/projects-open-linked-worktree.e2e.ts`: after removal the URL is `/` and a reload shows "Select a worktree"; opening the main repository path closes the dialog, the server registers one project with 2 worktrees, the URL is that project's main worktree, the button matching /Main worktree/ is pressed, and the navigation history holds exactly that one entry (read through `server.inventory()` and `navigation.entries()`).
+- The history: step 9's `back` skips straight past the empty workspace of step 4 to the removed worktree's page.
+- `apps/web/spec/e2e/projects-open-linked-worktree.e2e.ts`: after removal the URL is `/` and a reload shows "Worktree no longer present"; opening the main repository path closes the dialog, the server registers one project with 2 worktrees, the URL is that project's main worktree, the button matching /Main worktree/ is pressed, and the navigation history holds exactly that one entry (read through `server.inventory()` and `navigation.entries()`).
 
 ## Gotchas
 
 - The test reloads where step 4 uses `open /`; both leave one `/` entry, which opening the repository replaces. A `back` that lands on `/` means the empty workspace was pushed, not replaced.
 - Phone width: the navigator is in the sidebar sheet; after removing the project and after opening the repository the sheet stays open.
 - The worktree row's accessible name is built from its branch label, path, project name, status and the hidden "Main worktree" text, so address it by `--name "/Main worktree/"` and never by an exact name.
-- The project gets a new id: a URL saved from before step 3 names a project the server no longer has (in the 2026-10-03 drive, step 9's page showed an empty workspace, "No changes to review", rather than redirecting). File preferences, reviewed marks and comments of the old project are gone.
+- The project gets a new id: a URL saved from before step 3 names a worktree the server no longer has, so it says "Worktree no longer present". File preferences, reviewed marks and comments of the old project are gone.
 - Remove the linked worktree afterwards if the instance continues: `git -C "$REPO" worktree remove "$REPO/../linked" && git -C "$REPO" branch -D linked`.
