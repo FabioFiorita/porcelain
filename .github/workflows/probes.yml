@@ -1,7 +1,9 @@
-name: Manual probe audit
+name: Probe audit
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '23 6 * * 1'
 
 permissions:
   contents: read

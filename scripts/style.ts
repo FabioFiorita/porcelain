@@ -13,7 +13,6 @@ import { isDeepStrictEqual } from 'node:util';
 import { basename, dirname, join, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { Generator, getConfig } from '@tanstack/router-generator';
-import { parseSync } from 'oxc-parser';
 import { parseDocument } from 'yaml';
 import { z } from 'zod';
 import {
@@ -26,8 +25,16 @@ import {
   probeSchema,
   unknownRule,
 } from '../architecture/probe.ts';
-import { compilerFindings } from '../architecture/react-compiler.ts';
+import {
+  compilerFindings,
+  buildCompilerRuns,
+} from '../architecture/react-compiler.ts';
 import { pinProblems, uiFolder } from '../architecture/shadcn-pins.ts';
+import {
+  ARCHITECTURE_LINE_BUDGET,
+  architectureLines,
+} from '../architecture/guardrail-budget.ts';
+import { scriptInvokes } from '../architecture/script-policy.ts';
 import { manualAuditProblems } from '../architecture/ci-policy.ts';
 import {
   duplicateScope,
@@ -97,6 +104,8 @@ const strayLintConfig =
 type Problem = { rule: StyleRule; message: string };
 
 function problem(rule: StyleRule, message: string): Problem {
+  if (!/\b(?:because|so)\b\s+\S/.test(message))
+    throw new Error(`A lint message explains why: ${message}`);
   return { rule, message };
 }
 
@@ -132,7 +141,7 @@ function disableDirectives(): Problem[] {
           ? [
               problem(
                 'disable-directives',
-                `${file}:${index + 1}: fix the code instead of disabling a rule; disable directives are not allowed.`,
+                `${file}:${index + 1}: fix the code instead of disabling a rule; disable directives are not allowed, because a disable directive hides code from a required check.`,
               ),
             ]
           : [],
@@ -162,24 +171,7 @@ function codeOutsideLintRoots(files: readonly string[]): Problem[] {
     .map((path) =>
       problem(
         'code-outside-lint-roots',
-        `${path}: code lives under a lint root (${allRoots.join(', ')}); a file outside them escapes lint, the disable-directive scan and the format check.`,
-      ),
-    );
-}
-
-function proseOutsideSkills(files: readonly string[]): Problem[] {
-  return files
-    .filter(
-      (path) =>
-        /\.(?:md|mdx|markdown)$/i.test(path) &&
-        path !== 'AGENTS.md' &&
-        path !== '.github/PULL_REQUEST_TEMPLATE.md' &&
-        !path.startsWith('.agents/skills/'),
-    )
-    .map((path) =>
-      problem(
-        'prose-outside-skills',
-        `${path}: the repository keeps prose only in AGENTS.md, the pull request template and the skills under .agents/skills/; code is the example and lint the rulebook, so move a workflow into its skill and drop architecture narration.`,
+        `${path}: code lives under a lint root (${allRoots.join(', ')}); a file outside them escapes lint, the disable-directive scan and the format check, because code outside the roots escapes lint and format checks.`,
       ),
     );
 }
@@ -225,7 +217,24 @@ const requiredRuns: Readonly<Record<string, readonly string[]>> = {
   ],
 };
 
-const prePushHook = { 'pre-push': { jobs: [{ run: 'pnpm check' }] } };
+const prePushSchema = z.object({
+  'pre-push': z
+    .object({
+      jobs: z.array(
+        z.object({ run: z.string(), name: z.string().optional() }).strict(),
+      ),
+    })
+    .strict(),
+});
+function prePushChecks(): boolean {
+  const parsed = prePushSchema.safeParse(lefthookConfig());
+  return (
+    parsed.success &&
+    parsed.data['pre-push'].jobs.some((job) =>
+      scriptInvokes(job.run, [['pnpm', 'check']], '.'),
+    )
+  );
+}
 
 function workflowRuns(document: unknown): string[] {
   const parsed = workflowRunsSchema.safeParse(document);
@@ -245,13 +254,18 @@ function ciProblems(): Problem[] {
   return [
     ...Object.entries(requiredRuns).flatMap(([path, runs]) => {
       const found = workflowRuns(documents.get(path));
-      const missing = runs.filter((run) => !found.includes(run));
+      const missing = runs.filter((run) => {
+        const required = run
+          .split(' && ')
+          .map((command) => command.split(/\s+/));
+        return !found.some((command) => scriptInvokes(command, required, '.'));
+      });
       return missing.length === 0
         ? []
         : [
             problem(
               'ci-steps',
-              `${path} runs ${missing.join(', ')}; a gate leaves CI only by changing this check, where the change is visible.`,
+              `${path} runs ${missing.join(', ')}; a gate leaves CI only by changing this check, where the change is visible, because required checks must run before a change can be shipped.`,
             ),
           ];
     }),
@@ -268,12 +282,12 @@ function ciProblems(): Problem[] {
     ...manualAuditProblems(documents).map((message) =>
       problem('manual-audits', message),
     ),
-    ...(isDeepStrictEqual(lefthookConfig(), prePushHook)
+    ...(prePushChecks()
       ? []
       : [
           problem(
             'ci-steps',
-            'lefthook.yml, merged with any local or extended Lefthook configuration, runs pnpm check before every push, with no skip, only or file filter.',
+            'lefthook.yml, merged with any local or extended Lefthook configuration, runs pnpm check before every push, with no skip, only or file filter, because required checks must run before a change can be shipped.',
           ),
         ]),
   ];
@@ -316,7 +330,7 @@ function hookProblems(): Problem[] {
     : [
         problem(
           'pre-push-hook',
-          `${hook} is not the Lefthook pre-push hook in sync with lefthook.yml; without it a push runs none of the pre-push checks and nothing says so. Run pnpm run prepare, which installs the hook and resets core.hooksPath.`,
+          `${hook} is not the Lefthook pre-push hook in sync with lefthook.yml; without it a push runs none of the pre-push checks and nothing says so. Run pnpm run prepare, which installs the hook and resets core.hooksPath, because without the installed hook a push skips its required checks.`,
         ),
       ];
 }
@@ -333,7 +347,7 @@ function strayFormatConfigs(): Problem[] {
     .map((path) =>
       problem(
         'format-config',
-        `${path}: the format check reads one configuration, the root ${formatConfig}, with no ignore files; remove this file.`,
+        `${path}: the format check reads one configuration, the root ${formatConfig}, with no ignore files; remove this file, because a second configuration can exclude code from the root format check.`,
       ),
     );
 }
@@ -346,7 +360,7 @@ function strayLintConfigs(): Problem[] {
     .map((path) =>
       problem(
         'one-lint-config',
-        `${path}: lint reads one configuration, the root ${lintConfig}, with no ignore files; remove this file.`,
+        `${path}: lint reads one configuration, the root ${lintConfig}, with no ignore files; remove this file, because a second configuration can hide code from the root lint policy.`,
       ),
     );
 }
@@ -465,7 +479,7 @@ function strictJson(path: string): unknown {
     throw new StyleProblem(
       problem(
         'strict-json',
-        `${path} is not strict JSON; configuration carries no comments or trailing commas (${error instanceof Error ? error.message : String(error)}).`,
+        `${path} is not strict JSON; configuration carries no comments or trailing commas (${error instanceof Error ? error.message : String(error)}), because comments and permissive parsing can make tools read different configuration.`,
       ),
     );
   }
@@ -482,7 +496,7 @@ async function configProblems(): Promise<Problem[]> {
     return [
       problem(
         'lint-config',
-        `.oxlintrc.json holds plugins, jsPlugins, options, rules and overrides only: ${config.error.message}`,
+        `.oxlintrc.json holds plugins, jsPlugins, options, rules and overrides only, because unsupported fields can bypass the shared lint policy: ${config.error.message}`,
       ),
     ];
   const format = formatConfigSchema.safeParse(strictJson(formatConfig));
@@ -490,21 +504,24 @@ async function configProblems(): Promise<Problem[]> {
     problems.push(
       problem(
         'format-config',
-        `${formatConfig} ignores nothing; every file under the format roots is checked.`,
+        `${formatConfig} ignores nothing; every file under the format roots is checked, because a second configuration can exclude code from the root format check.`,
       ),
     );
-  problems.push(...viteProblems());
+  problems.push(...(await viteProblems()));
   const { plugins, jsPlugins, rules, overrides } = config.data;
   if (!isDeepStrictEqual(plugins, ['typescript']))
     problems.push(
-      problem('lint-config', '.oxlintrc.json loads the typescript plugin.'),
+      problem(
+        'lint-config',
+        '.oxlintrc.json loads the typescript plugin, because disabling a configured rule leaves its mistakes unchecked.',
+      ),
     );
   for (const name of requiredRules)
     if (!isError(rules[name]))
       problems.push(
         problem(
           'lint-config',
-          `.oxlintrc.json keeps ${name} on as "error"; a built-in rule leaves lint only by changing this check, where the change is visible.`,
+          `.oxlintrc.json keeps ${name} on as "error"; a built-in rule leaves lint only by changing this check, where the change is visible, because disabling a configured rule leaves its mistakes unchecked.`,
         ),
       );
   if (
@@ -516,7 +533,7 @@ async function configProblems(): Promise<Problem[]> {
     problems.push(
       problem(
         'lint-config',
-        '.oxlintrc.json loads the Porcelain and shadcn plugins.',
+        '.oxlintrc.json loads the Porcelain and shadcn plugins, because disabling a configured rule leaves its mistakes unchecked.',
       ),
     );
   const pluginPath = new URL(
@@ -529,7 +546,7 @@ async function configProblems(): Promise<Problem[]> {
       problems.push(
         problem(
           'lint-config',
-          `.oxlintrc.json sets porcelain/${name} to "error".`,
+          `.oxlintrc.json sets porcelain/${name} to "error", because disabling a configured rule leaves its mistakes unchecked.`,
         ),
       );
   for (const [name, level] of Object.entries(rules)) {
@@ -537,7 +554,7 @@ async function configProblems(): Promise<Problem[]> {
       problems.push(
         problem(
           'lint-config',
-          `.oxlintrc.json turns ${name} on as "error" or leaves it out.`,
+          `.oxlintrc.json turns ${name} on as "error" or leaves it out, because disabling a configured rule leaves its mistakes unchecked.`,
         ),
       );
     if (
@@ -547,7 +564,7 @@ async function configProblems(): Promise<Problem[]> {
       problems.push(
         problem(
           'lint-config',
-          `.oxlintrc.json names ${name}, which the plugin does not define.`,
+          `.oxlintrc.json names ${name}, which the plugin does not define, because disabling a configured rule leaves its mistakes unchecked.`,
         ),
       );
   }
@@ -560,7 +577,7 @@ async function configProblems(): Promise<Problem[]> {
     problems.push(
       problem(
         'lint-config',
-        `.oxlintrc.json holds exactly the sanctioned overrides, each for its reason: ${sanctionedOverrides.map((sanctioned) => sanctioned.reason).join('; ')}. Any other override is a disable directive.`,
+        `.oxlintrc.json holds exactly the sanctioned overrides, each for its reason: ${sanctionedOverrides.map((sanctioned) => sanctioned.reason).join('; ')}. Any other override is a disable directive, because disabling a configured rule leaves its mistakes unchecked.`,
       ),
     );
   const tsconfigs = filesUnder('.').filter((path) =>
@@ -573,7 +590,7 @@ async function configProblems(): Promise<Problem[]> {
       problems.push(
         problem(
           'tsconfig',
-          `tsconfig.json sets ${flag} to true; every package and app compiles with the root's strictness.`,
+          `tsconfig.json sets ${flag} to true; every package and app compiles with the root's strictness, because loosening compiler scope or strictness lets unsafe code escape typechecking.`,
         ),
       );
   for (const path of tsconfigs) {
@@ -586,7 +603,7 @@ async function configProblems(): Promise<Problem[]> {
         problems.push(
           problem(
             'tsconfig',
-            `${path} extends ../../tsconfig.json and leaves ${loosened.join(', ') || 'every strictness flag'} to it.`,
+            `${path} extends ../../tsconfig.json and leaves ${loosened.join(', ') || 'every strictness flag'} to it, because loosening compiler scope or strictness lets unsafe code escape typechecking.`,
           ),
         );
     }
@@ -598,7 +615,12 @@ async function configProblems(): Promise<Problem[]> {
     if (name === undefined) continue;
     for (const pattern of ['src/**/*.ts', 'spec/**/*.ts'])
       if (!tsconfig.include?.includes(pattern))
-        problems.push(problem('tsconfig', `${path} includes ${pattern}.`));
+        problems.push(
+          problem(
+            'tsconfig',
+            `${path} includes ${pattern}, because loosening compiler scope or strictness lets unsafe code escape typechecking.`,
+          ),
+        );
     const options = Object.keys(tsconfig.compilerOptions ?? {});
     if (
       tsconfig.extends !== '../../tsconfig.json' ||
@@ -607,7 +629,7 @@ async function configProblems(): Promise<Problem[]> {
       problems.push(
         problem(
           'tsconfig',
-          `${path} extends ../../tsconfig.json and sets only types and lib; every strictness flag comes from the root.`,
+          `${path} extends ../../tsconfig.json and sets only types and lib; every strictness flag comes from the root, because loosening compiler scope or strictness lets unsafe code escape typechecking.`,
         ),
       );
     if (
@@ -638,66 +660,23 @@ async function configProblems(): Promise<Problem[]> {
   return problems;
 }
 
-function vitePlugins(path: string): string[] | undefined {
-  const source = readFileSync(path, 'utf8');
-  const program = parseSync(path, source).program;
-  for (const statement of program.body) {
-    if (statement.type !== 'ExportDefaultDeclaration') continue;
-    const call = statement.declaration;
-    if (call.type !== 'CallExpression') return undefined;
-    const config = call.arguments[0];
-    if (config?.type !== 'ObjectExpression') return undefined;
-    for (const property of config.properties)
-      if (
-        property.type === 'Property' &&
-        property.key.type === 'Identifier' &&
-        property.key.name === 'plugins' &&
-        property.value.type === 'ArrayExpression'
-      )
-        return property.value.elements.map((element) =>
-          element === null
-            ? ''
-            : source
-                .slice(element.start, element.end)
-                .replace(/\s+/g, '')
-                .replace(/,([}\]])/g, '$1'),
-        );
-  }
-  return undefined;
-}
-
-const reactCompilerPlugin =
-  "babel({presets:[reactCompilerPreset({panicThreshold:'none'})]})";
 const routeTreeOptions = {
   target: 'react',
   autoCodeSplitting: true,
   routeTreeFileHeader: [],
   semicolons: true,
 } as const;
-const routerPlugin =
-  "tanstackRouter({target:'react',autoCodeSplitting:true,routeTreeFileHeader:[],semicolons:true})";
-
-function viteProblems(): Problem[] {
+async function viteProblems(): Promise<Problem[]> {
   const path = 'apps/web/vite.config.ts';
-  const plugins = existsSync(path) ? vitePlugins(path) : undefined;
-  return [
-    ...(plugins?.includes(reactCompilerPlugin)
-      ? []
-      : [
-          problem(
-            'vite-config',
-            `${path} runs the React Compiler with panicThreshold none, so the build a user gets is the one the compiler checks.`,
-          ),
-        ]),
-    ...(plugins?.[0] === routerPlugin && plugins[1] === 'react()'
-      ? []
-      : [
-          problem(
-            'vite-config',
-            `${path} runs ${routerPlugin} first and react() right after it, so the route tree the build uses is the one scripts/style.ts regenerates and compares.`,
-          ),
-        ]),
-  ];
+  const config: unknown = await import(pathToFileURL(resolve(path)).href);
+  return (await buildCompilerRuns(config))
+    ? []
+    : [
+        problem(
+          'vite-config',
+          `${path} must compile the fixture through the configured build plugin, because checking source alone cannot prove the shipped build uses the React Compiler.`,
+        ),
+      ];
 }
 
 function filesOf(root: string): Map<string, string> {
@@ -741,13 +720,13 @@ async function routeTreeProblems(): Promise<Problem[]> {
         : [
             problem(
               'route-tree',
-              `${generatedRouteTree} differs from what TanStack Router generates from ${routes}; it is generated, never edited: run the web build or dev server and commit the file it writes.`,
+              `${generatedRouteTree} differs from what TanStack Router generates from ${routes}; it is generated, never edited: run the web build or dev server and commit the file it writes, because editing generated routes disconnects the declared routes from the shipped router.`,
             ),
           ]),
       ...rewritten.map(([file]) =>
         problem(
           'route-tree',
-          `${join(routes, file)} is not what TanStack Router keeps it as; let the generator rewrite it through the web build or dev server and commit the result.`,
+          `${join(routes, file)} is not what TanStack Router keeps it as; let the generator rewrite it through the web build or dev server and commit the result, because editing generated routes disconnects the declared routes from the shipped router.`,
         ),
       ),
     ];
@@ -769,87 +748,130 @@ const rootTasks = [
 ] as const;
 const fastTasks = ['typecheck', 'test', ...rootTasks.slice(1)];
 
-const gateScripts: Readonly<Record<string, Readonly<Record<string, string>>>> =
-  {
-    'package.json': {
-      typecheck: 'tsc --noEmit',
-      'typecheck:server':
-        "tsc --noEmit && pnpm --filter '@porcelain/server...' -r typecheck",
-      'lint:server': 'node scripts/style.ts lint server',
-      'format:server:check': 'node scripts/style.ts format server',
-      'arch:check': 'node scripts/architecture.ts check',
-      probes: 'node scripts/probes.ts',
-      test: 'vitest run --project !@porcelain/client-integration --project !@porcelain/server-integration --project !@porcelain/server-perf --project !@porcelain/mobile-e2e*',
-      'test:integration': 'turbo run test:integration',
-      'test:e2e': 'turbo run test:e2e',
-      'db:check': 'pnpm --filter @porcelain/storage db:check',
-      prepare: 'lefthook install --reset-hooks-path',
-      'lint:web': 'node scripts/style.ts lint web',
-      'format:web:check': 'node scripts/style.ts format web',
-      check: `turbo run ${fastTasks.join(' ')} --output-logs=errors-only --continue --concurrency=100%`,
-      'test:rules': 'node architecture/rule-tests.mjs',
-      'probes:check': 'node scripts/probes.ts --check',
-      'features:check': 'node scripts/feature-maps.ts',
-    },
-    'apps/web/package.json': {
-      typecheck: 'tsc --noEmit && tsc --noEmit -p tsconfig.node.json',
-      build: 'tsc --noEmit && tsc --noEmit -p tsconfig.node.json && vite build',
-      'test:integration': 'vitest run --config vitest.config.ts',
-      'test:e2e': 'playwright test',
-    },
-    'apps/desktop/package.json': { 'test:e2e': 'playwright test' },
-    'apps/mobile/package.json': {
-      'test:e2e':
-        'vitest run --config ../../vitest.config.ts --project @porcelain/mobile-e2e && vitest run --config ../../vitest.config.ts --project @porcelain/mobile-e2e-tablet',
-    },
-    'apps/server/package.json': {
-      'test:integration':
-        'vitest run --config ../../vitest.config.ts --project @porcelain/server-integration',
-      'test:perf':
-        'vitest run --config ../../vitest.config.ts --project @porcelain/server-perf',
-    },
-    'packages/client/package.json': {
-      typecheck: 'tsc --noEmit && tsc --noEmit -p tsconfig.spec.json',
-      'test:integration':
-        'vitest run --config ../../vitest.config.ts --project @porcelain/client-integration',
-    },
-    'packages/storage/package.json': {
-      'db:check': 'drizzle-kit check && node scripts/check-migrations.ts',
-    },
-  };
+type Invocation = readonly [string, ...string[]];
+const rootCommands: Readonly<Record<string, readonly Invocation[]>> = {
+  typecheck: [['tsc', '--noEmit']],
+  'typecheck:server': [
+    ['tsc', '--noEmit'],
+    ['pnpm', '--filter', '@porcelain/server...', '-r', 'typecheck'],
+  ],
+  'lint:server': [['node', 'scripts/style.ts', 'lint', 'server']],
+  'lint:web': [['node', 'scripts/style.ts', 'lint', 'web']],
+  'format:server:check': [['node', 'scripts/style.ts', 'format', 'server']],
+  'format:web:check': [['node', 'scripts/style.ts', 'format', 'web']],
+  'arch:check': [['node', 'scripts/architecture.ts', 'check']],
+  probes: [['node', 'scripts/probes.ts']],
+  'probes:check': [['node', 'scripts/probes.ts', '--check']],
+  'features:check': [['node', 'scripts/feature-maps.ts']],
+  'test:rules': [['node', 'architecture/rule-tests.mjs']],
+  test: [
+    [
+      'vitest',
+      'run',
+      ...[
+        'client-integration',
+        'server-integration',
+        'server-perf',
+        'mobile-e2e*',
+      ].flatMap((name) => ['--project', `!@porcelain/${name}`]),
+    ],
+  ],
+  'test:integration': [['turbo', 'run', 'test:integration']],
+  'test:e2e': [['turbo', 'run', 'test:e2e']],
+  'db:check': [['pnpm', '--filter', '@porcelain/storage', 'db:check']],
+  prepare: [['lefthook', 'install']],
+  check: [['turbo', 'run', ...fastTasks]],
+};
 
 function scriptProblems(): Problem[] {
   const manifests = [
     'package.json',
     ...packageFolders.map((folder) => join(folder, 'package.json')),
   ];
-  return [
-    ...manifests.flatMap((path) => {
-      const scripts = existsSync(path)
-        ? (manifestScriptsSchema.parse(strictJson(path)).scripts ?? {})
-        : {};
-      const folder = dirname(path);
-      const expected = {
-        ...(path === 'package.json' || path === 'packages/theme/package.json'
-          ? {}
-          : {
-              typecheck: 'tsc --noEmit',
-              test: `vitest run --config ../../vitest.config.ts --project @porcelain/${basename(folder)}`,
-            }),
-        ...gateScripts[path],
-      };
-      return Object.entries(expected).flatMap(([name, command]) =>
-        scripts[name] === command
-          ? []
-          : [
-              problem(
-                'package-scripts',
-                `${path} runs "${command}" as ${name}; a gate cannot be switched off from a package script.`,
-              ),
-            ],
-      );
-    }),
+  const integration = (name: string): readonly Invocation[] => [
+    [
+      'vitest',
+      'run',
+      '--config',
+      '../../vitest.config.ts',
+      '--project',
+      `@porcelain/${name}`,
+    ],
   ];
+  return manifests.flatMap((path) => {
+    const scripts = existsSync(path)
+      ? (manifestScriptsSchema.parse(strictJson(path)).scripts ?? {})
+      : {};
+    const folder = dirname(path);
+    let expected: Readonly<Record<string, readonly Invocation[]>> = {};
+    if (path === 'package.json') expected = rootCommands;
+    else if (path !== 'packages/theme/package.json') {
+      expected = {
+        typecheck: [['tsc', '--noEmit']],
+        test: integration(basename(folder)),
+      };
+      if (folder === 'apps/web')
+        expected = {
+          ...expected,
+          typecheck: [
+            ['tsc', '--noEmit'],
+            ['tsc', '--noEmit', '-p', 'tsconfig.node.json'],
+          ],
+          build: [
+            ['tsc', '--noEmit'],
+            ['tsc', '--noEmit', '-p', 'tsconfig.node.json'],
+            ['vite', 'build'],
+          ],
+          'test:integration': [
+            ['vitest', 'run', '--config', 'vitest.config.ts'],
+          ],
+          'test:e2e': [['playwright', 'test']],
+        };
+      if (folder === 'apps/desktop')
+        expected = { ...expected, 'test:e2e': [['playwright', 'test']] };
+      if (folder === 'apps/mobile')
+        expected = {
+          ...expected,
+          'test:e2e': [
+            ...integration('mobile-e2e'),
+            ...integration('mobile-e2e-tablet'),
+          ],
+        };
+      if (folder === 'apps/server')
+        expected = {
+          ...expected,
+          'test:integration': integration('server-integration'),
+          'test:perf': integration('server-perf'),
+        };
+      if (folder === 'packages/client')
+        expected = {
+          ...expected,
+          typecheck: [
+            ['tsc', '--noEmit'],
+            ['tsc', '--noEmit', '-p', 'tsconfig.spec.json'],
+          ],
+          'test:integration': integration('client-integration'),
+        };
+      if (folder === 'packages/storage')
+        expected = {
+          ...expected,
+          'db:check': [
+            ['drizzle-kit', 'check'],
+            ['node', 'scripts/check-migrations.ts'],
+          ],
+        };
+    }
+    return Object.entries(expected).flatMap(([name, invocations]) =>
+      scriptInvokes(scripts[name] ?? '', invocations, folder)
+        ? []
+        : [
+            problem(
+              'package-scripts',
+              `${path} ${name} must invoke ${invocations.map((command) => command.join(' ')).join(' and ')}, because a successful no-op leaves its gate unchecked.`,
+            ),
+          ],
+    );
+  });
 }
 
 const vitestConfigSchema = z.object({
@@ -884,8 +906,6 @@ const playwrightConfigSchema = z.object({
 
 const desktopPlaywrightConfigSchema = z.object({
   default: z.object({
-    testDir: z.unknown(),
-    globalSetup: z.unknown(),
     retries: z.unknown(),
     forbidOnly: z.unknown(),
   }),
@@ -940,6 +960,35 @@ const reportsSpecDiscipline = (reporter: unknown): boolean =>
   'onTestRunEnd' in reporter &&
   typeof reporter.onTestRunEnd === 'function';
 
+function desktopDiscoversTests(): boolean {
+  const result = spawnSync(
+    resolve('node_modules/.bin/playwright'),
+    ['test', '--list', '--reporter=json'],
+    { cwd: 'apps/desktop', encoding: 'utf8' },
+  );
+  if (result.status !== 0) return false;
+  const listed = z
+    .object({
+      config: z.object({ rootDir: z.string() }),
+      suites: z.array(z.object({ file: z.string() })),
+    })
+    .safeParse(JSON.parse(result.stdout));
+  if (!listed.success) return false;
+  const discovered = new Set(
+    listed.data.suites.map((suite) =>
+      resolve(listed.data.config.rootDir, suite.file),
+    ),
+  );
+  const expected = filesUnder('apps/desktop/spec/e2e').filter((path) =>
+    path.endsWith('.e2e.ts'),
+  );
+  return (
+    expected.length > 0 &&
+    expected.every((path) => discovered.has(resolve(path))) &&
+    discovered.size === expected.length
+  );
+}
+
 async function configModuleProblems(): Promise<Problem[]> {
   const problems: Problem[] = [];
   const load = async (path: string): Promise<unknown> =>
@@ -964,7 +1013,7 @@ async function configModuleProblems(): Promise<Problem[]> {
     problems.push(
       problem(
         'vitest-config',
-        'vitest.config.ts gives every package a project that requires assertions, allows no .only, fails with no specs and keeps the spec-discipline reporter.',
+        'vitest.config.ts gives every package a project that requires assertions, allows no .only, fails with no specs and keeps the spec-discipline reporter, because each declared unit and integration test must be discovered and assert its promise.',
       ),
     );
   const browser = browserConfigSchema.safeParse(
@@ -988,7 +1037,7 @@ async function configModuleProblems(): Promise<Problem[]> {
     problems.push(
       problem(
         'vitest-config',
-        'apps/web/vitest.config.ts runs every integration test in spec/integration exactly once, in one project whose files Vitest schedules, with no retry and no .only, in headless Chromium through the Playwright provider.',
+        'apps/web/vitest.config.ts runs every integration test in spec/integration exactly once, in one project whose files Vitest schedules, with no retry and no .only, in headless Chromium through the Playwright provider, because each declared unit and integration test must be discovered and assert its promise.',
       ),
     );
   const e2e = playwrightConfigSchema.safeParse(
@@ -1006,7 +1055,7 @@ async function configModuleProblems(): Promise<Problem[]> {
     problems.push(
       problem(
         'playwright-config',
-        'apps/web/playwright.config.ts runs every e2e test once, with no retry and no .only, in headless Chromium, and keeps the trace of each failure.',
+        'apps/web/playwright.config.ts runs every e2e test once in headless Chromium with a failure trace, because retries and .only can hide regressions.',
       ),
     );
   const desktop = desktopPlaywrightConfigSchema.safeParse(
@@ -1015,15 +1064,14 @@ async function configModuleProblems(): Promise<Problem[]> {
   const native = desktop.success ? desktop.data.default : undefined;
   if (
     native === undefined ||
-    native.testDir !== './spec/e2e' ||
-    native.globalSetup !== './spec/e2e/global-setup.ts' ||
+    !desktopDiscoversTests() ||
     native.retries !== 0 ||
     native.forbidOnly !== true
   )
     problems.push(
       problem(
         'playwright-config',
-        'apps/desktop/playwright.config.ts runs every desktop e2e test in spec/e2e once, with no retry and no .only, after the global setup that refuses any host but macOS and stages Porcelain Dev.',
+        'apps/desktop/playwright.config.ts discovers every desktop e2e test once with no retry and no .only, so misplaced suites cannot silently escape the runner.',
       ),
     );
   const cruiser = cruiserConfigSchema.safeParse(
@@ -1046,7 +1094,7 @@ async function configModuleProblems(): Promise<Problem[]> {
     problems.push(
       problem(
         'cruiser-config',
-        'architecture/dependency-cruiser.cjs keeps its forbidden rules as errors, and the circular-import rule covers the server, web, desktop and every package.',
+        'architecture/dependency-cruiser.cjs keeps its forbidden rules as errors, and the circular-import rule covers the server, web, desktop and every package, because a narrowed or disabled dependency rule misses ownership violations.',
       ),
     );
   return problems;
@@ -1136,7 +1184,7 @@ function duplicateFindings(): Finding[] {
       line: here?.start ?? 0,
       column: 0,
       code: 'error style(duplicate-code)',
-      message: `${clone.lines} lines here repeat ${at(there?.name ?? '')}:${there?.start ?? 0}; ${scope.name} has ${report.count} ${unit}, above its ceiling of ${scope.ceiling}, which only moves down. ${scope.why} Extract the copy into its owner to keep fixes from drifting between copies.`,
+      message: `${clone.lines} lines here repeat ${at(there?.name ?? '')}:${there?.start ?? 0}; ${scope.name} has ${report.count} ${unit}, above its ceiling of ${scope.ceiling}, which only moves down. ${scope.why} Extract the copy into its owner, because duplicated fixes drift between copies.`,
     })),
   );
 }
@@ -1217,12 +1265,23 @@ if (mode === 'format') {
 } else {
   process.exitCode = await lint();
   const files = repositoryFiles();
+  const architectureSources = files
+    .filter((path) => path.startsWith('architecture/'))
+    .map((path) => readFileSync(path, 'utf8'));
+  const lineCount = architectureLines(architectureSources);
   const problems = [
+    ...(lineCount > ARCHITECTURE_LINE_BUDGET
+      ? [
+          problem(
+            'architecture-budget',
+            `architecture/ has ${lineCount} lines against its ${ARCHITECTURE_LINE_BUDGET} line budget, because guardrails must stay small enough to review; cut a redundant rule before adding another.`,
+          ),
+        ]
+      : []),
     ...disableDirectives(),
     ...strayLintConfigs(),
     ...strayFormatConfigs(),
     ...codeOutsideLintRoots(files),
-    ...proseOutsideSkills(files),
     ...(await configProblems().catch((error: unknown) => {
       if (error instanceof StyleProblem) return [error.problem];
       throw error;

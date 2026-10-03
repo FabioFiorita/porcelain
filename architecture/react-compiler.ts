@@ -1,4 +1,6 @@
 import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { z } from 'zod';
 import { transformAsync } from '@babel/core';
 import reactCompiler, {
   type LoggerEvent,
@@ -50,7 +52,7 @@ async function failures(
           found.set(key, {
             file,
             line,
-            message: `the React Compiler cannot compile this function: ${why}`,
+            message: `the React Compiler cannot compile this function because ${why}`,
           });
       },
     },
@@ -69,7 +71,7 @@ export async function compilerFindings(
         file,
         line: 1,
         message:
-          'a use no memo directive hides a component from the React Compiler; make the component compile instead',
+          'a use no memo directive hides a component from the React Compiler; make the component compile instead, because the shipped build must compile every component',
       });
     try {
       await compile(file, source, {
@@ -85,11 +87,65 @@ export async function compilerFindings(
               {
                 file,
                 line: 1,
-                message: `the React Compiler cannot compile this file: ${error instanceof Error ? (error.message.split('\n')[0] ?? '') : String(error)}`,
+                message: `the React Compiler cannot compile this file because ${error instanceof Error ? (error.message.split('\n')[0] ?? '') : String(error)}`,
               },
             ]),
       );
     }
   }
   return findings;
+}
+
+const buildPluginSchema = z.object({
+  name: z.literal('@rolldown/plugin-babel'),
+  configResolved: z.custom<(...arguments_: unknown[]) => unknown>(
+    (value) => typeof value === 'function',
+  ),
+  applyToEnvironment: z.custom<(...arguments_: unknown[]) => unknown>(
+    (value) => typeof value === 'function',
+  ),
+  transform: z.object({
+    handler: z.custom<(...arguments_: unknown[]) => unknown>(
+      (value) => typeof value === 'function',
+    ),
+  }),
+});
+
+export async function buildCompilerRuns(module: unknown): Promise<boolean> {
+  const config = z
+    .object({ default: z.object({ plugins: z.array(z.unknown()) }) })
+    .safeParse(module);
+  if (!config.success) return false;
+  const pending = [...config.data.default.plugins];
+  while (pending.length > 0) {
+    const value: unknown = await pending.shift();
+    const list = z.array(z.unknown()).safeParse(value);
+    if (list.success) {
+      pending.push(...list.data);
+      continue;
+    }
+    const parsed = buildPluginSchema.safeParse(value);
+    if (!parsed.success) continue;
+    const plugin = parsed.data;
+    const environment = { name: 'client', config: { consumer: 'client' } };
+    plugin.configResolved({ command: 'build', isProduction: true });
+    if (!plugin.applyToEnvironment(environment)) continue;
+    const source =
+      'export function GuardrailFixture({label}) { return <p>{label.trim()}</p>; }';
+    const transformed = await plugin.transform.handler.call(
+      {
+        environment,
+        error(problem: { message: string }) {
+          throw new Error(problem.message);
+        },
+      },
+      source,
+      resolve('apps/web/src/guardrail-fixture.tsx'),
+      { moduleType: 'tsx' },
+    );
+    const result = z.object({ code: z.string() }).safeParse(transformed);
+    if (result.success && result.data.code.includes('react/compiler-runtime'))
+      return true;
+  }
+  return false;
 }
