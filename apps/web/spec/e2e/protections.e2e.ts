@@ -1,65 +1,52 @@
 import { createFailures } from '../kit/failures.ts';
-import { expect, keptEvidence, test, watchFailures } from './fixtures.ts';
+import { expect, keptEvidence, runningFailures, test } from './fixtures.ts';
 
-test('a console error the test did not declare is reported as a failure', async ({
-  browser,
-  baseURL,
+test('the automatic failures fixture reports a console error the test did not declare', async ({
+  unpairedPage,
 }) => {
-  const context = await browser.newContext();
-  const observed = await watchFailures(context);
-  const page = await context.newPage();
-  await page.goto(`${baseURL ?? ''}/`);
-  await page.evaluate(() =>
+  const failures = runningFailures();
+  const reported = ['console error: A failure the journey never declared'];
+  await unpairedPage.evaluate(() =>
     console.error('A failure the journey never declared'),
   );
-  const failures = createFailures();
-  await expect
-    .poll(() => failures.unexpected(observed, []))
-    .toEqual(['console error: A failure the journey never declared']);
-  await context.close();
+  await expect.poll(() => failures.reported()).toEqual(reported);
+  failures.accept(reported);
 });
 
-test('an uncaught error and an unhandled rejection in the page are reported as failures', async ({
-  browser,
-  baseURL,
+test('the automatic failures fixture reports an uncaught error and an unhandled rejection in the page', async ({
+  unpairedPage,
 }) => {
-  const context = await browser.newContext();
-  const observed = await watchFailures(context);
-  const page = await context.newPage();
-  await page.goto(`${baseURL ?? ''}/`);
-  await page.evaluate(() => {
+  const failures = runningFailures();
+  const reported = [
+    'uncaught error: An uncaught failure',
+    'uncaught error: An unhandled rejection',
+  ];
+  await unpairedPage.evaluate(() => {
     queueMicrotask(() => {
       throw new Error('An uncaught failure');
     });
     void Promise.reject(new Error('An unhandled rejection'));
   });
   await expect
-    .poll(() => [...createFailures().unexpected(observed, [])].sort())
-    .toEqual([
-      'uncaught error: An uncaught failure',
-      'unhandled rejection: An unhandled rejection',
-    ]);
-  await context.close();
+    .poll(async () => [...(await failures.reported())].sort())
+    .toEqual(reported);
+  failures.accept(reported);
 });
 
-test('a declared console error matches the one the page reports, and a declared failure that never happens is reported', async ({
-  browser,
-  baseURL,
+test('the automatic failures fixture matches a declared console error and reports a declared one that never happens', async ({
+  unpairedPage,
 }) => {
-  const context = await browser.newContext();
-  const observed = await watchFailures(context);
-  const page = await context.newPage();
-  await page.goto(`${baseURL ?? ''}/`);
-  await page.evaluate(() => console.error('A failure the journey declared'));
-  const failures = createFailures();
+  const failures = runningFailures();
+  const reported = [
+    'declared console error /a failure that never comes/ never happened',
+  ];
   failures.console(/the journey declared/);
   failures.console(/a failure that never comes/);
-  await expect
-    .poll(() => failures.unexpected(observed, []))
-    .toEqual([
-      'declared console error /a failure that never comes/ never happened',
-    ]);
-  await context.close();
+  await unpairedPage.evaluate(() =>
+    console.error('A failure the journey declared'),
+  );
+  await expect.poll(() => failures.reported()).toEqual(reported);
+  failures.accept(reported);
 });
 
 test('an undeclared 5xx answer from the server is reported, a declared one is not, and a kit request never counts', async () => {

@@ -7,6 +7,7 @@ const desktopJourneys = '**/*.desktop.e2e.ts';
 export default defineConfig<{ shell: Shell }>({
   testDir: './spec/e2e',
   testMatch: '**/*.e2e.ts',
+  globalSetup: './spec/e2e/global-setup.ts',
   outputDir: './test-results/e2e',
   fullyParallel: true,
   forbidOnly: true,

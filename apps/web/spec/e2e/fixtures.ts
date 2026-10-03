@@ -1,20 +1,19 @@
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import {
-  expect,
-  test as base,
-  type BrowserContext,
-  type Page,
-} from '@playwright/test';
+import { expect, test as base, type Page } from '@playwright/test';
 import { pairingLink } from '@porcelain/contracts/access';
-import { buildIsolatedServer } from '@porcelain/server/kit/sandbox';
 import { createServer, type ViteDevServer } from 'vite';
-import { createFailures, failureMessage } from '../kit/failures.ts';
+import {
+  createFailures,
+  failureMessage,
+  type Failures,
+} from '../kit/failures.ts';
 import type { BrowserFailure, ServerName } from '../kit/protocol.ts';
 import { serverReaders } from '../kit/readers.ts';
 import { agentOn, projectHomeOn, sampleRepository } from '../kit/shapes.ts';
 import { World } from '../kit/world.ts';
+import { serverBuild } from './global-setup.ts';
 import {
   failInventory,
   holdNextPost,
@@ -34,52 +33,6 @@ export type Shell = 'web' | 'desktop';
 const webRoot = resolve(import.meta.dirname, '../..');
 const repositoryRoot = resolve(webRoot, '../..');
 const viteModes: Record<Shell, string> = { web: 'test', desktop: 'desktop' };
-const failureBinding = 'porcelainKitFailure';
-
-const watchPage = `
-(() => {
-  const describe = (value) =>
-    value instanceof Error
-      ? value.message
-      : typeof value === 'string'
-        ? value
-        : JSON.stringify(value);
-  const report = (kind, value) => {
-    const send = window[${JSON.stringify(failureBinding)}];
-    if (typeof send === 'function') void send(kind, describe(value));
-  };
-  const original = console.error.bind(console);
-  console.error = (...values) => {
-    report('console error', values.map(describe).join(' '));
-    original(...values);
-  };
-  window.addEventListener('error', (event) => report('uncaught error', event.error));
-  window.addEventListener('unhandledrejection', (event) =>
-    report('unhandled rejection', event.reason),
-  );
-})();
-`;
-
-function isFailureKind(kind: string): kind is BrowserFailure['kind'] {
-  return (
-    kind === 'console error' ||
-    kind === 'uncaught error' ||
-    kind === 'unhandled rejection'
-  );
-}
-
-export async function watchFailures(context: BrowserContext) {
-  const observed: BrowserFailure[] = [];
-  await context.exposeBinding(
-    failureBinding,
-    (_source, kind: string, message: string) => {
-      if (isFailureKind(kind)) observed.push({ kind, message });
-    },
-  );
-  await context.addInitScript(watchPage);
-  return observed;
-}
-
 const appSource = '/src/';
 
 async function transformApp(
@@ -142,7 +95,7 @@ async function startVite(shell: Shell) {
 
 type Vite = Awaited<ReturnType<typeof startVite>>;
 
-type WorkerFixtures = { shell: Shell; build: string; vite: Vite };
+type WorkerFixtures = { shell: Shell; vite: Vite };
 
 function readersOf(world: World, server: ServerName) {
   return serverReaders({
@@ -233,13 +186,25 @@ async function appOf(page: Page, world: World, live: LiveFixture) {
 
 type LiveFixture = Awaited<ReturnType<typeof liveRouter>>;
 
+type WatchedFailures = Failures & { reported: () => Promise<string[]> };
+
+let running: WatchedFailures | undefined;
+
+export function runningFailures(): WatchedFailures {
+  if (running === undefined)
+    throw new Error(
+      'The automatic failures fixture watches every test; none is running.',
+    );
+  return running;
+}
+
 export type Repo = Awaited<ReturnType<typeof repositoryOf>>;
 
 type TestFixtures = {
   world: World;
   observed: BrowserFailure[];
   live: LiveFixture;
-  failures: ReturnType<typeof createFailures>;
+  failures: WatchedFailures;
   server: ReturnType<typeof readersOf>;
   repo: Awaited<ReturnType<typeof repositoryOf>>;
   agent: ReturnType<typeof agentOf>;
@@ -263,15 +228,6 @@ type TestFixtures = {
 
 export const test = base.extend<TestFixtures, WorkerFixtures>({
   shell: ['web', { scope: 'worker', option: true }],
-  build: [
-    async ({ shell: _shell }, use) => {
-      const folder = await mkdtemp(join(tmpdir(), 'porcelain-e2e-server-'));
-      await buildIsolatedServer(folder);
-      await use(folder);
-      await rm(folder, { recursive: true, force: true });
-    },
-    { scope: 'worker' },
-  ],
   vite: [
     async ({ shell }, use) => {
       const vite = await startVite(shell);
@@ -283,8 +239,8 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
   baseURL: async ({ vite }, use) => {
     await use(vite.url);
   },
-  world: async ({ build, vite }, use, testInfo) => {
-    const world = await World.start(repositoryRoot, build);
+  world: async ({ vite }, use, testInfo) => {
+    const world = await World.start(repositoryRoot, serverBuild());
     vite.target(world.server.address);
     await use(world);
     await world.keepEvidence(testInfo.outputPath('server'));
@@ -295,7 +251,18 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
       );
   },
   observed: async ({ context }, use) => {
-    await use(await watchFailures(context));
+    const observed: BrowserFailure[] = [];
+    context.on('console', (message) => {
+      if (message.type() === 'error' && message.args().length > 0)
+        observed.push({ kind: 'console error', message: message.text() });
+    });
+    context.on('weberror', (failure) =>
+      observed.push({
+        kind: 'uncaught error',
+        message: failure.error().message,
+      }),
+    );
+    await use(observed);
   },
   page: async ({ page, observed: _observed, live: _live }, use) => {
     await use(page);
@@ -308,12 +275,16 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
   failures: [
     async ({ world, observed, live: _live }, use, testInfo) => {
       const failures = createFailures();
-      await use(failures);
-      const hits = [
-        ...(await world.hits('this')),
-        ...(await world.hits('remote')),
-      ];
-      const unexpected = failures.unexpected(observed, hits);
+      const reported = async () =>
+        failures.unexpected(observed, [
+          ...(await world.hits('this')),
+          ...(await world.hits('remote')),
+        ]);
+      const watched: WatchedFailures = { ...failures, reported };
+      running = watched;
+      await use(watched);
+      running = undefined;
+      const unexpected = await reported();
       if (unexpected.length > 0)
         throw new Error(failureMessage(testInfo.title, unexpected));
     },
