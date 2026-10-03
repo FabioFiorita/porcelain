@@ -1,13 +1,13 @@
 import type { QueryFunctionContext } from '@tanstack/query-core';
 import { ConnectionError } from '../../../shared/api/connection-error.ts';
 import { inventoryApi } from '../api.ts';
-import type { InventoryConnection } from '../ports/inventory-connection.ts';
+import type { WorktreeConnection } from '../../../shared/api/connection.ts';
 
 export function inventoryScopeQueryOptions(environmentId: string | undefined) {
   return { queryKey: ['inventory', environmentId] };
 }
 
-export function inventoryQueryOptions(connection: InventoryConnection) {
+export function inventoryQueryOptions(connection: WorktreeConnection) {
   return {
     queryKey: [
       ...inventoryScopeQueryOptions(connection.environmentId).queryKey,
