@@ -48,10 +48,12 @@ export function ConnectedWorkspace({
   review,
   remote,
   unavailable,
+  missing = false,
 }: {
   review?: Review;
   remote?: RemoteConnection;
   unavailable?: RemoteStatus;
+  missing?: boolean;
 }) {
   const navigationTrigger = useRef<HTMLButtonElement>(null);
   const [shortcuts, setShortcuts] = useState(false);
@@ -167,9 +169,15 @@ export function ConnectedWorkspace({
             ) : (
               <Empty>
                 <EmptyHeader>
-                  <EmptyTitle>Select a worktree</EmptyTitle>
+                  <EmptyTitle>
+                    {missing
+                      ? 'Worktree no longer present'
+                      : 'Select a worktree'}
+                  </EmptyTitle>
                   <EmptyDescription>
-                    Choose a worktree to establish your review context.
+                    {missing
+                      ? 'Choose a worktree that is still in the sidebar.'
+                      : 'Choose a worktree to establish your review context.'}
                   </EmptyDescription>
                 </EmptyHeader>
               </Empty>

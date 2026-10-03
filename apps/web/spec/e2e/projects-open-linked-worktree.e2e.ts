@@ -34,7 +34,7 @@ test('opening a repository with a linked worktree from the empty workspace after
   await expect.poll(() => app.address().path).toBe('/');
   await app.reload();
   await expect(
-    opened.getByText('Select a worktree', { exact: true }),
+    opened.getByText('Worktree no longer present', { exact: true }),
   ).toBeVisible();
 
   await repo.worktree('linked');

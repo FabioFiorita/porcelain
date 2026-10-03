@@ -112,6 +112,6 @@ test('Settings still opens once the last project is removed', async ({
   ).toBeVisible();
   await settings.getByRole('button', { name: 'Back', exact: true }).click();
   await expect(
-    pairedPage.getByText('Select a worktree', { exact: true }),
+    pairedPage.getByText('Worktree no longer present', { exact: true }),
   ).toBeVisible();
 });
