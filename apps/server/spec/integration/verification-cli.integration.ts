@@ -1,4 +1,4 @@
-import { execFile, spawn } from 'node:child_process';
+import { execFile, spawn, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import {
@@ -12,6 +12,7 @@ import {
   writeFile,
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
+import { setTimeout as delay } from 'node:timers/promises';
 import { basename, dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expect, type TestContext } from 'vitest';
@@ -79,6 +80,10 @@ async function started(
   const file = instanceFile(root, surface, id);
   onTestFinished(async () => {
     await cli(root, path, 'stop', '--instance', id);
+    expect(
+      running(dirname(file)),
+      'no process of the instance outlives its stop',
+    ).toStrictEqual([]);
   });
   const instance = record(JSON.parse(await readFile(file, 'utf8')));
   return {
@@ -136,6 +141,26 @@ function alive(pid: number): boolean {
   } catch {
     return false;
   }
+}
+
+function running(fragment: string): string[] {
+  const listed = spawnSync('ps', ['-A', '-ww', '-o', 'pid=', '-o', 'args='], {
+    encoding: 'utf8',
+    maxBuffer: 64 * 1024 * 1024,
+  });
+  return listed.stdout
+    .split('\n')
+    .filter(
+      (line) =>
+        line.includes(fragment) &&
+        !line.trimStart().startsWith(`${listed.pid} `),
+    );
+}
+
+async function settled(done: () => boolean): Promise<boolean> {
+  for (let attempt = 0; attempt < 200 && !done(); attempt += 1)
+    await delay(100);
+  return done();
 }
 
 test('a CLI session records numbered, redacted evidence and never shows the instance credential', async ({
@@ -299,9 +324,10 @@ test('stop never signals a process whose command line is not the instance superv
   const instance = await started(onTestFinished);
   const stranger = spawn('sleep', ['300'], { stdio: 'ignore' });
   const strangerPid = stranger.pid ?? 0;
-  onTestFinished(() => {
+  onTestFinished(async () => {
     stranger.kill('SIGKILL');
     if (alive(instance.pid)) process.kill(instance.pid, 'SIGTERM');
+    await settled(() => !alive(instance.pid));
   });
   const saved = record(JSON.parse(await readFile(instance.file, 'utf8')));
   await writeFile(
@@ -336,6 +362,51 @@ test('stop never signals a process whose command line is not the instance superv
   );
   expect(alive(strangerPid)).toBe(true);
   expect(alive(instance.pid)).toBe(true);
+});
+
+test('stop ends the sandboxed server of an instance whose supervisor is gone', async ({
+  onTestFinished,
+}) => {
+  const instance = await started(onTestFinished);
+  const build = join(dirname(instance.file), 'build');
+  const before = running(build);
+  process.kill(instance.pid, 'SIGKILL');
+  await settled(() => !alive(instance.pid));
+
+  const stopped = await cli(
+    repositoryRoot,
+    SERVER_CLI,
+    'stop',
+    '--instance',
+    instance.id,
+  );
+
+  expect(before, 'the sandboxed server runs before the stop').not.toStrictEqual(
+    [],
+  );
+  expect(stopped.code).toBe(0);
+  expect(stopped.stdout).toMatch(
+    new RegExp(`^stopped 1 process left in process group ${instance.pid}\n`),
+  );
+  expect(running(build)).toStrictEqual([]);
+});
+
+test('a supervisor stopped after its instance folder was removed still ends its sandboxed server', async ({
+  onTestFinished,
+}) => {
+  const instance = await started(onTestFinished);
+  const build = join(dirname(instance.file), 'build');
+  const before = running(build);
+  await rm(dirname(instance.file), { recursive: true, force: true });
+
+  process.kill(instance.pid, 'SIGTERM');
+  const exited = await settled(() => !alive(instance.pid));
+
+  expect(before, 'the sandboxed server runs before the stop').not.toStrictEqual(
+    [],
+  );
+  expect(exited).toBe(true);
+  expect(running(build)).toStrictEqual([]);
 });
 
 test('concurrent commands each record their own numbered evidence file', async ({

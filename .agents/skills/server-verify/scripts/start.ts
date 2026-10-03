@@ -31,7 +31,7 @@ export async function start(): Promise<string> {
 export function serve(folder: string): Promise<void> {
   return registry.serve(folder, async (life) => {
     const build = join(folder, 'build');
-    const logFile = join(folder, 'server.log');
+    const logFile = join(life.evidence().folder, 'server.log');
     await buildIsolatedServer(build);
     const server = await IsolatedServer.start(
       repositoryRoot,
@@ -42,12 +42,12 @@ export function serve(folder: string): Promise<void> {
     life.secret(server.credential, server.desktopCredential);
     life.onStop(async (reason) => {
       appendFileSync(logFile, `\n[cli] stopping: ${reason}\n`);
+      await server.stop();
       await life.evidence().json('server-stop', {
         command: ['serve'],
         reason,
         serverOutput: readFileSync(logFile, 'utf8'),
       });
-      await server.stop();
     });
     server.exited.then(
       () => life.stop('the server exited'),

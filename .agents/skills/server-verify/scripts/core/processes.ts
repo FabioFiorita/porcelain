@@ -15,7 +15,10 @@ export function processes(): Running[] {
   if (listed.error) throw listed.error;
   return listed.stdout.split('\n').flatMap((line) => {
     const match = /^\s*(\d+)\s+(\d+)\s+(.*)$/.exec(line);
-    return match?.[1] && match[2] && match[3] !== undefined
+    return match?.[1] &&
+      match[2] &&
+      match[3] !== undefined &&
+      Number(match[1]) !== listed.pid
       ? [{ pid: Number(match[1]), pgid: Number(match[2]), command: match[3] }]
       : [];
   });
@@ -42,6 +45,24 @@ async function settled(done: () => boolean, withinMs: number) {
   return done();
 }
 
+export async function endGroup(pgid: number): Promise<string[]> {
+  const members = () =>
+    processes().filter(
+      (entry) => entry.pgid === pgid && entry.pid !== process.pid,
+    );
+  const left = members();
+  if (left.length === 0) return [];
+  const count = `${left.length} process${left.length === 1 ? '' : 'es'}`;
+  for (const entry of left) signal(entry.pid, 'SIGTERM');
+  if (await settled(() => members().length === 0, killWithinMs))
+    return [`stopped ${count} left in process group ${pgid}`];
+  for (const entry of members()) signal(entry.pid, 'SIGKILL');
+  await settled(() => members().length === 0, killWithinMs);
+  return [
+    `sent SIGKILL to process group ${pgid}, which still held ${count} after SIGTERM`,
+  ];
+}
+
 export async function endLeader(
   pid: number,
   marker: string,
@@ -60,15 +81,7 @@ export async function endLeader(
         `the supervisor ${pid} did not stop within ${withinMs} ms after SIGTERM`,
       );
   }
-  const group = () => processes().filter((entry) => entry.pgid === pid);
-  const left = group();
-  if (left.length === 0) return report;
-  signal(-pid, 'SIGKILL');
-  await settled(() => group().length === 0, killWithinMs);
-  return [
-    ...report,
-    `sent SIGKILL to process group ${pid}, which still held ${left.length} process${left.length === 1 ? '' : 'es'}`,
-  ];
+  return [...report, ...(await endGroup(pid))];
 }
 
 export async function endMatching(marker: string): Promise<string[]> {

@@ -18,7 +18,7 @@ import { z } from 'zod';
 import { Refusal } from './cli.ts';
 import { Evidence, Redactor, type EvidenceFormat } from './evidence.ts';
 import { buildFingerprint, type BuildInputs } from './fingerprint.ts';
-import { endLeader, endMatching, processes } from './processes.ts';
+import { endGroup, endLeader, endMatching, processes } from './processes.ts';
 
 const core = dirname(fileURLToPath(import.meta.url));
 export const repositoryRoot = resolve(core, '../../../../..');
@@ -345,6 +345,8 @@ export class Registry<Detail> {
             `[supervisor] cleanup failed: ${String(error)}\n`,
           ),
         );
+      for (const line of await endGroup(process.pid))
+        process.stdout.write(`[supervisor] ${line}\n`);
       await evidence().scrub();
       await rm(folder, { recursive: true, force: true });
       process.exit(0);
