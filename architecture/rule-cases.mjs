@@ -4347,6 +4347,18 @@ export const probeLive = createPairingLive;
 export const guardrailCases = [
   {
     rule: 'lane-per-table',
+    valid: {
+      'apps/server/src/ports/device-connection-store.ts':
+        'export interface DeviceConnectionStore { insert(): void; }',
+    },
+    invalid: {
+      'apps/server/src/ports/new-connection-store.ts':
+        'export interface NewConnectionStore { insert(): void; }',
+    },
+    errors: ['lane-per-table'],
+  },
+  {
+    rule: 'lane-per-table',
     files: {
       'apps/server/src/use-cases/reviews/read-review.ts':
         "import { ReadReviewService } from '../../../../../packages/reviews/src/services/read-review-service.ts'; export class ReadReviewUseCase { constructor(private readonly service: ReadReviewService, private readonly lanes: { run(key: string, mode: string, body: () => string[]): string[] }, private readonly laneKeys: { reviews(): string }) {} execute() { return this.lanes.run(this.laneKeys.reviews(), 'read', () => this.service.execute()); } }",
@@ -4363,7 +4375,7 @@ export const guardrailCases = [
       'packages/reviews/src/services/read-review-service.ts':
         "import type { NewReviewStore as Store } from '../ports/review-store.ts'; export class ReadReviewService { constructor(private readonly store: Store) {} execute(): string[] { return this.store.list(); } }",
     },
-    errors: ['lane-per-table', 'lane-per-table'],
+    errors: ['lane-per-table'],
   },
   {
     rule: 'lane-per-table',
@@ -4474,14 +4486,15 @@ export const guardrailCases = [
     invalid,
   })),
   ...[
-    ['apps/server/src/copy.ts', 'packages/reviews/src/copy.ts'],
+    ['apps/server/src/copy.ts', 'packages/reviews/src/copy.ts', 800],
     ['packages/client/src/copy.ts', 'packages/reviews/src/copy.ts'],
     ['apps/mobile/src/copy.ts', 'apps/desktop/src/copy.ts'],
     ['apps/web/src/copy.ts', 'packages/client/src/copy.ts'],
-  ].map(([first, second]) => ({
+  ].map(([first, second, fillerLines = 0]) => ({
     rule: 'duplicate-code',
     first,
     second,
+    fillerLines,
     valid: 'export const label = "Unique";',
     invalid: `export function matchPaths(paths: readonly string[], query: string) {
   const needle = query.trim().toLowerCase();

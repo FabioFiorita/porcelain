@@ -24,11 +24,13 @@ const reportSchema = z.object({
 });
 
 export function duplicateScope(
-  target: string,
+  target: 'web' | 'repository',
   packageNames: readonly string[],
 ) {
-  if (target === 'web') return { sources: ['apps/web/src'], threshold: 0 };
+  if (target === 'web')
+    return { name: 'web', sources: ['apps/web/src'], threshold: 0 };
   return {
+    name: 'repository',
     sources: [
       'apps/web/src',
       'apps/server/src',
@@ -36,7 +38,7 @@ export function duplicateScope(
       'apps/mobile/src',
       ...packageNames.map((name) => `packages/${name}/src`),
     ],
-    threshold: 1,
+    threshold: 0.831,
   };
 }
 

@@ -1112,11 +1112,14 @@ function webSources(): string[] {
 }
 
 function duplicateFindings(): Finding[] {
-  const scope = duplicateScope(target ?? '', packageNames);
+  const scope = duplicateScope(
+    target === 'web' ? 'web' : 'repository',
+    packageNames,
+  );
   const report = scanDuplicates(process.cwd(), scope);
   const total = report.statistics.total;
   process.stdout.write(
-    `Duplicate code: ${total.clones} clones, ${total.duplicatedLines} duplicated lines, ${total.percentage.toFixed(2)}% (limit ${scope.threshold}%) across ${scope.sources.join(', ')}.\n`,
+    `Duplicate code (${scope.name}): ${total.clones} clones, ${total.duplicatedLines} duplicated lines, ${total.percentage.toFixed(6)}% (limit ${scope.threshold}%; the ceiling only moves down) across ${scope.sources.join(', ')}.\n`,
   );
   if (!report.exceeded) return [];
   const at = (name: string) => relative('.', name);
@@ -1130,7 +1133,7 @@ function duplicateFindings(): Finding[] {
       line: here?.start ?? 0,
       column: 0,
       code: 'error style(duplicate-code)',
-      message: `${clone.lines} lines here repeat ${at(there?.name ?? '')}:${there?.start ?? 0}; duplication exceeds the ${scope.threshold}% ceiling, so extract a second copy into its owner to keep fixes from drifting between copies.`,
+      message: `${clone.lines} lines here repeat ${at(there?.name ?? '')}:${there?.start ?? 0}; duplication exceeds the ${scope.name} ${scope.threshold}% ceiling, which only moves down; extract the copy into its owner to keep fixes from drifting between copies.`,
     })),
   );
 }

@@ -52,7 +52,8 @@ const modelFile = /\/packages\/[^/]+\/src\/models\/.+\.ts$/;
 const domainShapeFile = new RegExp(
   `/packages/(?:${domainPackages.join('|')})/src/(?:models|ports)/(?!index\\.ts$).+\\.ts$`,
 );
-const storePortFile = /\/packages\/[^/]+\/src\/ports\/[^/]+\.ts$/;
+const storePortFile =
+  /\/(?:packages\/[^/]+|apps\/server)\/src\/ports\/[^/]+\.ts$/;
 const startupOnlyErrors = new Map([
   [
     'packages/storage/src/errors/invalid-data-directory-error.ts',
@@ -463,10 +464,6 @@ function tableCalls(
     const port = method.parent;
     if (!isInterfaceDeclaration(port)) return [];
     const lanes = tableLanes[port.name.text];
-    if (!lanes && port.name.text.endsWith('Store'))
-      return [
-        { store: port.name.text, method: methodName(method), allowed: [] },
-      ];
     const name = methodName(method);
     const allowed = lanes?.[name] ?? lanes?.['any'];
     return allowed ? [{ store: port.name.text, method: name, allowed }] : [];
@@ -483,16 +480,8 @@ function tableFindings(
   const serviceName =
     isClassDeclaration(service) && service.name ? service.name.text : '';
   const sites = laneSitesAround(project, call, new Set());
-  return tableCalls(project, service).flatMap(({ store, method, allowed }) => {
-    if (allowed.length === 0)
-      return [
-        {
-          rule: 'lane-per-table',
-          from: where(root, call),
-          to: `${store} has no tableLanes entry; name the lane that owns its table so its calls cannot race writes`,
-        },
-      ];
-    return sites
+  return tableCalls(project, service).flatMap(({ store, method, allowed }) =>
+    sites
       .filter(
         (site) =>
           !allowed.includes(site.key) &&
@@ -502,8 +491,8 @@ function tableFindings(
         rule: 'lane-per-table',
         from: where(root, call),
         to: `${field} calls ${store}.${method}; that table belongs to the ${allowed.join(' or ')} lane, so run it inside lanes.run(this.laneKeys.${allowed[0] ?? ''}(...)), not ${site.key === 'none' ? 'outside any lane' : `the ${site.key} lane`}`,
-      }));
-  });
+      })),
+  );
 }
 
 function storeLaneFindings(root: string, file: SourceFile): TypeFinding[] {
@@ -755,6 +744,8 @@ export function typeRuleFindings(root: string): TypeFinding[] {
           findings.push(...recordingFindings(root, project, file));
           continue;
         }
+        if (storePortFile.test(name) && !checked.has(name))
+          findings.push(...storeLaneFindings(root, file));
         if (inServer) {
           if (useCaseFile.test(name))
             findings.push(
@@ -764,8 +755,6 @@ export function typeRuleFindings(root: string): TypeFinding[] {
           continue;
         }
         checked.add(name);
-        if (storePortFile.test(name))
-          findings.push(...storeLaneFindings(root, file));
         if (serviceFile.test(name))
           findings.push(...undefinedResults(root, project, file));
         if (modelFile.test(name))

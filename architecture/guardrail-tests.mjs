@@ -52,11 +52,24 @@ function typeFixture(files) {
 function duplicateFixture(entry, source) {
   const root = mkdtempSync(join(tmpdir(), 'porcelain-clone-rule-'));
   try {
-    const scope = duplicateScope('server', ['reviews', 'client']);
+    const scope = duplicateScope('repository', ['reviews', 'client']);
     for (const folder of scope.sources)
       mkdirSync(join(root, folder), { recursive: true });
     writeFiles(root, { [entry.first]: source, [entry.second]: source });
+    if (entry.fillerLines > 0) {
+      const unique = Array.from(
+        { length: entry.fillerLines },
+        (_, index) => `export const unique${index} = ${index};`,
+      ).join('\n');
+      writeFiles(root, { 'packages/reviews/src/unique.ts': unique });
+    }
     const report = scanDuplicates(root, scope);
+    if (entry.fillerLines > 0)
+      strictEqual(
+        report.statistics.total.percentage < 1,
+        true,
+        'This fixture must fit under the old 1% ceiling to prove the ratchet catches it.',
+      );
     return {
       rejected: report.exceeded,
       pairs: report.duplicates.map((clone) =>
@@ -120,6 +133,7 @@ export function runGuardrailCases(named = []) {
     }
   }
   deepStrictEqual(duplicateScope('web', []), {
+    name: 'web',
     sources: ['apps/web/src'],
     threshold: 0,
   });
