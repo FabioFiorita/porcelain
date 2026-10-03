@@ -29,7 +29,7 @@ Opening a one-time pairing link checks the server's health, redeems the code as 
 
 ### Setup
 
-None. Pairing a second time needs a fresh link: CLI gap `cli pair`.
+None. Pairing a second time needs a fresh link: in a `start --desktop` instance, Settings → Ways in → "Local network" on, then Devices → "Device name" → "Create pairing link" prints it as text; `$C open "/pair#c=…&e=…"` with it pairs this browser again (see access.pair-open-page and access.device-trust). A command that issues one in either mode would be `cli pair`.
 
 1. `$C click --role button --name "Review"`, then `$C press Escape` (only to make the CLI print the page the pairing ended on; `press` prints the page only when it changed, and right after `start` it can still print `/` and "Porcelain")
    Look for: Page URL `/<projectId>/<worktreeId>?entry=handoff` with no `#c=` fragment, Page Title "Changes — repository".
@@ -48,6 +48,6 @@ None. Pairing a second time needs a fresh link: CLI gap `cli pair`.
 
 ## Gotchas
 
-- Only the pairing `start` performs can be observed; repeating it needs `cli pair`. A used code cannot be replayed (the page would show "This pairing link is not usable. Ask for a new one.").
+- In web mode only the pairing `start` performs can be observed; repeating it needs a desktop instance's link (above) or `cli pair`. A used code cannot be replayed (the page would show "This pairing link is not usable. Ask for a new one.").
 - `start` never prints the code or link; the evidence file `000-start.txt` only says the browser was paired.
 - `$C network` may no longer include the pairing requests after an `open`; read it first.

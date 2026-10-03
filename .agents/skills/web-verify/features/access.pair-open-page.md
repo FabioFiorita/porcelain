@@ -1,8 +1,11 @@
 ---
 route: /pair
 selectors:
-  - "Toggle Sidebar"
-  - "Settings"
+  - "Ways in"
+  - "Local network"
+  - "Devices"
+  - "Device name"
+  - "Create pairing link"
   - "Connection"
   - "Disconnect this browser"
   - "This browser is not paired"
@@ -24,33 +27,43 @@ A one-time link entered in a tab that already shows the not-paired page (`/pair`
 ## How a user reaches it
 
 - The not-paired page is open at `/pair` → paste or follow the one-time link (`/pair#c=<code>&e=<installation id>`) in the same tab. Only the fragment changes, so the page's `hashchange` listener re-runs the pairing loader.
+- The link comes from `porcelain pair` on the host, or from Settings → Devices → "Create pairing link" in the desktop app.
 
 ## Driving it
 
-`C=.agents/skills/web-verify/scripts/cli; $C start`, then make the browser unpaired through Settings (below). A fresh link is needed and the CLI cannot make one: see the first gotcha.
+`C=.agents/skills/web-verify/scripts/cli; $C start --desktop`. The feature is not desktop-only, but only the desktop Settings can mint a one-time link through the CLI's browser: Devices shows the link as text, which the steps copy.
 
-### Setup
+### Setup: mint a link, then unpair the browser
 
-- Unpair the browser: `$C open /settings/connection`, then `$C click --role button --name "Disconnect this browser"`. Look for heading "This browser is not paired".
-- CLI gap: a fresh one-time link for this instance. Needed command: `cli pair` (issue a link for this server through its owner socket and `goto` it in the current tab without printing the code).
+1. `$C open /settings/ways-in`, then `$C click --role switch --name "Local network"`
+   Look for: switch "Local network" checked and the text `http://192.168.1.20:<port>` (Devices offers the form only while a way in is on).
+2. `$C click --role button --name "Devices"`, `$C fill --role textbox --name "Device name" "Open page tab"`, `$C click --role button --name "Create pairing link"`
+   Look for: img "Pairing QR code"; text "Scan on Open page tab"; a paragraph holding the link `http://192.168.1.20:<port>/pair#c=pcp_…&e=…`. Copy everything from `/pair#` to the end; call it `$LINK`. Listitem "Open page tab" reads "Pending link".
+3. `$C click --role button --name "Connection"`, then `$C click --role button --name "Disconnect this browser"`
+   Look for: Page URL `/pair`; heading "This browser is not paired".
+
+### Steps
 
 1. `$C open /`
-   Look for: redirected to Page URL `/pair`, heading "This browser is not paired" and the command text `porcelain pair "This browser" --address http://127.0.0.1:<port>`.
-2. `cli pair` (missing; with the tab still on `/pair`, the CLI's `goto` to `/pair#c=…&e=…` changes only the fragment)
-   Look for: briefly "Pairing this browser…", then region "Review content", Page URL `/<projectId>/<worktreeId>` with no `#` fragment, Page Title "Changes — repository".
-3. `$C network`
-   Look for: `GET /api/health` 200, `POST /api/pair` 200, `GET /api/inventory` 200, with no full document reload between `/pair` and the pairing requests.
+   Look for: redirected to Page URL `/pair`; heading "This browser is not paired"; the command text `porcelain pair "This browser" --address http://127.0.0.1:<port>`.
+2. `$C open "$LINK"` (the tab is already on `/pair`, so only the fragment changes)
+   Look for: region "Review content" with heading "Changes" in the same tab (the CLI may still print Page URL `/pair` for this command).
+3. `$C click --role button --name "Review"`
+   Look for: Page URL `/<projectId>/<worktreeId>` with no `#` fragment; Page Title "Changes — repository".
+4. `$C network`
+   Look for: `GET /api/health` 200, `POST /api/pair` 200, `GET /api/inventory` 200.
 
 ## What proves it works
 
-- The workspace (region "Review content") appears in the same tab, and the address keeps no fragment.
+- The workspace (region "Review content") appears in the same tab and the address keeps no fragment (step 3).
 - A reload keeps it: `$C open /` lands on the workspace, not `/pair`.
-- Server side, `cli server devices` (missing) should list the new device.
+- Server side: `$C open /settings/devices` lists listitem "Open page tab" with the badge "This browser" (no longer "Pending link").
 - `apps/web/spec/e2e/access-pair-open-page.e2e.ts`: an unpaired tab shows the not-paired heading at `/pair`; following the link in that tab shows "Review content", the fragment is empty, and `server.devices()` contains the link's label.
 
 ## Gotchas
 
-- Unreachable through the CLI: no command issues a one-time pairing link, and the web cannot make one (the CLI browser is not the owner; Settings → Devices exists only with `start --desktop` and needs a "way in" turned on). Needed: `cli pair`.
-- Unpairing is one-way in an instance: after this setup nothing else can be driven until the browser is paired again. Use a dedicated instance, or `$C stop` and `$C start`.
+- Web mode (`$C start`) cannot mint a link: Settings → Devices exists only with `--desktop`, and `POST /api/pairings` is an owner route. A command that issues a link in either mode would be `cli pair`.
+- The link works once and expires after a few minutes ("Works once, until <time>"); mint it right before the steps.
+- Unpairing is one-way: if the link was lost, nothing else can be driven in that instance; `$C stop` and `$C start --desktop`.
 - `/pair` shows "This browser is not paired" even in a paired browser; disconnect first so the page really is the unpaired state.
 - The same-tab path depends on the tab already being at `/pair`; opening the link from any other path is a full load, which is `access.pairing`.
