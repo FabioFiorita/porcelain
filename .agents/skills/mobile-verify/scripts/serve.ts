@@ -18,13 +18,23 @@ import {
   type Metro,
 } from '../../../../apps/mobile/spec/kit/metro.ts';
 import {
+  deviceHost,
+  hostFileName,
+  mainCheckoutHostFile,
+  type RemoteHost,
+} from '../../../../apps/mobile/spec/kit/device-host.ts';
+import {
   bootSimulator,
+  localBootProblem,
   resetApp,
   shutdownSimulator,
   type DeviceKind,
 } from '../../../../apps/mobile/spec/kit/simulator.ts';
 import { missingTools } from '../../../../apps/mobile/spec/kit/tools.ts';
-import { refuseMissing } from '../../server-verify/scripts/core/cli.ts';
+import {
+  Refusal,
+  refuseMissing,
+} from '../../server-verify/scripts/core/cli.ts';
 import type { Life } from '../../server-verify/scripts/core/registry.ts';
 import {
   agentDevice,
@@ -32,18 +42,12 @@ import {
   disconnectHub,
   fillField,
   holdLease,
+  remoteBootProblem,
   remoteSimulator,
   resetRemoteApp,
   type Target,
 } from './device.ts';
-import {
-  deviceHost,
-  freeHostPorts,
-  hostFileName,
-  hostProblems,
-  mainCheckoutHostFile,
-  type DeviceHost,
-} from './host.ts';
+import { freeHostPorts, hostProblems } from './host.ts';
 import { registry, scriptFingerprint } from './instance.ts';
 
 const startLimitMs = 25 * 60 * 1000;
@@ -57,6 +61,7 @@ const optionsSchema = z.object({
       ports: z.array(z.number()),
     })
     .nullable(),
+  simulatorLimit: z.number().nullable(),
 });
 
 type Timings = Record<string, number>;
@@ -100,8 +105,11 @@ async function localSimulator(
   life: Life,
   timings: Timings,
   kind: DeviceKind,
+  limit: number | undefined,
   base: Target,
 ): Promise<Booted> {
+  const crowded = await localBootProblem(limit);
+  if (crowded !== undefined) throw new Refusal(crowded);
   const simulator = await phase(timings, 'simulator', () =>
     bootSimulator(kind, 'verify'),
   );
@@ -122,6 +130,7 @@ async function hostedSimulator(
   life: Life,
   timings: Timings,
   kind: DeviceKind,
+  limit: number | undefined,
   base: Target & { host: NonNullable<Target['host']> },
 ): Promise<Booted> {
   connectHub(base);
@@ -130,6 +139,8 @@ async function hostedSimulator(
     remoteSimulator(base, kind),
   );
   const target = { ...base, udid: simulator.udid };
+  const crowded = remoteBootProblem(target, limit);
+  if (crowded !== undefined) throw new Refusal(crowded);
   life.onStop(() => {
     agentDevice(target, ['close', '--shutdown'], { allowFailure: true });
   });
@@ -140,7 +151,8 @@ async function hostedSimulator(
 
 export function serve(folder: string): Promise<void> {
   return registry.serve(folder, async (life) => {
-    const { kind, host } = optionsSchema.parse(life.options);
+    const { kind, host, simulatorLimit } = optionsSchema.parse(life.options);
+    const limit = simulatorLimit ?? undefined;
     const evidence = registry.evidenceFolder(life.id);
     const session = `porcelain-mobile-${life.id}`;
     const timings: Timings = {};
@@ -197,8 +209,14 @@ export function serve(folder: string): Promise<void> {
     const base = { udid: undefined, session, cwd: evidence };
     const simulator =
       hub === null
-        ? await localSimulator(life, timings, kind, { ...base, host: null })
-        : await hostedSimulator(life, timings, kind, { ...base, host: hub });
+        ? await localSimulator(life, timings, kind, limit, {
+            ...base,
+            host: null,
+          })
+        : await hostedSimulator(life, timings, kind, limit, {
+            ...base,
+            host: hub,
+          });
     const { target } = simulator;
     udid = target.udid;
     await phase(timings, 'connect', async () => connect(target, metro));
@@ -240,7 +258,7 @@ export function serve(folder: string): Promise<void> {
 }
 
 export async function startProblems(
-  host: DeviceHost | undefined,
+  host: RemoteHost | undefined,
 ): Promise<(string | undefined)[]> {
   if (host !== undefined) return hostProblems(host);
   const problems = missingTools(['simulator', 'agent-device']);
@@ -252,11 +270,11 @@ export async function startProblems(
 }
 
 export async function start(kind: DeviceKind): Promise<string> {
-  const host = deviceHost();
-  refuseMissing(await startProblems(host));
+  const { remote, simulatorLimit } = deviceHost();
+  refuseMissing(await startProblems(remote));
   const began = performance.now();
   const instance = await registry.launch(
-    { kind, host: host ?? null },
+    { kind, host: remote ?? null, simulatorLimit: simulatorLimit ?? null },
     startLimitMs,
   );
   return `instance ${instance.id}\nsimulator ${instance.detail.udid} (${instance.detail.simulator})${instance.detail.host === null ? '' : ` on the device host ${instance.detail.host.hub}`}\nevidence ${instance.evidence}\nstarted in ${Math.round(performance.now() - began)} ms\n`;

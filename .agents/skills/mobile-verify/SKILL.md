@@ -30,7 +30,7 @@ A JavaScript change needs no build: Metro serves it, and the CLI reloads the app
 
 It prints the instance id, the simulator id and the evidence folder; it never prints a credential or a pairing link. When it returns, the app runs the development client from this checkout's Metro, with Expo's developer menu, floating button and onboarding switched off, and is paired with the server: Settings lists one environment, “Mobile Verification …”, Online.
 
-- **Its own simulator.** `start` boots a simulator of its own, named `Porcelain verify <model>`: one it created earlier and that is shut down, or a new one, since a simulator's first boot is far heavier than later ones. It sets that simulator to US English, so system labels such as Open and Show Sidebar read the same on any host, reinstalls the development client there with an empty Keychain, and `stop` shuts that simulator down. It never boots, drives or shuts down a simulator it does not own. Keep one simulator live at a time on a shared host.
+- **Its own simulator.** `start` boots a simulator of its own, named `Porcelain verify <model>`: one it created earlier and that is shut down, or a new one, since a simulator's first boot is far heavier than later ones. It sets that simulator to US English, so system labels such as Open and Show Sidebar read the same on any host, reinstalls the development client there with an empty Keychain, and `stop` shuts that simulator down. It never boots, drives or shuts down a simulator it does not own. When `.mobile-device-host.json` sets `simulatorLimit` (see [A simulator on another machine](#a-simulator-on-another-machine)), `start`, locally or through the hub, and the e2e setup refuse to boot one more once the device host has that many booted, and name them; each thread stops only its own instance with `stop`.
 - **Several instances.** Instances are registered for this checkout only. With more than one live, every command needs `--instance <id>`.
 - **Stale code.** A command refuses once server, CLI or native code changed after `start`, and says which: server or CLI code needs `stop` and `start`; native code needs `stop`, `build` and `start`.
 - **Idle.** An instance that receives no command for 30 minutes stops itself; every command counts, failed or not. Its evidence stays.
@@ -96,17 +96,20 @@ The CLI can run on a machine without Xcode and drive a simulator on a Mac, the d
 - **A token.** The hub's token sits in an environment variable on this machine; the file names the variable, never the token.
 - **Reachable ports.** Ports on this machine that the simulator reaches at `http://localhost:<port>`, for example through SSH remote forwards. The disposable server and Metro each take one.
 
-Describe them in `.mobile-device-host.json` at the root of the main checkout, the directory that `git rev-parse --path-format=absolute --git-common-dir` points into; every worktree on this machine reads that one file. It is ignored and stays on this machine.
+Describe them in `.mobile-device-host.json` at the root of the main checkout, the directory that `git rev-parse --path-format=absolute --git-common-dir` points into; every worktree on this machine reads that one file. It is ignored and stays on this machine. Every field is optional, and the three hub fields come all together or not at all.
 
 ```json
 {
   "hub": "http://127.0.0.1:4310",
   "tokenVariable": "AGENT_DEVICE_DAEMON_AUTH_TOKEN",
-  "ports": [5173, 5183, 5193]
+  "ports": [5173, 5183, 5193],
+  "simulatorLimit": 2
 }
 ```
 
-Without the file the CLI drives this Mac's simulators as above. With it, `start` and `doctor` check the file, the token, the hub and the ports and say exactly what is missing; `start` then runs the server and Metro here on free ports from the list, connects agent-device to the hub, reinstalls the development client on the device host's `Porcelain verify <model>` simulator with an empty Keychain, and pairs it. `stop` shuts that simulator down and disconnects. `logs` records Metro and the server; the app's own log stays on the device host.
+`simulatorLimit` is the most simulators the device host may have booted at once; without it there is no limit. On a machine with the hub fields it limits the device host behind the hub; on a Mac, a file with only `{ "simulatorLimit": 2 }` keeps the CLI and the e2e tests on this Mac's simulators, with that limit.
+
+Without the hub fields the CLI drives this Mac's simulators as above. With them, `start` and `doctor` check the file, the token, the hub and the ports and say exactly what is missing; `start` then runs the server and Metro here on free ports from the list, connects agent-device to the hub, reinstalls the development client on the device host's `Porcelain verify <model>` simulator with an empty Keychain, and pairs it. `stop` shuts that simulator down and disconnects. `logs` records Metro and the server; the app's own log stays on the device host.
 
 Native builds stay on the device host. When it has no development client built for this checkout's native code, or no `Porcelain verify` simulator, `start` stops and names the command to run there, in a checkout of the same commit: `build` after a native change, and `start --device <kind>` then `stop` once to create the simulator.
 
