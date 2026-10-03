@@ -37,11 +37,11 @@ A drafted message or group whose files no longer match what the dialog looked at
 
 ## Driving it
 
-`C=.agents/skills/web-verify/scripts/cli; $C start`, then `REPO=<the repository path start printed>`.
+`C=.agents/skills/web-verify/scripts/cli; $C start --coding-tool`, then `REPO=<the repository path start printed>`.
 
 ### Setup
 
-Blocked: every case drafts with the coding CLI, and the CLI's default instance has none (sandbox PATH holds only `git`). CLI gap: `cli start --coding-tool` (or `cli coding-tool install` then `$C open /`), doing what the kit's `installCodingTool()` does. The fake drafts the message "Explain the change to review in the README" and the groups "Explain the change to review in the README" (README.md), "Add notes for the reviewer" (NOTES.md).
+Every case drafts with the coding CLI: `start --coding-tool` puts the kit's fake `claude` on the server's PATH, as the tests' `codingTool.install()` does. The fake drafts the message "Explain the change to review in the README" and the groups "Explain the change to review in the README" (README.md), "Add notes for the reviewer" (NOTES.md).
 
 Below, STALE means the alert "The worktree changed since this draft was proposed. Generate it again before committing."
 
@@ -49,34 +49,34 @@ Below, STALE means the alert "The worktree changed since this draft was proposed
 
 No setup on a fresh instance (README.md modified).
 
-1. `$C open /`, `$C click --role button --name "Commit"`, `$C click --role button --name "Generate with AI"`
+1. `$C open /`, `$C click --role button --name "Commit"`, `$C click --role button --name "Generate with AI"`, then `$C wait --text "Explain the change to review in the README"`
    Look for: textbox "Message" holds "Explain the change to review in the README".
 2. On disk, with the dialog open: `printf 'Changed after the draft\n' > "$REPO/README.md"`
-3. `$C click --role button --name "Commit selected files"`
+3. `$C click --role button --name "Commit selected files"`, then `$C wait --role button --name "Look again"`
    Look for: alert "changed since looked"; button "Look again".
 4. `$C click --role button --name "Look again"`
-   Look for: STALE shows; button "Commit selected files" disabled.
+   Look for: STALE shows; button "Commit selected files" [disabled].
 5. `$C click --role tab --name "Amend last"`, then `$C click --role tab --name "Single commit"`
-   Look for: the dialog title goes "Amend last commit" then back to "Commit changes"; STALE still shows; "Commit selected files" still disabled.
+   Look for: the dialog goes to "Amend last commit" (heading, button "Amend last commit", no STALE there) and back to "Commit changes", where STALE still shows and "Commit selected files" is still [disabled].
 6. `$C click --role button --name "Generate with AI"`
    Look for: STALE is gone; "Commit selected files" enabled.
-7. `$C click --role button --name "Commit selected files"`
+7. `$C click --role button --name "Commit selected files"`, then `$C wait --text "succeeded"`
    Look for: status "succeeded". Disk: `git -C "$REPO" log -1 --format=%s` prints `Explain the change to review in the README`; `git -C "$REPO" status --porcelain` prints nothing.
 8. `$C press Escape`
    Look for: dialog "Commit changes" is gone.
 
 ### Case 2: a draft of content that changed after the dialog opened is flagged at once, and Look again lets it commit
 
-Fresh instance. Setup: `printf 'Seen when the dialog opened\n' > "$REPO/README.md"`, then `$C open /` and `$C snapshot` until the README.md diff shows "Seen when the dialog opened".
+Fresh instance. Setup: `printf 'Seen when the dialog opened\n' > "$REPO/README.md"`, then `$C open /` and `$C wait --text "/Seen when the dialog opened/"` (the README.md diff).
 
 1. `$C click --role button --name "Commit"`
    Look for: dialog "Commit changes" listing "README.md".
 2. On disk, with the dialog open: `printf 'Changed before the draft\n' > "$REPO/README.md"`
-3. `$C click --role button --name "Generate with AI"`
-   Look for: Message holds the drafted text; STALE shows at once; "Commit selected files" disabled; button "Look again".
+3. `$C click --role button --name "Generate with AI"`, then `$C wait --text "Explain the change to review in the README"`
+   Look for: Message holds the drafted text; STALE shows at once; "Commit selected files" [disabled]; button "Look again".
 4. `$C click --role button --name "Look again"`
-   Look for: STALE is gone.
-5. `$C click --role button --name "Commit selected files"`
+   Look for: STALE is gone; "Commit selected files" enabled.
+5. `$C click --role button --name "Commit selected files"`, then `$C wait --text "succeeded"`
    Look for: status "succeeded". Disk: `cat "$REPO/README.md"` prints `Changed before the draft`; `git -C "$REPO" status --porcelain` prints nothing.
 6. `$C press Escape`
    Look for: the dialog is gone.
@@ -89,15 +89,15 @@ git -C "$REPO" add --all && git -C "$REPO" -c user.name='Porcelain Verification'
 printf 'README.md drafted in groups\n' > "$REPO/README.md"
 printf 'NOTES.md drafted in groups\n' > "$REPO/NOTES.md"
 ```
-`$C open /`, then `$C snapshot` until buttons "Mark README.md as reviewed" and "Mark NOTES.md as reviewed" show.
+`$C open /`, then `$C wait --role button --name "Mark NOTES.md as reviewed"` and `$C wait --role button --name "Mark README.md as reviewed"`.
 
-1. `$C click --role button --name "Commit"`, then `$C click --role tab --name "Use groups"`
+1. `$C click --role button --name "Commit"`, `$C click --role tab --name "Use groups"`, then `$C wait --role button --name "Commit groups in order"`
    Look for: textbox "Message for commit 1" holds "Explain the change to review in the README"; textbox "Message for commit 2" holds "Add notes for the reviewer".
 2. On disk: `printf 'Changed after the groups were drafted\n' > "$REPO/NOTES.md"`
-3. `$C click --role button --name "Commit groups in order"`
-   Look for: text "Commit 1 · committed"; alert "changed since looked". Disk: `git -C "$REPO" log -1 --format=%s` prints `Explain the change to review in the README`; `git -C "$REPO" status --porcelain` prints `?? NOTES.md`.
+3. `$C click --role button --name "Commit groups in order"`, then `$C wait --role button --name "Look again"`
+   Look for: paragraph "Commit 1 · committed"; alert "changed since looked". Disk: `git -C "$REPO" log -1 --format=%s` prints `Explain the change to review in the README`; `git -C "$REPO" status --porcelain` prints `?? NOTES.md`.
 4. `$C click --role button --name "Look again"`
-   Look for: STALE shows; button "Commit groups in order" disabled.
+   Look for: STALE shows; button "Commit groups in order" [disabled].
 
 ## What proves it works
 
@@ -106,7 +106,7 @@ printf 'NOTES.md drafted in groups\n' > "$REPO/NOTES.md"
 
 ## Gotchas
 
-- Unreachable through the CLI: needs the fake coding CLI on the server's PATH; the command needed is `cli start --coding-tool` (or `cli coding-tool install`).
+- The fake coding CLI exists only with `start --coding-tool`; an instance started without it cannot draft.
 - The disk writes in the middle of a case must happen while the dialog is open: the dialog freezes the files and fingerprints it saw on opening, and staleness compares the draft against that look.
 - In groups mode there are both a tab "Single commit" and a button "Single commit" (clears the groups); address them by role.
-- Each case commits; run each case on a fresh instance (`$C stop`, `$C start`).
+- Each case commits; run each case on a fresh instance (`$C stop`, `$C start --coding-tool`).
