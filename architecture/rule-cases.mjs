@@ -202,6 +202,173 @@ export default [
   },
 
   {
+    rule: 'spec-behaviour-names',
+    path: 'packages/reviews/src/services/mark-comments-seen-service.spec.ts',
+    valid:
+      "it('records the revision the reader saw', () => { expect(seen.revision).toBe(2); });",
+    invalid:
+      "it('should record the revision the reader saw', () => { expect(seen.revision).toBe(2); });",
+    errors: 1,
+  },
+  {
+    rule: 'spec-behaviour-names',
+    path: 'apps/web/spec/integration/probe.test.tsx',
+    valid:
+      "test('the review content appears after pairing', async ({ workspace }) => { await expect.element(workspace.getByRole('region', { name: 'Review content' })).toBeVisible(); });",
+    invalid:
+      "test('review appears', async ({ workspace }) => { await expect.element(workspace.getByRole('region', { name: 'Review content' })).toBeVisible(); });",
+    errors: 1,
+  },
+  {
+    rule: 'spec-behaviour-names',
+    path: 'packages/reviews/src/services/mark-comments-seen-service.spec.ts',
+    valid:
+      "it('records the revision the reader saw', () => { expect(seen.revision).toBe(2); });",
+    invalid:
+      "it('records the revision the reader saw', () => { expect(true).toBe(true); });",
+    errors: 1,
+  },
+  {
+    rule: 'no-comments',
+    path: 'packages/files/src/services/list-directory-service.ts',
+    valid: `import type { ListDirectoryOptions } from '../models/list-directory.ts';
+
+export class ListDirectoryService {
+  private readonly options: ListDirectoryOptions;
+
+  constructor(options: ListDirectoryOptions) {
+    this.options = options;
+  }
+
+  execute(): number {
+    return this.options.maxEntries + 1;
+  }
+}
+`,
+    invalid: `/** oxlint-disable */
+import type { ListDirectoryOptions } from '../models/list-directory.ts';
+
+export class ListDirectoryService {
+  private readonly options: ListDirectoryOptions;
+
+  constructor(options: ListDirectoryOptions) {
+    this.options = options;
+  }
+
+  execute(): number {
+    return Math.min(this.options.maxEntries, 2000) + 1;
+  }
+}
+`,
+    errors: 1,
+  },
+  {
+    rule: 'no-comments',
+    path: 'packages/files/src/services/list-directory-service.ts',
+    valid: `export class ListDirectoryService {
+  async execute(
+  ): Promise<ListDirectoryResult> {
+    const read = await this.directoryReader.list(
+      {
+        limit: this.options.maxEntries + 1,
+      },
+    );
+  }
+}`,
+    invalid: `export class ListDirectoryService {
+  async execute(
+  ): Promise<ListDirectoryResult> {
+    const read = await this.directoryReader.list(
+      {
+        /** eslint-disable-next-line */
+        limit: Math.min(this.options.maxEntries, 2000) + 1,
+      },
+    );
+  }
+}`,
+    errors: 1,
+  },
+  {
+    rule: 'no-comments',
+    path: 'architecture/oxlint-plugin.mjs',
+    valid: `const domainPackage = '(?:projects|changes|reviews|files|git-actions|access)';
+`,
+    invalid: `// the six domain packages
+const domainPackage = '(?:projects|changes|reviews|files|git-actions|access)';
+`,
+    errors: 1,
+  },
+  {
+    rule: 'no-comments',
+    path: 'vitest.config.ts',
+    valid: `export default defineConfig({
+});`,
+    invalid: `// one project per package
+export default defineConfig({
+});`,
+    errors: 1,
+  },
+  {
+    rule: 'no-comments',
+    path: 'packages/projects/src/rules/probe-loose.ts',
+    valid:
+      'export function probeLoose(left: string, right: string): boolean { return left === right; }',
+    invalid: `// compares loosely
+export function probeLoose(left: string, right: string): boolean {
+  return left == right;
+}
+`,
+    errors: 1,
+  },
+  {
+    rule: 'spec-behaviour-names',
+    path: 'packages/reviews/src/services/mark-comments-seen-service.spec.ts',
+    valid: observedStoreState,
+    invalid: `describe('MarkCommentsSeenService', () => {
+  it('records the revision the reader saw', () => {
+    expect(seen.seenThrough({ worktreeId })).toBe(2);
+  });
+
+  it('answers 404 to an unknown worktree', () => {
+    const { service } = setup();
+    expect(service.execute({ worktreeId: 'c'.repeat(64), throughRevision: 1 }).seenThrough).toBe(0);
+  });
+});
+`,
+    errors: 1,
+  },
+  {
+    rule: 'spec-behaviour-names',
+    path: 'packages/reviews/src/services/mark-comments-seen-service.spec.ts',
+    valid: observedStoreState,
+    invalid: `describe('MarkCommentsSeenService', () => {
+  it('records the revision the reader saw', () => {
+    expect(seen.seenThrough({ worktreeId })).toBe(2);
+  });
+
+  it('returns 404 for an unknown worktree', () => {
+    const { service } = setup();
+    expect(service.execute({ worktreeId: 'c'.repeat(64), throughRevision: 1 }).seenThrough).toBe(0);
+  });
+});
+`,
+    errors: 1,
+  },
+  {
+    rule: 'spec-behaviour-names',
+    path: 'apps/web/spec/integration/probe.test.tsx',
+    valid:
+      "test('the review content appears after pairing', async ({ workspace }) => { await expect.element(workspace.getByRole('region', { name: 'Review content' })).toBeVisible(); });",
+    invalid: `import { expect } from 'vitest';
+import { test } from './fixtures.tsx';
+
+test('access.pairing: works', async ({ workspace }) => {
+  await expect.element(workspace.getByRole('region', { name: 'Review content' })).toBeVisible();
+});
+`,
+    errors: 1,
+  },
+  {
     rule: 'no-number-outside-limits',
     path: 'packages/contracts/src/shared/api-error.ts',
     valid: 'export const API_ERROR_STATUS = { content_changed: 409 };',
@@ -291,9 +458,10 @@ export default [
     rule: 'spec-asserts',
     path: 'apps/server/src/http/status-policy.spec.ts',
     valid:
-      "it('should return 200', () => { expect(readHealth().status).toBe('ok'); });",
-    invalid: "it('should return 200', () => { expect(true).toBe(true); });",
-    errors: 2,
+      "it('reads the observed server health', () => { expect(readHealth().status).toBe('ok'); });",
+    invalid:
+      "it('reads the observed server health', () => { expect(true).toBe(true); });",
+    errors: 1,
   },
   {
     rule: 'spec-imports',
@@ -4482,6 +4650,19 @@ export const scriptCases = [
     required: [['tsc', '--noEmit']],
     valid: 'tsc --noEmit',
     invalid: 'tsc --noEmit || true',
+  },
+];
+
+export const proseCases = [
+  { valid: 'AGENTS.md', invalid: 'architecture/README.md' },
+  { valid: '.github/PULL_REQUEST_TEMPLATE.md', invalid: 'apps/web/README.mdx' },
+  {
+    valid: '.agents/skills/web-verify/SKILL.md',
+    invalid: 'apps/desktop/ARCHITECTURE.md',
+  },
+  {
+    valid: 'architecture/policy.ts',
+    invalid: 'packages/client/README.MARKDOWN',
   },
 ];
 

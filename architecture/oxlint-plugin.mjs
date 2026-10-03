@@ -295,6 +295,11 @@ const loopTypes = new Set([
   'DoWhileStatement',
 ]);
 
+const httpStatus =
+  /(?:^|\s)[1-5]\d\d(?=\s*$|\s+(?:when|if|for|unless)\b)|^\s*[1-5]\d\d\b|\bhttp\s+(?:status|code|[1-5]\d\d)\b|\bstatus\s+code|\b(?:status|code)\s+[1-5]\d\d\b/i;
+const statusNumber =
+  /(?<![\w.-])(?:10[0-3]|20[0-8]|226|30[0-8]|4(?:0\d|1[0-8]|2[1-689]|31|51)|50[0-8]|51[01])(?![\w.-])(?!\s+(?:commits?|files?|bytes?|paths?|entries|lines?|threads?|items?|ms|characters?|chars?)\b)/;
+
 const repositoryRoot = normalizedFilename(
   fileURLToPath(new URL('..', import.meta.url)),
 );
@@ -1096,6 +1101,16 @@ function chainRoot(node) {
     current =
       current.type === 'MemberExpression' ? current.object : current.callee;
   return current.type === 'Identifier' ? current.name : undefined;
+}
+
+function caseTitle(node) {
+  if (!caseFunctions.has(chainRoot(node.callee) ?? '')) return undefined;
+  const title = node.arguments[0];
+  if (title?.type === 'Literal' && typeof title.value === 'string')
+    return title.value;
+  if (title?.type === 'TemplateLiteral')
+    return title.quasis.map((quasi) => quasi.value.cooked ?? '').join(' ');
+  return undefined;
 }
 
 function allowedSpecImport(filename, source) {
@@ -3067,17 +3082,6 @@ export default {
           ...hollow,
           CallExpression(node) {
             if (
-              node.callee.type === 'Identifier' &&
-              node.callee.name === 'expect' &&
-              node.arguments[0]?.type === 'Literal' &&
-              typeof node.arguments[0].value === 'boolean'
-            )
-              context.report({
-                node,
-                message:
-                  'Assert on an observable result, because a boolean literal cannot detect a product regression.',
-              });
-            if (
               caseFunctions.has(chainRoot(node.callee) ?? '') &&
               node.parent?.type !== 'MemberExpression' &&
               !(
@@ -3141,6 +3145,57 @@ export default {
       },
     },
 
+    'spec-behaviour-names': {
+      create(context) {
+        const journey = ['integration-spec', 'e2e-spec'].includes(
+          webPart(repositoryPath(context)),
+        );
+        if (!isSpec(context) && !journey) return {};
+        return {
+          CallExpression(node) {
+            if (
+              node.callee.type === 'Identifier' &&
+              node.callee.name === 'expect' &&
+              node.arguments[0]?.type === 'Literal' &&
+              typeof node.arguments[0].value === 'boolean'
+            ) {
+              context.report({
+                node,
+                message:
+                  'Assert on an observable result instead of a boolean literal, because a fixed literal cannot detect a product regression.',
+              });
+              return;
+            }
+            const title = caseTitle(node);
+            if (
+              journey &&
+              caseFunctions.has(chainRoot(node.callee) ?? '') &&
+              (title === undefined ||
+                /^\s*[a-z-]+\.[a-z-]+\s*:/.test(title) ||
+                title.trim().split(/\s+/).length < 4)
+            )
+              context.report({
+                node: node.arguments[0] ?? node,
+                message:
+                  'Name the journey case as a written sentence of what the user does and sees, without its feature id, because the title states the user promise and the map already identifies the feature.',
+              });
+            if (title === undefined) return;
+            if (/^\s*should\b/i.test(title))
+              context.report({
+                node: node.arguments[0],
+                message:
+                  'Name the case as a sentence of behaviour, not with "should", because its title states the promise the test proves.',
+              });
+            if (httpStatus.test(title) || statusNumber.test(title))
+              context.report({
+                node: node.arguments[0],
+                message:
+                  'Name the behaviour, not the HTTP status code; statuses belong to feature verification, because a transport code does not state the domain promise.',
+              });
+          },
+        };
+      },
+    },
     'spec-imports': {
       create(context) {
         if (!isSpec(context)) return {};
@@ -3226,6 +3281,20 @@ export default {
       },
     },
 
+    'no-comments': {
+      create(context) {
+        return {
+          Program() {
+            for (const comment of context.sourceCode.getAllComments())
+              context.report({
+                loc: comment.loc,
+                message:
+                  'Remove the code comment; express the rule in code or a verification skill, because comment prose can drift from the behavior enforced by executable checks.',
+              });
+          },
+        };
+      },
+    },
     'no-null-in-domain': {
       create(context) {
         const path = normalizedFilename(context.filename);

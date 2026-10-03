@@ -5,7 +5,12 @@ import { parseSync } from 'oxc-parser';
 import plugin from './oxlint-plugin.mjs';
 import { runGuardrailCases } from './guardrail-tests.mjs';
 
-import ruleCases, { scriptCases, scriptEvasions } from './rule-cases.mjs';
+import ruleCases, {
+  scriptCases,
+  scriptEvasions,
+  proseCases,
+} from './rule-cases.mjs';
+import { unownedProse } from './prose-policy.ts';
 import { scriptInvokes } from './script-policy.ts';
 import { architectureLines } from './guardrail-budget.ts';
 import { readFileSync } from 'node:fs';
@@ -34,6 +39,10 @@ for (const entry of scriptCases) {
 }
 for (const [source, required] of scriptEvasions)
   deepStrictEqual(scriptInvokes(source, required, '.'), false, source);
+for (const entry of proseCases) {
+  deepStrictEqual(unownedProse(entry.valid), false, entry.valid);
+  deepStrictEqual(unownedProse(entry.invalid), true, entry.invalid);
+}
 deepStrictEqual(
   scriptInvokes(
     'tsc --noEmit&&tsc -p tsconfig.node.json --noEmit',

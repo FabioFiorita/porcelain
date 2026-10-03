@@ -35,6 +35,7 @@ import {
   architectureLines,
 } from '../architecture/guardrail-budget.ts';
 import { scriptInvokes } from '../architecture/script-policy.ts';
+import { unownedProse } from '../architecture/prose-policy.ts';
 import { manualAuditProblems } from '../architecture/ci-policy.ts';
 import {
   duplicateScope,
@@ -172,6 +173,17 @@ function codeOutsideLintRoots(files: readonly string[]): Problem[] {
       problem(
         'code-outside-lint-roots',
         `${path}: put code under a lint root (${allRoots.join(', ')}), because a file outside them escapes lint, disable-directive scanning and format checks.`,
+      ),
+    );
+}
+
+function proseOutsideSkills(files: readonly string[]): Problem[] {
+  return files
+    .filter(unownedProse)
+    .map((path) =>
+      problem(
+        'prose-outside-skills',
+        `${path}: keep prose in AGENTS.md, the pull request template or .agents/skills/, because architecture narration can drift from the code and executable rulebook; move a workflow into its skill.`,
       ),
     );
 }
@@ -1282,6 +1294,7 @@ if (mode === 'format') {
     ...strayLintConfigs(),
     ...strayFormatConfigs(),
     ...codeOutsideLintRoots(files),
+    ...proseOutsideSkills(files),
     ...(await configProblems().catch((error: unknown) => {
       if (error instanceof StyleProblem) return [error.problem];
       throw error;

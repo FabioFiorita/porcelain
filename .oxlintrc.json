@@ -142,7 +142,9 @@
     "typescript/no-unsafe-member-access": "error",
     "typescript/no-unsafe-return": "error",
     "typescript/no-unsafe-type-assertion": "error",
-    "typescript/consistent-type-imports": "error"
+    "typescript/consistent-type-imports": "error",
+    "porcelain/no-comments": "error",
+    "porcelain/spec-behaviour-names": "error"
   },
   "overrides": [
     {
