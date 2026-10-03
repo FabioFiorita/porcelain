@@ -5,8 +5,8 @@ import { join } from 'node:path';
 import { z } from 'zod';
 import { buildIsolatedServer } from '../../../../apps/server/spec/kit/sandbox.ts';
 import {
-  appPath,
   buildProblem,
+  developmentClient,
   developmentLink,
   identity,
   nativeFingerprint,
@@ -41,6 +41,7 @@ import {
   freeHostPorts,
   hostFileName,
   hostProblems,
+  mainCheckoutHostFile,
   type DeviceHost,
 } from './host.ts';
 import { registry, scriptFingerprint } from './instance.ts';
@@ -109,8 +110,10 @@ async function localSimulator(
     agentDevice(target, ['close', '--shutdown'], { allowFailure: true });
     await shutdownSimulator(simulator.udid);
   });
+  const client = developmentClient();
+  if (client === undefined) throw new Error(buildProblem());
   await phase(timings, 'install', () =>
-    resetApp(simulator.udid, appPath, identity.bundleIdentifier),
+    resetApp(simulator.udid, client, identity.bundleIdentifier),
   );
   return { target, name: simulator.name };
 }
@@ -241,6 +244,10 @@ export async function startProblems(
 ): Promise<(string | undefined)[]> {
   if (host !== undefined) return hostProblems(host);
   const problems = missingTools(['simulator', 'agent-device']);
+  if (process.platform !== 'darwin')
+    problems.push(
+      `To drive a Mac's simulator from here instead, describe the device host in ${mainCheckoutHostFile()}, as the skill's "A simulator on another machine" says.`,
+    );
   return [...problems, problems.length === 0 ? buildProblem() : undefined];
 }
 

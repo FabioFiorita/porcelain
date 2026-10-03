@@ -5,7 +5,8 @@ import { promisify } from 'node:util';
 import { inject, test as base } from 'vitest';
 import type { Recorder } from '@porcelain/server/kit/isolated-server';
 import {
-  appPath,
+  buildProblem,
+  developmentClient,
   developmentLink,
   identity,
   screenLink,
@@ -83,7 +84,9 @@ export const test = base
     };
   })
   .extend('app', async ({ device, evidence, recorders }) => {
-    await resetApp(device.udid, appPath, identity.bundleIdentifier);
+    const client = developmentClient();
+    if (client === undefined) throw new Error(buildProblem());
+    await resetApp(device.udid, client, identity.bundleIdentifier);
     const scrub = (text: string) =>
       recorders.reduce((scrubbed, recorder) => recorder.scrub(scrubbed), text);
     let runs = 0;

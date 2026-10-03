@@ -17,7 +17,7 @@ export const identity = buildIdentity('development');
 
 const workspace = join(mobileRoot, 'ios', 'PorcelainDev.xcworkspace');
 const derivedData = join(mobileRoot, 'ios', 'build');
-export const appPath = join(
+const appPath = join(
   derivedData,
   'Build/Products/Debug-iphonesimulator/PorcelainDev.app',
 );
@@ -57,13 +57,18 @@ export function builtFingerprint(): string | undefined {
     : undefined;
 }
 
+export function developmentClient(): string | undefined {
+  const fingerprint = nativeFingerprint();
+  if (builtFingerprint() === fingerprint) return appPath;
+  const shared = sharedClientPath(fingerprint);
+  return existsSync(shared) ? shared : undefined;
+}
+
 export function buildProblem(): string | undefined {
-  const built = builtFingerprint();
-  if (built === undefined)
-    return `The development client is not built in this checkout (${appPath}). Build it with ${buildCommand}: Expo prebuild, then xcodebuild for the iOS simulator.`;
-  if (built !== nativeFingerprint())
-    return `Native code changed since the development client was built (the app dependencies in apps/mobile/package.json, ${nativeInputs.join(', ')}); a JavaScript change refreshes through Metro, but this one needs a native rebuild: ${buildCommand}.`;
-  return undefined;
+  if (developmentClient() !== undefined) return undefined;
+  if (builtFingerprint() === undefined)
+    return `The development client is not built in this checkout (${appPath}), and no build on this machine left a copy for this native code at ${sharedClientPath(nativeFingerprint())}. Build it with ${buildCommand}: Expo prebuild, then xcodebuild for the iOS simulator.`;
+  return `Native code changed since the development client was built (the app dependencies in apps/mobile/package.json, ${nativeInputs.join(', ')}); a JavaScript change refreshes through Metro, but this one needs a native rebuild: ${buildCommand}.`;
 }
 
 function run(
