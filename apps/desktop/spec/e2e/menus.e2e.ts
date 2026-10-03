@@ -30,7 +30,7 @@ test('the Settings menu opens Settings, which shows the app version and that the
   expect(app.errors).toEqual([]);
 });
 
-test('without a Vite server the menus offer full screen and zoom but no Reload or Developer Tools item', async ({
+test('without a Vite server the menus offer full screen and zoom but no Reload or Developer Tools item, and delayed window events after close do not block Quit', async ({
   desktop,
 }) => {
   const app = await desktop.launch();
@@ -47,4 +47,41 @@ test('without a Vite server the menus offer full screen and zoom but no Reload o
   expect(roles).not.toContain('reload');
   expect(roles).not.toContain('forcereload');
   expect(roles).not.toContain('toggledevtools');
+
+  const delayed = await app.electron.evaluate(async ({ BrowserWindow }) => {
+    const view = BrowserWindow.getAllWindows()[0];
+    if (view === undefined) throw new Error('The app window is missing');
+    const contents = view.webContents;
+    const closed = new Promise<void>((resolveClosed) =>
+      view.once('closed', () => resolveClosed()),
+    );
+    view.close();
+    await closed;
+
+    const errors: string[] = [];
+    for (const event of [
+      'show',
+      'hide',
+      'minimize',
+      'maximize',
+      'restore',
+      'enter-full-screen',
+      'leave-full-screen',
+      'ready-to-show',
+    ]) {
+      try {
+        view.emit(event);
+      } catch (error) {
+        errors.push(error instanceof Error ? error.message : String(error));
+      }
+    }
+    try {
+      contents.emit('did-finish-load');
+    } catch (error) {
+      errors.push(error instanceof Error ? error.message : String(error));
+    }
+    return { destroyed: view.isDestroyed(), errors };
+  });
+  expect(delayed).toEqual({ destroyed: true, errors: [] });
+  await app.quit();
 });

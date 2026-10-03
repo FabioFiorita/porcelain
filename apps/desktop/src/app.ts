@@ -181,17 +181,22 @@ async function openWindow() {
   view.on('move', save);
   view.on('maximize', save);
   view.on('unmaximize', save);
-  const fullscreen = () =>
-    view.webContents.send('porcelain:fullscreen', view.isFullScreen());
+  const fullscreen = () => {
+    if (!view.isDestroyed())
+      view.webContents.send('porcelain:fullscreen', view.isFullScreen());
+  };
   view.on('enter-full-screen', fullscreen);
   view.on('leave-full-screen', fullscreen);
   view.webContents.on('did-finish-load', fullscreen);
   if (restored?.maximized) view.maximize();
   view.once('closed', () => {
+    view.removeAllListeners();
     window = undefined;
     actionsReady = false;
   });
-  view.once('ready-to-show', () => view.show());
+  view.once('ready-to-show', () => {
+    if (!quitting && !view.isDestroyed()) view.show();
+  });
   view.webContents.session.setPermissionRequestHandler(
     (_contents, _permission, callback) => callback(false),
   );
