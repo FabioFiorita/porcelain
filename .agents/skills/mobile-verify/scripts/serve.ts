@@ -89,9 +89,9 @@ function pair(target: Target, link: string): void {
     screenLink('/settings'),
   ]);
   agentDevice(target, ['alert', 'accept', '5000'], { allowFailure: true });
-  agentDevice(target, ['press', 'label="Add environment"', '--settle']);
+  agentDevice(target, ['press', 'id="add-environment"', '--settle']);
   fillField(target, 'id="pairing-link"', link);
-  agentDevice(target, ['press', 'label="Pair"', '--settle']);
+  agentDevice(target, ['press', 'id="pair-environment"', '--settle']);
   agentDevice(target, ['wait', 'text', 'Online', '30000']);
 }
 
