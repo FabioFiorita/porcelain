@@ -71,6 +71,18 @@ export class World {
     });
   }
 
+  async revokeDevice(id: string, server: ServerName) {
+    const response = await (
+      await this.session(server)
+    ).read({
+      method: 'POST',
+      path: '/access/revoke',
+      target: 'owner',
+      body: { id },
+    });
+    return response.body;
+  }
+
   async read(request: ServerRead): Promise<ServerAnswer> {
     const response = await (
       await this.session(request.server)

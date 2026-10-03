@@ -11,6 +11,7 @@ tests:
   - apps/mobile/spec/e2e/environment-states.e2e.ts
 api:
   - GET /api/environment
+  - GET /api/inventory
 ---
 
 # access.environment-status
@@ -40,5 +41,6 @@ Look for: the environment “Mobile Verification …” marked “Online”. The
 
 ## Gotchas
 
-- “Needs pairing” is unreachable against the real server today: the row reads `GET /api/environment`, which the server serves to anyone, so a server that revoked this device still answers 200 and the row stays “Online”. No test claims it until the client reads an authenticated route for the status.
+- The shared client reads the public `GET /api/environment` for identity and protocol, then authenticated `GET /api/inventory` before calling it online. A 401 shows “Needs pairing”.
+- `apps/web/spec/e2e/access-remote-computers.desktop.e2e.ts` pairs a real remote, revokes its device, and checks the shared status read shows “Needs pairing”. Native rendering of this revoked state has not been verified.
 - “Another server” and “Update needed” need a different server at the same address or another protocol version; no real disposable server is in either state, so no test reaches them yet.

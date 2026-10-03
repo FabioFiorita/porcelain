@@ -19,6 +19,7 @@ export function environmentQueryOptions(
       const answer = await createRemoteApi(platform).describe(
         remoteTransport(remote.address, remote.credential, platform.send),
         signal,
+        remote.environmentId,
       );
       return remoteStatus(remote, answer);
     },

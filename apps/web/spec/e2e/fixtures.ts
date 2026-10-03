@@ -145,6 +145,8 @@ async function appOf(page: Page, world: World, live: LiveFixture) {
         environmentId: issued.environmentId,
       });
     },
+    revokeDevice: (id: string, server: ServerName = 'remote') =>
+      world.revokeDevice(id, server),
     async open(address: string) {
       await page.goto(address);
       return page;

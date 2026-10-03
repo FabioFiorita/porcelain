@@ -30,6 +30,7 @@ export async function pairEnvironment(
   const answer = await api.describe(
     remoteTransport(link.address, credential, platform.send),
     signal,
+    link.environmentId,
   );
   const status = remoteStatus(link, answer);
   if (status.kind !== 'online')

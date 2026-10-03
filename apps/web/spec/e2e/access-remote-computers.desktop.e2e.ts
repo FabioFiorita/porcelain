@@ -1,6 +1,6 @@
 import { expect, test } from './fixtures.ts';
 
-test('the desktop app adds a remote computer from the link porcelain pair prints, shows it online, refuses a used or broken link, and forgets it', async ({
+test('the desktop app adds a remote computer from the link porcelain pair prints, shows it online, refuses a used or broken link, shows needs pairing after revocation, and forgets it', async ({
   pairedPage,
   app,
   remote,
@@ -65,6 +65,19 @@ test('the desktop app adds a remote computer from the link porcelain pair prints
       'That link was not accepted. It works once, for a few minutes; run porcelain pair again.',
       { exact: true },
     ),
+  ).toBeVisible();
+
+  const device = (await remote.server.devices()).find(
+    (entry) => entry.label === 'Remote computer',
+  );
+  if (device === undefined) throw new Error('The remote paired no device');
+  await expect(app.revokeDevice(device.id)).resolves.toEqual({
+    revoked: true,
+    kind: 'device',
+  });
+  await app.reload();
+  await expect(
+    listed.getByText('Needs pairing', { exact: true }),
   ).toBeVisible();
 
   await listed

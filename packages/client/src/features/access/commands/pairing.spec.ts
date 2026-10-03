@@ -73,6 +73,11 @@ describe('pairing an environment', () => {
         authorization: 'Bearer paired-credential',
         body: undefined,
       },
+      {
+        path: '/api/inventory',
+        authorization: 'Bearer paired-credential',
+        body: undefined,
+      },
     ]);
     expect(saved).toEqual([[remote]]);
     expect(remote).toEqual({

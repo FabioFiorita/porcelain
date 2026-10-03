@@ -1,0 +1,91 @@
+import { describe, expect, it } from 'vitest';
+import { ENVIRONMENT_PROTOCOL } from '@porcelain/contracts/shared';
+import { createRemoteApi } from './api.ts';
+
+const environment = {
+  environmentId: 'saved-environment',
+  name: 'Computer',
+  version: '1.0.0',
+  protocol: ENVIRONMENT_PROTOCOL,
+};
+const api = createRemoteApi({ name: () => 'iOS' });
+type Transport = Parameters<typeof api.describe>[0];
+
+async function status(
+  transport: Transport,
+  signal = new AbortController().signal,
+) {
+  return api.describe(transport, signal, environment.environmentId);
+}
+
+describe('environment status', () => {
+  it.each([
+    [200, 'described'],
+    [401, 'unauthorized'],
+    [503, 'unreachable'],
+  ])('maps the authenticated read answering %s to %s', async (code, kind) => {
+    const paths: string[] = [];
+    const result = await status((path) => {
+      paths.push(path);
+      return Promise.resolve(
+        path === '/api/environment'
+          ? Response.json(environment)
+          : new Response(null, { status: code }),
+      );
+    });
+    expect(paths).toEqual(['/api/environment', '/api/inventory']);
+    expect(result.kind).toBe(kind);
+  });
+
+  it.each([
+    [{ ...environment, environmentId: 'another-environment' }, 'other-server'],
+    [{ ...environment, protocol: ENVIRONMENT_PROTOCOL + 1 }, 'incompatible'],
+  ])(
+    'keeps the descriptor failure %s as %s without an authenticated read',
+    async (descriptor) => {
+      const paths: string[] = [];
+      expect(
+        await status((path) => {
+          paths.push(path);
+          return Promise.resolve(Response.json(descriptor));
+        }),
+      ).toEqual({ kind: 'described', environment: descriptor });
+      expect(paths).toEqual(['/api/environment']);
+    },
+  );
+
+  it('shows offline when the authenticated read cannot be reached', async () => {
+    expect(
+      await status((path) =>
+        path === '/api/environment'
+          ? Promise.resolve(Response.json(environment))
+          : Promise.reject(new TypeError('Network failed')),
+      ),
+    ).toEqual({ kind: 'unreachable' });
+  });
+
+  it('propagates cancellation during the authenticated read', async () => {
+    const controller = new AbortController();
+    await expect(
+      status((path, init) => {
+        expect(init?.signal).toBe(controller.signal);
+        if (path === '/api/environment')
+          return Promise.resolve(Response.json(environment));
+        controller.abort();
+        return Promise.reject(controller.signal.reason);
+      }, controller.signal),
+    ).rejects.toMatchObject({ name: 'AbortError' });
+  });
+
+  it('shows offline when the authenticated read times out', async () => {
+    const controller = new AbortController();
+    expect(
+      await status((path) => {
+        if (path === '/api/environment')
+          return Promise.resolve(Response.json(environment));
+        controller.abort(new DOMException('Timed out', 'TimeoutError'));
+        return Promise.reject(controller.signal.reason);
+      }, controller.signal),
+    ).toEqual({ kind: 'unreachable' });
+  });
+});
