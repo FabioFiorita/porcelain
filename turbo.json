@@ -30,7 +30,14 @@
         "$TURBO_ROOT$/.agents/skills/web-verify/scripts/**"
       ]
     },
-    "test:e2e": { "dependsOn": ["transit"], "cache": false },
+    "test:e2e": {
+      "dependsOn": ["transit"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/.github/workflows/server.yml"
+      ],
+      "cache": false
+    },
     "@porcelain/desktop#test:e2e": {
       "dependsOn": ["transit", "@porcelain/web#transit"],
       "cache": false
