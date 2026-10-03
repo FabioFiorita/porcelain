@@ -44,7 +44,7 @@ To measure an interaction, wrap it in `$C trace start` and `$C trace stop`; the 
 $C evidence
 ```
 
-One numbered file per command (snapshots, screenshots, console, network), plus `browser/` and the logs. Text files are redacted; screenshots are not, so keep them local. `snapshot` prints the page unredacted so a next step can reuse a link it shows. Report the folder and what it shows.
+One numbered file per command (snapshots, screenshots, console, network), plus `browser/` and the logs. Text files and printed output are redacted, so a pairing link shows as `c=[redacted]`; screenshots are not, so keep them local. `pair` and `remote pairing-link` stand in for copying a link off the page. Report the folder and what it shows.
 
 ## 5. Run the test files the entry names, then stop
 

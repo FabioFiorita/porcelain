@@ -446,7 +446,7 @@ test('concurrent commands each record their own numbered evidence file', async (
 });
 
 test(
-  'the web CLI keeps a pairing code typed with fill or shown in a snapshot out of its evidence',
+  'the web CLI keeps a pairing code typed with fill or shown in a snapshot out of its output and evidence',
   async ({ onTestFinished }) => {
     const instance = await started(onTestFinished, { path: WEB_CLI });
     const web = (...args: string[]) =>
@@ -468,10 +468,8 @@ test(
 
     expect(filled.code).toBe(0);
     expect(filled.stdout).not.toContain(PAIRING_CODE);
-    expect(
-      snapshot.stdout,
-      'the snapshot prints what the page shows',
-    ).toContain(PAIRING_CODE);
+    expect(snapshot.stdout).toContain('Pairing code [redacted]');
+    expect(snapshot.stdout).not.toContain(PAIRING_CODE);
     expect(evidence.text).toContain('Pairing code [redacted]');
     expect(evidence.text).not.toContain(PAIRING_CODE);
     expect(evidence.numbered).toStrictEqual([
