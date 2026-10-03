@@ -53,6 +53,6 @@ With the document area split into two panes, the tab shortcuts act on the focuse
 
 ## Gotchas
 
-- While split, both panes hold a tab named "README.md Close README.md", so `--role tab --name "/README.md/"` is ambiguous and the CLI cannot scope a click to one region. Focus the right pane through its own "Review" button (step 4) instead of clicking its tab. Without a deliberate focus, `Alt+W` acts on whichever pane last received pointer or focus, and closing the left pane's README.md leaves the split in place.
+- While split, both panes hold a tab named "README.md Close README.md", so `--role tab --name "/README.md/"` alone is ambiguous; scope it with `--within-role region --within-name "Right pane"` (not yet driven), or focus the right pane through its own "Review" button (step 4) instead of clicking its tab. Without a deliberate focus, `Alt+W` acts on whichever pane last received pointer or focus, and closing the left pane's README.md leaves the split in place.
 - `Alt+\` from a pane opens the tab in the other pane and focuses it, so `press Alt+Backslash` right after step 2 is an alternative to the menu in step 3.
 - The tab layout is saved in localStorage; a split survives `open`. Reset by closing the right pane's tab (step 4 then 5) or closing the extra tabs.

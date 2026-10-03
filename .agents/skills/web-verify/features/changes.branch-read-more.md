@@ -60,7 +60,7 @@ git -C "$REPO" diff --name-only main feature | wc -l   # prints 27
 
 ## Gotchas
 
-- The in-flight moment (diffs kept while the next window loads) is a race the test reaches by holding the request; the CLI cannot hold a request, so it sees only the end state. Needed: `cli network hold "POST /api/worktrees/*/branch-changes/diffs"` and `cli network release`.
+- The in-flight moment (diffs kept while the next window loads) is a race the test reaches by holding the request; `$C network hold "POST /api/worktrees/:worktreeId/branch-changes/diffs"` before reading more and `$C network release` after a `snapshot` would show it (not yet driven with these commands; release within the web's 15-second request timeout).
 - notes-24.md and notes-25.md, the two files read last, sit at the bottom of a long document, off screen at 414 by 896, and the diff viewer may not render off-screen files; the network log is the dependable check that they were read.
 - `git add --all` commits README.md's start-state change too, which is why there are 27 files and README.md is first.
 - The setup leaves the repository on `feature`; `$C stop` and `$C start` before driving another feature.
