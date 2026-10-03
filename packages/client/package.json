@@ -9,15 +9,27 @@
     "./access/api": "./src/features/access/api.ts",
     "./projects": "./src/features/projects/index.ts",
     "./projects/api": "./src/features/projects/api.ts",
-    "./projects/rules": "./src/features/projects/rules/index.ts"
+    "./projects/rules": "./src/features/projects/rules/index.ts",
+    "./files": "./src/features/files/index.ts",
+    "./files/api": "./src/features/files/api.ts",
+    "./changes": "./src/features/changes/index.ts",
+    "./changes/api": "./src/features/changes/api.ts",
+    "./history": "./src/features/history/index.ts",
+    "./history/api": "./src/features/history/api.ts",
+    "./reviews": "./src/features/reviews/index.ts",
+    "./reviews/api": "./src/features/reviews/api.ts"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run --config ../../vitest.config.ts --project @porcelain/client"
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.spec.json",
+    "test": "vitest run --config ../../vitest.config.ts --project @porcelain/client",
+    "test:integration": "vitest run --config ../../vitest.config.ts --project @porcelain/client-integration"
   },
   "dependencies": {
     "@porcelain/contracts": "workspace:*",
     "@tanstack/query-core": "5.102.8",
     "zustand": "5.0.15"
+  },
+  "devDependencies": {
+    "@porcelain/server": "workspace:*"
   }
 }

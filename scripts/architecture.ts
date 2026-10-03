@@ -140,6 +140,7 @@ function sourceFiles(directory: string): string[] {
 }
 
 const permittedOutsideRoots: readonly RegExp[] = [
+  /^packages\/client\/tsconfig\.spec\.json$/,
   /^apps\/mobile\/(?:package\.json|tsconfig\.json|app\.config\.ts|eas\.json|metro\.config\.cjs)$/,
   /^apps\/mobile\/spec\/e2e\/[a-z]+(?:-[a-z]+)*\.yaml$/,
   /^(?:packages\/[^/]+|apps\/(?:server|desktop))\/(?:package|tsconfig)\.json$/,

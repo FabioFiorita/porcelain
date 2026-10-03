@@ -238,6 +238,7 @@ function projectConfigs(root: string): string[] {
     join(root, 'apps/web/tsconfig.json'),
     join(root, 'apps/mobile/tsconfig.json'),
     join(root, 'apps/web/tsconfig.node.json'),
+    join(root, 'packages/client/tsconfig.spec.json'),
     ...packages,
   ].filter((path) => existsSync(path));
 }

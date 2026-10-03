@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/shared/query/keys';
-import { layerMarksQueryOptions } from '../queries/published-review';
+import { layerMarksQueryOptions } from '@porcelain/client/reviews';
 import type { ReviewScope } from '../rules/review';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 import { reviewsApi } from '../api';
@@ -11,7 +11,7 @@ export function useToggleLayerMark(
 ) {
   const { connection } = context;
   const client = useQueryClient();
-  const key = layerMarksQueryOptions(scope, context).queryKey;
+  const key = layerMarksQueryOptions(scope, context.connection).queryKey;
   const mutation = useMutation({
     mutationFn: async (input: {
       layerId: string;

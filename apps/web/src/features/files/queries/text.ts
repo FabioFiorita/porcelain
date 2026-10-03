@@ -1,51 +1,7 @@
-import {
-  queryOptions,
-  useQueries,
-  useSuspenseQuery,
-} from '@tanstack/react-query';
-import { filesApi, unreadableFileReason } from '../api';
+import { textQueryOptions } from '@porcelain/client/files';
+import { useQueries, useSuspenseQuery } from '@tanstack/react-query';
 import type { FilesScope } from '../rules/scope';
 import { type Connection } from '@/shared/workspace/connection';
-
-function textQueryOptions(
-  environmentId: string,
-  scope: FilesScope,
-  path: string,
-  connection: Connection,
-) {
-  return queryOptions({
-    queryKey: [
-      'review',
-      environmentId,
-      scope.projectId,
-      scope.worktreeId,
-      'text',
-      path,
-    ],
-    queryFn: async ({ signal }) => {
-      const connected = connection.request(signal);
-      try {
-        const response = await filesApi(connection).text(
-          connected.signal,
-          scope.worktreeId,
-          path,
-        );
-        connected.signal.throwIfAborted();
-        return response;
-      } catch (error) {
-        const reason = unreadableFileReason(error);
-        if (reason) {
-          const unreadable: { kind: 'unreadable'; reason: string } = {
-            kind: 'unreadable',
-            reason,
-          };
-          return unreadable;
-        }
-        throw error;
-      }
-    },
-  });
-}
 
 export function useTextFile(
   connection: Connection | null,
@@ -54,9 +10,7 @@ export function useTextFile(
   _active: boolean,
 ) {
   if (!connection) throw new Error('A connected environment is required');
-  return useSuspenseQuery(
-    textQueryOptions(connection.environmentId, scope, path, connection),
-  ).data;
+  return useSuspenseQuery(textQueryOptions(scope, connection, path)).data;
 }
 
 export function useTextContents(
@@ -67,7 +21,7 @@ export function useTextContents(
   if (!connection) throw new Error('A connected environment is required');
   const queries = useQueries({
     queries: paths.map((path) => ({
-      ...textQueryOptions(connection.environmentId, scope, path, connection),
+      ...textQueryOptions(scope, connection, path),
       throwOnError: false,
     })),
   });

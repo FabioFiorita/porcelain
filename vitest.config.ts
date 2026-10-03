@@ -165,6 +165,18 @@ export default defineConfig({
           expect: { requireAssertions: true },
         },
       },
+      {
+        test: {
+          name: '@porcelain/client-integration',
+          root,
+          include: ['packages/client/spec/integration/*.integration.ts'],
+          globalSetup: ['packages/client/spec/kit/global-setup.ts'],
+          expect: { requireAssertions: true },
+          fileParallelism: false,
+          testTimeout: 30_000,
+          hookTimeout: 60_000,
+        },
+      },
       ...packages.map((name) => ({
         test: {
           name: `@porcelain/${name}`,

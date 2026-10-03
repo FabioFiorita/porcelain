@@ -1,5 +1,14 @@
 export default [
   {
+    rule: 'spec-imports',
+    path: 'packages/client/spec/integration/files.integration.ts',
+    valid:
+      "import { directoryQueryOptions } from '@porcelain/client/files'; import { test } from '@porcelain/server/kit/server-test';",
+    invalid:
+      "import { composeServer } from '@porcelain/server/src/bootstrap/compose-server';",
+    errors: 1,
+  },
+  {
     rule: 'no-number-outside-limits',
     path: 'apps/mobile/src/shared/api/transport.ts',
     valid:

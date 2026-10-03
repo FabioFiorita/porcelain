@@ -1,5 +1,5 @@
 import { usePathDiffs } from './path-diffs';
-import { changesApi } from '../api';
+import { commitDiffsQueryOptions } from '@porcelain/client/changes';
 import type { ChangesScope } from '../rules/changes';
 import {
   type Connection,
@@ -17,23 +17,11 @@ export function useCommitDiffs(
   return usePathDiffs({
     connection: connected,
     paths,
-    key: (batch) => [
-      'review',
-      connected.environmentId,
-      scope.projectId,
-      scope.worktreeId,
-      'commit-diffs',
-      oid,
-      parent,
-      batch.map((entry) => entry.join('\0')),
-    ],
+    key: (batch) =>
+      commitDiffsQueryOptions(scope, connected, oid, parent, batch).queryKey,
     read: (signal, batch) =>
-      changesApi(connected).commitDiffs(
+      commitDiffsQueryOptions(scope, connected, oid, parent, batch).queryFn({
         signal,
-        scope.worktreeId,
-        oid,
-        parent,
-        batch,
-      ),
+      }),
   });
 }
