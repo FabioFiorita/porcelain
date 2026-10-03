@@ -160,9 +160,6 @@ test('a remote computer summary renders through the app from that computer, cann
   await computer.getByRole('button', { name: /Main worktree/ }).click();
   const remoteWorktree = `/remotes/${remote.environmentId}/${there.project.id}/${there.worktree.id}`;
   await page.waitForURL((url) => url.pathname === remoteWorktree);
-  await page
-    .getByRole('button', { name: 'Review summary', exact: true })
-    .click();
   const summary = page.frameLocator('iframe[title="Review summary"]');
   await expect(
     summary.getByRole('heading', { name: 'Remote summary', exact: true }),
@@ -216,7 +213,8 @@ test('a remote computer summary renders through the app from that computer, cann
   await page.screenshot({ path: testInfo.outputPath('remote-layer.png') });
 
   await page
-    .getByRole('button', { name: 'Review summary', exact: true })
+    .getByRole('tablist', { name: 'Open documents', exact: true })
+    .getByTitle('Review summary', { exact: true })
     .click();
   const refused = page.waitForEvent('console', {
     predicate: (message) =>

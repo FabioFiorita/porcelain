@@ -1,4 +1,4 @@
-name: Fast checks
+name: Checks
 
 on:
   pull_request:
@@ -15,7 +15,9 @@ concurrency:
 jobs:
   checks:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
+    outputs:
+      desktop: ${{ steps.affected.outputs.desktop }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -26,6 +28,14 @@ jobs:
           cache: true
           require-lockfile: true
       - run: pnpm install --frozen-lockfile
+      - name: Find the affected e2e suites
+        id: affected
+        run: |
+          pnpm exec turbo run test:e2e --affected --dry=json > "$RUNNER_TEMP/e2e.json"
+          for app in web desktop; do
+            echo "$app=$(jq --arg task "@porcelain/$app#test:e2e" 'any(.tasks[]; .taskId == $task)' "$RUNNER_TEMP/e2e.json")" >> "$GITHUB_OUTPUT"
+          done
+          cat "$GITHUB_OUTPUT"
       - uses: actions/cache@v6
         with:
           path: .turbo/cache
@@ -38,3 +48,30 @@ jobs:
       - run: bwrap --ro-bind / / --dev /dev --proc /proc --unshare-pid --unshare-ipc --unshare-net --new-session --die-with-parent -- true
       - run: pnpm exec playwright install --with-deps --only-shell chromium
       - run: pnpm test:integration --affected --continue
+      - if: ${{ !cancelled() && steps.affected.outputs.web == 'true' }}
+        run: pnpm --filter @porcelain/web test:e2e
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: web-e2e
+          path: apps/web/test-results/
+
+  desktop-e2e:
+    needs: checks
+    if: ${{ !cancelled() && needs.checks.outputs.desktop == 'true' }}
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/setup@v3
+        with:
+          runtime: node@24.20.0
+          cache: true
+          require-lockfile: true
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @porcelain/desktop test:e2e
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: desktop-e2e
+          path: apps/desktop/test-results/
