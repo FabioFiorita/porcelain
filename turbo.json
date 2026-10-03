@@ -40,6 +40,10 @@
     },
     "@porcelain/desktop#test:e2e": {
       "dependsOn": ["transit", "@porcelain/web#transit"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/.github/workflows/server.yml"
+      ],
       "cache": false
     },
     "//#typecheck": {},

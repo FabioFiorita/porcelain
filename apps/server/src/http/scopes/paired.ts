@@ -1,4 +1,5 @@
 import type { IssueLiveTicketUseCase } from '../../use-cases/access/issue-live-ticket.ts';
+import type { ReadSessionUseCase } from '../../use-cases/access/read-session.ts';
 import type { ReadServiceUpdateUseCase } from '../../use-cases/access/read-service-update.ts';
 import type { StartServiceUpdateUseCase } from '../../use-cases/access/start-service-update.ts';
 import type { Limits } from '../../config/limits.ts';
@@ -58,6 +59,7 @@ import {
   type LocalDeviceOptions,
 } from '../hooks/local-device.ts';
 import { issueLiveTicket } from '../routes/access/issue-live-ticket.ts';
+import { readSession } from '../routes/access/read-session.ts';
 import { startServiceUpdate } from '../routes/access/start-service-update.ts';
 import { listCommits } from '../routes/changes/list-commits.ts';
 import { listFileCommits } from '../routes/changes/list-file-commits.ts';
@@ -114,6 +116,7 @@ export type PairedUseCases = {
     readServiceUpdate: Pick<ReadServiceUpdateUseCase, 'execute'>;
     startServiceUpdate: Pick<StartServiceUpdateUseCase, 'execute'>;
     issueLiveTicket: Pick<IssueLiveTicketUseCase, 'execute'>;
+    readSession: Pick<ReadSessionUseCase, 'execute'>;
   };
   projects: {
     browseProjectFolders: Pick<BrowseProjectFoldersUseCase, 'execute'>;
@@ -200,6 +203,9 @@ export async function pairedScope(
   });
   server.register(issueLiveTicket, {
     useCase: options.application.access.issueLiveTicket,
+  });
+  server.register(readSession, {
+    useCase: options.application.access.readSession,
   });
   server.register(runGitAction, {
     useCase: options.application.gitActions.runGitAction,

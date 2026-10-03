@@ -20,7 +20,7 @@ const environment = {
   environmentId,
   name: 'home-server',
   version: '1.2.0',
-  protocol: 1,
+  protocol: 2,
 };
 
 describe('remoteLink', () => {
@@ -63,7 +63,7 @@ describe('remoteStatus', () => {
     [
       {
         kind: 'described' as const,
-        environment: { ...environment, protocol: 2 },
+        environment: { ...environment, protocol: 1 },
       },
       { kind: 'incompatible' },
     ],

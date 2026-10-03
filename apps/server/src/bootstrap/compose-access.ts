@@ -56,6 +56,7 @@ import { RedeemLiveTicketUseCase } from '../use-cases/access/redeem-live-ticket.
 import { ListAccessUseCase } from '../use-cases/access/list-access.ts';
 import { ReadEnvironmentUseCase } from '../use-cases/access/read-environment.ts';
 import { ReadHealthUseCase } from '../use-cases/access/read-health.ts';
+import { ReadSessionUseCase } from '../use-cases/access/read-session.ts';
 import { ReadOwnerStatusUseCase } from '../use-cases/access/read-owner-status.ts';
 import { RedeemPairingUseCase } from '../use-cases/access/redeem-pairing.ts';
 import { RefundPairingAttemptUseCase } from '../use-cases/access/refund-pairing-attempt.ts';
@@ -252,6 +253,7 @@ export function composeAccess(
       laneKeys,
     ),
     readHealth: new ReadHealthUseCase(readEnvironment, lanes, laneKeys),
+    readSession: new ReadSessionUseCase(lanes),
     readEnvironment: new ReadEnvironmentUseCase(
       readEnvironment,
       dependencies.shared.readEnvironmentName,

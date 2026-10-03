@@ -11,7 +11,7 @@ tests:
   - apps/mobile/spec/e2e/environment-states.e2e.ts
 api:
   - GET /api/environment
-  - GET /api/inventory
+  - GET /api/session
 ---
 
 # access.environment-status
@@ -41,6 +41,6 @@ Look for: the environment “Mobile Verification …” marked “Online”. The
 
 ## Gotchas
 
-- The shared client reads the public `GET /api/environment` for identity and protocol, then authenticated `GET /api/inventory` before calling it online. A 401 shows “Needs pairing”.
-- `apps/web/spec/e2e/access-remote-computers.desktop.e2e.ts` pairs a real remote, revokes its device, and checks the shared status read shows “Needs pairing”. Native rendering of this revoked state has not been verified.
+- The shared client reads the public `GET /api/environment` for identity and protocol, then authenticated `GET /api/session` before calling it online. A 401 shows “Needs pairing”.
+- `apps/web/spec/e2e/access-remote-computers.desktop.e2e.ts` pairs a real remote, revokes its device, and checks the shared status read shows “Needs pairing”. On iPhone, revoking the instance's “Verification simulator” device through the server's owner socket (`POST /access/revoke`) and reloading the app shows “Needs pairing”; the row reads its status when it mounts, so a revocation shows only after a reload or a cold launch.
 - “Another server” and “Update needed” need a different server at the same address or another protocol version; no real disposable server is in either state, so no test reaches them yet.

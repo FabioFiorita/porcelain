@@ -42,7 +42,12 @@ export {
   type SetDeviceTrustRequest,
   type SetDeviceTrustResponse,
 } from './pairing.ts';
-export type { Principal } from './principal.ts';
+export {
+  readSessionResponseSchema,
+  type Principal,
+  type ReadSessionRequest,
+  type ReadSessionResponse,
+} from './principal.ts';
 export {
   readServiceUpdateResponseSchema,
   startServiceUpdateRequestSchema,

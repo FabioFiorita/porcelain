@@ -74,7 +74,7 @@ describe('pairing an environment', () => {
         body: undefined,
       },
       {
-        path: '/api/inventory',
+        path: '/api/session',
         authorization: 'Bearer paired-credential',
         body: undefined,
       },
@@ -98,6 +98,11 @@ describe('pairing an environment', () => {
     {
       environmentId: 'installation',
       protocol: ENVIRONMENT_PROTOCOL + 1,
+      message: 'version',
+    },
+    {
+      environmentId: 'installation',
+      protocol: ENVIRONMENT_PROTOCOL - 1,
       message: 'version',
     },
   ])(

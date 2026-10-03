@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ENVIRONMENT_PROTOCOL } from '@porcelain/contracts/shared';
 import { createRemoteApi } from './api.ts';
-
 const environment = {
   environmentId: 'saved-environment',
   name: 'Computer',
@@ -33,16 +32,26 @@ describe('environment status', () => {
           : new Response(null, { status: code }),
       );
     });
-    expect(paths).toEqual(['/api/environment', '/api/inventory']);
+    expect(paths).toEqual(['/api/environment', '/api/session']);
     expect(result.kind).toBe(kind);
   });
 
   it.each([
-    [{ ...environment, environmentId: 'another-environment' }, 'other-server'],
-    [{ ...environment, protocol: ENVIRONMENT_PROTOCOL + 1 }, 'incompatible'],
+    [
+      'another environment',
+      { ...environment, environmentId: 'another-environment' },
+    ],
+    [
+      'a newer protocol',
+      { ...environment, protocol: ENVIRONMENT_PROTOCOL + 1 },
+    ],
+    [
+      'an older protocol',
+      { ...environment, protocol: ENVIRONMENT_PROTOCOL - 1 },
+    ],
   ])(
-    'keeps the descriptor failure %s as %s without an authenticated read',
-    async (descriptor) => {
+    'returns the descriptor of %s without an authenticated read',
+    async (_, descriptor) => {
       const paths: string[] = [];
       expect(
         await status((path) => {
@@ -54,7 +63,7 @@ describe('environment status', () => {
     },
   );
 
-  it('shows offline when the authenticated read cannot be reached', async () => {
+  it('answers unreachable when the authenticated read cannot be reached', async () => {
     expect(
       await status((path) =>
         path === '/api/environment'
@@ -77,7 +86,7 @@ describe('environment status', () => {
     ).rejects.toMatchObject({ name: 'AbortError' });
   });
 
-  it('shows offline when the authenticated read times out', async () => {
+  it('answers unreachable when the authenticated read times out', async () => {
     const controller = new AbortController();
     expect(
       await status((path) => {
