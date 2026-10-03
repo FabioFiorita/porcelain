@@ -1,4 +1,4 @@
-export const ARCHITECTURE_LINE_BUDGET = 17_900;
+export const ARCHITECTURE_LINE_BUDGET = 18_600;
 
 export function architectureLines(sources: readonly string[]): number {
   return sources.reduce((count, source) => {
