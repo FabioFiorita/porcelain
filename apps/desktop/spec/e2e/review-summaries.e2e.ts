@@ -30,6 +30,7 @@ declare function addEventListener(
 ): void;
 declare const document: {
   hasFocus(): boolean;
+  readonly activeElement: { getAttribute(name: string): string | null } | null;
   addEventListener(
     type: 'click',
     listener: (event: {
@@ -102,6 +103,24 @@ function summaryClicks(page: Page): Promise<unknown> {
     const clicks: unknown = Reflect.get(globalThis, 'porcelainSummaryClicks');
     return clicks;
   });
+}
+
+async function focusSummaryLink(
+  frame: ReturnType<Page['frames']>[number],
+  name: string,
+  href: string,
+) {
+  const link = frame.getByRole('link', { name, exact: true });
+  await link.focus();
+  await expect
+    .poll(() =>
+      frame.evaluate(() => ({
+        focused: document.hasFocus(),
+        href: document.activeElement?.getAttribute('href'),
+      })),
+    )
+    .toEqual({ focused: true, href });
+  return link;
 }
 
 async function publishSummary(page: Page, repository: string, title: string) {
@@ -299,9 +318,12 @@ test('a remote computer summary renders through the app from that computer, cann
     sandbox,
   );
   try {
-    await summary
-      .getByRole('link', { name: 'Open Remote summary layer', exact: true })
-      .click();
+    const layerLink = await focusSummaryLink(
+      frame,
+      'Open Remote summary layer',
+      '#layer-1',
+    );
+    await layerLink.press('Enter');
     await expect
       .poll(() => summaryClicks(page))
       .toContainEqual({
@@ -389,7 +411,7 @@ test('a remote computer summary renders through the app from that computer, cann
     );
   });
   const navigationState = () =>
-    Promise.all([
+    Promise.allSettled([
       app.electron.evaluate(({ BrowserWindow, session }) => {
         const view = BrowserWindow.getAllWindows()[0];
         const requests: unknown = Reflect.get(
@@ -413,15 +435,31 @@ test('a remote computer summary renders through the app from that computer, cann
         );
         return { focused: document.hasFocus(), refusals, clicks };
       }),
-    ]).catch((error: unknown) => ({
-      error: error instanceof Error ? error.message : String(error),
-    }));
+      reopenedSummary.evaluate(() => ({
+        focused: document.hasFocus(),
+        activeHref: document.activeElement?.getAttribute('href'),
+      })),
+    ]).then((results) =>
+      results.map((result) =>
+        result.status === 'fulfilled'
+          ? result.value
+          : {
+              error:
+                result.reason instanceof Error
+                  ? result.reason.message
+                  : String(result.reason),
+            },
+      ),
+    );
   const beforeClick = await navigationState();
   let afterClick: Awaited<ReturnType<typeof navigationState>> | undefined;
   try {
-    await reopenedSummary
-      .getByRole('link', { name: 'Leave for a website', exact: true })
-      .click();
+    const websiteLink = await focusSummaryLink(
+      reopenedSummary,
+      'Leave for a website',
+      'https://example.com/',
+    );
+    await websiteLink.press('Enter');
     afterClick = await navigationState();
     await expect
       .poll(() => summaryClicks(page))
