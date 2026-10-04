@@ -1,6 +1,7 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 import { openSync } from 'node:fs';
 import { appendFile } from 'node:fs/promises';
+import { createServer as createHttpServer } from 'node:http';
 import { createServer } from 'node:net';
 import { join } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
@@ -42,9 +43,10 @@ function exited(child: ChildProcess): boolean {
   return child.exitCode !== null || child.signalCode !== null;
 }
 
-export async function readyManifest(
+async function readyManifest(
   url: string,
   log: string,
+  deadline = performance.now() + readyLimitMs,
 ): Promise<Response> {
   const origin = new URL(url);
   const headers = {
@@ -55,7 +57,6 @@ export async function readyManifest(
     'X-Forwarded-Host': origin.host,
     'X-Forwarded-Proto': origin.protocol.slice(0, -1),
   };
-  const deadline = performance.now() + readyLimitMs;
   while (performance.now() < deadline) {
     const began = performance.now();
     let manifest: Response | undefined;
@@ -88,8 +89,16 @@ export async function readyManifest(
   throw new Error(`Metro's iOS manifest did not become responsive at ${url}`);
 }
 
-async function warmBundle(url: string, log: string): Promise<void> {
-  const manifest = await readyManifest(url, log);
+async function warmBundle(
+  url: string,
+  log: string,
+  deadline = performance.now() + bundleLimitMs,
+): Promise<void> {
+  const manifest = await readyManifest(
+    url,
+    log,
+    Math.min(deadline, performance.now() + readyLimitMs),
+  );
   const { launchAsset } = z
     .object({ launchAsset: z.object({ url: z.string().min(1) }) })
     .parse(await manifest.json());
@@ -99,8 +108,11 @@ async function warmBundle(url: string, log: string): Promise<void> {
     log,
     `\nWarm iOS launch bundle ${launch.href} through ${bundle.href}\n`,
   );
+  const began = performance.now();
   const response = await fetch(bundle, {
-    signal: AbortSignal.timeout(bundleLimitMs),
+    signal: AbortSignal.timeout(
+      Math.max(1, Math.ceil(deadline - performance.now())),
+    ),
   }).catch((error: unknown) => {
     throw new Error(
       `Metro could not fetch the iOS launch bundle at ${bundle.href}`,
@@ -109,11 +121,60 @@ async function warmBundle(url: string, log: string): Promise<void> {
       },
     );
   });
+  await appendFile(
+    log,
+    `${new Date().toISOString()}: iOS bundle ${bundle.href} ${Math.round(performance.now() - began)}ms; status ${response.status}\n`,
+  );
   if (!response.ok)
     throw new Error(
       `Metro returned ${response.status} for the iOS launch bundle at ${bundle.href}: ${(await response.text()).slice(0, 1000)}`,
     );
   await response.arrayBuffer();
+}
+
+export async function launchReadiness(url: string, log: string) {
+  const ready = async () => {
+    const deadline = performance.now() + readyLimitMs;
+    while (performance.now() < deadline) {
+      const began = performance.now();
+      await warmBundle(url, log, deadline);
+      const elapsed = Math.round(performance.now() - began);
+      await appendFile(
+        log,
+        `${new Date().toISOString()}: launch manifest and bundle ${elapsed}ms\n`,
+      );
+      if (elapsed <= manifestReadyMs) return;
+      await sleep(pollMs);
+    }
+    throw new Error(
+      `Metro's launch bundle did not become responsive at ${url}`,
+    );
+  };
+  const server = createHttpServer((_request, response) => {
+    void ready().then(
+      () => response.end('Metro is ready'),
+      (error: unknown) => {
+        response.statusCode = 500;
+        response.end(String(error));
+      },
+    );
+  });
+  await new Promise<void>((done, fail) => {
+    server.once('error', fail);
+    server.listen(0, '127.0.0.1', done);
+  });
+  const address = server.address();
+  if (address === null || typeof address === 'string') {
+    server.close();
+    throw new Error('Metro launch readiness has no local port');
+  }
+  return {
+    url: `http://127.0.0.1:${address.port}`,
+    stop: () =>
+      new Promise<void>((done, fail) =>
+        server.close((error) => (error === undefined ? done() : fail(error))),
+      ),
+  };
 }
 
 export async function startMetro(

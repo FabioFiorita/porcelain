@@ -13,7 +13,7 @@ import {
   screenLink,
 } from '../kit/development-client.ts';
 import { Environment } from '../kit/environment.ts';
-import { readyManifest } from '../kit/metro.ts';
+import { launchReadiness } from '../kit/metro.ts';
 import { resetApp } from '../kit/simulator.ts';
 
 export { expect } from 'vitest';
@@ -120,10 +120,15 @@ export const test = base
       };
     },
   )
-  .extend('app', async ({ device, evidence, recorders }) => {
+  .extend('app', async ({ device, evidence, recorders }, { onCleanup }) => {
     const client = developmentClient();
     if (client === undefined) throw new Error(buildProblem());
     await resetApp(device.udid, client, identity.bundleIdentifier);
+    const metro = await launchReadiness(
+      device.metro,
+      join(device.evidence, 'metro.log'),
+    );
+    onCleanup(metro.stop);
     const scrub = (text: string) =>
       recorders.reduce((scrubbed, recorder) => recorder.scrub(scrubbed), text);
     let runs = 0;
@@ -140,9 +145,9 @@ export const test = base
         await mkdir(output, { recursive: true });
         const environment = {
           DEVELOPMENT_URL: developmentLaunchUrl(device.metro),
+          METRO_READY_URL: metro.url,
           ...variables,
         };
-        await readyManifest(device.metro, join(device.evidence, 'metro.log'));
         try {
           const result = await execute(
             'maestro',

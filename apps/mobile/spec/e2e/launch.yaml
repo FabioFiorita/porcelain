@@ -1,6 +1,9 @@
 appId: com.fabiofiorita.porcelain.dev
 name: Cold launch and await bounded native startup
 ---
+- assertTrue:
+    condition: ${http.get(METRO_READY_URL).ok}
+    label: Await the responsive Metro manifest and launch bundle
 - launchApp:
     permissions: {}
     arguments:
