@@ -7,9 +7,8 @@ import {
   contentShape,
   shapes,
 } from '@expo/ui/swift-ui/modifiers';
-import type { ReactElement } from 'react';
-import type { ColorValue } from 'react-native';
 import { useResolveClassNames, useUniwind } from 'uniwind';
+import type { ButtonControlProps } from './button-control-props';
 
 export function ButtonControl({
   children,
@@ -20,17 +19,7 @@ export function ButtonControl({
   selected,
   row,
   color,
-}: {
-  children: ReactElement;
-  onPress: () => void;
-  accessibilityLabel: string;
-  testID?: string | undefined;
-  disabled: boolean;
-  selected: boolean;
-  row: boolean;
-  color?: ColorValue | undefined;
-  radius?: number | undefined;
-}) {
+}: ButtonControlProps) {
   const { theme } = useUniwind();
   const hostStyle = useResolveClassNames(row ? 'w-full' : 'self-start');
   return (
