@@ -1,24 +1,20 @@
 import { useState } from 'react';
+import { useSelectedWorktree } from '../../projects';
 import { WorktreeEmpty } from '../../../shared/worktree-empty';
 import type { HistoryWorkspace } from '../queries/history';
 import { HistoryList } from './history-list';
 import { CommitDetails, type CommitDiffRenderer } from './commit-details';
 
 export function HistoryScreen({
-  workspace,
   renderDiff,
 }: {
-  workspace?: HistoryWorkspace;
   renderDiff?: CommitDiffRenderer | undefined;
 } = {}) {
+  const workspace = useSelectedWorktree();
   if (!workspace) return <WorktreeEmpty title="History" />;
   return (
     <WorktreeHistory
-      key={JSON.stringify([
-        workspace.connection.environmentId,
-        workspace.connection.cacheIdentity,
-        workspace.scope,
-      ])}
+      key={workspace.key}
       workspace={workspace}
       renderDiff={renderDiff}
     />

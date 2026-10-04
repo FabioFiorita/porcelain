@@ -75,7 +75,7 @@ Switch worktrees or environments while a commit is open. The new worktree starts
 
 - `apps/mobile/spec/e2e/destinations.e2e.ts`: the deep link opens History directly, warm and after a cold launch, with the tab selected and its empty state.
 - `apps/mobile/spec/e2e/phone-shell.e2e.ts` and `apps/mobile/spec/e2e/tablet-shell.tablet.e2e.ts`: History is selectable on phone and iPad.
-- `apps/mobile/spec/e2e/history.e2e.ts`: pairs a disposable environment, selects its worktree, opens a rename, a commit with a body and a root commit, checks changed paths and statuses, and returns to the list. The fixture checks the successful native history and commit-file requests against the exact commit ids.
+- `apps/mobile/spec/e2e/history.e2e.ts`: pairs a disposable environment, selects its worktree, opens a rename, a commit with a body and a root commit, and checks changed paths and statuses. Switching worktrees from a commit resets to the new list, which contains only that worktree's commits. The fixture checks the successful native history and commit-file requests against the exact commit ids.
 - `packages/client/src/features/history/rules/commit-file.spec.ts`: changed-path labels and diff path groups preserve additions, deletions and both sides of a rename.
 - The shared client History integration spec covers root files and patch, merge parents, binary/deleted/empty changes, and pagination.
 

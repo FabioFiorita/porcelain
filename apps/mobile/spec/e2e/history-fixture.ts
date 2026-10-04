@@ -1,4 +1,5 @@
 import { readInventoryResponseSchema } from '@porcelain/contracts/projects';
+import { join } from 'node:path';
 import type { Environment } from '../kit/environment.ts';
 
 export async function prepareHistory(environment: Environment) {
@@ -18,6 +19,18 @@ export async function prepareHistory(environment: Environment) {
     projectId: project.id,
     worktreeId: worktree.id,
   });
+  const root = (
+    await session.git('rev-list', '--max-parents=0', 'HEAD')
+  ).trim();
+  const originalWorktree = 'history-original';
+  await session.git(
+    'worktree',
+    'add',
+    '-b',
+    originalWorktree,
+    join(environment.server.projectHome, originalWorktree),
+    root,
+  );
   await session.writeFile(session.fixture.readme.path, 'History readme\n');
   await session.git(
     'commit',
@@ -34,7 +47,8 @@ export async function prepareHistory(environment: Environment) {
     projectName: project.name,
     worktreeLabel: worktree.branch.replace(/^refs\/heads\//, ''),
     readme: session.fixture.readme.path,
-    root: (await session.git('rev-list', '--max-parents=0', 'HEAD')).trim(),
+    root,
+    originalWorktree,
     update,
     rename,
   };

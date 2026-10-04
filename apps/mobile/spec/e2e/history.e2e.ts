@@ -16,6 +16,7 @@ test('History opens selected worktree commits, changed paths and returns to the 
       HISTORY_LINK: app.link('/history'),
       README_PATH: state.readme,
       ROOT_OID: state.root,
+      ORIGINAL_WORKTREE: state.originalWorktree,
     }),
   ).toEqual({
     name: 'Browse commits and changed files in History',
@@ -31,5 +32,5 @@ test('History opens selected worktree commits, changed paths and returns to the 
   );
   expect(
     files.map((hit) => hit.path.split('/commits/')[1]?.split('/')[0]),
-  ).toEqual([state.rename, state.update, state.root]);
+  ).toEqual([state.rename, state.update, state.root, state.root]);
 });

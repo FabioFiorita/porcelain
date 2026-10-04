@@ -37,6 +37,21 @@ name: Browse commits and changed files in History
 - assertVisible: Changed files
 - assertVisible: ${README_PATH}
 - assertVisible: added
-- tapOn: Back to history
+- tapOn: ${PROJECT_NAME} · ${WORKTREE_LABEL}
+- tapOn: Project
+- tapOn: ${PROJECT_NAME}
+- tapOn: ${ORIGINAL_WORKTREE}
+- assertNotVisible: Back to history
+- assertVisible: Initial commit
+- assertNotVisible: Rename history readme
+- assertNotVisible: Update history readme
+- tapOn:
+    id: history-commit-${ROOT_OID}
+- assertVisible: Root commit
+- tapOn: ${PROJECT_NAME} · ${ORIGINAL_WORKTREE}
+- tapOn: Project
+- tapOn: ${PROJECT_NAME}
+- tapOn: ${WORKTREE_LABEL}
+- assertNotVisible: Back to history
 - tapOn: Refresh history
 - assertVisible: Rename history readme
