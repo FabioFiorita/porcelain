@@ -131,15 +131,11 @@ test('delayed events after destroying a restored maximized window do not throw, 
 }) => {
   const first = await desktop.launch();
   await first.window();
-  await first.electron.evaluate(
-    ({ BrowserWindow }) =>
-      new Promise<void>((resolveMaximized) => {
-        const view = BrowserWindow.getAllWindows()[0];
-        if (view === undefined) throw new Error('The app window is missing');
-        view.once('maximize', () => resolveMaximized());
-        view.maximize();
-      }),
-  );
+  await first.electron.evaluate(({ BrowserWindow }) => {
+    const view = BrowserWindow.getAllWindows()[0];
+    if (view === undefined) throw new Error('The app window is missing');
+    view.maximize();
+  });
   await expect
     .poll(() =>
       first.electron.evaluate(({ BrowserWindow }) =>
