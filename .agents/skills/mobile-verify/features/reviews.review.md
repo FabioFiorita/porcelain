@@ -48,14 +48,14 @@ The selected worktree's review: uncommitted or branch changes, fingerprint-aware
 
 ## Driving it
 
-Start `.agents/skills/mobile-verify/scripts/cli start` (or `start --device ipad`). Follow `access.pairing.md` and `projects.workspace-picker.md` to pair and select the disposable sample worktree. The sample repository contains a changed readme. Use the CLI's server commands to publish a sample review, seed a comment and mark the file reviewed.
+Start `.agents/skills/mobile-verify/scripts/cli start` with the assigned iPhone and independent instance/host/session flags. Follow `access.pairing.md` and `projects.workspace-picker.md` to pair and select the disposable sample worktree. The sample repository contains a changed readme. Use the CLI's server commands to publish a sample review, seed a comment and mark the file reviewed.
 
 ```sh
 .agents/skills/mobile-verify/scripts/cli open /
 .agents/skills/mobile-verify/scripts/cli snapshot
 ```
 
-Look for “Uncommitted changes”, the published layer title and summary, and the changed file with its comparison and reviewed state. Tap a file using its exact path from the snapshot. Look for “Back to changed files” and the native patch. The patch preserves addition and deletion prefixes. Binary and omitted content display their reason; metadata-only content displays the Git patch.
+Look for “Uncommitted changes”, the published layer title and summary, and the changed file with its comparison and reviewed state. Tap a file using its full accessible row label from the snapshot (path, comparison and reviewed state). Look for “Back to changed files” and the unified native diff: filename, hunk header, old/new line-number gutters and semantic addition/deletion backgrounds. Long source lines scroll horizontally while the diff owns its vertical viewport. Binary and omitted content display their reason; empty, metadata-only and unsupported patches retain explicit content. Check light and dark themes for the overview, a code diff and the comments sheet.
 
 ```sh
 .agents/skills/mobile-verify/scripts/cli tap --label Comments
@@ -79,8 +79,8 @@ Look for comment anchors, messages and resolved/open states, dismissal returning
 
 ## Gotchas
 
-- Shared renderer: `apps/mobile/src/shared/diff/file-diff.tsx`, `FileDiff({content})`; History uses the same content shape.
+- Shared renderer: `apps/mobile/src/shared/diff/file-diff.tsx`, `FileDiff({rows,path})`; the page calls `parseFilePatch(content.patch)` when a patch exists, then `diffRows(content,files,path)`. History uses the same shared parser, rules and viewport. Keep toolbars outside and constrain the parent with `min-h-0 flex-1`; do not wrap the diff in another vertical ScrollView.
 - Review is read-only. Published HTML summaries and diagrams remain outside this screen; native layer summaries and steps are shown.
 - On iPad the content column reports the selected worktree's uncommitted file count; the detail column owns file selection and the diff viewport.
-- iPhone and iPad need separate drives. Report the baseline iPad “Add environment” covered-button verifier block if encountered.
+- Agents verify iPhone only. The owner validates iPad layout, pairing and tablet flows; tablet code and static checks remain maintained, but agent native proof does not cover iPad.
 - Physical-device Local Network permission denial and retry remain unproved by simulators.
