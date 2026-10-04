@@ -15,5 +15,5 @@ export function createWorktreeConnection(
       ]),
     }),
   };
-  return { connection, close: () => controller.abort() };
+  return { connection, controller, close: () => controller.abort() };
 }

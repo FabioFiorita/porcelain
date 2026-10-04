@@ -12,7 +12,11 @@ import {
 } from './rules/remotes';
 import { REQUEST_TIMEOUT_MS } from '@/config/limits';
 import { browserTransport } from '@/shared/api/transport';
-import { remoteTransport, type Transport } from '@porcelain/client/transport';
+import {
+  createWorktreeConnection,
+  remoteTransport,
+  type Transport,
+} from '@porcelain/client/transport';
 import type { LiveUpdatePort } from '@/shared/live/port';
 import {
   remoteLiveUpdates,
@@ -54,22 +58,19 @@ function createConnection(environmentId: string, server: Server): Connection {
   } catch {
     storage = undefined;
   }
-  const controller = new AbortController();
+  const { connection: requests, controller } = createWorktreeConnection({
+    environmentId,
+    transport: server.transport,
+    timeoutMs: REQUEST_TIMEOUT_MS,
+  });
   const connection: Connection = {
+    ...requests,
     address: server.address,
     environmentId,
     controller,
     operations: createOperationStore(
       storage ? { storage, key: server.operationsKey } : undefined,
     ),
-    request: (signal) => ({
-      signal: AbortSignal.any([
-        controller.signal,
-        AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-        ...(signal ? [signal] : []),
-      ]),
-    }),
-    transport: server.transport,
     liveUpdates: server.liveUpdates,
   };
   adoptFileDrafts(connection);

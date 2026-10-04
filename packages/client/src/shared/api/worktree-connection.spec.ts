@@ -38,6 +38,14 @@ describe('a worktree connection owns its request lifetime', () => {
     lifetime.close();
   });
 
+  it('exposes the same controller to clients that already own their abort call', () => {
+    const lifetime = createWorktreeConnection(input);
+    const request = lifetime.connection.request().signal;
+    lifetime.controller.abort();
+    expect(request.aborted).toBe(true);
+    expect(lifetime.connection.request().signal.aborted).toBe(true);
+  });
+
   it('gives each request a fresh timeout using the configured budget', async () => {
     const lifetime = createWorktreeConnection({ ...input, timeoutMs: 5 });
     const firstRequest = lifetime.connection.request().signal;
