@@ -1,0 +1,17 @@
+appId: com.fabiofiorita.porcelain.dev
+name: A changed environment resets the selected file
+---
+- tapOn: ${FIRST_PROJECT_NAME} · ${FIRST_WORKTREE_LABEL}
+- tapOn: Environment
+- tapOn: ${SECOND_ENVIRONMENT_NAME}
+- assertNotVisible: '.*Restored on disk.*'
+- assertVisible: Select a worktree to continue.
+- tapOn: ${SECOND_ENVIRONMENT_NAME}
+- tapOn: Project
+- tapOn: ${SECOND_PROJECT_NAME}
+- tapOn: ${SECOND_WORKTREE_LABEL}
+- assertVisible: Find a file
+- tapOn: Expand files-demo
+- tapOn: source.ts
+- assertVisible: '.*Second environment.*'
+- assertNotVisible: '.*Restored on disk.*'

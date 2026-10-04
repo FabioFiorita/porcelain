@@ -1,0 +1,61 @@
+appId: com.fabiofiorita.porcelain.dev
+name: Browse Files through the selected workspace
+---
+- runFlow: connect.yaml
+- runFlow: open-settings.yaml
+- runFlow:
+    file: add-environment.yaml
+    env:
+      PAIRING_LINK: ${FIRST_PAIRING_LINK}
+      ENVIRONMENT_NAME: ${FIRST_ENVIRONMENT_NAME}
+- runFlow:
+    file: add-environment.yaml
+    env:
+      PAIRING_LINK: ${SECOND_PAIRING_LINK}
+      ENVIRONMENT_NAME: ${SECOND_ENVIRONMENT_NAME}
+- runFlow:
+    file: open-link.yaml
+    env:
+      LINK: ${FILES_LINK}
+- tapOn: Workspace
+- tapOn: Environment
+- tapOn: ${FIRST_ENVIRONMENT_NAME}
+- tapOn: ${FIRST_ENVIRONMENT_NAME}
+- tapOn: Project
+- tapOn: ${FIRST_PROJECT_NAME}
+- tapOn: ${FIRST_WORKTREE_LABEL}
+- assertVisible: ${FIRST_PROJECT_NAME} · ${FIRST_WORKTREE_LABEL}
+- tapOn: Expand files-demo
+- tapOn: Expand empty-directory
+- assertVisible: This folder is empty.
+- tapOn: Collapse empty-directory
+- tapOn: source.ts
+- assertVisible: files-demo/source.ts
+- assertVisible: Read only
+- assertVisible: '.*Olá 🌿.*'
+- assertVisible: '.*\*\*literal\*\*, <tag>.*'
+- assertVisible: Back to files
+- tapOn: Back to files
+- assertVisible: Collapse files-demo
+- tapOn: binary.dat
+- assertVisible: This file is binary or uses an unsupported text encoding.
+- tapOn: Back to files
+- tapOn: too-large.txt
+- assertVisible: This file is too large to display as text.
+- tapOn: Back to files
+- tapOn: empty.txt
+- assertVisible: This file is empty.
+- tapOn: Back to files
+- tapOn:
+    id: files-search
+- inputText: no-such-file
+- assertVisible: No matching files.
+- hideKeyboard
+- tapOn: Clear search
+- tapOn:
+    id: files-search
+- inputText: source.ts
+- assertVisible: files-demo/source.ts
+- tapOn: files-demo/source.ts
+- assertVisible: Read only
+- assertVisible: '.*Olá 🌿.*'

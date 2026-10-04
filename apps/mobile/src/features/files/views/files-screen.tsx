@@ -1,7 +1,12 @@
 import { WorktreeEmpty } from '../../../shared/worktree-empty';
 import { useSelectedWorktree } from '../../projects';
+import { FilesWorkspace } from './files-workspace';
 
 export function FilesScreen() {
   const selected = useSelectedWorktree();
-  return <WorktreeEmpty key={selected?.key} title="Files" />;
+  return selected ? (
+    <FilesWorkspace key={selected.key} context={selected} />
+  ) : (
+    <WorktreeEmpty title="Files" />
+  );
 }

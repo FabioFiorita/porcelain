@@ -11,6 +11,7 @@
     "./projects/api": "./src/features/projects/api.ts",
     "./projects/rules": "./src/features/projects/rules/index.ts",
     "./files": "./src/features/files/index.ts",
+    "./files/rules": "./src/features/files/rules/index.ts",
     "./files/api": "./src/features/files/api.ts",
     "./changes": "./src/features/changes/index.ts",
     "./changes/api": "./src/features/changes/api.ts",

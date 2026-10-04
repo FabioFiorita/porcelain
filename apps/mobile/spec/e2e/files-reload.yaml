@@ -1,0 +1,6 @@
+appId: com.fabiofiorita.porcelain.dev
+name: Reload changed file text
+---
+- tapOn: Reload file
+- assertVisible: '.*Reloaded from disk.*'
+- assertNotVisible: '.*Olá 🌿.*'
