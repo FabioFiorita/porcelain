@@ -213,16 +213,22 @@ test('a remote computer summary renders through the app from that computer, cann
   expect(app.errors).toEqual([]);
   await page.screenshot({ path: testInfo.outputPath('remote-layer.png') });
 
+  const summaryNavigation = page.waitForEvent('framenavigated', {
+    predicate: (entry) =>
+      entry.url().startsWith('porcelain://app/remote-review-summaries/'),
+  });
   await page
     .getByRole('tablist', { name: 'Open documents', exact: true })
     .getByTitle('Review summary', { exact: true })
     .click();
+  const reopenedSummary = await summaryNavigation;
+  await reopenedSummary.waitForLoadState('load');
   const refused = page.waitForEvent('console', {
     predicate: (message) =>
       message.text().includes("'https://example.com/'") &&
       message.text().includes('frame-src'),
   });
-  await summary
+  await reopenedSummary
     .getByRole('link', { name: 'Leave for a website', exact: true })
     .click();
   await refused;
