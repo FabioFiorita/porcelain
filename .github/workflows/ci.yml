@@ -10,8 +10,7 @@ permissions:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  # Preserve completed stress evidence while preparing the next cause fix.
-  cancel-in-progress: ${{ github.head_ref != 'desktop-e2e-deflake' }}
+  cancel-in-progress: true
 
 jobs:
   checks:
@@ -83,65 +82,3 @@ jobs:
           path: |
             apps/desktop/test-results/
             ~/Library/Logs/DiagnosticReports/
-
-  # Temporary investigation jobs; remove before leaving draft.
-  desktop-stress:
-    if: github.head_ref == 'desktop-e2e-deflake'
-    runs-on: macos-latest
-    timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - target: changed-specs
-            arguments: spec/e2e/window.e2e.ts spec/e2e/review-summaries.e2e.ts
-          - target: suite-a
-            arguments: --repeat-each=10
-          - target: suite-b
-            arguments: --repeat-each=10
-          - target: reopen-quit
-            arguments: spec/e2e/window.e2e.ts --grep "Quit while reopening" --repeat-each=100
-          - target: remote-summary
-            arguments: spec/e2e/review-summaries.e2e.ts --grep "a remote computer summary" --repeat-each=100
-          - target: remote-summary-b
-            arguments: spec/e2e/review-summaries.e2e.ts --grep "a remote computer summary" --repeat-each=100
-          - target: local-summary
-            arguments: spec/e2e/review-summaries.e2e.ts --grep "a local signed summary" --repeat-each=200
-          - target: before-layer-input
-            arguments: spec/e2e/review-summaries.e2e.ts --grep "a remote computer summary" --repeat-each=100
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-      - uses: pnpm/setup@v3
-        with:
-          runtime: node@24.20.0
-          cache: true
-          require-lockfile: true
-      - run: pnpm install --frozen-lockfile
-      - name: Cache Electron build headers
-        uses: actions/cache@v6
-        with:
-          path: ~/.electron-gyp
-          key: electron-headers-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('apps/desktop/package.json') }}
-      - name: Restore the layer input comparison
-        if: matrix.target == 'before-layer-input'
-        run: git restore --source=3fff03d02 -- apps/desktop/spec/e2e/review-summaries.e2e.ts
-      - if: matrix.target != 'before-layer-input'
-        run: pnpm --filter @porcelain/desktop test:e2e ${{ matrix.arguments }}
-      - name: Capture layer input acknowledgements
-        if: matrix.target == 'before-layer-input'
-        run: DEBUG=pw:protocol pnpm --filter @porcelain/desktop test:e2e ${{ matrix.arguments }} > "$RUNNER_TEMP/layer-input-protocol.log" 2>&1
-      - name: Prove cached headers rebuild without a header server
-        if: ${{ !cancelled() }}
-        run: |
-          electron_version=$(node -p "require('./apps/desktop/package.json').dependencies.electron")
-          pnpm exec electron-rebuild --force --version "$electron_version" --module-dir dist/desktop/e2e --only better-sqlite3 --dist-url http://127.0.0.1:9
-      - uses: actions/upload-artifact@v7
-        if: always()
-        with:
-          name: desktop-stress-${{ matrix.target }}
-          path: |
-            apps/desktop/test-results/
-            ~/Library/Logs/DiagnosticReports/
-            ${{ runner.temp }}/layer-input-protocol.log
