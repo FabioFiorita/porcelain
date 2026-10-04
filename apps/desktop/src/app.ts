@@ -78,13 +78,20 @@ const appUpdate = new LocalAppUpdate((state) =>
 );
 
 function trusted(event: IpcMainEvent | IpcMainInvokeEvent): boolean {
+  if (
+    window === undefined ||
+    window.isDestroyed() ||
+    window.webContents.isDestroyed() ||
+    event.sender.isDestroyed()
+  )
+    return false;
   return trustedSender(
     {
       contents: event.sender,
       frame: event.senderFrame,
       url: event.senderFrame?.url,
     },
-    window && {
+    {
       contents: window.webContents,
       mainFrame: window.webContents.mainFrame,
     },
@@ -97,6 +104,11 @@ function authorize(event: IpcMainInvokeEvent): void {
 
 function windowBackground(): string {
   return nativeTheme.shouldUseDarkColors ? '#171717' : '#fafafa';
+}
+
+function updateWindowBackground(): void {
+  if (!quitting && window !== undefined && !window.isDestroyed())
+    window.setBackgroundColor(windowBackground());
 }
 
 function windowState(view: BrowserWindow) {
@@ -443,21 +455,19 @@ async function start() {
   );
   ipcMain.on('porcelain:appearance', (event, value: unknown) => {
     const appearance = desktopAppearanceSchema.safeParse(value);
-    if (window === undefined || !trusted(event) || !appearance.success) return;
+    if (quitting || !trusted(event) || !appearance.success) return;
     nativeTheme.themeSource = appearance.data;
-    window.setBackgroundColor(windowBackground());
+    updateWindowBackground();
   });
   ipcMain.on('porcelain:actions-ready', (event) => {
-    if (window === undefined || !trusted(event)) return;
+    if (quitting || window === undefined || !trusted(event)) return;
     actionsReady = true;
     if (pendingAction !== undefined) {
       window.webContents.send('porcelain:action', pendingAction);
       pendingAction = undefined;
     }
   });
-  nativeTheme.on('updated', () =>
-    window?.setBackgroundColor(windowBackground()),
-  );
+  nativeTheme.on('updated', updateWindowBackground);
   await openWindow();
 }
 

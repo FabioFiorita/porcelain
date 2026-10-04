@@ -218,6 +218,25 @@ test('Quit persists the latest maximized window before closing it, even while it
         ({ BrowserWindow }) => BrowserWindow.getAllWindows().length,
       ),
     ).toBe(1);
+    expect(
+      await app.electron.evaluate(({ BrowserWindow, ipcMain, nativeTheme }) => {
+        const view = BrowserWindow.getAllWindows()[0];
+        if (view === undefined) throw new Error('The app window is missing');
+        const sender = {
+          sender: view.webContents,
+          senderFrame: view.webContents.mainFrame,
+        };
+        const appearance = nativeTheme.themeSource;
+        ipcMain.emit(
+          'porcelain:appearance',
+          sender,
+          appearance === 'dark' ? 'light' : 'dark',
+        );
+        ipcMain.emit('porcelain:actions-ready', sender);
+        nativeTheme.emit('updated');
+        return nativeTheme.themeSource === appearance;
+      }),
+    ).toBe(true);
   } finally {
     await held.release();
     await quitting;
@@ -259,44 +278,74 @@ test('delayed events after destroying a restored maximized window do not throw, 
     .toBe(true);
   const { pid } = await app.server();
 
-  const delayed = await app.electron.evaluate(async ({ BrowserWindow }) => {
-    const view = BrowserWindow.getAllWindows()[0];
-    if (view === undefined) throw new Error('The app window is missing');
-    const contents = view.webContents;
-    const closed = new Promise<void>((resolveClosed) =>
-      view.once('closed', () => resolveClosed()),
-    );
-    view.close();
-    await closed;
+  const delayed = await app.electron.evaluate(
+    async ({ BrowserWindow, ipcMain, nativeTheme }) => {
+      const view = BrowserWindow.getAllWindows()[0];
+      if (view === undefined) throw new Error('The app window is missing');
+      const contents = view.webContents;
+      const sender = { sender: contents, senderFrame: contents.mainFrame };
+      const appearance = nativeTheme.themeSource;
+      const errors: string[] = [];
+      view.prependOnceListener('closed', () => {
+        for (const deliver of [
+          () =>
+            ipcMain.emit(
+              'porcelain:appearance',
+              sender,
+              appearance === 'dark' ? 'light' : 'dark',
+            ),
+          () => ipcMain.emit('porcelain:actions-ready', sender),
+          () => nativeTheme.emit('updated'),
+        ]) {
+          try {
+            deliver();
+          } catch (error) {
+            errors.push(error instanceof Error ? error.message : String(error));
+          }
+        }
+      });
+      const closed = new Promise<void>((resolveClosed) =>
+        view.once('closed', () => resolveClosed()),
+      );
+      view.close();
+      await closed;
 
-    const errors: string[] = [];
-    for (const event of [
-      'show',
-      'hide',
-      'minimize',
-      'maximize',
-      'unmaximize',
-      'move',
-      'resize',
-      'restore',
-      'enter-full-screen',
-      'leave-full-screen',
-      'ready-to-show',
-    ]) {
+      for (const event of [
+        'show',
+        'hide',
+        'minimize',
+        'maximize',
+        'unmaximize',
+        'move',
+        'resize',
+        'restore',
+        'enter-full-screen',
+        'leave-full-screen',
+        'ready-to-show',
+      ]) {
+        try {
+          view.emit(event);
+        } catch (error) {
+          errors.push(error instanceof Error ? error.message : String(error));
+        }
+      }
       try {
-        view.emit(event);
+        contents.emit('did-finish-load');
       } catch (error) {
         errors.push(error instanceof Error ? error.message : String(error));
       }
-    }
-    try {
-      contents.emit('did-finish-load');
-    } catch (error) {
-      errors.push(error instanceof Error ? error.message : String(error));
-    }
-    return { destroyed: view.isDestroyed(), errors };
+      return {
+        destroyed: view.isDestroyed(),
+        appearanceUnchanged: nativeTheme.themeSource === appearance,
+        errors,
+      };
+    },
+  );
+  expect(delayed).toEqual({
+    destroyed: true,
+    appearanceUnchanged: true,
+    errors: [],
   });
-  expect(delayed).toEqual({ destroyed: true, errors: [] });
   await app.quit();
   expect(existsSync(join(app.serverData, 'server.sock'))).toBe(false);
   expect(processAlive(pid)).toBe(false);
