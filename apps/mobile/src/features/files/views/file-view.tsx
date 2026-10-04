@@ -2,6 +2,7 @@ import type { useDirectory } from '../queries/reads';
 import { Text, View } from 'react-native';
 import { useResolveClassNames } from 'uniwind';
 import { Button } from '../../../shared/ui/button';
+import { Badge } from '../../../shared/ui/badge';
 import { useFileText } from '../queries/reads';
 import { ReadState } from './read-state';
 import { CodeView } from './code-view';
@@ -21,7 +22,7 @@ export function FileView({
   const numbers = Array.from({ length: count }, (_, index) => index + 1).join(
     '\n',
   );
-  const surface = useResolveClassNames('flex-1 bg-background');
+  const surface = useResolveClassNames('min-h-0 flex-1 bg-background');
   const header = useResolveClassNames(
     'gap-3 border-b border-border bg-card px-4 py-3',
   );
@@ -30,10 +31,6 @@ export function FileView({
   );
   const identity = useResolveClassNames('gap-2');
   const title = useResolveClassNames('text-sm font-medium text-foreground');
-  const badge = useResolveClassNames(
-    'self-start rounded-md border border-border bg-muted px-2 py-1',
-  );
-  const metadata = useResolveClassNames('text-xs text-muted-foreground');
   const state = useResolveClassNames(
     'px-4 py-6 text-sm leading-6 text-muted-foreground',
   );
@@ -49,6 +46,7 @@ export function FileView({
           />
           <Button
             label={query.isFetching ? 'Reloading file…' : 'Reload file'}
+            variant="outline"
             size="sm"
             disabled={query.isFetching}
             onPress={() => {
@@ -60,19 +58,11 @@ export function FileView({
           <Text accessibilityRole="header" selectable style={title}>
             {path}
           </Text>
-          <View style={badge}>
-            <Text style={metadata}>Read only</Text>
-          </View>
+          <Badge label="Read only" variant="secondary" />
         </View>
       </View>
       {query.isPending || query.isError ? (
-        <ReadState
-          pending={query.isPending}
-          error={query.error}
-          onRead={() => {
-            void query.refetch();
-          }}
-        />
+        <ReadState query={query} />
       ) : 'kind' in query.data ? (
         <Text style={state}>{query.data.reason}</Text>
       ) : query.data.text === '' ? (

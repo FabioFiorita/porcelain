@@ -21,16 +21,7 @@ export function FileSearch({
   const empty = useResolveClassNames(
     'px-4 py-4 text-sm leading-6 text-muted-foreground',
   );
-  if (query.isPending || query.isError)
-    return (
-      <ReadState
-        pending={query.isPending}
-        error={query.error}
-        onRead={() => {
-          void query.refetch();
-        }}
-      />
-    );
+  if (query.isPending || query.isError) return <ReadState query={query} />;
   return (
     <FlatList
       style={list}

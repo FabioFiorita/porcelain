@@ -18,7 +18,7 @@ export function FilesWorkspace({
   const [search, setSearch] = useState('');
   const searchValue = useNativeState('');
   const reload = useReloadFiles(context);
-  const surface = useResolveClassNames('flex-1 bg-background');
+  const surface = useResolveClassNames('min-h-0 flex-1 bg-background');
   const browser = useResolveClassNames(
     path === undefined ? 'flex-1' : 'hidden',
   );
@@ -49,6 +49,7 @@ export function FilesWorkspace({
             </Text>
             <Button
               label={reload.isPending ? 'Reloading files…' : 'Reload files'}
+              variant="outline"
               size="sm"
               disabled={reload.isPending}
               onPress={() => reload.read()}

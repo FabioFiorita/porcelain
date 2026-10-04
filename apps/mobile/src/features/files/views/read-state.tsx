@@ -4,13 +4,13 @@ import { fileReadError } from '@porcelain/client/files/rules';
 import { Button } from '../../../shared/ui/button';
 
 export function ReadState({
-  pending,
-  error,
-  onRead,
+  query,
 }: {
-  pending: boolean;
-  error: unknown;
-  onRead: () => void;
+  query: {
+    isPending: boolean;
+    error: unknown;
+    refetch: () => Promise<unknown>;
+  };
 }) {
   const card = useResolveClassNames(
     'gap-3 rounded-lg border border-border bg-card p-4',
@@ -24,7 +24,7 @@ export function ReadState({
     <View style={inset}>
       <View style={card}>
         <View style={line}>
-          {pending ? (
+          {query.isPending ? (
             <ActivityIndicator
               color={
                 typeof message.color === 'string' ? message.color : undefined
@@ -32,11 +32,17 @@ export function ReadState({
             />
           ) : null}
           <Text style={message}>
-            {pending ? 'Reading files…' : fileReadError(error)}
+            {query.isPending ? 'Reading files…' : fileReadError(query.error)}
           </Text>
         </View>
-        {pending ? null : (
-          <Button label="Read again" size="sm" onPress={onRead} />
+        {query.isPending ? null : (
+          <Button
+            label="Read again"
+            size="sm"
+            onPress={() => {
+              void query.refetch();
+            }}
+          />
         )}
       </View>
     </View>
