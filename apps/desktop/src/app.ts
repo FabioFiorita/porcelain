@@ -173,12 +173,14 @@ async function openWindow() {
     },
   );
   const save = () => {
-    if (!view.isDestroyed() && !view.isFullScreen())
+    if (!quitting && !view.isDestroyed() && !view.isFullScreen())
       savedWindow.schedule(windowState(view));
   };
   view.on('close', () => {
-    save();
-    void savedWindow.flush();
+    if (!quitting) {
+      save();
+      void savedWindow.flush();
+    }
   });
   view.on('resize', save);
   view.on('move', save);
@@ -233,6 +235,9 @@ async function openWindow() {
     openExternal(url);
     return { action: 'deny' };
   });
+  view.webContents.on('will-prevent-unload', (event) => {
+    if (quitting) event.preventDefault();
+  });
   await view.loadURL(desktopAddress);
 }
 
@@ -250,13 +255,32 @@ app.on('before-quit', (event) => {
   event.preventDefault();
   if (quitting) return;
   quitting = true;
-  stopServing?.();
   process.stderr.write('Porcelain: stopping server\n');
-  for (const view of BrowserWindow.getAllWindows()) {
+  const views = BrowserWindow.getAllWindows();
+  for (const view of views) {
     if (!view.isFullScreen()) savedWindow.schedule(windowState(view));
-    view.destroy();
   }
-  void Promise.all([savedWindow.flush(), server?.close()])
+  void (async () => {
+    try {
+      await savedWindow.flush();
+    } finally {
+      await Promise.all(
+        views.map(
+          (view) =>
+            new Promise<void>((resolve) => {
+              if (view.isDestroyed()) {
+                resolve();
+                return;
+              }
+              view.once('closed', resolve);
+              view.close();
+            }),
+        ),
+      );
+      stopServing?.();
+      await server?.close();
+    }
+  })()
     .catch((error: unknown) => {
       process.stderr.write(
         `${error instanceof Error ? error.message : 'Server shutdown failed'}\n`,

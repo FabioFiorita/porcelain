@@ -92,6 +92,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - target: changed-specs
+            arguments: spec/e2e/window.e2e.ts spec/e2e/review-summaries.e2e.ts
           - target: suite-a
             arguments: --repeat-each=20
           - target: suite-b
@@ -102,6 +104,8 @@ jobs:
             arguments: spec/e2e/window.e2e.ts --grep "Quit during app request setup" --repeat-each=100
           - target: reopen-quit
             arguments: spec/e2e/window.e2e.ts --grep "Quit while reopening" --repeat-each=100
+          - target: window-save
+            arguments: spec/e2e/window.e2e.ts --grep "Quit persists the latest|delayed events" --repeat-each=100
           - target: native-quit
             arguments: spec/e2e/menus.e2e.ts --grep "without a Vite server" --repeat-each=100
           - target: credentials

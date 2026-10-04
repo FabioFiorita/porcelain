@@ -29,6 +29,10 @@ declare const document: {
   querySelector(selector: string): RendererElement | null;
 };
 declare function getComputedStyle(element: RendererElement): RendererStyle;
+declare function addEventListener(
+  type: 'beforeunload',
+  listener: (event: { preventDefault(): void }) => void,
+): void;
 
 async function openSmokeProject(page: Page, repository: string) {
   await appRequest(page, 'POST', '/api/projects', { path: repository });
@@ -159,6 +163,74 @@ test('the sidebar leaves room for the traffic lights with its button clickable, 
   await expect(page.locator('html')).not.toHaveClass(/desktop-fullscreen/);
   expect(await sidebarInset(page)).toBe('82px');
   await page.screenshot({ path: testInfo.outputPath('window.png') });
+  expect(app.errors).toEqual([]);
+});
+
+test('Quit persists the latest maximized window before closing it, even while its atomic save is pending', async ({
+  desktop,
+}) => {
+  const app = await desktop.launch();
+  const page = await app.window();
+  await expect(
+    page.getByRole('button', { name: 'Open project', exact: true }),
+  ).toBeVisible();
+  const marker = 'Porcelain e2e: window save awaiting rename';
+  await page.evaluate(() =>
+    addEventListener('beforeunload', (event) => event.preventDefault()),
+  );
+  const { pid } = await app.server();
+  const bounds = await app.electron.evaluate(
+    async ({ BrowserWindow }, { profile, marker }) => {
+      const fs = process.getBuiltinModule('fs');
+      const { syncBuiltinESMExports } = process.getBuiltinModule('module');
+      const rename = fs.promises.rename.bind(fs.promises);
+      const released = new Promise<void>((resolveRelease) => {
+        Reflect.set(fs.promises, 'porcelainReleaseWindowSave', resolveRelease);
+      });
+      fs.promises.rename = async (...args: Parameters<typeof rename>) => {
+        if (args[1] === `${profile}/window.json`) {
+          process.stderr.write(`${marker}\n`);
+          await released;
+        }
+        return rename(...args);
+      };
+      syncBuiltinESMExports();
+      const view = BrowserWindow.getAllWindows()[0];
+      if (view === undefined) throw new Error('The app window is missing');
+      view.setBounds({ x: 40, y: 50, width: 980, height: 680 });
+      return view.getNormalBounds();
+    },
+    { profile: app.profile, marker },
+  );
+  await maximize(app);
+  const quitting = app.quit();
+  try {
+    await expect.poll(() => app.output.join('')).toContain(marker);
+    expect(
+      await app.electron.evaluate(
+        ({ BrowserWindow }) => BrowserWindow.getAllWindows().length,
+      ),
+    ).toBe(1);
+  } finally {
+    await app.electron.evaluate(async () => {
+      const fs = process.getBuiltinModule('fs');
+      const release: unknown = Reflect.get(
+        fs.promises,
+        'porcelainReleaseWindowSave',
+      );
+      if (typeof release !== 'function')
+        throw new Error('The window save is not held');
+      Reflect.apply(release, fs.promises, []);
+    });
+    await quitting;
+  }
+  expect(
+    desktopWindowStateSchema.parse(
+      JSON.parse(await readFile(join(app.profile, 'window.json'), 'utf8')),
+    ),
+  ).toEqual({ bounds, maximized: true });
+  expect(existsSync(join(app.serverData, 'server.sock'))).toBe(false);
+  expect(processAlive(pid)).toBe(false);
   expect(app.errors).toEqual([]);
 });
 
