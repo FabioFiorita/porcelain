@@ -1,8 +1,13 @@
 import { useEffect, useState } from 'react';
-import { remoteTransport } from '@porcelain/client/transport';
+import {
+  createWorktreeConnection,
+  remoteTransport,
+  type WorktreeConnection,
+} from '@porcelain/client/transport';
 import type { Remote } from '@porcelain/client/access/rules';
 import { useInventory } from './inventory';
 import type { AccessPlatform } from '@porcelain/client/access';
+import { REQUEST_TIMEOUT_MS } from '../../../config/limits';
 
 export function useWorkspaceConnection(
   remote: Remote | undefined,
@@ -20,59 +25,52 @@ export function useWorkspaceConnection(
   );
   const selected =
     ready && !inventory.isError && project?.available && worktree?.available;
-  const [lifetime, setLifetime] = useState(() => ({
-    remote,
-    selected,
-    projectId,
-    worktreeId,
-    controller: new AbortController(),
-  }));
-  if (
-    lifetime.remote !== remote ||
-    lifetime.selected !== selected ||
-    lifetime.projectId !== projectId ||
-    lifetime.worktreeId !== worktreeId
-  ) {
-    setLifetime({
-      remote,
-      selected,
-      projectId,
-      worktreeId,
-      controller: new AbortController(),
-    });
-  }
-  useEffect(() => {
-    if (lifetime.controller.signal.aborted)
-      lifetime.controller = new AbortController();
-    return () => lifetime.controller.abort();
-  }, [lifetime]);
-  const connection = remote
-    ? {
-        environmentId: remote.environmentId,
-        cacheIdentity: [remote.address, remote.deviceId ?? ''],
-        transport: remoteTransport(remote.address, remote.credential, send),
-        request: (signal?: AbortSignal) => ({
-          signal: signal
-            ? AbortSignal.any([lifetime.controller.signal, signal])
-            : lifetime.controller.signal,
-        }),
-      }
-    : undefined;
-  const scope =
-    project && worktree
-      ? { projectId: project.id, worktreeId: worktree.id }
+  const environmentId = remote?.environmentId;
+  const address = remote?.address;
+  const credential = remote?.credential;
+  const deviceId = remote?.deviceId;
+  const key =
+    selected && remote && project && worktree
+      ? JSON.stringify([
+          environmentId,
+          address,
+          deviceId ?? '',
+          project.id,
+          worktree.id,
+        ])
       : undefined;
+  const [connected, setConnected] = useState<{
+    key: string;
+    credential: string;
+    connection: WorktreeConnection;
+  }>();
+  useEffect(() => {
+    if (
+      !key ||
+      !environmentId ||
+      address === undefined ||
+      credential === undefined
+    )
+      return;
+    const lifetime = createWorktreeConnection({
+      environmentId,
+      transport: remoteTransport(address, credential, send),
+      cacheIdentity: [address, deviceId ?? ''],
+      timeoutMs: REQUEST_TIMEOUT_MS,
+    });
+    setConnected({ key, credential, connection: lifetime.connection });
+    return lifetime.close;
+  }, [key, environmentId, address, credential, deviceId, send]);
   const current =
-    selected && connection && scope && project && worktree
+    key &&
+    connected?.key === key &&
+    connected.credential === credential &&
+    project &&
+    worktree
       ? {
-          key: JSON.stringify([
-            connection.environmentId,
-            ...connection.cacheIdentity,
-            scope.projectId,
-            scope.worktreeId,
-          ]),
-          connection,
-          scope,
+          key,
+          connection: connected.connection,
+          scope: { projectId: project.id, worktreeId: worktree.id },
           project,
           worktree,
         }

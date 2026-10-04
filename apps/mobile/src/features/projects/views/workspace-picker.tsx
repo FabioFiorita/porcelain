@@ -2,7 +2,7 @@ import { worktreeLabel } from '@porcelain/client/projects/rules';
 import { environmentSelectionAccess } from '../../access';
 import { useProjectSelectionCommands } from '../commands/selection';
 import { WorkspaceMenu } from './workspace-menu';
-import { useSelectedWorktree, useWorkspace } from './selected-worktree';
+import { useWorkspace } from './selected-worktree';
 
 export function WorkspacePicker({
   presentation,
@@ -10,7 +10,6 @@ export function WorkspacePicker({
   presentation: 'phone' | 'tablet';
 }) {
   const workspace = useWorkspace();
-  const selected = useSelectedWorktree();
   const {
     environments,
     access,
@@ -20,8 +19,8 @@ export function WorkspacePicker({
     remembered,
   } = workspace;
   const commands = useProjectSelectionCommands(environmentSelectionAccess);
-  const project = selected?.project ?? workspace.project;
-  const worktree = selected?.worktree ?? workspace.worktree;
+  const project = workspace.project;
+  const worktree = workspace.worktree;
   const unavailable = worktree && (!project?.available || !worktree.available);
   const label = worktree
     ? `${project?.name} · ${worktreeLabel(worktree.branch)}${unavailable ? ' (unavailable)' : ''}`

@@ -3,6 +3,7 @@ export { RequestError, requestEndpoint, isEndpointError } from './request.ts';
 export { remoteTransport, type Transport } from './transport.ts';
 
 export type { WorktreeConnection } from './connection.ts';
+export { createWorktreeConnection } from './worktree-connection.ts';
 
 export {
   queryKeys,
