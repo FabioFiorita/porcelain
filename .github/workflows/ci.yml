@@ -105,6 +105,8 @@ jobs:
             arguments: spec/e2e/review-summaries.e2e.ts --grep "a remote computer summary" --repeat-each=100
           - target: remote-summary-b
             arguments: spec/e2e/review-summaries.e2e.ts --grep "a remote computer summary" --repeat-each=100
+          - target: local-summary
+            arguments: spec/e2e/review-summaries.e2e.ts --grep "a local signed summary" --repeat-each=200
           - target: before-layer-input
             arguments: spec/e2e/review-summaries.e2e.ts --grep "a remote computer summary" --repeat-each=100
     steps:

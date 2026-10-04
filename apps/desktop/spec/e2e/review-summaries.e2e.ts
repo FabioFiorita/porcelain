@@ -62,7 +62,9 @@ async function watchSummaryClicks(
   const marker = randomUUID();
   await page.evaluate((marker) => {
     const clicks: unknown[] = [];
+    const layerRequests: unknown[] = [];
     Reflect.set(globalThis, 'porcelainSummaryClicks', clicks);
+    Reflect.set(globalThis, 'porcelainSummaryLayerRequests', layerRequests);
     addEventListener('message', (event) => {
       const data = event.data;
       if (
@@ -73,6 +75,12 @@ async function watchSummaryClicks(
         const click: unknown = Reflect.get(data, 'click');
         clicks.push(click);
       }
+      if (
+        typeof data === 'object' &&
+        data !== null &&
+        Reflect.get(data, 'source') === 'porcelain-summary'
+      )
+        layerRequests.push(data);
     });
   }, marker);
   await frame.evaluate((marker) => {
@@ -169,7 +177,7 @@ async function publishSummary(page: Page, repository: string, title: string) {
 
 test('a local signed summary renders through the app origin in its sandbox, keeps the theme and opens its layer link', async ({
   desktop,
-}) => {
+}, testInfo) => {
   const app = await desktop.launch();
   const page = await app.window();
   await expect(
@@ -189,15 +197,54 @@ test('a local signed summary renders through the app origin in its sandbox, keep
   await expect(
     summary.locator('html[data-theme="dark"], html[data-theme="light"]'),
   ).toHaveCount(1);
-  await summary
-    .getByRole('link', { name: 'Open Local summary layer', exact: true })
-    .click();
-  await expect(
-    page.getByRole('region', {
-      name: 'Review layer Local summary layer',
-      exact: true,
-    }),
-  ).toBeVisible();
+  const frame = page.frames().find((entry) => entry !== page.mainFrame());
+  if (frame === undefined)
+    throw new Error('The local summary frame is missing');
+  await watchSummaryClicks(page, frame);
+  const inputState = () =>
+    Promise.allSettled([
+      app.electron.evaluate(({ BrowserWindow }) => {
+        const view = BrowserWindow.getAllWindows()[0];
+        return {
+          visible: view?.isVisible(),
+          windowFocused: view?.isFocused(),
+          contentsFocused: view?.webContents.isFocused(),
+        };
+      }),
+      page.evaluate(() => {
+        const requests: unknown = Reflect.get(
+          globalThis,
+          'porcelainSummaryLayerRequests',
+        );
+        return { focused: document.hasFocus(), requests };
+      }),
+      frame.evaluate(() => ({
+        focused: document.hasFocus(),
+        activeHref: document.activeElement?.getAttribute('href'),
+      })),
+      summaryClicks(page),
+    ]);
+  const beforeClick = await inputState();
+  try {
+    await summary
+      .getByRole('link', { name: 'Open Local summary layer', exact: true })
+      .click();
+    await expect(
+      page.getByRole('region', {
+        name: 'Review layer Local summary layer',
+        exact: true,
+      }),
+    ).toBeVisible();
+  } finally {
+    await testInfo.attach('local-summary-input', {
+      body: JSON.stringify({
+        beforeClick,
+        settled: await inputState(),
+        frameHash: new URL(frame.url()).hash,
+      }),
+      contentType: 'application/json',
+    });
+  }
   expect(app.electron.windows()).toHaveLength(1);
   expect(app.errors).toEqual([]);
 });
