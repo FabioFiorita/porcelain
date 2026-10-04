@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { changesQueryOptions } from '@porcelain/client/changes';
+import { readCurrentChanges } from '@porcelain/client/changes';
 import { gitStatusQueryOptions } from '../queries/git-status';
 import type { ChangesScope } from '@porcelain/client/changes/rules';
 import { type Connection } from '@/shared/workspace/connection';
@@ -10,8 +10,7 @@ export function useReadCurrentChanges(
 ) {
   const client = useQueryClient();
   const connection = possibleConnection;
-  const options = changesQueryOptions(scope, connection);
-  return async () => (await client.query({ ...options, staleTime: 0 })).changes;
+  return () => readCurrentChanges(scope, connection, client);
 }
 
 export function useRefreshGitLook(
