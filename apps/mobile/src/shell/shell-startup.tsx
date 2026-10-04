@@ -8,10 +8,10 @@ import { RootShell } from './root-shell';
 
 export function ShellStartup() {
   const readEnvironments = useReadEnvironments();
-  const { submit } = useProjectSelectionCommands(environmentSelectionAccess);
+  const { onSubmit } = useProjectSelectionCommands(environmentSelectionAccess);
   useEffect(() => {
     readEnvironments();
-    submit({ kind: 'read' });
-  }, [readEnvironments, submit]);
+    onSubmit({ kind: 'read' });
+  }, [readEnvironments, onSubmit]);
   return <RootShell />;
 }

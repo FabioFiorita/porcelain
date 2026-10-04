@@ -67,7 +67,7 @@ function RemoteRow({ remote }: { remote: Remote }) {
           size="icon-sm"
           aria-label={`Remove ${name}`}
           disabled={forget.isPending}
-          onClick={() => forget.submit(remote)}
+          onClick={() => forget.onSubmit(remote)}
         >
           <Trash2Icon />
         </Button>
@@ -96,9 +96,9 @@ function AddRemote() {
         <form
           className="flex flex-col gap-2 sm:flex-row"
           onSubmit={(event) =>
-            submitForm(event, async () => {
-              add.submit(link, { onSuccess: () => setLink('') });
-            })
+            submitForm(event, () =>
+              add.submit(link, { onSuccess: () => setLink('') }),
+            )
           }
         >
           <Input

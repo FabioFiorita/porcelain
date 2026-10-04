@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { CommentAuthor } from '@porcelain/reviews/models';
+import type { CommentAuthorRole } from '@porcelain/reviews/models';
 import { InMemoryCommentStore } from '../../spec/fakes/in-memory-comment-store.ts';
 import { ListCommentThreadsService } from './list-comment-threads-service.ts';
 
@@ -8,7 +8,7 @@ const worktreeId = 'a'.repeat(64);
 function open(
   store: InMemoryCommentStore,
   id: string,
-  authors: readonly CommentAuthor[],
+  authors: readonly CommentAuthorRole[],
   owner = worktreeId,
 ) {
   return store.insert({

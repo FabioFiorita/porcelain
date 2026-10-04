@@ -96,7 +96,7 @@ function TextFileDocument({
   onOpen,
 }: FileDocumentProps) {
   const { connection } = context;
-  const file = useTextFile(connection, scope, path, interaction.active);
+  const file = useTextFile(connection, scope, path);
   const unreadable = 'kind' in file;
   const { draft, state } = useFileDraft(
     connection,

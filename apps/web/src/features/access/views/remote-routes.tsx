@@ -362,12 +362,12 @@ export function RemoteRoutes({
             disabled ||
             (!remote.routes.lan.enabled && remote.localNetwork === undefined)
           }
-          onChange={(lan) => change.submit({ lan })}
+          onChange={(lan) => change.onSubmit({ lan })}
         >
           <LocalNetworkSettings
             remote={remote}
             disabled={disabled}
-            onTurnOn={() => change.submit({ lan: true })}
+            onTurnOn={() => change.onSubmit({ lan: true })}
           />
         </RouteRow>
       </ItemGroup>
@@ -376,20 +376,20 @@ export function RemoteRoutes({
           name="tailnet"
           route={remote.routes.tailnet}
           disabled={disabled || remote.tailnetHostname === undefined}
-          onChange={(tailnet) => change.submit({ tailnet })}
+          onChange={(tailnet) => change.onSubmit({ tailnet })}
         >
           <TailnetSettings
             remote={remote}
             disabled={disabled}
             onSave={(tailnetHostname) =>
-              change.submit({
+              change.onSubmit({
                 tailnetHostname,
                 ...(remote.tailnetHostname === undefined
                   ? { tailnet: true }
                   : {}),
               })
             }
-            onCheck={() => change.submit({ tailnet: true })}
+            onCheck={() => change.onSubmit({ tailnet: true })}
           />
         </RouteRow>
       </ItemGroup>
@@ -398,20 +398,20 @@ export function RemoteRoutes({
           name="cloudflare"
           route={remote.routes.cloudflare}
           disabled={disabled || remote.cloudflareHostname === undefined}
-          onChange={(cloudflare) => change.submit({ cloudflare })}
+          onChange={(cloudflare) => change.onSubmit({ cloudflare })}
         >
           <TunnelSettings
             remote={remote}
             disabled={disabled}
             onSave={(cloudflareHostname) =>
-              change.submit({
+              change.onSubmit({
                 cloudflareHostname,
                 ...(remote.cloudflareHostname === undefined
                   ? { cloudflare: true }
                   : {}),
               })
             }
-            onCheck={() => change.submit({ cloudflare: true })}
+            onCheck={() => change.onSubmit({ cloudflare: true })}
           />
         </RouteRow>
       </ItemGroup>

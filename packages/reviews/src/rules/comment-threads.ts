@@ -2,7 +2,7 @@ import { utf8ByteLength } from '@porcelain/kernel/rules';
 import type {
   CommentAnchor,
   CommentAnchorProblem,
-  CommentAuthor,
+  CommentAuthorRole,
   CommentContent,
   CommentLimits,
   CommentThread,
@@ -32,13 +32,17 @@ export function commentAnchorProblem(
   return fits ? undefined : { kind: 'revision-mismatch' };
 }
 
-export function commentAuthor(writer: CommentWriter): CommentAuthor {
+export function commentAuthor(writer: CommentWriter): CommentAuthorRole {
   return writer.kind === 'agent' ? 'agent' : 'reviewer';
 }
 
 export function unchangedResolvedThread(
   thread: CommentThread,
-  confirmed: { worktreeId: string; revision: number; author: CommentAuthor },
+  confirmed: {
+    worktreeId: string;
+    revision: number;
+    author: CommentAuthorRole;
+  },
 ): boolean {
   return (
     thread.worktreeId === confirmed.worktreeId &&
@@ -134,7 +138,7 @@ export function repeatsCreation(
     anchor: CommentAnchor;
     messageId: string;
     body: string;
-    author: CommentAuthor;
+    author: CommentAuthorRole;
   },
 ): boolean {
   const first = thread.messages[0];
@@ -153,7 +157,7 @@ export function repeatsReply(
     worktreeId: string;
     threadId: string;
     body: string;
-    author: CommentAuthor;
+    author: CommentAuthorRole;
   },
 ): boolean {
   return (

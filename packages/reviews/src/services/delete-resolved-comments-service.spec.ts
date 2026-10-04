@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type {
-  CommentAuthor,
+  CommentAuthorRole,
   DeleteResolvedCommentsInput,
 } from '@porcelain/reviews/models';
 import { InMemoryCommentStore } from '../../spec/fakes/in-memory-comment-store.ts';
@@ -12,7 +12,7 @@ const otherWorktreeId = 'b'.repeat(64);
 function thread(
   store: InMemoryCommentStore,
   id: string,
-  authors: readonly CommentAuthor[],
+  authors: readonly CommentAuthorRole[],
   options: { resolved: boolean; worktreeId?: string },
 ) {
   const opened = store.insert({

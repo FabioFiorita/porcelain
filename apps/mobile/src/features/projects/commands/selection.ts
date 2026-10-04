@@ -49,7 +49,8 @@ export function useProjectSelectionCommands(access: {
     },
   });
   return {
-    submit: mutation.mutate,
+    submit: mutation.mutateAsync,
+    onSubmit: mutation.mutate,
     isPending: pending > 0,
     error: mutation.error,
   };

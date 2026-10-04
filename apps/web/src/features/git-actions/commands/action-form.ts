@@ -51,7 +51,7 @@ export function useActionForm(
     busy,
     uncertain,
     error: submit.error ?? look.error ?? recover.error,
-    submit: (input: ActionInput) => {
+    onSubmit: (input: ActionInput) => {
       if (busy || uncertain) return;
       onBusy(true);
       look.reset();

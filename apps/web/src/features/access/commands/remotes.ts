@@ -60,7 +60,8 @@ export function useAddRemote() {
     },
   });
   return {
-    submit: mutation.mutate,
+    submit: mutation.mutateAsync,
+    onSubmit: mutation.mutate,
     isPending: mutation.isPending,
     error: mutation.error,
     reset: mutation.reset,
@@ -86,7 +87,8 @@ export function useForgetRemote() {
       }),
   });
   return {
-    submit: mutation.mutate,
+    submit: mutation.mutateAsync,
+    onSubmit: mutation.mutate,
     isPending: mutation.isPending,
     error: mutation.error,
   };

@@ -66,14 +66,14 @@ export function WorkspacePicker({
       }
       projectMessage={projectMessage}
       error={selection.error ?? commands.error?.message}
-      onRead={() => commands.submit({ kind: 'read' })}
+      onRead={() => commands.onSubmit({ kind: 'read' })}
       onReadInventory={inventory.read}
       onEnvironment={(environmentId) =>
-        commands.submit({ kind: 'environment', environmentId })
+        commands.onSubmit({ kind: 'environment', environmentId })
       }
       onWorktree={(projectId, worktreeId) => {
         if (selection.currentEnvironmentId)
-          commands.submit({
+          commands.onSubmit({
             kind: 'worktree',
             environmentId: selection.currentEnvironmentId,
             projectId,

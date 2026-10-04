@@ -1,7 +1,7 @@
 export type {
   AgentReply,
   CommentAnchor,
-  CommentAuthor,
+  CommentAuthorRole,
   CommentEdit,
   CommentMessage,
   CommentRemoval,

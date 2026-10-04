@@ -38,7 +38,7 @@ export function AppUpdateSettings() {
           <Button
             size="sm"
             disabled={install.isPending}
-            onClick={() => install.submit()}
+            onClick={() => install.onSubmit()}
           >
             Update to {info.available}
           </Button>

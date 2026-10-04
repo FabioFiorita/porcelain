@@ -21,7 +21,8 @@ export function usePairEnvironment(onPaired: () => void) {
   });
   useEffect(() => () => controller.current?.abort(), []);
   return {
-    submit: mutation.mutate,
+    submit: mutation.mutateAsync,
+    onSubmit: mutation.mutate,
     isPending: mutation.isPending,
     error: mutation.error,
   };

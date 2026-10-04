@@ -1,4 +1,4 @@
-export type CommentAuthor = 'reviewer' | 'agent';
+export type CommentAuthorRole = 'reviewer' | 'agent';
 
 export type CommentWriter = {
   kind: 'owner' | 'device' | 'agent';
@@ -31,7 +31,7 @@ export type CommentAnchor = {
 export type CommentMessage = {
   id: string;
   body: string;
-  author: CommentAuthor;
+  author: CommentAuthorRole;
   createdAt?: string | undefined;
   editedAt?: string | undefined;
 };
