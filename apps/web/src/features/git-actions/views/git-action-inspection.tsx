@@ -205,7 +205,7 @@ function ActionForm({
       className="flex min-w-0 flex-col gap-4"
       onSubmit={(event) => {
         event.preventDefault();
-        git.submit(actionFormInput(action, { message, stashOid, option }));
+        git.onSubmit(actionFormInput(action, { message, stashOid, option }));
       }}
     >
       <fieldset

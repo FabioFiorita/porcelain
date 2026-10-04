@@ -6,7 +6,7 @@ import type {
 export type CommentThread = CreateCommentThreadResponse;
 export type CommentAnchor = CommentThread['anchor'];
 export type CommentMessage = CommentThread['messages'][number];
-export type CommentAuthor = CommentMessage['author'];
+export type CommentMessageAuthor = CommentMessage['author'];
 export type ConfirmedThreads = DeleteResolvedCommentsRequest['threads'];
 
 export type FileCommentAnchor = Exclude<CommentAnchor, { kind: 'change' }>;
@@ -109,7 +109,7 @@ export function anchorLabel(anchor: CommentAnchor): string {
     : `${sign}${anchor.startLine} to ${sign}${anchor.endLine}`;
 }
 
-export function threadStarter(thread: CommentThread): CommentAuthor {
+export function threadStarter(thread: CommentThread): CommentMessageAuthor {
   return thread.messages[0]?.author ?? 'reviewer';
 }
 

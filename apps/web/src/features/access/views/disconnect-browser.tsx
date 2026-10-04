@@ -20,7 +20,7 @@ export function DisconnectBrowser() {
           variant="outline"
           className="shrink-0"
           disabled={disconnect.isPending}
-          onClick={() => disconnect.submit()}
+          onClick={() => disconnect.onSubmit()}
         >
           {disconnect.isPending ? <Spinner /> : <UnplugIcon />}
           Disconnect this browser

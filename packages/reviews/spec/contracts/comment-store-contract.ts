@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type {
   AgentReply,
   CommentAnchor,
-  CommentAuthor,
+  CommentAuthorRole,
   CommentMessage,
   CommentThread,
 } from '../../src/models/comment-thread.ts';
@@ -13,7 +13,7 @@ export type CommentStoreSubject = {
   close: () => void;
 };
 
-type Write = { author?: CommentAuthor; sizeBytes?: number };
+type Write = { author?: CommentAuthorRole; sizeBytes?: number };
 
 const first = 'a'.repeat(64);
 const second = 'b'.repeat(64);
@@ -21,7 +21,7 @@ const createdAt = '2026-09-24T10:00:00.000Z';
 
 function message(
   id: string,
-  author: CommentAuthor = 'reviewer',
+  author: CommentAuthorRole = 'reviewer',
 ): CommentMessage {
   return { id, body: `Body of ${id}`, author, createdAt };
 }

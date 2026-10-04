@@ -7,7 +7,6 @@ export function useTextFile(
   connection: Connection,
   scope: FilesScope,
   path: string,
-  _active: boolean,
 ) {
   return useSuspenseQuery(textQueryOptions(scope, connection, path)).data;
 }

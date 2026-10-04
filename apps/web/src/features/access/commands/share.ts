@@ -13,7 +13,8 @@ export function useIssuePairing(connection: Connection) {
     }) => issuedLink(await commands.issue(input)),
   });
   return {
-    submit: mutation.mutate,
+    submit: mutation.mutateAsync,
+    onSubmit: mutation.mutate,
     issued: mutation.data ?? null,
     isPending: mutation.isPending,
     error: mutation.error,
@@ -27,7 +28,8 @@ export function useRevokeAccess(connection: Connection) {
     mutationFn: commands.revoke,
   });
   return {
-    submit: mutation.mutate,
+    submit: mutation.mutateAsync,
+    onSubmit: mutation.mutate,
     pendingId: mutation.isPending ? mutation.variables : undefined,
     error: mutation.error,
   };
@@ -39,7 +41,8 @@ export function useSetDeviceTrust(connection: Connection) {
     mutationFn: commands.trust,
   });
   return {
-    submit: mutation.mutate,
+    submit: mutation.mutateAsync,
+    onSubmit: mutation.mutate,
     pendingId: mutation.isPending ? mutation.variables.id : undefined,
     error: mutation.error,
   };
@@ -51,7 +54,8 @@ export function useSetRemoteAccess(connection: Connection) {
     mutationFn: commands.setRemote,
   });
   return {
-    submit: mutation.mutate,
+    submit: mutation.mutateAsync,
+    onSubmit: mutation.mutate,
     isPending: mutation.isPending,
     error: mutation.error,
   };
@@ -76,7 +80,8 @@ export function useStartServiceUpdate(connection: Connection) {
     mutationFn: commands.startServiceUpdate,
   });
   return {
-    submit: mutation.mutate,
+    submit: mutation.mutateAsync,
+    onSubmit: mutation.mutate,
     isPending: mutation.isPending,
     error: mutation.error,
   };

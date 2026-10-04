@@ -33,7 +33,8 @@ export function useDisconnect() {
     },
   });
   return {
-    submit: mutation.mutate,
+    submit: mutation.mutateAsync,
+    onSubmit: mutation.mutate,
     isPending: mutation.isPending,
     error: mutation.error,
   };

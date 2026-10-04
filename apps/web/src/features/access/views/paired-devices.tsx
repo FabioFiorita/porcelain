@@ -75,7 +75,7 @@ export function PairedDevices({ connection }: { connection: Connection }) {
                 checked={device.trusted}
                 disabled={trust.pendingId === device.id}
                 onCheckedChange={(trusted) =>
-                  trust.submit({ id: device.id, trusted })
+                  trust.onSubmit({ id: device.id, trusted })
                 }
               />
               {!device.current && (
@@ -84,7 +84,7 @@ export function PairedDevices({ connection }: { connection: Connection }) {
                   variant="outline"
                   aria-label={`Revoke ${device.label}`}
                   disabled={revoke.pendingId === device.id}
-                  onClick={() => revoke.submit(device.id)}
+                  onClick={() => revoke.onSubmit(device.id)}
                 >
                   Revoke
                 </Button>
@@ -116,7 +116,7 @@ export function PairedDevices({ connection }: { connection: Connection }) {
                 variant="outline"
                 aria-label={`Cancel the link for ${grant.label}`}
                 disabled={revoke.pendingId === grant.id}
-                onClick={() => revoke.submit(grant.id)}
+                onClick={() => revoke.onSubmit(grant.id)}
               >
                 Cancel
               </Button>

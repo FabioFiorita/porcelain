@@ -36,7 +36,7 @@ import {
 } from '../commands/comments';
 import {
   anchorLabel,
-  type CommentAuthor,
+  type CommentMessageAuthor,
   commentBodyValid,
   type CommentMessage,
   type CommentThread,
@@ -57,7 +57,7 @@ const relative = (iso?: string) =>
     ? null
     : formatDistanceToNowStrict(new Date(iso), { addSuffix: true });
 
-function AuthorAvatar({ author }: { author: CommentAuthor }) {
+function AuthorAvatar({ author }: { author: CommentMessageAuthor }) {
   const agent = author === 'agent';
   return (
     <MessageAvatar className={cn('size-6 min-w-6', agent ? ' ' : ' ')}>

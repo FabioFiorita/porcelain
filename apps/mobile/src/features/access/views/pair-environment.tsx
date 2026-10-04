@@ -42,7 +42,7 @@ export function PairEnvironment({ onClose }: { onClose: () => void }) {
               testID="pair-environment"
               label={pair.isPending ? 'Pairing…' : 'Pair'}
               disabled={pair.isPending}
-              onPress={() => pair.submit(value.get())}
+              onPress={() => pair.onSubmit(value.get())}
             />
           </Host>
           <Host matchContents={{ vertical: true }}>
