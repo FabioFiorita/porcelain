@@ -175,12 +175,15 @@ test('Quit persists the latest maximized window before closing it, even while it
     page.getByRole('button', { name: 'Open project', exact: true }),
   ).toBeVisible();
   const marker = 'Porcelain e2e: window save awaiting rename';
+  const unloadMarker = 'Porcelain e2e: page tried to prevent Quit';
+  const dialogs: string[] = [];
+  page.on('dialog', (dialog) => dialogs.push(dialog.type()));
   await page.evaluate(() =>
     addEventListener('beforeunload', (event) => event.preventDefault()),
   );
   const { pid } = await app.server();
   const bounds = await app.electron.evaluate(
-    async ({ BrowserWindow }, { profile, marker }) => {
+    async ({ BrowserWindow }, { profile, marker, unloadMarker }) => {
       const fs = process.getBuiltinModule('fs');
       const { syncBuiltinESMExports } = process.getBuiltinModule('module');
       const rename = fs.promises.rename.bind(fs.promises);
@@ -197,10 +200,13 @@ test('Quit persists the latest maximized window before closing it, even while it
       syncBuiltinESMExports();
       const view = BrowserWindow.getAllWindows()[0];
       if (view === undefined) throw new Error('The app window is missing');
+      view.webContents.once('will-prevent-unload', () => {
+        process.stderr.write(`${unloadMarker}\n`);
+      });
       view.setBounds({ x: 40, y: 50, width: 980, height: 680 });
       return view.getNormalBounds();
     },
-    { profile: app.profile, marker },
+    { profile: app.profile, marker, unloadMarker },
   );
   await maximize(app);
   const quitting = app.quit();
@@ -224,6 +230,8 @@ test('Quit persists the latest maximized window before closing it, even while it
     });
     await quitting;
   }
+  expect(dialogs).toEqual(['beforeunload']);
+  expect(app.output.join('')).toContain(unloadMarker);
   expect(
     desktopWindowStateSchema.parse(
       JSON.parse(await readFile(join(app.profile, 'window.json'), 'utf8')),
