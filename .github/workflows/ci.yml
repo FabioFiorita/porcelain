@@ -113,7 +113,7 @@ jobs:
             arguments: spec/e2e/menus.e2e.ts --grep "without a Vite server" --repeat-each=100
           - target: server-output
             arguments: spec/e2e/window.e2e.ts --grep "Quit drains server output|closing the last window" --repeat-each=100
-          - target: before-pipe-close
+          - target: before-output-barrier
             arguments: spec/e2e/window.e2e.ts --grep "Quit drains server output" --repeat-each=3
           - target: before-server-output
             arguments: spec/e2e/window.e2e.ts --grep "Quit drains server output" --repeat-each=5
@@ -137,9 +137,9 @@ jobs:
       - name: Restore the former immediate server exit for causal proof
         if: matrix.target == 'before-server-output'
         run: git restore --source=f1f22b0c4 -- apps/desktop/src/server.ts apps/desktop/src/server-host.ts apps/desktop/src/protocol.ts
-      - name: Restore the unclosed stdio descriptors for causal proof
-        if: matrix.target == 'before-pipe-close'
-        run: git restore --source=541fcd815 -- apps/desktop/src/server.ts
+      - name: Restore the EOF-based shutdown for causal proof
+        if: matrix.target == 'before-output-barrier'
+        run: git restore --source=ea6418e99 -- apps/desktop/src/server.ts apps/desktop/src/server-host.ts apps/desktop/src/protocol.ts apps/desktop/src/adapters/server-output.ts
       - run: pnpm --filter @porcelain/desktop test:e2e ${{ matrix.arguments }}
       - name: Prove cached headers rebuild without a header server
         if: ${{ !cancelled() }}

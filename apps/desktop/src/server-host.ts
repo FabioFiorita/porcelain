@@ -1,9 +1,9 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
-import { finished } from 'node:stream/promises';
 import { utilityProcess } from 'electron';
 import type { desktopSettings } from './settings.ts';
 import { serverMessage } from './protocol.ts';
 import { ServerLog } from './adapters/server-log.ts';
+import { drainServerOutput } from './adapters/server-output.ts';
 
 export async function startLocalServer(
   settings: ReturnType<typeof desktopSettings>,
@@ -20,24 +20,21 @@ export async function startLocalServer(
     settings.logs,
     settings.limits.desktop.serverLogBytes,
   );
-  child.stdout?.on('data', (chunk: Buffer) => {
-    process.stdout.write(chunk);
-    log.append(chunk);
-  });
-  child.stderr?.on('data', (chunk: Buffer) => {
-    process.stderr.write(chunk);
-    log.append(chunk);
-  });
-  void Promise.allSettled([
-    child.stdout === null ? undefined : finished(child.stdout),
-    child.stderr === null ? undefined : finished(child.stderr),
+  const outputEnd = randomUUID();
+  void Promise.all([
+    drainServerOutput(child.stdout, outputEnd, (chunk) => {
+      process.stdout.write(chunk);
+      log.append(chunk);
+    }),
+    drainServerOutput(child.stderr, outputEnd, (chunk) => {
+      process.stderr.write(chunk);
+      log.append(chunk);
+    }),
   ])
-    .then(async (streams) => {
+    .then(async () => {
       await log.flush();
       process.stderr.write('Porcelain: server output persisted\n');
       child.postMessage({ kind: 'exit' });
-      const failed = streams.find((stream) => stream.status === 'rejected');
-      if (failed?.status === 'rejected') throw failed.reason;
     })
     .catch((error: unknown) => {
       process.stderr.write(
@@ -73,6 +70,7 @@ export async function startLocalServer(
     child.once('spawn', () =>
       child.postMessage({
         kind: 'start',
+        outputEnd,
         profile: settings.profile,
         projectHome: settings.projectHome,
         packageRoot: settings.packageRoot,

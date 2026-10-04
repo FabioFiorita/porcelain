@@ -16,7 +16,7 @@ const message = await new Promise<unknown>((resolveStart) =>
 const startup = hostMessage.parse(message);
 if (startup.kind !== 'start')
   throw new Error('The desktop server requires private startup configuration');
-const { profile, projectHome, packageRoot, session } = startup;
+const { profile, projectHome, packageRoot, session, outputEnd } = startup;
 const signal = new AbortController();
 const settings = readServerSettings({
   dataDirectory: join(profile, 'server'),
@@ -39,7 +39,7 @@ try {
       try {
         await server.close();
       } finally {
-        await finishServerOutput();
+        await finishServerOutput(outputEnd);
       }
     })();
     return closing;

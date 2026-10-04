@@ -9,6 +9,7 @@ export const hostMessage = z.discriminatedUnion('kind', [
   z.object({
     kind: z.literal('start'),
     profile: z.string(),
+    outputEnd: z.uuid(),
     projectHome: z.string(),
     packageRoot: z.string(),
     session: z.object({ deviceId: z.string(), secretHash: z.string() }),
