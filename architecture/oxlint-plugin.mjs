@@ -1291,7 +1291,7 @@ export default {
             )
               report(
                 node,
-                'Use the shared client key builders; cache reads and invalidations must identify the same resource in every app.',
+                'Use the shared client key builders, because cache reads and invalidations must identify the same resource in every app.',
               );
           },
           Property(node) {
@@ -1303,7 +1303,7 @@ export default {
             )
               report(
                 node.value,
-                'Use the shared client key builders; cache reads and invalidations must identify the same resource in every app.',
+                'Use the shared client key builders, because cache reads and invalidations must identify the same resource in every app.',
               );
           },
           CallExpression(node) {
@@ -1317,7 +1317,7 @@ export default {
             )
               report(
                 node,
-                'Use the shared client write queue; dependent writes must stop after a failure and reject to their caller.',
+                'Use the shared client write queue, because dependent writes must stop after a failure and reject to their caller.',
               );
             if (
               /\/queries\//.test(path) &&
@@ -1326,7 +1326,7 @@ export default {
             )
               report(
                 node,
-                'Use assertCurrentAnswer; cancellation and stale answers share one guard and one explanation across clients.',
+                'Use assertCurrentAnswer, because cancellation and stale answers need one guard and one explanation across clients.',
               );
           },
           IfStatement(node) {
@@ -1345,7 +1345,7 @@ export default {
             if (body?.type === 'ThrowStatement')
               report(
                 node,
-                'Receive a non-null connection from the connected boundary; repeated feature guards hide which views can run disconnected.',
+                'Receive a non-null connection from the connected boundary, because repeated feature guards hide which views can run disconnected.',
               );
           },
           Literal(node) {
@@ -1358,7 +1358,7 @@ export default {
             )
               report(
                 node,
-                'Use assertCurrentAnswer; cancellation and stale answers share one guard and one explanation across clients.',
+                'Use assertCurrentAnswer, because cancellation and stale answers need one guard and one explanation across clients.',
               );
           },
         };

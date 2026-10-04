@@ -406,9 +406,7 @@ for (const entry of ruleCases) {
     const goodPath = entry.validPath ?? entry.path;
     const goodFile = fileURLToPath(new URL(goodPath, root));
     tester.run(entry.rule, checkedRule(plugin.rules[entry.rule]), {
-      valid: [
-        { filename: goodFile, code: fixtureCode(goodPath, entry.valid) },
-      ],
+      valid: [{ filename: goodFile, code: fixtureCode(goodPath, entry.valid) }],
       invalid: [
         {
           filename: at,
