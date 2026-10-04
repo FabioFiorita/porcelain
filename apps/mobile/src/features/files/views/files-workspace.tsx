@@ -1,14 +1,18 @@
+import type { useDirectory } from '../queries/reads';
 import { Button, Host, TextInput, useNativeState } from '@expo/ui';
 import { useState } from 'react';
 import { Keyboard, ScrollView, Text, View } from 'react-native';
 import { useResolveClassNames } from 'uniwind';
-import type { FilesContext } from '@porcelain/client/files';
 import { FileTree } from './file-tree';
 import { FileSearch } from './file-search';
 import { FileView } from './file-view';
 import { useReloadFiles } from '../commands/reload';
 
-export function FilesWorkspace({ context }: { context: FilesContext }) {
+export function FilesWorkspace({
+  context,
+}: {
+  context: Parameters<typeof useDirectory>[0];
+}) {
   const [path, setPath] = useState<string>();
   const [search, setSearch] = useState('');
   const searchValue = useNativeState('');

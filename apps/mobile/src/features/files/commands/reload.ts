@@ -1,10 +1,13 @@
+import type { useDirectory } from '../queries/reads';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { reviewSurfaceFilters } from '@porcelain/client/transport';
-import type { FilesContext } from '@porcelain/client/files';
 
 const surfaces = new Set(['directory', 'paths']);
 
-export function useReloadFiles({ connection, scope }: FilesContext) {
+export function useReloadFiles({
+  connection,
+  scope,
+}: Parameters<typeof useDirectory>[0]) {
   const client = useQueryClient();
   const mutation = useMutation({
     mutationFn: () =>

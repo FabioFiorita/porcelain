@@ -3,8 +3,13 @@ import {
   directoryQueryOptions,
   pathsQueryOptions,
   textQueryOptions,
-  type FilesContext,
 } from '@porcelain/client/files';
+import type { WorktreeConnection } from '@porcelain/client/transport';
+
+type FilesContext = {
+  connection: WorktreeConnection;
+  scope: { projectId: string; worktreeId: string };
+};
 
 export function useDirectory(
   { connection, scope }: FilesContext,

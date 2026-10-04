@@ -1,8 +1,6 @@
 import { FILE_QUICK_OPEN_MAX } from '@/config/limits';
+import { matchingFilePaths } from '@porcelain/client/files/rules';
 
 export function quickOpenMatches(paths: readonly string[], query: string) {
-  const needle = query.trim().toLowerCase();
-  return paths
-    .filter((path) => path.toLowerCase().includes(needle))
-    .slice(0, FILE_QUICK_OPEN_MAX);
+  return matchingFilePaths(paths, query).slice(0, FILE_QUICK_OPEN_MAX);
 }

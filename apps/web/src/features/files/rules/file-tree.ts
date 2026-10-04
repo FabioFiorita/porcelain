@@ -1,4 +1,5 @@
 import type { ListDirectoryResponse as Directory } from '@porcelain/contracts/files';
+import { childFilePath } from '@porcelain/client/files/rules';
 
 type FileTreeEntry = {
   path: string;
@@ -8,9 +9,8 @@ type FileTreeEntry = {
 };
 
 function fileTreeEntries(directory: Directory): FileTreeEntry[] {
-  const prefix = directory.path ? `${directory.path}/` : '';
   return directory.entries.map((entry) => ({
-    path: `${prefix}${entry.name}${entry.kind === 'directory' ? '/' : ''}`,
+    path: `${childFilePath(directory.path, entry.name)}${entry.kind === 'directory' ? '/' : ''}`,
     kind: entry.kind,
     ...(entry.ignored ? { ignored: true } : {}),
     ...(entry.target === undefined ? {} : { target: entry.target }),

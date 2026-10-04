@@ -1,4 +1,3 @@
-import type { FilesContext } from '@porcelain/client/files';
 import { Button, Host } from '@expo/ui';
 import { useState } from 'react';
 import { Text, View } from 'react-native';
@@ -12,7 +11,7 @@ function Folder({
   name,
   onOpen,
 }: {
-  context: FilesContext;
+  context: Parameters<typeof useDirectory>[0];
   path: string;
   name: string;
   onOpen: (path: string) => void;
@@ -41,7 +40,7 @@ export function FileTree({
   path,
   onOpen,
 }: {
-  context: FilesContext;
+  context: Parameters<typeof useDirectory>[0];
   path: string;
   onOpen: (path: string) => void;
 }) {

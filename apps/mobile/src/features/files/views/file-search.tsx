@@ -1,4 +1,4 @@
-import type { FilesContext } from '@porcelain/client/files';
+import type { useDirectory } from '../queries/reads';
 import { Button, Host } from '@expo/ui';
 import { FlatList, Text } from 'react-native';
 import { matchingFilePaths } from '@porcelain/client/files/rules';
@@ -10,7 +10,7 @@ export function FileSearch({
   search,
   onOpen,
 }: {
-  context: FilesContext;
+  context: Parameters<typeof useDirectory>[0];
   search: string;
   onOpen: (path: string) => void;
 }) {

@@ -6,7 +6,7 @@ import { toast } from '@/components/ui/toast';
 import type { FileDraft, FileDraftState } from '@/features/files/store';
 import { createPierreFileOptions } from '@/shared/lib/pierre';
 import { useFileDraftSaving } from '@/features/files/commands/edit-file';
-import { fileErrorMessage } from '../rules/error-message';
+import { fileReadError as fileErrorMessage } from '@porcelain/client/files/rules';
 import {
   createEditor,
   usePierreFileEditor,

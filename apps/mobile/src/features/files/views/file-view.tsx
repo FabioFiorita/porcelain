@@ -1,4 +1,4 @@
-import type { FilesContext } from '@porcelain/client/files';
+import type { useDirectory } from '../queries/reads';
 import { Button, Host } from '@expo/ui';
 import { Text, View } from 'react-native';
 import { useFileText } from '../queries/reads';
@@ -10,7 +10,7 @@ export function FileView({
   path,
   onBack,
 }: {
-  context: FilesContext;
+  context: Parameters<typeof useDirectory>[0];
   path: string;
   onBack: () => void;
 }) {
