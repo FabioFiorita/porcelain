@@ -3,23 +3,52 @@ import { diffRows } from './patch.ts';
 
 describe('diffRows', () => {
   it('keeps independent old/new gutters, hunk labels and literal source in sparse hunks', () => {
-    const rows = diffRows({
-      kind: 'text',
-      patch: [
-        'diff --git a/view.ts b/view.ts',
-        '--- a/view.ts',
-        '+++ b/view.ts',
-        '@@ -2,3 +2,3 @@ function view()',
-        ' unchanged',
-        '-old()',
-        '+<script>alert("literal")</script>',
-        ' end',
-        '@@ -40 +42 @@',
-        '-before',
-        '+after',
-        '',
-      ].join('\n'),
-    });
+    const rows = diffRows(
+      {
+        kind: 'text',
+        patch: [
+          'diff --git a/view.ts b/view.ts',
+          '--- a/view.ts',
+          '+++ b/view.ts',
+          '@@ -2,3 +2,3 @@ function view()',
+          ' unchanged',
+          '-old()',
+          '+<script>alert("literal")</script>',
+          ' end',
+          '@@ -40 +42 @@',
+          '-before',
+          '+after',
+          '',
+        ].join('\n'),
+      },
+      [
+        {
+          oldFileName: 'a/view.ts',
+          newFileName: 'b/view.ts',
+          hunks: [
+            {
+              oldStart: 2,
+              newStart: 2,
+              oldLines: 3,
+              newLines: 3,
+              lines: [
+                ' unchanged',
+                '-old()',
+                '+<script>alert("literal")</script>',
+                ' end',
+              ],
+            },
+            {
+              oldStart: 40,
+              newStart: 42,
+              oldLines: 1,
+              newLines: 1,
+              lines: ['-before', '+after'],
+            },
+          ],
+        },
+      ],
+    );
     expect(
       rows.map(({ kind, text, oldLine, newLine }) => ({
         kind,
@@ -80,26 +109,58 @@ describe('diffRows', () => {
   });
 
   it('starts added/deleted files at line one and keeps missing-final-newline notices', () => {
-    const rows = diffRows({
-      kind: 'text',
-      patch: [
-        'diff --git a/new.txt b/new.txt',
-        'new file mode 100644',
-        '--- /dev/null',
-        '+++ b/new.txt',
-        '@@ -0,0 +1 @@',
-        '+new',
-        '\\ No newline at end of file',
-        'diff --git a/old.txt b/old.txt',
-        'deleted file mode 100755',
-        '--- a/old.txt',
-        '+++ /dev/null',
-        '@@ -1 +0,0 @@',
-        '-old',
-        '\\ No newline at end of file',
-        '',
-      ].join('\n'),
-    });
+    const rows = diffRows(
+      {
+        kind: 'text',
+        patch: [
+          'diff --git a/new.txt b/new.txt',
+          'new file mode 100644',
+          '--- /dev/null',
+          '+++ b/new.txt',
+          '@@ -0,0 +1 @@',
+          '+new',
+          '\\ No newline at end of file',
+          'diff --git a/old.txt b/old.txt',
+          'deleted file mode 100755',
+          '--- a/old.txt',
+          '+++ /dev/null',
+          '@@ -1 +0,0 @@',
+          '-old',
+          '\\ No newline at end of file',
+          '',
+        ].join('\n'),
+      },
+      [
+        {
+          oldFileName: '/dev/null',
+          newFileName: 'b/new.txt',
+          isCreate: true,
+          hunks: [
+            {
+              oldStart: 1,
+              newStart: 1,
+              oldLines: 0,
+              newLines: 1,
+              lines: ['+new', '\\ No newline at end of file'],
+            },
+          ],
+        },
+        {
+          oldFileName: 'a/old.txt',
+          newFileName: '/dev/null',
+          isDelete: true,
+          hunks: [
+            {
+              oldStart: 1,
+              newStart: 1,
+              oldLines: 1,
+              newLines: 0,
+              lines: ['-old', '\\ No newline at end of file'],
+            },
+          ],
+        },
+      ],
+    );
     expect(
       rows.map((row) => [
         row.kind,
@@ -123,22 +184,32 @@ describe('diffRows', () => {
 
   it('presents rename, copy and mode changes even without text hunks', () => {
     expect(
-      diffRows({
-        kind: 'metadata-only',
-        patch: [
-          'diff --git a/old name.ts b/new name.ts',
-          'similarity index 100%',
-          'rename from old name.ts',
-          'rename to new name.ts',
-          'old mode 100644',
-          'new mode 100755',
-          'diff --git a/source.ts b/copy.ts',
-          'similarity index 100%',
-          'copy from source.ts',
-          'copy to copy.ts',
-          '',
-        ].join('\n'),
-      }).map((row) => row.text),
+      diffRows(
+        {
+          kind: 'metadata-only',
+          patch: [
+            'diff --git a/old name.ts b/new name.ts',
+            'similarity index 100%',
+            'rename from old name.ts',
+            'rename to new name.ts',
+            'old mode 100644',
+            'new mode 100755',
+            'diff --git a/source.ts b/copy.ts',
+            'similarity index 100%',
+            'copy from source.ts',
+            'copy to copy.ts',
+            '',
+          ].join('\n'),
+        },
+        [
+          {
+            oldFileName: 'a/old name.ts',
+            newFileName: 'b/new name.ts',
+            hunks: [],
+          },
+          { oldFileName: 'a/source.ts', newFileName: 'b/copy.ts', hunks: [] },
+        ],
+      ).map((row) => row.text),
     ).toEqual([
       'new name.ts',
       'similarity index 100%',
@@ -155,16 +226,19 @@ describe('diffRows', () => {
     ]);
   });
 
-  it('decodes Git UTF-8 octal paths without changing their Unicode names', () => {
+  it('preserves parsed Unicode names beside original Git octal headers', () => {
     expect(
-      diffRows({
-        kind: 'metadata-only',
-        patch: [
-          'diff --git "a/caf\\303\\251.ts" "b/caf\\303\\251-new.ts"',
-          'rename from "caf\\303\\251.ts"',
-          'rename to "caf\\303\\251-new.ts"',
-        ].join('\n'),
-      }).map((row) => row.text),
+      diffRows(
+        {
+          kind: 'metadata-only',
+          patch: [
+            'diff --git "a/caf\\303\\251.ts" "b/caf\\303\\251-new.ts"',
+            'rename from "caf\\303\\251.ts"',
+            'rename to "caf\\303\\251-new.ts"',
+          ].join('\n'),
+        },
+        [{ oldFileName: 'a/café.ts', newFileName: 'b/café-new.ts', hunks: [] }],
+      ).map((row) => row.text),
     ).toEqual([
       'café-new.ts',
       'rename from café.ts',
@@ -175,45 +249,148 @@ describe('diffRows', () => {
 
   it('labels every contract non-text state and keeps an optional file header', () => {
     expect(
-      diffRows({ kind: 'binary' }, 'image.png').map((row) => row.text),
+      diffRows({ kind: 'binary' }, undefined, 'image.png').map(
+        (row) => row.text,
+      ),
     ).toEqual(['image.png', 'Binary file changed.']);
     expect(
-      diffRows({ kind: 'omitted', reason: 'size-limit' }).map(
+      diffRows({ kind: 'omitted', reason: 'size-limit' }, undefined).map(
         (row) => row.text,
       ),
     ).toEqual(['Diff omitted: file exceeds the size limit.']);
     expect(
-      diffRows({ kind: 'omitted', reason: 'unsupported-encoding' }).map(
-        (row) => row.text,
-      ),
+      diffRows(
+        { kind: 'omitted', reason: 'unsupported-encoding' },
+        undefined,
+      ).map((row) => row.text),
     ).toEqual(['Diff omitted: unsupported file encoding.']);
     expect(
-      diffRows({ kind: 'omitted', reason: 'unsupported-submodule' }).map(
-        (row) => row.text,
-      ),
+      diffRows(
+        { kind: 'omitted', reason: 'unsupported-submodule' },
+        undefined,
+      ).map((row) => row.text),
     ).toEqual(['Diff omitted: submodule changes are not supported.']);
     expect(
-      diffRows({ kind: 'text', patch: '' }, 'empty.txt').map((row) => row.text),
+      diffRows({ kind: 'text', patch: '' }, undefined, 'empty.txt').map(
+        (row) => row.text,
+      ),
     ).toEqual(['empty.txt', 'No text changes.']);
     expect(
-      diffRows({
-        kind: 'text',
-        patch:
-          'diff --git a/image.png b/image.png\nBinary files a/image.png and b/image.png differ\n',
-      }).map((row) => row.text),
+      diffRows(
+        {
+          kind: 'text',
+          patch:
+            'diff --git a/image.png b/image.png\nBinary files a/image.png and b/image.png differ\n',
+        },
+        [
+          {
+            oldFileName: 'a/image.png',
+            newFileName: 'b/image.png',
+            isBinary: true,
+            hunks: [],
+          },
+        ],
+      ).map((row) => row.text),
     ).toEqual(['image.png', 'Binary file changed.']);
   });
 
   it.each([
-    '--- a/a.txt\n+++ b/a.txt\n@@ -1,2 +1,2 @@\n-old\n+new\n',
-    '--- a/a.txt\n+++ b/a.txt\n@@ broken @@\n-old\n+new\n',
-    '--- a/a.txt\n+++ b/a.txt\n@@ -0 +0 @@\n-old\n+new\n',
-    '--- a/a.txt\n+++ b/a.txt\n@@ -1 +1 @@\n-old\n+new\n+extra\n',
-    'not a patch\n<script>literal</script>\n',
-    'diff --cc merged.ts\n@@@ -1 -1 +1 @@@\n++combined\n',
-    '--- a/a.txt\n+++ b/a.txt\n@@ -1 +1 @@\n-old\n+new\nunknown metadata\n',
-  ])('preserves malformed or unsupported patch literally: %s', (patch) => {
-    const rows = diffRows({ kind: 'text', patch });
+    {
+      name: 'unparseable count mismatch',
+      patch: '--- a/a.txt\n+++ b/a.txt\n@@ -1,2 +1,2 @@\n-old\n+new\n',
+      files: undefined,
+    },
+    {
+      name: 'invalid hunk header',
+      patch: '--- a/a.txt\n+++ b/a.txt\n@@ broken @@\n-old\n+new\n',
+      files: [
+        {
+          oldFileName: 'a/a.txt',
+          newFileName: 'b/a.txt',
+          hunks: [
+            {
+              oldStart: 1,
+              newStart: 1,
+              oldLines: 1,
+              newLines: 1,
+              lines: ['-old', '+new'],
+            },
+          ],
+        },
+      ],
+    },
+    {
+      name: 'invalid line-zero range',
+      patch: '--- a/a.txt\n+++ b/a.txt\n@@ -0 +0 @@\n-old\n+new\n',
+      files: [
+        {
+          oldFileName: 'a/a.txt',
+          newFileName: 'b/a.txt',
+          hunks: [
+            {
+              oldStart: 0,
+              newStart: 0,
+              oldLines: 1,
+              newLines: 1,
+              lines: ['-old', '+new'],
+            },
+          ],
+        },
+      ],
+    },
+    {
+      name: 'unparsed extra source',
+      patch: '--- a/a.txt\n+++ b/a.txt\n@@ -1 +1 @@\n-old\n+new\n+extra\n',
+      files: [
+        {
+          oldFileName: 'a/a.txt',
+          newFileName: 'b/a.txt',
+          hunks: [
+            {
+              oldStart: 1,
+              newStart: 1,
+              oldLines: 1,
+              newLines: 1,
+              lines: ['-old', '+new'],
+            },
+          ],
+        },
+      ],
+    },
+    {
+      name: 'no parsed files',
+      patch: 'not a patch\n<script>literal</script>\n',
+      files: [],
+    },
+    {
+      name: 'unsupported combined diff',
+      patch: 'diff --cc merged.ts\n@@@ -1 -1 +1 @@@\n++combined\n',
+      files: [
+        { oldFileName: 'a/merged.ts', newFileName: 'b/merged.ts', hunks: [] },
+      ],
+    },
+    {
+      name: 'unsupported trailing metadata',
+      patch:
+        '--- a/a.txt\n+++ b/a.txt\n@@ -1 +1 @@\n-old\n+new\nunknown metadata\n',
+      files: [
+        {
+          oldFileName: 'a/a.txt',
+          newFileName: 'b/a.txt',
+          hunks: [
+            {
+              oldStart: 1,
+              newStart: 1,
+              oldLines: 1,
+              newLines: 1,
+              lines: ['-old', '+new'],
+            },
+          ],
+        },
+      ],
+    },
+  ])('preserves $name literally', ({ patch, files }) => {
+    const rows = diffRows({ kind: 'text', patch }, files);
     expect(rows[0]?.text).toBe(
       'Diff could not be parsed. Original patch follows.',
     );
@@ -232,14 +409,30 @@ describe('diffRows', () => {
 });
 
 describe('prepared source tokens', () => {
-  const sourceTokens = (text: string, path: string) =>
-    diffRows({
-      kind: 'text',
-      patch: `--- /dev/null\n+++ b/${path}\n@@ -0,0 +1 @@\n+${text}\n`,
-    }).find((row) => row.kind === 'addition')?.tokens;
   it('keeps source literal while treating bounded strings, keywords, numbers and comments', () => {
     expect(
-      sourceTokens('const n = "// text" + 42; // comment', 'a.ts'),
+      diffRows(
+        {
+          kind: 'text',
+          patch:
+            '--- /dev/null\n+++ b/a.ts\n@@ -0,0 +1 @@\n+const n = "// text" + 42; // comment\n',
+        },
+        [
+          {
+            oldFileName: '/dev/null',
+            newFileName: 'b/a.ts',
+            hunks: [
+              {
+                oldStart: 1,
+                newStart: 1,
+                oldLines: 0,
+                newLines: 1,
+                lines: ['+const n = "// text" + 42; // comment'],
+              },
+            ],
+          },
+        ],
+      ).find((row) => row.kind === 'addition')?.tokens,
     ).toEqual([
       { text: 'const', kind: 'keyword' },
       { text: ' n = ', kind: 'plain' },
@@ -249,15 +442,59 @@ describe('prepared source tokens', () => {
       { text: '; ', kind: 'plain' },
       { text: '// comment', kind: 'comment' },
     ]);
-    expect(sourceTokens('return "<script>" # comment', 'a.py')).toEqual([
+    expect(
+      diffRows(
+        {
+          kind: 'text',
+          patch:
+            '--- /dev/null\n+++ b/a.py\n@@ -0,0 +1 @@\n+return "<script>" # comment\n',
+        },
+        [
+          {
+            oldFileName: '/dev/null',
+            newFileName: 'b/a.py',
+            hunks: [
+              {
+                oldStart: 1,
+                newStart: 1,
+                oldLines: 0,
+                newLines: 1,
+                lines: ['+return "<script>" # comment'],
+              },
+            ],
+          },
+        ],
+      ).find((row) => row.kind === 'addition')?.tokens,
+    ).toEqual([
       { text: 'return', kind: 'keyword' },
       { text: ' ', kind: 'plain' },
       { text: '"<script>"', kind: 'string' },
       { text: ' ', kind: 'plain' },
       { text: '# comment', kind: 'comment' },
     ]);
-    expect(sourceTokens('  \t<unsafe>& literal', 'a.txt')).toEqual([
-      { text: '  \t<unsafe>& literal', kind: 'plain' },
-    ]);
+    expect(
+      diffRows(
+        {
+          kind: 'text',
+          patch:
+            '--- /dev/null\n+++ b/a.txt\n@@ -0,0 +1 @@\n+  \t<unsafe>& literal\n',
+        },
+        [
+          {
+            oldFileName: '/dev/null',
+            newFileName: 'b/a.txt',
+            hunks: [
+              {
+                oldStart: 1,
+                newStart: 1,
+                oldLines: 0,
+                newLines: 1,
+                lines: ['+  \t<unsafe>& literal'],
+              },
+            ],
+          },
+        ],
+      ).find((row) => row.kind === 'addition')?.tokens,
+    ).toEqual([{ text: '  \t<unsafe>& literal', kind: 'plain' }]);
   });
 });

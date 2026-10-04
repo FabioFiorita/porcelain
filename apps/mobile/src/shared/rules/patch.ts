@@ -1,5 +1,4 @@
 import type { ReadChangeDiffsResponse } from '@porcelain/contracts/changes';
-import { parsePatch } from 'diff/lib/patch/parse.js';
 
 type DiffContent = ReadChangeDiffsResponse['diffs'][number]['content'];
 type ParsedPatchFile = {
@@ -8,12 +7,12 @@ type ParsedPatchFile = {
   isCreate?: boolean | undefined;
   isDelete?: boolean | undefined;
   isBinary?: boolean | undefined;
-  hunks: {
+  hunks: readonly {
     oldStart: number;
     newStart: number;
     oldLines: number;
     newLines: number;
-    lines: string[];
+    lines: readonly string[];
   }[];
 };
 type DiffRow = {
@@ -51,7 +50,7 @@ function barePath(path: string | undefined) {
   return path.replace(/^[ab]\//, '');
 }
 
-function patchHeaders(patch: string, files: ParsedPatchFile[]) {
+function patchHeaders(patch: string, files: readonly ParsedPatchFile[]) {
   const lines = patch.split('\n');
   const metadata = files.map(() => [] as string[]);
   const hunks = files.flatMap((file) => file.hunks);
@@ -91,7 +90,11 @@ function patchHeaders(patch: string, files: ParsedPatchFile[]) {
   return { headers, metadata };
 }
 
-export function diffRows(content: DiffContent, path?: string): DiffRow[] {
+export function diffRows(
+  content: DiffContent,
+  files: readonly ParsedPatchFile[] | undefined,
+  path?: string,
+): DiffRow[] {
   const rows: DiffRow[] = [];
   const push = ({ path: sourcePath, ...row }: RowInput) =>
     rows.push({
@@ -125,9 +128,8 @@ export function diffRows(content: DiffContent, path?: string): DiffRow[] {
     return rows;
   }
   try {
-    const files = parsePatch(content.patch);
     if (
-      !files.length ||
+      !files?.length ||
       files.every(
         (file) => !file.oldFileName && !file.newFileName && !file.hunks.length,
       )
