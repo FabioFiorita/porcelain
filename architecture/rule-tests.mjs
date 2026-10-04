@@ -486,11 +486,14 @@ deepStrictEqual(
   manualAuditProblems(
     new Map([
       [path, audit],
-      ['.github/workflows/web.yml', { on: { push: null }, jobs: {} }],
+      [
+        '.github/workflows/runtime-verification.yml',
+        { on: { push: null }, jobs: {} },
+      ],
     ]),
   ),
   [
-    '.github/workflows/web.yml: expensive audits run on explicit workflow_dispatch, because routine pushes must not run the full audit.',
+    '.github/workflows/runtime-verification.yml: expensive audits run on explicit workflow_dispatch, because routine pushes must not run the full audit.',
   ],
 );
 for (const on of [
@@ -517,14 +520,16 @@ ok(
     new Map([
       [path, audit],
       [
-        '.github/workflows/web.yml',
+        '.github/workflows/runtime-verification.yml',
         {
           on: { workflow_dispatch: null, schedule: [{ cron: '23 6 * * 1' }] },
           jobs: {},
         },
       ],
     ]),
-  ).some((problem) => problem.startsWith('.github/workflows/web.yml')),
+  ).some((problem) =>
+    problem.startsWith('.github/workflows/runtime-verification.yml'),
+  ),
 );
 
 ok(

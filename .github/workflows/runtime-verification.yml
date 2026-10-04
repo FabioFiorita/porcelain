@@ -1,4 +1,4 @@
-name: Runtime checkpoint
+name: Runtime verification
 
 on:
   workflow_dispatch:
