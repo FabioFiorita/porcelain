@@ -1,3 +1,4 @@
+import { commentCommands, reviewedCommands } from '@porcelain/client/reviews';
 import { expect } from 'vitest';
 import { QueryClient } from '@tanstack/query-core';
 import { test } from '@porcelain/server/kit/server-test';
@@ -101,4 +102,92 @@ test('read changes and the exact Git patch, and refuse a stale diff snapshot', a
   await expect(
     cache.query(changeDiffsQueryOptions(scope, connected, input)),
   ).rejects.toMatchObject({ status: 409, code: 'worktree_changed' });
+});
+
+test('write the discussion through the shared owner and read each persisted edit', async ({
+  server,
+  session,
+}) => {
+  const { connected, scope } = await connection(server, session);
+  const cache = new QueryClient();
+  const commands = commentCommands(scope, connected, cache);
+  const created = await commands.create({
+    anchor: { kind: 'change' },
+    body: 'Explain the change.',
+  });
+  const thread = created[0];
+  if (!thread) throw new Error('Expected the created discussion');
+  expect(thread.messages.map((message) => message.body)).toEqual([
+    'Explain the change.',
+  ]);
+  const replied = await commands.reply({
+    threadId: thread.id,
+    body: 'Please include its test.',
+    messageId: 'eb90812a-6a3e-464e-92ca-5c962094b867',
+  });
+  expect(replied[0]?.messages.map((message) => message.body)).toEqual([
+    'Explain the change.',
+    'Please include its test.',
+  ]);
+  await commands.edit({
+    threadId: thread.id,
+    messageId: 'eb90812a-6a3e-464e-92ca-5c962094b867',
+    body: 'Include the regression test.',
+  });
+  const resolved = await commands.resolve({
+    threadId: thread.id,
+    resolved: true,
+  });
+  expect(resolved[0]?.resolved).toBe(true);
+  expect(
+    (await cache.query(commentsQueryOptions(scope, connected)))
+      .find((entry) => entry.id === thread.id)
+      ?.messages.map((message) => message.body),
+  ).toEqual(['Explain the change.', 'Include the regression test.']);
+  const revision = resolved[0]?.revision;
+  if (revision === undefined)
+    throw new Error('Expected the confirmed thread revision');
+  expect(
+    (await commands.removeResolved([{ threadId: thread.id, revision }]))
+      .deleted,
+  ).toEqual([thread.id]);
+  expect(
+    (await cache.query(commentsQueryOptions(scope, connected))).some(
+      (entry) => entry.id === thread.id,
+    ),
+  ).toBe(false);
+});
+
+test('mark and unmark the actual changed file through the shared reviewed owner', async ({
+  server,
+  session,
+}) => {
+  const { connected, scope } = await connection(server, session);
+  const cache = new QueryClient();
+  const { changes } = await cache.query(changesQueryOptions(scope, connected));
+  const file = changes.changes[0];
+  if (!file?.fingerprint)
+    throw new Error('Expected the changed file fingerprint');
+  const commands = reviewedCommands(
+    scope,
+    connected,
+    cache,
+    { kind: 'worktree' },
+    { now: () => '2026-10-03T10:00:00.000Z' },
+  );
+  await cache.query(reviewedQueryOptions(scope, connected));
+  expect(
+    (
+      await commands.set({ path: file.path, fingerprint: file.fingerprint })
+    ).marks.map((mark) => mark.path),
+  ).toEqual([session.fixture.readme.path]);
+  expect(
+    (await cache.query(reviewedQueryOptions(scope, connected))).marks.map(
+      (mark) => mark.path,
+    ),
+  ).toEqual([session.fixture.readme.path]);
+  expect((await commands.remove(file.path)).marks).toEqual([]);
+  expect(
+    (await cache.query(reviewedQueryOptions(scope, connected))).marks,
+  ).toEqual([]);
 });

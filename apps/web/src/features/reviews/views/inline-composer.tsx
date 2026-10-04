@@ -53,9 +53,11 @@ export function InlineComposer({
         threadId: intent.threadId,
         messageId: intent.messageId,
       },
-      () => {
-        pending.current = undefined;
-        onClose();
+      {
+        onSuccess: () => {
+          pending.current = undefined;
+          onClose();
+        },
       },
     );
   };

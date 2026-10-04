@@ -1,5 +1,6 @@
+import { assertCurrentAnswer } from '../../../shared/api/stale-answer.ts';
+import { queryKeys } from '../../../shared/api/query-keys.ts';
 import type { QueryFunctionContext } from '@tanstack/query-core';
-import { ConnectionError } from '../../../shared/api/connection-error.ts';
 import {
   type WorktreeConnection,
   type WorktreeScope,
@@ -11,14 +12,7 @@ export function commentsQueryOptions(
   connection: WorktreeConnection,
 ) {
   return {
-    queryKey: [
-      'review',
-      connection.environmentId,
-      scope.projectId,
-      scope.worktreeId,
-      'comments',
-      ...(connection.cacheIdentity ?? []),
-    ],
+    queryKey: queryKeys.worktreeSurface(connection, scope, ['comments']),
     staleTime: 0,
     refetchOnMount: true,
     queryFn: async ({ signal }: Pick<QueryFunctionContext, 'signal'>) => {
@@ -27,11 +21,10 @@ export function commentsQueryOptions(
         worktreeId: scope.worktreeId,
         ...connected,
       });
-      connected.signal.throwIfAborted();
-      if (result.some((thread) => thread.worktreeId !== scope.worktreeId))
-        throw new ConnectionError(
-          'The comment context changed. Reopen Porcelain to continue safely.',
-        );
+      assertCurrentAnswer(
+        connected.signal,
+        result.every((thread) => thread.worktreeId === scope.worktreeId),
+      );
       return result;
     },
   };

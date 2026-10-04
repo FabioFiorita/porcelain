@@ -1,3 +1,5 @@
+import { assertCurrentAnswer } from '../../../shared/api/stale-answer.ts';
+import { queryKeys } from '../../../shared/api/query-keys.ts';
 import type { QueryFunctionContext } from '@tanstack/query-core';
 import {
   type WorktreeConnection,
@@ -13,15 +15,10 @@ export function reviewedQueryOptions(
     | { kind: 'branch'; branch: string | undefined } = { kind: 'worktree' },
 ) {
   return {
-    queryKey: [
-      'review',
-      connection.environmentId,
-      scope.projectId,
-      scope.worktreeId,
+    queryKey: queryKeys.worktreeSurface(connection, scope, [
       'reviewed',
       ...(range.kind === 'branch' ? ['branch', range.branch ?? ''] : []),
-      ...(connection.cacheIdentity ?? []),
-    ],
+    ]),
     queryFn: async ({ signal }: Pick<QueryFunctionContext, 'signal'>) => {
       const connected = connection.request(signal);
       const result = await reviewsApi(connection).reviewed.list({
@@ -29,7 +26,10 @@ export function reviewedQueryOptions(
         ...connected,
         range,
       });
-      connected.signal.throwIfAborted();
+      assertCurrentAnswer(
+        connected.signal,
+        result.worktreeId === scope.worktreeId,
+      );
 
       return result;
     },
@@ -41,21 +41,17 @@ export function layerMarksQueryOptions(
   connection: WorktreeConnection,
 ) {
   return {
-    queryKey: [
-      'review',
-      connection.environmentId,
-      scope.projectId,
-      scope.worktreeId,
-      'reviewed-layers',
-      ...(connection.cacheIdentity ?? []),
-    ],
+    queryKey: queryKeys.worktreeSurface(connection, scope, ['reviewed-layers']),
     queryFn: async ({ signal }: Pick<QueryFunctionContext, 'signal'>) => {
       const connected = connection.request(signal);
       const result = await reviewsApi(connection).reviewedLayers.list({
         worktreeId: scope.worktreeId,
         ...connected,
       });
-      connected.signal.throwIfAborted();
+      assertCurrentAnswer(
+        connected.signal,
+        result.worktreeId === scope.worktreeId,
+      );
 
       return result;
     },

@@ -1,5 +1,6 @@
+import { assertCurrentAnswer } from '../../../shared/api/stale-answer.ts';
+import { queryKeys } from '../../../shared/api/query-keys.ts';
 import type { QueryFunctionContext } from '@tanstack/query-core';
-import { ConnectionError } from '../../../shared/api/connection-error.ts';
 import {
   type WorktreeConnection,
   type WorktreeScope,
@@ -11,29 +12,18 @@ export function publishedReviewQueryOptions(
   connection: WorktreeConnection,
 ) {
   return {
-    queryKey: [
-      'review',
-      connection.environmentId,
-      scope.projectId,
-      scope.worktreeId,
-      'review',
-      ...(connection.cacheIdentity ?? []),
-    ],
+    queryKey: queryKeys.worktreeSurface(connection, scope, ['review']),
     queryFn: async ({ signal }: Pick<QueryFunctionContext, 'signal'>) => {
       const connected = connection.request(signal);
       const result = await reviewsApi(connection).review({
         worktreeId: scope.worktreeId,
         ...connected,
       });
-      connected.signal.throwIfAborted();
-      if (
-        result &&
-        (result.environmentId !== connection.environmentId ||
-          result.worktreeId !== scope.worktreeId)
-      )
-        throw new ConnectionError(
-          'The review context changed. Reopen Porcelain to continue safely.',
-        );
+      const matches =
+        result === null ||
+        (result.environmentId === connection.environmentId &&
+          result.worktreeId === scope.worktreeId);
+      assertCurrentAnswer(connected.signal, matches);
       return result;
     },
   };
