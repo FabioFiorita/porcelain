@@ -193,8 +193,21 @@ tester.run(
         ),
         code: 'export const REQUEST_TIMEOUT_MS = 15_000;',
       },
+      {
+        filename: fileURLToPath(
+          new URL('apps/mobile/src/shared/diff/file-diff.tsx', root),
+        ),
+        code: 'export const width = (cells: number) => cells * 14;',
+      },
     ],
     invalid: [
+      {
+        filename: fileURLToPath(
+          new URL('apps/mobile/src/shared/diff/patch.ts', root),
+        ),
+        code: 'export const retryCount = 3;',
+        errors: 1,
+      },
       {
         filename: fileURLToPath(
           new URL('apps/mobile/src/shared/api/transport.ts', root),
@@ -602,6 +615,31 @@ deepStrictEqual(classify('apps/mobile/src/shared/icons/tab-icon.android.ts'), {
   role: 'web-shared',
   owner: 'mobile',
 });
+deepStrictEqual(classify('apps/mobile/spec/fixtures/patch.ts'), {
+  role: 'mobile-test-kit',
+  owner: 'mobile',
+});
+deepStrictEqual(
+  violation(
+    { role: 'web-shared', owner: 'mobile' },
+    { role: 'web-rule', owner: 'mobile' },
+  ),
+  undefined,
+);
+deepStrictEqual(
+  violation(
+    { role: 'web-rule-spec', owner: 'mobile' },
+    { role: 'mobile-test-kit', owner: 'mobile' },
+  ),
+  undefined,
+);
+deepStrictEqual(
+  violation(
+    { role: 'web-rule-spec', owner: 'web' },
+    { role: 'mobile-test-kit', owner: 'mobile' },
+  ),
+  'test-imports-own-package-support-only',
+);
 deepStrictEqual(
   classify('apps/mobile/src/features/files/views/files-screen.tsx'),
   { role: 'view', owner: 'mobile' },
