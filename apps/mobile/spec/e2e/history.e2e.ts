@@ -33,4 +33,11 @@ test('History opens selected worktree commits, changed paths and returns to the 
   expect(
     files.map((hit) => hit.path.split('/commits/')[1]?.split('/')[0]),
   ).toEqual([state.rename, state.update, state.root, state.root]);
+  const diffs = await environment.nativeHits(
+    'POST',
+    '/api/worktrees/:worktreeId/commits/:oid/diffs',
+  );
+  expect(
+    diffs.map((hit) => hit.path.split('/commits/')[1]?.split('/')[0]),
+  ).toEqual([state.rename, state.update, state.root]);
 });

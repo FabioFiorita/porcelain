@@ -24,12 +24,20 @@ name: Browse commits and changed files in History
 - assertVisible: Changed files
 - assertVisible: ${README_PATH} → GUIDE.md
 - assertVisible: renamed
+- tapOn: ${README_PATH} → GUIDE.md
+- assertVisible: rename from ${README_PATH}
+- assertVisible: rename to GUIDE.md
+- tapOn: Back to commit
 - tapOn: Back to history
 - tapOn: Update history readme
 - assertVisible: History commit body
 - assertVisible: Changed files
 - assertVisible: ${README_PATH}
 - assertVisible: modified
+- tapOn: ${README_PATH}
+- assertVisible:
+    text: '[+]History readme'
+- tapOn: Back to commit
 - tapOn: Back to history
 - tapOn:
     id: history-commit-${ROOT_OID}
@@ -37,6 +45,10 @@ name: Browse commits and changed files in History
 - assertVisible: Changed files
 - assertVisible: ${README_PATH}
 - assertVisible: added
+- tapOn: ${README_PATH}
+- assertVisible:
+    text: '[+]# Sample repository'
+- tapOn: Back to commit
 - tapOn: ${PROJECT_NAME} · ${WORKTREE_LABEL}
 - tapOn: Project
 - tapOn: ${PROJECT_NAME}

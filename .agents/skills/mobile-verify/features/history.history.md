@@ -27,7 +27,7 @@ api:
 
 ## What it is
 
-History is the third destination. It reads the selected worktree's commits, newest first, with their subjects, authors, dates, short ids and refs. Opening a commit shows its message, full id, parent comparison and changed files. A merge can be compared with either parent. Opening a changed file reads that commit's diff, including both paths of a rename.
+History is the third destination. It reads the selected worktree's commits, newest first, with their subjects, authors, dates, short ids and refs. Opening a commit shows its message, full id, parent comparison and changed files. A merge can be compared with either parent. Opening a changed file shows that commit's diff, including both paths of a rename. Text uses the shared native renderer with selectable monospaced lines and change colors; binary, metadata-only and omitted diffs retain their server-provided meaning.
 
 ## How a user reaches it
 
@@ -65,7 +65,7 @@ Look for: heading “Initial commit”, “Root commit”, the full commit id, �
 .agents/skills/mobile-verify/scripts/cli screenshot
 ```
 
-Look for: the selected file and “Back to commit”; returning shows the same commit's changed files, then the commit list ending at “Start of history.”. Diff rendering is awaiting the shared Review component; this build reads the diff and says “Diff preview is not available yet.”.
+Look for: the added README line “+# Sample repository” in selectable monospaced text, with patch headers and change prefixes preserved. “Back to commit” returns to the same changed-file list, then “Back to history” returns to the commit list ending at “Start of history.”.
 
 For richer fixtures, use only the disposable repository path printed by `start`: commit its README change with a body, rename README.md to GUIDE.md and commit, add and commit a binary file, and create a merge with different files on each parent. Refresh the list, open each commit, then compare the metadata and changed paths with `git show --stat`. In the merge, choose the second parent and confirm the changed-file list changes. For a repository with over one page of commits, “Load older commits” appends older rows until “Start of history.”; a failed page offers “Read older commits again”. An empty repository says “No commits yet”; an empty commit says “No files changed in this commit.”.
 
@@ -75,7 +75,7 @@ Switch worktrees or environments while a commit is open. The new worktree starts
 
 - `apps/mobile/spec/e2e/destinations.e2e.ts`: the deep link opens History directly, warm and after a cold launch, with the tab selected and its empty state.
 - `apps/mobile/spec/e2e/phone-shell.e2e.ts` and `apps/mobile/spec/e2e/tablet-shell.tablet.e2e.ts`: History is selectable on phone and iPad.
-- `apps/mobile/spec/e2e/history.e2e.ts`: pairs a disposable environment, selects its worktree, opens a rename, a commit with a body and a root commit, and checks changed paths and statuses. Switching worktrees from a commit resets to the new list, which contains only that worktree's commits. The fixture checks the successful native history and commit-file requests against the exact commit ids.
+- `apps/mobile/spec/e2e/history.e2e.ts`: pairs a disposable environment, selects its worktree, opens a rename, a commit with a body and a root commit, checks changed paths and statuses, and opens rename, text and root patches. Switching worktrees from a commit resets to the new list, which contains only that worktree's commits. The fixture checks the successful native history, commit-file and diff requests against the exact commit ids.
 - `packages/client/src/features/history/rules/commit-file.spec.ts`: changed-path labels and diff path groups preserve additions, deletions and both sides of a rename.
 - The shared client History integration spec covers root files and patch, merge parents, binary/deleted/empty changes, and pagination.
 
