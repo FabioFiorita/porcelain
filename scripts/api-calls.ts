@@ -35,7 +35,16 @@ export type ApiCall = {
 };
 
 type SourceRange = { start: number; end: number };
-type ReachableRange = SourceRange & { includesBody: boolean };
+type ReachableRange = SourceRange & {
+  includesBody: boolean;
+  excluded: SourceRange[];
+};
+type Reference = { name: string; member: string | undefined };
+type BindingReference = SourceRange & { path: NodePath; name: string };
+type Declaration = SourceRange & {
+  path: NodePath;
+  references: BindingReference[];
+};
 
 type Module = {
   file: string;
@@ -44,9 +53,10 @@ type Module = {
   imports: Map<string, { from: string; name: string }>;
   exports: Map<string, { from: string; name: string }>;
   exportAll: string[];
-  locals: Map<string, SourceRange & { references: Set<string> }>;
+  locals: Map<string, Declaration>;
+  importReferences: { name: string; paths: NodePath[] }[];
   startup: SourceRange[];
-  startupReferences: Set<string>;
+  startupReferences: Reference[];
 };
 
 const transportCallee = /(?:^|[a-z])(?:transport|Transport)$/;
@@ -100,6 +110,146 @@ function moduleFile(
   return found === undefined ? undefined : relative(root, found);
 }
 
+function sourceRange(path: NodePath): SourceRange {
+  return { start: path.node.start ?? 0, end: path.node.end ?? 0 };
+}
+
+function propertyName(path: NodePath): string | undefined {
+  const node = path.node;
+  if (
+    node.type !== 'MemberExpression' &&
+    node.type !== 'ObjectProperty' &&
+    node.type !== 'ObjectMethod'
+  )
+    return undefined;
+  const key = node.type === 'MemberExpression' ? node.property : node.key;
+  if (!node.computed && key.type === 'Identifier') return key.name;
+  if (key.type === 'StringLiteral') return key.value;
+  return undefined;
+}
+
+function usedMembers(
+  path: NodePath,
+  seen = new Set<NodePath>(),
+): (string | undefined)[] {
+  if (seen.has(path)) return [undefined];
+  const nextSeen = new Set(seen);
+  nextSeen.add(path);
+  const parent = path.parentPath;
+  if (parent === null) return [undefined];
+  if (
+    parent.isTSAsExpression() ||
+    parent.isTSNonNullExpression() ||
+    parent.isTSSatisfiesExpression()
+  )
+    return usedMembers(parent, nextSeen);
+  if (parent.isMemberExpression() && parent.get('object') === path)
+    return [propertyName(parent)];
+  if (parent.isCallExpression() && parent.get('callee') === path)
+    return usedMembers(parent, nextSeen);
+  if (parent.isVariableDeclarator() && parent.get('init') === path) {
+    const id = parent.get('id');
+    if (id.isObjectPattern()) {
+      const members = id.get('properties').map(propertyName);
+      return members.length === 0 ? [undefined] : members;
+    }
+    if (id.isIdentifier()) {
+      const binding = parent.scope.getBinding(id.node.name);
+      if (binding?.constant && binding.referencePaths.length > 0)
+        return binding.referencePaths.flatMap((reference) =>
+          usedMembers(reference, nextSeen),
+        );
+    }
+  }
+  return [undefined];
+}
+
+function returnedObject(declaration: NodePath): NodePath | undefined {
+  const value = declaration.isVariableDeclarator()
+    ? declaration.get('init')
+    : declaration;
+  if (value.isObjectExpression()) return value;
+  if (!value.isFunction()) return undefined;
+  const body = value.get('body');
+  if (body.isObjectExpression()) return body;
+  const returns: (NodePath | undefined)[] = [];
+  body.traverse({
+    Function(path) {
+      path.skip();
+    },
+    ReturnStatement(path) {
+      const argument = path.get('argument');
+      returns.push(argument.isObjectExpression() ? argument : undefined);
+    },
+  });
+  if (returns.length === 1 && returns[0]?.isObjectExpression())
+    return returns[0];
+  return undefined;
+}
+
+function memberSelection(
+  declaration: NodePath,
+  member: string | undefined,
+  module: Module,
+) {
+  const excluded: SourceRange[] = [];
+  let forwarded: NodePath | undefined;
+  if (member === undefined) return { excluded, forwarded };
+  if (declaration.isVariableDeclarator()) {
+    const init = declaration.get('init');
+    if (init.isIdentifier()) forwarded = init;
+    else if (init.isCallExpression()) {
+      const callee = init.get('callee');
+      const imported = callee.isIdentifier()
+        ? module.imports.get(callee.node.name)
+        : undefined;
+      const factory = init.get('arguments')[0];
+      if (
+        imported?.name === 'perConnection' &&
+        imported.from.endsWith('/shared/api/per-connection.ts')
+      ) {
+        if (factory?.isIdentifier()) forwarded = factory;
+      } else if (callee.isIdentifier()) forwarded = callee;
+    }
+  }
+  const object = returnedObject(declaration);
+  if (object === undefined) return { excluded, forwarded };
+  const properties = object.isObjectExpression()
+    ? object.get('properties')
+    : [];
+  if (
+    properties.some((property) => propertyName(property) === undefined) ||
+    !properties.some((property) => propertyName(property) === member)
+  )
+    return { excluded, forwarded };
+  let usesThis = false;
+  for (const property of properties)
+    if (propertyName(property) === member)
+      property.traverse({
+        ThisExpression() {
+          usesThis = true;
+        },
+      });
+  if (usesThis) return { excluded, forwarded };
+  for (const property of properties) {
+    const callable =
+      property.isObjectMethod() ||
+      (property.isObjectProperty() && property.get('value').isFunction());
+    if (callable && propertyName(property) !== member)
+      excluded.push(sourceRange(property));
+  }
+  return { excluded, forwarded };
+}
+
+function outsideExcluded(
+  range: SourceRange,
+  excluded: readonly SourceRange[],
+): boolean {
+  return !excluded.some(
+    (skip) => range.start >= skip.start && range.end <= skip.end,
+  );
+}
+
 class RouteReader {
   private readonly root: string;
   private readonly modules = new Map<string, Module>();
@@ -126,7 +276,8 @@ class RouteReader {
       exportAll: [],
       locals: new Map(),
       startup: [],
-      startupReferences: new Set(),
+      startupReferences: [],
+      importReferences: [],
     };
     this.modules.set(file, loaded);
     const source = readFileSync(join(this.root, file), 'utf8');
@@ -279,23 +430,34 @@ class RouteReader {
     traverse(bindings, {
       Program(path) {
         const record = (name: string, declaration: NodePath) => {
-          const references = new Set<string>();
+          const references: BindingReference[] = [];
           declaration.traverse({
             ReferencedIdentifier(reference) {
               if (reference.findParent((parent) => parent.isTSType())) return;
               const binding = reference.scope.getBinding(reference.node.name);
               if (binding?.scope === path.scope)
-                references.add(reference.node.name);
+                references.push({
+                  ...sourceRange(reference),
+                  path: reference,
+                  name: reference.node.name,
+                });
             },
           });
           loaded.locals.set(name, {
-            start: declaration.node.start ?? 0,
-            end: declaration.node.end ?? source.length,
+            ...sourceRange(declaration),
+            path: declaration,
             references,
           });
         };
-        for (const [name, binding] of Object.entries(path.scope.bindings))
+        for (const [name, binding] of Object.entries(path.scope.bindings)) {
           if (!loaded.imports.has(name)) record(name, binding.path);
+          else {
+            loaded.importReferences.push({
+              name,
+              paths: binding.referencePaths,
+            });
+          }
+        }
         for (const statement of path.get('body'))
           if (statement.isExportDefaultDeclaration()) {
             const declaration = statement.get('declaration');
@@ -313,7 +475,8 @@ class RouteReader {
           callee.isIdentifier() &&
           callee.scope.getBinding(callee.node.name)?.scope.path.isProgram()
         )
-          loaded.startupReferences.add(callee.node.name);
+          for (const member of usedMembers(callee))
+            loaded.startupReferences.push({ name: callee.node.name, member });
       },
     });
     return loaded;
@@ -327,9 +490,10 @@ class RouteReader {
       file: string,
       range: SourceRange,
       includesBody: boolean,
+      excluded: SourceRange[] = [],
     ) => {
       const ranges = reached.get(file) ?? [];
-      ranges.push({ ...range, includesBody });
+      ranges.push({ ...range, includesBody, excluded });
       reached.set(file, ranges);
     };
     const evaluate = (file: string) => {
@@ -337,7 +501,8 @@ class RouteReader {
       evaluated.add(file);
       const module = this.module(file);
       for (const range of module.startup) include(file, range, false);
-      for (const name of module.startupReferences) visit(file, name, false);
+      for (const reference of module.startupReferences)
+        visit(file, reference.name, false, reference.member);
       for (const binding of [
         ...module.imports.values(),
         ...module.exports.values(),
@@ -345,8 +510,14 @@ class RouteReader {
         if (binding.from !== file) evaluate(binding.from);
       for (const from of module.exportAll) evaluate(from);
     };
-    const visit = (file: string, name: string, exported: boolean) => {
-      const key = `${file}:${exported ? 'export' : 'local'}:${name}`;
+    const visit = (
+      file: string,
+      name: string,
+      exported: boolean,
+      member?: string,
+    ) => {
+      const selectionKey = member === undefined ? 'whole' : `member:${member}`;
+      const key = `${file}:${exported ? 'export' : 'local'}:${name}:${selectionKey}`;
       if (visited.has(key)) return;
       visited.add(key);
       evaluate(file);
@@ -359,28 +530,46 @@ class RouteReader {
         }
         const binding = module.exports.get(name);
         if (binding !== undefined)
-          visit(binding.from, binding.name, binding.from !== file);
-        else for (const from of module.exportAll) visit(from, name, true);
+          visit(binding.from, binding.name, binding.from !== file, member);
+        else
+          for (const from of module.exportAll) visit(from, name, true, member);
         return;
       }
       const imported = module.imports.get(name);
       if (imported !== undefined) {
-        visit(imported.from, imported.name, true);
+        visit(imported.from, imported.name, true, member);
         return;
       }
       const declaration = module.locals.get(name);
       if (declaration === undefined) return;
-      include(file, declaration, true);
-      for (const reference of declaration.references)
-        visit(file, reference, false);
+      const selection = memberSelection(declaration.path, member, module);
+      include(file, declaration, true, selection.excluded);
+      for (const reference of declaration.references) {
+        if (!outsideExcluded(reference, selection.excluded)) continue;
+        const members =
+          reference.path === selection.forwarded
+            ? [member]
+            : usedMembers(reference.path);
+        for (const selected of members)
+          visit(file, reference.name, false, selected);
+      }
     };
     for (const folder of folders)
       for (const file of filesUnder(this.root, folder))
         if (/\.tsx?$/.test(file) && !/\.(?:spec|d)\.tsx?$/.test(file)) {
           evaluate(file);
-          for (const binding of this.module(file).imports.values())
-            if (binding.name !== '*side-effect*')
-              visit(binding.from, binding.name, true);
+          const module = this.module(file);
+          for (const reference of module.importReferences) {
+            const binding = module.imports.get(reference.name);
+            if (binding === undefined || binding.name === '*side-effect*')
+              continue;
+            const members =
+              reference.paths.length === 0
+                ? [undefined]
+                : reference.paths.flatMap((path) => usedMembers(path));
+            for (const member of members)
+              visit(binding.from, binding.name, true, member);
+          }
         }
     return reached;
   }
@@ -426,7 +615,9 @@ export function apiCalls(
             .get(file)
             ?.some((range) =>
               range.includesBody
-                ? node.start >= range.start && node.end <= range.end
+                ? node.start >= range.start &&
+                  node.end <= range.end &&
+                  outsideExcluded(node, range.excluded)
                 : node.start === range.start && node.end === range.end,
             )
         )

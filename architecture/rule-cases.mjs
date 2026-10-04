@@ -4600,11 +4600,50 @@ export const readText = () => request(transport, readTextFileEndpoint, {});
 export const publish = () => request(transport, publishEndpoint, {});`,
 };
 
-export const guardrailCases = [
-  ...['web', 'desktop', 'mobile'].map((app) => ({
+const clientMethodFiles = {
+  ...clientRouteFiles,
+  'packages/client/src/features/files/index.ts': `
+export { textQuery as textQueryOptions } from './queries/text.ts';
+export { unusedQuery as unusedQueryOptions } from './queries/unused.ts';
+export { filesApi, createFilesApi } from './api.ts';`,
+  'packages/client/src/shared/api/per-connection.ts': `
+export const perConnection = (create) => (connection) => create(connection.transport);`,
+  'packages/client/src/features/files/api.ts': `
+import { readTextFileEndpoint } from '@porcelain/contracts/files';
+import { publishReviewEndpoint } from '@porcelain/contracts/reviews';
+import { requestEndpoint } from '../../shared/api/request.ts';
+import { perConnection as connect } from '../../shared/api/per-connection.ts';
+export function createFilesApi(transport) {
+  return {
+    readText: () => requestEndpoint(transport, readTextFileEndpoint, {}),
+    publish() {
+      return requestEndpoint(transport, publishReviewEndpoint, {});
+    },
+  };
+}
+export const filesApi = connect(createFilesApi);`,
+  'packages/client/src/features/files/queries/unused.ts': `
+import { filesApi } from '../api.ts';
+export const unusedQuery = () => ({ queryFn: () => filesApi(connection).publish() });`,
+};
+
+const clientMethodReads = [
+  `return filesApi(connection).readText();`,
+  `const api = filesApi(connection);
+const alias = api;
+return alias.readText();`,
+  `const { readText: read } = filesApi(connection);
+return read();`,
+  `const factory = filesApi;
+return factory(connection)["readText"]();`,
+  `return createFilesApi(transport).readText();`,
+];
+
+function clientRoutesCase(files = clientRouteFiles, overrides = {}) {
+  return {
     rule: 'client-route-reachability',
-    app: `apps/${app}/src/app.ts`,
-    files: clientRouteFiles,
+    app: 'apps/web/src/app.ts',
+    files,
     mapped: ['GET /api/worktrees/:worktreeId/text'],
     valid: `
 import { textQueryOptions as options } from '@porcelain/client/files';
@@ -4614,7 +4653,14 @@ import { textQueryOptions as options, unusedQueryOptions as unused } from '@porc
 export const read = () => options();
 export const write = () => unused();`,
     errors: ['PUT /api/worktrees/:worktreeId/review'],
-  })),
+    ...overrides,
+  };
+}
+
+export const guardrailCases = [
+  ...['web', 'desktop', 'mobile'].map((app) =>
+    clientRoutesCase(clientRouteFiles, { app: `apps/${app}/src/app.ts` }),
+  ),
   ...[
     {
       'packages/client/src/features/files/index.ts': `
@@ -4642,54 +4688,152 @@ const register = (callback) => callback;
 export const readText = () => requestEndpoint(transport, readTextFileEndpoint, {});
 export const publish = register(() => requestEndpoint(transport, publishReviewEndpoint, {}));`,
     },
-  ].map((files) => ({
-    rule: 'client-route-reachability',
-    app: 'apps/web/src/app.ts',
-    files: { ...clientRouteFiles, ...files },
-    mapped: ['GET /api/worktrees/:worktreeId/text'],
-    valid: `
+  ].map((files) =>
+    clientRoutesCase(
+      { ...clientRouteFiles, ...files },
+      {
+        valid: `
 import { textQueryOptions as options, type unusedQueryOptions } from '@porcelain/client/files';
 import '@porcelain/client/files';
 export const read = () => options();`,
-    invalid: `
-import { textQueryOptions as options, unusedQueryOptions as unused } from '@porcelain/client/files';
-export const read = () => options();
-export const write = () => unused();`,
-    errors: ['PUT /api/worktrees/:worktreeId/review'],
-  })),
-  {
-    rule: 'client-route-reachability',
-    app: 'apps/web/src/app.ts',
-    files: clientRouteFiles,
-    mapped: ['GET /api/worktrees/:worktreeId/text'],
-    valid: `
-import { textQueryOptions } from '@porcelain/client/files';
-export const read = () => textQueryOptions();`,
+      },
+    ),
+  ),
+  clientRoutesCase(clientRouteFiles, {
     invalid: `
 import * as files from '@porcelain/client/files';
 export const read = () => files.textQueryOptions();
 export const write = () => files.unusedQueryOptions();`,
-    errors: ['PUT /api/worktrees/:worktreeId/review'],
-  },
-  {
-    rule: 'client-route-reachability',
-    app: 'apps/web/src/app.ts',
-    files: {
+  }),
+  clientRoutesCase(
+    {
       ...clientRouteFiles,
       'packages/client/src/features/files/startup.ts': `
 import { publish } from './api.ts';
 publish();`,
     },
-    mapped: ['GET /api/worktrees/:worktreeId/text'],
-    valid: `
-import { textQueryOptions } from '@porcelain/client/files';
-export const read = () => textQueryOptions();`,
-    invalid: `
+    {
+      invalid: `
 import { textQueryOptions } from '@porcelain/client/files';
 import '../../../packages/client/src/features/files/startup.ts';
 export const read = () => textQueryOptions();`,
-    errors: ['PUT /api/worktrees/:worktreeId/review'],
+    },
+  ),
+  ...['web', 'desktop', 'mobile'].flatMap((app) =>
+    clientMethodReads.map((read) =>
+      clientRoutesCase(
+        {
+          ...clientMethodFiles,
+          'packages/client/src/features/files/queries/text.ts': `
+import { filesApi, createFilesApi } from '../api.ts';
+export const textQuery = () => ({
+  queryFn: () => {
+    ${read}
   },
+});`,
+        },
+        { app: `apps/${app}/src/app.ts` },
+      ),
+    ),
+  ),
+  ...clientMethodReads.map((read) =>
+    clientRoutesCase(clientMethodFiles, {
+      app: 'apps/mobile/src/app.ts',
+      valid: `
+import { ${read.includes('createFilesApi') ? 'createFilesApi' : 'filesApi'} } from '@porcelain/client/files';
+export const read = () => {
+  ${read}
+};`,
+      invalid: `
+import { ${read.includes('createFilesApi') ? 'createFilesApi, filesApi' : 'filesApi'} } from '@porcelain/client/files';
+export const read = () => {
+  ${read}
+};
+export const write = () => {
+  const api = filesApi(connection);
+  const alias = api;
+  const { publish: write } = alias;
+  return write();
+};`,
+    }),
+  ),
+  ...[
+    `return filesApi(connection)[method]();`,
+    `return consume(filesApi(connection));`,
+    `const { readText, ...rest } = filesApi(connection);
+return rest;`,
+    `let api = filesApi(connection);
+api = other;
+return api.readText();`,
+    `return filesApi(connection).unknown();`,
+  ].map((use) =>
+    clientRoutesCase({
+      ...clientMethodFiles,
+      'packages/client/src/features/files/queries/text.ts': `
+import { filesApi } from '../api.ts';
+export const textQuery = () => ({ queryFn: () => filesApi(connection).readText() });`,
+      'packages/client/src/features/files/queries/unused.ts': `
+import { filesApi } from '../api.ts';
+export const unusedQuery = () => ({
+  queryFn: () => {
+    ${use}
+  },
+});`,
+    }),
+  ),
+  ...[
+    `return {
+  ...other,
+  readText: () => requestEndpoint(transport, readTextFileEndpoint, {}),
+  publish: () => requestEndpoint(transport, publishReviewEndpoint, {}),
+};`,
+    `if (flag) return {
+  readText: () => requestEndpoint(transport, readTextFileEndpoint, {}),
+};
+return {
+  readText: () => requestEndpoint(transport, readTextFileEndpoint, {}),
+  publish: () => requestEndpoint(transport, publishReviewEndpoint, {}),
+};`,
+    `return {
+  readText() {
+    return this.publish();
+  },
+  publish: () => requestEndpoint(transport, publishReviewEndpoint, {}),
+};`,
+    `requestEndpoint(transport, publishReviewEndpoint, {});
+return {
+  readText: () => requestEndpoint(transport, readTextFileEndpoint, {}),
+};`,
+    `return {
+  readText: () => requestEndpoint(transport, readTextFileEndpoint, {}),
+  eager: requestEndpoint(transport, publishReviewEndpoint, {}),
+};`,
+  ].map((body) =>
+    clientRoutesCase(
+      {
+        ...clientMethodFiles,
+        'packages/client/src/features/files/api.ts':
+          clientMethodFiles['packages/client/src/features/files/api.ts'] +
+          `
+export function otherApi(transport) {
+  ${body}
+}`,
+        'packages/client/src/features/files/index.ts':
+          clientMethodFiles['packages/client/src/features/files/index.ts'] +
+          `
+export { otherApi } from './api.ts';`,
+      },
+      {
+        valid: `
+import { filesApi } from '@porcelain/client/files';
+export const read = () => filesApi(connection).readText();`,
+        invalid: `
+import { filesApi, otherApi } from '@porcelain/client/files';
+export const read = () => filesApi(connection).readText();
+export const write = () => otherApi(transport).readText();`,
+      },
+    ),
+  ),
   {
     rule: 'lane-per-table',
     valid: {
