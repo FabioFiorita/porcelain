@@ -1,14 +1,13 @@
-import { assertCurrentAnswer } from '@porcelain/client/transport';
 import {
   branchQueryOptions,
-  branchDiffsQueryOptions,
+  branchBasesQueryOptions,
+  branchDiffReadsQueryOptions,
 } from '@porcelain/client/changes';
 import { useQuery } from '@tanstack/react-query';
-import { usePathDiffs } from './path-diffs';
-import { queryKeys } from '@porcelain/client/transport';
-import { changesApi } from '../api';
-import type { BranchRange } from '../rules/branch';
-import { type ChangesScope } from '../rules/changes';
+import { useBatchedReads } from './batched-reads';
+import { DIFF_WINDOW_FILES } from '@/config/limits';
+import type { BranchRange } from '@porcelain/client/changes/rules';
+import { type ChangesScope } from '@porcelain/client/changes/rules';
 import { type Connection } from '@/shared/workspace/connection';
 
 export function useBranchChanges(
@@ -24,22 +23,7 @@ export function useBranchBases(
   connection: Connection,
   enabled: boolean,
 ) {
-  const connected = connection;
-  return useQuery({
-    queryKey: queryKeys.reviewSurface(connected.environmentId, scope, [
-      'branch-bases',
-    ]),
-    enabled,
-    queryFn: async ({ signal }) => {
-      const request = connected.request(signal);
-      const bases = await changesApi(connected).branchBases({
-        signal: request.signal,
-        worktreeId: scope.worktreeId,
-      });
-      assertCurrentAnswer(request.signal);
-      return bases;
-    },
-  });
+  return useQuery({ ...branchBasesQueryOptions(scope, connection), enabled });
 }
 
 export function useBranchDiffs(
@@ -48,25 +32,19 @@ export function useBranchDiffs(
   range: BranchRange | null,
   paths: readonly (readonly string[])[],
 ) {
-  const connected = connection;
-  return usePathDiffs({
-    connection: connected,
-    paths: range ? paths : [],
-    key: (batch) =>
-      range
-        ? branchDiffsQueryOptions(scope, connected, {
-            baseOid: range.baseOid,
-            headOid: range.headOid,
-            paths: batch.map((entry) => [...entry]),
-          }).queryKey
-        : [],
-    read: async (signal, batch) =>
-      range
-        ? branchDiffsQueryOptions(scope, connected, {
-            baseOid: range.baseOid,
-            headOid: range.headOid,
-            paths: batch,
-          }).queryFn({ signal })
-        : { diffs: [] },
-  });
+  const read = useBatchedReads(
+    branchDiffReadsQueryOptions(
+      scope,
+      connection,
+      range,
+      paths,
+      DIFF_WINDOW_FILES,
+    ),
+  );
+  return {
+    patches: new Map(read.entries),
+    isPending: read.pending,
+    isError: read.failed,
+    retry: read.retry,
+  };
 }

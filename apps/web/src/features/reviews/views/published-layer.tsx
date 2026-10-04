@@ -1,3 +1,4 @@
+import { changeSelections } from '@porcelain/client/changes/rules';
 import { parsePatchFiles } from '@pierre/diffs';
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -19,7 +20,6 @@ import type { DocumentInteraction, OpenDocument } from '../rules/documents';
 import { contextPatch, focusPatch } from '../rules/patch-focus';
 import type { ReviewProof } from '../rules/proof';
 import type {
-  ChangeSelection,
   ReviewChangeItem,
   ReviewLayer,
   ReviewScope,
@@ -204,17 +204,7 @@ function LayerSteps({
     steps.map((step) => step.pointer.path),
   );
   const selections = items.flatMap((item) =>
-    item.comparisons.flatMap((change): ChangeSelection[] =>
-      change.scope !== 'staged' && change.scope !== 'unstaged'
-        ? []
-        : [
-            {
-              scope: change.scope,
-              oldPath: change.oldPath,
-              newPath: change.newPath,
-            },
-          ],
-    ),
+    item.comparisons.flatMap(changeSelections),
   );
   const diffs = useChangeDiffs(
     scope,
