@@ -1,5 +1,4 @@
 import { existsSync } from 'node:fs';
-import { execFile } from 'node:child_process';
 import { mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import {
@@ -52,23 +51,17 @@ export class DesktopApp {
   private readonly child: ReturnType<ElectronApplication['process']>;
   private readonly exited: Promise<void>;
   readonly profile: string;
-  readonly startupSample: string;
   readonly errors: string[] = [];
   readonly output: string[] = [];
   private readonly watched = new WeakSet<Page>();
 
-  constructor(
-    electron: ElectronApplication,
-    profile: string,
-    startupSample: string,
-  ) {
+  constructor(electron: ElectronApplication, profile: string) {
     this.electron = electron;
     this.child = electron.process();
     this.exited = new Promise<void>((resolveExit) =>
       this.child.once('close', () => resolveExit()),
     );
     this.profile = profile;
-    this.startupSample = startupSample;
     this.child.stderr?.on('data', (chunk: Buffer) => {
       this.output.push(chunk.toString());
     });
@@ -94,50 +87,7 @@ export class DesktopApp {
 
   async window(): Promise<Page> {
     const page = this.watch(
-      await this.electron
-        .firstWindow({ timeout: launchWithinMs })
-        .catch(async (error: unknown) => {
-          if (this.child.exitCode === null && this.child.signalCode === null)
-            await new Promise<void>((resolveSample) => {
-              const sampling = execFile(
-                'sample',
-                [String(this.child.pid), '1', '1', '-file', this.startupSample],
-                (sampleError) => {
-                  if (sampleError !== null)
-                    this.output.push(
-                      `Porcelain e2e: native startup sample failed: ${sampleError.message}\n`,
-                    );
-                  resolveSample();
-                },
-              );
-              sampling.once('spawn', () =>
-                this.output.push(
-                  `Porcelain e2e: sampling app ${this.child.pid} with sampler ${sampling.pid}\n`,
-                ),
-              );
-            });
-          await this.electron
-            .evaluate(({ app, BrowserWindow }) => {
-              process.stderr.write(
-                `Porcelain e2e: window unavailable ${JSON.stringify({
-                  ready: app.isReady(),
-                  windows: BrowserWindow.getAllWindows().map((view) => ({
-                    url: view.webContents.getURL(),
-                    visible: view.isVisible(),
-                    loading: view.webContents.isLoading(),
-                  })),
-                  resources: process.getActiveResourcesInfo(),
-                  processes: app.getAppMetrics().map(({ pid, type, name }) => ({
-                    pid,
-                    type,
-                    name,
-                  })),
-                })}\n`,
-              );
-            })
-            .catch(() => undefined);
-          throw error;
-        }),
+      await this.electron.firstWindow({ timeout: launchWithinMs }),
     );
     await page.waitForURL(
       (url) =>
@@ -432,11 +382,6 @@ async function keepFailure(
 ): Promise<void> {
   for (const [index, desktop] of launched.entries()) {
     await keepLog(testInfo, `app-${index}-main.log`, desktop.output.join(''));
-    if (existsSync(desktop.startupSample))
-      await testInfo.attach(`app-${index}-startup.sample.txt`, {
-        path: desktop.startupSample,
-        contentType: 'text/plain',
-      });
     const log = join(desktop.profile, 'logs', 'server.log');
     if (existsSync(log))
       await keepLog(testInfo, `app-${index}-server.log`, await readFile(log));
@@ -468,11 +413,7 @@ export const test = base.extend<DesktopFixtures, WorkerFixtures>({
       const electron = await _electron.launch(
         launchOptions({ app, profile, projectHome: workspace.repository }),
       );
-      const desktop = new DesktopApp(
-        electron,
-        profile,
-        testInfo.outputPath(`app-${launched.length}-startup.sample.txt`),
-      );
+      const desktop = new DesktopApp(electron, profile);
       launched.push(desktop);
       await electron.evaluate(() => {
         process.on('uncaughtExceptionMonitor', (error) => {
