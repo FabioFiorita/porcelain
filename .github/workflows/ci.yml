@@ -152,7 +152,7 @@ jobs:
       matrix:
         include:
           - xcode: '26.4.1'
-            ios: '26.4'
+            ios: '26.4.1'
           - xcode: '26.6'
             ios: '26.5'
     env:
