@@ -123,11 +123,29 @@ test('the sidebar leaves room for the traffic lights with its button clickable, 
   expect(app.errors).toEqual([]);
 });
 
-test('delayed events after window destruction do not throw, and Quit stops the server', async ({
+test('delayed events after destroying a restored maximized window do not throw, and Quit stops the server', async ({
   desktop,
 }) => {
+  const first = await desktop.launch();
+  await first.window();
+  await first.electron.evaluate(
+    ({ BrowserWindow }) =>
+      new Promise<void>((resolveMaximized) => {
+        const view = BrowserWindow.getAllWindows()[0];
+        if (view === undefined) throw new Error('The app window is missing');
+        view.once('maximize', () => resolveMaximized());
+        view.maximize();
+      }),
+  );
+  await first.quit();
+
   const app = await desktop.launch();
   await app.window();
+  expect(
+    await app.electron.evaluate(({ BrowserWindow }) =>
+      BrowserWindow.getAllWindows()[0]?.isMaximized(),
+    ),
+  ).toBe(true);
   const { pid } = await app.server();
 
   const delayed = await app.electron.evaluate(async ({ BrowserWindow }) => {
@@ -146,6 +164,9 @@ test('delayed events after window destruction do not throw, and Quit stops the s
       'hide',
       'minimize',
       'maximize',
+      'unmaximize',
+      'move',
+      'resize',
       'restore',
       'enter-full-screen',
       'leave-full-screen',
