@@ -52,6 +52,8 @@ Look for: the sample project with its main worktree. Tap the project, then the w
 
 - `apps/mobile/spec/e2e/workspace.e2e.ts`: two real environments, each with a renamed project and an added worktree, are selected through the Environment and Project menus while Files stays selected; switching environments restores each one's worktree, a cold launch restores the last choice, and forgetting both environments clears the label. Each server holds one device labelled “Native mobile proof” and answered at least two inventory reads from the app.
 
+The test keeps one app installation and both servers across three Maestro runs: `pair-environments.yaml`, `workspace.yaml` and `workspace-restore.yaml`. Each phase retains its assertions and the existing ten-minute process limit; splitting the journey does not add a retry or extend a deadline.
+
 ## Gotchas
 
 - After an environment is chosen the toolbar label becomes its name, so the second tap above reopens the picker through the new label.

@@ -1,0 +1,14 @@
+appId: com.fabiofiorita.porcelain.dev
+name: Restore each environment worktree after a cold launch
+---
+- stopApp
+- runFlow: launch.yaml
+- assertVisible: ${FIRST_PROJECT_NAME} · ${FIRST_WORKTREE_LABEL}
+- tapOn: ${FIRST_PROJECT_NAME} · ${FIRST_WORKTREE_LABEL}
+- tapOn: Environment
+- tapOn: ${SECOND_ENVIRONMENT_NAME}
+- assertVisible: ${SECOND_PROJECT_NAME} · ${SECOND_WORKTREE_LABEL}
+- runFlow: forget-environments.yaml
+- assertVisible: Workspace
+- assertNotVisible: ${FIRST_PROJECT_NAME} · ${FIRST_WORKTREE_LABEL}
+- assertNotVisible: ${SECOND_PROJECT_NAME} · ${SECOND_WORKTREE_LABEL}

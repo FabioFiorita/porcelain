@@ -3,7 +3,18 @@ import { tabIcon } from '../shared/icons/tab-icon';
 
 export function PhoneTabs() {
   return (
-    <NativeTabs>
+    <NativeTabs
+      screenListeners={
+        __DEV__
+          ? {
+              tabPress: (event) =>
+                console.info('Mobile tab press', event.target),
+              focus: (event) => console.info('Mobile tab focus', event.target),
+              blur: (event) => console.info('Mobile tab blur', event.target),
+            }
+          : undefined
+      }
+    >
       <NativeTabs.Trigger name="(review)" accessibilityLabel="Review">
         <NativeTabs.Trigger.Label>Review</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon {...tabIcon('review')} />
