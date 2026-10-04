@@ -66,12 +66,14 @@ export function FileDiff({
       {viewport.height > 0 && viewport.width > 0 ? (
         <ScrollView
           horizontal
+          contentInsetAdjustmentBehavior="scrollableAxes"
           testID="file-diff-horizontal"
           style={{ width: viewport.width, height: viewport.height }}
           contentContainerStyle={{ width, height: viewport.height }}
           directionalLockEnabled
         >
           <FlatList
+            contentInsetAdjustmentBehavior="automatic"
             testID="file-diff-viewport"
             accessibilityLabel={path ? `Diff for ${path}` : 'File diff'}
             style={{ width, height: viewport.height }}
