@@ -69,9 +69,16 @@ jobs:
           cache: true
           require-lockfile: true
       - run: pnpm install --frozen-lockfile
+      - name: Cache Electron build headers
+        uses: actions/cache@v6
+        with:
+          path: ~/.electron-gyp
+          key: electron-headers-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('apps/desktop/package.json') }}
       - run: pnpm --filter @porcelain/desktop test:e2e
       - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: desktop-e2e
-          path: apps/desktop/test-results/
+          path: |
+            apps/desktop/test-results/
+            ~/Library/Logs/DiagnosticReports/

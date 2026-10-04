@@ -20,9 +20,106 @@ import {
   type Page,
 } from './fixtures.ts';
 
-declare const parent: { readonly document: unknown };
+declare const parent: {
+  readonly document: unknown;
+  postMessage(data: unknown, origin: string): void;
+};
+declare function addEventListener(
+  type: 'message',
+  listener: (event: { data: unknown }) => void,
+): void;
+declare const document: {
+  hasFocus(): boolean;
+  readonly activeElement: { getAttribute(name: string): string | null } | null;
+  addEventListener(
+    type: 'click',
+    listener: (event: {
+      isTrusted: boolean;
+      target: {
+        getAttribute?(name: string): string | null;
+      } | null;
+    }) => void,
+    capture?: boolean,
+  ): void;
+  addEventListener(
+    type: 'securitypolicyviolation',
+    listener: (event: {
+      blockedURI: string;
+      effectiveDirective: string;
+      disposition: string;
+    }) => void,
+  ): void;
+};
 
 const sandbox = 'allow-scripts allow-forms allow-popups allow-modals';
+
+async function watchSummaryActivations(
+  page: Page,
+  frame: ReturnType<Page['frames']>[number],
+) {
+  const marker = randomUUID();
+  await page.evaluate((marker) => {
+    const activations: unknown[] = [];
+    Reflect.set(globalThis, 'porcelainSummaryActivations', activations);
+    addEventListener('message', (event) => {
+      const data = event.data;
+      if (
+        typeof data === 'object' &&
+        data !== null &&
+        Reflect.get(data, 'source') === marker
+      ) {
+        const activation: unknown = Reflect.get(data, 'activation');
+        activations.push(activation);
+      }
+    });
+  }, marker);
+  await frame.evaluate((marker) => {
+    document.addEventListener(
+      'click',
+      (event) => {
+        parent.postMessage(
+          {
+            source: marker,
+            activation: {
+              trusted: event.isTrusted,
+              href: event.target?.getAttribute?.('href'),
+              focused: document.hasFocus(),
+            },
+          },
+          '*',
+        );
+      },
+      true,
+    );
+  }, marker);
+}
+
+function summaryActivations(page: Page): Promise<unknown> {
+  return page.evaluate(() => {
+    const activations: unknown = Reflect.get(
+      globalThis,
+      'porcelainSummaryActivations',
+    );
+    return activations;
+  });
+}
+
+async function focusSummaryLink(
+  frame: ReturnType<Page['frames']>[number],
+  name: string,
+  href: string,
+) {
+  const link = frame.getByRole('link', { name, exact: true });
+  await link.focus();
+  await expect
+    .poll(() =>
+      frame.evaluate(() => ({
+        focused: document.hasFocus(),
+        href: document.activeElement?.getAttribute('href'),
+      })),
+    )
+    .toEqual({ focused: true, href });
+}
 
 async function publishSummary(page: Page, repository: string, title: string) {
   const project = registerProjectResponseSchema.parse(
@@ -134,6 +231,24 @@ test('a remote computer summary renders through the app from that computer, cann
     await appRequest(otherPage, 'GET', '/api/inventory'),
   );
 
+  await other.electron.evaluate(async ({ BrowserWindow }) => {
+    const view = BrowserWindow.getAllWindows()[0];
+    if (view === undefined) throw new Error('The remote window is missing');
+    await new Promise<void>((resolve) => {
+      view.once('closed', resolve);
+      view.close();
+    });
+  });
+  expect((await other.server()).pid).toBe(status.pid);
+  await app.electron.evaluate(({ app, BrowserWindow }) => {
+    app.focus({ steal: true });
+    const view = BrowserWindow.getAllWindows()[0];
+    if (view === undefined) throw new Error('The app window is missing');
+    view.focus();
+    view.webContents.focus();
+  });
+  await expect.poll(() => page.evaluate(() => document.hasFocus())).toBe(true);
+
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
   const settings = page.getByRole('main', { name: 'Settings', exact: true });
   await settings
@@ -172,6 +287,8 @@ test('a remote computer summary renders through the app from that computer, cann
     );
   if (frame === undefined)
     throw new Error('The remote summary did not load through the app');
+  await frame.waitForLoadState('load');
+  await watchSummaryActivations(page, frame);
   expect(new URL(frame.url()).searchParams.get('computer')).toBe(
     new URL(status.address).origin,
   );
@@ -198,15 +315,27 @@ test('a remote computer summary renders through the app from that computer, cann
     'sandbox',
     sandbox,
   );
-  await summary
-    .getByRole('link', { name: 'Open Remote summary layer', exact: true })
-    .click();
+  await focusSummaryLink(frame, 'Open Remote summary layer', '#layer-1');
+  await page.keyboard.down('Enter');
+  await expect
+    .poll(() => summaryActivations(page))
+    .toContainEqual({
+      trusted: true,
+      href: '#layer-1',
+      focused: true,
+    });
   await expect(
     page.getByRole('region', {
       name: 'Review layer Remote summary layer',
       exact: true,
     }),
   ).toBeVisible();
+  const layerTab = page
+    .getByRole('tablist', { name: 'Open documents', exact: true })
+    .getByTitle('Remote summary layer', { exact: true });
+  await layerTab.focus();
+  await expect(layerTab).toBeFocused();
+  await page.keyboard.up('Enter');
   const policy = (await responsePolicy(page, '/'))?.split('; ') ?? [];
   expect(policy).toContain("script-src 'self'");
   expect(policy).toContain("frame-src 'self' blob:");
@@ -223,15 +352,101 @@ test('a remote computer summary renders through the app from that computer, cann
     .click();
   const reopenedSummary = await summaryNavigation;
   await reopenedSummary.waitForLoadState('load');
-  const refused = page.waitForEvent('console', {
-    predicate: (message) =>
-      message.text().includes("'https://example.com/'") &&
-      message.text().includes('frame-src'),
+  await watchSummaryActivations(page, reopenedSummary);
+  await app.electron.evaluate(({ app, BrowserWindow }) => {
+    app.focus({ steal: true });
+    const view = BrowserWindow.getAllWindows()[0];
+    if (view === undefined) throw new Error('The app window is missing');
+    view.focus();
+    view.webContents.focus();
   });
-  await reopenedSummary
-    .getByRole('link', { name: 'Leave for a website', exact: true })
-    .click();
-  await refused;
+  await expect
+    .poll(() =>
+      app.electron.evaluate(({ BrowserWindow }) => {
+        const view = BrowserWindow.getAllWindows()[0];
+        return view?.isFocused() && view.webContents.isFocused();
+      }),
+    )
+    .toBe(true);
+  await page.evaluate(() => {
+    const refusals: {
+      blockedURL: string;
+      directive: string;
+      disposition: string;
+    }[] = [];
+    Reflect.set(globalThis, 'porcelainFrameRefusals', refusals);
+    document.addEventListener('securitypolicyviolation', (event) => {
+      if (event.effectiveDirective === 'frame-src')
+        refusals.push({
+          blockedURL: URL.canParse(event.blockedURI)
+            ? new URL(event.blockedURI).href
+            : event.blockedURI,
+          directive: event.effectiveDirective,
+          disposition: event.disposition,
+        });
+    });
+  });
+  await app.electron.evaluate(({ session }) => {
+    const attempts: string[] = [];
+    Reflect.set(session.defaultSession, 'porcelainWebsiteRequests', attempts);
+    session.defaultSession.webRequest.onBeforeRequest(
+      { urls: ['https://example.com/*'] },
+      (request, callback) => {
+        attempts.push(request.url);
+        callback({ cancel: true });
+      },
+    );
+  });
+  try {
+    await focusSummaryLink(
+      reopenedSummary,
+      'Leave for a website',
+      'https://example.com/',
+    );
+    await page.keyboard.down('Enter');
+    await expect
+      .poll(() => summaryActivations(page))
+      .toContainEqual({
+        trusted: true,
+        href: 'https://example.com/',
+        focused: true,
+      });
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const refusals: unknown = Reflect.get(
+            globalThis,
+            'porcelainFrameRefusals',
+          );
+          return refusals;
+        }),
+      )
+      .toContainEqual({
+        blockedURL: 'https://example.com/',
+        directive: 'frame-src',
+        disposition: 'enforce',
+      });
+    await expect
+      .poll(() => reopenedSummary.url())
+      .toBe('chrome-error://chromewebdata/');
+    await reopenedSummary.waitForLoadState('load');
+    await page.keyboard.up('Enter');
+    expect(
+      await app.electron.evaluate(({ session }) => {
+        const attempts: unknown = Reflect.get(
+          session.defaultSession,
+          'porcelainWebsiteRequests',
+        );
+        return attempts;
+      }),
+    ).toEqual([]);
+  } finally {
+    await app.electron.evaluate(({ session }) =>
+      session.defaultSession.webRequest.onBeforeRequest(null),
+    );
+  }
+  expect(new URL(page.url()).pathname).toBe(remoteWorktree);
+  expect(app.electron.windows()).toHaveLength(1);
   expect(
     page
       .frames()
