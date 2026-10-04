@@ -65,6 +65,21 @@ async function fullscreen(app: DesktopApp, value: boolean) {
     .toBe(value);
 }
 
+async function maximize(app: DesktopApp) {
+  await app.electron.evaluate(({ BrowserWindow }) => {
+    const view = BrowserWindow.getAllWindows()[0];
+    if (view === undefined) throw new Error('The app window is missing');
+    view.maximize();
+  });
+  await expect
+    .poll(() =>
+      app.electron.evaluate(({ BrowserWindow }) =>
+        BrowserWindow.getAllWindows()[0]?.isMaximized(),
+      ),
+    )
+    .toBe(true);
+}
+
 test('the app serves its window from a private loopback server that refuses other callers and keeps its credential from the renderer', async ({
   desktop,
 }) => {
@@ -131,18 +146,7 @@ test('delayed events after destroying a restored maximized window do not throw, 
 }) => {
   const first = await desktop.launch();
   await first.window();
-  await first.electron.evaluate(({ BrowserWindow }) => {
-    const view = BrowserWindow.getAllWindows()[0];
-    if (view === undefined) throw new Error('The app window is missing');
-    view.maximize();
-  });
-  await expect
-    .poll(() =>
-      first.electron.evaluate(({ BrowserWindow }) =>
-        BrowserWindow.getAllWindows()[0]?.isMaximized(),
-      ),
-    )
-    .toBe(true);
+  await maximize(first);
   await first.quit();
   const savedText = await readFile(
     join(desktop.profile, 'window.json'),
@@ -242,6 +246,57 @@ test('closing the last window keeps the same server, the Dock reopens the window
   expect(app.errors).toEqual([]);
 });
 
+test('Quit during app request setup cancels forwarding without a main-process exception and stops the server', async ({
+  desktop,
+}) => {
+  const app = await desktop.launch();
+  const page = await app.window();
+  await expect(
+    page.getByRole('button', { name: 'Open project', exact: true }),
+  ).toBeVisible();
+  const { pid } = await app.server();
+  const marker = 'Porcelain e2e: quit during request setup';
+  const child = app.electron.process();
+  await app.electron.evaluate(({ app, net }, marker) => {
+    const quit = (url: string) => {
+      if (!url.endsWith('?quit-during-setup=1')) return;
+      process.stderr.write(`${marker}\n`);
+      app.quit();
+    };
+    const nativeRequest = net.request.bind(net);
+    net.request = (...args: Parameters<typeof net.request>) => {
+      const options = args[0];
+      quit(typeof options === 'string' ? options : (options.url ?? ''));
+      return nativeRequest(...args);
+    };
+    const nodeFetch = globalThis.fetch;
+    globalThis.fetch = (...args: Parameters<typeof fetch>) => {
+      const input = args[0];
+      quit(
+        typeof input === 'string'
+          ? input
+          : input instanceof URL
+            ? input.href
+            : input.url,
+      );
+      return nodeFetch(...args);
+    };
+  }, marker);
+  const request = page
+    .evaluate(() => fetch('/api/inventory?quit-during-setup=1'))
+    .catch((error: unknown) => {
+      if (!(error instanceof Error) || !error.message.includes('closed'))
+        throw error;
+    });
+  await expect.poll(() => app.output.join('')).toContain(marker);
+  await app.quit();
+  await request;
+  expect(child.exitCode).toBe(0);
+  expect(app.output.join('')).not.toContain('ReferenceError');
+  expect(existsSync(join(app.serverData, 'server.sock'))).toBe(false);
+  expect(processAlive(pid)).toBe(false);
+});
+
 test('restarting restores the saved window bounds, the maximized window, the dark appearance and the opened project, without pairing a browser', async ({
   desktop,
 }) => {
@@ -252,9 +307,11 @@ test('restarting restores the saved window bounds, the maximized window, the dar
   const settings = page.getByRole('main', { name: 'Settings', exact: true });
   await settings.getByRole('tab', { name: 'Dark', exact: true }).click();
   await expect(page.locator('.dark').first()).toBeAttached();
-  expect(
-    await app.electron.evaluate(({ nativeTheme }) => nativeTheme.themeSource),
-  ).toBe('dark');
+  await expect
+    .poll(() =>
+      app.electron.evaluate(({ nativeTheme }) => nativeTheme.themeSource),
+    )
+    .toBe('dark');
   await settings.getByRole('button', { name: 'Back', exact: true }).click();
   await expect(settings).toBeHidden();
 
@@ -270,20 +327,7 @@ test('restarting restores the saved window bounds, the maximized window, the dar
     });
     return view.getBounds();
   });
-  await app.electron.evaluate(
-    ({ BrowserWindow }) =>
-      new Promise<void>((resolveMaximized) => {
-        const view = BrowserWindow.getAllWindows()[0];
-        if (view === undefined) throw new Error('The app window is missing');
-        view.once('maximize', () => resolveMaximized());
-        view.maximize();
-      }),
-  );
-  expect(
-    await app.electron.evaluate(({ BrowserWindow }) =>
-      BrowserWindow.getAllWindows()[0]?.isMaximized(),
-    ),
-  ).toBe(true);
+  await maximize(app);
   expect(app.errors).toEqual([]);
   await app.quit();
 
@@ -292,21 +336,23 @@ test('restarting restores the saved window bounds, the maximized window, the dar
   await expect(
     restored.getByRole('button', { name: 'desktop-smoke', exact: true }),
   ).toBeVisible();
-  expect(
-    await restarted.electron.evaluate(({ BrowserWindow }) => {
-      const view = BrowserWindow.getAllWindows()[0];
-      return {
-        bounds: view?.getNormalBounds(),
-        maximized: view?.isMaximized(),
-      };
-    }),
-  ).toEqual({ bounds, maximized: true });
+  await expect
+    .poll(() =>
+      restarted.electron.evaluate(({ BrowserWindow }) => {
+        const view = BrowserWindow.getAllWindows()[0];
+        return {
+          bounds: view?.getNormalBounds(),
+          maximized: view?.isMaximized(),
+        };
+      }),
+    )
+    .toEqual({ bounds, maximized: true });
   await expect(restored.locator('.dark').first()).toBeAttached();
-  expect(
-    await restarted.electron.evaluate(
-      ({ nativeTheme }) => nativeTheme.themeSource,
-    ),
-  ).toBe('dark');
+  await expect
+    .poll(() =>
+      restarted.electron.evaluate(({ nativeTheme }) => nativeTheme.themeSource),
+    )
+    .toBe('dark');
   expect(
     listAccessResponseSchema.parse(await restarted.askOwner('GET', '/access'))
       .devices,

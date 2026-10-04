@@ -223,6 +223,21 @@ test('a remote computer summary renders through the app from that computer, cann
     .click();
   const reopenedSummary = await summaryNavigation;
   await reopenedSummary.waitForLoadState('load');
+  await app.electron.evaluate(({ app, BrowserWindow }) => {
+    app.focus({ steal: true });
+    const view = BrowserWindow.getAllWindows()[0];
+    if (view === undefined) throw new Error('The app window is missing');
+    view.focus();
+    view.webContents.focus();
+  });
+  await expect
+    .poll(() =>
+      app.electron.evaluate(({ BrowserWindow }) => {
+        const view = BrowserWindow.getAllWindows()[0];
+        return view?.isFocused() && view.webContents.isFocused();
+      }),
+    )
+    .toBe(true);
   const refused = page.waitForEvent('console', {
     predicate: (message) =>
       message.text().includes("'https://example.com/'") &&

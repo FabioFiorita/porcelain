@@ -184,19 +184,21 @@ export class DesktopApp {
     const child = this.child;
     if (child.exitCode !== null || child.signalCode !== null)
       return Promise.resolve();
+    const exited = new Promise<void>((resolveExit) =>
+      child.once('close', () => resolveExit()),
+    );
     const timeout = AbortSignal.timeout(quitWithinMs);
-    const expired = new Promise<never>((_resolve, reject) => {
-      timeout.addEventListener(
-        'abort',
-        () => {
-          const message = `The app did not quit after stopping its server (process ${child.pid}, exit ${child.exitCode}, signal ${child.signalCode})\n${this.output.join('')}`;
-          child.kill('SIGKILL');
-          reject(new Error(message));
-        },
-        { once: true },
-      );
-    });
-    return Promise.race([this.electron.close(), expired]);
+    const expiration = Promise.withResolvers<never>();
+    const expired = () => {
+      const message = `The app did not quit after stopping its server (process ${child.pid}, exit ${child.exitCode}, signal ${child.signalCode})\n${this.output.join('')}`;
+      child.kill('SIGKILL');
+      expiration.reject(new Error(message));
+    };
+    timeout.addEventListener('abort', expired, { once: true });
+    return Promise.race([
+      Promise.all([this.electron.close(), exited]).then(() => undefined),
+      expiration.promise,
+    ]).finally(() => timeout.removeEventListener('abort', expired));
   }
 }
 
@@ -271,6 +273,20 @@ type DesktopFixtures = {
 
 type WorkerFixtures = { app: string };
 
+async function keepScreenshots(
+  launched: readonly DesktopApp[],
+  testInfo: TestInfo,
+): Promise<void> {
+  for (const [index, desktop] of launched.entries()) {
+    for (const [order, page] of desktop.electron.windows().entries())
+      await page
+        .screenshot({
+          path: testInfo.outputPath(`app-${index}-window-${order}.png`),
+        })
+        .catch(() => undefined);
+  }
+}
+
 async function keepFailure(
   launched: readonly DesktopApp[],
   testInfo: TestInfo,
@@ -280,12 +296,6 @@ async function keepFailure(
       body: desktop.output.join(''),
       contentType: 'text/plain',
     });
-    for (const [order, page] of desktop.electron.windows().entries())
-      await page
-        .screenshot({
-          path: testInfo.outputPath(`app-${index}-window-${order}.png`),
-        })
-        .catch(() => undefined);
     const log = join(desktop.profile, 'logs', 'server.log');
     if (existsSync(log))
       await testInfo.attach(`app-${index}-server.log`, {
@@ -329,11 +339,13 @@ export const test = base.extend<DesktopFixtures, WorkerFixtures>({
       return desktop;
     };
     await use({ ...workspace, launch });
-    if (testInfo.status !== testInfo.expectedStatus)
-      await keepFailure(launched, testInfo);
+    const failed = testInfo.status !== testInfo.expectedStatus;
+    if (failed) await keepScreenshots(launched, testInfo);
     const closed = await Promise.allSettled(
       launched.map((desktop) => desktop.quit()),
     );
+    if (failed || closed.some((result) => result.status === 'rejected'))
+      await keepFailure(launched, testInfo);
     for (const result of closed)
       if (result.status === 'rejected') throw result.reason;
   },

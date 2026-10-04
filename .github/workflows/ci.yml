@@ -69,6 +69,11 @@ jobs:
           cache: true
           require-lockfile: true
       - run: pnpm install --frozen-lockfile
+      - name: Cache Electron build headers
+        uses: actions/cache@v6
+        with:
+          path: ~/.electron-gyp
+          key: electron-headers-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('apps/desktop/package.json') }}
       - run: pnpm --filter @porcelain/desktop test:e2e
       - uses: actions/upload-artifact@v7
         if: failure()
@@ -85,10 +90,16 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - target: suite
-            arguments: --repeat-each=20
+          - target: suite-a
+            arguments: --repeat-each=10
+          - target: suite-b
+            arguments: --repeat-each=10
           - target: restore
             arguments: spec/e2e/window.e2e.ts --grep "restarting restores" --repeat-each=100
+          - target: quit-setup
+            arguments: spec/e2e/window.e2e.ts --grep "Quit during app request setup" --repeat-each=100
+          - target: credentials
+            arguments: spec/e2e/bridge.e2e.ts --grep "restores it after a restart" --repeat-each=100
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/setup@v3
@@ -97,7 +108,17 @@ jobs:
           cache: true
           require-lockfile: true
       - run: pnpm install --frozen-lockfile
+      - name: Cache Electron build headers
+        uses: actions/cache@v6
+        with:
+          path: ~/.electron-gyp
+          key: electron-headers-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('apps/desktop/package.json') }}
       - run: pnpm --filter @porcelain/desktop test:e2e ${{ matrix.arguments }}
+      - name: Prove cached headers rebuild without a header server
+        if: ${{ !cancelled() }}
+        run: |
+          electron_version=$(node -p "require('./apps/desktop/package.json').dependencies.electron")
+          pnpm exec electron-rebuild --force --version "$electron_version" --module-dir dist/desktop/e2e --only better-sqlite3 --dist-url http://127.0.0.1:9
       - uses: actions/upload-artifact@v7
         if: always()
         with:

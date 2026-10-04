@@ -113,6 +113,7 @@ function openExternal(url: string): void {
 }
 
 function failure(error: unknown) {
+  if (quitting) return;
   process.stderr.write(
     `${error instanceof Error ? error.message : 'The local server failed'}\n`,
   );
