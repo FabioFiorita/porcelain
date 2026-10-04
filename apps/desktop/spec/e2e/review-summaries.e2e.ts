@@ -454,12 +454,12 @@ test('a remote computer summary renders through the app from that computer, cann
   const beforeClick = await navigationState();
   let afterClick: Awaited<ReturnType<typeof navigationState>> | undefined;
   try {
-    const websiteLink = await focusSummaryLink(
+    await focusSummaryLink(
       reopenedSummary,
       'Leave for a website',
       'https://example.com/',
     );
-    await websiteLink.press('Enter');
+    await page.keyboard.press('Enter');
     afterClick = await navigationState();
     await expect
       .poll(() => summaryClicks(page))
