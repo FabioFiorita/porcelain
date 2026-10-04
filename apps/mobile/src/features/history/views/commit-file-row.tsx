@@ -5,6 +5,7 @@ import {
   type CommitFile,
 } from '@porcelain/client/history/rules';
 import { Button } from '../../../shared/ui/button';
+import { Badge } from '../../../shared/ui/badge';
 
 export function CommitFileRow({
   file,
@@ -20,10 +21,6 @@ export function CommitFileRow({
   const path = useResolveClassNames(
     'min-w-0 flex-1 font-mono text-sm leading-5 text-foreground',
   );
-  const badge = useResolveClassNames(
-    'rounded-md border border-border bg-muted/25 px-2 py-0.5',
-  );
-  const status = useResolveClassNames('text-xs text-muted-foreground');
   return (
     <View style={inset}>
       <Button
@@ -38,9 +35,7 @@ export function CommitFileRow({
           <Text numberOfLines={2} style={path}>
             {commitFileLabel(file)}
           </Text>
-          <View style={badge}>
-            <Text style={status}>{file.status}</Text>
-          </View>
+          <Badge label={file.status} variant="outline" />
         </View>
       </Button>
     </View>

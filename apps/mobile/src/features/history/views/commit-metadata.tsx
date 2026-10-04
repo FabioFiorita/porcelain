@@ -2,6 +2,7 @@ import { Text, View } from 'react-native';
 import { useResolveClassNames } from 'uniwind';
 import { worktreeLabel } from '@porcelain/client/projects/rules';
 import { Button } from '../../../shared/ui/button';
+import { Badge } from '../../../shared/ui/badge';
 import type { useCommit } from '../queries/commit';
 
 export function CommitMetadata({
@@ -21,8 +22,6 @@ export function CommitMetadata({
   const caption = useResolveClassNames('text-xs text-muted-foreground');
   const oid = useResolveClassNames('font-mono text-xs text-muted-foreground');
   const refs = useResolveClassNames('flex-row flex-wrap gap-1.5');
-  const badge = useResolveClassNames('rounded-md bg-secondary px-2 py-0.5');
-  const ref = useResolveClassNames('text-xs text-secondary-foreground');
   const parents = useResolveClassNames('gap-2');
   const choices = useResolveClassNames(
     'flex-row flex-wrap gap-1 rounded-lg bg-muted p-1',
@@ -54,9 +53,7 @@ export function CommitMetadata({
       {data.commit.refs.length > 0 ? (
         <View style={refs}>
           {data.commit.refs.map((name) => (
-            <View key={name} style={badge}>
-              <Text style={ref}>{worktreeLabel(name)}</Text>
-            </View>
+            <Badge key={name} label={worktreeLabel(name)} />
           ))}
         </View>
       ) : null}

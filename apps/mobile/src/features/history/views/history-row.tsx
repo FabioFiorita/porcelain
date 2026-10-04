@@ -2,6 +2,7 @@ import { Text, View } from 'react-native';
 import { useResolveClassNames } from 'uniwind';
 import { worktreeLabel } from '@porcelain/client/projects/rules';
 import { Button } from '../../../shared/ui/button';
+import { Badge } from '../../../shared/ui/badge';
 import type { useHistory } from '../queries/history';
 
 export function HistoryRow({
@@ -19,8 +20,6 @@ export function HistoryRow({
   );
   const caption = useResolveClassNames('text-xs text-muted-foreground');
   const oid = useResolveClassNames('font-mono text-xs text-muted-foreground');
-  const badge = useResolveClassNames('rounded-md bg-secondary px-2 py-0.5');
-  const ref = useResolveClassNames('text-xs text-secondary-foreground');
   return (
     <View style={inset}>
       <Button
@@ -48,11 +47,7 @@ export function HistoryRow({
           {commit.refs.length > 0 ? (
             <View style={line}>
               {commit.refs.map((name) => (
-                <View key={name} style={badge}>
-                  <Text numberOfLines={1} style={ref}>
-                    {worktreeLabel(name)}
-                  </Text>
-                </View>
+                <Badge key={name} label={worktreeLabel(name)} />
               ))}
             </View>
           ) : null}

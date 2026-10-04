@@ -8,6 +8,8 @@ import {
 } from '@porcelain/client/history/rules';
 import { Button } from '../../../shared/ui/button';
 import { FileDiff } from '../../../shared/diff/file-diff';
+import { parseFilePatch } from '../../../shared/diff/parse-patch';
+import { diffRows } from '../../../shared/rules/patch';
 import { useCommit } from '../queries/commit';
 import type { useHistory } from '../queries/history';
 import { useCommitDiff } from '../queries/commit-diffs';
@@ -173,6 +175,12 @@ function CommitFileDiff({
     'px-4 py-4 text-sm text-muted-foreground',
   );
   const error = useResolveClassNames('px-4 py-4 text-sm text-destructive');
+  const path = commitFileLabel(file);
+  const files =
+    diff.content && 'patch' in diff.content
+      ? parseFilePatch(diff.content.patch)
+      : undefined;
+  const rows = diff.content ? diffRows(diff.content, files, path) : [];
   return (
     <View style={surface}>
       <View style={toolbar}>
@@ -204,9 +212,7 @@ function CommitFileDiff({
           />
         </>
       ) : null}
-      {diff.content ? (
-        <FileDiff content={diff.content} path={commitFileLabel(file)} />
-      ) : null}
+      {diff.content ? <FileDiff rows={rows} path={path} /> : null}
     </View>
   );
 }

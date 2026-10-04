@@ -16,47 +16,55 @@ name: Browse commits and changed files in History
 - tapOn: Project
 - tapOn: ${PROJECT_NAME}
 - tapOn: ${WORKTREE_LABEL}
-- assertVisible: Rename history readme
-- assertVisible: Update history readme
-- assertVisible: Initial commit
+- assertVisible:
+    id: history-commit-${RENAME_OID}
+- assertVisible:
+    id: history-commit-${UPDATE_OID}
+- assertVisible:
+    id: history-commit-${ROOT_OID}
 - assertVisible: Start of history.
-- tapOn: Rename history readme
+- tapOn:
+    id: history-commit-${RENAME_OID}
 - assertVisible: Changed files
-- assertVisible: ${README_PATH} → GUIDE.md
-- assertVisible: renamed
-- tapOn: ${README_PATH} → GUIDE.md
+- assertVisible: ${README_PATH} → GUIDE.md, renamed
+- tapOn:
+    id: history-file-GUIDE.md
 - assertVisible: rename from ${README_PATH}
 - assertVisible: rename to GUIDE.md
 - tapOn: Back to commit
 - tapOn: Back to history
-- tapOn: Update history readme
+- tapOn:
+    id: history-commit-${UPDATE_OID}
 - assertVisible: History commit body
 - assertVisible: Changed files
-- assertVisible: ${README_PATH}
-- assertVisible: modified
-- tapOn: ${README_PATH}
+- assertVisible: ${README_PATH}, modified
+- tapOn:
+    id: history-file-${README_PATH}
 - assertVisible:
-    text: '[+]History readme'
+    text: 'Added line 1: History readme'
 - tapOn: Back to commit
 - tapOn: Back to history
 - tapOn:
     id: history-commit-${ROOT_OID}
 - assertVisible: Root commit
 - assertVisible: Changed files
-- assertVisible: ${README_PATH}
-- assertVisible: added
-- tapOn: ${README_PATH}
+- assertVisible: ${README_PATH}, added
+- tapOn:
+    id: history-file-${README_PATH}
 - assertVisible:
-    text: '[+]# Sample repository'
+    text: 'Added line 1: # Sample repository'
 - tapOn: Back to commit
 - tapOn: ${PROJECT_NAME} · ${WORKTREE_LABEL}
 - tapOn: Project
 - tapOn: ${PROJECT_NAME}
 - tapOn: ${ORIGINAL_WORKTREE}
 - assertNotVisible: Back to history
-- assertVisible: Initial commit
-- assertNotVisible: Rename history readme
-- assertNotVisible: Update history readme
+- assertVisible:
+    id: history-commit-${ROOT_OID}
+- assertNotVisible:
+    id: history-commit-${RENAME_OID}
+- assertNotVisible:
+    id: history-commit-${UPDATE_OID}
 - tapOn:
     id: history-commit-${ROOT_OID}
 - assertVisible: Root commit
@@ -66,4 +74,5 @@ name: Browse commits and changed files in History
 - tapOn: ${WORKTREE_LABEL}
 - assertNotVisible: Back to history
 - tapOn: Refresh history
-- assertVisible: Rename history readme
+- assertVisible:
+    id: history-commit-${RENAME_OID}

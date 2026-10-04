@@ -16,6 +16,8 @@ test('History opens selected worktree commits, changed paths and returns to the 
       HISTORY_LINK: app.link('/history'),
       README_PATH: state.readme,
       ROOT_OID: state.root,
+      UPDATE_OID: state.update,
+      RENAME_OID: state.rename,
       ORIGINAL_WORKTREE: state.originalWorktree,
     }),
   ).toEqual({
