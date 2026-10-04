@@ -45,22 +45,24 @@ Presentation follows Porcelain web Files: neutral theme surfaces, bordered searc
 
 ## Driving it
 
-Start an instance first: `.agents/skills/mobile-verify/scripts/cli start`, or `start --device ipad`. With several instances, pass `--instance <id>` on every command. Open Files before choosing a worktree to check its empty state, then select the sample worktree through `projects.workspace-picker`.
+After explicit clearance for the assigned iPhone, follow the skill's doctor and development-client freshness checks, then start one independent instance with `.agents/skills/mobile-verify/scripts/cli start --device iphone`. Set `files_instance` to its returned ID and pass `--instance "$files_instance"` on every subsequent command. Keep its server, Metro ports and session independent; direct agent-device commands must retain the assigned host and session flags. Do not overwrite the shared device-host configuration. Reuse this instance during active proof and screenshots, and stop only your instance at completion or memory pressure. Open Files before choosing a worktree to check its empty state, then select the sample worktree through `projects.workspace-picker`.
+
+Agent native acceptance is iPhone-only. Tablet implementation and static/test coverage remain in place; the owner performs iPad native validation and screenshots. Agents do not start iPad instances, investigate tablet pairing refusals or run tablet Maestro flows.
 
 ```sh
-.agents/skills/mobile-verify/scripts/cli open /files
-.agents/skills/mobile-verify/scripts/cli snapshot
-.agents/skills/mobile-verify/scripts/cli tap --label README.md
-.agents/skills/mobile-verify/scripts/cli snapshot
-.agents/skills/mobile-verify/scripts/cli screenshot
-.agents/skills/mobile-verify/scripts/cli tap --label "Back to files"
-.agents/skills/mobile-verify/scripts/cli fill README --id files-search
-.agents/skills/mobile-verify/scripts/cli snapshot
-.agents/skills/mobile-verify/scripts/cli tap --label "Clear search"
-.agents/skills/mobile-verify/scripts/cli tap --label "Reload files"
+.agents/skills/mobile-verify/scripts/cli open /files --instance "$files_instance"
+.agents/skills/mobile-verify/scripts/cli snapshot --instance "$files_instance"
+.agents/skills/mobile-verify/scripts/cli tap --label README.md --instance "$files_instance"
+.agents/skills/mobile-verify/scripts/cli snapshot --instance "$files_instance"
+.agents/skills/mobile-verify/scripts/cli screenshot --instance "$files_instance"
+.agents/skills/mobile-verify/scripts/cli tap --label "Back to files" --instance "$files_instance"
+.agents/skills/mobile-verify/scripts/cli fill README --id files-search --instance "$files_instance"
+.agents/skills/mobile-verify/scripts/cli snapshot --instance "$files_instance"
+.agents/skills/mobile-verify/scripts/cli tap --label "Clear search" --instance "$files_instance"
+.agents/skills/mobile-verify/scripts/cli tap --label "Reload files" --instance "$files_instance"
 ```
 
-Look for: the selected worktree's directory entries; README.md opens as literal code with Read only and both navigation buttons. Back returns to the tree. Search shows matching relative paths and Clear search returns to the tree. On iPhone inspect the selected Files tab; on iPad inspect the Files detail and sidebar.
+Look for: the selected worktree's directory entries; README.md opens as literal code with Read only and both navigation buttons. Back returns to the tree. Search shows matching relative paths and Clear search returns to the tree. Inspect the selected Files tab on the assigned iPhone. The owner separately inspects the iPad detail and sidebar.
 
 For the presentation proof, inspect both light and dark: row touch targets and folder indentation, muted search-path metadata, toolbar borders, read-only badge and aligned code/gutter typography. Add a source line wider than the viewport and check horizontal scrolling reaches its end while retaining literal indentation; the full path remains readable in the document header. Compare fresh screenshots with the revised UI, since the earlier Files screenshots cover the prior presentation only.
 
@@ -70,9 +72,11 @@ With the text file open, edit it in the disposable repository, tap Reload file a
 
 During a reload, loaded code stays visible in the same scroll view while the disabled button says Reloading file…. Loaded directory/search lists also stay visible while Reloading files… is busy. A completed failure hides stale content and offers Read again.
 
-Repeat on iPhone and iPad. Finish with `evidence`, inspect the recorded files, and `stop` your instance.
+Finish the assigned iPhone drive with `evidence --instance "$files_instance"`, inspect the recorded files, and `stop --instance "$files_instance"`. Report iPhone proof separately from owner-delegated iPad validation.
 
 ## What proves it works
+
+The specs below define platform coverage; naming a spec does not mean it has executed. Keep tablet files and static checks, with native tablet execution delegated to the owner.
 
 - `apps/mobile/spec/e2e/destinations.e2e.ts`: the deep link opens Files directly with the tab selected and its empty state.
 - `apps/mobile/spec/e2e/phone-shell.e2e.ts`: the Files tab is selected and shows its empty state.
@@ -88,6 +92,5 @@ Repeat on iPhone and iPad. Finish with `evidence`, inspect the recorded files, a
 - Failed reloads hide cached text. Read again retries; Back to files remains available.
 - Reads use the projects-owned selected connection, including remote credentials, timeout and selection cancellation.
 - A worktree_changed read refreshes the selected inventory before one reread; text recovery also refreshes its affected directory and path list. Another failure is shown for an explicit retry, never an automatic loop.
-- On iPad in portrait the sidebar is hidden; `open /files` reaches the screen without it.
-- iPad has a known verifier block on main where Add environment is reported covered. Report it if encountered; this feature does not repair pairing.
+- The tablet layout hides its sidebar in portrait; its `/files` deep link still reaches Files. The owner validates this native behavior and handles tablet pairing prerequisites.
 - Android has its own text renderer and still needs a separate native drive. Physical-device local-network permission is covered by the pairing map.
