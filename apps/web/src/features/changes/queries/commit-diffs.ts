@@ -1,6 +1,6 @@
 import { usePathDiffs } from './path-diffs';
 import { commitDiffsQueryOptions } from '@porcelain/client/changes';
-import type { ChangesScope } from '../rules/changes';
+import type { ChangesScope } from '@porcelain/client/changes/rules';
 import { type Connection } from '@/shared/workspace/connection';
 
 export function useCommitDiffs(

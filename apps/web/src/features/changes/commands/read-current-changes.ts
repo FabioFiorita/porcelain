@@ -1,7 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { changesQueryOptions } from '@porcelain/client/changes';
 import { gitStatusQueryOptions } from '../queries/git-status';
-import type { ChangesScope } from '../rules/changes';
+import type { ChangesScope } from '@porcelain/client/changes/rules';
 import { type Connection } from '@/shared/workspace/connection';
 
 export function useReadCurrentChanges(

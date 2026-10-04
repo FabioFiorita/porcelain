@@ -2,7 +2,7 @@ import {
   selectionKey,
   type ChangeSelection,
   type ExpectedFile,
-} from './changes';
+} from './changes.ts';
 
 type DiffBatch = {
   expectedFiles: ExpectedFile[];

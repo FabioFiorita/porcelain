@@ -7,6 +7,28 @@ import {
   type WorktreeScope,
 } from '../../../shared/api/connection.ts';
 import { changesApi } from '../api.ts';
+import { pathDiffReadsQueryOptions } from './batched-reads.ts';
+import type { BranchRange } from '../rules/branch.ts';
+
+export function branchBasesQueryOptions(
+  scope: WorktreeScope,
+  connection: WorktreeConnection,
+) {
+  return {
+    queryKey: queryKeys.reviewSurface(connection.environmentId, scope, [
+      'branch-bases',
+    ]),
+    queryFn: async ({ signal }: Pick<QueryFunctionContext, 'signal'>) => {
+      const request = connection.request(signal);
+      const bases = await changesApi(connection).branchBases({
+        signal: request.signal,
+        worktreeId: scope.worktreeId,
+      });
+      assertCurrentAnswer(request.signal);
+      return bases;
+    },
+  };
+}
 
 export function branchQueryOptions(
   scope: WorktreeScope,
@@ -34,6 +56,36 @@ export function branchQueryOptions(
       return result;
     },
   };
+}
+
+export function branchDiffReadsQueryOptions(
+  scope: WorktreeScope,
+  connection: WorktreeConnection,
+  range: BranchRange | null,
+  paths: readonly (readonly string[])[],
+  size: number,
+) {
+  return pathDiffReadsQueryOptions({
+    connection,
+    paths: range ? paths : [],
+    size,
+    key: (batch) =>
+      range
+        ? branchDiffsQueryOptions(scope, connection, {
+            baseOid: range.baseOid,
+            headOid: range.headOid,
+            paths: batch.map((entry) => [...entry]),
+          }).queryKey
+        : [],
+    read: async (signal, batch) =>
+      range
+        ? branchDiffsQueryOptions(scope, connection, {
+            baseOid: range.baseOid,
+            headOid: range.headOid,
+            paths: batch,
+          }).queryFn({ signal })
+        : { diffs: [] },
+  });
 }
 
 export function branchDiffsQueryOptions(
