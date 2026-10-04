@@ -318,12 +318,8 @@ test('a remote computer summary renders through the app from that computer, cann
     sandbox,
   );
   try {
-    const layerLink = await focusSummaryLink(
-      frame,
-      'Open Remote summary layer',
-      '#layer-1',
-    );
-    await layerLink.press('Enter');
+    await focusSummaryLink(frame, 'Open Remote summary layer', '#layer-1');
+    await page.keyboard.down('Enter');
     await expect
       .poll(() => summaryClicks(page))
       .toContainEqual({
@@ -339,6 +335,12 @@ test('a remote computer summary renders through the app from that computer, cann
         exact: true,
       }),
     ).toBeVisible();
+    const layerTab = page
+      .getByRole('tablist', { name: 'Open documents', exact: true })
+      .getByTitle('Remote summary layer', { exact: true });
+    await layerTab.focus();
+    await expect(layerTab).toBeFocused();
+    await page.keyboard.up('Enter');
   } finally {
     await testInfo.attach('summary-layer-input', {
       body: JSON.stringify({

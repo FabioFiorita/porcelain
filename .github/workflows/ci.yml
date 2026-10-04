@@ -105,6 +105,8 @@ jobs:
             arguments: spec/e2e/review-summaries.e2e.ts --grep "a remote computer summary" --repeat-each=100
           - target: remote-summary-b
             arguments: spec/e2e/review-summaries.e2e.ts --grep "a remote computer summary" --repeat-each=100
+          - target: before-layer-input
+            arguments: spec/e2e/review-summaries.e2e.ts --grep "a remote computer summary" --repeat-each=100
     steps:
       - uses: actions/checkout@v7
         with:
@@ -120,7 +122,14 @@ jobs:
         with:
           path: ~/.electron-gyp
           key: electron-headers-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('apps/desktop/package.json') }}
-      - run: pnpm --filter @porcelain/desktop test:e2e ${{ matrix.arguments }}
+      - name: Restore the layer input comparison
+        if: matrix.target == 'before-layer-input'
+        run: git restore --source=3fff03d02 -- apps/desktop/spec/e2e/review-summaries.e2e.ts
+      - if: matrix.target != 'before-layer-input'
+        run: pnpm --filter @porcelain/desktop test:e2e ${{ matrix.arguments }}
+      - name: Capture layer input acknowledgements
+        if: matrix.target == 'before-layer-input'
+        run: DEBUG=pw:protocol pnpm --filter @porcelain/desktop test:e2e ${{ matrix.arguments }} > "$RUNNER_TEMP/layer-input-protocol.log" 2>&1
       - name: Prove cached headers rebuild without a header server
         if: ${{ !cancelled() }}
         run: |
@@ -133,3 +142,4 @@ jobs:
           path: |
             apps/desktop/test-results/
             ~/Library/Logs/DiagnosticReports/
+            ${{ runner.temp }}/layer-input-protocol.log
