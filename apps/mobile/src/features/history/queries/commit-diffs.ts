@@ -1,6 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { commitDiffsQueryOptions } from '@porcelain/client/changes';
-import { commitFilePaths, type CommitFile } from '@porcelain/client/history';
+import {
+  commitFilePaths,
+  type CommitFile,
+} from '@porcelain/client/history/rules';
 import type { useHistory } from './history';
 
 type HistoryWorkspace = Parameters<typeof useHistory>[0];

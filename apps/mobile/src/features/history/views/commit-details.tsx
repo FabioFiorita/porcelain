@@ -5,7 +5,7 @@ import {
   commitFileLabel,
   commitFilePaths,
   type CommitFile,
-} from '@porcelain/client/history';
+} from '@porcelain/client/history/rules';
 import { FileDiff } from '../../../shared/diff/file-diff';
 import { useCommit } from '../queries/commit';
 import type { useHistory } from '../queries/history';

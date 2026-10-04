@@ -1,6 +1,7 @@
 import { formatDistanceToNowStrict } from 'date-fns';
 import { CopyIcon } from 'lucide-react';
 import { useState, useTransition } from 'react';
+import { commitFilePaths } from '@porcelain/client/history/rules';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DIFF_WINDOW_FILES } from '@/config/limits';
@@ -23,10 +24,7 @@ import { DocumentToolbar } from './document-toolbar';
 import { ReadMoreFiles } from './read-more-files';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
-const pathList = (file: CommitFile) => [
-  ...new Set([file.oldPath, file.newPath].filter((path) => path != null)),
-];
-const pathKey = (file: CommitFile) => pathList(file).join('\0');
+const pathKey = (file: CommitFile) => commitFilePaths(file).join('\0');
 
 export function CommitDocument({
   scope,
@@ -64,7 +62,7 @@ export function CommitDocument({
   const readMore = () =>
     setWindow({ of: `${oid}:${parent}`, shown: shown + DIFF_WINDOW_FILES });
   const reached = commit.files.slice(0, shown);
-  const wanted = reached.map((file) => pathList(file));
+  const wanted = reached.map(commitFilePaths);
   const diffs = useCommitDiffs(connection, scope, oid, parent, wanted);
   const patchOf = (file: CommitFile) => diffs.patches.get(pathKey(file));
   const entries = reached.flatMap((file) => {

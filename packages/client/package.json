@@ -16,6 +16,7 @@
     "./changes/api": "./src/features/changes/api.ts",
     "./history": "./src/features/history/index.ts",
     "./history/api": "./src/features/history/api.ts",
+    "./history/rules": "./src/features/history/rules/index.ts",
     "./reviews": "./src/features/reviews/index.ts",
     "./reviews/api": "./src/features/reviews/api.ts",
     "./git-actions/api": "./src/features/git-actions/api.ts",
