@@ -36,6 +36,8 @@ api:
 
 Files browses the selected worktree through the shared client's directory, paths and text reads. Folders load when expanded; Find a file searches relative paths. Opening a file shows its literal, selectable text in a read-only native renderer, with Back to files and Reload file. Binary, unsupported and oversized text get an explanation. An empty file and an empty folder have distinct states. The workspace picker is `projects.workspace-picker`; changing its selection resets file navigation and search.
 
+Presentation follows Porcelain web Files: neutral theme surfaces, bordered search/document toolbars, touch-sized action and file rows, indented folder branches and secondary relative paths in search. The document pairs selectable monospaced code with a muted line-number gutter. Long lines scroll horizontally together with the gutter rather than wrapping or clipping the source. Light and dark use the shared theme tokens.
+
 ## How a user reaches it
 
 - phone: the Files tab; iPad: Files in the sidebar
@@ -59,6 +61,8 @@ Start an instance first: `.agents/skills/mobile-verify/scripts/cli start`, or `s
 ```
 
 Look for: the selected worktree's directory entries; README.md opens as literal code with Read only and both navigation buttons. Back returns to the tree. Search shows matching relative paths and Clear search returns to the tree. On iPhone inspect the selected Files tab; on iPad inspect the Files detail and sidebar.
+
+For the presentation proof, inspect both light and dark: row touch targets and folder indentation, muted search-path metadata, toolbar borders, read-only badge and aligned code/gutter typography. Add a source line wider than the viewport and check horizontal scrolling reaches its end while retaining literal indentation; the full path remains readable in the document header. Compare fresh screenshots with the revised UI, since the earlier Files screenshots cover the prior presentation only.
 
 The instance's `000-start.txt` evidence names its disposable repository. Add a nested folder with a Unicode text file, an empty file, a file containing NUL bytes and a file exceeding `TEXT_BYTES` from `@porcelain/contracts/shared` there. Reload files, expand the folder using its `Expand <name>` label, open each file, and capture the text and the unreadable explanations. Collapse uses `Collapse <name>`. Confirm that returning from a file preserves expanded folders. Search an absent path to see No matching files.
 

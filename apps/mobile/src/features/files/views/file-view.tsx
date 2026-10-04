@@ -1,6 +1,7 @@
 import type { useDirectory } from '../queries/reads';
-import { Button, Host } from '@expo/ui';
 import { Text, View } from 'react-native';
+import { useResolveClassNames } from 'uniwind';
+import { Button } from '../../../shared/ui/button';
 import { useFileText } from '../queries/reads';
 import { ReadState } from './read-state';
 import { CodeView } from './code-view';
@@ -15,31 +16,54 @@ export function FileView({
   onBack: () => void;
 }) {
   const query = useFileText(context, path);
+  const text = query.data && !('kind' in query.data) ? query.data.text : '';
+  const count = text.split('\n').length - (text.endsWith('\n') ? 1 : 0);
+  const numbers = Array.from({ length: count }, (_, index) => index + 1).join(
+    '\n',
+  );
+  const surface = useResolveClassNames('flex-1 bg-background');
+  const header = useResolveClassNames(
+    'gap-3 border-b border-border bg-card px-4 py-3',
+  );
+  const actions = useResolveClassNames(
+    'flex-row items-center justify-between gap-3',
+  );
+  const identity = useResolveClassNames('gap-2');
+  const title = useResolveClassNames('text-sm font-medium text-foreground');
+  const badge = useResolveClassNames(
+    'self-start rounded-md border border-border bg-muted px-2 py-1',
+  );
+  const metadata = useResolveClassNames('text-xs text-muted-foreground');
+  const state = useResolveClassNames(
+    'px-4 py-6 text-sm leading-6 text-muted-foreground',
+  );
   return (
-    <View className="flex-1 bg-background">
-      <View className="gap-2 border-b border-border px-4 py-3">
-        <View className="flex-row justify-between gap-3">
-          <Host matchContents>
-            <Button label="Back to files" variant="text" onPress={onBack} />
-          </Host>
-          <Host matchContents>
-            <Button
-              label={query.isFetching ? 'Reloading file…' : 'Reload file'}
-              variant="text"
-              disabled={query.isFetching}
-              onPress={() => {
-                void query.refetch();
-              }}
-            />
-          </Host>
+    <View style={surface}>
+      <View style={header}>
+        <View style={actions}>
+          <Button
+            label="Back to files"
+            variant="ghost"
+            size="sm"
+            onPress={onBack}
+          />
+          <Button
+            label={query.isFetching ? 'Reloading file…' : 'Reload file'}
+            size="sm"
+            disabled={query.isFetching}
+            onPress={() => {
+              void query.refetch();
+            }}
+          />
         </View>
-        <Text
-          accessibilityRole="header"
-          className="text-sm font-medium text-foreground"
-        >
-          {path}
-        </Text>
-        <Text className="text-xs text-muted-foreground">Read only</Text>
+        <View style={identity}>
+          <Text accessibilityRole="header" selectable style={title}>
+            {path}
+          </Text>
+          <View style={badge}>
+            <Text style={metadata}>Read only</Text>
+          </View>
+        </View>
       </View>
       {query.isPending || query.isError ? (
         <ReadState
@@ -50,15 +74,11 @@ export function FileView({
           }}
         />
       ) : 'kind' in query.data ? (
-        <Text className="p-4 text-sm text-muted-foreground">
-          {query.data.reason}
-        </Text>
+        <Text style={state}>{query.data.reason}</Text>
       ) : query.data.text === '' ? (
-        <Text className="p-4 text-sm text-muted-foreground">
-          This file is empty.
-        </Text>
+        <Text style={state}>This file is empty.</Text>
       ) : (
-        <CodeView text={query.data.text} />
+        <CodeView text={query.data.text} numbers={numbers} />
       )}
     </View>
   );

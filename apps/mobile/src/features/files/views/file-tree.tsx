@@ -1,9 +1,11 @@
-import { Button, Host } from '@expo/ui';
 import { useState } from 'react';
 import { Text, View } from 'react-native';
+import { useResolveClassNames } from 'uniwind';
 import { childFilePath } from '@porcelain/client/files/rules';
+import { Button } from '../../../shared/ui/button';
 import { useDirectory } from '../queries/reads';
 import { ReadState } from './read-state';
+import { FileRow } from './file-row';
 
 function Folder({
   context,
@@ -17,17 +19,19 @@ function Folder({
   onOpen: (path: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const branch = useResolveClassNames('ml-5 border-l border-border pl-2');
   return (
     <View>
-      <Host matchContents={{ vertical: true }}>
-        <Button
-          label={`${expanded ? 'Collapse' : 'Expand'} ${name}`}
-          variant="text"
-          onPress={() => setExpanded(!expanded)}
-        />
-      </Host>
+      <Button
+        label={`${expanded ? 'Collapse' : 'Expand'} ${name}`}
+        variant="ghost"
+        size="row"
+        onPress={() => setExpanded(!expanded)}
+      >
+        <FileRow name={name} expanded={expanded} />
+      </Button>
       {expanded ? (
-        <View className="ml-4 border-l border-border">
+        <View style={branch}>
           <FileTree context={context} path={path} onOpen={onOpen} />
         </View>
       ) : null}
@@ -45,6 +49,9 @@ export function FileTree({
   onOpen: (path: string) => void;
 }) {
   const query = useDirectory(context, path);
+  const empty = useResolveClassNames(
+    'px-4 py-4 text-sm leading-6 text-muted-foreground',
+  );
   if (query.isPending || query.isError)
     return (
       <ReadState
@@ -58,9 +65,7 @@ export function FileTree({
   return (
     <View>
       {query.data.entries.length === 0 ? (
-        <Text className="px-4 py-3 text-sm text-muted-foreground">
-          This folder is empty.
-        </Text>
+        <Text style={empty}>This folder is empty.</Text>
       ) : null}
       {query.data.entries.map((entry) => {
         const child = childFilePath(path, entry.name);
@@ -73,14 +78,19 @@ export function FileTree({
             onOpen={onOpen}
           />
         ) : (
-          <Host key={child} matchContents={{ vertical: true }}>
-            <Button
-              label={entry.name}
-              variant="text"
-              disabled={entry.kind !== 'file'}
-              onPress={() => onOpen(child)}
+          <Button
+            key={child}
+            label={entry.name}
+            variant="ghost"
+            size="row"
+            disabled={entry.kind !== 'file'}
+            onPress={() => onOpen(child)}
+          >
+            <FileRow
+              name={entry.name}
+              {...(entry.kind === 'file' ? {} : { detail: entry.kind })}
             />
-          </Host>
+          </Button>
         );
       })}
     </View>

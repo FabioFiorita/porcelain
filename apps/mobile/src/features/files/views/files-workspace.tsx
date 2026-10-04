@@ -1,8 +1,9 @@
 import type { useDirectory } from '../queries/reads';
-import { Button, Host, TextInput, useNativeState } from '@expo/ui';
+import { Host, TextInput, useNativeState } from '@expo/ui';
 import { useState } from 'react';
 import { Keyboard, ScrollView, Text, View } from 'react-native';
 import { useResolveClassNames } from 'uniwind';
+import { Button } from '../../../shared/ui/button';
 import { FileTree } from './file-tree';
 import { FileSearch } from './file-search';
 import { FileView } from './file-view';
@@ -17,8 +18,21 @@ export function FilesWorkspace({
   const [search, setSearch] = useState('');
   const searchValue = useNativeState('');
   const reload = useReloadFiles(context);
+  const surface = useResolveClassNames('flex-1 bg-background');
+  const browser = useResolveClassNames(
+    path === undefined ? 'flex-1' : 'hidden',
+  );
+  const toolbar = useResolveClassNames(
+    'gap-3 border-b border-border px-4 py-3',
+  );
+  const heading = useResolveClassNames(
+    'flex-row items-center justify-between gap-3',
+  );
+  const title = useResolveClassNames('text-base font-semibold text-foreground');
+  const scroll = useResolveClassNames('flex-1');
+  const tree = useResolveClassNames('px-3 py-2');
   const inputStyle = useResolveClassNames(
-    'rounded-lg border border-border bg-card px-3 py-2',
+    'min-h-11 rounded-lg border border-input bg-card px-3 py-3',
   );
   const textStyle = useResolveClassNames('text-sm text-foreground');
   const open = (file: string) => {
@@ -26,15 +40,20 @@ export function FilesWorkspace({
     setPath(file);
   };
   return (
-    <View className="flex-1 bg-background">
-      <View className={path === undefined ? 'flex-1' : 'hidden'}>
-        <View className="gap-3 px-4 py-3">
-          <Text
-            accessibilityRole="header"
-            className="text-xl font-semibold text-foreground"
-          >
-            Files
-          </Text>
+    <View style={surface}>
+      <View style={browser}>
+        <View style={toolbar}>
+          <View style={heading}>
+            <Text accessibilityRole="header" style={title}>
+              Files
+            </Text>
+            <Button
+              label={reload.isPending ? 'Reloading files…' : 'Reload files'}
+              size="sm"
+              disabled={reload.isPending}
+              onPress={() => reload.read()}
+            />
+          </View>
           <Host matchContents={{ vertical: true }}>
             <TextInput
               testID="files-search"
@@ -55,31 +74,23 @@ export function FilesWorkspace({
             />
           </Host>
           {search ? (
-            <Host matchContents={{ vertical: true }}>
-              <Button
-                label="Clear search"
-                variant="text"
-                onPress={() => {
-                  searchValue.value = '';
-                  setSearch('');
-                }}
-              />
-            </Host>
+            <Button
+              label="Clear search"
+              variant="ghost"
+              size="sm"
+              onPress={() => {
+                searchValue.value = '';
+                setSearch('');
+              }}
+            />
           ) : null}
         </View>
-        <Host matchContents={{ vertical: true }}>
-          <Button
-            label={reload.isPending ? 'Reloading files…' : 'Reload files'}
-            variant="text"
-            disabled={reload.isPending}
-            onPress={() => reload.read()}
-          />
-        </Host>
         {search.trim() ? (
           <FileSearch context={context} search={search} onOpen={open} />
         ) : (
           <ScrollView
-            className="flex-1"
+            style={scroll}
+            contentContainerStyle={tree}
             keyboardShouldPersistTaps="handled"
             contentInsetAdjustmentBehavior="automatic"
           >
