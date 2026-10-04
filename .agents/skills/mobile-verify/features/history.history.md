@@ -29,6 +29,8 @@ api:
 
 History is the third destination. It reads the selected worktree's commits, newest first, with their subjects, authors, dates, short ids and refs. Opening a commit shows its message, full id, parent comparison and changed files. A merge can be compared with either parent. Opening a changed file shows that commit's diff, including both paths of a rename. Text uses the shared native renderer with selectable monospaced lines and change colors; binary, metadata-only and omitted diffs retain their server-provided meaning.
 
+The presentation follows Porcelain web: compact subject and muted metadata rows, neutral actions, ref badges and a bordered, rounded commit header. History uses the shared mobile Button for full-row touch targets and selected-parent accessibility state. Theme token classes resolve into native styles for light and dark. Back controls stay above the list; the opened diff has a constrained flex container, with FileDiff owning its vertical viewport. These revised styles require fresh paired native screenshots before visual parity is claimed.
+
 ## How a user reaches it
 
 - phone: the History tab; iPad: History in the sidebar

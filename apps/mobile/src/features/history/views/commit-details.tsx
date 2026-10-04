@@ -1,15 +1,18 @@
-import { Button, Host } from '@expo/ui';
 import { useState } from 'react';
 import { FlatList, Text, View } from 'react-native';
+import { useResolveClassNames } from 'uniwind';
 import {
-  commitFileLabel,
   commitFilePaths,
+  commitFileLabel,
   type CommitFile,
 } from '@porcelain/client/history/rules';
+import { Button } from '../../../shared/ui/button';
 import { FileDiff } from '../../../shared/diff/file-diff';
 import { useCommit } from '../queries/commit';
 import type { useHistory } from '../queries/history';
 import { useCommitDiff } from '../queries/commit-diffs';
+import { CommitMetadata } from './commit-metadata';
+import { CommitFileRow } from './commit-file-row';
 
 type HistoryWorkspace = Parameters<typeof useHistory>[0];
 
@@ -50,6 +53,23 @@ function CommitComparison({
 }) {
   const commit = useCommit(workspace, oid, parent);
   const [selectedFile, setSelectedFile] = useState<CommitFile>();
+  const surface = useResolveClassNames('min-h-0 flex-1 bg-background');
+  const toolbar = useResolveClassNames(
+    'shrink-0 flex-row flex-wrap items-center gap-3 border-b border-border px-4 py-2',
+  );
+  const heading = useResolveClassNames('min-w-0 flex-1 gap-0.5');
+  const title = useResolveClassNames(
+    'font-mono text-sm font-semibold text-foreground',
+  );
+  const caption = useResolveClassNames('text-xs text-muted-foreground');
+  const header = useResolveClassNames('gap-3 pb-2');
+  const message = useResolveClassNames(
+    'px-4 py-4 text-sm text-muted-foreground',
+  );
+  const error = useResolveClassNames('px-4 py-4 text-sm text-destructive');
+  const section = useResolveClassNames(
+    'px-4 pt-4 text-xs font-semibold text-muted-foreground',
+  );
   if (selectedFile)
     return (
       <CommitFileDiff
@@ -62,114 +82,67 @@ function CommitComparison({
     );
   const data = commit.data;
   return (
-    <FlatList
-      className="flex-1 bg-background"
-      contentInsetAdjustmentBehavior="automatic"
-      data={data?.files ?? []}
-      keyExtractor={(file) => JSON.stringify(commitFilePaths(file))}
-      ListHeaderComponent={
-        <View className="gap-4 px-6 py-6">
-          <Host matchContents={{ vertical: true }}>
-            <Button label="Back to history" variant="text" onPress={onBack} />
-          </Host>
-          {commit.isPending ? (
-            <Text className="text-sm text-muted-foreground">
-              Reading commit…
+    <View style={surface}>
+      <View style={toolbar}>
+        <Button
+          label="Back to history"
+          variant="ghost"
+          size="sm"
+          onPress={onBack}
+        />
+        <View style={heading}>
+          <Text style={title}>{oid.slice(0, 7)}</Text>
+          {data ? (
+            <Text style={caption}>
+              {data.files.length} file{data.files.length === 1 ? '' : 's'}{' '}
+              changed
             </Text>
           ) : null}
-          {commit.error ? (
-            <>
-              <Text className="text-sm text-destructive">
-                Could not read commit. {commit.error.message}
+        </View>
+      </View>
+      <FlatList
+        style={surface}
+        contentInsetAdjustmentBehavior="automatic"
+        data={data?.files ?? []}
+        keyExtractor={(file) => JSON.stringify(commitFilePaths(file))}
+        ListHeaderComponent={
+          <View style={header}>
+            {commit.isPending ? (
+              <Text accessibilityLiveRegion="polite" style={message}>
+                Reading commit…
               </Text>
-              <Host matchContents={{ vertical: true }}>
+            ) : null}
+            {commit.error ? (
+              <>
+                <Text accessibilityRole="alert" style={error}>
+                  Could not read commit. {commit.error.message}
+                </Text>
                 <Button
                   label="Read commit again"
-                  variant="text"
+                  variant="outline"
                   onPress={commit.read}
                 />
-              </Host>
-            </>
-          ) : null}
-          {data ? (
-            <>
-              <Text
-                accessibilityRole="header"
-                className="text-xl font-semibold text-foreground"
-              >
-                {data.commit.subject}
-              </Text>
-              {data.commit.body ? (
-                <Text className="text-sm leading-6 text-foreground">
-                  {data.commit.body}
+              </>
+            ) : null}
+            {data ? (
+              <>
+                <CommitMetadata
+                  data={data}
+                  parent={parent}
+                  onParent={onParent}
+                />
+                <Text accessibilityRole="header" style={section}>
+                  Changed files
                 </Text>
-              ) : null}
-              {data.commit.subjectTruncated || data.commit.bodyTruncated ? (
-                <Text className="text-sm text-muted-foreground">
-                  Commit message truncated
-                </Text>
-              ) : null}
-              <Text className="text-sm text-muted-foreground">
-                {data.commit.author.name} · {data.commit.author.timestamp}
-              </Text>
-              <Text
-                selectable
-                className="font-mono text-xs text-muted-foreground"
-              >
-                {oid}
-              </Text>
-              <Text className="text-sm text-muted-foreground">
-                {data.comparison.kind === 'empty-tree'
-                  ? 'Root commit'
-                  : `Against parent ${data.comparison.parentNumber} · ${data.comparison.baseOid.slice(0, 7)}`}
-              </Text>
-              {data.commit.parentOids.length > 1 ? (
-                <View className="gap-2">
-                  <Text
-                    accessibilityRole="header"
-                    className="text-sm font-medium text-foreground"
-                  >
-                    Compare with parent
-                  </Text>
-                  {data.commit.parentOids.map((parentOid, index) => (
-                    <Host key={parentOid} matchContents={{ vertical: true }}>
-                      <Button
-                        label={`Parent ${index + 1} · ${parentOid.slice(0, 7)}${parent === index + 1 ? ' (selected)' : ''}`}
-                        variant="text"
-                        onPress={() => onParent(index + 1)}
-                      />
-                    </Host>
-                  ))}
-                </View>
-              ) : null}
-              <Text
-                accessibilityRole="header"
-                className="text-base font-semibold text-foreground"
-              >
-                Changed files
-              </Text>
-              {data.files.length === 0 ? (
-                <Text className="text-sm text-muted-foreground">
-                  No files changed in this commit.
-                </Text>
-              ) : null}
-            </>
-          ) : null}
-        </View>
-      }
-      renderItem={({ item: file }) => (
-        <View className="mx-6 gap-1 border-b border-border py-3">
-          <Host matchContents={{ vertical: true }}>
-            <Button
-              label={commitFileLabel(file)}
-              variant="text"
-              onPress={() => setSelectedFile(file)}
-            />
-          </Host>
-          <Text className="text-xs text-muted-foreground">{file.status}</Text>
-        </View>
-      )}
-    />
+              </>
+            ) : null}
+          </View>
+        }
+        renderItem={({ item }) => (
+          <CommitFileRow file={item} onOpen={() => setSelectedFile(item)} />
+        )}
+      />
+    </View>
   );
 }
 
@@ -187,37 +160,53 @@ function CommitFileDiff({
   onBack: () => void;
 }) {
   const diff = useCommitDiff(workspace, oid, parent, file);
+  const surface = useResolveClassNames('min-h-0 flex-1 bg-background');
+  const toolbar = useResolveClassNames(
+    'shrink-0 flex-row flex-wrap items-center gap-3 border-b border-border px-4 py-2',
+  );
+  const heading = useResolveClassNames('min-w-0 flex-1 gap-0.5');
+  const title = useResolveClassNames(
+    'font-mono text-sm font-semibold text-foreground',
+  );
+  const caption = useResolveClassNames('text-xs text-muted-foreground');
+  const message = useResolveClassNames(
+    'px-4 py-4 text-sm text-muted-foreground',
+  );
+  const error = useResolveClassNames('px-4 py-4 text-sm text-destructive');
   return (
-    <View className="flex-1 bg-background">
-      <View className="gap-4 px-6 py-6">
-        <Host matchContents={{ vertical: true }}>
-          <Button label="Back to commit" variant="text" onPress={onBack} />
-        </Host>
-        <Text
-          accessibilityRole="header"
-          className="text-base font-semibold text-foreground"
-        >
-          {commitFileLabel(file)}
-        </Text>
-        {diff.isPending ? (
-          <Text className="text-sm text-muted-foreground">Reading diff…</Text>
-        ) : null}
-        {diff.error ? (
-          <>
-            <Text className="text-sm text-destructive">
-              Could not read diff. {diff.error.message}
-            </Text>
-            <Host matchContents={{ vertical: true }}>
-              <Button
-                label="Read diff again"
-                variant="text"
-                onPress={diff.read}
-              />
-            </Host>
-          </>
-        ) : null}
+    <View style={surface}>
+      <View style={toolbar}>
+        <Button
+          label="Back to commit"
+          variant="ghost"
+          size="sm"
+          onPress={onBack}
+        />
+        <View style={heading}>
+          <Text style={title}>{oid.slice(0, 7)}</Text>
+          <Text style={caption}>{file.status}</Text>
+        </View>
       </View>
-      {diff.content ? <FileDiff content={diff.content} /> : null}
+      {diff.isPending ? (
+        <Text accessibilityLiveRegion="polite" style={message}>
+          Reading diff…
+        </Text>
+      ) : null}
+      {diff.error ? (
+        <>
+          <Text accessibilityRole="alert" style={error}>
+            Could not read diff. {diff.error.message}
+          </Text>
+          <Button
+            label="Read diff again"
+            variant="outline"
+            onPress={diff.read}
+          />
+        </>
+      ) : null}
+      {diff.content ? (
+        <FileDiff content={diff.content} path={commitFileLabel(file)} />
+      ) : null}
     </View>
   );
 }
