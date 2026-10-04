@@ -5080,7 +5080,8 @@ export const scriptEvasions = [
   ['playwright test --list', [['playwright', 'test']]],
   ['turbo run test --dry-run', [['turbo', 'run', 'test']]],
 ];
-
+const unshardedMobileRun =
+  'pnpm --filter @porcelain/mobile exec vitest run --config ../../vitest.config.ts --project ${{ matrix.project }}';
 export const affectedE2eCases = [
   ['desktop', 'needs', undefined],
   ['desktop', 'if', undefined],
@@ -5088,14 +5089,12 @@ export const affectedE2eCases = [
   ['mobile', 'needs', undefined],
   ['mobile', 'if', undefined],
   ['mobile', 'runs-on', 'ubuntu-latest'],
-  [
-    'mobile',
-    'strategy',
-    {
-      matrix: {
-        include: [{ device: 'iphone', project: '@porcelain/mobile-e2e' }],
-      },
-    },
-  ],
+  ['mobile', 'strategy', undefined],
+  ['mobile', 'steps', [{ run: unshardedMobileRun }]],
   ['mobile', 'steps', []],
+];
+export const mobileShardCases = [
+  [0, 0, 2, 3],
+  [0, 1, 3],
+  [0, 1, 2],
 ];

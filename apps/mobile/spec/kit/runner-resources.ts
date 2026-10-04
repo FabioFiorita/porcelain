@@ -21,7 +21,7 @@ const commands: readonly (readonly [string, ...string[]])[] = [
     '-stats',
     'pid,command,cpu,mem,threads',
   ],
-  ['ps', '-axo', 'pid,ppid,%cpu,rss,comm'],
+  ['ps', '-Ao', 'pid,ppid,pcpu,rss,comm', '-r'],
   ['xcrun', 'simctl', 'list', 'devices', 'booted', '--json'],
 ];
 

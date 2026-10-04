@@ -1,5 +1,6 @@
 import { execFile } from 'node:child_process';
-import { mkdir, rm, writeFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import { mkdir, rename, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { promisify } from 'node:util';
@@ -167,6 +168,47 @@ async function suppressSystemFollowUps(udid: string): Promise<void> {
   });
 }
 
+async function suppressBackgroundServices(udid: string): Promise<void> {
+  const folder = join(
+    '/private/var/tmp',
+    `com.apple.CoreSimulator.SimDevice.${udid}`,
+  );
+  const path = join(folder, 'disabled.plist');
+  const labels = [
+    'com.apple.apsd',
+    'com.apple.chronod',
+    'com.apple.PosterBoard',
+    'com.apple.mediaanalysisd',
+    'com.apple.mediaanalysisd.service',
+    'com.apple.photoanalysisd',
+  ];
+  const entries = existsSync(path)
+    ? z
+        .record(z.string(), z.boolean())
+        .parse(
+          JSON.parse(
+            (await execute('plutil', ['-convert', 'json', '-o', '-', path]))
+              .stdout,
+          ),
+        )
+    : {};
+  await mkdir(folder, { recursive: true, mode: 0o700 });
+  const temporary = join(folder, 'porcelain-disabled.plist');
+  await writeFile(
+    temporary,
+    JSON.stringify({
+      ...entries,
+      ...Object.fromEntries(labels.map((label) => [label, true])),
+    }),
+    { mode: 0o644 },
+  );
+  await execute('plutil', ['-convert', 'xml1', temporary]);
+  await rename(temporary, path);
+  console.info(
+    `CI simulator ${udid} disables background services: ${labels.join(', ')}`,
+  );
+}
+
 export async function bootSimulator(
   kind: DeviceKind,
   label: string,
@@ -182,6 +224,8 @@ export async function bootSimulator(
     idle?.udid ??
     (await simctl('create', name, type.identifier, runtime.identifier)).trim();
   await suppressSystemFollowUps(udid);
+  if (process.env.CI === 'true' && label === 'e2e')
+    await suppressBackgroundServices(udid);
   await simctl('boot', udid);
   await simctl('bootstatus', udid, '-b');
   const languages = await simctl(

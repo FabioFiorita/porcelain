@@ -10,6 +10,7 @@ import ruleCases, {
   scriptEvasions,
   proseCases,
   affectedE2eCases,
+  mobileShardCases,
 } from './rule-cases.mjs';
 import { unownedProse } from './prose-policy.ts';
 import { scriptInvokes } from './script-policy.ts';
@@ -509,6 +510,12 @@ for (const [app, field, value] of affectedE2eCases) {
   const changed = structuredClone(checks);
   changed.jobs[`${app}-e2e`][field] = value;
   ok(affectedE2eProblems(changed).length > 0, `${app}: ${field}`);
+}
+for (const indices of mobileShardCases) {
+  const changed = structuredClone(checks);
+  const matrix = changed.jobs['mobile-e2e'].strategy.matrix;
+  matrix.include = indices.map((index) => matrix.include[index]);
+  ok(affectedE2eProblems(changed).length > 0);
 }
 for (const app of ['desktop', 'mobile']) {
   const changed = structuredClone(checks);

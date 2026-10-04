@@ -17,6 +17,8 @@ const workflowSchema = z.object({
     }),
   ),
 });
+const mobileRun =
+  'pnpm --filter @porcelain/mobile exec vitest run --config ../../vitest.config.ts --project ${{ matrix.project }} --shard ${{ matrix.shard }}/${{ matrix.shards }}';
 export function affectedE2eProblems(document: unknown): string[] {
   const parsed = workflowSchema.safeParse(document);
   const jobs = parsed.success ? parsed.data.jobs : {};
@@ -37,19 +39,17 @@ export function affectedE2eProblems(document: unknown): string[] {
   const mobile = jobs['mobile-e2e'];
   if (
     !isDeepStrictEqual(mobile?.strategy?.matrix, {
-      include: [
-        { device: 'iphone', project: '@porcelain/mobile-e2e' },
-        { device: 'ipad', project: '@porcelain/mobile-e2e-tablet' },
-      ],
+      include: ['iphone', 'iphone', 'iphone', 'ipad'].map((device, index) => ({
+        device,
+        project: `@porcelain/mobile-e2e${device === 'ipad' ? '-tablet' : ''}`,
+        shard: device === 'ipad' ? 1 : index + 1,
+        shards: device === 'ipad' ? 1 : 3,
+      })),
     }) ||
-    !mobile?.steps.some(
-      (step) =>
-        step.run ===
-        'pnpm --filter @porcelain/mobile exec vitest run --config ../../vitest.config.ts --project ${{ matrix.project }}',
-    )
+    !mobile?.steps.some((step) => step.run === mobileRun)
   )
     problems.push(
-      'mobile-e2e runs the iPhone and iPad projects in separate matrix jobs, so neither native surface silently escapes CI.',
+      'mobile-e2e runs every iPhone shard and the iPad project in separate matrix jobs, so neither native surface silently escapes CI.',
     );
   return problems;
 }
