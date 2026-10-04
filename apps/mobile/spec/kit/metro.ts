@@ -1,5 +1,6 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 import { openSync } from 'node:fs';
+import { appendFile } from 'node:fs/promises';
 import { createServer } from 'node:net';
 import { join } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
@@ -40,7 +41,7 @@ function exited(child: ChildProcess): boolean {
   return child.exitCode !== null || child.signalCode !== null;
 }
 
-async function warmBundle(url: string, child: ChildProcess): Promise<void> {
+async function warmBundle(url: string, log: string): Promise<void> {
   const manifest = await fetch(url, {
     headers: {
       'expo-platform': 'ios',
@@ -54,19 +55,27 @@ async function warmBundle(url: string, child: ChildProcess): Promise<void> {
   const { launchAsset } = z
     .object({ launchAsset: z.object({ url: z.url() }) })
     .parse(await manifest.json());
-  const bundle = launchAsset.url;
-  const deadline = Date.now() + bundleLimitMs;
-  while (Date.now() < deadline && !exited(child)) {
-    const response = await fetch(bundle, {
-      signal: AbortSignal.timeout(bundleLimitMs),
-    }).catch(() => undefined);
-    if (response?.ok) {
-      await response.arrayBuffer();
-      return;
-    }
-    await sleep(pollMs);
-  }
-  throw new Error(`Metro did not build the iOS bundle at ${url}`);
+  const launch = new URL(launchAsset.url);
+  const bundle = new URL(launch.pathname + launch.search, url);
+  await appendFile(
+    log,
+    `\nWarm iOS launch bundle ${launch.href} through ${bundle.href}\n`,
+  );
+  const response = await fetch(bundle, {
+    signal: AbortSignal.timeout(bundleLimitMs),
+  }).catch((error: unknown) => {
+    throw new Error(
+      `Metro could not fetch the iOS launch bundle at ${bundle.href}`,
+      {
+        cause: error,
+      },
+    );
+  });
+  if (!response.ok)
+    throw new Error(
+      `Metro returned ${response.status} for the iOS launch bundle at ${bundle.href}: ${(await response.text()).slice(0, 1000)}`,
+    );
+  await response.arrayBuffer();
 }
 
 export async function startMetro(
@@ -106,7 +115,7 @@ export async function startMetro(
         throw new Error(`Metro did not answer ${url}/status; read ${log}`);
       await sleep(pollMs);
     }
-    await warmBundle(url, child);
+    await warmBundle(url, log);
   } catch (error) {
     stop();
     throw error;

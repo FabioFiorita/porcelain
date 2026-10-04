@@ -28,7 +28,7 @@ CI runs both mobile e2e projects on separate GitHub-hosted macOS runners when mo
 
 Before boot, the kit stamps the Apple Intelligence readiness preference and clears queued CoreFollowUp banners in its own simulator's data directory, so system onboarding does not cover the app. Native builds regenerate the ignored iOS project with `expo prebuild --clean --platform ios` before xcodebuild; a cached `.app` skips both commands.
 
-Metro startup warms the `launchAsset.url` from its iOS manifest, including Expo's Hermes transform options, before a simulator requests it. A handwritten bundle URL can warm a different transform and leave the first flow waiting for a cold bundle on CI. Both matrix jobs finish independently, so a failing flow on one device preserves the other device's result; test retries are not added.
+Metro startup warms the launch asset path and options from its iOS manifest through the same origin that answered readiness, before a simulator requests it. Expo can advertise `127.0.0.1` even when `localhost` reaches Metro over IPv6. The log records both URLs; one bundle request waits for the real transform and reports its HTTP or network error directly. A handwritten bundle URL can warm a different transform and leave the first flow waiting for a cold bundle on CI. Both matrix jobs finish independently, so a failing flow on one device preserves the other device's result; test retries are not added.
 
 - iPhone and iPad need separate drives. Android needs its own build and native proof; an iOS drive does not cover it.
 - A simulator proves loopback and LAN transport, but iOS Local Network permission, denial and retry require a physical device.
