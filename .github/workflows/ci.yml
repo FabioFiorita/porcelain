@@ -79,7 +79,9 @@ jobs:
         if: failure()
         with:
           name: desktop-e2e
-          path: apps/desktop/test-results/
+          path: |
+            apps/desktop/test-results/
+            ~/Library/Logs/DiagnosticReports/
 
   # Temporary investigation jobs; remove before leaving draft.
   desktop-stress:
@@ -100,6 +102,8 @@ jobs:
             arguments: spec/e2e/window.e2e.ts --grep "Quit during app request setup" --repeat-each=100
           - target: reopen-quit
             arguments: spec/e2e/window.e2e.ts --grep "Quit while reopening" --repeat-each=100
+          - target: native-quit
+            arguments: spec/e2e/menus.e2e.ts --grep "without a Vite server" --repeat-each=100
           - target: credentials
             arguments: spec/e2e/bridge.e2e.ts --grep "restores it after a restart" --repeat-each=100
     steps:
@@ -125,4 +129,6 @@ jobs:
         if: always()
         with:
           name: desktop-stress-${{ matrix.target }}
-          path: apps/desktop/test-results/
+          path: |
+            apps/desktop/test-results/
+            ~/Library/Logs/DiagnosticReports/

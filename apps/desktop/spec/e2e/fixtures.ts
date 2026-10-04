@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs';
-import { mkdtemp, readFile, realpath, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import {
   _electron,
@@ -333,26 +333,31 @@ async function keepScreenshots(
   }
 }
 
+async function keepLog(
+  testInfo: TestInfo,
+  name: string,
+  body: string | Buffer,
+): Promise<void> {
+  const path = testInfo.outputPath(name);
+  await writeFile(path, body);
+  await testInfo.attach(name, { path, contentType: 'text/plain' });
+}
+
 async function keepFailure(
   launched: readonly DesktopApp[],
   testInfo: TestInfo,
 ): Promise<void> {
   for (const [index, desktop] of launched.entries()) {
-    await testInfo.attach(`app-${index}-main.log`, {
-      body: desktop.output.join(''),
-      contentType: 'text/plain',
-    });
+    await keepLog(testInfo, `app-${index}-main.log`, desktop.output.join(''));
     const log = join(desktop.profile, 'logs', 'server.log');
     if (existsSync(log))
-      await testInfo.attach(`app-${index}-server.log`, {
-        body: await readFile(log),
-        contentType: 'text/plain',
-      });
+      await keepLog(testInfo, `app-${index}-server.log`, await readFile(log));
     if (desktop.errors.length > 0)
-      await testInfo.attach(`app-${index}-renderer-errors.txt`, {
-        body: desktop.errors.join('\n'),
-        contentType: 'text/plain',
-      });
+      await keepLog(
+        testInfo,
+        `app-${index}-renderer-errors.txt`,
+        desktop.errors.join('\n'),
+      );
   }
 }
 
