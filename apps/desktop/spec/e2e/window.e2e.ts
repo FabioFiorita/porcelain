@@ -41,6 +41,27 @@ async function openSmokeProject(page: Page, repository: string) {
   return project;
 }
 
+async function quitDuringRequestSetup(app: DesktopApp, path: string) {
+  const marker = 'Porcelain e2e: quit during request setup';
+  await app.electron.evaluate(
+    ({ app, net }, { marker, path }) => {
+      const quit = (url: string) => {
+        if (new URL(url).pathname + new URL(url).search !== path) return;
+        process.stderr.write(`${marker}\n`);
+        app.quit();
+      };
+      const nativeRequest = net.request.bind(net);
+      net.request = (...args: Parameters<typeof net.request>) => {
+        const options = args[0];
+        quit(typeof options === 'string' ? options : (options.url ?? ''));
+        return nativeRequest(...args);
+      };
+    },
+    { marker, path },
+  );
+  return marker;
+}
+
 function sidebarInset(page: Page) {
   return page.evaluate(() => {
     const header = document.querySelector('.desktop-sidebar-header');
@@ -257,31 +278,7 @@ test('Quit during app request setup cancels forwarding without a main-process ex
   const { pid } = await app.server();
   const marker = 'Porcelain e2e: quit during request setup';
   const child = app.electron.process();
-  await app.electron.evaluate(({ app, net }, marker) => {
-    const quit = (url: string) => {
-      if (!url.endsWith('?quit-during-setup=1')) return;
-      process.stderr.write(`${marker}\n`);
-      app.quit();
-    };
-    const nativeRequest = net.request.bind(net);
-    net.request = (...args: Parameters<typeof net.request>) => {
-      const options = args[0];
-      quit(typeof options === 'string' ? options : (options.url ?? ''));
-      return nativeRequest(...args);
-    };
-    const nodeFetch = globalThis.fetch;
-    globalThis.fetch = (...args: Parameters<typeof fetch>) => {
-      const input = args[0];
-      quit(
-        typeof input === 'string'
-          ? input
-          : input instanceof URL
-            ? input.href
-            : input.url,
-      );
-      return nodeFetch(...args);
-    };
-  }, marker);
+  await quitDuringRequestSetup(app, '/api/inventory?quit-during-setup=1');
   const request = page
     .evaluate(() => fetch('/api/inventory?quit-during-setup=1'))
     .catch((error: unknown) => {
@@ -292,6 +289,39 @@ test('Quit during app request setup cancels forwarding without a main-process ex
   await app.quit();
   await request;
   expect(child.exitCode).toBe(0);
+  expect(app.output.join('')).not.toContain('ReferenceError');
+  expect(existsSync(join(app.serverData, 'server.sock'))).toBe(false);
+  expect(processAlive(pid)).toBe(false);
+});
+
+test('Quit while reopening the window cancels its initial load without showing a failure dialog', async ({
+  desktop,
+}) => {
+  const app = await desktop.launch();
+  const page = await app.window();
+  await expect(
+    page.getByRole('button', { name: 'Open project', exact: true }),
+  ).toBeVisible();
+  const { pid } = await app.server();
+  const child = app.electron.process();
+  const windowClosed = page.waitForEvent('close');
+  await app.electron.evaluate(({ BrowserWindow }) => {
+    BrowserWindow.getAllWindows()[0]?.close();
+  });
+  await windowClosed;
+  const marker = await quitDuringRequestSetup(app, '/');
+  const activation = app.electron
+    .evaluate(({ app }) => app.emit('activate'))
+    .catch((error: unknown) => {
+      if (!(error instanceof Error) || !error.message.includes('closed'))
+        throw error;
+    });
+  await expect.poll(() => app.output.join('')).toContain(marker);
+  await app.quit();
+  await activation;
+  expect(child.exitCode).toBe(0);
+  expect(app.output.join('')).not.toContain('ERR_ABORTED');
+  expect(app.output.join('')).not.toContain('ERR_FAILED');
   expect(app.output.join('')).not.toContain('ReferenceError');
   expect(existsSync(join(app.serverData, 'server.sock'))).toBe(false);
   expect(processAlive(pid)).toBe(false);

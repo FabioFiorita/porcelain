@@ -49,6 +49,7 @@ export function processAlive(pid: number): boolean {
 export class DesktopApp {
   readonly electron: ElectronApplication;
   private readonly child: ReturnType<ElectronApplication['process']>;
+  private readonly exited: Promise<void>;
   readonly profile: string;
   readonly errors: string[] = [];
   readonly output: string[] = [];
@@ -57,6 +58,9 @@ export class DesktopApp {
   constructor(electron: ElectronApplication, profile: string) {
     this.electron = electron;
     this.child = electron.process();
+    this.exited = new Promise<void>((resolveExit) =>
+      this.child.once('close', () => resolveExit()),
+    );
     this.profile = profile;
     this.child.stderr?.on('data', (chunk: Buffer) => {
       this.output.push(chunk.toString());
@@ -83,7 +87,31 @@ export class DesktopApp {
 
   async window(): Promise<Page> {
     const page = this.watch(
-      await this.electron.firstWindow({ timeout: launchWithinMs }),
+      await this.electron
+        .firstWindow({ timeout: launchWithinMs })
+        .catch(async (error: unknown) => {
+          await this.electron
+            .evaluate(({ app, BrowserWindow }) => {
+              process.stderr.write(
+                `Porcelain e2e: window unavailable ${JSON.stringify({
+                  ready: app.isReady(),
+                  windows: BrowserWindow.getAllWindows().map((view) => ({
+                    url: view.webContents.getURL(),
+                    visible: view.isVisible(),
+                    loading: view.webContents.isLoading(),
+                  })),
+                  resources: process.getActiveResourcesInfo(),
+                  processes: app.getAppMetrics().map(({ pid, type, name }) => ({
+                    pid,
+                    type,
+                    name,
+                  })),
+                })}\n`,
+              );
+            })
+            .catch(() => undefined);
+          throw error;
+        }),
     );
     await page.waitForURL(
       (url) =>
@@ -182,11 +210,14 @@ export class DesktopApp {
 
   quit(): Promise<void> {
     const child = this.child;
+    const checkExit = () => {
+      if (child.exitCode !== 0)
+        throw new Error(
+          `The app exited abnormally (process ${child.pid}, exit ${child.exitCode}, signal ${child.signalCode})\n${this.output.join('')}`,
+        );
+    };
     if (child.exitCode !== null || child.signalCode !== null)
-      return Promise.resolve();
-    const exited = new Promise<void>((resolveExit) =>
-      child.once('close', () => resolveExit()),
-    );
+      return this.exited.then(checkExit);
     const timeout = AbortSignal.timeout(quitWithinMs);
     const expiration = Promise.withResolvers<never>();
     const expired = () => {
@@ -196,7 +227,18 @@ export class DesktopApp {
     };
     timeout.addEventListener('abort', expired, { once: true });
     return Promise.race([
-      Promise.all([this.electron.close(), exited]).then(() => undefined),
+      Promise.all([
+        this.electron
+          .evaluate(({ app }) => app.quit())
+          .catch((error: unknown) => {
+            if (!(error instanceof Error) || !error.message.includes('closed'))
+              throw error;
+          }),
+        this.exited,
+      ]).then(async () => {
+        checkExit();
+        await this.electron.close();
+      }),
       expiration.promise,
     ]).finally(() => timeout.removeEventListener('abort', expired));
   }

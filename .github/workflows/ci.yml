@@ -91,13 +91,15 @@ jobs:
       matrix:
         include:
           - target: suite-a
-            arguments: --repeat-each=10
+            arguments: --repeat-each=20
           - target: suite-b
             arguments: --repeat-each=10
           - target: restore
             arguments: spec/e2e/window.e2e.ts --grep "restarting restores" --repeat-each=100
           - target: quit-setup
             arguments: spec/e2e/window.e2e.ts --grep "Quit during app request setup" --repeat-each=100
+          - target: reopen-quit
+            arguments: spec/e2e/window.e2e.ts --grep "Quit while reopening" --repeat-each=100
           - target: credentials
             arguments: spec/e2e/bridge.e2e.ts --grep "restores it after a restart" --repeat-each=100
     steps:

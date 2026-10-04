@@ -1,4 +1,4 @@
-import { protocol } from 'electron';
+import { net, protocol } from 'electron';
 import {
   appRequestRefusal,
   appRequestTarget,
@@ -27,6 +27,20 @@ export function registerDesktopScheme() {
   ]);
 }
 
+async function fetchDesktop(
+  input: string,
+  init: RequestInit & { signal: AbortSignal },
+): Promise<Response> {
+  const signal = init.signal;
+  signal.throwIfAborted();
+  const cancellation = new AbortController();
+  const response = net.fetch(input, { ...init, signal: cancellation.signal });
+  const abort = () => cancellation.abort(signal.reason);
+  if (signal.aborted) abort();
+  else signal.addEventListener('abort', abort, { once: true });
+  return response;
+}
+
 async function remoteSummary(
   request: Request,
   signal: AbortSignal,
@@ -34,7 +48,7 @@ async function remoteSummary(
   const target = remoteSummaryTarget(request.url);
   if (request.method !== 'GET' || target === undefined)
     return new Response('Unknown review summary', { status: 404 });
-  const response = await fetch(target, {
+  const response = await fetchDesktop(target, {
     credentials: 'omit',
     redirect: 'manual',
     signal,
@@ -77,7 +91,7 @@ export function serveDesktop(
     const target = appRequestTarget(request.url, web ?? server.address);
     if (target === undefined)
       return new Response('Unknown server origin', { status: 403 });
-    const response = await fetch(target, {
+    const response = await fetchDesktop(target, {
       method: request.method,
       headers:
         web === undefined
