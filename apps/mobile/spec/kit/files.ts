@@ -1,9 +1,20 @@
 import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
+import {
+  listDirectoryEndpoint,
+  listWorktreePathsEndpoint,
+  readTextFileEndpoint,
+} from '@porcelain/contracts/files';
 import { readInventoryResponseSchema } from '@porcelain/contracts/projects';
 import { TEXT_BYTES } from '@porcelain/contracts/shared';
 import type { Session } from '@porcelain/server/kit/session';
 import type { Environment } from './environment.ts';
+
+const fileReadRoutes = new Set(
+  [listDirectoryEndpoint, listWorktreePathsEndpoint, readTextFileEndpoint].map(
+    (endpoint) => `${endpoint.prefix}${endpoint.path}`,
+  ),
+);
 
 export class FilesFixture {
   readonly environment: Environment;
@@ -73,7 +84,8 @@ export class FilesFixture {
               (hit) =>
                 hit.method === 'GET' &&
                 hit.status === 200 &&
-                hit.route?.startsWith('/api/worktrees/'),
+                hit.route !== undefined &&
+                fileReadRoutes.has(hit.route),
             )
             .map((hit) => hit.route),
         ),
