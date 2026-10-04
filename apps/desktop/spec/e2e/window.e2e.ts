@@ -105,6 +105,21 @@ async function maximize(app: DesktopApp) {
     .toBe(true);
 }
 
+async function closeWindow(app: DesktopApp, page: Page) {
+  const rendererClosed = page.waitForEvent('close');
+  const remaining = await app.electron.evaluate(async ({ BrowserWindow }) => {
+    const view = BrowserWindow.getAllWindows()[0];
+    if (view === undefined) throw new Error('The app window is missing');
+    await new Promise<void>((resolve) => {
+      view.once('closed', resolve);
+      view.close();
+    });
+    return BrowserWindow.getAllWindows().length;
+  });
+  await rendererClosed;
+  expect(remaining).toBe(0);
+}
+
 test('the app serves its window from a private loopback server that refuses other callers and keeps its credential from the renderer', async ({
   desktop,
 }) => {
@@ -295,11 +310,7 @@ test('closing the last window keeps the same server, the Dock reopens the window
   await openSmokeProject(page, desktop.repository);
   const { pid } = await app.server();
 
-  const windowClosed = page.waitForEvent('close');
-  await app.electron.evaluate(({ BrowserWindow }) => {
-    BrowserWindow.getAllWindows()[0]?.close();
-  });
-  await windowClosed;
+  await closeWindow(app, page);
   expect(app.electron.windows()).toHaveLength(0);
   expect((await app.server()).pid).toBe(pid);
 
@@ -385,11 +396,7 @@ test('Quit while reopening the window cancels its initial load without showing a
   ).toBeVisible();
   const { pid } = await app.server();
   const child = app.electron.process();
-  const windowClosed = page.waitForEvent('close');
-  await app.electron.evaluate(({ BrowserWindow }) => {
-    BrowserWindow.getAllWindows()[0]?.close();
-  });
-  await windowClosed;
+  await closeWindow(app, page);
   const marker = await quitDuringRequestSetup(app, '/');
   const activation = app.electron
     .evaluate(({ app }) => app.emit('activate'))
