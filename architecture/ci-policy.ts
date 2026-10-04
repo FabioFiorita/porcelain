@@ -6,6 +6,10 @@ const workflowSchema = z.object({
   jobs: z.record(
     z.string(),
     z.object({
+      needs: z.string().optional(),
+      if: z.string().optional(),
+      'runs-on': z.string().optional(),
+      outputs: z.record(z.string(), z.string()).optional(),
       strategy: z
         .object({ matrix: z.unknown(), 'fail-fast': z.unknown().optional() })
         .optional(),
@@ -13,6 +17,42 @@ const workflowSchema = z.object({
     }),
   ),
 });
+export function affectedE2eProblems(document: unknown): string[] {
+  const parsed = workflowSchema.safeParse(document);
+  const jobs = parsed.success ? parsed.data.jobs : {};
+  const problems: string[] = [];
+  for (const app of ['desktop', 'mobile']) {
+    const job = jobs[`${app}-e2e`];
+    if (
+      jobs.checks?.outputs?.[app] !== `\${{ steps.affected.outputs.${app} }}` ||
+      job?.needs !== 'checks' ||
+      job.if !==
+        `\${{ !cancelled() && needs.checks.outputs.${app} == 'true' }}` ||
+      job['runs-on'] !== 'macos-latest'
+    )
+      problems.push(
+        `${app}-e2e follows the affected output on macos-latest, so native tests run for every affected change.`,
+      );
+  }
+  const mobile = jobs['mobile-e2e'];
+  if (
+    !isDeepStrictEqual(mobile?.strategy?.matrix, {
+      include: [
+        { device: 'iphone', project: '@porcelain/mobile-e2e' },
+        { device: 'ipad', project: '@porcelain/mobile-e2e-tablet' },
+      ],
+    }) ||
+    !mobile?.steps.some(
+      (step) =>
+        step.run ===
+        'pnpm --filter @porcelain/mobile exec vitest run --config ../../vitest.config.ts --project ${{ matrix.project }}',
+    )
+  )
+    problems.push(
+      'mobile-e2e runs the iPhone and iPad projects in separate matrix jobs, so neither native surface silently escapes CI.',
+    );
+  return problems;
+}
 const probeRun = /^pnpm probes(?:\s|$)/;
 const shardRun = /^pnpm probes --shard \$\{\{ matrix\.shard \}\}\/([1-9]\d*)$/;
 

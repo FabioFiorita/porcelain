@@ -18,6 +18,7 @@ jobs:
     timeout-minutes: 30
     outputs:
       desktop: ${{ steps.affected.outputs.desktop }}
+      mobile: ${{ steps.affected.outputs.mobile }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -32,7 +33,7 @@ jobs:
         id: affected
         run: |
           pnpm exec turbo run test:e2e --affected --dry=json > "$RUNNER_TEMP/e2e.json"
-          for app in web desktop; do
+          for app in web desktop mobile; do
             echo "$app=$(jq --arg task "@porcelain/$app#test:e2e" 'any(.tasks[]; .taskId == $task)' "$RUNNER_TEMP/e2e.json")" >> "$GITHUB_OUTPUT"
           done
           cat "$GITHUB_OUTPUT"
@@ -75,3 +76,60 @@ jobs:
         with:
           name: desktop-e2e
           path: apps/desktop/test-results/
+
+  mobile-e2e:
+    needs: checks
+    if: ${{ !cancelled() && needs.checks.outputs.mobile == 'true' }}
+    runs-on: macos-latest
+    timeout-minutes: 45
+    strategy:
+      matrix:
+        include:
+          - device: iphone
+            project: '@porcelain/mobile-e2e'
+          - device: ipad
+            project: '@porcelain/mobile-e2e-tablet'
+    env:
+      MAESTRO_DRIVER_STARTUP_TIMEOUT: 180000
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
+      - name: Set up pnpm and Node
+        uses: pnpm/setup@v3
+        with:
+          runtime: node@24.20.0
+          cache: true
+          require-lockfile: true
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Check Java and install Maestro
+        run: |
+          java -version
+          curl -fsSL https://get.maestro.mobile.dev | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+      - name: Identify the native development client
+        id: native
+        run: |
+          node --input-type=module <<'JS' >> "$GITHUB_OUTPUT"
+          import { nativeFingerprint, sharedClientPath } from './apps/mobile/spec/kit/development-client.ts';
+          console.log(`fingerprint=${nativeFingerprint()}`);
+          console.log(`app=${sharedClientPath(nativeFingerprint())}`);
+          JS
+          echo "xcode=$(xcodebuild -version | shasum -a 256 | cut -d ' ' -f 1)" >> "$GITHUB_OUTPUT"
+      - name: Restore the built simulator app
+        id: client
+        uses: actions/cache@v6
+        with:
+          path: ${{ steps.native.outputs.app }}
+          key: mobile-client-${{ runner.os }}-${{ runner.arch }}-${{ steps.native.outputs.xcode }}-${{ steps.native.outputs.fingerprint }}
+      - name: Build the development client on a cache miss
+        if: steps.client.outputs.cache-hit != 'true'
+        run: .agents/skills/mobile-verify/scripts/cli build
+      - name: Run the ${{ matrix.device }} e2e suite
+        run: pnpm --filter @porcelain/mobile exec vitest run --config ../../vitest.config.ts --project ${{ matrix.project }}
+      - name: Upload mobile failure evidence
+        uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: mobile-e2e-${{ matrix.device }}
+          path: apps/mobile/test-results/

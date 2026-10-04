@@ -24,6 +24,8 @@ pnpm --filter @porcelain/mobile exec vitest run --config ../../vitest.config.ts 
 
 ## What a drive cannot prove
 
+CI runs both mobile e2e projects on separate GitHub-hosted macOS runners when mobile is affected. It uses the official Maestro CLI and the repository's development-client build, cached by native fingerprint, runner architecture and Xcode. With no `.mobile-device-host.json`, each job uses its local simulator with no simulator limit. Full suites belong to CI; locally run only the changed feature's named tests. Failure evidence is uploaded from `apps/mobile/test-results/`.
+
 - iPhone and iPad need separate drives. Android needs its own build and native proof; an iOS drive does not cover it.
 - A simulator proves loopback and LAN transport, but iOS Local Network permission, denial and retry require a physical device.
 - The iOS accessibility backend can omit a native tab's selected trait; inspect a screenshot. Maestro uses XCTest to assert selection.

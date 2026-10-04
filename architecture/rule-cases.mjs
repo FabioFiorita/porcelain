@@ -5080,3 +5080,22 @@ export const scriptEvasions = [
   ['playwright test --list', [['playwright', 'test']]],
   ['turbo run test --dry-run', [['turbo', 'run', 'test']]],
 ];
+
+export const affectedE2eCases = [
+  ['desktop', 'needs', undefined],
+  ['desktop', 'if', undefined],
+  ['desktop', 'runs-on', 'ubuntu-latest'],
+  ['mobile', 'needs', undefined],
+  ['mobile', 'if', undefined],
+  ['mobile', 'runs-on', 'ubuntu-latest'],
+  [
+    'mobile',
+    'strategy',
+    {
+      matrix: {
+        include: [{ device: 'iphone', project: '@porcelain/mobile-e2e' }],
+      },
+    },
+  ],
+  ['mobile', 'steps', []],
+];

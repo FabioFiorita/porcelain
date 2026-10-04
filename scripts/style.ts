@@ -36,7 +36,10 @@ import {
 } from '../architecture/guardrail-budget.ts';
 import { scriptInvokes } from '../architecture/script-policy.ts';
 import { unownedProse } from '../architecture/prose-policy.ts';
-import { manualAuditProblems } from '../architecture/ci-policy.ts';
+import {
+  affectedE2eProblems,
+  manualAuditProblems,
+} from '../architecture/ci-policy.ts';
 import {
   duplicateScope,
   scanDuplicates,
@@ -264,6 +267,9 @@ function ciProblems(): Problem[] {
     documents.get('.github/workflows/ci.yml'),
   );
   return [
+    ...affectedE2eProblems(documents.get('.github/workflows/ci.yml')).map(
+      (message) => problem('ci-steps', message),
+    ),
     ...Object.entries(requiredRuns).flatMap(([path, runs]) => {
       const found = workflowRuns(documents.get(path));
       const missing = runs.filter((run) => {

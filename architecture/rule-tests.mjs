@@ -9,12 +9,14 @@ import ruleCases, {
   scriptCases,
   scriptEvasions,
   proseCases,
+  affectedE2eCases,
 } from './rule-cases.mjs';
 import { unownedProse } from './prose-policy.ts';
 import { scriptInvokes } from './script-policy.ts';
 import { architectureLines } from './guardrail-budget.ts';
 import { readFileSync } from 'node:fs';
-import { manualAuditProblems } from './ci-policy.ts';
+import { affectedE2eProblems, manualAuditProblems } from './ci-policy.ts';
+import { parse } from 'yaml';
 import { preflightEdits } from './probe-edits.ts';
 import { classify, violation } from './policy.ts';
 import {
@@ -446,61 +448,37 @@ const audit = {
     },
   },
 };
-deepStrictEqual(manualAuditProblems(new Map([[path, audit]])), []);
-deepStrictEqual(
-  manualAuditProblems(
-    new Map([[path, { ...audit, on: { pull_request: null } }]]),
-  ),
+const auditProblems = (workflow = audit, other = []) =>
+  manualAuditProblems(new Map([[path, workflow], ...other]));
+const badShards = structuredClone(audit);
+badShards.jobs.probes.strategy = { matrix: { shard: [1] } };
+deepStrictEqual(auditProblems(), []);
+for (const [workflow, expected] of [
   [
-    '.github/workflows/probes.yml: expensive audits run on explicit workflow_dispatch or one weekly schedule, because routine pushes must not run the full audit.',
+    { ...audit, on: { pull_request: null } },
+    `${path}: expensive audits run on explicit workflow_dispatch or one weekly schedule, because routine pushes must not run the full audit.`,
   ],
-);
-deepStrictEqual(
-  manualAuditProblems(new Map([[path, { ...audit, jobs: {} }]])),
   [
+    { ...audit, jobs: {} },
     'Exactly one audit job runs the probe suite, so shards do not duplicate the audit.',
   ],
-);
-deepStrictEqual(
-  manualAuditProblems(
-    new Map([
-      [
-        path,
-        {
-          ...audit,
-          jobs: {
-            probes: {
-              ...audit.jobs.probes,
-              strategy: { matrix: { shard: [1] } },
-            },
-          },
-        },
-      ],
-    ]),
-  ),
   [
-    '.github/workflows/probes.yml job probes: the audit shards plant every probe exactly once, so no probe is silently omitted.',
+    badShards,
+    `${path} job probes: the audit shards plant every probe exactly once, so no probe is silently omitted.`,
   ],
-);
-deepStrictEqual(
-  manualAuditProblems(
-    new Map([
-      [path, audit],
-      [
-        '.github/workflows/runtime-verification.yml',
-        { on: { push: null }, jobs: {} },
-      ],
-    ]),
-  ),
-  [
-    '.github/workflows/runtime-verification.yml: expensive audits run on explicit workflow_dispatch, because routine pushes must not run the full audit.',
-  ],
-);
+])
+  deepStrictEqual(auditProblems(workflow), [expected]);
+const runtimePath = '.github/workflows/runtime-verification.yml';
+const runtimeProblems = (on) =>
+  auditProblems(audit, [[runtimePath, { on, jobs: {} }]]);
+deepStrictEqual(runtimeProblems({ push: null }), [
+  `${runtimePath}: expensive audits run on explicit workflow_dispatch, because routine pushes must not run the full audit.`,
+]);
 for (const on of [
   { workflow_dispatch: null, schedule: [{ cron: '23 6 * * 1' }] },
   { schedule: [{ cron: '23 6 * * 1' }], workflow_dispatch: null },
 ])
-  deepStrictEqual(manualAuditProblems(new Map([[path, { ...audit, on }]])), []);
+  deepStrictEqual(auditProblems({ ...audit, on }), []);
 for (const on of [
   { workflow_dispatch: null, schedule: [{ cron: '23 6 * * *' }] },
   {
@@ -511,45 +489,33 @@ for (const on of [
   { workflow_dispatch: null, push: null },
 ])
   ok(
-    manualAuditProblems(new Map([[path, { ...audit, on }]])).some((problem) =>
+    auditProblems({ ...audit, on }).some((problem) =>
       problem.includes('weekly schedule'),
     ),
   );
 ok(
-  manualAuditProblems(
-    new Map([
-      [path, audit],
-      [
-        '.github/workflows/runtime-verification.yml',
-        {
-          on: { workflow_dispatch: null, schedule: [{ cron: '23 6 * * 1' }] },
-          jobs: {},
-        },
-      ],
-    ]),
-  ).some((problem) =>
-    problem.startsWith('.github/workflows/runtime-verification.yml'),
-  ),
+  runtimeProblems({
+    workflow_dispatch: null,
+    schedule: [{ cron: '23 6 * * 1' }],
+  }).some((problem) => problem.startsWith(runtimePath)),
 );
+const failFast = structuredClone(audit);
+failFast.jobs.probes.strategy['fail-fast'] = true;
+ok(auditProblems(failFast).some((problem) => problem.includes('audit shards')));
 
-ok(
-  manualAuditProblems(
-    new Map([
-      [
-        path,
-        {
-          ...audit,
-          jobs: {
-            probes: {
-              ...audit.jobs.probes,
-              strategy: { ...audit.jobs.probes.strategy, 'fail-fast': true },
-            },
-          },
-        },
-      ],
-    ]),
-  ).some((problem) => problem.includes('audit shards')),
-);
+const checks = parse(readFileSync('.github/workflows/ci.yml', 'utf8'));
+deepStrictEqual(affectedE2eProblems(checks), []);
+for (const [app, field, value] of affectedE2eCases) {
+  ok(typeof app === 'string' && typeof field === 'string');
+  const changed = structuredClone(checks);
+  changed.jobs[`${app}-e2e`][field] = value;
+  ok(affectedE2eProblems(changed).length > 0, `${app}: ${field}`);
+}
+for (const app of ['desktop', 'mobile']) {
+  const changed = structuredClone(checks);
+  delete changed.jobs.checks.outputs[app];
+  ok(affectedE2eProblems(changed).length > 0, `${app}: missing output`);
+}
 
 const source = new Map([['fixture.ts', 'old']]);
 preflightEdits(
