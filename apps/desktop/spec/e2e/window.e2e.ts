@@ -2,7 +2,10 @@ import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { listAccessResponseSchema } from '@porcelain/contracts/access';
-import type { DesktopBridge } from '@porcelain/contracts/desktop';
+import {
+  desktopWindowStateSchema,
+  type DesktopBridge,
+} from '@porcelain/contracts/desktop';
 import {
   appRequest,
   expect,
@@ -137,15 +140,30 @@ test('delayed events after destroying a restored maximized window do not throw, 
         view.maximize();
       }),
   );
+  await expect
+    .poll(() =>
+      first.electron.evaluate(({ BrowserWindow }) =>
+        BrowserWindow.getAllWindows()[0]?.isMaximized(),
+      ),
+    )
+    .toBe(true);
   await first.quit();
+  const savedText = await readFile(
+    join(desktop.profile, 'window.json'),
+    'utf8',
+  );
+  const savedState = desktopWindowStateSchema.parse(JSON.parse(savedText));
+  expect(savedState.maximized).toBe(true);
 
   const app = await desktop.launch();
   await app.window();
-  expect(
-    await app.electron.evaluate(({ BrowserWindow }) =>
-      BrowserWindow.getAllWindows()[0]?.isMaximized(),
-    ),
-  ).toBe(true);
+  await expect
+    .poll(() =>
+      app.electron.evaluate(({ BrowserWindow }) =>
+        BrowserWindow.getAllWindows()[0]?.isMaximized(),
+      ),
+    )
+    .toBe(true);
   const { pid } = await app.server();
 
   const delayed = await app.electron.evaluate(async ({ BrowserWindow }) => {
