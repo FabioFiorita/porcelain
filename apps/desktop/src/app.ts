@@ -78,13 +78,20 @@ const appUpdate = new LocalAppUpdate((state) =>
 );
 
 function trusted(event: IpcMainEvent | IpcMainInvokeEvent): boolean {
+  if (
+    window === undefined ||
+    window.isDestroyed() ||
+    window.webContents.isDestroyed() ||
+    event.sender.isDestroyed()
+  )
+    return false;
   return trustedSender(
     {
       contents: event.sender,
       frame: event.senderFrame,
       url: event.senderFrame?.url,
     },
-    window && {
+    {
       contents: window.webContents,
       mainFrame: window.webContents.mainFrame,
     },
@@ -97,6 +104,11 @@ function authorize(event: IpcMainInvokeEvent): void {
 
 function windowBackground(): string {
   return nativeTheme.shouldUseDarkColors ? '#171717' : '#fafafa';
+}
+
+function updateWindowBackground(): void {
+  if (!quitting && window !== undefined && !window.isDestroyed())
+    window.setBackgroundColor(windowBackground());
 }
 
 function windowState(view: BrowserWindow) {
@@ -113,6 +125,7 @@ function openExternal(url: string): void {
 }
 
 function failure(error: unknown) {
+  if (quitting) return;
   process.stderr.write(
     `${error instanceof Error ? error.message : 'The local server failed'}\n`,
   );
@@ -172,12 +185,14 @@ async function openWindow() {
     },
   );
   const save = () => {
-    if (!view.isDestroyed() && !view.isFullScreen())
+    if (!quitting && !view.isDestroyed() && !view.isFullScreen())
       savedWindow.schedule(windowState(view));
   };
   view.on('close', () => {
-    save();
-    void savedWindow.flush();
+    if (!quitting) {
+      save();
+      void savedWindow.flush();
+    }
   });
   view.on('resize', save);
   view.on('move', save);
@@ -232,6 +247,9 @@ async function openWindow() {
     openExternal(url);
     return { action: 'deny' };
   });
+  view.webContents.on('will-prevent-unload', (event) => {
+    if (quitting) event.preventDefault();
+  });
   await view.loadURL(desktopAddress);
 }
 
@@ -249,13 +267,32 @@ app.on('before-quit', (event) => {
   event.preventDefault();
   if (quitting) return;
   quitting = true;
-  stopServing?.();
   process.stderr.write('Porcelain: stopping server\n');
-  for (const view of BrowserWindow.getAllWindows()) {
+  const views = BrowserWindow.getAllWindows();
+  for (const view of views) {
     if (!view.isFullScreen()) savedWindow.schedule(windowState(view));
-    view.destroy();
   }
-  void Promise.all([savedWindow.flush(), server?.close()])
+  void (async () => {
+    try {
+      await savedWindow.flush();
+    } finally {
+      await Promise.all(
+        views.map(
+          (view) =>
+            new Promise<void>((resolve) => {
+              if (view.isDestroyed()) {
+                resolve();
+                return;
+              }
+              view.once('closed', resolve);
+              view.close();
+            }),
+        ),
+      );
+      stopServing?.();
+      await server?.close();
+    }
+  })()
     .catch((error: unknown) => {
       process.stderr.write(
         `${error instanceof Error ? error.message : 'Server shutdown failed'}\n`,
@@ -418,21 +455,19 @@ async function start() {
   );
   ipcMain.on('porcelain:appearance', (event, value: unknown) => {
     const appearance = desktopAppearanceSchema.safeParse(value);
-    if (window === undefined || !trusted(event) || !appearance.success) return;
+    if (quitting || !trusted(event) || !appearance.success) return;
     nativeTheme.themeSource = appearance.data;
-    window.setBackgroundColor(windowBackground());
+    updateWindowBackground();
   });
   ipcMain.on('porcelain:actions-ready', (event) => {
-    if (window === undefined || !trusted(event)) return;
+    if (quitting || window === undefined || !trusted(event)) return;
     actionsReady = true;
     if (pendingAction !== undefined) {
       window.webContents.send('porcelain:action', pendingAction);
       pendingAction = undefined;
     }
   });
-  nativeTheme.on('updated', () =>
-    window?.setBackgroundColor(windowBackground()),
-  );
+  nativeTheme.on('updated', updateWindowBackground);
   await openWindow();
 }
 

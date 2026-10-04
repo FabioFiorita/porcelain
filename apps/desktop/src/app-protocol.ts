@@ -27,6 +27,20 @@ export function registerDesktopScheme() {
   ]);
 }
 
+async function fetchDesktop(
+  input: string,
+  init: RequestInit & { signal: AbortSignal },
+): Promise<Response> {
+  const signal = init.signal;
+  signal.throwIfAborted();
+  const cancellation = new AbortController();
+  const response = net.fetch(input, { ...init, signal: cancellation.signal });
+  const abort = () => cancellation.abort(signal.reason);
+  if (signal.aborted) abort();
+  else signal.addEventListener('abort', abort, { once: true });
+  return response;
+}
+
 async function remoteSummary(
   request: Request,
   signal: AbortSignal,
@@ -34,17 +48,16 @@ async function remoteSummary(
   const target = remoteSummaryTarget(request.url);
   if (request.method !== 'GET' || target === undefined)
     return new Response('Unknown review summary', { status: 404 });
-  const response = await net
-    .fetch(target, { credentials: 'omit', redirect: 'manual', signal })
-    .catch(
-      () =>
-        new Response(
-          'The computer that published this summary is unreachable',
-          {
-            status: 502,
-          },
-        ),
-    );
+  const response = await fetchDesktop(target, {
+    credentials: 'omit',
+    redirect: 'manual',
+    signal,
+  }).catch(
+    () =>
+      new Response('The computer that published this summary is unreachable', {
+        status: 502,
+      }),
+  );
   return new Response(response.body, {
     status: response.status,
     statusText: response.statusText,
@@ -78,23 +91,21 @@ export function serveDesktop(
     const target = appRequestTarget(request.url, web ?? server.address);
     if (target === undefined)
       return new Response('Unknown server origin', { status: 403 });
-    const response = await net
-      .fetch(target, {
-        method: request.method,
-        headers:
-          web === undefined
-            ? forwardedRequestHeaders(request.headers, server)
-            : forwardedWebRequestHeaders(request.headers),
-        ...(request.method !== 'GET' && request.method !== 'HEAD'
-          ? { body: await request.arrayBuffer() }
-          : {}),
-        redirect: 'manual',
-        signal,
-      })
-      .catch((error: unknown) => {
-        if (signal.aborted) return new Response(null, { status: 503 });
-        throw error;
-      });
+    const response = await fetchDesktop(target, {
+      method: request.method,
+      headers:
+        web === undefined
+          ? forwardedRequestHeaders(request.headers, server)
+          : forwardedWebRequestHeaders(request.headers),
+      ...(request.method !== 'GET' && request.method !== 'HEAD'
+        ? { body: await request.arrayBuffer() }
+        : {}),
+      redirect: 'manual',
+      signal,
+    }).catch((error: unknown) => {
+      if (signal.aborted) return new Response(null, { status: 503 });
+      throw error;
+    });
     return new Response(response.body, {
       status: response.status,
       statusText: response.statusText,

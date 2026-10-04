@@ -3,6 +3,7 @@ import { utilityProcess } from 'electron';
 import type { desktopSettings } from './settings.ts';
 import { serverMessage } from './protocol.ts';
 import { ServerLog } from './adapters/server-log.ts';
+import { drainServerOutput } from './adapters/server-output.ts';
 
 export async function startLocalServer(
   settings: ReturnType<typeof desktopSettings>,
@@ -19,14 +20,27 @@ export async function startLocalServer(
     settings.logs,
     settings.limits.desktop.serverLogBytes,
   );
-  child.stdout?.on('data', (chunk: Buffer) => {
-    process.stdout.write(chunk);
-    log.append(chunk);
-  });
-  child.stderr?.on('data', (chunk: Buffer) => {
-    process.stderr.write(chunk);
-    log.append(chunk);
-  });
+  const outputEnd = randomUUID();
+  void Promise.all([
+    drainServerOutput(child.stdout, outputEnd, (chunk) => {
+      process.stdout.write(chunk);
+      log.append(chunk);
+    }),
+    drainServerOutput(child.stderr, outputEnd, (chunk) => {
+      process.stderr.write(chunk);
+      log.append(chunk);
+    }),
+  ])
+    .then(async () => {
+      await log.flush();
+      process.stderr.write('Porcelain: server output persisted\n');
+      child.postMessage({ kind: 'exit' });
+    })
+    .catch((error: unknown) => {
+      process.stderr.write(
+        `Porcelain: server output not drained: ${error instanceof Error ? error.message : 'unknown failure'}\n`,
+      );
+    });
   const exited = new Promise<number>((resolveExit) =>
     child.once('exit', (code) => {
       process.stderr.write(`Porcelain server: exited ${code}\n`);
@@ -56,6 +70,7 @@ export async function startLocalServer(
     child.once('spawn', () =>
       child.postMessage({
         kind: 'start',
+        outputEnd,
         profile: settings.profile,
         projectHome: settings.projectHome,
         packageRoot: settings.packageRoot,
@@ -76,13 +91,15 @@ export async function startLocalServer(
     exited,
     credential,
     close: async () => {
-      if (child.pid === undefined) return;
-      if (!stopping) {
+      if (child.pid !== undefined && !stopping) {
         stopping = true;
         child.postMessage({ kind: 'stop' });
       }
       const timeout = AbortSignal.timeout(settings.limits.desktop.shutdownMs);
-      const expired = () => child.kill();
+      const expired = () => {
+        process.stderr.write('Porcelain: server shutdown deadline reached\n');
+        child.kill();
+      };
       timeout.addEventListener('abort', expired, { once: true });
       await exited;
       timeout.removeEventListener('abort', expired);
