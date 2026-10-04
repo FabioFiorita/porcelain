@@ -118,13 +118,19 @@ jobs:
           echo "xcode=$(xcodebuild -version | shasum -a 256 | cut -d ' ' -f 1)" >> "$GITHUB_OUTPUT"
       - name: Restore the built simulator app
         id: client
-        uses: actions/cache@v6
+        uses: actions/cache/restore@v6
         with:
           path: ${{ steps.native.outputs.app }}
           key: mobile-client-${{ runner.os }}-${{ runner.arch }}-${{ steps.native.outputs.xcode }}-${{ steps.native.outputs.fingerprint }}
       - name: Build the development client on a cache miss
         if: steps.client.outputs.cache-hit != 'true'
         run: .agents/skills/mobile-verify/scripts/cli build
+      - name: Save the built simulator app before testing
+        if: steps.client.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ steps.native.outputs.app }}
+          key: ${{ steps.client.outputs.cache-primary-key }}
       - name: Run the ${{ matrix.device }} e2e suite
         run: pnpm --filter @porcelain/mobile exec vitest run --config ../../vitest.config.ts --project ${{ matrix.project }}
       - name: Upload mobile failure evidence
