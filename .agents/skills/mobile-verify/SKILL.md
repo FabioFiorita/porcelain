@@ -30,6 +30,8 @@ Before boot, the kit stamps the Apple Intelligence readiness preference and clea
 
 Metro startup warms the launch asset path and options from its iOS manifest through the same origin that answered readiness, before a simulator requests it. Expo can advertise `127.0.0.1` even when `localhost` reaches Metro over IPv6. The log records both URLs; one bundle request waits for the real transform and reports its HTTP or network error directly. A handwritten bundle URL can warm a different transform and leave the first flow waiting for a cold bundle on CI. Both matrix jobs finish independently, so a failing flow on one device preserves the other device's result; test retries are not added.
 
+Maestro's initial and cold launches pass Expo's `--initialUrl` argument with this run's Metro URL and developer-menu flags. Expo applies the flags before loading React, so startup does not depend on a SpringBoard link confirmation or race an already-open developer menu. Product deep links still use `open-link.yaml`; no launch retry is needed.
+
 - iPhone and iPad need separate drives. Android needs its own build and native proof; an iOS drive does not cover it.
 - A simulator proves loopback and LAN transport, but iOS Local Network permission, denial and retry require a physical device.
 - The iOS accessibility backend can omit a native tab's selected trait; inspect a screenshot. Maestro uses XCTest to assert selection.

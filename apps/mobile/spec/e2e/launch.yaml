@@ -3,13 +3,8 @@ name: Cold launch and await bounded native startup
 ---
 - launchApp:
     permissions: {}
-- retry:
-    maxRetries: 2
-    commands:
-      - runFlow:
-          file: open-link.yaml
-          env:
-            LINK: porcelain.dev://?__expo_disable_fab=1&__expo_disable_auto_launch=1&__expo_disable_onboarding=1
+    arguments:
+      --initialUrl: ${DEVELOPMENT_URL}
 - extendedWaitUntil:
     visible: Review
     timeout: 30000

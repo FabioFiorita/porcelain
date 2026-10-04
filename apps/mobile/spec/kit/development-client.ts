@@ -138,6 +138,10 @@ export function developmentLink(metro: string): string {
   return `${identity.scheme}://expo-development-client/?url=${encodeURIComponent(metro)}&${developerMenuFlags}`;
 }
 
+export function developmentLaunchUrl(metro: string): string {
+  return `${metro}?${developerMenuFlags}`;
+}
+
 export function screenLink(screen: string): string {
   const path = screen.replace(/^\/+/, '');
   return `${identity.scheme}://${path}?${developerMenuFlags}`;

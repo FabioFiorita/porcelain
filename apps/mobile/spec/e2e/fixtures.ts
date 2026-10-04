@@ -7,7 +7,7 @@ import type { Recorder } from '@porcelain/server/kit/isolated-server';
 import {
   buildProblem,
   developmentClient,
-  developmentLink,
+  developmentLaunchUrl,
   identity,
   screenLink,
 } from '../kit/development-client.ts';
@@ -102,7 +102,7 @@ export const test = base
         );
         await mkdir(output, { recursive: true });
         const environment = {
-          DEVELOPMENT_URL: developmentLink(device.metro),
+          DEVELOPMENT_URL: developmentLaunchUrl(device.metro),
           ...variables,
         };
         try {
