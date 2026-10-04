@@ -1,6 +1,11 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { parseSync, Visitor } from 'oxc-parser';
+import {
+  parseSync as parseBindings,
+  traverse,
+  type NodePath,
+} from '@babel/core';
 import { z } from 'zod';
 import * as access from '@porcelain/contracts/access';
 import * as changes from '@porcelain/contracts/changes';
@@ -29,6 +34,9 @@ export type ApiCall = {
   line: number;
 };
 
+type SourceRange = { start: number; end: number };
+type ReachableRange = SourceRange & { includesBody: boolean };
+
 type Module = {
   file: string;
   endpoints: Map<string, Endpoint>;
@@ -36,6 +44,9 @@ type Module = {
   imports: Map<string, { from: string; name: string }>;
   exports: Map<string, { from: string; name: string }>;
   exportAll: string[];
+  locals: Map<string, SourceRange & { references: Set<string> }>;
+  startup: SourceRange[];
+  startupReferences: Set<string>;
 };
 
 const transportCallee = /(?:^|[a-z])(?:transport|Transport)$/;
@@ -113,6 +124,9 @@ class RouteReader {
       imports: new Map(),
       exports: new Map(),
       exportAll: [],
+      locals: new Map(),
+      startup: [],
+      startupReferences: new Set(),
     };
     this.modules.set(file, loaded);
     const source = readFileSync(join(this.root, file), 'utf8');
@@ -252,27 +266,123 @@ class RouteReader {
           );
       },
     }).visit(parseSync(file, source).program);
+    const bindings = parseBindings(source, {
+      filename: file,
+      babelrc: false,
+      configFile: false,
+      parserOpts: { plugins: ['typescript', 'jsx'] },
+    });
+    if (bindings === null)
+      throw new Error(
+        `${file}: parse its bindings so features:check can follow imported names.`,
+      );
+    traverse(bindings, {
+      Program(path) {
+        const record = (name: string, declaration: NodePath) => {
+          const references = new Set<string>();
+          declaration.traverse({
+            ReferencedIdentifier(reference) {
+              if (reference.findParent((parent) => parent.isTSType())) return;
+              const binding = reference.scope.getBinding(reference.node.name);
+              if (binding?.scope === path.scope)
+                references.add(reference.node.name);
+            },
+          });
+          loaded.locals.set(name, {
+            start: declaration.node.start ?? 0,
+            end: declaration.node.end ?? source.length,
+            references,
+          });
+        };
+        for (const [name, binding] of Object.entries(path.scope.bindings))
+          if (!loaded.imports.has(name)) record(name, binding.path);
+        for (const statement of path.get('body'))
+          if (statement.isExportDefaultDeclaration()) {
+            const declaration = statement.get('declaration');
+            if (!declaration.isIdentifier()) record('default', declaration);
+          }
+      },
+      CallExpression(path) {
+        if (path.getFunctionParent() !== null) return;
+        loaded.startup.push({
+          start: path.node.start ?? 0,
+          end: path.node.end ?? source.length,
+        });
+        const callee = path.get('callee');
+        if (
+          callee.isIdentifier() &&
+          callee.scope.getBinding(callee.node.name)?.scope.path.isProgram()
+        )
+          loaded.startupReferences.add(callee.node.name);
+      },
+    });
     return loaded;
   }
 
-  importedFiles(folders: readonly string[]): ReadonlySet<string> {
-    const imported = new Set<string>();
-    const visit = (file: string) => {
-      if (imported.has(file)) return;
-      imported.add(file);
+  importedDeclarations(folders: readonly string[]) {
+    const reached = new Map<string, ReachableRange[]>();
+    const visited = new Set<string>();
+    const evaluated = new Set<string>();
+    const include = (
+      file: string,
+      range: SourceRange,
+      includesBody: boolean,
+    ) => {
+      const ranges = reached.get(file) ?? [];
+      ranges.push({ ...range, includesBody });
+      reached.set(file, ranges);
+    };
+    const evaluate = (file: string) => {
+      if (evaluated.has(file)) return;
+      evaluated.add(file);
       const module = this.module(file);
+      for (const range of module.startup) include(file, range, false);
+      for (const name of module.startupReferences) visit(file, name, false);
       for (const binding of [
         ...module.imports.values(),
         ...module.exports.values(),
       ])
-        if (binding.from !== file) visit(binding.from);
-      for (const from of module.exportAll) visit(from);
+        if (binding.from !== file) evaluate(binding.from);
+      for (const from of module.exportAll) evaluate(from);
+    };
+    const visit = (file: string, name: string, exported: boolean) => {
+      const key = `${file}:${exported ? 'export' : 'local'}:${name}`;
+      if (visited.has(key)) return;
+      visited.add(key);
+      evaluate(file);
+      const module = this.module(file);
+      if (exported) {
+        if (name === '*') {
+          for (const name of module.exports.keys()) visit(file, name, true);
+          for (const from of module.exportAll) visit(from, '*', true);
+          return;
+        }
+        const binding = module.exports.get(name);
+        if (binding !== undefined)
+          visit(binding.from, binding.name, binding.from !== file);
+        else for (const from of module.exportAll) visit(from, name, true);
+        return;
+      }
+      const imported = module.imports.get(name);
+      if (imported !== undefined) {
+        visit(imported.from, imported.name, true);
+        return;
+      }
+      const declaration = module.locals.get(name);
+      if (declaration === undefined) return;
+      include(file, declaration, true);
+      for (const reference of declaration.references)
+        visit(file, reference, false);
     };
     for (const folder of folders)
       for (const file of filesUnder(this.root, folder))
-        if (/\.tsx?$/.test(file) && !/\.(?:spec|d)\.ts$/.test(file))
-          visit(file);
-    return imported;
+        if (/\.tsx?$/.test(file) && !/\.(?:spec|d)\.tsx?$/.test(file)) {
+          evaluate(file);
+          for (const binding of this.module(file).imports.values())
+            if (binding.name !== '*side-effect*')
+              visit(binding.from, binding.name, true);
+        }
+    return reached;
   }
 }
 
@@ -288,7 +398,9 @@ export function apiCalls(
 } {
   const reader = new RouteReader(root);
   const imported =
-    importedFrom === undefined ? undefined : reader.importedFiles(importedFrom);
+    importedFrom === undefined
+      ? undefined
+      : reader.importedDeclarations(importedFrom);
   const calls: ApiCall[] = [];
   const problems: string[] = [];
   const files = folders
@@ -307,6 +419,18 @@ export function apiCalls(
     const source = readFileSync(join(root, file), 'utf8');
     new Visitor({
       CallExpression(node) {
+        if (
+          file.startsWith('packages/client/src/') &&
+          imported !== undefined &&
+          !imported
+            .get(file)
+            ?.some((range) =>
+              range.includesBody
+                ? node.start >= range.start && node.end <= range.end
+                : node.start === range.start && node.end === range.end,
+            )
+        )
+          return;
         if (node.callee.type !== 'Identifier') return;
         const operation = module.callers.get(node.callee.name);
         if (operation === 'requestEndpoint' || operation === 'endpointPath') {
@@ -345,7 +469,7 @@ export function apiCalls(
   return {
     calls,
     problems,
-    sharedSources: [...(imported ?? [])].filter((file) =>
+    sharedSources: [...(imported?.keys() ?? [])].filter((file) =>
       file.startsWith('packages/client/src/'),
     ),
   };
