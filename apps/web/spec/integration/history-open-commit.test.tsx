@@ -1,5 +1,31 @@
 import { expect, test } from './fixtures.tsx';
 
+test('opening the root commit shows its added file and patch against the empty tree', async ({
+  workspace,
+  repo,
+}) => {
+  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace.getByRole('tab', { name: 'History', exact: true }).click();
+  await workspace.getByRole('button', { name: /^Initial commit/ }).click();
+  await expect
+    .element(
+      workspace.getByRole('heading', { name: 'Initial commit', exact: true }),
+    )
+    .toBeVisible();
+  await expect
+    .element(workspace.getByText('root commit', { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(workspace.getByText('1 file changed', { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(workspace.getByText(repo.readme.committed.trim(), { exact: true }))
+    .toBeVisible();
+  await workspace.screenshot({
+    path: '../../test-results/integration/screenshots/root-commit.png',
+  });
+});
+
 test('opening a commit from History shows its message, its file and the diff of the line it added', async ({
   workspace,
   repo,

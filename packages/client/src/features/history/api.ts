@@ -48,7 +48,7 @@ function createHistoryApi(transport: Transport) {
     }) =>
       requestEndpoint(transport, readCommitFilesEndpoint, {
         params: { worktreeId, oid },
-        query: { parent },
+        query: parent === 1 ? {} : { parent },
         signal,
       }),
   };
