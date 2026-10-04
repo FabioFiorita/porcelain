@@ -4639,6 +4639,51 @@ return factory(connection)["readText"]();`,
   `return createFilesApi(transport).readText();`,
 ];
 
+const clientNestedMethodFiles = {
+  ...clientMethodFiles,
+  'packages/client/src/features/files/index.ts': `
+export { textQuery as textQueryOptions } from './queries/text.ts';
+export { unusedQuery as unusedQueryOptions } from './queries/unused.ts';
+export { reviewsApi } from './api.ts';`,
+  'packages/client/src/features/files/api.ts': `
+import {
+  listReviewedFilesEndpoint,
+  setReviewedFileEndpoint,
+  listReviewedLayersEndpoint,
+} from '@porcelain/contracts/reviews';
+import { requestEndpoint } from '../../shared/api/request.ts';
+import { perConnection } from '../../shared/api/per-connection.ts';
+function createReviewsApi(transport) {
+  return {
+    reviewed: {
+      list: () => requestEndpoint(transport, listReviewedFilesEndpoint, {}),
+      set: () => requestEndpoint(transport, setReviewedFileEndpoint, {}),
+    },
+    reviewedLayers: {
+      list: () => requestEndpoint(transport, listReviewedLayersEndpoint, {}),
+    },
+  };
+}
+export const reviewsApi = perConnection(createReviewsApi);`,
+  'packages/client/src/features/files/queries/unused.ts': `
+import { reviewsApi } from '../api.ts';
+export const unusedQuery = () => ({
+  queryFn: () => reviewsApi(connection).reviewed.set(),
+});`,
+};
+
+const clientNestedMethodReads = [
+  `return reviewsApi(connection).reviewed.list();`,
+  `const { reviewed: group } = reviewsApi(connection);
+const { list: read } = group;
+return read();`,
+  `const group = reviewsApi(connection).reviewed;
+const alias = group;
+return alias.list();`,
+  `const { reviewed: { list: read } } = reviewsApi(connection);
+return read();`,
+];
+
 function clientRoutesCase(files = clientRouteFiles, overrides = {}) {
   return {
     rule: 'client-route-reachability',
@@ -4831,6 +4876,61 @@ export const read = () => filesApi(connection).readText();`,
 import { filesApi, otherApi } from '@porcelain/client/files';
 export const read = () => filesApi(connection).readText();
 export const write = () => otherApi(transport).readText();`,
+      },
+    ),
+  ),
+  ...['web', 'desktop', 'mobile'].flatMap((app) =>
+    clientNestedMethodReads.map((read) =>
+      clientRoutesCase(
+        {
+          ...clientNestedMethodFiles,
+          'packages/client/src/features/files/queries/text.ts': `
+import { reviewsApi } from '../api.ts';
+export const textQuery = () => ({
+  queryFn: () => {
+    ${read}
+  },
+});`,
+        },
+        {
+          app: `apps/${app}/src/app.ts`,
+          mapped: ['GET /api/worktrees/:worktreeId/reviewed'],
+          errors: ['PUT /api/worktrees/:worktreeId/reviewed'],
+        },
+      ),
+    ),
+  ),
+  ...[
+    `return reviewsApi(connection).reviewed[method]();`,
+    `return reviewsApi(connection).reviewed.unknown();`,
+    `const { reviewed: group } = reviewsApi(connection);
+return consume(group);`,
+    `let group = reviewsApi(connection).reviewed;
+group = other;
+return group.list();`,
+  ].map((use) =>
+    clientRoutesCase(
+      {
+        ...clientNestedMethodFiles,
+        'packages/client/src/features/files/queries/text.ts': `
+import { reviewsApi } from '../api.ts';
+export const textQuery = () => ({
+  queryFn: () => reviewsApi(connection).reviewed.list(),
+});`,
+        'packages/client/src/features/files/queries/unused.ts': `
+import { reviewsApi } from '../api.ts';
+export const unusedQuery = () => ({
+  queryFn: () => {
+    ${use}
+  },
+});`,
+      },
+      {
+        mapped: ['GET /api/worktrees/:worktreeId/reviewed'],
+        errors: [
+          'PUT /api/worktrees/:worktreeId/reviewed',
+          'GET /api/worktrees/:worktreeId/reviewed-layers',
+        ],
       },
     ),
   ),

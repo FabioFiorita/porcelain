@@ -39,7 +39,8 @@ type ReachableRange = SourceRange & {
   includesBody: boolean;
   excluded: SourceRange[];
 };
-type Reference = { name: string; member: string | undefined };
+type MemberChain = readonly string[] | undefined;
+type Reference = { name: string; member: MemberChain };
 type BindingReference = SourceRange & { path: NodePath; name: string };
 type Declaration = SourceRange & {
   path: NodePath;
@@ -128,10 +129,43 @@ function propertyName(path: NodePath): string | undefined {
   return undefined;
 }
 
+function prependMember(name: string, chains: MemberChain[]): MemberChain[] {
+  return chains.map((chain) =>
+    chain === undefined ? undefined : [name, ...chain],
+  );
+}
+
+function destructuredMembers(
+  pattern: NodePath,
+  seen: Set<NodePath>,
+): MemberChain[] {
+  if (pattern.isIdentifier()) {
+    const binding = pattern.scope.getBinding(pattern.node.name);
+    if (!binding?.constant) return [undefined];
+    if (binding.referencePaths.length === 0) return [[]];
+    return binding.referencePaths.flatMap((reference) =>
+      usedMembers(reference, seen, true),
+    );
+  }
+  if (!pattern.isObjectPattern()) return [undefined];
+  const chains: MemberChain[] = [];
+  for (const property of pattern.get('properties')) {
+    const name = propertyName(property);
+    if (!property.isObjectProperty() || name === undefined) {
+      chains.push(undefined);
+      continue;
+    }
+    const nested = destructuredMembers(property.get('value'), seen);
+    chains.push(...prependMember(name, nested));
+  }
+  return chains.length === 0 ? [undefined] : chains;
+}
+
 function usedMembers(
   path: NodePath,
   seen = new Set<NodePath>(),
-): (string | undefined)[] {
+  afterMember = false,
+): MemberChain[] {
   if (seen.has(path)) return [undefined];
   const nextSeen = new Set(seen);
   nextSeen.add(path);
@@ -142,26 +176,30 @@ function usedMembers(
     parent.isTSNonNullExpression() ||
     parent.isTSSatisfiesExpression()
   )
+    return usedMembers(parent, nextSeen, afterMember);
+  if (parent.isMemberExpression() && parent.get('object') === path) {
+    const name = propertyName(parent);
+    if (name === undefined) return [undefined];
+    const nested = usedMembers(parent, nextSeen, true);
+    return prependMember(name, nested);
+  }
+  if (parent.isCallExpression() && parent.get('callee') === path) {
+    if (afterMember) return [[]];
     return usedMembers(parent, nextSeen);
-  if (parent.isMemberExpression() && parent.get('object') === path)
-    return [propertyName(parent)];
-  if (parent.isCallExpression() && parent.get('callee') === path)
-    return usedMembers(parent, nextSeen);
+  }
   if (parent.isVariableDeclarator() && parent.get('init') === path) {
     const id = parent.get('id');
-    if (id.isObjectPattern()) {
-      const members = id.get('properties').map(propertyName);
-      return members.length === 0 ? [undefined] : members;
-    }
+    if (id.isObjectPattern()) return destructuredMembers(id, nextSeen);
     if (id.isIdentifier()) {
       const binding = parent.scope.getBinding(id.node.name);
       if (binding?.constant && binding.referencePaths.length > 0)
         return binding.referencePaths.flatMap((reference) =>
-          usedMembers(reference, nextSeen),
+          usedMembers(reference, nextSeen, afterMember),
         );
     }
+    return [undefined];
   }
-  return [undefined];
+  return afterMember ? [[]] : [undefined];
 }
 
 function returnedObject(declaration: NodePath): NodePath | undefined {
@@ -187,9 +225,64 @@ function returnedObject(declaration: NodePath): NodePath | undefined {
   return undefined;
 }
 
+function unusedMethodRanges(property: NodePath): SourceRange[] {
+  if (propertyName(property) === undefined) return [];
+  if (property.isObjectMethod()) return [sourceRange(property)];
+  if (!property.isObjectProperty()) return [];
+  const value = property.get('value');
+  if (value.isFunction()) return [sourceRange(property)];
+  if (!value.isObjectExpression()) return [];
+  return value.get('properties').flatMap(unusedMethodRanges);
+}
+
+function selectedMemberRanges(
+  object: NodePath,
+  members: readonly string[],
+): SourceRange[] | undefined {
+  if (!object.isObjectExpression()) return undefined;
+  const properties = object.get('properties');
+  const name = members[0];
+  const selected = properties.filter(
+    (property) => propertyName(property) === name,
+  );
+  if (
+    properties.some((property) => propertyName(property) === undefined) ||
+    selected.length !== 1
+  )
+    return undefined;
+  const property = selected[0];
+  if (property === undefined) return undefined;
+  const excluded: SourceRange[] = [];
+  if (members.length > 1) {
+    if (!property.isObjectProperty()) return undefined;
+    const nested = selectedMemberRanges(
+      property.get('value'),
+      members.slice(1),
+    );
+    if (nested === undefined) return undefined;
+    excluded.push(...nested);
+  } else {
+    if (
+      property.isObjectProperty() &&
+      property.get('value').isObjectExpression()
+    )
+      return undefined;
+    let usesThis = false;
+    property.traverse({
+      ThisExpression() {
+        usesThis = true;
+      },
+    });
+    if (usesThis) return undefined;
+  }
+  for (const sibling of properties)
+    if (sibling !== property) excluded.push(...unusedMethodRanges(sibling));
+  return excluded;
+}
+
 function memberSelection(
   declaration: NodePath,
-  member: string | undefined,
+  member: MemberChain,
   module: Module,
 ) {
   const excluded: SourceRange[] = [];
@@ -214,30 +307,8 @@ function memberSelection(
   }
   const object = returnedObject(declaration);
   if (object === undefined) return { excluded, forwarded };
-  const properties = object.isObjectExpression()
-    ? object.get('properties')
-    : [];
-  if (
-    properties.some((property) => propertyName(property) === undefined) ||
-    !properties.some((property) => propertyName(property) === member)
-  )
-    return { excluded, forwarded };
-  let usesThis = false;
-  for (const property of properties)
-    if (propertyName(property) === member)
-      property.traverse({
-        ThisExpression() {
-          usesThis = true;
-        },
-      });
-  if (usesThis) return { excluded, forwarded };
-  for (const property of properties) {
-    const callable =
-      property.isObjectMethod() ||
-      (property.isObjectProperty() && property.get('value').isFunction());
-    if (callable && propertyName(property) !== member)
-      excluded.push(sourceRange(property));
-  }
+  const selected = selectedMemberRanges(object, member);
+  if (selected !== undefined) excluded.push(...selected);
   return { excluded, forwarded };
 }
 
@@ -514,9 +585,10 @@ class RouteReader {
       file: string,
       name: string,
       exported: boolean,
-      member?: string,
+      member?: readonly string[],
     ) => {
-      const selectionKey = member === undefined ? 'whole' : `member:${member}`;
+      const selectionKey =
+        member === undefined ? 'whole' : JSON.stringify(member);
       const key = `${file}:${exported ? 'export' : 'local'}:${name}:${selectionKey}`;
       if (visited.has(key)) return;
       visited.add(key);
