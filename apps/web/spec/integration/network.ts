@@ -101,6 +101,45 @@ export function createFetchGate(filePath: string) {
       holdNextFetch(
         (path, init) => init?.method === 'POST' && path.endsWith(pathEnding),
       ),
+    holdNextRead: (pathEnding: string) =>
+      holdNextFetch(
+        (path, init) =>
+          (init?.method ?? 'GET') === 'GET' && path.endsWith(pathEnding),
+      ),
+    failNextFileRead(pathEnding: string) {
+      const original = window.fetch;
+      const responses: { path: string; status: number }[] = [];
+      let armed = false;
+      let failed = false;
+      window.fetch = async (input, init) => {
+        const path = requestPath(input);
+        const record = armed && (init?.method ?? 'GET') === 'GET';
+        const conflict = record && !failed && path.endsWith(pathEnding);
+        if (conflict) failed = true;
+        const response = conflict
+          ? Response.json(
+              {
+                statusCode: 409,
+                error: 'Conflict',
+                message: 'Refresh status and retry inspection',
+                code: 'worktree_changed',
+              },
+              { status: 409 },
+            )
+          : await original(input, init);
+        if (record) responses.push({ path, status: response.status });
+        return response;
+      };
+      restores.push(() => {
+        window.fetch = original;
+      });
+      return {
+        arm: () => {
+          armed = true;
+        },
+        responses: () => [...responses],
+      };
+    },
     restore() {
       for (const restore of restores.splice(0).reverse()) restore();
     },

@@ -80,7 +80,14 @@ function port(
       if (endpoint === surface && (failures++ === 0 || options.persistent))
         return Promise.resolve(
           Response.json(
-            { ...changed, code: options.code ?? changed.code },
+            {
+              ...changed,
+              message:
+                failures > 1
+                  ? 'The worktree changed again during the reread.'
+                  : changed.message,
+              code: options.code ?? changed.code,
+            },
             { status: 409 },
           ),
         );
@@ -154,6 +161,7 @@ describe('recovering a Files read after the worktree changed', () => {
       await expect(client.query<unknown>(read.query)).rejects.toMatchObject({
         status: 409,
         code: 'worktree_changed',
+        message: 'The worktree changed again during the reread.',
       });
       expect(read.requests).toEqual(requests);
       client.clear();

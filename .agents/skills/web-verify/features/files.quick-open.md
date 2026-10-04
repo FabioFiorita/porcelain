@@ -1,14 +1,17 @@
 ---
 route: /
 selectors:
-  - "Review"
-  - "Worktree review"
-  - "Files"
-  - "Find a file by name"
-  - "No file matches that name."
+  - 'Review'
+  - 'Worktree review'
+  - 'Files'
+  - 'Find a file by name'
+  - 'No file matches that name.'
 tests:
   - apps/web/spec/integration/files-quick-open.test.tsx
+  - apps/web/spec/integration/files-read-recovery.test.tsx
 api:
+  - GET /api/inventory
+  - GET /api/worktrees/:worktreeId/directory
   - GET /api/worktrees/:worktreeId/paths
   - GET /api/worktrees/:worktreeId/text
 ---
@@ -18,6 +21,8 @@ api:
 ## What it is
 
 Quick open searches every worktree file name and opens the one chosen. Files an ignore rule hides are never offered.
+
+Shared Files reads recover a worktree_changed 409 by re-reading inventory, checking that the selection remains available and reading once more. Text recovery refreshes the parent directory and paths first. Another failure stops for an explicit retry. This lets a catalogue change during a read settle without leaving an otherwise available worktree stuck on an error.
 
 ## How a user reaches it
 
@@ -70,6 +75,7 @@ printf 'ignored output\n' > "$REPO/build.log"
 
 - Step 6 opens the file's content, which the server reads through `GET .../text`. Step 9 shows the server's path list leaves out the ignored `build.log`.
 - `apps/web/spec/integration/files-quick-open.test.tsx` opens Review → Files and presses `ControlOrMeta+p`. It asserts that choosing "quick-target.md" shows heading "Quick target" and that the server's paths include it. For `build.log` it asserts "No file matches that name." and that the server's paths exclude it.
+- `apps/web/spec/integration/files-read-recovery.test.tsx` injects one typed text-read 409 at the browser fetch port, then uses real inventory, directory, paths and text responses to recover. A real disk edit subsequently triggers live invalidation and reaches the view. Recorded reads prove one 409, one recovery reread and one later live reread, with no recovery loop.
 
 ## Gotchas
 
@@ -77,3 +83,4 @@ printf 'ignored output\n' > "$REPO/build.log"
 - The name list is fetched once when the Files tab mounts. Write setup files before step 3, or reopen with `open /` after writing them.
 - While the list loads the dialog shows "Reading file names…". Wait for options before filling.
 - The match is a case-insensitive substring of the whole path, capped at 50 results.
+- Recovery uses direct shared query reads rather than invalidation, so it does not itself publish a live notice or schedule a refetch loop. A real live notice can independently invalidate the same query and cause another successful read.
