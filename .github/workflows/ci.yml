@@ -75,3 +75,31 @@ jobs:
         with:
           name: desktop-e2e
           path: apps/desktop/test-results/
+
+  # Temporary investigation jobs; remove before leaving draft.
+  desktop-stress:
+    if: github.head_ref == 'desktop-e2e-deflake'
+    runs-on: macos-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: suite
+            arguments: --repeat-each=20
+          - target: restore
+            arguments: spec/e2e/window.e2e.ts --grep "restarting restores" --repeat-each=100
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/setup@v3
+        with:
+          runtime: node@24.20.0
+          cache: true
+          require-lockfile: true
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @porcelain/desktop test:e2e ${{ matrix.arguments }}
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: desktop-stress-${{ matrix.target }}
+          path: apps/desktop/test-results/
