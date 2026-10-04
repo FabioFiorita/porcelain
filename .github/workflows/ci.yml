@@ -140,3 +140,76 @@ jobs:
         with:
           name: mobile-e2e-${{ matrix.device }}
           path: apps/mobile/test-results/
+
+  # Temporary comparison for PR #127; the regular mobile runtime stays unchanged.
+  mobile-runtime-diagnostic:
+    needs: checks
+    if: ${{ !cancelled() && github.event_name == 'pull_request' && github.event.pull_request.number == 127 && needs.checks.outputs.mobile == 'true' }}
+    runs-on: macos-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - xcode: '26.4.1'
+            ios: '26.4'
+          - xcode: '26.6'
+            ios: '26.5'
+    env:
+      MAESTRO_DRIVER_STARTUP_TIMEOUT: 180000
+      DEVELOPER_DIR: /Applications/Xcode_${{ matrix.xcode }}.app/Contents/Developer
+      PORCELAIN_MOBILE_IOS_RUNTIME: ${{ matrix.ios }}
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
+      - name: Set up pnpm and Node
+        uses: pnpm/setup@v3
+        with:
+          runtime: node@24.20.0
+          cache: true
+          require-lockfile: true
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Check Java and install Maestro
+        run: |
+          java -version
+          curl -fsSL https://get.maestro.mobile.dev | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+      - name: Record the diagnostic Xcode and runtime inventory
+        run: |
+          mkdir -p apps/mobile/test-results
+          xcodebuild -version | tee apps/mobile/test-results/xcode.txt
+          xcrun simctl list runtimes -j | tee apps/mobile/test-results/runtimes.json
+          maestro --version | tee apps/mobile/test-results/maestro.txt
+      - name: Identify the native development client
+        id: native
+        run: |
+          node --input-type=module <<'JS' >> "$GITHUB_OUTPUT"
+          import { nativeFingerprint, sharedClientPath } from './apps/mobile/spec/kit/development-client.ts';
+          console.log(`fingerprint=${nativeFingerprint()}`);
+          console.log(`app=${sharedClientPath(nativeFingerprint())}`);
+          JS
+          echo "xcode=$(xcodebuild -version | shasum -a 256 | cut -d ' ' -f 1)" >> "$GITHUB_OUTPUT"
+      - name: Restore the built simulator app
+        id: client
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ steps.native.outputs.app }}
+          key: mobile-client-${{ runner.os }}-${{ runner.arch }}-${{ steps.native.outputs.xcode }}-${{ steps.native.outputs.fingerprint }}
+      - name: Build the development client on a cache miss
+        if: steps.client.outputs.cache-hit != 'true'
+        run: .agents/skills/mobile-verify/scripts/cli build
+      - name: Save the built simulator app before testing
+        if: steps.client.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ steps.native.outputs.app }}
+          key: ${{ steps.client.outputs.cache-primary-key }}
+      - name: Compare workspace and cold Settings flows on iOS ${{ matrix.ios }}
+        run: pnpm --filter @porcelain/mobile exec vitest run --config ../../vitest.config.ts --project @porcelain/mobile-e2e workspace.e2e.ts environment-states.e2e.ts
+      - name: Upload diagnostic evidence even on success
+        uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() }}
+        with:
+          name: mobile-runtime-diagnostic-ios-${{ matrix.ios }}
+          path: apps/mobile/test-results/

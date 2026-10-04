@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { TestProject } from 'vitest/node';
@@ -52,8 +52,19 @@ export default async function setup(project: TestProject) {
     await buildIsolatedServer(build);
     const metro = await startMetro(join(evidence, 'metro.log'));
     cleanups.push(async () => metro.stop());
-    const simulator = await bootSimulator(kind, 'e2e');
+    const simulator = await bootSimulator(
+      kind,
+      'e2e',
+      process.env.PORCELAIN_MOBILE_IOS_RUNTIME,
+    );
     cleanups.push(() => shutdownSimulator(simulator.udid));
+    await writeFile(
+      join(evidence, 'simulator.json'),
+      `${JSON.stringify(simulator, null, 2)}\n`,
+    );
+    console.log(
+      `Mobile e2e: ${simulator.name}, iOS ${simulator.runtime.version}`,
+    );
     project.provide('mobileServerBuild', build);
     project.provide('mobileDevice', {
       udid: simulator.udid,

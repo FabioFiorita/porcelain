@@ -8,7 +8,12 @@ import { hostFileName } from './device-host.ts';
 
 export type DeviceKind = 'iphone' | 'ipad';
 
-export type Simulator = { udid: string; name: string; kind: DeviceKind };
+export type Simulator = {
+  udid: string;
+  name: string;
+  kind: DeviceKind;
+  runtime: { identifier: string; version: string };
+};
 
 const execute = promisify(execFile);
 const minimumRuntime = 26;
@@ -74,7 +79,7 @@ function newer(left: string, right: string): number {
   return 0;
 }
 
-async function deviceFor(kind: DeviceKind) {
+async function deviceFor(kind: DeviceKind, runtimeVersion?: string) {
   const { runtimes } = runtimesSchema.parse(
     JSON.parse(await simctl('list', 'runtimes', '-j')),
   );
@@ -83,12 +88,13 @@ async function deviceFor(kind: DeviceKind) {
       (candidate) =>
         candidate.isAvailable &&
         (candidate.platform ?? 'iOS') === 'iOS' &&
-        (versionOf(candidate.version)[0] ?? 0) >= minimumRuntime,
+        (versionOf(candidate.version)[0] ?? 0) >= minimumRuntime &&
+        (runtimeVersion === undefined || candidate.version === runtimeVersion),
     )
     .toSorted((left, right) => newer(left.version, right.version));
   if (runtime === undefined)
     throw new Error(
-      `No iOS ${minimumRuntime} or newer simulator runtime is installed; install one in Xcode > Settings > Components.`,
+      `No ${runtimeVersion === undefined ? `iOS ${minimumRuntime} or newer` : `iOS ${runtimeVersion}`} simulator runtime is installed; install one in Xcode > Settings > Components.`,
     );
   const family = runtime.supportedDeviceTypes.filter(
     (type) => type.productFamily === families[kind],
@@ -164,8 +170,9 @@ async function suppressSystemFollowUps(udid: string): Promise<void> {
 export async function bootSimulator(
   kind: DeviceKind,
   label: string,
+  runtimeVersion?: string,
 ): Promise<Simulator> {
-  const { runtime, type } = await deviceFor(kind);
+  const { runtime, type } = await deviceFor(kind, runtimeVersion);
   const name = `Porcelain ${label} ${type.name}`;
   const idle = (await devices())[runtime.identifier]?.find(
     (device) =>
@@ -209,7 +216,12 @@ export async function bootSimulator(
     await simctl('boot', udid);
     await simctl('bootstatus', udid, '-b');
   }
-  return { udid, name, kind };
+  return {
+    udid,
+    name,
+    kind,
+    runtime: { identifier: runtime.identifier, version: runtime.version },
+  };
 }
 
 async function stateOf(udid: string): Promise<string | undefined> {
