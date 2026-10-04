@@ -1,5 +1,16 @@
 import { WorktreeEmpty } from '../../../shared/worktree-empty';
+import { WorktreeReview } from './worktree-review';
+import { useSelectedWorktree } from '../../projects';
 
 export function ReviewScreen() {
-  return <WorktreeEmpty title="Review" />;
+  const current = useSelectedWorktree();
+  return current ? (
+    <WorktreeReview
+      key={current.key}
+      scope={current.scope}
+      connection={current.connection}
+    />
+  ) : (
+    <WorktreeEmpty title="Review" />
+  );
 }

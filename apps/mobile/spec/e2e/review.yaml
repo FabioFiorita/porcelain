@@ -1,0 +1,55 @@
+appId: com.fabiofiorita.porcelain.dev
+name: Read changed files diffs published layers and comments
+---
+- runFlow: connect.yaml
+- runFlow: open-settings.yaml
+- runFlow:
+    file: add-environment.yaml
+    env:
+      PAIRING_LINK: ${PAIRING_LINK}
+      ENVIRONMENT_NAME: ${ENVIRONMENT_NAME}
+- runFlow:
+    file: open-link.yaml
+    env:
+      LINK: ${REVIEW_LINK}
+- tapOn: Workspace
+- tapOn: Environment
+- tapOn: ${ENVIRONMENT_NAME}
+- tapOn: ${ENVIRONMENT_NAME}
+- tapOn: Project
+- tapOn: ${PROJECT_NAME}
+- tapOn: mobile-review
+- assertVisible: Uncommitted changes
+- assertVisible: Review the readme
+- assertVisible: Adds a line
+- assertVisible: unstaged · Reviewed
+- tapOn: ${FILE_PATH}
+- assertVisible: Back to changed files
+- assertVisible: .*A change to review.*
+- takeScreenshot: review-diff
+- tapOn: Comments
+- assertVisible: Please explain the readme change.
+- assertVisible: Open
+- takeScreenshot: review-comments
+- tapOn: Close comments
+- assertVisible: Back to changed files
+- tapOn: Back to changed files
+- assertVisible: Review the readme
+- tapOn: Show branch changes
+- assertVisible: Branch changes
+- tapOn: ${BRANCH_FILE_PATH}
+- assertVisible: .*Native branch review.*
+- takeScreenshot: review-branch-diff
+- tapOn: Back to changed files
+- tapOn: Show uncommitted changes
+- assertVisible: Review the readme
+- runFlow: open-settings.yaml
+- longPressOn: ${ENVIRONMENT_NAME}
+- tapOn: Forget environment
+- assertNotVisible: ${ENVIRONMENT_NAME}
+- runFlow:
+    file: open-link.yaml
+    env:
+      LINK: ${REVIEW_LINK}
+- assertVisible: Select a worktree to continue.
+- assertNotVisible: Review the readme
