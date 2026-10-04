@@ -18,6 +18,7 @@ import type {
   ServerRead,
 } from '../kit/protocol.ts';
 import { World } from '../kit/world.ts';
+import { replaceEditorContent } from '../kit/editor.ts';
 
 declare module 'vitest' {
   export interface ProvidedContext {
@@ -138,7 +139,14 @@ const porcelainProjectHome: BrowserCommand<
 const porcelainCodingTool: BrowserCommand<[], CodingToolReplies> = (context) =>
   world(context).codingTool();
 
+const porcelainReplaceEditorContent: BrowserCommand<[string, string], void> = (
+  context,
+  selector,
+  text,
+) => replaceEditorContent(context.iframe.locator(selector), text);
+
 export const hostCommands = {
+  porcelainReplaceEditorContent,
   porcelainStart,
   porcelainStop,
   porcelainRead,

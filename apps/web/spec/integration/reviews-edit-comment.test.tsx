@@ -1,4 +1,4 @@
-import { expect, test } from './fixtures.tsx';
+import { expect, test, replaceEditorContent } from './fixtures.tsx';
 
 test('the reviewer edits and then deletes their own comment, and cannot change the agent comment', async ({
   workspace,
@@ -45,11 +45,11 @@ test('the reviewer edits and then deletes their own comment, and cannot change t
     exact: true,
   });
   await expect.element(editor).toHaveValue(first);
-  await editor.fill('   ');
+  await replaceEditorContent(editor, '   ');
   await expect
     .element(workspace.getByRole('button', { name: 'Save', exact: true }))
     .toBeDisabled();
-  await editor.fill(rewritten);
+  await replaceEditorContent(editor, rewritten);
   await workspace.getByRole('button', { name: 'Save', exact: true }).click();
   await expect
     .element(workspace.getByText(rewritten, { exact: true }))

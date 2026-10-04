@@ -1,4 +1,4 @@
-import { expect, test } from './fixtures.tsx';
+import { expect, test, replaceEditorContent } from './fixtures.tsx';
 
 test('closing an editor saves its draft and reopening starts a fresh editor session', async ({
   workspace,
@@ -24,25 +24,25 @@ test('closing an editor saves its draft and reopening starts a fresh editor sess
   };
 
   const editor = await openEditor();
-  await editor.fill('Closed editor marker');
+  await replaceEditorContent(editor, 'Closed editor marker');
   await workspace
     .getByRole('button', { name: `Close ${path}`, exact: true })
     .last()
     .click();
   await expect
     .poll(async () => (await server.text(path)).text)
-    .toContain('Closed editor marker');
+    .toBe('Closed editor marker');
 
   const reopened = await openEditor();
-  await expect.element(reopened).toMatchTextContent(/Closed editor marker/);
+  await expect.element(reopened).toHaveTextContent('Closed editor marker');
   await expect
     .element(workspace.getByText('Saves as you pause', { exact: true }))
     .toBeVisible();
-  await reopened.fill('Reopened editor marker');
+  await replaceEditorContent(reopened, 'Reopened editor marker');
   await workspace.getByRole('button', { name: 'Done', exact: true }).click();
   await expect
     .poll(async () => (await server.text(path)).text)
-    .toContain('Reopened editor marker');
+    .toBe('Reopened editor marker');
 });
 
 test('an editor keeps its draft ownership while the file opens in another pane', async ({
