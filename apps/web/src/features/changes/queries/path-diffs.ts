@@ -1,3 +1,4 @@
+import { assertCurrentAnswer } from '@porcelain/client/transport';
 import { DIFF_WINDOW_FILES } from '@/config/limits';
 import { useBatchedReads } from './batched-reads';
 import { consecutiveBatches } from '../rules/diff-batches';
@@ -30,7 +31,7 @@ export function usePathDiffs<Content>({
         request.signal,
         batch.map((entry) => [...entry]),
       );
-      request.signal.throwIfAborted();
+      assertCurrentAnswer(request.signal);
       return data.diffs.map(
         (diff) => [diff.paths.join('\0'), diff.content] as const,
       );

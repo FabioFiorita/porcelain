@@ -1,3 +1,4 @@
+import { queryKeys } from '@porcelain/client/transport';
 import { queryOptions, useQuery } from '@tanstack/react-query';
 import {
   REMOTE_STATUS_REFRESH_MS,
@@ -9,7 +10,7 @@ import { remoteStatus, type Remote } from '../rules/remotes';
 
 export function remoteStatusQueryOptions(remote: Remote) {
   return queryOptions({
-    queryKey: ['remote-status', remote.environmentId, remote.address],
+    queryKey: queryKeys.remoteStatus(remote.environmentId, remote.address),
     queryFn: ({ signal }) =>
       remoteApi.describe({
         transport: remoteTransport(remote.address, remote.credential, fetch),

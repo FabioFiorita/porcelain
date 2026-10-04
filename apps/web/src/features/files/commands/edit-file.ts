@@ -12,51 +12,11 @@ import {
   retainedFileDrafts,
 } from '@/shared/query/file-drafts';
 import { asMutation } from '@/shared/query/mutation';
-import { filesApi } from '../api';
+import { editFile, refreshFileEdit } from '@porcelain/client/files';
 import { copyText } from '@/shared/workspace/copy';
 import { type Connection } from '@/shared/workspace/connection';
 
-const parentOf = (path: string) => path.split('/').slice(0, -1).join('/');
 const withoutTrailingSlash = (path: string) => path.replace(/\/$/, '');
-
-async function reload(
-  client: ReturnType<typeof useQueryClient>,
-  environmentId: string,
-  scope: FilesScope,
-  input: FileEdit,
-) {
-  const key = (surface: readonly unknown[]) => [
-    'review',
-    environmentId,
-    scope.projectId,
-    scope.worktreeId,
-    ...surface,
-  ];
-  const wanted = new Map<string, readonly unknown[]>();
-  const want = (surface: readonly unknown[]) =>
-    wanted.set(JSON.stringify(surface), key(surface));
-  want(['changes']);
-  const dropped: (readonly unknown[])[] = [];
-  if (input.kind === 'write') want(['text', input.path]);
-  if (input.kind === 'create') want(['directory', parentOf(input.path)]);
-  if (input.kind === 'trash') {
-    want(['directory', parentOf(input.path)]);
-    dropped.push(key(['text', input.path]));
-  }
-  if (input.kind === 'move') {
-    want(['directory', parentOf(input.path)]);
-    want(['directory', parentOf(input.destination)]);
-    dropped.push(key(['text', input.path]));
-  }
-  if (input.kind !== 'write') want(['paths']);
-  for (const queryKey of dropped)
-    client.removeQueries({ queryKey, exact: true });
-  await Promise.all(
-    [...wanted.values()].map((queryKey) =>
-      client.invalidateQueries({ queryKey, exact: true }),
-    ),
-  );
-}
 
 function releaseDrafts(
   connection: Connection,
@@ -113,29 +73,23 @@ async function executeFileWrite(
         throw new ConnectionError(
           'Save or discard the unsaved draft before moving this entry.',
         );
-    const result = await filesApi(connection).edit({
-      signal: request.signal,
-      worktreeId: scope.worktreeId,
-      input,
-    });
-    request.signal.throwIfAborted();
+    const result = await editFile(connection, scope, input, request.signal);
     return result;
   } finally {
     for (const draft of moving) draft.release(owner);
     if (!request.signal.aborted) {
       releaseDrafts(connection, scope, input);
-      await reload(client, connection.environmentId, scope, input);
+      await refreshFileEdit(client, connection, scope, input);
     }
   }
 }
 
-function useFileWriter(connection: Connection | null, scope: FilesScope) {
-  if (!connection) throw new Error('A connected environment is required');
+function useFileWriter(connection: Connection, scope: FilesScope) {
   const client = useQueryClient();
   return (input: FileEdit) =>
     executeFileWrite(draftConnection(connection), scope, client, input);
 }
-export function useEditFile(connection: Connection | null, scope: FilesScope) {
+export function useEditFile(connection: Connection, scope: FilesScope) {
   const write = useFileWriter(connection, scope);
   const edit = asMutation(useMutation({ mutationFn: write }));
   return {
@@ -179,13 +133,12 @@ export function useEditFile(connection: Connection | null, scope: FilesScope) {
 }
 
 export function useFileDraft(
-  connection: Connection | null,
+  connection: Connection,
   scope: FilesScope,
   path: string,
   text: string,
   fingerprint: string,
 ) {
-  if (!connection) throw new Error('A connected environment is required');
   const write = useFileWriter(connection, scope);
   const entries = retainedFileDrafts(connection);
   const key = `${JSON.stringify([scope.projectId, scope.worktreeId])}/${path}`;

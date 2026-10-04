@@ -1,21 +1,19 @@
+import { assertCurrentAnswer } from '@porcelain/client/transport';
 import { useQuery } from '@tanstack/react-query';
-import { queryKeys } from '@/shared/query/keys';
+import { queryKeys } from '@porcelain/client/transport';
 import { changesApi } from '../api';
 import { type ChangesScope } from '../rules/changes';
-import {
-  type Connection,
-  requireConnection,
-} from '@/shared/workspace/connection';
+import { type Connection } from '@/shared/workspace/connection';
 
 export function useChangeLines(
   scope: ChangesScope,
-  possibleConnection: Connection | null,
+  possibleConnection: Connection,
   path: string,
   from: number,
   to: number,
   enabled: boolean,
 ) {
-  const connection = requireConnection(possibleConnection);
+  const connection = possibleConnection;
   return useQuery({
     queryKey: queryKeys.reviewSurface(connection.environmentId, scope, [
       'step-lines',
@@ -34,7 +32,7 @@ export function useChangeLines(
         to,
         at: 'worktree',
       });
-      request.signal.throwIfAborted();
+      assertCurrentAnswer(request.signal);
       return result;
     },
     throwOnError: false,

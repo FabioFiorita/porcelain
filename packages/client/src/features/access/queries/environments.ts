@@ -1,3 +1,4 @@
+import { queryKeys } from '../../../shared/api/query-keys.ts';
 import type { QueryFunctionContext } from '@tanstack/query-core';
 import { createRemoteApi } from '../api.ts';
 import { remoteTransport } from '../../../shared/api/transport.ts';
@@ -9,12 +10,11 @@ export function environmentQueryOptions(
   remote: Remote,
 ) {
   return {
-    queryKey: [
-      'environment',
+    queryKey: queryKeys.environment(
       remote.environmentId,
       remote.address,
       remote.deviceId,
-    ],
+    ),
     queryFn: async ({ signal }: QueryFunctionContext) => {
       const answer = await createRemoteApi(platform).describe({
         transport: remoteTransport(

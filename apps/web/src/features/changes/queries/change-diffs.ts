@@ -12,20 +12,17 @@ import {
 } from '../rules/changes';
 import { diffBatches } from '../rules/diff-batches';
 import { useChangesStore } from '../store';
-import {
-  type Connection,
-  requireConnection,
-} from '@/shared/workspace/connection';
+import { type Connection } from '@/shared/workspace/connection';
 
 export function useChangeDiffs(
   scope: ChangesScope,
-  possibleConnection: Connection | null,
+  possibleConnection: Connection,
   statusToken: string,
   expectedFiles: readonly ExpectedFile[],
   selections: readonly ChangeSelection[],
   recover: (statusToken: string) => void,
 ) {
-  const connection = requireConnection(possibleConnection);
+  const connection = possibleConnection;
   const key = JSON.stringify([
     connection.environmentId,
     scope.projectId,

@@ -1,6 +1,7 @@
+import { assertCurrentAnswer } from '../../../shared/api/stale-answer.ts';
+import { queryKeys } from '../../../shared/api/query-keys.ts';
 import type { ReadChangeDiffsRequest } from '@porcelain/contracts/changes';
 import type { QueryFunctionContext } from '@tanstack/query-core';
-import { ConnectionError } from '../../../shared/api/connection-error.ts';
 import {
   type WorktreeConnection,
   type WorktreeScope,
@@ -13,15 +14,10 @@ export function changeDiffsQueryOptions(
   input: ReadChangeDiffsRequest,
 ) {
   return {
-    queryKey: [
-      'review',
-      connection.environmentId,
-      scope.projectId,
-      scope.worktreeId,
+    queryKey: queryKeys.worktreeSurface(connection, scope, [
       'change-diffs',
       input,
-      ...(connection.cacheIdentity ?? []),
-    ],
+    ]),
     retry: false,
     queryFn: async ({ signal }: Pick<QueryFunctionContext, 'signal'>) => {
       const connected = connection.request(signal);
@@ -30,15 +26,12 @@ export function changeDiffsQueryOptions(
         worktreeId: scope.worktreeId,
         input,
       });
-      connected.signal.throwIfAborted();
-      if (
-        result.environmentId !== connection.environmentId ||
-        result.worktreeId !== scope.worktreeId ||
-        result.statusToken !== input.expectedStatusToken
-      )
-        throw new ConnectionError(
-          'The review context changed. Reopen Porcelain to continue safely.',
-        );
+      assertCurrentAnswer(
+        connected.signal,
+        result.environmentId === connection.environmentId &&
+          result.worktreeId === scope.worktreeId &&
+          result.statusToken === input.expectedStatusToken,
+      );
       return result;
     },
   };

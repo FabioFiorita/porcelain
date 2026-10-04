@@ -1,34 +1,30 @@
+import { assertCurrentAnswer } from '@porcelain/client/transport';
 import {
   branchQueryOptions,
   branchDiffsQueryOptions,
 } from '@porcelain/client/changes';
 import { useQuery } from '@tanstack/react-query';
 import { usePathDiffs } from './path-diffs';
-import { queryKeys } from '@/shared/query/keys';
+import { queryKeys } from '@porcelain/client/transport';
 import { changesApi } from '../api';
 import type { BranchRange } from '../rules/branch';
 import { type ChangesScope } from '../rules/changes';
-import {
-  type Connection,
-  requireConnection,
-} from '@/shared/workspace/connection';
+import { type Connection } from '@/shared/workspace/connection';
 
 export function useBranchChanges(
   scope: ChangesScope,
-  connection: Connection | null,
+  connection: Connection,
   base: string | undefined,
 ) {
-  return useQuery(
-    branchQueryOptions(scope, requireConnection(connection), base),
-  );
+  return useQuery(branchQueryOptions(scope, connection, base));
 }
 
 export function useBranchBases(
   scope: ChangesScope,
-  connection: Connection | null,
+  connection: Connection,
   enabled: boolean,
 ) {
-  const connected = requireConnection(connection);
+  const connected = connection;
   return useQuery({
     queryKey: queryKeys.reviewSurface(connected.environmentId, scope, [
       'branch-bases',
@@ -40,7 +36,7 @@ export function useBranchBases(
         signal: request.signal,
         worktreeId: scope.worktreeId,
       });
-      request.signal.throwIfAborted();
+      assertCurrentAnswer(request.signal);
       return bases;
     },
   });
@@ -48,11 +44,11 @@ export function useBranchBases(
 
 export function useBranchDiffs(
   scope: ChangesScope,
-  connection: Connection | null,
+  connection: Connection,
   range: BranchRange | null,
   paths: readonly (readonly string[])[],
 ) {
-  const connected = requireConnection(connection);
+  const connected = connection;
   return usePathDiffs({
     connection: connected,
     paths: range ? paths : [],

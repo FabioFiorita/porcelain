@@ -64,7 +64,7 @@ describe('reading a connected project inventory', () => {
       inventoryQueryOptions(connected).queryFn({
         signal: new AbortController().signal,
       }),
-    ).rejects.toThrow('The connected environment changed.');
+    ).rejects.toThrow('The connected context changed.');
   });
 
   it('rejects a completed read when its connection was cancelled', async () => {

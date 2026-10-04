@@ -4,21 +4,19 @@ import type { FilesScope } from '../rules/scope';
 import { type Connection } from '@/shared/workspace/connection';
 
 export function useTextFile(
-  connection: Connection | null,
+  connection: Connection,
   scope: FilesScope,
   path: string,
   _active: boolean,
 ) {
-  if (!connection) throw new Error('A connected environment is required');
   return useSuspenseQuery(textQueryOptions(scope, connection, path)).data;
 }
 
 export function useTextContents(
-  connection: Connection | null,
+  connection: Connection,
   scope: FilesScope,
   paths: readonly string[],
 ) {
-  if (!connection) throw new Error('A connected environment is required');
   const queries = useQueries({
     queries: paths.map((path) => ({
       ...textQueryOptions(scope, connection, path),

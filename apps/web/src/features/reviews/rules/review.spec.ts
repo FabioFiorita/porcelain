@@ -124,6 +124,17 @@ describe('reviewErrorMessage', () => {
       'This review surface could not be loaded. Try again.',
     );
   });
+
+  it('explains that a dependent comment was not sent', () => {
+    const error = new Error(
+      'An earlier change failed, so this one was not sent.',
+      { cause: new Error('Comment too long') },
+    );
+    error.name = 'WriteNotSentError';
+    expect(reviewErrorMessage(error)).toBe(
+      'An earlier change failed, so this one was not sent.',
+    );
+  });
 });
 
 describe('summaryLayerNumber', () => {

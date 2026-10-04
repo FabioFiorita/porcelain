@@ -41,6 +41,6 @@ describe('a directory read stays with the selected worktree', () => {
         }),
         'src',
       ).queryFn({ signal: new AbortController().signal }),
-    ).rejects.toThrow('The file context changed.');
+    ).rejects.toThrow('The connected context changed.');
   });
 });

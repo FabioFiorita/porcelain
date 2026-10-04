@@ -2,28 +2,25 @@ import { useQueryClient } from '@tanstack/react-query';
 import { changesQueryOptions } from '@porcelain/client/changes';
 import { gitStatusQueryOptions } from '../queries/git-status';
 import type { ChangesScope } from '../rules/changes';
-import {
-  type Connection,
-  requireConnection,
-} from '@/shared/workspace/connection';
+import { type Connection } from '@/shared/workspace/connection';
 
 export function useReadCurrentChanges(
   scope: ChangesScope,
-  possibleConnection: Connection | null,
+  possibleConnection: Connection,
 ) {
   const client = useQueryClient();
-  const connection = requireConnection(possibleConnection);
+  const connection = possibleConnection;
   const options = changesQueryOptions(scope, connection);
   return async () => (await client.query({ ...options, staleTime: 0 })).changes;
 }
 
 export function useRefreshGitLook(
   scope: ChangesScope,
-  possibleConnection: Connection | null,
+  possibleConnection: Connection,
 ) {
   const readChanges = useReadCurrentChanges(scope, possibleConnection);
   const client = useQueryClient();
-  const connection = requireConnection(possibleConnection);
+  const connection = possibleConnection;
   return async () => {
     const changes = await readChanges();
     await client.invalidateQueries({

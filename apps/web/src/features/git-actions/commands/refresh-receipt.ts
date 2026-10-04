@@ -4,7 +4,7 @@ import {
   fileSurfaces,
   gitSurfaces,
   reviewSurfaceFilters,
-} from '@/shared/query/keys';
+} from '@porcelain/client/transport';
 import { isTerminal } from '@/shared/query/operation-store';
 
 type Receipt = RunGitActionResponse;

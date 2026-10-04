@@ -1,3 +1,5 @@
+import { assertCurrentAnswer } from '../../../shared/api/stale-answer.ts';
+import { queryKeys } from '../../../shared/api/query-keys.ts';
 import type { QueryFunctionContext } from '@tanstack/query-core';
 import {
   type WorktreeConnection,
@@ -12,16 +14,11 @@ export function commitQueryOptions(
   parent = 1,
 ) {
   return {
-    queryKey: [
-      'review',
-      connection.environmentId,
-      scope.projectId,
-      scope.worktreeId,
+    queryKey: queryKeys.worktreeSurface(connection, scope, [
       'commit',
       oid,
       parent,
-      ...(connection.cacheIdentity ?? []),
-    ],
+    ]),
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
     queryFn: async ({ signal }: Pick<QueryFunctionContext, 'signal'>) => {
@@ -32,7 +29,7 @@ export function commitQueryOptions(
         oid,
         parent,
       });
-      connected.signal.throwIfAborted();
+      assertCurrentAnswer(connected.signal);
 
       return result;
     },

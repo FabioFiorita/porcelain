@@ -1,16 +1,21 @@
-import type { QueryClient } from '@tanstack/react-query';
+import { createWriteQueue } from '../../../shared/api/write-queue.ts';
+import { assertCurrentAnswer } from '../../../shared/api/stale-answer.ts';
+import type { ReviewClock } from '../ports/reviews.ts';
+import type { WorktreeConnection } from '../../../shared/api/connection.ts';
+import type { QueryClient } from '@tanstack/query-core';
 import type { ListReviewedFilesResponse } from '@porcelain/contracts/reviews';
 
 type ReviewedMarksResponse = ListReviewedFilesResponse;
 
 type Queue = {
-  tail: Promise<void>;
+  writes: ReturnType<typeof createWriteQueue>;
   confirmed: ReviewedMarksResponse | undefined;
   pending: Intent[];
 };
 type QueueContext = {
-  connection: { controller: AbortController };
+  connection: WorktreeConnection;
   key: readonly unknown[];
+  clock: ReviewClock;
 };
 type ReviewedChange = { path: string; fingerprint?: string };
 type Intent = ReviewedChange & { reviewedAt: string };
@@ -31,7 +36,7 @@ export function enqueueReviewedMany<T extends ReviewedMarksResponse>(
   changes: readonly ReviewedChange[],
   operation: () => Promise<T>,
 ) {
-  const signal = context.connection.controller.signal;
+  const signal = context.connection.request().signal;
   signal.throwIfAborted();
   let entries = queues.get(context.connection);
   if (!entries) {
@@ -42,7 +47,7 @@ export function enqueueReviewedMany<T extends ReviewedMarksResponse>(
   let queue = entries.get(hash);
   if (!queue) {
     queue = {
-      tail: Promise.resolve(),
+      writes: createWriteQueue(),
       confirmed: client.getQueryData(context.key),
       pending: [],
     };
@@ -51,7 +56,7 @@ export function enqueueReviewedMany<T extends ReviewedMarksResponse>(
   const current = queue;
   const intents: Intent[] = changes.map((change) => ({
     ...change,
-    reviewedAt: new Date().toISOString(),
+    reviewedAt: context.clock.now(),
   }));
   current.pending.push(...intents);
   const publish = () => {
@@ -76,10 +81,17 @@ export function enqueueReviewedMany<T extends ReviewedMarksResponse>(
   const ready = client
     .cancelQueries({ queryKey: context.key, exact: true })
     .then(publish);
-  const result = current.tail.then(async () => {
-    await ready;
+  let started = false;
+  const result = current.writes.enqueue(async () => {
+    started = true;
     try {
+      await ready;
       const response = await operation();
+      assertCurrentAnswer(
+        signal,
+        !current.confirmed ||
+          response.worktreeId === current.confirmed.worktreeId,
+      );
       current.confirmed = {
         worktreeId: response.worktreeId,
         marks: response.marks,
@@ -94,13 +106,13 @@ export function enqueueReviewedMany<T extends ReviewedMarksResponse>(
       publish();
     }
   });
-  const tail = result.then(
-    () => undefined,
-    () => undefined,
-  );
-  current.tail = tail;
-  void tail.then(() => {
-    if (current.tail !== tail) entries.delete(hash);
+  return result.finally(() => {
+    if (!started) {
+      current.pending = current.pending.filter(
+        (pending) => !intents.includes(pending),
+      );
+      publish();
+    }
+    if (current.pending.length === 0) entries.delete(hash);
   });
-  return result;
 }

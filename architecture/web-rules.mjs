@@ -723,7 +723,13 @@ export const webRules = {
     create(context) {
       const path = webPath(context);
       const part = webPart(path);
-      if (!runtimeWeb(path) || part === 'command' || part === 'live') return {};
+      if (
+        !runtimeWeb(path) ||
+        part === 'command' ||
+        part === 'live' ||
+        /^packages\/client\/src\/.+\.spec\.ts$/.test(path)
+      )
+        return {};
       return {
         CallExpression(node) {
           const name = methodName(node.callee);

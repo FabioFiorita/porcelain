@@ -1185,7 +1185,7 @@ function allowedSpecImport(filename, source) {
     )
   )
     return (
-      /^@porcelain\/client\/(?:files|changes|history|reviews|transport)(?:\/api)?$/.test(
+      /^@porcelain\/client\/(?:access|projects|files|changes|history|reviews|git-actions|transport)(?:\/api)?$/.test(
         source,
       ) ||
       /^@porcelain\/contracts\/(?:shared|files|changes|reviews|projects)$/.test(
@@ -1202,7 +1202,8 @@ function allowedSpecImport(filename, source) {
   if (
     (clientFeature ||
       /packages\/client\/src\/shared\/api\/[^/]+\.spec\.ts$/.test(path)) &&
-    (source === `@porcelain/client/${clientFeature?.[1]}` ||
+    (source === '@tanstack/query-core' ||
+      source === `@porcelain/client/${clientFeature?.[1]}` ||
       source === `@porcelain/client/${clientFeature?.[1]}/rules` ||
       /^@porcelain\/contracts\/(?:shared|access|projects|changes|reviews|files|git-actions)$/.test(
         source,
@@ -1233,6 +1234,129 @@ export default {
   rules: {
     ...webRules,
     ...mobileRules,
+    'client-owns-shared-logic': {
+      create(context) {
+        const path = repositoryPath(context);
+        if (
+          isSpec(context) ||
+          !/^(?:apps\/(?:web|mobile)\/src\/|packages\/client\/src\/)/.test(path)
+        )
+          return {};
+        const appFeature = /^apps\/(?:web|mobile)\/src\/features\//.test(path);
+        const dataOwner =
+          /\/(?:queries|commands)\/|\/store\.ts$|\/shared\/query\//.test(path);
+        const keyOwner =
+          path === 'packages/client/src/shared/api/query-keys.ts';
+        const keyPrefixes = new Set([
+          'review',
+          'inventory',
+          'environment',
+          'access',
+          'remote-status',
+          'paired-access',
+          'remote-access',
+          'service-update',
+          'project-folder',
+          'commit-models',
+          'desktop-app-update',
+        ]);
+        const report = (node, message) => context.report({ node, message });
+        return {
+          ImportDeclaration(node) {
+            if (!appFeature) return;
+            for (const specifier of node.specifiers) {
+              if (
+                specifier.type === 'ImportSpecifier' &&
+                specifier.imported.name === 'requestEndpoint'
+              )
+                report(
+                  specifier,
+                  'Call the shared client feature API; HTTP writes have one owner in packages/client so sibling apps cannot drift.',
+                );
+            }
+          },
+          ArrayExpression(node) {
+            if (
+              dataOwner &&
+              !keyOwner &&
+              node.elements.length > 1 &&
+              keyPrefixes.has(node.elements[0]?.value)
+            )
+              report(
+                node,
+                'Use the shared client key builders; cache reads and invalidations must identify the same resource in every app.',
+              );
+          },
+          Property(node) {
+            if (
+              !keyOwner &&
+              node.key.name === 'queryKey' &&
+              node.value.type === 'ArrayExpression' &&
+              !keyPrefixes.has(node.value.elements[0]?.value)
+            )
+              report(
+                node.value,
+                'Use the shared client key builders; cache reads and invalidations must identify the same resource in every app.',
+              );
+          },
+          CallExpression(node) {
+            const callee = node.callee;
+            if (
+              dataOwner &&
+              callee.type === 'MemberExpression' &&
+              callee.object.name === 'Promise' &&
+              callee.property.name === 'resolve' &&
+              node.arguments.length === 0
+            )
+              report(
+                node,
+                'Use the shared client write queue; dependent writes must stop after a failure and reject to their caller.',
+              );
+            if (
+              /\/queries\//.test(path) &&
+              callee.type === 'MemberExpression' &&
+              callee.property.name === 'throwIfAborted'
+            )
+              report(
+                node,
+                'Use assertCurrentAnswer; cancellation and stale answers share one guard and one explanation across clients.',
+              );
+          },
+          IfStatement(node) {
+            if (
+              !appFeature ||
+              !dataOwner ||
+              node.test.type !== 'UnaryExpression' ||
+              node.test.operator !== '!' ||
+              node.test.argument.name !== 'connection'
+            )
+              return;
+            const body =
+              node.consequent.type === 'BlockStatement'
+                ? node.consequent.body[0]
+                : node.consequent;
+            if (body?.type === 'ThrowStatement')
+              report(
+                node,
+                'Receive a non-null connection from the connected boundary; repeated feature guards hide which views can run disconnected.',
+              );
+          },
+          Literal(node) {
+            if (
+              path !== 'packages/client/src/shared/api/stale-answer.ts' &&
+              typeof node.value === 'string' &&
+              /^The (?:file|review|comment|commit|connected) context changed\./.test(
+                node.value,
+              )
+            )
+              report(
+                node,
+                'Use assertCurrentAnswer; cancellation and stale answers share one guard and one explanation across clients.',
+              );
+          },
+        };
+      },
+    },
     'operation-class-members': {
       create(context) {
         if (!operationFile.test(repositoryPath(context)) || isSpec(context))

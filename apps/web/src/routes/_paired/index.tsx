@@ -4,7 +4,7 @@ import {
   useRouterState,
 } from '@tanstack/react-router';
 import { z } from 'zod';
-import { useAccessStore } from '@/features/access/index';
+import { useConnectedContext } from '@/features/access/index';
 import {
   firstWaitingWorktree,
   selectedWorktreeInProject,
@@ -30,7 +30,7 @@ function WorkspaceIndex() {
     select: (state) =>
       state.status === 'idle' && state.location.pathname === '/',
   });
-  const connection = useAccessStore((state) => state.connection);
+  const { connection } = useConnectedContext();
   const inventory = useInventory(connection);
   const target =
     worktree === undefined

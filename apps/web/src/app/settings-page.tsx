@@ -41,7 +41,7 @@ import {
   DisconnectBrowser,
   RemoteComputers,
   ServiceUpdateSettings,
-  useAccessStore,
+  useConnectedContext,
   WaysInSettings,
 } from '@/features/access/index';
 import { usePreferences, type Preferences } from '@/features/preferences/index';
@@ -164,7 +164,7 @@ function AgentsSetting() {
 }
 
 function useEnvironment() {
-  const connection = useAccessStore((state) => state.connection);
+  const { connection } = useConnectedContext();
   return useInventory(connection).environment;
 }
 
@@ -318,7 +318,7 @@ export function SettingsPage({ section }: { section: string }) {
   const router = useRouter();
   const canGoBack = useCanGoBack();
   const page = useRef<HTMLElement>(null);
-  const connection = useAccessStore((state) => state.connection);
+  const { connection } = useConnectedContext();
   const { environment } = useInventory(connection);
   useDocumentTitle(
     environment.custom ? `Settings · ${environment.name}` : 'Settings',

@@ -7,7 +7,6 @@ import type {
   ListReviewedFilesResponse,
   ReadPublishedReviewResponse,
   SetReviewedFileRequest,
-  SetReviewedFilesRequest,
   SetReviewedFilesResponse,
 } from '@porcelain/contracts/reviews';
 
@@ -18,9 +17,8 @@ type ChangeDiffs = ReadChangeDiffsResponse;
 export type DiffContent = ChangeDiffs['diffs'][number]['content'];
 export type ChangeSelection = ChangeDiffs['diffs'][number]['selection'];
 type ReviewedMark = ListReviewedFilesResponse['marks'][number];
-export type ReviewedMarksResponse = ListReviewedFilesResponse;
+type ReviewedMarksResponse = ListReviewedFilesResponse;
 export type SetReviewedRequest = SetReviewedFileRequest;
-export type SetReviewedBulkRequest = SetReviewedFilesRequest;
 export type SetReviewedBulkResponse = SetReviewedFilesResponse;
 export type ReviewStatus = 'unreviewed' | 'reviewed' | 'stale';
 export type ReviewChangeItem = FileChange & {
@@ -110,7 +108,8 @@ export function mergeBranchChanges(
 }
 
 export function reviewErrorMessage(error: unknown) {
-  return error instanceof Error && error.name === 'ConnectionError'
+  return error instanceof Error &&
+    (error.name === 'ConnectionError' || error.name === 'WriteNotSentError')
     ? error.message
     : 'This review surface could not be loaded. Try again.';
 }

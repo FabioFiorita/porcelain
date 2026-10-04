@@ -1,3 +1,5 @@
+import { assertCurrentAnswer } from '../../../shared/api/stale-answer.ts';
+import { queryKeys } from '../../../shared/api/query-keys.ts';
 import type { ListCommitsResponse } from '@porcelain/contracts/changes';
 import type { QueryFunctionContext, InfiniteData } from '@tanstack/query-core';
 import {
@@ -28,14 +30,7 @@ export function historyQueryOptions(
   connection: WorktreeConnection,
 ) {
   return {
-    queryKey: [
-      'review',
-      connection.environmentId,
-      scope.projectId,
-      scope.worktreeId,
-      'history',
-      ...(connection.cacheIdentity ?? []),
-    ],
+    queryKey: queryKeys.worktreeSurface(connection, scope, ['history']),
     queryFn: async ({
       signal,
       pageParam,
@@ -49,7 +44,7 @@ export function historyQueryOptions(
         after: pageParam?.after,
         tip: pageParam?.tip,
       });
-      connected.signal.throwIfAborted();
+      assertCurrentAnswer(connected.signal);
       return page;
     },
     refetchOnWindowFocus: false,

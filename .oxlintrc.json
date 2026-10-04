@@ -43,6 +43,7 @@
     "porcelain/no-comments": "error",
     "porcelain/mobile-native-ui": "error",
     "porcelain/client-platform-through-ports": "error",
+    "porcelain/client-owns-shared-logic": "error",
     "porcelain/models-are-types": "error",
     "porcelain/bootstrap-constructs-only": "error",
     "porcelain/no-null-in-domain": "error",

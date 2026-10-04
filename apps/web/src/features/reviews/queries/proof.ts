@@ -1,5 +1,6 @@
+import { assertCurrentAnswer } from '@porcelain/client/transport';
 import { queryOptions, useQuery } from '@tanstack/react-query';
-import { queryKeys } from '@/shared/query/keys';
+import { queryKeys } from '@porcelain/client/transport';
 import type { ReviewScope } from '../rules/review';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 import { reviewsApi } from '../api';
@@ -22,7 +23,7 @@ function proofFileQueryOptions(
         ...request,
         proofId,
       });
-      request.signal.throwIfAborted();
+      assertCurrentAnswer(request.signal);
       return file;
     },
     staleTime: Number.POSITIVE_INFINITY,

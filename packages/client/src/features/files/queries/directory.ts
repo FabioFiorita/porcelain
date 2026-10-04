@@ -1,5 +1,6 @@
+import { assertCurrentAnswer } from '../../../shared/api/stale-answer.ts';
+import { queryKeys } from '../../../shared/api/query-keys.ts';
 import type { QueryFunctionContext } from '@tanstack/query-core';
-import { ConnectionError } from '../../../shared/api/connection-error.ts';
 import {
   type WorktreeConnection,
   type WorktreeScope,
@@ -12,15 +13,7 @@ export function directoryQueryOptions(
   path: string,
 ) {
   return {
-    queryKey: [
-      'review',
-      connection.environmentId,
-      scope.projectId,
-      scope.worktreeId,
-      'directory',
-      path,
-      ...(connection.cacheIdentity ?? []),
-    ],
+    queryKey: queryKeys.worktreeSurface(connection, scope, ['directory', path]),
     queryFn: async ({ signal }: Pick<QueryFunctionContext, 'signal'>) => {
       const connected = connection.request(signal);
       const result = await filesApi(connection).directory({
@@ -28,11 +21,10 @@ export function directoryQueryOptions(
         worktreeId: scope.worktreeId,
         path,
       });
-      connected.signal.throwIfAborted();
-      if (result.worktreeId !== scope.worktreeId)
-        throw new ConnectionError(
-          'The file context changed. Reopen Porcelain to continue safely.',
-        );
+      assertCurrentAnswer(
+        connected.signal,
+        result.worktreeId === scope.worktreeId,
+      );
       return result;
     },
   };

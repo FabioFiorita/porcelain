@@ -163,7 +163,7 @@ function MessageEditor({
         if (!valid || edit.isPending) return;
         edit.send(
           { threadId: owner.threadId, messageId: message.id, body },
-          onDone,
+          { onSuccess: onDone },
         );
       }}
     >
@@ -350,10 +350,12 @@ export function ThreadCard({
         pendingReply.current = intent;
         reply.send(
           { threadId: thread.id, body, messageId: intent.messageId },
-          () => {
-            pendingReply.current = undefined;
-            setBody('');
-            setReplying(false);
+          {
+            onSuccess: () => {
+              pendingReply.current = undefined;
+              setBody('');
+              setReplying(false);
+            },
           },
         );
       }}

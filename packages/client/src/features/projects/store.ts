@@ -1,3 +1,4 @@
+import { createWriteQueue } from '../../shared/api/write-queue.ts';
 import { createStore } from 'zustand/vanilla';
 import { ConnectionError } from '../../shared/api/connection-error.ts';
 import type {
@@ -20,16 +21,11 @@ type ProjectSelectionState = ProjectSelectionSnapshot & {
 
 export function createProjectSelectionStore(storage: ProjectSelectionStorage) {
   return createStore<ProjectSelectionState>()((set, get) => {
-    let pending = Promise.resolve();
-    function enqueue(operation: () => Promise<void>) {
-      const result = pending.then(operation);
-      pending = result.catch(() => undefined);
-      return result;
-    }
+    const queue = createWriteQueue();
     function write(
       update: (snapshot: ProjectSelectionSnapshot) => ProjectSelectionSnapshot,
     ) {
-      return enqueue(async () => {
+      return queue.enqueue(async () => {
         if (get().status !== 'ready')
           throw new ConnectionError(
             'Saved workspace selections must be read before changing them.',
@@ -52,7 +48,7 @@ export function createProjectSelectionStore(storage: ProjectSelectionStorage) {
       status: 'loading',
       error: undefined,
       load: () =>
-        enqueue(async () => {
+        queue.enqueue(async () => {
           set({ status: 'loading', error: undefined });
           try {
             const snapshot = await storage.read();

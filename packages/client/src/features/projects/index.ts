@@ -10,3 +10,5 @@ export type {
   ProjectSelectionStorage,
   ProjectSelectionSnapshot,
 } from './ports/project-selection-storage.ts';
+export { projectCommands, setFilePreference } from './commands/projects.ts';
+export { filePreferencesQueryOptions } from './queries/file-preferences.ts';

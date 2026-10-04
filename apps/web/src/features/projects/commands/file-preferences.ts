@@ -1,8 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { SetFilePreferenceRequest } from '@porcelain/contracts/projects';
 import { asMutation } from '@/shared/query/mutation';
-import { projectsApi } from '../api';
-import { filePreferencesQueryOptions } from '../queries/file-preferences';
+import { setFilePreference } from '@porcelain/client/projects';
 import {
   canonicalPreferencePath,
   type SetHiddenInput,
@@ -10,42 +9,18 @@ import {
 } from '../rules/file-preferences';
 import { type Connection } from '@/shared/workspace/connection';
 
-function useSetFilePreference(
-  connection: Connection | null,
-  projectId: string,
-) {
-  if (!connection) throw new Error('A connected environment is required');
+function useSetFilePreference(connection: Connection, projectId: string) {
   const client = useQueryClient();
-  const key = filePreferencesQueryOptions(
-    connection.environmentId,
-    projectId,
-    connection,
-  ).queryKey;
   const mutation = asMutation(
     useMutation({
-      scope: {
-        id: `file-preferences:${connection.environmentId}:${projectId}`,
-      },
-      mutationFn: async (input: SetFilePreferenceRequest) => {
-        const request = connection.request();
-        const response = await projectsApi(connection).filePreferences.set({
-          signal: request.signal,
-          projectId,
-          input,
-        });
-        request.signal.throwIfAborted();
-        return response;
-      },
-      onSuccess: async (response) => {
-        await client.cancelQueries({ queryKey: key, exact: true });
-        client.setQueryData(key, response);
-      },
+      mutationFn: (input: SetFilePreferenceRequest) =>
+        setFilePreference(connection, client, projectId, input),
     }),
   );
   return mutation;
 }
 
-export function useSetHidden(connection: Connection | null, projectId: string) {
+export function useSetHidden(connection: Connection, projectId: string) {
   const mutation = useSetFilePreference(connection, projectId);
   return {
     ...mutation,
@@ -58,7 +33,7 @@ export function useSetHidden(connection: Connection | null, projectId: string) {
   };
 }
 
-export function useSetPinned(connection: Connection | null, projectId: string) {
+export function useSetPinned(connection: Connection, projectId: string) {
   const mutation = useSetFilePreference(connection, projectId);
   return {
     ...mutation,

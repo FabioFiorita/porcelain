@@ -21,9 +21,10 @@ import {
 } from '@/shared/live/socket';
 import { adoptFileDrafts } from '@/shared/query/file-drafts';
 import { createOperationStore } from '@/shared/query/operation-store';
-import type {
-  Connection,
-  ConnectionContext,
+import {
+  type Connection,
+  type ConnectionContext,
+  requireConnection,
 } from '@/shared/workspace/connection';
 
 export type RemoteConnection = { remote: Remote; connection: Connection };
@@ -226,6 +227,5 @@ export function useRemoteConnection(environmentId: string) {
 export function useConnectedContext(remote?: Connection): ConnectionContext {
   const local = useAccessStore((state) => state.connection);
   if (remote) return { connection: remote };
-  if (!local) throw new Error('A connected environment is required');
-  return { connection: local };
+  return { connection: requireConnection(local) };
 }

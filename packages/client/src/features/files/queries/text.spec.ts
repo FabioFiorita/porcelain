@@ -108,7 +108,7 @@ describe('worktree reads stay with the selected connection', () => {
       textQueryOptions(scope, connected, 'README.md').queryFn({
         signal: new AbortController().signal,
       }),
-    ).rejects.toThrow('The file context changed.');
+    ).rejects.toThrow('The connected context changed.');
   });
 
   it('rejects an answer that completed after disconnect even if the transport ignored cancellation', async () => {

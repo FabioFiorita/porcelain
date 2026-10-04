@@ -4,11 +4,10 @@ import type { FilesScope } from '../rules/scope';
 import { type Connection } from '@/shared/workspace/connection';
 
 export function useWorktreePaths(
-  connection: Connection | null,
+  connection: Connection,
   scope: FilesScope,
   enabled = true,
 ) {
-  if (!connection) throw new Error('A connected environment is required');
   return useQuery({
     ...pathsQueryOptions(scope, connection),
     enabled,

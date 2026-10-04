@@ -1,7 +1,8 @@
 import { REVIEWED_FILE_MARKS } from '@porcelain/contracts/shared';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { asMutation } from '@/shared/query/mutation';
-import { reviewedQueryOptions } from '@porcelain/client/reviews';
+import { reviewClock } from '@/shared/adapters/review-clock';
+import { reviewedCommands } from '@porcelain/client/reviews';
 import { reviewErrorMessage, type ReviewScope } from '../rules/review';
 import {
   bulkMarkPlan,
@@ -16,42 +17,20 @@ import {
   visibleBulkReport,
   WORKTREE_RANGE,
 } from '../rules/reviewed';
-import { enqueueReviewed, enqueueReviewedMany } from './reviewed-queue';
 import { type ConnectionContext } from '@/shared/workspace/connection';
-import { reviewsApi } from '../api';
 
-function reviewedContext(
+function useReviewedCommands(
   scope: ReviewScope,
   context: ConnectionContext,
   range: ReviewRange,
 ) {
-  const { connection } = context;
-  return {
-    api: reviewsApi(connection).reviewed,
-    key: reviewedQueryOptions(scope, context.connection, range).queryKey,
-    connection,
-    request: (signal?: AbortSignal) => ({
-      ...scope,
-      ...connection.request(signal),
-      range,
-    }),
-  };
-}
-
-function useUnmarkOne(
-  scope: ReviewScope,
-  context: ConnectionContext,
-  range: ReviewRange,
-) {
-  const reviewed = reviewedContext(scope, context, range);
-  const client = useQueryClient();
-  return (path: string) =>
-    enqueueReviewed(reviewed, client, { path }, async () => {
-      const request = reviewed.request();
-      const result = await reviewed.api.remove({ ...request, path });
-      request.signal.throwIfAborted();
-      return result;
-    });
+  return reviewedCommands(
+    scope,
+    context.connection,
+    useQueryClient(),
+    range,
+    reviewClock,
+  );
 }
 
 export function useMarkReviewed(
@@ -59,16 +38,9 @@ export function useMarkReviewed(
   context: ConnectionContext,
   range: ReviewRange = WORKTREE_RANGE,
 ) {
-  const reviewed = reviewedContext(scope, context, range);
-  const client = useQueryClient();
+  const commands = useReviewedCommands(scope, context, range);
   const mutation = useMutation({
-    mutationFn: (input: MarkReviewedInput) =>
-      enqueueReviewed(reviewed, client, input, async () => {
-        const request = reviewed.request();
-        const result = await reviewed.api.set({ ...request, input });
-        request.signal.throwIfAborted();
-        return result;
-      }),
+    mutationFn: commands.set,
   });
   return {
     ...asMutation(mutation),
@@ -81,8 +53,8 @@ export function useUnmarkReviewed(
   context: ConnectionContext,
   range: ReviewRange = WORKTREE_RANGE,
 ) {
-  const unmarkOne = useUnmarkOne(scope, context, range);
-  const mutation = useMutation({ mutationFn: unmarkOne });
+  const commands = useReviewedCommands(scope, context, range);
+  const mutation = useMutation({ mutationFn: commands.remove });
   return {
     ...asMutation(mutation),
     start: (path: string) => mutation.mutate(path),
@@ -94,27 +66,13 @@ export function useMarkAllReviewed(
   context: ConnectionContext,
   range: ReviewRange = WORKTREE_RANGE,
 ) {
-  const reviewed = reviewedContext(scope, context, range);
-  const client = useQueryClient();
+  const commands = useReviewedCommands(scope, context, range);
   const bulk = useMutation({
     mutationFn: async (entries: readonly ReviewableItem[]) => {
       const plan = bulkMarkPlan(entries);
       let report = plan.report;
       for (const files of inChunks(plan.files, REVIEWED_FILE_MARKS)) {
-        const response = await enqueueReviewedMany(
-          reviewed,
-          client,
-          files,
-          async () => {
-            const request = reviewed.request();
-            const result = await reviewed.api.setAll({
-              ...request,
-              input: { files },
-            });
-            request.signal.throwIfAborted();
-            return result;
-          },
-        );
+        const response = await commands.setAll(files);
         report = bulkMarkReport(report, response);
       }
       return report;
@@ -123,20 +81,7 @@ export function useMarkAllReviewed(
   const unmark = useMutation({
     mutationFn: async (paths: readonly string[]) => {
       for (const chunk of inChunks(paths, REVIEWED_FILE_MARKS))
-        await enqueueReviewedMany(
-          reviewed,
-          client,
-          chunk.map((path) => ({ path })),
-          async () => {
-            const request = reviewed.request();
-            const result = await reviewed.api.removeAll({
-              ...request,
-              paths: chunk,
-            });
-            request.signal.throwIfAborted();
-            return result;
-          },
-        );
+        await commands.removeAll(chunk);
     },
   });
   return {

@@ -1,3 +1,4 @@
+import { editFile, refreshFileEdit } from '@porcelain/client/files';
 import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { expect } from 'vitest';
@@ -62,4 +63,51 @@ test('missing files retain the server error and binary files explain why text is
     kind: 'unreadable',
     reason: 'This file is binary or uses an unsupported text encoding.',
   });
+});
+
+test('save exact text through the shared writer and refuse an older fingerprint', async ({
+  server,
+  session,
+}) => {
+  const { connected, scope } = await connection(server, session);
+  const cache = new QueryClient();
+  const original = await cache.query(
+    textQueryOptions(scope, connected, session.fixture.readme.path),
+  );
+  if (!('contentFingerprint' in original) || !original.contentFingerprint)
+    throw new Error('Expected the editable file fingerprint');
+  const input = {
+    kind: 'write' as const,
+    path: session.fixture.readme.path,
+    text: 'Saved by the shared client.\n',
+    expectedFingerprint: original.contentFingerprint,
+  };
+  const saved = await editFile(
+    connected,
+    scope,
+    input,
+    connected.request().signal,
+  );
+  expect(saved.contentFingerprint).not.toBe(original.contentFingerprint);
+  await refreshFileEdit(cache, connected, scope, input);
+  const current = await cache.query(
+    textQueryOptions(scope, connected, session.fixture.readme.path),
+  );
+  expect(current).toMatchObject({
+    text: 'Saved by the shared client.\n',
+    contentFingerprint: saved.contentFingerprint,
+  });
+  await expect(
+    editFile(
+      connected,
+      scope,
+      { ...input, text: 'Overwrite with an old fingerprint.\n' },
+      connected.request().signal,
+    ),
+  ).rejects.toMatchObject({ status: 409, code: 'content_changed' });
+  expect(
+    await cache.query(
+      textQueryOptions(scope, connected, session.fixture.readme.path),
+    ),
+  ).toMatchObject({ text: 'Saved by the shared client.\n' });
 });

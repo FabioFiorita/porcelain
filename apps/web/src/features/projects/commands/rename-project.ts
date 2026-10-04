@@ -1,43 +1,15 @@
 import { renameProjectRequestSchema } from '@porcelain/contracts/projects';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { asMutation } from '@/shared/query/mutation';
-import { projectsApi } from '../api';
-import { useInventoryCache } from './inventory-cache';
+import { projectCommands } from '@porcelain/client/projects';
 import { type Connection } from '@/shared/workspace/connection';
 
-export function useRenameProject(
-  possibleConnection: Connection | null,
-  close: () => void,
-) {
-  const { connection, scope, update } = useInventoryCache(possibleConnection);
+export function useRenameProject(connection: Connection, close: () => void) {
+  const commands = projectCommands(connection, useQueryClient());
   const mutation = asMutation(
     useMutation({
-      scope,
-      mutationFn: async ({
-        projectId,
-        name,
-      }: {
-        projectId: string;
-        name: string;
-      }) => {
-        const request = connection.request();
-        const result = await projectsApi(connection).inventory.rename({
-          signal: request.signal,
-          projectId,
-          name,
-        });
-        request.signal.throwIfAborted();
-        return result;
-      },
-      onSuccess: async (result) => {
-        await update((inventory) => ({
-          ...inventory,
-          projects: inventory.projects.map((project) =>
-            project.id === result.id
-              ? { ...project, name: result.name }
-              : project,
-          ),
-        }));
+      mutationFn: commands.rename,
+      onSuccess: () => {
         close();
       },
     }),

@@ -1,22 +1,11 @@
-import type {
-  ListReviewedLayersResponse,
-  SetReviewedLayerRequest,
-} from '@porcelain/contracts/reviews';
-import type { ProofFile } from './proof';
+import type { ListReviewedLayersResponse } from '@porcelain/contracts/reviews';
 import {
   isFingerprintable,
   type ReviewChangeItem,
-  type ReviewedMarksResponse,
   type ReviewLayer,
-  type ReviewResponse,
-  type ReviewScope,
-  type SetReviewedBulkRequest,
   type SetReviewedBulkResponse,
   type SetReviewedRequest,
 } from './review';
-
-type ReviewRequest = ReviewScope & { signal: AbortSignal };
-type ReviewedRequest = ReviewRequest & { range: ReviewRange };
 
 export type ReviewRange =
   | { kind: 'worktree' }
@@ -45,39 +34,6 @@ export function inChunks<T>(items: readonly T[], size: number): T[][] {
     chunks.push(items.slice(at, at + size));
   return chunks;
 }
-
-export type ReviewsPort = {
-  review: (request: ReviewRequest) => Promise<ReviewResponse | null>;
-  proofFile: (
-    request: ReviewRequest & { proofId: string },
-  ) => Promise<ProofFile>;
-  reviewed: {
-    list: (request: ReviewedRequest) => Promise<ReviewedMarksResponse>;
-    set: (
-      request: ReviewedRequest & { input: MarkReviewedInput },
-    ) => Promise<ReviewedMarksResponse>;
-    setAll: (
-      request: ReviewedRequest & {
-        input: Pick<SetReviewedBulkRequest, 'files'>;
-      },
-    ) => Promise<SetReviewedBulkResponse>;
-    remove: (
-      request: ReviewedRequest & { path: string },
-    ) => Promise<ReviewedMarksResponse>;
-    removeAll: (
-      request: ReviewedRequest & { paths: readonly string[] },
-    ) => Promise<ReviewedMarksResponse>;
-  };
-  reviewedLayers: {
-    list: (request: ReviewRequest) => Promise<ListReviewedLayersResponse>;
-    set: (
-      request: ReviewRequest & { input: SetReviewedLayerRequest },
-    ) => Promise<ListReviewedLayersResponse>;
-    remove: (
-      request: ReviewRequest & { layerId: string },
-    ) => Promise<ListReviewedLayersResponse>;
-  };
-};
 
 export type MarkReviewedInput = Pick<
   SetReviewedRequest,

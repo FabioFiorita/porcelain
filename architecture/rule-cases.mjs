@@ -1,5 +1,91 @@
 export default [
   {
+    rule: 'web-api-owns-request',
+    path: 'apps/web/src/features/reviews/live.ts',
+    valid:
+      "import { reviewSurfaceFilters } from '@porcelain/client/transport';",
+    invalid: "import { requestEndpoint } from '@porcelain/client/transport';",
+    errors: 1,
+  },
+  {
+    rule: 'spec-imports',
+    path: 'packages/client/src/features/reviews/commands/reviewed.spec.ts',
+    valid:
+      "import { QueryClient } from '@tanstack/query-core'; import { reviewedQueryOptions } from '@porcelain/client/reviews';",
+    invalid: "import { useQueryClient } from '@tanstack/react-query';",
+    errors: 1,
+  },
+  {
+    rule: 'web-cache-writes-in-commands',
+    path: 'apps/web/src/features/reviews/queries/comments.ts',
+    validPath: 'packages/client/src/features/reviews/commands/reviewed.spec.ts',
+    valid: 'client.setQueryData(key, { marks: [] });',
+    invalid: 'client.setQueryData(key, { marks: [] });',
+    errors: 1,
+  },
+
+  {
+    rule: 'client-owns-shared-logic',
+    path: 'apps/web/src/features/reviews/api.ts',
+    valid: "export { reviewsApi } from '@porcelain/client/reviews/api';",
+    invalid:
+      "import { requestEndpoint as send } from '@porcelain/client/transport';",
+    errors: 1,
+  },
+  {
+    rule: 'client-owns-shared-logic',
+    path: 'apps/mobile/src/features/projects/queries/inventory.ts',
+    valid: 'const options = { queryKey: queryKeys.inventory(environmentId) };',
+    invalid:
+      "const key = ['inventory', environmentId]; const options = { queryKey: key };",
+    errors: 1,
+  },
+  {
+    rule: 'client-owns-shared-logic',
+    path: 'packages/client/src/features/reviews/queries/comments.ts',
+    valid:
+      "const options = { queryKey: queryKeys.worktreeSurface(connection, scope, ['comments']) };",
+    invalid:
+      "const options = { queryKey: ['review', connection.environmentId, scope.worktreeId, 'comments'] };",
+    errors: 1,
+  },
+  {
+    rule: 'client-owns-shared-logic',
+    path: 'packages/client/src/features/projects/store.ts',
+    valid:
+      'const queue = createWriteQueue(); const submit = () => queue.enqueue(write);',
+    invalid:
+      'let tail = Promise.resolve(); const submit = () => tail.then(write);',
+    errors: 1,
+  },
+  {
+    rule: 'client-owns-shared-logic',
+    path: 'apps/web/src/features/files/queries/text.ts',
+    valid: 'function read(connection) { return connection.transport; }',
+    invalid:
+      "function read(connection) { if (!connection) throw new Error('A connection is required'); }",
+    errors: 1,
+  },
+  {
+    rule: 'client-owns-shared-logic',
+    path: 'packages/client/src/features/files/queries/text.ts',
+    valid:
+      'assertCurrentAnswer(signal, result.worktreeId === scope.worktreeId);',
+    invalid:
+      "signal.throwIfAborted(); if (result.worktreeId !== scope.worktreeId) throw new Error('Wrong worktree');",
+    errors: 1,
+  },
+  {
+    rule: 'client-owns-shared-logic',
+    path: 'packages/client/src/features/reviews/commands/comments.ts',
+    valid:
+      'assertCurrentAnswer(signal, threads.every(thread => thread.worktreeId === worktreeId));',
+    invalid:
+      "throw new Error('The comment context changed. Reopen Porcelain to continue safely.');",
+    errors: 1,
+  },
+
+  {
     rule: 'no-number-outside-limits',
     path: 'packages/contracts/src/shared/api-error.ts',
     valid: 'export const API_ERROR_STATUS = { content_changed: 409 };',

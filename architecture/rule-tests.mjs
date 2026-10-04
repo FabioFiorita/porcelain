@@ -196,6 +196,13 @@ deepStrictEqual(
 );
 deepStrictEqual(
   violation(
+    { role: 'live', owner: 'reviews' },
+    { role: 'client-transport-api', owner: 'client' },
+  ),
+  undefined,
+);
+deepStrictEqual(
+  violation(
     { role: 'api', owner: 'web' },
     { role: 'web-shared', owner: 'client' },
   ),
@@ -298,7 +305,16 @@ for (const entry of ruleCases) {
   try {
     tester.run(entry.rule, plugin.rules[entry.rule], {
       valid:
-        entry.valid === undefined ? [] : [{ filename: at, code: entry.valid }],
+        entry.valid === undefined
+          ? []
+          : [
+              {
+                filename: fileURLToPath(
+                  new URL(entry.validPath ?? entry.path, root),
+                ),
+                code: entry.valid,
+              },
+            ],
       invalid: [{ filename: at, code: entry.invalid, errors: entry.errors }],
     });
   } catch (error) {

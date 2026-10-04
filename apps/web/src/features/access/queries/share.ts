@@ -1,3 +1,4 @@
+import { queryKeys } from '@porcelain/client/transport';
 import { queryOptions, useQuery } from '@tanstack/react-query';
 import {
   REMOTE_ACCESS_SETTLING_POLL_MS,
@@ -7,17 +8,17 @@ import { shareApi } from '../api';
 import { routesSettling } from '../rules/share';
 import { type Connection } from '@/shared/workspace/connection';
 
-export function pairedAccessQueryOptions(connection: Connection) {
+function pairedAccessQueryOptions(connection: Connection) {
   return queryOptions({
-    queryKey: ['paired-access', connection.environmentId],
+    queryKey: queryKeys.pairedAccess(connection.environmentId),
     queryFn: ({ signal }) =>
       shareApi(connection).list({ signal: connection.request(signal).signal }),
   });
 }
 
-export function remoteAccessQueryOptions(connection: Connection) {
+function remoteAccessQueryOptions(connection: Connection) {
   return queryOptions({
-    queryKey: ['remote-access', connection.environmentId],
+    queryKey: queryKeys.remoteAccess(connection.environmentId),
     queryFn: ({ signal }) =>
       shareApi(connection).remote({
         signal: connection.request(signal).signal,
@@ -41,9 +42,9 @@ export function useRemoteAccess(connection: Connection) {
   };
 }
 
-export function serviceUpdateQueryOptions(connection: Connection) {
+function serviceUpdateQueryOptions(connection: Connection) {
   return queryOptions({
-    queryKey: ['service-update', connection.environmentId],
+    queryKey: queryKeys.serviceUpdate(connection.environmentId),
     queryFn: ({ signal }) =>
       shareApi(connection).serviceUpdate({
         signal: connection.request(signal).signal,

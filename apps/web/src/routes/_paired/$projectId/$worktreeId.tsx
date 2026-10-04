@@ -1,5 +1,5 @@
 import { createFileRoute, Navigate } from '@tanstack/react-router';
-import { useAccessStore } from '@/features/access/index';
+import { useConnectedContext } from '@/features/access/index';
 import {
   selectedWorktreeInProject,
   useInventory,
@@ -19,7 +19,7 @@ export const Route = createFileRoute('/_paired/$projectId/$worktreeId')({
 function WorktreeLayout() {
   const { projectId, worktreeId } = Route.useParams();
   const search = Route.useSearch();
-  const connection = useAccessStore((state) => state.connection);
+  const { connection } = useConnectedContext();
   const inventory = useInventory(connection);
   const selection = selectedWorktreeInProject(inventory, worktreeId);
   if (selection?.projectId !== projectId)
