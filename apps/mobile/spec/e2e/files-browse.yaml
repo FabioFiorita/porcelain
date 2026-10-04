@@ -32,8 +32,8 @@ name: Browse Files through the selected workspace
 - tapOn: source.ts
 - assertVisible: files-demo/source.ts
 - assertVisible: Read only
-- assertVisible: '.*Olá 🌿.*'
-- assertVisible: '.*\*\*literal\*\*, <tag>.*'
+- assertVisible: '(?s).*Olá 🌿.*'
+- assertVisible: '(?s).*\*\*literal\*\*, <tag>.*'
 - assertVisible: Back to files
 - tapOn: Back to files
 - assertVisible: Collapse files-demo
@@ -58,4 +58,4 @@ name: Browse Files through the selected workspace
 - assertVisible: files-demo/source.ts
 - tapOn: files-demo/source.ts
 - assertVisible: Read only
-- assertVisible: '.*Olá 🌿.*'
+- assertVisible: '(?s).*Olá 🌿.*'

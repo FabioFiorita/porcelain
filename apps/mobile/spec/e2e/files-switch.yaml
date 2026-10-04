@@ -4,7 +4,7 @@ name: A changed environment resets the selected file
 - tapOn: ${FIRST_PROJECT_NAME} · ${FIRST_WORKTREE_LABEL}
 - tapOn: Environment
 - tapOn: ${SECOND_ENVIRONMENT_NAME}
-- assertNotVisible: '.*Restored on disk.*'
+- assertNotVisible: '(?s).*Restored on disk.*'
 - assertVisible: Select a worktree to continue.
 - tapOn: ${SECOND_ENVIRONMENT_NAME}
 - tapOn: Project
@@ -13,5 +13,5 @@ name: A changed environment resets the selected file
 - assertVisible: Find a file
 - tapOn: Expand files-demo
 - tapOn: source.ts
-- assertVisible: '.*Second environment.*'
-- assertNotVisible: '.*Restored on disk.*'
+- assertVisible: '(?s).*Second environment.*'
+- assertNotVisible: '(?s).*Restored on disk.*'

@@ -2,5 +2,5 @@ appId: com.fabiofiorita.porcelain.dev
 name: Reload changed file text
 ---
 - tapOn: Reload file
-- assertVisible: '.*Reloaded from disk.*'
-- assertNotVisible: '.*Olá 🌿.*'
+- assertVisible: '(?s).*Reloaded from disk.*'
+- assertNotVisible: '(?s).*Olá 🌿.*'

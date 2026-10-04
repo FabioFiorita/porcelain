@@ -3,6 +3,6 @@ name: A deleted file clears its old content and keeps the way back
 ---
 - tapOn: Reload file
 - assertVisible: Path not found
-- assertNotVisible: '.*Reloaded from disk.*'
+- assertNotVisible: '(?s).*Reloaded from disk.*'
 - assertVisible: Read again
 - assertVisible: Back to files

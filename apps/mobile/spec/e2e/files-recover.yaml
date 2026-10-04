@@ -2,4 +2,4 @@ appId: com.fabiofiorita.porcelain.dev
 name: Read a restored file again
 ---
 - tapOn: Read again
-- assertVisible: '.*Restored on disk.*'
+- assertVisible: '(?s).*Restored on disk.*'
