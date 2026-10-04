@@ -432,7 +432,6 @@ async function main(): Promise<number> {
       row(probe, `${outcome.verdict} (${(durationMs / 1000).toFixed(1)} s)`),
     );
     for (const line of outcome.detail) process.stdout.write(`    ${line}\n`);
-    if (outcome.verdict !== 'rejected') break;
   }
   for (const [gate, timed] of [...gateTime].toSorted(
     (left, right) => right[1].durationMs - left[1].durationMs,

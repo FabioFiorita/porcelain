@@ -17,7 +17,7 @@ export const mobileRules = {
       const path = context.filename.replaceAll('\\', '/');
       if (!path.includes('/apps/mobile/src/')) return {};
       const message =
-        'Use Expo UI for standard controls and .ios/.android capability modules for platform differences; custom touch controls and Platform branches duplicate native behavior.';
+        'Use Expo UI for standard controls and .ios/.android capability modules for platform differences; custom touch controls and Platform branches duplicate native behavior, because duplicated custom controls miss native interaction behavior.';
       const check = (node) => {
         const source = node.source?.value;
         const runtime =

@@ -398,6 +398,7 @@ export function archRuleFamily(name: string): string | undefined {
 }
 
 export const styleRules = [
+  'architecture-budget',
   'disable-directives',
   'one-lint-config',
   'strict-json',

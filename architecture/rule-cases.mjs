@@ -1,3 +1,119 @@
+const commentSeenStore = `import type { CommentSeenStore } from '../../src/ports/comment-seen-store.ts';
+
+export class InMemoryCommentSeenStore implements CommentSeenStore {
+  private readonly seen = new Map<string, number>();
+
+  seenThrough(input: { worktreeId: string }): number {
+    return this.seen.get(input.worktreeId) ?? 0;
+  }
+
+  save(input: { worktreeId: string; seenThrough: number }): void {
+    this.seen.set(input.worktreeId, input.seenThrough);
+  }
+}
+`;
+
+const filesystemDirectoryReader = `export class FilesystemDirectoryReader implements DirectoryReader {
+  async list(
+  ): Promise<DirectoryRead> {
+    try {
+      for await (const entry of await opendir(before.path, {
+      })) {
+        if (found.length === input.limit) {
+        }
+      }
+    } catch (error) {
+    }
+  }
+}`;
+
+const remoteLinkCases = `import { describe, expect, it } from 'vitest';
+import { remoteLink } from './remotes.ts';
+
+describe('remoteLink', () => {
+  it('reads the address, code and environment of a pairing link', () => {
+    expect(remoteLink('http://192.0.2.10:4738/pair#c=a&e=env')).toEqual({
+      address: 'http://192.0.2.10:4738',
+      code: 'a',
+      environmentId: 'env',
+    });
+  });
+
+  it.each(['', 'http://192.0.2.10:4738/pair#c=a'])('reads nothing from %j', (value) => {
+    expect(remoteLink(value)).toBeUndefined();
+  });
+});
+`;
+
+const apiErrorCases = `import { apiErrorSchema } from '@porcelain/contracts/shared';
+import { expect } from 'vitest';
+import { z } from 'zod';
+import { worktreeNotFound } from '../kit/answers.ts';
+import { test } from '../kit/server-test.ts';
+import { record, text } from '../kit/session.ts';
+
+const unknownChanges = () => ({ method: 'GET', path: \`/api/worktrees/\${'0'.repeat(32)}/changes\` });
+const health = () => ({ method: 'GET', path: '/api/health' });
+
+test('the changes of an unknown worktree are refused with the error contract', async ({ session }) => {
+  const response = await session.send(unknownChanges());
+  const body = record(response.body);
+  expect(response.body).toEqual(expect.schemaMatching(apiErrorSchema));
+});
+`;
+
+const healthRoute = `import { readHealthEndpoint as endpoint } from '@porcelain/contracts/access';
+export function readHealth() {
+  api.route({ method: endpoint.method, url: endpoint.path, schema: endpoint.schema,
+    handler: async (request) => options.useCase.execute({ signal: request.disconnected }) });
+}`;
+
+const encodedCredential = `import type { CredentialKind, CredentialParts } from '../models/credential.ts';
+
+export function parseCredential(
+  kind: CredentialKind,
+  value: string,
+): CredentialParts | undefined {
+  const parts = new RegExp(\`^\${kind}_(?<id>[0-9a-f-]{36})_(?<secret>[\\\\w-]{43})$\`).exec(value)?.groups;
+  return parts?.id && parts.secret
+    ? { id: parts.id, secret: parts.secret }
+    : undefined;
+}
+`;
+
+const separateWorktreeLanes = `export class MarkCommentsSeenUseCase {
+  async execute(
+  ): Promise<MarkCommentsSeenResponse> {
+    const { changed, ...seen } = await this.lanes.run(
+      this.laneKeys.reviews(worktree),
+      'write',
+      async () => this.markCommentsSeen.execute(input),
+    );
+  }
+}`;
+
+const runtimeJobs = `const openServer: OpenServer = async (input) => {
+  const jobs: readonly Job[] = [
+    new IntervalJob(
+      { atStart: true, everyMs: limits.jobs.refreshInventoryMs },
+    ),
+  ];
+};`;
+
+const runtimeUseCases = `const openServer: OpenServer = async (input) => {
+  const useCases = { access, projects, files, changes, reviews, gitActions };
+  return {
+    jobs,
+  };
+};`;
+
+const observedStoreState = `describe('MarkCommentsSeenService', () => {
+  it('records the revision the reader saw', () => {
+    expect(seen.seenThrough({ worktreeId })).toBe(2);
+  });
+});
+`;
+
 export default [
   {
     rule: 'web-api-owns-request',
@@ -84,7 +200,462 @@ export default [
       "throw new Error('The comment context changed. Reopen Porcelain to continue safely.');",
     errors: 1,
   },
+  {
+    rule: 'implementation-name',
+    path: 'apps/server/src/adapters/runtime/system-clock.ts',
+    valid: `export class SystemClock implements Clock {
+}`,
+    invalid: `export class SystemClockAdapter implements Clock {
+}`,
+    errors: 1,
+  },
+  {
+    rule: 'implementation-name',
+    path: 'packages/storage/src/repositories/reviews/sqlite-comment-seen-store.ts',
+    valid: `import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
+import type { CommentSeenStore } from '@porcelain/reviews/ports';
 
+export class SqliteCommentSeenStore implements CommentSeenStore {
+  private readonly db: BetterSQLite3Database;
+
+  constructor(db: BetterSQLite3Database) {
+    this.db = db;
+  }
+}
+`,
+    invalid: `import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
+import type { CommentSeenStore, CommentStore } from '@porcelain/reviews/ports';
+
+export class SqliteCommentSeenStore implements CommentSeenStore, CommentStore {
+  private readonly db: BetterSQLite3Database;
+
+  constructor(db: BetterSQLite3Database) {
+    this.db = db;
+  }
+}
+`,
+    errors: 1,
+  },
+  {
+    rule: 'interfaces-only-in-ports',
+    path: 'packages/files/src/models/list-directory.ts',
+    valid: `export type ListDirectoryInput = { worktreeId: string; path: string };`,
+    invalid: `export interface ListDirectoryInput {
+  worktreeId: string;
+  path: string;
+}`,
+    errors: 1,
+  },
+  {
+    rule: 'interfaces-only-in-ports',
+    path: 'packages/files/src/services/list-directory-service.ts',
+    valid: `import type { ListDirectoryOptions } from '../models/list-directory.ts';
+
+export class ListDirectoryService {
+  private readonly options: ListDirectoryOptions;
+
+  constructor(options: ListDirectoryOptions) {
+    this.options = options;
+  }
+}
+`,
+    invalid: `export interface ListDirectoryOptions {
+  maxEntries: number;
+  maxResponseBytes: number;
+}
+
+export class ListDirectoryService {
+  private readonly options: ListDirectoryOptions;
+
+  constructor(options: ListDirectoryOptions) {
+    this.options = options;
+  }
+}
+`,
+    errors: 1,
+  },
+  {
+    rule: 'interfaces-only-in-ports',
+    path: 'apps/server/src/runtime/lane-observer.ts',
+    valid: `import type { LaneObserver } from '../ports/lane-observer.ts'; export type LaneObserverOptions = { observer: LaneObserver };`,
+    invalid: `export interface LaneObserver {
+  queued(lane: string): void;
+  settled(lane: string, failed: boolean): void;
+}
+`,
+    errors: 1,
+  },
+  {
+    rule: 'interfaces-only-in-ports',
+    path: 'packages/files/src/services/list-directory-service.ts',
+    valid: `declare global { type ListingBudget = { entries: number }; } export {};`,
+    invalid: `
+declare global {
+  interface ListingBudget {
+    entries: number;
+  }
+}
+`,
+    errors: 1,
+  },
+  {
+    rule: 'models-file-shape',
+    path: 'packages/files/src/models/list-directory.ts',
+    valid: `
+export type ListDirectoryOutcome =
+  | { kind: 'listed'; entries: DirectoryEntry[] }
+  | { kind: 'too-large' };
+`,
+    invalid: `
+export type ListDirectoryOutcome =
+  | { outcome: 'listed'; entries: DirectoryEntry[] }
+  | { outcome: 'too-large' };
+`,
+    errors: 1,
+  },
+  {
+    rule: 'models-file-shape',
+    path: 'packages/files/src/models/list-directory.ts',
+    valid: `export type ListDirectoryInput = {
+  path: string;
+  cursor?: string | undefined;
+};`,
+    invalid: `export type ListDirectoryInput = {
+  path: string;
+  cursor?: string;
+};`,
+    errors: 1,
+  },
+  {
+    rule: 'models-file-shape',
+    path: 'packages/reviews/src/models/record-review-activity.ts',
+    valid: `export type RecordReviewActivityResult = { recorded: boolean };`,
+    invalid: `export type RecordReviewActivityResult = void;`,
+    errors: 1,
+  },
+  {
+    rule: 'naming',
+    path: 'packages/access/src/rules/credential.ts',
+    valid: `const ID_PATTERN =
+  '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';`,
+    invalid: `const idPattern =
+  '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';`,
+    errors: 1,
+  },
+  {
+    rule: 'naming',
+    path: 'packages/reviews/spec/fakes/in-memory-comment-seen-store.ts',
+    valid: `export class InMemoryCommentSeenStore implements CommentSeenStore {
+}`,
+    invalid: `export class MemoryCommentSeenStore implements CommentSeenStore {
+}`,
+    errors: 1,
+  },
+  {
+    rule: 'naming',
+    path: 'apps/server/src/use-cases/access/read-health.ts',
+    valid: `import type { ReadEnvironmentService } from '@porcelain/access/services';
+import type { ReadHealthResponse } from '@porcelain/contracts/access';
+import type { OperationContext } from '../../ports/operation-context.ts';
+import type { Lanes } from '../../runtime/lanes.ts';
+
+export class ReadHealthUseCase {
+  private readonly readEnvironment: ReadEnvironmentService;
+  private readonly lanes: Lanes;
+
+  constructor(readEnvironment: ReadEnvironmentService, lanes: Lanes) {
+    this.readEnvironment = readEnvironment;
+    this.lanes = lanes;
+  }
+
+  execute(context: OperationContext): Promise<ReadHealthResponse> {
+    return this.lanes.run('access', 'read', async () => {
+      const { environmentId } = this.readEnvironment.execute();
+      return { status: 'ok', environmentId };
+    }, { callerSignal: context.signal });
+  }
+}
+`,
+    invalid: `import type { ReadEnvironmentService } from '@porcelain/access/services';
+import type { ReadHealthResponse } from '@porcelain/contracts/access';
+import type { OperationContext } from '../../ports/operation-context.ts';
+import type { Lanes } from '../../runtime/lanes.ts';
+
+export class ReadHealthUseCase {
+  private readonly readEnvironmentService: ReadEnvironmentService;
+  private readonly lanes: Lanes;
+
+  constructor(readEnvironment: ReadEnvironmentService, lanes: Lanes) {
+    this.readEnvironmentService = readEnvironment;
+    this.lanes = lanes;
+  }
+
+  execute(context: OperationContext): Promise<ReadHealthResponse> {
+    return this.lanes.run('access', 'read', async () => {
+      const { environmentId } = this.readEnvironmentService.execute();
+      return { status: 'ok', environmentId };
+    }, { callerSignal: context.signal });
+  }
+}
+`,
+    errors: 1,
+  },
+  {
+    rule: 'no-inline-execute-types',
+    path: 'packages/files/src/services/list-directory-service.ts',
+    valid: `export class ListDirectoryService {
+  async execute(
+    input: ListDirectoryInput,
+    signal?: AbortSignal,
+  ): Promise<ListDirectoryResult> {
+  }
+}`,
+    invalid: `export class ListDirectoryService {
+  async execute(
+    input: { worktreeId: string; path: string },
+    signal?: AbortSignal,
+  ): Promise<ListDirectoryResult> {
+  }
+}`,
+    errors: 1,
+  },
+  {
+    rule: 'no-interface-in-runtime',
+    path: 'apps/server/src/runtime/delay.ts',
+    valid: `import type { ProbeDelay } from '../ports/probe-delay.ts'; export type DelayOptions = { delay: ProbeDelay };`,
+    invalid: `
+export interface ProbeDelay {
+  readonly milliseconds: string;
+}
+`,
+    errors: 1,
+  },
+  {
+    rule: 'no-port-shaped-alias',
+    path: 'apps/server/src/runtime/probe-handle.ts',
+    valid: `import type { ProbeHandle } from '../ports/probe-handle.ts'; export type ProbeHandleResult = ProbeHandle;`,
+    invalid: `export type ProbeHandle = { close(): Promise<void> };
+`,
+    errors: 1,
+  },
+  {
+    rule: 'no-port-shaped-alias',
+    path: 'packages/git/src/shared/dtos/probe-handle.ts',
+    valid: `import type { ProbeHandle } from '../interfaces/probe-handle.ts'; export type ProbeHandleResult = ProbeHandle;`,
+    invalid: `export type ProbeHandle = { close(): Promise<void> };
+`,
+    errors: 1,
+  },
+  {
+    rule: 'naming',
+    path: 'apps/server/src/adapters/runtime/probe-reader.ts',
+    valid: `export class ProbeReader {}`,
+    invalid: `export class probeReader {}`,
+    errors: 1,
+  },
+  {
+    rule: 'models-file-shape',
+    path: 'packages/files/src/models/list-directory.ts',
+    valid: `export type ListDirectoryInput = { path: string };`,
+    invalid: `export interface ListDirectoryInput { path: string }`,
+    errors: 1,
+  },
+  {
+    rule: 'no-inline-execute-types',
+    path: 'packages/files/src/services/list-directory-service.ts',
+    valid: `export class ListDirectoryService { execute(input: ListDirectoryInput): Promise<ListDirectoryResult> {} }`,
+    invalid: `export class ListDirectoryService { execute(input: ListDirectoryInput): Promise<{ entries: DirectoryEntry[] }> {} }`,
+    errors: 1,
+  },
+  {
+    rule: 'operation-class-shape',
+    path: 'apps/server/src/use-cases/access/read-health.ts',
+    valid: `export class ReadHealthUseCase { execute(context: OperationContext): Promise<ReadHealthResponse> {} }`,
+    invalid: `export class ReadHealthController { execute(context: OperationContext): Promise<ReadHealthResponse> {} }`,
+    errors: 2,
+  },
+  {
+    rule: 'port-shape',
+    path: 'apps/server/src/ports/notice-port.ts',
+    valid: `export interface NoticeWriter { send(input: NoticeInput): void; }`,
+    invalid: `export interface NoticePort { send(input: NoticeInput): void; }`,
+    errors: 1,
+  },
+  {
+    rule: 'interfaces-hold-interfaces',
+    path: 'packages/git/src/inspection/interfaces/status-reader.ts',
+    valid: `export interface StatusReader { read(input: WorktreeKey): Promise<WorktreeStatus>; }`,
+    invalid: `export type StatusReader = { read(input: WorktreeKey): Promise<WorktreeStatus> };`,
+    errors: 1,
+  },
+
+  {
+    rule: 'spec-behaviour-names',
+    path: 'packages/reviews/src/services/mark-comments-seen-service.spec.ts',
+    valid:
+      "it('records the revision the reader saw', () => { expect(seen.revision).toBe(2); });",
+    invalid:
+      "it('should record the revision the reader saw', () => { expect(seen.revision).toBe(2); });",
+    errors: 1,
+  },
+  {
+    rule: 'spec-behaviour-names',
+    path: 'apps/web/spec/integration/probe.test.tsx',
+    valid:
+      "test('the review content appears after pairing', async ({ workspace }) => { await expect.element(workspace.getByRole('region', { name: 'Review content' })).toBeVisible(); });",
+    invalid:
+      "test('review appears', async ({ workspace }) => { await expect.element(workspace.getByRole('region', { name: 'Review content' })).toBeVisible(); });",
+    errors: 1,
+  },
+  {
+    rule: 'spec-behaviour-names',
+    path: 'packages/reviews/src/services/mark-comments-seen-service.spec.ts',
+    valid:
+      "it('records the revision the reader saw', () => { expect(seen.revision).toBe(2); });",
+    invalid:
+      "it('records the revision the reader saw', () => { expect(true).toBe(true); });",
+    errors: 1,
+  },
+  {
+    rule: 'no-comments',
+    path: 'packages/files/src/services/list-directory-service.ts',
+    valid: `import type { ListDirectoryOptions } from '../models/list-directory.ts';
+
+export class ListDirectoryService {
+  private readonly options: ListDirectoryOptions;
+
+  constructor(options: ListDirectoryOptions) {
+    this.options = options;
+  }
+
+  execute(): number {
+    return this.options.maxEntries + 1;
+  }
+}
+`,
+    invalid: `/** oxlint-disable */
+import type { ListDirectoryOptions } from '../models/list-directory.ts';
+
+export class ListDirectoryService {
+  private readonly options: ListDirectoryOptions;
+
+  constructor(options: ListDirectoryOptions) {
+    this.options = options;
+  }
+
+  execute(): number {
+    return Math.min(this.options.maxEntries, 2000) + 1;
+  }
+}
+`,
+    errors: 1,
+  },
+  {
+    rule: 'no-comments',
+    path: 'packages/files/src/services/list-directory-service.ts',
+    valid: `export class ListDirectoryService {
+  async execute(
+  ): Promise<ListDirectoryResult> {
+    const read = await this.directoryReader.list(
+      {
+        limit: this.options.maxEntries + 1,
+      },
+    );
+  }
+}`,
+    invalid: `export class ListDirectoryService {
+  async execute(
+  ): Promise<ListDirectoryResult> {
+    const read = await this.directoryReader.list(
+      {
+        /** eslint-disable-next-line */
+        limit: Math.min(this.options.maxEntries, 2000) + 1,
+      },
+    );
+  }
+}`,
+    errors: 1,
+  },
+  {
+    rule: 'no-comments',
+    path: 'architecture/oxlint-plugin.mjs',
+    valid: `const domainPackage = '(?:projects|changes|reviews|files|git-actions|access)';
+`,
+    invalid: `// the six domain packages
+const domainPackage = '(?:projects|changes|reviews|files|git-actions|access)';
+`,
+    errors: 1,
+  },
+  {
+    rule: 'no-comments',
+    path: 'vitest.config.ts',
+    valid: `export default defineConfig({
+});`,
+    invalid: `// one project per package
+export default defineConfig({
+});`,
+    errors: 1,
+  },
+  {
+    rule: 'no-comments',
+    path: 'packages/projects/src/rules/probe-loose.ts',
+    valid:
+      'export function probeLoose(left: string, right: string): boolean { return left === right; }',
+    invalid: `// compares loosely
+export function probeLoose(left: string, right: string): boolean {
+  return left == right;
+}
+`,
+    errors: 1,
+  },
+  {
+    rule: 'spec-behaviour-names',
+    path: 'packages/reviews/src/services/mark-comments-seen-service.spec.ts',
+    valid: observedStoreState,
+    invalid: `describe('MarkCommentsSeenService', () => {
+  it('records the revision the reader saw', () => {
+    expect(seen.seenThrough({ worktreeId })).toBe(2);
+  });
+
+  it('answers 404 to an unknown worktree', () => {
+    const { service } = setup();
+    expect(service.execute({ worktreeId: 'c'.repeat(64), throughRevision: 1 }).seenThrough).toBe(0);
+  });
+});
+`,
+    errors: 1,
+  },
+  {
+    rule: 'spec-behaviour-names',
+    path: 'packages/reviews/src/services/mark-comments-seen-service.spec.ts',
+    valid: observedStoreState,
+    invalid: `describe('MarkCommentsSeenService', () => {
+  it('records the revision the reader saw', () => {
+    expect(seen.seenThrough({ worktreeId })).toBe(2);
+  });
+
+  it('returns 404 for an unknown worktree', () => {
+    const { service } = setup();
+    expect(service.execute({ worktreeId: 'c'.repeat(64), throughRevision: 1 }).seenThrough).toBe(0);
+  });
+});
+`,
+    errors: 1,
+  },
+  {
+    rule: 'spec-behaviour-names',
+    path: 'apps/web/spec/integration/probe.test.tsx',
+    valid:
+      "test('the review content appears after pairing', async ({ workspace }) => { await expect.element(workspace.getByRole('region', { name: 'Review content' })).toBeVisible(); });",
+    invalid: `import { expect } from 'vitest';
+import { test } from './fixtures.tsx';
+
+test('access.pairing: works', async ({ workspace }) => {
+  await expect.element(workspace.getByRole('region', { name: 'Review content' })).toBeVisible();
+});
+`,
+    errors: 1,
+  },
   {
     rule: 'no-number-outside-limits',
     path: 'packages/contracts/src/shared/api-error.ts',
@@ -95,6 +666,8 @@ export default [
   {
     rule: 'no-number-outside-limits',
     path: 'packages/contracts/src/files/endpoints.ts',
+    valid:
+      "export const endpoint = defineEndpoint({ errors: ['content_changed'] });",
     invalid: 'export const API_ERROR_STATUS = { content_changed: 409 };',
     errors: 1,
   },
@@ -126,18 +699,21 @@ export default [
   {
     rule: 'feature-route-shape',
     path: 'apps/server/src/http/routes/files/read-text-file.ts',
+    valid: `import { readTextFileEndpoint as endpoint } from '@porcelain/contracts/files'; api.route({ method: endpoint.method, url: endpoint.path, schema: endpoint.schema, handler: async (request) => options.useCase.execute(request.params, { signal: request.disconnected }) });`,
     invalid: `import { readTextFileEndpoint as endpoint } from '@porcelain/contracts/files'; api.route({ method: 'GET', url: endpoint.path, schema: endpoint.schema, handler: async (request) => options.useCase.execute(request.params, { signal: request.disconnected }) });`,
     errors: 1,
   },
   {
     rule: 'feature-route-shape',
     path: 'apps/server/src/http/routes/files/read-text-file.ts',
+    valid: `import { readTextFileEndpoint as endpoint } from '@porcelain/contracts/files'; api.route({ method: endpoint.method, url: endpoint.path, schema: endpoint.schema, handler: async (request) => options.useCase.execute(request.params, { signal: request.disconnected }) });`,
     invalid: `import { readTextFileEndpoint as endpoint } from '@porcelain/contracts/files'; api.route({ method: endpoint.method, url: '/worktrees/:worktreeId/text', schema: endpoint.schema, handler: async (request) => options.useCase.execute(request.params, { signal: request.disconnected }) });`,
     errors: 1,
   },
   {
     rule: 'feature-route-shape',
     path: 'apps/server/src/http/routes/files/read-text-file.ts',
+    valid: `import { readTextFileEndpoint as endpoint } from '@porcelain/contracts/files'; api.route({ method: endpoint.method, url: endpoint.path, schema: endpoint.schema, handler: async (request) => options.useCase.execute(request.params, { signal: request.disconnected }) });`,
     invalid: `import { readTextFileEndpoint as endpoint } from '@porcelain/contracts/files'; api.route({ method: endpoint.method, url: endpoint.path, schema: {}, handler: async (request) => options.useCase.execute(request.params, { signal: request.disconnected }) });`,
     errors: 1,
   },
@@ -166,6 +742,15 @@ export default [
     errors: 1,
   },
 
+  {
+    rule: 'spec-asserts',
+    path: 'apps/server/src/http/status-policy.spec.ts',
+    valid:
+      "it('reads the observed server health', () => { expect(readHealth().status).toBe('ok'); });",
+    invalid:
+      "it('reads the observed server health', () => { expect(true).toBe(true); });",
+    errors: 1,
+  },
   {
     rule: 'spec-imports',
     path: 'packages/client/spec/integration/files.integration.ts',
@@ -334,6 +919,7 @@ export default [
   {
     rule: 'mobile-native-ui',
     path: 'apps/mobile/src/features/files/views/files-screen.tsx',
+    valid: "import {Text} from 'react-native'; export const Label = Text;",
     invalid: "export { TextInput as Field } from 'react-native';",
     errors: 1,
   },
@@ -348,6 +934,7 @@ export default [
   {
     rule: 'mobile-native-ui',
     path: 'apps/mobile/src/features/files/views/files-screen.tsx',
+    valid: "export { Button } from '@expo/ui';",
     invalid: "export { Button } from '@expo/ui/swift-ui';",
     errors: 1,
   },
@@ -387,6 +974,8 @@ export default [
   {
     rule: 'adapters-never-import-services',
     path: 'apps/server/src/adapters/files/checked-worktree-access-reader.ts',
+    valid:
+      "import type { WorktreeAccessReader } from '@porcelain/kernel/ports'; export class CheckedWorktreeAccessReader implements WorktreeAccessReader { constructor(private readonly reader: WorktreeAccessReader) {} known(input: WorktreeKey, signal?: AbortSignal) { return this.reader.known(input, signal); } }",
     invalid: `import type { WorktreeCheck } from '@porcelain/kernel/models';
 import type { WorktreeAccessReader } from '@porcelain/kernel/ports';
 import type { CheckWorktreeService } from '@porcelain/projects/services';
@@ -426,19 +1015,7 @@ export class CheckedWorktreeAccessReader implements WorktreeAccessReader {
   {
     rule: 'adapters-report-facts',
     path: 'apps/server/src/adapters/files/filesystem-directory-reader.ts',
-    valid: `export class FilesystemDirectoryReader implements DirectoryReader {
-  async list(
-  ): Promise<DirectoryRead> {
-    try {
-      for await (const entry of await opendir(before.path, {
-      })) {
-        if (found.length === input.limit) {
-        }
-      }
-    } catch (error) {
-    }
-  }
-}`,
+    valid: filesystemDirectoryReader,
     invalid: `export class FilesystemDirectoryReader implements DirectoryReader {
   async list(
   ): Promise<DirectoryRead> {
@@ -484,19 +1061,7 @@ export async function entryNames(path: string): Promise<string[]> {
   {
     rule: 'adapters-report-facts',
     path: 'apps/server/src/adapters/files/filesystem-directory-reader.ts',
-    valid: `export class FilesystemDirectoryReader implements DirectoryReader {
-  async list(
-  ): Promise<DirectoryRead> {
-    try {
-      for await (const entry of await opendir(before.path, {
-      })) {
-        if (found.length === input.limit) {
-        }
-      }
-    } catch (error) {
-    }
-  }
-}`,
+    valid: filesystemDirectoryReader,
     invalid: `export class FilesystemDirectoryReader implements DirectoryReader {
   async list(
   ): Promise<DirectoryRead> {
@@ -516,12 +1081,14 @@ export async function entryNames(path: string): Promise<string[]> {
   {
     rule: 'adapters-report-facts',
     path: 'apps/server/src/adapters/files/filesystem-directory-reader.ts',
+    valid: 'lstat(join(full, options.gitDirectoryName));',
     invalid: `lstat(join(full, '.git'))`,
     errors: 1,
   },
   {
     rule: 'bootstrap-constructs-only',
     path: 'apps/server/src/bootstrap/main.ts',
+    valid: 'export const application = composeApplication();',
     invalid: `
 if (import.meta.main) await cli.run();
 `,
@@ -542,13 +1109,7 @@ if (import.meta.main) await cli.run();
   {
     rule: 'bootstrap-starts-nothing',
     path: 'apps/server/src/bootstrap/compose-server.ts',
-    valid: `const openServer: OpenServer = async (input) => {
-  const jobs: readonly Job[] = [
-    new IntervalJob(
-      { atStart: true, everyMs: limits.jobs.refreshInventoryMs },
-    ),
-  ];
-};`,
+    valid: runtimeJobs,
     invalid: `const openServer: OpenServer = async (input) => {
   const jobs: readonly Job[] = [
     new IntervalJob(
@@ -589,12 +1150,7 @@ export const openServer: OpenServer = async (input) => {
   {
     rule: 'bootstrap-starts-nothing',
     path: 'apps/server/src/bootstrap/compose-server.ts',
-    valid: `const openServer: OpenServer = async (input) => {
-  const useCases = { access, projects, files, changes, reviews, gitActions };
-  return {
-    jobs,
-  };
-};`,
+    valid: runtimeUseCases,
     invalid: `const openServer: OpenServer = async (input) => {
   const useCases = { access, projects, files, changes, reviews, gitActions };
   return {
@@ -607,13 +1163,7 @@ export const openServer: OpenServer = async (input) => {
   {
     rule: 'bootstrap-starts-nothing',
     path: 'apps/server/src/bootstrap/compose-server.ts',
-    valid: `const openServer: OpenServer = async (input) => {
-  const jobs: readonly Job[] = [
-    new IntervalJob(
-      { atStart: true, everyMs: limits.jobs.refreshInventoryMs },
-    ),
-  ];
-};`,
+    valid: runtimeJobs,
     invalid: `const openServer: OpenServer = async (input) => {
   const jobs: readonly Job[] = [
     new IntervalJob(
@@ -626,12 +1176,7 @@ export const openServer: OpenServer = async (input) => {
   {
     rule: 'bootstrap-starts-nothing',
     path: 'apps/server/src/bootstrap/compose-server.ts',
-    valid: `const openServer: OpenServer = async (input) => {
-  const useCases = { access, projects, files, changes, reviews, gitActions };
-  return {
-    jobs,
-  };
-};`,
+    valid: runtimeUseCases,
     invalid: `const openServer: OpenServer = async (input) => {
   const useCases = { access, projects, files, changes, reviews, gitActions };
   return {
@@ -644,6 +1189,8 @@ export const openServer: OpenServer = async (input) => {
   {
     rule: 'cross-domain-through-use-cases',
     path: 'packages/reviews/src/ports/review-status-reader.ts',
+    valid:
+      "import type { ReviewEvidence } from '../models/review-evidence.ts'; export interface ReviewStatusReader { read(input: ReviewKey, signal?: AbortSignal): Promise<ReviewEvidence>; }",
     invalid: `import type { WorktreeKey } from '@porcelain/kernel/models';
 import type { ReviewEvidence } from '../models/review-evidence.ts';
 
@@ -834,6 +1381,7 @@ export class WatchWorktrees {
   {
     rule: 'failure-in-service',
     path: 'packages/files/src/errors/probe-failure-error.ts',
+    valid: 'export class PathNotFoundError extends Error {}',
     invalid: `import { PathNotFoundError } from './path-not-found-error.ts';
 
 export function probeFailureError(failure: 'missing'): Error {
@@ -858,27 +1406,16 @@ export function probeFailureError(failure: 'missing'): Error {
   {
     rule: 'fakes-store',
     path: 'packages/reviews/spec/fakes/in-memory-comment-seen-store.ts',
-    invalid: `    if ((this.seen.get(input.worktreeId) ?? 0) > input.seenThrough) return;
-    this.seen.set(input.worktreeId, input.seenThrough);`,
-    errors: 2,
+    valid:
+      'export class InMemoryCommentSeenStore { private readonly seen = new Map<string, number>(); write(input: {worktreeId: string; seenThrough: number}) { this.seen.set(input.worktreeId, input.seenThrough); } }',
+    invalid:
+      'export class InMemoryCommentSeenStore { private readonly seen = new Map<string, number>(); write(input: {worktreeId: string; seenThrough: number}) {     if ((this.seen.get(input.worktreeId) ?? 0) > input.seenThrough) return;\n    this.seen.set(input.worktreeId, input.seenThrough); } }',
+    errors: 1,
   },
   {
     rule: 'fakes-store',
     path: 'packages/reviews/spec/fakes/in-memory-comment-seen-store.ts',
-    valid: `import type { CommentSeenStore } from '../../src/ports/comment-seen-store.ts';
-
-export class InMemoryCommentSeenStore implements CommentSeenStore {
-  private readonly seen = new Map<string, number>();
-
-  seenThrough(input: { worktreeId: string }): number {
-    return this.seen.get(input.worktreeId) ?? 0;
-  }
-
-  save(input: { worktreeId: string; seenThrough: number }): void {
-    this.seen.set(input.worktreeId, input.seenThrough);
-  }
-}
-`,
+    valid: commentSeenStore,
     invalid: `import type { CommentSeenStore } from '../../src/ports/comment-seen-store.ts';
 
 export class InMemoryCommentSeenStore implements CommentSeenStore {
@@ -900,30 +1437,16 @@ export class InMemoryCommentSeenStore implements CommentSeenStore {
   {
     rule: 'fakes-store',
     path: 'packages/reviews/spec/fakes/in-memory-comment-seen-store.ts',
-    invalid: `    const current = this.seen.get(input.worktreeId) ?? 0;
-    this.seen.set(
-      input.worktreeId,
-      current > input.seenThrough ? current : input.seenThrough,
-    );`,
-    errors: 2,
+    valid:
+      'export class InMemoryCommentSeenStore { private readonly seen = new Map<string, number>(); write(input: {worktreeId: string; seenThrough: number}) { this.seen.set(input.worktreeId, input.seenThrough); } }',
+    invalid:
+      'export class InMemoryCommentSeenStore { private readonly seen = new Map<string, number>(); write(input: {worktreeId: string; seenThrough: number}) {     const current = this.seen.get(input.worktreeId) ?? 0;\n    this.seen.set(\n      input.worktreeId,\n      current > input.seenThrough ? current : input.seenThrough,\n    ); } }',
+    errors: 1,
   },
   {
     rule: 'fakes-store',
     path: 'packages/reviews/spec/fakes/in-memory-comment-seen-store.ts',
-    valid: `import type { CommentSeenStore } from '../../src/ports/comment-seen-store.ts';
-
-export class InMemoryCommentSeenStore implements CommentSeenStore {
-  private readonly seen = new Map<string, number>();
-
-  seenThrough(input: { worktreeId: string }): number {
-    return this.seen.get(input.worktreeId) ?? 0;
-  }
-
-  save(input: { worktreeId: string; seenThrough: number }): void {
-    this.seen.set(input.worktreeId, input.seenThrough);
-  }
-}
-`,
+    valid: commentSeenStore,
     invalid: `import type { CommentSeenStore } from '../../src/ports/comment-seen-store.ts';
 
 export class InMemoryCommentSeenStore implements CommentSeenStore {
@@ -945,20 +1468,7 @@ export class InMemoryCommentSeenStore implements CommentSeenStore {
   {
     rule: 'fakes-store',
     path: 'packages/reviews/spec/fakes/in-memory-comment-seen-store.ts',
-    valid: `import type { CommentSeenStore } from '../../src/ports/comment-seen-store.ts';
-
-export class InMemoryCommentSeenStore implements CommentSeenStore {
-  private readonly seen = new Map<string, number>();
-
-  seenThrough(input: { worktreeId: string }): number {
-    return this.seen.get(input.worktreeId) ?? 0;
-  }
-
-  save(input: { worktreeId: string; seenThrough: number }): void {
-    this.seen.set(input.worktreeId, input.seenThrough);
-  }
-}
-`,
+    valid: commentSeenStore,
     invalid: `import type { CommentSeenStore } from '../../src/ports/comment-seen-store.ts';
 
 export class InMemoryCommentSeenStore implements CommentSeenStore {
@@ -980,20 +1490,7 @@ export class InMemoryCommentSeenStore implements CommentSeenStore {
   {
     rule: 'fakes-store',
     path: 'packages/reviews/spec/fakes/in-memory-comment-seen-store.ts',
-    valid: `import type { CommentSeenStore } from '../../src/ports/comment-seen-store.ts';
-
-export class InMemoryCommentSeenStore implements CommentSeenStore {
-  private readonly seen = new Map<string, number>();
-
-  seenThrough(input: { worktreeId: string }): number {
-    return this.seen.get(input.worktreeId) ?? 0;
-  }
-
-  save(input: { worktreeId: string; seenThrough: number }): void {
-    this.seen.set(input.worktreeId, input.seenThrough);
-  }
-}
-`,
+    valid: commentSeenStore,
     invalid: `import type { CommentSeenStore } from '../../src/ports/comment-seen-store.ts';
 
 export class InMemoryCommentSeenStore implements CommentSeenStore {
@@ -1026,20 +1523,7 @@ export class InMemoryCommentSeenStore implements CommentSeenStore {
   {
     rule: 'fakes-store',
     path: 'packages/reviews/spec/fakes/in-memory-comment-seen-store.ts',
-    valid: `import type { CommentSeenStore } from '../../src/ports/comment-seen-store.ts';
-
-export class InMemoryCommentSeenStore implements CommentSeenStore {
-  private readonly seen = new Map<string, number>();
-
-  seenThrough(input: { worktreeId: string }): number {
-    return this.seen.get(input.worktreeId) ?? 0;
-  }
-
-  save(input: { worktreeId: string; seenThrough: number }): void {
-    this.seen.set(input.worktreeId, input.seenThrough);
-  }
-}
-`,
+    valid: commentSeenStore,
     invalid: `import type { CommentSeenStore } from '../../src/ports/comment-seen-store.ts';
 
 export class InMemoryCommentSeenStore implements CommentSeenStore {
@@ -1061,20 +1545,7 @@ export class InMemoryCommentSeenStore implements CommentSeenStore {
   {
     rule: 'fakes-store',
     path: 'packages/reviews/spec/fakes/in-memory-comment-seen-store.ts',
-    valid: `import type { CommentSeenStore } from '../../src/ports/comment-seen-store.ts';
-
-export class InMemoryCommentSeenStore implements CommentSeenStore {
-  private readonly seen = new Map<string, number>();
-
-  seenThrough(input: { worktreeId: string }): number {
-    return this.seen.get(input.worktreeId) ?? 0;
-  }
-
-  save(input: { worktreeId: string; seenThrough: number }): void {
-    this.seen.set(input.worktreeId, input.seenThrough);
-  }
-}
-`,
+    valid: commentSeenStore,
     invalid: `import type { CommentSeenStore } from '../../src/ports/comment-seen-store.ts';
 
 export class InMemoryCommentSeenStore implements CommentSeenStore {
@@ -1096,20 +1567,7 @@ export class InMemoryCommentSeenStore implements CommentSeenStore {
   {
     rule: 'fakes-store',
     path: 'packages/reviews/spec/fakes/in-memory-comment-seen-store.ts',
-    valid: `import type { CommentSeenStore } from '../../src/ports/comment-seen-store.ts';
-
-export class InMemoryCommentSeenStore implements CommentSeenStore {
-  private readonly seen = new Map<string, number>();
-
-  seenThrough(input: { worktreeId: string }): number {
-    return this.seen.get(input.worktreeId) ?? 0;
-  }
-
-  save(input: { worktreeId: string; seenThrough: number }): void {
-    this.seen.set(input.worktreeId, input.seenThrough);
-  }
-}
-`,
+    valid: commentSeenStore,
     invalid: `import type { CommentSeenStore } from '../../src/ports/comment-seen-store.ts';
 
 export class InMemoryCommentSeenStore implements CommentSeenStore {
@@ -1130,20 +1588,7 @@ export class InMemoryCommentSeenStore implements CommentSeenStore {
   {
     rule: 'fakes-store',
     path: 'packages/reviews/spec/fakes/in-memory-comment-seen-store.ts',
-    valid: `import type { CommentSeenStore } from '../../src/ports/comment-seen-store.ts';
-
-export class InMemoryCommentSeenStore implements CommentSeenStore {
-  private readonly seen = new Map<string, number>();
-
-  seenThrough(input: { worktreeId: string }): number {
-    return this.seen.get(input.worktreeId) ?? 0;
-  }
-
-  save(input: { worktreeId: string; seenThrough: number }): void {
-    this.seen.set(input.worktreeId, input.seenThrough);
-  }
-}
-`,
+    valid: commentSeenStore,
     invalid: `import type { CommentSeenStore } from '../../src/ports/comment-seen-store.ts';
 
 export class InMemoryCommentSeenStore implements CommentSeenStore {
@@ -1169,20 +1614,7 @@ export class InMemoryCommentSeenStore implements CommentSeenStore {
   {
     rule: 'fakes-store',
     path: 'packages/reviews/spec/fakes/in-memory-comment-seen-store.ts',
-    valid: `import type { CommentSeenStore } from '../../src/ports/comment-seen-store.ts';
-
-export class InMemoryCommentSeenStore implements CommentSeenStore {
-  private readonly seen = new Map<string, number>();
-
-  seenThrough(input: { worktreeId: string }): number {
-    return this.seen.get(input.worktreeId) ?? 0;
-  }
-
-  save(input: { worktreeId: string; seenThrough: number }): void {
-    this.seen.set(input.worktreeId, input.seenThrough);
-  }
-}
-`,
+    valid: commentSeenStore,
     invalid: `import type { CommentSeenStore } from '../../src/ports/comment-seen-store.ts';
 
 export class InMemoryCommentSeenStore implements CommentSeenStore {
@@ -1208,6 +1640,8 @@ export class InMemoryCommentSeenStore implements CommentSeenStore {
   {
     rule: 'feature-route-handler',
     path: 'apps/server/src/http/routes/git-actions/run-git-action.ts',
+    valid:
+      "import {statusPolicy} from '../../status-policy.ts'; api.post('/run', {schema}, (request, reply) => reply.code(statusPolicy(receipt)).send(options.useCase.execute(request.body, request.context)));",
     invalid: `
 reply.code(statusOf(receipt))
 
@@ -1297,13 +1731,7 @@ function statusOf(receipt: { state: string }): number {
   {
     rule: 'feature-route-shape',
     path: 'apps/server/src/http/routes/access/read-health.ts',
-    valid: `import { readHealthEndpoint as endpoint } from '@porcelain/contracts/access';
-import { readHealthResponseSchema } from '@porcelain/contracts/access';
-export function readHealth(
-) {
-  api.route({ method: endpoint.method, url: endpoint.path, schema: endpoint.schema, handler: async (request) =>
-      options.useCase.execute({ signal: request.disconnected }) });
-}`,
+    valid: healthRoute,
     invalid: `import { readHealthResponseSchema } from '@porcelain/contracts/access';
 export function readHealth(
 ) {
@@ -1324,13 +1752,7 @@ export function readHealth(
   {
     rule: 'feature-route-shape',
     path: 'apps/server/src/http/routes/access/read-health.ts',
-    valid: `import { readHealthEndpoint as endpoint } from '@porcelain/contracts/access';
-import { readHealthResponseSchema } from '@porcelain/contracts/access';
-export function readHealth(
-) {
-  api.route({ method: endpoint.method, url: endpoint.path, schema: endpoint.schema, handler: async (request) =>
-      options.useCase.execute({ signal: request.disconnected }) });
-}`,
+    valid: healthRoute,
     invalid: `import { readHealthResponseSchema } from '@porcelain/contracts/access';
 export function readHealth(
 ) {
@@ -1350,13 +1772,16 @@ export function readHealth(
   {
     rule: 'feature-route-shape',
     path: 'apps/server/src/http/routes/access/read-health.ts',
-    invalid: `options: { service: Pick<ReadHealthUseCase, 'execute'> }
-options.service.execute({ signal: request.disconnected })`,
+    valid: healthRoute,
+    invalid: `type Options = { service: Pick<ReadHealthUseCase, 'execute'> };
+options.service.execute({ signal: request.disconnected });`,
     errors: 1,
   },
   {
     rule: 'fixture-imports',
     path: 'packages/git/spec/fixtures/capture.ts',
+    valid:
+      "import {execFileSync} from 'node:child_process'; import {writeFileSync} from 'node:fs'; writeFileSync('status.txt', execFileSync('git', ['status']));",
     invalid: `import { parseGitStatus } from '../../src/inspection/parsers/parse-git-status.ts';
 
 parseGitStatus(Buffer.from(''));
@@ -1366,6 +1791,8 @@ parseGitStatus(Buffer.from(''));
   {
     rule: 'fixture-imports',
     path: 'packages/git/spec/fixtures/fixture.ts',
+    valid:
+      "import {readFileSync} from 'node:fs'; export function fixture(name: string) { return readFileSync(new URL(name, import.meta.url)); }",
     invalid: `import { readFileSync } from 'node:fs';
 import { isMissing } from '../../src/shared/errors/is-missing.ts';
 
@@ -1377,14 +1804,17 @@ export function fixtureMissing(error: unknown): boolean {
   {
     rule: 'fixture-imports',
     path: 'packages/git/spec/fixtures/fixture.ts',
-    invalid: `import { readFileSync } from 'node:fs';
-import { z } from 'zod';
-  return readFileSync(new URL(z.string().parse(name), import.meta.url));`,
+    valid:
+      "import {readFileSync} from 'node:fs'; export function fixture(name: string) { return readFileSync(new URL(name, import.meta.url)); }",
+    invalid:
+      "import { readFileSync } from 'node:fs';\nimport { z } from 'zod';\n  export async function fixture(input: Input, environmentId: string) { return readFileSync(new URL(z.string().parse(name), import.meta.url)); }",
     errors: 1,
   },
   {
     rule: 'fixture-imports',
     path: 'packages/git/spec/fixtures/fixture.ts',
+    valid:
+      "import type {WorktreeKey} from '@porcelain/kernel/models'; export type CapturedWorktree = WorktreeKey;",
     invalid: `import type { CommandOutput } from '@porcelain/process';
 import { readFileSync } from 'node:fs';
 
@@ -1394,50 +1824,18 @@ export type CapturedOutput = CommandOutput;`,
   {
     rule: 'fixture-imports',
     path: 'packages/changes/spec/fixtures/comparisons.ts',
+    valid:
+      "import type {ReviewComparison} from '../../src/models/review-comparison.ts'; export type CapturedComparison = ReviewComparison;",
     invalid: `import { isRelativePath } from '@porcelain/kernel/rules';
 export const probeRule = isRelativePath;
 `,
     errors: 1,
   },
-  {
-    rule: 'implementation-name',
-    path: 'apps/server/src/adapters/runtime/system-clock.ts',
-    valid: `export class SystemClock implements Clock {
-}`,
-    invalid: `export class SystemClockAdapter implements Clock {
-}`,
-    errors: 1,
-  },
-  {
-    rule: 'implementation-name',
-    path: 'packages/storage/src/repositories/reviews/sqlite-comment-seen-store.ts',
-    valid: `import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
-import type { CommentSeenStore } from '@porcelain/reviews/ports';
 
-export class SqliteCommentSeenStore implements CommentSeenStore {
-  private readonly db: BetterSQLite3Database;
-
-  constructor(db: BetterSQLite3Database) {
-    this.db = db;
-  }
-}
-`,
-    invalid: `import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
-import type { CommentSeenStore, CommentStore } from '@porcelain/reviews/ports';
-
-export class SqliteCommentSeenStore implements CommentSeenStore, CommentStore {
-  private readonly db: BetterSQLite3Database;
-
-  constructor(db: BetterSQLite3Database) {
-    this.db = db;
-  }
-}
-`,
-    errors: 1,
-  },
   {
     rule: 'imports-by-path',
     path: 'packages/kernel/src/rules/index.ts',
+    valid: "export {utf8ByteLength} from './utf8-byte-length.ts';",
     invalid: `import { utf8ByteLength } from './utf8-byte-length.ts';
 export { utf8ByteLength };`,
     errors: 2,
@@ -1445,85 +1843,29 @@ export { utf8ByteLength };`,
   {
     rule: 'imports-by-path',
     path: 'packages/files/src/services/list-directory-service.ts',
+    valid: "import type {DirectoryEntry} from '../models/directory-entry.ts';",
     invalid: `import type { DirectoryEntry } from '@porcelain/files/models';`,
     errors: 1,
   },
   {
     rule: 'imports-by-path',
     path: 'packages/files/src/services/list-directory-service.ts',
+    valid: "import type {DirectoryEntry} from '../models/directory-entry.ts';",
     invalid: `import type { DirectoryEntry } from '../models/index.ts';`,
     errors: 1,
   },
   {
     rule: 'interfaces-hold-interfaces',
     path: 'packages/git/src/inspection/interfaces/status-reader.ts',
-    invalid: `
-export type StatusSummary = { changed: number };
-`,
+    valid: `export interface StatusReader { read(input: WorktreeKey): Promise<WorktreeStatus>; }`,
+    invalid: 'export function readStatus(): number { return 0; }',
     errors: 1,
   },
-  {
-    rule: 'interfaces-only-in-ports',
-    path: 'packages/files/src/models/list-directory.ts',
-    invalid: `export interface ListDirectoryInput {
-  worktreeId: string;
-  path: string;
-}`,
-    errors: 1,
-  },
-  {
-    rule: 'interfaces-only-in-ports',
-    path: 'packages/files/src/services/list-directory-service.ts',
-    valid: `import type { ListDirectoryOptions } from '../models/list-directory.ts';
 
-export class ListDirectoryService {
-  private readonly options: ListDirectoryOptions;
-
-  constructor(options: ListDirectoryOptions) {
-    this.options = options;
-  }
-}
-`,
-    invalid: `export interface ListDirectoryOptions {
-  maxEntries: number;
-  maxResponseBytes: number;
-}
-
-export class ListDirectoryService {
-  private readonly options: ListDirectoryOptions;
-
-  constructor(options: ListDirectoryOptions) {
-    this.options = options;
-  }
-}
-`,
-    errors: 1,
-  },
-  {
-    rule: 'interfaces-only-in-ports',
-    path: 'apps/server/src/runtime/lane-observer.ts',
-    invalid: `export interface LaneObserver {
-  queued(lane: string): void;
-  settled(lane: string, failed: boolean): void;
-}
-`,
-    errors: 1,
-  },
-  {
-    rule: 'interfaces-only-in-ports',
-    path: 'packages/files/src/services/list-directory-service.ts',
-    invalid: `
-declare global {
-  interface ListingBudget {
-    entries: number;
-  }
-}
-`,
-    errors: 1,
-  },
   {
     rule: 'kernel-is-types',
     path: 'packages/kernel/src/models/worktree.ts',
+    valid: "export type WorktreeCheck = {kind: 'found'; worktreeId: string};",
     invalid: `
 export function worktreeFound(check: WorktreeCheck): boolean {
   return check.kind === 'found';
@@ -1644,6 +1986,8 @@ export function editFile(
   {
     rule: 'models-are-types',
     path: 'packages/projects/src/models/probe/probe-model.ts',
+    valid:
+      "import type {ProjectKey} from '../project.ts'; export type ProbeResult = ProjectKey | undefined;",
     invalid: `import type { ProjectKey } from '../project.ts';
 
 export type ProbeResult = ProjectKey | undefined;
@@ -1654,101 +1998,7 @@ export function probeKey(projectId: string): ProjectKey {
 `,
     errors: 1,
   },
-  {
-    rule: 'models-file-shape',
-    path: 'packages/files/src/models/list-directory.ts',
-    invalid: `
-export type ListDirectoryOutcome =
-  | { outcome: 'listed'; entries: DirectoryEntry[] }
-  | { outcome: 'too-large' };
-`,
-    errors: 1,
-  },
-  {
-    rule: 'models-file-shape',
-    path: 'packages/files/src/models/list-directory.ts',
-    valid: `export type ListDirectoryInput = {
-  path: string;
-};`,
-    invalid: `export type ListDirectoryInput = {
-  path: string;
-  cursor?: string;
-};`,
-    errors: 1,
-  },
-  {
-    rule: 'models-file-shape',
-    path: 'packages/reviews/src/models/record-review-activity.ts',
-    invalid: `export type RecordReviewActivityResult = void;`,
-    errors: 1,
-  },
-  {
-    rule: 'naming',
-    path: 'packages/access/src/rules/credential.ts',
-    valid: `const ID_PATTERN =
-  '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';`,
-    invalid: `const idPattern =
-  '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';`,
-    errors: 1,
-  },
-  {
-    rule: 'naming',
-    path: 'packages/reviews/spec/fakes/in-memory-comment-seen-store.ts',
-    valid: `export class InMemoryCommentSeenStore implements CommentSeenStore {
-}`,
-    invalid: `export class MemoryCommentSeenStore implements CommentSeenStore {
-}`,
-    errors: 1,
-  },
-  {
-    rule: 'naming',
-    path: 'apps/server/src/use-cases/access/read-health.ts',
-    valid: `import type { ReadEnvironmentService } from '@porcelain/access/services';
-import type { ReadHealthResponse } from '@porcelain/contracts/access';
-import type { OperationContext } from '../../ports/operation-context.ts';
-import type { Lanes } from '../../runtime/lanes.ts';
 
-export class ReadHealthUseCase {
-  private readonly readEnvironment: ReadEnvironmentService;
-  private readonly lanes: Lanes;
-
-  constructor(readEnvironment: ReadEnvironmentService, lanes: Lanes) {
-    this.readEnvironment = readEnvironment;
-    this.lanes = lanes;
-  }
-
-  execute(context: OperationContext): Promise<ReadHealthResponse> {
-    return this.lanes.run('access', 'read', async () => {
-      const { environmentId } = this.readEnvironment.execute();
-      return { status: 'ok', environmentId };
-    }, { callerSignal: context.signal });
-  }
-}
-`,
-    invalid: `import type { ReadEnvironmentService } from '@porcelain/access/services';
-import type { ReadHealthResponse } from '@porcelain/contracts/access';
-import type { OperationContext } from '../../ports/operation-context.ts';
-import type { Lanes } from '../../runtime/lanes.ts';
-
-export class ReadHealthUseCase {
-  private readonly readEnvironmentService: ReadEnvironmentService;
-  private readonly lanes: Lanes;
-
-  constructor(readEnvironment: ReadEnvironmentService, lanes: Lanes) {
-    this.readEnvironmentService = readEnvironment;
-    this.lanes = lanes;
-  }
-
-  execute(context: OperationContext): Promise<ReadHealthResponse> {
-    return this.lanes.run('access', 'read', async () => {
-      const { environmentId } = this.readEnvironmentService.execute();
-      return { status: 'ok', environmentId };
-    }, { callerSignal: context.signal });
-  }
-}
-`,
-    errors: 1,
-  },
   {
     rule: 'no-blocking-child-process',
     path: 'packages/process/src/commands/read-command.ts',
@@ -1769,6 +2019,8 @@ export function readCommand(command: string, args: readonly string[]): string {
   {
     rule: 'no-blocking-child-process',
     path: 'apps/server/src/adapters/access/mac-network-command.ts',
+    valid:
+      "import {runCommand} from '@porcelain/process'; export function readRoute() { return runCommand({executable: '/sbin/route', args: ['-n', 'get', 'default']}); }",
     invalid: `import * as childProcess from 'child_process';
 import { execSync as run, spawnSync } from 'node:child_process';
 
@@ -1782,99 +2034,12 @@ export function readRoute(): string {
 `,
     errors: 3,
   },
-  {
-    rule: 'no-comments',
-    path: 'packages/files/src/services/list-directory-service.ts',
-    valid: `import type { ListDirectoryOptions } from '../models/list-directory.ts';
 
-export class ListDirectoryService {
-  private readonly options: ListDirectoryOptions;
-
-  constructor(options: ListDirectoryOptions) {
-    this.options = options;
-  }
-
-  execute(): number {
-    return this.options.maxEntries + 1;
-  }
-}
-`,
-    invalid: `/** oxlint-disable */
-import type { ListDirectoryOptions } from '../models/list-directory.ts';
-
-export class ListDirectoryService {
-  private readonly options: ListDirectoryOptions;
-
-  constructor(options: ListDirectoryOptions) {
-    this.options = options;
-  }
-
-  execute(): number {
-    return Math.min(this.options.maxEntries, 2000) + 1;
-  }
-}
-`,
-    errors: 1,
-  },
-  {
-    rule: 'no-comments',
-    path: 'packages/files/src/services/list-directory-service.ts',
-    valid: `export class ListDirectoryService {
-  async execute(
-  ): Promise<ListDirectoryResult> {
-    const read = await this.directoryReader.list(
-      {
-        limit: this.options.maxEntries + 1,
-      },
-    );
-  }
-}`,
-    invalid: `export class ListDirectoryService {
-  async execute(
-  ): Promise<ListDirectoryResult> {
-    const read = await this.directoryReader.list(
-      {
-        /** eslint-disable-next-line */
-        limit: Math.min(this.options.maxEntries, 2000) + 1,
-      },
-    );
-  }
-}`,
-    errors: 1,
-  },
-  {
-    rule: 'no-comments',
-    path: 'architecture/oxlint-plugin.mjs',
-    valid: `const domainPackage = '(?:projects|changes|reviews|files|git-actions|access)';
-`,
-    invalid: `// the six domain packages
-const domainPackage = '(?:projects|changes|reviews|files|git-actions|access)';
-`,
-    errors: 1,
-  },
-  {
-    rule: 'no-comments',
-    path: 'vitest.config.ts',
-    valid: `export default defineConfig({
-});`,
-    invalid: `// one project per package
-export default defineConfig({
-});`,
-    errors: 1,
-  },
-  {
-    rule: 'no-comments',
-    path: 'packages/projects/src/rules/probe-loose.ts',
-    invalid: `// compares loosely
-export function probeLoose(left: string, right: string): boolean {
-  return left == right;
-}
-`,
-    errors: 1,
-  },
   {
     rule: 'no-exported-constants',
     path: 'packages/reviews/src/rules/comment-threads.ts',
+    valid:
+      'export function threadCapacityLeft(threads: number, limit: number) { return Math.max(0, limit - threads); }',
     invalid: `
 export const THREADS_PER_WORKTREE = 100;
 `,
@@ -1891,48 +2056,11 @@ export class ListDirectoryService {
 }`,
     errors: 1,
   },
-  {
-    rule: 'no-inline-execute-types',
-    path: 'packages/files/src/services/list-directory-service.ts',
-    valid: `export class ListDirectoryService {
-  async execute(
-    input: ListDirectoryInput,
-    signal?: AbortSignal,
-  ): Promise<ListDirectoryResult> {
-  }
-}`,
-    invalid: `export class ListDirectoryService {
-  async execute(
-    input: { worktreeId: string; path: string },
-    signal?: AbortSignal,
-  ): Promise<ListDirectoryResult> {
-  }
-}`,
-    errors: 1,
-  },
-  {
-    rule: 'no-interface-in-runtime',
-    path: 'apps/server/src/runtime/delay.ts',
-    invalid: `
-export interface ProbeDelay {
-  readonly milliseconds: string;
-}
-`,
-    errors: 1,
-  },
+
   {
     rule: 'no-nested-lane',
     path: 'apps/server/src/use-cases/reviews/mark-comments-seen.ts',
-    valid: `export class MarkCommentsSeenUseCase {
-  async execute(
-  ): Promise<MarkCommentsSeenResponse> {
-    const { changed, ...seen } = await this.lanes.run(
-      this.laneKeys.reviews(worktree),
-      'write',
-      async () => this.markCommentsSeen.execute(input),
-    );
-  }
-}`,
+    valid: separateWorktreeLanes,
     invalid: `export class MarkCommentsSeenUseCase {
   async execute(
   ): Promise<MarkCommentsSeenResponse> {
@@ -1954,16 +2082,7 @@ export interface ProbeDelay {
   {
     rule: 'no-nested-lane',
     path: 'apps/server/src/use-cases/reviews/mark-comments-seen.ts',
-    valid: `export class MarkCommentsSeenUseCase {
-  async execute(
-  ): Promise<MarkCommentsSeenResponse> {
-    const { changed, ...seen } = await this.lanes.run(
-      this.laneKeys.reviews(worktree),
-      'write',
-      async () => this.markCommentsSeen.execute(input),
-    );
-  }
-}`,
+    valid: separateWorktreeLanes,
     invalid: `export class MarkCommentsSeenUseCase {
   async execute(
   ): Promise<MarkCommentsSeenResponse> {
@@ -1982,12 +2101,15 @@ export interface ProbeDelay {
   {
     rule: 'no-loose-equality-in-domain',
     path: 'packages/access/src/services/issue-pairing-service.ts',
+    valid: 'if (value === undefined) throw new InvalidDeviceDetailsError();',
     invalid: `    if (value == null) throw new InvalidDeviceDetailsError();`,
     errors: 1,
   },
   {
     rule: 'no-node-globals',
     path: 'packages/files/src/services/list-directory-service.ts',
+    valid:
+      'if (listing.entries.length > options.maxEntries) throw new DirectoryTooLargeError();',
     invalid: `    if (Buffer.byteLength(JSON.stringify(listing)) > this.options.maxResponseBytes)
 import { withoutGitDirectory } from '@porcelain/kernel/rules';`,
     errors: 1,
@@ -1995,13 +2117,17 @@ import { withoutGitDirectory } from '@porcelain/kernel/rules';`,
   {
     rule: 'no-node-globals',
     path: 'packages/access/src/rules/credential.ts',
-    invalid: `  const encoded = Buffer.from(secret).toString('base64url');
-  return { id, secret, token: \`\${kind}_\${id}_\${encoded}\` };`,
+    valid:
+      'export function credential(id: string, secret: string, encoded: string) { return {id, secret, token: `${id}_${encoded}`}; }',
+    invalid:
+      "export async function fixture(input: Input, environmentId: string) {   const encoded = Buffer.from(secret).toString('base64url');\n  return { id, secret, token: `${kind}_${id}_${encoded}` }; }",
     errors: 1,
   },
   {
     rule: 'no-node-globals',
     path: 'packages/projects/src/rules/probe-stamp.ts',
+    valid:
+      'export function probeStamp(instant: string, id: string) { return {instant, id}; }',
     invalid: `export function probeStamp(): string {
   console.log(performance.now());
   return crypto.randomUUID();
@@ -2012,6 +2138,8 @@ import { withoutGitDirectory } from '@porcelain/kernel/rules';`,
   {
     rule: 'no-node-globals',
     path: 'apps/server/src/use-cases/projects/probe-env.ts',
+    valid:
+      "import type {OperationContext} from '../../ports/operation-context.ts'; export class ProbeEnvUseCase { constructor(private readonly reader: EnvironmentReader) {} execute(context: OperationContext): Promise<string> { return this.reader.read(context.signal); } }",
     invalid: `import type { OperationContext } from '../../ports/operation-context.ts';
 
 export class ProbeEnvUseCase {
@@ -2026,7 +2154,10 @@ export class ProbeEnvUseCase {
   {
     rule: 'no-null-in-domain',
     path: 'packages/files/src/rules/encode-base64.ts',
-    invalid: `  return binary === "" ? String(null) : btoa(binary);`,
+    valid:
+      "export function encode(binary: string) { return binary === '' ? '' : btoa(binary); }",
+    invalid:
+      'export async function fixture(input: Input, environmentId: string) {   return binary === "" ? String(null) : btoa(binary); }',
     errors: 1,
   },
   {
@@ -2093,12 +2224,14 @@ export class ProbeEnvUseCase {
   {
     rule: 'no-number-outside-limits',
     path: 'apps/server/src/installer/service-health.ts',
+    valid: 'attempt < settings.maxAttempts;',
     invalid: `attempt < 60;`,
     errors: 1,
   },
   {
     rule: 'no-number-outside-limits',
     path: 'packages/process/src/commands/run-command.ts',
+    valid: 'await delay(options.pollIntervalMs);',
     invalid: `await delay(10);`,
     errors: 1,
   },
@@ -2184,6 +2317,8 @@ export class ProbeEnvUseCase {
   {
     rule: 'no-number-outside-limits',
     path: 'packages/reviews/src/rules/comment-threads.ts',
+    valid:
+      'export function threadCapacityLeft(threads: number, maxThreads: number): number { return Math.max(0, maxThreads - threads); }',
     invalid: `
 const MAX_THREADS = 100;
 
@@ -2196,6 +2331,8 @@ export function threadCapacityLeft(threads: number): number {
   {
     rule: 'no-number-outside-limits',
     path: 'packages/reviews/src/rules/comment-threads.ts',
+    valid:
+      'export function threadCapacityLeft(threads: number, maxThreads: number): number { return Math.max(0, maxThreads - threads); }',
     invalid: `
 const MAX_THREADS = Number('100');
 
@@ -2208,6 +2345,8 @@ export function threadCapacityLeft(threads: number): number {
   {
     rule: 'no-number-outside-limits',
     path: 'apps/web/src/features/access/commands/probe-command.ts',
+    valid:
+      'export const probeDelay = (limits: {delayMs: number}) => limits.delayMs;',
     invalid: `export const probeDelay = 250;
 `,
     errors: 1,
@@ -2215,19 +2354,7 @@ export function threadCapacityLeft(threads: number): number {
   {
     rule: 'no-number-outside-limits',
     path: 'apps/server/src/adapters/files/filesystem-directory-reader.ts',
-    valid: `export class FilesystemDirectoryReader implements DirectoryReader {
-  async list(
-  ): Promise<DirectoryRead> {
-    try {
-      for await (const entry of await opendir(before.path, {
-      })) {
-        if (found.length === input.limit) {
-        }
-      }
-    } catch (error) {
-    }
-  }
-}`,
+    valid: filesystemDirectoryReader,
     invalid: `export class FilesystemDirectoryReader implements DirectoryReader {
   async list(
   ): Promise<DirectoryRead> {
@@ -2246,6 +2373,8 @@ export function threadCapacityLeft(threads: number): number {
   {
     rule: 'no-number-outside-limits',
     path: 'packages/projects/src/errors/probe-limit.ts',
+    valid:
+      "export class PageLimitError extends Error { constructor(readonly pageSize: number) { super('Page limit exceeded'); } }",
     invalid: `export const PAGE_SIZE = 50;
 `,
     errors: 1,
@@ -2253,6 +2382,8 @@ export function threadCapacityLeft(threads: number): number {
   {
     rule: 'no-number-outside-limits',
     path: 'packages/projects/src/services/probe-page-size-service.ts',
+    valid:
+      'export class ProbePageSizeService { constructor(private readonly options: {pageSize: number}) {} execute(): number { return this.options.pageSize; } }',
     invalid: `export class ProbePageSizeService {
   execute(): number {
     return [0, 0, 0, 0, 0].length * (1 + 1);
@@ -2261,23 +2392,12 @@ export function threadCapacityLeft(threads: number): number {
 `,
     errors: 1,
   },
-  {
-    rule: 'no-port-shaped-alias',
-    path: 'apps/server/src/runtime/probe-handle.ts',
-    invalid: `export type ProbeHandle = { close(): Promise<void> };
-`,
-    errors: 1,
-  },
-  {
-    rule: 'no-port-shaped-alias',
-    path: 'packages/git/src/shared/dtos/probe-handle.ts',
-    invalid: `export type ProbeHandle = { close(): Promise<void> };
-`,
-    errors: 1,
-  },
+
   {
     rule: 'no-schema-parse-aliases',
     path: 'packages/files/src/rules/encode-base64.ts',
+    valid:
+      'export function byteLength(value: Uint8Array) { return value.byteLength; }',
     invalid: `
 export function probeParser(value: object): unknown {
   return Reflect.get(value, "safeParse");
@@ -2395,22 +2515,10 @@ export class ReadInterruptedGitActionService {
   {
     rule: 'operation-class-members',
     path: 'apps/server/src/use-cases/access/read-health.ts',
-    invalid: `        return new HealthReply(
-          this.readEnvironment.execute().environmentId,
-        ).body();
-
-class HealthReply {
-  private readonly environmentId: string;
-
-  constructor(environmentId: string) {
-    this.environmentId = environmentId;
-  }
-
-  body(): ReadHealthResponse {
-    return { status: 'ok', environmentId: this.environmentId };
-  }
-}
-`,
+    valid:
+      "export class ReadHealthUseCase { execute(context: OperationContext): ReadHealthResponse { return { status: 'ok', environmentId: context.environmentId }; } }",
+    invalid:
+      "export async function fixture(input: Input, environmentId: string) {         return new HealthReply(\n          this.readEnvironment.execute().environmentId,\n        ).body();\n\nclass HealthReply {\n  private readonly environmentId: string;\n\n  constructor(environmentId: string) {\n    this.environmentId = environmentId;\n  }\n\n  body(): ReadHealthResponse {\n    return { status: 'ok', environmentId: this.environmentId };\n  }\n}\n }",
     errors: 1,
   },
   {
@@ -2462,13 +2570,19 @@ export class ReadHealthUseCase {
   {
     rule: 'operation-class-shape',
     path: 'apps/server/src/use-cases/projects/collect-absent-worktrees.ts',
-    invalid: `this.listExpiredWorktrees.execute({})`,
+    valid:
+      'export class CollectAbsentWorktreesUseCase { execute(context: OperationContext): Promise<CollectAbsentWorktreesResult> { return this.listExpiredWorktrees.execute(context); } }',
+    invalid:
+      'export class CollectAbsentWorktreesUseCase { execute(input: Input): Promise<Result> { return this.listExpiredWorktrees.execute(input); } }',
     errors: 1,
   },
   {
     rule: 'operation-class-shape',
     path: 'apps/server/src/use-cases/projects/collect-absent-worktrees.ts',
-    invalid: `this.listExpiredWorktrees.execute({})`,
+    valid:
+      'export class CollectAbsentWorktreesUseCase { execute(context: OperationContext): Promise<CollectAbsentWorktreesResult> { return this.listExpiredWorktrees.execute(context); } }',
+    invalid:
+      'export class CollectAbsentWorktreesUseCase { execute(input: Input): Promise<Result> { return this.listExpiredWorktrees.execute(input); } }',
     errors: 1,
   },
   {
@@ -2596,8 +2710,9 @@ export class ReadHealthUseCase extends Operation<ReadHealthResponse> {
   {
     rule: 'operation-class-shape',
     path: 'apps/server/src/use-cases/access/read-health.ts',
-    invalid: `ReadHealthController`,
-    errors: 1,
+    valid: `export class ReadHealthUseCase { execute(context: OperationContext): ReadHealthResponse { return {status: 'ok', environmentId: context.environmentId}; } }`,
+    invalid: `export class ReadHealthUseCase { read(context: OperationContext): ReadHealthResponse { return {status: "ok", environmentId: context.environmentId}; } }`,
+    errors: 2,
   },
   {
     rule: 'operation-class-shape',
@@ -2646,6 +2761,8 @@ export class ReadHealthUseCase extends Operation<ReadHealthResponse> {
   {
     rule: 'port-shape',
     path: 'apps/server/src/ports/edit-announcement-writer.ts',
+    valid:
+      'export interface ContextualEditWriter { announce(input: EditAnnouncement, signal?: AbortSignal): void; }',
     invalid: `
 export interface ContextualEditWriter {
   announce(input: EditAnnouncement, context: EditAnnouncement): void;
@@ -2674,6 +2791,7 @@ export interface ContextualEditWriter {
   {
     rule: 'port-shape',
     path: 'apps/server/src/ports/notice-port.ts',
+    valid: 'export interface NoticeWriter { send(input: NoticeInput): void; }',
     invalid: `export interface NoticePort {
   send(worktreeId: string, kind: string, revision: number): void;
 }
@@ -2683,6 +2801,8 @@ export interface ContextualEditWriter {
   {
     rule: 'port-shape',
     path: 'packages/reviews/src/ports/summary-port.ts',
+    valid:
+      'export interface SummaryReader { read(input: SummaryInput): Summary | undefined; }',
     invalid: `export interface SummaryPort {
   read(input: { token: string }): string | undefined;
 }
@@ -2715,6 +2835,8 @@ export interface ContextualEditWriter {
   {
     rule: 'port-shape',
     path: 'packages/reviews/src/ports/worktree-change-reader.ts',
+    valid:
+      "import type {ReadWorktreeStatusResult} from '@porcelain/changes/models'; export interface WorktreeChangeReader { read(input: WorktreeKey, signal?: AbortSignal): Promise<ReadWorktreeStatusResult>; }",
     invalid: `import type { ReadWorktreeStatusResult } from '@porcelain/changes/models';
 
 export interface WorktreeChangeReader {
@@ -2729,6 +2851,8 @@ export interface WorktreeChangeReader {
   {
     rule: 'port-shape',
     path: 'packages/reviews/src/ports/worktree-change-reader.ts',
+    valid:
+      'export interface WorktreeChangeReader { read(input: WorktreeKey, signal?: AbortSignal): Promise<WorktreeStatus>; }',
     invalid: `export interface WorktreeChangeReader {
   read(
     input: { worktreeId: string },
@@ -2741,6 +2865,8 @@ export interface WorktreeChangeReader {
   {
     rule: 'root-scripts-import-no-package',
     path: 'scripts/probe-reach.ts',
+    valid:
+      "import {readFileSync} from 'node:fs'; process.stdout.write(readFileSync('package.json', 'utf8'));",
     invalid: `import { deriveProjectName } from '../packages/projects/src/rules/derive-project-name.ts';
 
 process.stdout.write(\`\${deriveProjectName(undefined, '/tmp/probe')}\\n\`);
@@ -2750,6 +2876,8 @@ process.stdout.write(\`\${deriveProjectName(undefined, '/tmp/probe')}\\n\`);
   {
     rule: 'root-scripts-import-no-package',
     path: 'scripts/probe-reach.ts',
+    valid:
+      "import {z} from 'zod'; process.stdout.write(z.string().parse('value'));",
     invalid: `import { redeemPairingResponseSchema } from '@porcelain/contracts/access';
 
 process.stdout.write(\`\${JSON.stringify(redeemPairingResponseSchema.parse({}))}\\n\`);
@@ -2759,6 +2887,8 @@ process.stdout.write(\`\${JSON.stringify(redeemPairingResponseSchema.parse({}))}
   {
     rule: 'rules-are-pure',
     path: 'packages/reviews/src/rules/review-digests.ts',
+    valid:
+      'export function summaryAgeMs(createdAt: string, now: string): number { return Date.parse(now) - Date.parse(createdAt); }',
     invalid: `
 export function summaryAgeMs(createdAt: string): number {
   return Date.now() - Date.parse(createdAt);
@@ -2769,6 +2899,8 @@ export function summaryAgeMs(createdAt: string): number {
   {
     rule: 'rules-are-pure',
     path: 'packages/access/src/rules/credential.ts',
+    valid:
+      'export function issuedAt(instant: string): number { return Date.parse(instant); }',
     invalid: `
 export function issuedNow(): number {
   return Reflect.apply(Date.now, undefined, []);
@@ -2779,6 +2911,8 @@ export function issuedNow(): number {
   {
     rule: 'rules-are-pure',
     path: 'packages/access/src/rules/pairing-grant.ts',
+    valid:
+      'export function pairingGrantExpired(grant: StoredPairingGrant, now: string): boolean { return Date.parse(grant.expiresAt) < Date.parse(now); }',
     invalid: `
 export function pairingGrantExpired(grant: StoredPairingGrant): boolean {
   return Date.parse(grant.expiresAt) < Date.now();
@@ -2789,18 +2923,7 @@ export function pairingGrantExpired(grant: StoredPairingGrant): boolean {
   {
     rule: 'rules-are-pure',
     path: 'packages/access/src/rules/credential.ts',
-    valid: `import type { CredentialKind, CredentialParts } from '../models/credential.ts';
-
-export function parseCredential(
-  kind: CredentialKind,
-  value: string,
-): CredentialParts | undefined {
-  const parts = new RegExp(\`^\${kind}_(?<id>[0-9a-f-]{36})_(?<secret>[\\\\w-]{43})$\`).exec(value)?.groups;
-  return parts?.id && parts.secret
-    ? { id: parts.id, secret: parts.secret }
-    : undefined;
-}
-`,
+    valid: encodedCredential,
     invalid: `import type { CredentialKind, CredentialParts } from '../models/credential.ts';
 import { InvalidPairingError } from '../errors/invalid-pairing-error.ts';
 
@@ -2823,6 +2946,8 @@ export function credentialFailure(): Error {
   {
     rule: 'rules-are-pure',
     path: 'packages/access/src/rules/credential.ts',
+    valid:
+      "export function credentialFailure() { return {kind: 'malformed'}; }",
     invalid: `
 export function credentialFailure(): Error {
   return Error('Malformed credential');
@@ -2833,6 +2958,8 @@ export function credentialFailure(): Error {
   {
     rule: 'rules-are-pure',
     path: 'packages/access/src/rules/credential.ts',
+    valid:
+      'export function secretValid(secret: string): boolean { return secret.length > 0; }',
     invalid: `
 export function mintSecret(): string {
   return crypto.getRandomValues(new Uint8Array(32)).toHex();
@@ -2843,6 +2970,8 @@ export function mintSecret(): string {
   {
     rule: 'rules-are-pure',
     path: 'packages/access/src/rules/credential.ts',
+    valid:
+      'export function retryJitterMs(baseMs: number, fraction: number): number { return Math.floor(baseMs * fraction); }',
     invalid: `
 export function retryJitterMs(baseMs: number): number {
   return Math.floor(baseMs * Math.random());
@@ -2853,6 +2982,8 @@ export function retryJitterMs(baseMs: number): number {
   {
     rule: 'rules-are-pure',
     path: 'packages/access/src/rules/credential.ts',
+    valid:
+      "import {timingSafeEqual} from 'node:crypto'; export function secretsEqual(left: Uint8Array, right: Uint8Array): boolean { return timingSafeEqual(left, right); }",
     invalid: `import { randomBytes } from 'node:crypto';
 
 
@@ -2865,18 +2996,7 @@ export function mintSecret(): string {
   {
     rule: 'rules-are-pure',
     path: 'packages/access/src/rules/credential.ts',
-    valid: `import type { CredentialKind, CredentialParts } from '../models/credential.ts';
-
-export function parseCredential(
-  kind: CredentialKind,
-  value: string,
-): CredentialParts | undefined {
-  const parts = new RegExp(\`^\${kind}_(?<id>[0-9a-f-]{36})_(?<secret>[\\\\w-]{43})$\`).exec(value)?.groups;
-  return parts?.id && parts.secret
-    ? { id: parts.id, secret: parts.secret }
-    : undefined;
-}
-`,
+    valid: encodedCredential,
     invalid: `import type { CredentialKind, CredentialParts } from '../models/credential.ts';
 import { InvalidPairingError } from '../errors/invalid-pairing-error.ts';
 
@@ -2894,6 +3014,8 @@ export function parseCredential(
   {
     rule: 'rules-are-pure',
     path: 'packages/projects/src/rules/probe-day.ts',
+    valid:
+      "export function probeDay(instant: string): string { return instant.slice(0, 'YYYY-MM-DD'.length); }",
     invalid: `export function probeDay(instant: string): string {
   return Intl.DateTimeFormat('en').format(new Date(instant));
 }
@@ -2931,6 +3053,8 @@ export function parseCredential(
   {
     rule: 'signals-are-passed',
     path: 'packages/files/src/services/list-directory-service.ts',
+    valid:
+      'export class ListDirectoryService { constructor(private readonly reader: DirectoryReader) {} execute(input: DirectoryInput, signal?: AbortSignal) { return this.reader.read(input, signal); } }',
     invalid: `    const { aborted } = signal ?? { aborted: false };
     if (aborted) throw new DirectoryTooLargeError();
     if (read.kind === 'failed') throw this.failure(read.failure);`,
@@ -2939,6 +3063,8 @@ export function parseCredential(
   {
     rule: 'signals-are-passed',
     path: 'packages/files/src/services/list-directory-service.ts',
+    valid:
+      'export class ListDirectoryService { constructor(private readonly reader: DirectoryReader) {} execute(input: DirectoryInput, signal?: AbortSignal) { return this.reader.read(input, signal); } }',
     invalid: `    signal?.throwIfAborted();
     if (read.kind === 'failed') throw this.failure(read.failure);`,
     errors: 1,
@@ -2966,6 +3092,8 @@ export function parseCredential(
   {
     rule: 'spec-asserts',
     path: 'packages/projects/src/rules/derive-project-name.spec.ts',
+    valid:
+      "describe('deriveProjectName', () => { it('names a project after its folder', () => { expect(deriveProjectName(undefined, '/srv/app')).toBe('app'); }); });",
     invalid: `
 const RUNS = [].length > 0;
 
@@ -2981,6 +3109,8 @@ describe('deriveProjectName probe', () => {
   {
     rule: 'spec-asserts',
     path: 'packages/projects/src/rules/derive-project-name.spec.ts',
+    valid:
+      "describe('deriveProjectName', () => { it.each([['/srv/app', 'app'], ['/srv/api', 'api']])('names %s as %s', (path, expected) => { expect(deriveProjectName(undefined, path)).toBe(expected); }); });",
     invalid: `
 describe('deriveProjectName probe', () => {
   it('names every project after its folder', () => {
@@ -2995,6 +3125,8 @@ describe('deriveProjectName probe', () => {
   {
     rule: 'spec-asserts',
     path: 'packages/projects/src/rules/derive-project-name.spec.ts',
+    valid:
+      "describe('deriveProjectName', () => { it('names a project after its folder', () => { expect(deriveProjectName(undefined, '/srv/app')).toBe('app'); }); });",
     invalid: `
 describe('deriveProjectName probe', () => {
   it('names a project after its folder', () => {
@@ -3025,8 +3157,7 @@ describe('deriveProjectName probe', () => {
   {
     rule: 'spec-asserts',
     path: 'apps/server/spec/integration/access-health.integration.ts',
-    valid:
-      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the changes of an unknown worktree are refused with the error contract', async ({ session }) => {\n  const response = await session.send(unknownChanges());\n  const body = record(response.body);\n  expect(response.body).toEqual(expect.schemaMatching(apiErrorSchema));\n});\n",
+    valid: apiErrorCases,
     invalid:
       "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the changes of an unknown worktree are refused with the error contract', async ({ session }) => {\n  const response = await session.send(unknownChanges());\n  const body = record(response.body);\n  expect(response.body).toEqual(expect.schemaMatching(z.unknown()));\n});\n",
     errors: 1,
@@ -3079,8 +3210,7 @@ describe('deriveProjectName probe', () => {
   {
     rule: 'spec-asserts',
     path: 'apps/server/spec/integration/access-health.integration.ts',
-    valid:
-      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the changes of an unknown worktree are refused with the error contract', async ({ session }) => {\n  const response = await session.send(unknownChanges());\n  const body = record(response.body);\n  expect(response.body).toEqual(expect.schemaMatching(apiErrorSchema));\n});\n",
+    valid: apiErrorCases,
     invalid:
       "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the changes of an unknown worktree are refused with the error contract', async ({ session }) => {\n  const response = await session.send(unknownChanges());\n  const body = record(response.body);\n  expect(response.body).toEqual(expect.schemaMatching(apiErrorSchema.partial()));\n});\n",
     errors: 1,
@@ -3187,23 +3317,7 @@ describe('deriveProjectName probe', () => {
   {
     rule: 'spec-asserts',
     path: 'apps/web/src/features/access/rules/remotes.spec.ts',
-    valid: `import { describe, expect, it } from 'vitest';
-import { remoteLink } from './remotes.ts';
-
-describe('remoteLink', () => {
-  it('reads the address, code and environment of a pairing link', () => {
-    expect(remoteLink('http://192.0.2.10:4738/pair#c=a&e=env')).toEqual({
-      address: 'http://192.0.2.10:4738',
-      code: 'a',
-      environmentId: 'env',
-    });
-  });
-
-  it.each(['', 'http://192.0.2.10:4738/pair#c=a'])('reads nothing from %j', (value) => {
-    expect(remoteLink(value)).toBeUndefined();
-  });
-});
-`,
+    valid: remoteLinkCases,
     invalid: `import { describe, expect, it } from 'vitest';
 import { remoteLink } from './remotes.ts';
 
@@ -3218,23 +3332,7 @@ describe('remoteLink', () => {
   {
     rule: 'spec-asserts',
     path: 'apps/web/src/features/access/rules/remotes.spec.ts',
-    valid: `import { describe, expect, it } from 'vitest';
-import { remoteLink } from './remotes.ts';
-
-describe('remoteLink', () => {
-  it('reads the address, code and environment of a pairing link', () => {
-    expect(remoteLink('http://192.0.2.10:4738/pair#c=a&e=env')).toEqual({
-      address: 'http://192.0.2.10:4738',
-      code: 'a',
-      environmentId: 'env',
-    });
-  });
-
-  it.each(['', 'http://192.0.2.10:4738/pair#c=a'])('reads nothing from %j', (value) => {
-    expect(remoteLink(value)).toBeUndefined();
-  });
-});
-`,
+    valid: remoteLinkCases,
     invalid: `import { describe, expect, it } from 'vitest';
 import { remoteLink } from './remotes.ts';
 
@@ -3522,65 +3620,12 @@ describe('commitPaths', () => {
 `,
     errors: 1,
   },
-  {
-    rule: 'spec-behaviour-names',
-    path: 'packages/reviews/src/services/mark-comments-seen-service.spec.ts',
-    valid: `describe('MarkCommentsSeenService', () => {
-  it('records the revision the reader saw', () => {
-    expect(seen.seenThrough({ worktreeId })).toBe(2);
-  });
-});
-`,
-    invalid: `describe('MarkCommentsSeenService', () => {
-  it('records the revision the reader saw', () => {
-    expect(seen.seenThrough({ worktreeId })).toBe(2);
-  });
 
-  it('answers 404 to an unknown worktree', () => {
-    const { service } = setup();
-    expect(service.execute({ worktreeId: 'c'.repeat(64), throughRevision: 1 }).seenThrough).toBe(0);
-  });
-});
-`,
-    errors: 1,
-  },
-  {
-    rule: 'spec-behaviour-names',
-    path: 'packages/reviews/src/services/mark-comments-seen-service.spec.ts',
-    valid: `describe('MarkCommentsSeenService', () => {
-  it('records the revision the reader saw', () => {
-    expect(seen.seenThrough({ worktreeId })).toBe(2);
-  });
-});
-`,
-    invalid: `describe('MarkCommentsSeenService', () => {
-  it('records the revision the reader saw', () => {
-    expect(seen.seenThrough({ worktreeId })).toBe(2);
-  });
-
-  it('returns 404 for an unknown worktree', () => {
-    const { service } = setup();
-    expect(service.execute({ worktreeId: 'c'.repeat(64), throughRevision: 1 }).seenThrough).toBe(0);
-  });
-});
-`,
-    errors: 1,
-  },
-  {
-    rule: 'spec-behaviour-names',
-    path: 'apps/web/spec/integration/probe.test.tsx',
-    invalid: `import { expect } from 'vitest';
-import { test } from './fixtures.tsx';
-
-test('access.pairing: works', async ({ workspace }) => {
-  await expect.element(workspace.getByRole('region', { name: 'Review content' })).toBeVisible();
-});
-`,
-    errors: 1,
-  },
   {
     rule: 'spec-imports',
     path: 'apps/server/src/http/status-policy.spec.ts',
+    valid:
+      "import {statusPolicy} from './status-policy.ts'; import {expect, it} from 'vitest'; it('maps the outcome to a response', () => { expect(statusPolicy({kind: 'missing'})).toBe(404); });",
     invalid: `import { openStorageSession } from '@porcelain/storage';
 
 
@@ -3595,12 +3640,7 @@ describe('probe', () => {
   {
     rule: 'spec-no-mocking',
     path: 'packages/reviews/src/services/mark-comments-seen-service.spec.ts',
-    valid: `describe('MarkCommentsSeenService', () => {
-  it('records the revision the reader saw', () => {
-    expect(seen.seenThrough({ worktreeId })).toBe(2);
-  });
-});
-`,
+    valid: observedStoreState,
     invalid: `describe('MarkCommentsSeenService', () => {
   it('records the revision the reader saw', () => {
     expect(seen.seenThrough({ worktreeId })).toBe(2);
@@ -3619,12 +3659,7 @@ describe('probe', () => {
   {
     rule: 'spec-no-mocking',
     path: 'packages/reviews/src/services/mark-comments-seen-service.spec.ts',
-    valid: `describe('MarkCommentsSeenService', () => {
-  it('records the revision the reader saw', () => {
-    expect(seen.seenThrough({ worktreeId })).toBe(2);
-  });
-});
-`,
+    valid: observedStoreState,
     invalid: `describe('MarkCommentsSeenService', () => {
   it('records the revision the reader saw', () => {
     expect(seen.seenThrough({ worktreeId })).toBe(2);
@@ -3643,6 +3678,8 @@ describe('probe', () => {
   {
     rule: 'spec-no-skips',
     path: 'packages/files/src/rules/encode-base64.spec.ts',
+    valid:
+      "describe('encodeBase64', () => { it('encodes nothing as an empty string', () => { expect(encodeBase64(new Uint8Array(), 1)).toBe(''); }); });",
     invalid: `
 describe.skip("encodeBase64 probe", () => {
   it("encodes nothing as an empty string", () => {
@@ -3655,6 +3692,8 @@ describe.skip("encodeBase64 probe", () => {
   {
     rule: 'spec-one-case-per-behaviour',
     path: 'packages/files/src/rules/encode-base64.spec.ts',
+    valid:
+      "describe('encodeBase64', () => { it.each([1, 2])('encodes %s bytes', (size) => { expect(encodeBase64(new Uint8Array(size), 1)).not.toBe(''); }); });",
     invalid: `
 describe("encodeBase64 probe", () => {
   it("encodes every size", () => {
@@ -3668,6 +3707,8 @@ describe("encodeBase64 probe", () => {
   {
     rule: 'static-imports',
     path: 'apps/server/src/runtime/delay.ts',
+    valid:
+      "export function probeLoad(): Promise<unknown> { return import('./delay.ts'); }",
     invalid: `
 export function probeLoad(name: string): Promise<unknown> {
   return import(name);
@@ -3678,6 +3719,7 @@ export function probeLoad(name: string): Promise<unknown> {
   {
     rule: 'timers-in-runtime',
     path: 'apps/server/src/http/hooks/prevent-caching.ts',
+    valid: "reply.header('Cache-Control', 'no-store');",
     invalid: `  reply.header('Cache-Control', 'no-store');
   await new Promise((resolve) => setTimeout(resolve, 0));`,
     errors: 1,
@@ -3695,16 +3737,18 @@ await page.waitForFunction("document.querySelector('.dark') !== null");`,
   {
     rule: 'typed-evaluation',
     path: 'apps/web/spec/kit/app.ts',
+    valid:
+      'export const theme = () => page.evaluateHandle(() => document.documentElement);',
     invalid: `export const theme = () => page.evaluateHandle('document.documentElement');`,
     errors: 1,
   },
   {
     rule: 'use-case-computes',
     path: 'apps/server/src/use-cases/projects/find-worktree-by-path.ts',
-    invalid: `import { NoWorktreeAtPathError } from '@porcelain/projects/errors';
-
-    if (input.path === '') return Promise.reject(new NoWorktreeAtPathError());
-    await this.refreshInventory.execute(context);`,
+    valid:
+      'export class FindWorktreeByPathUseCase { execute(input: FindWorktreeInput, context: OperationContext) { return this.findWorktree.execute(input, context.signal); } }',
+    invalid:
+      "import { NoWorktreeAtPathError } from '@porcelain/projects/errors';\n\n    export async function fixture(input: Input, environmentId: string) { if (input.path === '') return Promise.reject(new NoWorktreeAtPathError());\n    await this.refreshInventory.execute(context); }",
     errors: 2,
   },
   {
@@ -3749,34 +3793,28 @@ export class ReadChangeLinesUseCase {
   {
     rule: 'use-case-imports',
     path: 'apps/server/src/use-cases/access/read-health.ts',
-    invalid: `import {
-  readHealthResponseSchema,
-  type ReadHealthResponse,
-} from '@porcelain/contracts/access';
-    const check = readHealthResponseSchema.parse;
-    return check({ status: 'ok', environmentId });`,
+    valid:
+      "import type {ReadHealthResponse} from '@porcelain/contracts/access'; export class ReadHealthUseCase { execute(context: OperationContext): ReadHealthResponse { return {status: 'ok', environmentId: context.environmentId}; } }",
+    invalid:
+      "import {\n  readHealthResponseSchema,\n  type ReadHealthResponse,\n} from '@porcelain/contracts/access';\n    export async function fixture(input: Input, environmentId: string) { const check = readHealthResponseSchema.parse;\n    return check({ status: 'ok', environmentId }); }",
     errors: 1,
   },
   {
     rule: 'use-case-imports',
     path: 'apps/server/src/use-cases/access/read-health.ts',
-    invalid: `import {
-  readHealthResponseSchema,
-  type ReadHealthResponse,
-} from '@porcelain/contracts/access';
-    const { parse: check } = readHealthResponseSchema;
-    return check({ status: 'ok', environmentId });`,
+    valid:
+      "import type {ReadHealthResponse} from '@porcelain/contracts/access'; export class ReadHealthUseCase { execute(context: OperationContext): ReadHealthResponse { return {status: 'ok', environmentId: context.environmentId}; } }",
+    invalid:
+      "import {\n  readHealthResponseSchema,\n  type ReadHealthResponse,\n} from '@porcelain/contracts/access';\n    export async function fixture(input: Input, environmentId: string) { const { parse: check } = readHealthResponseSchema;\n    return check({ status: 'ok', environmentId }); }",
     errors: 1,
   },
   {
     rule: 'use-case-imports',
     path: 'apps/server/src/use-cases/access/read-health.ts',
-    invalid: `import {
-  readHealthResponseSchema,
-  type ReadHealthResponse,
-} from '@porcelain/contracts/access';
-    const decoded = readHealthResponseSchema.safeDecode({ status: 'ok', environmentId });
-    return decoded.success ? decoded.data : { status: 'ok', environmentId };`,
+    valid:
+      "import type {ReadHealthResponse} from '@porcelain/contracts/access'; export class ReadHealthUseCase { execute(context: OperationContext): ReadHealthResponse { return {status: 'ok', environmentId: context.environmentId}; } }",
+    invalid:
+      "import {\n  readHealthResponseSchema,\n  type ReadHealthResponse,\n} from '@porcelain/contracts/access';\n    export async function fixture(input: Input, environmentId: string) { const decoded = readHealthResponseSchema.safeDecode({ status: 'ok', environmentId });\n    return decoded.success ? decoded.data : { status: 'ok', environmentId }; }",
     errors: 1,
   },
   {
@@ -3831,6 +3869,8 @@ export class CreateCommentThreadUseCase {
   {
     rule: 'web-api-owns-request',
     path: 'apps/web/src/features/access/queries/probe-query.ts',
+    valid:
+      "import {pairingApi} from '../api'; export const pairingQuery = () => pairingApi.read();",
     invalid: `import { requestEndpoint } from '@/shared/api/request';
 
 export const probeRequest = requestEndpoint;
@@ -3848,12 +3888,16 @@ export const probeRequest = requestEndpoint;
   {
     rule: 'web-api-owns-request',
     path: 'apps/mobile/src/features/access/views/access-screen.tsx',
+    valid:
+      "import {useEnvironments} from '@porcelain/client/access'; export const Screen = () => <Text>{useEnvironments().length}</Text>;",
     invalid: "import * as client from '@porcelain/client/transport';",
     errors: 1,
   },
   {
     rule: 'web-browser-spec-no-mocks',
     path: 'apps/web/spec/integration/probe.test.tsx',
+    valid:
+      "import {expect} from 'vitest'; expect.element(workspace.getByRole('region')).toBeVisible();",
     invalid: `import { vi } from 'vitest';
 
 vi.fn();
@@ -3863,6 +3907,8 @@ vi.fn();
   {
     rule: 'web-browser-spec-no-skips',
     path: 'apps/web/spec/integration/probe.test.tsx',
+    valid:
+      "import {test} from 'vitest'; test('opens the workspace', () => undefined);",
     invalid: `import { test } from 'vitest';
 
 test.skip('probe', () => undefined);
@@ -3872,6 +3918,8 @@ test.skip('probe', () => undefined);
   {
     rule: 'web-browser-spec-no-skips',
     path: 'apps/web/spec/integration/probe.test.tsx',
+    valid:
+      "import {expect} from 'vitest'; import {test} from './fixtures.tsx'; test('the workspace opens after pairing', async ({workspace}) => { await expect.element(workspace.getByRole('region', {name: 'Review content'})).toBeVisible(); });",
     invalid: `import { expect } from 'vitest';
 import { test } from './fixtures.tsx';
 
@@ -3884,6 +3932,8 @@ test('the workspace opens after pairing', { retry: 2 }, async ({ workspace }) =>
   {
     rule: 'web-cache-writes-in-commands',
     path: 'apps/web/src/features/access/views/probe-view.tsx',
+    valid:
+      "export function probeRead(client: {getQueryData: (key: string[]) => unknown}) { return client.getQueryData(['access']); }",
     invalid: `export function probeReset(client: {
   setQueryData: (key: string[], value: undefined) => void;
 }) {
@@ -3920,6 +3970,8 @@ export function SettingsDialog({ open }: { open: boolean }) {
   {
     rule: 'web-dialogs-from-ui',
     path: 'apps/web/src/features/access/views/probe-view.tsx',
+    valid:
+      "import {AlertDialog} from '@/components/ui/alert-dialog'; export function ProbeView() { return <AlertDialog>Remove?</AlertDialog>; }",
     invalid: `export function ProbeView() {
   return <section role={'alertdialog'}>Remove?</section>;
 }
@@ -3974,6 +4026,8 @@ export function useLeave() {
   {
     rule: 'web-commands-own-writes',
     path: 'apps/web/src/features/access/queries/probe-query.ts',
+    valid:
+      "import {usePairingCommand} from '../commands/pairing'; export const useProbeWrite = usePairingCommand;",
     invalid: `import { useMutation } from '@tanstack/react-query';
 
 export function useProbeWrite() {
@@ -4003,6 +4057,8 @@ test('the inventory read fails', async ({ pairedPage }) => {
   {
     rule: 'web-browser-spec-no-skips',
     path: 'apps/web/spec/e2e/probe.e2e.ts',
+    valid:
+      "import {expect, test} from './fixtures.ts'; test('the workspace opens after pairing', async ({pairedPage}) => { await expect(pairedPage.getByRole('region', {name: 'Review content', exact: true})).toBeVisible(); });",
     invalid: `import { expect, test } from './fixtures.ts';
 
 test.fixme('the workspace opens after pairing', async ({ pairedPage }) => {
@@ -4014,6 +4070,8 @@ test.fixme('the workspace opens after pairing', async ({ pairedPage }) => {
   {
     rule: 'web-journey-imports',
     path: 'apps/web/spec/e2e/probe.e2e.ts',
+    valid:
+      "import {expect, test} from './fixtures.ts'; test('the workspace opens after pairing', async ({pairedPage}) => { await expect(pairedPage.getByRole('region', {name: 'Review content', exact: true})).toBeVisible(); });",
     invalid: `import { expect, test } from '@playwright/test';
 
 test('the workspace opens after pairing', async ({ page }) => {
@@ -4044,6 +4102,8 @@ test('a renamed project keeps its new name on the server', async ({ pairedPage, 
   {
     rule: 'web-journey-asserts',
     path: 'apps/web/spec/e2e/probe.e2e.ts',
+    valid:
+      "import {expect, test} from './fixtures.ts'; test('opening the commit dialog shows its form', async ({pairedPage}) => { await pairedPage.getByRole('button', {name: 'Commit', exact: true}).click(); await expect(pairedPage.getByRole('dialog')).toBeVisible(); });",
     invalid: `import { test } from './fixtures.ts';
 
 test('opening the commit dialog shows its form', async ({ pairedPage }) => {
@@ -4055,6 +4115,8 @@ test('opening the commit dialog shows its form', async ({ pairedPage }) => {
   {
     rule: 'web-journey-asserts',
     path: 'apps/web/spec/integration/probe.test.tsx',
+    valid:
+      "import {expect} from 'vitest'; import {test} from './fixtures.tsx'; test('opening the commit dialog shows its form', async ({workspace}) => { await workspace.getByRole('button', {name: 'Commit', exact: true}).click(); await expect.element(workspace.getByRole('dialog')).toBeVisible(); });",
     invalid: `import { test } from './fixtures.tsx';
 
 test('opening the commit dialog shows its form', async ({ workspace }) => {
@@ -4066,6 +4128,8 @@ test('opening the commit dialog shows its form', async ({ workspace }) => {
   {
     rule: 'web-journey-imports',
     path: 'apps/web/spec/integration/probe.test.tsx',
+    valid:
+      "import {expect} from 'vitest'; import {test} from './fixtures.tsx'; test('the server keeps its health status', async ({server}) => { await expect.poll(async () => (await server.health()).status).toBe('ok'); });",
     invalid: `import { expect } from 'vitest';
 import { isContentChangedError } from '../../src/features/review/queries/review';
 import { test } from './fixtures.tsx';
@@ -4079,6 +4143,8 @@ test('a conflict is recognised by the review client', async ({ server }) => {
   {
     rule: 'web-journey-locators',
     path: 'apps/web/spec/integration/probe.test.tsx',
+    valid:
+      "import {expect} from 'vitest'; import {test} from './fixtures.tsx'; test('the workspace names its review region', async ({workspace}) => { await expect.element(workspace.getByRole('region', {name: 'Review content', exact: true})).toBeVisible(); });",
     invalid: `import { expect } from 'vitest';
 import { test } from './fixtures.tsx';
 
@@ -4092,6 +4158,8 @@ test('the workspace names its review region', async ({ workspace }) => {
   {
     rule: 'web-journey-locators',
     path: 'apps/web/spec/integration/probe.test.tsx',
+    valid:
+      "import {expect} from 'vitest'; import {test} from './fixtures.tsx'; test('the workspace offers a commit button', async ({workspace}) => { await expect.element(workspace.getByRole('button', {name: 'Commit', exact: true})).toBeVisible(); });",
     invalid: `import { expect } from 'vitest';
 import { test } from './fixtures.tsx';
 
@@ -4128,6 +4196,8 @@ test('marking a file reviewed presses its toggle', async ({ workspace }) => {
   {
     rule: 'web-journey-no-waits',
     path: 'apps/web/spec/integration/probe.test.tsx',
+    valid:
+      "import {expect} from 'vitest'; import {test} from './fixtures.tsx'; test('the commit dialog opens after a click', async ({workspace}) => { await workspace.getByRole('button', {name: 'Commit', exact: true}).click(); await expect.element(workspace.getByRole('dialog')).toBeVisible(); });",
     invalid: `import { expect } from 'vitest';
 import { test } from './fixtures.tsx';
 
@@ -4142,6 +4212,8 @@ test('the commit dialog opens after a click', async ({ workspace }) => {
   {
     rule: 'web-journey-retrying-assertions',
     path: 'apps/web/spec/integration/probe.test.tsx',
+    valid:
+      "import {expect} from 'vitest'; import {test} from './fixtures.tsx'; test('a renamed project keeps its name on the server', async ({server}) => { await expect.poll(async () => (await server.project()).name).toBe('Renamed'); });",
     invalid: `import { expect } from 'vitest';
 import { test } from './fixtures.tsx';
 
@@ -4155,6 +4227,8 @@ test('a renamed project keeps its new name on the server', async ({ workspace, s
   {
     rule: 'web-journey-through-kit',
     path: 'apps/web/spec/integration/probe.test.tsx',
+    valid:
+      'export async function probeFocus(locator: {click(): Promise<void>}) { await locator.click(); }',
     invalid: `import { expect } from 'vitest';
 import { test } from './fixtures.tsx';
 
@@ -4168,6 +4242,8 @@ test('the paired browser can read its inventory', async ({ workspace }) => {
   {
     rule: 'web-no-action-hooks',
     path: 'apps/web/src/features/access/views/probe-view.tsx',
+    valid:
+      "import {usePairingCommand} from '../commands/pairing'; export const ProbeView = () => <button onClick={usePairingCommand().mutate}>Pair</button>;",
     invalid: `import { useOptimistic } from 'react';
 
 export function ProbeView() {
@@ -4180,6 +4256,8 @@ export function ProbeView() {
   {
     rule: 'web-no-context',
     path: 'apps/web/src/shared/probe-context.ts',
+    valid:
+      "import {accessStore} from '../features/access/store'; export const read = () => accessStore.getState();",
     invalid: `import { createContext } from 'react';
 
 export const ProbeContext = createContext('');
@@ -4189,6 +4267,7 @@ export const ProbeContext = createContext('');
   {
     rule: 'web-no-empty-catch',
     path: 'apps/web/src/features/files/views/file-editor.tsx',
+    valid: 'export function probeEditor(run: () => void) { run(); }',
     invalid: `
 export function probeSwallow(run: () => void) {
   try {
@@ -4201,6 +4280,8 @@ export function probeSwallow(run: () => void) {
   {
     rule: 'web-no-empty-catch',
     path: 'apps/web/src/features/access/queries/probe-query.ts',
+    valid:
+      'export function probeRead(run: () => void) { try { run(); } catch(error) { throw error; } }',
     invalid: `export function probeSwallow(run: () => void) {
   try {
     run();
@@ -4212,6 +4293,8 @@ export function probeSwallow(run: () => void) {
   {
     rule: 'web-no-manual-memo',
     path: 'apps/web/src/features/access/views/probe-view.tsx',
+    valid:
+      'export function ProbeView(props: {label: string}) { return <p>{props.label.trim()}</p>; }',
     invalid: `import { useMemo } from 'react';
 
 export function ProbeView(props: { label: string }) {
@@ -4224,6 +4307,8 @@ export function ProbeView(props: { label: string }) {
   {
     rule: 'web-no-module-mutable-binding',
     path: 'apps/web/src/features/access/rules/probe-rule.ts',
+    valid:
+      'export function nextGeneration(generation: number) { return generation + 1; }',
     invalid: `let generation = 0;
 export function nextGeneration() { return ++generation; }
 `,
@@ -4232,6 +4317,8 @@ export function nextGeneration() { return ++generation; }
   {
     rule: 'web-overlays-own-handles',
     path: 'apps/web/src/features/access/views/probe-view.tsx',
+    valid:
+      "import {pairingOverlay} from '../overlays'; export const openPairing = () => pairingOverlay.open();",
     invalid: `import { Dialog } from '@base-ui/react/dialog';
 
 export const probeHandle = Dialog.createHandle();
@@ -4241,6 +4328,8 @@ export const probeHandle = Dialog.createHandle();
   {
     rule: 'web-queries-export-reads',
     path: 'apps/web/src/features/access/queries/probe-query.ts',
+    valid:
+      "import {queryOptions} from '@tanstack/react-query'; export const pairingQueryOptions = () => queryOptions({queryKey: ['pairing'], queryFn: () => 'paired'});",
     invalid: `export { connectionErrorMessage } from '../rules/connection-error-message';
 `,
     errors: 1,
@@ -4248,6 +4337,8 @@ export const probeHandle = Dialog.createHandle();
   {
     rule: 'web-queries-own-reads',
     path: 'apps/web/src/features/access/commands/probe-command.ts',
+    valid:
+      'export const invalidatePairing = (client: QueryClient, options: QueryOptions) => client.invalidateQueries({queryKey: options.queryKey});',
     invalid: `export const probeInvalidation = { queryKey: ['access', 'session'] };
 `,
     errors: 1,
@@ -4255,6 +4346,8 @@ export const probeHandle = Dialog.createHandle();
   {
     rule: 'web-queries-own-reads',
     path: 'apps/web/src/features/access/views/probe-view.tsx',
+    valid:
+      "import {usePairing} from '../queries/pairing'; export function ProbeView() { return <p>{usePairing().data}</p>; }",
     invalid: `import { useQuery } from '@tanstack/react-query';
 
 export function ProbeView() {
@@ -4270,6 +4363,7 @@ export function ProbeView() {
   {
     rule: 'web-rules-are-pure',
     path: 'apps/web/src/features/access/rules/probe-rule.ts',
+    valid: 'export const probeLabel = (value: string) => value.trim();',
     invalid: `import { useState } from 'react';
 
 export const probeHook = useState;
@@ -4279,6 +4373,7 @@ export const probeHook = useState;
   {
     rule: 'web-rules-are-pure',
     path: 'apps/web/src/features/access/rules/probe-rule.ts',
+    valid: 'export const probeWidth = (width: number) => width;',
     invalid: `export function probeWidth() {
   return window.innerWidth;
 }
@@ -4288,6 +4383,8 @@ export const probeHook = useState;
   {
     rule: 'web-shadcn-wrapper',
     path: 'apps/web/src/features/access/views/probe-view.tsx',
+    valid:
+      "import {Button} from '@/components/ui/button'; export function SaveControl(props: {onSave(): void}) { return <Button onClick={props.onSave}>Save</Button>; }",
     invalid: `import type { ComponentProps } from 'react';
 
 export function SaveControl(props: ComponentProps<'button'>) {
@@ -4299,6 +4396,8 @@ export function SaveControl(props: ComponentProps<'button'>) {
   {
     rule: 'web-store-owns-storage',
     path: 'apps/web/src/features/access/queries/probe-query.ts',
+    valid:
+      "import {accessStore} from '../store'; export function probeSaved() { return accessStore.getState().saved; }",
     invalid: `export function probeSaved() {
   return localStorage.getItem('probe');
 }
@@ -4308,6 +4407,8 @@ export function SaveControl(props: ComponentProps<'button'>) {
   {
     rule: 'web-store-owns-zustand',
     path: 'apps/web/src/features/access/views/probe-view.tsx',
+    valid:
+      "import {useAccessStore} from '../store'; export const ProbeView = () => <p>{useAccessStore().open}</p>;",
     invalid: `import { create } from 'zustand';
 
 export const probeStore = create(() => ({ open: false }));
@@ -4317,6 +4418,7 @@ export const probeStore = create(() => ({ open: false }));
   {
     rule: 'web-timers-in-commands-and-store',
     path: 'apps/web/src/features/access/views/probe-view.tsx',
+    valid: 'export function probeLater(done: () => void) { done(); }',
     invalid: `export function probeLater(done: () => void) {
   setTimeout(done);
 }
@@ -4326,6 +4428,8 @@ export const probeStore = create(() => ({ open: false }));
   {
     rule: 'web-transport-owner',
     path: 'apps/web/src/features/access/api.ts',
+    valid:
+      "import {requestJson} from '@/shared/api/request'; export function probeRead() { return requestJson('/api/probe'); }",
     invalid: `
 export function probeRead() {
   return fetch('/api/probe');
@@ -4336,6 +4440,8 @@ export function probeRead() {
   {
     rule: 'web-transport-owner',
     path: 'apps/web/src/features/access/live.ts',
+    valid:
+      "import {connectLive} from '@/shared/live'; export function probeListen() { return connectLive('/api/live'); }",
     invalid: `export function probeListen() {
   return new WebSocket('/api/live');
 }
@@ -4345,6 +4451,7 @@ export function probeRead() {
   {
     rule: 'web-views-no-await',
     path: 'apps/web/src/features/access/views/probe-view.tsx',
+    valid: 'export function probeSave(save: () => void) { save(); }',
     invalid: `export async function probeSave(save: () => Promise<void>) {
   await save();
 }
@@ -4354,6 +4461,8 @@ export function probeRead() {
   {
     rule: 'web-views-no-command-loops',
     path: 'apps/web/src/features/access/views/probe-view.tsx',
+    valid:
+      'export function probeRenameAll(names: string[], rename: {mutate(names: string[]): void}) { rename.mutate(names); }',
     invalid: `export function probeRenameAll(
   names: string[],
   rename: { mutate: (name: string) => void },
@@ -4366,6 +4475,7 @@ export function probeRead() {
   {
     rule: 'web-views-no-contracts',
     path: 'apps/web/src/features/access/views/probe-view.tsx',
+    valid: 'export type ProbePrincipal = {name: string};',
     invalid: `import type { Principal } from '@porcelain/contracts/access';
 
 export type ProbePrincipal = Principal;
@@ -4375,6 +4485,8 @@ export type ProbePrincipal = Principal;
   {
     rule: 'web-views-no-direct-data',
     path: 'apps/web/src/features/access/views/probe-view.tsx',
+    valid:
+      "import {useAccess} from '../queries/access'; export const ProbeView = () => <p>{useAccess().name}</p>;",
     invalid: `import { useQueryClient } from '@tanstack/react-query';
 
 export const probeClient = useQueryClient;
@@ -4384,6 +4496,8 @@ export const probeClient = useQueryClient;
   {
     rule: 'web-views-no-direct-data',
     path: 'apps/web/src/features/access/views/probe-view.tsx',
+    valid:
+      'export const ProbeView = (props: {search: string}) => <p>{props.search}</p>;',
     invalid: `import { useSearch } from '@tanstack/react-router';
 
 export const probeSearch = useSearch;
@@ -4393,6 +4507,7 @@ export const probeSearch = useSearch;
   {
     rule: 'web-views-no-promise-chains',
     path: 'apps/web/src/features/access/views/probe-view.tsx',
+    valid: 'export function probeSave(save: () => void) { save(); }',
     invalid: `export function probeSave(save: () => Promise<void>) {
   void save().catch(() => undefined);
 }
@@ -4402,6 +4517,7 @@ export const probeSearch = useSearch;
   {
     rule: 'web-views-no-promise-chains',
     path: 'apps/web/src/features/access/views/probe-view.tsx',
+    valid: 'export function probeSave(save: () => void) { save(); }',
     invalid: `export function probeSave(save: () => Promise<void>) {
   void save()['then'](() => undefined);
 }
@@ -4411,6 +4527,7 @@ export const probeSearch = useSearch;
   {
     rule: 'web-views-no-promise-chains',
     path: 'apps/web/src/features/access/views/probe-view.tsx',
+    valid: 'export function probeSave(save: () => void) { save(); }',
     invalid: `export function probeSave(save: () => Promise<void>) {
   void save().finally(() => undefined);
 }
@@ -4420,6 +4537,7 @@ export const probeSearch = useSearch;
   {
     rule: 'web-views-no-promise-chains',
     path: 'apps/web/src/features/access/views/probe-view.tsx',
+    valid: 'export function probeSave(save: () => void) { save(); }',
     invalid: `export function probeSave(save: () => Promise<void>) {
   void save().then(() => undefined);
 }
@@ -4429,6 +4547,8 @@ export const probeSearch = useSearch;
   {
     rule: 'web-views-no-transport',
     path: 'apps/web/src/features/access/views/probe-view.tsx',
+    valid:
+      "import {usePairing} from '../queries/pairing'; export const ProbeView = () => <p>{usePairing().state}</p>;",
     invalid: `import { createPairingLive } from '../api/pairing-live';
 
 export const probeLive = createPairingLive;
@@ -4438,6 +4558,7 @@ export const probeLive = createPairingLive;
   {
     rule: 'web-views-no-try',
     path: 'apps/web/src/features/access/views/probe-view.tsx',
+    valid: 'export function probeGuard(run: () => void) { run(); }',
     invalid: `export function probeGuard(run: () => void, done: () => void) {
   try {
     run();
@@ -4733,4 +4854,85 @@ export const read = () => textQueryOptions();`,
     },
     invalid: { duplicatedLines: 14, clones: 2, rejected: true },
   },
+];
+
+export const scriptCases = [
+  {
+    folder: '.',
+    required: [['node', 'scripts/probes.ts', '--check']],
+    valid: 'node "./scripts/probes.ts" --check',
+    invalid: 'node -e 0',
+  },
+  {
+    folder: '.',
+    required: [['turbo', 'run', 'typecheck', 'test:rules', 'probes:check']],
+    valid: 'turbo run probes:check typecheck test:rules --continue',
+    invalid: 'turbo run typecheck test:rules --continue',
+  },
+  {
+    folder: 'apps/web',
+    required: [
+      ['tsc', '--noEmit'],
+      ['tsc', '--noEmit', '-p', 'tsconfig.node.json'],
+    ],
+    valid: 'tsc --noEmit && tsc -p tsconfig.node.json --noEmit',
+    invalid: 'tsc -p tsconfig.node.json --noEmit',
+  },
+  {
+    folder: 'packages/storage',
+    required: [
+      ['drizzle-kit', 'check'],
+      ['node', 'scripts/check-migrations.ts'],
+    ],
+    valid: 'drizzle-kit check && node "./scripts/check-migrations.ts"',
+    invalid: 'drizzle-kit check',
+  },
+  {
+    folder: 'apps/mobile',
+    required: [
+      ['vitest', 'run', '--project', '@porcelain/mobile-e2e'],
+      ['vitest', 'run', '--project', '@porcelain/mobile-e2e-tablet'],
+    ],
+    valid:
+      'vitest run --project "@porcelain/mobile-e2e" && vitest run --project "@porcelain/mobile-e2e-tablet"',
+    invalid: 'vitest run --project "@porcelain/mobile-e2e"',
+  },
+  {
+    folder: '.',
+    required: [['tsc', '--noEmit']],
+    valid: 'tsc --noEmit --pretty',
+    invalid: 'tsc --noEmit --help',
+  },
+  {
+    folder: '.',
+    required: [['tsc', '--noEmit']],
+    valid: 'tsc --noEmit',
+    invalid: 'tsc --noEmit || true',
+  },
+];
+
+export const proseCases = [
+  { valid: 'AGENTS.md', invalid: 'architecture/README.md' },
+  { valid: '.github/PULL_REQUEST_TEMPLATE.md', invalid: 'apps/web/README.mdx' },
+  {
+    valid: '.agents/skills/web-verify/SKILL.md',
+    invalid: 'apps/desktop/ARCHITECTURE.md',
+  },
+  {
+    valid: 'architecture/policy.ts',
+    invalid: 'packages/client/README.MARKDOWN',
+  },
+];
+
+export const scriptEvasions = [
+  ['node scripts/probes.ts --check', [['node', 'scripts/probes.ts']]],
+  ['node other.ts scripts/probes.ts', [['node', 'scripts/probes.ts']]],
+  ['tsc --noEmit false', [['tsc', '--noEmit']]],
+  ['tsc --noEmit --noCheck', [['tsc', '--noEmit']]],
+  [
+    'vitest run --project wrong @porcelain/client',
+    [['vitest', 'run', '--project', '@porcelain/client']],
+  ],
+  ['playwright test --list', [['playwright', 'test']]],
+  ['turbo run test --dry-run', [['turbo', 'run', 'test']]],
 ];

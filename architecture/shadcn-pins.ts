@@ -29,7 +29,12 @@ export function uiFiles(root: string): string[] {
 export function readPins(root: string): { pins: Pins; problems: string[] } {
   const path = join(root, pinsFile);
   if (!existsSync(path))
-    return { pins: {}, problems: [`${pinsFile} is missing.`] };
+    return {
+      pins: {},
+      problems: [
+        `${pinsFile} is missing, because registry ownership needs a recorded digest for each installed component.`,
+      ],
+    };
   try {
     const read = pinsSchema.safeParse(JSON.parse(readFileSync(path, 'utf8')));
     return read.success
@@ -37,14 +42,14 @@ export function readPins(root: string): { pins: Pins; problems: string[] } {
       : {
           pins: {},
           problems: [
-            `${pinsFile} maps each components/ui file to the sha256 of what the shadcn CLI installed: ${read.error.issues.map((issue) => issue.message).join('; ')}.`,
+            `${pinsFile} maps each components/ui file to the sha256 of what the shadcn CLI installed: ${read.error.issues.map((issue) => issue.message).join('; ')}, because malformed pins cannot detect edits to installed components.`,
           ],
         };
   } catch (error) {
     return {
       pins: {},
       problems: [
-        `${pinsFile} is not strict JSON (${error instanceof Error ? error.message : String(error)}).`,
+        `${pinsFile} is not strict JSON (${error instanceof Error ? error.message : String(error)}), because malformed pins cannot detect edits to installed components.`,
       ],
     };
   }
@@ -65,19 +70,19 @@ export function pinProblems(root: string): string[] {
       const pinned = pins[name];
       if (pinned === undefined)
         return [
-          `${path} has no pin in ${pinsFile}; add a component only with the shadcn CLI, format it, then run ${repin}.`,
+          `${path} has no pin in ${pinsFile}; add a component only with the shadcn CLI, format it, then run ${repin}, because an unpinned component can drift from the registry without detection.`,
         ];
       return digest(readFileSync(join(root, path), 'utf8')) === pinned
         ? []
         : [
-            `${path} differs from what the shadcn CLI installed; components/ui is never edited: restore it with pnpm --filter @porcelain/web exec shadcn add ${name.slice(0, -'.tsx'.length)} --overwrite --yes and the format, then compose the look in the feature view or ask the owner; ${approval}.`,
+            `${path} differs from what the shadcn CLI installed; components/ui is never edited: restore it with pnpm --filter @porcelain/web exec shadcn add ${name.slice(0, -'.tsx'.length)} --overwrite --yes and the format, then compose the look in the feature view or ask the owner; ${approval}, because local edits diverge from the registry and can be lost when a component is updated.`,
           ];
     }),
     ...Object.keys(pins)
       .filter((name) => !files.includes(name))
       .map(
         (name) =>
-          `${pinsFile} pins ${name}, which ${uiFolder} no longer holds; run ${repin}.`,
+          `${pinsFile} pins ${name}, which ${uiFolder} no longer holds; run ${repin}, because stale pins hide which installed components the guard actually protects.`,
       ),
   ];
 }
