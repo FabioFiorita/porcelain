@@ -459,12 +459,7 @@ test('a remote computer summary renders through the app from that computer, cann
       'Leave for a website',
       'https://example.com/',
     );
-    await app.electron.evaluate(({ BrowserWindow }) => {
-      const contents = BrowserWindow.getAllWindows()[0]!.webContents;
-      contents.sendInputEvent({ type: 'keyDown', keyCode: 'Enter' });
-      contents.sendInputEvent({ type: 'char', keyCode: 'Enter' });
-      contents.sendInputEvent({ type: 'keyUp', keyCode: 'Enter' });
-    });
+    await page.keyboard.down('Enter');
     afterClick = await navigationState();
     await expect
       .poll(() => summaryClicks(page))
@@ -490,6 +485,11 @@ test('a remote computer summary renders through the app from that computer, cann
         directive: 'frame-src',
         disposition: 'enforce',
       });
+    await expect
+      .poll(() => reopenedSummary.url())
+      .toBe('chrome-error://chromewebdata/');
+    await reopenedSummary.waitForLoadState('load');
+    await page.keyboard.up('Enter');
     expect(
       await app.electron.evaluate(({ session }) => {
         const attempts: unknown = Reflect.get(
