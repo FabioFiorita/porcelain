@@ -1,4 +1,5 @@
 import { expect, test } from './fixtures.tsx';
+import { replaceEditorContent } from './commands.ts';
 
 test('an edited file saves after a pause, with Done and when its tab closes', async ({
   workspace,
@@ -19,26 +20,27 @@ test('an edited file saves after a pause, with Done and when its tab closes', as
   const editor = workspace.getByRole('textbox', { name: readme, exact: true });
   await expect.element(editor).toBeVisible();
 
-  await editor.fill('Browser autosave marker');
+  await replaceEditorContent(editor, 'Browser autosave marker');
   await expect
     .element(workspace.getByText('Saved', { exact: true }))
     .toBeVisible();
-  await expect.poll(saved).toContain('Browser autosave marker');
+  await expect.poll(saved).toBe('Browser autosave marker');
 
-  await editor.fill('Browser done marker');
+  await replaceEditorContent(editor, 'Browser done marker');
   await workspace.getByRole('button', { name: 'Done', exact: true }).click();
   await expect
     .element(workspace.getByRole('button', { name: 'Edit', exact: true }))
     .toBeVisible();
-  await expect.poll(saved).toContain('Browser done marker');
+  await expect.poll(saved).toBe('Browser done marker');
 
   await workspace.getByRole('button', { name: 'Edit', exact: true }).click();
-  await workspace
-    .getByRole('textbox', { name: readme, exact: true })
-    .fill('Browser close marker');
+  await replaceEditorContent(
+    workspace.getByRole('textbox', { name: readme, exact: true }),
+    'Browser close marker',
+  );
   await workspace
     .getByRole('button', { name: `Close ${readme}`, exact: true })
     .last()
     .click();
-  await expect.poll(saved).toContain('Browser close marker');
+  await expect.poll(saved).toBe('Browser close marker');
 }, 30_000);

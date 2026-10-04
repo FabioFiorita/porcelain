@@ -13,6 +13,10 @@ import type {
 
 declare module 'vitest/browser' {
   interface BrowserCommands {
+    porcelainReplaceEditorContent: (
+      selector: string,
+      text: string,
+    ) => Promise<void>;
     porcelainStart: () => Promise<void>;
     porcelainStop: (name: string) => Promise<string[]>;
     porcelainRead: (request: ServerRead) => Promise<ServerAnswer>;
@@ -33,3 +37,10 @@ declare module 'vitest/browser' {
 }
 
 export const host = commands;
+
+export function replaceEditorContent(
+  editor: { selector: string },
+  text: string,
+) {
+  return host.porcelainReplaceEditorContent(editor.selector, text);
+}

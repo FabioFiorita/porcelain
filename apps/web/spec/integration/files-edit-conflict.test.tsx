@@ -1,4 +1,5 @@
 import { expect, test } from './fixtures.tsx';
+import { replaceEditorContent } from './commands.ts';
 
 test('saving over a file that changed on disk is refused and keeps both texts', async ({
   workspace,
@@ -20,7 +21,10 @@ test('saving over a file that changed on disk is refused and keeps both texts', 
   await expect.element(editor).toBeVisible();
 
   await repo.write(readme, onDisk);
-  await editor.fill('Browser edit made before the disk changed');
+  await replaceEditorContent(
+    editor,
+    'Browser edit made before the disk changed',
+  );
   await workspace.getByRole('button', { name: 'Done', exact: true }).click();
   await expect
     .element(workspace.getByRole('alert'))
@@ -35,4 +39,7 @@ test('saving over a file that changed on disk is refused and keeps both texts', 
     .toBeDisabled();
   await expect.poll(() => server.fileWriteCount()).toBe(1);
   await expect.poll(async () => (await server.text(readme)).text).toBe(onDisk);
+  await expect
+    .element(editor)
+    .toHaveTextContent('Browser edit made before the disk changed');
 });

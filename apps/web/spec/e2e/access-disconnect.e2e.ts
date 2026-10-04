@@ -1,4 +1,5 @@
 import { expect, test, type Page, type Repo } from './fixtures.ts';
+import { replaceEditorContent } from '../kit/editor.ts';
 
 async function refuseDisconnectWithDraft(page: Page, repo: Repo) {
   const readme = repo.readme.path;
@@ -12,10 +13,11 @@ async function refuseDisconnectWithDraft(page: Page, repo: Repo) {
   const editor = page.getByRole('textbox', { name: readme, exact: true });
   await expect(editor).toBeVisible();
   await repo.write(readme, 'Changed on disk before the browser disconnects\n');
-  await editor.fill('A draft the browser cannot save');
+  await replaceEditorContent(editor, 'A draft the browser cannot save');
   await expect(
     page.getByText('Not saving: changed on disk', { exact: true }),
   ).toBeVisible();
+  await expect(editor).toHaveText('A draft the browser cannot save');
   await page
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
@@ -51,10 +53,11 @@ test('disconnecting is refused while a file draft cannot be saved, and the file 
   const editor = pairedPage.getByRole('textbox', { name: readme, exact: true });
   await expect(editor).toBeVisible();
   await repo.write(readme, onDisk);
-  await editor.fill('A draft the browser cannot save');
+  await replaceEditorContent(editor, 'A draft the browser cannot save');
   await expect(
     pairedPage.getByText('Not saving: changed on disk', { exact: true }),
   ).toBeVisible();
+  await expect(editor).toHaveText('A draft the browser cannot save');
   await expect.poll(() => server.fileWriteCount()).toBe(1);
 
   await pairedPage
@@ -101,6 +104,9 @@ test('disconnecting this browser ends its session and shows how to pair it again
   await expect(
     pairedPage.getByText('Not saving: changed on disk', { exact: true }),
   ).not.toBeAttached();
+  await expect
+    .poll(async () => (await server.text(repo.readme.path)).text)
+    .toBe('Changed on disk before the browser disconnects\n');
 
   await pairedPage
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
