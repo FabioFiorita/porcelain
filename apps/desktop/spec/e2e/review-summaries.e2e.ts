@@ -20,7 +20,14 @@ import {
   type Page,
 } from './fixtures.ts';
 
-declare const parent: { readonly document: unknown };
+declare const parent: {
+  readonly document: unknown;
+  postMessage(data: unknown, origin: string): void;
+};
+declare function addEventListener(
+  type: 'message',
+  listener: (event: { data: unknown }) => void,
+): void;
 declare const document: {
   hasFocus(): boolean;
   addEventListener(
@@ -28,8 +35,12 @@ declare const document: {
     listener: (event: {
       isTrusted: boolean;
       defaultPrevented: boolean;
-      target: { nodeName?: string; href?: string } | null;
+      target: {
+        nodeName?: string;
+        getAttribute?(name: string): string | null;
+      } | null;
     }) => void,
+    capture?: boolean,
   ): void;
   addEventListener(
     type: 'securitypolicyviolation',
@@ -42,6 +53,56 @@ declare const document: {
 };
 
 const sandbox = 'allow-scripts allow-forms allow-popups allow-modals';
+
+async function watchSummaryClicks(
+  page: Page,
+  frame: ReturnType<Page['frames']>[number],
+) {
+  const marker = randomUUID();
+  await page.evaluate((marker) => {
+    const clicks: unknown[] = [];
+    Reflect.set(globalThis, 'porcelainSummaryClicks', clicks);
+    addEventListener('message', (event) => {
+      const data = event.data;
+      if (
+        typeof data === 'object' &&
+        data !== null &&
+        Reflect.get(data, 'source') === marker
+      ) {
+        const click: unknown = Reflect.get(data, 'click');
+        clicks.push(click);
+      }
+    });
+  }, marker);
+  await frame.evaluate((marker) => {
+    document.addEventListener(
+      'click',
+      (event) => {
+        parent.postMessage(
+          {
+            source: marker,
+            click: {
+              trusted: event.isTrusted,
+              preventedAtCapture: event.defaultPrevented,
+              target: event.target?.nodeName,
+              href: event.target?.getAttribute?.('href'),
+              focused: document.hasFocus(),
+            },
+          },
+          '*',
+        );
+      },
+      true,
+    );
+  }, marker);
+}
+
+function summaryClicks(page: Page): Promise<unknown> {
+  return page.evaluate(() => {
+    const clicks: unknown = Reflect.get(globalThis, 'porcelainSummaryClicks');
+    return clicks;
+  });
+}
 
 async function publishSummary(page: Page, repository: string, title: string) {
   const project = registerProjectResponseSchema.parse(
@@ -153,6 +214,24 @@ test('a remote computer summary renders through the app from that computer, cann
     await appRequest(otherPage, 'GET', '/api/inventory'),
   );
 
+  await other.electron.evaluate(async ({ BrowserWindow }) => {
+    const view = BrowserWindow.getAllWindows()[0];
+    if (view === undefined) throw new Error('The remote window is missing');
+    await new Promise<void>((resolve) => {
+      view.once('closed', resolve);
+      view.close();
+    });
+  });
+  expect((await other.server()).pid).toBe(status.pid);
+  await app.electron.evaluate(({ app, BrowserWindow }) => {
+    app.focus({ steal: true });
+    const view = BrowserWindow.getAllWindows()[0];
+    if (view === undefined) throw new Error('The app window is missing');
+    view.focus();
+    view.webContents.focus();
+  });
+  await expect.poll(() => page.evaluate(() => document.hasFocus())).toBe(true);
+
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
   const settings = page.getByRole('main', { name: 'Settings', exact: true });
   await settings
@@ -191,6 +270,8 @@ test('a remote computer summary renders through the app from that computer, cann
     );
   if (frame === undefined)
     throw new Error('The remote summary did not load through the app');
+  await frame.waitForLoadState('load');
+  await watchSummaryClicks(page, frame);
   expect(new URL(frame.url()).searchParams.get('computer')).toBe(
     new URL(status.address).origin,
   );
@@ -217,15 +298,35 @@ test('a remote computer summary renders through the app from that computer, cann
     'sandbox',
     sandbox,
   );
-  await summary
-    .getByRole('link', { name: 'Open Remote summary layer', exact: true })
-    .click();
-  await expect(
-    page.getByRole('region', {
-      name: 'Review layer Remote summary layer',
-      exact: true,
-    }),
-  ).toBeVisible();
+  try {
+    await summary
+      .getByRole('link', { name: 'Open Remote summary layer', exact: true })
+      .click();
+    await expect
+      .poll(() => summaryClicks(page))
+      .toContainEqual({
+        trusted: true,
+        preventedAtCapture: false,
+        target: 'A',
+        href: '#layer-1',
+        focused: true,
+      });
+    await expect(
+      page.getByRole('region', {
+        name: 'Review layer Remote summary layer',
+        exact: true,
+      }),
+    ).toBeVisible();
+  } finally {
+    await testInfo.attach('summary-layer-input', {
+      body: JSON.stringify({
+        clicks: await summaryClicks(page),
+        focused: await page.evaluate(() => document.hasFocus()),
+        frameHash: new URL(frame.url()).hash,
+      }),
+      contentType: 'application/json',
+    });
+  }
   const policy = (await responsePolicy(page, '/'))?.split('; ') ?? [];
   expect(policy).toContain("script-src 'self'");
   expect(policy).toContain("frame-src 'self' blob:");
@@ -242,19 +343,7 @@ test('a remote computer summary renders through the app from that computer, cann
     .click();
   const reopenedSummary = await summaryNavigation;
   await reopenedSummary.waitForLoadState('load');
-  await reopenedSummary.evaluate(() => {
-    const clicks: unknown[] = [];
-    Reflect.set(globalThis, 'porcelainSummaryClicks', clicks);
-    document.addEventListener('click', (event) => {
-      clicks.push({
-        trusted: event.isTrusted,
-        prevented: event.defaultPrevented,
-        target: event.target?.nodeName,
-        href: event.target?.href,
-        focused: document.hasFocus(),
-      });
-    });
-  });
+  await watchSummaryClicks(page, reopenedSummary);
   await app.electron.evaluate(({ app, BrowserWindow }) => {
     app.focus({ steal: true });
     const view = BrowserWindow.getAllWindows()[0];
@@ -318,14 +407,11 @@ test('a remote computer summary renders through the app from that computer, cann
           globalThis,
           'porcelainFrameRefusals',
         );
-        return { focused: document.hasFocus(), refusals };
-      }),
-      reopenedSummary.evaluate(() => {
         const clicks: unknown = Reflect.get(
           globalThis,
           'porcelainSummaryClicks',
         );
-        return { focused: document.hasFocus(), clicks };
+        return { focused: document.hasFocus(), refusals, clicks };
       }),
     ]).catch((error: unknown) => ({
       error: error instanceof Error ? error.message : String(error),
@@ -337,6 +423,15 @@ test('a remote computer summary renders through the app from that computer, cann
       .getByRole('link', { name: 'Leave for a website', exact: true })
       .click();
     afterClick = await navigationState();
+    await expect
+      .poll(() => summaryClicks(page))
+      .toContainEqual({
+        trusted: true,
+        preventedAtCapture: false,
+        target: 'A',
+        href: 'https://example.com/',
+        focused: true,
+      });
     await expect
       .poll(() =>
         page.evaluate(() => {
