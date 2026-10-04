@@ -1,5 +1,4 @@
-import { expect, test } from './fixtures.tsx';
-import { replaceEditorContent } from './commands.ts';
+import { expect, test, replaceEditorContent } from './fixtures.tsx';
 
 test('saving over a file that changed on disk is refused and keeps both texts', async ({
   workspace,

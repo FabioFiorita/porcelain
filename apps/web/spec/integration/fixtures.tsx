@@ -34,6 +34,7 @@ import { host } from './commands.ts';
 import { createFetchGate, live } from './network.ts';
 
 export { expect };
+export { replaceEditorContent } from './commands.ts';
 
 export type Repo = SampleRepository;
 export type { Agent } from '../kit/shapes.ts';

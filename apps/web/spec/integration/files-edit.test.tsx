@@ -1,5 +1,4 @@
-import { expect, test } from './fixtures.tsx';
-import { replaceEditorContent } from './commands.ts';
+import { expect, test, replaceEditorContent } from './fixtures.tsx';
 
 test('an edited file saves after a pause, with Done and when its tab closes', async ({
   workspace,

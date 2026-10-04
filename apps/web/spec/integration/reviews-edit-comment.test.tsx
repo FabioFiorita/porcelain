@@ -1,5 +1,4 @@
-import { expect, test } from './fixtures.tsx';
-import { replaceEditorContent } from './commands.ts';
+import { expect, test, replaceEditorContent } from './fixtures.tsx';
 
 test('the reviewer edits and then deletes their own comment, and cannot change the agent comment', async ({
   workspace,

@@ -1,5 +1,4 @@
-import { expect, test } from './fixtures.tsx';
-import { replaceEditorContent } from './commands.ts';
+import { expect, test, replaceEditorContent } from './fixtures.tsx';
 
 test('closing an editor saves its draft and reopening starts a fresh editor session', async ({
   workspace,
