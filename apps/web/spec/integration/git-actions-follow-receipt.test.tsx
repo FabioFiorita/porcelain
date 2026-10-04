@@ -24,8 +24,8 @@ test('a commit made while the live connection is down shows its outcome once the
     .element(dialog.getByRole('button', { name: 'Committing…', exact: true }))
     .toBeDisabled();
 
+  await live.reconnecting();
   live.restore();
-  await expect.poll(() => live.connected()).toBe(true);
   await expect
     .element(dialog.getByText('succeeded', { exact: true }))
     .toBeVisible();
@@ -100,6 +100,7 @@ test('a stash pop refused while the live connection is down shows what Git said 
     .element(pop.getByRole('button', { name: 'Working…', exact: true }))
     .toBeDisabled();
 
+  await live.reconnecting();
   live.restore();
   await expect
     .element(pop.getByRole('alert'))
