@@ -1,29 +1,16 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { queryKeys } from '@/shared/query/keys';
 import type { GitScope } from '../rules/git-action';
 import { type ConnectionContext } from '@/shared/workspace/connection';
-import { gitActionsApi } from '../api';
+import { gitActionCommands } from '@porcelain/client/git-actions';
 
 export function useDismissInterrupted(
   scope: GitScope,
   context: ConnectionContext,
 ) {
   const { connection } = context;
-  const client = useQueryClient();
+  const commands = gitActionCommands(scope, connection, useQueryClient());
   const mutation = useMutation({
-    mutationFn: (requestId: string) =>
-      gitActionsApi(connection).dismissInterrupted({
-        ...scope,
-        ...connection.request(),
-        requestId,
-      }),
-    onSuccess: () =>
-      client.invalidateQueries({
-        queryKey: queryKeys.reviewSurface(connection.environmentId, scope, [
-          'changes',
-        ]),
-        exact: true,
-      }),
+    mutationFn: commands.dismiss,
   });
   return {
     isPending: mutation.isPending,

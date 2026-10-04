@@ -12,7 +12,8 @@ import { createId } from '@/shared/lib/id';
 import { asMutation } from '@/shared/query/mutation';
 import { isTerminal, operationKey } from '@/shared/query/operation-store';
 import { type ConnectionContext } from '@/shared/workspace/connection';
-import { gitActionsApi } from '../api';
+import { gitActionCommands } from '@porcelain/client/git-actions';
+import { assertCurrentAnswer } from '@porcelain/client/transport';
 import { refreshGitReceipt } from './refresh-receipt';
 
 export function useGitAction(
@@ -32,18 +33,15 @@ export function useGitAction(
   });
   const followed = useGitOperation(operations, key);
   const operation = followed?.requestId === settledBefore ? null : followed;
-  const request = () => ({ ...scope, ...connection.request() });
+  const commands = gitActionCommands(scope, connection, client);
   async function accept(receipt: Receipt) {
-    connection.controller.signal.throwIfAborted();
-    if (
-      receipt.projectId !== scope.projectId ||
-      receipt.worktreeId !== scope.worktreeId ||
-      receipt.action !== action ||
-      receipt.requestId !== operations.get(key)?.requestId
-    )
-      throw new Error('Receipt identity mismatch');
+    assertCurrentAnswer(connection.controller.signal);
+    assertCurrentAnswer(
+      connection.controller.signal,
+      receipt.requestId === operations.get(key)?.requestId,
+    );
     await refreshGitReceipt(client, connection.environmentId, receipt);
-    connection.controller.signal.throwIfAborted();
+    assertCurrentAnswer(connection.controller.signal);
     operations.accept(receipt);
     return receipt;
   }
@@ -67,9 +65,7 @@ export function useGitAction(
         requestId: body.requestId,
         request: body,
       });
-      await accept(
-        await gitActionsApi(connection).run({ ...request(), input: body }),
-      );
+      await accept(await commands.run(body));
       return operations.wait(key, connection.controller.signal);
     },
   });
@@ -77,12 +73,7 @@ export function useGitAction(
     mutationFn: async () => {
       const current = operations.get(key);
       if (!current) throw new Error('No operation to recover');
-      await accept(
-        await gitActionsApi(connection).run({
-          ...request(),
-          input: current.request,
-        }),
-      );
+      await accept(await commands.run(current.request));
       return operations.wait(key, connection.controller.signal);
     },
   });

@@ -1,9 +1,10 @@
+import { queryKeys } from '@porcelain/client/transport';
 import { queryOptions, useQuery } from '@tanstack/react-query';
 import { desktopAppUpdate } from '@/shared/adapters/desktop';
 
 function appUpdateQueryOptions() {
   return queryOptions({
-    queryKey: ['desktop-app-update'],
+    queryKey: queryKeys.appUpdate(),
     queryFn: async () => {
       const update = desktopAppUpdate();
       return update

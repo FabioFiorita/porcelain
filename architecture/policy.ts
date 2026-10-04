@@ -81,6 +81,8 @@ export const targetPackageExports: Record<string, Record<string, string>> = {
     './changes/api': './src/features/changes/api.ts',
     './history': './src/features/history/index.ts',
     './history/api': './src/features/history/api.ts',
+    './git-actions': './src/features/git-actions/index.ts',
+    './git-actions/api': './src/features/git-actions/api.ts',
     './reviews': './src/features/reviews/index.ts',
     './reviews/api': './src/features/reviews/api.ts',
     './transport': './src/shared/api/index.ts',
@@ -1262,7 +1264,13 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
     'web-limits',
     'contract',
   ]),
-  live: new Set(['query', 'web-rule', 'web-shared', 'contract']),
+  live: new Set([
+    'client-transport-api',
+    'query',
+    'web-rule',
+    'web-shared',
+    'contract',
+  ]),
   overlays: new Set(['contract']),
   'web-rule': new Set([
     'client-rules-api',

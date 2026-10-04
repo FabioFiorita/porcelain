@@ -4,3 +4,4 @@ export type { AccessPlatform } from './ports/access-platform.ts';
 export { createAccessStore, type AccessStore } from './store.ts';
 export { pairEnvironment } from './commands/pairing.ts';
 export { environmentQueryOptions } from './queries/environments.ts';
+export { shareCommands } from './commands/share.ts';
