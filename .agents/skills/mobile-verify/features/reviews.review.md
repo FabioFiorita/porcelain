@@ -79,6 +79,7 @@ Look for comment anchors, messages and resolved/open states, dismissal returning
 
 ## Gotchas
 
+- Select the changed-file control by its full descriptive label. The named fixture uses `README.md · unstaged · Reviewed` and `review-branch.txt · added · Unreviewed`; a broad filename match also selects the published pointer `README.md · 3–3`.
 - Shared renderer: `apps/mobile/src/shared/diff/file-diff.tsx`, `FileDiff({rows,path})`; the page calls `parseFilePatch(content.patch)` when a patch exists, then `diffRows(content,files,path)`. History uses the same shared parser, rules and viewport. Keep toolbars outside and constrain the parent with `min-h-0 flex-1`; do not wrap the diff in another vertical ScrollView.
 - Review is read-only. Published HTML summaries and diagrams remain outside this screen; native layer summaries and steps are shown.
 - On iPad the content column reports the selected worktree's uncommitted file count; the detail column owns file selection and the diff viewport.

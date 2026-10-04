@@ -23,7 +23,7 @@ name: Read changed files diffs published layers and comments
 - assertVisible: Review the readme
 - assertVisible: Adds a line
 - assertVisible: .*unstaged · Reviewed
-- tapOn: ${FILE_PATH} · .*
+- tapOn: ${FILE_PATH} · unstaged · Reviewed
 - assertVisible: Back to changed files
 - assertVisible: .*A change to review.*
 - takeScreenshot: review-diff
@@ -37,7 +37,7 @@ name: Read changed files diffs published layers and comments
 - assertVisible: Review the readme
 - tapOn: Show branch changes
 - assertVisible: Branch changes
-- tapOn: ${BRANCH_FILE_PATH} · .*
+- tapOn: ${BRANCH_FILE_PATH} · added · Unreviewed
 - assertVisible: .*Native branch review.*
 - takeScreenshot: review-branch-diff
 - tapOn: Back to changed files
