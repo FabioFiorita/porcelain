@@ -100,7 +100,7 @@ export async function buildDevelopmentClient(log: string): Promise<void> {
   const fingerprint = nativeFingerprint();
   await run(
     join(mobileRoot, 'node_modules/.bin/expo'),
-    ['prebuild', '--platform', 'ios'],
+    ['prebuild', '--clean', '--platform', 'ios'],
     mobileRoot,
     log,
   );

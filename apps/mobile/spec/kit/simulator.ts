@@ -1,4 +1,6 @@
 import { execFile } from 'node:child_process';
+import { mkdir, rm, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { promisify } from 'node:util';
 import { z } from 'zod';
@@ -45,6 +47,7 @@ const devicesSchema = z.object({
         name: z.string(),
         state: z.string(),
         isAvailable: z.boolean(),
+        dataPath: z.string().optional(),
       }),
     ),
   ),
@@ -132,6 +135,32 @@ export async function localBootProblem(
     : simulatorLimitProblem(await bootedSimulators(), limit);
 }
 
+async function suppressSystemFollowUps(udid: string): Promise<void> {
+  const device = Object.values(await devices())
+    .flat()
+    .find((candidate) => candidate.udid === udid);
+  if (device?.dataPath === undefined)
+    throw new Error(`The simulator ${udid} has no data path.`);
+  const preferences = join(device.dataPath, 'Library/Preferences');
+  await mkdir(preferences, { recursive: true });
+  await writeFile(
+    join(preferences, 'com.apple.generativeexperiences.corefollowup.plist'),
+    `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>DateOfLastAppleIntelligenceReadinessCFU</key>
+  <date>2020-01-01T00:00:00Z</date>
+</dict>
+</plist>
+`,
+  );
+  await rm(join(device.dataPath, 'Library/CoreFollowUp'), {
+    recursive: true,
+    force: true,
+  });
+}
+
 export async function bootSimulator(
   kind: DeviceKind,
   label: string,
@@ -145,6 +174,7 @@ export async function bootSimulator(
   const udid =
     idle?.udid ??
     (await simctl('create', name, type.identifier, runtime.identifier)).trim();
+  await suppressSystemFollowUps(udid);
   await simctl('boot', udid);
   await simctl('bootstatus', udid, '-b');
   const languages = await simctl(
