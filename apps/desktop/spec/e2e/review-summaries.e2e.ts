@@ -21,6 +21,16 @@ import {
 } from './fixtures.ts';
 
 declare const parent: { readonly document: unknown };
+declare const document: {
+  addEventListener(
+    type: 'securitypolicyviolation',
+    listener: (event: {
+      blockedURI: string;
+      effectiveDirective: string;
+      disposition: string;
+    }) => void,
+  ): void;
+};
 
 const sandbox = 'allow-scripts allow-forms allow-popups allow-modals';
 
@@ -238,15 +248,70 @@ test('a remote computer summary renders through the app from that computer, cann
       }),
     )
     .toBe(true);
-  const refused = page.waitForEvent('console', {
-    predicate: (message) =>
-      message.text().includes("'https://example.com/'") &&
-      message.text().includes('frame-src'),
+  await page.evaluate(() => {
+    const refusals: {
+      blockedURL: string;
+      directive: string;
+      disposition: string;
+    }[] = [];
+    Reflect.set(globalThis, 'porcelainFrameRefusals', refusals);
+    document.addEventListener('securitypolicyviolation', (event) => {
+      if (event.effectiveDirective === 'frame-src')
+        refusals.push({
+          blockedURL: URL.canParse(event.blockedURI)
+            ? new URL(event.blockedURI).href
+            : event.blockedURI,
+          directive: event.effectiveDirective,
+          disposition: event.disposition,
+        });
+    });
   });
-  await reopenedSummary
-    .getByRole('link', { name: 'Leave for a website', exact: true })
-    .click();
-  await refused;
+  await app.electron.evaluate(({ session }) => {
+    const attempts: string[] = [];
+    Reflect.set(session.defaultSession, 'porcelainWebsiteRequests', attempts);
+    session.defaultSession.webRequest.onBeforeRequest(
+      { urls: ['https://example.com/*'] },
+      (request, callback) => {
+        attempts.push(request.url);
+        callback({ cancel: true });
+      },
+    );
+  });
+  try {
+    await reopenedSummary
+      .getByRole('link', { name: 'Leave for a website', exact: true })
+      .click();
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const refusals: unknown = Reflect.get(
+            globalThis,
+            'porcelainFrameRefusals',
+          );
+          return refusals;
+        }),
+      )
+      .toContainEqual({
+        blockedURL: 'https://example.com/',
+        directive: 'frame-src',
+        disposition: 'enforce',
+      });
+    expect(
+      await app.electron.evaluate(({ session }) => {
+        const attempts: unknown = Reflect.get(
+          session.defaultSession,
+          'porcelainWebsiteRequests',
+        );
+        return attempts;
+      }),
+    ).toEqual([]);
+  } finally {
+    await app.electron.evaluate(({ session }) =>
+      session.defaultSession.webRequest.onBeforeRequest(null),
+    );
+  }
+  expect(new URL(page.url()).pathname).toBe(remoteWorktree);
+  expect(app.electron.windows()).toHaveLength(1);
   expect(
     page
       .frames()

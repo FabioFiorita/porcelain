@@ -10,7 +10,8 @@ permissions:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # Preserve completed stress evidence while preparing the next cause fix.
+  cancel-in-progress: ${{ github.head_ref != 'desktop-e2e-deflake' }}
 
 jobs:
   checks:
@@ -106,6 +107,8 @@ jobs:
             arguments: spec/e2e/window.e2e.ts --grep "Quit while reopening" --repeat-each=100
           - target: window-save
             arguments: spec/e2e/window.e2e.ts --grep "Quit persists the latest|delayed events" --repeat-each=100
+          - target: remote-summary
+            arguments: spec/e2e/review-summaries.e2e.ts --grep "a remote computer summary" --repeat-each=100
           - target: native-quit
             arguments: spec/e2e/menus.e2e.ts --grep "without a Vite server" --repeat-each=100
           - target: credentials
