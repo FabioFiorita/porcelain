@@ -6,4 +6,6 @@ name: Open a link and accept the system confirmation
     when:
       visible: (Abrir|Open)
     commands:
+      - takeScreenshot: link-confirmation-before-tap
       - tapOn: (Abrir|Open)
+- takeScreenshot: link-after-confirmation

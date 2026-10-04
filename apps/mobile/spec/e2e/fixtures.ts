@@ -1,5 +1,6 @@
 import { execFile } from 'node:child_process';
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
+import { freemem, loadavg } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { inject, test as base } from 'vitest';
@@ -59,30 +60,49 @@ export const test = base
     await mkdir(folder, { recursive: true });
     return folder;
   })
-  .extend('environments', ({ serverBuild, recorders }, { onCleanup }) => {
-    const started: Environment[] = [];
-    onCleanup(async () => {
-      const failures = [];
-      for (const environment of started) {
-        const failure = await environment.stop();
-        if (failure) failures.push(failure);
-      }
-      if (failures.length > 0) throw new Error(failures.join('; '));
-    });
-    return {
-      async start(title: string, options: { workspace?: boolean } = {}) {
-        const environment = await Environment.start({
-          build: serverBuild,
-          title,
-          label: pairingLabel,
-          workspace: options.workspace ?? false,
-        });
-        started.push(environment);
-        recorders.push(environment.recorder);
-        return environment;
-      },
-    };
-  })
+  .extend(
+    'environments',
+    ({ serverBuild, recorders, evidence }, { onCleanup }) => {
+      const started: Environment[] = [];
+      onCleanup(async () => {
+        const failures = [];
+        for (const environment of started) {
+          const failure = await environment.stop();
+          if (failure) failures.push(failure);
+        }
+        if (failures.length > 0) throw new Error(failures.join('; '));
+      });
+      return {
+        async start(title: string, options: { workspace?: boolean } = {}) {
+          const began = Date.now();
+          const load = loadavg();
+          let output = '';
+          try {
+            const environment = await Environment.start({
+              build: serverBuild,
+              title,
+              label: pairingLabel,
+              workspace: options.workspace ?? false,
+              onOutput: (text) => {
+                output = (output + text).slice(-16 * 1024);
+              },
+            });
+            started.push(environment);
+            recorders.push(environment.recorder);
+            return environment;
+          } finally {
+            await writeFile(
+              join(evidence, `environment-${title.toLowerCase()}.log`),
+              recorders.reduce(
+                (text, recorder) => recorder.scrub(text),
+                `${new Date(began).toISOString()}: startup ${Date.now() - began}ms; load ${load.join(',')} -> ${loadavg().join(',')}; free memory ${freemem()} bytes\n${output}`,
+              ),
+            );
+          }
+        },
+      };
+    },
+  )
   .extend('app', async ({ device, evidence, recorders }) => {
     const client = developmentClient();
     if (client === undefined) throw new Error(buildProblem());

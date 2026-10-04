@@ -431,6 +431,7 @@ async function install(
 }
 
 async function main() {
+  const began = performance.now();
   const scratch: string[] = [];
   const root = await temporary('porcelain-dev-', scratch);
   const given = option('--server');
@@ -448,7 +449,13 @@ async function main() {
     const confine =
       process.platform === 'linux' ? hostExecutable('bwrap') : SEATBELT;
     const git = hostExecutable('git');
+    process.stderr.write(
+      `Sandbox installation started at ${Math.round(performance.now() - began)}ms\n`,
+    );
     const installation = await install(given, scratch);
+    process.stderr.write(
+      `Sandbox installation finished at ${Math.round(performance.now() - began)}ms\n`,
+    );
     const { bin } = installation;
     const codingToolExecutable = join(
       installation.serverAt,
@@ -498,6 +505,11 @@ async function main() {
             : {}),
         },
       },
+    );
+    child.once('spawn', () =>
+      process.stderr.write(
+        `Sandbox server spawned at ${Math.round(performance.now() - began)}ms\n`,
+      ),
     );
     child.stdout.pipe(process.stdout);
     child.stderr.pipe(process.stderr);
