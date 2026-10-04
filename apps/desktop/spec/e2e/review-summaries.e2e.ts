@@ -22,6 +22,15 @@ import {
 
 declare const parent: { readonly document: unknown };
 declare const document: {
+  hasFocus(): boolean;
+  addEventListener(
+    type: 'click',
+    listener: (event: {
+      isTrusted: boolean;
+      defaultPrevented: boolean;
+      target: { nodeName?: string; href?: string } | null;
+    }) => void,
+  ): void;
   addEventListener(
     type: 'securitypolicyviolation',
     listener: (event: {
@@ -233,6 +242,19 @@ test('a remote computer summary renders through the app from that computer, cann
     .click();
   const reopenedSummary = await summaryNavigation;
   await reopenedSummary.waitForLoadState('load');
+  await reopenedSummary.evaluate(() => {
+    const clicks: unknown[] = [];
+    Reflect.set(globalThis, 'porcelainSummaryClicks', clicks);
+    document.addEventListener('click', (event) => {
+      clicks.push({
+        trusted: event.isTrusted,
+        prevented: event.defaultPrevented,
+        target: event.target?.nodeName,
+        href: event.target?.href,
+        focused: document.hasFocus(),
+      });
+    });
+  });
   await app.electron.evaluate(({ app, BrowserWindow }) => {
     app.focus({ steal: true });
     const view = BrowserWindow.getAllWindows()[0];
@@ -277,10 +299,44 @@ test('a remote computer summary renders through the app from that computer, cann
       },
     );
   });
+  const navigationState = () =>
+    Promise.all([
+      app.electron.evaluate(({ BrowserWindow, session }) => {
+        const view = BrowserWindow.getAllWindows()[0];
+        const requests: unknown = Reflect.get(
+          session.defaultSession,
+          'porcelainWebsiteRequests',
+        );
+        return {
+          windowFocused: view?.isFocused(),
+          contentsFocused: view?.webContents.isFocused(),
+          requests,
+        };
+      }),
+      page.evaluate(() => {
+        const refusals: unknown = Reflect.get(
+          globalThis,
+          'porcelainFrameRefusals',
+        );
+        return { focused: document.hasFocus(), refusals };
+      }),
+      reopenedSummary.evaluate(() => {
+        const clicks: unknown = Reflect.get(
+          globalThis,
+          'porcelainSummaryClicks',
+        );
+        return { focused: document.hasFocus(), clicks };
+      }),
+    ]).catch((error: unknown) => ({
+      error: error instanceof Error ? error.message : String(error),
+    }));
+  const beforeClick = await navigationState();
+  let afterClick: Awaited<ReturnType<typeof navigationState>> | undefined;
   try {
     await reopenedSummary
       .getByRole('link', { name: 'Leave for a website', exact: true })
       .click();
+    afterClick = await navigationState();
     await expect
       .poll(() =>
         page.evaluate(() => {
@@ -306,6 +362,14 @@ test('a remote computer summary renders through the app from that computer, cann
       }),
     ).toEqual([]);
   } finally {
+    await testInfo.attach('summary-navigation-state', {
+      body: JSON.stringify({
+        beforeClick,
+        afterClick,
+        settled: await navigationState(),
+      }),
+      contentType: 'application/json',
+    });
     await app.electron.evaluate(({ session }) =>
       session.defaultSession.webRequest.onBeforeRequest(null),
     );
