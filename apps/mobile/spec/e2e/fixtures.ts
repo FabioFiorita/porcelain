@@ -1,4 +1,4 @@
-import { execFile } from 'node:child_process';
+import { execFile, type ChildProcess } from 'node:child_process';
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { freemem, loadavg } from 'node:os';
 import { join } from 'node:path';
@@ -137,90 +137,109 @@ export const test = base
       };
     },
   )
-  .extend('app', async ({ device, evidence, recorders, resources }, hooks) => {
-    const client = developmentClient();
-    if (client === undefined) throw new Error(buildProblem());
-    await resources.snapshot('before app reset');
-    await resetApp(device.udid, client, identity.bundleIdentifier);
-    await resources.snapshot('after app reset');
-    const metro = await launchReadiness(
-      device.metro,
-      join(device.evidence, 'metro.log'),
-    );
-    hooks.onCleanup(metro.stop);
-    const scrub = (text: string) =>
-      recorders.reduce((scrubbed, recorder) => recorder.scrub(scrubbed), text);
-    let runs = 0;
-    return {
-      async run(
-        flow: string,
-        variables: Record<string, string> = {},
-      ): Promise<FlowResult> {
-        runs += 1;
-        const output = join(
-          evidence,
-          `${String(runs).padStart(2, '0')}-${flow.replace(/\.yaml$/, '')}`,
-        );
-        await mkdir(output, { recursive: true });
-        await resources.snapshot(`before Maestro: ${flow}`);
-        const environment = {
-          DEVELOPMENT_URL: developmentLaunchUrl(device.metro),
-          METRO_READY_URL: metro.url,
-          ...variables,
-        };
-        try {
-          const result = await execute(
-            'maestro',
-            [
-              '--udid',
-              device.udid,
-              'test',
-              join(flows, flow),
-              '--test-output-dir',
-              output,
-              '--no-ansi',
-              '--format',
-              'junit',
-              '--output',
-              join(output, 'report.xml'),
-              ...Object.entries(environment).flatMap(([name, value]) => [
-                '-e',
-                `${name}=${value}`,
-              ]),
-            ],
-            {
-              maxBuffer: 16 * 1024 * 1024,
-              timeout: maestroLimitMs,
-              env: {
-                ...process.env,
-                MAESTRO_CLI_NO_ANALYTICS: '1',
-                MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED: 'true',
-              },
-            },
-          );
-          await writeFile(
-            join(output, 'maestro.log'),
-            scrub(result.stdout + result.stderr),
-          );
-        } catch (error) {
-          const stdout: unknown =
-            error instanceof Error ? Reflect.get(error, 'stdout') : undefined;
-          const stderr: unknown =
-            error instanceof Error ? Reflect.get(error, 'stderr') : undefined;
-          const log = scrub(
-            `${typeof stdout === 'string' ? stdout : ''}${typeof stderr === 'string' ? stderr : ''}`,
-          );
-          await writeFile(join(output, 'maestro.log'), log);
-          await scrubFolder(output, scrub);
-          throw new Error(
-            `Maestro failed ${flow}; evidence in ${output}\n${log.split('\n').slice(-30).join('\n')}`,
-          );
-        } finally {
-          await resources.snapshot(`after Maestro: ${flow}`);
+  .extend(
+    'app',
+    async ({ device, evidence, recorders, resources, signal }, hooks) => {
+      const client = developmentClient();
+      if (client === undefined) throw new Error(buildProblem());
+      await resources.snapshot('before app reset');
+      await resetApp(device.udid, client, identity.bundleIdentifier);
+      await resources.snapshot('after app reset');
+      const metro = await launchReadiness(
+        device.metro,
+        join(device.evidence, 'metro.log'),
+      );
+      let maestro: ChildProcess | undefined;
+      hooks.onCleanup(async () => {
+        const child = maestro;
+        if (child && child.exitCode === null && child.signalCode === null) {
+          await new Promise<void>((done) => {
+            child.once('close', () => done());
+            child.kill('SIGTERM');
+          });
         }
-        await scrubFolder(output, scrub);
-        return reportOf(await readFile(join(output, 'report.xml'), 'utf8'));
-      },
-      link: screenLink,
-    };
-  });
+        await metro.stop();
+      });
+      const scrub = (text: string) =>
+        recorders.reduce(
+          (scrubbed, recorder) => recorder.scrub(scrubbed),
+          text,
+        );
+      let runs = 0;
+      return {
+        async run(
+          flow: string,
+          variables: Record<string, string> = {},
+        ): Promise<FlowResult> {
+          runs += 1;
+          const output = join(
+            evidence,
+            `${String(runs).padStart(2, '0')}-${flow.replace(/\.yaml$/, '')}`,
+          );
+          await mkdir(output, { recursive: true });
+          await resources.snapshot(`before Maestro: ${flow}`);
+          const environment = {
+            DEVELOPMENT_URL: developmentLaunchUrl(device.metro),
+            METRO_READY_URL: metro.url,
+            ...variables,
+          };
+          try {
+            const operation = execute(
+              'maestro',
+              [
+                '--udid',
+                device.udid,
+                'test',
+                join(flows, flow),
+                '--test-output-dir',
+                output,
+                '--no-ansi',
+                '--format',
+                'junit',
+                '--output',
+                join(output, 'report.xml'),
+                ...Object.entries(environment).flatMap(([name, value]) => [
+                  '-e',
+                  `${name}=${value}`,
+                ]),
+              ],
+              {
+                maxBuffer: 16 * 1024 * 1024,
+                timeout: maestroLimitMs,
+                signal,
+                env: {
+                  ...process.env,
+                  MAESTRO_CLI_NO_ANALYTICS: '1',
+                  MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED: 'true',
+                },
+              },
+            );
+            maestro = operation.child;
+            const result = await operation;
+            await writeFile(
+              join(output, 'maestro.log'),
+              scrub(result.stdout + result.stderr),
+            );
+          } catch (error) {
+            const stdout: unknown =
+              error instanceof Error ? Reflect.get(error, 'stdout') : undefined;
+            const stderr: unknown =
+              error instanceof Error ? Reflect.get(error, 'stderr') : undefined;
+            const log = scrub(
+              `${typeof stdout === 'string' ? stdout : ''}${typeof stderr === 'string' ? stderr : ''}`,
+            );
+            await writeFile(join(output, 'maestro.log'), log);
+            await scrubFolder(output, scrub);
+            throw new Error(
+              `Maestro failed ${flow}; evidence in ${output}\n${log.split('\n').slice(-30).join('\n')}`,
+            );
+          } finally {
+            await resources.snapshot(`after Maestro: ${flow}`);
+          }
+          await scrubFolder(output, scrub);
+          return reportOf(await readFile(join(output, 'report.xml'), 'utf8'));
+        },
+        link: screenLink,
+      };
+    },
+  );
