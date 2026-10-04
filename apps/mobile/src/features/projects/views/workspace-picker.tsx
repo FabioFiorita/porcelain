@@ -1,37 +1,26 @@
 import { worktreeLabel } from '@porcelain/client/projects/rules';
-import {
-  useEnvironments,
-  useEnvironmentStorageStatus,
-  pairingPlatform,
-  environmentSelectionAccess,
-} from '../../access';
-import { useProjectSelection } from '../store';
-import { useInventory } from '../queries/inventory';
+import { environmentSelectionAccess } from '../../access';
 import { useProjectSelectionCommands } from '../commands/selection';
 import { WorkspaceMenu } from './workspace-menu';
+import { useWorkspace } from './selected-worktree';
 
 export function WorkspacePicker({
   presentation,
 }: {
   presentation: 'phone' | 'tablet';
 }) {
-  const environments = useEnvironments();
-  const access = useEnvironmentStorageStatus();
-  const selection = useProjectSelection();
-  const environment = environments.find(
-    (candidate) => candidate.environmentId === selection.currentEnvironmentId,
-  );
-  const inventory = useInventory(environment, pairingPlatform().send);
+  const workspace = useWorkspace();
+  const {
+    environments,
+    access,
+    selection,
+    remote: environment,
+    inventory,
+    remembered,
+  } = workspace;
   const commands = useProjectSelectionCommands(environmentSelectionAccess);
-  const remembered = selection.currentEnvironmentId
-    ? selection.selections[selection.currentEnvironmentId]
-    : undefined;
-  const project = inventory.data?.projects.find(
-    (candidate) => candidate.id === remembered?.projectId,
-  );
-  const worktree = project?.worktrees.find(
-    (candidate) => candidate.id === remembered?.worktreeId,
-  );
+  const project = workspace.project;
+  const worktree = workspace.worktree;
   const unavailable = worktree && (!project?.available || !worktree.available);
   const label = worktree
     ? `${project?.name} · ${worktreeLabel(worktree.branch)}${unavailable ? ' (unavailable)' : ''}`
