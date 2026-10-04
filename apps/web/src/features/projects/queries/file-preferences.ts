@@ -1,37 +1,13 @@
-import { queryOptions, useSuspenseQuery } from '@tanstack/react-query';
-import { projectsApi } from '../api';
+import { useSuspenseQuery } from '@tanstack/react-query';
+import { filePreferencesQueryOptions } from '@porcelain/client/projects';
 import { type Connection } from '@/shared/workspace/connection';
 
-export function filePreferencesQueryOptions(
-  environmentId: string,
-  projectId: string,
-  connection: Connection,
-) {
-  return queryOptions({
-    queryKey: ['review', environmentId, projectId, 'file-preferences'],
-    queryFn: async ({ signal }) => {
-      const connected = connection.request(signal);
-      const response = await projectsApi(connection).filePreferences.list({
-        signal: connected.signal,
-        projectId,
-      });
-      connected.signal.throwIfAborted();
-      return response;
-    },
-  });
-}
-
 export function useHiddenPaths(
-  connection: Connection | null,
+  connection: Connection,
   projectId: string,
 ): ReadonlySet<string> {
-  if (!connection) throw new Error('A connected environment is required');
   const response = useSuspenseQuery(
-    filePreferencesQueryOptions(
-      connection.environmentId,
-      projectId,
-      connection,
-    ),
+    filePreferencesQueryOptions(connection, projectId),
   ).data;
   return new Set(
     response.preferences
@@ -41,16 +17,11 @@ export function useHiddenPaths(
 }
 
 export function usePinnedPaths(
-  connection: Connection | null,
+  connection: Connection,
   projectId: string,
 ): readonly string[] {
-  if (!connection) throw new Error('A connected environment is required');
   const response = useSuspenseQuery(
-    filePreferencesQueryOptions(
-      connection.environmentId,
-      projectId,
-      connection,
-    ),
+    filePreferencesQueryOptions(connection, projectId),
   ).data;
   return response.preferences
     .filter((preference) => preference.pinned)

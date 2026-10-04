@@ -19,7 +19,7 @@ export function ProjectFolderPicker({
   disabled,
   onOpen,
 }: {
-  connection: Connection | null;
+  connection: Connection;
   disabled: boolean;
   onOpen: (path: string) => void;
 }) {

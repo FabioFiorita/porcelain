@@ -1,4 +1,8 @@
 import {
+  editFileEndpoint,
+  type EditFileRequest,
+} from '@porcelain/contracts/files';
+import {
   listDirectoryEndpoint,
   listWorktreePathsEndpoint,
   readFileAssetEndpoint,
@@ -16,6 +20,18 @@ import { type Transport } from '../../shared/api/transport.ts';
 
 function createFilesApi(transport: Transport) {
   return {
+    edit: ({
+      signal,
+      worktreeId,
+      input,
+    }: EndpointArguments<typeof editFileEndpoint> & {
+      input: EditFileRequest;
+    }) =>
+      requestEndpoint(transport, editFileEndpoint, {
+        params: { worktreeId },
+        body: input,
+        signal,
+      }),
     directory: ({
       signal,
       worktreeId,

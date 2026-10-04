@@ -1,3 +1,4 @@
+import { queryKeys } from '@porcelain/client/transport';
 import { queryOptions, useQuery } from '@tanstack/react-query';
 import { projectsApi } from '../api';
 import { type Connection } from '@/shared/workspace/connection';
@@ -8,7 +9,7 @@ function projectFolderQueryOptions(
   connection: Connection,
 ) {
   return queryOptions({
-    queryKey: ['project-folder', environmentId, path ?? null],
+    queryKey: queryKeys.projectFolder(environmentId, path),
     queryFn: ({ signal }) =>
       projectsApi(connection).inventory.browse({
         signal: connection.request(signal).signal,
@@ -19,11 +20,10 @@ function projectFolderQueryOptions(
 }
 
 export function useProjectFolder(
-  connection: Connection | null,
+  connection: Connection,
   path: string | undefined,
   enabled: boolean,
 ) {
-  if (!connection) throw new Error('A connected environment is required');
   return useQuery({
     ...projectFolderQueryOptions(connection.environmentId, path, connection),
     enabled,
