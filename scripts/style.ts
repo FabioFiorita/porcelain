@@ -189,8 +189,8 @@ function proseOutsideSkills(files: readonly string[]): Problem[] {
 }
 
 const pinnedWorkflows = [
-  '.github/workflows/server.yml',
-  '.github/workflows/web.yml',
+  '.github/workflows/ci.yml',
+  '.github/workflows/runtime-verification.yml',
   '.github/workflows/probes.yml',
 ] as const;
 
@@ -211,7 +211,7 @@ const workflowRunsSchema = z.object({
 });
 
 const requiredRuns: Readonly<Record<string, readonly string[]>> = {
-  '.github/workflows/server.yml': [
+  '.github/workflows/ci.yml': [
     'pnpm check --affected',
     'sudo apt-get update && sudo apt-get install --yes bubblewrap',
     'sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0',
@@ -219,7 +219,7 @@ const requiredRuns: Readonly<Record<string, readonly string[]>> = {
     'pnpm exec playwright install --with-deps --only-shell chromium',
     'pnpm test:integration --affected --continue',
   ],
-  '.github/workflows/web.yml': [
+  '.github/workflows/runtime-verification.yml': [
     'pnpm check',
     'pnpm --filter @porcelain/web build',
     'pnpm exec playwright install --with-deps --only-shell chromium',
@@ -260,8 +260,8 @@ function ciProblems(): Problem[] {
   const documents = new Map<string, unknown>(
     pinnedWorkflows.map((path) => [path, workflowDocument(path)]),
   );
-  const server = workflowRunsSchema.safeParse(
-    documents.get('.github/workflows/server.yml'),
+  const ci = workflowRunsSchema.safeParse(
+    documents.get('.github/workflows/ci.yml'),
   );
   return [
     ...Object.entries(requiredRuns).flatMap(([path, runs]) => {
@@ -281,14 +281,12 @@ function ciProblems(): Problem[] {
             ),
           ];
     }),
-    ...(server.success &&
-    'pull_request' in server.data.on &&
-    'push' in server.data.on
+    ...(ci.success && 'pull_request' in ci.data.on && 'push' in ci.data.on
       ? []
       : [
           problem(
             'ci-steps',
-            '.github/workflows/server.yml runs on every pull request and every push to main, so every change meets pnpm check and the integration tests.',
+            '.github/workflows/ci.yml runs on every pull request and every push to main, so every change meets pnpm check and the integration tests.',
           ),
         ]),
     ...manualAuditProblems(documents).map((message) =>

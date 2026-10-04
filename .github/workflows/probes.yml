@@ -1,4 +1,4 @@
-name: Probe audit
+name: Probes
 
 on:
   workflow_dispatch:

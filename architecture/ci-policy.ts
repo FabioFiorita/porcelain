@@ -41,7 +41,7 @@ export function manualAuditProblems(
       ? ['workflow_dispatch', 'schedule']
       : ['workflow_dispatch'];
     if (
-      (isProbe || path.endsWith('/web.yml')) &&
+      (isProbe || path.endsWith('/runtime-verification.yml')) &&
       (!triggers.includes('workflow_dispatch') ||
         triggers.some((trigger) => !allowed.includes(trigger)) ||
         (workflow.on.schedule !== undefined &&

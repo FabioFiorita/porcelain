@@ -35,7 +35,7 @@
       "dependsOn": ["transit"],
       "inputs": [
         "$TURBO_DEFAULT$",
-        "$TURBO_ROOT$/.github/workflows/server.yml"
+        "$TURBO_ROOT$/.github/workflows/ci.yml"
       ],
       "cache": false
     },
@@ -43,7 +43,7 @@
       "dependsOn": ["transit", "@porcelain/web#transit"],
       "inputs": [
         "$TURBO_DEFAULT$",
-        "$TURBO_ROOT$/.github/workflows/server.yml"
+        "$TURBO_ROOT$/.github/workflows/ci.yml"
       ],
       "cache": false
     },
