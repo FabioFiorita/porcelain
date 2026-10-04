@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs';
-import { mkdtemp, readFile, realpath, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import {
   _electron,
@@ -49,6 +49,7 @@ export function processAlive(pid: number): boolean {
 export class DesktopApp {
   readonly electron: ElectronApplication;
   private readonly child: ReturnType<ElectronApplication['process']>;
+  private readonly exited: Promise<void>;
   readonly profile: string;
   readonly errors: string[] = [];
   readonly output: string[] = [];
@@ -57,6 +58,9 @@ export class DesktopApp {
   constructor(electron: ElectronApplication, profile: string) {
     this.electron = electron;
     this.child = electron.process();
+    this.exited = new Promise<void>((resolveExit) =>
+      this.child.once('close', () => resolveExit()),
+    );
     this.profile = profile;
     this.child.stderr?.on('data', (chunk: Buffer) => {
       this.output.push(chunk.toString());
@@ -180,23 +184,100 @@ export class DesktopApp {
     }, selection);
   }
 
+  async holdWrite(file: string, method: 'rename' | 'appendFile') {
+    const marker = `Porcelain e2e: held ${method} ${file}`;
+    await this.electron.evaluate(
+      async (_, { file, method, marker }) => {
+        const fs = process.getBuiltinModule('fs');
+        const { syncBuiltinESMExports } = process.getBuiltinModule('module');
+        const released = new Promise<void>((resolveRelease) => {
+          Reflect.set(fs.promises, 'porcelainReleaseWrite', resolveRelease);
+        });
+        const hold = async (target: unknown) => {
+          if (target !== file) return;
+          process.stderr.write(`${marker}\n`);
+          await released;
+        };
+        if (method === 'rename') {
+          const rename = fs.promises.rename.bind(fs.promises);
+          fs.promises.rename = async (...args: Parameters<typeof rename>) => {
+            await hold(args[1]);
+            return rename(...args);
+          };
+        } else {
+          const append = fs.promises.appendFile.bind(fs.promises);
+          fs.promises.appendFile = async (
+            ...args: Parameters<typeof append>
+          ) => {
+            await hold(args[0]);
+            return append(...args);
+          };
+        }
+        syncBuiltinESMExports();
+      },
+      { file, method, marker },
+    );
+    return {
+      marker,
+      release: () =>
+        this.electron.evaluate(() => {
+          const fs = process.getBuiltinModule('fs');
+          const release: unknown = Reflect.get(
+            fs.promises,
+            'porcelainReleaseWrite',
+          );
+          if (typeof release !== 'function')
+            throw new Error('The write is not held');
+          Reflect.apply(release, fs.promises, []);
+        }),
+    };
+  }
+
   quit(): Promise<void> {
     const child = this.child;
+    const checkExit = () => {
+      if (
+        this.output
+          .join('')
+          .includes('Porcelain: server shutdown deadline reached')
+      )
+        throw new Error(
+          `The app forcibly stopped its server instead of completing shutdown\n${this.output.join('')}`,
+        );
+      if (child.exitCode !== 0)
+        throw new Error(
+          `The app exited abnormally (process ${child.pid}, exit ${child.exitCode}, signal ${child.signalCode})\n${this.output.join('')}`,
+        );
+    };
     if (child.exitCode !== null || child.signalCode !== null)
-      return Promise.resolve();
+      return this.exited.then(checkExit);
     const timeout = AbortSignal.timeout(quitWithinMs);
-    const expired = new Promise<never>((_resolve, reject) => {
-      timeout.addEventListener(
-        'abort',
-        () => {
-          const message = `The app did not quit after stopping its server (process ${child.pid}, exit ${child.exitCode}, signal ${child.signalCode})\n${this.output.join('')}`;
-          child.kill('SIGKILL');
-          reject(new Error(message));
-        },
-        { once: true },
-      );
-    });
-    return Promise.race([this.electron.close(), expired]);
+    const expiration = Promise.withResolvers<never>();
+    const expired = () => {
+      const message = `The app did not quit after stopping its server (process ${child.pid}, exit ${child.exitCode}, signal ${child.signalCode})\n${this.output.join('')}`;
+      child.kill('SIGKILL');
+      expiration.reject(new Error(message));
+    };
+    timeout.addEventListener('abort', expired, { once: true });
+    return Promise.race([
+      Promise.all([
+        this.electron
+          .evaluate(({ app }) => app.quit())
+          .catch((error: unknown) => {
+            if (
+              !(error instanceof Error) ||
+              (!error.message.includes('closed') &&
+                !error.message.includes('Execution context was destroyed'))
+            )
+              throw error;
+          }),
+        this.exited,
+      ]).then(async () => {
+        checkExit();
+        await this.electron.close();
+      }),
+      expiration.promise,
+    ]).finally(() => timeout.removeEventListener('abort', expired));
   }
 }
 
@@ -271,32 +352,45 @@ type DesktopFixtures = {
 
 type WorkerFixtures = { app: string };
 
-async function keepFailure(
+async function keepScreenshots(
   launched: readonly DesktopApp[],
   testInfo: TestInfo,
 ): Promise<void> {
   for (const [index, desktop] of launched.entries()) {
-    await testInfo.attach(`app-${index}-main.log`, {
-      body: desktop.output.join(''),
-      contentType: 'text/plain',
-    });
     for (const [order, page] of desktop.electron.windows().entries())
       await page
         .screenshot({
           path: testInfo.outputPath(`app-${index}-window-${order}.png`),
         })
         .catch(() => undefined);
+  }
+}
+
+async function keepLog(
+  testInfo: TestInfo,
+  name: string,
+  body: string | Buffer,
+): Promise<void> {
+  const path = testInfo.outputPath(name);
+  await writeFile(path, body);
+  await testInfo.attach(name, { path, contentType: 'text/plain' });
+}
+
+async function keepFailure(
+  launched: readonly DesktopApp[],
+  testInfo: TestInfo,
+): Promise<void> {
+  for (const [index, desktop] of launched.entries()) {
+    await keepLog(testInfo, `app-${index}-main.log`, desktop.output.join(''));
     const log = join(desktop.profile, 'logs', 'server.log');
     if (existsSync(log))
-      await testInfo.attach(`app-${index}-server.log`, {
-        body: await readFile(log),
-        contentType: 'text/plain',
-      });
+      await keepLog(testInfo, `app-${index}-server.log`, await readFile(log));
     if (desktop.errors.length > 0)
-      await testInfo.attach(`app-${index}-renderer-errors.txt`, {
-        body: desktop.errors.join('\n'),
-        contentType: 'text/plain',
-      });
+      await keepLog(
+        testInfo,
+        `app-${index}-renderer-errors.txt`,
+        desktop.errors.join('\n'),
+      );
   }
 }
 
@@ -329,11 +423,13 @@ export const test = base.extend<DesktopFixtures, WorkerFixtures>({
       return desktop;
     };
     await use({ ...workspace, launch });
-    if (testInfo.status !== testInfo.expectedStatus)
-      await keepFailure(launched, testInfo);
+    const failed = testInfo.status !== testInfo.expectedStatus;
+    if (failed) await keepScreenshots(launched, testInfo);
     const closed = await Promise.allSettled(
       launched.map((desktop) => desktop.quit()),
     );
+    if (failed || closed.some((result) => result.status === 'rejected'))
+      await keepFailure(launched, testInfo);
     for (const result of closed)
       if (result.status === 'rejected') throw result.reason;
   },
