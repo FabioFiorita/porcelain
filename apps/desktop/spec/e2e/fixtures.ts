@@ -231,7 +231,11 @@ export class DesktopApp {
         this.electron
           .evaluate(({ app }) => app.quit())
           .catch((error: unknown) => {
-            if (!(error instanceof Error) || !error.message.includes('closed'))
+            if (
+              !(error instanceof Error) ||
+              (!error.message.includes('closed') &&
+                !error.message.includes('Execution context was destroyed'))
+            )
               throw error;
           }),
         this.exited,
