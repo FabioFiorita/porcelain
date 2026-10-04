@@ -15,6 +15,7 @@ import {
 import { Environment } from '../kit/environment.ts';
 import { launchReadiness } from '../kit/metro.ts';
 import { resetApp } from '../kit/simulator.ts';
+import { runnerResources } from '../kit/runner-resources.ts';
 
 export { expect } from 'vitest';
 
@@ -61,11 +62,24 @@ export const test = base
     await mkdir(folder, { recursive: true });
     return folder;
   })
+  .extend('resources', async ({ evidence }, { onCleanup }) => {
+    const resources = runnerResources(evidence);
+    onCleanup(async () => {
+      try {
+        await resources.snapshot('test cleanup finished');
+      } finally {
+        await resources.stop();
+      }
+    });
+    await resources.snapshot('before test setup');
+    return resources;
+  })
   .extend(
     'environments',
-    ({ serverBuild, recorders, evidence }, { onCleanup }) => {
+    ({ serverBuild, recorders, evidence, resources }, { onCleanup }) => {
       const started: Environment[] = [];
       onCleanup(async () => {
+        await resources.snapshot('before server cleanup');
         const failures = [];
         for (const environment of started) {
           try {
@@ -86,11 +100,13 @@ export const test = base
           }
           const failure = await environment.stop();
           if (failure) failures.push(failure);
+          await resources.snapshot(`server stopped: ${environment.name}`);
         }
         if (failures.length > 0) throw new Error(failures.join('; '));
       });
       return {
         async start(title: string, options: { workspace?: boolean } = {}) {
+          await resources.snapshot(`before server startup: ${title}`);
           const began = Date.now();
           const load = loadavg();
           let output = '';
@@ -115,20 +131,23 @@ export const test = base
                 `${new Date(began).toISOString()}: startup ${Date.now() - began}ms; load ${load.join(',')} -> ${loadavg().join(',')}; free memory ${freemem()} bytes\n${output}`,
               ),
             );
+            await resources.snapshot(`after server startup: ${title}`);
           }
         },
       };
     },
   )
-  .extend('app', async ({ device, evidence, recorders }, { onCleanup }) => {
+  .extend('app', async ({ device, evidence, recorders, resources }, hooks) => {
     const client = developmentClient();
     if (client === undefined) throw new Error(buildProblem());
+    await resources.snapshot('before app reset');
     await resetApp(device.udid, client, identity.bundleIdentifier);
+    await resources.snapshot('after app reset');
     const metro = await launchReadiness(
       device.metro,
       join(device.evidence, 'metro.log'),
     );
-    onCleanup(metro.stop);
+    hooks.onCleanup(metro.stop);
     const scrub = (text: string) =>
       recorders.reduce((scrubbed, recorder) => recorder.scrub(scrubbed), text);
     let runs = 0;
@@ -143,6 +162,7 @@ export const test = base
           `${String(runs).padStart(2, '0')}-${flow.replace(/\.yaml$/, '')}`,
         );
         await mkdir(output, { recursive: true });
+        await resources.snapshot(`before Maestro: ${flow}`);
         const environment = {
           DEVELOPMENT_URL: developmentLaunchUrl(device.metro),
           METRO_READY_URL: metro.url,
@@ -195,6 +215,8 @@ export const test = base
           throw new Error(
             `Maestro failed ${flow}; evidence in ${output}\n${log.split('\n').slice(-30).join('\n')}`,
           );
+        } finally {
+          await resources.snapshot(`after Maestro: ${flow}`);
         }
         await scrubFolder(output, scrub);
         return reportOf(await readFile(join(output, 'report.xml'), 'utf8'));

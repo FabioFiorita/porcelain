@@ -134,6 +134,12 @@ jobs:
           key: ${{ steps.client.outputs.cache-primary-key }}
       - name: Run the ${{ matrix.device }} e2e suite
         run: pnpm --filter @porcelain/mobile exec vitest run --config ../../vitest.config.ts --project ${{ matrix.project }}
+      - name: Upload runner resource measurements
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: mobile-resources-${{ matrix.device }}
+          path: apps/mobile/test-results/**/resources.log
       - name: Upload mobile failure evidence
         uses: actions/upload-artifact@v7
         if: failure()

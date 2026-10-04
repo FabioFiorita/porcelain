@@ -13,6 +13,7 @@ import {
   type DeviceKind,
 } from '../kit/simulator.ts';
 import { missingTools } from '../kit/tools.ts';
+import { runnerResources } from '../kit/runner-resources.ts';
 
 export type MobileDevice = {
   udid: string;
@@ -42,22 +43,33 @@ export default async function setup(project: TestProject) {
   await rm(evidence, { recursive: true, force: true });
   await mkdir(evidence, { recursive: true });
   const build = await mkdtemp(join(tmpdir(), 'porcelain-mobile-e2e-server-'));
+  const resources = runnerResources(evidence);
   const cleanups: (() => Promise<unknown>)[] = [
     () => rm(build, { recursive: true, force: true }),
   ];
   const teardown = async () => {
-    for (const cleanup of cleanups.toReversed()) await cleanup();
+    try {
+      for (const cleanup of cleanups.toReversed()) await cleanup();
+      await resources.snapshot('setup resources stopped');
+    } finally {
+      await resources.stop();
+    }
   };
   try {
+    await resources.snapshot('before disposable server build');
     await buildIsolatedServer(build);
+    await resources.snapshot('server built; before Metro warmup');
     const metro = await startMetro(join(evidence, 'metro.log'));
     cleanups.push(async () => metro.stop());
+    await resources.snapshot('Metro warmed; before simulator boot');
     const simulator = await bootSimulator(
       kind,
       'e2e',
       process.env.PORCELAIN_MOBILE_IOS_RUNTIME,
     );
     cleanups.push(() => shutdownSimulator(simulator.udid));
+    await resources.snapshot('simulator booted');
+    await resources.stop();
     await writeFile(
       join(evidence, 'simulator.json'),
       `${JSON.stringify(simulator, null, 2)}\n`,
