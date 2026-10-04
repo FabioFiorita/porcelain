@@ -1169,6 +1169,73 @@ function allowedSpecImport(filename, source) {
   return /\/spec\/(?:fakes|fixtures|contracts)\/.+\.ts$/.test(target);
 }
 
+function expectedClassName(filename, role) {
+  const fileName = normalizedFilename(filename).split('/').at(-1);
+  const operationName = fileName.slice(0, -3);
+  const words = operationName.split('-');
+  const classWords = words.map((word) => word[0].toUpperCase() + word.slice(1));
+  const name = classWords.join('');
+  return role === 'UseCase' ? `${name}UseCase` : name;
+}
+
+const primitiveTypes = new Set([
+  'TSVoidKeyword',
+  'TSUndefinedKeyword',
+  'TSNullKeyword',
+  'TSStringKeyword',
+  'TSNumberKeyword',
+  'TSBooleanKeyword',
+  'TSBigIntKeyword',
+  'TSSymbolKeyword',
+  'TSNeverKeyword',
+  'TSLiteralType',
+  'TSTemplateLiteralType',
+]);
+
+const portName =
+  /(?:Store|Reader|Writer|Runner|Source|Publisher|Watcher|Probe|Logger|UseCasePort|^Clock)$/;
+
+const fakeName = /^(?:InMemory|Scripted|Fixed|Sequential|Recording)[A-Z]/;
+
+const pascalCase = /^[A-Z][A-Za-z0-9]*$/;
+
+const camelCase = /^[a-z][A-Za-z0-9]*$/;
+
+const screamingCase = /^[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)*$/;
+
+const modelFile = /^packages\/[^/]+\/src\/models\//;
+
+const portShapedScope = new RegExp(
+  `^(?:apps/server/src/|packages/(?:${domainPackage}|kernel|git|agents|process)/src/)`,
+);
+
+function discriminants(member) {
+  return new Set(
+    member.members
+      .filter(
+        (property) =>
+          property.type === 'TSPropertySignature' &&
+          !property.optional &&
+          property.key.type === 'Identifier' &&
+          property.typeAnnotation?.typeAnnotation.type === 'TSLiteralType',
+      )
+      .map((property) => property.key.name),
+  );
+}
+
+function primitiveValue(node) {
+  if (!node) return false;
+  if (node.type === 'TSAsExpression' || node.type === 'TSSatisfiesExpression')
+    return primitiveValue(node.expression);
+  if (node.type === 'Literal') return !node.regex && node.value !== null;
+  if (node.type === 'TemplateLiteral')
+    return node.expressions.every(primitiveValue);
+  if (node.type === 'UnaryExpression') return primitiveValue(node.argument);
+  if (node.type === 'BinaryExpression')
+    return primitiveValue(node.left) && primitiveValue(node.right);
+  return false;
+}
+
 export default {
   meta: { name: 'porcelain' },
   rules: {
@@ -1790,15 +1857,13 @@ export default {
               if (statement.type === 'ImportDeclaration') continue;
               if (
                 statement.type === 'ExportNamedDeclaration' &&
-                ['TSInterfaceDeclaration', 'TSTypeAliasDeclaration'].includes(
-                  statement.declaration?.type,
-                )
+                statement.declaration?.type === 'TSInterfaceDeclaration'
               )
                 continue;
               context.report({
                 node: statement,
                 message:
-                  'An interfaces/ file of git, agents or process declares exported interfaces only; a type, a function or a value belongs in dtos/, commands/ or parsers/, because executable code in a port module bypasses its implementation owner.',
+                  'An interfaces/ file of git, agents or process declares exported interfaces only; a type, a function or a value belongs in dtos/, commands/ or parsers/, because keeping dependency contracts separate from data gives agents one declaration pattern in each folder.',
               });
             }
           },
@@ -2574,7 +2639,7 @@ export default {
               context.report({
                 node,
                 message:
-                  'A *UseCasePort stands for one server use case another use case or the runtime calls: it declares only execute(input, context), the use case shape, and nothing else, because callers and implementations must agree on input and cancellation.',
+                  'A *UseCasePort stands for one server use case another use case or the runtime calls: it declares only execute(input, context), the use case shape, and nothing else, because consistent role names and method shapes give agents one dependency contract pattern to copy.',
               });
           } else if (
             parameters.length > 2 ||
@@ -2584,26 +2649,35 @@ export default {
             context.report({
               node,
               message:
-                'A port method takes (), (input) or (input, signal): one input object, then the signal; only a *UseCasePort under apps/server/src/ports declares execute(input, context), because callers and implementations must agree on input and cancellation.',
+                'A port method takes (), (input) or (input, signal): one input object, then the signal; only a *UseCasePort under apps/server/src/ports declares execute(input, context), because consistent role names and method shapes give agents one dependency contract pattern to copy.',
             });
           const input = parameters[0]?.typeAnnotation?.typeAnnotation;
           if (input && input.type !== 'TSTypeReference')
             context.report({
               node: input,
               message:
-                'A port input is a named model from models/ or the kernel, never an inline or primitive type, because callers and implementations must agree on input and cancellation.',
+                'A port input is a named model from models/ or the kernel, never an inline or primitive type, because consistent role names and method shapes give agents one dependency contract pattern to copy.',
             });
           if (containsType(returned, 'TSTypeLiteral', visitorKeys))
             context.report({
               node: returned,
               message:
-                'A port answers a named model from its own models/ or the kernel; an inline shape copies another domain unseen, because callers and implementations must agree on input and cancellation.',
+                'A port answers a named model from its own models/ or the kernel; an inline shape copies another domain unseen, because consistent role names and method shapes give agents one dependency contract pattern to copy.',
             });
         };
         return {
           TSInterfaceDeclaration(node) {
             const useCase =
               useCasePortName.test(node.id.name) && serverAppFile.test(path);
+            if (
+              !portName.test(node.id.name) ||
+              (useCasePortName.test(node.id.name) && !useCase)
+            )
+              context.report({
+                node: node.id,
+                message:
+                  'Name a port for its role: it ends in Store, Reader, Writer, Runner, Source, Publisher, Watcher, Probe or Logger, or it is Clock; a server port standing for a use case ends in UseCasePort, because consistent role names and method shapes give agents one dependency contract pattern to copy.',
+              });
             for (const member of node.body.body) {
               if (useCase && member.type !== 'TSMethodSignature')
                 checkParameters(member, [], undefined, true);
@@ -2749,7 +2823,7 @@ export default {
       },
     },
 
-    'implementation-port': {
+    'implementation-name': {
       create(context) {
         const path = repositoryPath(context);
         if (
@@ -2764,10 +2838,20 @@ export default {
               context.report({
                 node: node.id ?? node,
                 message:
-                  'An implementation class implements exactly one port interface, because implementing multiple ports couples independently owned capabilities.',
+                  'An implementation class implements exactly one port interface, because one port and a technology-plus-port name give agents one implementation pattern to copy.',
               });
               return;
             }
+            const expression = implemented[0].expression;
+            const port =
+              expression.type === 'Identifier'
+                ? expression.name
+                : expression.right?.name;
+            if (port && !node.id?.name.endsWith(port))
+              context.report({
+                node: node.id ?? node,
+                message: `Name the class for its technology followed by the port: <Technology>${port}, because one port and a technology-plus-port name give agents one implementation pattern to copy.`,
+              });
           },
         };
       },
@@ -3398,9 +3482,9 @@ export default {
       create(context) {
         const role = operationRole(context.filename);
         if (!role || isSpec(context)) return {};
+        const expectedName = expectedClassName(context.filename, role);
         const roleLabel = role === 'UseCase' ? 'Use case' : role;
-        const exportMessage =
-          'Export one operation class and types, because extra runtime exports bypass its execute boundary.';
+        const exportMessage = `Export only the ${expectedName} class and types from this file, because one file, role name and execute shape give agents one operation pattern to copy.`;
         let found = 0;
         return {
           ExportNamedDeclaration(node) {
@@ -3417,6 +3501,13 @@ export default {
               return;
             if (declaration.type !== 'ClassDeclaration') {
               context.report({ node, message: exportMessage });
+              return;
+            }
+            if (declaration.id?.name !== expectedName) {
+              context.report({
+                node: declaration,
+                message: `Name the exported class ${expectedName}, because one file, role name and execute shape give agents one operation pattern to copy.`,
+              });
               return;
             }
             found += 1;
@@ -3438,7 +3529,7 @@ export default {
                   )
                     context.report({
                       node: parameter,
-                      message: `${roleLabel} classes expose only execute; make constructor properties private, because every caller needs one explicit execute boundary.`,
+                      message: `${roleLabel} classes expose only execute; make constructor properties private, because one file, role name and execute shape give agents one operation pattern to copy.`,
                     });
                   if (
                     parameter.type === 'TSParameterProperty' &&
@@ -3446,7 +3537,7 @@ export default {
                   )
                     context.report({
                       node: parameter,
-                      message: `${roleLabel} fields are readonly; an operation holds its collaborators, never state, because every caller needs one explicit execute boundary.`,
+                      message: `${roleLabel} fields are readonly; an operation holds its collaborators, never state, because one file, role name and execute shape give agents one operation pattern to copy.`,
                     });
                 }
                 continue;
@@ -3458,18 +3549,18 @@ export default {
               )
                 context.report({
                   node: member,
-                  message: `${roleLabel} fields are readonly; an operation holds its collaborators, never state, because every caller needs one explicit execute boundary.`,
+                  message: `${roleLabel} fields are readonly; an operation holds its collaborators, never state, because one file, role name and execute shape give agents one operation pattern to copy.`,
                 });
               if (isPrivateMember(member)) continue;
               context.report({
                 node: member,
-                message: `${roleLabel} classes expose only execute; make other members private, because every caller needs one explicit execute boundary.`,
+                message: `${roleLabel} classes expose only execute; make other members private, because one file, role name and execute shape give agents one operation pattern to copy.`,
               });
             }
             if (executes.length !== 1) {
               context.report({
                 node: declaration,
-                message: `${roleLabel} classes need one public execute method, because every caller needs one explicit execute boundary.`,
+                message: `${roleLabel} classes need one public execute method, because one file, role name and execute shape give agents one operation pattern to copy.`,
               });
               return;
             }
@@ -3478,7 +3569,7 @@ export default {
               context.report({
                 node: execute,
                 message:
-                  'Declare the execute return type so the contract is visible to TypeScript.',
+                  'Declare the execute return type so the contract is visible to TypeScript, because one file, role name and execute shape give agents one operation pattern to copy.',
               });
             const problem = executeSignatureProblem(role, execute);
             if (problem) context.report({ node: execute, message: problem });
@@ -3487,7 +3578,7 @@ export default {
                 context.report({
                   node: parameter,
                   message:
-                    'Name the execute input in models/; Record<never, never>, {}, object and unknown say nothing. Drop the parameter when there is no input, because every caller needs one explicit execute boundary.',
+                    'Name the execute input in models/; Record<never, never>, {}, object and unknown say nothing. Drop the parameter when there is no input, because one file, role name and execute shape give agents one operation pattern to copy.',
                 });
           },
           ExportDefaultDeclaration(node) {
@@ -3500,8 +3591,7 @@ export default {
             if (found !== 1)
               context.report({
                 node,
-                message:
-                  'Export exactly one operation class, because each file owns one execute boundary.',
+                message: `Export exactly one ${expectedName} class from this file, because one file, role name and execute shape give agents one operation pattern to copy.`,
               });
           },
         };
@@ -3610,6 +3700,259 @@ export default {
                 node,
                 message:
                   'A feature route registers one endpoint and calls options.useCase.execute once, because each endpoint must use validated contracts and one domain operation.',
+              });
+          },
+        };
+      },
+    },
+
+    naming: {
+      create(context) {
+        const path = repositoryPath(context);
+        if (!serverCode.test(path) || isSpec(context)) return {};
+        const fake = fakeFile.test(path);
+        const checkClass = (node) => {
+          const name = node.id?.name;
+          if (name === undefined) return;
+          if (!pascalCase.test(name))
+            context.report({
+              node: node.id,
+              message:
+                'Name a class in PascalCase, because consistent role names give agents one naming pattern to copy.',
+            });
+          if (fake && !fakeName.test(name))
+            context.report({
+              node: node.id,
+              message:
+                'Name a fake InMemory<Port>, Scripted<Port>, Fixed<Port> or Sequential<Port>; Recording<Port> only for a port that answers nothing back, because consistent role names give agents one naming pattern to copy.',
+            });
+        };
+        const checkField = (node, name) => {
+          if (
+            name !== undefined &&
+            (!camelCase.test(name) || /(?:Service|Store)$/.test(name))
+          )
+            context.report({
+              node,
+              message:
+                'Name a field in camelCase after its type, without the Service or Store suffix, because consistent role names give agents one naming pattern to copy.',
+            });
+        };
+        return {
+          ClassDeclaration: checkClass,
+          ClassExpression: checkClass,
+          PropertyDefinition(node) {
+            if (!node.static) checkField(node.key, node.key.name);
+          },
+          TSParameterProperty(node) {
+            const parameter =
+              node.parameter.type === 'AssignmentPattern'
+                ? node.parameter.left
+                : node.parameter;
+            checkField(parameter, parameter.name);
+          },
+          Program(program) {
+            for (const statement of program.body) {
+              const declaration =
+                statement.type === 'ExportNamedDeclaration'
+                  ? statement.declaration
+                  : statement;
+              if (
+                declaration?.type !== 'VariableDeclaration' ||
+                declaration.kind !== 'const'
+              )
+                continue;
+              for (const declarator of declaration.declarations)
+                if (
+                  declarator.id.type === 'Identifier' &&
+                  primitiveValue(declarator.init) &&
+                  !screamingCase.test(declarator.id.name)
+                )
+                  context.report({
+                    node: declarator.id,
+                    message:
+                      'Name a top-level constant of a primitive in SCREAMING_CASE, because consistent role names give agents one naming pattern to copy.',
+                  });
+            }
+          },
+        };
+      },
+    },
+    'no-inline-execute-types': {
+      create(context) {
+        const path = repositoryPath(context);
+        if (
+          (!serviceFile.test(path) && !useCaseFile.test(path)) ||
+          isSpec(context)
+        )
+          return {};
+        return {
+          MethodDefinition(node) {
+            if (!isExecuteMethod(node)) return;
+            const annotations = [
+              ...node.value.params.map((parameter) =>
+                parameter.type === 'TSParameterProperty'
+                  ? parameter.parameter.typeAnnotation
+                  : parameter.typeAnnotation,
+              ),
+              node.value.returnType,
+            ];
+            for (const annotation of annotations)
+              if (
+                containsType(
+                  annotation,
+                  'TSTypeLiteral',
+                  context.sourceCode.visitorKeys,
+                )
+              )
+                context.report({
+                  node: annotation,
+                  message:
+                    'Name the execute input and result in models/<operation>.ts instead of an inline object type, because named operation models give agents one contract to find and reuse.',
+                });
+          },
+        };
+      },
+    },
+    'interfaces-only-in-ports': {
+      create(context) {
+        const path = repositoryPath(context);
+        if (
+          !serverCode.test(path) ||
+          anyPortFile.test(path) ||
+          infrastructureInterfaceFile.test(path)
+        )
+          return {};
+        return {
+          TSInterfaceDeclaration(node) {
+            if (
+              context.sourceCode
+                .getAncestors(node)
+                .some(
+                  (ancestor) =>
+                    ancestor.type === 'TSModuleDeclaration' &&
+                    ancestor.id?.type === 'Literal',
+                )
+            )
+              return;
+            context.report({
+              node: node.id,
+              message:
+                'Write a type alias; an interface is a port and lives in ports/, because reserving interfaces for dependency contracts gives agents one place to declare and find ports.',
+            });
+          },
+        };
+      },
+    },
+    'no-interface-in-runtime': {
+      create(context) {
+        if (!runtimeFile.test(repositoryPath(context)) || isSpec(context))
+          return {};
+        return {
+          TSInterfaceDeclaration(node) {
+            context.report({
+              node,
+              message:
+                'runtime/ implements the lanes; a contract the server depends on is a port in apps/server/src/ports/, because separating runtime implementations from port contracts gives agents one ownership pattern to copy.',
+            });
+          },
+        };
+      },
+    },
+    'no-port-shaped-alias': {
+      create(context) {
+        const path = repositoryPath(context);
+        if (
+          !portShapedScope.test(path) ||
+          anyPortFile.test(path) ||
+          infrastructureInterfaceFile.test(path) ||
+          isSpec(context)
+        )
+          return {};
+        return {
+          TSMethodSignature(node) {
+            if (node.parent?.type !== 'TSTypeLiteral') return;
+            context.report({
+              node,
+              message:
+                'An object type with a method is a port in all but name: declare it in ports/ (interfaces/ in git, agents and process), where the port rules see it, because method-bearing contracts must follow the same port conventions instead of a second shape for agents to copy.',
+            });
+          },
+        };
+      },
+    },
+    'models-file-shape': {
+      create(context) {
+        if (!modelFile.test(repositoryPath(context)) || isSpec(context))
+          return {};
+        const aliases = new Map();
+        const resolved = (node) =>
+          node.type === 'TSTypeReference' &&
+          node.typeName.type === 'Identifier' &&
+          aliases.has(node.typeName.name)
+            ? aliases.get(node.typeName.name)
+            : node;
+        return {
+          Program(program) {
+            for (const statement of program.body) {
+              const declaration =
+                statement.type === 'ExportNamedDeclaration'
+                  ? statement.declaration
+                  : statement;
+              if (declaration?.type === 'TSTypeAliasDeclaration')
+                aliases.set(declaration.id.name, declaration.typeAnnotation);
+            }
+          },
+          TSInterfaceDeclaration(node) {
+            context.report({
+              node,
+              message:
+                'Write a model as a type alias, never an interface, because one model declaration convention keeps agents from copying competing contract shapes.',
+            });
+          },
+          TSPropertySignature(node) {
+            if (!node.optional) return;
+            const annotation = node.typeAnnotation?.typeAnnotation;
+            if (
+              annotation?.type !== 'TSUnionType' ||
+              !annotation.types.some(
+                (member) => member.type === 'TSUndefinedKeyword',
+              )
+            )
+              context.report({
+                node,
+                message:
+                  'Write an optional property as ?: T | undefined, because one model declaration convention keeps agents from copying competing contract shapes.',
+              });
+          },
+          TSTypeAliasDeclaration(node) {
+            if (!/Result$/.test(node.id.name)) return;
+            const annotation = node.typeAnnotation;
+            const members =
+              annotation.type === 'TSUnionType'
+                ? annotation.types
+                : [annotation];
+            if (members.every((member) => primitiveTypes.has(member.type)))
+              context.report({
+                node,
+                message: `${node.id.name} is an object or a domain type; a service with nothing to return returns void and names no Result, because one model declaration convention keeps agents from copying competing contract shapes.`,
+              });
+          },
+          TSUnionType(node) {
+            const members = node.types.map(resolved);
+            if (
+              members.length < 2 ||
+              !members.every((member) => member.type === 'TSTypeLiteral')
+            )
+              return;
+            const [first, ...rest] = members.map(discriminants);
+            const shared = [...first].filter((key) =>
+              rest.every((keys) => keys.has(key)),
+            );
+            if (shared.length > 0 && !shared.includes('kind'))
+              context.report({
+                node,
+                message: `Discriminate the union on kind, not ${shared.join(' or ')}, because one model declaration convention keeps agents from copying competing contract shapes.`,
               });
           },
         };

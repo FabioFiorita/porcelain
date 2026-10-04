@@ -75,7 +75,6 @@
     "porcelain/port-shape": "error",
     "porcelain/no-exported-constants": "error",
     "porcelain/no-number-outside-limits": "error",
-    "porcelain/implementation-port": "error",
     "porcelain/bootstrap-starts-nothing": "error",
     "porcelain/fakes-store": "error",
     "porcelain/scope-shape": "error",
@@ -144,7 +143,14 @@
     "typescript/no-unsafe-type-assertion": "error",
     "typescript/consistent-type-imports": "error",
     "porcelain/no-comments": "error",
-    "porcelain/spec-behaviour-names": "error"
+    "porcelain/spec-behaviour-names": "error",
+    "porcelain/naming": "error",
+    "porcelain/no-inline-execute-types": "error",
+    "porcelain/interfaces-only-in-ports": "error",
+    "porcelain/no-interface-in-runtime": "error",
+    "porcelain/no-port-shaped-alias": "error",
+    "porcelain/models-file-shape": "error",
+    "porcelain/implementation-name": "error"
   },
   "overrides": [
     {

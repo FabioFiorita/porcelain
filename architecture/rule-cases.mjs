@@ -200,6 +200,294 @@ export default [
       "throw new Error('The comment context changed. Reopen Porcelain to continue safely.');",
     errors: 1,
   },
+  {
+    rule: 'implementation-name',
+    path: 'apps/server/src/adapters/runtime/system-clock.ts',
+    valid: `export class SystemClock implements Clock {
+}`,
+    invalid: `export class SystemClockAdapter implements Clock {
+}`,
+    errors: 1,
+  },
+  {
+    rule: 'implementation-name',
+    path: 'packages/storage/src/repositories/reviews/sqlite-comment-seen-store.ts',
+    valid: `import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
+import type { CommentSeenStore } from '@porcelain/reviews/ports';
+
+export class SqliteCommentSeenStore implements CommentSeenStore {
+  private readonly db: BetterSQLite3Database;
+
+  constructor(db: BetterSQLite3Database) {
+    this.db = db;
+  }
+}
+`,
+    invalid: `import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
+import type { CommentSeenStore, CommentStore } from '@porcelain/reviews/ports';
+
+export class SqliteCommentSeenStore implements CommentSeenStore, CommentStore {
+  private readonly db: BetterSQLite3Database;
+
+  constructor(db: BetterSQLite3Database) {
+    this.db = db;
+  }
+}
+`,
+    errors: 1,
+  },
+  {
+    rule: 'interfaces-only-in-ports',
+    path: 'packages/files/src/models/list-directory.ts',
+    valid: `export type ListDirectoryInput = { worktreeId: string; path: string };`,
+    invalid: `export interface ListDirectoryInput {
+  worktreeId: string;
+  path: string;
+}`,
+    errors: 1,
+  },
+  {
+    rule: 'interfaces-only-in-ports',
+    path: 'packages/files/src/services/list-directory-service.ts',
+    valid: `import type { ListDirectoryOptions } from '../models/list-directory.ts';
+
+export class ListDirectoryService {
+  private readonly options: ListDirectoryOptions;
+
+  constructor(options: ListDirectoryOptions) {
+    this.options = options;
+  }
+}
+`,
+    invalid: `export interface ListDirectoryOptions {
+  maxEntries: number;
+  maxResponseBytes: number;
+}
+
+export class ListDirectoryService {
+  private readonly options: ListDirectoryOptions;
+
+  constructor(options: ListDirectoryOptions) {
+    this.options = options;
+  }
+}
+`,
+    errors: 1,
+  },
+  {
+    rule: 'interfaces-only-in-ports',
+    path: 'apps/server/src/runtime/lane-observer.ts',
+    valid: `import type { LaneObserver } from '../ports/lane-observer.ts'; export type LaneObserverOptions = { observer: LaneObserver };`,
+    invalid: `export interface LaneObserver {
+  queued(lane: string): void;
+  settled(lane: string, failed: boolean): void;
+}
+`,
+    errors: 1,
+  },
+  {
+    rule: 'interfaces-only-in-ports',
+    path: 'packages/files/src/services/list-directory-service.ts',
+    valid: `declare global { type ListingBudget = { entries: number }; } export {};`,
+    invalid: `
+declare global {
+  interface ListingBudget {
+    entries: number;
+  }
+}
+`,
+    errors: 1,
+  },
+  {
+    rule: 'models-file-shape',
+    path: 'packages/files/src/models/list-directory.ts',
+    valid: `
+export type ListDirectoryOutcome =
+  | { kind: 'listed'; entries: DirectoryEntry[] }
+  | { kind: 'too-large' };
+`,
+    invalid: `
+export type ListDirectoryOutcome =
+  | { outcome: 'listed'; entries: DirectoryEntry[] }
+  | { outcome: 'too-large' };
+`,
+    errors: 1,
+  },
+  {
+    rule: 'models-file-shape',
+    path: 'packages/files/src/models/list-directory.ts',
+    valid: `export type ListDirectoryInput = {
+  path: string;
+  cursor?: string | undefined;
+};`,
+    invalid: `export type ListDirectoryInput = {
+  path: string;
+  cursor?: string;
+};`,
+    errors: 1,
+  },
+  {
+    rule: 'models-file-shape',
+    path: 'packages/reviews/src/models/record-review-activity.ts',
+    valid: `export type RecordReviewActivityResult = { recorded: boolean };`,
+    invalid: `export type RecordReviewActivityResult = void;`,
+    errors: 1,
+  },
+  {
+    rule: 'naming',
+    path: 'packages/access/src/rules/credential.ts',
+    valid: `const ID_PATTERN =
+  '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';`,
+    invalid: `const idPattern =
+  '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';`,
+    errors: 1,
+  },
+  {
+    rule: 'naming',
+    path: 'packages/reviews/spec/fakes/in-memory-comment-seen-store.ts',
+    valid: `export class InMemoryCommentSeenStore implements CommentSeenStore {
+}`,
+    invalid: `export class MemoryCommentSeenStore implements CommentSeenStore {
+}`,
+    errors: 1,
+  },
+  {
+    rule: 'naming',
+    path: 'apps/server/src/use-cases/access/read-health.ts',
+    valid: `import type { ReadEnvironmentService } from '@porcelain/access/services';
+import type { ReadHealthResponse } from '@porcelain/contracts/access';
+import type { OperationContext } from '../../ports/operation-context.ts';
+import type { Lanes } from '../../runtime/lanes.ts';
+
+export class ReadHealthUseCase {
+  private readonly readEnvironment: ReadEnvironmentService;
+  private readonly lanes: Lanes;
+
+  constructor(readEnvironment: ReadEnvironmentService, lanes: Lanes) {
+    this.readEnvironment = readEnvironment;
+    this.lanes = lanes;
+  }
+
+  execute(context: OperationContext): Promise<ReadHealthResponse> {
+    return this.lanes.run('access', 'read', async () => {
+      const { environmentId } = this.readEnvironment.execute();
+      return { status: 'ok', environmentId };
+    }, { callerSignal: context.signal });
+  }
+}
+`,
+    invalid: `import type { ReadEnvironmentService } from '@porcelain/access/services';
+import type { ReadHealthResponse } from '@porcelain/contracts/access';
+import type { OperationContext } from '../../ports/operation-context.ts';
+import type { Lanes } from '../../runtime/lanes.ts';
+
+export class ReadHealthUseCase {
+  private readonly readEnvironmentService: ReadEnvironmentService;
+  private readonly lanes: Lanes;
+
+  constructor(readEnvironment: ReadEnvironmentService, lanes: Lanes) {
+    this.readEnvironmentService = readEnvironment;
+    this.lanes = lanes;
+  }
+
+  execute(context: OperationContext): Promise<ReadHealthResponse> {
+    return this.lanes.run('access', 'read', async () => {
+      const { environmentId } = this.readEnvironmentService.execute();
+      return { status: 'ok', environmentId };
+    }, { callerSignal: context.signal });
+  }
+}
+`,
+    errors: 1,
+  },
+  {
+    rule: 'no-inline-execute-types',
+    path: 'packages/files/src/services/list-directory-service.ts',
+    valid: `export class ListDirectoryService {
+  async execute(
+    input: ListDirectoryInput,
+    signal?: AbortSignal,
+  ): Promise<ListDirectoryResult> {
+  }
+}`,
+    invalid: `export class ListDirectoryService {
+  async execute(
+    input: { worktreeId: string; path: string },
+    signal?: AbortSignal,
+  ): Promise<ListDirectoryResult> {
+  }
+}`,
+    errors: 1,
+  },
+  {
+    rule: 'no-interface-in-runtime',
+    path: 'apps/server/src/runtime/delay.ts',
+    valid: `import type { ProbeDelay } from '../ports/probe-delay.ts'; export type DelayOptions = { delay: ProbeDelay };`,
+    invalid: `
+export interface ProbeDelay {
+  readonly milliseconds: string;
+}
+`,
+    errors: 1,
+  },
+  {
+    rule: 'no-port-shaped-alias',
+    path: 'apps/server/src/runtime/probe-handle.ts',
+    valid: `import type { ProbeHandle } from '../ports/probe-handle.ts'; export type ProbeHandleResult = ProbeHandle;`,
+    invalid: `export type ProbeHandle = { close(): Promise<void> };
+`,
+    errors: 1,
+  },
+  {
+    rule: 'no-port-shaped-alias',
+    path: 'packages/git/src/shared/dtos/probe-handle.ts',
+    valid: `import type { ProbeHandle } from '../interfaces/probe-handle.ts'; export type ProbeHandleResult = ProbeHandle;`,
+    invalid: `export type ProbeHandle = { close(): Promise<void> };
+`,
+    errors: 1,
+  },
+  {
+    rule: 'naming',
+    path: 'apps/server/src/adapters/runtime/probe-reader.ts',
+    valid: `export class ProbeReader {}`,
+    invalid: `export class probeReader {}`,
+    errors: 1,
+  },
+  {
+    rule: 'models-file-shape',
+    path: 'packages/files/src/models/list-directory.ts',
+    valid: `export type ListDirectoryInput = { path: string };`,
+    invalid: `export interface ListDirectoryInput { path: string }`,
+    errors: 1,
+  },
+  {
+    rule: 'no-inline-execute-types',
+    path: 'packages/files/src/services/list-directory-service.ts',
+    valid: `export class ListDirectoryService { execute(input: ListDirectoryInput): Promise<ListDirectoryResult> {} }`,
+    invalid: `export class ListDirectoryService { execute(input: ListDirectoryInput): Promise<{ entries: DirectoryEntry[] }> {} }`,
+    errors: 1,
+  },
+  {
+    rule: 'operation-class-shape',
+    path: 'apps/server/src/use-cases/access/read-health.ts',
+    valid: `export class ReadHealthUseCase { execute(context: OperationContext): Promise<ReadHealthResponse> {} }`,
+    invalid: `export class ReadHealthController { execute(context: OperationContext): Promise<ReadHealthResponse> {} }`,
+    errors: 2,
+  },
+  {
+    rule: 'port-shape',
+    path: 'apps/server/src/ports/notice-port.ts',
+    valid: `export interface NoticeWriter { send(input: NoticeInput): void; }`,
+    invalid: `export interface NoticePort { send(input: NoticeInput): void; }`,
+    errors: 1,
+  },
+  {
+    rule: 'interfaces-hold-interfaces',
+    path: 'packages/git/src/inspection/interfaces/status-reader.ts',
+    valid: `export interface StatusReader { read(input: WorktreeKey): Promise<WorktreeStatus>; }`,
+    invalid: `export type StatusReader = { read(input: WorktreeKey): Promise<WorktreeStatus> };`,
+    errors: 1,
+  },
 
   {
     rule: 'spec-behaviour-names',
@@ -1545,33 +1833,6 @@ export const probeRule = isRelativePath;
   },
 
   {
-    rule: 'implementation-port',
-    path: 'packages/storage/src/repositories/reviews/sqlite-comment-seen-store.ts',
-    valid: `import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
-import type { CommentSeenStore } from '@porcelain/reviews/ports';
-
-export class SqliteCommentSeenStore implements CommentSeenStore {
-  private readonly db: BetterSQLite3Database;
-
-  constructor(db: BetterSQLite3Database) {
-    this.db = db;
-  }
-}
-`,
-    invalid: `import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
-import type { CommentSeenStore, CommentStore } from '@porcelain/reviews/ports';
-
-export class SqliteCommentSeenStore implements CommentSeenStore, CommentStore {
-  private readonly db: BetterSQLite3Database;
-
-  constructor(db: BetterSQLite3Database) {
-    this.db = db;
-  }
-}
-`,
-    errors: 1,
-  },
-  {
     rule: 'imports-by-path',
     path: 'packages/kernel/src/rules/index.ts',
     valid: "export {utf8ByteLength} from './utf8-byte-length.ts';",
@@ -1596,8 +1857,7 @@ export { utf8ByteLength };`,
   {
     rule: 'interfaces-hold-interfaces',
     path: 'packages/git/src/inspection/interfaces/status-reader.ts',
-    valid:
-      'export type StatusSummary = { changed: number }; export interface StatusReader { read(): StatusSummary; }',
+    valid: `export interface StatusReader { read(input: WorktreeKey): Promise<WorktreeStatus>; }`,
     invalid: 'export function readStatus(): number { return 0; }',
     errors: 1,
   },
@@ -2450,10 +2710,8 @@ export class ReadHealthUseCase extends Operation<ReadHealthResponse> {
   {
     rule: 'operation-class-shape',
     path: 'apps/server/src/use-cases/access/read-health.ts',
-    valid:
-      "export class HealthReader { execute(context: OperationContext): ReadHealthResponse { return {status: 'ok', environmentId: context.environmentId}; } }",
-    invalid:
-      'export class HealthReader { read(context: OperationContext): ReadHealthResponse { return {status: "ok", environmentId: context.environmentId}; } }',
+    valid: `export class ReadHealthUseCase { execute(context: OperationContext): ReadHealthResponse { return {status: 'ok', environmentId: context.environmentId}; } }`,
+    invalid: `export class ReadHealthUseCase { read(context: OperationContext): ReadHealthResponse { return {status: "ok", environmentId: context.environmentId}; } }`,
     errors: 2,
   },
   {
@@ -2538,7 +2796,7 @@ export interface ContextualEditWriter {
   send(worktreeId: string, kind: string, revision: number): void;
 }
 `,
-    errors: 2,
+    errors: 3,
   },
   {
     rule: 'port-shape',
@@ -2549,7 +2807,7 @@ export interface ContextualEditWriter {
   read(input: { token: string }): string | undefined;
 }
 `,
-    errors: 1,
+    errors: 2,
   },
   {
     rule: 'port-shape',
