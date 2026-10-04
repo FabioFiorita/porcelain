@@ -34,6 +34,7 @@ export async function startLocalServer(
   ])
     .then(async (streams) => {
       await log.flush();
+      process.stderr.write('Porcelain: server output persisted\n');
       child.postMessage({ kind: 'exit' });
       const failed = streams.find((stream) => stream.status === 'rejected');
       if (failed?.status === 'rejected') throw failed.reason;
@@ -97,7 +98,10 @@ export async function startLocalServer(
         child.postMessage({ kind: 'stop' });
       }
       const timeout = AbortSignal.timeout(settings.limits.desktop.shutdownMs);
-      const expired = () => child.kill();
+      const expired = () => {
+        process.stderr.write('Porcelain: server shutdown deadline reached\n');
+        child.kill();
+      };
       timeout.addEventListener('abort', expired, { once: true });
       await exited;
       timeout.removeEventListener('abort', expired);

@@ -5,6 +5,7 @@ import {
   startServer,
 } from '@porcelain/server/desktop';
 import { hostMessage } from './protocol.ts';
+import { finishServerOutput } from './adapters/server-output.ts';
 
 const parent = process.parentPort;
 if (parent === null)
@@ -34,10 +35,13 @@ try {
   let closing: Promise<void> | undefined;
   const close = () => {
     signal.abort();
-    closing ??= server.close().finally(() => {
-      process.stdout.end();
-      process.stderr.end('Porcelain server: closed\n');
-    });
+    closing ??= (async () => {
+      try {
+        await server.close();
+      } finally {
+        await finishServerOutput();
+      }
+    })();
     return closing;
   };
   const handle = async (message: unknown) => {

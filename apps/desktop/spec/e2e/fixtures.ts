@@ -286,6 +286,14 @@ export class DesktopApp {
   quit(): Promise<void> {
     const child = this.child;
     const checkExit = () => {
+      if (
+        this.output
+          .join('')
+          .includes('Porcelain: server shutdown deadline reached')
+      )
+        throw new Error(
+          `The app forcibly stopped its server instead of completing shutdown\n${this.output.join('')}`,
+        );
       if (child.exitCode !== 0)
         throw new Error(
           `The app exited abnormally (process ${child.pid}, exit ${child.exitCode}, signal ${child.signalCode})\n${this.output.join('')}`,

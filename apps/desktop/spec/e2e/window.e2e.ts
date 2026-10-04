@@ -342,6 +342,7 @@ test('Quit drains server output and persists its log before letting the server e
     await quitting;
   }
   expect(await readFile(log, 'utf8')).toContain('Porcelain server: closed\n');
+  expect(app.output.join('')).toContain('Porcelain: server output persisted');
   expect(app.output.join('')).toContain('Porcelain server: exited 0');
   expect(processAlive(pid)).toBe(false);
   expect(app.errors).toEqual([]);
