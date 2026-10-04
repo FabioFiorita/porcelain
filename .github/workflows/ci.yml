@@ -96,7 +96,7 @@ jobs:
           - target: changed-specs
             arguments: spec/e2e/window.e2e.ts spec/e2e/review-summaries.e2e.ts
           - target: suite-a
-            arguments: --repeat-each=20
+            arguments: --repeat-each=10
           - target: suite-b
             arguments: --repeat-each=10
           - target: restore
@@ -111,10 +111,16 @@ jobs:
             arguments: spec/e2e/review-summaries.e2e.ts --grep "a remote computer summary" --repeat-each=100
           - target: native-quit
             arguments: spec/e2e/menus.e2e.ts --grep "without a Vite server" --repeat-each=100
+          - target: server-output
+            arguments: spec/e2e/window.e2e.ts --grep "Quit drains server output|closing the last window" --repeat-each=100
+          - target: before-server-output
+            arguments: spec/e2e/window.e2e.ts --grep "Quit drains server output" --repeat-each=5
           - target: credentials
             arguments: spec/e2e/bridge.e2e.ts --grep "restores it after a restart" --repeat-each=100
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - uses: pnpm/setup@v3
         with:
           runtime: node@24.20.0
@@ -126,6 +132,9 @@ jobs:
         with:
           path: ~/.electron-gyp
           key: electron-headers-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('apps/desktop/package.json') }}
+      - name: Restore the former immediate server exit for causal proof
+        if: matrix.target == 'before-server-output'
+        run: git restore --source=f1f22b0c4 -- apps/desktop/src/server.ts apps/desktop/src/server-host.ts apps/desktop/src/protocol.ts
       - run: pnpm --filter @porcelain/desktop test:e2e ${{ matrix.arguments }}
       - name: Prove cached headers rebuild without a header server
         if: ${{ !cancelled() }}

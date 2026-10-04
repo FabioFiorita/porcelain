@@ -14,4 +14,5 @@ export const hostMessage = z.discriminatedUnion('kind', [
     session: z.object({ deviceId: z.string(), secretHash: z.string() }),
   }),
   z.object({ kind: z.literal('stop') }),
+  z.object({ kind: z.literal('exit') }),
 ]);

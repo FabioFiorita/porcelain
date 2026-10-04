@@ -1,4 +1,5 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import { finished } from 'node:stream/promises';
 import { utilityProcess } from 'electron';
 import type { desktopSettings } from './settings.ts';
 import { serverMessage } from './protocol.ts';
@@ -27,6 +28,21 @@ export async function startLocalServer(
     process.stderr.write(chunk);
     log.append(chunk);
   });
+  void Promise.allSettled([
+    child.stdout === null ? undefined : finished(child.stdout),
+    child.stderr === null ? undefined : finished(child.stderr),
+  ])
+    .then(async (streams) => {
+      await log.flush();
+      child.postMessage({ kind: 'exit' });
+      const failed = streams.find((stream) => stream.status === 'rejected');
+      if (failed?.status === 'rejected') throw failed.reason;
+    })
+    .catch((error: unknown) => {
+      process.stderr.write(
+        `Porcelain: server output not drained: ${error instanceof Error ? error.message : 'unknown failure'}\n`,
+      );
+    });
   const exited = new Promise<number>((resolveExit) =>
     child.once('exit', (code) => {
       process.stderr.write(`Porcelain server: exited ${code}\n`);
@@ -76,8 +92,7 @@ export async function startLocalServer(
     exited,
     credential,
     close: async () => {
-      if (child.pid === undefined) return;
-      if (!stopping) {
+      if (child.pid !== undefined && !stopping) {
         stopping = true;
         child.postMessage({ kind: 'stop' });
       }

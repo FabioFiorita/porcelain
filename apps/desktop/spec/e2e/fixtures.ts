@@ -234,6 +234,55 @@ export class DesktopApp {
     }, selection);
   }
 
+  async holdWrite(file: string, method: 'rename' | 'appendFile') {
+    const marker = `Porcelain e2e: held ${method} ${file}`;
+    await this.electron.evaluate(
+      async (_, { file, method, marker }) => {
+        const fs = process.getBuiltinModule('fs');
+        const { syncBuiltinESMExports } = process.getBuiltinModule('module');
+        const released = new Promise<void>((resolveRelease) => {
+          Reflect.set(fs.promises, 'porcelainReleaseWrite', resolveRelease);
+        });
+        const hold = async (target: unknown) => {
+          if (target !== file) return;
+          process.stderr.write(`${marker}\n`);
+          await released;
+        };
+        if (method === 'rename') {
+          const rename = fs.promises.rename.bind(fs.promises);
+          fs.promises.rename = async (...args: Parameters<typeof rename>) => {
+            await hold(args[1]);
+            return rename(...args);
+          };
+        } else {
+          const append = fs.promises.appendFile.bind(fs.promises);
+          fs.promises.appendFile = async (
+            ...args: Parameters<typeof append>
+          ) => {
+            await hold(args[0]);
+            return append(...args);
+          };
+        }
+        syncBuiltinESMExports();
+      },
+      { file, method, marker },
+    );
+    return {
+      marker,
+      release: () =>
+        this.electron.evaluate(() => {
+          const fs = process.getBuiltinModule('fs');
+          const release: unknown = Reflect.get(
+            fs.promises,
+            'porcelainReleaseWrite',
+          );
+          if (typeof release !== 'function')
+            throw new Error('The write is not held');
+          Reflect.apply(release, fs.promises, []);
+        }),
+    };
+  }
+
   quit(): Promise<void> {
     const child = this.child;
     const checkExit = () => {

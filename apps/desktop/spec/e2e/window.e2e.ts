@@ -174,7 +174,7 @@ test('Quit persists the latest maximized window before closing it, even while it
   await expect(
     page.getByRole('button', { name: 'Open project', exact: true }),
   ).toBeVisible();
-  const marker = 'Porcelain e2e: window save awaiting rename';
+  const held = await app.holdWrite(join(app.profile, 'window.json'), 'rename');
   const unloadMarker = 'Porcelain e2e: page tried to prevent Quit';
   const dialogs: string[] = [];
   page.on('dialog', (dialog) => dialogs.push(dialog.type()));
@@ -183,21 +183,7 @@ test('Quit persists the latest maximized window before closing it, even while it
   );
   const { pid } = await app.server();
   const bounds = await app.electron.evaluate(
-    async ({ BrowserWindow }, { profile, marker, unloadMarker }) => {
-      const fs = process.getBuiltinModule('fs');
-      const { syncBuiltinESMExports } = process.getBuiltinModule('module');
-      const rename = fs.promises.rename.bind(fs.promises);
-      const released = new Promise<void>((resolveRelease) => {
-        Reflect.set(fs.promises, 'porcelainReleaseWindowSave', resolveRelease);
-      });
-      fs.promises.rename = async (...args: Parameters<typeof rename>) => {
-        if (args[1] === `${profile}/window.json`) {
-          process.stderr.write(`${marker}\n`);
-          await released;
-        }
-        return rename(...args);
-      };
-      syncBuiltinESMExports();
+    async ({ BrowserWindow }, unloadMarker) => {
       const view = BrowserWindow.getAllWindows()[0];
       if (view === undefined) throw new Error('The app window is missing');
       view.webContents.once('will-prevent-unload', () => {
@@ -206,28 +192,19 @@ test('Quit persists the latest maximized window before closing it, even while it
       view.setBounds({ x: 40, y: 50, width: 980, height: 680 });
       return view.getNormalBounds();
     },
-    { profile: app.profile, marker, unloadMarker },
+    unloadMarker,
   );
   await maximize(app);
   const quitting = app.quit();
   try {
-    await expect.poll(() => app.output.join('')).toContain(marker);
+    await expect.poll(() => app.output.join('')).toContain(held.marker);
     expect(
       await app.electron.evaluate(
         ({ BrowserWindow }) => BrowserWindow.getAllWindows().length,
       ),
     ).toBe(1);
   } finally {
-    await app.electron.evaluate(async () => {
-      const fs = process.getBuiltinModule('fs');
-      const release: unknown = Reflect.get(
-        fs.promises,
-        'porcelainReleaseWindowSave',
-      );
-      if (typeof release !== 'function')
-        throw new Error('The window save is not held');
-      Reflect.apply(release, fs.promises, []);
-    });
+    await held.release();
     await quitting;
   }
   expect(dialogs).toEqual(['beforeunload']);
@@ -341,9 +318,32 @@ test('closing the last window keeps the same server, the Dock reopens the window
   expect(existsSync(join(app.serverData, 'server.sock'))).toBe(false);
   expect(processAlive(pid)).toBe(false);
   expect(
-    (await readFile(join(desktop.profile, 'logs', 'server.log'), 'utf8'))
-      .length,
-  ).toBeGreaterThan(0);
+    await readFile(join(desktop.profile, 'logs', 'server.log'), 'utf8'),
+  ).toContain('Porcelain server: closed\n');
+  expect(app.errors).toEqual([]);
+});
+
+test('Quit drains server output and persists its log before letting the server exit', async ({
+  desktop,
+}) => {
+  const app = await desktop.launch();
+  await app.window();
+  const { pid } = await app.server();
+  const log = join(app.profile, 'logs', 'server.log');
+  const held = await app.holdWrite(log, 'appendFile');
+  const quitting = app.quit();
+  try {
+    await expect.poll(() => app.output.join('')).toContain(held.marker);
+    expect(existsSync(join(app.serverData, 'server.sock'))).toBe(false);
+    expect(processAlive(pid)).toBe(true);
+    expect(app.output.join('')).not.toContain('Porcelain server: exited');
+  } finally {
+    await held.release();
+    await quitting;
+  }
+  expect(await readFile(log, 'utf8')).toContain('Porcelain server: closed\n');
+  expect(app.output.join('')).toContain('Porcelain server: exited 0');
+  expect(processAlive(pid)).toBe(false);
   expect(app.errors).toEqual([]);
 });
 

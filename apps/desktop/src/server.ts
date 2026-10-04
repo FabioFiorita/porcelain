@@ -35,8 +35,8 @@ try {
   const close = () => {
     signal.abort();
     closing ??= server.close().finally(() => {
-      process.stderr.write('Porcelain server: closed\n');
-      process.exit();
+      process.stdout.end();
+      process.stderr.end('Porcelain server: closed\n');
     });
     return closing;
   };
@@ -45,6 +45,10 @@ try {
     if (parsed.kind === 'stop') {
       await close();
       return;
+    }
+    if (parsed.kind === 'exit' && closing !== undefined) {
+      await closing;
+      process.exit();
     }
     throw new Error('The desktop server is already started');
   };
