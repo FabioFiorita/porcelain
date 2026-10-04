@@ -64,6 +64,7 @@ Setup, after section 1 (or after `git -C "$REPO" commit -am "Followed commit"` o
 
 - With the live connection down, "Committing…" and "Working…" stay disabled although Git already finished; after `live restore` the receipt read brings "succeeded" for the commit (and the server's receipt says so) and the alert "…would be overwritten…" for the pop, with README.md untouched.
 - `apps/web/spec/integration/git-actions-follow-receipt.test.tsx`: with the live connection dropped, the commit lands on the server while the dialog keeps button "Committing…" disabled, and "succeeded" appears only after the connection is restored; the refused pop keeps button "Working…" disabled until reconnect, then shows the alert "would be overwritten" and the file keeps its local text.
+- Both cases keep the outage until a real reconnect attempt has been refused, then restore and wait for the receipt's visible outcome. A raw socket-open poll with a one-second deadline races the app's exponential reconnect backoff (500 ms, one second, two seconds, up to ten seconds). The fixture closes connecting sockets while offline, which can also produce a Vite WebSocket proxy `EPIPE`; that log does not establish a receipt-read failure. Test, action and assertion deadlines stay unchanged.
 
 ## Gotchas
 

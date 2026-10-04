@@ -75,3 +75,45 @@ jobs:
         with:
           name: desktop-e2e
           path: apps/desktop/test-results/
+
+  web-reconnect-stress:
+    if: github.head_ref == 'web-reconnect-deflake'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: before
+            repeats: 4
+          - target: after
+            repeats: 99
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/setup@v3
+        with:
+          runtime: node@24.20.0
+          cache: true
+          require-lockfile: true
+      - run: pnpm install --frozen-lockfile
+      - run: sudo apt-get update && sudo apt-get install --yes bubblewrap
+      - run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+      - run: pnpm exec playwright install --with-deps --only-shell chromium
+      - name: Restore the former connection poll for causal proof
+        if: matrix.target == 'before'
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('apps/web/spec/integration/git-actions-follow-receipt.test.tsx')
+          text = path.read_text()
+          boundary = '  await live.reconnecting();\n  live.restore();\n'
+          assert text.count(boundary) == 2
+          path.write_text(text.replace(boundary, boundary + '  await expect.poll(() => live.connected()).toBe(true);\n', 1))
+          PY
+      - name: Repeat both receipt recovery cases without retries
+        run: pnpm --filter @porcelain/web exec vitest run --config vitest.config.ts spec/integration/git-actions-follow-receipt.test.tsx --repeats=${{ matrix.repeats }} --reporter=default --reporter=json --outputFile=test-results/reconnect-${{ matrix.target }}.json
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: web-reconnect-${{ matrix.target }}
+          path: apps/web/test-results/
