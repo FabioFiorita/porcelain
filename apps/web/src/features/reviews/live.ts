@@ -1,7 +1,7 @@
 import type { LiveNotice } from '@porcelain/contracts/access';
 import type { RunGitActionResponse } from '@porcelain/contracts/git-actions';
 import type { QueryClient } from '@tanstack/react-query';
-import { reviewSurfaceFilters } from '@/shared/query/keys';
+import { reviewSurfaceFilters } from '@porcelain/client/transport';
 import { noticeSurfaces, receiptSurfaces } from './rules/live-surfaces';
 
 async function onNotice(

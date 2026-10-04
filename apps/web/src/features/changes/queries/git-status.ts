@@ -1,11 +1,9 @@
+import { assertCurrentAnswer } from '@porcelain/client/transport';
 import { queryOptions, useQuery } from '@tanstack/react-query';
-import { queryKeys } from '@/shared/query/keys';
+import { queryKeys } from '@porcelain/client/transport';
 import { changesApi } from '../api';
 import { type ChangesScope } from '../rules/changes';
-import {
-  type Connection,
-  requireConnection,
-} from '@/shared/workspace/connection';
+import { type Connection } from '@/shared/workspace/connection';
 
 export function gitStatusQueryOptions(
   scope: ChangesScope,
@@ -21,7 +19,7 @@ export function gitStatusQueryOptions(
         signal: request.signal,
         worktreeId: scope.worktreeId,
       });
-      request.signal.throwIfAborted();
+      assertCurrentAnswer(request.signal);
       return data;
     },
   });
@@ -29,11 +27,11 @@ export function gitStatusQueryOptions(
 
 export function useGitStatus(
   scope: ChangesScope,
-  connection: Connection | null,
+  connection: Connection,
   enabled = true,
 ) {
   const query = useQuery({
-    ...gitStatusQueryOptions(scope, requireConnection(connection)),
+    ...gitStatusQueryOptions(scope, connection),
     enabled,
     throwOnError: false,
   });

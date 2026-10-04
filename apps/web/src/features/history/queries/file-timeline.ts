@@ -1,24 +1,20 @@
+import { queryKeys, assertCurrentAnswer } from '@porcelain/client/transport';
 import { queryOptions, useSuspenseQuery } from '@tanstack/react-query';
 import { historyApi } from '../api';
 import type { HistoryScope } from '../rules/connection';
 import { type Connection } from '@/shared/workspace/connection';
 
 function fileTimelineQueryOptions(
-  environmentId: string,
   scope: HistoryScope,
   path: string,
   connection: Connection,
 ) {
   return queryOptions({
-    queryKey: [
-      'review',
-      environmentId,
-      scope.projectId,
-      scope.worktreeId,
+    queryKey: queryKeys.worktreeSurface(connection, scope, [
       'history',
       'file',
       path,
-    ],
+    ]),
     queryFn: async ({ signal }) => {
       const connected = connection.request(signal);
       const timeline = await historyApi(connection).fileCommits({
@@ -26,7 +22,7 @@ function fileTimelineQueryOptions(
         worktreeId: scope.worktreeId,
         path,
       });
-      connected.signal.throwIfAborted();
+      assertCurrentAnswer(connected.signal);
       return timeline;
     },
     refetchOnWindowFocus: false,
@@ -35,12 +31,10 @@ function fileTimelineQueryOptions(
 }
 
 export function useFileTimeline(
-  connection: Connection | null,
+  connection: Connection,
   scope: HistoryScope,
   path: string,
 ) {
-  if (!connection) throw new Error('A connected environment is required');
-  return useSuspenseQuery(
-    fileTimelineQueryOptions(connection.environmentId, scope, path, connection),
-  ).data;
+  return useSuspenseQuery(fileTimelineQueryOptions(scope, path, connection))
+    .data;
 }

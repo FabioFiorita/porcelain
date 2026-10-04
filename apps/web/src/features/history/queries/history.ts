@@ -4,8 +4,7 @@ import { discardRejection } from '@/shared/lib/submit-form';
 import type { HistoryScope } from '../rules/connection';
 import { type Connection } from '@/shared/workspace/connection';
 
-export function useHistory(connection: Connection | null, scope: HistoryScope) {
-  if (!connection) throw new Error('A connected environment is required');
+export function useHistory(connection: Connection, scope: HistoryScope) {
   const query = useSuspenseInfiniteQuery(
     historyQueryOptions(scope, connection),
   );

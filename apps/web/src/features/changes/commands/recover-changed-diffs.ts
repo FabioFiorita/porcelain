@@ -2,17 +2,14 @@ import { useQueryClient } from '@tanstack/react-query';
 import { changesQueryOptions } from '@porcelain/client/changes';
 import { type ChangesScope } from '../rules/changes';
 import { useChangesStore } from '../store';
-import {
-  type Connection,
-  requireConnection,
-} from '@/shared/workspace/connection';
+import { type Connection } from '@/shared/workspace/connection';
 
 export function useRecoverChangedDiffs(
   scope: ChangesScope,
-  possibleConnection: Connection | null,
+  possibleConnection: Connection,
 ) {
   const client = useQueryClient();
-  const connection = requireConnection(possibleConnection);
+  const connection = possibleConnection;
   const options = changesQueryOptions(scope, connection);
   const key = JSON.stringify([
     connection.environmentId,

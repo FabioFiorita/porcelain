@@ -4,12 +4,11 @@ import type { HistoryScope } from '../rules/connection';
 import { type Connection } from '@/shared/workspace/connection';
 
 export function useCommit(
-  connection: Connection | null,
+  connection: Connection,
   scope: HistoryScope,
   oid: string,
   parent = 1,
 ) {
-  if (!connection) throw new Error('A connected environment is required');
   return useSuspenseQuery(commitQueryOptions(scope, connection, oid, parent))
     .data;
 }

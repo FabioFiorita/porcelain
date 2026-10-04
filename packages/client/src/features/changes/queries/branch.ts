@@ -1,6 +1,7 @@
+import { assertCurrentAnswer } from '../../../shared/api/stale-answer.ts';
+import { queryKeys } from '../../../shared/api/query-keys.ts';
 import type { ReadBranchDiffsRequest } from '@porcelain/contracts/changes';
 import type { QueryFunctionContext } from '@tanstack/query-core';
-import { ConnectionError } from '../../../shared/api/connection-error.ts';
 import {
   type WorktreeConnection,
   type WorktreeScope,
@@ -13,15 +14,10 @@ export function branchQueryOptions(
   base?: string,
 ) {
   return {
-    queryKey: [
-      'review',
-      connection.environmentId,
-      scope.projectId,
-      scope.worktreeId,
+    queryKey: queryKeys.worktreeSurface(connection, scope, [
       'branch',
       base ?? null,
-      ...(connection.cacheIdentity ?? []),
-    ],
+    ]),
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
     queryFn: async ({ signal }: Pick<QueryFunctionContext, 'signal'>) => {
@@ -31,11 +27,10 @@ export function branchQueryOptions(
         worktreeId: scope.worktreeId,
         base,
       });
-      connected.signal.throwIfAborted();
-      if (result.worktreeId !== scope.worktreeId)
-        throw new ConnectionError(
-          'The review context changed. Reopen Porcelain to continue safely.',
-        );
+      assertCurrentAnswer(
+        connected.signal,
+        result.worktreeId === scope.worktreeId,
+      );
       return result;
     },
   };
@@ -47,15 +42,10 @@ export function branchDiffsQueryOptions(
   input: ReadBranchDiffsRequest,
 ) {
   return {
-    queryKey: [
-      'review',
-      connection.environmentId,
-      scope.projectId,
-      scope.worktreeId,
+    queryKey: queryKeys.worktreeSurface(connection, scope, [
       'branch-diffs',
       input,
-      ...(connection.cacheIdentity ?? []),
-    ],
+    ]),
     queryFn: async ({ signal }: Pick<QueryFunctionContext, 'signal'>) => {
       const connected = connection.request(signal);
       const result = await changesApi(connection).branchDiffs({
@@ -63,7 +53,7 @@ export function branchDiffsQueryOptions(
         worktreeId: scope.worktreeId,
         input,
       });
-      connected.signal.throwIfAborted();
+      assertCurrentAnswer(connected.signal);
 
       return result;
     },
