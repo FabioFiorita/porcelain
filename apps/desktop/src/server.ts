@@ -5,6 +5,7 @@ import {
   startServer,
 } from '@porcelain/server/desktop';
 import { hostMessage } from './protocol.ts';
+import { finishServerOutput } from './adapters/server-output.ts';
 
 const parent = process.parentPort;
 if (parent === null)
@@ -15,7 +16,7 @@ const message = await new Promise<unknown>((resolveStart) =>
 const startup = hostMessage.parse(message);
 if (startup.kind !== 'start')
   throw new Error('The desktop server requires private startup configuration');
-const { profile, projectHome, packageRoot, session } = startup;
+const { profile, projectHome, packageRoot, session, outputEnd } = startup;
 const signal = new AbortController();
 const settings = readServerSettings({
   dataDirectory: join(profile, 'server'),
@@ -34,10 +35,13 @@ try {
   let closing: Promise<void> | undefined;
   const close = () => {
     signal.abort();
-    closing ??= server.close().finally(() => {
-      process.stderr.write('Porcelain server: closed\n');
-      process.exit();
-    });
+    closing ??= (async () => {
+      try {
+        await server.close();
+      } finally {
+        await finishServerOutput(outputEnd);
+      }
+    })();
     return closing;
   };
   const handle = async (message: unknown) => {
@@ -45,6 +49,10 @@ try {
     if (parsed.kind === 'stop') {
       await close();
       return;
+    }
+    if (parsed.kind === 'exit' && closing !== undefined) {
+      await closing;
+      process.exit();
     }
     throw new Error('The desktop server is already started');
   };
