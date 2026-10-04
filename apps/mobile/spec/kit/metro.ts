@@ -3,6 +3,7 @@ import { openSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { join } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
+import { z } from 'zod';
 import { mobileRoot } from './development-client.ts';
 
 export type Metro = { url: string; port: number; pid: number; stop(): void };
@@ -40,7 +41,20 @@ function exited(child: ChildProcess): boolean {
 }
 
 async function warmBundle(url: string, child: ChildProcess): Promise<void> {
-  const bundle = `${url}/.expo/.virtual-metro-entry.bundle?platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=src%2Fapp`;
+  const manifest = await fetch(url, {
+    headers: {
+      'expo-platform': 'ios',
+      'expo-protocol-version': '1',
+      accept: 'application/expo+json',
+    },
+    signal: AbortSignal.timeout(readyLimitMs),
+  });
+  if (!manifest.ok)
+    throw new Error(`Metro did not answer the iOS manifest at ${url}`);
+  const { launchAsset } = z
+    .object({ launchAsset: z.object({ url: z.url() }) })
+    .parse(await manifest.json());
+  const bundle = launchAsset.url;
   const deadline = Date.now() + bundleLimitMs;
   while (Date.now() < deadline && !exited(child)) {
     const response = await fetch(bundle, {
