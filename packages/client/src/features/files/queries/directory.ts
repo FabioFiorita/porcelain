@@ -6,13 +6,18 @@ import {
   type WorktreeScope,
 } from '../../../shared/api/connection.ts';
 import { filesApi } from '../api.ts';
+import { listDirectoryEndpoint } from '@porcelain/contracts/files';
+import { recoverFileReadQueryOptions } from './recovery.ts';
 
 export function directoryQueryOptions(
   scope: WorktreeScope,
   connection: WorktreeConnection,
   path: string,
 ) {
-  return {
+  return recoverFileReadQueryOptions({
+    endpoint: listDirectoryEndpoint,
+    scope,
+    connection,
     queryKey: queryKeys.worktreeSurface(connection, scope, ['directory', path]),
     queryFn: async ({ signal }: Pick<QueryFunctionContext, 'signal'>) => {
       const connected = connection.request(signal);
@@ -27,5 +32,5 @@ export function directoryQueryOptions(
       );
       return result;
     },
-  };
+  });
 }

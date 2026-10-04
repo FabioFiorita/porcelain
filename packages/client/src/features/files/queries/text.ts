@@ -8,13 +8,36 @@ import {
 import { filesApi } from '../api.ts';
 import { readTextFileEndpoint } from '@porcelain/contracts/files';
 import { isEndpointError } from '../../../shared/api/request.ts';
+import { recoverFileReadQueryOptions } from './recovery.ts';
+import { directoryQueryOptions } from './directory.ts';
+import { pathsQueryOptions } from './paths.ts';
 
 export function textQueryOptions(
   scope: WorktreeScope,
   connection: WorktreeConnection,
   path: string,
 ) {
-  return {
+  return recoverFileReadQueryOptions({
+    endpoint: readTextFileEndpoint,
+    scope,
+    connection,
+    refresh: async (context) => {
+      const directory = directoryQueryOptions(
+        scope,
+        connection,
+        path.split('/').slice(0, -1).join('/'),
+      );
+      const paths = pathsQueryOptions(scope, connection);
+      await context.client.query({
+        ...directory,
+        staleTime: 0,
+      });
+      assertCurrentAnswer(context.signal);
+      await context.client.query({
+        ...paths,
+        staleTime: 0,
+      });
+    },
     queryKey: queryKeys.worktreeSurface(connection, scope, ['text', path]),
     queryFn: async ({ signal }: Pick<QueryFunctionContext, 'signal'>) => {
       const connected = connection.request(signal);
@@ -44,5 +67,5 @@ export function textQueryOptions(
         throw error;
       }
     },
-  };
+  });
 }

@@ -69,7 +69,7 @@ export function FilesWorkspace({
         </View>
         <Host matchContents={{ vertical: true }}>
           <Button
-            label="Reload files"
+            label={reload.isPending ? 'Reloading files…' : 'Reload files'}
             variant="text"
             disabled={reload.isPending}
             onPress={() => reload.read()}

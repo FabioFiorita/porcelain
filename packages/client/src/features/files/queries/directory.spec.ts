@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { QueryClient } from '@tanstack/query-core';
 
 import { directoryQueryOptions } from './directory.ts';
 
@@ -27,6 +28,7 @@ describe('a directory read stays with the selected worktree', () => {
     await expect(
       directoryQueryOptions(scope, connection(response), 'src').queryFn({
         signal: new AbortController().signal,
+        client: new QueryClient(),
       }),
     ).resolves.toEqual(response);
   });
@@ -40,7 +42,10 @@ describe('a directory read stays with the selected worktree', () => {
           worktreeId: '11111111111111111111111111111111',
         }),
         'src',
-      ).queryFn({ signal: new AbortController().signal }),
+      ).queryFn({
+        signal: new AbortController().signal,
+        client: new QueryClient(),
+      }),
     ).rejects.toThrow('The connected context changed.');
   });
 });

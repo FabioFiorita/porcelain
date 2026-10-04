@@ -24,7 +24,7 @@ export function FileView({
           </Host>
           <Host matchContents>
             <Button
-              label="Reload file"
+              label={query.isFetching ? 'Reloading file…' : 'Reload file'}
               variant="text"
               disabled={query.isFetching}
               onPress={() => {
@@ -41,9 +41,9 @@ export function FileView({
         </Text>
         <Text className="text-xs text-muted-foreground">Read only</Text>
       </View>
-      {query.isFetching || query.isPending || query.isError ? (
+      {query.isPending || query.isError ? (
         <ReadState
-          pending={query.isFetching || query.isPending}
+          pending={query.isPending}
           error={query.error}
           onRead={() => {
             void query.refetch();

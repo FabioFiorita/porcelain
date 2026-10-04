@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { QueryClient } from '@tanstack/query-core';
 
 import { textQueryOptions } from './text.ts';
 
@@ -107,6 +108,7 @@ describe('worktree reads stay with the selected connection', () => {
     await expect(
       textQueryOptions(scope, connected, 'README.md').queryFn({
         signal: new AbortController().signal,
+        client: new QueryClient(),
       }),
     ).rejects.toThrow('The connected context changed.');
   });
@@ -120,6 +122,7 @@ describe('worktree reads stay with the selected connection', () => {
     await expect(
       textQueryOptions(scope, connected, 'README.md').queryFn({
         signal: new AbortController().signal,
+        client: new QueryClient(),
       }),
     ).rejects.toMatchObject({ name: 'AbortError' });
   });
@@ -134,6 +137,7 @@ describe('worktree reads stay with the selected connection', () => {
     await expect(
       textQueryOptions(scope, connected, 'README.md').queryFn({
         signal: controller.signal,
+        client: new QueryClient(),
       }),
     ).rejects.toMatchObject({ name: 'AbortError' });
   });

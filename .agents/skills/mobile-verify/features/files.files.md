@@ -8,6 +8,8 @@ selectors:
   - 'Clear search'
   - 'Reload files'
   - 'Reload file'
+  - 'Reloading file…'
+  - 'Reloading files…'
   - 'Read only'
   - 'Back to files'
   - 'Read again'
@@ -22,6 +24,7 @@ tests:
   - apps/mobile/spec/e2e/files.e2e.ts
   - apps/mobile/spec/e2e/files.tablet.e2e.ts
 api:
+  - GET /api/inventory
   - GET /api/worktrees/:worktreeId/directory
   - GET /api/worktrees/:worktreeId/paths
   - GET /api/worktrees/:worktreeId/text
@@ -61,6 +64,8 @@ The instance's `000-start.txt` evidence names its disposable repository. Add a n
 
 With the text file open, edit it in the disposable repository, tap Reload file and check the new text. Delete it, reload, and check the server's Path not found error, Read again and Back to files, with no previous text displayed. Restore it and tap Read again. Remove a selected linked worktree and check that its next read fails or the picker marks it unavailable; choose a remaining worktree to recover. Switch environments while a file is open and check that the previous file disappears, then select a worktree in the new environment and browse its own files.
 
+During a reload, loaded code stays visible in the same scroll view while the disabled button says Reloading file…. Loaded directory/search lists also stay visible while Reloading files… is busy. A completed failure hides stale content and offers Read again.
+
 Repeat on iPhone and iPad. Finish with `evidence`, inspect the recorded files, and `stop` your instance.
 
 ## What proves it works
@@ -71,12 +76,14 @@ Repeat on iPhone and iPad. Finish with `evidence`, inspect the recorded files, a
 - `apps/mobile/spec/e2e/files.e2e.ts` and `files.tablet.e2e.ts`: nested browsing, empty states, literal Unicode and Markdown characters, binary and oversized text, search, file reload, deletion/recovery, and environment switching. Real server evidence confirms all three reads and no file-edit request; the fixture's source text stays at its externally restored value.
 - `packages/client/src/features/files/rules/navigation.spec.ts`: literal paths, case-insensitive matching and preserved errors.
 - `packages/client/spec/integration/files.integration.ts`: real paired server reads, unreadable limits, disk reload/deletion/recovery and a linked worktree removed underneath.
+- `packages/client/src/features/files/queries/recovery.spec.ts`: typed 409 worktree-change responses refresh inventory, stop for an unavailable selection, refresh the parent directory and paths before a text reread, and allow only one recovery. Other conflicts and cancellation do not start another read.
 
 ## Gotchas
 
 - Symlinks, submodules and other non-file entries are visible but cannot be opened as text.
 - Failed reloads hide cached text. Read again retries; Back to files remains available.
 - Reads use the projects-owned selected connection, including remote credentials, timeout and selection cancellation.
+- A worktree_changed read refreshes the selected inventory before one reread; text recovery also refreshes its affected directory and path list. Another failure is shown for an explicit retry, never an automatic loop.
 - On iPad in portrait the sidebar is hidden; `open /files` reaches the screen without it.
 - iPad has a known verifier block on main where Add environment is reported covered. Report it if encountered; this feature does not repair pairing.
 - Android has its own text renderer and still needs a separate native drive. Physical-device local-network permission is covered by the pairing map.
