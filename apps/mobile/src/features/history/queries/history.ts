@@ -2,7 +2,7 @@ import { useInfiniteQuery } from '@tanstack/react-query';
 import { historyQueryOptions } from '@porcelain/client/history';
 import type { WorktreeConnection } from '@porcelain/client/transport';
 
-export type HistoryWorkspace = {
+type HistoryWorkspace = {
   connection: WorktreeConnection;
   scope: { projectId: string; worktreeId: string };
 };

@@ -1,11 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { commitDiffsQueryOptions } from '@porcelain/client/changes';
 import { commitFilePaths, type CommitFile } from '@porcelain/client/history';
-import type { ReadCommitDiffsResponse } from '@porcelain/contracts/changes';
-import type { HistoryWorkspace } from './history';
+import type { useHistory } from './history';
 
-export type CommitDiffContent =
-  ReadCommitDiffsResponse['diffs'][number]['content'];
+type HistoryWorkspace = Parameters<typeof useHistory>[0];
 
 export function useCommitDiff(
   workspace: HistoryWorkspace,

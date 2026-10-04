@@ -1,33 +1,19 @@
 import { useState } from 'react';
 import { useSelectedWorktree } from '../../projects';
 import { WorktreeEmpty } from '../../../shared/worktree-empty';
-import type { HistoryWorkspace } from '../queries/history';
+import type { useHistory } from '../queries/history';
 import { HistoryList } from './history-list';
-import { CommitDetails, type CommitDiffRenderer } from './commit-details';
+import { CommitDetails } from './commit-details';
 
-export function HistoryScreen({
-  renderDiff,
-}: {
-  renderDiff?: CommitDiffRenderer | undefined;
-} = {}) {
+type HistoryWorkspace = Parameters<typeof useHistory>[0];
+
+export function HistoryScreen() {
   const workspace = useSelectedWorktree();
   if (!workspace) return <WorktreeEmpty title="History" />;
-  return (
-    <WorktreeHistory
-      key={workspace.key}
-      workspace={workspace}
-      renderDiff={renderDiff}
-    />
-  );
+  return <WorktreeHistory key={workspace.key} workspace={workspace} />;
 }
 
-function WorktreeHistory({
-  workspace,
-  renderDiff,
-}: {
-  workspace: HistoryWorkspace;
-  renderDiff?: CommitDiffRenderer | undefined;
-}) {
+function WorktreeHistory({ workspace }: { workspace: HistoryWorkspace }) {
   const [oid, setOid] = useState<string>();
   return oid ? (
     <CommitDetails
@@ -35,7 +21,6 @@ function WorktreeHistory({
       workspace={workspace}
       oid={oid}
       onBack={() => setOid(undefined)}
-      renderDiff={renderDiff}
     />
   ) : (
     <HistoryList workspace={workspace} onOpen={setOid} />

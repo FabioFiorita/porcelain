@@ -1,7 +1,9 @@
 import { Button, Host } from '@expo/ui';
 import { FlatList, Text, View } from 'react-native';
 import { worktreeLabel } from '@porcelain/client/projects/rules';
-import { useHistory, type HistoryWorkspace } from '../queries/history';
+import { useHistory } from '../queries/history';
+
+type HistoryWorkspace = Parameters<typeof useHistory>[0];
 
 export function HistoryList({
   workspace,

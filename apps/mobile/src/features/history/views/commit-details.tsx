@@ -1,25 +1,26 @@
 import { Button, Host } from '@expo/ui';
-import { useState, type ReactNode } from 'react';
-import { ScrollView, Text, View } from 'react-native';
-import { commitFileLabel, type CommitFile } from '@porcelain/client/history';
+import { useState } from 'react';
+import { FlatList, Text, View } from 'react-native';
+import {
+  commitFileLabel,
+  commitFilePaths,
+  type CommitFile,
+} from '@porcelain/client/history';
+import { FileDiff } from '../../../shared/diff/file-diff';
 import { useCommit } from '../queries/commit';
-import type { HistoryWorkspace } from '../queries/history';
-import { useCommitDiff, type CommitDiffContent } from '../queries/commit-diffs';
+import type { useHistory } from '../queries/history';
+import { useCommitDiff } from '../queries/commit-diffs';
 
-export type CommitDiffRenderer = (props: {
-  content: CommitDiffContent;
-}) => ReactNode;
+type HistoryWorkspace = Parameters<typeof useHistory>[0];
 
 export function CommitDetails({
   workspace,
   oid,
   onBack,
-  renderDiff,
 }: {
   workspace: HistoryWorkspace;
   oid: string;
   onBack: () => void;
-  renderDiff?: CommitDiffRenderer | undefined;
 }) {
   const [parent, setParent] = useState(1);
   return (
@@ -30,7 +31,6 @@ export function CommitDetails({
       parent={parent}
       onParent={setParent}
       onBack={onBack}
-      renderDiff={renderDiff}
     />
   );
 }
@@ -41,14 +41,12 @@ function CommitComparison({
   parent,
   onParent,
   onBack,
-  renderDiff,
 }: {
   workspace: HistoryWorkspace;
   oid: string;
   parent: number;
   onParent: (parent: number) => void;
   onBack: () => void;
-  renderDiff?: CommitDiffRenderer | undefined;
 }) {
   const commit = useCommit(workspace, oid, parent);
   const [selectedFile, setSelectedFile] = useState<CommitFile>();
@@ -60,119 +58,118 @@ function CommitComparison({
         parent={parent}
         file={selectedFile}
         onBack={() => setSelectedFile(undefined)}
-        renderDiff={renderDiff}
       />
     );
   const data = commit.data;
   return (
-    <ScrollView
+    <FlatList
       className="flex-1 bg-background"
       contentInsetAdjustmentBehavior="automatic"
-    >
-      <View className="gap-4 px-6 py-6">
-        <Host matchContents={{ vertical: true }}>
-          <Button label="Back to history" variant="text" onPress={onBack} />
-        </Host>
-        {commit.isPending ? (
-          <Text className="text-sm text-muted-foreground">Reading commit…</Text>
-        ) : null}
-        {commit.error ? (
-          <>
-            <Text className="text-sm text-destructive">
-              Could not read commit. {commit.error.message}
-            </Text>
-            <Host matchContents={{ vertical: true }}>
-              <Button
-                label="Read commit again"
-                variant="text"
-                onPress={commit.read}
-              />
-            </Host>
-          </>
-        ) : null}
-        {data ? (
-          <>
-            <Text
-              accessibilityRole="header"
-              className="text-xl font-semibold text-foreground"
-            >
-              {data.commit.subject}
-            </Text>
-            {data.commit.body ? (
-              <Text className="text-sm leading-6 text-foreground">
-                {data.commit.body}
-              </Text>
-            ) : null}
-            {data.commit.subjectTruncated || data.commit.bodyTruncated ? (
-              <Text className="text-sm text-muted-foreground">
-                Commit message truncated
-              </Text>
-            ) : null}
+      data={data?.files ?? []}
+      keyExtractor={(file) => JSON.stringify(commitFilePaths(file))}
+      ListHeaderComponent={
+        <View className="gap-4 px-6 py-6">
+          <Host matchContents={{ vertical: true }}>
+            <Button label="Back to history" variant="text" onPress={onBack} />
+          </Host>
+          {commit.isPending ? (
             <Text className="text-sm text-muted-foreground">
-              {data.commit.author.name} · {data.commit.author.timestamp}
+              Reading commit…
             </Text>
-            <Text
-              selectable
-              className="font-mono text-xs text-muted-foreground"
-            >
-              {oid}
-            </Text>
-            <Text className="text-sm text-muted-foreground">
-              {data.comparison.kind === 'empty-tree'
-                ? 'Root commit'
-                : `Against parent ${data.comparison.parentNumber} · ${data.comparison.baseOid.slice(0, 7)}`}
-            </Text>
-            {data.commit.parentOids.length > 1 ? (
-              <View className="gap-2">
-                <Text
-                  accessibilityRole="header"
-                  className="text-sm font-medium text-foreground"
-                >
-                  Compare with parent
-                </Text>
-                {data.commit.parentOids.map((parentOid, index) => (
-                  <Host key={parentOid} matchContents={{ vertical: true }}>
-                    <Button
-                      label={`Parent ${index + 1} · ${parentOid.slice(0, 7)}${parent === index + 1 ? ' (selected)' : ''}`}
-                      variant="text"
-                      onPress={() => onParent(index + 1)}
-                    />
-                  </Host>
-                ))}
-              </View>
-            ) : null}
-            <Text
-              accessibilityRole="header"
-              className="text-base font-semibold text-foreground"
-            >
-              Changed files
-            </Text>
-            {data.files.length === 0 ? (
-              <Text className="text-sm text-muted-foreground">
-                No files changed in this commit.
+          ) : null}
+          {commit.error ? (
+            <>
+              <Text className="text-sm text-destructive">
+                Could not read commit. {commit.error.message}
               </Text>
-            ) : null}
-            {data.files.map((file) => (
-              <View
-                key={commitFileLabel(file)}
-                className="gap-1 border-b border-border py-3"
+              <Host matchContents={{ vertical: true }}>
+                <Button
+                  label="Read commit again"
+                  variant="text"
+                  onPress={commit.read}
+                />
+              </Host>
+            </>
+          ) : null}
+          {data ? (
+            <>
+              <Text
+                accessibilityRole="header"
+                className="text-xl font-semibold text-foreground"
               >
-                <Host matchContents={{ vertical: true }}>
-                  <Button
-                    label={commitFileLabel(file)}
-                    variant="text"
-                    onPress={() => setSelectedFile(file)}
-                  />
-                </Host>
-                <Text className="text-xs text-muted-foreground">
-                  {file.status}
+                {data.commit.subject}
+              </Text>
+              {data.commit.body ? (
+                <Text className="text-sm leading-6 text-foreground">
+                  {data.commit.body}
                 </Text>
-              </View>
-            ))}
-          </>
-        ) : null}
-      </View>
-    </ScrollView>
+              ) : null}
+              {data.commit.subjectTruncated || data.commit.bodyTruncated ? (
+                <Text className="text-sm text-muted-foreground">
+                  Commit message truncated
+                </Text>
+              ) : null}
+              <Text className="text-sm text-muted-foreground">
+                {data.commit.author.name} · {data.commit.author.timestamp}
+              </Text>
+              <Text
+                selectable
+                className="font-mono text-xs text-muted-foreground"
+              >
+                {oid}
+              </Text>
+              <Text className="text-sm text-muted-foreground">
+                {data.comparison.kind === 'empty-tree'
+                  ? 'Root commit'
+                  : `Against parent ${data.comparison.parentNumber} · ${data.comparison.baseOid.slice(0, 7)}`}
+              </Text>
+              {data.commit.parentOids.length > 1 ? (
+                <View className="gap-2">
+                  <Text
+                    accessibilityRole="header"
+                    className="text-sm font-medium text-foreground"
+                  >
+                    Compare with parent
+                  </Text>
+                  {data.commit.parentOids.map((parentOid, index) => (
+                    <Host key={parentOid} matchContents={{ vertical: true }}>
+                      <Button
+                        label={`Parent ${index + 1} · ${parentOid.slice(0, 7)}${parent === index + 1 ? ' (selected)' : ''}`}
+                        variant="text"
+                        onPress={() => onParent(index + 1)}
+                      />
+                    </Host>
+                  ))}
+                </View>
+              ) : null}
+              <Text
+                accessibilityRole="header"
+                className="text-base font-semibold text-foreground"
+              >
+                Changed files
+              </Text>
+              {data.files.length === 0 ? (
+                <Text className="text-sm text-muted-foreground">
+                  No files changed in this commit.
+                </Text>
+              ) : null}
+            </>
+          ) : null}
+        </View>
+      }
+      renderItem={({ item: file }) => (
+        <View className="mx-6 gap-1 border-b border-border py-3">
+          <Host matchContents={{ vertical: true }}>
+            <Button
+              label={commitFileLabel(file)}
+              variant="text"
+              onPress={() => setSelectedFile(file)}
+            />
+          </Host>
+          <Text className="text-xs text-muted-foreground">{file.status}</Text>
+        </View>
+      )}
+    />
   );
 }
 
@@ -182,21 +179,16 @@ function CommitFileDiff({
   parent,
   file,
   onBack,
-  renderDiff,
 }: {
   workspace: HistoryWorkspace;
   oid: string;
   parent: number;
   file: CommitFile;
   onBack: () => void;
-  renderDiff?: CommitDiffRenderer | undefined;
 }) {
   const diff = useCommitDiff(workspace, oid, parent, file);
   return (
-    <ScrollView
-      className="flex-1 bg-background"
-      contentInsetAdjustmentBehavior="automatic"
-    >
+    <View className="flex-1 bg-background">
       <View className="gap-4 px-6 py-6">
         <Host matchContents={{ vertical: true }}>
           <Button label="Back to commit" variant="text" onPress={onBack} />
@@ -224,16 +216,8 @@ function CommitFileDiff({
             </Host>
           </>
         ) : null}
-        {diff.content ? (
-          renderDiff ? (
-            renderDiff({ content: diff.content })
-          ) : (
-            <Text className="text-sm text-muted-foreground">
-              Diff preview is not available yet.
-            </Text>
-          )
-        ) : null}
       </View>
-    </ScrollView>
+      {diff.content ? <FileDiff content={diff.content} /> : null}
+    </View>
   );
 }

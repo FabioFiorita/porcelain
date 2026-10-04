@@ -1,6 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { commitQueryOptions } from '@porcelain/client/history';
-import type { HistoryWorkspace } from './history';
+import type { useHistory } from './history';
+
+type HistoryWorkspace = Parameters<typeof useHistory>[0];
 
 export function useCommit(
   { connection, scope }: HistoryWorkspace,
