@@ -909,49 +909,6 @@ test('access.pairing: works', async ({ workspace }) => {
   },
   {
     rule: 'mobile-native-ui',
-    path: 'apps/mobile/src/shared/ui/button.tsx',
-    valid:
-      "import { Pressable, Text } from 'react-native'; export const Button = () => <Pressable accessibilityRole='button'><Text>Open</Text></Pressable>;",
-    invalid:
-      "import { TouchableOpacity } from 'react-native'; export const Button = () => <TouchableOpacity />;",
-    errors: 1,
-  },
-  {
-    rule: 'mobile-native-ui',
-    path: 'apps/mobile/src/shared/ui/button.tsx',
-    valid:
-      "import { Pressable as Touch } from 'react-native'; export const Button = () => <Touch accessibilityRole='button' />;",
-    invalid: "export { Pressable } from 'react-native';",
-    errors: 1,
-  },
-  {
-    rule: 'mobile-native-ui',
-    path: 'apps/mobile/src/shared/ui/row.tsx',
-    valid:
-      "import { Pressable } from 'react-native'; export const Row = () => <Pressable accessibilityRole='button' />;",
-    invalid:
-      "import { Switch } from 'react-native'; export const Row = () => <Switch />;",
-    errors: 1,
-  },
-  {
-    rule: 'mobile-native-ui',
-    path: 'apps/mobile/src/shared/diff/diff-line.tsx',
-    valid: "import { Text } from 'react-native'; export const Line = Text;",
-    invalid:
-      "import { Pressable } from 'react-native'; export const Line = () => <Pressable />;",
-    errors: 1,
-  },
-  {
-    rule: 'mobile-native-ui',
-    path: 'apps/mobile/src/shared/ui/button.android.tsx',
-    valid:
-      "import { Pressable as Touch } from 'react-native'; export const Button = () => <Touch accessibilityRole='button' />;",
-    invalid:
-      "import * as Native from 'react-native'; export const Button = () => <Native.Pressable />;",
-    errors: 1,
-  },
-  {
-    rule: 'mobile-native-ui',
     path: 'apps/mobile/src/shell/phone-tabs.tsx',
     valid:
       "import { View } from 'react-native'; export const Frame = () => <View />;",

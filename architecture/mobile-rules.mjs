@@ -17,7 +17,7 @@ export const mobileRules = {
       const path = context.filename.replaceAll('\\', '/');
       if (!path.includes('/apps/mobile/src/')) return {};
       const message =
-        'Use shared/ui primitives for Porcelain touch actions, Expo UI for standard native controls and .ios/.android capability modules for platform differences, because feature-owned custom controls duplicate interaction and accessibility behavior.';
+        'Use Expo UI for standard controls and .ios/.android capability modules for platform differences; custom touch controls and Platform branches duplicate native behavior, because duplicated custom controls miss native interaction behavior.';
       const check = (node) => {
         const source = node.source?.value;
         const runtime =
@@ -44,17 +44,7 @@ export const mobileRules = {
         if (source === 'react-native') {
           for (const specifier of node.specifiers ?? []) {
             const name = specifier.imported?.name ?? specifier.local?.name;
-            const foundationPressable =
-              node.type === 'ImportDeclaration' &&
-              specifier.type === 'ImportSpecifier' &&
-              name === 'Pressable' &&
-              /\/apps\/mobile\/src\/shared\/ui\/[a-z-]+(?:\.(?:ios|android))?\.tsx$/.test(
-                path,
-              );
-            if (
-              !foundationPressable &&
-              (specifier.type !== 'ImportSpecifier' || controls.has(name))
-            )
+            if (specifier.type !== 'ImportSpecifier' || controls.has(name))
               context.report({ node: specifier, message });
           }
           if (node.type === 'ExportAllDeclaration')

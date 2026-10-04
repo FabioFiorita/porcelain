@@ -391,7 +391,7 @@ const numberFreeFile = new RegExp(
   `^(?:packages/[^/]+/src/|apps/(?:server|web|mobile)/src/)`,
 );
 const visualViewFile =
-  /^(?:apps\/(?:web|mobile)\/src\/(?:app|features\/[^/]+)\/views\/|apps\/mobile\/src\/shared\/(?:ui|diff)\/[a-z-]+(?:\.(?:ios|android))?\.tsx$)/;
+  /^apps\/(?:web|mobile)\/src\/(?:app|features\/[^/]+)\/views\//;
 const limitsFile =
   /^(?:packages\/contracts\/src\/shared\/limits|apps\/(?:server|web|mobile)\/src\/config\/limits)\.ts$/;
 const statusName = /(?:^|\.)status(?:Code)?$/i;

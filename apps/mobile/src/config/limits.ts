@@ -1,3 +1,9 @@
 export const REQUEST_TIMEOUT_MS = 15_000;
 export const FILE_DIFF_INITIAL_ROWS = 40;
 export const FILE_DIFF_WINDOW_SIZE = 7;
+export const FILE_DIFF_GUTTER_DIGIT_WIDTH = 8;
+export const FILE_DIFF_GUTTER_PADDING = 16;
+export const FILE_DIFF_MIN_GUTTER_WIDTH = 40;
+export const FILE_DIFF_SOURCE_CHARACTER_WIDTH = 14;
+export const FILE_DIFF_GUTTER_COUNT = 2;
+export const FILE_DIFF_SOURCE_PADDING = 52;

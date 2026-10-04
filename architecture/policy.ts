@@ -894,8 +894,6 @@ export function classify(path: string): Classification | undefined {
     return classifyServer(path.slice('apps/server/src/'.length));
   if (/^apps\/mobile\/spec\/kit\/[a-z]+(?:-[a-z]+)*\.ts$/.test(path))
     return classified('mobile-test-kit', 'mobile');
-  if (/^apps\/mobile\/spec\/fixtures\/[a-z]+(?:-[a-z]+)*\.ts$/.test(path))
-    return classified('mobile-test-kit', 'mobile');
   if (
     /^apps\/mobile\/spec\/e2e\/[a-z]+(?:-[a-z]+)*(?:\.tablet)?\.e2e\.ts$/.test(
       path,
@@ -1316,7 +1314,6 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
   'web-shared': new Set([
     'client-transport-api',
     'web-shared',
-    'web-rule',
     'web-limits',
     'contract',
   ]),
@@ -1376,12 +1373,7 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
     'mobile-test-kit',
     'server-kit',
   ]),
-  'web-rule-spec': new Set([
-    'web-rule',
-    'web-limits',
-    'contract',
-    'mobile-test-kit',
-  ]),
+  'web-rule-spec': new Set(['web-rule', 'web-limits', 'contract']),
   'web-config': new Set(),
   'web-limits': new Set(['contract']),
   'web-entry': new Set([
@@ -1459,12 +1451,6 @@ export function violation(
       (from.owner === 'web' || from.owner === 'mobile')
       ? undefined
       : 'theme-imports-stylesheets-only';
-  if (
-    from.role === 'web-rule-spec' &&
-    to.role === 'mobile-test-kit' &&
-    from.owner !== to.owner
-  )
-    return 'test-imports-own-package-support-only';
   if (
     from.owner === 'mobile' &&
     !['mobile', 'client', 'contracts'].includes(to.owner) &&
@@ -1724,7 +1710,7 @@ export const externalPackages: Record<Role, readonly string[]> = {
   'desktop-e2e': [],
   'desktop-e2e-kit': ['@playwright/test'],
   'desktop-verify-cli': ['playwright', 'zod', '@electron/fuses'],
-  'mobile-test-kit': ['zod', 'diff'],
+  'mobile-test-kit': ['zod'],
   'mobile-e2e-spec': [],
   'mobile-e2e-kit': ['vitest'],
   'mobile-verify-cli': ['zod'],

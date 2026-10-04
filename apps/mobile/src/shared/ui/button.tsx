@@ -1,6 +1,7 @@
-import { useState, type ReactNode } from 'react';
-import { Pressable, Text } from 'react-native';
+import type { ReactNode } from 'react';
+import { Text, View } from 'react-native';
 import { useResolveClassNames } from 'uniwind';
+import { ButtonControl } from './button-control';
 
 type ButtonVariant =
   | 'default'
@@ -24,14 +25,6 @@ const foregrounds: Record<ButtonVariant, string> = {
   secondary: 'text-secondary-foreground',
   ghost: 'text-foreground',
   destructive: 'text-destructive',
-};
-
-const pressedBackgrounds: Record<ButtonVariant, string> = {
-  default: 'bg-primary/80',
-  outline: 'bg-muted dark:bg-input/30',
-  secondary: 'bg-secondary opacity-80',
-  ghost: 'bg-muted dark:bg-muted/50',
-  destructive: 'bg-destructive/20 dark:bg-destructive/30',
 };
 
 const sizes: Record<ButtonSize, string> = {
@@ -61,43 +54,43 @@ export function Button({
   testID?: string;
   children?: ReactNode;
 }) {
-  const [focused, setFocused] = useState(false);
   const baseStyle = useResolveClassNames(
     `min-w-0 shrink-0 border ${sizes[size]} ${backgrounds[variant]}`,
   );
   const selectedStyle = useResolveClassNames('bg-accent');
-  const selectedPressedStyle = useResolveClassNames('opacity-80');
-  const pressedStyle = useResolveClassNames(pressedBackgrounds[variant]);
-  const focusedStyle = useResolveClassNames(
-    variant === 'destructive' ? 'border-destructive/40' : 'border-ring',
-  );
   const disabledStyle = useResolveClassNames('opacity-50');
   const labelStyle = useResolveClassNames(
     `text-sm font-medium ${size === 'row' ? 'text-left' : 'text-center'} ${selected ? 'text-accent-foreground' : foregrounds[variant]}`,
   );
 
   return (
-    <Pressable
-      accessible
-      accessibilityRole="button"
+    <ButtonControl
       accessibilityLabel={accessibilityLabel ?? label}
-      accessibilityState={{ disabled, selected }}
       testID={testID}
       disabled={disabled}
+      selected={selected}
+      row={size === 'row'}
+      color={labelStyle.color}
+      radius={
+        typeof baseStyle.borderRadius === 'number'
+          ? baseStyle.borderRadius
+          : undefined
+      }
       onPress={onPress}
-      onFocus={() => setFocused(true)}
-      onBlur={() => setFocused(false)}
-      style={({ pressed }) => [
-        baseStyle,
-        selected && selectedStyle,
-        pressed &&
-          !disabled &&
-          (selected ? selectedPressedStyle : pressedStyle),
-        focused && !disabled && focusedStyle,
-        disabled && disabledStyle,
-      ]}
     >
-      {children ?? <Text style={labelStyle}>{label}</Text>}
-    </Pressable>
+      <View
+        accessible={false}
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+        pointerEvents="none"
+        style={[
+          baseStyle,
+          selected && selectedStyle,
+          disabled && disabledStyle,
+        ]}
+      >
+        {children ?? <Text style={labelStyle}>{label}</Text>}
+      </View>
+    </ButtonControl>
   );
 }

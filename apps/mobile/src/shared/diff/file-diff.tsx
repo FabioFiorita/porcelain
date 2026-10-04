@@ -5,6 +5,12 @@ import { useResolveClassNames } from 'uniwind';
 import {
   FILE_DIFF_INITIAL_ROWS,
   FILE_DIFF_WINDOW_SIZE,
+  FILE_DIFF_GUTTER_DIGIT_WIDTH,
+  FILE_DIFF_GUTTER_PADDING,
+  FILE_DIFF_MIN_GUTTER_WIDTH,
+  FILE_DIFF_SOURCE_CHARACTER_WIDTH,
+  FILE_DIFF_GUTTER_COUNT,
+  FILE_DIFF_SOURCE_PADDING,
 } from '../../config/limits';
 import { diffRows, type DiffContent } from '../rules/patch';
 import { DiffLine } from './diff-line';
@@ -30,19 +36,21 @@ export function FileDiff({
           String(row.oldLine ?? '').length,
           String(row.newLine ?? '').length,
         ) *
-          8 *
+          FILE_DIFF_GUTTER_DIGIT_WIDTH *
           fontScale +
-          16,
+          FILE_DIFF_GUTTER_PADDING,
       ),
-    40 * fontScale,
+    FILE_DIFF_MIN_GUTTER_WIDTH * fontScale,
   );
   const width = rows.reduce(
     (width, row) =>
       Math.max(
         width,
-        row.text.replaceAll('\t', '        ').length * 14 * fontScale +
-          gutterWidth * 2 +
-          52 * fontScale,
+        row.text.replaceAll('\t', '        ').length *
+          FILE_DIFF_SOURCE_CHARACTER_WIDTH *
+          fontScale +
+          gutterWidth * FILE_DIFF_GUTTER_COUNT +
+          FILE_DIFF_SOURCE_PADDING * fontScale,
       ),
     viewport.width,
   );
