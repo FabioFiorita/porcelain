@@ -12,6 +12,7 @@ export type Metro = { url: string; port: number; pid: number; stop(): void };
 const readyLimitMs = 3 * 60 * 1000;
 const bundleLimitMs = 10 * 60 * 1000;
 const pollMs = 500;
+const manifestReadyMs = 1000;
 
 function freePort(): Promise<number> {
   return new Promise((done, fail) => {
@@ -41,21 +42,58 @@ function exited(child: ChildProcess): boolean {
   return child.exitCode !== null || child.signalCode !== null;
 }
 
+export async function readyManifest(
+  url: string,
+  log: string,
+): Promise<Response> {
+  const origin = new URL(url);
+  const headers = {
+    'expo-platform': 'ios',
+    accept: 'application/expo+json,application/json',
+    'Expo-AppMetrics-Skip': '1',
+    Forwarded: `host="${origin.host}";proto=${origin.protocol.slice(0, -1)}`,
+    'X-Forwarded-Host': origin.host,
+    'X-Forwarded-Proto': origin.protocol.slice(0, -1),
+  };
+  const deadline = performance.now() + readyLimitMs;
+  while (performance.now() < deadline) {
+    const began = performance.now();
+    let manifest: Response | undefined;
+    for (const method of ['HEAD', 'GET']) {
+      const requestAt = performance.now();
+      const response = await fetch(url, {
+        method,
+        headers,
+        signal: AbortSignal.timeout(
+          Math.max(1, Math.ceil(deadline - performance.now())),
+        ),
+      });
+      if (!response.ok)
+        throw new Error(
+          `Metro returned ${response.status} for ${method} ${url}`,
+        );
+      manifest = new Response(await response.arrayBuffer(), {
+        status: response.status,
+        headers: response.headers,
+      });
+      await appendFile(
+        log,
+        `${new Date().toISOString()}: iOS manifest ${method} ${url} ${Math.round(performance.now() - requestAt)}ms\n`,
+      );
+    }
+    if (manifest !== undefined && performance.now() - began <= manifestReadyMs)
+      return manifest;
+    await sleep(pollMs);
+  }
+  throw new Error(`Metro's iOS manifest did not become responsive at ${url}`);
+}
+
 async function warmBundle(url: string, log: string): Promise<void> {
-  const manifest = await fetch(url, {
-    headers: {
-      'expo-platform': 'ios',
-      'expo-protocol-version': '1',
-      accept: 'application/expo+json',
-    },
-    signal: AbortSignal.timeout(readyLimitMs),
-  });
-  if (!manifest.ok)
-    throw new Error(`Metro did not answer the iOS manifest at ${url}`);
+  const manifest = await readyManifest(url, log);
   const { launchAsset } = z
-    .object({ launchAsset: z.object({ url: z.url() }) })
+    .object({ launchAsset: z.object({ url: z.string().min(1) }) })
     .parse(await manifest.json());
-  const launch = new URL(launchAsset.url);
+  const launch = new URL(launchAsset.url, url);
   const bundle = new URL(launch.pathname + launch.search, url);
   await appendFile(
     log,

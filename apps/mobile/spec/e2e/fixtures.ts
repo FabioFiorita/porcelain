@@ -13,6 +13,7 @@ import {
   screenLink,
 } from '../kit/development-client.ts';
 import { Environment } from '../kit/environment.ts';
+import { readyManifest } from '../kit/metro.ts';
 import { resetApp } from '../kit/simulator.ts';
 
 export { expect } from 'vitest';
@@ -67,6 +68,22 @@ export const test = base
       onCleanup(async () => {
         const failures = [];
         for (const environment of started) {
+          try {
+            const requests = (await environment.server.hits()).map(
+              ({ method, route, kit, status }) => ({
+                method,
+                route,
+                kit,
+                status,
+              }),
+            );
+            await writeFile(
+              join(evidence, `requests-${slug(environment.name)}.json`),
+              JSON.stringify(requests, null, 2),
+            );
+          } catch (error) {
+            failures.push(String(error));
+          }
           const failure = await environment.stop();
           if (failure) failures.push(failure);
         }
@@ -125,6 +142,7 @@ export const test = base
           DEVELOPMENT_URL: developmentLaunchUrl(device.metro),
           ...variables,
         };
+        await readyManifest(device.metro, join(device.evidence, 'metro.log'));
         try {
           const result = await execute(
             'maestro',
