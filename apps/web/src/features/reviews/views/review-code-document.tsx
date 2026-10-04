@@ -1,3 +1,7 @@
+import {
+  changeSelections,
+  expectedDiffFiles,
+} from '@porcelain/client/changes/rules';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -21,7 +25,6 @@ import type { DocumentInteraction } from '../rules/documents';
 import { focusPatch, type LineSpan } from '../rules/patch-focus';
 import {
   type Change,
-  type ChangeSelection,
   type DiffContent,
   orderReviewChanges,
   type ReviewChangeItem,
@@ -69,14 +72,8 @@ export function ReviewCodeDocument({
     scope,
     connection,
     statusToken,
-    items.flatMap((item) =>
-      item.comparisons.some(
-        (change) => change.scope === 'staged' || change.scope === 'unstaged',
-      )
-        ? [{ path: item.path, fingerprint: item.fingerprint }]
-        : [],
-    ),
-    items.flatMap((item) => item.comparisons.flatMap(selectionOf)),
+    expectedDiffFiles(items),
+    items.flatMap((item) => item.comparisons.flatMap(changeSelections)),
     recover,
   );
   const untracked = useTextContents(
@@ -89,7 +86,7 @@ export function ReviewCodeDocument({
     ),
   );
   const patchOf = (change: Change): DiffContent | undefined => {
-    const [selection] = selectionOf(change);
+    const [selection] = changeSelections(change);
     return selection ? diffs.diffs.get(selectionKey(selection)) : undefined;
   };
   const loading = diffs.pending || untracked.pending;
@@ -220,18 +217,6 @@ function focusedDiff(
   cached.set(key, next);
   focusedPatches.set(content, cached);
   return next;
-}
-
-function selectionOf(change: Change): ChangeSelection[] {
-  return change.scope === 'staged' || change.scope === 'unstaged'
-    ? [
-        {
-          scope: change.scope,
-          oldPath: change.oldPath,
-          newPath: change.newPath,
-        },
-      ]
-    : [];
 }
 
 function ContentState({

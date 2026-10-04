@@ -1,4 +1,4 @@
-import type { CommitFile, DiffContent } from './changes';
+import type { CommitFile, DiffContent } from './changes.ts';
 
 export function showsWorktreeDiff(content: DiffContent) {
   return content.kind === 'text' || content.kind === 'metadata-only';

@@ -2,7 +2,7 @@ import { assertCurrentAnswer } from '@porcelain/client/transport';
 import { queryOptions, useQuery } from '@tanstack/react-query';
 import { queryKeys } from '@porcelain/client/transport';
 import { changesApi } from '../api';
-import { type ChangesScope } from '../rules/changes';
+import { type ChangesScope } from '@porcelain/client/changes/rules';
 import { type Connection } from '@/shared/workspace/connection';
 
 export function gitStatusQueryOptions(

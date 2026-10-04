@@ -1,4 +1,4 @@
-import { type Change, changePath } from './changes';
+import { type Change, changePath } from './changes.ts';
 
 export function commitFiles(changes: readonly Change[]) {
   const files = new Map<
