@@ -1,14 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parsePatch } from '../../../spec/fixtures/patch.ts';
-import {
-  diffRowLabel,
-  diffRows as presentPatch,
-  sourceTokens,
-  type DiffContent,
-} from './patch.ts';
-
-const diffRows = (content: DiffContent, path?: string) =>
-  presentPatch(content, parsePatch, path);
+import { diffRows } from './patch.ts';
 
 describe('diffRows', () => {
   it('keeps independent old/new gutters, hunk labels and literal source in sparse hunks', () => {
@@ -67,11 +58,25 @@ describe('diffRows', () => {
       { kind: 'deletion', text: 'before', oldLine: 40, newLine: undefined },
       { kind: 'addition', text: 'after', oldLine: undefined, newLine: 42 },
     ]);
-    expect(diffRowLabel(rows[4]!)).toBe(
+    expect(rows[4]!.accessibilityLabel).toBe(
       'Added line 3: <script>alert("literal")</script>',
     );
-    expect(diffRowLabel(rows[7]!)).toBe('Deleted line 40: before');
-    expect(diffRowLabel(rows[2]!)).toBe('Old line 2, new line 2: unchanged');
+    expect(rows[7]!.accessibilityLabel).toBe('Deleted line 40: before');
+    expect(rows[2]!.accessibilityLabel).toBe(
+      'Old line 2, new line 2: unchanged',
+    );
+    expect(rows[4]).toEqual({
+      id: 'file-diff-row-4',
+      kind: 'addition',
+      text: '<script>alert("literal")</script>',
+      newLine: 3,
+      accessibilityLabel: 'Added line 3: <script>alert("literal")</script>',
+      tokens: [
+        { text: '<script>alert(', kind: 'plain' },
+        { text: '"literal"', kind: 'string' },
+        { text: ')</script>', kind: 'plain' },
+      ],
+    });
   });
 
   it('starts added/deleted files at line one and keeps missing-final-newline notices', () => {
@@ -226,7 +231,12 @@ describe('diffRows', () => {
   });
 });
 
-describe('sourceTokens', () => {
+describe('prepared source tokens', () => {
+  const sourceTokens = (text: string, path: string) =>
+    diffRows({
+      kind: 'text',
+      patch: `--- /dev/null\n+++ b/${path}\n@@ -0,0 +1 @@\n+${text}\n`,
+    }).find((row) => row.kind === 'addition')?.tokens;
   it('keeps source literal while treating bounded strings, keywords, numbers and comments', () => {
     expect(
       sourceTokens('const n = "// text" + 42; // comment', 'a.ts'),

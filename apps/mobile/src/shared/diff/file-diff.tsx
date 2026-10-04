@@ -1,4 +1,3 @@
-import { parsePatch } from 'diff/lib/patch/parse.js';
 import { useState } from 'react';
 import { FlatList, ScrollView, View, useWindowDimensions } from 'react-native';
 import { useResolveClassNames } from 'uniwind';
@@ -12,17 +11,15 @@ import {
   FILE_DIFF_GUTTER_COUNT,
   FILE_DIFF_SOURCE_PADDING,
 } from '../../config/limits';
-import { diffRows, type DiffContent } from '../rules/patch';
-import { DiffLine } from './diff-line';
+import { DiffLine, type FileDiffRow } from './diff-line';
 
 export function FileDiff({
-  content,
+  rows,
   path,
 }: {
-  content: DiffContent;
+  rows: readonly FileDiffRow[];
   path?: string;
 }) {
-  const rows = diffRows(content, parsePatch, path);
   const { fontScale } = useWindowDimensions();
   const [viewport, setViewport] = useState({ width: 0, height: 0 });
   const surface = useResolveClassNames(

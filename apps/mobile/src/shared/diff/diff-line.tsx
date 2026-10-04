@@ -1,13 +1,33 @@
 import { Text, View } from 'react-native';
 import { useResolveClassNames } from 'uniwind';
-import { diffRowLabel, sourceTokens, type DiffRow } from '../rules/patch';
 import { codeFont } from './code-font';
+
+export type FileDiffRow = {
+  id: string;
+  kind:
+    | 'header'
+    | 'metadata'
+    | 'hunk'
+    | 'context'
+    | 'addition'
+    | 'deletion'
+    | 'notice'
+    | 'raw';
+  text: string;
+  oldLine?: number;
+  newLine?: number;
+  accessibilityLabel: string;
+  tokens: readonly {
+    text: string;
+    kind: 'plain' | 'string' | 'comment' | 'keyword' | 'number';
+  }[];
+};
 
 export function DiffLine({
   row,
   gutterWidth,
 }: {
-  row: DiffRow;
+  row: FileDiffRow;
   gutterWidth: number;
 }) {
   const code =
@@ -40,7 +60,7 @@ export function DiffLine({
   return (
     <View
       accessible
-      accessibilityLabel={diffRowLabel(row)}
+      accessibilityLabel={row.accessibilityLabel}
       testID={row.id}
       style={surface}
     >
@@ -80,7 +100,7 @@ export function DiffLine({
         ]}
       >
         {code
-          ? sourceTokens(row.text, row.path).map((token, index) => (
+          ? row.tokens.map((token, index) => (
               <Text key={index} style={tokenStyles[token.kind]}>
                 {token.text}
               </Text>

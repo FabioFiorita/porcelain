@@ -1,6 +1,7 @@
 import type { ReadChangeDiffsResponse } from '@porcelain/contracts/changes';
+import { parsePatch } from 'diff/lib/patch/parse.js';
 
-export type DiffContent = ReadChangeDiffsResponse['diffs'][number]['content'];
+type DiffContent = ReadChangeDiffsResponse['diffs'][number]['content'];
 type ParsedPatchFile = {
   oldFileName?: string | undefined;
   newFileName?: string | undefined;
@@ -15,8 +16,7 @@ type ParsedPatchFile = {
     lines: string[];
   }[];
 };
-type PatchParser = (patch: string) => ParsedPatchFile[];
-export type DiffRow = {
+type DiffRow = {
   id: string;
   kind:
     | 'header'
@@ -28,9 +28,13 @@ export type DiffRow = {
     | 'notice'
     | 'raw';
   text: string;
-  path?: string | undefined;
   oldLine?: number;
   newLine?: number;
+  accessibilityLabel: string;
+  tokens: SourceToken[];
+};
+type RowInput = Omit<DiffRow, 'id' | 'accessibilityLabel' | 'tokens'> & {
+  path?: string | undefined;
 };
 
 const omitted: Record<
@@ -87,14 +91,20 @@ function patchHeaders(patch: string, files: ParsedPatchFile[]) {
   return { headers, metadata };
 }
 
-export function diffRows(
-  content: DiffContent,
-  parse: PatchParser,
-  path?: string,
-): DiffRow[] {
+export function diffRows(content: DiffContent, path?: string): DiffRow[] {
   const rows: DiffRow[] = [];
-  const push = (row: Omit<DiffRow, 'id'>) =>
-    rows.push({ ...row, id: `file-diff-row-${rows.length}` });
+  const push = ({ path: sourcePath, ...row }: RowInput) =>
+    rows.push({
+      ...row,
+      id: `file-diff-row-${rows.length}`,
+      accessibilityLabel: diffRowLabel(row),
+      tokens:
+        row.kind === 'context' ||
+        row.kind === 'addition' ||
+        row.kind === 'deletion'
+          ? sourceTokens(row.text, sourcePath)
+          : [{ text: row.text, kind: 'plain' }],
+    });
   const header = () => {
     if (path) push({ kind: 'header', text: path, path });
   };
@@ -115,7 +125,7 @@ export function diffRows(
     return rows;
   }
   try {
-    const files = parse(content.patch);
+    const files = parsePatch(content.patch);
     if (
       !files.length ||
       files.every(
@@ -206,7 +216,7 @@ export function diffRows(
   }
 }
 
-export function diffRowLabel(row: DiffRow) {
+function diffRowLabel(row: Omit<RowInput, 'path'>) {
   if (row.kind === 'addition') return `Added line ${row.newLine}: ${row.text}`;
   if (row.kind === 'deletion')
     return `Deleted line ${row.oldLine}: ${row.text}`;
@@ -220,7 +230,7 @@ type SourceToken = {
   kind: 'plain' | 'string' | 'comment' | 'keyword' | 'number';
 };
 
-export function sourceTokens(text: string, path?: string): SourceToken[] {
+function sourceTokens(text: string, path?: string): SourceToken[] {
   if (
     !path ||
     !/\.(?:[cm]?[jt]sx?|swift|kt|java|c|cpp|h|rs|go|py|rb|sh)$/.test(path)
