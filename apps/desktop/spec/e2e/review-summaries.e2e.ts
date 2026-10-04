@@ -459,7 +459,12 @@ test('a remote computer summary renders through the app from that computer, cann
       'Leave for a website',
       'https://example.com/',
     );
-    await page.keyboard.press('Enter');
+    await app.electron.evaluate(({ BrowserWindow }) => {
+      const contents = BrowserWindow.getAllWindows()[0]!.webContents;
+      contents.sendInputEvent({ type: 'keyDown', keyCode: 'Enter' });
+      contents.sendInputEvent({ type: 'char', keyCode: 'Enter' });
+      contents.sendInputEvent({ type: 'keyUp', keyCode: 'Enter' });
+    });
     afterClick = await navigationState();
     await expect
       .poll(() => summaryClicks(page))

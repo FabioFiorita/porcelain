@@ -105,6 +105,8 @@ jobs:
             arguments: spec/e2e/review-summaries.e2e.ts --grep "a remote computer summary" --repeat-each=100
           - target: remote-summary-b
             arguments: spec/e2e/review-summaries.e2e.ts --grep "a remote computer summary" --repeat-each=100
+          - target: before-input-ack
+            arguments: spec/e2e/review-summaries.e2e.ts --grep "a remote computer summary" --repeat-each=20
     steps:
       - uses: actions/checkout@v7
         with:
@@ -120,7 +122,14 @@ jobs:
         with:
           path: ~/.electron-gyp
           key: electron-headers-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('apps/desktop/package.json') }}
-      - run: pnpm --filter @porcelain/desktop test:e2e ${{ matrix.arguments }}
+      - name: Restore the CDP input comparison
+        if: matrix.target == 'before-input-ack'
+        run: git restore --source=af54d4711 -- apps/desktop/spec/e2e/review-summaries.e2e.ts
+      - if: matrix.target != 'before-input-ack'
+        run: pnpm --filter @porcelain/desktop test:e2e ${{ matrix.arguments }}
+      - name: Capture CDP input acknowledgements
+        if: matrix.target == 'before-input-ack'
+        run: DEBUG=pw:protocol pnpm --filter @porcelain/desktop test:e2e ${{ matrix.arguments }} > "$RUNNER_TEMP/input-protocol.log" 2>&1
       - name: Prove cached headers rebuild without a header server
         if: ${{ !cancelled() }}
         run: |
@@ -133,3 +142,4 @@ jobs:
           path: |
             apps/desktop/test-results/
             ~/Library/Logs/DiagnosticReports/
+            ${{ runner.temp }}/input-protocol.log
