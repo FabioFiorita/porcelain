@@ -5,3 +5,5 @@ export { commentsQueryOptions } from './queries/comments.ts';
 export { commentCommands } from './commands/comments.ts';
 export { reviewedCommands } from './commands/reviewed.ts';
 export { toggleLayerMark } from './commands/layer-marks.ts';
+export { untrackedFileDiffQueryOptions } from './queries/file-diffs.ts';
+export { reviewFilesQueryOptions } from './queries/file-review.ts';

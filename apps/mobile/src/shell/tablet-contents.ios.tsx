@@ -2,6 +2,7 @@ import { Label, List, RNHostView, Section, VStack } from '@expo/ui/swift-ui';
 import { listStyle, navigationTitle, tag } from '@expo/ui/swift-ui/modifiers';
 import { usePathname, useRouter } from 'expo-router';
 import { Text, View } from 'react-native';
+import { ReviewContents } from '../features/reviews';
 
 export function TabletContents() {
   const pathname = usePathname();
@@ -28,11 +29,15 @@ export function TabletContents() {
       ) : (
         <VStack modifiers={[navigationTitle(title)]}>
           <RNHostView>
-            <View className="flex-1 bg-background px-6 py-8">
-              <Text className="text-sm leading-6 text-muted-foreground">
-                No worktree selected.
-              </Text>
-            </View>
+            {pathname === '/' ? (
+              <ReviewContents />
+            ) : (
+              <View className="flex-1 bg-background px-6 py-8">
+                <Text className="text-sm leading-6 text-muted-foreground">
+                  No worktree selected.
+                </Text>
+              </View>
+            )}
           </RNHostView>
         </VStack>
       )}

@@ -1,29 +1,13 @@
-import { create } from 'zustand';
+import { useStore } from 'zustand';
+import { changesStore, changesRecoveryKey } from '@porcelain/client/changes';
+import type { ChangesScope } from '@porcelain/client/changes/rules';
+import { type Connection } from '@/shared/workspace/connection';
 
-type RecoveryState = {
-  attempted: Readonly<Record<string, string>>;
-  pending: Readonly<Record<string, string>>;
-  begin: (key: string, token: string) => boolean;
-  finish: (key: string, token: string) => void;
-};
-
-export const useChangesStore = create<RecoveryState>()((set, get) => ({
-  attempted: {},
-  pending: {},
-  begin(key, token) {
-    if (get().attempted[key] === token) return false;
-    set((state) => ({
-      attempted: { ...state.attempted, [key]: token },
-      pending: { ...state.pending, [key]: token },
-    }));
-    return true;
-  },
-  finish(key, token) {
-    set((state) => {
-      if (state.pending[key] !== token) return state;
-      const pending = { ...state.pending };
-      delete pending[key];
-      return { pending };
-    });
-  },
-}));
+export function useRecoveringChanges(
+  scope: ChangesScope,
+  connection: Connection,
+  statusToken: string,
+) {
+  const key = changesRecoveryKey(scope, connection);
+  return useStore(changesStore, (state) => state.pending[key] === statusToken);
+}

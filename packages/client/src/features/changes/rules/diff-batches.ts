@@ -2,7 +2,7 @@ import {
   selectionKey,
   type ChangeSelection,
   type ExpectedFile,
-} from './changes';
+} from './changes.ts';
 
 type DiffBatch = {
   expectedFiles: ExpectedFile[];
@@ -43,7 +43,7 @@ export function diffBatches(
     }
     current.expectedFiles.push(...group.expectedFiles);
     current.selections.push(
-      ...group.selections.toSorted((left, right) =>
+      ...[...group.selections].sort((left, right) =>
         selectionKey(left).localeCompare(selectionKey(right)),
       ),
     );

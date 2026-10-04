@@ -1,11 +1,10 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { recoverChangedDiffs } from '@porcelain/client/changes';
-import type { ChangesScope } from '@porcelain/client/changes/rules';
-import { type Connection } from '@/shared/workspace/connection';
+import type { WorktreeConnection } from '@porcelain/client/transport';
 
 export function useRecoverChangedDiffs(
-  scope: ChangesScope,
-  connection: Connection,
+  scope: { projectId: string; worktreeId: string },
+  connection: WorktreeConnection,
 ) {
   const client = useQueryClient();
   return (statusToken: string) => {

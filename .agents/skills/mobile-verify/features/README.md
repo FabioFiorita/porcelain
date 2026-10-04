@@ -15,7 +15,7 @@ One file per screen and flow the mobile app offers, named `<domain>.<capability>
 | [files.files](files.files.md) | /files | Files shows its empty state; it reads no files yet. |
 | [history.history](history.history.md) | /history | History shows its empty state; it reads no commits yet. |
 | [projects.workspace-picker](projects.workspace-picker.md) | /files | The toolbar picker chooses an environment, project and worktree without leaving the destination and restores each environment's choice. |
-| [reviews.review](reviews.review.md) | / | Review, where the app opens, shows its empty state; it reads no review yet. |
+| [reviews.review](reviews.review.md) | / | Review reads changed files, native diffs, reviewed marks, published layers and comments for the selected worktree. |
 
 ## Platform coverage
 
