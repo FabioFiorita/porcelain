@@ -6,9 +6,8 @@ import {
   semantics,
   testID as nativeTestID,
 } from '@expo/ui/jetpack-compose/modifiers';
-import type { ReactElement } from 'react';
-import type { ColorValue } from 'react-native';
 import { useResolveClassNames, useUniwind } from 'uniwind';
+import type { ButtonControlProps } from './button-control-props';
 
 export function ButtonControl({
   children,
@@ -20,17 +19,7 @@ export function ButtonControl({
   row,
   color,
   radius,
-}: {
-  children: ReactElement;
-  onPress: () => void;
-  accessibilityLabel: string;
-  testID?: string | undefined;
-  disabled: boolean;
-  selected: boolean;
-  row: boolean;
-  color?: ColorValue | undefined;
-  radius?: number | undefined;
-}) {
+}: ButtonControlProps) {
   const { theme } = useUniwind();
   const hostStyle = useResolveClassNames(row ? 'w-full' : 'self-start');
   function press() {
