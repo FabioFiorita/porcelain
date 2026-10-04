@@ -502,7 +502,6 @@ ok(
 const failFast = structuredClone(audit);
 failFast.jobs.probes.strategy['fail-fast'] = true;
 ok(auditProblems(failFast).some((problem) => problem.includes('audit shards')));
-
 const checks = parse(readFileSync('.github/workflows/ci.yml', 'utf8'));
 deepStrictEqual(affectedE2eProblems(checks), []);
 for (const [app, field, value] of affectedE2eCases) {
