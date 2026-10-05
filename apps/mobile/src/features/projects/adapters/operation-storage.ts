@@ -1,9 +1,13 @@
 import { SQLiteStorage } from 'expo-sqlite/kv-store';
+import { Effect } from 'effect';
+import { OperationStorage } from '@porcelain/client/git-actions';
 
 const storage = new SQLiteStorage('porcelain-git-operations.db');
 
-export const operationStorage = {
-  getItem: (key: string) => storage.getItemSync(key),
-  setItem: (key: string, value: string) => storage.setItemSync(key, value),
-  removeItem: (key: string) => storage.removeItemSync(key),
-};
+export function operationStorage(key: string) {
+  return OperationStorage.of({
+    read: () => Effect.try(() => storage.getItemSync(key)),
+    write: (value) => Effect.try(() => storage.setItemSync(key, value)),
+    clear: () => Effect.try(() => storage.removeItemSync(key)),
+  });
+}

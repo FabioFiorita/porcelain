@@ -1651,13 +1651,6 @@ import { withoutGitDirectory } from '@porcelain/kernel/rules';`,
   },
   {
     rule: 'no-number-outside-limits',
-    path: 'packages/process/src/commands/run-command.ts',
-    valid: 'await delay(options.pollIntervalMs);',
-    invalid: `await delay(10);`,
-    errors: 1,
-  },
-  {
-    rule: 'no-number-outside-limits',
     path: 'apps/server/src/http/routes/files/edit-file.ts',
     valid: `export function editFile(
 ) {
@@ -3727,10 +3720,19 @@ const save = Effect.fail(new Error('Refused'));`,
   {
     rule: 'native-client-state-types',
     valid:
-      "import { Effect, type Context } from 'effect';\nimport { AccessStore } from '__CLIENT_ACCESS__';\nimport { ProjectSelectionStore } from '__CLIENT_SELECTION__';\ndeclare const access: Context.Service.Shape<typeof AccessStore>;\ndeclare const selection: Context.Service.Shape<typeof ProjectSelectionStore>;\nconst saved = access.save({environmentId: 'computer', name: 'Computer', address: 'http://localhost', credential: 'secret'});\nconst selected = selection.selectWorktree('computer', 'project', 'tree');\nconst remotes = access.state.value.remotes;",
+      "import { Effect, type Context } from 'effect';\nimport { AccessStore } from '__CLIENT_ACCESS__';\nimport { ProjectSelectionStore } from '__CLIENT_SELECTION__';\ndeclare const access: Context.Service.Shape<typeof AccessStore>;\ndeclare const selection: Context.Service.Shape<typeof ProjectSelectionStore>;\nconst saved = access.save({environmentId: 'computer', name: 'Computer', address: 'http://localhost', credential: 'secret'});\nconst selected = selection.selectWorktree('computer', 'project', 'tree');\nconst remotes = access.state.value.remotes;\nimport { OperationStore } from '__CLIENT_OPERATIONS__';\ndeclare const operations: Context.Service.Shape<typeof OperationStore>;\nconst pending = operations.state.value.operations.get('fetch');",
     invalid:
-      "import { Effect, type Context } from 'effect';\nimport { AccessStore } from '__CLIENT_ACCESS__';\nimport { ProjectSelectionStore } from '__CLIENT_SELECTION__';\ndeclare const access: Context.Service.Shape<typeof AccessStore>;\ndeclare const selection: Context.Service.Shape<typeof ProjectSelectionStore>;\nEffect.runSync(AccessStore.pipe(Effect.provide(AccessStore.layer)));\naccess.state.set({remotes: [], status: 'ready', error: undefined});\naccess.state.value.remotes.push({environmentId: 'computer', name: 'Computer', address: 'http://localhost', credential: 'secret'});\nselection.state.value.selections.computer = {projectId: 'project', worktreeId: 'tree'};",
-    errors: ['TS2379', 'TS377004', 'TS2339', 'TS2339', 'TS2542'],
+      "import { Effect, type Context } from 'effect';\nimport { AccessStore } from '__CLIENT_ACCESS__';\nimport { ProjectSelectionStore } from '__CLIENT_SELECTION__';\ndeclare const access: Context.Service.Shape<typeof AccessStore>;\ndeclare const selection: Context.Service.Shape<typeof ProjectSelectionStore>;\nEffect.runSync(AccessStore.pipe(Effect.provide(AccessStore.layer)));\naccess.state.set({remotes: [], status: 'ready', error: undefined});\naccess.state.value.remotes.push({environmentId: 'computer', name: 'Computer', address: 'http://localhost', credential: 'secret'});\nselection.state.value.selections.computer = {projectId: 'project', worktreeId: 'tree'};\nimport { OperationStore } from '__CLIENT_OPERATIONS__';\ndeclare const operations: Context.Service.Shape<typeof OperationStore>;\nEffect.runSync(OperationStore.pipe(Effect.provide(OperationStore.layer)));\noperations.state.value.operations.clear();",
+    errors: [
+      'TS2379',
+      'TS377004',
+      'TS2339',
+      'TS2339',
+      'TS2542',
+      'TS2379',
+      'TS377004',
+      'TS2339',
+    ],
   },
   {
     rule: 'native-process-types',

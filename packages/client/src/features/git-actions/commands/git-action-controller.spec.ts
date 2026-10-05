@@ -1,3 +1,6 @@
+import { Layer, ManagedRuntime } from 'effect';
+import { afterEach } from 'vitest';
+import type { Context } from 'effect';
 import { QueryClient, QueryObserver } from '@tanstack/query-core';
 import { expect, it } from 'vitest';
 import { Effect, Schema } from 'effect';
@@ -13,8 +16,8 @@ import {
   type Transport,
 } from '@porcelain/client/transport';
 import {
-  createOperationStore,
-  type OperationStore,
+  OperationStore,
+  OperationStorage,
 } from '@porcelain/client/git-actions';
 import { GitActionController } from './git-action-controller.ts';
 
@@ -44,7 +47,9 @@ const receipt: RunGitActionResponse = {
 
 function setup(
   transport: Transport,
-  operations: OperationStore = createOperationStore(),
+  operations: Context.Service.Shape<
+    typeof OperationStore
+  > = operationStoreFixture().store,
 ) {
   const lifetime = createWorktreeConnection({
     environmentId: 'controller',
@@ -105,9 +110,10 @@ it('retains the original request after an unanswered write and resends that exac
       sent[0],
     ]);
     expect(subject.ids()).toBe(1);
-    expect(subject.operations.get(subject.controller.key)?.receipt).toEqual(
-      receipt,
-    );
+    expect(
+      subject.operations.state.value.operations.get(subject.controller.key)
+        ?.receipt,
+    ).toEqual(receipt);
   } finally {
     subject.close();
   }
@@ -135,7 +141,7 @@ it('refuses an action mismatch before retaining a request or contacting the serv
     ).rejects.toThrow('Action mismatch');
     expect(sent).toBe(0);
     expect(subject.ids()).toBe(0);
-    expect(subject.operations.list()).toEqual([]);
+    expect([...subject.operations.state.value.operations.values()]).toEqual([]);
   } finally {
     subject.close();
   }
@@ -153,7 +159,8 @@ it('rejects a receipt for another worktree without accepting it into the retaine
   try {
     await expect(subject.run()).rejects.toThrow('connected context changed');
     expect(
-      subject.operations.get(subject.controller.key)?.receipt,
+      subject.operations.state.value.operations.get(subject.controller.key)
+        ?.receipt,
     ).toBeUndefined();
   } finally {
     subject.close();
@@ -188,11 +195,14 @@ it('rejects an old receipt when a newer operation replaces it during cache refre
     );
     refresh.resolve('after');
     await failure;
-    expect(subject.operations.get(subject.controller.key)).toMatchObject({
+    expect(
+      subject.operations.state.value.operations.get(subject.controller.key),
+    ).toMatchObject({
       requestId: nextRequestId,
     });
     expect(
-      subject.operations.get(subject.controller.key)?.receipt,
+      subject.operations.state.value.operations.get(subject.controller.key)
+        ?.receipt,
     ).toBeUndefined();
   } finally {
     refresh.resolve('cleanup');
@@ -206,10 +216,10 @@ it('keeps an accepted running request recoverable when its caller cancels waitin
   const subject = setup(() =>
     Promise.resolve(Response.json({ ...receipt, state: 'running' })),
   );
-  const unsubscribe = subject.operations.subscribe(() => {
+  const unsubscribe = subject.operations.state.subscribe(() => {
     if (
-      subject.operations.get(subject.controller.key)?.receipt?.state ===
-      'running'
+      subject.operations.state.value.operations.get(subject.controller.key)
+        ?.receipt?.state === 'running'
     )
       received.resolve();
   });
@@ -221,15 +231,16 @@ it('keeps an accepted running request recoverable when its caller cancels waitin
     await received.promise;
     caller.abort(cancelled);
     await failure;
-    expect(subject.operations.get(subject.controller.key)?.requestId).toBe(
-      requestId,
-    );
+    expect(
+      subject.operations.state.value.operations.get(subject.controller.key)
+        ?.requestId,
+    ).toBe(requestId);
     expect(await Effect.runPromise(subject.controller.startNew())).toBe(false);
     expect(await Effect.runPromise(subject.operations.accept(receipt))).toBe(
       true,
     );
     expect(await Effect.runPromise(subject.controller.startNew())).toBe(true);
-    expect(subject.operations.list()).toEqual([]);
+    expect([...subject.operations.state.value.operations.values()]).toEqual([]);
   } finally {
     unsubscribe();
     subject.close();
@@ -239,7 +250,7 @@ it('keeps an accepted running request recoverable when its caller cancels waitin
 it('does not send or publish a Git operation when its recovery identity cannot be persisted', async () => {
   let sent = 0;
   let notified = 0;
-  const operations = createOperationStore({
+  const operations = operationStoreFixture({
     key: 'device-operations',
     storage: {
       getItem: () => null,
@@ -248,8 +259,8 @@ it('does not send or publish a Git operation when its recovery identity cannot b
       },
       removeItem: () => {},
     },
-  });
-  const unsubscribe = operations.subscribe(() => {
+  }).store;
+  const unsubscribe = operations.state.subscribe(() => {
     notified += 1;
   });
   const subject = setup(() => {
@@ -262,9 +273,54 @@ it('does not send or publish a Git operation when its recovery identity cannot b
     );
     expect(sent).toBe(0);
     expect(notified).toBe(0);
-    expect(operations.list()).toEqual([]);
+    expect([...operations.state.value.operations.values()]).toEqual([]);
   } finally {
     unsubscribe();
     subject.close();
   }
 });
+
+const owned = new Set<ManagedRuntime.ManagedRuntime<OperationStore, never>>();
+afterEach(async () => {
+  const runtimes = [...owned];
+  owned.clear();
+  await Promise.all(runtimes.map((runtime) => runtime.dispose()));
+});
+
+function operationStoreFixture(
+  persistence?: {
+    key: string;
+    storage: {
+      getItem: (key: string) => string | null;
+      setItem: (key: string, value: string) => void;
+      removeItem: (key: string) => void;
+    };
+  },
+  storage?: Context.Service.Shape<typeof OperationStorage>,
+) {
+  const runtime = ManagedRuntime.make(
+    OperationStore.layer.pipe(
+      Layer.provide(
+        Layer.succeed(
+          OperationStorage,
+          storage ?? {
+            read: () =>
+              Effect.try(
+                () => persistence?.storage.getItem(persistence.key) ?? null,
+              ),
+            write: (value) =>
+              Effect.try(() =>
+                persistence?.storage.setItem(persistence.key, value),
+              ),
+            clear: () =>
+              Effect.try(() =>
+                persistence?.storage.removeItem(persistence.key),
+              ),
+          },
+        ),
+      ),
+    ),
+  );
+  owned.add(runtime);
+  return { runtime, store: runtime.runSync(OperationStore) };
+}

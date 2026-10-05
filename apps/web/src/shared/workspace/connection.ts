@@ -1,7 +1,10 @@
+import type { ManagedRuntime } from 'effect';
+import type { OperationStore } from '@porcelain/client/git-actions';
 import type { LiveConnection } from '@porcelain/client/live';
 
 export type Connection = LiveConnection & {
   address: string;
+  operationRuntime: ManagedRuntime.ManagedRuntime<OperationStore, never>;
 };
 
 export type ConnectionContext = { connection: Connection };

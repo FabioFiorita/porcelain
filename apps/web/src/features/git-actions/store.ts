@@ -1,22 +1,18 @@
 import { createStore } from 'zustand/vanilla';
 import { useStore } from 'zustand';
+import { useAtomRef } from '@effect/atom-react';
+import type { Context } from 'effect';
 import type { OperationStore } from '@porcelain/client/git-actions';
 import type { Drafts } from '@porcelain/client/git-actions/rules';
 
-export function useGitOperation(operations: OperationStore, key: string) {
-  const snapshot = () => operations.get(key);
-  return useStore({
-    getState: snapshot,
-    getInitialState: snapshot,
-    subscribe: (listener) => {
-      let previous = snapshot();
-      return operations.subscribe(() => {
-        const next = snapshot();
-        listener(next, previous);
-        previous = next;
-      });
-    },
-  });
+export function useGitOperation(
+  operations: Context.Service.Shape<typeof OperationStore>,
+  key: string,
+) {
+  const selected = operations.state.map(
+    (state) => state.operations.get(key) ?? null,
+  );
+  return useAtomRef(selected);
 }
 
 function createCommitState() {

@@ -5,7 +5,7 @@ import {
   EnvironmentStorage,
   type AccessPlatform,
 } from '@porcelain/client/access';
-import { Effect } from 'effect';
+import { Effect, Layer, ManagedRuntime } from 'effect';
 import { Atom, AtomRef } from 'effect/reactivity';
 import { useAtomRef, useAtomValue } from '@effect/atom-react';
 import { environmentStorage } from './adapters/environment-storage';
@@ -32,8 +32,11 @@ import {
   webSocket,
 } from '@/shared/adapters/live-socket';
 import { FileDrafts, fileDraftRuntime } from '@porcelain/client/files';
-import { ConnectionError } from '@porcelain/client/transport';
-import { createOperationStore } from '@porcelain/client/git-actions';
+import {
+  OperationStore,
+  OperationStorage,
+} from '@porcelain/client/git-actions';
+import { operationStorage } from './adapters/operation-storage';
 import {
   type Connection,
   type ConnectionContext,
@@ -62,26 +65,20 @@ function createConnection(environmentId: string, server: Server): Connection {
     transport: server.transport,
     timeoutMs: REQUEST_TIMEOUT_MS,
   });
+  const operationRuntime = ManagedRuntime.make(
+    OperationStore.layer.pipe(
+      Layer.provide(
+        Layer.succeed(OperationStorage, operationStorage(server.operationsKey)),
+      ),
+    ),
+  );
   const connection: Connection = {
     ...requests,
     address: server.address,
     environmentId,
     controller,
-    operations: createOperationStore({
-      key: server.operationsKey ?? '',
-      storage: {
-        getItem(key) {
-          if (!server.operationsKey)
-            throw new ConnectionError({
-              message:
-                'Pair this environment again to identify its pending Git operations.',
-            });
-          return window.sessionStorage.getItem(key);
-        },
-        setItem: (key, value) => window.sessionStorage.setItem(key, value),
-        removeItem: (key) => window.sessionStorage.removeItem(key),
-      },
-    }),
+    operationRuntime,
+    operations: operationRuntime.runSync(OperationStore),
     liveUpdates: server.liveUpdates,
   };
   fileDraftRuntime.runSync(FileDrafts).adopt(connection);
@@ -111,8 +108,8 @@ function remoteConnection(remote: Remote) {
 }
 
 function close(connection: Connection) {
-  connection.operations.close();
   connection.controller.abort();
+  void connection.operationRuntime.dispose();
 }
 
 export const accessStore = Effect.runSync(

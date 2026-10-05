@@ -1,3 +1,4 @@
+import type { Context } from 'effect';
 import type { LiveNotice } from '@porcelain/contracts/access';
 import { Effect } from 'effect';
 import { nativeOperation, ScopedTasks, withSignal } from '@porcelain/effects';
@@ -21,7 +22,7 @@ import { refreshGitReceipt } from '../../git-actions/commands/refresh-receipt.ts
 
 export type LiveConnection = WorktreeConnection & {
   controller: AbortController;
-  operations: OperationStore;
+  operations: Context.Service.Shape<typeof OperationStore>;
   liveUpdates: LiveUpdatePort;
 };
 
@@ -30,7 +31,7 @@ type Watched = { projectId: string; worktreeId: string; paths: Set<string> };
 function liveSubscription(
   client: QueryClient,
   environmentId: string,
-  operations: OperationStore,
+  operations: Context.Service.Shape<typeof OperationStore>,
 ) {
   const inventory = client
     .getQueryCache()
@@ -38,7 +39,7 @@ function liveSubscription(
   const data =
     inventory && client.getQueryData<ReadInventoryResponse>(inventory.queryKey);
   const watched = new Map<string, Watched>();
-  for (const operation of operations.list()) {
+  for (const operation of [...operations.state.value.operations.values()]) {
     if (operation.receipt && isTerminal(operation.receipt)) continue;
     watched.set(JSON.stringify([operation.projectId, operation.worktreeId]), {
       projectId: operation.projectId,
@@ -113,7 +114,9 @@ export function connectLiveQueries(
     lifecycle.signal,
   ]);
   const recoverPending = () => {
-    for (const operation of connection.operations.list()) {
+    for (const operation of [
+      ...connection.operations.state.value.operations.values(),
+    ]) {
       if (operation.receipt && isTerminal(operation.receipt)) continue;
       const recovery = Effect.gen(function* () {
         const receipt = yield* readGitReceipt(connection, {
@@ -195,7 +198,7 @@ export function connectLiveQueries(
       .catch(() => undefined);
   };
   const unsubscribe = client.getQueryCache().subscribe(changed);
-  const unsubscribeOperations = connection.operations.subscribe(changed);
+  const unsubscribeOperations = connection.operations.state.subscribe(changed);
   changed();
   return () => {
     unsubscribe();

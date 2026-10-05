@@ -1,3 +1,5 @@
+import { Layer, ManagedRuntime, type Context } from 'effect';
+import { afterEach } from 'vitest';
 import { Effect } from 'effect';
 import { QueryClient, QueryObserver } from '@tanstack/query-core';
 import { expect, it } from 'vitest';
@@ -6,7 +8,8 @@ import {
   queryKeys,
 } from '@porcelain/client/transport';
 import {
-  createOperationStore,
+  OperationStore,
+  OperationStorage,
   operationKey,
 } from '@porcelain/client/git-actions';
 import type { RunGitActionRequest } from '@porcelain/contracts/git-actions';
@@ -37,7 +40,7 @@ function setup() {
     timeoutMs: 1000,
   });
   const client = new QueryClient();
-  const operations = createOperationStore();
+  const { store: operations } = operationStoreFixture();
   const sent: LiveSubscription[] = [];
   const subscribed = Promise.withResolvers<void>();
   let live: Parameters<LiveUpdatePort['connect']>[0] | undefined;
@@ -171,3 +174,48 @@ it('a file notice invalidates only the connected environment', async () => {
     subject.cleanup();
   }
 });
+
+const owned = new Set<ManagedRuntime.ManagedRuntime<OperationStore, never>>();
+afterEach(async () => {
+  const runtimes = [...owned];
+  owned.clear();
+  await Promise.all(runtimes.map((runtime) => runtime.dispose()));
+});
+
+function operationStoreFixture(
+  persistence?: {
+    key: string;
+    storage: {
+      getItem: (key: string) => string | null;
+      setItem: (key: string, value: string) => void;
+      removeItem: (key: string) => void;
+    };
+  },
+  storage?: Context.Service.Shape<typeof OperationStorage>,
+) {
+  const runtime = ManagedRuntime.make(
+    OperationStore.layer.pipe(
+      Layer.provide(
+        Layer.succeed(
+          OperationStorage,
+          storage ?? {
+            read: () =>
+              Effect.try(
+                () => persistence?.storage.getItem(persistence.key) ?? null,
+              ),
+            write: (value) =>
+              Effect.try(() =>
+                persistence?.storage.setItem(persistence.key, value),
+              ),
+            clear: () =>
+              Effect.try(() =>
+                persistence?.storage.removeItem(persistence.key),
+              ),
+          },
+        ),
+      ),
+    ),
+  );
+  owned.add(runtime);
+  return { runtime, store: runtime.runSync(OperationStore) };
+}

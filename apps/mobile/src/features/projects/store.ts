@@ -1,7 +1,10 @@
-import { createOperationStore } from '@porcelain/client/git-actions';
+import { Effect, Layer } from 'effect';
+import {
+  OperationStore,
+  OperationStorage,
+} from '@porcelain/client/git-actions';
 import type { Remote } from '@porcelain/client/access/rules';
 import { operationStorage } from './adapters/operation-storage';
-import { Effect } from 'effect';
 import { useAtomRef } from '@effect/atom-react';
 import {
   ProjectSelectionStore,
@@ -20,15 +23,21 @@ export function useProjectSelection() {
   return useAtomRef(projectSelectionStore.state);
 }
 
-export function createProjectOperations(
+export function projectOperationsLayer(
   remote: Pick<Remote, 'environmentId' | 'address' | 'deviceId'>,
 ) {
-  return createOperationStore({
-    storage: operationStorage,
-    key: JSON.stringify([
-      remote.environmentId,
-      remote.address,
-      remote.deviceId,
-    ]),
-  });
+  return OperationStore.layer.pipe(
+    Layer.provide(
+      Layer.succeed(
+        OperationStorage,
+        operationStorage(
+          JSON.stringify([
+            remote.environmentId,
+            remote.address,
+            remote.deviceId,
+          ]),
+        ),
+      ),
+    ),
+  );
 }

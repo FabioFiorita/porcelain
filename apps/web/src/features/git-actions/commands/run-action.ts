@@ -24,7 +24,7 @@ export function useGitAction(
   const { operations } = connection;
   const key = operationKey(scope, action);
   const [settledBefore] = useState(() => {
-    const previous = operations.get(key);
+    const previous = operations.state.value.operations.get(key);
     return previous?.receipt && isTerminal(previous.receipt)
       ? previous.requestId
       : null;

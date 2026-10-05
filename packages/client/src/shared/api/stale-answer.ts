@@ -14,6 +14,12 @@ export function currentAnswerEffect(
   matches = true,
 ): Effect.Effect<void, ConnectionError> {
   if (signal.aborted) return Effect.interrupt;
+  return currentContextEffect(matches);
+}
+
+export function currentContextEffect(
+  matches = true,
+): Effect.Effect<void, ConnectionError> {
   return matches ? Effect.void : Effect.fail(changedContext());
 }
 

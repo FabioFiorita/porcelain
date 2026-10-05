@@ -1,3 +1,4 @@
+import type { Context } from 'effect';
 import { Effect, Schema } from 'effect';
 import type { QueryClient } from '@tanstack/query-core';
 import type {
@@ -47,7 +48,7 @@ export class GitActionController {
   readonly key: string;
   private readonly scope: WorktreeScope;
   private readonly connection: WorktreeConnection;
-  private readonly operations: OperationStore;
+  private readonly operations: Context.Service.Shape<typeof OperationStore>;
   private readonly client: QueryClient;
   private readonly signal: AbortSignal;
   private readonly id: () => string;
@@ -57,7 +58,7 @@ export class GitActionController {
     scope: WorktreeScope,
     action: RunGitActionRequest['input']['action'],
     connection: WorktreeConnection,
-    operations: OperationStore,
+    operations: Context.Service.Shape<typeof OperationStore>,
     client: QueryClient,
     signal: AbortSignal,
     id: () => string,
@@ -81,7 +82,7 @@ export class GitActionController {
     return withSignal(
       Effect.gen({ self: this }, function* () {
         yield* currentAnswerEffect(this.signal);
-        const previous = this.operations.get(this.key);
+        const previous = this.operations.state.value.operations.get(this.key);
         if (previous && (!previous.receipt || !isTerminal(previous.receipt)))
           return yield* Effect.fail(
             new GitOperationStateError({ reason: 'pending' }),
@@ -109,7 +110,7 @@ export class GitActionController {
     return withSignal(
       Effect.gen({ self: this }, function* () {
         yield* currentAnswerEffect(this.signal);
-        const current = this.operations.get(this.key);
+        const current = this.operations.state.value.operations.get(this.key);
         if (!current)
           return yield* Effect.fail(
             new GitOperationStateError({ reason: 'missing' }),
@@ -122,7 +123,9 @@ export class GitActionController {
 
   startNew(): Effect.Effect<boolean, ConnectionError> {
     return Effect.gen({ self: this }, function* () {
-      const receipt = this.operations.get(this.key)?.receipt;
+      const receipt = this.operations.state.value.operations.get(
+        this.key,
+      )?.receipt;
       if (!receipt || !isTerminal(receipt)) return false;
       yield* this.operations.set(this.key, null);
       return true;
@@ -161,7 +164,8 @@ export class GitActionController {
     return Effect.gen({ self: this }, function* () {
       yield* currentAnswerEffect(
         this.signal,
-        receipt.requestId === this.operations.get(this.key)?.requestId,
+        receipt.requestId ===
+          this.operations.state.value.operations.get(this.key)?.requestId,
       );
       yield* refreshGitReceipt(
         this.client,
@@ -170,7 +174,8 @@ export class GitActionController {
       );
       yield* currentAnswerEffect(
         this.signal,
-        receipt.requestId === this.operations.get(this.key)?.requestId,
+        receipt.requestId ===
+          this.operations.state.value.operations.get(this.key)?.requestId,
       );
       yield* this.operations.accept(receipt);
       return receipt;

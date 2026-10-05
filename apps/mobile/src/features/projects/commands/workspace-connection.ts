@@ -10,7 +10,9 @@ import {
   remoteLiveUpdates,
   type LiveConnection,
 } from '@porcelain/client/live';
-import { createProjectOperations } from '../store';
+import { OperationStore } from '@porcelain/client/git-actions';
+import { ManagedRuntime } from 'effect';
+import { projectOperationsLayer } from '../store';
 import { mobileSocket } from '../../../shared/adapters/live-socket';
 import type { Remote } from '@porcelain/client/access/rules';
 import { useInventory } from '../queries/inventory';
@@ -68,10 +70,13 @@ export function useWorkspaceConnection(
       cacheIdentity: [address, deviceId ?? ''],
       timeoutMs: REQUEST_TIMEOUT_MS,
     });
+    const operationRuntime = ManagedRuntime.make(
+      projectOperationsLayer({ environmentId, address, deviceId }),
+    );
     const connection: LiveConnection = {
       ...lifetime.connection,
       controller: lifetime.controller,
-      operations: createProjectOperations({ environmentId, address, deviceId }),
+      operations: operationRuntime.runSync(OperationStore),
       liveUpdates: remoteLiveUpdates(
         address,
         lifetime.connection.transport,
@@ -88,7 +93,7 @@ export function useWorkspaceConnection(
     return () => {
       closeLive();
       lifetime.close();
-      connection.operations.close();
+      void operationRuntime.dispose();
     };
   }, [key, environmentId, address, credential, deviceId, send, client]);
   const current =
