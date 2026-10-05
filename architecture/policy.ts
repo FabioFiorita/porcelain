@@ -1498,6 +1498,14 @@ export function violation(
   from: Classification,
   to: Classification,
 ): ArchRule | undefined {
+  if (
+    from.owner === 'server' &&
+    from.role === 'gateway' &&
+    to.role === 'error-api' &&
+    to.owner !== 'kernel' &&
+    to.owner !== 'git'
+  )
+    return 'gateway-cannot-import-error-api';
   if (to.owner === 'theme')
     return from.role === 'app-stylesheet' &&
       (from.owner === 'web' || from.owner === 'mobile')

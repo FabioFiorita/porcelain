@@ -548,13 +548,6 @@ function storeLaneFindings(root: string, file: SourceFile): TypeFinding[] {
   });
 }
 
-function inheritsError(type: Type, seen: Set<number>): boolean {
-  if (seen.has(type.id)) return false;
-  seen.add(type.id);
-  if (type.getSymbol()?.name === 'Error') return true;
-  return (type.getBaseTypes() ?? []).some((base) => inheritsError(base, seen));
-}
-
 function statusPolicyFindings(root: string, project: Project): TypeFinding[] {
   const policy = project.program.getSourceFile(
     join(root, 'apps/server/src/http/status-policy.ts'),
@@ -576,6 +569,10 @@ function statusPolicyFindings(root: string, project: Project): TypeFinding[] {
       'The HTTP status rules must be an explicit array so every domain error mapping can be checked.',
     );
   const { checker } = project;
+  const error = checker.resolveName('Error', SymbolFlags.Type, policy);
+  if (!error)
+    throw new Error('The HTTP status check must resolve the Error type.');
+  const errorType = checker.getDeclaredTypeOfSymbol(error);
   const mapped = new Set<string>();
   for (const node of descendants(rules.initializer)) {
     if (!isPropertyAssignment(node) || !isIdentifier(node.name)) continue;
@@ -625,7 +622,7 @@ function statusPolicyFindings(root: string, project: Project): TypeFinding[] {
           continue;
         const name = declaration.name.text;
         const type = checker.getTypeAtLocation(declaration);
-        if (!type || !inheritsError(type, new Set())) continue;
+        if (!type || !checker.isTypeAssignableTo(type, errorType)) continue;
         const path = declaration.getSourceFile().fileName;
         const startupOnly =
           startupOnlyErrors.get(path.slice(root.length + 1)) === name;

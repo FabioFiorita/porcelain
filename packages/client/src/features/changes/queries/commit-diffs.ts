@@ -27,7 +27,10 @@ export function commitDiffsQueryOptions(
       const result = await runRequest(
         changesApi(connection).readCommitDiffs({
           params: { worktreeId: scope.worktreeId, oid: oid },
-          payload: { parent: parent, paths: paths.map((entry) => [...entry]) },
+          payload: {
+            ...(parent === 1 ? {} : { parent }),
+            paths: paths.map((entry) => [...entry]),
+          },
         }),
         connected.signal,
       );

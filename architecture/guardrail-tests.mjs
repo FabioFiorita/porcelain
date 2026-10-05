@@ -85,6 +85,11 @@ function writeFiles(root, files) {
 function typeFixture(files) {
   const root = mkdtempSync(join(tmpdir(), 'porcelain-type-rules-'));
   try {
+    symlinkSync(
+      fileURLToPath(new URL('../node_modules', import.meta.url)),
+      join(root, 'node_modules'),
+      'dir',
+    );
     for (const name of [...domainPackages, 'kernel'])
       writeFiles(root, {
         [`packages/${name}/tsconfig.json`]: JSON.stringify({

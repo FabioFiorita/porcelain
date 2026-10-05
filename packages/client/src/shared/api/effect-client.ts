@@ -38,9 +38,13 @@ export function transportClient(transport: Transport) {
       (response) => HttpClientResponse.fromWeb(request, response),
     ),
   );
-  return HttpClient.mapRequest(
-    sent,
-    HttpClientRequest.prependUrl('http://porcelain.invalid'),
+  return sent.pipe(
+    HttpClient.mapRequest(
+      HttpClientRequest.prependUrl('http://porcelain.invalid'),
+    ),
+    HttpClient.transformResponse(
+      Effect.provideService(HttpClient.TracerPropagationEnabled, false),
+    ),
   );
 }
 

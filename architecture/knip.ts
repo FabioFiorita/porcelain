@@ -141,9 +141,15 @@ export default {
       },
     },
     'apps/mobile': {
-      entry: ['src/app/**/*.tsx', 'src/**/*.spec.ts', 'spec/**/*.e2e.ts'],
+      entry: [
+        'src/app/**/*.tsx',
+        'src/**/*.spec.ts',
+        'spec/**/*.e2e.ts',
+        'metro.config.cjs',
+      ],
       project: ['src/**/*.{ts,tsx,css}', 'spec/**/*.ts'],
       tailwind: true,
+      metro: { config: [] },
     },
     'packages/*': {
       entry: [

@@ -64,6 +64,7 @@ describe('native HTTP client boundary', () => {
       redirect: 'error',
       cache: 'no-store',
     });
+    expect([...new Headers(sent[0]?.init?.headers).keys()]).toEqual([]);
   });
 
   it('encodes reserved query characters and the OID frontier exactly once', async () => {

@@ -3,7 +3,7 @@ import type { Probe } from '../probe.ts';
 export default {
   decision: 'C5',
   plants:
-    'checkout-session.ts throws a projects domain error; an adapter may throw only the kernel errors every domain shares',
+    'checkout-session.ts throws a projects domain error; adapters expose kernel and foreign Git failures, while domain decisions belong to services',
   gate: 'arch',
   rule: 'gateway-cannot-import-error-api:',
   edits: [

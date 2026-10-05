@@ -27,7 +27,7 @@ export function commitQueryOptions(
       const result = await runRequest(
         changesApi(connection).readCommitFiles({
           params: { worktreeId: scope.worktreeId, oid: oid },
-          query: { parent: parent },
+          query: parent === 1 ? {} : { parent },
         }),
         connected.signal,
       );

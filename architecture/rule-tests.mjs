@@ -793,6 +793,16 @@ deepStrictEqual(
   ),
   undefined,
 );
+for (const owner of ['kernel', 'git', 'projects', 'reviews', 'access'])
+  deepStrictEqual(
+    violation(
+      { role: 'gateway', owner: 'server' },
+      { role: 'error-api', owner },
+    ),
+    ['kernel', 'git'].includes(owner)
+      ? undefined
+      : 'gateway-cannot-import-error-api',
+  );
 deepStrictEqual(
   violation(
     { role: 'client-transport-spec', owner: 'client' },

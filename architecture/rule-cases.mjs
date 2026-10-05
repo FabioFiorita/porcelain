@@ -4306,6 +4306,23 @@ export const unusedQuery = () => ({ queryFn: () => { ${use} } });`,
   {
     rule: 'status-policy-complete',
     files: {
+      'packages/access/src/errors/native-error.ts': `import { Schema } from 'effect'; export class NativeFailure extends Schema.TaggedError<NativeFailure>()('NativeFailure', {}) {}`,
+      'packages/access/src/errors/index.ts':
+        "export { NativeFailure as PublicFailure } from './native-error.ts';",
+    },
+    valid: {
+      'apps/server/src/http/status-policy.ts':
+        "import { PublicFailure as Outcome } from '../../../../packages/access/src/errors/index.ts'; export const rules = [{ errors: [Outcome], statusCode: 400 }];",
+    },
+    invalid: {
+      'apps/server/src/http/status-policy.ts':
+        "import { PublicFailure as Outcome } from '../../../../packages/access/src/errors/index.ts'; export const decoy = { errors: [Outcome] }; export const rules = [];",
+    },
+    errors: ['status-policy-complete'],
+  },
+  {
+    rule: 'status-policy-complete',
+    files: {
       'packages/kernel/src/errors/failure.ts':
         'class DomainFailure extends Error {} export class ReviewFailure extends DomainFailure {} export class Helper {}',
       'packages/kernel/src/errors/index.ts': "export * from './failure.ts';",
