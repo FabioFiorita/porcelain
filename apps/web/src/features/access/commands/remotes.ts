@@ -1,3 +1,5 @@
+import { Atom } from 'effect/reactivity';
+import { useAtomSet } from '@effect/atom-react';
 import { Effect } from 'effect';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { ConnectionError } from '@porcelain/client/transport';
@@ -6,7 +8,7 @@ import { runRequest } from '@porcelain/client/transport';
 import {
   AccessStore,
   pairEnvironment,
-  remoteStatusQueryOptions,
+  readRemoteStatus,
 } from '@porcelain/client/access';
 import { pairingPlatform } from '../store';
 import { FileDrafts, fileDraftRuntime } from '@porcelain/client/files';
@@ -30,11 +32,19 @@ function addRemote(value: string): Promise<Remote> {
   );
 }
 
+const recheckRemote = Atom.fn((remote: Remote, get) =>
+  Effect.sync(() => {
+    get.registry.refresh(readRemoteStatus(pairingPlatform, remote));
+  }),
+);
+
 export function useAddRemote() {
   const client = useQueryClient();
+  const recheck = useAtomSet(recheckRemote);
   const mutation = useMutation({
     mutationFn: addRemote,
     onSuccess: (remote) => {
+      recheck(remote);
       void client.invalidateQueries({
         predicate: (query) => query.queryKey.includes(remote.environmentId),
       });
@@ -65,14 +75,7 @@ async function forgetRemote(remote: Remote) {
 }
 
 export function useForgetRemote() {
-  const client = useQueryClient();
-  const mutation = useMutation({
-    mutationFn: forgetRemote,
-    onSuccess: (remote) =>
-      client.removeQueries({
-        queryKey: remoteStatusQueryOptions(pairingPlatform, remote).queryKey,
-      }),
-  });
+  const mutation = useMutation({ mutationFn: forgetRemote });
   return {
     submit: mutation.mutateAsync,
     onSubmit: mutation.mutate,
@@ -82,11 +85,7 @@ export function useForgetRemote() {
 }
 
 export function useRecheckRemote() {
-  const client = useQueryClient();
-  return (remote: Remote) =>
-    client.invalidateQueries({
-      queryKey: remoteStatusQueryOptions(pairingPlatform, remote).queryKey,
-    });
+  return useAtomSet(recheckRemote);
 }
 
 export function useReadSavedEnvironments() {

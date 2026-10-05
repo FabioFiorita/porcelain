@@ -1,9 +1,11 @@
-import { useQuery } from '@tanstack/react-query';
-import { remoteStatusQueryOptions } from '@porcelain/client/access';
+import { useAtomValue } from '@effect/atom-react';
+import { AsyncResult } from 'effect/reactivity';
+import { Option } from 'effect';
+import { readRemoteStatus } from '@porcelain/client/access';
 import { remoteStatus, type Remote } from '@porcelain/client/access/rules';
 import { pairingPlatform } from '../store';
 
 export function useRemoteStatus(remote: Remote) {
-  const query = useQuery(remoteStatusQueryOptions(pairingPlatform, remote));
-  return remoteStatus(remote, query.data);
+  const result = useAtomValue(readRemoteStatus(pairingPlatform, remote));
+  return remoteStatus(remote, Option.getOrUndefined(AsyncResult.value(result)));
 }

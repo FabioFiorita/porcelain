@@ -2,10 +2,7 @@ export { EnvironmentStorage } from './ports/environment-storage.ts';
 export type { AccessPlatform } from './ports/access-platform.ts';
 export { AccessStore } from './store.ts';
 export { pairEnvironment, redeemBrowserPairing } from './commands/pairing.ts';
-export {
-  remoteStatusQueryOptions,
-  environmentQueryOptions,
-} from './queries/environments.ts';
+export { readRemoteStatus } from './queries/environments.ts';
 export { shareCommands } from './commands/share.ts';
 export {
   pairedAccessQueryOptions,

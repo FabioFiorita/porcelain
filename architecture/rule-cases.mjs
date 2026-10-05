@@ -659,7 +659,7 @@ test('access.pairing: works', async ({ workspace }) => {
     rule: 'spec-imports',
     path: 'packages/client/src/features/access/commands/pairing.spec.ts',
     valid:
-      "import { AccessStore } from '@porcelain/client/access'; import type { Remote } from '@porcelain/client/access/rules'; import { ENVIRONMENT_PROTOCOL } from '@porcelain/contracts/shared';",
+      "import { AtomRegistry } from 'effect/reactivity'; import { AccessStore } from '@porcelain/client/access'; import type { Remote } from '@porcelain/client/access/rules'; import { ENVIRONMENT_PROTOCOL } from '@porcelain/contracts/shared';",
     invalid:
       "import { SettingsScreen } from '../../../../../../apps/mobile/src/features/access/views/settings-screen.tsx';",
     errors: 1,

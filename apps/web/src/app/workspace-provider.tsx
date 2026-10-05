@@ -19,7 +19,7 @@ function RemoteLive({ remote }: { remote: RemoteConnection }) {
   const recheck = useRecheckRemote();
   const open = remoteLiveOpen(status, desktopShell);
   const saved = remote.remote;
-  useLiveQueries(open ? remote.connection : null, () => void recheck(saved));
+  useLiveQueries(open ? remote.connection : null, () => recheck(saved));
   return null;
 }
 

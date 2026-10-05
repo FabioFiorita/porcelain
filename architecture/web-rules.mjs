@@ -1025,7 +1025,6 @@ export const webRules = {
       const target = localTarget(path, specifier);
       const direct =
         queryModules.has(specifier) ||
-        zustandModule.test(specifier) ||
         target === 'shared/query' ||
         target?.startsWith('shared/query/') === true;
       if (direct) {

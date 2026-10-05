@@ -20,12 +20,8 @@ export const queryKeys = {
       queryKeys.inventory(connection.environmentId),
       connection,
     ),
-  environment: (environmentId: string, address: string, deviceId?: string) =>
-    ['environment', environmentId, address, deviceId] as const,
   session: () => ['access', 'session'] as const,
   appUpdate: () => ['desktop-app-update'] as const,
-  remoteStatus: (environmentId: string, address: string) =>
-    ['remote-status', environmentId, address] as const,
   pairedAccess: (environmentId: string) =>
     ['paired-access', environmentId] as const,
   remoteAccess: (environmentId: string) =>

@@ -1187,6 +1187,7 @@ function allowedSpecImport(filename, source) {
       '@effect/vitest',
       'effect',
       'effect/testing',
+      'effect/reactivity',
       '@porcelain/effects',
       '@porcelain/effects/worktree',
     ].includes(source)

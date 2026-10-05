@@ -1,3 +1,5 @@
+import { AsyncResult } from 'effect/reactivity';
+import { Option } from 'effect';
 import { Host, RNHostView } from '@expo/ui';
 import { Text, View } from 'react-native';
 import type { Remote } from '@porcelain/client/access/rules';
@@ -16,17 +18,18 @@ export function EnvironmentRow({
   forgetProjectEnvironment: ProjectCleanup;
 }) {
   const status = useEnvironmentStatus(remote);
+  const description = Option.getOrUndefined(AsyncResult.value(status));
   const command = useForgetEnvironment(remote, forgetProjectEnvironment);
   const label =
-    status.data?.kind === 'online'
+    description?.kind === 'online'
       ? 'Online'
-      : status.data?.kind === 'needs-pairing'
+      : description?.kind === 'needs-pairing'
         ? 'Needs pairing'
-        : status.data?.kind === 'other-server'
+        : description?.kind === 'other-server'
           ? 'Another server'
-          : status.data?.kind === 'incompatible'
+          : description?.kind === 'incompatible'
             ? 'Update needed'
-            : status.data?.kind === 'offline' || status.error
+            : description?.kind === 'offline' || AsyncResult.isFailure(status)
               ? 'Offline'
               : 'Checking';
   return (

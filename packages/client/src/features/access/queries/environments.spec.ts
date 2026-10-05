@@ -1,9 +1,11 @@
-import { describe, expect } from 'vitest';
+import { afterEach, describe, expect } from 'vitest';
+import { AtomRegistry } from 'effect/reactivity';
+import type { AccessPlatform } from '../ports/access-platform.ts';
 import { it } from '@effect/vitest';
 import { Deferred, Effect, Fiber } from 'effect';
 import { TestClock } from 'effect/testing';
 import { ENVIRONMENT_PROTOCOL } from '@porcelain/contracts/shared';
-import { readRemoteEnvironment } from './environments.ts';
+import { readRemoteEnvironment, readRemoteStatus } from './environments.ts';
 import { runRequest } from '@porcelain/client/transport';
 import type { Transport } from '@porcelain/client/transport';
 const environment = {
@@ -122,3 +124,117 @@ it.effect(
       expect(requestSignal?.aborted).toBe(true);
     }),
 );
+
+const remote = {
+  environmentId: environment.environmentId,
+  name: 'Computer',
+  address: 'http://127.0.0.1:3000',
+  credential: 'original-credential',
+};
+const registries = new Set<AtomRegistry.AtomRegistry>();
+afterEach(() => {
+  for (const registry of registries) registry.dispose();
+  registries.clear();
+});
+function registryFixture() {
+  const registry = AtomRegistry.make();
+  registries.add(registry);
+  return registry;
+}
+function statusPlatform(send: AccessPlatform['send']): AccessPlatform {
+  return { send, name: () => 'Test device' };
+}
+
+it('shares the authenticated status read between consumers of one saved identity', async () => {
+  const paths: string[] = [];
+  const platform = statusPlatform((address) => {
+    paths.push(address.pathname);
+    return Promise.resolve(
+      Response.json(
+        address.pathname === '/api/environment'
+          ? environment
+          : { kind: 'owner' },
+      ),
+    );
+  });
+  const registry = registryFixture();
+  const first = readRemoteStatus(platform, remote);
+  const second = readRemoteStatus(platform, { ...remote });
+  const result = await Effect.runPromise(
+    Effect.all(
+      [
+        AtomRegistry.getResult(registry, first),
+        AtomRegistry.getResult(registry, second),
+      ],
+      { concurrency: 'unbounded' },
+    ),
+  );
+  expect(result).toEqual([
+    { kind: 'described', environment },
+    { kind: 'described', environment },
+  ]);
+  expect(paths).toEqual(['/api/environment', '/api/session']);
+});
+
+it('keeps a re-paired identity separate from the old authorization failure', async () => {
+  const credentials: string[] = [];
+  const platform = statusPlatform((address, init) => {
+    const authorization = new Headers(init?.headers).get('authorization') ?? '';
+    credentials.push(authorization);
+    return Promise.resolve(
+      address.pathname === '/api/environment'
+        ? Response.json(environment)
+        : authorization.endsWith('replacement-credential')
+          ? Response.json({ kind: 'owner' })
+          : new Response(null, { status: 401 }),
+    );
+  });
+  const registry = registryFixture();
+  const old = await Effect.runPromise(
+    AtomRegistry.getResult(registry, readRemoteStatus(platform, remote)),
+  );
+  const repaired = await Effect.runPromise(
+    AtomRegistry.getResult(
+      registry,
+      readRemoteStatus(platform, {
+        ...remote,
+        credential: 'replacement-credential',
+      }),
+    ),
+  );
+  expect(old).toEqual({ kind: 'unauthorized' });
+  expect(repaired).toEqual({ kind: 'described', environment });
+  expect(credentials).toEqual([
+    'Bearer original-credential',
+    'Bearer original-credential',
+    'Bearer replacement-credential',
+    'Bearer replacement-credential',
+  ]);
+});
+
+it('cancels a pending status transport when its registry is disposed', async () => {
+  const requested = Deferred.makeUnsafe<void>();
+  const canceled = Deferred.makeUnsafe<void>();
+  let signal: AbortSignal | null | undefined;
+  const platform = statusPlatform((_address, init) => {
+    signal = init?.signal;
+    Effect.runSync(Deferred.succeed(requested, undefined));
+    return new Promise<Response>((_resolve, reject) => {
+      signal?.addEventListener(
+        'abort',
+        () => {
+          Effect.runSync(Deferred.succeed(canceled, undefined));
+          reject(signal?.reason);
+        },
+        { once: true },
+      );
+    });
+  });
+  const registry = registryFixture();
+  registry.mount(readRemoteStatus(platform, remote));
+  await Effect.runPromise(Deferred.await(requested));
+  expect(signal?.aborted).toBe(false);
+  registry.dispose();
+  await Effect.runPromise(Deferred.await(canceled));
+  expect(signal?.aborted).toBe(true);
+});
