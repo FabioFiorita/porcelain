@@ -114,7 +114,6 @@ export const requiredServerFiles: readonly string[] = [
   'apps/server/src/http/status-policy.ts',
   'apps/server/src/runtime/lanes.ts',
   'apps/server/src/runtime/shared-reads.ts',
-  'apps/server/src/runtime/launch-limit.ts',
   'apps/server/src/runtime/lane-keys.ts',
   'apps/server/src/ports/event-publisher.ts',
 ];

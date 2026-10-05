@@ -1,6 +1,7 @@
-import { Cause, Effect, Exit } from 'effect';
+import { Cause, Deferred, Effect, Exit, Fiber, Semaphore } from 'effect';
 import { withSignal } from '@porcelain/effects';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from '@effect/vitest';
+import { TestClock } from 'effect/testing';
 import { GitWorktreeListingReader } from './git-worktree-listing-reader.ts';
 
 const project = {
@@ -19,7 +20,7 @@ function reader(failure: unknown) {
     sharedReads: {
       run: (_key, work) => work(),
     },
-    launchLimit: { run: (work) => work() },
+    launches: Effect.runSync(Semaphore.make(1)),
     timeoutMs: 5000,
     worktreeId: (projectId, metadataIdentity) =>
       `${projectId}:${metadataIdentity}`,
@@ -63,4 +64,116 @@ describe('GitWorktreeListingReader', () => {
     );
     expect(reports).toEqual([]);
   });
+  it.effect(
+    'does not launch a cancelled listing that is waiting for a launch permit',
+    () =>
+      Effect.gen(function* () {
+        const launches = yield* Semaphore.make(1);
+        const occupied = yield* Deferred.make<void>();
+        const released = yield* Deferred.make<void>();
+        const queued = yield* Deferred.make<void>();
+        let calls = 0;
+        const holding = yield* Effect.forkChild(
+          launches.withPermit(
+            Deferred.succeed(occupied, undefined).pipe(
+              Effect.andThen(Deferred.await(released)),
+            ),
+          ),
+        );
+        yield* Deferred.await(occupied);
+        const listing = new GitWorktreeListingReader({
+          git: () => ({
+            listWorktrees: async () => {
+              calls += 1;
+              return {
+                repository: {
+                  commonDirectory: project.commonDirectory,
+                  repositoryIdentity: 'repository-1',
+                  worktrees: [],
+                },
+                issues: [],
+              };
+            },
+            readOriginUrl: async () => null,
+          }),
+          sharedReads: {
+            run: (_key, work) =>
+              Deferred.succeed(queued, undefined).pipe(
+                Effect.andThen(Effect.suspend(work)),
+              ),
+          },
+          launches,
+          timeoutMs: 5000,
+          worktreeId: (projectId, metadataIdentity) =>
+            `${projectId}:${metadataIdentity}`,
+          logger: { failure: () => undefined },
+        });
+        const cancelled = yield* Effect.forkChild(listing.list(project));
+        yield* Deferred.await(queued);
+        yield* Fiber.interrupt(cancelled);
+        yield* Deferred.succeed(released, undefined);
+        yield* Fiber.join(holding);
+        expect(calls).toBe(0);
+        expect(yield* listing.list(project)).toEqual({
+          kind: 'listed',
+          projectId: 'project-1',
+          repositoryIdentity: 'repository-1',
+          worktrees: [],
+          unidentified: 0,
+        });
+        expect(calls).toBe(1);
+      }),
+  );
+
+  it.effect(
+    'aborts an expired listing and reports it as unavailable after native cleanup',
+    () =>
+      Effect.gen(function* () {
+        const started = Promise.withResolvers<void>();
+        const release = Promise.withResolvers<{
+          repository: {
+            commonDirectory: string;
+            repositoryIdentity: string;
+            worktrees: [];
+          };
+          issues: [];
+        }>();
+        const failures: unknown[] = [];
+        let aborted = false;
+        const listing = new GitWorktreeListingReader({
+          git: () => ({
+            listWorktrees: (signal) => {
+              signal?.addEventListener(
+                'abort',
+                () => {
+                  aborted = true;
+                  release.reject(signal.reason);
+                },
+                { once: true },
+              );
+              started.resolve();
+              return release.promise;
+            },
+            readOriginUrl: async () => null,
+          }),
+          sharedReads: { run: (_key, work) => work() },
+          launches: yield* Semaphore.make(1),
+          timeoutMs: 5000,
+          worktreeId: (projectId, metadataIdentity) =>
+            `${projectId}:${metadataIdentity}`,
+          logger: { failure: (report) => failures.push(report.error) },
+        });
+        const request = yield* Effect.forkChild(listing.list(project));
+        yield* Effect.promise(() => started.promise);
+        yield* TestClock.adjust(5000);
+        expect(yield* Fiber.join(request)).toEqual({
+          kind: 'unavailable',
+          projectId: 'project-1',
+        });
+        expect(aborted).toBe(true);
+        expect(failures).toHaveLength(1);
+        expect(failures[0]).toBeInstanceOf(DOMException);
+        expect(failures[0]).toMatchObject({ name: 'TimeoutError' });
+      }),
+  );
 });

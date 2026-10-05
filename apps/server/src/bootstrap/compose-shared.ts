@@ -20,7 +20,7 @@ import {
   ReadTextFilesOptions,
   ReadBinaryFilesOptions,
 } from '@porcelain/files/ports';
-import { Effect, Layer } from 'effect';
+import { Effect, Layer, Semaphore } from 'effect';
 import {
   EnvironmentIdentityReader,
   EnvironmentNameStore,
@@ -92,7 +92,6 @@ import { GitWorktreeListingReader } from '../adapters/projects/git-worktree-list
 import { type WorktreeListing } from '@porcelain/projects/models';
 import { type ServerSettings } from '../config/server-settings.ts';
 import { type Logger } from '../ports/logger.ts';
-import { LaunchLimit } from '../runtime/launch-limit.ts';
 import { makeSharedReads } from '../runtime/shared-reads.ts';
 import { ReadReviewEvidenceUseCase } from '../use-cases/reviews/read-review-evidence.ts';
 import { type Stores } from './compose-stores.ts';
@@ -125,7 +124,7 @@ export function composeShared(dependencies: SharedDependencies) {
     const worktreeListing = new GitWorktreeListingReader({
       git,
       sharedReads: inventoryReads,
-      launchLimit: new LaunchLimit(limits.inventory.listingLaunches),
+      launches: yield* Semaphore.make(limits.inventory.listingLaunches),
       timeoutMs: limits.inventory.listingTimeoutMs,
       worktreeId: dependencies.worktreeId,
       logger: dependencies.logger,
