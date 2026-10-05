@@ -117,14 +117,17 @@ export function composeFiles(
     ListWorktreePathsUseCase.layer,
   ).pipe(Layer.provideMerge(services));
   return Effect.gen(function* () {
-    const useCases = {
-      listDirectory: yield* ListDirectoryUseCase,
-      readTextFile: yield* ReadTextFileUseCase,
-      readFileAsset: yield* ReadFileAssetUseCase,
-      readPreviewAssets: yield* ReadPreviewAssetsUseCase,
-      editFile: yield* EditFileUseCase,
-      listWorktreePaths: yield* ListWorktreePathsUseCase,
-    };
-    return filesRoutes(useCases, limits.http);
-  }).pipe(Effect.provide(operations));
+    const runtime = yield* Layer.build(operations);
+    return yield* Effect.gen(function* () {
+      const useCases = {
+        listDirectory: yield* ListDirectoryUseCase,
+        readTextFile: yield* ReadTextFileUseCase,
+        readFileAsset: yield* ReadFileAssetUseCase,
+        readPreviewAssets: yield* ReadPreviewAssetsUseCase,
+        editFile: yield* EditFileUseCase,
+        listWorktreePaths: yield* ListWorktreePathsUseCase,
+      };
+      return filesRoutes(useCases, limits.http);
+    }).pipe(Effect.provideContext(runtime));
+  });
 }

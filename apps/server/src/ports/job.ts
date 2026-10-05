@@ -1,4 +1,6 @@
+import type { Effect } from 'effect';
+
 export type Job = {
-  start(): void;
-  stop(): Promise<void>;
+  start(): Effect.Effect<void>;
+  stop(): Effect.Effect<void>;
 };

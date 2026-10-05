@@ -56,7 +56,7 @@ import {
   CheckRefreshedWorktreeService,
 } from '@porcelain/projects/services';
 import { GitProjectRepositoryReader } from '../adapters/projects/git-project-repository-reader.ts';
-import { CoalescedWork } from '../runtime/coalesced-work.ts';
+import { makeCoalescedWork } from '../runtime/coalesced-work.ts';
 import { WorktreeAccess } from '../runtime/worktree-access.ts';
 import { ReadInventoryBadgesUseCase } from '../use-cases/projects/read-inventory-badges.ts';
 import { BrowseProjectFoldersUseCase } from '../use-cases/projects/browse-project-folders.ts';
@@ -82,14 +82,11 @@ type ProjectsDependencies = {
 
 class InventoryCoordinator extends Context.Service<
   InventoryCoordinator,
-  CoalescedWork<ProjectNotFoundError>
+  Effect.Success<ReturnType<typeof makeCoalescedWork<ProjectNotFoundError>>>
 >()('@porcelain/server/InventoryCoordinator') {
   static readonly layer = Layer.effect(
     InventoryCoordinator,
-    Effect.map(
-      RefreshInventoryUseCase,
-      (refresh) => new CoalescedWork(refresh),
-    ),
+    Effect.flatMap(RefreshInventoryUseCase, makeCoalescedWork),
   );
 }
 
@@ -193,19 +190,22 @@ export function composeProjects(
     RegisterProjectUseCase.layer,
   ).pipe(Layer.provideMerge(layer8));
   return Effect.gen(function* () {
-    const useCases = {
-      readInventory: yield* ReadInventoryUseCase,
-      findWorktreeByPath: yield* FindWorktreeByPathUseCase,
-      refreshInventory: yield* InventoryCoordinator,
-      checkWorktree: yield* CheckWorktreeUseCase,
-      registerProject: yield* RegisterProjectUseCase,
-      renameProject: yield* RenameProjectUseCase,
-      removeProject: yield* RemoveProjectUseCase,
-      browseProjectFolders: yield* BrowseProjectFoldersUseCase,
-      listFilePreferences: yield* ListFilePreferencesUseCase,
-      setFilePreference: yield* SetFilePreferenceUseCase,
-      collectAbsentWorktrees: yield* CollectAbsentWorktreesUseCase,
-    };
-    return { ...useCases, routes: projectsRoutes(useCases) };
-  }).pipe(Effect.provide(layer9));
+    const runtime = yield* Layer.build(layer9);
+    return yield* Effect.gen(function* () {
+      const useCases = {
+        readInventory: yield* ReadInventoryUseCase,
+        findWorktreeByPath: yield* FindWorktreeByPathUseCase,
+        refreshInventory: yield* InventoryCoordinator,
+        checkWorktree: yield* CheckWorktreeUseCase,
+        registerProject: yield* RegisterProjectUseCase,
+        renameProject: yield* RenameProjectUseCase,
+        removeProject: yield* RemoveProjectUseCase,
+        browseProjectFolders: yield* BrowseProjectFoldersUseCase,
+        listFilePreferences: yield* ListFilePreferencesUseCase,
+        setFilePreference: yield* SetFilePreferenceUseCase,
+        collectAbsentWorktrees: yield* CollectAbsentWorktreesUseCase,
+      };
+      return { ...useCases, routes: projectsRoutes(useCases) };
+    }).pipe(Effect.provideContext(runtime));
+  });
 }

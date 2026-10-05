@@ -1,43 +1,58 @@
-import { Effect, Exit, Fiber, Scope } from 'effect';
+import { Effect, Equal, Fiber, Hash, RcMap, Semaphore } from 'effect';
 
-type Group<A, E> = { readonly fiber: Fiber.Fiber<A, E>; subscribers: number };
-
-export class SharedReads<A, E = never> {
-  private readonly groups = new Map<string, Group<A, E>>();
-  private readonly scope = Scope.makeUnsafe();
-  private closing: Promise<void> | undefined;
-
-  run(key: string, work: () => Effect.Effect<A, E>): Effect.Effect<A, E> {
-    return Effect.acquireUseRelease(
-      Effect.gen({ self: this }, function* () {
-        if (this.closing !== undefined) return yield* Effect.interrupt;
-        let group = this.groups.get(key);
-        if (group === undefined) {
-          const fiber = yield* Effect.forkIn(Effect.suspend(work), this.scope);
-          group = { fiber, subscribers: 0 };
-          this.groups.set(key, group);
-          const started = group;
-          fiber.addObserver(() => {
-            if (this.groups.get(key) === started) this.groups.delete(key);
-          });
-        }
-        group.subscribers += 1;
-        return group;
-      }),
-      (group) => Fiber.join(group.fiber),
-      (group) =>
-        Effect.suspend(() => {
-          group.subscribers -= 1;
-          if (group.subscribers !== 0) return Effect.void;
-          if (this.groups.get(key) === group) this.groups.delete(key);
-          return Fiber.interrupt(group.fiber);
-        }),
-    );
+class ReadRequest<A, E> implements Equal.Equal {
+  readonly key: string;
+  readonly work: () => Effect.Effect<A, E>;
+  constructor(key: string, work: () => Effect.Effect<A, E>) {
+    this.key = key;
+    this.work = work;
   }
 
-  close(): Promise<void> {
-    return (this.closing ??= Effect.runPromise(
-      Scope.close(this.scope, Exit.void),
-    ));
+  [Equal.symbol](other: Equal.Equal): boolean {
+    return other instanceof ReadRequest && other.key === this.key;
+  }
+
+  [Hash.symbol](): number {
+    return Hash.hash(this.key);
   }
 }
+
+export const makeSharedReads = <A, E = never>() =>
+  Effect.gen(function* () {
+    const admission = yield* Semaphore.make(1);
+    let resources: RcMap.RcMap<ReadRequest<A, E>, Fiber.Fiber<A, E>>;
+    resources = yield* RcMap.make({
+      idleTimeToLive: 0,
+      lookup: (request: ReadRequest<A, E>) =>
+        Effect.forkScoped(
+          Effect.suspend(request.work).pipe(
+            Effect.ensuring(
+              admission.withPermit(
+                Effect.gen(function* () {
+                  const keys = yield* RcMap.keys(resources);
+                  if (Array.from(keys).some((key) => key === request))
+                    yield* RcMap.invalidate(resources, request);
+                }),
+              ),
+            ),
+          ),
+        ),
+    });
+    return {
+      run: Effect.fn('SharedReads.run')(
+        (key: string, work: () => Effect.Effect<A, E>) =>
+          Effect.scoped(
+            Effect.gen(function* () {
+              const fiber = yield* admission.withPermit(
+                RcMap.get(resources, new ReadRequest(key, work)),
+              );
+              return yield* Fiber.join(fiber);
+            }),
+          ),
+      ),
+    };
+  });
+
+export type SharedReads<A, E = never> = Effect.Success<
+  ReturnType<typeof makeSharedReads<A, E>>
+>;

@@ -1,7 +1,7 @@
-import { Deferred, Effect, Exit, Fiber } from 'effect';
+import { Deferred, Effect, Exit, Fiber, Scope } from 'effect';
 import { nativeOperation } from '@porcelain/effects';
 import { describe, expect, it } from 'vitest';
-import { SharedReads } from './shared-reads.ts';
+import { makeSharedReads } from './shared-reads.ts';
 
 function readGate() {
   const started = Effect.runSync(Deferred.make<void>());
@@ -18,7 +18,10 @@ function readGate() {
 
 describe('SharedReads', () => {
   it('shares only overlapping reads and starts fresh after settlement', async () => {
-    const reads = new SharedReads<string>();
+    const scope = await Effect.runPromise(Scope.make());
+    const reads = await Effect.runPromise(
+      makeSharedReads<string>().pipe(Scope.provide(scope)),
+    );
     const gate = readGate();
     try {
       await Effect.runPromise(
@@ -37,11 +40,14 @@ describe('SharedReads', () => {
         }),
       );
     } finally {
-      await reads.close();
+      await Effect.runPromise(Scope.close(scope, Exit.void));
     }
   });
   it('lets one caller leave without interrupting the remaining caller', async () => {
-    const reads = new SharedReads<string>();
+    const scope = await Effect.runPromise(Scope.make());
+    const reads = await Effect.runPromise(
+      makeSharedReads<string>().pipe(Scope.provide(scope)),
+    );
     const gate = readGate();
     try {
       await Effect.runPromise(
@@ -58,11 +64,14 @@ describe('SharedReads', () => {
         }),
       );
     } finally {
-      await reads.close();
+      await Effect.runPromise(Scope.close(scope, Exit.void));
     }
   });
   it('waits for native cleanup when the last caller leaves', async () => {
-    const reads = new SharedReads<string>();
+    const scope = await Effect.runPromise(Scope.make());
+    const reads = await Effect.runPromise(
+      makeSharedReads<string>().pipe(Scope.provide(scope)),
+    );
     const started = Promise.withResolvers<void>();
     const cancelled = Promise.withResolvers<void>();
     const cleanup = Promise.withResolvers<string>();
@@ -87,10 +96,13 @@ describe('SharedReads', () => {
     cleanup.resolve('settled');
     await leave;
     expect(left).toBe(true);
-    await reads.close();
+    await Effect.runPromise(Scope.close(scope, Exit.void));
   });
   it('forwards failures and removes the failed group before a new read', async () => {
-    const reads = new SharedReads<string, Error>();
+    const scope = await Effect.runPromise(Scope.make());
+    const reads = await Effect.runPromise(
+      makeSharedReads<string, Error>().pipe(Scope.provide(scope)),
+    );
     const failure = new Error('Failed read');
     try {
       const exit = await Effect.runPromiseExit(
@@ -103,7 +115,66 @@ describe('SharedReads', () => {
         ),
       ).resolves.toBe('new answer');
     } finally {
-      await reads.close();
+      await Effect.runPromise(Scope.close(scope, Exit.void));
     }
+  });
+  it('keeps a replacement read shared after the retired read finishes cancellation cleanup', async () => {
+    const scope = await Effect.runPromise(Scope.make());
+    const reads = await Effect.runPromise(
+      makeSharedReads<string>().pipe(Scope.provide(scope)),
+    );
+    const started = Promise.withResolvers<void>();
+    const cancelled = Promise.withResolvers<void>();
+    const cleanup = Promise.withResolvers<string>();
+    const gate = readGate();
+    try {
+      const retired = Effect.runFork(
+        reads.run('same', () =>
+          nativeOperation((signal) => {
+            signal.addEventListener('abort', () => cancelled.resolve(), {
+              once: true,
+            });
+            started.resolve();
+            return cleanup.promise;
+          }),
+        ),
+      );
+      await started.promise;
+      const leaving = Effect.runPromise(Fiber.interrupt(retired));
+      await cancelled.promise;
+      await Effect.runPromise(
+        Effect.gen(function* () {
+          const replacement = yield* Effect.forkChild(
+            reads.run('same', gate.work),
+          );
+          yield* Deferred.await(gate.started);
+          cleanup.resolve('retired');
+          yield* Effect.promise(() => leaving);
+          const joining = yield* Effect.forkChild(
+            reads.run('same', gate.work),
+            { startImmediately: true },
+          );
+          expect(gate.calls()).toBe(1);
+          yield* Deferred.succeed(gate.release, 'replacement');
+          expect(yield* Fiber.join(replacement)).toBe('replacement');
+          expect(yield* Fiber.join(joining)).toBe('replacement');
+        }),
+      );
+    } finally {
+      cleanup.resolve('retired');
+      await Effect.runPromise(Scope.close(scope, Exit.void));
+    }
+  });
+
+  it('refuses new reads after its owning scope closes', async () => {
+    const scope = await Effect.runPromise(Scope.make());
+    const reads = await Effect.runPromise(
+      makeSharedReads<string>().pipe(Scope.provide(scope)),
+    );
+    await Effect.runPromise(Scope.close(scope, Exit.void));
+    const result = await Effect.runPromiseExit(
+      reads.run('same', () => Effect.succeed('closed')),
+    );
+    expect(Exit.hasInterrupts(result)).toBe(true);
   });
 });

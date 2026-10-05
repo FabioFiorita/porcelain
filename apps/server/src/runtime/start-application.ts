@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { networkInterfaces } from 'node:os';
@@ -39,7 +40,7 @@ async function startJobs(jobs: readonly Job[]): Promise<readonly Job[]> {
   const started: Job[] = [];
   try {
     for (const job of jobs) {
-      job.start();
+      await Effect.runPromise(job.start());
       started.push(job);
     }
   } catch (error) {
@@ -50,7 +51,7 @@ async function startJobs(jobs: readonly Job[]): Promise<readonly Job[]> {
 }
 
 async function stopJobs(jobs: readonly Job[]): Promise<void> {
-  for (const job of jobs) await job.stop();
+  for (const job of jobs) await Effect.runPromise(job.stop());
 }
 
 async function shutDown(parts: RuntimeParts, graceMs: number) {

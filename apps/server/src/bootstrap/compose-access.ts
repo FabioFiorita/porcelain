@@ -98,34 +98,37 @@ export function composeAccess(
     SetDeviceTrustUseCase.layer,
   ).pipe(Layer.provideMerge(native));
   return Effect.gen(function* () {
-    const useCases = {
-      authenticateDevice: yield* AuthenticateDeviceUseCase,
-      issueLiveTicket: yield* IssueLiveTicketUseCase,
-      redeemLiveTicket: yield* RedeemLiveTicketUseCase,
-      clearBrowserSession: yield* ClearBrowserSessionUseCase,
-      checkRequestOrigin: yield* CheckRequestOriginUseCase,
-      identifyRequestClient: yield* IdentifyRequestClientUseCase,
-      checkLocalRequest: yield* CheckLocalRequestUseCase,
-      readServiceUpdate: yield* ReadServiceUpdateUseCase,
-      startServiceUpdate: yield* StartServiceUpdateUseCase,
-      renameEnvironment: yield* RenameEnvironmentUseCase,
-      readRemoteAccess: yield* ReadRemoteAccessUseCase,
-      setRemoteAccess: yield* SetRemoteAccessUseCase,
-      openRemoteRoutes: yield* OpenRemoteRoutesUseCase,
-      closeRemoteRoutes: yield* CloseRemoteRoutesUseCase,
-      flushDeviceActivity: yield* FlushDeviceActivityUseCase,
-      issuePairing: yield* IssuePairingUseCase,
-      listAccess: yield* ListAccessUseCase,
-      readHealth: yield* ReadHealthUseCase,
-      readSession: yield* ReadSessionUseCase,
-      readEnvironment: yield* ReadEnvironmentUseCase,
-      readOwnerStatus: yield* ReadOwnerStatusUseCase,
-      redeemPairing: yield* RedeemPairingUseCase,
-      takePairingAttempt: yield* TakePairingAttemptUseCase,
-      refundPairingAttempt: yield* RefundPairingAttemptUseCase,
-      revokeAccess: yield* RevokeAccessUseCase,
-      setDeviceTrust: yield* SetDeviceTrustUseCase,
-    };
-    return { ...useCases, routes: accessRoutes(useCases) };
-  }).pipe(Effect.provide(services));
+    const runtime = yield* Layer.build(services);
+    return yield* Effect.gen(function* () {
+      const useCases = {
+        authenticateDevice: yield* AuthenticateDeviceUseCase,
+        issueLiveTicket: yield* IssueLiveTicketUseCase,
+        redeemLiveTicket: yield* RedeemLiveTicketUseCase,
+        clearBrowserSession: yield* ClearBrowserSessionUseCase,
+        checkRequestOrigin: yield* CheckRequestOriginUseCase,
+        identifyRequestClient: yield* IdentifyRequestClientUseCase,
+        checkLocalRequest: yield* CheckLocalRequestUseCase,
+        readServiceUpdate: yield* ReadServiceUpdateUseCase,
+        startServiceUpdate: yield* StartServiceUpdateUseCase,
+        renameEnvironment: yield* RenameEnvironmentUseCase,
+        readRemoteAccess: yield* ReadRemoteAccessUseCase,
+        setRemoteAccess: yield* SetRemoteAccessUseCase,
+        openRemoteRoutes: yield* OpenRemoteRoutesUseCase,
+        closeRemoteRoutes: yield* CloseRemoteRoutesUseCase,
+        flushDeviceActivity: yield* FlushDeviceActivityUseCase,
+        issuePairing: yield* IssuePairingUseCase,
+        listAccess: yield* ListAccessUseCase,
+        readHealth: yield* ReadHealthUseCase,
+        readSession: yield* ReadSessionUseCase,
+        readEnvironment: yield* ReadEnvironmentUseCase,
+        readOwnerStatus: yield* ReadOwnerStatusUseCase,
+        redeemPairing: yield* RedeemPairingUseCase,
+        takePairingAttempt: yield* TakePairingAttemptUseCase,
+        refundPairingAttempt: yield* RefundPairingAttemptUseCase,
+        revokeAccess: yield* RevokeAccessUseCase,
+        setDeviceTrust: yield* SetDeviceTrustUseCase,
+      };
+      return { ...useCases, routes: accessRoutes(useCases) };
+    }).pipe(Effect.provideContext(runtime));
+  });
 }

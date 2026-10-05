@@ -151,14 +151,18 @@ export function composeGitActions(
     RecoverInterruptedGitActionsUseCase.layer,
   ).pipe(Layer.provideMerge(services));
   return Effect.gen(function* () {
-    const useCases = {
-      runGitAction: yield* RunGitActionUseCase,
-      readGitActionReceipt: yield* ReadGitActionReceiptUseCase,
-      dismissInterruptedGitAction: yield* DismissInterruptedGitActionUseCase,
-      listCommitModels: yield* ListCommitModelsUseCase,
-      generateCommitDraft: yield* GenerateCommitDraftUseCase,
-      recoverInterruptedGitActions: yield* RecoverInterruptedGitActionsUseCase,
-    };
-    return { ...useCases, routes: gitActionsRoutes(useCases) };
-  }).pipe(Effect.provide(operations));
+    const runtime = yield* Layer.build(operations);
+    return yield* Effect.gen(function* () {
+      const useCases = {
+        runGitAction: yield* RunGitActionUseCase,
+        readGitActionReceipt: yield* ReadGitActionReceiptUseCase,
+        dismissInterruptedGitAction: yield* DismissInterruptedGitActionUseCase,
+        listCommitModels: yield* ListCommitModelsUseCase,
+        generateCommitDraft: yield* GenerateCommitDraftUseCase,
+        recoverInterruptedGitActions:
+          yield* RecoverInterruptedGitActionsUseCase,
+      };
+      return { ...useCases, routes: gitActionsRoutes(useCases) };
+    }).pipe(Effect.provideContext(runtime));
+  });
 }

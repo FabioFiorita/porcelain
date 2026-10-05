@@ -44,7 +44,7 @@ import { ReadChangesUseCase } from '../use-cases/changes/read-changes.ts';
 import { ReadCommitDiffsUseCase } from '../use-cases/changes/read-commit-diffs.ts';
 import { ReadCommitFilesUseCase } from '../use-cases/changes/read-commit-files.ts';
 import { ReadGitStatusUseCase } from '../use-cases/changes/read-git-status.ts';
-import { SharedReads } from '../runtime/shared-reads.ts';
+import { makeSharedReads } from '../runtime/shared-reads.ts';
 import { CheckWorktreeUseCasePort } from '../ports/check-worktree-use-case-port.ts';
 import { type ComposeContext } from './compose-context.ts';
 import { type Shared } from './compose-shared.ts';
@@ -62,14 +62,6 @@ export function composeChanges(
   const { shared } = dependencies;
   const limits = context.settings.limits.changes;
   const { checkWorktree } = dependencies;
-  const statusReads = new SharedReads<
-    Effect.Success<
-      ReturnType<Context.Service.Shape<typeof ReadGitStatusUseCase>['execute']>
-    >,
-    Effect.Error<
-      ReturnType<Context.Service.Shape<typeof ReadGitStatusUseCase>['execute']>
-    >
-  >();
   const {
     readEnvironment,
     readWorktreeStatus,
@@ -100,7 +92,21 @@ export function composeChanges(
     Layer.succeed(ReadChangeDiffsService, readChangeDiffs),
     Layer.succeed(ReadTextFileService, shared.readTextFileService),
     Layer.succeed(ReadChangeLinesOptions, limits.changeLines),
-    Layer.succeed(GitStatusReads, statusReads),
+    Layer.effect(
+      GitStatusReads,
+      makeSharedReads<
+        Effect.Success<
+          ReturnType<
+            Context.Service.Shape<typeof ReadGitStatusUseCase>['execute']
+          >
+        >,
+        Effect.Error<
+          ReturnType<
+            Context.Service.Shape<typeof ReadGitStatusUseCase>['execute']
+          >
+        >
+      >(),
+    ),
   );
   const services = Layer.mergeAll(
     WorktreeAccess.layer,
@@ -130,20 +136,22 @@ export function composeChanges(
     ReadCommitDiffsUseCase.layer,
   ).pipe(Layer.provideMerge(services));
   return Effect.gen(function* () {
-    const useCases = {
-      statusReads,
-      readBranchChanges: yield* ReadBranchChangesUseCase,
-      readBranchDiffs: yield* ReadBranchDiffsUseCase,
-      listBranchBases: yield* ListBranchBasesUseCase,
-      readChanges: yield* ReadChangesUseCase,
-      readChangeDiffs: yield* ReadChangeDiffsUseCase,
-      readChangeLines: yield* ReadChangeLinesUseCase,
-      readGitStatus: yield* ReadGitStatusUseCase,
-      listCommits: yield* ListCommitsUseCase,
-      listFileCommits: yield* ListFileCommitsUseCase,
-      readCommitFiles: yield* ReadCommitFilesUseCase,
-      readCommitDiffs: yield* ReadCommitDiffsUseCase,
-    };
-    return { ...useCases, routes: changesRoutes(useCases) };
-  }).pipe(Effect.provide(operations));
+    const runtime = yield* Layer.build(operations);
+    return yield* Effect.gen(function* () {
+      const useCases = {
+        readBranchChanges: yield* ReadBranchChangesUseCase,
+        readBranchDiffs: yield* ReadBranchDiffsUseCase,
+        listBranchBases: yield* ListBranchBasesUseCase,
+        readChanges: yield* ReadChangesUseCase,
+        readChangeDiffs: yield* ReadChangeDiffsUseCase,
+        readChangeLines: yield* ReadChangeLinesUseCase,
+        readGitStatus: yield* ReadGitStatusUseCase,
+        listCommits: yield* ListCommitsUseCase,
+        listFileCommits: yield* ListFileCommitsUseCase,
+        readCommitFiles: yield* ReadCommitFilesUseCase,
+        readCommitDiffs: yield* ReadCommitDiffsUseCase,
+      };
+      return { ...useCases, routes: changesRoutes(useCases) };
+    }).pipe(Effect.provideContext(runtime));
+  });
 }

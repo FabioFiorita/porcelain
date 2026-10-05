@@ -49,7 +49,7 @@ import { operationDeadlineMs } from '../config/operation-deadline.ts';
 import { type Limits } from '../config/limits.ts';
 import { createOwnerServer } from '../http/owner-server.ts';
 import { createNetworkServer } from '../http/server.ts';
-import { IntervalJob, JobSequence } from '../runtime/interval-job.ts';
+import { makeIntervalJob, jobSequence } from '../runtime/interval-job.ts';
 import { type Job } from '../ports/job.ts';
 import { LaneKeys } from '../runtime/lane-keys.ts';
 import { Lanes } from '../runtime/lanes.ts';
@@ -252,52 +252,52 @@ function serverResources(
           commitModelReader: new ProcessCommitModelReader(commitPlanner),
         });
         const jobs: readonly Job[] = [
-          new IntervalJob(
+          yield* makeIntervalJob(
             'recover-interrupted-git-actions',
             gitActions.recoverInterruptedGitActions,
             { atStart: true },
             logger,
           ),
-          new IntervalJob(
+          yield* makeIntervalJob(
             'refresh-inventory',
-            new JobSequence([
+            jobSequence([
               projects.refreshInventory,
               reviews.refreshReviewActivity,
             ]),
             { atStart: true, everyMs: limits.jobs.refreshInventoryMs },
             logger,
           ),
-          new IntervalJob(
+          yield* makeIntervalJob(
             'collect-absent-worktrees',
             projects.collectAbsentWorktrees,
             { everyMs: limits.jobs.collectAbsentWorktreesMs },
             logger,
           ),
-          new IntervalJob(
+          yield* makeIntervalJob(
             'flush-device-activity',
             access.flushDeviceActivity,
             { everyMs: limits.jobs.flushDeviceActivityMs, atStop: true },
             logger,
           ),
-          new IntervalJob(
+          yield* makeIntervalJob(
             'open-remote-routes',
             access.openRemoteRoutes,
             { atStart: true, everyMs: limits.jobs.openRemoteRoutesMs },
             logger,
           ),
-          new IntervalJob(
+          yield* makeIntervalJob(
             'close-remote-routes',
             access.closeRemoteRoutes,
             { atStop: true },
             logger,
           ),
-          new IntervalJob(
+          yield* makeIntervalJob(
             'heartbeat',
             new LiveHeartbeat(liveConnections),
             { everyMs: limits.liveUpdates.heartbeatMs },
             logger,
           ),
-          new IntervalJob(
+          yield* makeIntervalJob(
             'ping-live-clients',
             new LivePing(liveConnections),
             { everyMs: limits.liveUpdates.pingMs },
@@ -340,9 +340,6 @@ function serverResources(
                 routeListenerRunner.close({ route: 'lan' }),
                 routeListenerRunner.close({ route: 'tailnet' }),
                 nativeOperation(() => worktreeWatches.close()),
-                nativeOperation(() => projects.refreshInventory.close()),
-                nativeOperation(() => shared.inventoryReads.close()),
-                nativeOperation(() => changes.statusReads.close()),
                 Effect.sync(() => liveConnections.close()),
                 nativeOperation(() => lanes.close()),
               ]),

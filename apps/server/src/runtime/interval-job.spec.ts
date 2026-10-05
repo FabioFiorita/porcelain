@@ -2,7 +2,7 @@ import { describe, expect, it } from '@effect/vitest';
 import { Effect } from 'effect';
 import { TestClock } from 'effect/testing';
 import { nativeOperation } from '@porcelain/effects';
-import { IntervalJob } from './interval-job.ts';
+import { makeIntervalJob } from './interval-job.ts';
 
 function reporting() {
   const reports: unknown[] = [];
@@ -36,15 +36,14 @@ describe('IntervalJob', () => {
   it.effect('runs once at start when scheduled at start', () =>
     Effect.gen(function* () {
       const { runs, work } = counting();
-      const job = new IntervalJob(
+      const job = yield* makeIntervalJob(
         'job',
         work,
         { atStart: true },
         reporting().logger,
-        yield* Effect.context(),
       );
-      job.start();
-      yield* Effect.promise(() => job.stop());
+      yield* job.start();
+      yield* job.stop();
       expect(runs).toHaveLength(1);
     }),
   );
@@ -52,15 +51,14 @@ describe('IntervalJob', () => {
   it.effect('starts at the first deadline and repeats at a fixed cadence', () =>
     Effect.gen(function* () {
       const { runs, work } = counting();
-      const job = new IntervalJob(
+      const job = yield* makeIntervalJob(
         'job',
         work,
         { everyMs: 1000 },
         reporting().logger,
-        yield* Effect.context(),
       );
-      yield* Effect.addFinalizer(() => Effect.promise(() => job.stop()));
-      job.start();
+      yield* Effect.addFinalizer(() => job.stop());
+      yield* job.start();
       yield* TestClock.adjust(999);
       expect(runs).toHaveLength(0);
       yield* TestClock.adjust(1);
@@ -74,18 +72,17 @@ describe('IntervalJob', () => {
     Effect.gen(function* () {
       const release = Promise.withResolvers<void>();
       const { runs, work } = counting(() => release.promise);
-      const job = new IntervalJob(
+      const job = yield* makeIntervalJob(
         'job',
         work,
         { atStart: true, everyMs: 1000 },
         reporting().logger,
-        yield* Effect.context(),
       );
-      job.start();
+      yield* job.start();
       yield* TestClock.adjust(4000);
       expect(runs).toHaveLength(1);
       release.resolve();
-      yield* Effect.promise(() => job.stop());
+      yield* job.stop();
     }),
   );
 
@@ -101,16 +98,15 @@ describe('IntervalJob', () => {
           });
           return cleanup.promise;
         });
-        const job = new IntervalJob(
+        const job = yield* makeIntervalJob(
           'job',
           work,
           { atStart: true },
           reporting().logger,
-          yield* Effect.context(),
         );
-        job.start();
+        yield* job.start();
         let stopped = false;
-        const stopping = job.stop().then(() => {
+        const stopping = Effect.runPromise(job.stop()).then(() => {
           stopped = true;
         });
         yield* Effect.promise(() => aborted.promise);
@@ -127,15 +123,14 @@ describe('IntervalJob', () => {
       const failure = new Error('refresh failed');
       const { reports, logger } = reporting();
       const work = { execute: () => Effect.fail(failure) };
-      const job = new IntervalJob(
+      const job = yield* makeIntervalJob(
         'refresh-inventory',
         work,
         { atStart: true },
         logger,
-        yield* Effect.context(),
       );
-      job.start();
-      yield* Effect.promise(() => job.stop());
+      yield* job.start();
+      yield* job.stop();
       expect(reports).toEqual([
         { kind: 'job', job: 'refresh-inventory', error: failure },
       ]);
@@ -145,15 +140,14 @@ describe('IntervalJob', () => {
   it.effect('does not report interruption caused by stopping', () =>
     Effect.gen(function* () {
       const { reports, logger } = reporting();
-      const job = new IntervalJob(
+      const job = yield* makeIntervalJob(
         'job',
         { execute: () => Effect.never },
         { atStart: true },
         logger,
-        yield* Effect.context(),
       );
-      job.start();
-      yield* Effect.promise(() => job.stop());
+      yield* job.start();
+      yield* job.stop();
       expect(reports).toEqual([]);
     }),
   );
@@ -161,16 +155,33 @@ describe('IntervalJob', () => {
   it.effect('runs once at stop with a live native signal', () =>
     Effect.gen(function* () {
       const { runs, work } = counting();
-      const job = new IntervalJob(
+      const job = yield* makeIntervalJob(
         'job',
         work,
         { atStop: true },
         reporting().logger,
-        yield* Effect.context(),
       );
-      job.start();
-      yield* Effect.promise(() => job.stop());
+      yield* job.start();
+      yield* job.stop();
       expect(runs.map((signal) => signal.aborted)).toEqual([false]);
+    }),
+  );
+  it.effect('starts once, shares stop and can start fresh after stopping', () =>
+    Effect.gen(function* () {
+      const { runs, work } = counting();
+      const job = yield* makeIntervalJob(
+        'job',
+        work,
+        { atStart: true, atStop: true },
+        reporting().logger,
+      );
+      yield* job.start();
+      yield* job.start();
+      yield* Effect.all([job.stop(), job.stop()], { concurrency: 2 });
+      expect(runs).toHaveLength(2);
+      yield* job.start();
+      yield* job.stop();
+      expect(runs).toHaveLength(4);
     }),
   );
 });

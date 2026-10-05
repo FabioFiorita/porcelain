@@ -218,35 +218,38 @@ export function composeReviews(
     Layer.provideMerge(admission),
   );
   return Effect.gen(function* () {
-    const useCases = {
-      atWorktreePath: yield* AtWorktreePathUseCase,
+    const runtime = yield* Layer.build(application);
+    return yield* Effect.gen(function* () {
+      const useCases = {
+        atWorktreePath: yield* AtWorktreePathUseCase,
 
-      refreshReviewActivity: yield* RefreshReviewActivityUseCase,
-      refreshWorktreeReview: yield* RefreshWorktreeReviewUseCase,
-      invalidateReviewedMarks: yield* InvalidateReviewedMarksUseCase,
-      listCommentThreads: yield* ListCommentThreadsUseCase,
-      createCommentThread: yield* CreateCommentThreadUseCase,
-      replyToComment: yield* ReplyToCommentUseCase,
-      updateCommentThread: yield* UpdateCommentThreadUseCase,
-      editCommentMessage: yield* EditCommentMessageUseCase,
-      deleteCommentMessage: yield* DeleteCommentMessageUseCase,
-      deleteResolvedComments: yield* DeleteResolvedCommentsUseCase,
-      markCommentsSeen: yield* MarkCommentsSeenUseCase,
-      publishReview: yield* PublishReviewUseCase,
-      readPublishedReview: yield* ReadPublishedReviewUseCase,
-      readProofFile: yield* ReadProofFileUseCase,
-      readReviewSummary: yield* ReadReviewSummaryUseCase,
-      listReviewedFiles: yield* ListReviewedFilesUseCase,
-      setReviewedFiles: yield* SetReviewedFilesUseCase,
-      removeReviewedFiles: yield* RemoveReviewedFilesUseCase,
-      listReviewedLayers: yield* ListReviewedLayersUseCase,
-      setReviewedLayer: yield* SetReviewedLayerUseCase,
-      removeReviewedLayer: yield* RemoveReviewedLayerUseCase,
-    };
-    return {
-      ...useCases,
-      routes: reviewsRoutes(useCases, context.settings.limits.http),
-      summaryRoutes: summaryRoutes(useCases.readReviewSummary),
-    };
-  }).pipe(Effect.provide(application));
+        refreshReviewActivity: yield* RefreshReviewActivityUseCase,
+        refreshWorktreeReview: yield* RefreshWorktreeReviewUseCase,
+        invalidateReviewedMarks: yield* InvalidateReviewedMarksUseCase,
+        listCommentThreads: yield* ListCommentThreadsUseCase,
+        createCommentThread: yield* CreateCommentThreadUseCase,
+        replyToComment: yield* ReplyToCommentUseCase,
+        updateCommentThread: yield* UpdateCommentThreadUseCase,
+        editCommentMessage: yield* EditCommentMessageUseCase,
+        deleteCommentMessage: yield* DeleteCommentMessageUseCase,
+        deleteResolvedComments: yield* DeleteResolvedCommentsUseCase,
+        markCommentsSeen: yield* MarkCommentsSeenUseCase,
+        publishReview: yield* PublishReviewUseCase,
+        readPublishedReview: yield* ReadPublishedReviewUseCase,
+        readProofFile: yield* ReadProofFileUseCase,
+        readReviewSummary: yield* ReadReviewSummaryUseCase,
+        listReviewedFiles: yield* ListReviewedFilesUseCase,
+        setReviewedFiles: yield* SetReviewedFilesUseCase,
+        removeReviewedFiles: yield* RemoveReviewedFilesUseCase,
+        listReviewedLayers: yield* ListReviewedLayersUseCase,
+        setReviewedLayer: yield* SetReviewedLayerUseCase,
+        removeReviewedLayer: yield* RemoveReviewedLayerUseCase,
+      };
+      return {
+        ...useCases,
+        routes: reviewsRoutes(useCases, context.settings.limits.http),
+        summaryRoutes: summaryRoutes(useCases.readReviewSummary),
+      };
+    }).pipe(Effect.provideContext(runtime));
+  });
 }
