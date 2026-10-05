@@ -496,3 +496,99 @@ it.effect('a rejected transaction never publishes and releases its lane', () =>
     yield* Effect.promise(() => lanes.close());
   }),
 );
+
+it.effect('admits queued writers in order before later readers', () =>
+  Effect.gen(function* () {
+    const lanes = yield* Lanes.pipe(
+      Effect.provide(Lanes.layer),
+      Effect.provideService(LaneOptions, options),
+    );
+    yield* Effect.addFinalizer(() => Effect.promise(() => lanes.close()));
+    const started = yield* Deferred.make<void>();
+    const release = yield* Deferred.make<void>();
+    const order: string[] = [];
+    const holding = yield* Effect.forkChild(
+      lanes.run('repo', 'read', () =>
+        Deferred.succeed(started, undefined).pipe(
+          Effect.andThen(Deferred.await(release)),
+        ),
+      ),
+    );
+    yield* Deferred.await(started);
+    const waiting = [];
+    for (const name of ['first', 'second', 'third']) {
+      waiting.push(
+        yield* Effect.forkChild(
+          lanes.run('repo', 'write', () =>
+            Effect.sync(() => {
+              order.push(name);
+            }),
+          ),
+        ),
+      );
+      yield* Effect.yieldNow;
+    }
+    const reader = yield* Effect.forkChild(
+      lanes.run('repo', 'read', () =>
+        Effect.sync(() => {
+          order.push('read');
+        }),
+      ),
+    );
+    yield* Effect.yieldNow;
+    expect(order).toEqual([]);
+    yield* Deferred.succeed(release, undefined);
+    yield* Fiber.joinAll([holding, ...waiting, reader]);
+    expect(order).toEqual(['first', 'second', 'third', 'read']);
+  }),
+);
+
+it.effect(
+  'cancelling the first queued writer preserves the next writer and releases its priority after completion',
+  () =>
+    Effect.gen(function* () {
+      const lanes = yield* Lanes.pipe(
+        Effect.provide(Lanes.layer),
+        Effect.provideService(LaneOptions, options),
+      );
+      yield* Effect.addFinalizer(() => Effect.promise(() => lanes.close()));
+      const started = yield* Deferred.make<void>();
+      const release = yield* Deferred.make<void>();
+      const order: string[] = [];
+      const holding = yield* Effect.forkChild(
+        lanes.run('repo', 'read', () =>
+          Deferred.succeed(started, undefined).pipe(
+            Effect.andThen(Deferred.await(release)),
+          ),
+        ),
+      );
+      yield* Deferred.await(started);
+      const cancelled = yield* Effect.forkChild(
+        lanes.run('repo', 'write', () =>
+          Effect.sync(() => {
+            order.push('cancelled');
+          }),
+        ),
+      );
+      yield* Effect.yieldNow;
+      const next = yield* Effect.forkChild(
+        lanes.run('repo', 'write', () =>
+          Effect.sync(() => {
+            order.push('write');
+          }),
+        ),
+      );
+      yield* Effect.yieldNow;
+      const reader = yield* Effect.forkChild(
+        lanes.run('repo', 'read', () =>
+          Effect.sync(() => {
+            order.push('read');
+          }),
+        ),
+      );
+      yield* Fiber.interrupt(cancelled);
+      yield* Deferred.succeed(release, undefined);
+      yield* Fiber.joinAll([holding, next, reader]);
+      expect(order).toEqual(['write', 'read']);
+    }),
+);

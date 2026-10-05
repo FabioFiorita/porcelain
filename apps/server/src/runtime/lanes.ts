@@ -1,3 +1,4 @@
+import { makeLaneAdmission, withLaneAdmission } from './lane-admission.ts';
 import { LaneOptions } from '../ports/lane-options.ts';
 import {
   type Cause,
@@ -8,6 +9,7 @@ import {
   Fiber,
   Scope,
   Exit,
+  RcMap,
 } from 'effect';
 import { withSignal } from '@porcelain/effects';
 import { channel } from 'node:diagnostics_channel';
@@ -28,96 +30,6 @@ type OperationEvent = {
 let sequence = 0;
 
 type LaneMode = 'read' | 'write';
-
-type Waiter = {
-  admit: () => void;
-};
-
-class Gate {
-  private readonly capacity: number;
-  private readers = 0;
-  private writing = false;
-  private readonly waitingReads: Waiter[] = [];
-  private readonly waitingWrites: Waiter[] = [];
-
-  constructor(capacity: number) {
-    this.capacity = capacity;
-  }
-
-  get idle() {
-    return (
-      this.readers === 0 &&
-      !this.writing &&
-      this.waitingReads.length === 0 &&
-      this.waitingWrites.length === 0
-    );
-  }
-
-  private free(mode: LaneMode) {
-    if (this.writing) return false;
-    return mode === 'write'
-      ? this.readers === 0
-      : this.waitingWrites.length === 0 && this.readers < this.capacity;
-  }
-
-  private take(mode: LaneMode) {
-    if (mode === 'write') this.writing = true;
-    else this.readers += 1;
-  }
-
-  enterEffect(mode: LaneMode): Effect.Effect<() => void> {
-    return Effect.callback((resume) => {
-      let admitted = false;
-      let released = false;
-      const release = () => {
-        if (!admitted || released) return;
-        released = true;
-        this.leave(mode);
-      };
-      if (this.free(mode)) {
-        this.take(mode);
-        admitted = true;
-        resume(Effect.succeed(release));
-        return Effect.sync(release);
-      }
-      const queue = mode === 'write' ? this.waitingWrites : this.waitingReads;
-      const waiter: Waiter = {
-        admit: () => {
-          admitted = true;
-          resume(Effect.succeed(release));
-        },
-      };
-      queue.push(waiter);
-      return Effect.sync(() => {
-        if (admitted) return release();
-        const index = queue.indexOf(waiter);
-        if (index >= 0) queue.splice(index, 1);
-        this.wake();
-      });
-    });
-  }
-
-  leave(mode: LaneMode) {
-    if (mode === 'write') this.writing = false;
-    else this.readers -= 1;
-    this.wake();
-  }
-
-  private wake() {
-    while (this.waitingWrites.length > 0 && this.free('write')) {
-      const next = this.waitingWrites.shift();
-      if (!next) return;
-      this.take('write');
-      next.admit();
-    }
-    while (this.waitingReads.length > 0 && this.free('read')) {
-      const next = this.waitingReads.shift();
-      if (!next) return;
-      this.take('read');
-      next.admit();
-    }
-  }
-}
 
 export class Lanes extends Context.Service<
   Lanes,
@@ -173,13 +85,16 @@ export class Lanes extends Context.Service<
     Lanes,
     Effect.gen(function* () {
       const options = yield* LaneOptions;
-      const gates = new Map<string, Gate>();
       const shutdown = new AbortController();
       const scope = Scope.makeUnsafe();
       const finishing = new Set<Deferred.Deferred<void>>();
       let closed = false;
 
-      const capacity = options.readCapacity;
+      const admissionScope = yield* Scope.make();
+      const admissions = yield* RcMap.make({
+        lookup: () => makeLaneAdmission(options.readCapacity),
+        idleTimeToLive: 0,
+      }).pipe(Scope.provide(admissionScope));
       const configuredDeadlineMs = options.deadlineMs;
       const deadlineMs =
         typeof configuredDeadlineMs === 'function'
@@ -191,13 +106,6 @@ export class Lanes extends Context.Service<
       let closing: Promise<void> | undefined;
       function assertOpen(): void {
         if (shutdown.signal.aborted) throw new ApplicationClosedError();
-      }
-      function getGate(lane: string) {
-        const existing = gates.get(lane);
-        if (existing) return existing;
-        const created = new Gate(capacity);
-        gates.set(lane, created);
-        return created;
       }
       function run<A, E>(
         lane: string,
@@ -259,21 +167,14 @@ export class Lanes extends Context.Service<
         return Effect.uninterruptibleMask((restore) =>
           Effect.gen(function* () {
             assertOpen();
-            const gate = getGate(lane);
             const id = ++sequence;
             publish(id, lane, 'queued');
-            const release = yield* restore(
-              withSignal(gate.enterEffect(mode), shutdown.signal),
-            );
             return yield* admittedEffect(
               id,
               lane,
               work,
               restore,
-              () => {
-                release();
-                if (gate.idle) gates.delete(lane);
-              },
+              mode,
               options,
             );
           }),
@@ -291,7 +192,7 @@ export class Lanes extends Context.Service<
               'unqueued',
               work,
               restore,
-              () => undefined,
+              undefined,
               options,
             );
           }),
@@ -322,16 +223,15 @@ export class Lanes extends Context.Service<
             if (closed) return yield* Effect.die(new ApplicationClosedError());
             const completed = yield* Deferred.make<void>();
             finishing.add(completed);
-            const gate = getGate(lane);
-            return yield* Effect.acquireUseRelease(
-              gate.enterEffect('write'),
-              () => Effect.suspend(work),
-              (release) =>
-                Effect.sync(() => {
-                  release();
-                  if (gate.idle) gates.delete(lane);
-                }),
-            ).pipe(
+            const operation = Effect.gen(function* () {
+              const admission = yield* RcMap.get(admissions, lane);
+              return yield* withLaneAdmission(
+                admission,
+                'write',
+                Effect.suspend(work),
+              );
+            }).pipe(Effect.scoped);
+            return yield* operation.pipe(
               Effect.ensuring(
                 Effect.gen(function* () {
                   finishing.delete(completed);
@@ -363,52 +263,65 @@ export class Lanes extends Context.Service<
         restore: <B, F, R>(
           effect: Effect.Effect<B, F, R>,
         ) => Effect.Effect<B, F, R>,
-        settled: () => void,
+        mode: LaneMode | undefined,
         options: {
           deadlineMs?: number;
           completed?: (() => Effect.Effect<void>) | undefined;
         },
       ): Effect.Effect<A, E> {
-        let worker: Fiber.Fiber<A, E> | undefined;
         return Effect.gen(function* () {
-          assertOpen();
-          publish(id, lane, 'started');
-          const admitted = Effect.suspend(work).pipe(
-            Effect.onExit((exit) =>
-              Effect.gen(function* () {
-                publish(id, lane, 'settled', Exit.isFailure(exit));
-                settled();
-                if (options.completed) yield* options.completed();
-              }),
-            ),
-          );
-          worker = yield* Effect.forkIn(admitted, scope, {
-            startImmediately: true,
+          const admitted = yield* Deferred.make<void>();
+          let started = false;
+          const operation = Effect.gen(function* () {
+            assertOpen();
+            publish(id, lane, 'started');
+            started = true;
+            yield* Deferred.succeed(admitted, undefined);
+            return yield* Effect.suspend(work);
           });
-          const timeout = Effect.sleep(options.deadlineMs ?? deadlineMs()).pipe(
-            Effect.andThen(
-              Effect.die(
-                new DOMException(
-                  'The operation exceeded its deadline',
-                  'TimeoutError',
-                ),
+          const owned =
+            mode === undefined
+              ? operation
+              : Effect.gen(function* () {
+                  const admission = yield* RcMap.get(admissions, lane);
+                  return yield* withLaneAdmission(admission, mode, operation);
+                }).pipe(Effect.scoped);
+          const worker = yield* Effect.forkIn(
+            Effect.interruptible(owned).pipe(
+              Effect.onExit((exit) =>
+                Effect.gen(function* () {
+                  if (!started) return;
+                  publish(id, lane, 'settled', Exit.isFailure(exit));
+                  if (options.completed) yield* options.completed();
+                }),
               ),
             ),
+            scope,
+            { startImmediately: true },
           );
-          return yield* restore(
-            withSignal(
-              Effect.raceFirst(Fiber.join(worker), timeout),
-              shutdown.signal,
-            ),
+          const awaited = Effect.gen(function* () {
+            yield* Effect.raceFirst(
+              Deferred.await(admitted),
+              Effect.asVoid(Fiber.join(worker)),
+            );
+            const timeout = Effect.sleep(
+              options.deadlineMs ?? deadlineMs(),
+            ).pipe(
+              Effect.andThen(
+                Effect.die(
+                  new DOMException(
+                    'The operation exceeded its deadline',
+                    'TimeoutError',
+                  ),
+                ),
+              ),
+            );
+            return yield* Effect.raceFirst(Fiber.join(worker), timeout);
+          });
+          return yield* restore(withSignal(awaited, shutdown.signal)).pipe(
+            Effect.onExit(() => Effect.sync(() => worker.interruptUnsafe())),
           );
-        }).pipe(
-          Effect.onExit(() =>
-            Effect.sync(() => {
-              if (worker) worker.interruptUnsafe();
-              else settled();
-            }),
-          ),
-        );
+        });
       }
       function runConsistent<A, E>(
         lane: string,
@@ -442,6 +355,7 @@ export class Lanes extends Context.Service<
                 }),
               );
             closed = true;
+            await Effect.runPromise(Scope.close(admissionScope, Exit.void));
             closeResources();
           })();
         }
