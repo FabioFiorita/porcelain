@@ -651,14 +651,14 @@ test('access.pairing: works', async ({ workspace }) => {
   {
     rule: 'client-platform-through-ports',
     path: 'packages/client/src/features/access/store.ts',
-    valid: "import { createStore } from 'zustand/vanilla';",
-    invalid: "import { create } from 'zustand';",
+    valid: "import { AtomRef } from 'effect/reactivity';",
+    invalid: "import { useAtomRef } from '@effect/atom-react';",
     errors: 1,
   },
   {
     rule: 'client-platform-through-ports',
     path: 'packages/client/src/features/access/store.ts',
-    valid: "import { shallow } from 'zustand/vanilla/shallow';",
+    valid: "import { Context, Effect, Layer } from 'effect';",
     invalid: "import { useShallow } from 'zustand/react/shallow';",
     errors: 1,
   },
@@ -666,7 +666,7 @@ test('access.pairing: works', async ({ workspace }) => {
     rule: 'spec-imports',
     path: 'packages/client/src/features/access/commands/pairing.spec.ts',
     valid:
-      "import { createAccessStore } from '@porcelain/client/access'; import type { Remote } from '@porcelain/client/access/rules'; import { ENVIRONMENT_PROTOCOL } from '@porcelain/contracts/shared';",
+      "import { AccessStore } from '@porcelain/client/access'; import type { Remote } from '@porcelain/client/access/rules'; import { ENVIRONMENT_PROTOCOL } from '@porcelain/contracts/shared';",
     invalid:
       "import { SettingsScreen } from '../../../../../../apps/mobile/src/features/access/views/settings-screen.tsx';",
     errors: 1,
@@ -676,13 +676,6 @@ test('access.pairing: works', async ({ workspace }) => {
     path: 'packages/client/src/features/access/queries/environments.ts',
     valid: "import type { QueryFunctionContext } from '@tanstack/query-core';",
     invalid: "import { useQuery } from '@tanstack/react-query';",
-    errors: 1,
-  },
-  {
-    rule: 'client-platform-through-ports',
-    path: 'packages/client/src/features/access/store.ts',
-    valid: "import { createStore } from 'zustand/vanilla';",
-    invalid: "import { useEffect } from 'react';",
     errors: 1,
   },
   {
@@ -3767,6 +3760,14 @@ const save = Effect.fail(new Error('Refused'));`,
     invalid:
       "import { Effect, Schema } from 'effect';\nimport { HttpApi, HttpApiBuilder, HttpApiClient, HttpApiEndpoint, HttpApiGroup } from 'effect/http-api';\nimport type { HttpClient } from 'effect/http';\nconst api = HttpApi.make('test').add(HttpApiGroup.make('files').add(HttpApiEndpoint.post('save', '/api/files/:id', { params: Schema.Struct({ id: Schema.String }), payload: Schema.Struct({ text: Schema.String }), success: Schema.Struct({ fingerprint: Schema.String }) })));\ndeclare const httpClient: HttpClient.HttpClient;\nconst client = Effect.runSync(HttpApiClient.makeWith(api, { httpClient })).files;\nconst incomplete = HttpApiBuilder.group(api, 'files', (handlers) => handlers);\nconst invalidHandler = HttpApiBuilder.group(api, 'files', (handlers) => handlers.handle('save', () => Effect.succeed({ fingerprint: 123 })));\nconst invalidRequest = client.save({ params: { id: 'tree' }, payload: { text: 123 } });\nconst missingRequest = client.missing({});\nimport { Rpc, RpcClient, RpcGroup } from 'effect/rpc';\nconst group = RpcGroup.make(Rpc.make('save', { payload: Schema.Struct({ text: Schema.String }), success: Schema.Struct({ fingerprint: Schema.String }) }));\ndeclare const rpcClient: RpcClient.FromGroup<typeof group>;\nconst rpcHandlers = group.of({ save: () => Effect.succeed({ fingerprint: 123 }) });\nconst rpcRequest = rpcClient.save({ text: 123 });",
     errors: ['TS2322', 'TS2375', 'TS2322', 'TS2339', 'TS2322', 'TS2322'],
+  },
+  {
+    rule: 'native-client-state-types',
+    valid:
+      "import { Effect, type Context } from 'effect';\nimport { AccessStore } from '__CLIENT_ACCESS__';\nimport { ProjectSelectionStore } from '__CLIENT_SELECTION__';\ndeclare const access: Context.Service.Shape<typeof AccessStore>;\ndeclare const selection: Context.Service.Shape<typeof ProjectSelectionStore>;\nconst saved = access.save({environmentId: 'computer', name: 'Computer', address: 'http://localhost', credential: 'secret'});\nconst selected = selection.selectWorktree('computer', 'project', 'tree');\nconst remotes = access.state.value.remotes;",
+    invalid:
+      "import { Effect, type Context } from 'effect';\nimport { AccessStore } from '__CLIENT_ACCESS__';\nimport { ProjectSelectionStore } from '__CLIENT_SELECTION__';\ndeclare const access: Context.Service.Shape<typeof AccessStore>;\ndeclare const selection: Context.Service.Shape<typeof ProjectSelectionStore>;\nEffect.runSync(AccessStore.pipe(Effect.provide(AccessStore.layer)));\naccess.state.set({remotes: [], status: 'ready', error: undefined});\naccess.state.value.remotes.push({environmentId: 'computer', name: 'Computer', address: 'http://localhost', credential: 'secret'});\nselection.state.value.selections.computer = {projectId: 'project', worktreeId: 'tree'};",
+    errors: ['TS2379', 'TS377004', 'TS2339', 'TS2339', 'TS2542'],
   },
   {
     rule: 'review-draft-types',

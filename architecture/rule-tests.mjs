@@ -679,7 +679,7 @@ for (const role of ['query', 'command']) {
 }
 deepStrictEqual(
   violation({ role: 'store', owner: 'web' }, { role: 'adapter', owner: 'web' }),
-  'store-cannot-import-adapter',
+  undefined,
 );
 process.stdout.write(
   'PASS native platform composition and shared state boundaries\n',

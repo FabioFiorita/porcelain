@@ -30,23 +30,17 @@ function nativeTypeFixture(source) {
     );
     writeFiles(root, {
       'package.json': '{"type":"module"}',
-      'fixture.ts': source
-        .replaceAll(
-          '__ADMISSION__',
-          join(repository, 'packages/effects/src/worktree-lease.ts'),
-        )
-        .replaceAll(
-          '__LANES__',
-          join(repository, 'apps/server/src/runtime/lanes.ts'),
-        )
-        .replaceAll(
-          '__REVIEW_SERVICES__',
-          join(repository, 'packages/reviews/src/services/index.ts'),
-        )
-        .replaceAll(
-          '__REVIEW_MODELS__',
-          join(repository, 'packages/reviews/src/models/index.ts'),
-        ),
+      'fixture.ts': Object.entries({
+        __ADMISSION__: 'packages/effects/src/worktree-lease.ts',
+        __LANES__: 'apps/server/src/runtime/lanes.ts',
+        __REVIEW_SERVICES__: 'packages/reviews/src/services/index.ts',
+        __REVIEW_MODELS__: 'packages/reviews/src/models/index.ts',
+        __CLIENT_ACCESS__: 'packages/client/src/features/access/store.ts',
+        __CLIENT_SELECTION__: 'packages/client/src/features/projects/store.ts',
+      }).reduce(
+        (text, [key, path]) => text.replaceAll(key, join(repository, path)),
+        source,
+      ),
       'tsconfig.json': JSON.stringify({
         extends: join(repository, 'tsconfig.json'),
         include: ['fixture.ts'],
@@ -247,6 +241,7 @@ export function runGuardrailCases(named = []) {
       [
         'worktree-capability-types',
         'native-transport-types',
+        'native-client-state-types',
         'native-effect-diagnostics',
         'review-draft-types',
         'worktree-transaction-types',

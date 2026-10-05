@@ -9,7 +9,7 @@ import { PairedShell } from '@/app/paired-shell';
 import {
   pairBrowser,
   restoreSession,
-  useAccessStore,
+  accessSession,
 } from '@/features/access/index';
 import { ThemeProvider } from '@/features/preferences/index';
 import { ProjectNavigator, useInventory } from '@/features/projects/index';
@@ -167,7 +167,7 @@ async function pairedConnection(client: QueryClient): Promise<Connection> {
     { code: issued.code, environmentId: issued.environmentId },
     new AbortController().signal,
   );
-  const { connection } = useAccessStore.getState();
+  const { connection } = accessSession.state.value;
   if (!(await restoreSession(client)) || connection === null)
     throw new Error('Pairing left no session the paired routes restore.');
   return connection;
@@ -184,7 +184,7 @@ async function mount(view: (connection: Connection) => ReactNode) {
     watching = false;
     root.unmount();
     element.remove();
-    useAccessStore.getState().clear();
+    accessSession.clear();
     client.clear();
     localStorage.clear();
     sessionStorage.clear();

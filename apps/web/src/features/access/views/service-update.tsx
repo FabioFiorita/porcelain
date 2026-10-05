@@ -10,7 +10,7 @@ import {
   serviceUpdateOutcome,
   serviceUpdateProgress,
 } from '@porcelain/client/access/rules';
-import { useAccessStore } from '../store';
+import { useLocalConnection } from '../store';
 import { type Connection } from '@/shared/workspace/connection';
 
 type UpdateTarget =
@@ -172,7 +172,7 @@ function UpdateContent({
 }
 
 export function ServiceUpdateSettings() {
-  const connection = useAccessStore((state) => state.connection);
+  const connection = useLocalConnection();
   return (
     connection && (
       <UpdateContent connection={connection} target={{ kind: 'local' }} />

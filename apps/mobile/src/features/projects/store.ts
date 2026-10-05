@@ -1,27 +1,23 @@
 import { createOperationStore } from '@porcelain/client/git-actions';
 import type { Remote } from '@porcelain/client/access/rules';
 import { operationStorage } from './adapters/operation-storage';
-import { useStore } from 'zustand';
-import { useShallow } from 'zustand/react/shallow';
+import { Effect } from 'effect';
+import { useAtomRef } from '@effect/atom-react';
 import {
-  createProjectSelectionStore,
-  type ProjectSelectionStore,
+  ProjectSelectionStore,
+  ProjectSelectionStorage,
 } from '@porcelain/client/projects';
 import { projectSelectionStorage } from './adapters/selection-storage';
 
-export const projectSelectionStore: ProjectSelectionStore =
-  createProjectSelectionStore(projectSelectionStorage);
+export const projectSelectionStore = Effect.runSync(
+  ProjectSelectionStore.pipe(
+    Effect.provide(ProjectSelectionStore.layer),
+    Effect.provideService(ProjectSelectionStorage, projectSelectionStorage),
+  ),
+);
 
 export function useProjectSelection() {
-  return useStore(
-    projectSelectionStore,
-    useShallow((state) => ({
-      currentEnvironmentId: state.currentEnvironmentId,
-      selections: state.selections,
-      status: state.status,
-      error: state.error,
-    })),
-  );
+  return useAtomRef(projectSelectionStore.state);
 }
 
 export function createProjectOperations(

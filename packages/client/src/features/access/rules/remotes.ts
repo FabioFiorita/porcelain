@@ -7,11 +7,11 @@ export type RemoteAnswer =
   | { kind: 'unreachable' };
 
 export type Remote = {
-  environmentId: string;
-  name: string;
-  address: string;
-  credential: string;
-  deviceId?: string | undefined;
+  readonly environmentId: string;
+  readonly name: string;
+  readonly address: string;
+  readonly credential: string;
+  readonly deviceId?: string | undefined;
 };
 
 export type RemoteStatus =

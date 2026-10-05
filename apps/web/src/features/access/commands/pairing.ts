@@ -5,7 +5,7 @@ import { browserTransport } from '@/shared/api/transport';
 import { pairingPlatform } from '../store';
 import { connectionErrorMessage } from '@porcelain/client/access/rules';
 import type { PairingCode } from '@porcelain/client/access/rules';
-import { useAccessStore } from '../store';
+import { accessSession } from '../store';
 import { ConnectionError } from '@porcelain/client/transport';
 import { REQUEST_TIMEOUT_MS } from '@/config/limits';
 
@@ -31,7 +31,7 @@ export async function pairBrowser(
   const mutation = new MutationObserver(client, {
     scope: { id: 'access.pairing' },
     onMutate: () => ({
-      complete: useAccessStore.getState().beginConnection(),
+      complete: accessSession.beginConnection(),
     }),
     mutationFn: (code: PairingCode) => redeemPairing(code, signal),
     onSuccess: (session, _link, context) => {
@@ -41,7 +41,7 @@ export async function pairBrowser(
   });
   const session = await mutation.mutate(link);
   if (
-    useAccessStore.getState().connection?.environmentId !==
+    accessSession.state.value.connection?.environmentId !==
     session.inventory.environmentId
   )
     throw new ConnectionError({

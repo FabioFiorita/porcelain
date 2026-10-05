@@ -15,7 +15,7 @@ import { useRemoteAccess } from '../queries/share';
 import { connectionErrorMessage } from '@porcelain/client/access/rules';
 import type { Environment, RemoteAccess } from '@porcelain/client/access/rules';
 import {
-  useAccessStore,
+  useLocalConnection,
   useRemoteConnections,
   type RemoteConnection,
 } from '../store';
@@ -57,7 +57,7 @@ function RemoteAccessGate({
 }
 
 function useDesktopConnection() {
-  const connection = useAccessStore((state) => state.connection);
+  const connection = useLocalConnection();
   return desktopShell ? connection : null;
 }
 

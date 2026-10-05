@@ -530,12 +530,12 @@ export const webRules = {
       const path = webPath(context);
       if (!path.startsWith('packages/client/src/')) return {};
       const message =
-        'The shared client receives platform capabilities through ports and uses vanilla Zustand and Query core; React bindings, browser globals, Expo and native UI stay in each app so incompatible React runtimes cannot mix.';
+        'The shared client receives platform capabilities through ports and uses native Effect services and Atom state; React bindings, browser globals, Expo and native UI stay in each app so incompatible React runtimes cannot mix.';
       const check = (node) => {
         const source = sourceOf(node);
         if (
           source !== undefined &&
-          (/^(?:react(?:-native|-dom)?|@tanstack\/react-query|expo(?:-[^/]+)?|@expo\/[^/]+)(?:\/|$)/.test(
+          (/^(?:react(?:-native|-dom)?|@effect\/atom-react|@tanstack\/react-query|expo(?:-[^/]+)?|@expo\/[^/]+)(?:\/|$)/.test(
             source,
           ) ||
             source === 'zustand' ||
@@ -632,14 +632,15 @@ export const webRules = {
   'web-store-owns-storage': {
     create(context) {
       const path = webPath(context);
-      if (!runtimeWeb(path) || webPart(path) === 'store') return {};
+      if (!runtimeWeb(path) || ['store', 'adapter'].includes(webPart(path)))
+        return {};
       return {
         'Program:exit'(program) {
           for (const node of globalUses(context, program, storageGlobals))
             context.report({
               node,
               message:
-                'Web Storage is read and written by the feature store.ts only, through Zustand persist, so one owner decides what survives a reload.',
+                'Web Storage belongs to a feature store or its platform adapter; the shared Effect store owns persistence policy, so views and commands cannot bypass failure recovery.',
             });
         },
       };

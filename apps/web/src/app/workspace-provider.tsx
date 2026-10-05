@@ -2,7 +2,8 @@ import { remoteKey } from '@porcelain/client/access/rules';
 import type { ReactNode } from 'react';
 import {
   remoteLiveOpen,
-  useAccessStore,
+  useLocalConnection,
+  useRestoreEnvironments,
   useRecheckRemote,
   useRemoteConnections,
   useRemoteStatus,
@@ -23,7 +24,8 @@ function RemoteLive({ remote }: { remote: RemoteConnection }) {
 }
 
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
-  const connection = useAccessStore((state) => state.connection);
+  useRestoreEnvironments();
+  const connection = useLocalConnection();
   const remotes = useRemoteConnections();
   useUnsavedDraftsGuard(
     connection

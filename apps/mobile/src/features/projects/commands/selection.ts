@@ -21,18 +21,20 @@ export function useProjectSelectionCommands(access: {
     mutationKey: ['projects', 'selection'],
     scope: { id: 'access.environments' },
     mutationFn: async (command: SelectionCommand) => {
-      const state = projectSelectionStore.getState();
+      const state = projectSelectionStore;
       if (command.kind === 'read') {
         await Effect.runPromise(state.load());
         const paired = access.readEnvironmentIds();
-        const saved = projectSelectionStore.getState();
+        const saved = projectSelectionStore.state.value;
         if (!paired || saved.status !== 'ready') return;
         const remembered = new Set(Object.keys(saved.selections));
         if (saved.currentEnvironmentId)
           remembered.add(saved.currentEnvironmentId);
         for (const environmentId of remembered) {
           if (!paired.includes(environmentId))
-            await Effect.runPromise(saved.forgetEnvironment(environmentId));
+            await Effect.runPromise(
+              projectSelectionStore.forgetEnvironment(environmentId),
+            );
         }
         return;
       }

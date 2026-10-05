@@ -1,6 +1,14 @@
 import type { BrowserSession } from '@porcelain/client/access/rules';
 import { WEB_PLATFORM_NAME_MAX_LENGTH } from '@/config/limits';
-import type { AccessPlatform } from '@porcelain/client/access';
+import {
+  AccessStore,
+  EnvironmentStorage,
+  type AccessPlatform,
+} from '@porcelain/client/access';
+import { Effect } from 'effect';
+import { Atom, AtomRef } from 'effect/reactivity';
+import { useAtomRef, useAtomValue } from '@effect/atom-react';
+import { environmentStorage } from './adapters/environment-storage';
 
 export const pairingPlatform: AccessPlatform = {
   name: () =>
@@ -10,16 +18,7 @@ export const pairingPlatform: AccessPlatform = {
   send: fetch,
 };
 import { syncRemoteConnections } from '@porcelain/client/access/rules';
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-import { savedJson } from '@/shared/lib/saved-json';
-import { desktopCredentials } from '@/shared/adapters/desktop';
-import { savedRemotes } from './rules/remotes';
-import {
-  parseRemotes,
-  withRemote,
-  type Remote,
-} from '@porcelain/client/access/rules';
+import { type Remote } from '@porcelain/client/access/rules';
 import { REQUEST_TIMEOUT_MS } from '@/config/limits';
 import { browserTransport } from '@/shared/api/transport';
 import {
@@ -51,15 +50,10 @@ type Server = {
 };
 
 type AccessState = {
-  connection: Connection | null;
-  remoteConnections: readonly RemoteConnection[];
-  generation: number;
-  writerIdentity: string | undefined;
-  connect: (session: BrowserSession) => Connection;
-  beginConnection: (
-    automatic?: boolean,
-  ) => ((session: BrowserSession) => boolean) | null;
-  clear: () => void;
+  readonly connection: Connection | null;
+  readonly remoteConnections: readonly RemoteConnection[];
+  readonly generation: number;
+  readonly writerIdentity: string | undefined;
 };
 
 function createConnection(environmentId: string, server: Server): Connection {
@@ -121,58 +115,30 @@ function close(connection: Connection) {
   connection.controller.abort();
 }
 
-type RemotesState = {
-  remotes: Remote[];
-  unreadable: string | undefined;
-  save: (remote: Remote) => void;
-  forget: (environmentId: string) => void;
-};
-
-function remotesStorage() {
-  const credentials = desktopCredentials();
-  if (!credentials) return savedJson(() => localStorage, parseRemotes);
-  let readable = false;
-  return {
-    async getItem() {
-      const saved = savedRemotes(await credentials.read());
-      if (saved.kind === 'unreadable') throw new Error(saved.message);
-      readable = true;
-      return saved.remotes === undefined ? null : { state: saved.remotes };
-    },
-    async setItem(_name: string, value: { state: Remote[] }) {
-      if (readable) await credentials.write(JSON.stringify(value.state));
-    },
-    async removeItem() {
-      await credentials.clear();
-    },
-  };
-}
-
-export const useRemotesStore = create<RemotesState>()(
-  persist<RemotesState, [], [], Remote[]>(
-    (set, get) => ({
-      remotes: [],
-      unreadable: undefined,
-      save: (remote) => set({ remotes: withRemote(get().remotes, remote) }),
-      forget: (environmentId) =>
-        set({
-          remotes: get().remotes.filter(
-            (remote) => remote.environmentId !== environmentId,
-          ),
-        }),
-    }),
-    {
-      name: 'porcelain.remotes',
-      storage: remotesStorage(),
-      partialize: ({ remotes }) => remotes,
-      merge: (saved, current) => ({ ...current, remotes: parseRemotes(saved) }),
-      onRehydrateStorage: () => (_state, error) => {
-        if (error instanceof Error)
-          useRemotesStore.setState({ unreadable: error.message });
-      },
-    },
+export const accessStore = Effect.runSync(
+  AccessStore.pipe(
+    Effect.provide(AccessStore.layer),
+    Effect.provideService(EnvironmentStorage, environmentStorage),
   ),
 );
+const restoreSavedEnvironments = Atom.make((get) => {
+  const synchronize = ({ remotes }: { remotes: readonly Remote[] }) =>
+    state.update((current) => ({
+      ...current,
+      remoteConnections: remoteConnections(remotes, current.remoteConnections),
+    }));
+  synchronize(accessStore.state.value);
+  get.addFinalizer(accessStore.state.subscribe(synchronize));
+  return accessStore.load();
+});
+
+export function useRestoreEnvironments() {
+  useAtomValue(restoreSavedEnvironments);
+}
+
+export function useSavedEnvironments() {
+  return useAtomRef(accessStore.state);
+}
 
 function remoteConnections(
   remotes: readonly Remote[],
@@ -187,69 +153,70 @@ function remoteConnections(
   return next;
 }
 
-export const useAccessStore = create<AccessState>()((set, get) => ({
+const state = AtomRef.make<AccessState>({
   connection: null,
-  remoteConnections: remoteConnections(useRemotesStore.getState().remotes, []),
+  remoteConnections: [],
   generation: 0,
   writerIdentity: undefined,
-  connect(session) {
-    const environmentId = session.inventory.environmentId;
-    const writerIdentity = JSON.stringify(session.principal);
-    const current = get().connection;
-    if (
-      current?.environmentId === environmentId &&
-      get().writerIdentity === writerIdentity
-    )
-      return current;
-    if (current) close(current);
-    const connection = localConnection(session);
-    set({ connection, writerIdentity });
-    return connection;
-  },
+});
+
+function connect(session: BrowserSession) {
+  const environmentId = session.inventory.environmentId;
+  const writerIdentity = JSON.stringify(session.principal);
+  const current = state.value.connection;
+  if (
+    current?.environmentId === environmentId &&
+    state.value.writerIdentity === writerIdentity
+  )
+    return current;
+  if (current) close(current);
+  const connection = localConnection(session);
+  state.update((current) => ({ ...current, connection, writerIdentity }));
+  return connection;
+}
+
+const snapshot: AtomRef.ReadonlyRef<AccessState> = state;
+
+export const accessSession = {
+  state: snapshot,
   beginConnection(automatic = false) {
-    if (automatic && get().generation !== 0) return null;
-    const attempt = get().generation;
-    return (session) => {
-      if (attempt !== get().generation) return false;
-      set({ generation: attempt + 1 });
-      get().connect(session);
+    if (automatic && state.value.generation !== 0) return null;
+    const attempt = state.value.generation;
+    return (session: BrowserSession) => {
+      if (attempt !== state.value.generation) return false;
+      state.update((current) => ({ ...current, generation: attempt + 1 }));
+      connect(session);
       return true;
     };
   },
   clear() {
-    const current = get().connection;
+    const current = state.value.connection;
     if (current) close(current);
-    set((state) => ({
+    state.update((current) => ({
+      ...current,
       connection: null,
       writerIdentity: undefined,
-      generation: state.generation + 1,
+      generation: current.generation + 1,
     }));
   },
-}));
+};
 
-useRemotesStore.subscribe(({ remotes }) =>
-  useAccessStore.setState({
-    remoteConnections: remoteConnections(
-      remotes,
-      useAccessStore.getState().remoteConnections,
-    ),
-  }),
-);
+export function useLocalConnection() {
+  return useAtomRef(state).connection;
+}
 
 export function useRemoteConnections() {
-  return useAccessStore((state) => state.remoteConnections);
+  return useAtomRef(state).remoteConnections;
 }
 
 export function useRemoteConnection(environmentId: string) {
-  return useAccessStore((state) =>
-    state.remoteConnections.find(
-      (entry) => entry.remote.environmentId === environmentId,
-    ),
+  return useAtomRef(state).remoteConnections.find(
+    (entry) => entry.remote.environmentId === environmentId,
   );
 }
 
 export function useConnectedContext(remote?: Connection): ConnectionContext {
-  const local = useAccessStore((state) => state.connection);
+  const local = useLocalConnection();
   if (remote) return { connection: remote };
   return { connection: requireConnection(local) };
 }

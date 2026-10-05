@@ -10,7 +10,7 @@ export function useForgetProjectEnvironment() {
     await client.cancelQueries(query);
     try {
       await Effect.runPromise(
-        projectSelectionStore.getState().forgetEnvironment(environmentId),
+        projectSelectionStore.forgetEnvironment(environmentId),
       );
     } finally {
       client.removeQueries(query);

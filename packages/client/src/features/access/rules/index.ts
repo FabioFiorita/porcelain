@@ -10,7 +10,6 @@ export {
   remoteStatusNote,
   remoteStatus,
   parseRemotes,
-  withRemote,
   type Remote,
   type RemoteStatus,
 } from './remotes.ts';

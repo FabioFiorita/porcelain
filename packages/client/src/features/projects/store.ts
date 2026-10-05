@@ -1,133 +1,171 @@
-import { Effect } from 'effect';
+import { Context, Effect, Layer } from 'effect';
+import { AtomRef } from 'effect/reactivity';
 import {
   createWriteQueue,
   type WriteNotSentError,
 } from '../../shared/api/write-queue.ts';
-import { createStore } from 'zustand/vanilla';
 import { ConnectionError } from '../../shared/api/connection-error.ts';
-import type {
-  ProjectSelectionSnapshot,
+import {
   ProjectSelectionStorage,
+  type ProjectSelectionSnapshot,
 } from './ports/project-selection-storage.ts';
 
 type ProjectSelectionState = ProjectSelectionSnapshot & {
-  status: 'loading' | 'ready' | 'unreadable';
-  error: string | undefined;
-  load: () => Effect.Effect<void, ConnectionError | WriteNotSentError>;
-  selectEnvironment: (
-    environmentId: string,
-  ) => Effect.Effect<void, ConnectionError | WriteNotSentError>;
-  selectWorktree: (
-    environmentId: string,
-    projectId: string,
-    worktreeId: string,
-  ) => Effect.Effect<void, ConnectionError | WriteNotSentError>;
-  forgetEnvironment: (
-    environmentId: string,
-  ) => Effect.Effect<void, ConnectionError | WriteNotSentError>;
+  readonly status: 'loading' | 'ready' | 'unreadable';
+  readonly error: string | undefined;
 };
 
-export function createProjectSelectionStore(storage: ProjectSelectionStorage) {
-  return createStore<ProjectSelectionState>()((set, get) => {
-    const queue = createWriteQueue();
-    function write(
-      update: (snapshot: ProjectSelectionSnapshot) => ProjectSelectionSnapshot,
-    ) {
-      return queue.enqueue(
-        Effect.gen(function* () {
-          if (get().status !== 'ready')
-            return yield* Effect.fail(
-              new ConnectionError({
-                message:
-                  'Saved workspace selections must be read before changing them.',
-              }),
-            );
-          const snapshot = yield* Effect.suspend(() => {
-            try {
-              return Effect.succeed(update(get()));
-            } catch (error) {
-              return error instanceof ConnectionError
-                ? Effect.fail(error)
-                : Effect.die(error);
-            }
-          });
-          const message =
-            'Saved workspace selections could not be updated. Read them again before making changes.';
-          yield* Effect.tryPromise({
-            try: () => storage.write(snapshot),
-            catch: (cause) => new ConnectionError({ message: message, cause }),
-          }).pipe(
-            Effect.tapError(() =>
-              Effect.sync(() => set({ status: 'unreadable', error: message })),
-            ),
-          );
-          set(snapshot);
-        }),
-      );
-    }
-    return {
-      currentEnvironmentId: undefined,
-      selections: {},
-      status: 'loading',
-      error: undefined,
-      load: () =>
-        queue.enqueue(
+type WriteFailure = ConnectionError | WriteNotSentError;
+
+export class ProjectSelectionStore extends Context.Service<
+  ProjectSelectionStore,
+  {
+    readonly state: AtomRef.ReadonlyRef<ProjectSelectionState>;
+    readonly load: () => Effect.Effect<void, WriteFailure>;
+    readonly selectEnvironment: (
+      environmentId: string,
+    ) => Effect.Effect<void, WriteFailure>;
+    readonly selectWorktree: (
+      environmentId: string,
+      projectId: string,
+      worktreeId: string,
+    ) => Effect.Effect<void, WriteFailure>;
+    readonly forgetEnvironment: (
+      environmentId: string,
+    ) => Effect.Effect<void, WriteFailure>;
+  }
+>()('@porcelain/client/ProjectSelectionStore') {
+  static readonly layer = Layer.effect(
+    ProjectSelectionStore,
+    Effect.gen(function* () {
+      const storage = yield* ProjectSelectionStorage;
+      const state = AtomRef.make<ProjectSelectionState>({
+        currentEnvironmentId: undefined,
+        selections: {},
+        status: 'loading',
+        error: undefined,
+      });
+      const queue = createWriteQueue();
+      const write = Effect.fn('ProjectSelectionStore.write')(function* (
+        update: (
+          snapshot: ProjectSelectionSnapshot,
+        ) => Effect.Effect<ProjectSelectionSnapshot, ConnectionError>,
+      ) {
+        yield* queue.enqueue(
           Effect.gen(function* () {
-            set({ status: 'loading', error: undefined });
-            yield* Effect.tryPromise({
-              try: () => storage.read(),
-              catch: (cause) =>
+            if (state.value.status !== 'ready')
+              return yield* Effect.fail(
                 new ConnectionError({
                   message:
-                    'Saved workspace selections could not be read. Try reading them again.',
-                  cause,
+                    'Saved workspace selections must be read before changing them.',
                 }),
-            }).pipe(
-              Effect.matchEffect({
-                onSuccess: (snapshot) =>
-                  Effect.sync(() => set({ ...snapshot, status: 'ready' })),
-                onFailure: (error) =>
-                  Effect.sync(() =>
-                    set({ status: 'unreadable', error: error.message }),
-                  ),
-              }),
+              );
+            const snapshot = yield* update(state.value);
+            const message =
+              'Saved workspace selections could not be updated. Read them again before making changes.';
+            yield* storage.write(snapshot).pipe(
+              Effect.mapError(
+                ({ cause }) => new ConnectionError({ message, cause }),
+              ),
+              Effect.tapError(() =>
+                Effect.sync(() =>
+                  state.update((current) => ({
+                    ...current,
+                    status: 'unreadable',
+                    error: message,
+                  })),
+                ),
+              ),
+              Effect.tap(() =>
+                Effect.sync(() =>
+                  state.update((current) => ({ ...current, ...snapshot })),
+                ),
+              ),
+              Effect.uninterruptible,
             );
           }),
-        ),
-      selectEnvironment: (environmentId) =>
-        write(({ selections }) => ({
-          currentEnvironmentId: environmentId,
-          selections,
-        })),
-      selectWorktree: (environmentId, projectId, worktreeId) =>
-        write(({ currentEnvironmentId, selections }) => {
-          if (currentEnvironmentId !== environmentId)
-            throw new ConnectionError({
-              message:
-                'The selected environment changed. Open its project picker again.',
-            });
-          return {
-            currentEnvironmentId,
-            selections: {
-              ...selections,
-              [environmentId]: { projectId, worktreeId },
-            },
-          };
+        );
+      });
+      return {
+        state,
+        load: Effect.fn('ProjectSelectionStore.load')(function* () {
+          yield* queue.enqueue(
+            Effect.gen(function* () {
+              state.update((current) => ({
+                ...current,
+                status: 'loading',
+                error: undefined,
+              }));
+              yield* storage.read().pipe(
+                Effect.matchEffect({
+                  onSuccess: (snapshot) =>
+                    Effect.sync(() =>
+                      state.set({
+                        ...snapshot,
+                        status: 'ready',
+                        error: undefined,
+                      }),
+                    ),
+                  onFailure: () =>
+                    Effect.sync(() =>
+                      state.update((current) => ({
+                        ...current,
+                        status: 'unreadable',
+                        error:
+                          'Saved workspace selections could not be read. Try reading them again.',
+                      })),
+                    ),
+                }),
+                Effect.uninterruptible,
+              );
+            }),
+          );
         }),
-      forgetEnvironment: (environmentId) =>
-        write(({ currentEnvironmentId, selections }) => ({
-          currentEnvironmentId:
-            currentEnvironmentId === environmentId
-              ? undefined
-              : currentEnvironmentId,
-          selections: Object.fromEntries(
-            Object.entries(selections).filter(([id]) => id !== environmentId),
-          ),
-        })),
-    };
-  });
+        selectEnvironment: Effect.fn('ProjectSelectionStore.selectEnvironment')(
+          (environmentId: string) =>
+            write(({ selections }) =>
+              Effect.succeed({
+                currentEnvironmentId: environmentId,
+                selections,
+              }),
+            ),
+        ),
+        selectWorktree: Effect.fn('ProjectSelectionStore.selectWorktree')(
+          (environmentId: string, projectId: string, worktreeId: string) =>
+            write(({ currentEnvironmentId, selections }) => {
+              if (currentEnvironmentId !== environmentId)
+                return Effect.fail(
+                  new ConnectionError({
+                    message:
+                      'The selected environment changed. Open its project picker again.',
+                  }),
+                );
+              return Effect.succeed({
+                currentEnvironmentId,
+                selections: {
+                  ...selections,
+                  [environmentId]: { projectId, worktreeId },
+                },
+              });
+            }),
+        ),
+        forgetEnvironment: Effect.fn('ProjectSelectionStore.forgetEnvironment')(
+          (environmentId: string) =>
+            write(({ currentEnvironmentId, selections }) =>
+              Effect.succeed({
+                currentEnvironmentId:
+                  currentEnvironmentId === environmentId
+                    ? undefined
+                    : currentEnvironmentId,
+                selections: Object.fromEntries(
+                  Object.entries(selections).filter(
+                    ([id]) => id !== environmentId,
+                  ),
+                ),
+              }),
+            ),
+        ),
+      };
+    }),
+  );
 }
-
-export type ProjectSelectionStore = ReturnType<
-  typeof createProjectSelectionStore
->;

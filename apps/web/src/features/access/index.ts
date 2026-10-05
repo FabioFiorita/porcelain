@@ -7,7 +7,9 @@ export { useSignOutWhenUnauthorized } from './commands/unauthorized';
 export { useRemoteStatus } from './queries/remotes';
 export { remoteLiveOpen, remoteStatusVariant } from './rules/remotes';
 export {
-  useAccessStore,
+  accessSession,
+  useLocalConnection,
+  useRestoreEnvironments,
   useConnectedContext,
   useRemoteConnection,
   useRemoteConnections,

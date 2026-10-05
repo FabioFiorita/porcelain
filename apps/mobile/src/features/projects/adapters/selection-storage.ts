@@ -1,32 +1,40 @@
 import { SQLiteStorage } from 'expo-sqlite/kv-store';
-import { Schema } from 'effect';
+import { Cause, Effect, Schema } from 'effect';
 import {
   projectSelectionSnapshotSchema,
-  type ProjectSelectionStorage,
+  ProjectSelectionStorage,
 } from '@porcelain/client/projects';
 
 const storage = new SQLiteStorage('porcelain-projects.db');
 const key = 'selection';
 
-export const projectSelectionStorage: ProjectSelectionStorage = {
-  async read() {
-    const value = await storage.getItemAsync(key);
-    if (value === null)
-      return { currentEnvironmentId: undefined, selections: {} };
-    const saved = Schema.decodeUnknownSync(projectSelectionSnapshotSchema)(
-      JSON.parse(value),
-    );
-    return {
-      currentEnvironmentId: saved.currentEnvironmentId,
-      selections: saved.selections,
-    };
-  },
-  async write(snapshot) {
-    await storage.setItemAsync(
-      key,
-      JSON.stringify(
-        Schema.encodeSync(projectSelectionSnapshotSchema)(snapshot),
-      ),
-    );
-  },
-};
+export const projectSelectionStorage = ProjectSelectionStorage.of({
+  read: () =>
+    Effect.tryPromise({
+      try: async () => {
+        const value = await storage.getItemAsync(key);
+        if (value === null)
+          return { currentEnvironmentId: undefined, selections: {} };
+        const saved = Schema.decodeUnknownSync(projectSelectionSnapshotSchema)(
+          JSON.parse(value),
+        );
+        return {
+          currentEnvironmentId: saved.currentEnvironmentId,
+          selections: saved.selections,
+        };
+      },
+      catch: (cause) => new Cause.UnknownError(cause),
+    }),
+  write: (snapshot) =>
+    Effect.tryPromise({
+      try: async () => {
+        await storage.setItemAsync(
+          key,
+          JSON.stringify(
+            Schema.encodeSync(projectSelectionSnapshotSchema)(snapshot),
+          ),
+        );
+      },
+      catch: (cause) => new Cause.UnknownError(cause),
+    }),
+});

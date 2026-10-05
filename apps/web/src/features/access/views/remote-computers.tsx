@@ -32,12 +32,16 @@ import {
   ItemTitle,
 } from '@/components/ui/item';
 import { submitForm } from '@/shared/lib/submit-form';
-import { useAddRemote, useForgetRemote } from '../commands/remotes';
+import {
+  useAddRemote,
+  useForgetRemote,
+  useReadSavedEnvironments,
+} from '../commands/remotes';
 import { useRemoteStatus } from '../queries/remotes';
 import { connectionErrorMessage } from '@porcelain/client/access/rules';
 import { remoteStatusVariant } from '../rules/remotes';
 import { type Remote } from '@porcelain/client/access/rules';
-import { useRemotesStore } from '../store';
+import { useSavedEnvironments } from '../store';
 
 function RemoteRow({ remote }: { remote: Remote }) {
   const status = useRemoteStatus(remote);
@@ -86,6 +90,7 @@ function RemoteRow({ remote }: { remote: Remote }) {
 function AddRemote() {
   const [link, setLink] = useState('');
   const add = useAddRemote();
+  const { status } = useSavedEnvironments();
   return (
     <Item variant="outline">
       <ItemContent>
@@ -105,7 +110,7 @@ function AddRemote() {
             aria-label="Pairing link"
             placeholder="http://192.168.1.20:4738/pair#c=…"
             value={link}
-            disabled={add.isPending}
+            disabled={add.isPending || status !== 'ready'}
             onChange={(event) => {
               add.reset();
               setLink(event.target.value);
@@ -114,7 +119,7 @@ function AddRemote() {
           <Button
             type="submit"
             className="shrink-0"
-            disabled={add.isPending || link.trim() === ''}
+            disabled={add.isPending || status !== 'ready' || link.trim() === ''}
           >
             {add.isPending ? 'Pairing…' : 'Add'}
           </Button>
@@ -132,8 +137,8 @@ function AddRemote() {
 }
 
 export function RemoteComputers() {
-  const remotes = useRemotesStore((state) => state.remotes);
-  const unreadable = useRemotesStore((state) => state.unreadable);
+  const { remotes, error: unreadable } = useSavedEnvironments();
+  const restore = useReadSavedEnvironments();
   return (
     <>
       {unreadable !== undefined && (
@@ -142,8 +147,15 @@ export function RemoteComputers() {
           <AlertTitle>Saved remote computers could not be read</AlertTitle>
           <AlertDescription>
             Porcelain keeps them as they are and saves no change over them.
-            Allow Porcelain to use its Keychain item, then reopen the app. A
-            computer added now lasts until the app quits. {unreadable}
+            Allow Porcelain to read its saved credentials, then try again.{' '}
+            {unreadable}
+            <Button
+              variant="outline"
+              disabled={restore.isPending}
+              onClick={() => restore.read()}
+            >
+              Read saved environments
+            </Button>
           </AlertDescription>
         </Alert>
       )}

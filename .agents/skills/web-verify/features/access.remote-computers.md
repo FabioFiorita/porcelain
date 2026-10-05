@@ -12,6 +12,7 @@ selectors:
   - "That link is for this computer."
   - "Online"
   - "Remove"
+  - "Read saved environments"
 tests:
   - apps/web/spec/e2e/access-remote-computers.desktop.e2e.ts
 api:
@@ -24,7 +25,7 @@ api:
 
 ## What it is
 
-The desktop app pairs with another Porcelain from the link `porcelain pair` prints. It talks to that computer across origins with its own credential and shows it online. It refuses an unreadable link, a used or bad code and a link for this computer, and it forgets a remote on Remove.
+The desktop app pairs with another Porcelain from the link `porcelain pair` prints. It talks to that computer across origins with its own credential and shows it online. It refuses an unreadable link, a used or bad code and a link for this computer, and it forgets a remote on Remove. Web and mobile use the same native Effect persistence service and readonly Atom state: a change appears only after storage succeeds. An unreadable store blocks pairing and changes until Read saved environments succeeds.
 
 ## How a user reaches it
 
@@ -76,6 +77,6 @@ The desktop app pairs with another Porcelain from the link `porcelain pair` prin
 ## Gotchas
 
 - `remote pairing-link` prints a fresh one-time link each time; the reuse in step 9 must paste the same `$LINK` step 8 used.
-- Desktop shell only: without `--desktop`, Settings has no Remote computers section. The desktop bridge only changes where remotes are saved (the Keychain instead of `localStorage`). The "Saved remote computers could not be read" alert needs the bridge.
+- Desktop shell only: without `--desktop`, Settings has no Remote computers section. The desktop bridge changes where remotes are saved (the Keychain instead of `localStorage`). A failed storage read or write shows "Saved remote computers could not be read"; allow storage access, then choose Read saved environments. The last published remotes stay intact while writes are blocked.
 - Remote status refreshes every 30 s (`REMOTE_STATUS_REFRESH_MS`) with a 5 s timeout. Right after Add the badge may read "Checking".
 - Step 7 counts as a failed pairing attempt on this server. Do not repeat it in a loop.

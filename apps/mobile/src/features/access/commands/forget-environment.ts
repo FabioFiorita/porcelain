@@ -17,9 +17,7 @@ export function useForgetEnvironment(
     mutationFn: async () => {
       const query = environmentQueryOptions(pairingPlatform(), remote);
       await client.cancelQueries({ queryKey: query.queryKey });
-      await Effect.runPromise(
-        accessStore.getState().forget(remote.environmentId),
-      );
+      await Effect.runPromise(accessStore.forget(remote.environmentId));
       client.removeQueries({ queryKey: query.queryKey });
       await forgetProjectEnvironment(remote.environmentId);
     },

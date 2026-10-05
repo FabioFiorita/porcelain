@@ -1275,6 +1275,7 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
     'contract',
   ]),
   store: new Set([
+    'adapter',
     'client-feature-api',
     'client-port',
     'client-rules-api',
@@ -1947,12 +1948,12 @@ const rolePurposes: Record<Role, string> = {
   'mobile-generated-types':
     'the exact Uniwind-generated light/dark declaration module, verified before it is exempt from handwritten code lint',
   'mobile-store':
-    'a native feature state binding, which injects platform adapters into shared vanilla state and supplies its React bindings to views, queries and commands',
+    'a native feature state binding, which injects platform adapters into shared native Effect services and Atom state and supplies its React bindings to views, queries and commands',
   'mobile-config':
     'the Expo build configuration, which selects the installation identity and native plugins',
   'client-rules-api': "a shared client feature's public pure rules entry",
   'client-feature-api':
-    'the shared feature entry for query options, commands, vanilla stores and platform ports; apps own React bindings and views cannot reach request APIs',
+    'the shared feature entry for query options, commands, native Effect stores and platform ports; apps own React bindings and views cannot reach request APIs',
   'client-request-api':
     'the shared feature request API; only app APIs and shared reads and commands reach it',
   'client-port':
@@ -2031,7 +2032,7 @@ const rolePurposes: Record<Role, string> = {
   query: "a feature's queries/ file, which owns a read and its cache",
   command: "a feature's commands/ file, which owns a write and its cache",
   store:
-    "a feature's store.ts, the owner of shared client state and Web Storage",
+    "a feature's native state and persistence policy, with app bindings supplying platform adapters",
   live: "a feature's live.ts, which applies server notices to its queries",
   overlays: "a feature's overlays.ts, the owner of its Base UI handles",
   'web-rule': "a pure function in a feature's rules/",

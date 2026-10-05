@@ -5,7 +5,7 @@ import {
   redirect,
   useRouterState,
 } from '@tanstack/react-router';
-import { restoreSession, useAccessStore } from '@/features/access/index';
+import { restoreSession, useLocalConnection } from '@/features/access/index';
 import { PairedShell } from '@/app/paired-shell';
 import { WorkspaceError } from '@/app/workspace-error';
 import { WorkspacePending } from '@/app/workspace-pending';
@@ -24,7 +24,7 @@ export const Route = createFileRoute('/_paired')({
 });
 
 function PairedLayout() {
-  const connection = useAccessStore((state) => state.connection);
+  const connection = useLocalConnection();
   const empty = useRouterState({
     select: (state) => state.location.pathname === '/',
   });

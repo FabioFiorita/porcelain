@@ -7,6 +7,7 @@ selectors:
   - 'Remote computers'
   - 'Pairing link'
   - 'Saved remote computers could not be read'
+  - 'Read saved environments'
 tests:
   - apps/desktop/spec/e2e/bridge.e2e.ts
   - apps/desktop/spec/e2e/review-summaries.e2e.ts

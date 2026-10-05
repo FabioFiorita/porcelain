@@ -1,3 +1,4 @@
+import { RegistryProvider } from '@effect/atom-react';
 import { StrictMode, type ReactNode } from 'react';
 import { toast, Toaster } from '@/components/ui/toast';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -15,13 +16,15 @@ export function AppProviders({
 }) {
   return (
     <StrictMode>
-      <TooltipProvider>
-        {query(
-          <WorkspaceProvider>
-            <Toaster>{children}</Toaster>
-          </WorkspaceProvider>,
-        )}
-      </TooltipProvider>
+      <RegistryProvider>
+        <TooltipProvider>
+          {query(
+            <WorkspaceProvider>
+              <Toaster>{children}</Toaster>
+            </WorkspaceProvider>,
+          )}
+        </TooltipProvider>
+      </RegistryProvider>
     </StrictMode>
   );
 }

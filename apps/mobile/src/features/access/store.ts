@@ -1,10 +1,15 @@
-import { useStore } from 'zustand';
-import { useShallow } from 'zustand/react/shallow';
-import { createAccessStore, type AccessStore } from '@porcelain/client/access';
+import { Effect } from 'effect';
+import { useAtomRef } from '@effect/atom-react';
+import { AccessStore, EnvironmentStorage } from '@porcelain/client/access';
 import { accessPlatform } from './adapters/client';
 import { environmentStorage } from './adapters/environment-storage';
 
-export const accessStore: AccessStore = createAccessStore(environmentStorage);
+export const accessStore = Effect.runSync(
+  AccessStore.pipe(
+    Effect.provide(AccessStore.layer),
+    Effect.provideService(EnvironmentStorage, environmentStorage),
+  ),
+);
 
 export function pairingPlatform() {
   return accessPlatform;
@@ -12,15 +17,15 @@ export function pairingPlatform() {
 
 function hasPairedEnvironment(environmentId: string) {
   return (
-    accessStore.getState().status === 'ready' &&
-    accessStore
-      .getState()
-      .remotes.some((remote) => remote.environmentId === environmentId)
+    accessStore.state.value.status === 'ready' &&
+    accessStore.state.value.remotes.some(
+      (remote) => remote.environmentId === environmentId,
+    )
   );
 }
 
 function pairedEnvironmentIds() {
-  const state = accessStore.getState();
+  const state = accessStore.state.value;
   return state.status === 'ready'
     ? state.remotes.map((remote) => remote.environmentId)
     : undefined;
@@ -32,15 +37,10 @@ export const environmentSelectionAccess = {
 };
 
 export function useEnvironments() {
-  return useStore(accessStore, (state) => state.remotes);
+  return useAtomRef(accessStore.state).remotes;
 }
 
 export function useEnvironmentStorageStatus() {
-  return useStore(
-    accessStore,
-    useShallow((state) => ({
-      status: state.status,
-      error: state.error,
-    })),
-  );
+  const { status, error } = useAtomRef(accessStore.state);
+  return { status, error };
 }

@@ -6,7 +6,7 @@ import { RequestError } from '../../../shared/api/request-error.ts';
 import { requestEffect } from '../../../shared/api/effect-client.ts';
 import type { AccessPlatform } from '../ports/access-platform.ts';
 import type { PairingPlatform } from '../ports/pairing-platform.ts';
-import type { AccessStore } from '../store.ts';
+import { AccessStore } from '../store.ts';
 import { remoteLink, type PairingCode } from '../rules/pairing-link.ts';
 import { remoteStatus } from '../rules/remotes.ts';
 import { readRemoteEnvironment } from '../queries/environments.ts';
@@ -29,7 +29,7 @@ function rejectedPairing(error: PairFailure) {
   );
 }
 
-export function pairRemote(platform: AccessPlatform, value: string) {
+function pairRemote(platform: AccessPlatform, value: string) {
   return Effect.gen(function* () {
     const link = remoteLink(value);
     if (!link)
@@ -91,20 +91,17 @@ export function pairRemote(platform: AccessPlatform, value: string) {
   });
 }
 
-export function pairEnvironment(
-  store: AccessStore,
-  platform: AccessPlatform,
-  value: string,
-) {
+export function pairEnvironment(platform: AccessPlatform, value: string) {
   return Effect.gen(function* () {
-    if (store.getState().status !== 'ready')
+    const store = yield* AccessStore;
+    if (store.state.value.status !== 'ready')
       return yield* Effect.fail(
         new ConnectionError({
           message: 'Read saved environments before pairing.',
         }),
       );
     const remote = yield* pairRemote(platform, value);
-    yield* store.getState().save(remote);
+    yield* store.save(remote);
     return remote;
   });
 }
