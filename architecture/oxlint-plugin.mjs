@@ -94,17 +94,6 @@ function isPrivateMember(member) {
   );
 }
 
-function isPublicExecute(member) {
-  return (
-    member.type === 'MethodDefinition' &&
-    member.kind === 'method' &&
-    !member.static &&
-    !isPrivateMember(member) &&
-    member.key.type === 'Identifier' &&
-    member.key.name === 'execute'
-  );
-}
-
 function parameterName(parameter) {
   return parameter?.type === 'Identifier' ? parameter.name : undefined;
 }
@@ -1036,6 +1025,7 @@ function nativeOperationProblem(node, context, role, name) {
   const factory = layer.value?.arguments?.[1];
   const returned = factory?.arguments?.[0]?.body?.body?.at(-1)?.argument;
   const executeValue = returned?.properties?.[0]?.value;
+  const implementation = executeValue?.arguments?.[0];
   if (
     !nativeMember(layer.value, context, 'Layer', new Set(['effect'])) ||
     layer.value.arguments[0]?.name !== name ||
@@ -1044,7 +1034,10 @@ function nativeOperationProblem(node, context, role, name) {
     returned.properties.length !== 1 ||
     returned.properties[0].key?.name !== 'execute' ||
     !effectMember(executeValue?.callee, context, new Set(['fn'])) ||
-    executeValue.callee.arguments[0]?.value !== `${name}.execute`
+    executeValue.callee.arguments[0]?.value !== `${name}.execute` ||
+    implementation?.type !== 'FunctionExpression' ||
+    !implementation.generator ||
+    implementation.async
   )
     return `Build Layer.effect(${name}, Effect.gen or Effect.sync) and return only a typed Effect.fn('${name}.execute')`;
   return undefined;
@@ -1736,7 +1729,8 @@ export default {
             target &&
             target !== port[1] &&
             target !== 'kernel' &&
-            target !== 'effects'
+            target !== 'effects' &&
+            !(source === '@porcelain/git/errors' && typeOnlyImport(node))
           )
             context.report({
               node: node.source,
@@ -3244,12 +3238,12 @@ export default {
             return;
           }
           if (
-            typeOnlyImport(node) &&
-            (/^(?:\.\.\/){1,2}ports\/[^/]+\.ts$/.test(source) ||
-              (/apps\/server\/src\/installer\/[^/]+\.spec\.ts$/.test(
-                context.filename,
-              ) &&
-                source === './command-runner.ts'))
+            /^(?:\.\.\/){1,2}ports\/[^/]+\.ts$/.test(source) ||
+            (/apps\/server\/src\/installer\/[^/]+\.spec\.ts$/.test(
+              context.filename,
+            ) &&
+              source === './command-runner.ts' &&
+              typeOnlyImport(node))
           )
             return;
           if (!allowedSpecImport(context.filename, source))
@@ -3296,7 +3290,8 @@ export default {
                 node.specifiers.every(
                   (specifier) =>
                     specifier.type === 'ImportSpecifier' &&
-                    specifier.imported.name === 'Context',
+                    (specifier.importKind === 'type' ||
+                      specifier.imported.name === 'Context'),
                 )
               )
             )
@@ -3399,15 +3394,29 @@ export default {
               (domainModule.test(source) ||
                 /^@porcelain\/contracts\/[^/]+$/.test(source))
             ) {
-              if (!typeOnlyImport(node))
+              if (
+                !typeOnlyImport(node) &&
+                !(
+                  source.endsWith('/services') &&
+                  node.specifiers.every(
+                    (specifier) =>
+                      specifier.importKind === 'type' ||
+                      /Service$/.test(specifier.imported?.name),
+                  )
+                )
+              )
                 context.report({
                   node,
                   message:
-                    'Use cases import services, models and contracts as types only, because orchestration must use public domain boundaries and validated contracts.',
+                    'Use cases import service capabilities as values and models and contracts as types, because Layers declare dependencies while orchestration consumes validated inputs.',
                 });
               return;
             }
-            if (typeof source === 'string' && useCaseValueModule.test(source))
+            if (
+              typeof source === 'string' &&
+              (useCaseValueModule.test(source) ||
+                (source === '@porcelain/git/errors' && typeOnlyImport(node)))
+            )
               return;
             context.report({
               node,
@@ -3472,8 +3481,6 @@ export default {
         const exportMessage = `Export only the ${expectedName} class and types from this file`;
         let found = 0;
         const checkClass = (node) => {
-          if (node.superClass && !nativeOperation(node, context))
-            report(node.superClass, 'An operation class extends nothing');
           if (node.parent?.type !== 'ExportNamedDeclaration')
             report(
               node,
@@ -3527,93 +3534,10 @@ export default {
               if (problem) report(declaration, problem);
               return;
             }
-            if (
-              /\/packages\/access\/src\/services\//.test(
-                normalizedFilename(context.filename),
-              )
-            )
-              report(
-                declaration,
-                'Access services declare native Context.Service capabilities and Layer factories',
-              );
-            const executes = declaration.body.body.filter(isPublicExecute);
-            for (const member of declaration.body.body) {
-              if (member.type === 'StaticBlock')
-                report(
-                  member,
-                  'An operation class has no static initialisation',
-                );
-              const value = ['PropertyDefinition', 'AccessorProperty'].includes(
-                member.type,
-              )
-                ? member.value
-                : undefined;
-              if (
-                isFunction(value) ||
-                (value?.type === 'CallExpression' &&
-                  memberPath(value.callee)?.at(-1) === 'bind')
-              )
-                report(
-                  member,
-                  'Write a private method instead of a function-valued field',
-                );
-              if (isPublicExecute(member)) continue;
-              if (
-                member.type === 'MethodDefinition' &&
-                member.kind === 'constructor'
-              ) {
-                for (const parameter of member.value.params) {
-                  if (parameter.type !== 'TSParameterProperty') continue;
-                  if (
-                    parameter.accessibility !== 'private' &&
-                    parameter.accessibility !== 'protected'
-                  )
-                    report(
-                      parameter,
-                      'Constructor properties are private; an operation exposes only execute',
-                    );
-                  if (!parameter.readonly)
-                    report(
-                      parameter,
-                      'Fields are readonly; an operation holds collaborators rather than state',
-                    );
-                }
-                continue;
-              }
-              if (
-                ['PropertyDefinition', 'AccessorProperty'].includes(
-                  member.type,
-                ) &&
-                !member.readonly
-              )
-                report(
-                  member,
-                  'Fields are readonly; an operation holds collaborators rather than state',
-                );
-              if (!isPrivateMember(member))
-                report(
-                  member,
-                  'Classes expose only execute; make other members private',
-                );
-            }
-            if (executes.length !== 1) {
-              report(declaration, 'Declare one public execute method');
-              return;
-            }
-            const execute = executes[0];
-            if (!execute.value.returnType)
-              report(
-                execute,
-                'Declare the execute return type so the contract is visible to TypeScript',
-              );
-            const problem = executeSignatureProblem(role, execute);
-            if (problem) context.report({ node: execute, message: problem });
-            for (const parameter of execute.value.params)
-              if (openParameterType(parameter.typeAnnotation?.typeAnnotation))
-                report(
-                  parameter,
-                  'Name the execute input in models/; Record<never, never>, {}, object and unknown say nothing; drop the parameter when there is no input',
-                );
+            report(
+              declaration,
+              'Declare a native Context.Service capability with a static Layer factory',
+            );
           },
           ExportDefaultDeclaration(node) {
             report(node, exportMessage);

@@ -1,7 +1,11 @@
-export type { FilePreferenceStore } from './file-preference-store.ts';
-export type { InventoryStore } from './inventory-store.ts';
-export type { ProjectFolderReader } from './project-folder-reader.ts';
-export type { ProjectRepositoryReader } from './project-repository-reader.ts';
-export type { WorktreeCatalogStore } from './worktree-catalog-store.ts';
-export type { WorktreeListingReader } from './worktree-listing-reader.ts';
-export type { WorktreePresenceStore } from './worktree-presence-store.ts';
+export { FilePreferenceStore } from './file-preference-store.ts';
+export { InventoryStore } from './inventory-store.ts';
+export { ProjectFolderReader } from './project-folder-reader.ts';
+export { ProjectRepositoryReader } from './project-repository-reader.ts';
+export { WorktreeCatalogStore } from './worktree-catalog-store.ts';
+export { WorktreeListingReader } from './worktree-listing-reader.ts';
+export { WorktreePresenceStore } from './worktree-presence-store.ts';
+export { BrowseProjectFoldersOptions } from './browse-project-folders-options.ts';
+export { CheckWorktreeOptions } from './check-worktree-options.ts';
+export { CollectAbsentWorktreesOptions } from './collect-absent-worktrees-options.ts';
+export { SetFilePreferenceOptions } from './set-file-preference-options.ts';

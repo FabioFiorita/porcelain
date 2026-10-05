@@ -1,3 +1,7 @@
+import {
+  WorktreePresenceStore,
+  FilePreferenceStore,
+} from '@porcelain/projects/ports';
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { InMemoryFilePreferenceStore } from '../../spec/fakes/in-memory-file-preference-store.ts';
@@ -30,7 +34,13 @@ function setup() {
   return {
     presence,
     preferences,
-    service: new ForgetProjectRecordsService(presence, preferences),
+    service: Effect.runSync(
+      ForgetProjectRecordsService.pipe(
+        Effect.provide(ForgetProjectRecordsService.layer),
+        Effect.provideService(WorktreePresenceStore, presence),
+        Effect.provideService(FilePreferenceStore, preferences),
+      ),
+    ),
   };
 }
 

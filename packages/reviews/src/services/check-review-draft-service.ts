@@ -1,22 +1,32 @@
-import { Effect } from 'effect';
+import { Effect, Context, Layer } from 'effect';
 import { ReviewConflictError } from '../errors/review-conflict-error.ts';
-import type { CheckReviewDraftInput } from '../models/check-review-draft.ts';
-import type { ReviewStore } from '../ports/review-store.ts';
+import { type CheckReviewDraftInput } from '../models/check-review-draft.ts';
+import { ReviewStore } from '../ports/review-store.ts';
 
-export class CheckReviewDraftService {
-  private readonly reviews: ReviewStore;
-
-  constructor(reviews: ReviewStore) {
-    this.reviews = reviews;
+export class CheckReviewDraftService extends Context.Service<
+  CheckReviewDraftService,
+  {
+    readonly execute: (
+      input: CheckReviewDraftInput,
+    ) => Effect.Effect<void, ReviewConflictError>;
   }
+>()('@porcelain/reviews/CheckReviewDraftService') {
+  static readonly layer = Layer.effect(
+    CheckReviewDraftService,
+    Effect.gen(function* () {
+      const reviewsCapability = yield* ReviewStore;
 
-  execute(
-    input: CheckReviewDraftInput,
-  ): Effect.Effect<void, ReviewConflictError> {
-    return Effect.gen({ self: this }, function* () {
-      const current = this.reviews.read({ worktreeId: input.worktreeId });
-      if ((current?.revision ?? 0) !== input.draft.expectedRevision)
-        return yield* Effect.fail(new ReviewConflictError());
-    });
-  }
+      return {
+        execute: Effect.fn('CheckReviewDraftService.execute')(function* (
+          input: CheckReviewDraftInput,
+        ): Effect.fn.Return<void, ReviewConflictError> {
+          const current = reviewsCapability.read({
+            worktreeId: input.worktreeId,
+          });
+          if ((current?.revision ?? 0) !== input.draft.expectedRevision)
+            return yield* Effect.fail(new ReviewConflictError());
+        }),
+      };
+    }),
+  );
 }

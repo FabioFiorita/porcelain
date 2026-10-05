@@ -1,9 +1,11 @@
+import { IdSource } from '@porcelain/kernel/ports';
+import { InventoryStore } from '@porcelain/projects/ports';
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { SequentialIdSource } from '@porcelain/kernel/fakes';
-import type {
-  ProjectRepository,
-  RegisteredProject,
+import {
+  type ProjectRepository,
+  type RegisteredProject,
 } from '@porcelain/projects/models';
 import { InMemoryInventoryStore } from '../../spec/fakes/in-memory-inventory-store.ts';
 import { RegisterProjectService } from './register-project-service.ts';
@@ -32,9 +34,12 @@ function registered(overrides: Partial<RegisteredProject>): RegisteredProject {
 
 function setup(projects: RegisteredProject[] = []) {
   const inventory = new InMemoryInventoryStore(projects);
-  const service = new RegisterProjectService(
-    inventory,
-    new SequentialIdSource(),
+  const service = Effect.runSync(
+    RegisterProjectService.pipe(
+      Effect.provide(RegisterProjectService.layer),
+      Effect.provideService(InventoryStore, inventory),
+      Effect.provideService(IdSource, new SequentialIdSource()),
+    ),
   );
   return { inventory, service };
 }

@@ -1,36 +1,51 @@
-import { Effect } from 'effect';
-import type {
-  RemoveReviewedFilesInput,
-  RemoveReviewedFilesResult,
+import { Effect, Context, Layer } from 'effect';
+import {
+  type RemoveReviewedFilesInput,
+  type RemoveReviewedFilesResult,
 } from '../models/remove-reviewed-files.ts';
-import type { ReviewedFileStore } from '../ports/reviewed-file-store.ts';
+import { ReviewedFileStore } from '../ports/reviewed-file-store.ts';
 import { reviewedMarks } from '../rules/reviewed-marks.ts';
 
-export class RemoveReviewedFilesService {
-  private readonly reviewedFiles: ReviewedFileStore;
-
-  constructor(reviewedFiles: ReviewedFileStore) {
-    this.reviewedFiles = reviewedFiles;
+export class RemoveReviewedFilesService extends Context.Service<
+  RemoveReviewedFilesService,
+  {
+    readonly execute: (
+      input: RemoveReviewedFilesInput,
+    ) => Effect.Effect<RemoveReviewedFilesResult, never>;
   }
+>()('@porcelain/reviews/RemoveReviewedFilesService') {
+  static readonly layer = Layer.effect(
+    RemoveReviewedFilesService,
+    Effect.gen(function* () {
+      const reviewedFilesCapability = yield* ReviewedFileStore;
 
-  execute(
-    input: RemoveReviewedFilesInput,
-  ): Effect.Effect<RemoveReviewedFilesResult, never> {
-    return Effect.sync(() => {
-      const { worktreeId, scope, branch } = input;
-      const wanted = new Set(input.paths);
-      const removed = this.reviewedFiles
-        .list({ worktreeId, scope, branch })
-        .filter((mark) => wanted.has(mark.path))
-        .map((mark) => mark.path);
-      this.reviewedFiles.remove({ worktreeId, scope, branch, paths: removed });
       return {
-        worktreeId,
-        marks: reviewedMarks(
-          this.reviewedFiles.list({ worktreeId, scope, branch }),
-        ),
-        removed: removed.length > 0,
+        execute: Effect.fn('RemoveReviewedFilesService.execute')(function* (
+          input: RemoveReviewedFilesInput,
+        ): Effect.fn.Return<RemoveReviewedFilesResult, never> {
+          return yield* Effect.sync<RemoveReviewedFilesResult>(() => {
+            const { worktreeId, scope, branch } = input;
+            const wanted = new Set(input.paths);
+            const removed = reviewedFilesCapability
+              .list({ worktreeId, scope, branch })
+              .filter((mark) => wanted.has(mark.path))
+              .map((mark) => mark.path);
+            reviewedFilesCapability.remove({
+              worktreeId,
+              scope,
+              branch,
+              paths: removed,
+            });
+            return {
+              worktreeId,
+              marks: reviewedMarks(
+                reviewedFilesCapability.list({ worktreeId, scope, branch }),
+              ),
+              removed: removed.length > 0,
+            };
+          });
+        }),
       };
-    });
-  }
+    }),
+  );
 }

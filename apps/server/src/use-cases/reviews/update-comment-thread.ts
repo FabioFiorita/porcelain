@@ -1,50 +1,57 @@
-import type { CommentTargetNotFoundError } from '@porcelain/reviews/errors';
-import { Effect } from 'effect';
-import type { WorktreeAccess } from '../../runtime/worktree-access.ts';
-import type { WorktreeAccessFailure } from '../../ports/worktree-access-failure.ts';
-import type {
-  CommentThreadParams,
-  UpdateCommentThreadRequest,
-  UpdateCommentThreadResponse,
+import { type CommentTargetNotFoundError } from '@porcelain/reviews/errors';
+import { Effect, Context, Layer } from 'effect';
+import { WorktreeAccess } from '../../runtime/worktree-access.ts';
+import { type WorktreeAccessFailure } from '../../ports/worktree-access-failure.ts';
+import {
+  type CommentThreadParams,
+  type UpdateCommentThreadRequest,
+  type UpdateCommentThreadResponse,
 } from '@porcelain/contracts/reviews';
-import type { UpdateCommentThreadService } from '@porcelain/reviews/services';
-import type { EventPublisher } from '../../ports/event-publisher.ts';
+import { UpdateCommentThreadService } from '@porcelain/reviews/services';
+import { EventPublisher } from '../../ports/event-publisher.ts';
 
-export class UpdateCommentThreadUseCase {
-  private readonly access: WorktreeAccess;
-  private readonly updateCommentThread: UpdateCommentThreadService;
-  private readonly events: EventPublisher;
-
-  constructor(
-    access: WorktreeAccess,
-    updateCommentThread: UpdateCommentThreadService,
-    events: EventPublisher,
-  ) {
-    this.access = access;
-    this.updateCommentThread = updateCommentThread;
-    this.events = events;
+export class UpdateCommentThreadUseCase extends Context.Service<
+  UpdateCommentThreadUseCase,
+  {
+    readonly execute: (
+      input: CommentThreadParams & UpdateCommentThreadRequest,
+    ) => Effect.Effect<
+      UpdateCommentThreadResponse,
+      WorktreeAccessFailure | CommentTargetNotFoundError
+    >;
   }
+>()('@porcelain/server/UpdateCommentThreadUseCase') {
+  static readonly layer = Layer.effect(
+    UpdateCommentThreadUseCase,
+    Effect.gen(function* () {
+      const accessCapability = yield* WorktreeAccess;
+      const updateCommentThreadCapability = yield* UpdateCommentThreadService;
+      const eventsCapability = yield* EventPublisher;
 
-  execute(
-    input: CommentThreadParams & UpdateCommentThreadRequest,
-  ): Effect.Effect<
-    UpdateCommentThreadResponse,
-    WorktreeAccessFailure | CommentTargetNotFoundError
-  > {
-    return this.access
-      .transaction(
-        input.worktreeId,
-        () => Effect.void,
-        () => this.updateCommentThread.execute(input),
-        (value) =>
-          Effect.sync(() => {
-            if (value.changed)
-              this.events.worktreeChanged({
-                worktreeId: input.worktreeId,
-                change: 'comments',
-              });
-          }),
-      )
-      .pipe(Effect.map((value) => value.thread));
-  }
+      return {
+        execute: Effect.fn('UpdateCommentThreadUseCase.execute')(function* (
+          input: CommentThreadParams & UpdateCommentThreadRequest,
+        ): Effect.fn.Return<
+          UpdateCommentThreadResponse,
+          WorktreeAccessFailure | CommentTargetNotFoundError
+        > {
+          return yield* accessCapability
+            .transaction(
+              input.worktreeId,
+              () => Effect.void,
+              () => updateCommentThreadCapability.execute(input),
+              (value) =>
+                Effect.sync(() => {
+                  if (value.changed)
+                    eventsCapability.worktreeChanged({
+                      worktreeId: input.worktreeId,
+                      change: 'comments',
+                    });
+                }),
+            )
+            .pipe(Effect.map((value) => value.thread));
+        }),
+      };
+    }),
+  );
 }

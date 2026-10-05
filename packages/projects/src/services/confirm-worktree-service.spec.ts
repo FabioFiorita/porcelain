@@ -1,7 +1,8 @@
+import { WorktreeCatalogStore } from '@porcelain/projects/ports';
 import { Effect } from 'effect';
 import { WorktreeChangedError } from '@porcelain/kernel/errors';
 import { describe, expect, it } from 'vitest';
-import type { ListedWorktree } from '@porcelain/projects/models';
+import { type ListedWorktree } from '@porcelain/projects/models';
 import { InMemoryWorktreeCatalogStore } from '../../spec/fakes/in-memory-worktree-catalog-store.ts';
 import { ConfirmWorktreeService } from './confirm-worktree-service.ts';
 
@@ -35,7 +36,12 @@ function service(current: ListedWorktree[]) {
       },
     ],
   });
-  return new ConfirmWorktreeService(catalog);
+  return Effect.runSync(
+    ConfirmWorktreeService.pipe(
+      Effect.provide(ConfirmWorktreeService.layer),
+      Effect.provideService(WorktreeCatalogStore, catalog),
+    ),
+  );
 }
 
 describe('ConfirmWorktreeService', () => {

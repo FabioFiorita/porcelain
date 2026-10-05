@@ -1,8 +1,13 @@
+import { Clock } from '@porcelain/kernel/ports';
+import {
+  ReviewedFileStore,
+  SetReviewedFilesOptions,
+} from '@porcelain/reviews/ports';
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { FixedClock } from '@porcelain/kernel/fakes';
 import { ReviewedMarkConflictError } from '@porcelain/reviews/errors';
-import type { FileChange } from '@porcelain/kernel/models';
+import { type FileChange } from '@porcelain/kernel/models';
 import { InMemoryReviewedFileStore } from '../../spec/fakes/in-memory-reviewed-file-store.ts';
 import { SetReviewedFilesService } from './set-reviewed-files-service.ts';
 
@@ -23,9 +28,16 @@ function setup() {
   const clock = new FixedClock('2026-01-02T00:00:00.000Z');
   return {
     store,
-    service: new SetReviewedFilesService(store, clock, {
-      marksPerWorktree: 2000,
-    }),
+    service: Effect.runSync(
+      SetReviewedFilesService.pipe(
+        Effect.provide(SetReviewedFilesService.layer),
+        Effect.provideService(ReviewedFileStore, store),
+        Effect.provideService(Clock, clock),
+        Effect.provideService(SetReviewedFilesOptions, {
+          marksPerWorktree: 2000,
+        }),
+      ),
+    ),
   };
 }
 
@@ -235,10 +247,19 @@ describe('SetReviewedFilesService', () => {
 
   it('keeps every mark of a branch that changes more files than the worktree limit', () => {
     const store = new InMemoryReviewedFileStore();
-    const service = new SetReviewedFilesService(
-      store,
-      new FixedClock('2026-01-02T00:00:00.000Z'),
-      { marksPerWorktree: 2000, marksPerBranch: 10_000 },
+    const service = Effect.runSync(
+      SetReviewedFilesService.pipe(
+        Effect.provide(SetReviewedFilesService.layer),
+        Effect.provideService(ReviewedFileStore, store),
+        Effect.provideService(
+          Clock,
+          new FixedClock('2026-01-02T00:00:00.000Z'),
+        ),
+        Effect.provideService(SetReviewedFilesOptions, {
+          marksPerWorktree: 2000,
+          marksPerBranch: 10_000,
+        }),
+      ),
     );
     const branch = 'refs/heads/feature';
     const files = Array.from({ length: 2001 }, (_, index) => ({
@@ -272,10 +293,19 @@ describe('SetReviewedFilesService', () => {
 
   it('never evicts the mark of a file the branch still changes, only marks it no longer shows', () => {
     const store = new InMemoryReviewedFileStore();
-    const service = new SetReviewedFilesService(
-      store,
-      new FixedClock('2026-01-02T00:00:00.000Z'),
-      { marksPerWorktree: 2000, marksPerBranch: 2 },
+    const service = Effect.runSync(
+      SetReviewedFilesService.pipe(
+        Effect.provide(SetReviewedFilesService.layer),
+        Effect.provideService(ReviewedFileStore, store),
+        Effect.provideService(
+          Clock,
+          new FixedClock('2026-01-02T00:00:00.000Z'),
+        ),
+        Effect.provideService(SetReviewedFilesOptions, {
+          marksPerWorktree: 2000,
+          marksPerBranch: 2,
+        }),
+      ),
     );
     const branch = 'refs/heads/feature';
     store.save({

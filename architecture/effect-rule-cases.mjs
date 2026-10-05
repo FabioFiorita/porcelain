@@ -7,11 +7,18 @@ const handlers = HttpApiBuilder.group(FilesApi, 'files', (handlers) =>
 export const routes = effectRoutes(FilesApi, layer);`;
 const path = 'apps/server/src/http/routes/files/files-api.ts';
 
-const operation = `export class ReadHealthUseCase {
-  private readonly reader: ReadEnvironmentService;
-  constructor(reader: ReadEnvironmentService) { this.reader = reader; }
-  execute(): Effect.Effect<ReadHealthResponse, MissingEnvironmentIdentityError> { return this.reader.execute(); }
+export const nativeHealthOperation = `import { Context, Effect, Layer } from 'effect';
+export class ReadHealthUseCase extends Context.Service<ReadHealthUseCase, {
+  readonly execute: () => Effect.Effect<ReadHealthResponse, MissingEnvironmentIdentityError>
+}>()('@porcelain/server/ReadHealthUseCase') {
+  static readonly layer = Layer.effect(ReadHealthUseCase, Effect.gen(function* () {
+    const reader = yield* ReadEnvironmentService;
+    return { execute: Effect.fn('ReadHealthUseCase.execute')(function* (): Effect.fn.Return<ReadHealthResponse, MissingEnvironmentIdentityError> {
+      return yield* reader.execute();
+    }) };
+  }));
 }`;
+const operation = nativeHealthOperation;
 
 const nativeService = `import { Context, Effect, Layer } from 'effect';
 export class ReadEnvironmentService extends Context.Service<ReadEnvironmentService, {
@@ -62,7 +69,7 @@ export const effectRuleCases = [
     path: 'packages/access/src/services/read-environment-service.ts',
     valid: nativeService,
     invalid,
-    errors: invalid.includes('const Context') ? 4 : 1,
+    errors: 1,
   })),
   {
     rule: 'operation-class-shape',
@@ -100,10 +107,10 @@ export const effectRuleCases = [
     path: 'apps/server/src/use-cases/access/read-health.ts',
     valid: operation,
     invalid: operation.replace(
-      'private readonly reader:',
-      `private readonly cancellation: ${raw}; private readonly reader:`,
+      'static readonly layer',
+      `private readonly cancellation: ${raw}; static readonly layer`,
     ),
-    errors: 1,
+    errors: 2,
   })),
   {
     rule: 'spec-imports',
@@ -246,25 +253,28 @@ it('reads once', async () => { const result = await read(); if (result) it('asse
       invalid: operation.replace('ReadHealthUseCase', 'ReadHealthController'),
       errors: 2,
     },
-    {
-      invalid: operation.replace('private readonly reader', 'private reader'),
+    ...[
+      'private reader: Reader;',
+      'readonly reader: Reader;',
+      'forOwner(): void {}',
+    ].map((member) => ({
+      invalid: operation.replace(
+        'static readonly layer',
+        `${member} static readonly layer`,
+      ),
       errors: 1,
-    },
-    {
-      invalid: operation.replace('private readonly reader', 'readonly reader'),
-      errors: 1,
-    },
+    })),
     {
       invalid: operation.replace(
-        'execute():',
-        'execute(context: OperationContext):',
+        'execute: ()',
+        'execute: (context: OperationContext)',
       ),
       errors: 1,
     },
     {
       invalid: operation.replace(
-        'execute():',
-        'execute(input: ReadHealthInput, signal?: AbortSignal):',
+        'execute: ()',
+        'execute: (input: ReadHealthInput, signal?: AbortSignal)',
       ),
       errors: 2,
     },
@@ -275,23 +285,27 @@ it('reads once', async () => { const result = await read(); if (result) it('asse
       ),
       errors: 1,
     },
-    { invalid: operation.replace('execute():', 'async execute():'), errors: 1 },
     {
-      invalid: operation.replace('execute():', 'execute(input: {}):'),
+      invalid: operation.replace(
+        'readonly execute: ()',
+        'readonly execute: (input: {})',
+      ),
       errors: 1,
     },
-    { invalid: operation.replace('execute():', 'read():'), errors: 2 },
+    {
+      invalid: operation.replace('readonly execute:', 'readonly read:'),
+      errors: 1,
+    },
     { invalid: `${operation}\nexport const fallback = undefined;`, errors: 1 },
     {
-      invalid: operation
-        .replace('execute():', 'readonly execute = ():')
-        .replace('> { return', '> => { return'),
-      errors: 3,
+      invalid:
+        'export class ReadHealthUseCase { execute(): Effect.Effect<ReadHealthResponse> { return Effect.succeed(result); } }',
+      errors: 1,
     },
     {
       invalid: operation.replace(
-        'execute():',
-        'forOwner(): void {}\n  execute():',
+        'function* (): Effect.fn.Return',
+        'async function* (): Effect.fn.Return',
       ),
       errors: 1,
     },
@@ -301,15 +315,17 @@ it('reads once', async () => { const result = await read(); if (result) it('asse
     valid: operation,
     ...entry,
   })),
-  {
+  ...['', 'input: ReadTextFileInput, signal?: AbortSignal'].map((args) => ({
     rule: 'operation-class-shape',
     path: 'packages/files/src/services/read-text-file-service.ts',
-    valid:
-      'export class ReadTextFileService { execute(input: ReadTextFileInput): Effect.Effect<ReadTextFileResult, ReadFailure, WorktreeRead> { return Effect.succeed(result); } }',
-    invalid:
-      'export class ReadTextFileService { execute(input: ReadTextFileInput, signal?: AbortSignal): Effect.Effect<ReadTextFileResult, ReadFailure, WorktreeRead> { return Effect.succeed(result); } }',
-    errors: 2,
-  },
+    valid: `import { Context, Effect, Layer } from 'effect';
+export class ReadTextFileService extends Context.Service<ReadTextFileService, { readonly execute: (input: ReadTextFileInput) => Effect.Effect<ReadTextFileResult, ReadFailure, WorktreeRead> }>()('@porcelain/files/ReadTextFileService') {
+ static readonly layer = Layer.effect(ReadTextFileService, Effect.sync(() => { return { execute: Effect.fn('ReadTextFileService.execute')(function* (input: ReadTextFileInput): Effect.fn.Return<ReadTextFileResult, ReadFailure, WorktreeRead> { return yield* Effect.succeed(result); }) }; }));
+}`,
+    invalid: `export class ReadTextFileService { execute(${args}): Effect.Effect<ReadTextFileResult, ReadFailure, WorktreeRead> { return Effect.succeed(result); } }`,
+    errors: args ? 2 : 1,
+  })),
+
   {
     rule: 'port-shape',
     path: 'apps/server/src/ports/check-worktree-use-case-port.ts',

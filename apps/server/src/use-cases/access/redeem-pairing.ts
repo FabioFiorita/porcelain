@@ -1,46 +1,51 @@
-import type { Context } from 'effect';
-import { Effect } from 'effect';
-import type {
-  InvalidPairingError,
-  InvalidDeviceDetailsError,
+import { Context, Effect, Layer } from 'effect';
+import {
+  type InvalidPairingError,
+  type InvalidDeviceDetailsError,
 } from '@porcelain/access/errors';
-import type { RedeemPairingService } from '@porcelain/access/services';
-import type {
-  RedeemPairingInput,
-  RedeemPairingResponse,
+import { RedeemPairingService } from '@porcelain/access/services';
+import {
+  type RedeemPairingInput,
+  type RedeemPairingResponse,
 } from '@porcelain/contracts/access';
-import type { LaneKeys } from '../../runtime/lane-keys.ts';
-import type { Lanes } from '../../runtime/lanes.ts';
+import { LaneKeys } from '../../runtime/lane-keys.ts';
+import { Lanes } from '../../runtime/lanes.ts';
 
-export class RedeemPairingUseCase {
-  private readonly redeemPairing: Context.Service.Shape<
-    typeof RedeemPairingService
-  >;
-  private readonly lanes: Lanes;
-  private readonly laneKeys: LaneKeys;
-
-  constructor(
-    redeemPairing: Context.Service.Shape<typeof RedeemPairingService>,
-    lanes: Lanes,
-    laneKeys: LaneKeys,
-  ) {
-    this.redeemPairing = redeemPairing;
-    this.lanes = lanes;
-    this.laneKeys = laneKeys;
+export class RedeemPairingUseCase extends Context.Service<
+  RedeemPairingUseCase,
+  {
+    readonly execute: (
+      input: RedeemPairingInput,
+    ) => Effect.Effect<
+      RedeemPairingResponse,
+      InvalidPairingError | InvalidDeviceDetailsError
+    >;
   }
+>()('@porcelain/server/RedeemPairingUseCase') {
+  static readonly layer = Layer.effect(
+    RedeemPairingUseCase,
+    Effect.gen(function* () {
+      const redeemPairingCapability = yield* RedeemPairingService;
+      const lanesCapability = yield* Lanes;
+      const laneKeysCapability = yield* LaneKeys;
 
-  execute(
-    input: RedeemPairingInput,
-  ): Effect.Effect<
-    RedeemPairingResponse,
-    InvalidPairingError | InvalidDeviceDetailsError
-  > {
-    return Effect.gen({ self: this }, function* () {
-      return yield* this.lanes.run(this.laneKeys.access(), 'write', () =>
-        Effect.gen({ self: this }, function* () {
-          return yield* this.redeemPairing.execute(input);
+      return {
+        execute: Effect.fn('RedeemPairingUseCase.execute')(function* (
+          input: RedeemPairingInput,
+        ): Effect.fn.Return<
+          RedeemPairingResponse,
+          InvalidPairingError | InvalidDeviceDetailsError
+        > {
+          return yield* lanesCapability.run(
+            laneKeysCapability.access(),
+            'write',
+            () =>
+              Effect.gen(function* () {
+                return yield* redeemPairingCapability.execute(input);
+              }),
+          );
         }),
-      );
-    });
-  }
+      };
+    }),
+  );
 }

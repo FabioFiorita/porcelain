@@ -1,10 +1,19 @@
-import type { Cause } from 'effect';
-import { Deferred, Effect, Fiber, Scope, Exit } from 'effect';
+import { LaneOptions } from '../ports/lane-options.ts';
+import {
+  type Cause,
+  Context,
+  Effect,
+  Layer,
+  Deferred,
+  Fiber,
+  Scope,
+  Exit,
+} from 'effect';
 import { withSignal } from '@porcelain/effects';
 import { channel } from 'node:diagnostics_channel';
-import type { ListedWorktree } from '@porcelain/projects/models';
-import type { WorktreeChangedError } from '@porcelain/kernel/errors';
-import type { WorktreeConsistencyProbe } from '../ports/worktree-consistency-probe.ts';
+import { type ListedWorktree } from '@porcelain/projects/models';
+import { type WorktreeChangedError } from '@porcelain/kernel/errors';
+
 import { ApplicationClosedError } from './errors/application-closed-error.ts';
 
 const operationChannel = channel('porcelain:operation');
@@ -110,305 +119,346 @@ class Gate {
   }
 }
 
-type LaneOptions = {
-  readCapacity: number;
-  deadlineMs: number | (() => number);
-  consistency: WorktreeConsistencyProbe;
-  closeResources?: () => void;
-};
-
-export class Lanes {
-  private readonly gates = new Map<string, Gate>();
-  private readonly capacity: number;
-  private readonly deadlineMs: () => number;
-  private readonly closeResources: () => void;
-  private readonly consistency: WorktreeConsistencyProbe;
-  private readonly shutdown = new AbortController();
-  private readonly scope = Scope.makeUnsafe();
-  private readonly finishing = new Set<Deferred.Deferred<void>>();
-  private closed = false;
-  private closing: Promise<void> | undefined;
-
-  constructor(options: LaneOptions) {
-    this.capacity = options.readCapacity;
-    const { deadlineMs } = options;
-    this.deadlineMs =
-      typeof deadlineMs === 'function' ? deadlineMs : () => deadlineMs;
-    this.closeResources = options.closeResources ?? (() => undefined);
-    this.consistency = options.consistency;
+export class Lanes extends Context.Service<
+  Lanes,
+  {
+    readonly assertOpen: () => void;
+    readonly run: <A, E>(
+      lane: string,
+      mode: LaneMode,
+      work: () => Effect.Effect<A, E>,
+      options?: {
+        deadlineMs?: number;
+        settled?: (() => Effect.Effect<void>) | undefined;
+      },
+    ) => Effect.Effect<A, E>;
+    readonly commit: <A, E>(
+      lane: string,
+      work: () => Effect.Effect<A, E>,
+      committed: (value: A) => Effect.Effect<void>,
+    ) => Effect.Effect<A, E>;
+    readonly transaction: <Prepared, A, E, F>(
+      lane: string,
+      prepare: () => Effect.Effect<Prepared, E>,
+      commit: (prepared: Prepared) => Effect.Effect<A, F>,
+      committed: (value: A) => Effect.Effect<void>,
+    ) => Effect.Effect<A, E | F>;
+    readonly unqueued: <A, E>(
+      work: () => Effect.Effect<A, E>,
+      options?: { deadlineMs?: number },
+    ) => Effect.Effect<A, E>;
+    readonly background: <E>(
+      lane: string,
+      work: () => Effect.Effect<void, E>,
+      onFailure: (cause: Cause.Cause<E>) => Effect.Effect<void>,
+      options?: { deadlineMs?: number },
+    ) => Effect.Effect<void>;
+    readonly finish: <A, E>(
+      lane: string,
+      work: () => Effect.Effect<A, E>,
+    ) => Effect.Effect<A, E>;
+    readonly start: <E>(
+      work: () => Effect.Effect<void, E>,
+      onFailure: (cause: Cause.Cause<E>) => Effect.Effect<void>,
+    ) => Effect.Effect<void>;
+    readonly runConsistent: <A, E>(
+      lane: string,
+      worktree: ListedWorktree,
+      work: () => Effect.Effect<A, E>,
+    ) => Effect.Effect<A, E | WorktreeChangedError>;
+    readonly close: () => Promise<void>;
   }
+>()('@porcelain/server/Lanes') {
+  static readonly layer = Layer.effect(
+    Lanes,
+    Effect.gen(function* () {
+      const options = yield* LaneOptions;
+      const gates = new Map<string, Gate>();
+      const shutdown = new AbortController();
+      const scope = Scope.makeUnsafe();
+      const finishing = new Set<Deferred.Deferred<void>>();
+      let closed = false;
 
-  assertOpen(): void {
-    if (this.shutdown.signal.aborted) throw new ApplicationClosedError();
-  }
+      const capacity = options.readCapacity;
+      const configuredDeadlineMs = options.deadlineMs;
+      const deadlineMs =
+        typeof configuredDeadlineMs === 'function'
+          ? configuredDeadlineMs
+          : () => configuredDeadlineMs;
+      const closeResources = options.closeResources ?? (() => undefined);
+      const consistency = options.consistency;
 
-  private gate(lane: string) {
-    const existing = this.gates.get(lane);
-    if (existing) return existing;
-    const created = new Gate(this.capacity);
-    this.gates.set(lane, created);
-    return created;
-  }
-
-  run<A, E>(
-    lane: string,
-    mode: LaneMode,
-    work: () => Effect.Effect<A, E>,
-    options: {
-      deadlineMs?: number;
-      settled?: (() => Effect.Effect<void>) | undefined;
-    } = {},
-  ): Effect.Effect<A, E> {
-    return this.runEffect(lane, mode, work, {
-      ...options,
-      completed: options.settled,
-    });
-  }
-
-  commit<A, E>(
-    lane: string,
-    work: () => Effect.Effect<A, E>,
-    committed: (value: A) => Effect.Effect<void>,
-  ): Effect.Effect<A, E> {
-    return this.transaction(lane, () => Effect.void, work, committed);
-  }
-
-  transaction<Prepared, A, E, F>(
-    lane: string,
-    prepare: () => Effect.Effect<Prepared, E>,
-    commit: (prepared: Prepared) => Effect.Effect<A, F>,
-    committed: (value: A) => Effect.Effect<void>,
-  ): Effect.Effect<A, E | F> {
-    return Effect.suspend(() => {
-      let confirmed: { value: A } | undefined;
-      return this.runEffect(
-        lane,
-        'write',
-        () =>
-          Effect.uninterruptibleMask((restore) =>
-            Effect.gen(function* () {
-              const prepared = yield* restore(Effect.suspend(prepare));
-              const value = yield* commit(prepared);
-              confirmed = { value };
-              return value;
-            }),
-          ),
-        {
-          completed: () =>
-            confirmed ? committed(confirmed.value) : Effect.void,
+      let closing: Promise<void> | undefined;
+      function assertOpen(): void {
+        if (shutdown.signal.aborted) throw new ApplicationClosedError();
+      }
+      function getGate(lane: string) {
+        const existing = gates.get(lane);
+        if (existing) return existing;
+        const created = new Gate(capacity);
+        gates.set(lane, created);
+        return created;
+      }
+      function run<A, E>(
+        lane: string,
+        mode: LaneMode,
+        work: () => Effect.Effect<A, E>,
+        options: {
+          deadlineMs?: number;
+          settled?: (() => Effect.Effect<void>) | undefined;
+        } = {},
+      ): Effect.Effect<A, E> {
+        return runEffect(lane, mode, work, {
+          ...options,
+          completed: options.settled,
+        });
+      }
+      function commit<A, E>(
+        lane: string,
+        work: () => Effect.Effect<A, E>,
+        committed: (value: A) => Effect.Effect<void>,
+      ): Effect.Effect<A, E> {
+        return transaction(lane, () => Effect.void, work, committed);
+      }
+      function transaction<Prepared, A, E, F>(
+        lane: string,
+        prepare: () => Effect.Effect<Prepared, E>,
+        commit: (prepared: Prepared) => Effect.Effect<A, F>,
+        committed: (value: A) => Effect.Effect<void>,
+      ): Effect.Effect<A, E | F> {
+        return Effect.suspend(() => {
+          let confirmed: { value: A } | undefined;
+          return runEffect(
+            lane,
+            'write',
+            () =>
+              Effect.uninterruptibleMask((restore) =>
+                Effect.gen(function* () {
+                  const prepared = yield* restore(Effect.suspend(prepare));
+                  const value = yield* commit(prepared);
+                  confirmed = { value };
+                  return value;
+                }),
+              ),
+            {
+              completed: () =>
+                confirmed ? committed(confirmed.value) : Effect.void,
+            },
+          );
+        });
+      }
+      function runEffect<A, E>(
+        lane: string,
+        mode: LaneMode,
+        work: () => Effect.Effect<A, E>,
+        options: {
+          deadlineMs?: number;
+          completed?: (() => Effect.Effect<void>) | undefined;
         },
-      );
-    });
-  }
-
-  private runEffect<A, E>(
-    lane: string,
-    mode: LaneMode,
-    work: () => Effect.Effect<A, E>,
-    options: {
-      deadlineMs?: number;
-      completed?: (() => Effect.Effect<void>) | undefined;
-    },
-  ): Effect.Effect<A, E> {
-    return Effect.uninterruptibleMask((restore) =>
-      Effect.gen({ self: this }, function* () {
-        this.assertOpen();
-        const gate = this.gate(lane);
-        const id = ++sequence;
-        this.publish(id, lane, 'queued');
-        const release = yield* restore(
-          withSignal(gate.enterEffect(mode), this.shutdown.signal),
-        );
-        return yield* this.admittedEffect(
-          id,
-          lane,
-          work,
-          restore,
-          () => {
-            release();
-            if (gate.idle) this.gates.delete(lane);
-          },
-          options,
-        );
-      }),
-    );
-  }
-
-  unqueued<A, E>(
-    work: () => Effect.Effect<A, E>,
-    options: { deadlineMs?: number } = {},
-  ): Effect.Effect<A, E> {
-    return Effect.uninterruptibleMask((restore) =>
-      Effect.gen({ self: this }, function* () {
-        this.assertOpen();
-        return yield* this.admittedEffect(
-          ++sequence,
-          'unqueued',
-          work,
-          restore,
-          () => undefined,
-          options,
-        );
-      }),
-    );
-  }
-
-  background<E>(
-    lane: string,
-    work: () => Effect.Effect<void, E>,
-    onFailure: (cause: Cause.Cause<E>) => Effect.Effect<void>,
-    options: { deadlineMs?: number } = {},
-  ): Effect.Effect<void> {
-    return Effect.forkIn(
-      this.run(lane, 'write', work, options).pipe(
-        Effect.onExit((exit) =>
-          Exit.isFailure(exit) ? onFailure(exit.cause) : Effect.void,
-        ),
-      ),
-      this.scope,
-      { startImmediately: true },
-    ).pipe(Effect.asVoid);
-  }
-
-  finish<A, E>(
-    lane: string,
-    work: () => Effect.Effect<A, E>,
-  ): Effect.Effect<A, E> {
-    return Effect.uninterruptible(
-      Effect.gen({ self: this }, function* () {
-        if (this.closed) return yield* Effect.die(new ApplicationClosedError());
-        const completed = yield* Deferred.make<void>();
-        this.finishing.add(completed);
-        const gate = this.gate(lane);
-        return yield* Effect.acquireUseRelease(
-          gate.enterEffect('write'),
-          () => Effect.suspend(work),
-          (release) =>
-            Effect.sync(() => {
-              release();
-              if (gate.idle) this.gates.delete(lane);
-            }),
-        ).pipe(
-          Effect.ensuring(
-            Effect.gen({ self: this }, function* () {
-              this.finishing.delete(completed);
-              yield* Deferred.succeed(completed, undefined);
-            }),
-          ),
-        );
-      }),
-    );
-  }
-
-  start<E>(
-    work: () => Effect.Effect<void, E>,
-    onFailure: (cause: Cause.Cause<E>) => Effect.Effect<void>,
-  ): Effect.Effect<void> {
-    return Effect.forkIn(
-      Effect.suspend(work).pipe(
-        Effect.onExit((exit) =>
-          Exit.isFailure(exit) ? onFailure(exit.cause) : Effect.void,
-        ),
-      ),
-      this.scope,
-      { startImmediately: true },
-    ).pipe(Effect.asVoid);
-  }
-
-  private admittedEffect<A, E>(
-    id: number,
-    lane: string,
-    work: () => Effect.Effect<A, E>,
-    restore: <B, F, R>(
-      effect: Effect.Effect<B, F, R>,
-    ) => Effect.Effect<B, F, R>,
-    settled: () => void,
-    options: {
-      deadlineMs?: number;
-      completed?: (() => Effect.Effect<void>) | undefined;
-    },
-  ): Effect.Effect<A, E> {
-    let worker: Fiber.Fiber<A, E> | undefined;
-    return Effect.gen({ self: this }, function* () {
-      this.assertOpen();
-      this.publish(id, lane, 'started');
-      const admitted = Effect.suspend(work).pipe(
-        Effect.onExit((exit) =>
-          Effect.gen({ self: this }, function* () {
-            this.publish(id, lane, 'settled', Exit.isFailure(exit));
-            settled();
-            if (options.completed) yield* options.completed();
+      ): Effect.Effect<A, E> {
+        return Effect.uninterruptibleMask((restore) =>
+          Effect.gen(function* () {
+            assertOpen();
+            const gate = getGate(lane);
+            const id = ++sequence;
+            publish(id, lane, 'queued');
+            const release = yield* restore(
+              withSignal(gate.enterEffect(mode), shutdown.signal),
+            );
+            return yield* admittedEffect(
+              id,
+              lane,
+              work,
+              restore,
+              () => {
+                release();
+                if (gate.idle) gates.delete(lane);
+              },
+              options,
+            );
           }),
-        ),
-      );
-      worker = yield* Effect.forkIn(admitted, this.scope, {
-        startImmediately: true,
-      });
-      const timeout = Effect.sleep(
-        options.deadlineMs ?? this.deadlineMs(),
-      ).pipe(
-        Effect.andThen(
-          Effect.die(
-            new DOMException(
-              'The operation exceeded its deadline',
-              'TimeoutError',
+        );
+      }
+      function unqueued<A, E>(
+        work: () => Effect.Effect<A, E>,
+        options: { deadlineMs?: number } = {},
+      ): Effect.Effect<A, E> {
+        return Effect.uninterruptibleMask((restore) =>
+          Effect.gen(function* () {
+            assertOpen();
+            return yield* admittedEffect(
+              ++sequence,
+              'unqueued',
+              work,
+              restore,
+              () => undefined,
+              options,
+            );
+          }),
+        );
+      }
+      function background<E>(
+        lane: string,
+        work: () => Effect.Effect<void, E>,
+        onFailure: (cause: Cause.Cause<E>) => Effect.Effect<void>,
+        options: { deadlineMs?: number } = {},
+      ): Effect.Effect<void> {
+        return Effect.forkIn(
+          run(lane, 'write', work, options).pipe(
+            Effect.onExit((exit) =>
+              Exit.isFailure(exit) ? onFailure(exit.cause) : Effect.void,
             ),
           ),
-        ),
-      );
-      return yield* restore(
-        withSignal(
-          Effect.raceFirst(Fiber.join(worker), timeout),
-          this.shutdown.signal,
-        ),
-      );
-    }).pipe(
-      Effect.onExit(() =>
-        Effect.sync(() => {
-          if (worker) worker.interruptUnsafe();
-          else settled();
-        }),
-      ),
-    );
-  }
-
-  runConsistent<A, E>(
-    lane: string,
-    worktree: ListedWorktree,
-    work: () => Effect.Effect<A, E>,
-  ): Effect.Effect<A, E | WorktreeChangedError> {
-    return this.run(lane, 'read', () =>
-      work().pipe(Effect.tap(() => this.consistency.execute({ worktree }))),
-    );
-  }
-
-  private publish(
-    operation: number,
-    runner: string,
-    phase: OperationEvent['phase'],
-    failed?: boolean,
-  ) {
-    if (!operationChannel.hasSubscribers) return;
-    const event: OperationEvent = { runner, operation, phase };
-    if (failed !== undefined) event.failed = failed;
-    operationChannel.publish(event);
-  }
-
-  close(): Promise<void> {
-    if (!this.closing) {
-      this.shutdown.abort(new ApplicationClosedError());
-      this.closing = (async () => {
-        await Effect.runPromise(Scope.close(this.scope, Exit.void));
-        while (this.finishing.size > 0)
-          await Effect.runPromise(
-            Effect.forEach([...this.finishing], Deferred.await, {
-              concurrency: 'unbounded',
-            }),
+          scope,
+          { startImmediately: true },
+        ).pipe(Effect.asVoid);
+      }
+      function finish<A, E>(
+        lane: string,
+        work: () => Effect.Effect<A, E>,
+      ): Effect.Effect<A, E> {
+        return Effect.uninterruptible(
+          Effect.gen(function* () {
+            if (closed) return yield* Effect.die(new ApplicationClosedError());
+            const completed = yield* Deferred.make<void>();
+            finishing.add(completed);
+            const gate = getGate(lane);
+            return yield* Effect.acquireUseRelease(
+              gate.enterEffect('write'),
+              () => Effect.suspend(work),
+              (release) =>
+                Effect.sync(() => {
+                  release();
+                  if (gate.idle) gates.delete(lane);
+                }),
+            ).pipe(
+              Effect.ensuring(
+                Effect.gen(function* () {
+                  finishing.delete(completed);
+                  yield* Deferred.succeed(completed, undefined);
+                }),
+              ),
+            );
+          }),
+        );
+      }
+      function start<E>(
+        work: () => Effect.Effect<void, E>,
+        onFailure: (cause: Cause.Cause<E>) => Effect.Effect<void>,
+      ): Effect.Effect<void> {
+        return Effect.forkIn(
+          Effect.suspend(work).pipe(
+            Effect.onExit((exit) =>
+              Exit.isFailure(exit) ? onFailure(exit.cause) : Effect.void,
+            ),
+          ),
+          scope,
+          { startImmediately: true },
+        ).pipe(Effect.asVoid);
+      }
+      function admittedEffect<A, E>(
+        id: number,
+        lane: string,
+        work: () => Effect.Effect<A, E>,
+        restore: <B, F, R>(
+          effect: Effect.Effect<B, F, R>,
+        ) => Effect.Effect<B, F, R>,
+        settled: () => void,
+        options: {
+          deadlineMs?: number;
+          completed?: (() => Effect.Effect<void>) | undefined;
+        },
+      ): Effect.Effect<A, E> {
+        let worker: Fiber.Fiber<A, E> | undefined;
+        return Effect.gen(function* () {
+          assertOpen();
+          publish(id, lane, 'started');
+          const admitted = Effect.suspend(work).pipe(
+            Effect.onExit((exit) =>
+              Effect.gen(function* () {
+                publish(id, lane, 'settled', Exit.isFailure(exit));
+                settled();
+                if (options.completed) yield* options.completed();
+              }),
+            ),
           );
-        this.closed = true;
-        this.closeResources();
-      })();
-    }
-    return this.closing;
-  }
+          worker = yield* Effect.forkIn(admitted, scope, {
+            startImmediately: true,
+          });
+          const timeout = Effect.sleep(options.deadlineMs ?? deadlineMs()).pipe(
+            Effect.andThen(
+              Effect.die(
+                new DOMException(
+                  'The operation exceeded its deadline',
+                  'TimeoutError',
+                ),
+              ),
+            ),
+          );
+          return yield* restore(
+            withSignal(
+              Effect.raceFirst(Fiber.join(worker), timeout),
+              shutdown.signal,
+            ),
+          );
+        }).pipe(
+          Effect.onExit(() =>
+            Effect.sync(() => {
+              if (worker) worker.interruptUnsafe();
+              else settled();
+            }),
+          ),
+        );
+      }
+      function runConsistent<A, E>(
+        lane: string,
+        worktree: ListedWorktree,
+        work: () => Effect.Effect<A, E>,
+      ): Effect.Effect<A, E | WorktreeChangedError> {
+        return run(lane, 'read', () =>
+          work().pipe(Effect.tap(() => consistency.execute({ worktree }))),
+        );
+      }
+      function publish(
+        operation: number,
+        runner: string,
+        phase: OperationEvent['phase'],
+        failed?: boolean,
+      ) {
+        if (!operationChannel.hasSubscribers) return;
+        const event: OperationEvent = { runner, operation, phase };
+        if (failed !== undefined) event.failed = failed;
+        operationChannel.publish(event);
+      }
+      function close(): Promise<void> {
+        if (!closing) {
+          shutdown.abort(new ApplicationClosedError());
+          closing = (async () => {
+            await Effect.runPromise(Scope.close(scope, Exit.void));
+            while (finishing.size > 0)
+              await Effect.runPromise(
+                Effect.forEach([...finishing], Deferred.await, {
+                  concurrency: 'unbounded',
+                }),
+              );
+            closed = true;
+            closeResources();
+          })();
+        }
+        return closing;
+      }
+      return {
+        assertOpen,
+        run,
+        commit,
+        transaction,
+        unqueued,
+        background,
+        finish,
+        start,
+        runConsistent,
+        close,
+      };
+    }),
+  );
 }

@@ -1,21 +1,22 @@
 import { FilesApi } from '@porcelain/contracts/files';
+import type { Context } from 'effect';
 import { Layer } from 'effect';
 import { HttpApiBuilder } from 'effect/http-api';
 import { effectRoutes } from '../../effect-bridge.ts';
-import type { EditFileUseCase } from '../../../use-cases/files/edit-file.ts';
-import type { ListDirectoryUseCase } from '../../../use-cases/files/list-directory.ts';
-import type { ListWorktreePathsUseCase } from '../../../use-cases/files/list-worktree-paths.ts';
-import type { ReadFileAssetUseCase } from '../../../use-cases/files/read-file-asset.ts';
-import type { ReadPreviewAssetsUseCase } from '../../../use-cases/files/read-preview-assets.ts';
-import type { ReadTextFileUseCase } from '../../../use-cases/files/read-text-file.ts';
+import { type EditFileUseCase } from '../../../use-cases/files/edit-file.ts';
+import { type ListDirectoryUseCase } from '../../../use-cases/files/list-directory.ts';
+import { type ListWorktreePathsUseCase } from '../../../use-cases/files/list-worktree-paths.ts';
+import { type ReadFileAssetUseCase } from '../../../use-cases/files/read-file-asset.ts';
+import { type ReadPreviewAssetsUseCase } from '../../../use-cases/files/read-preview-assets.ts';
+import { type ReadTextFileUseCase } from '../../../use-cases/files/read-text-file.ts';
 
 type FilesUseCases = {
-  listDirectory: ListDirectoryUseCase;
-  listWorktreePaths: ListWorktreePathsUseCase;
-  readTextFile: ReadTextFileUseCase;
-  readFileAsset: ReadFileAssetUseCase;
-  readPreviewAssets: ReadPreviewAssetsUseCase;
-  editFile: EditFileUseCase;
+  listDirectory: Context.Service.Shape<typeof ListDirectoryUseCase>;
+  listWorktreePaths: Context.Service.Shape<typeof ListWorktreePathsUseCase>;
+  readTextFile: Context.Service.Shape<typeof ReadTextFileUseCase>;
+  readFileAsset: Context.Service.Shape<typeof ReadFileAssetUseCase>;
+  readPreviewAssets: Context.Service.Shape<typeof ReadPreviewAssetsUseCase>;
+  editFile: Context.Service.Shape<typeof EditFileUseCase>;
 };
 
 function filesGroup(useCases: FilesUseCases) {

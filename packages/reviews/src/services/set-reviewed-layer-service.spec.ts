@@ -1,8 +1,10 @@
+import { Clock } from '@porcelain/kernel/ports';
+import { ReviewedLayerStore } from '@porcelain/reviews/ports';
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { FixedClock } from '@porcelain/kernel/fakes';
 import { ReviewedMarkConflictError } from '@porcelain/reviews/errors';
-import type { ReviewLayer, ReviewTexts } from '@porcelain/reviews/models';
+import { type ReviewLayer, type ReviewTexts } from '@porcelain/reviews/models';
 import { currentLayerFingerprint } from '@porcelain/reviews/rules';
 import { InMemoryReviewedLayerStore } from '../../spec/fakes/in-memory-reviewed-layer-store.ts';
 import { SetReviewedLayerService } from './set-reviewed-layer-service.ts';
@@ -41,9 +43,15 @@ function setup() {
   const store = new InMemoryReviewedLayerStore();
   return {
     store,
-    service: new SetReviewedLayerService(
-      store,
-      new FixedClock('2026-01-01T00:00:00.000Z'),
+    service: Effect.runSync(
+      SetReviewedLayerService.pipe(
+        Effect.provide(SetReviewedLayerService.layer),
+        Effect.provideService(ReviewedLayerStore, store),
+        Effect.provideService(
+          Clock,
+          new FixedClock('2026-01-01T00:00:00.000Z'),
+        ),
+      ),
     ),
   };
 }

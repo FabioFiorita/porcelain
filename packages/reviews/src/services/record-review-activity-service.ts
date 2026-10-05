@@ -1,31 +1,41 @@
-import { Effect } from 'effect';
-import type {
-  RecordReviewActivityInput,
-  RecordReviewActivityResult,
+import { Effect, Context, Layer } from 'effect';
+import {
+  type RecordReviewActivityInput,
+  type RecordReviewActivityResult,
 } from '../models/record-review-activity.ts';
-import type { ReviewStore } from '../ports/review-store.ts';
+import { ReviewStore } from '../ports/review-store.ts';
 import { reviewActivity } from '../rules/review-activity.ts';
 
-export class RecordReviewActivityService {
-  private readonly reviews: ReviewStore;
-
-  constructor(reviews: ReviewStore) {
-    this.reviews = reviews;
+export class RecordReviewActivityService extends Context.Service<
+  RecordReviewActivityService,
+  {
+    readonly execute: (
+      input: RecordReviewActivityInput,
+    ) => Effect.Effect<RecordReviewActivityResult, never>;
   }
+>()('@porcelain/reviews/RecordReviewActivityService') {
+  static readonly layer = Layer.effect(
+    RecordReviewActivityService,
+    Effect.gen(function* () {
+      const reviewsCapability = yield* ReviewStore;
 
-  execute(
-    input: RecordReviewActivityInput,
-  ): Effect.Effect<RecordReviewActivityResult, never> {
-    return Effect.sync(() => {
-      const { review } = input;
-      const active = reviewActivity(review, input.evidence);
-      if (active === review.active) return { changed: false };
-      this.reviews.setActive({
-        worktreeId: review.worktreeId,
-        revision: review.revision,
-        active,
-      });
-      return { changed: true };
-    });
-  }
+      return {
+        execute: Effect.fn('RecordReviewActivityService.execute')(function* (
+          input: RecordReviewActivityInput,
+        ): Effect.fn.Return<RecordReviewActivityResult, never> {
+          return yield* Effect.sync<RecordReviewActivityResult>(() => {
+            const { review } = input;
+            const active = reviewActivity(review, input.evidence);
+            if (active === review.active) return { changed: false };
+            reviewsCapability.setActive({
+              worktreeId: review.worktreeId,
+              revision: review.revision,
+              active,
+            });
+            return { changed: true };
+          });
+        }),
+      };
+    }),
+  );
 }

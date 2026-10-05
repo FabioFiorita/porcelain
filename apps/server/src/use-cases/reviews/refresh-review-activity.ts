@@ -1,68 +1,67 @@
-import type {
+import {
   ListKnownWorktreesService,
   ListRegisteredProjectsService,
 } from '@porcelain/projects/services';
-import type { Logger } from '../../ports/logger.ts';
-import { Cause, Effect } from 'effect';
-import type { RefreshWorktreeReviewUseCasePort } from '../../ports/refresh-worktree-review-use-case-port.ts';
-import type { LaneKeys } from '../../runtime/lane-keys.ts';
-import type { Lanes } from '../../runtime/lanes.ts';
+import { Logger } from '../../ports/logger.ts';
+import { Cause, Effect, Context, Layer } from 'effect';
+import { RefreshWorktreeReviewUseCasePort } from '../../ports/refresh-worktree-review-use-case-port.ts';
+import { LaneKeys } from '../../runtime/lane-keys.ts';
+import { Lanes } from '../../runtime/lanes.ts';
 
-export class RefreshReviewActivityUseCase {
-  private readonly listRegisteredProjects: ListRegisteredProjectsService;
-  private readonly listKnownWorktrees: ListKnownWorktreesService;
-  private readonly refreshWorktreeReview: RefreshWorktreeReviewUseCasePort;
-  private readonly lanes: Lanes;
-  private readonly laneKeys: LaneKeys;
-  private readonly logger: Logger;
+export class RefreshReviewActivityUseCase extends Context.Service<
+  RefreshReviewActivityUseCase,
+  { readonly execute: () => Effect.Effect<void> }
+>()('@porcelain/server/RefreshReviewActivityUseCase') {
+  static readonly layer = Layer.effect(
+    RefreshReviewActivityUseCase,
+    Effect.gen(function* () {
+      const listRegisteredProjectsCapability =
+        yield* ListRegisteredProjectsService;
+      const listKnownWorktreesCapability = yield* ListKnownWorktreesService;
+      const refreshWorktreeReviewCapability =
+        yield* RefreshWorktreeReviewUseCasePort;
+      const lanesCapability = yield* Lanes;
+      const laneKeysCapability = yield* LaneKeys;
+      const loggerCapability = yield* Logger;
 
-  constructor(
-    listRegisteredProjects: ListRegisteredProjectsService,
-    listKnownWorktrees: ListKnownWorktreesService,
-    refreshWorktreeReview: RefreshWorktreeReviewUseCasePort,
-    lanes: Lanes,
-    laneKeys: LaneKeys,
-    logger: Logger,
-  ) {
-    this.listRegisteredProjects = listRegisteredProjects;
-    this.listKnownWorktrees = listKnownWorktrees;
-    this.refreshWorktreeReview = refreshWorktreeReview;
-    this.lanes = lanes;
-    this.laneKeys = laneKeys;
-    this.logger = logger;
-  }
-
-  execute(): Effect.Effect<void> {
-    return Effect.gen({ self: this }, function* () {
-      const { listings } = yield* this.lanes.run(
-        this.laneKeys.inventory(),
-        'read',
-        () =>
-          Effect.gen({ self: this }, function* () {
-            const projects = yield* this.listRegisteredProjects.execute();
-            return yield* this.listKnownWorktrees.execute(projects);
-          }),
-      );
-      yield* Effect.forEach(
-        listings
-          .flatMap((listing) => listing.worktrees)
-          .filter((worktree) => worktree.available),
-        (worktree) =>
-          this.refreshWorktreeReview.execute({ worktreeId: worktree.id }).pipe(
-            Effect.catchCause((cause) =>
-              Cause.hasInterruptsOnly(cause)
-                ? Effect.interrupt
-                : Effect.sync(() =>
-                    this.logger.failure({
-                      kind: 'review-refresh',
-                      worktreeId: worktree.id,
-                      error: Cause.squash(cause),
-                    }),
+      return {
+        execute: Effect.fn('RefreshReviewActivityUseCase.execute')(
+          function* (): Effect.fn.Return<void> {
+            const { listings } = yield* lanesCapability.run(
+              laneKeysCapability.inventory(),
+              'read',
+              () =>
+                Effect.gen(function* () {
+                  const projects =
+                    yield* listRegisteredProjectsCapability.execute();
+                  return yield* listKnownWorktreesCapability.execute(projects);
+                }),
+            );
+            yield* Effect.forEach(
+              listings
+                .flatMap((listing) => listing.worktrees)
+                .filter((worktree) => worktree.available),
+              (worktree) =>
+                refreshWorktreeReviewCapability
+                  .execute({ worktreeId: worktree.id })
+                  .pipe(
+                    Effect.catchCause((cause) =>
+                      Cause.hasInterruptsOnly(cause)
+                        ? Effect.interrupt
+                        : Effect.sync(() =>
+                            loggerCapability.failure({
+                              kind: 'review-refresh',
+                              worktreeId: worktree.id,
+                              error: Cause.squash(cause),
+                            }),
+                          ),
+                    ),
                   ),
-            ),
-          ),
-        { concurrency: 'unbounded' },
-      );
-    });
-  }
+              { concurrency: 'unbounded' },
+            );
+          },
+        ),
+      };
+    }),
+  );
 }

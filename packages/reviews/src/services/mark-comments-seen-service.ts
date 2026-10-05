@@ -1,36 +1,45 @@
-import { Effect } from 'effect';
-import type {
-  MarkCommentsSeenInput,
-  MarkCommentsSeenResult,
+import { Effect, Context, Layer } from 'effect';
+import {
+  type MarkCommentsSeenInput,
+  type MarkCommentsSeenResult,
 } from '../models/mark-comments-seen.ts';
-import type { CommentSeenStore } from '../ports/comment-seen-store.ts';
-import type { CommentStore } from '../ports/comment-store.ts';
+import { CommentSeenStore } from '../ports/comment-seen-store.ts';
+import { CommentStore } from '../ports/comment-store.ts';
 import { seenThrough } from '../rules/comment-threads.ts';
 
-export class MarkCommentsSeenService {
-  private readonly commentSeen: CommentSeenStore;
-  private readonly comments: CommentStore;
-
-  constructor(commentSeen: CommentSeenStore, comments: CommentStore) {
-    this.commentSeen = commentSeen;
-    this.comments = comments;
+export class MarkCommentsSeenService extends Context.Service<
+  MarkCommentsSeenService,
+  {
+    readonly execute: (
+      input: MarkCommentsSeenInput,
+    ) => Effect.Effect<MarkCommentsSeenResult, never>;
   }
+>()('@porcelain/reviews/MarkCommentsSeenService') {
+  static readonly layer = Layer.effect(
+    MarkCommentsSeenService,
+    Effect.gen(function* () {
+      const commentSeenCapability = yield* CommentSeenStore;
+      const commentsCapability = yield* CommentStore;
 
-  execute(
-    input: MarkCommentsSeenInput,
-  ): Effect.Effect<MarkCommentsSeenResult, never> {
-    return Effect.sync(() => {
-      const { worktreeId } = input;
-      const before = this.commentSeen.seenThrough({ worktreeId });
-      const seen = seenThrough(
-        before,
-        input.throughRevision,
-        this.comments.lastRevision({ worktreeId }),
-      );
-      if (seen === before)
-        return { worktreeId, seenThrough: seen, changed: false };
-      this.commentSeen.save({ worktreeId, seenThrough: seen });
-      return { worktreeId, seenThrough: seen, changed: true };
-    });
-  }
+      return {
+        execute: Effect.fn('MarkCommentsSeenService.execute')(function* (
+          input: MarkCommentsSeenInput,
+        ): Effect.fn.Return<MarkCommentsSeenResult, never> {
+          return yield* Effect.sync<MarkCommentsSeenResult>(() => {
+            const { worktreeId } = input;
+            const before = commentSeenCapability.seenThrough({ worktreeId });
+            const seen = seenThrough(
+              before,
+              input.throughRevision,
+              commentsCapability.lastRevision({ worktreeId }),
+            );
+            if (seen === before)
+              return { worktreeId, seenThrough: seen, changed: false };
+            commentSeenCapability.save({ worktreeId, seenThrough: seen });
+            return { worktreeId, seenThrough: seen, changed: true };
+          });
+        }),
+      };
+    }),
+  );
 }

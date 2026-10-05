@@ -1,88 +1,81 @@
-import type { MissingEnvironmentIdentityError } from '@porcelain/access/errors';
-import type { Context } from 'effect';
-import { Effect } from 'effect';
-import type {
+import { type MissingEnvironmentIdentityError } from '@porcelain/access/errors';
+import { Context, Effect, Layer } from 'effect';
+import {
   ReadEnvironmentNameService,
   ReadEnvironmentService,
 } from '@porcelain/access/services';
-import type { ReadInventoryResponse } from '@porcelain/contracts/projects';
-import type {
+import { type ReadInventoryResponse } from '@porcelain/contracts/projects';
+import {
   ListKnownWorktreesService,
   ListRegisteredProjectsService,
 } from '@porcelain/projects/services';
 import { inventoryReport } from '@porcelain/projects/rules';
-import type { ReadInventoryBadgesUseCasePort } from '../../ports/read-inventory-badges-use-case-port.ts';
-import type { LaneKeys } from '../../runtime/lane-keys.ts';
-import type { Lanes } from '../../runtime/lanes.ts';
+import { ReadInventoryBadgesUseCasePort } from '../../ports/read-inventory-badges-use-case-port.ts';
+import { LaneKeys } from '../../runtime/lane-keys.ts';
+import { Lanes } from '../../runtime/lanes.ts';
 
-export class ReadInventoryUseCase {
-  private readonly listRegisteredProjects: ListRegisteredProjectsService;
-  private readonly listKnownWorktrees: ListKnownWorktreesService;
-  private readonly readBadges: ReadInventoryBadgesUseCasePort;
-  private readonly readEnvironment: Context.Service.Shape<
-    typeof ReadEnvironmentService
-  >;
-  private readonly readEnvironmentName: Context.Service.Shape<
-    typeof ReadEnvironmentNameService
-  >;
-  private readonly lanes: Lanes;
-  private readonly laneKeys: LaneKeys;
-
-  constructor(
-    listRegisteredProjects: ListRegisteredProjectsService,
-    listKnownWorktrees: ListKnownWorktreesService,
-    readBadges: ReadInventoryBadgesUseCasePort,
-    readEnvironment: Context.Service.Shape<typeof ReadEnvironmentService>,
-    readEnvironmentName: Context.Service.Shape<
-      typeof ReadEnvironmentNameService
-    >,
-    lanes: Lanes,
-    laneKeys: LaneKeys,
-  ) {
-    this.listRegisteredProjects = listRegisteredProjects;
-    this.listKnownWorktrees = listKnownWorktrees;
-    this.readBadges = readBadges;
-    this.readEnvironment = readEnvironment;
-    this.readEnvironmentName = readEnvironmentName;
-    this.lanes = lanes;
-    this.laneKeys = laneKeys;
+export class ReadInventoryUseCase extends Context.Service<
+  ReadInventoryUseCase,
+  {
+    readonly execute: () => Effect.Effect<
+      ReadInventoryResponse,
+      MissingEnvironmentIdentityError
+    >;
   }
+>()('@porcelain/server/ReadInventoryUseCase') {
+  static readonly layer = Layer.effect(
+    ReadInventoryUseCase,
+    Effect.gen(function* () {
+      const listRegisteredProjectsCapability =
+        yield* ListRegisteredProjectsService;
+      const listKnownWorktreesCapability = yield* ListKnownWorktreesService;
+      const readBadgesCapability = yield* ReadInventoryBadgesUseCasePort;
+      const readEnvironmentCapability = yield* ReadEnvironmentService;
+      const readEnvironmentNameCapability = yield* ReadEnvironmentNameService;
+      const lanesCapability = yield* Lanes;
+      const laneKeysCapability = yield* LaneKeys;
 
-  execute(): Effect.Effect<
-    ReadInventoryResponse,
-    MissingEnvironmentIdentityError
-  > {
-    return Effect.gen({ self: this }, function* () {
-      const { inventory, listings } = yield* this.lanes.run(
-        this.laneKeys.inventory(),
-        'read',
-        () =>
-          Effect.gen({ self: this }, function* () {
-            const inventory = yield* this.listRegisteredProjects.execute();
-            return {
-              inventory,
-              listings: (yield* this.listKnownWorktrees.execute(inventory))
-                .listings,
-            };
-          }),
-      );
-      const statuses = yield* this.readBadges.execute({ listings });
-      const { environmentId, environment } = yield* this.lanes.run(
-        this.laneKeys.access(),
-        'read',
-        () =>
-          Effect.gen({ self: this }, function* () {
-            return {
-              environmentId: (yield* this.readEnvironment.execute())
-                .environmentId,
-              environment: yield* this.readEnvironmentName.execute(),
-            };
-          }),
-      );
       return {
-        ...inventoryReport(environmentId, inventory, listings, statuses),
-        environment,
+        execute: Effect.fn('ReadInventoryUseCase.execute')(
+          function* (): Effect.fn.Return<
+            ReadInventoryResponse,
+            MissingEnvironmentIdentityError
+          > {
+            const { inventory, listings } = yield* lanesCapability.run(
+              laneKeysCapability.inventory(),
+              'read',
+              () =>
+                Effect.gen(function* () {
+                  const inventory =
+                    yield* listRegisteredProjectsCapability.execute();
+                  return {
+                    inventory,
+                    listings: (yield* listKnownWorktreesCapability.execute(
+                      inventory,
+                    )).listings,
+                  };
+                }),
+            );
+            const statuses = yield* readBadgesCapability.execute({ listings });
+            const { environmentId, environment } = yield* lanesCapability.run(
+              laneKeysCapability.access(),
+              'read',
+              () =>
+                Effect.gen(function* () {
+                  return {
+                    environmentId: (yield* readEnvironmentCapability.execute())
+                      .environmentId,
+                    environment: yield* readEnvironmentNameCapability.execute(),
+                  };
+                }),
+            );
+            return {
+              ...inventoryReport(environmentId, inventory, listings, statuses),
+              environment,
+            };
+          },
+        ),
       };
-    });
-  }
+    }),
+  );
 }

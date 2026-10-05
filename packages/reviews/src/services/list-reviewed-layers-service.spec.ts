@@ -1,6 +1,7 @@
+import { ReviewStore, ReviewedLayerStore } from '@porcelain/reviews/ports';
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
-import type { ReviewLayer } from '@porcelain/reviews/models';
+import { type ReviewLayer } from '@porcelain/reviews/models';
 import { currentLayerFingerprint } from '@porcelain/reviews/rules';
 import { InMemoryReviewStore } from '../../spec/fakes/in-memory-review-store.ts';
 import { InMemoryReviewedLayerStore } from '../../spec/fakes/in-memory-reviewed-layer-store.ts';
@@ -50,7 +51,13 @@ function service() {
       },
     ],
   });
-  return new ListReviewedLayersService(reviews, marks);
+  return Effect.runSync(
+    ListReviewedLayersService.pipe(
+      Effect.provide(ListReviewedLayersService.layer),
+      Effect.provideService(ReviewStore, reviews),
+      Effect.provideService(ReviewedLayerStore, marks),
+    ),
+  );
 }
 
 describe('ListReviewedLayersService', () => {

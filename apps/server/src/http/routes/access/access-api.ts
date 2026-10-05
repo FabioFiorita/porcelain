@@ -8,43 +8,86 @@ import {
   OwnerAccessApi,
 } from '@porcelain/contracts/access';
 import { RequestCaller, RequestConnection } from '@porcelain/contracts/shared';
+import type { Context } from 'effect';
 import { Effect, Layer } from 'effect';
 import { HttpApiBuilder } from 'effect/http-api';
 import { effectRoutes } from '../../effect-bridge.ts';
-import type { ClearBrowserSessionUseCase } from '../../../use-cases/access/clear-browser-session.ts';
-import type { IssueLiveTicketUseCase } from '../../../use-cases/access/issue-live-ticket.ts';
-import type { IssuePairingUseCase } from '../../../use-cases/access/issue-pairing.ts';
-import type { ListAccessUseCase } from '../../../use-cases/access/list-access.ts';
-import type { ReadEnvironmentUseCase } from '../../../use-cases/access/read-environment.ts';
-import type { ReadHealthUseCase } from '../../../use-cases/access/read-health.ts';
-import type { ReadOwnerStatusUseCase } from '../../../use-cases/access/read-owner-status.ts';
-import type { ReadRemoteAccessUseCase } from '../../../use-cases/access/read-remote-access.ts';
-import type { ReadServiceUpdateUseCase } from '../../../use-cases/access/read-service-update.ts';
-import type { ReadSessionUseCase } from '../../../use-cases/access/read-session.ts';
-import type { RedeemPairingUseCase } from '../../../use-cases/access/redeem-pairing.ts';
-import type { RenameEnvironmentUseCase } from '../../../use-cases/access/rename-environment.ts';
-import type { RevokeAccessUseCase } from '../../../use-cases/access/revoke-access.ts';
-import type { SetDeviceTrustUseCase } from '../../../use-cases/access/set-device-trust.ts';
-import type { SetRemoteAccessUseCase } from '../../../use-cases/access/set-remote-access.ts';
-import type { StartServiceUpdateUseCase } from '../../../use-cases/access/start-service-update.ts';
+import { type ClearBrowserSessionUseCase } from '../../../use-cases/access/clear-browser-session.ts';
+import { type IssueLiveTicketUseCase } from '../../../use-cases/access/issue-live-ticket.ts';
+import { type IssuePairingUseCase } from '../../../use-cases/access/issue-pairing.ts';
+import { type ListAccessUseCase } from '../../../use-cases/access/list-access.ts';
+import { type ReadEnvironmentUseCase } from '../../../use-cases/access/read-environment.ts';
+import { type ReadHealthUseCase } from '../../../use-cases/access/read-health.ts';
+import { type ReadOwnerStatusUseCase } from '../../../use-cases/access/read-owner-status.ts';
+import { type ReadRemoteAccessUseCase } from '../../../use-cases/access/read-remote-access.ts';
+import { type ReadServiceUpdateUseCase } from '../../../use-cases/access/read-service-update.ts';
+import { type ReadSessionUseCase } from '../../../use-cases/access/read-session.ts';
+import { type RedeemPairingUseCase } from '../../../use-cases/access/redeem-pairing.ts';
+import { type RenameEnvironmentUseCase } from '../../../use-cases/access/rename-environment.ts';
+import { type RevokeAccessUseCase } from '../../../use-cases/access/revoke-access.ts';
+import { type SetDeviceTrustUseCase } from '../../../use-cases/access/set-device-trust.ts';
+import { type SetRemoteAccessUseCase } from '../../../use-cases/access/set-remote-access.ts';
+import { type StartServiceUpdateUseCase } from '../../../use-cases/access/start-service-update.ts';
 
 type AccessUseCases = {
-  clearBrowserSession: Pick<ClearBrowserSessionUseCase, 'execute'>;
-  issueLiveTicket: Pick<IssueLiveTicketUseCase, 'execute'>;
-  issuePairing: Pick<IssuePairingUseCase, 'execute'>;
-  listAccess: Pick<ListAccessUseCase, 'execute'>;
-  readEnvironment: Pick<ReadEnvironmentUseCase, 'execute'>;
-  readHealth: Pick<ReadHealthUseCase, 'execute'>;
-  readOwnerStatus: Pick<ReadOwnerStatusUseCase, 'execute'>;
-  readRemoteAccess: Pick<ReadRemoteAccessUseCase, 'execute'>;
-  readServiceUpdate: Pick<ReadServiceUpdateUseCase, 'execute'>;
-  readSession: Pick<ReadSessionUseCase, 'execute'>;
-  redeemPairing: Pick<RedeemPairingUseCase, 'execute'>;
-  renameEnvironment: Pick<RenameEnvironmentUseCase, 'execute'>;
-  revokeAccess: Pick<RevokeAccessUseCase, 'execute'>;
-  setDeviceTrust: Pick<SetDeviceTrustUseCase, 'execute'>;
-  setRemoteAccess: Pick<SetRemoteAccessUseCase, 'execute'>;
-  startServiceUpdate: Pick<StartServiceUpdateUseCase, 'execute'>;
+  clearBrowserSession: Pick<
+    Context.Service.Shape<typeof ClearBrowserSessionUseCase>,
+    'execute'
+  >;
+  issueLiveTicket: Pick<
+    Context.Service.Shape<typeof IssueLiveTicketUseCase>,
+    'execute'
+  >;
+  issuePairing: Pick<
+    Context.Service.Shape<typeof IssuePairingUseCase>,
+    'execute'
+  >;
+  listAccess: Pick<Context.Service.Shape<typeof ListAccessUseCase>, 'execute'>;
+  readEnvironment: Pick<
+    Context.Service.Shape<typeof ReadEnvironmentUseCase>,
+    'execute'
+  >;
+  readHealth: Pick<Context.Service.Shape<typeof ReadHealthUseCase>, 'execute'>;
+  readOwnerStatus: Pick<
+    Context.Service.Shape<typeof ReadOwnerStatusUseCase>,
+    'execute'
+  >;
+  readRemoteAccess: Pick<
+    Context.Service.Shape<typeof ReadRemoteAccessUseCase>,
+    'execute'
+  >;
+  readServiceUpdate: Pick<
+    Context.Service.Shape<typeof ReadServiceUpdateUseCase>,
+    'execute'
+  >;
+  readSession: Pick<
+    Context.Service.Shape<typeof ReadSessionUseCase>,
+    'execute'
+  >;
+  redeemPairing: Pick<
+    Context.Service.Shape<typeof RedeemPairingUseCase>,
+    'execute'
+  >;
+  renameEnvironment: Pick<
+    Context.Service.Shape<typeof RenameEnvironmentUseCase>,
+    'execute'
+  >;
+  revokeAccess: Pick<
+    Context.Service.Shape<typeof RevokeAccessUseCase>,
+    'execute'
+  >;
+  setDeviceTrust: Pick<
+    Context.Service.Shape<typeof SetDeviceTrustUseCase>,
+    'execute'
+  >;
+  setRemoteAccess: Pick<
+    Context.Service.Shape<typeof SetRemoteAccessUseCase>,
+    'execute'
+  >;
+  startServiceUpdate: Pick<
+    Context.Service.Shape<typeof StartServiceUpdateUseCase>,
+    'execute'
+  >;
 };
 
 function administrationHandlers(useCases: AccessUseCases) {
@@ -56,23 +99,31 @@ function administrationHandlers(useCases: AccessUseCases) {
     issuePairing: ({
       payload,
     }: {
-      payload: Parameters<IssuePairingUseCase['execute']>[0];
+      payload: Parameters<
+        Context.Service.Shape<typeof IssuePairingUseCase>['execute']
+      >[0];
     }) => useCases.issuePairing.execute(payload),
     revokeAccess: ({
       payload,
     }: {
-      payload: Parameters<RevokeAccessUseCase['execute']>[0];
+      payload: Parameters<
+        Context.Service.Shape<typeof RevokeAccessUseCase>['execute']
+      >[0];
     }) => useCases.revokeAccess.execute(payload),
     setDeviceTrust: ({
       payload,
     }: {
-      payload: Parameters<SetDeviceTrustUseCase['execute']>[0];
+      payload: Parameters<
+        Context.Service.Shape<typeof SetDeviceTrustUseCase>['execute']
+      >[0];
     }) => useCases.setDeviceTrust.execute(payload),
     readRemoteAccess: () => useCases.readRemoteAccess.execute(),
     setRemoteAccess: ({
       payload,
     }: {
-      payload: Parameters<SetRemoteAccessUseCase['execute']>[0];
+      payload: Parameters<
+        Context.Service.Shape<typeof SetRemoteAccessUseCase>['execute']
+      >[0];
     }) => useCases.setRemoteAccess.execute(payload),
   };
 }

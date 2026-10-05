@@ -1,23 +1,25 @@
-import type { Effect } from 'effect';
-import type { WorktreeRead } from '@porcelain/effects/worktree';
+import { type Effect } from 'effect';
+import { type WorktreeRead } from '@porcelain/effects/worktree';
 import { readGit } from '../../runtime/git-io.ts';
-import type { GitIoFailure } from '../../ports/git-io-failure.ts';
-import type {
-  CommitFilesLookup,
-  CommitPage,
-  CommitPatches,
-  CommitPatchesRequest,
-  CommitSummary,
-  FileCommits,
-  ListCommitsInput,
-  ListFileCommitsInput,
-  ReadCommitFilesInput,
+import {
+  type GitIoFailure,
+  HistorySnapshotUnavailableError,
+} from '@porcelain/git/errors';
+import {
+  type CommitFilesLookup,
+  type CommitPage,
+  type CommitPatches,
+  type CommitPatchesRequest,
+  type CommitSummary,
+  type FileCommits,
+  type ListCommitsInput,
+  type ListFileCommitsInput,
+  type ReadCommitFilesInput,
 } from '@porcelain/changes/models';
-import type { CommitHistoryReader } from '@porcelain/changes/ports';
-import { HistorySnapshotUnavailableError } from '@porcelain/git/errors';
-import type {
-  CommitReaderFactory,
-  CommitSummary as GitCommitSummary,
+import { type CommitHistoryReader } from '@porcelain/changes/ports';
+import {
+  type CommitReaderFactory,
+  type CommitSummary as GitCommitSummary,
 } from '@porcelain/git/history';
 import {
   listedWorktree,
@@ -26,7 +28,7 @@ import {
 
 type CommitReader = ReturnType<CommitReaderFactory>;
 
-export class GitCommitHistoryReader implements CommitHistoryReader<GitIoFailure> {
+export class GitCommitHistoryReader implements CommitHistoryReader {
   private readonly worktrees: ListedWorktrees;
   private readonly git: CommitReaderFactory;
 

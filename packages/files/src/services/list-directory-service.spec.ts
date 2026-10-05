@@ -1,3 +1,8 @@
+import {
+  DirectoryReader,
+  IgnoredEntriesReader,
+  ListDirectoryOptions,
+} from '@porcelain/files/ports';
 import { Effect } from 'effect';
 import { withReadLease } from '@porcelain/effects/worktree';
 import { describe, expect, it } from 'vitest';
@@ -8,7 +13,7 @@ import {
   PathNotReadableError,
   UnsupportedEntryNameError,
 } from '@porcelain/files/errors';
-import type { DirectoryRead, EntryKind } from '@porcelain/files/models';
+import { type DirectoryRead, type EntryKind } from '@porcelain/files/models';
 import { InMemoryDirectoryReader } from '../../spec/fakes/in-memory-directory-reader.ts';
 import { InMemoryIgnoredEntriesReader } from '../../spec/fakes/in-memory-ignored-entries-reader.ts';
 import { ListDirectoryService } from './list-directory-service.ts';
@@ -39,10 +44,19 @@ function serviceWith(
   options = roomy,
   ignored: readonly string[] = [],
 ) {
-  return new ListDirectoryService(
-    new InMemoryDirectoryReader(listings),
-    new InMemoryIgnoredEntriesReader(ignored),
-    options,
+  return Effect.runSync(
+    ListDirectoryService.pipe(
+      Effect.provide(ListDirectoryService.layer),
+      Effect.provideService(
+        DirectoryReader,
+        new InMemoryDirectoryReader(listings),
+      ),
+      Effect.provideService(
+        IgnoredEntriesReader,
+        new InMemoryIgnoredEntriesReader(ignored),
+      ),
+      Effect.provideService(ListDirectoryOptions, options),
+    ),
   );
 }
 

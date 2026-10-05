@@ -1,7 +1,8 @@
+import { ReviewStore } from '@porcelain/reviews/ports';
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
-import type { FileChange } from '@porcelain/kernel/models';
-import type { Review, ReviewEvidence } from '@porcelain/reviews/models';
+import { type FileChange } from '@porcelain/kernel/models';
+import { type Review, type ReviewEvidence } from '@porcelain/reviews/models';
 import { InMemoryReviewStore } from '../../spec/fakes/in-memory-review-store.ts';
 import { RecordReviewActivityService } from './record-review-activity-service.ts';
 
@@ -81,7 +82,15 @@ const stillChanged: ReviewEvidence = {
 function setup(stored: Review) {
   const store = new InMemoryReviewStore();
   store.save(stored);
-  return { store, service: new RecordReviewActivityService(store) };
+  return {
+    store,
+    service: Effect.runSync(
+      RecordReviewActivityService.pipe(
+        Effect.provide(RecordReviewActivityService.layer),
+        Effect.provideService(ReviewStore, store),
+      ),
+    ),
+  };
 }
 
 describe('RecordReviewActivityService', () => {

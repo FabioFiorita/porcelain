@@ -1,34 +1,44 @@
-import { Effect } from 'effect';
+import { ReadProofFileOptions } from '../ports/read-proof-file-options.ts';
+import { Effect, Context, Layer } from 'effect';
 import { encodeBase64 } from '@porcelain/kernel/rules';
 import { ProofFileNotFoundError } from '../errors/proof-file-not-found-error.ts';
-import type {
-  ReadProofFileInput,
-  ReadProofFileOptions,
-  ReadProofFileResult,
+import {
+  type ReadProofFileInput,
+  type ReadProofFileResult,
 } from '../models/read-proof-file.ts';
-import type { ReviewStore } from '../ports/review-store.ts';
+import { ReviewStore } from '../ports/review-store.ts';
 
-export class ReadProofFileService {
-  private readonly reviews: ReviewStore;
-  private readonly options: ReadProofFileOptions;
-
-  constructor(reviews: ReviewStore, options: ReadProofFileOptions) {
-    this.reviews = reviews;
-    this.options = options;
+export class ReadProofFileService extends Context.Service<
+  ReadProofFileService,
+  {
+    readonly execute: (
+      input: ReadProofFileInput,
+    ) => Effect.Effect<ReadProofFileResult, ProofFileNotFoundError>;
   }
+>()('@porcelain/reviews/ReadProofFileService') {
+  static readonly layer = Layer.effect(
+    ReadProofFileService,
+    Effect.gen(function* () {
+      const reviewsCapability = yield* ReviewStore;
+      const optionsCapability = yield* ReadProofFileOptions;
 
-  execute(
-    input: ReadProofFileInput,
-  ): Effect.Effect<ReadProofFileResult, ProofFileNotFoundError> {
-    return Effect.gen({ self: this }, function* () {
-      const file = this.reviews.readProofFile(input);
-      if (file === undefined)
-        return yield* Effect.fail(new ProofFileNotFoundError());
       return {
-        id: file.id,
-        mediaType: file.mediaType,
-        base64: encodeBase64(file.bytes, this.options.base64ChunkBytes),
+        execute: Effect.fn('ReadProofFileService.execute')(function* (
+          input: ReadProofFileInput,
+        ): Effect.fn.Return<ReadProofFileResult, ProofFileNotFoundError> {
+          const file = reviewsCapability.readProofFile(input);
+          if (file === undefined)
+            return yield* Effect.fail(new ProofFileNotFoundError());
+          return {
+            id: file.id,
+            mediaType: file.mediaType,
+            base64: encodeBase64(
+              file.bytes,
+              optionsCapability.base64ChunkBytes,
+            ),
+          };
+        }),
       };
-    });
-  }
+    }),
+  );
 }

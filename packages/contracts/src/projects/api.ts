@@ -1,3 +1,4 @@
+import { RepositoryUnavailableError } from '@porcelain/kernel/errors';
 import { environmentUnavailable } from '../shared/environment-failure.ts';
 import { PairedRequest } from '../shared/http-caller.ts';
 import { porcelainApi } from '../shared/http-api.ts';
@@ -7,7 +8,6 @@ import {
   FolderNotFoundError,
   FolderNotReadableError,
   ProjectNotFoundError,
-  RepositoryUnavailableError,
   UnsupportedFolderNameError,
 } from '@porcelain/projects/errors';
 import { httpFailure } from '../shared/http-failure.ts';

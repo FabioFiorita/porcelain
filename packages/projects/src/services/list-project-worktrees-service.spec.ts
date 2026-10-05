@@ -1,6 +1,10 @@
+import {
+  WorktreeListingReader,
+  WorktreeCatalogStore,
+} from '@porcelain/projects/ports';
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
-import type { ListedWorktree } from '@porcelain/projects/models';
+import { type ListedWorktree } from '@porcelain/projects/models';
 import { InMemoryWorktreeCatalogStore } from '../../spec/fakes/in-memory-worktree-catalog-store.ts';
 import { ScriptedWorktreeListingReader } from '../../spec/fakes/scripted-worktree-listing-reader.ts';
 import { ListProjectWorktreesService } from './list-project-worktrees-service.ts';
@@ -31,7 +35,13 @@ function service(
   reader: ScriptedWorktreeListingReader,
   catalog = new InMemoryWorktreeCatalogStore(),
 ) {
-  return new ListProjectWorktreesService(reader, catalog);
+  return Effect.runSync(
+    ListProjectWorktreesService.pipe(
+      Effect.provide(ListProjectWorktreesService.layer),
+      Effect.provideService(WorktreeListingReader, reader),
+      Effect.provideService(WorktreeCatalogStore, catalog),
+    ),
+  );
 }
 
 function seen(worktrees: ListedWorktree[]) {

@@ -1,24 +1,36 @@
-import { Effect } from 'effect';
-import type {
-  ListFilePreferencesInput,
-  ListFilePreferencesResult,
+import { Effect, Context, Layer } from 'effect';
+import {
+  type ListFilePreferencesInput,
+  type ListFilePreferencesResult,
 } from '../models/list-file-preferences.ts';
-import type { FilePreferenceStore } from '../ports/file-preference-store.ts';
+import { FilePreferenceStore } from '../ports/file-preference-store.ts';
 
-export class ListFilePreferencesService {
-  private readonly filePreference: FilePreferenceStore;
-
-  constructor(filePreference: FilePreferenceStore) {
-    this.filePreference = filePreference;
+export class ListFilePreferencesService extends Context.Service<
+  ListFilePreferencesService,
+  {
+    readonly execute: (
+      input: ListFilePreferencesInput,
+    ) => Effect.Effect<ListFilePreferencesResult, never>;
   }
+>()('@porcelain/projects/ListFilePreferencesService') {
+  static readonly layer = Layer.effect(
+    ListFilePreferencesService,
+    Effect.gen(function* () {
+      const filePreferenceCapability = yield* FilePreferenceStore;
 
-  execute(
-    input: ListFilePreferencesInput,
-  ): Effect.Effect<ListFilePreferencesResult, never> {
-    return Effect.sync(() => {
       return {
-        preferences: this.filePreference.list({ projectId: input.projectId }),
+        execute: Effect.fn('ListFilePreferencesService.execute')(function* (
+          input: ListFilePreferencesInput,
+        ): Effect.fn.Return<ListFilePreferencesResult, never> {
+          return yield* Effect.sync<ListFilePreferencesResult>(() => {
+            return {
+              preferences: filePreferenceCapability.list({
+                projectId: input.projectId,
+              }),
+            };
+          });
+        }),
       };
-    });
-  }
+    }),
+  );
 }

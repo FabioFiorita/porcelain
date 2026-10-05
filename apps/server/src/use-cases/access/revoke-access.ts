@@ -1,59 +1,59 @@
-import type { Context } from 'effect';
-import { Effect } from 'effect';
-import type {
+import { Context, Effect, Layer } from 'effect';
+import {
   RevokeDeviceService,
   RevokePairingGrantService,
 } from '@porcelain/access/services';
-import type {
-  RevokeAccessRequest,
-  RevokeAccessResponse,
+import {
+  type RevokeAccessRequest,
+  type RevokeAccessResponse,
 } from '@porcelain/contracts/access';
-import type { DeviceConnectionStore } from '../../ports/device-connection-store.ts';
-import type { LaneKeys } from '../../runtime/lane-keys.ts';
-import type { Lanes } from '../../runtime/lanes.ts';
+import { DeviceConnectionStore } from '../../ports/device-connection-store.ts';
+import { LaneKeys } from '../../runtime/lane-keys.ts';
+import { Lanes } from '../../runtime/lanes.ts';
 
-export class RevokeAccessUseCase {
-  private readonly revokePairingGrant: Context.Service.Shape<
-    typeof RevokePairingGrantService
-  >;
-  private readonly revokeDevice: Context.Service.Shape<
-    typeof RevokeDeviceService
-  >;
-  private readonly deviceConnections: DeviceConnectionStore;
-  private readonly lanes: Lanes;
-  private readonly laneKeys: LaneKeys;
-
-  constructor(
-    revokePairingGrant: Context.Service.Shape<typeof RevokePairingGrantService>,
-    revokeDevice: Context.Service.Shape<typeof RevokeDeviceService>,
-    deviceConnections: DeviceConnectionStore,
-    lanes: Lanes,
-    laneKeys: LaneKeys,
-  ) {
-    this.revokePairingGrant = revokePairingGrant;
-    this.revokeDevice = revokeDevice;
-    this.deviceConnections = deviceConnections;
-    this.lanes = lanes;
-    this.laneKeys = laneKeys;
+export class RevokeAccessUseCase extends Context.Service<
+  RevokeAccessUseCase,
+  {
+    readonly execute: (
+      input: RevokeAccessRequest,
+    ) => Effect.Effect<RevokeAccessResponse, never>;
   }
+>()('@porcelain/server/RevokeAccessUseCase') {
+  static readonly layer = Layer.effect(
+    RevokeAccessUseCase,
+    Effect.gen(function* () {
+      const revokePairingGrantCapability = yield* RevokePairingGrantService;
+      const revokeDeviceCapability = yield* RevokeDeviceService;
+      const deviceConnectionsCapability = yield* DeviceConnectionStore;
+      const lanesCapability = yield* Lanes;
+      const laneKeysCapability = yield* LaneKeys;
 
-  execute(
-    input: RevokeAccessRequest,
-  ): Effect.Effect<RevokeAccessResponse, never> {
-    return Effect.gen({ self: this }, function* () {
-      return yield* this.lanes.run(this.laneKeys.access(), 'write', () =>
-        Effect.gen({ self: this }, function* () {
-          if (
-            (yield* this.revokePairingGrant.execute(input)).kind === 'revoked'
-          )
-            return { revoked: true, kind: 'grant' as const };
-          if ((yield* this.revokeDevice.execute(input)).kind === 'revoked') {
-            this.deviceConnections.remove({ deviceId: input.id });
-            return { revoked: true, kind: 'device' as const };
-          }
-          return { revoked: false };
+      return {
+        execute: Effect.fn('RevokeAccessUseCase.execute')(function* (
+          input: RevokeAccessRequest,
+        ): Effect.fn.Return<RevokeAccessResponse, never> {
+          return yield* lanesCapability.run(
+            laneKeysCapability.access(),
+            'write',
+            () =>
+              Effect.gen(function* () {
+                if (
+                  (yield* revokePairingGrantCapability.execute(input)).kind ===
+                  'revoked'
+                )
+                  return { revoked: true, kind: 'grant' as const };
+                if (
+                  (yield* revokeDeviceCapability.execute(input)).kind ===
+                  'revoked'
+                ) {
+                  deviceConnectionsCapability.remove({ deviceId: input.id });
+                  return { revoked: true, kind: 'device' as const };
+                }
+                return { revoked: false };
+              }),
+          );
         }),
-      );
-    });
-  }
+      };
+    }),
+  );
 }

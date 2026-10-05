@@ -1,3 +1,4 @@
+import { WorktreePathsReader } from '@porcelain/files/ports';
 import { Effect } from 'effect';
 import { withReadLease } from '@porcelain/effects/worktree';
 import { describe, expect, it } from 'vitest';
@@ -9,11 +10,17 @@ const worktreeId = 'a'.repeat(32);
 
 describe('ListWorktreePathsService', () => {
   it('answers every listed path of the worktree', async () => {
-    const service = new ListWorktreePathsService(
-      new InMemoryWorktreePathsReader({
-        kind: 'listed',
-        paths: ['README.md', 'src/app.ts'],
-      }),
+    const service = Effect.runSync(
+      ListWorktreePathsService.pipe(
+        Effect.provide(ListWorktreePathsService.layer),
+        Effect.provideService(
+          WorktreePathsReader,
+          new InMemoryWorktreePathsReader({
+            kind: 'listed',
+            paths: ['README.md', 'src/app.ts'],
+          }),
+        ),
+      ),
     );
     await expect(
       Effect.runPromise(
@@ -26,8 +33,14 @@ describe('ListWorktreePathsService', () => {
   });
 
   it('refuses a worktree whose paths could not all be listed', async () => {
-    const service = new ListWorktreePathsService(
-      new InMemoryWorktreePathsReader({ kind: 'too-large' }),
+    const service = Effect.runSync(
+      ListWorktreePathsService.pipe(
+        Effect.provide(ListWorktreePathsService.layer),
+        Effect.provideService(
+          WorktreePathsReader,
+          new InMemoryWorktreePathsReader({ kind: 'too-large' }),
+        ),
+      ),
     );
     await expect(
       Effect.runPromise(

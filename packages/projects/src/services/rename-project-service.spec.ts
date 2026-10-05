@@ -1,7 +1,8 @@
+import { InventoryStore } from '@porcelain/projects/ports';
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { ProjectNotFoundError } from '@porcelain/projects/errors';
-import type { RegisteredProject } from '@porcelain/projects/models';
+import { type RegisteredProject } from '@porcelain/projects/models';
 import { InMemoryInventoryStore } from '../../spec/fakes/in-memory-inventory-store.ts';
 import { RenameProjectService } from './rename-project-service.ts';
 
@@ -17,7 +18,15 @@ const project: RegisteredProject = {
 
 function setup() {
   const inventory = new InMemoryInventoryStore([project]);
-  return { inventory, service: new RenameProjectService(inventory) };
+  return {
+    inventory,
+    service: Effect.runSync(
+      RenameProjectService.pipe(
+        Effect.provide(RenameProjectService.layer),
+        Effect.provideService(InventoryStore, inventory),
+      ),
+    ),
+  };
 }
 
 describe('RenameProjectService', () => {

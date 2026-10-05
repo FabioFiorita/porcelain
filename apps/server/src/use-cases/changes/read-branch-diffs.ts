@@ -1,50 +1,64 @@
-import { Effect } from 'effect';
-import type { WorktreeAccess } from '../../runtime/worktree-access.ts';
-import type { WorktreeAccessFailure } from '../../ports/worktree-access-failure.ts';
-import type { GitIoFailure } from '../../ports/git-io-failure.ts';
-import type {
-  CommitNotFoundError,
-  IncompleteDiffReadError,
+import { Effect, Context, Layer } from 'effect';
+import { WorktreeAccess } from '../../runtime/worktree-access.ts';
+import { type WorktreeAccessFailure } from '../../ports/worktree-access-failure.ts';
+import { type GitIoFailure } from '@porcelain/git/errors';
+import {
+  type CommitNotFoundError,
+  type IncompleteDiffReadError,
 } from '@porcelain/changes/errors';
-import type { ReadBranchDiffsService } from '@porcelain/changes/services';
-import type {
-  ReadBranchDiffsRequest,
-  ReadBranchDiffsResponse,
+import { ReadBranchDiffsService } from '@porcelain/changes/services';
+import {
+  type ReadBranchDiffsRequest,
+  type ReadBranchDiffsResponse,
 } from '@porcelain/contracts/changes';
-import type { WorktreeParams } from '@porcelain/contracts/shared';
+import { type WorktreeParams } from '@porcelain/contracts/shared';
 
-export class ReadBranchDiffsUseCase {
-  private readonly access: WorktreeAccess;
-  private readonly readBranchDiffs: ReadBranchDiffsService<GitIoFailure>;
-
-  constructor(
-    access: WorktreeAccess,
-    readBranchDiffs: ReadBranchDiffsService<GitIoFailure>,
-  ) {
-    this.access = access;
-    this.readBranchDiffs = readBranchDiffs;
+export class ReadBranchDiffsUseCase extends Context.Service<
+  ReadBranchDiffsUseCase,
+  {
+    readonly execute: (
+      input: WorktreeParams & ReadBranchDiffsRequest,
+    ) => Effect.Effect<
+      ReadBranchDiffsResponse,
+      | WorktreeAccessFailure
+      | GitIoFailure
+      | CommitNotFoundError
+      | IncompleteDiffReadError
+    >;
   }
+>()('@porcelain/server/ReadBranchDiffsUseCase') {
+  static readonly layer = Layer.effect(
+    ReadBranchDiffsUseCase,
+    Effect.gen(function* () {
+      const accessCapability = yield* WorktreeAccess;
+      const readBranchDiffsCapability = yield* ReadBranchDiffsService;
 
-  execute(
-    input: WorktreeParams & ReadBranchDiffsRequest,
-  ): Effect.Effect<
-    ReadBranchDiffsResponse,
-    | WorktreeAccessFailure
-    | GitIoFailure
-    | CommitNotFoundError
-    | IncompleteDiffReadError
-  > {
-    const { worktreeId, baseOid, headOid, paths } = input;
-    return this.access.read(worktreeId, () =>
-      Effect.gen({ self: this }, function* () {
-        const diffs = yield* this.readBranchDiffs.execute({
-          worktreeId,
-          baseOid,
-          headOid,
-          paths,
-        });
-        return diffs;
-      }),
-    );
-  }
+      return {
+        execute: Effect.fn('ReadBranchDiffsUseCase.execute')(function* (
+          input: WorktreeParams & ReadBranchDiffsRequest,
+        ): Effect.fn.Return<
+          ReadBranchDiffsResponse,
+          | WorktreeAccessFailure
+          | GitIoFailure
+          | CommitNotFoundError
+          | IncompleteDiffReadError
+        > {
+          return yield* Effect.suspend(() => {
+            const { worktreeId, baseOid, headOid, paths } = input;
+            return accessCapability.read(worktreeId, () =>
+              Effect.gen(function* () {
+                const diffs = yield* readBranchDiffsCapability.execute({
+                  worktreeId,
+                  baseOid,
+                  headOid,
+                  paths,
+                });
+                return diffs;
+              }),
+            );
+          });
+        }),
+      };
+    }),
+  );
 }

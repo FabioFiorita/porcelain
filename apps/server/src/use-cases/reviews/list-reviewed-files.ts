@@ -1,40 +1,44 @@
-import { Effect } from 'effect';
-import type { WorktreeAccess } from '../../runtime/worktree-access.ts';
-import type { WorktreeAccessFailure } from '../../ports/worktree-access-failure.ts';
-import type {
-  ListReviewedFilesQuery,
-  ListReviewedFilesResponse,
+import { Effect, Context, Layer } from 'effect';
+import { WorktreeAccess } from '../../runtime/worktree-access.ts';
+import { type WorktreeAccessFailure } from '../../ports/worktree-access-failure.ts';
+import {
+  type ListReviewedFilesQuery,
+  type ListReviewedFilesResponse,
 } from '@porcelain/contracts/reviews';
-import type { WorktreeParams } from '@porcelain/contracts/shared';
-import type { ListReviewedFilesService } from '@porcelain/reviews/services';
+import { type WorktreeParams } from '@porcelain/contracts/shared';
+import { ListReviewedFilesService } from '@porcelain/reviews/services';
 
-export class ListReviewedFilesUseCase {
-  private readonly access: WorktreeAccess;
-  private readonly listReviewedFiles: ListReviewedFilesService;
-
-  constructor(
-    access: WorktreeAccess,
-    listReviewedFiles: ListReviewedFilesService,
-  ) {
-    this.access = access;
-    this.listReviewedFiles = listReviewedFiles;
+export class ListReviewedFilesUseCase extends Context.Service<
+  ListReviewedFilesUseCase,
+  {
+    readonly execute: (
+      input: WorktreeParams & ListReviewedFilesQuery,
+    ) => Effect.Effect<ListReviewedFilesResponse, WorktreeAccessFailure>;
   }
+>()('@porcelain/server/ListReviewedFilesUseCase') {
+  static readonly layer = Layer.effect(
+    ListReviewedFilesUseCase,
+    Effect.gen(function* () {
+      const accessCapability = yield* WorktreeAccess;
+      const listReviewedFilesCapability = yield* ListReviewedFilesService;
 
-  execute(
-    input: WorktreeParams & ListReviewedFilesQuery,
-  ): Effect.Effect<ListReviewedFilesResponse, WorktreeAccessFailure> {
-    return Effect.gen({ self: this }, function* () {
-      const { worktreeId, scope } = input;
-      const branch = scope === 'branch' ? input.branch : undefined;
-      return yield* this.access.reviews(worktreeId, 'read', () =>
-        Effect.gen({ self: this }, function* () {
-          return yield* this.listReviewedFiles.execute({
-            worktreeId,
-            scope,
-            branch,
-          });
+      return {
+        execute: Effect.fn('ListReviewedFilesUseCase.execute')(function* (
+          input: WorktreeParams & ListReviewedFilesQuery,
+        ): Effect.fn.Return<ListReviewedFilesResponse, WorktreeAccessFailure> {
+          const { worktreeId, scope } = input;
+          const branch = scope === 'branch' ? input.branch : undefined;
+          return yield* accessCapability.reviews(worktreeId, 'read', () =>
+            Effect.gen(function* () {
+              return yield* listReviewedFilesCapability.execute({
+                worktreeId,
+                scope,
+                branch,
+              });
+            }),
+          );
         }),
-      );
-    });
-  }
+      };
+    }),
+  );
 }

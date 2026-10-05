@@ -1,34 +1,34 @@
-import type { Context } from 'effect';
-import { Effect } from 'effect';
-import type { ReadRemoteAccessService } from '@porcelain/access/services';
-import type { ReadRemoteAccessResponse } from '@porcelain/contracts/access';
-import type { LaneKeys } from '../../runtime/lane-keys.ts';
-import type { Lanes } from '../../runtime/lanes.ts';
+import { Context, Effect, Layer } from 'effect';
+import { ReadRemoteAccessService } from '@porcelain/access/services';
+import { type ReadRemoteAccessResponse } from '@porcelain/contracts/access';
+import { LaneKeys } from '../../runtime/lane-keys.ts';
+import { Lanes } from '../../runtime/lanes.ts';
 
-export class ReadRemoteAccessUseCase {
-  private readonly readRemoteAccess: Context.Service.Shape<
-    typeof ReadRemoteAccessService
-  >;
-  private readonly lanes: Lanes;
-  private readonly laneKeys: LaneKeys;
+export class ReadRemoteAccessUseCase extends Context.Service<
+  ReadRemoteAccessUseCase,
+  { readonly execute: () => Effect.Effect<ReadRemoteAccessResponse, never> }
+>()('@porcelain/server/ReadRemoteAccessUseCase') {
+  static readonly layer = Layer.effect(
+    ReadRemoteAccessUseCase,
+    Effect.gen(function* () {
+      const readRemoteAccessCapability = yield* ReadRemoteAccessService;
+      const lanesCapability = yield* Lanes;
+      const laneKeysCapability = yield* LaneKeys;
 
-  constructor(
-    readRemoteAccess: Context.Service.Shape<typeof ReadRemoteAccessService>,
-    lanes: Lanes,
-    laneKeys: LaneKeys,
-  ) {
-    this.readRemoteAccess = readRemoteAccess;
-    this.lanes = lanes;
-    this.laneKeys = laneKeys;
-  }
-
-  execute(): Effect.Effect<ReadRemoteAccessResponse, never> {
-    return Effect.gen({ self: this }, function* () {
-      return yield* this.lanes.run(this.laneKeys.remoteAccess(), 'read', () =>
-        Effect.gen({ self: this }, function* () {
-          return yield* this.readRemoteAccess.execute();
-        }),
-      );
-    });
-  }
+      return {
+        execute: Effect.fn('ReadRemoteAccessUseCase.execute')(
+          function* (): Effect.fn.Return<ReadRemoteAccessResponse, never> {
+            return yield* lanesCapability.run(
+              laneKeysCapability.remoteAccess(),
+              'read',
+              () =>
+                Effect.gen(function* () {
+                  return yield* readRemoteAccessCapability.execute();
+                }),
+            );
+          },
+        ),
+      };
+    }),
+  );
 }

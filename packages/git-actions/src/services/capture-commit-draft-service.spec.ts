@@ -1,14 +1,19 @@
+import {
+  SelectedDiffReader,
+  UntrackedFileReader,
+  CaptureCommitDraftOptions,
+} from '@porcelain/git-actions/ports';
 import { withReadLease } from '@porcelain/effects/worktree';
 import { Effect } from 'effect';
 import {
   CommitDraftSelectionError,
   CommitDraftTooLargeError,
 } from '@porcelain/git-actions/errors';
-import type {
-  CommitDraftObservation,
-  UntrackedFileRead,
+import {
+  type CommitDraftObservation,
+  type UntrackedFileRead,
 } from '@porcelain/git-actions/models';
-import type { FileChange } from '@porcelain/kernel/models';
+import { type FileChange } from '@porcelain/kernel/models';
 import { describe, expect, it } from 'vitest';
 import {
   GUIDE_FINGERPRINT,
@@ -83,10 +88,19 @@ function service(
   files: Record<string, UntrackedFileRead> = {},
   options = limits,
 ) {
-  return new CaptureCommitDraftService(
-    new InMemorySelectedDiffReader(patches),
-    new InMemoryUntrackedFileReader(files),
-    options,
+  return Effect.runSync(
+    CaptureCommitDraftService.pipe(
+      Effect.provide(CaptureCommitDraftService.layer),
+      Effect.provideService(
+        SelectedDiffReader,
+        new InMemorySelectedDiffReader(patches),
+      ),
+      Effect.provideService(
+        UntrackedFileReader,
+        new InMemoryUntrackedFileReader(files),
+      ),
+      Effect.provideService(CaptureCommitDraftOptions, options),
+    ),
   );
 }
 

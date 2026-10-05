@@ -1,33 +1,48 @@
-import type {
-  ReadTextFileQuery,
-  ReadTextFileResponse,
+import {
+  type ReadTextFileQuery,
+  type ReadTextFileResponse,
 } from '@porcelain/contracts/files';
-import type { WorktreeParams } from '@porcelain/contracts/shared';
-import type {
+import { type WorktreeParams } from '@porcelain/contracts/shared';
+import {
   ReadTextFileService,
-  ReadTextFileFailure,
+  type ReadTextFileFailure,
 } from '@porcelain/files/services';
-import type { Effect } from 'effect';
-import type { WorktreeAccess } from '../../runtime/worktree-access.ts';
-import type { WorktreeAccessFailure } from '../../ports/worktree-access-failure.ts';
+import { Effect, Context, Layer } from 'effect';
+import { WorktreeAccess } from '../../runtime/worktree-access.ts';
+import { type WorktreeAccessFailure } from '../../ports/worktree-access-failure.ts';
 
-export class ReadTextFileUseCase {
-  private readonly access: WorktreeAccess;
-  private readonly readTextFile: ReadTextFileService;
-
-  constructor(access: WorktreeAccess, readTextFile: ReadTextFileService) {
-    this.access = access;
-    this.readTextFile = readTextFile;
+export class ReadTextFileUseCase extends Context.Service<
+  ReadTextFileUseCase,
+  {
+    readonly execute: (
+      input: WorktreeParams & ReadTextFileQuery,
+    ) => Effect.Effect<
+      ReadTextFileResponse,
+      WorktreeAccessFailure | ReadTextFileFailure
+    >;
   }
+>()('@porcelain/server/ReadTextFileUseCase') {
+  static readonly layer = Layer.effect(
+    ReadTextFileUseCase,
+    Effect.gen(function* () {
+      const accessCapability = yield* WorktreeAccess;
+      const readTextFileCapability = yield* ReadTextFileService;
 
-  execute(
-    input: WorktreeParams & ReadTextFileQuery,
-  ): Effect.Effect<
-    ReadTextFileResponse,
-    WorktreeAccessFailure | ReadTextFileFailure
-  > {
-    return this.access.read(input.worktreeId, (worktree) =>
-      this.readTextFile.execute({ ...input, worktreeId: worktree.id }),
-    );
-  }
+      return {
+        execute: Effect.fn('ReadTextFileUseCase.execute')(function* (
+          input: WorktreeParams & ReadTextFileQuery,
+        ): Effect.fn.Return<
+          ReadTextFileResponse,
+          WorktreeAccessFailure | ReadTextFileFailure
+        > {
+          return yield* accessCapability.read(input.worktreeId, (worktree) =>
+            readTextFileCapability.execute({
+              ...input,
+              worktreeId: worktree.id,
+            }),
+          );
+        }),
+      };
+    }),
+  );
 }

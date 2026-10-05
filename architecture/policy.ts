@@ -1129,7 +1129,7 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
     'error-api',
   ]),
   model: new Set(['kernel', 'model', 'model-api']),
-  port: new Set(['kernel', 'port', 'model', 'model-api']),
+  port: new Set(['kernel', 'port', 'model', 'model-api', 'error-api']),
   error: new Set(['error', 'error-api']),
   repository: new Set([
     'kernel',
@@ -1619,6 +1619,8 @@ export function violation(
 }
 
 export const serverPortContractTypes: Readonly<Record<string, string>> = {
+  'apps/server/src/ports/git-status-reads.ts':
+    'the shared status cache stores the validated response returned to all clients; its capability must carry the exact outcome and typed errors so cached reads cannot widen the wire shape',
   'apps/server/src/ports/live-channel.ts':
     'a live channel sends the notice the contract schema defines to the socket; a kernel or server copy of that union would drift from the schema the client parses',
 };

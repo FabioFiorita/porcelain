@@ -1,38 +1,42 @@
-import { Effect } from 'effect';
-import type { WorktreeKey } from '@porcelain/kernel/models';
-import type { Clock } from '@porcelain/kernel/ports';
-import type { GitActionReceiptStore } from '../ports/git-action-receipt-store.ts';
+import { ExpireGitActionReceiptsOptions } from '../ports/expire-git-action-receipts-options.ts';
+import { Effect, Context, Layer } from 'effect';
+import { type WorktreeKey } from '@porcelain/kernel/models';
+import { Clock } from '@porcelain/kernel/ports';
+import { GitActionReceiptStore } from '../ports/git-action-receipt-store.ts';
 import { expiredReceipts } from '../rules/expired-receipts.ts';
-import type { ExpireGitActionReceiptsOptions } from '../models/expire-git-action-receipts.ts';
 
-export class ExpireGitActionReceiptsService {
-  private readonly gitActionReceipts: GitActionReceiptStore;
-  private readonly clock: Clock;
-  private readonly options: ExpireGitActionReceiptsOptions;
-
-  constructor(
-    gitActionReceipts: GitActionReceiptStore,
-    clock: Clock,
-    options: ExpireGitActionReceiptsOptions,
-  ) {
-    this.gitActionReceipts = gitActionReceipts;
-    this.clock = clock;
-    this.options = options;
+export class ExpireGitActionReceiptsService extends Context.Service<
+  ExpireGitActionReceiptsService,
+  {
+    readonly execute: (input: WorktreeKey) => Effect.Effect<void, never, never>;
   }
+>()('@porcelain/git-actions/ExpireGitActionReceiptsService') {
+  static readonly layer = Layer.effect(
+    ExpireGitActionReceiptsService,
+    Effect.gen(function* () {
+      const gitActionReceiptsCapability = yield* GitActionReceiptStore;
+      const clockCapability = yield* Clock;
+      const optionsCapability = yield* ExpireGitActionReceiptsOptions;
 
-  execute(input: WorktreeKey): Effect.Effect<void, never, never> {
-    return Effect.sync(() => {
-      this.gitActionReceipts.remove({
-        requestIds: expiredReceipts(
-          this.gitActionReceipts.finished(),
-          this.clock.now(),
-          this.options.retentionMs,
-        ).filter(
-          (requestId) =>
-            this.gitActionReceipts.read({ requestId })?.worktreeId ===
-            input.worktreeId,
-        ),
-      });
-    });
-  }
+      return {
+        execute: Effect.fn('ExpireGitActionReceiptsService.execute')(function* (
+          input: WorktreeKey,
+        ): Effect.fn.Return<void, never, never> {
+          return yield* Effect.sync<void>(() => {
+            gitActionReceiptsCapability.remove({
+              requestIds: expiredReceipts(
+                gitActionReceiptsCapability.finished(),
+                clockCapability.now(),
+                optionsCapability.retentionMs,
+              ).filter(
+                (requestId) =>
+                  gitActionReceiptsCapability.read({ requestId })
+                    ?.worktreeId === input.worktreeId,
+              ),
+            });
+          });
+        }),
+      };
+    }),
+  );
 }

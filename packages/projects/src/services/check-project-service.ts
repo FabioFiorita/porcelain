@@ -1,25 +1,35 @@
-import { Effect } from 'effect';
+import { Effect, Context, Layer } from 'effect';
 import { ProjectNotFoundError } from '../errors/project-not-found-error.ts';
-import type {
-  CheckProjectResult,
-  FindProjectInput,
+import {
+  type CheckProjectResult,
+  type FindProjectInput,
 } from '../models/find-project.ts';
-import type { InventoryStore } from '../ports/inventory-store.ts';
+import { InventoryStore } from '../ports/inventory-store.ts';
 
-export class CheckProjectService {
-  private readonly inventory: InventoryStore;
-
-  constructor(inventory: InventoryStore) {
-    this.inventory = inventory;
+export class CheckProjectService extends Context.Service<
+  CheckProjectService,
+  {
+    readonly execute: (
+      input: FindProjectInput,
+    ) => Effect.Effect<CheckProjectResult, ProjectNotFoundError>;
   }
+>()('@porcelain/projects/CheckProjectService') {
+  static readonly layer = Layer.effect(
+    CheckProjectService,
+    Effect.gen(function* () {
+      const inventoryCapability = yield* InventoryStore;
 
-  execute(
-    input: FindProjectInput,
-  ): Effect.Effect<CheckProjectResult, ProjectNotFoundError> {
-    return Effect.gen({ self: this }, function* () {
-      const project = this.inventory.find({ projectId: input.projectId });
-      if (!project) return yield* Effect.fail(new ProjectNotFoundError());
-      return project;
-    });
-  }
+      return {
+        execute: Effect.fn('CheckProjectService.execute')(function* (
+          input: FindProjectInput,
+        ): Effect.fn.Return<CheckProjectResult, ProjectNotFoundError> {
+          const project = inventoryCapability.find({
+            projectId: input.projectId,
+          });
+          if (!project) return yield* Effect.fail(new ProjectNotFoundError());
+          return project;
+        }),
+      };
+    }),
+  );
 }

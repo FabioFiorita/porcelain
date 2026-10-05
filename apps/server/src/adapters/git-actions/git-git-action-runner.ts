@@ -1,27 +1,29 @@
 import { writeGit } from '../../runtime/git-io.ts';
-import type { GitIoFailure } from '../../ports/git-io-failure.ts';
+import {
+  type GitIoFailure,
+  GitActionRejectedError,
+  GitTimeoutError,
+} from '@porcelain/git/errors';
 import { Effect } from 'effect';
-import type { WorktreeWrite } from '@porcelain/effects/worktree';
-import type {
-  GitActionExpectation,
-  GitActionRunnerOutcome,
-  GitActionRunRequest,
+import { type WorktreeWrite } from '@porcelain/effects/worktree';
+import {
+  type GitActionExpectation,
+  type GitActionRunnerOutcome,
+  type GitActionRunRequest,
 } from '@porcelain/git-actions/models';
-import type { GitActionRunner } from '@porcelain/git-actions/ports';
-import { GitActionRejectedError } from '@porcelain/git/errors';
-import type {
-  GitActionExpectation as GitExpectation,
-  GitActionWriterFactory,
+import { type GitActionRunner } from '@porcelain/git-actions/ports';
+import {
+  type GitActionExpectation as GitExpectation,
+  type GitActionWriterFactory,
 } from '@porcelain/git/actions';
-import { GitTimeoutError } from '@porcelain/git/errors';
 import { RequestGitSession } from '@porcelain/git/inspection';
-import type { Limits } from '../../config/limits.ts';
+import { type Limits } from '../../config/limits.ts';
 import {
   openCheckout,
   type ListedWorktrees,
 } from '../projects/checkout-session.ts';
 
-export class GitGitActionRunner implements GitActionRunner<GitIoFailure> {
+export class GitGitActionRunner implements GitActionRunner {
   private readonly worktrees: ListedWorktrees;
   private readonly git: GitActionWriterFactory;
   private readonly limits: Limits['git'];

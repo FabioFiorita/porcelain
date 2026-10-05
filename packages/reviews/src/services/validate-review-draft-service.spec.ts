@@ -10,12 +10,13 @@ import {
   UnknownArrowStepError,
   UnknownProofTargetError,
 } from '@porcelain/reviews/errors';
-import type {
-  DiagramBox,
-  LayerDraft,
-  ReviewDraft,
+import {
+  type DiagramBox,
+  type LayerDraft,
+  type ReviewDraft,
 } from '@porcelain/reviews/models';
 import { ValidateReviewDraftService } from './validate-review-draft-service.ts';
+
 const styled = '<style>h1{color:red}</style><h1>Summary</h1>';
 
 function layer(overrides: Partial<LayerDraft> = {}): LayerDraft {
@@ -52,7 +53,11 @@ describe('review draft validation', () => {
     const originalLayer = layer();
     const input = draft({ layers: [originalLayer] });
     const validated = Effect.runSync(
-      new ValidateReviewDraftService().execute(input),
+      Effect.runSync(
+        ValidateReviewDraftService.pipe(
+          Effect.provide(ValidateReviewDraftService.layer),
+        ),
+      ).execute(input),
     );
     input.summaryHtml = '<p>Changed</p>';
     originalLayer.title = 'Changed';
@@ -167,7 +172,13 @@ describe('review draft validation', () => {
     },
   ])('refuses a draft with $name', ({ refused, error }) => {
     expect(() =>
-      Effect.runSync(new ValidateReviewDraftService().execute(refused)),
+      Effect.runSync(
+        Effect.runSync(
+          ValidateReviewDraftService.pipe(
+            Effect.provide(ValidateReviewDraftService.layer),
+          ),
+        ).execute(refused),
+      ),
     ).toThrow(error);
   });
 });

@@ -1,9 +1,32 @@
+import { ListRecordedWorktreesService } from '@porcelain/projects/services';
+import { GenerateCommitDraftUseCaseOptions } from '../ports/generate-commit-draft-use-case-options.ts';
+import { ListCommitModelsUseCaseOptions } from '../ports/list-commit-models-use-case-options.ts';
+import { RunGitActionUseCaseOptions } from '../ports/run-git-action-use-case-options.ts';
+import { Logger } from '../ports/logger.ts';
+import { EventPublisher } from '../ports/event-publisher.ts';
+import { LaneKeys } from '../runtime/lane-keys.ts';
+import { Lanes } from '../runtime/lanes.ts';
+import { WorktreeConsistencyProbe } from '../ports/worktree-consistency-probe.ts';
+import { Clock } from '@porcelain/kernel/ports';
+import { Effect, Layer } from 'effect';
 import { WorktreeAccess } from '../runtime/worktree-access.ts';
 import { gitActionsRoutes } from '../http/routes/git-actions/git-actions-api.ts';
-import { ConfirmDiffObservationService } from '@porcelain/changes/services';
-import type {
+import {
+  ConfirmDiffObservationService,
+  ReadWorktreeStatusService,
+  ReadChangeFingerprintsService,
+} from '@porcelain/changes/services';
+import {
   CommitDraftSource,
   CommitModelReader,
+  GitActionReceiptStore,
+  ExpireGitActionReceiptsOptions,
+  GitActionRunner,
+  RecordGitActionProgressOptions,
+  SelectedDiffReader,
+  UntrackedFileReader,
+  CaptureCommitDraftOptions,
+  GenerateCommitDraftOptions,
 } from '@porcelain/git-actions/ports';
 import {
   AcceptGitActionService,
@@ -28,11 +51,11 @@ import { ListCommitModelsUseCase } from '../use-cases/git-actions/list-commit-mo
 import { ReadGitActionReceiptUseCase } from '../use-cases/git-actions/read-git-action-receipt.ts';
 import { RecoverInterruptedGitActionsUseCase } from '../use-cases/git-actions/recover-interrupted-git-actions.ts';
 import { RunGitActionUseCase } from '../use-cases/git-actions/run-git-action.ts';
-import type { CheckWorktreeUseCasePort } from '../ports/check-worktree-use-case-port.ts';
-import type { RefreshWorktreeReviewUseCasePort } from '../ports/refresh-worktree-review-use-case-port.ts';
-import type { ComposeContext } from './compose-context.ts';
-import type { Shared } from './compose-shared.ts';
-import type { Stores } from './compose-stores.ts';
+import { CheckWorktreeUseCasePort } from '../ports/check-worktree-use-case-port.ts';
+import { RefreshWorktreeReviewUseCasePort } from '../ports/refresh-worktree-review-use-case-port.ts';
+import { type ComposeContext } from './compose-context.ts';
+import { type Shared } from './compose-shared.ts';
+import { type Stores } from './compose-stores.ts';
 
 type GitActionsDependencies = {
   stores: Stores;
@@ -51,87 +74,91 @@ export function composeGitActions(
   const limits = context.settings.limits.gitActions;
   const { stores, shared } = dependencies;
   const store = stores.gitActions;
-  const expireGitActionReceipts = new ExpireGitActionReceiptsService(
-    store,
-    clock,
-    limits.receipts,
-  );
-  const access = new WorktreeAccess(
-    dependencies.checkWorktree,
-    shared.confirmWorktree,
-    lanes,
-    laneKeys,
-  );
-  const useCases = {
-    runGitAction: new RunGitActionUseCase(
-      access,
-      expireGitActionReceipts,
-      new AcceptGitActionService(store, clock),
-      shared.readWorktreeStatus,
-      shared.readChangeFingerprints,
-      new RunGitActionService(
-        new GitGitActionRunner(
-          shared.worktreeAccess,
-          shared.actionGit,
-          context.settings.limits.git,
-        ),
+  const ports = Layer.mergeAll(
+    Layer.succeed(GitActionReceiptStore, store),
+    Layer.succeed(Clock, clock),
+    Layer.succeed(ExpireGitActionReceiptsOptions, limits.receipts),
+    Layer.succeed(CheckWorktreeUseCasePort, dependencies.checkWorktree),
+    Layer.succeed(WorktreeConsistencyProbe, shared.confirmWorktree),
+    Layer.succeed(Lanes, lanes),
+    Layer.succeed(LaneKeys, laneKeys),
+    Layer.succeed(ReadWorktreeStatusService, shared.readWorktreeStatus),
+    Layer.succeed(ReadChangeFingerprintsService, shared.readChangeFingerprints),
+    Layer.succeed(
+      GitActionRunner,
+      new GitGitActionRunner(
+        shared.worktreeAccess,
+        shared.actionGit,
+        context.settings.limits.git,
       ),
-      new RecordGitActionProgressService(store, limits.progress),
-      new FinishGitActionService(store, clock),
+    ),
+    Layer.succeed(RecordGitActionProgressOptions, limits.progress),
+    Layer.succeed(
+      RefreshWorktreeReviewUseCasePort,
       dependencies.refreshWorktreeReview,
-      new InterruptGitActionService(store, clock),
-      lanes,
-      laneKeys,
-      events,
-      logger,
-      { deadlineMs: limits.deadlineMs },
     ),
-    readGitActionReceipt: new ReadGitActionReceiptUseCase(
-      dependencies.checkWorktree,
-      new ReadGitActionReceiptService(store),
-      lanes,
-      laneKeys,
-    ),
-    dismissInterruptedGitAction: new DismissInterruptedGitActionUseCase(
-      dependencies.checkWorktree,
-      new DismissInterruptedGitActionService(store, clock),
-      lanes,
-      laneKeys,
-      events,
-    ),
-    listCommitModels: new ListCommitModelsUseCase(
-      new ListCommitModelsService(dependencies.commitModelReader),
-      lanes,
-      { deadlineMs: limits.processDeadlineMs },
-    ),
-    generateCommitDraft: new GenerateCommitDraftUseCase(
-      access,
-      shared.readWorktreeStatus,
-      shared.readChangeFingerprints,
-      new ConfirmDiffObservationService(),
-      new CaptureCommitDraftService(
-        new GitSelectedDiffReader(
-          shared.worktreeAccess,
-          shared.actionGit,
-          shared.gitSessions,
-        ),
-        new FilesystemUntrackedFileReader(shared.fileReader),
-        limits.commitDraft,
+    Layer.succeed(EventPublisher, events),
+    Layer.succeed(Logger, logger),
+    Layer.succeed(RunGitActionUseCaseOptions, {
+      deadlineMs: limits.deadlineMs,
+    }),
+    Layer.succeed(CommitModelReader, dependencies.commitModelReader),
+    Layer.succeed(ListCommitModelsUseCaseOptions, {
+      deadlineMs: limits.processDeadlineMs,
+    }),
+    Layer.succeed(
+      SelectedDiffReader,
+      new GitSelectedDiffReader(
+        shared.worktreeAccess,
+        shared.actionGit,
+        shared.gitSessions,
       ),
-      new GenerateCommitDraftService(
-        dependencies.commitDraftSource,
-        limits.commitGroups,
-      ),
-      lanes,
-      { deadlineMs: limits.processDeadlineMs },
     ),
-    recoverInterruptedGitActions: new RecoverInterruptedGitActionsUseCase(
-      shared.listRecordedWorktrees,
-      new RecoverInterruptedGitActionsService(store, clock),
-      expireGitActionReceipts,
-      lanes,
-      laneKeys,
+    Layer.succeed(
+      UntrackedFileReader,
+      new FilesystemUntrackedFileReader(shared.fileReader),
     ),
-  };
-  return { ...useCases, routes: gitActionsRoutes(useCases) };
+    Layer.succeed(CaptureCommitDraftOptions, limits.commitDraft),
+    Layer.succeed(CommitDraftSource, dependencies.commitDraftSource),
+    Layer.succeed(GenerateCommitDraftOptions, limits.commitGroups),
+    Layer.succeed(GenerateCommitDraftUseCaseOptions, {
+      deadlineMs: limits.processDeadlineMs,
+    }),
+    Layer.succeed(ListRecordedWorktreesService, shared.listRecordedWorktrees),
+  );
+  const services = Layer.mergeAll(
+    ExpireGitActionReceiptsService.layer,
+    WorktreeAccess.layer,
+    AcceptGitActionService.layer,
+    RunGitActionService.layer,
+    RecordGitActionProgressService.layer,
+    FinishGitActionService.layer,
+    InterruptGitActionService.layer,
+    ReadGitActionReceiptService.layer,
+    DismissInterruptedGitActionService.layer,
+    ListCommitModelsService.layer,
+    ConfirmDiffObservationService.layer,
+    CaptureCommitDraftService.layer,
+    GenerateCommitDraftService.layer,
+    RecoverInterruptedGitActionsService.layer,
+  ).pipe(Layer.provideMerge(ports));
+  const operations = Layer.mergeAll(
+    RunGitActionUseCase.layer,
+    ReadGitActionReceiptUseCase.layer,
+    DismissInterruptedGitActionUseCase.layer,
+    ListCommitModelsUseCase.layer,
+    GenerateCommitDraftUseCase.layer,
+    RecoverInterruptedGitActionsUseCase.layer,
+  ).pipe(Layer.provideMerge(services));
+  return Effect.gen(function* () {
+    const useCases = {
+      runGitAction: yield* RunGitActionUseCase,
+      readGitActionReceipt: yield* ReadGitActionReceiptUseCase,
+      dismissInterruptedGitAction: yield* DismissInterruptedGitActionUseCase,
+      listCommitModels: yield* ListCommitModelsUseCase,
+      generateCommitDraft: yield* GenerateCommitDraftUseCase,
+      recoverInterruptedGitActions: yield* RecoverInterruptedGitActionsUseCase,
+    };
+    return { ...useCases, routes: gitActionsRoutes(useCases) };
+  }).pipe(Effect.provide(operations));
 }

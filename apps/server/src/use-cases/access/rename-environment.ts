@@ -1,44 +1,45 @@
-import type { Context } from 'effect';
-import { Effect } from 'effect';
-import type { RenameEnvironmentService } from '@porcelain/access/services';
-import type {
-  RenameEnvironmentRequest,
-  RenameEnvironmentResponse,
+import { Context, Effect, Layer } from 'effect';
+import { RenameEnvironmentService } from '@porcelain/access/services';
+import {
+  type RenameEnvironmentRequest,
+  type RenameEnvironmentResponse,
 } from '@porcelain/contracts/access';
-import type { EventPublisher } from '../../ports/event-publisher.ts';
-import type { LaneKeys } from '../../runtime/lane-keys.ts';
-import type { Lanes } from '../../runtime/lanes.ts';
+import { EventPublisher } from '../../ports/event-publisher.ts';
+import { LaneKeys } from '../../runtime/lane-keys.ts';
+import { Lanes } from '../../runtime/lanes.ts';
 
-export class RenameEnvironmentUseCase {
-  private readonly renameEnvironment: Context.Service.Shape<
-    typeof RenameEnvironmentService
-  >;
-  private readonly lanes: Lanes;
-  private readonly laneKeys: LaneKeys;
-  private readonly events: EventPublisher;
-
-  constructor(
-    renameEnvironment: Context.Service.Shape<typeof RenameEnvironmentService>,
-    lanes: Lanes,
-    laneKeys: LaneKeys,
-    events: EventPublisher,
-  ) {
-    this.renameEnvironment = renameEnvironment;
-    this.lanes = lanes;
-    this.laneKeys = laneKeys;
-    this.events = events;
+export class RenameEnvironmentUseCase extends Context.Service<
+  RenameEnvironmentUseCase,
+  {
+    readonly execute: (
+      input: RenameEnvironmentRequest,
+    ) => Effect.Effect<RenameEnvironmentResponse>;
   }
+>()('@porcelain/server/RenameEnvironmentUseCase') {
+  static readonly layer = Layer.effect(
+    RenameEnvironmentUseCase,
+    Effect.gen(function* () {
+      const renameEnvironmentCapability = yield* RenameEnvironmentService;
+      const lanesCapability = yield* Lanes;
+      const laneKeysCapability = yield* LaneKeys;
+      const eventsCapability = yield* EventPublisher;
 
-  execute(
-    input: RenameEnvironmentRequest,
-  ): Effect.Effect<RenameEnvironmentResponse> {
-    return this.lanes.commit(
-      this.laneKeys.access(),
-      () =>
-        Effect.uninterruptible(
-          this.renameEnvironment.execute({ name: input.name ?? undefined }),
-        ),
-      () => Effect.sync(() => this.events.inventoryChanged()),
-    );
-  }
+      return {
+        execute: Effect.fn('RenameEnvironmentUseCase.execute')(function* (
+          input: RenameEnvironmentRequest,
+        ): Effect.fn.Return<RenameEnvironmentResponse> {
+          return yield* lanesCapability.commit(
+            laneKeysCapability.access(),
+            () =>
+              Effect.uninterruptible(
+                renameEnvironmentCapability.execute({
+                  name: input.name ?? undefined,
+                }),
+              ),
+            () => Effect.sync(() => eventsCapability.inventoryChanged()),
+          );
+        }),
+      };
+    }),
+  );
 }

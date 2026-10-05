@@ -1,11 +1,12 @@
-import type { WorktreeKey, WorktreeKeys } from '@porcelain/kernel/models';
-import type { ProofFile, ProofFileKey } from '../models/review-proof.ts';
-import type {
-  Review,
-  ReviewActivity,
-  ReviewSave,
-  ReviewSummary,
-  ReviewSummaryKey,
+import { Context } from 'effect';
+import { type WorktreeKey, type WorktreeKeys } from '@porcelain/kernel/models';
+import { type ProofFile, type ProofFileKey } from '../models/review-proof.ts';
+import {
+  type Review,
+  type ReviewActivity,
+  type ReviewSave,
+  type ReviewSummary,
+  type ReviewSummaryKey,
 } from '../models/review.ts';
 
 export interface ReviewStore {
@@ -16,3 +17,8 @@ export interface ReviewStore {
   readProofFile(input: ProofFileKey): ProofFile | undefined;
   setActive(input: ReviewActivity): void;
 }
+
+export const ReviewStore = Context.Service<
+  '@porcelain/reviews/ReviewStore',
+  ReviewStore
+>('@porcelain/reviews/ReviewStore');

@@ -1,37 +1,37 @@
-import type { Context } from 'effect';
-import { Effect } from 'effect';
-import type {
-  IdentifyRequestClientInput,
-  RequestClient,
+import { Context, Effect, Layer } from 'effect';
+import {
+  type IdentifyRequestClientInput,
+  type RequestClient,
 } from '@porcelain/access/models';
-import type { IdentifyRequestClientService } from '@porcelain/access/services';
-import type { Lanes } from '../../runtime/lanes.ts';
+import { IdentifyRequestClientService } from '@porcelain/access/services';
+import { Lanes } from '../../runtime/lanes.ts';
 
-export class IdentifyRequestClientUseCase {
-  private readonly identifyRequestClient: Context.Service.Shape<
-    typeof IdentifyRequestClientService
-  >;
-  private readonly lanes: Lanes;
-
-  constructor(
-    identifyRequestClient: Context.Service.Shape<
-      typeof IdentifyRequestClientService
-    >,
-    lanes: Lanes,
-  ) {
-    this.identifyRequestClient = identifyRequestClient;
-    this.lanes = lanes;
+export class IdentifyRequestClientUseCase extends Context.Service<
+  IdentifyRequestClientUseCase,
+  {
+    readonly execute: (
+      input: IdentifyRequestClientInput,
+    ) => Effect.Effect<RequestClient, never>;
   }
+>()('@porcelain/server/IdentifyRequestClientUseCase') {
+  static readonly layer = Layer.effect(
+    IdentifyRequestClientUseCase,
+    Effect.gen(function* () {
+      const identifyRequestClientCapability =
+        yield* IdentifyRequestClientService;
+      const lanesCapability = yield* Lanes;
 
-  execute(
-    input: IdentifyRequestClientInput,
-  ): Effect.Effect<RequestClient, never> {
-    return Effect.gen({ self: this }, function* () {
-      return yield* this.lanes.unqueued(() =>
-        Effect.gen({ self: this }, function* () {
-          return yield* this.identifyRequestClient.execute(input);
+      return {
+        execute: Effect.fn('IdentifyRequestClientUseCase.execute')(function* (
+          input: IdentifyRequestClientInput,
+        ): Effect.fn.Return<RequestClient, never> {
+          return yield* lanesCapability.unqueued(() =>
+            Effect.gen(function* () {
+              return yield* identifyRequestClientCapability.execute(input);
+            }),
+          );
         }),
-      );
-    });
-  }
+      };
+    }),
+  );
 }

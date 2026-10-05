@@ -1,3 +1,7 @@
+import {
+  GitActionReceiptStore,
+  RecordGitActionProgressOptions,
+} from '@porcelain/git-actions/ports';
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import {
@@ -15,7 +19,13 @@ describe('RecordGitActionProgressService', () => {
       sampleReceipt({ progress: ['Counting objects'] }),
     ]);
     const recorded = Effect.runSync(
-      new RecordGitActionProgressService(store, options).execute({
+      Effect.runSync(
+        RecordGitActionProgressService.pipe(
+          Effect.provide(RecordGitActionProgressService.layer),
+          Effect.provideService(GitActionReceiptStore, store),
+          Effect.provideService(RecordGitActionProgressOptions, options),
+        ),
+      ).execute({
         requestId: REQUEST_ID,
         line: 'Receiving objects',
       }),
@@ -35,7 +45,13 @@ describe('RecordGitActionProgressService', () => {
       sampleReceipt({ progress: ['one', 'two', 'three'] }),
     ]);
     Effect.runSync(
-      new RecordGitActionProgressService(store, options).execute({
+      Effect.runSync(
+        RecordGitActionProgressService.pipe(
+          Effect.provide(RecordGitActionProgressService.layer),
+          Effect.provideService(GitActionReceiptStore, store),
+          Effect.provideService(RecordGitActionProgressOptions, options),
+        ),
+      ).execute({
         requestId: REQUEST_ID,
         line: 'four',
       }),
@@ -54,7 +70,13 @@ describe('RecordGitActionProgressService', () => {
         finishedAt: '2026-09-01T10:00:01.000Z',
       }),
     ]);
-    const service = new RecordGitActionProgressService(store, options);
+    const service = Effect.runSync(
+      RecordGitActionProgressService.pipe(
+        Effect.provide(RecordGitActionProgressService.layer),
+        Effect.provideService(GitActionReceiptStore, store),
+        Effect.provideService(RecordGitActionProgressOptions, options),
+      ),
+    );
     expect(
       Effect.runSync(service.execute({ requestId: REQUEST_ID, line: 'late' })),
     ).toEqual({

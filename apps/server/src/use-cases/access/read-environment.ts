@@ -1,62 +1,55 @@
-import type { Context } from 'effect';
-import { Effect } from 'effect';
-import type { MissingEnvironmentIdentityError } from '@porcelain/access/errors';
-import type {
+import { ReadEnvironmentUseCaseOptions } from '../../ports/read-environment-use-case-options.ts';
+import { Context, Effect, Layer } from 'effect';
+import { type MissingEnvironmentIdentityError } from '@porcelain/access/errors';
+import {
   ReadEnvironmentNameService,
   ReadEnvironmentService,
 } from '@porcelain/access/services';
-import type { ReadEnvironmentResponse } from '@porcelain/contracts/access';
-import type { LaneKeys } from '../../runtime/lane-keys.ts';
-import type { Lanes } from '../../runtime/lanes.ts';
+import { type ReadEnvironmentResponse } from '@porcelain/contracts/access';
+import { LaneKeys } from '../../runtime/lane-keys.ts';
+import { Lanes } from '../../runtime/lanes.ts';
 
-type ReadEnvironmentOptions = {
-  version: string | undefined;
-  protocol: number;
-};
-
-export class ReadEnvironmentUseCase {
-  private readonly readEnvironment: Context.Service.Shape<
-    typeof ReadEnvironmentService
-  >;
-  private readonly readEnvironmentName: Context.Service.Shape<
-    typeof ReadEnvironmentNameService
-  >;
-  private readonly lanes: Lanes;
-  private readonly laneKeys: LaneKeys;
-  private readonly options: ReadEnvironmentOptions;
-
-  constructor(
-    readEnvironment: Context.Service.Shape<typeof ReadEnvironmentService>,
-    readEnvironmentName: Context.Service.Shape<
-      typeof ReadEnvironmentNameService
-    >,
-    lanes: Lanes,
-    laneKeys: LaneKeys,
-    options: ReadEnvironmentOptions,
-  ) {
-    this.readEnvironment = readEnvironment;
-    this.readEnvironmentName = readEnvironmentName;
-    this.lanes = lanes;
-    this.laneKeys = laneKeys;
-    this.options = options;
+export class ReadEnvironmentUseCase extends Context.Service<
+  ReadEnvironmentUseCase,
+  {
+    readonly execute: () => Effect.Effect<
+      ReadEnvironmentResponse,
+      MissingEnvironmentIdentityError
+    >;
   }
+>()('@porcelain/server/ReadEnvironmentUseCase') {
+  static readonly layer = Layer.effect(
+    ReadEnvironmentUseCase,
+    Effect.gen(function* () {
+      const readEnvironmentCapability = yield* ReadEnvironmentService;
+      const readEnvironmentNameCapability = yield* ReadEnvironmentNameService;
+      const lanesCapability = yield* Lanes;
+      const laneKeysCapability = yield* LaneKeys;
+      const optionsCapability = yield* ReadEnvironmentUseCaseOptions;
 
-  execute(): Effect.Effect<
-    ReadEnvironmentResponse,
-    MissingEnvironmentIdentityError
-  > {
-    return Effect.gen({ self: this }, function* () {
-      return yield* this.lanes.run(this.laneKeys.access(), 'read', () =>
-        Effect.gen({ self: this }, function* () {
-          return {
-            environmentId: (yield* this.readEnvironment.execute())
-              .environmentId,
-            name: (yield* this.readEnvironmentName.execute()).name,
-            version: this.options.version,
-            protocol: this.options.protocol,
-          };
-        }),
-      );
-    });
-  }
+      return {
+        execute: Effect.fn('ReadEnvironmentUseCase.execute')(
+          function* (): Effect.fn.Return<
+            ReadEnvironmentResponse,
+            MissingEnvironmentIdentityError
+          > {
+            return yield* lanesCapability.run(
+              laneKeysCapability.access(),
+              'read',
+              () =>
+                Effect.gen(function* () {
+                  return {
+                    environmentId: (yield* readEnvironmentCapability.execute())
+                      .environmentId,
+                    name: (yield* readEnvironmentNameCapability.execute()).name,
+                    version: optionsCapability.version,
+                    protocol: optionsCapability.protocol,
+                  };
+                }),
+            );
+          },
+        ),
+      };
+    }),
+  );
 }

@@ -34,7 +34,7 @@ Declare application CLI commands, flags, arguments and help in `apps/server/src/
 
 A feature crosses the repository in one order: the contract, the domain decision in `packages/<domain>`, the server use case and route, the shared client in `packages/client` (api, queries, commands, store, rules), then each app's views and adapters. The architecture check enforces each role.
 
-Domain services use named `Context.Service` capabilities with one readonly typed `execute` and a static Layer. The Layer resolves dependencies with `yield*`; execute uses named `Effect.fn`. Ports declare the capability key and its shape; models remain data types. Bootstrap supplies implementations and configuration through Layers. Copy `packages/access/src/services/read-environment-service.ts`; do not add constructor injection or a forwarding file when migrating an owner.
+Domain services and server use cases use named `Context.Service` capabilities with one readonly typed `execute` and a static Layer. The Layer resolves dependencies with `yield*`; execute uses named `Effect.fn`. Ports declare the capability key and its shape; models remain data types. Bootstrap supplies implementations and configuration through Layers. Copy `packages/access/src/services/read-environment-service.ts`; do not add constructor injection or a forwarding file when migrating an owner.
 
 ## Testing
 

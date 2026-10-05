@@ -1,3 +1,4 @@
+import { CommentStore } from '@porcelain/reviews/ports';
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { CommentTargetNotFoundError } from '@porcelain/reviews/errors';
@@ -19,7 +20,15 @@ function setup() {
     sizeBytes: 100,
     writtenByAgent: false,
   });
-  return { store, service: new UpdateCommentThreadService(store) };
+  return {
+    store,
+    service: Effect.runSync(
+      UpdateCommentThreadService.pipe(
+        Effect.provide(UpdateCommentThreadService.layer),
+        Effect.provideService(CommentStore, store),
+      ),
+    ),
+  };
 }
 
 describe('UpdateCommentThreadService', () => {

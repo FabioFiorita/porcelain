@@ -1,3 +1,6 @@
+import { Logger } from '../../ports/logger.ts';
+import { EventPublisher } from '../../ports/event-publisher.ts';
+import { InvalidateReviewedMarksUseCasePort } from '../../ports/invalidate-reviewed-marks-use-case-port.ts';
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { InMemoryReviewedMarks } from '../../../spec/fakes/in-memory-reviewed-marks.ts';
@@ -9,9 +12,16 @@ const MARKED = ['src/a.ts', 'src/b.ts', 'src/c.ts'];
 function subject(invalidated: Promise<void> = Promise.resolve()) {
   const marks = new InMemoryReviewedMarks({ one: MARKED }, invalidated);
   const events = new RecordingEventPublisher();
-  const announce = new AnnounceWorktreeChangeUseCase(marks, events, {
-    failure: () => undefined,
-  });
+  const announce = Effect.runSync(
+    AnnounceWorktreeChangeUseCase.pipe(
+      Effect.provide(AnnounceWorktreeChangeUseCase.layer),
+      Effect.provideService(InvalidateReviewedMarksUseCasePort, marks),
+      Effect.provideService(EventPublisher, events),
+      Effect.provideService(Logger, {
+        failure: () => undefined,
+      }),
+    ),
+  );
   return { marks, events, announce };
 }
 

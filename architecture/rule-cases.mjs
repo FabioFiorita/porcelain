@@ -31,7 +31,10 @@ export class ReadChangeLinesUseCase {
   }
 }
 `;
-import { effectRuleCases } from './effect-rule-cases.mjs';
+import {
+  effectRuleCases,
+  nativeHealthOperation,
+} from './effect-rule-cases.mjs';
 const commentSeenStore = `import type { CommentSeenStore } from '../../src/ports/comment-seen-store.ts';
 
 export class InMemoryCommentSeenStore implements CommentSeenStore {
@@ -2055,20 +2058,10 @@ export class ReadInterruptedGitActionService {
   {
     rule: 'operation-class-shape',
     path: 'apps/server/src/use-cases/access/read-health.ts',
-    valid:
-      "import { Effect } from 'effect';\nimport type { MissingEnvironmentIdentityError } from '@porcelain/access/errors';\nimport type { ReadEnvironmentService } from '@porcelain/access/services';\nimport type { ReadHealthResponse } from '@porcelain/contracts/access';\nimport type { LaneKeys } from '../../runtime/lane-keys.ts';\nimport type { Lanes } from '../../runtime/lanes.ts';\n\nexport class ReadHealthUseCase {\n  private readonly readEnvironment: ReadEnvironmentService;\n  private readonly lanes: Lanes;\n  private readonly laneKeys: LaneKeys;\n\n  constructor(\n    readEnvironment: ReadEnvironmentService,\n    lanes: Lanes,\n    laneKeys: LaneKeys,\n  ) {\n    this.readEnvironment = readEnvironment;\n    this.lanes = lanes;\n    this.laneKeys = laneKeys;\n  }\n\n  execute(): Effect.Effect<\n    ReadHealthResponse,\n    MissingEnvironmentIdentityError\n  > {\n    return Effect.gen({ self: this }, function* () {\n      return yield* this.lanes.run(this.laneKeys.access(), 'read', () =>\n        Effect.gen({ self: this }, function* () {\n          const { environmentId } = yield* this.readEnvironment.execute();\n          return { status: 'ok' as const, environmentId };\n        }),\n      );\n    });\n  }\n}\n",
+    valid: nativeHealthOperation,
     invalid:
       "export async function fixture(input: Input, environmentId: string) {         return new HealthReply(\n          this.readEnvironment.execute().environmentId,\n        ).body();\n\nclass HealthReply {\n  private readonly environmentId: string;\n\n  constructor(environmentId: string) {\n    this.environmentId = environmentId;\n  }\n\n  body(): ReadHealthResponse {\n    return { status: 'ok', environmentId: this.environmentId };\n  }\n}\n }",
     errors: 3,
-  },
-  {
-    rule: 'operation-class-shape',
-    path: 'apps/server/src/use-cases/access/read-health.ts',
-    valid:
-      "import { Effect } from 'effect';\nimport type { MissingEnvironmentIdentityError } from '@porcelain/access/errors';\nimport type { ReadEnvironmentService } from '@porcelain/access/services';\nimport type { ReadHealthResponse } from '@porcelain/contracts/access';\nimport type { LaneKeys } from '../../runtime/lane-keys.ts';\nimport type { Lanes } from '../../runtime/lanes.ts';\n\nexport class ReadHealthUseCase {\n  private readonly readEnvironment: ReadEnvironmentService;\n  private readonly lanes: Lanes;\n  private readonly laneKeys: LaneKeys;\n\n  constructor(\n    readEnvironment: ReadEnvironmentService,\n    lanes: Lanes,\n    laneKeys: LaneKeys,\n  ) {\n    this.readEnvironment = readEnvironment;\n    this.lanes = lanes;\n    this.laneKeys = laneKeys;\n  }\n\n  execute(): Effect.Effect<\n    ReadHealthResponse,\n    MissingEnvironmentIdentityError\n  > {\n    return Effect.gen({ self: this }, function* () {\n      return yield* this.lanes.run(this.laneKeys.access(), 'read', () =>\n        Effect.gen({ self: this }, function* () {\n          const { environmentId } = yield* this.readEnvironment.execute();\n          return { status: 'ok' as const, environmentId };\n        }),\n      );\n    });\n  }\n}\n",
-    invalid:
-      "import { Effect } from 'effect';\nimport type { ReadEnvironmentService } from '@porcelain/access/services';\nimport type { ReadHealthResponse } from '@porcelain/contracts/access';\nexport class ReadHealthUseCase {\n  private readonly readEnvironment: ReadEnvironmentService;\n\n  constructor(readEnvironment: ReadEnvironmentService) {\n    this.readEnvironment = readEnvironment;\n  }\n\n  execute(): Effect.Effect<ReadHealthResponse> {\n    return Effect.map(this.readEnvironment.execute(), ({ environmentId }) => this.respond(environmentId));\n  }\n\n  private readonly respond = (environmentId: string): ReadHealthResponse => ({\n    status: 'ok',\n    environmentId,\n  });\n}\n",
-    errors: 1,
   },
 
   {
@@ -3958,17 +3951,17 @@ const save = Effect.fail(new Error('Refused'));`,
   {
     rule: 'review-draft-types',
     valid:
-      "import { Effect } from 'effect';\nimport type { ValidateReviewDraftService, PublishReviewService } from '__REVIEW_SERVICES__';\nimport type { ReviewDraft } from '__REVIEW_MODELS__';\ndeclare const validate: ValidateReviewDraftService;\ndeclare const publish: PublishReviewService;\nconst input: ReviewDraft = { expectedRevision: 0, summaryHtml: '<p>Review</p>', layers: [] };\nconst publication = validate.execute(input).pipe(Effect.flatMap((draft) => publish.execute({ worktreeId: 'tree', draft, evidence: { changes: [], texts: new Map(), diffs: [] } })));",
+      "import { Effect, type Context } from 'effect';\nimport type { ValidateReviewDraftService, PublishReviewService } from '__REVIEW_SERVICES__';\nimport type { ReviewDraft } from '__REVIEW_MODELS__';\ndeclare const validate: Context.Service.Shape<typeof ValidateReviewDraftService>;\ndeclare const publish: Context.Service.Shape<typeof PublishReviewService>;\nconst input: ReviewDraft = { expectedRevision: 0, summaryHtml: '<p>Review</p>', layers: [] };\nconst publication = validate.execute(input).pipe(Effect.flatMap((draft) => publish.execute({ worktreeId: 'tree', draft, evidence: { changes: [], texts: new Map(), diffs: [] } })));",
     invalid:
-      "import { Effect } from 'effect';\nimport type { ValidateReviewDraftService, PublishReviewService } from '__REVIEW_SERVICES__';\nimport type { ReviewDraft } from '__REVIEW_MODELS__';\ndeclare const validate: ValidateReviewDraftService;\ndeclare const publish: PublishReviewService;\nconst input: ReviewDraft = { expectedRevision: 0, summaryHtml: '<p>Review</p>', layers: [] };\nconst publication = publish.execute({ worktreeId: 'tree', draft: input, evidence: { changes: [], texts: new Map(), diffs: [] } });",
+      "import { Effect, type Context } from 'effect';\nimport type { ValidateReviewDraftService, PublishReviewService } from '__REVIEW_SERVICES__';\nimport type { ReviewDraft } from '__REVIEW_MODELS__';\ndeclare const validate: Context.Service.Shape<typeof ValidateReviewDraftService>;\ndeclare const publish: Context.Service.Shape<typeof PublishReviewService>;\nconst input: ReviewDraft = { expectedRevision: 0, summaryHtml: '<p>Review</p>', layers: [] };\nconst publication = publish.execute({ worktreeId: 'tree', draft: input, evidence: { changes: [], texts: new Map(), diffs: [] } });",
     errors: ['TS2322'],
   },
   {
     rule: 'worktree-transaction-types',
     valid:
-      "import { Effect } from 'effect';\nimport { nativeRead, withReadLease } from '__ADMISSION__';\nimport type { Lanes } from '__LANES__';\ndeclare const lanes: Lanes;\nconst transaction = lanes.transaction('review', () => withReadLease('tree', nativeRead('tree', () => Promise.resolve('text'))), (text) => Effect.succeed(text), () => Effect.void);",
+      "import { Effect, type Context } from 'effect';\nimport { nativeRead, withReadLease } from '__ADMISSION__';\nimport type { Lanes } from '__LANES__';\ndeclare const lanes: Context.Service.Shape<typeof Lanes>;\nconst transaction = lanes.transaction('review', () => withReadLease('tree', nativeRead('tree', () => Promise.resolve('text'))), (text) => Effect.succeed(text), () => Effect.void);",
     invalid:
-      "import { Effect } from 'effect';\nimport { nativeRead, withReadLease } from '__ADMISSION__';\nimport type { Lanes } from '__LANES__';\ndeclare const lanes: Lanes;\nconst transaction = lanes.transaction('review', () => Effect.succeed('prepared'), () => nativeRead('tree', () => Promise.resolve('text')), () => Effect.void);",
+      "import { Effect, type Context } from 'effect';\nimport { nativeRead, withReadLease } from '__ADMISSION__';\nimport type { Lanes } from '__LANES__';\ndeclare const lanes: Context.Service.Shape<typeof Lanes>;\nconst transaction = lanes.transaction('review', () => Effect.succeed('prepared'), () => nativeRead('tree', () => Promise.resolve('text')), () => Effect.void);",
     errors: ['TS2375', 'TS377004'],
   },
   {

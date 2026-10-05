@@ -16,7 +16,11 @@ const observation = {
   },
   previousStamp: undefined,
 };
-const service = new ConfirmDiffObservationService();
+const service = Effect.runSync(
+  ConfirmDiffObservationService.pipe(
+    Effect.provide(ConfirmDiffObservationService.layer),
+  ),
+);
 
 describe('ConfirmDiffObservationService', () => {
   it('accepts an observation that matches what the reviewer saw', () => {

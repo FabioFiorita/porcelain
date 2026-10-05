@@ -1,3 +1,13 @@
+import { WorktreeConsistencyProbe } from '../../ports/worktree-consistency-probe.ts';
+import { CheckWorktreeUseCasePort } from '../../ports/check-worktree-use-case-port.ts';
+import { LaneOptions } from '../../ports/lane-options.ts';
+import {
+  ReviewStore,
+  ReviewedLayerStore,
+  CommentStore,
+  CommentSeenStore,
+} from '@porcelain/reviews/ports';
+import { FileReader, ReadTextFilesOptions } from '@porcelain/files/ports';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -5,13 +15,13 @@ import { Effect } from 'effect';
 import { expect, it } from 'vitest';
 import { nativeRead } from '@porcelain/effects/worktree';
 import { ReadTextFilesService } from '@porcelain/files/services';
-import type { ListedWorktree } from '@porcelain/projects/models';
+import { type ListedWorktree } from '@porcelain/projects/models';
 import {
   ListReviewedLayerPathsService,
   ReadReviewBadgesService,
 } from '@porcelain/reviews/services';
 import { currentLayerFingerprint } from '@porcelain/reviews/rules';
-import type { ReviewLayer } from '@porcelain/reviews/models';
+import { type ReviewLayer } from '@porcelain/reviews/models';
 import { openStorageSession } from '@porcelain/storage';
 import {
   createInventoryStore,
@@ -109,56 +119,92 @@ it('lets an arriving writer finish before badge text reads, without holding a re
     ],
   });
   const consistency = { execute: () => Effect.void };
-  const lanes = new Lanes({ readCapacity: 2, deadlineMs: 1000, consistency });
-  const keys = new LaneKeys();
+  const lanes = Effect.runSync(
+    Lanes.pipe(
+      Effect.provide(Lanes.layer),
+      Effect.provideService(LaneOptions, {
+        readCapacity: 2,
+        deadlineMs: 1000,
+        consistency,
+      }),
+    ),
+  );
+  const keys = Effect.runSync(LaneKeys.pipe(Effect.provide(LaneKeys.layer)));
   const order: string[] = [];
   let writer: Promise<void> | undefined;
-  const access = new WorktreeAccess(
-    {
-      execute: () =>
-        Effect.sync(() => {
-          writer = Effect.runPromise(
-            lanes.run(keys.repository(worktree), 'write', () =>
-              Effect.sync(() => {
-                order.push('write');
-              }),
-            ),
-          );
-          return worktree;
-        }),
-    },
-    consistency,
-    lanes,
-    keys,
-  );
-  const read = new ReadTextFilesService(
-    {
-      read: () => Effect.die(new Error('Badge reads request text only')),
-      readText: ({ worktreeId, path }) =>
-        nativeRead(worktreeId, () => {
-          order.push(`read:${path}`);
-          return Promise.resolve({
-            kind: 'text' as const,
-            text: 'current\n',
-            byteLength: 8,
-            revision: 'version',
-          });
-        }),
-    },
-    { maxBytes: 1000 },
-  );
-  const badges = new ReadInventoryBadgesUseCase(
-    access,
-    new ListReviewedLayerPathsService(reviews, marks),
-    read,
-    new ReadReviewBadgesService(
-      reviews,
-      marks,
-      createCommentStore(session),
-      createCommentSeenStore(session),
+  const access = Effect.runSync(
+    WorktreeAccess.pipe(
+      Effect.provide(WorktreeAccess.layer),
+      Effect.provideService(CheckWorktreeUseCasePort, {
+        execute: () =>
+          Effect.sync(() => {
+            writer = Effect.runPromise(
+              lanes.run(keys.repository(worktree), 'write', () =>
+                Effect.sync(() => {
+                  order.push('write');
+                }),
+              ),
+            );
+            return worktree;
+          }),
+      }),
+      Effect.provideService(WorktreeConsistencyProbe, consistency),
+      Effect.provideService(Lanes, lanes),
+      Effect.provideService(LaneKeys, keys),
     ),
-    lanes,
-    keys,
+  );
+  const read = Effect.runSync(
+    ReadTextFilesService.pipe(
+      Effect.provide(ReadTextFilesService.layer),
+      Effect.provideService(FileReader, {
+        read: () => Effect.die(new Error('Badge reads request text only')),
+        readText: ({ worktreeId, path }) =>
+          nativeRead(worktreeId, () => {
+            order.push(`read:${path}`);
+            return Promise.resolve({
+              kind: 'text' as const,
+              text: 'current\n',
+              byteLength: 8,
+              revision: 'version',
+            });
+          }),
+      }),
+      Effect.provideService(ReadTextFilesOptions, { maxBytes: 1000 }),
+    ),
+  );
+  const badges = Effect.runSync(
+    ReadInventoryBadgesUseCase.pipe(
+      Effect.provide(ReadInventoryBadgesUseCase.layer),
+      Effect.provideService(WorktreeAccess, access),
+      Effect.provideService(
+        ListReviewedLayerPathsService,
+        Effect.runSync(
+          ListReviewedLayerPathsService.pipe(
+            Effect.provide(ListReviewedLayerPathsService.layer),
+            Effect.provideService(ReviewStore, reviews),
+            Effect.provideService(ReviewedLayerStore, marks),
+          ),
+        ),
+      ),
+      Effect.provideService(ReadTextFilesService, read),
+      Effect.provideService(
+        ReadReviewBadgesService,
+        Effect.runSync(
+          ReadReviewBadgesService.pipe(
+            Effect.provide(ReadReviewBadgesService.layer),
+            Effect.provideService(ReviewStore, reviews),
+            Effect.provideService(ReviewedLayerStore, marks),
+            Effect.provideService(CommentStore, createCommentStore(session)),
+            Effect.provideService(
+              CommentSeenStore,
+              createCommentSeenStore(session),
+            ),
+          ),
+        ),
+      ),
+      Effect.provideService(Lanes, lanes),
+      Effect.provideService(LaneKeys, keys),
+    ),
   );
   try {
     const result = await Effect.runPromise(

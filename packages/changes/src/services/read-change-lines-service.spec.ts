@@ -1,3 +1,4 @@
+import { ReadChangeLinesOptions } from '@porcelain/changes/ports';
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { InvalidLineRangeError } from '@porcelain/kernel/errors';
@@ -10,7 +11,12 @@ describe('ReadChangeLinesService', () => {
   it('answers the lines of the range', () => {
     expect(
       Effect.runSync(
-        new ReadChangeLinesService({ maxLines: 10 }).execute({
+        Effect.runSync(
+          ReadChangeLinesService.pipe(
+            Effect.provide(ReadChangeLinesService.layer),
+            Effect.provideService(ReadChangeLinesOptions, { maxLines: 10 }),
+          ),
+        ).execute({
           ...range,
           from: 2,
           to: 3,
@@ -22,7 +28,12 @@ describe('ReadChangeLinesService', () => {
   it('answers at most the allowed number of lines', () => {
     expect(
       Effect.runSync(
-        new ReadChangeLinesService({ maxLines: 2 }).execute({
+        Effect.runSync(
+          ReadChangeLinesService.pipe(
+            Effect.provide(ReadChangeLinesService.layer),
+            Effect.provideService(ReadChangeLinesOptions, { maxLines: 2 }),
+          ),
+        ).execute({
           ...range,
           from: 1,
           to: 4,
@@ -34,7 +45,12 @@ describe('ReadChangeLinesService', () => {
   it('refuses a range that ends before it starts', () => {
     expect(() =>
       Effect.runSync(
-        new ReadChangeLinesService({ maxLines: 10 }).execute({
+        Effect.runSync(
+          ReadChangeLinesService.pipe(
+            Effect.provide(ReadChangeLinesService.layer),
+            Effect.provideService(ReadChangeLinesOptions, { maxLines: 10 }),
+          ),
+        ).execute({
           ...range,
           from: 3,
           to: 2,

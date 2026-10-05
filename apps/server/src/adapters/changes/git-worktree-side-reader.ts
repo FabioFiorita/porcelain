@@ -1,23 +1,23 @@
-import type { Effect } from 'effect';
-import type { WorktreeRead } from '@porcelain/effects/worktree';
+import { type Effect } from 'effect';
+import { type WorktreeRead } from '@porcelain/effects/worktree';
 import { readGit } from '../../runtime/git-io.ts';
-import type { GitIoFailure } from '../../ports/git-io-failure.ts';
+import { type GitIoFailure } from '@porcelain/git/errors';
 import { join } from 'node:path';
-import type {
-  StagingStampRequest,
-  SubmoduleHeadsRequest,
-  WorktreeEntriesRequest,
-  WorktreeEntry,
+import {
+  type StagingStampRequest,
+  type SubmoduleHeadsRequest,
+  type WorktreeEntriesRequest,
+  type WorktreeEntry,
 } from '@porcelain/changes/models';
-import type { WorktreeSideReader } from '@porcelain/changes/ports';
-import type { OpenInspection } from './inspection-checkouts.ts';
+import { type WorktreeSideReader } from '@porcelain/changes/ports';
+import { type OpenInspection } from './inspection-checkouts.ts';
 import {
   readWorktreeFiles,
   stampPath,
   type WorktreeReadOptions,
 } from './worktree-files.ts';
 
-export class GitWorktreeSideReader implements WorktreeSideReader<GitIoFailure> {
+export class GitWorktreeSideReader implements WorktreeSideReader {
   private readonly open: OpenInspection;
   private readonly options: WorktreeReadOptions;
 

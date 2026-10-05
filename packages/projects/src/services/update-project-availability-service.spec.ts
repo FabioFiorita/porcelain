@@ -1,7 +1,8 @@
+import { InventoryStore } from '@porcelain/projects/ports';
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { ProjectNotFoundError } from '@porcelain/projects/errors';
-import type { RegisteredProject } from '@porcelain/projects/models';
+import { type RegisteredProject } from '@porcelain/projects/models';
 import { InMemoryInventoryStore } from '../../spec/fakes/in-memory-inventory-store.ts';
 import { UpdateProjectAvailabilityService } from './update-project-availability-service.ts';
 
@@ -29,7 +30,12 @@ describe('UpdateProjectAvailabilityService', () => {
   it('stores the availability the listing observed', () => {
     const store = new InMemoryInventoryStore([project]);
     Effect.runSync(
-      new UpdateProjectAvailabilityService(store).execute(listing(true)),
+      Effect.runSync(
+        UpdateProjectAvailabilityService.pipe(
+          Effect.provide(UpdateProjectAvailabilityService.layer),
+          Effect.provideService(InventoryStore, store),
+        ),
+      ).execute(listing(true)),
     );
     expect(store.read().projects).toEqual([{ ...project, available: true }]);
   });
@@ -38,7 +44,12 @@ describe('UpdateProjectAvailabilityService', () => {
     const store = new InMemoryInventoryStore([project]);
     store.save({ ...project, name: 'Renamed meanwhile' });
     Effect.runSync(
-      new UpdateProjectAvailabilityService(store).execute(listing(true)),
+      Effect.runSync(
+        UpdateProjectAvailabilityService.pipe(
+          Effect.provide(UpdateProjectAvailabilityService.layer),
+          Effect.provideService(InventoryStore, store),
+        ),
+      ).execute(listing(true)),
     );
     expect(store.read().projects[0]?.name).toBe('Renamed meanwhile');
   });
@@ -48,7 +59,12 @@ describe('UpdateProjectAvailabilityService', () => {
     store.remove({ projectId: project.id });
     expect(() =>
       Effect.runSync(
-        new UpdateProjectAvailabilityService(store).execute(listing(true)),
+        Effect.runSync(
+          UpdateProjectAvailabilityService.pipe(
+            Effect.provide(UpdateProjectAvailabilityService.layer),
+            Effect.provideService(InventoryStore, store),
+          ),
+        ).execute(listing(true)),
       ),
     ).toThrow(ProjectNotFoundError);
     expect(store.read().projects).toEqual([]);
@@ -57,7 +73,12 @@ describe('UpdateProjectAvailabilityService', () => {
   it('marks a listed project unavailable when the listing could not reach it', () => {
     const store = new InMemoryInventoryStore([{ ...project, available: true }]);
     Effect.runSync(
-      new UpdateProjectAvailabilityService(store).execute(listing(false)),
+      Effect.runSync(
+        UpdateProjectAvailabilityService.pipe(
+          Effect.provide(UpdateProjectAvailabilityService.layer),
+          Effect.provideService(InventoryStore, store),
+        ),
+      ).execute(listing(false)),
     );
     expect(store.read().projects[0]?.available).toBe(false);
   });

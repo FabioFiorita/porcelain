@@ -1,106 +1,101 @@
-import type {
+import {
   CloseTunnelConnectionsService,
   OpenRemoteRoutesService,
   ReadEnvironmentService,
   SetRemoteAccessService,
 } from '@porcelain/access/services';
-import type {
-  SetRemoteAccessRequest,
-  SetRemoteAccessResponse,
+import {
+  type SetRemoteAccessRequest,
+  type SetRemoteAccessResponse,
 } from '@porcelain/contracts/access';
-import type { LaneKeys } from '../../runtime/lane-keys.ts';
-import type { Lanes } from '../../runtime/lanes.ts';
-import type { Logger } from '../../ports/logger.ts';
-import type { Context } from 'effect';
-import { Cause, Effect } from 'effect';
-import type {
-  InvalidTailnetHostnameError,
-  InvalidTunnelHostnameError,
-  MissingTailnetHostnameError,
-  MissingTunnelHostnameError,
-  NoLocalNetworkError,
-  UnidentifiedLocalNetworkError,
+import { LaneKeys } from '../../runtime/lane-keys.ts';
+import { Lanes } from '../../runtime/lanes.ts';
+import { Logger } from '../../ports/logger.ts';
+import { Context, Effect, Layer, Cause } from 'effect';
+import {
+  type InvalidTailnetHostnameError,
+  type InvalidTunnelHostnameError,
+  type MissingTailnetHostnameError,
+  type MissingTunnelHostnameError,
+  type NoLocalNetworkError,
+  type UnidentifiedLocalNetworkError,
 } from '@porcelain/access/errors';
 
-export class SetRemoteAccessUseCase {
-  private readonly setRemoteAccess: Context.Service.Shape<
-    typeof SetRemoteAccessService
-  >;
-  private readonly openRemoteRoutes: Context.Service.Shape<
-    typeof OpenRemoteRoutesService
-  >;
-  private readonly closeTunnelConnections: Context.Service.Shape<
-    typeof CloseTunnelConnectionsService
-  >;
-  private readonly readEnvironment: Context.Service.Shape<
-    typeof ReadEnvironmentService
-  >;
-  private readonly lanes: Lanes;
-  private readonly laneKeys: LaneKeys;
-  private readonly logger: Logger;
-
-  constructor(
-    setRemoteAccess: Context.Service.Shape<typeof SetRemoteAccessService>,
-    openRemoteRoutes: Context.Service.Shape<typeof OpenRemoteRoutesService>,
-    closeTunnelConnections: Context.Service.Shape<
-      typeof CloseTunnelConnectionsService
-    >,
-    readEnvironment: Context.Service.Shape<typeof ReadEnvironmentService>,
-    lanes: Lanes,
-    laneKeys: LaneKeys,
-    logger: Logger,
-  ) {
-    this.setRemoteAccess = setRemoteAccess;
-    this.openRemoteRoutes = openRemoteRoutes;
-    this.closeTunnelConnections = closeTunnelConnections;
-    this.readEnvironment = readEnvironment;
-    this.lanes = lanes;
-    this.laneKeys = laneKeys;
-    this.logger = logger;
+export class SetRemoteAccessUseCase extends Context.Service<
+  SetRemoteAccessUseCase,
+  {
+    readonly execute: (
+      input: SetRemoteAccessRequest,
+    ) => Effect.Effect<
+      SetRemoteAccessResponse,
+      | InvalidTailnetHostnameError
+      | InvalidTunnelHostnameError
+      | MissingTailnetHostnameError
+      | MissingTunnelHostnameError
+      | NoLocalNetworkError
+      | UnidentifiedLocalNetworkError
+    >;
   }
+>()('@porcelain/server/SetRemoteAccessUseCase') {
+  static readonly layer = Layer.effect(
+    SetRemoteAccessUseCase,
+    Effect.gen(function* () {
+      const setRemoteAccessCapability = yield* SetRemoteAccessService;
+      const openRemoteRoutesCapability = yield* OpenRemoteRoutesService;
+      const closeTunnelConnectionsCapability =
+        yield* CloseTunnelConnectionsService;
+      const readEnvironmentCapability = yield* ReadEnvironmentService;
+      const lanesCapability = yield* Lanes;
+      const laneKeysCapability = yield* LaneKeys;
+      const loggerCapability = yield* Logger;
 
-  execute(
-    input: SetRemoteAccessRequest,
-  ): Effect.Effect<
-    SetRemoteAccessResponse,
-    | InvalidTailnetHostnameError
-    | InvalidTunnelHostnameError
-    | MissingTailnetHostnameError
-    | MissingTunnelHostnameError
-    | NoLocalNetworkError
-    | UnidentifiedLocalNetworkError
-  > {
-    return this.lanes.commit(
-      this.laneKeys.remoteAccess(),
-      () =>
-        Effect.uninterruptible(
-          Effect.gen({ self: this }, function* () {
-            const changed = yield* this.setRemoteAccess.execute(input);
-            yield* this.closeTunnelConnections.execute();
-            return changed;
-          }),
-        ),
-      () =>
-        this.lanes.background(
-          this.laneKeys.remoteAccess(),
-          () =>
-            Effect.gen({ self: this }, function* () {
-              yield* this.openRemoteRoutes.execute(
-                yield* this.readEnvironment.execute(),
-              );
-              yield* this.closeTunnelConnections.execute();
-            }),
-          (cause) =>
-            Cause.hasInterruptsOnly(cause)
-              ? Effect.void
-              : Effect.sync(() =>
-                  this.logger.failure({
-                    kind: 'job',
-                    job: 'open-remote-routes',
-                    error: Cause.squash(cause),
+      return {
+        execute: Effect.fn('SetRemoteAccessUseCase.execute')(function* (
+          input: SetRemoteAccessRequest,
+        ): Effect.fn.Return<
+          SetRemoteAccessResponse,
+          | InvalidTailnetHostnameError
+          | InvalidTunnelHostnameError
+          | MissingTailnetHostnameError
+          | MissingTunnelHostnameError
+          | NoLocalNetworkError
+          | UnidentifiedLocalNetworkError
+        > {
+          return yield* lanesCapability.commit(
+            laneKeysCapability.remoteAccess(),
+            () =>
+              Effect.uninterruptible(
+                Effect.gen(function* () {
+                  const changed =
+                    yield* setRemoteAccessCapability.execute(input);
+                  yield* closeTunnelConnectionsCapability.execute();
+                  return changed;
+                }),
+              ),
+            () =>
+              lanesCapability.background(
+                laneKeysCapability.remoteAccess(),
+                () =>
+                  Effect.gen(function* () {
+                    yield* openRemoteRoutesCapability.execute(
+                      yield* readEnvironmentCapability.execute(),
+                    );
+                    yield* closeTunnelConnectionsCapability.execute();
                   }),
-                ),
-        ),
-    );
-  }
+                (cause) =>
+                  Cause.hasInterruptsOnly(cause)
+                    ? Effect.void
+                    : Effect.sync(() =>
+                        loggerCapability.failure({
+                          kind: 'job',
+                          job: 'open-remote-routes',
+                          error: Cause.squash(cause),
+                        }),
+                      ),
+              ),
+          );
+        }),
+      };
+    }),
+  );
 }

@@ -1,58 +1,65 @@
-import type { Context } from 'effect';
-import { Effect } from 'effect';
-import type {
-  InvalidPairingAddressError,
-  InvalidDeviceDetailsError,
-  MissingEnvironmentIdentityError,
+import { Context, Effect, Layer } from 'effect';
+import {
+  type InvalidPairingAddressError,
+  type InvalidDeviceDetailsError,
+  type MissingEnvironmentIdentityError,
 } from '@porcelain/access/errors';
-import type {
+import {
   IssuePairingService,
   ReadEnvironmentService,
 } from '@porcelain/access/services';
-import type {
-  IssuePairingRequest,
-  IssuePairingResponse,
+import {
+  type IssuePairingRequest,
+  type IssuePairingResponse,
 } from '@porcelain/contracts/access';
-import type { LaneKeys } from '../../runtime/lane-keys.ts';
-import type { Lanes } from '../../runtime/lanes.ts';
+import { LaneKeys } from '../../runtime/lane-keys.ts';
+import { Lanes } from '../../runtime/lanes.ts';
 
-export class IssuePairingUseCase {
-  private readonly readEnvironment: Context.Service.Shape<
-    typeof ReadEnvironmentService
-  >;
-  private readonly issuePairing: Context.Service.Shape<
-    typeof IssuePairingService
-  >;
-  private readonly lanes: Lanes;
-  private readonly laneKeys: LaneKeys;
-
-  constructor(
-    readEnvironment: Context.Service.Shape<typeof ReadEnvironmentService>,
-    issuePairing: Context.Service.Shape<typeof IssuePairingService>,
-    lanes: Lanes,
-    laneKeys: LaneKeys,
-  ) {
-    this.readEnvironment = readEnvironment;
-    this.issuePairing = issuePairing;
-    this.lanes = lanes;
-    this.laneKeys = laneKeys;
+export class IssuePairingUseCase extends Context.Service<
+  IssuePairingUseCase,
+  {
+    readonly execute: (
+      input: IssuePairingRequest,
+    ) => Effect.Effect<
+      IssuePairingResponse,
+      | InvalidPairingAddressError
+      | InvalidDeviceDetailsError
+      | MissingEnvironmentIdentityError
+    >;
   }
+>()('@porcelain/server/IssuePairingUseCase') {
+  static readonly layer = Layer.effect(
+    IssuePairingUseCase,
+    Effect.gen(function* () {
+      const readEnvironmentCapability = yield* ReadEnvironmentService;
+      const issuePairingCapability = yield* IssuePairingService;
+      const lanesCapability = yield* Lanes;
+      const laneKeysCapability = yield* LaneKeys;
 
-  execute(
-    input: IssuePairingRequest,
-  ): Effect.Effect<
-    IssuePairingResponse,
-    | InvalidPairingAddressError
-    | InvalidDeviceDetailsError
-    | MissingEnvironmentIdentityError
-  > {
-    return Effect.gen({ self: this }, function* () {
-      return yield* this.lanes.run(this.laneKeys.access(), 'write', () =>
-        Effect.gen({ self: this }, function* () {
-          const { environmentId } = yield* this.readEnvironment.execute();
-          return yield* this.issuePairing.execute({ ...input, environmentId });
+      return {
+        execute: Effect.fn('IssuePairingUseCase.execute')(function* (
+          input: IssuePairingRequest,
+        ): Effect.fn.Return<
+          IssuePairingResponse,
+          | InvalidPairingAddressError
+          | InvalidDeviceDetailsError
+          | MissingEnvironmentIdentityError
+        > {
+          return yield* lanesCapability.run(
+            laneKeysCapability.access(),
+            'write',
+            () =>
+              Effect.gen(function* () {
+                const { environmentId } =
+                  yield* readEnvironmentCapability.execute();
+                return yield* issuePairingCapability.execute({
+                  ...input,
+                  environmentId,
+                });
+              }),
+          );
         }),
-      );
-    });
-  }
+      };
+    }),
+  );
 }

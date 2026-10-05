@@ -1,3 +1,42 @@
+import { FindWorktreeByPathUseCasePort } from '../ports/at-worktree-path-use-case-port.ts';
+import {
+  ReadWorktreeStatusService,
+  ReadChangeFingerprintsService,
+  ReadBranchChangesService,
+} from '@porcelain/changes/services';
+import { Logger } from '../ports/logger.ts';
+import { RefreshWorktreeReviewUseCasePort } from '../ports/refresh-worktree-review-use-case-port.ts';
+import {
+  ListRegisteredProjectsService,
+  ListKnownWorktreesService,
+} from '@porcelain/projects/services';
+import { ReadEnvironmentService } from '@porcelain/access/services';
+import {
+  ReadBinaryFilesService,
+  ReadTextFilesService,
+} from '@porcelain/files/services';
+import { ReadReviewEvidenceUseCasePort } from '../ports/read-review-evidence-use-case-port.ts';
+import { EventPublisher } from '../ports/event-publisher.ts';
+import { LaneKeys } from '../runtime/lane-keys.ts';
+import { Lanes } from '../runtime/lanes.ts';
+import { WorktreeConsistencyProbe } from '../ports/worktree-consistency-probe.ts';
+import {
+  SignatureSource,
+  ResolvePublishedReviewOptions,
+  ReviewedFileStore,
+  SetReviewedFilesOptions,
+  CommentStore,
+  CreateCommentThreadOptions,
+  ReplyToCommentOptions,
+  ReviewStore,
+  ProofLimits,
+  ReviewedLayerStore,
+  EditCommentMessageOptions,
+  CommentSeenStore,
+  ReadProofFileOptions,
+} from '@porcelain/reviews/ports';
+import { Clock, IdSource, SecretSource } from '@porcelain/kernel/ports';
+import { Effect, Layer } from 'effect';
 import { summaryRoutes } from '../http/routes/reviews/summary-api.ts';
 import { reviewsRoutes } from '../http/routes/reviews/reviews-api.ts';
 import { WorktreeAccess } from '../runtime/worktree-access.ts';
@@ -23,6 +62,10 @@ import {
   SetReviewedFilesService,
   SetReviewedLayerService,
   UpdateCommentThreadService,
+  ReadPublishedReviewService,
+  RecordReviewActivityService,
+  InvalidateReviewedMarksService,
+  ListReviewedLayerPathsService,
 } from '@porcelain/reviews/services';
 import { HmacSignatureSource } from '../adapters/reviews/hmac-signature-source.ts';
 import { RandomSecretSource } from '../adapters/runtime/random-secret-source.ts';
@@ -48,11 +91,10 @@ import { ReplyToCommentUseCase } from '../use-cases/reviews/reply-to-comment.ts'
 import { SetReviewedFilesUseCase } from '../use-cases/reviews/set-reviewed-files.ts';
 import { SetReviewedLayerUseCase } from '../use-cases/reviews/set-reviewed-layer.ts';
 import { UpdateCommentThreadUseCase } from '../use-cases/reviews/update-comment-thread.ts';
-import type { CheckWorktreeUseCasePort } from '../ports/check-worktree-use-case-port.ts';
-import type { FindWorktreeByPathUseCasePort } from '../ports/at-worktree-path-use-case-port.ts';
-import type { ComposeContext } from './compose-context.ts';
-import type { Shared } from './compose-shared.ts';
-import type { Stores } from './compose-stores.ts';
+import { CheckWorktreeUseCasePort } from '../ports/check-worktree-use-case-port.ts';
+import { type ComposeContext } from './compose-context.ts';
+import { type Shared } from './compose-shared.ts';
+import { type Stores } from './compose-stores.ts';
 
 type ReviewsDependencies = {
   stores: Stores;
@@ -70,199 +112,141 @@ export function composeReviews(
   const { stores, shared } = dependencies;
   const { readEnvironment } = shared;
   const { checkWorktree } = dependencies;
-  const access = new WorktreeAccess(
-    checkWorktree,
-    shared.confirmWorktree,
-    lanes,
-    laneKeys,
-  );
   const signatureSource = new HmacSignatureSource();
   const commentStore = stores.comments;
   const reviewStore = stores.reviews;
   const reviewedFileStore = stores.reviewedFiles;
   const reviewedLayerStore = stores.reviewedLayers;
   const { readPublishedReview } = shared;
-  const resolvePublishedReview = new ResolvePublishedReviewService(
-    clock,
-    signatureSource,
-    limits.summaryLink,
-  );
-  const setReviewedFiles = new SetReviewedFilesService(
-    reviewedFileStore,
-    clock,
-    limits.reviewedFiles,
-  );
-
-  const listCommentThreads = new ListCommentThreadsUseCase(
-    access,
-    new ListCommentThreadsService(commentStore),
-  );
-  const createCommentThread = new CreateCommentThreadUseCase(
-    access,
-    new CreateCommentThreadService(commentStore, ids, clock, limits.comments),
-    events,
-  );
-  const replyToComment = new ReplyToCommentUseCase(
-    access,
-    new ReplyToCommentService(commentStore, ids, clock, limits.comments),
-    events,
-  );
-  const updateCommentThread = new UpdateCommentThreadUseCase(
-    access,
-    new UpdateCommentThreadService(commentStore),
-    events,
-  );
-  const publishReview = new PublishReviewUseCase(
-    access,
-    new ValidateReviewDraftService(),
-    new CheckReviewDraftService(reviewStore),
-    shared.readReviewEvidence,
-    shared.readBinaryFiles,
-    new PublishReviewService(
-      reviewStore,
-      clock,
-      ids,
-      new RandomSecretSource(limits.summaryLink),
-      limits.proof,
-    ),
-    readEnvironment,
-    resolvePublishedReview,
-    events,
-  );
-  const readPublishedReviewUseCase = new ReadPublishedReviewUseCase(
-    access,
-    readPublishedReview,
-    shared.readReviewEvidence,
-    readEnvironment,
-    resolvePublishedReview,
-  );
-  const refreshWorktreeReview = new RefreshWorktreeReviewUseCase(
-    access,
-    readPublishedReview,
-    shared.readReviewEvidence,
-    shared.recordReviewActivity,
-    events,
-  );
   const listReviewedLayerPaths = shared.listReviewedLayerPaths;
-  const listReviewedLayers = new ListReviewedLayersService(
-    reviewStore,
-    reviewedLayerStore,
-  );
   const { findWorktreeByPath } = dependencies;
-
-  const useCases = {
-    publishReviewAtPath: new AtWorktreePathUseCase<typeof publishReview>(
-      findWorktreeByPath,
-      publishReview,
-    ),
-    readPublishedReviewAtPath: new AtWorktreePathUseCase<
-      typeof readPublishedReviewUseCase
-    >(findWorktreeByPath, readPublishedReviewUseCase),
-    listCommentThreadsAtPath: new AtWorktreePathUseCase<
-      typeof listCommentThreads
-    >(findWorktreeByPath, listCommentThreads),
-    createCommentThreadAtPath: new AtWorktreePathUseCase<
-      typeof createCommentThread
-    >(findWorktreeByPath, createCommentThread),
-    replyToCommentAtPath: new AtWorktreePathUseCase<typeof replyToComment>(
-      findWorktreeByPath,
-      replyToComment,
-    ),
-    updateCommentThreadAtPath: new AtWorktreePathUseCase<
-      typeof updateCommentThread
-    >(findWorktreeByPath, updateCommentThread),
-    refreshReviewActivity: new RefreshReviewActivityUseCase(
-      shared.listRegisteredProjects,
-      shared.listKnownWorktrees,
-      refreshWorktreeReview,
-      lanes,
-      laneKeys,
-      logger,
-    ),
-    refreshWorktreeReview,
-    invalidateReviewedMarks: new InvalidateReviewedMarksUseCase(
-      access,
+  const ports = Layer.mergeAll(
+    Layer.succeed(CheckWorktreeUseCasePort, checkWorktree),
+    Layer.succeed(WorktreeConsistencyProbe, shared.confirmWorktree),
+    Layer.succeed(Lanes, lanes),
+    Layer.succeed(LaneKeys, laneKeys),
+    Layer.succeed(Clock, clock),
+    Layer.succeed(SignatureSource, signatureSource),
+    Layer.succeed(ResolvePublishedReviewOptions, limits.summaryLink),
+    Layer.succeed(ReviewedFileStore, reviewedFileStore),
+    Layer.succeed(SetReviewedFilesOptions, limits.reviewedFiles),
+    Layer.succeed(CommentStore, commentStore),
+    Layer.succeed(IdSource, ids),
+    Layer.succeed(CreateCommentThreadOptions, limits.comments),
+    Layer.succeed(EventPublisher, events),
+    Layer.succeed(ReplyToCommentOptions, limits.comments),
+    Layer.succeed(ReviewStore, reviewStore),
+    Layer.succeed(ReadReviewEvidenceUseCasePort, shared.readReviewEvidence),
+    Layer.succeed(ReadBinaryFilesService, shared.readBinaryFiles),
+    Layer.succeed(SecretSource, new RandomSecretSource(limits.summaryLink)),
+    Layer.succeed(ProofLimits, limits.proof),
+    Layer.succeed(ReadEnvironmentService, readEnvironment),
+    Layer.succeed(ReadPublishedReviewService, readPublishedReview),
+    Layer.succeed(RecordReviewActivityService, shared.recordReviewActivity),
+    Layer.succeed(ReviewedLayerStore, reviewedLayerStore),
+    Layer.succeed(FindWorktreeByPathUseCasePort, findWorktreeByPath),
+    Layer.succeed(ListRegisteredProjectsService, shared.listRegisteredProjects),
+    Layer.succeed(ListKnownWorktreesService, shared.listKnownWorktrees),
+    Layer.succeed(Logger, logger),
+    Layer.succeed(
+      InvalidateReviewedMarksService,
       shared.invalidateReviewedMarks,
-      events,
     ),
-    listCommentThreads,
-    createCommentThread,
-    replyToComment,
-    updateCommentThread,
-    editCommentMessage: new EditCommentMessageUseCase(
-      access,
-      new EditCommentMessageService(commentStore, clock, limits.comments),
-      events,
+    Layer.succeed(EditCommentMessageOptions, limits.comments),
+    Layer.succeed(CommentSeenStore, stores.commentsSeen),
+    Layer.succeed(ReadProofFileOptions, limits.proof),
+    Layer.succeed(ReadWorktreeStatusService, shared.readWorktreeStatus),
+    Layer.succeed(ReadChangeFingerprintsService, shared.readChangeFingerprints),
+    Layer.succeed(ReadBranchChangesService, shared.readBranchChanges),
+    Layer.succeed(ListReviewedLayerPathsService, listReviewedLayerPaths),
+    Layer.succeed(ReadTextFilesService, shared.readTextFilesService),
+  );
+  const services = Layer.mergeAll(
+    WorktreeAccess.layer,
+    ResolvePublishedReviewService.layer,
+    SetReviewedFilesService.layer,
+    ListCommentThreadsService.layer,
+    CreateCommentThreadService.layer,
+    ReplyToCommentService.layer,
+    UpdateCommentThreadService.layer,
+    ValidateReviewDraftService.layer,
+    CheckReviewDraftService.layer,
+    PublishReviewService.layer,
+    ListReviewedLayersService.layer,
+    AtWorktreePathUseCase.layer,
+    EditCommentMessageService.layer,
+    DeleteCommentMessageService.layer,
+    DeleteResolvedCommentsService.layer,
+    MarkCommentsSeenService.layer,
+    ReadProofFileService.layer,
+    ReadReviewSummaryService.layer,
+    ListReviewedFilesService.layer,
+    RemoveReviewedFilesService.layer,
+    ReadReviewLayerService.layer,
+    SetReviewedLayerService.layer,
+    RemoveReviewedLayerService.layer,
+  ).pipe(Layer.provideMerge(ports));
+  const operations = Layer.mergeAll(
+    ListCommentThreadsUseCase.layer,
+    CreateCommentThreadUseCase.layer,
+    ReplyToCommentUseCase.layer,
+    UpdateCommentThreadUseCase.layer,
+    PublishReviewUseCase.layer,
+    ReadPublishedReviewUseCase.layer,
+    RefreshWorktreeReviewUseCase.layer,
+    InvalidateReviewedMarksUseCase.layer,
+    EditCommentMessageUseCase.layer,
+    DeleteCommentMessageUseCase.layer,
+    DeleteResolvedCommentsUseCase.layer,
+    MarkCommentsSeenUseCase.layer,
+    ReadProofFileUseCase.layer,
+    ReadReviewSummaryUseCase.layer,
+    ListReviewedFilesUseCase.layer,
+    SetReviewedFilesUseCase.layer,
+    RemoveReviewedFilesUseCase.layer,
+    ListReviewedLayersUseCase.layer,
+    SetReviewedLayerUseCase.layer,
+    RemoveReviewedLayerUseCase.layer,
+  ).pipe(Layer.provideMerge(services));
+  const admission = Layer.mergeAll(
+    Layer.effect(
+      RefreshWorktreeReviewUseCasePort,
+      RefreshWorktreeReviewUseCase,
     ),
-    deleteCommentMessage: new DeleteCommentMessageUseCase(
-      access,
-      new DeleteCommentMessageService(commentStore),
-      events,
-    ),
-    deleteResolvedComments: new DeleteResolvedCommentsUseCase(
-      access,
-      new DeleteResolvedCommentsService(commentStore),
-      events,
-    ),
-    markCommentsSeen: new MarkCommentsSeenUseCase(
-      access,
-      new MarkCommentsSeenService(stores.commentsSeen, commentStore),
-      events,
-    ),
-    publishReview,
-    readPublishedReview: readPublishedReviewUseCase,
-    readProofFile: new ReadProofFileUseCase(
-      access,
-      new ReadProofFileService(reviewStore, limits.proof),
-    ),
-    readReviewSummary: new ReadReviewSummaryUseCase(
-      new ReadReviewSummaryService(reviewStore, clock, signatureSource),
-      lanes,
-    ),
-    listReviewedFiles: new ListReviewedFilesUseCase(
-      access,
-      new ListReviewedFilesService(reviewedFileStore),
-    ),
-    setReviewedFiles: new SetReviewedFilesUseCase(
-      access,
-      shared.readWorktreeStatus,
-      shared.readChangeFingerprints,
-      shared.readBranchChanges,
-      setReviewedFiles,
-      events,
-    ),
-    removeReviewedFiles: new RemoveReviewedFilesUseCase(
-      access,
-      new RemoveReviewedFilesService(reviewedFileStore),
-      events,
-    ),
-    listReviewedLayers: new ListReviewedLayersUseCase(
-      access,
-      listReviewedLayerPaths,
-      shared.readTextFilesService,
-      listReviewedLayers,
-    ),
-    setReviewedLayer: new SetReviewedLayerUseCase(
-      access,
-      new ReadReviewLayerService(reviewStore),
-      shared.readTextFilesService,
-      new SetReviewedLayerService(reviewedLayerStore, clock),
-      listReviewedLayerPaths,
-      listReviewedLayers,
-      events,
-    ),
-    removeReviewedLayer: new RemoveReviewedLayerUseCase(
-      access,
-      new RemoveReviewedLayerService(reviewedLayerStore),
-      listReviewedLayerPaths,
-      shared.readTextFilesService,
-      listReviewedLayers,
-      events,
-    ),
-  };
-  return {
-    ...useCases,
-    routes: reviewsRoutes(useCases, context.settings.limits.http),
-    summaryRoutes: summaryRoutes(useCases.readReviewSummary),
-  };
+  ).pipe(Layer.provideMerge(operations));
+  const application = Layer.mergeAll(RefreshReviewActivityUseCase.layer).pipe(
+    Layer.provideMerge(admission),
+  );
+  return Effect.gen(function* () {
+    const useCases = {
+      atWorktreePath: yield* AtWorktreePathUseCase,
+
+      refreshReviewActivity: yield* RefreshReviewActivityUseCase,
+      refreshWorktreeReview: yield* RefreshWorktreeReviewUseCase,
+      invalidateReviewedMarks: yield* InvalidateReviewedMarksUseCase,
+      listCommentThreads: yield* ListCommentThreadsUseCase,
+      createCommentThread: yield* CreateCommentThreadUseCase,
+      replyToComment: yield* ReplyToCommentUseCase,
+      updateCommentThread: yield* UpdateCommentThreadUseCase,
+      editCommentMessage: yield* EditCommentMessageUseCase,
+      deleteCommentMessage: yield* DeleteCommentMessageUseCase,
+      deleteResolvedComments: yield* DeleteResolvedCommentsUseCase,
+      markCommentsSeen: yield* MarkCommentsSeenUseCase,
+      publishReview: yield* PublishReviewUseCase,
+      readPublishedReview: yield* ReadPublishedReviewUseCase,
+      readProofFile: yield* ReadProofFileUseCase,
+      readReviewSummary: yield* ReadReviewSummaryUseCase,
+      listReviewedFiles: yield* ListReviewedFilesUseCase,
+      setReviewedFiles: yield* SetReviewedFilesUseCase,
+      removeReviewedFiles: yield* RemoveReviewedFilesUseCase,
+      listReviewedLayers: yield* ListReviewedLayersUseCase,
+      setReviewedLayer: yield* SetReviewedLayerUseCase,
+      removeReviewedLayer: yield* RemoveReviewedLayerUseCase,
+    };
+    return {
+      ...useCases,
+      routes: reviewsRoutes(useCases, context.settings.limits.http),
+      summaryRoutes: summaryRoutes(useCases.readReviewSummary),
+    };
+  }).pipe(Effect.provide(application));
 }

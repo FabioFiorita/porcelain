@@ -1,8 +1,8 @@
-import type { WorktreeKey } from '@porcelain/kernel/models';
-import type { Effect } from 'effect';
-import type { GitIoFailure } from './git-io-failure.ts';
-import type { WorktreeAccessFailure } from './worktree-access-failure.ts';
-import type { IncompleteDiffReadError } from '@porcelain/changes/errors';
+import { type WorktreeKey } from '@porcelain/kernel/models';
+import { type Effect, Context } from 'effect';
+import { type GitIoFailure } from '@porcelain/git/errors';
+import { type WorktreeAccessFailure } from './worktree-access-failure.ts';
+import { type IncompleteDiffReadError } from '@porcelain/changes/errors';
 
 export interface RefreshWorktreeReviewUseCasePort {
   execute(
@@ -12,3 +12,8 @@ export interface RefreshWorktreeReviewUseCasePort {
     GitIoFailure | WorktreeAccessFailure | IncompleteDiffReadError
   >;
 }
+
+export const RefreshWorktreeReviewUseCasePort = Context.Service<
+  '@porcelain/server/RefreshWorktreeReviewUseCasePort',
+  RefreshWorktreeReviewUseCasePort
+>('@porcelain/server/RefreshWorktreeReviewUseCasePort');

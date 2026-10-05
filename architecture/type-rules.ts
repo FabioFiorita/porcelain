@@ -163,12 +163,41 @@ function awaitedType(type: Type, checker: Checker): Type {
 }
 
 function executeMethods(file: SourceFile) {
-  return file.statements
-    .filter(isClassDeclaration)
-    .flatMap((declaration) => declaration.members.filter(isMethodDeclaration))
-    .filter(
-      (method) => isIdentifier(method.name) && method.name.text === 'execute',
-    );
+  return file.statements.filter(isClassDeclaration).flatMap((declaration) =>
+    descendants(declaration).filter((node) => {
+      if (isMethodDeclaration(node))
+        return isIdentifier(node.name) && node.name.text === 'execute';
+      return (
+        isFunctionExpression(node) &&
+        isCallExpression(node.parent) &&
+        isPropertyAssignment(node.parent.parent) &&
+        node.parent.parent.name.getText() === 'execute'
+      );
+    }),
+  );
+}
+
+function ownerDeclaration(project: Project, value: Node): Node | undefined {
+  let declaration = project.checker
+    .getTypeAtLocation(value)
+    ?.getSymbol()
+    ?.declarations[0]?.resolve(project);
+  while (declaration) {
+    if (isClassDeclaration(declaration) || isInterfaceDeclaration(declaration))
+      return declaration;
+    if (declaration.kind === SyntaxKind.SourceFile) return undefined;
+    declaration = declaration.parent;
+  }
+  return undefined;
+}
+
+function ownerNamed(project: Project, value: Node, name: string): boolean {
+  const owner = ownerDeclaration(project, value);
+  return (
+    owner !== undefined &&
+    (isClassDeclaration(owner) || isInterfaceDeclaration(owner)) &&
+    owner.name?.text === name
+  );
 }
 
 function undefinedResults(
@@ -338,10 +367,7 @@ function recordingFindings(
 }
 
 function worktreeAccess(project: Project, owner: Node): boolean {
-  const declaration = project.checker
-    .getTypeAtLocation(owner)
-    ?.getSymbol()
-    ?.declarations[0]?.resolve(project);
+  const declaration = ownerDeclaration(project, owner);
   return (
     declaration !== undefined &&
     declaration
@@ -379,7 +405,8 @@ function laneOf(
         : 'unknown';
     return undefined;
   }
-  if (thisMember(owner) !== 'lanes') return undefined;
+  if (!ownerNamed(project, owner, 'Lanes') && thisMember(owner) !== 'lanes')
+    return undefined;
   if (method.text === 'background')
     return second === callback ? 'background' : undefined;
   if (method.text === 'unqueued')
@@ -405,7 +432,8 @@ function laneKeyOf(project: Project, node: Node | undefined): string {
   if (
     isCallExpression(node) &&
     isPropertyAccessExpression(node.expression) &&
-    thisMember(node.expression.expression) === 'laneKeys' &&
+    (ownerNamed(project, node.expression.expression, 'LaneKeys') ||
+      thisMember(node.expression.expression) === 'laneKeys') &&
     isIdentifier(node.expression.name)
   )
     return node.expression.name.text;
@@ -467,6 +495,49 @@ function laneSitesAround(
                   : laneKeyOf(project, laneKeyArgument(parent)),
           },
         ];
+      if (
+        isPropertyAssignment(parent.parent) &&
+        parent.parent.name.getText() === 'execute'
+      )
+        return none;
+      if (
+        !isCallExpression(parent.expression) ||
+        !isPropertyAccessExpression(parent.expression.expression) ||
+        parent.expression.expression.name.getText() !== 'fn'
+      )
+        continue;
+      let binding: Node = parent;
+      while (
+        binding.parent.kind !== SyntaxKind.SourceFile &&
+        !isClassDeclaration(binding.parent)
+      ) {
+        if (isVariableDeclaration(binding)) break;
+        binding = binding.parent;
+      }
+      if (
+        isVariableDeclaration(binding) &&
+        isIdentifier(binding.name) &&
+        !seen.has(binding)
+      ) {
+        seen.add(binding);
+        const symbol = project.checker.getSymbolAtLocation(binding.name);
+        let owner: Node = binding;
+        while (
+          !isClassDeclaration(owner) &&
+          owner.kind !== SyntaxKind.SourceFile
+        )
+          owner = owner.parent;
+        const sites = descendants(owner).filter(
+          (candidate) =>
+            isCallExpression(candidate) &&
+            isIdentifier(candidate.expression) &&
+            project.checker.getSymbolAtLocation(candidate.expression) ===
+              symbol,
+        );
+        return sites.length
+          ? sites.flatMap((site) => laneSitesAround(project, site, seen))
+          : none;
+      }
     }
     if (isMethodDeclaration(current)) {
       const name = isIdentifier(current.name) ? current.name.text : '';
@@ -645,7 +716,6 @@ function laneFindings(
   file: SourceFile,
   writerCache: Map<Node, boolean>,
 ): TypeFinding[] {
-  const { checker } = project;
   const result: TypeFinding[] = [];
   for (const node of descendants(file)) {
     if (!isCallExpression(node) || !isPropertyAccessExpression(node.expression))
@@ -654,10 +724,7 @@ function laneFindings(
     if (!isIdentifier(node.expression.name)) continue;
     if (node.expression.name.text !== 'execute') continue;
     const field = thisMember(target) ?? target.getText();
-    const declaration = checker
-      .getTypeAtLocation(target)
-      ?.getSymbol()
-      ?.declarations[0]?.resolve(project);
+    const declaration = ownerDeclaration(project, target);
     if (!declaration || !isClassDeclaration(declaration)) continue;
     if (!serviceFile.test(declaration.getSourceFile().fileName)) continue;
     result.push(...tableFindings(root, project, node, declaration, field));
@@ -694,11 +761,13 @@ function resolvesWorktree(project: Project, declaration: Node): boolean {
     )
       return true;
     if (name.text !== 'execute') return false;
-    if (thisMember(expression) === 'checkWorktree') return true;
-    const target = project.checker
-      .getTypeAtLocation(expression)
-      ?.getSymbol()
-      ?.declarations[0]?.resolve(project);
+    if (
+      thisMember(expression) === 'checkWorktree' ||
+      ownerNamed(project, expression, 'CheckWorktreeService') ||
+      ownerNamed(project, expression, 'CheckRefreshedWorktreeService')
+    )
+      return true;
+    const target = ownerDeclaration(project, expression);
     const targetName =
       target && (isClassDeclaration(target) || isInterfaceDeclaration(target))
         ? (target.name?.text ?? '')
@@ -720,8 +789,8 @@ function worktreeCheckFindings(
   return file.statements.filter(isClassDeclaration).flatMap((declaration) => {
     const name = declaration.name?.text ?? '';
     if (name in checkedByCaller) return [];
-    const execute = executeMethods(file).find(
-      (method) => method.parent === declaration,
+    const execute = executeMethods(file).find((method) =>
+      descendants(declaration).includes(method),
     );
     const signature = execute && checker.getSignatureFromDeclaration(execute);
     const input = signature && checker.getParameterType(signature, 0);

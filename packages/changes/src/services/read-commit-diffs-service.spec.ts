@@ -1,3 +1,4 @@
+import { CommitHistoryReader } from '@porcelain/changes/ports';
 import { Effect } from 'effect';
 import { withReadLease } from '@porcelain/effects/worktree';
 import { describe, expect, it } from 'vitest';
@@ -22,7 +23,12 @@ describe('ReadCommitDiffsService', () => {
         },
       },
     });
-    const read = new ReadCommitDiffsService(history);
+    const read = Effect.runSync(
+      ReadCommitDiffsService.pipe(
+        Effect.provide(ReadCommitDiffsService.layer),
+        Effect.provideService(CommitHistoryReader, history),
+      ),
+    );
     expect(
       await Effect.runPromise(
         withReadLease(
@@ -48,7 +54,15 @@ describe('ReadCommitDiffsService', () => {
   });
 
   it('answers a path the commit did not touch with an empty metadata-only patch', async () => {
-    const read = new ReadCommitDiffsService(new InMemoryCommitHistoryReader());
+    const read = Effect.runSync(
+      ReadCommitDiffsService.pipe(
+        Effect.provide(ReadCommitDiffsService.layer),
+        Effect.provideService(
+          CommitHistoryReader,
+          new InMemoryCommitHistoryReader(),
+        ),
+      ),
+    );
     const { diffs } = await Effect.runPromise(
       withReadLease(
         'w',
@@ -72,7 +86,12 @@ describe('ReadCommitDiffsService', () => {
     const history = new InMemoryCommitHistoryReader({
       patches: { [oid]: { kind: 'over-limit' } },
     });
-    const read = new ReadCommitDiffsService(history);
+    const read = Effect.runSync(
+      ReadCommitDiffsService.pipe(
+        Effect.provide(ReadCommitDiffsService.layer),
+        Effect.provideService(CommitHistoryReader, history),
+      ),
+    );
     const { diffs } = await Effect.runPromise(
       withReadLease(
         'w',

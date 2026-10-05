@@ -1,28 +1,43 @@
-import { Effect } from 'effect';
-import type {
-  ReadInterruptedGitActionInput,
-  ReadInterruptedGitActionResult,
+import { Effect, Context, Layer } from 'effect';
+import {
+  type ReadInterruptedGitActionInput,
+  type ReadInterruptedGitActionResult,
 } from '../models/read-interrupted-git-action.ts';
-import type { GitActionReceiptStore } from '../ports/git-action-receipt-store.ts';
+import { GitActionReceiptStore } from '../ports/git-action-receipt-store.ts';
 import { gitActionReceiptView } from '../rules/git-action-receipt-view.ts';
 
-export class ReadInterruptedGitActionService {
-  private readonly gitActionReceipts: GitActionReceiptStore;
-
-  constructor(gitActionReceipts: GitActionReceiptStore) {
-    this.gitActionReceipts = gitActionReceipts;
+export class ReadInterruptedGitActionService extends Context.Service<
+  ReadInterruptedGitActionService,
+  {
+    readonly execute: (
+      input: ReadInterruptedGitActionInput,
+    ) => Effect.Effect<ReadInterruptedGitActionResult, never, never>;
   }
+>()('@porcelain/git-actions/ReadInterruptedGitActionService') {
+  static readonly layer = Layer.effect(
+    ReadInterruptedGitActionService,
+    Effect.gen(function* () {
+      const gitActionReceiptsCapability = yield* GitActionReceiptStore;
 
-  execute(
-    input: ReadInterruptedGitActionInput,
-  ): Effect.Effect<ReadInterruptedGitActionResult, never, never> {
-    return Effect.sync(() => {
-      const receipt = this.gitActionReceipts.latestInterrupted({
-        worktreeId: input.worktreeId,
-      });
-      return receipt
-        ? { kind: 'interrupted', receipt: gitActionReceiptView(receipt) }
-        : { kind: 'none' };
-    });
-  }
+      return {
+        execute: Effect.fn('ReadInterruptedGitActionService.execute')(
+          function* (
+            input: ReadInterruptedGitActionInput,
+          ): Effect.fn.Return<ReadInterruptedGitActionResult, never, never> {
+            return yield* Effect.sync<ReadInterruptedGitActionResult>(() => {
+              const receipt = gitActionReceiptsCapability.latestInterrupted({
+                worktreeId: input.worktreeId,
+              });
+              return receipt
+                ? {
+                    kind: 'interrupted',
+                    receipt: gitActionReceiptView(receipt),
+                  }
+                : { kind: 'none' };
+            });
+          },
+        ),
+      };
+    }),
+  );
 }

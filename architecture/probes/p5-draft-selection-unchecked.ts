@@ -11,8 +11,8 @@ export default {
     {
       kind: 'replace',
       path: 'packages/git-actions/src/services/generate-commit-draft-service.ts',
-      old: '      if (\n        !commitGroupsCoverSelection(groups, capture, input.mode, this.options)\n      )\n',
-      new: '      if (groups.length === 0)\n',
+      old: '!commitGroupsCoverSelection(\n              groups,\n              capture,\n              input.mode,\n              optionsCapability,\n            )',
+      new: 'groups.length === 0',
     },
   ],
 } satisfies Probe;

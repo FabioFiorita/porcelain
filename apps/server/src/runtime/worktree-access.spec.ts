@@ -5,11 +5,13 @@ import {
   WorktreeChangedError,
   WorktreeNotFoundError,
 } from '@porcelain/kernel/errors';
-import type { ListedWorktree } from '@porcelain/projects/models';
-import type { CheckWorktreeUseCasePort } from '../ports/check-worktree-use-case-port.ts';
+import { type ListedWorktree } from '@porcelain/projects/models';
+import { CheckWorktreeUseCasePort } from '../ports/check-worktree-use-case-port.ts';
 import { LaneKeys } from './lane-keys.ts';
 import { Lanes } from './lanes.ts';
+import { LaneOptions } from '../ports/lane-options.ts';
 import { WorktreeAccess } from './worktree-access.ts';
+import { WorktreeConsistencyProbe } from '../ports/worktree-consistency-probe.ts';
 
 const worktree: ListedWorktree = {
   id: 'tree',
@@ -37,17 +39,32 @@ describe('worktree admission', () => {
           changed ? Effect.fail(new WorktreeChangedError()) : Effect.void,
         ),
     };
-    const lanes = new Lanes({ readCapacity: 2, deadlineMs: 1000, consistency });
-    const access = new WorktreeAccess(
-      {
-        execute: () => {
-          checked.resolve();
-          return Effect.succeed(worktree);
-        },
-      },
-      consistency,
-      lanes,
-      new LaneKeys(),
+    const lanes = Effect.runSync(
+      Lanes.pipe(
+        Effect.provide(Lanes.layer),
+        Effect.provideService(LaneOptions, {
+          readCapacity: 2,
+          deadlineMs: 1000,
+          consistency,
+        }),
+      ),
+    );
+    const access = Effect.runSync(
+      WorktreeAccess.pipe(
+        Effect.provide(WorktreeAccess.layer),
+        Effect.provideService(CheckWorktreeUseCasePort, {
+          execute: () => {
+            checked.resolve();
+            return Effect.succeed(worktree);
+          },
+        }),
+        Effect.provideService(WorktreeConsistencyProbe, consistency),
+        Effect.provideService(Lanes, lanes),
+        Effect.provideService(
+          LaneKeys,
+          Effect.runSync(LaneKeys.pipe(Effect.provide(LaneKeys.layer))),
+        ),
+      ),
     );
     const writer = Effect.runPromise(
       lanes.run('repository', 'write', () =>
@@ -82,12 +99,29 @@ describe('worktree admission', () => {
           changed ? Effect.fail(new WorktreeChangedError()) : Effect.void,
         ),
     };
-    const lanes = new Lanes({ readCapacity: 2, deadlineMs: 1000, consistency });
-    const access = new WorktreeAccess(
-      { execute: () => Effect.succeed(worktree) },
-      consistency,
-      lanes,
-      new LaneKeys(),
+    const lanes = Effect.runSync(
+      Lanes.pipe(
+        Effect.provide(Lanes.layer),
+        Effect.provideService(LaneOptions, {
+          readCapacity: 2,
+          deadlineMs: 1000,
+          consistency,
+        }),
+      ),
+    );
+    const access = Effect.runSync(
+      WorktreeAccess.pipe(
+        Effect.provide(WorktreeAccess.layer),
+        Effect.provideService(CheckWorktreeUseCasePort, {
+          execute: () => Effect.succeed(worktree),
+        }),
+        Effect.provideService(WorktreeConsistencyProbe, consistency),
+        Effect.provideService(Lanes, lanes),
+        Effect.provideService(
+          LaneKeys,
+          Effect.runSync(LaneKeys.pipe(Effect.provide(LaneKeys.layer))),
+        ),
+      ),
     );
     const exit = await Effect.runPromiseExit(
       access.read('tree', () =>
@@ -106,17 +140,32 @@ describe('worktree admission', () => {
   it('requires an available project for writes and passes the checked identity', async () => {
     const requests: Parameters<CheckWorktreeUseCasePort['execute']>[0][] = [];
     const consistency = { execute: () => Effect.void };
-    const lanes = new Lanes({ readCapacity: 2, deadlineMs: 1000, consistency });
-    const access = new WorktreeAccess(
-      {
-        execute: (input) => {
-          requests.push(input);
-          return Effect.succeed(worktree);
-        },
-      },
-      consistency,
-      lanes,
-      new LaneKeys(),
+    const lanes = Effect.runSync(
+      Lanes.pipe(
+        Effect.provide(Lanes.layer),
+        Effect.provideService(LaneOptions, {
+          readCapacity: 2,
+          deadlineMs: 1000,
+          consistency,
+        }),
+      ),
+    );
+    const access = Effect.runSync(
+      WorktreeAccess.pipe(
+        Effect.provide(WorktreeAccess.layer),
+        Effect.provideService(CheckWorktreeUseCasePort, {
+          execute: (input) => {
+            requests.push(input);
+            return Effect.succeed(worktree);
+          },
+        }),
+        Effect.provideService(WorktreeConsistencyProbe, consistency),
+        Effect.provideService(Lanes, lanes),
+        Effect.provideService(
+          LaneKeys,
+          Effect.runSync(LaneKeys.pipe(Effect.provide(LaneKeys.layer))),
+        ),
+      ),
     );
     await expect(
       Effect.runPromise(
@@ -133,13 +182,30 @@ describe('worktree admission', () => {
 
   it('keeps a missing worktree in the failure channel and unexpected faults as defects', async () => {
     const consistency = { execute: () => Effect.void };
-    const lanes = new Lanes({ readCapacity: 2, deadlineMs: 1000, consistency });
+    const lanes = Effect.runSync(
+      Lanes.pipe(
+        Effect.provide(Lanes.layer),
+        Effect.provideService(LaneOptions, {
+          readCapacity: 2,
+          deadlineMs: 1000,
+          consistency,
+        }),
+      ),
+    );
     const missing = new WorktreeNotFoundError();
-    const expected = new WorktreeAccess(
-      { execute: () => Effect.fail(missing) },
-      consistency,
-      lanes,
-      new LaneKeys(),
+    const expected = Effect.runSync(
+      WorktreeAccess.pipe(
+        Effect.provide(WorktreeAccess.layer),
+        Effect.provideService(CheckWorktreeUseCasePort, {
+          execute: () => Effect.fail(missing),
+        }),
+        Effect.provideService(WorktreeConsistencyProbe, consistency),
+        Effect.provideService(Lanes, lanes),
+        Effect.provideService(
+          LaneKeys,
+          Effect.runSync(LaneKeys.pipe(Effect.provide(LaneKeys.layer))),
+        ),
+      ),
     );
     const exit = await Effect.runPromiseExit(
       expected.read('tree', () => Effect.succeed('unreachable')),
@@ -147,11 +213,19 @@ describe('worktree admission', () => {
     expect(Exit.isFailure(exit) && Cause.hasFails(exit.cause)).toBe(true);
     expect(Exit.isFailure(exit) && Cause.squash(exit.cause)).toBe(missing);
     const fault = new Error('Database unavailable');
-    const unexpected = new WorktreeAccess(
-      { execute: () => Effect.die(fault) },
-      consistency,
-      lanes,
-      new LaneKeys(),
+    const unexpected = Effect.runSync(
+      WorktreeAccess.pipe(
+        Effect.provide(WorktreeAccess.layer),
+        Effect.provideService(CheckWorktreeUseCasePort, {
+          execute: () => Effect.die(fault),
+        }),
+        Effect.provideService(WorktreeConsistencyProbe, consistency),
+        Effect.provideService(Lanes, lanes),
+        Effect.provideService(
+          LaneKeys,
+          Effect.runSync(LaneKeys.pipe(Effect.provide(LaneKeys.layer))),
+        ),
+      ),
     );
     const crashed = await Effect.runPromiseExit(
       unexpected.read('tree', () => Effect.succeed('unreachable')),
@@ -167,12 +241,29 @@ it('publishes a confirmed filesystem commit after cancellation and native cleanu
   const cleanup = Promise.withResolvers<string>();
   const published = Promise.withResolvers<void>();
   const consistency = { execute: () => Effect.void };
-  const lanes = new Lanes({ readCapacity: 2, deadlineMs: 1000, consistency });
-  const access = new WorktreeAccess(
-    { execute: () => Effect.succeed(worktree) },
-    consistency,
-    lanes,
-    new LaneKeys(),
+  const lanes = Effect.runSync(
+    Lanes.pipe(
+      Effect.provide(Lanes.layer),
+      Effect.provideService(LaneOptions, {
+        readCapacity: 2,
+        deadlineMs: 1000,
+        consistency,
+      }),
+    ),
+  );
+  const access = Effect.runSync(
+    WorktreeAccess.pipe(
+      Effect.provide(WorktreeAccess.layer),
+      Effect.provideService(CheckWorktreeUseCasePort, {
+        execute: () => Effect.succeed(worktree),
+      }),
+      Effect.provideService(WorktreeConsistencyProbe, consistency),
+      Effect.provideService(Lanes, lanes),
+      Effect.provideService(
+        LaneKeys,
+        Effect.runSync(LaneKeys.pipe(Effect.provide(LaneKeys.layer))),
+      ),
+    ),
   );
   const order: string[] = [];
   const controller = new AbortController();
@@ -213,12 +304,29 @@ it('publishes a confirmed filesystem commit after cancellation and native cleanu
 
 it('publishes a confirmed filesystem change even when later cleanup fails', async () => {
   const consistency = { execute: () => Effect.void };
-  const lanes = new Lanes({ readCapacity: 2, deadlineMs: 1000, consistency });
-  const access = new WorktreeAccess(
-    { execute: () => Effect.succeed(worktree) },
-    consistency,
-    lanes,
-    new LaneKeys(),
+  const lanes = Effect.runSync(
+    Lanes.pipe(
+      Effect.provide(Lanes.layer),
+      Effect.provideService(LaneOptions, {
+        readCapacity: 2,
+        deadlineMs: 1000,
+        consistency,
+      }),
+    ),
+  );
+  const access = Effect.runSync(
+    WorktreeAccess.pipe(
+      Effect.provide(WorktreeAccess.layer),
+      Effect.provideService(CheckWorktreeUseCasePort, {
+        execute: () => Effect.succeed(worktree),
+      }),
+      Effect.provideService(WorktreeConsistencyProbe, consistency),
+      Effect.provideService(Lanes, lanes),
+      Effect.provideService(
+        LaneKeys,
+        Effect.runSync(LaneKeys.pipe(Effect.provide(LaneKeys.layer))),
+      ),
+    ),
   );
   let notifications = 0;
   const failure = new Error('Cannot close the written handle');
@@ -251,12 +359,29 @@ it('refuses a review commit if worktree identity changes during preparation', as
         changed ? new WorktreeChangedError() : Effect.void,
       ),
   };
-  const lanes = new Lanes({ readCapacity: 2, deadlineMs: 1000, consistency });
-  const access = new WorktreeAccess(
-    { execute: () => Effect.succeed(worktree) },
-    consistency,
-    lanes,
-    new LaneKeys(),
+  const lanes = Effect.runSync(
+    Lanes.pipe(
+      Effect.provide(Lanes.layer),
+      Effect.provideService(LaneOptions, {
+        readCapacity: 2,
+        deadlineMs: 1000,
+        consistency,
+      }),
+    ),
+  );
+  const access = Effect.runSync(
+    WorktreeAccess.pipe(
+      Effect.provide(WorktreeAccess.layer),
+      Effect.provideService(CheckWorktreeUseCasePort, {
+        execute: () => Effect.succeed(worktree),
+      }),
+      Effect.provideService(WorktreeConsistencyProbe, consistency),
+      Effect.provideService(Lanes, lanes),
+      Effect.provideService(
+        LaneKeys,
+        Effect.runSync(LaneKeys.pipe(Effect.provide(LaneKeys.layer))),
+      ),
+    ),
   );
   const exit = await Effect.runPromiseExit(
     access.transaction(
@@ -289,12 +414,29 @@ it('does not publish a cancelled filesystem operation that never committed', asy
   const aborted = Promise.withResolvers<void>();
   const cleanup = Promise.withResolvers<void>();
   const consistency = { execute: () => Effect.void };
-  const lanes = new Lanes({ readCapacity: 2, deadlineMs: 1000, consistency });
-  const access = new WorktreeAccess(
-    { execute: () => Effect.succeed(worktree) },
-    consistency,
-    lanes,
-    new LaneKeys(),
+  const lanes = Effect.runSync(
+    Lanes.pipe(
+      Effect.provide(Lanes.layer),
+      Effect.provideService(LaneOptions, {
+        readCapacity: 2,
+        deadlineMs: 1000,
+        consistency,
+      }),
+    ),
+  );
+  const access = Effect.runSync(
+    WorktreeAccess.pipe(
+      Effect.provide(WorktreeAccess.layer),
+      Effect.provideService(CheckWorktreeUseCasePort, {
+        execute: () => Effect.succeed(worktree),
+      }),
+      Effect.provideService(WorktreeConsistencyProbe, consistency),
+      Effect.provideService(Lanes, lanes),
+      Effect.provideService(
+        LaneKeys,
+        Effect.runSync(LaneKeys.pipe(Effect.provide(LaneKeys.layer))),
+      ),
+    ),
   );
   let publications = 0;
   const controller = new AbortController();

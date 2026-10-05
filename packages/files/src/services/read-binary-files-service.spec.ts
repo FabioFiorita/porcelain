@@ -1,3 +1,4 @@
+import { FileReader, ReadBinaryFilesOptions } from '@porcelain/files/ports';
 import { Effect } from 'effect';
 import { withReadLease } from '@porcelain/effects/worktree';
 import { describe, expect, it } from 'vitest';
@@ -14,10 +15,16 @@ const reader = new InMemoryFileReader({
     'moving.png': { kind: 'failed', failure: 'changed' },
   },
 });
-const service = new ReadBinaryFilesService(reader, {
-  maxBytes: 64,
-  totalBytes: 1024,
-});
+const service = Effect.runSync(
+  ReadBinaryFilesService.pipe(
+    Effect.provide(ReadBinaryFilesService.layer),
+    Effect.provideService(FileReader, reader),
+    Effect.provideService(ReadBinaryFilesOptions, {
+      maxBytes: 64,
+      totalBytes: 1024,
+    }),
+  ),
+);
 const bytes = (length: number) => new Uint8Array(length);
 
 describe('ReadBinaryFilesService', () => {
@@ -66,10 +73,16 @@ describe('ReadBinaryFilesService', () => {
     const read = await Effect.runPromise(
       withReadLease(
         worktreeId,
-        new ReadBinaryFilesService(reader, {
-          maxBytes: 64,
-          totalBytes: 100,
-        }).execute({ worktreeId, paths: ['a.png', 'b.png', 'c.png', 'd.png'] }),
+        Effect.runSync(
+          ReadBinaryFilesService.pipe(
+            Effect.provide(ReadBinaryFilesService.layer),
+            Effect.provideService(FileReader, reader),
+            Effect.provideService(ReadBinaryFilesOptions, {
+              maxBytes: 64,
+              totalBytes: 100,
+            }),
+          ),
+        ).execute({ worktreeId, paths: ['a.png', 'b.png', 'c.png', 'd.png'] }),
       ),
     );
     expect([...read.files.keys()]).toEqual(['a.png', 'b.png', 'd.png']);
@@ -86,10 +99,16 @@ describe('ReadBinaryFilesService', () => {
     const read = await Effect.runPromise(
       withReadLease(
         worktreeId,
-        new ReadBinaryFilesService(reader, {
-          maxBytes: 64,
-          totalBytes: 50,
-        }).execute({ worktreeId, paths: ['a.png', 'b.png'] }),
+        Effect.runSync(
+          ReadBinaryFilesService.pipe(
+            Effect.provide(ReadBinaryFilesService.layer),
+            Effect.provideService(FileReader, reader),
+            Effect.provideService(ReadBinaryFilesOptions, {
+              maxBytes: 64,
+              totalBytes: 50,
+            }),
+          ),
+        ).execute({ worktreeId, paths: ['a.png', 'b.png'] }),
       ),
     );
     expect([...read.files.keys()]).toEqual(['a.png']);

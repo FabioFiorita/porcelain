@@ -1,3 +1,5 @@
+import { Context } from 'effect';
+
 export type FailureReport =
   | {
       kind: 'request';
@@ -16,3 +18,7 @@ export type FailureReport =
 export interface Logger {
   failure(input: FailureReport): void;
 }
+
+export const Logger = Context.Service<'@porcelain/server/Logger', Logger>(
+  '@porcelain/server/Logger',
+);

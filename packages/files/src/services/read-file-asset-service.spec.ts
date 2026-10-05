@@ -1,3 +1,4 @@
+import { FileReader, ReadFileAssetOptions } from '@porcelain/files/ports';
 import { Effect } from 'effect';
 import { withReadLease } from '@porcelain/effects/worktree';
 import { describe, expect, it } from 'vitest';
@@ -8,7 +9,7 @@ import {
   PathNotReadableError,
   UnsupportedAssetTypeError,
 } from '@porcelain/files/errors';
-import type { FileRead } from '@porcelain/files/models';
+import { type FileRead } from '@porcelain/files/models';
 import { InMemoryFileReader } from '../../spec/fakes/in-memory-file-reader.ts';
 import { ReadFileAssetService } from './read-file-asset-service.ts';
 
@@ -19,10 +20,16 @@ function file(bytes: Uint8Array): FileRead {
 }
 
 function serviceWith(files: Record<string, FileRead>, maxBytes = 1024) {
-  return new ReadFileAssetService(new InMemoryFileReader({ files }), {
-    maxBytes,
-    base64ChunkBytes: 0x8000,
-  });
+  return Effect.runSync(
+    ReadFileAssetService.pipe(
+      Effect.provide(ReadFileAssetService.layer),
+      Effect.provideService(FileReader, new InMemoryFileReader({ files })),
+      Effect.provideService(ReadFileAssetOptions, {
+        maxBytes,
+        base64ChunkBytes: 0x8000,
+      }),
+    ),
+  );
 }
 
 describe('ReadFileAssetService', () => {

@@ -1,6 +1,7 @@
+import { ReviewStore, ReviewedLayerStore } from '@porcelain/reviews/ports';
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
-import type { ReviewLayer } from '@porcelain/reviews/models';
+import { type ReviewLayer } from '@porcelain/reviews/models';
 import { currentLayerFingerprint } from '@porcelain/reviews/rules';
 import { InMemoryReviewStore } from '../../spec/fakes/in-memory-review-store.ts';
 import { InMemoryReviewedLayerStore } from '../../spec/fakes/in-memory-reviewed-layer-store.ts';
@@ -61,7 +62,13 @@ function setup() {
   });
   return {
     marks,
-    paths: new ListReviewedLayerPathsService(reviews, marks),
+    paths: Effect.runSync(
+      ListReviewedLayerPathsService.pipe(
+        Effect.provide(ListReviewedLayerPathsService.layer),
+        Effect.provideService(ReviewStore, reviews),
+        Effect.provideService(ReviewedLayerStore, marks),
+      ),
+    ),
   };
 }
 

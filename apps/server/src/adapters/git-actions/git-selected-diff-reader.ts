@@ -1,17 +1,17 @@
 import { readGit } from '../../runtime/git-io.ts';
-import type { GitIoFailure } from '../../ports/git-io-failure.ts';
-import type { Effect } from 'effect';
-import type { WorktreeRead } from '@porcelain/effects/worktree';
-import type { SelectedDiffRequest } from '@porcelain/git-actions/models';
-import type { SelectedDiffReader } from '@porcelain/git-actions/ports';
-import type { GitActionWriterFactory } from '@porcelain/git/actions';
+import { type GitIoFailure } from '@porcelain/git/errors';
+import { type Effect } from 'effect';
+import { type WorktreeRead } from '@porcelain/effects/worktree';
+import { type SelectedDiffRequest } from '@porcelain/git-actions/models';
+import { type SelectedDiffReader } from '@porcelain/git-actions/ports';
+import { type GitActionWriterFactory } from '@porcelain/git/actions';
 import {
   openCheckout,
   type GitSessions,
   type ListedWorktrees,
 } from '../projects/checkout-session.ts';
 
-export class GitSelectedDiffReader implements SelectedDiffReader<GitIoFailure> {
+export class GitSelectedDiffReader implements SelectedDiffReader {
   private readonly worktrees: ListedWorktrees;
   private readonly git: GitActionWriterFactory;
   private readonly sessions: GitSessions;

@@ -1,6 +1,7 @@
+import { InventoryStore } from '@porcelain/projects/ports';
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
-import type { RegisteredProject } from '@porcelain/projects/models';
+import { type RegisteredProject } from '@porcelain/projects/models';
 import { InMemoryInventoryStore } from '../../spec/fakes/in-memory-inventory-store.ts';
 import { RemoveProjectService } from './remove-project-service.ts';
 
@@ -21,7 +22,15 @@ function setup() {
     project('api', 1),
     project('web', 2),
   ]);
-  return { inventory, service: new RemoveProjectService(inventory) };
+  return {
+    inventory,
+    service: Effect.runSync(
+      RemoveProjectService.pipe(
+        Effect.provide(RemoveProjectService.layer),
+        Effect.provideService(InventoryStore, inventory),
+      ),
+    ),
+  };
 }
 
 describe('RemoveProjectService', () => {

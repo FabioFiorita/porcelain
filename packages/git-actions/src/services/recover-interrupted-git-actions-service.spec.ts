@@ -1,3 +1,5 @@
+import { Clock } from '@porcelain/kernel/ports';
+import { GitActionReceiptStore } from '@porcelain/git-actions/ports';
 import { Effect } from 'effect';
 import { FixedClock } from '@porcelain/kernel/fakes';
 import { describe, expect, it } from 'vitest';
@@ -17,9 +19,12 @@ describe('RecoverInterruptedGitActionsService', () => {
     });
     const store = new InMemoryGitActionReceiptStore([running, settled]);
     Effect.runSync(
-      new RecoverInterruptedGitActionsService(
-        store,
-        new FixedClock(restartedAt),
+      Effect.runSync(
+        RecoverInterruptedGitActionsService.pipe(
+          Effect.provide(RecoverInterruptedGitActionsService.layer),
+          Effect.provideService(GitActionReceiptStore, store),
+          Effect.provideService(Clock, new FixedClock(restartedAt)),
+        ),
       ).execute({ worktreeId: running.worktreeId }),
     );
     expect(store.read({ requestId: running.requestId })).toMatchObject({
@@ -35,9 +40,12 @@ describe('RecoverInterruptedGitActionsService', () => {
     const elsewhere = sampleReceipt({ worktreeId: 'other-worktree' });
     const store = new InMemoryGitActionReceiptStore([elsewhere]);
     Effect.runSync(
-      new RecoverInterruptedGitActionsService(
-        store,
-        new FixedClock(restartedAt),
+      Effect.runSync(
+        RecoverInterruptedGitActionsService.pipe(
+          Effect.provide(RecoverInterruptedGitActionsService.layer),
+          Effect.provideService(GitActionReceiptStore, store),
+          Effect.provideService(Clock, new FixedClock(restartedAt)),
+        ),
       ).execute({ worktreeId: 'worktree-without-actions' }),
     );
     expect(store.read({ requestId: elsewhere.requestId })).toEqual(elsewhere);

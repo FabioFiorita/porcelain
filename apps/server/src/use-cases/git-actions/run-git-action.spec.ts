@@ -1,16 +1,30 @@
+import { RunGitActionUseCaseOptions } from '../../ports/run-git-action-use-case-options.ts';
+import { Logger } from '../../ports/logger.ts';
+import { RefreshWorktreeReviewUseCasePort } from '../../ports/refresh-worktree-review-use-case-port.ts';
+import { WorktreeConsistencyProbe } from '../../ports/worktree-consistency-probe.ts';
+import { CheckWorktreeUseCasePort } from '../../ports/check-worktree-use-case-port.ts';
+import { LaneOptions } from '../../ports/lane-options.ts';
+import {
+  ChangeStatusReader,
+  WorktreeSideReader,
+  ReadChangeFingerprintsOptions,
+} from '@porcelain/changes/ports';
+import { Clock } from '@porcelain/kernel/ports';
 import { nativeWrite } from '@porcelain/effects';
 import {
   ReadChangeFingerprintsService,
   ReadWorktreeStatusService,
 } from '@porcelain/changes/services';
-import type {
+import {
   GitActionReceiptStore,
   GitActionRunner,
+  ExpireGitActionReceiptsOptions,
+  RecordGitActionProgressOptions,
 } from '@porcelain/git-actions/ports';
-import type {
-  GitActionReceipt,
-  GitActionReceiptView,
-  FinishedGitAction,
+import {
+  type GitActionReceipt,
+  type GitActionReceiptView,
+  type FinishedGitAction,
 } from '@porcelain/git-actions/models';
 import {
   AcceptGitActionService,
@@ -20,10 +34,10 @@ import {
   RecordGitActionProgressService,
   RunGitActionService,
 } from '@porcelain/git-actions/services';
-import type { ListedWorktree } from '@porcelain/projects/models';
+import { type ListedWorktree } from '@porcelain/projects/models';
 import { Effect } from 'effect';
 import { expect, it } from 'vitest';
-import type { EventPublisher } from '../../ports/event-publisher.ts';
+import { EventPublisher } from '../../ports/event-publisher.ts';
 import { LaneKeys } from '../../runtime/lane-keys.ts';
 import { Lanes } from '../../runtime/lanes.ts';
 import { WorktreeAccess } from '../../runtime/worktree-access.ts';
@@ -96,13 +110,27 @@ function fixture(onAccepted?: () => void) {
   const failures: unknown[] = [];
   let calls = 0;
   const consistency = { execute: () => Effect.void };
-  const lanes = new Lanes({ readCapacity: 2, deadlineMs: 1000, consistency });
-  const keys = new LaneKeys();
-  const access = new WorktreeAccess(
-    { execute: () => Effect.succeed(worktree) },
-    consistency,
-    lanes,
-    keys,
+  const lanes = Effect.runSync(
+    Lanes.pipe(
+      Effect.provide(Lanes.layer),
+      Effect.provideService(LaneOptions, {
+        readCapacity: 2,
+        deadlineMs: 1000,
+        consistency,
+      }),
+    ),
+  );
+  const keys = Effect.runSync(LaneKeys.pipe(Effect.provide(LaneKeys.layer)));
+  const access = Effect.runSync(
+    WorktreeAccess.pipe(
+      Effect.provide(WorktreeAccess.layer),
+      Effect.provideService(CheckWorktreeUseCasePort, {
+        execute: () => Effect.succeed(worktree),
+      }),
+      Effect.provideService(WorktreeConsistencyProbe, consistency),
+      Effect.provideService(Lanes, lanes),
+      Effect.provideService(LaneKeys, keys),
+    ),
   );
   const events: EventPublisher = {
     inventoryChanged: () => undefined,
@@ -131,36 +159,116 @@ function fixture(onAccepted?: () => void) {
   };
   const unused = () =>
     Effect.die(new Error('Fetch must not inspect the selected file list'));
-  const useCase = new RunGitActionUseCase(
-    access,
-    new ExpireGitActionReceiptsService(receipts, clock, { retentionMs: 10000 }),
-    new AcceptGitActionService(receipts, clock),
-    new ReadWorktreeStatusService({
-      readStatus: unused,
-      readBranchDetails: unused,
-    }),
-    new ReadChangeFingerprintsService(
-      {
-        readEntries: unused,
-        readSubmoduleHeads: unused,
-        readStagingStamp: unused,
-      },
-      { maxPathLength: 100, maxDigestBytes: 1000 },
+  const useCase = Effect.runSync(
+    RunGitActionUseCase.pipe(
+      Effect.provide(RunGitActionUseCase.layer),
+      Effect.provideService(WorktreeAccess, access),
+      Effect.provideService(
+        ExpireGitActionReceiptsService,
+        Effect.runSync(
+          ExpireGitActionReceiptsService.pipe(
+            Effect.provide(ExpireGitActionReceiptsService.layer),
+            Effect.provideService(GitActionReceiptStore, receipts),
+            Effect.provideService(Clock, clock),
+            Effect.provideService(ExpireGitActionReceiptsOptions, {
+              retentionMs: 10000,
+            }),
+          ),
+        ),
+      ),
+      Effect.provideService(
+        AcceptGitActionService,
+        Effect.runSync(
+          AcceptGitActionService.pipe(
+            Effect.provide(AcceptGitActionService.layer),
+            Effect.provideService(GitActionReceiptStore, receipts),
+            Effect.provideService(Clock, clock),
+          ),
+        ),
+      ),
+      Effect.provideService(
+        ReadWorktreeStatusService,
+        Effect.runSync(
+          ReadWorktreeStatusService.pipe(
+            Effect.provide(ReadWorktreeStatusService.layer),
+            Effect.provideService(ChangeStatusReader, {
+              readStatus: unused,
+              readBranchDetails: unused,
+            }),
+          ),
+        ),
+      ),
+      Effect.provideService(
+        ReadChangeFingerprintsService,
+        Effect.runSync(
+          ReadChangeFingerprintsService.pipe(
+            Effect.provide(ReadChangeFingerprintsService.layer),
+            Effect.provideService(WorktreeSideReader, {
+              readEntries: unused,
+              readSubmoduleHeads: unused,
+              readStagingStamp: unused,
+            }),
+            Effect.provideService(ReadChangeFingerprintsOptions, {
+              maxPathLength: 100,
+              maxDigestBytes: 1000,
+            }),
+          ),
+        ),
+      ),
+      Effect.provideService(
+        RunGitActionService,
+        Effect.runSync(
+          RunGitActionService.pipe(
+            Effect.provide(RunGitActionService.layer),
+            Effect.provideService(GitActionRunner, runner),
+          ),
+        ),
+      ),
+      Effect.provideService(
+        RecordGitActionProgressService,
+        Effect.runSync(
+          RecordGitActionProgressService.pipe(
+            Effect.provide(RecordGitActionProgressService.layer),
+            Effect.provideService(GitActionReceiptStore, receipts),
+            Effect.provideService(RecordGitActionProgressOptions, {
+              progressLines: 10,
+            }),
+          ),
+        ),
+      ),
+      Effect.provideService(
+        FinishGitActionService,
+        Effect.runSync(
+          FinishGitActionService.pipe(
+            Effect.provide(FinishGitActionService.layer),
+            Effect.provideService(GitActionReceiptStore, receipts),
+            Effect.provideService(Clock, clock),
+          ),
+        ),
+      ),
+      Effect.provideService(RefreshWorktreeReviewUseCasePort, {
+        execute: () => Effect.void,
+      }),
+      Effect.provideService(
+        InterruptGitActionService,
+        Effect.runSync(
+          InterruptGitActionService.pipe(
+            Effect.provide(InterruptGitActionService.layer),
+            Effect.provideService(GitActionReceiptStore, receipts),
+            Effect.provideService(Clock, clock),
+          ),
+        ),
+      ),
+      Effect.provideService(Lanes, lanes),
+      Effect.provideService(LaneKeys, keys),
+      Effect.provideService(EventPublisher, events),
+      Effect.provideService(Logger, {
+        failure: (failure) => {
+          failures.push(failure);
+        },
+      }),
+      Effect.provideService(RunGitActionUseCaseOptions, { deadlineMs: 1000 }),
     ),
-    new RunGitActionService(runner),
-    new RecordGitActionProgressService(receipts, { progressLines: 10 }),
-    new FinishGitActionService(receipts, clock),
-    { execute: () => Effect.void },
-    new InterruptGitActionService(receipts, clock),
-    lanes,
-    keys,
-    events,
-    {
-      failure: (failure) => {
-        failures.push(failure);
-      },
-    },
-    { deadlineMs: 1000 },
   );
   return {
     useCase,

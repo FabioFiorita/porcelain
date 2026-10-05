@@ -1,12 +1,18 @@
+import { Clock } from '@porcelain/kernel/ports';
+import {
+  WorktreeCatalogStore,
+  InventoryStore,
+  CheckWorktreeOptions,
+} from '@porcelain/projects/ports';
 import { Effect } from 'effect';
 import { WorktreeNotFoundError } from '@porcelain/kernel/errors';
 import { describe, expect, it } from 'vitest';
 import { FixedClock } from '@porcelain/kernel/fakes';
 import { WorktreeUnavailableError } from '@porcelain/projects/errors';
-import type {
-  CatalogProject,
-  ListedWorktree,
-  RegisteredProject,
+import {
+  type CatalogProject,
+  type ListedWorktree,
+  type RegisteredProject,
 } from '@porcelain/projects/models';
 import { InMemoryInventoryStore } from '../../spec/fakes/in-memory-inventory-store.ts';
 import { InMemoryWorktreeCatalogStore } from '../../spec/fakes/in-memory-worktree-catalog-store.ts';
@@ -49,11 +55,17 @@ function service(observedAt: string, worktrees: ListedWorktree[] = [worktree]) {
   };
   const catalog = new InMemoryWorktreeCatalogStore();
   catalog.save({ projects: [snapshot] });
-  return new CheckRefreshedWorktreeService(
-    catalog,
-    new InMemoryInventoryStore([project]),
-    new FixedClock('2026-09-24T12:00:00.000Z'),
-    { staleAfterMs: 60 * 1000 },
+  return Effect.runSync(
+    CheckRefreshedWorktreeService.pipe(
+      Effect.provide(CheckRefreshedWorktreeService.layer),
+      Effect.provideService(WorktreeCatalogStore, catalog),
+      Effect.provideService(
+        InventoryStore,
+        new InMemoryInventoryStore([project]),
+      ),
+      Effect.provideService(Clock, new FixedClock('2026-09-24T12:00:00.000Z')),
+      Effect.provideService(CheckWorktreeOptions, { staleAfterMs: 60 * 1000 }),
+    ),
   );
 }
 

@@ -1,4 +1,18 @@
-import type { Effect } from 'effect';
+import { GitStatusReads } from '../ports/git-status-reads.ts';
+import { ReadTextFileService } from '@porcelain/files/services';
+import { ReadEnvironmentService } from '@porcelain/access/services';
+import { ReadInterruptedGitActionService } from '@porcelain/git-actions/services';
+import { LaneKeys } from '../runtime/lane-keys.ts';
+import { Lanes } from '../runtime/lanes.ts';
+import { WorktreeConsistencyProbe } from '../ports/worktree-consistency-probe.ts';
+import {
+  ChangeStatusReader,
+  CommitHistoryReader,
+  BranchRangeReader,
+  ReadChangeLinesOptions,
+} from '@porcelain/changes/ports';
+import type { Context } from 'effect';
+import { Effect, Layer } from 'effect';
 import { changesRoutes } from '../http/routes/changes/changes-api.ts';
 import { WorktreeAccess } from '../runtime/worktree-access.ts';
 import {
@@ -13,6 +27,10 @@ import {
   ReadBranchDetailsService,
   ReadCommitDiffsService,
   ReadCommitFilesService,
+  ReadBranchChangesService,
+  ReadWorktreeStatusService,
+  ReadChangeFingerprintsService,
+  ReadChangeDiffsService,
 } from '@porcelain/changes/services';
 import { GitCommitHistoryReader } from '../adapters/changes/git-commit-history-reader.ts';
 import { ListBranchBasesUseCase } from '../use-cases/changes/list-branch-bases.ts';
@@ -27,9 +45,9 @@ import { ReadCommitDiffsUseCase } from '../use-cases/changes/read-commit-diffs.t
 import { ReadCommitFilesUseCase } from '../use-cases/changes/read-commit-files.ts';
 import { ReadGitStatusUseCase } from '../use-cases/changes/read-git-status.ts';
 import { SharedReads } from '../runtime/shared-reads.ts';
-import type { CheckWorktreeUseCasePort } from '../ports/check-worktree-use-case-port.ts';
-import type { ComposeContext } from './compose-context.ts';
-import type { Shared } from './compose-shared.ts';
+import { CheckWorktreeUseCasePort } from '../ports/check-worktree-use-case-port.ts';
+import { type ComposeContext } from './compose-context.ts';
+import { type Shared } from './compose-shared.ts';
 
 type ChangesDependencies = {
   shared: Shared;
@@ -44,15 +62,13 @@ export function composeChanges(
   const { shared } = dependencies;
   const limits = context.settings.limits.changes;
   const { checkWorktree } = dependencies;
-  const access = new WorktreeAccess(
-    checkWorktree,
-    shared.confirmWorktree,
-    lanes,
-    laneKeys,
-  );
   const statusReads = new SharedReads<
-    Effect.Success<ReturnType<ReadGitStatusUseCase['execute']>>,
-    Effect.Error<ReturnType<ReadGitStatusUseCase['execute']>>
+    Effect.Success<
+      ReturnType<Context.Service.Shape<typeof ReadGitStatusUseCase>['execute']>
+    >,
+    Effect.Error<
+      ReturnType<Context.Service.Shape<typeof ReadGitStatusUseCase>['execute']>
+    >
   >();
   const {
     readEnvironment,
@@ -65,67 +81,69 @@ export function composeChanges(
     shared.commitGit,
   );
   const { branchRangeReader } = shared;
-  const readBranchDetails = new ReadBranchDetailsService(
-    shared.changeStatusReader,
-  );
-  const listCommits = new ListCommitsService(commitHistoryReader);
-  const readCommitFiles = new ReadCommitFilesService(commitHistoryReader);
-  const checkCommit = new CheckCommitService(commitHistoryReader);
-  const readCommitDiffs = new ReadCommitDiffsService(commitHistoryReader);
-  const useCases = {
-    statusReads,
-    readBranchChanges: new ReadBranchChangesUseCase(
-      access,
-      shared.readBranchChanges,
-    ),
-    readBranchDiffs: new ReadBranchDiffsUseCase(
-      access,
-      new ReadBranchDiffsService(branchRangeReader),
-    ),
-    listBranchBases: new ListBranchBasesUseCase(
-      access,
-      new ListBranchBasesService(branchRangeReader),
-    ),
-    readChanges: new ReadChangesUseCase(
-      access,
-      readWorktreeStatus,
-      readChangeFingerprints,
+  const ports = Layer.mergeAll(
+    Layer.succeed(CheckWorktreeUseCasePort, checkWorktree),
+    Layer.succeed(WorktreeConsistencyProbe, shared.confirmWorktree),
+    Layer.succeed(Lanes, lanes),
+    Layer.succeed(LaneKeys, laneKeys),
+    Layer.succeed(ChangeStatusReader, shared.changeStatusReader),
+    Layer.succeed(CommitHistoryReader, commitHistoryReader),
+    Layer.succeed(ReadBranchChangesService, shared.readBranchChanges),
+    Layer.succeed(BranchRangeReader, branchRangeReader),
+    Layer.succeed(ReadWorktreeStatusService, readWorktreeStatus),
+    Layer.succeed(ReadChangeFingerprintsService, readChangeFingerprints),
+    Layer.succeed(
+      ReadInterruptedGitActionService,
       shared.readInterruptedGitAction,
-      readEnvironment,
     ),
-    readChangeDiffs: new ReadChangeDiffsUseCase(
-      access,
-      readWorktreeStatus,
-      readChangeFingerprints,
-      new CheckDiffSelectionService(),
-      new ConfirmDiffObservationService(),
-      readChangeDiffs,
-      readEnvironment,
-    ),
-    readChangeLines: new ReadChangeLinesUseCase(
-      access,
-      shared.readTextFileService,
-      new ReadChangeLinesService(limits.changeLines),
-      readEnvironment,
-    ),
-    readGitStatus: new ReadGitStatusUseCase(
-      access,
-      readWorktreeStatus,
-      readBranchDetails,
-      readEnvironment,
+    Layer.succeed(ReadEnvironmentService, readEnvironment),
+    Layer.succeed(ReadChangeDiffsService, readChangeDiffs),
+    Layer.succeed(ReadTextFileService, shared.readTextFileService),
+    Layer.succeed(ReadChangeLinesOptions, limits.changeLines),
+    Layer.succeed(GitStatusReads, statusReads),
+  );
+  const services = Layer.mergeAll(
+    WorktreeAccess.layer,
+    ReadBranchDetailsService.layer,
+    ListCommitsService.layer,
+    ReadCommitFilesService.layer,
+    CheckCommitService.layer,
+    ReadCommitDiffsService.layer,
+    ReadBranchDiffsService.layer,
+    ListBranchBasesService.layer,
+    CheckDiffSelectionService.layer,
+    ConfirmDiffObservationService.layer,
+    ReadChangeLinesService.layer,
+    ListFileCommitsService.layer,
+  ).pipe(Layer.provideMerge(ports));
+  const operations = Layer.mergeAll(
+    ReadBranchChangesUseCase.layer,
+    ReadBranchDiffsUseCase.layer,
+    ListBranchBasesUseCase.layer,
+    ReadChangesUseCase.layer,
+    ReadChangeDiffsUseCase.layer,
+    ReadChangeLinesUseCase.layer,
+    ReadGitStatusUseCase.layer,
+    ListCommitsUseCase.layer,
+    ListFileCommitsUseCase.layer,
+    ReadCommitFilesUseCase.layer,
+    ReadCommitDiffsUseCase.layer,
+  ).pipe(Layer.provideMerge(services));
+  return Effect.gen(function* () {
+    const useCases = {
       statusReads,
-    ),
-    listCommits: new ListCommitsUseCase(access, listCommits),
-    listFileCommits: new ListFileCommitsUseCase(
-      access,
-      new ListFileCommitsService(commitHistoryReader),
-    ),
-    readCommitFiles: new ReadCommitFilesUseCase(access, readCommitFiles),
-    readCommitDiffs: new ReadCommitDiffsUseCase(
-      access,
-      checkCommit,
-      readCommitDiffs,
-    ),
-  };
-  return { ...useCases, routes: changesRoutes(useCases) };
+      readBranchChanges: yield* ReadBranchChangesUseCase,
+      readBranchDiffs: yield* ReadBranchDiffsUseCase,
+      listBranchBases: yield* ListBranchBasesUseCase,
+      readChanges: yield* ReadChangesUseCase,
+      readChangeDiffs: yield* ReadChangeDiffsUseCase,
+      readChangeLines: yield* ReadChangeLinesUseCase,
+      readGitStatus: yield* ReadGitStatusUseCase,
+      listCommits: yield* ListCommitsUseCase,
+      listFileCommits: yield* ListFileCommitsUseCase,
+      readCommitFiles: yield* ReadCommitFilesUseCase,
+      readCommitDiffs: yield* ReadCommitDiffsUseCase,
+    };
+    return { ...useCases, routes: changesRoutes(useCases) };
+  }).pipe(Effect.provide(operations));
 }

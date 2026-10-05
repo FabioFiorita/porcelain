@@ -1,8 +1,10 @@
+import { Clock } from '@porcelain/kernel/ports';
+import { ReviewStore, SignatureSource } from '@porcelain/reviews/ports';
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { FixedClock } from '@porcelain/kernel/fakes';
 import { ReviewSummaryNotFoundError } from '@porcelain/reviews/errors';
-import type { Review } from '@porcelain/reviews/models';
+import { type Review } from '@porcelain/reviews/models';
 import { InMemoryReviewStore } from '../../spec/fakes/in-memory-review-store.ts';
 import { ScriptedSignatureSource } from '../../spec/fakes/scripted-signature-source.ts';
 import { ReadReviewSummaryService } from './read-review-summary-service.ts';
@@ -25,10 +27,13 @@ const review: Review = {
 function setup(now = '2026-01-01T00:30:00.000Z') {
   const store = new InMemoryReviewStore();
   store.save(review);
-  return new ReadReviewSummaryService(
-    store,
-    new FixedClock(now),
-    new ScriptedSignatureSource(),
+  return Effect.runSync(
+    ReadReviewSummaryService.pipe(
+      Effect.provide(ReadReviewSummaryService.layer),
+      Effect.provideService(ReviewStore, store),
+      Effect.provideService(Clock, new FixedClock(now)),
+      Effect.provideService(SignatureSource, new ScriptedSignatureSource()),
+    ),
   );
 }
 

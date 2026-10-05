@@ -1,3 +1,8 @@
+import { Clock } from '@porcelain/kernel/ports';
+import {
+  CommentStore,
+  EditCommentMessageOptions,
+} from '@porcelain/reviews/ports';
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { FixedClock } from '@porcelain/kernel/fakes';
@@ -6,7 +11,7 @@ import {
   CommentLimitExceededError,
   CommentTargetNotFoundError,
 } from '@porcelain/reviews/errors';
-import type { EditCommentMessageInput } from '@porcelain/reviews/models';
+import { type EditCommentMessageInput } from '@porcelain/reviews/models';
 import { InMemoryCommentStore } from '../../spec/fakes/in-memory-comment-store.ts';
 import { EditCommentMessageService } from './edit-comment-message-service.ts';
 
@@ -29,9 +34,16 @@ function setup(bytesPerWorktree = 1024 * 1024) {
     writtenByAgent: true,
   });
   const clock = new FixedClock();
-  const service = new EditCommentMessageService(store, clock, {
-    bytesPerWorktree,
-  });
+  const service = Effect.runSync(
+    EditCommentMessageService.pipe(
+      Effect.provide(EditCommentMessageService.layer),
+      Effect.provideService(CommentStore, store),
+      Effect.provideService(Clock, clock),
+      Effect.provideService(EditCommentMessageOptions, {
+        bytesPerWorktree,
+      }),
+    ),
+  );
   return { store, service, clock };
 }
 

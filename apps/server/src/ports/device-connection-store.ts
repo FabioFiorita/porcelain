@@ -1,3 +1,5 @@
+import { Context } from 'effect';
+
 export type HeldConnection = { close(): void };
 
 export type DeviceConnection = {
@@ -13,3 +15,8 @@ export interface DeviceConnectionStore {
   insert(input: DeviceConnection): ReleaseConnection;
   remove(input: DeviceConnections): void;
 }
+
+export const DeviceConnectionStore = Context.Service<
+  '@porcelain/server/DeviceConnectionStore',
+  DeviceConnectionStore
+>('@porcelain/server/DeviceConnectionStore');

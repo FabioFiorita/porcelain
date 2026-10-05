@@ -1,8 +1,9 @@
+import { CommentStore } from '@porcelain/reviews/ports';
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
-import type {
-  CommentAuthorRole,
-  DeleteResolvedCommentsInput,
+import {
+  type CommentAuthorRole,
+  type DeleteResolvedCommentsInput,
 } from '@porcelain/reviews/models';
 import { InMemoryCommentStore } from '../../spec/fakes/in-memory-comment-store.ts';
 import { DeleteResolvedCommentsService } from './delete-resolved-comments-service.ts';
@@ -43,7 +44,15 @@ function setup() {
     resolved: true,
     worktreeId: otherWorktreeId,
   });
-  return { store, service: new DeleteResolvedCommentsService(store) };
+  return {
+    store,
+    service: Effect.runSync(
+      DeleteResolvedCommentsService.pipe(
+        Effect.provide(DeleteResolvedCommentsService.layer),
+        Effect.provideService(CommentStore, store),
+      ),
+    ),
+  };
 }
 
 const ids = (store: InMemoryCommentStore, id = worktreeId) =>

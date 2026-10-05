@@ -1,125 +1,139 @@
-import type { ReviewDraftFailure } from '@porcelain/reviews/services';
-import type { MissingEnvironmentIdentityError } from '@porcelain/access/errors';
-import type { GitIoFailure } from '../../ports/git-io-failure.ts';
-import type { IncompleteDiffReadError } from '@porcelain/changes/errors';
-import type {
-  ReviewConflictError,
-  ProofTooLargeError,
-  UnknownProofFileError,
-  UnsupportedProofFileError,
-  ProofFileUnreadableError,
-} from '@porcelain/reviews/errors';
-import type { Context } from 'effect';
-import { Effect } from 'effect';
-import type { WorktreeAccess } from '../../runtime/worktree-access.ts';
-import type { WorktreeAccessFailure } from '../../ports/worktree-access-failure.ts';
-import type { ReadEnvironmentService } from '@porcelain/access/services';
-import type {
-  PublishReviewRequest,
-  PublishReviewToolResponse,
-} from '@porcelain/contracts/reviews';
-import type { WorktreeParams } from '@porcelain/contracts/shared';
-import type { ReadBinaryFilesService } from '@porcelain/files/services';
-import { proofFilePaths } from '@porcelain/reviews/rules';
-import type {
+import {
+  type ReviewDraftFailure,
   ValidateReviewDraftService,
   CheckReviewDraftService,
-  ResolvePublishedReviewService,
   PublishReviewService,
+  ResolvePublishedReviewService,
 } from '@porcelain/reviews/services';
-import type { EventPublisher } from '../../ports/event-publisher.ts';
-import type { ReadReviewEvidenceUseCasePort } from '../../ports/read-review-evidence-use-case-port.ts';
+import { type MissingEnvironmentIdentityError } from '@porcelain/access/errors';
+import { type GitIoFailure } from '@porcelain/git/errors';
+import { type IncompleteDiffReadError } from '@porcelain/changes/errors';
+import {
+  type ReviewConflictError,
+  type ProofTooLargeError,
+  type UnknownProofFileError,
+  type UnsupportedProofFileError,
+  type ProofFileUnreadableError,
+} from '@porcelain/reviews/errors';
+import { Context, Effect, Layer } from 'effect';
+import { WorktreeAccess } from '../../runtime/worktree-access.ts';
+import { type WorktreeAccessFailure } from '../../ports/worktree-access-failure.ts';
+import { ReadEnvironmentService } from '@porcelain/access/services';
+import {
+  type PublishReviewRequest,
+  type PublishReviewToolResponse,
+} from '@porcelain/contracts/reviews';
+import { type WorktreeParams } from '@porcelain/contracts/shared';
+import { ReadBinaryFilesService } from '@porcelain/files/services';
+import { proofFilePaths } from '@porcelain/reviews/rules';
+import { EventPublisher } from '../../ports/event-publisher.ts';
+import { ReadReviewEvidenceUseCasePort } from '../../ports/read-review-evidence-use-case-port.ts';
 
-export class PublishReviewUseCase {
-  private readonly access: WorktreeAccess;
-  private readonly validateReviewDraft: ValidateReviewDraftService;
-  private readonly checkReviewDraft: CheckReviewDraftService;
-  private readonly readReviewEvidence: ReadReviewEvidenceUseCasePort;
-  private readonly readBinaryFiles: ReadBinaryFilesService;
-  private readonly publishReview: PublishReviewService;
-  private readonly readEnvironment: Context.Service.Shape<
-    typeof ReadEnvironmentService
-  >;
-  private readonly resolvePublishedReview: ResolvePublishedReviewService;
-  private readonly events: EventPublisher;
-
-  constructor(
-    access: WorktreeAccess,
-    validateReviewDraft: ValidateReviewDraftService,
-    checkReviewDraft: CheckReviewDraftService,
-    readReviewEvidence: ReadReviewEvidenceUseCasePort,
-    readBinaryFiles: ReadBinaryFilesService,
-    publishReview: PublishReviewService,
-    readEnvironment: Context.Service.Shape<typeof ReadEnvironmentService>,
-    resolvePublishedReview: ResolvePublishedReviewService,
-    events: EventPublisher,
-  ) {
-    this.access = access;
-    this.validateReviewDraft = validateReviewDraft;
-    this.checkReviewDraft = checkReviewDraft;
-    this.readReviewEvidence = readReviewEvidence;
-    this.readBinaryFiles = readBinaryFiles;
-    this.publishReview = publishReview;
-    this.readEnvironment = readEnvironment;
-    this.resolvePublishedReview = resolvePublishedReview;
-    this.events = events;
+export class PublishReviewUseCase extends Context.Service<
+  PublishReviewUseCase,
+  {
+    readonly execute: (
+      input: WorktreeParams & PublishReviewRequest,
+    ) => Effect.Effect<
+      PublishReviewToolResponse,
+      | MissingEnvironmentIdentityError
+      | WorktreeAccessFailure
+      | ReviewDraftFailure
+      | ReviewConflictError
+      | ProofTooLargeError
+      | UnknownProofFileError
+      | UnsupportedProofFileError
+      | ProofFileUnreadableError
+      | GitIoFailure
+      | IncompleteDiffReadError
+    >;
   }
+>()('@porcelain/server/PublishReviewUseCase') {
+  static readonly layer = Layer.effect(
+    PublishReviewUseCase,
+    Effect.gen(function* () {
+      const accessCapability = yield* WorktreeAccess;
+      const validateReviewDraftCapability = yield* ValidateReviewDraftService;
+      const checkReviewDraftCapability = yield* CheckReviewDraftService;
+      const readReviewEvidenceCapability = yield* ReadReviewEvidenceUseCasePort;
+      const readBinaryFilesCapability = yield* ReadBinaryFilesService;
+      const publishReviewCapability = yield* PublishReviewService;
+      const readEnvironmentCapability = yield* ReadEnvironmentService;
+      const resolvePublishedReviewCapability =
+        yield* ResolvePublishedReviewService;
+      const eventsCapability = yield* EventPublisher;
 
-  execute(
-    input: WorktreeParams & PublishReviewRequest,
-  ): Effect.Effect<
-    PublishReviewToolResponse,
-    | MissingEnvironmentIdentityError
-    | WorktreeAccessFailure
-    | ReviewDraftFailure
-    | ReviewConflictError
-    | ProofTooLargeError
-    | UnknownProofFileError
-    | UnsupportedProofFileError
-    | ProofFileUnreadableError
-    | GitIoFailure
-    | IncompleteDiffReadError
-  > {
-    const { worktreeId, ...unvalidatedDraft } = input;
-    return this.access.transaction(
-      worktreeId,
-      () =>
-        Effect.gen({ self: this }, function* () {
-          const draft =
-            yield* this.validateReviewDraft.execute(unvalidatedDraft);
-          yield* this.checkReviewDraft.execute({ worktreeId, draft });
-          const evidence = yield* this.readReviewEvidence.execute({
-            worktreeId,
-            layers: draft.layers,
+      return {
+        execute: Effect.fn('PublishReviewUseCase.execute')(function* (
+          input: WorktreeParams & PublishReviewRequest,
+        ): Effect.fn.Return<
+          PublishReviewToolResponse,
+          | MissingEnvironmentIdentityError
+          | WorktreeAccessFailure
+          | ReviewDraftFailure
+          | ReviewConflictError
+          | ProofTooLargeError
+          | UnknownProofFileError
+          | UnsupportedProofFileError
+          | ProofFileUnreadableError
+          | GitIoFailure
+          | IncompleteDiffReadError
+        > {
+          return yield* Effect.suspend(() => {
+            const { worktreeId, ...unvalidatedDraft } = input;
+            return accessCapability.transaction(
+              worktreeId,
+              () =>
+                Effect.gen(function* () {
+                  const draft =
+                    yield* validateReviewDraftCapability.execute(
+                      unvalidatedDraft,
+                    );
+                  yield* checkReviewDraftCapability.execute({
+                    worktreeId,
+                    draft,
+                  });
+                  const evidence = yield* readReviewEvidenceCapability.execute({
+                    worktreeId,
+                    layers: draft.layers,
+                  });
+                  const proofFiles = yield* readBinaryFilesCapability.execute({
+                    worktreeId,
+                    paths: proofFilePaths(draft.proof),
+                  });
+                  const environment =
+                    yield* readEnvironmentCapability.execute();
+                  return { draft, evidence, proofFiles, environment };
+                }),
+              ({ draft, evidence, proofFiles, environment }) =>
+                Effect.gen(function* () {
+                  const { review, warnings } =
+                    yield* publishReviewCapability.execute({
+                      worktreeId,
+                      draft,
+                      evidence,
+                      proofFiles,
+                    });
+                  return {
+                    review: yield* resolvePublishedReviewCapability.execute({
+                      environmentId: environment.environmentId,
+                      review,
+                      evidence,
+                    }),
+                    warnings,
+                  };
+                }),
+              () =>
+                Effect.sync(() =>
+                  eventsCapability.worktreeChanged({
+                    worktreeId,
+                    change: 'review',
+                  }),
+                ),
+            );
           });
-          const proofFiles = yield* this.readBinaryFiles.execute({
-            worktreeId,
-            paths: proofFilePaths(draft.proof),
-          });
-          const environment = yield* this.readEnvironment.execute();
-          return { draft, evidence, proofFiles, environment };
         }),
-      ({ draft, evidence, proofFiles, environment }) =>
-        Effect.gen({ self: this }, function* () {
-          const { review, warnings } = yield* this.publishReview.execute({
-            worktreeId,
-            draft,
-            evidence,
-            proofFiles,
-          });
-          return {
-            review: yield* this.resolvePublishedReview.execute({
-              environmentId: environment.environmentId,
-              review,
-              evidence,
-            }),
-            warnings,
-          };
-        }),
-      () =>
-        Effect.sync(() =>
-          this.events.worktreeChanged({ worktreeId, change: 'review' }),
-        ),
-    );
-  }
+      };
+    }),
+  );
 }

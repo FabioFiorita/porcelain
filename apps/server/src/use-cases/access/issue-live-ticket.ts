@@ -1,46 +1,51 @@
-import type { Context } from 'effect';
-import { Effect } from 'effect';
-import type {
-  DeviceViewerRequiredError,
-  TooManyLiveTicketsError,
+import { Context, Effect, Layer } from 'effect';
+import {
+  type DeviceViewerRequiredError,
+  type TooManyLiveTicketsError,
 } from '@porcelain/access/errors';
-import type { IssueLiveTicketService } from '@porcelain/access/services';
-import type {
-  IssueLiveTicketRequest,
-  IssueLiveTicketResponse,
+import { IssueLiveTicketService } from '@porcelain/access/services';
+import {
+  type IssueLiveTicketRequest,
+  type IssueLiveTicketResponse,
 } from '@porcelain/contracts/access';
-import type { LaneKeys } from '../../runtime/lane-keys.ts';
-import type { Lanes } from '../../runtime/lanes.ts';
+import { LaneKeys } from '../../runtime/lane-keys.ts';
+import { Lanes } from '../../runtime/lanes.ts';
 
-export class IssueLiveTicketUseCase {
-  private readonly issueLiveTicket: Context.Service.Shape<
-    typeof IssueLiveTicketService
-  >;
-  private readonly lanes: Lanes;
-  private readonly laneKeys: LaneKeys;
-
-  constructor(
-    issueLiveTicket: Context.Service.Shape<typeof IssueLiveTicketService>,
-    lanes: Lanes,
-    laneKeys: LaneKeys,
-  ) {
-    this.issueLiveTicket = issueLiveTicket;
-    this.lanes = lanes;
-    this.laneKeys = laneKeys;
+export class IssueLiveTicketUseCase extends Context.Service<
+  IssueLiveTicketUseCase,
+  {
+    readonly execute: (
+      input: IssueLiveTicketRequest,
+    ) => Effect.Effect<
+      IssueLiveTicketResponse,
+      DeviceViewerRequiredError | TooManyLiveTicketsError
+    >;
   }
+>()('@porcelain/server/IssueLiveTicketUseCase') {
+  static readonly layer = Layer.effect(
+    IssueLiveTicketUseCase,
+    Effect.gen(function* () {
+      const issueLiveTicketCapability = yield* IssueLiveTicketService;
+      const lanesCapability = yield* Lanes;
+      const laneKeysCapability = yield* LaneKeys;
 
-  execute(
-    input: IssueLiveTicketRequest,
-  ): Effect.Effect<
-    IssueLiveTicketResponse,
-    DeviceViewerRequiredError | TooManyLiveTicketsError
-  > {
-    return Effect.gen({ self: this }, function* () {
-      return yield* this.lanes.run(this.laneKeys.access(), 'write', () =>
-        Effect.gen({ self: this }, function* () {
-          return yield* this.issueLiveTicket.execute(input);
+      return {
+        execute: Effect.fn('IssueLiveTicketUseCase.execute')(function* (
+          input: IssueLiveTicketRequest,
+        ): Effect.fn.Return<
+          IssueLiveTicketResponse,
+          DeviceViewerRequiredError | TooManyLiveTicketsError
+        > {
+          return yield* lanesCapability.run(
+            laneKeysCapability.access(),
+            'write',
+            () =>
+              Effect.gen(function* () {
+                return yield* issueLiveTicketCapability.execute(input);
+              }),
+          );
         }),
-      );
-    });
-  }
+      };
+    }),
+  );
 }

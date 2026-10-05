@@ -1,3 +1,5 @@
+import { Clock, IdSource, SecretSource } from '@porcelain/kernel/ports';
+import { ReviewStore, ProofLimits } from '@porcelain/reviews/ports';
 import { ValidateReviewDraftService } from '@porcelain/reviews/services';
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
@@ -13,13 +15,13 @@ import {
   UnknownProofFileError,
   UnsupportedProofFileError,
 } from '@porcelain/reviews/errors';
-import type { FileChange } from '@porcelain/kernel/models';
-import type {
-  LayerDraft,
-  ProofFileReads,
-  ReviewDraft,
-  ValidatedReviewDraft,
-  ReviewEvidence,
+import { type FileChange } from '@porcelain/kernel/models';
+import {
+  type LayerDraft,
+  type ProofFileReads,
+  type ReviewDraft,
+  type ValidatedReviewDraft,
+  type ReviewEvidence,
 } from '@porcelain/reviews/models';
 import { changesDigest } from '@porcelain/reviews/rules';
 import { InMemoryReviewStore } from '../../spec/fakes/in-memory-review-store.ts';
@@ -87,7 +89,11 @@ function layer(overrides: Partial<LayerDraft> = {}): LayerDraft {
 
 function draft(overrides: Partial<ReviewDraft> = {}): ValidatedReviewDraft {
   return Effect.runSync(
-    new ValidateReviewDraftService().execute({
+    Effect.runSync(
+      ValidateReviewDraftService.pipe(
+        Effect.provide(ValidateReviewDraftService.layer),
+      ),
+    ).execute({
       expectedRevision: 0,
       summaryHtml: styled,
       layers: [layer()],
@@ -111,12 +117,15 @@ function reads(
 
 function setup(totalBytes = 1024) {
   const store = new InMemoryReviewStore();
-  const service = new PublishReviewService(
-    store,
-    new FixedClock('2026-01-01T00:00:00.000Z'),
-    new SequentialIdSource(),
-    new SequentialSecretSource(),
-    { totalBytes, signatureBytes: 16 },
+  const service = Effect.runSync(
+    PublishReviewService.pipe(
+      Effect.provide(PublishReviewService.layer),
+      Effect.provideService(ReviewStore, store),
+      Effect.provideService(Clock, new FixedClock('2026-01-01T00:00:00.000Z')),
+      Effect.provideService(IdSource, new SequentialIdSource()),
+      Effect.provideService(SecretSource, new SequentialSecretSource()),
+      Effect.provideService(ProofLimits, { totalBytes, signatureBytes: 16 }),
+    ),
   );
   return { store, service };
 }

@@ -1,3 +1,8 @@
+import {
+  ProjectFolderReader,
+  ProjectRepositoryReader,
+  BrowseProjectFoldersOptions,
+} from '@porcelain/projects/ports';
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import {
@@ -5,9 +10,9 @@ import {
   FolderNotReadableError,
   UnsupportedFolderNameError,
 } from '@porcelain/projects/errors';
-import type {
-  ProjectRepository,
-  ProjectFolderContents,
+import {
+  type ProjectRepository,
+  type ProjectFolderContents,
 } from '@porcelain/projects/models';
 import { ScriptedProjectFolderReader } from '../../spec/fakes/scripted-project-folder-reader.ts';
 import { ScriptedProjectRepositoryReader } from '../../spec/fakes/scripted-project-repository-reader.ts';
@@ -30,10 +35,17 @@ function folder(
 function setup(repositories: Record<string, ProjectRepository> = {}) {
   const folders = new ScriptedProjectFolderReader();
   const reader = new ScriptedProjectRepositoryReader({ repositories });
-  const service = new BrowseProjectFoldersService(folders, reader, {
-    home: '/home/owner',
-    maxEntries: 2000,
-  });
+  const service = Effect.runSync(
+    BrowseProjectFoldersService.pipe(
+      Effect.provide(BrowseProjectFoldersService.layer),
+      Effect.provideService(ProjectFolderReader, folders),
+      Effect.provideService(ProjectRepositoryReader, reader),
+      Effect.provideService(BrowseProjectFoldersOptions, {
+        home: '/home/owner',
+        maxEntries: 2000,
+      }),
+    ),
+  );
   return { folders, service };
 }
 

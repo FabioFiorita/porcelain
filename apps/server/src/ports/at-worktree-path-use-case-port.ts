@@ -1,5 +1,5 @@
 import type { WorktreeKey } from '@porcelain/kernel/models';
-import type { Effect } from 'effect';
+import { Context, type Effect } from 'effect';
 import type {
   NoWorktreeAtPathError,
   ProjectNotFoundError,
@@ -13,46 +13,17 @@ export interface FindWorktreeByPathUseCasePort {
   ): Effect.Effect<WorktreeKey, NoWorktreeAtPathError | ProjectNotFoundError>;
 }
 
-export interface WorktreeOperationUseCasePort {
-  execute(input: WorktreeKey): Effect.Effect<unknown, unknown>;
-}
-
-type AtPathRequest<Operation extends WorktreeOperationUseCasePort> = Omit<
-  Parameters<Operation['execute']>[0],
-  'worktreeId'
->;
-
-export type AtPathResponse<Operation extends WorktreeOperationUseCasePort> =
-  Effect.Success<ReturnType<Operation['execute']>>;
-
-type AtPathOperationInput<Operation extends WorktreeOperationUseCasePort> =
-  AtPathRequest<Operation> & WorktreeKey;
-
-export interface AtPathOperationUseCasePort<
-  Operation extends WorktreeOperationUseCasePort,
-> {
-  execute(
-    input: AtPathOperationInput<Operation>,
-  ): Effect.Effect<
-    AtPathResponse<Operation>,
-    Effect.Error<ReturnType<Operation['execute']>>
-  >;
-}
-
-export type AtPathInput<Operation extends WorktreeOperationUseCasePort> = {
+export type AtPathExecution<Request, Result, Failure> = {
   cwd: string;
-  request: AtPathRequest<Operation>;
+  request: Request;
+  operation: {
+    readonly execute: (
+      input: Request & WorktreeKey,
+    ) => Effect.Effect<Result, Failure>;
+  };
 };
 
-export interface AtWorktreePathUseCasePort<
-  Operation extends WorktreeOperationUseCasePort,
-> {
-  execute(
-    input: AtPathInput<Operation>,
-  ): Effect.Effect<
-    AtPathResponse<Operation>,
-    | Effect.Error<ReturnType<Operation['execute']>>
-    | NoWorktreeAtPathError
-    | ProjectNotFoundError
-  >;
-}
+export const FindWorktreeByPathUseCasePort = Context.Service<
+  '@porcelain/server/FindWorktreeByPathUseCasePort',
+  FindWorktreeByPathUseCasePort
+>('@porcelain/server/FindWorktreeByPathUseCasePort');

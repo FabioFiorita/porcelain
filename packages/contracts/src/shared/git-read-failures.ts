@@ -1,11 +1,10 @@
+import { RepositoryUnavailableError } from '@porcelain/kernel/errors';
 import {
   HistorySnapshotUnavailableError,
   HistoryWorktreeUnavailableError,
   InvalidHistoryRequestError,
   ReadLimitExceededError,
   UnsupportedHistoryDataError,
-} from '@porcelain/git/errors';
-import {
   GitTimeoutError,
   InspectionLimitError,
   InvalidGitDiffError,
@@ -13,7 +12,6 @@ import {
   UnsupportedGitFiltersError,
   UnsupportedPathEncodingError,
 } from '@porcelain/git/errors';
-import { RepositoryUnavailableError } from '@porcelain/projects/errors';
 import { httpFailure } from './http-failure.ts';
 
 export const gitReadFailures = [

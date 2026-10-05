@@ -1,3 +1,4 @@
+import { CommentSeenStore, CommentStore } from '@porcelain/reviews/ports';
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { InMemoryCommentSeenStore } from '../../spec/fakes/in-memory-comment-seen-store.ts';
@@ -25,7 +26,16 @@ function setup() {
       writtenByAgent: false,
     });
   const seen = new InMemoryCommentSeenStore();
-  return { seen, service: new MarkCommentsSeenService(seen, comments) };
+  return {
+    seen,
+    service: Effect.runSync(
+      MarkCommentsSeenService.pipe(
+        Effect.provide(MarkCommentsSeenService.layer),
+        Effect.provideService(CommentSeenStore, seen),
+        Effect.provideService(CommentStore, comments),
+      ),
+    ),
+  };
 }
 
 describe('MarkCommentsSeenService', () => {

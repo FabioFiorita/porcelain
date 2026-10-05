@@ -1,20 +1,11 @@
-import type { GitIoFailure } from '../ports/git-io-failure.ts';
-import { Effect } from 'effect';
 import {
-  nativeRead,
-  nativeWrite,
-  type WorktreeRead,
-  type WorktreeWrite,
-} from '@porcelain/effects/worktree';
-import { isRepositoryUnavailable } from '@porcelain/git/errors';
-import {
+  type GitIoFailure,
+  isRepositoryUnavailable,
   HistorySnapshotUnavailableError,
   HistoryWorktreeUnavailableError,
   InvalidHistoryRequestError,
   ReadLimitExceededError,
   UnsupportedHistoryDataError,
-} from '@porcelain/git/errors';
-import {
   GitTimeoutError,
   InspectionLimitError,
   InvalidGitDiffError,
@@ -22,8 +13,17 @@ import {
   UnsupportedGitFiltersError,
   UnsupportedPathEncodingError,
 } from '@porcelain/git/errors';
-import { WorktreeNotFoundError } from '@porcelain/kernel/errors';
-import { RepositoryUnavailableError } from '@porcelain/projects/errors';
+import { Effect } from 'effect';
+import {
+  nativeRead,
+  nativeWrite,
+  type WorktreeRead,
+  type WorktreeWrite,
+} from '@porcelain/effects/worktree';
+import {
+  WorktreeNotFoundError,
+  RepositoryUnavailableError,
+} from '@porcelain/kernel/errors';
 
 function expectedFailure(
   error: unknown,

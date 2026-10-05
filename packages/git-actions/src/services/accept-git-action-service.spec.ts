@@ -1,3 +1,5 @@
+import { Clock } from '@porcelain/kernel/ports';
+import { GitActionReceiptStore } from '@porcelain/git-actions/ports';
 import { Effect } from 'effect';
 import {
   DiscardExpectationMismatchError,
@@ -10,7 +12,7 @@ import {
   MissingExpectedFilesError,
   MissingUpstreamExpectationError,
 } from '@porcelain/git-actions/errors';
-import type { AcceptGitActionInput } from '@porcelain/git-actions/models';
+import { type AcceptGitActionInput } from '@porcelain/git-actions/models';
 import { FixedClock } from '@porcelain/kernel/fakes';
 import { describe, expect, it } from 'vitest';
 import {
@@ -40,7 +42,13 @@ const readme = { path: 'README.md', fingerprint: README_FINGERPRINT };
 function subject(store = new InMemoryGitActionReceiptStore()) {
   return {
     store,
-    service: new AcceptGitActionService(store, new FixedClock(acceptedAt)),
+    service: Effect.runSync(
+      AcceptGitActionService.pipe(
+        Effect.provide(AcceptGitActionService.layer),
+        Effect.provideService(GitActionReceiptStore, store),
+        Effect.provideService(Clock, new FixedClock(acceptedAt)),
+      ),
+    ),
   };
 }
 

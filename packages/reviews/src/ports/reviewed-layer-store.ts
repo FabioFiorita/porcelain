@@ -1,9 +1,10 @@
-import type { WorktreeKey, WorktreeKeys } from '@porcelain/kernel/models';
-import type {
-  ReviewedLayerMark,
-  ReviewedLayerRemoval,
-  ReviewedLayerSave,
-  WorktreeReviewedLayerMark,
+import { Context } from 'effect';
+import { type WorktreeKey, type WorktreeKeys } from '@porcelain/kernel/models';
+import {
+  type ReviewedLayerMark,
+  type ReviewedLayerRemoval,
+  type ReviewedLayerSave,
+  type WorktreeReviewedLayerMark,
 } from '../models/reviewed-mark.ts';
 
 export interface ReviewedLayerStore {
@@ -12,3 +13,8 @@ export interface ReviewedLayerStore {
   save(input: ReviewedLayerSave): void;
   remove(input: ReviewedLayerRemoval): void;
 }
+
+export const ReviewedLayerStore = Context.Service<
+  '@porcelain/reviews/ReviewedLayerStore',
+  ReviewedLayerStore
+>('@porcelain/reviews/ReviewedLayerStore');

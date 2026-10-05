@@ -1,16 +1,17 @@
-import type { WorktreeKey, WorktreeKeys } from '@porcelain/kernel/models';
-import type {
-  AgentReply,
-  CommentEdit,
-  CommentMessageKey,
-  CommentRemoval,
-  CommentReply,
-  CommentResolution,
-  CommentThread,
-  CommentThreadKey,
-  CommentUsage,
-  NewCommentThread,
-  PostedCommentMessage,
+import { Context } from 'effect';
+import { type WorktreeKey, type WorktreeKeys } from '@porcelain/kernel/models';
+import {
+  type AgentReply,
+  type CommentEdit,
+  type CommentMessageKey,
+  type CommentRemoval,
+  type CommentReply,
+  type CommentResolution,
+  type CommentThread,
+  type CommentThreadKey,
+  type CommentUsage,
+  type NewCommentThread,
+  type PostedCommentMessage,
 } from '../models/comment-thread.ts';
 
 export interface CommentStore {
@@ -27,3 +28,8 @@ export interface CommentStore {
   removeMessage(input: CommentRemoval): CommentThread;
   remove(input: CommentThreadKey): void;
 }
+
+export const CommentStore = Context.Service<
+  '@porcelain/reviews/CommentStore',
+  CommentStore
+>('@porcelain/reviews/CommentStore');

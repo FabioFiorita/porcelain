@@ -1,8 +1,8 @@
-import type { Effect } from 'effect';
-import type {
-  ServiceUpdateCheck,
-  ServiceUpdateState,
-  ServiceUpdateTarget,
+import { type Effect, Context } from 'effect';
+import {
+  type ServiceUpdateCheck,
+  type ServiceUpdateState,
+  type ServiceUpdateTarget,
 } from '@porcelain/access/models';
 
 export interface ServiceUpdateRunner {
@@ -10,3 +10,8 @@ export interface ServiceUpdateRunner {
   start(input: ServiceUpdateTarget): Effect.Effect<void>;
   close(): Effect.Effect<void>;
 }
+
+export const ServiceUpdateRunner = Context.Service<
+  '@porcelain/server/ServiceUpdateRunner',
+  ServiceUpdateRunner
+>('@porcelain/server/ServiceUpdateRunner');

@@ -1,3 +1,7 @@
+import {
+  FilePreferenceStore,
+  SetFilePreferenceOptions,
+} from '@porcelain/projects/ports';
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { FilePreferenceLimitError } from '@porcelain/projects/errors';
@@ -10,9 +14,15 @@ const LIMIT = 2000;
 
 function setup() {
   const preferences = new InMemoryFilePreferenceStore();
-  const service = new SetFilePreferenceService(preferences, {
-    maxPreferences: LIMIT,
-  });
+  const service = Effect.runSync(
+    SetFilePreferenceService.pipe(
+      Effect.provide(SetFilePreferenceService.layer),
+      Effect.provideService(FilePreferenceStore, preferences),
+      Effect.provideService(SetFilePreferenceOptions, {
+        maxPreferences: LIMIT,
+      }),
+    ),
+  );
   return { preferences, service };
 }
 

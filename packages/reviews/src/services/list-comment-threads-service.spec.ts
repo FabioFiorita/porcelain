@@ -1,6 +1,7 @@
+import { CommentStore } from '@porcelain/reviews/ports';
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
-import type { CommentAuthorRole } from '@porcelain/reviews/models';
+import { type CommentAuthorRole } from '@porcelain/reviews/models';
 import { InMemoryCommentStore } from '../../spec/fakes/in-memory-comment-store.ts';
 import { ListCommentThreadsService } from './list-comment-threads-service.ts';
 
@@ -36,7 +37,12 @@ function setup() {
   const done = open(store, 'done', ['reviewer']);
   store.resolve({ thread: done, resolved: true });
   open(store, 'elsewhere', ['reviewer'], 'b'.repeat(64));
-  return new ListCommentThreadsService(store);
+  return Effect.runSync(
+    ListCommentThreadsService.pipe(
+      Effect.provide(ListCommentThreadsService.layer),
+      Effect.provideService(CommentStore, store),
+    ),
+  );
 }
 
 const ids = (threads: readonly { id: string }[]) =>

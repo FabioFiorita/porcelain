@@ -1,3 +1,4 @@
+import { FilePreferenceStore } from '@porcelain/projects/ports';
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { InMemoryFilePreferenceStore } from '../../spec/fakes/in-memory-file-preference-store.ts';
@@ -5,7 +6,12 @@ import { ListFilePreferencesService } from './list-file-preferences-service.ts';
 
 function setup() {
   const preferences = new InMemoryFilePreferenceStore();
-  const service = new ListFilePreferencesService(preferences);
+  const service = Effect.runSync(
+    ListFilePreferencesService.pipe(
+      Effect.provide(ListFilePreferencesService.layer),
+      Effect.provideService(FilePreferenceStore, preferences),
+    ),
+  );
   return { preferences, service };
 }
 

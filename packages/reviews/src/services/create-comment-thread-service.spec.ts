@@ -1,3 +1,8 @@
+import { IdSource, Clock } from '@porcelain/kernel/ports';
+import {
+  CommentStore,
+  CreateCommentThreadOptions,
+} from '@porcelain/reviews/ports';
 import { Effect } from 'effect';
 import { InvalidLineRangeError } from '@porcelain/kernel/errors';
 import { describe, expect, it } from 'vitest';
@@ -8,9 +13,9 @@ import {
   CommentRevisionMismatchError,
   UnsupportedCommentComparisonError,
 } from '@porcelain/reviews/errors';
-import type {
-  CommentAnchor,
-  CreateCommentThreadInput,
+import {
+  type CommentAnchor,
+  type CreateCommentThreadInput,
 } from '@porcelain/reviews/models';
 import { InMemoryCommentStore } from '../../spec/fakes/in-memory-comment-store.ts';
 import { CreateCommentThreadService } from './create-comment-thread-service.ts';
@@ -24,11 +29,14 @@ const limits = {
 
 function setup() {
   const store = new InMemoryCommentStore();
-  const service = new CreateCommentThreadService(
-    store,
-    new SequentialIdSource(),
-    new FixedClock(),
-    limits,
+  const service = Effect.runSync(
+    CreateCommentThreadService.pipe(
+      Effect.provide(CreateCommentThreadService.layer),
+      Effect.provideService(CommentStore, store),
+      Effect.provideService(IdSource, new SequentialIdSource()),
+      Effect.provideService(Clock, new FixedClock()),
+      Effect.provideService(CreateCommentThreadOptions, limits),
+    ),
   );
   return { store, service };
 }

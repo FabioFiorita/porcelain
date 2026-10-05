@@ -1,43 +1,48 @@
-import type {
-  AtPathInput,
-  AtPathOperationUseCasePort,
-  AtPathResponse,
+import {
+  type AtPathExecution,
   FindWorktreeByPathUseCasePort,
-  WorktreeOperationUseCasePort,
 } from '../../ports/at-worktree-path-use-case-port.ts';
-import { Effect } from 'effect';
-import type {
-  NoWorktreeAtPathError,
-  ProjectNotFoundError,
+import { Context, Effect, Layer } from 'effect';
+import {
+  type NoWorktreeAtPathError,
+  type ProjectNotFoundError,
 } from '@porcelain/projects/errors';
 
-export class AtWorktreePathUseCase<
-  Operation extends WorktreeOperationUseCasePort,
-> {
-  private readonly findWorktreeByPath: FindWorktreeByPathUseCasePort;
-  private readonly operation: AtPathOperationUseCasePort<Operation>;
-
-  constructor(
-    findWorktreeByPath: FindWorktreeByPathUseCasePort,
-    operation: AtPathOperationUseCasePort<Operation>,
-  ) {
-    this.findWorktreeByPath = findWorktreeByPath;
-    this.operation = operation;
+export class AtWorktreePathUseCase extends Context.Service<
+  AtWorktreePathUseCase,
+  {
+    readonly execute: <Request, Result, Failure>(
+      input: AtPathExecution<Request, Result, Failure>,
+    ) => Effect.Effect<
+      Result,
+      Failure | NoWorktreeAtPathError | ProjectNotFoundError
+    >;
   }
-
-  execute(
-    input: AtPathInput<Operation>,
-  ): Effect.Effect<
-    AtPathResponse<Operation>,
-    | Effect.Error<ReturnType<Operation['execute']>>
-    | NoWorktreeAtPathError
-    | ProjectNotFoundError
-  > {
-    return Effect.gen({ self: this }, function* () {
-      const { worktreeId } = yield* this.findWorktreeByPath.execute({
-        path: input.cwd,
-      });
-      return yield* this.operation.execute({ ...input.request, worktreeId });
-    });
-  }
+>()('@porcelain/server/AtWorktreePathUseCase') {
+  static readonly layer = Layer.effect(
+    AtWorktreePathUseCase,
+    Effect.gen(function* () {
+      const findWorktreeByPath = yield* FindWorktreeByPathUseCasePort;
+      return {
+        execute: Effect.fn('AtWorktreePathUseCase.execute')(function* <
+          Request,
+          Result,
+          Failure,
+        >(
+          input: AtPathExecution<Request, Result, Failure>,
+        ): Effect.fn.Return<
+          Result,
+          Failure | NoWorktreeAtPathError | ProjectNotFoundError
+        > {
+          const { worktreeId } = yield* findWorktreeByPath.execute({
+            path: input.cwd,
+          });
+          return yield* input.operation.execute({
+            ...input.request,
+            worktreeId,
+          });
+        }),
+      };
+    }),
+  );
 }

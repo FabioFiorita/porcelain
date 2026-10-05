@@ -4,7 +4,7 @@ import {
   SelectionMismatchError,
   UnnamedDiffSelectionError,
 } from '@porcelain/changes/errors';
-import type { ChangeStatusObservation } from '@porcelain/changes/models';
+import { type ChangeStatusObservation } from '@porcelain/changes/models';
 import { WorktreeChangedError } from '@porcelain/kernel/errors';
 import { modified } from '../../spec/fixtures/comparisons.ts';
 import { CheckDiffSelectionService } from './check-diff-selection-service.ts';
@@ -18,7 +18,11 @@ const status: ChangeStatusObservation = {
   changes: [modified('unstaged', 'a.md')],
 };
 const stated = [{ path: 'a.md', fingerprint: undefined }];
-const service = new CheckDiffSelectionService();
+const service = Effect.runSync(
+  CheckDiffSelectionService.pipe(
+    Effect.provide(CheckDiffSelectionService.layer),
+  ),
+);
 
 describe('CheckDiffSelectionService', () => {
   it('answers the listed comparisons and paths of a matching selection', () => {

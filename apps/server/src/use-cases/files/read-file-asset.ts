@@ -1,33 +1,48 @@
-import type {
-  ReadFileAssetQuery,
-  ReadFileAssetResponse,
+import {
+  type ReadFileAssetQuery,
+  type ReadFileAssetResponse,
 } from '@porcelain/contracts/files';
-import type { WorktreeParams } from '@porcelain/contracts/shared';
-import type {
+import { type WorktreeParams } from '@porcelain/contracts/shared';
+import {
   ReadFileAssetService,
-  ReadFileAssetFailure,
+  type ReadFileAssetFailure,
 } from '@porcelain/files/services';
-import type { Effect } from 'effect';
-import type { WorktreeAccess } from '../../runtime/worktree-access.ts';
-import type { WorktreeAccessFailure } from '../../ports/worktree-access-failure.ts';
+import { Effect, Context, Layer } from 'effect';
+import { WorktreeAccess } from '../../runtime/worktree-access.ts';
+import { type WorktreeAccessFailure } from '../../ports/worktree-access-failure.ts';
 
-export class ReadFileAssetUseCase {
-  private readonly access: WorktreeAccess;
-  private readonly readFileAsset: ReadFileAssetService;
-
-  constructor(access: WorktreeAccess, readFileAsset: ReadFileAssetService) {
-    this.access = access;
-    this.readFileAsset = readFileAsset;
+export class ReadFileAssetUseCase extends Context.Service<
+  ReadFileAssetUseCase,
+  {
+    readonly execute: (
+      input: WorktreeParams & ReadFileAssetQuery,
+    ) => Effect.Effect<
+      ReadFileAssetResponse,
+      WorktreeAccessFailure | ReadFileAssetFailure
+    >;
   }
+>()('@porcelain/server/ReadFileAssetUseCase') {
+  static readonly layer = Layer.effect(
+    ReadFileAssetUseCase,
+    Effect.gen(function* () {
+      const accessCapability = yield* WorktreeAccess;
+      const readFileAssetCapability = yield* ReadFileAssetService;
 
-  execute(
-    input: WorktreeParams & ReadFileAssetQuery,
-  ): Effect.Effect<
-    ReadFileAssetResponse,
-    WorktreeAccessFailure | ReadFileAssetFailure
-  > {
-    return this.access.read(input.worktreeId, (worktree) =>
-      this.readFileAsset.execute({ ...input, worktreeId: worktree.id }),
-    );
-  }
+      return {
+        execute: Effect.fn('ReadFileAssetUseCase.execute')(function* (
+          input: WorktreeParams & ReadFileAssetQuery,
+        ): Effect.fn.Return<
+          ReadFileAssetResponse,
+          WorktreeAccessFailure | ReadFileAssetFailure
+        > {
+          return yield* accessCapability.read(input.worktreeId, (worktree) =>
+            readFileAssetCapability.execute({
+              ...input,
+              worktreeId: worktree.id,
+            }),
+          );
+        }),
+      };
+    }),
+  );
 }

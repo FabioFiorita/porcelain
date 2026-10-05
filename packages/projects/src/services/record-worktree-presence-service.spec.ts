@@ -1,10 +1,15 @@
+import { Clock } from '@porcelain/kernel/ports';
+import {
+  InventoryStore,
+  WorktreePresenceStore,
+} from '@porcelain/projects/ports';
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { FixedClock } from '@porcelain/kernel/fakes';
 import { ProjectNotFoundError } from '@porcelain/projects/errors';
-import type {
-  ListedWorktree,
-  RegisteredProject,
+import {
+  type ListedWorktree,
+  type RegisteredProject,
 } from '@porcelain/projects/models';
 import { InMemoryInventoryStore } from '../../spec/fakes/in-memory-inventory-store.ts';
 import { InMemoryWorktreePresenceStore } from '../../spec/fakes/in-memory-worktree-presence-store.ts';
@@ -43,7 +48,14 @@ function setup() {
   const inventory = new InMemoryInventoryStore([project]);
   const presence = new InMemoryWorktreePresenceStore();
   const clock = new FixedClock(FIRST);
-  const service = new RecordWorktreePresenceService(inventory, presence, clock);
+  const service = Effect.runSync(
+    RecordWorktreePresenceService.pipe(
+      Effect.provide(RecordWorktreePresenceService.layer),
+      Effect.provideService(InventoryStore, inventory),
+      Effect.provideService(WorktreePresenceStore, presence),
+      Effect.provideService(Clock, clock),
+    ),
+  );
   const record = (
     ids: string[],
     listing: { available?: boolean; complete?: boolean } = {},

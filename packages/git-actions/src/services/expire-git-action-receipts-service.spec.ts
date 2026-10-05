@@ -1,3 +1,8 @@
+import { Clock } from '@porcelain/kernel/ports';
+import {
+  GitActionReceiptStore,
+  ExpireGitActionReceiptsOptions,
+} from '@porcelain/git-actions/ports';
 import { Effect } from 'effect';
 import { FixedClock } from '@porcelain/kernel/fakes';
 import { describe, expect, it } from 'vitest';
@@ -12,10 +17,18 @@ function expire(
   worktreeId = sampleReceipt().worktreeId,
 ) {
   Effect.runSync(
-    new ExpireGitActionReceiptsService(
-      store,
-      new FixedClock('2026-09-23T12:00:00.000Z'),
-      { retentionMs: 30 * day },
+    Effect.runSync(
+      ExpireGitActionReceiptsService.pipe(
+        Effect.provide(ExpireGitActionReceiptsService.layer),
+        Effect.provideService(GitActionReceiptStore, store),
+        Effect.provideService(
+          Clock,
+          new FixedClock('2026-09-23T12:00:00.000Z'),
+        ),
+        Effect.provideService(ExpireGitActionReceiptsOptions, {
+          retentionMs: 30 * day,
+        }),
+      ),
     ).execute({ worktreeId }),
   );
 }

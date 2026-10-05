@@ -1,17 +1,17 @@
-import type { Effect } from 'effect';
-import type { WorktreeRead } from '@porcelain/effects/worktree';
+import { type Effect } from 'effect';
+import { type WorktreeRead } from '@porcelain/effects/worktree';
 import { readGit } from '../../runtime/git-io.ts';
-import type { GitIoFailure } from '../../ports/git-io-failure.ts';
-import type {
-  BranchBases,
-  BranchPatches,
-  BranchPatchesRequest,
-  BranchRangeLookup,
-  BranchRangeRequest,
-  ListBranchBasesInput,
+import { type GitIoFailure } from '@porcelain/git/errors';
+import {
+  type BranchBases,
+  type BranchPatches,
+  type BranchPatchesRequest,
+  type BranchRangeLookup,
+  type BranchRangeRequest,
+  type ListBranchBasesInput,
 } from '@porcelain/changes/models';
-import type { BranchRangeReader } from '@porcelain/changes/ports';
-import type { CommitReaderFactory } from '@porcelain/git/history';
+import { type BranchRangeReader } from '@porcelain/changes/ports';
+import { type CommitReaderFactory } from '@porcelain/git/history';
 import {
   listedWorktree,
   type ListedWorktrees,
@@ -19,7 +19,7 @@ import {
 
 type CommitReader = ReturnType<CommitReaderFactory>;
 
-export class GitBranchRangeReader implements BranchRangeReader<GitIoFailure> {
+export class GitBranchRangeReader implements BranchRangeReader {
   private readonly worktrees: ListedWorktrees;
   private readonly git: CommitReaderFactory;
 

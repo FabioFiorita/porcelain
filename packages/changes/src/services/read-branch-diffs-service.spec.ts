@@ -1,3 +1,4 @@
+import { BranchRangeReader } from '@porcelain/changes/ports';
 import { Effect } from 'effect';
 import { withReadLease } from '@porcelain/effects/worktree';
 import { describe, expect, it } from 'vitest';
@@ -10,21 +11,30 @@ const range = `${baseOid}..${headOid}`;
 
 describe('ReadBranchDiffsService', () => {
   it('answers each requested path group with its patch, in request order', async () => {
-    const read = new ReadBranchDiffsService(
-      new InMemoryBranchRangeReader({
-        patches: {
-          [range]: {
-            kind: 'within-limit',
-            patches: [
-              {
-                paths: ['old.md', 'new.md'],
-                content: { kind: 'metadata-only', patch: 'rename' },
+    const read = Effect.runSync(
+      ReadBranchDiffsService.pipe(
+        Effect.provide(ReadBranchDiffsService.layer),
+        Effect.provideService(
+          BranchRangeReader,
+          new InMemoryBranchRangeReader({
+            patches: {
+              [range]: {
+                kind: 'within-limit',
+                patches: [
+                  {
+                    paths: ['old.md', 'new.md'],
+                    content: { kind: 'metadata-only', patch: 'rename' },
+                  },
+                  {
+                    paths: ['a.md'],
+                    content: { kind: 'text', patch: 'patch-a' },
+                  },
+                ],
               },
-              { paths: ['a.md'], content: { kind: 'text', patch: 'patch-a' } },
-            ],
-          },
-        },
-      }),
+            },
+          }),
+        ),
+      ),
     );
     expect(
       await Effect.runPromise(
@@ -50,20 +60,26 @@ describe('ReadBranchDiffsService', () => {
   });
 
   it('refuses to answer a file Git read no patch for instead of calling it unchanged', async () => {
-    const read = new ReadBranchDiffsService(
-      new InMemoryBranchRangeReader({
-        patches: {
-          [range]: {
-            kind: 'within-limit',
-            patches: [
-              {
-                paths: ['old.md', 'new.md'],
-                content: { kind: 'metadata-only', patch: 'rename' },
+    const read = Effect.runSync(
+      ReadBranchDiffsService.pipe(
+        Effect.provide(ReadBranchDiffsService.layer),
+        Effect.provideService(
+          BranchRangeReader,
+          new InMemoryBranchRangeReader({
+            patches: {
+              [range]: {
+                kind: 'within-limit',
+                patches: [
+                  {
+                    paths: ['old.md', 'new.md'],
+                    content: { kind: 'metadata-only', patch: 'rename' },
+                  },
+                ],
               },
-            ],
-          },
-        },
-      }),
+            },
+          }),
+        ),
+      ),
     );
     await expect(
       Effect.runPromise(
@@ -81,10 +97,16 @@ describe('ReadBranchDiffsService', () => {
   });
 
   it('omits every diff when the range is over the read limit', async () => {
-    const read = new ReadBranchDiffsService(
-      new InMemoryBranchRangeReader({
-        patches: { [range]: { kind: 'over-limit' } },
-      }),
+    const read = Effect.runSync(
+      ReadBranchDiffsService.pipe(
+        Effect.provide(ReadBranchDiffsService.layer),
+        Effect.provideService(
+          BranchRangeReader,
+          new InMemoryBranchRangeReader({
+            patches: { [range]: { kind: 'over-limit' } },
+          }),
+        ),
+      ),
     );
     const { diffs } = await Effect.runPromise(
       withReadLease(
@@ -104,7 +126,15 @@ describe('ReadBranchDiffsService', () => {
   });
 
   it('refuses a range whose commits the repository does not have', async () => {
-    const read = new ReadBranchDiffsService(new InMemoryBranchRangeReader());
+    const read = Effect.runSync(
+      ReadBranchDiffsService.pipe(
+        Effect.provide(ReadBranchDiffsService.layer),
+        Effect.provideService(
+          BranchRangeReader,
+          new InMemoryBranchRangeReader(),
+        ),
+      ),
+    );
     await expect(
       Effect.runPromise(
         withReadLease(

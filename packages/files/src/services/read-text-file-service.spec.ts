@@ -1,3 +1,8 @@
+import {
+  FileReader,
+  HeadTextReader,
+  ReadTextFileOptions,
+} from '@porcelain/files/ports';
 import { Effect } from 'effect';
 import { withReadLease } from '@porcelain/effects/worktree';
 import { describe, expect, it } from 'vitest';
@@ -8,7 +13,7 @@ import {
   PathNotReadableError,
   UnsupportedTextError,
 } from '@porcelain/files/errors';
-import type { TextRead } from '@porcelain/files/models';
+import { type TextRead } from '@porcelain/files/models';
 import { InMemoryFileReader } from '../../spec/fakes/in-memory-file-reader.ts';
 import { ReadTextFileService } from './read-text-file-service.ts';
 
@@ -23,10 +28,16 @@ function serviceWith(
   maxBytes = 1024 * 1024,
   head: Record<string, TextRead> = {},
 ) {
-  return new ReadTextFileService(
-    new InMemoryFileReader({ texts }),
-    new InMemoryFileReader({ texts: head }),
-    { maxBytes },
+  return Effect.runSync(
+    ReadTextFileService.pipe(
+      Effect.provide(ReadTextFileService.layer),
+      Effect.provideService(FileReader, new InMemoryFileReader({ texts })),
+      Effect.provideService(
+        HeadTextReader,
+        new InMemoryFileReader({ texts: head }),
+      ),
+      Effect.provideService(ReadTextFileOptions, { maxBytes }),
+    ),
   );
 }
 

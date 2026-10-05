@@ -1,5 +1,7 @@
-export type { BranchRangeReader } from './branch-range-reader.ts';
-export type { ChangeDiffReader } from './change-diff-reader.ts';
-export type { ChangeStatusReader } from './change-status-reader.ts';
-export type { CommitHistoryReader } from './commit-history-reader.ts';
-export type { WorktreeSideReader } from './worktree-side-reader.ts';
+export { BranchRangeReader } from './branch-range-reader.ts';
+export { ChangeDiffReader } from './change-diff-reader.ts';
+export { ChangeStatusReader } from './change-status-reader.ts';
+export { CommitHistoryReader } from './commit-history-reader.ts';
+export { WorktreeSideReader } from './worktree-side-reader.ts';
+export { ReadChangeFingerprintsOptions } from './read-change-fingerprints-options.ts';
+export { ReadChangeLinesOptions } from './read-change-lines-options.ts';

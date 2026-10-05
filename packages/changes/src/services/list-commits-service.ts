@@ -1,21 +1,32 @@
-import type { Effect } from 'effect';
-import type { WorktreeRead } from '@porcelain/effects/worktree';
-import type {
-  ListCommitsInput,
-  ListCommitsResult,
+import { type GitIoFailure } from '@porcelain/git/errors';
+import { Effect, Context, Layer } from 'effect';
+import { type WorktreeRead } from '@porcelain/effects/worktree';
+import {
+  type ListCommitsInput,
+  type ListCommitsResult,
 } from '../models/list-commits.ts';
-import type { CommitHistoryReader } from '../ports/commit-history-reader.ts';
+import { CommitHistoryReader } from '../ports/commit-history-reader.ts';
 
-export class ListCommitsService<E = never> {
-  private readonly commitHistoryReader: CommitHistoryReader<E>;
-
-  constructor(commitHistoryReader: CommitHistoryReader<E>) {
-    this.commitHistoryReader = commitHistoryReader;
+export class ListCommitsService extends Context.Service<
+  ListCommitsService,
+  {
+    readonly execute: (
+      input: ListCommitsInput,
+    ) => Effect.Effect<ListCommitsResult, GitIoFailure, WorktreeRead>;
   }
+>()('@porcelain/changes/ListCommitsService') {
+  static readonly layer = Layer.effect(
+    ListCommitsService,
+    Effect.gen(function* () {
+      const commitHistoryReaderCapability = yield* CommitHistoryReader;
 
-  execute(
-    input: ListCommitsInput,
-  ): Effect.Effect<ListCommitsResult, E, WorktreeRead> {
-    return this.commitHistoryReader.listCommits(input);
-  }
+      return {
+        execute: Effect.fn('ListCommitsService.execute')(function* (
+          input: ListCommitsInput,
+        ): Effect.fn.Return<ListCommitsResult, GitIoFailure, WorktreeRead> {
+          return yield* commitHistoryReaderCapability.listCommits(input);
+        }),
+      };
+    }),
+  );
 }

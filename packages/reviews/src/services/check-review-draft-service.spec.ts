@@ -1,12 +1,13 @@
+import { ReviewStore } from '@porcelain/reviews/ports';
 import { ValidateReviewDraftService } from '@porcelain/reviews/services';
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { ReviewConflictError } from '@porcelain/reviews/errors';
-import type {
-  LayerDraft,
-  Review,
-  ReviewDraft,
-  ValidatedReviewDraft,
+import {
+  type LayerDraft,
+  type Review,
+  type ReviewDraft,
+  type ValidatedReviewDraft,
 } from '@porcelain/reviews/models';
 import { InMemoryReviewStore } from '../../spec/fakes/in-memory-review-store.ts';
 import { CheckReviewDraftService } from './check-review-draft-service.ts';
@@ -41,7 +42,11 @@ const published: Review = {
 
 function draft(overrides: Partial<ReviewDraft> = {}): ValidatedReviewDraft {
   return Effect.runSync(
-    new ValidateReviewDraftService().execute({
+    Effect.runSync(
+      ValidateReviewDraftService.pipe(
+        Effect.provide(ValidateReviewDraftService.layer),
+      ),
+    ).execute({
       expectedRevision: 1,
       summaryHtml: '<p>Summary</p>',
       layers: [layer],
@@ -51,7 +56,12 @@ function draft(overrides: Partial<ReviewDraft> = {}): ValidatedReviewDraft {
 }
 
 const service = () =>
-  new CheckReviewDraftService(new InMemoryReviewStore([published]));
+  Effect.runSync(
+    CheckReviewDraftService.pipe(
+      Effect.provide(CheckReviewDraftService.layer),
+      Effect.provideService(ReviewStore, new InMemoryReviewStore([published])),
+    ),
+  );
 
 describe('CheckReviewDraftService', () => {
   it('accepts a sound draft that states the current revision', () => {

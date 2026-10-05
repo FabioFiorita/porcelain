@@ -1,6 +1,10 @@
+import {
+  WorktreePresenceStore,
+  InventoryStore,
+} from '@porcelain/projects/ports';
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
-import type { RegisteredProject } from '@porcelain/projects/models';
+import { type RegisteredProject } from '@porcelain/projects/models';
 import { InMemoryInventoryStore } from '../../spec/fakes/in-memory-inventory-store.ts';
 import { InMemoryWorktreePresenceStore } from '../../spec/fakes/in-memory-worktree-presence-store.ts';
 import { ListRecordedWorktreesService } from './list-recorded-worktrees-service.ts';
@@ -35,9 +39,15 @@ describe('ListRecordedWorktreesService', () => {
     });
     expect(
       Effect.runSync(
-        new ListRecordedWorktreesService(
-          presence,
-          new InMemoryInventoryStore([project]),
+        Effect.runSync(
+          ListRecordedWorktreesService.pipe(
+            Effect.provide(ListRecordedWorktreesService.layer),
+            Effect.provideService(WorktreePresenceStore, presence),
+            Effect.provideService(
+              InventoryStore,
+              new InMemoryInventoryStore([project]),
+            ),
+          ),
         ).execute(),
       ),
     ).toEqual({

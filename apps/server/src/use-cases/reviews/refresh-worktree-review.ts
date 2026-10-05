@@ -1,69 +1,79 @@
-import type { GitIoFailure } from '../../ports/git-io-failure.ts';
-import type { IncompleteDiffReadError } from '@porcelain/changes/errors';
-import { Effect } from 'effect';
-import type { WorktreeAccess } from '../../runtime/worktree-access.ts';
-import type { WorktreeAccessFailure } from '../../ports/worktree-access-failure.ts';
-import type { WorktreeKey } from '@porcelain/kernel/models';
-import type {
+import { type GitIoFailure } from '@porcelain/git/errors';
+import { type IncompleteDiffReadError } from '@porcelain/changes/errors';
+import { Effect, Context, Layer } from 'effect';
+import { WorktreeAccess } from '../../runtime/worktree-access.ts';
+import { type WorktreeAccessFailure } from '../../ports/worktree-access-failure.ts';
+import { type WorktreeKey } from '@porcelain/kernel/models';
+import {
   ReadPublishedReviewService,
   RecordReviewActivityService,
 } from '@porcelain/reviews/services';
-import type { EventPublisher } from '../../ports/event-publisher.ts';
-import type { ReadReviewEvidenceUseCasePort } from '../../ports/read-review-evidence-use-case-port.ts';
+import { EventPublisher } from '../../ports/event-publisher.ts';
+import { ReadReviewEvidenceUseCasePort } from '../../ports/read-review-evidence-use-case-port.ts';
 
-export class RefreshWorktreeReviewUseCase {
-  private readonly access: WorktreeAccess;
-  private readonly readPublishedReview: ReadPublishedReviewService;
-  private readonly readReviewEvidence: ReadReviewEvidenceUseCasePort;
-  private readonly recordReviewActivity: RecordReviewActivityService;
-  private readonly events: EventPublisher;
-
-  constructor(
-    access: WorktreeAccess,
-    readPublishedReview: ReadPublishedReviewService,
-    readReviewEvidence: ReadReviewEvidenceUseCasePort,
-    recordReviewActivity: RecordReviewActivityService,
-    events: EventPublisher,
-  ) {
-    this.access = access;
-    this.readPublishedReview = readPublishedReview;
-    this.readReviewEvidence = readReviewEvidence;
-    this.recordReviewActivity = recordReviewActivity;
-    this.events = events;
+export class RefreshWorktreeReviewUseCase extends Context.Service<
+  RefreshWorktreeReviewUseCase,
+  {
+    readonly execute: (
+      input: WorktreeKey,
+    ) => Effect.Effect<
+      void,
+      WorktreeAccessFailure | GitIoFailure | IncompleteDiffReadError
+    >;
   }
+>()('@porcelain/server/RefreshWorktreeReviewUseCase') {
+  static readonly layer = Layer.effect(
+    RefreshWorktreeReviewUseCase,
+    Effect.gen(function* () {
+      const accessCapability = yield* WorktreeAccess;
+      const readPublishedReviewCapability = yield* ReadPublishedReviewService;
+      const readReviewEvidenceCapability = yield* ReadReviewEvidenceUseCasePort;
+      const recordReviewActivityCapability = yield* RecordReviewActivityService;
+      const eventsCapability = yield* EventPublisher;
 
-  execute(
-    input: WorktreeKey,
-  ): Effect.Effect<
-    void,
-    WorktreeAccessFailure | GitIoFailure | IncompleteDiffReadError
-  > {
-    const { worktreeId } = input;
-    return this.access
-      .transaction(
-        worktreeId,
-        () =>
-          Effect.gen({ self: this }, function* () {
-            const published = yield* this.readPublishedReview.execute({
-              worktreeId,
-            });
-            if (published.kind === 'none') return undefined;
-            const evidence = yield* this.readReviewEvidence.execute({
-              worktreeId,
-              layers: published.review.layers,
-            });
-            return { review: published.review, evidence };
-          }),
-        (prepared) =>
-          prepared
-            ? this.recordReviewActivity.execute(prepared)
-            : Effect.succeed({ changed: false }),
-        ({ changed }) =>
-          Effect.sync(() => {
-            if (changed)
-              this.events.worktreeChanged({ worktreeId, change: 'review' });
-          }),
-      )
-      .pipe(Effect.asVoid);
-  }
+      return {
+        execute: Effect.fn('RefreshWorktreeReviewUseCase.execute')(function* (
+          input: WorktreeKey,
+        ): Effect.fn.Return<
+          void,
+          WorktreeAccessFailure | GitIoFailure | IncompleteDiffReadError
+        > {
+          return yield* Effect.suspend(() => {
+            const { worktreeId } = input;
+            return accessCapability
+              .transaction(
+                worktreeId,
+                () =>
+                  Effect.gen(function* () {
+                    const published =
+                      yield* readPublishedReviewCapability.execute({
+                        worktreeId,
+                      });
+                    if (published.kind === 'none') return undefined;
+                    const evidence =
+                      yield* readReviewEvidenceCapability.execute({
+                        worktreeId,
+                        layers: published.review.layers,
+                      });
+                    return { review: published.review, evidence };
+                  }),
+                (prepared) =>
+                  prepared
+                    ? recordReviewActivityCapability.execute(prepared)
+                    : Effect.succeed({ changed: false }),
+                ({ changed }) =>
+                  Effect.sync(() => {
+                    if (changed)
+                      eventsCapability.worktreeChanged({
+                        worktreeId,
+                        change: 'review',
+                      });
+                  }),
+              )
+              .pipe(Effect.asVoid);
+          });
+        }),
+      };
+    }),
+  );
 }

@@ -1,3 +1,25 @@
+import { GitActionReceiptStore } from '@porcelain/git-actions/ports';
+import {
+  ChangeStatusReader,
+  WorktreeSideReader,
+  ReadChangeFingerprintsOptions,
+  ChangeDiffReader,
+  BranchRangeReader,
+} from '@porcelain/changes/ports';
+import {
+  ReviewStore,
+  ReviewedLayerStore,
+  CommentStore,
+  CommentSeenStore,
+  ReviewedFileStore,
+} from '@porcelain/reviews/ports';
+import {
+  FileReader,
+  HeadTextReader,
+  ReadTextFileOptions,
+  ReadTextFilesOptions,
+  ReadBinaryFilesOptions,
+} from '@porcelain/files/ports';
 import { Effect, Layer } from 'effect';
 import {
   EnvironmentIdentityReader,
@@ -8,7 +30,7 @@ import {
   ReadEnvironmentNameService,
   ReadEnvironmentService,
 } from '@porcelain/access/services';
-import type { Clock } from '@porcelain/kernel/ports';
+import { Clock } from '@porcelain/kernel/ports';
 import { OsHostNameReader } from '../adapters/access/os-host-name-reader.ts';
 import {
   ReadBranchChangesService,
@@ -31,7 +53,12 @@ import {
   InspectionGit,
   type InspectionFactory,
 } from '@porcelain/git/inspection';
-import type { WorktreeCatalogStore } from '@porcelain/projects/ports';
+import {
+  WorktreeCatalogStore,
+  InventoryStore,
+  CheckWorktreeOptions,
+  WorktreePresenceStore,
+} from '@porcelain/projects/ports';
 import {
   CheckRefreshedWorktreeService,
   CheckWorktreeService,
@@ -62,13 +89,13 @@ import { FilesystemFileReader } from '../adapters/files/filesystem-file-reader.t
 import { GitHeadTextReader } from '../adapters/files/git-head-text-reader.ts';
 import { GitWorktreeAccessReader } from '../adapters/projects/git-worktree-access-reader.ts';
 import { GitWorktreeListingReader } from '../adapters/projects/git-worktree-listing-reader.ts';
-import type { WorktreeListing } from '@porcelain/projects/models';
-import type { ServerSettings } from '../config/server-settings.ts';
-import type { Logger } from '../ports/logger.ts';
+import { type WorktreeListing } from '@porcelain/projects/models';
+import { type ServerSettings } from '../config/server-settings.ts';
+import { type Logger } from '../ports/logger.ts';
 import { LaunchLimit } from '../runtime/launch-limit.ts';
 import { SharedReads } from '../runtime/shared-reads.ts';
 import { ReadReviewEvidenceUseCase } from '../use-cases/reviews/read-review-evidence.ts';
-import type { Stores } from './compose-stores.ts';
+import { type Stores } from './compose-stores.ts';
 
 export type Shared = Effect.Success<ReturnType<typeof composeShared>>;
 
@@ -83,60 +110,106 @@ type SharedDependencies = {
 };
 
 export function composeShared(dependencies: SharedDependencies) {
-  return Effect.gen(function* () {
-    const { stores, catalog, gitVersion } = dependencies;
-    const { limits } = dependencies.settings;
-    const hostNames = yield* HostNameReader;
-    const git: GitFactory = (checkout) =>
-      new DiscoveryGit(checkout, limits.git);
-    const actionGit: GitActionWriterFactory = (checkout) =>
-      new ActionsGit(checkout, limits.git);
-    const commitGit: CommitReaderFactory = (checkout) =>
-      new HistoryGit(checkout, gitVersion, limits.git);
-    const inspection: InspectionFactory = (checkout) =>
-      new InspectionGit(checkout, limits.git);
-    const inventoryReads = new SharedReads<WorktreeListing>();
-    const worktreeListing = new GitWorktreeListingReader({
-      git,
-      sharedReads: inventoryReads,
-      launchLimit: new LaunchLimit(limits.inventory.listingLaunches),
-      timeoutMs: limits.inventory.listingTimeoutMs,
-      worktreeId: dependencies.worktreeId,
-      logger: dependencies.logger,
-    });
-    const worktreeAccess = new GitWorktreeAccessReader(catalog);
-    const staleness = { staleAfterMs: limits.inventory.staleAfterMs };
-    const gitSessions = gitSessionPerSignal(limits.git);
-    const openInspection = inspectionCheckouts(
-      worktreeAccess,
-      inspection,
-      gitSessions,
-    );
-    const changeStatusReader = new GitChangeStatusReader(openInspection);
-    const fileReader = new FilesystemFileReader(worktreeAccess);
-    const readTextFileService = new ReadTextFileService(
-      fileReader,
-      new GitHeadTextReader(openInspection),
-      limits.files.readTextFile,
-    );
-    const readTextFilesService = new ReadTextFilesService(
-      fileReader,
-      limits.files.readTextFile,
-    );
-    const readWorktreeStatus = new ReadWorktreeStatusService(
-      changeStatusReader,
-    );
-    const readChangeFingerprints = new ReadChangeFingerprintsService(
+  const { stores, catalog, gitVersion } = dependencies;
+  const { limits } = dependencies.settings;
+  const git: GitFactory = (checkout) => new DiscoveryGit(checkout, limits.git);
+  const actionGit: GitActionWriterFactory = (checkout) =>
+    new ActionsGit(checkout, limits.git);
+  const commitGit: CommitReaderFactory = (checkout) =>
+    new HistoryGit(checkout, gitVersion, limits.git);
+  const inspection: InspectionFactory = (checkout) =>
+    new InspectionGit(checkout, limits.git);
+  const inventoryReads = new SharedReads<WorktreeListing>();
+  const worktreeListing = new GitWorktreeListingReader({
+    git,
+    sharedReads: inventoryReads,
+    launchLimit: new LaunchLimit(limits.inventory.listingLaunches),
+    timeoutMs: limits.inventory.listingTimeoutMs,
+    worktreeId: dependencies.worktreeId,
+    logger: dependencies.logger,
+  });
+  const worktreeAccess = new GitWorktreeAccessReader(catalog);
+  const staleness = { staleAfterMs: limits.inventory.staleAfterMs };
+  const gitSessions = gitSessionPerSignal(limits.git);
+  const openInspection = inspectionCheckouts(
+    worktreeAccess,
+    inspection,
+    gitSessions,
+  );
+  const changeStatusReader = new GitChangeStatusReader(openInspection);
+  const fileReader = new FilesystemFileReader(worktreeAccess);
+  const branchRangeReader = new GitBranchRangeReader(worktreeAccess, commitGit);
+  const ports = Layer.mergeAll(
+    Layer.succeed(FileReader, fileReader),
+    Layer.succeed(HeadTextReader, new GitHeadTextReader(openInspection)),
+    Layer.succeed(ReadTextFileOptions, limits.files.readTextFile),
+    Layer.succeed(ReadTextFilesOptions, limits.files.readTextFile),
+    Layer.succeed(ChangeStatusReader, changeStatusReader),
+    Layer.succeed(
+      WorktreeSideReader,
       new GitWorktreeSideReader(openInspection, limits.changes.worktreeReads),
-      limits.changes.fingerprints,
-    );
-    const readChangeDiffs = new ReadChangeDiffsService(
-      new GitChangeDiffReader(openInspection),
-    );
-    const branchRangeReader = new GitBranchRangeReader(
-      worktreeAccess,
-      commitGit,
-    );
+    ),
+    Layer.succeed(ReadChangeFingerprintsOptions, limits.changes.fingerprints),
+    Layer.succeed(ChangeDiffReader, new GitChangeDiffReader(openInspection)),
+    Layer.succeed(WorktreeCatalogStore, catalog),
+    Layer.succeed(InventoryStore, stores.inventory),
+    Layer.succeed(Clock, dependencies.clock),
+    Layer.succeed(CheckWorktreeOptions, staleness),
+    Layer.succeed(BranchRangeReader, branchRangeReader),
+    Layer.succeed(GitActionReceiptStore, stores.gitActions),
+    Layer.succeed(WorktreePresenceStore, stores.worktreePresence),
+    Layer.succeed(ReviewStore, stores.reviews),
+    Layer.succeed(ReviewedLayerStore, stores.reviewedLayers),
+    Layer.succeed(CommentStore, stores.comments),
+    Layer.succeed(CommentSeenStore, stores.commentsSeen),
+    Layer.succeed(ReadBinaryFilesOptions, limits.reviews.proof),
+    Layer.succeed(ReviewedFileStore, stores.reviewedFiles),
+  );
+  const native = Layer.mergeAll(
+    ReadEnvironmentService.layer,
+    ReadEnvironmentNameService.layer,
+  )
+    .pipe(
+      Layer.provideMerge(
+        Layer.mergeAll(
+          Layer.succeed(
+            EnvironmentIdentityReader,
+            dependencies.stores.environmentIdentity,
+          ),
+          Layer.succeed(
+            EnvironmentNameStore,
+            dependencies.stores.environmentName,
+          ),
+          Layer.succeed(HostNameReader, new OsHostNameReader()),
+        ),
+      ),
+    )
+    .pipe(Layer.provideMerge(ports));
+  const services = Layer.mergeAll(
+    ReadTextFileService.layer,
+    ReadTextFilesService.layer,
+    ReadWorktreeStatusService.layer,
+    ReadChangeFingerprintsService.layer,
+    ReadChangeDiffsService.layer,
+    CheckWorktreeService.layer,
+    ConfirmWorktreeService.layer,
+    CheckRefreshedWorktreeService.layer,
+    ReadBranchChangesService.layer,
+    ReadInterruptedGitActionService.layer,
+    ListRegisteredProjectsService.layer,
+    ListKnownWorktreesService.layer,
+    ListRecordedWorktreesService.layer,
+    ReadReviewBadgesService.layer,
+    ReadPublishedReviewService.layer,
+    ListReviewedLayerPathsService.layer,
+    ReadBinaryFilesService.layer,
+    RecordReviewActivityService.layer,
+    InvalidateReviewedMarksService.layer,
+  ).pipe(Layer.provideMerge(native));
+  const operations = Layer.mergeAll(ReadReviewEvidenceUseCase.layer).pipe(
+    Layer.provideMerge(services),
+  );
+  return Effect.gen(function* () {
     return {
       git,
       actionGit,
@@ -149,86 +222,30 @@ export function composeShared(dependencies: SharedDependencies) {
       openInspection,
       changeStatusReader,
       fileReader,
-      checkWorktreeService: new CheckWorktreeService(
-        catalog,
-        stores.inventory,
-        dependencies.clock,
-        staleness,
-      ),
-      confirmWorktree: new ConfirmWorktreeService(catalog),
-      checkRefreshedWorktree: new CheckRefreshedWorktreeService(
-        catalog,
-        stores.inventory,
-        dependencies.clock,
-        staleness,
-      ),
+      checkWorktreeService: yield* CheckWorktreeService,
+      confirmWorktree: yield* ConfirmWorktreeService,
+      checkRefreshedWorktree: yield* CheckRefreshedWorktreeService,
       readEnvironment: yield* ReadEnvironmentService,
       readEnvironmentName: yield* ReadEnvironmentNameService,
-      hostNames,
-      readTextFileService,
-      readWorktreeStatus,
-      readChangeFingerprints,
+      hostNames: yield* HostNameReader,
+      readTextFileService: yield* ReadTextFileService,
+      readWorktreeStatus: yield* ReadWorktreeStatusService,
+      readChangeFingerprints: yield* ReadChangeFingerprintsService,
       branchRangeReader,
-      readBranchChanges: new ReadBranchChangesService(branchRangeReader),
-      readChangeDiffs,
-      readInterruptedGitAction: new ReadInterruptedGitActionService(
-        stores.gitActions,
-      ),
-      listRegisteredProjects: new ListRegisteredProjectsService(
-        stores.inventory,
-      ),
-      listKnownWorktrees: new ListKnownWorktreesService(catalog),
-      listRecordedWorktrees: new ListRecordedWorktreesService(
-        stores.worktreePresence,
-        stores.inventory,
-      ),
-      readWorktreeStatuses: new ReadReviewBadgesService(
-        stores.reviews,
-        stores.reviewedLayers,
-        stores.comments,
-        stores.commentsSeen,
-      ),
-      readPublishedReview: new ReadPublishedReviewService(stores.reviews),
-      listReviewedLayerPaths: new ListReviewedLayerPathsService(
-        stores.reviews,
-        stores.reviewedLayers,
-      ),
-      readTextFilesService,
-      readBinaryFiles: new ReadBinaryFilesService(
-        fileReader,
-        limits.reviews.proof,
-      ),
-      readReviewEvidence: new ReadReviewEvidenceUseCase(
-        readWorktreeStatus,
-        readChangeFingerprints,
-        readTextFilesService,
-        readChangeDiffs,
-      ),
-      recordReviewActivity: new RecordReviewActivityService(stores.reviews),
-      invalidateReviewedMarks: new InvalidateReviewedMarksService(
-        stores.reviewedFiles,
-      ),
+      readBranchChanges: yield* ReadBranchChangesService,
+      readChangeDiffs: yield* ReadChangeDiffsService,
+      readInterruptedGitAction: yield* ReadInterruptedGitActionService,
+      listRegisteredProjects: yield* ListRegisteredProjectsService,
+      listKnownWorktrees: yield* ListKnownWorktreesService,
+      listRecordedWorktrees: yield* ListRecordedWorktreesService,
+      readWorktreeStatuses: yield* ReadReviewBadgesService,
+      readPublishedReview: yield* ReadPublishedReviewService,
+      listReviewedLayerPaths: yield* ListReviewedLayerPathsService,
+      readTextFilesService: yield* ReadTextFilesService,
+      readBinaryFiles: yield* ReadBinaryFilesService,
+      readReviewEvidence: yield* ReadReviewEvidenceUseCase,
+      recordReviewActivity: yield* RecordReviewActivityService,
+      invalidateReviewedMarks: yield* InvalidateReviewedMarksService,
     };
-  }).pipe(
-    Effect.provide(
-      Layer.mergeAll(
-        ReadEnvironmentService.layer,
-        ReadEnvironmentNameService.layer,
-      ).pipe(
-        Layer.provideMerge(
-          Layer.mergeAll(
-            Layer.succeed(
-              EnvironmentIdentityReader,
-              dependencies.stores.environmentIdentity,
-            ),
-            Layer.succeed(
-              EnvironmentNameStore,
-              dependencies.stores.environmentName,
-            ),
-            Layer.succeed(HostNameReader, new OsHostNameReader()),
-          ),
-        ),
-      ),
-    ),
-  );
+  }).pipe(Effect.provide(operations));
 }

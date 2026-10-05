@@ -1,3 +1,4 @@
+import { ReviewedLayerStore } from '@porcelain/reviews/ports';
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { InMemoryReviewedLayerStore } from '../../spec/fakes/in-memory-reviewed-layer-store.ts';
@@ -21,7 +22,15 @@ function setup() {
     { worktreeId, ...mark('layer-2') },
     { worktreeId: other, ...mark('layer-1') },
   ]);
-  return { store, service: new RemoveReviewedLayerService(store) };
+  return {
+    store,
+    service: Effect.runSync(
+      RemoveReviewedLayerService.pipe(
+        Effect.provide(RemoveReviewedLayerService.layer),
+        Effect.provideService(ReviewedLayerStore, store),
+      ),
+    ),
+  };
 }
 
 describe('RemoveReviewedLayerService', () => {

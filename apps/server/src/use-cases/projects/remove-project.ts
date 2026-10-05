@@ -1,67 +1,64 @@
-import { Effect } from 'effect';
-import type { ProjectNotFoundError } from '@porcelain/projects/errors';
-import type {
-  RemoveProjectParams,
-  RemoveProjectResponse,
+import { InventoryRefresh } from '../../ports/inventory-refresh.ts';
+import { Effect, Context, Layer } from 'effect';
+import { type ProjectNotFoundError } from '@porcelain/projects/errors';
+import {
+  type RemoveProjectParams,
+  type RemoveProjectResponse,
 } from '@porcelain/contracts/projects';
-import type {
+import {
   FindProjectService,
   ForgetProjectRecordsService,
   RemoveProjectService,
 } from '@porcelain/projects/services';
-import type { EventPublisher } from '../../ports/event-publisher.ts';
-import type { JobRunner } from '../../ports/job-runner.ts';
-import type { LaneKeys } from '../../runtime/lane-keys.ts';
-import type { Lanes } from '../../runtime/lanes.ts';
+import { EventPublisher } from '../../ports/event-publisher.ts';
 
-export class RemoveProjectUseCase {
-  private readonly findProject: FindProjectService;
-  private readonly forgetProjectRecords: ForgetProjectRecordsService;
-  private readonly removeProject: RemoveProjectService;
-  private readonly refreshInventory: JobRunner<ProjectNotFoundError>;
-  private readonly lanes: Lanes;
-  private readonly laneKeys: LaneKeys;
-  private readonly events: EventPublisher;
+import { LaneKeys } from '../../runtime/lane-keys.ts';
+import { Lanes } from '../../runtime/lanes.ts';
 
-  constructor(
-    findProject: FindProjectService,
-    forgetProjectRecords: ForgetProjectRecordsService,
-    removeProject: RemoveProjectService,
-    refreshInventory: JobRunner<ProjectNotFoundError>,
-    lanes: Lanes,
-    laneKeys: LaneKeys,
-    events: EventPublisher,
-  ) {
-    this.findProject = findProject;
-    this.forgetProjectRecords = forgetProjectRecords;
-    this.removeProject = removeProject;
-    this.refreshInventory = refreshInventory;
-    this.lanes = lanes;
-    this.laneKeys = laneKeys;
-    this.events = events;
+export class RemoveProjectUseCase extends Context.Service<
+  RemoveProjectUseCase,
+  {
+    readonly execute: (
+      input: RemoveProjectParams,
+    ) => Effect.Effect<RemoveProjectResponse, ProjectNotFoundError>;
   }
+>()('@porcelain/server/RemoveProjectUseCase') {
+  static readonly layer = Layer.effect(
+    RemoveProjectUseCase,
+    Effect.gen(function* () {
+      const findProjectCapability = yield* FindProjectService;
+      const forgetProjectRecordsCapability = yield* ForgetProjectRecordsService;
+      const removeProjectCapability = yield* RemoveProjectService;
+      const refreshInventoryCapability = yield* InventoryRefresh;
+      const lanesCapability = yield* Lanes;
+      const laneKeysCapability = yield* LaneKeys;
+      const eventsCapability = yield* EventPublisher;
 
-  execute(
-    input: RemoveProjectParams,
-  ): Effect.Effect<RemoveProjectResponse, ProjectNotFoundError> {
-    return Effect.gen({ self: this }, function* () {
-      const found = yield* this.findProject.execute({
-        projectId: input.projectId,
-      });
-      if (found.kind === 'missing') return { deleted: false };
-      yield* this.lanes.run(this.laneKeys.project(found.project), 'write', () =>
-        this.forgetProjectRecords.execute(input),
-      );
-      const result = yield* this.lanes.run(
-        this.laneKeys.inventory(),
-        'write',
-        () => this.removeProject.execute(input),
-      );
-      if (result.deleted) {
-        yield* this.refreshInventory.execute();
-        this.events.inventoryChanged();
-      }
-      return result;
-    });
-  }
+      return {
+        execute: Effect.fn('RemoveProjectUseCase.execute')(function* (
+          input: RemoveProjectParams,
+        ): Effect.fn.Return<RemoveProjectResponse, ProjectNotFoundError> {
+          const found = yield* findProjectCapability.execute({
+            projectId: input.projectId,
+          });
+          if (found.kind === 'missing') return { deleted: false };
+          yield* lanesCapability.run(
+            laneKeysCapability.project(found.project),
+            'write',
+            () => forgetProjectRecordsCapability.execute(input),
+          );
+          const result = yield* lanesCapability.run(
+            laneKeysCapability.inventory(),
+            'write',
+            () => removeProjectCapability.execute(input),
+          );
+          if (result.deleted) {
+            yield* refreshInventoryCapability.execute();
+            eventsCapability.inventoryChanged();
+          }
+          return result;
+        }),
+      };
+    }),
+  );
 }

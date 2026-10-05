@@ -1,55 +1,65 @@
-import type {
-  CommentIdentityConflictError,
-  CommentTargetNotFoundError,
-  CommentLimitExceededError,
+import {
+  type CommentIdentityConflictError,
+  type CommentTargetNotFoundError,
+  type CommentLimitExceededError,
 } from '@porcelain/reviews/errors';
-import { Effect } from 'effect';
-import type { WorktreeAccess } from '../../runtime/worktree-access.ts';
-import type { WorktreeAccessFailure } from '../../ports/worktree-access-failure.ts';
-import type {
-  CommentAuthor,
-  CommentThreadParams,
-  ReplyToCommentRequest,
-  ReplyToCommentResponse,
+import { Effect, Context, Layer } from 'effect';
+import { WorktreeAccess } from '../../runtime/worktree-access.ts';
+import { type WorktreeAccessFailure } from '../../ports/worktree-access-failure.ts';
+import {
+  type CommentAuthor,
+  type CommentThreadParams,
+  type ReplyToCommentRequest,
+  type ReplyToCommentResponse,
 } from '@porcelain/contracts/reviews';
-import type { ReplyToCommentService } from '@porcelain/reviews/services';
-import type { EventPublisher } from '../../ports/event-publisher.ts';
+import { ReplyToCommentService } from '@porcelain/reviews/services';
+import { EventPublisher } from '../../ports/event-publisher.ts';
 
-export class ReplyToCommentUseCase {
-  private readonly access: WorktreeAccess;
-  private readonly replyToComment: ReplyToCommentService;
-  private readonly events: EventPublisher;
-
-  constructor(
-    access: WorktreeAccess,
-    replyToComment: ReplyToCommentService,
-    events: EventPublisher,
-  ) {
-    this.access = access;
-    this.replyToComment = replyToComment;
-    this.events = events;
+export class ReplyToCommentUseCase extends Context.Service<
+  ReplyToCommentUseCase,
+  {
+    readonly execute: (
+      input: CommentThreadParams & ReplyToCommentRequest & CommentAuthor,
+    ) => Effect.Effect<
+      ReplyToCommentResponse,
+      | WorktreeAccessFailure
+      | CommentIdentityConflictError
+      | CommentTargetNotFoundError
+      | CommentLimitExceededError
+    >;
   }
+>()('@porcelain/server/ReplyToCommentUseCase') {
+  static readonly layer = Layer.effect(
+    ReplyToCommentUseCase,
+    Effect.gen(function* () {
+      const accessCapability = yield* WorktreeAccess;
+      const replyToCommentCapability = yield* ReplyToCommentService;
+      const eventsCapability = yield* EventPublisher;
 
-  execute(
-    input: CommentThreadParams & ReplyToCommentRequest & CommentAuthor,
-  ): Effect.Effect<
-    ReplyToCommentResponse,
-    | WorktreeAccessFailure
-    | CommentIdentityConflictError
-    | CommentTargetNotFoundError
-    | CommentLimitExceededError
-  > {
-    return this.access.transaction(
-      input.worktreeId,
-      () => Effect.void,
-      () => this.replyToComment.execute(input),
-      () =>
-        Effect.sync(() => {
-          this.events.worktreeChanged({
-            worktreeId: input.worktreeId,
-            change: 'comments',
-          });
+      return {
+        execute: Effect.fn('ReplyToCommentUseCase.execute')(function* (
+          input: CommentThreadParams & ReplyToCommentRequest & CommentAuthor,
+        ): Effect.fn.Return<
+          ReplyToCommentResponse,
+          | WorktreeAccessFailure
+          | CommentIdentityConflictError
+          | CommentTargetNotFoundError
+          | CommentLimitExceededError
+        > {
+          return yield* accessCapability.transaction(
+            input.worktreeId,
+            () => Effect.void,
+            () => replyToCommentCapability.execute(input),
+            () =>
+              Effect.sync(() => {
+                eventsCapability.worktreeChanged({
+                  worktreeId: input.worktreeId,
+                  change: 'comments',
+                });
+              }),
+          );
         }),
-    );
-  }
+      };
+    }),
+  );
 }

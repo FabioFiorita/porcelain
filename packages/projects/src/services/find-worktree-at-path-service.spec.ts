@@ -1,7 +1,7 @@
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { NoWorktreeAtPathError } from '@porcelain/projects/errors';
-import type { ProjectWorktrees } from '@porcelain/projects/models';
+import { type ProjectWorktrees } from '@porcelain/projects/models';
 import { FindWorktreeAtPathService } from './find-worktree-at-path-service.ts';
 
 const listings: ProjectWorktrees[] = [
@@ -25,7 +25,11 @@ const listings: ProjectWorktrees[] = [
     ],
   },
 ];
-const service = new FindWorktreeAtPathService();
+const service = Effect.runSync(
+  FindWorktreeAtPathService.pipe(
+    Effect.provide(FindWorktreeAtPathService.layer),
+  ),
+);
 
 describe('FindWorktreeAtPathService', () => {
   it('answers the worktree whose folder holds the path', () => {

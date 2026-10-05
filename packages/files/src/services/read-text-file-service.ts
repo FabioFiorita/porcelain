@@ -1,19 +1,19 @@
-import type { WorktreeRead } from '@porcelain/effects/worktree';
+import { ReadTextFileOptions } from '../ports/read-text-file-options.ts';
+import { type WorktreeRead } from '@porcelain/effects/worktree';
 import { sha256Hex, utf8ByteLength } from '@porcelain/kernel/rules';
-import { Effect } from 'effect';
+import { Effect, Context, Layer } from 'effect';
 import { ContentChangedError } from '../errors/content-changed-error.ts';
 import { FileTooLargeError } from '../errors/file-too-large-error.ts';
 import { PathNotFoundError } from '../errors/path-not-found-error.ts';
 import { PathNotReadableError } from '../errors/path-not-readable-error.ts';
 import { UnsupportedTextError } from '../errors/unsupported-text-error.ts';
-import type { TextFailure } from '../models/file-failure.ts';
-import type {
-  ReadTextFileInput,
-  ReadTextFileOptions,
-  ReadTextFileResult,
+import { type TextFailure } from '../models/file-failure.ts';
+import {
+  type ReadTextFileInput,
+  type ReadTextFileResult,
 } from '../models/read-text-file.ts';
-import type { FileReader } from '../ports/file-reader.ts';
-import type { HeadTextReader } from '../ports/head-text-reader.ts';
+import { FileReader } from '../ports/file-reader.ts';
+import { HeadTextReader } from '../ports/head-text-reader.ts';
 
 type TextFailureError =
   | PathNotFoundError
@@ -23,58 +23,66 @@ type TextFailureError =
 
 export type ReadTextFileFailure = TextFailureError | FileTooLargeError;
 
-export class ReadTextFileService {
-  private readonly fileReader: FileReader;
-  private readonly headTextReader: HeadTextReader;
-  private readonly options: ReadTextFileOptions;
-
-  constructor(
-    fileReader: FileReader,
-    headTextReader: HeadTextReader,
-    options: ReadTextFileOptions,
-  ) {
-    this.fileReader = fileReader;
-    this.headTextReader = headTextReader;
-    this.options = options;
+export class ReadTextFileService extends Context.Service<
+  ReadTextFileService,
+  {
+    readonly execute: (
+      input: ReadTextFileInput,
+    ) => Effect.Effect<ReadTextFileResult, ReadTextFileFailure, WorktreeRead>;
   }
-
-  execute(
-    input: ReadTextFileInput,
-  ): Effect.Effect<ReadTextFileResult, ReadTextFileFailure, WorktreeRead> {
-    return Effect.gen({ self: this }, function* () {
-      const reader =
-        input.at === 'head' ? this.headTextReader : this.fileReader;
-      const read = yield* reader.readText({
-        worktreeId: input.worktreeId,
-        path: input.path,
-        maxBytes: this.options.maxBytes,
-      });
-      if (read.kind === 'failed')
-        return yield* Effect.fail(this.failure(read.failure));
-      if (read.kind === 'too-large') return yield* new FileTooLargeError();
-      const answer: Omit<ReadTextFileResult, 'contentFingerprint'> = {
-        worktreeId: input.worktreeId,
-        path: input.path,
-        encoding: 'utf-8',
-        byteLength: read.byteLength,
-        text: read.text,
+>()('@porcelain/files/ReadTextFileService') {
+  static readonly layer = Layer.effect(
+    ReadTextFileService,
+    Effect.gen(function* () {
+      const fileReaderCapability = yield* FileReader;
+      const headTextReaderCapability = yield* HeadTextReader;
+      const optionsCapability = yield* ReadTextFileOptions;
+      function operationFailure(failure: TextFailure): TextFailureError {
+        switch (failure) {
+          case 'missing':
+            return new PathNotFoundError();
+          case 'unreadable':
+            return new PathNotReadableError();
+          case 'changed':
+            return new ContentChangedError();
+          case 'unsupported-text':
+            return new UnsupportedTextError();
+        }
+      }
+      return {
+        execute: Effect.fn('ReadTextFileService.execute')(function* (
+          input: ReadTextFileInput,
+        ): Effect.fn.Return<
+          ReadTextFileResult,
+          ReadTextFileFailure,
+          WorktreeRead
+        > {
+          const reader =
+            input.at === 'head'
+              ? headTextReaderCapability
+              : fileReaderCapability;
+          const read = yield* reader.readText({
+            worktreeId: input.worktreeId,
+            path: input.path,
+            maxBytes: optionsCapability.maxBytes,
+          });
+          if (read.kind === 'failed')
+            return yield* Effect.fail(operationFailure(read.failure));
+          if (read.kind === 'too-large') return yield* new FileTooLargeError();
+          const answer: Omit<ReadTextFileResult, 'contentFingerprint'> = {
+            worktreeId: input.worktreeId,
+            path: input.path,
+            encoding: 'utf-8',
+            byteLength: read.byteLength,
+            text: read.text,
+          };
+          if (
+            utf8ByteLength(JSON.stringify(answer)) > optionsCapability.maxBytes
+          )
+            return yield* new FileTooLargeError();
+          return { ...answer, contentFingerprint: sha256Hex(read.text) };
+        }),
       };
-      if (utf8ByteLength(JSON.stringify(answer)) > this.options.maxBytes)
-        return yield* new FileTooLargeError();
-      return { ...answer, contentFingerprint: sha256Hex(read.text) };
-    });
-  }
-
-  private failure(failure: TextFailure): TextFailureError {
-    switch (failure) {
-      case 'missing':
-        return new PathNotFoundError();
-      case 'unreadable':
-        return new PathNotReadableError();
-      case 'changed':
-        return new ContentChangedError();
-      case 'unsupported-text':
-        return new UnsupportedTextError();
-    }
-  }
+    }),
+  );
 }

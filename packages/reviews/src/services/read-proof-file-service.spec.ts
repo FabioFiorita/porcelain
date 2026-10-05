@@ -1,7 +1,8 @@
+import { ReviewStore, ReadProofFileOptions } from '@porcelain/reviews/ports';
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { ProofFileNotFoundError } from '@porcelain/reviews/errors';
-import type { Review } from '@porcelain/reviews/models';
+import { type Review } from '@porcelain/reviews/models';
 import { InMemoryReviewStore } from '../../spec/fakes/in-memory-review-store.ts';
 import { ReadProofFileService } from './read-proof-file-service.ts';
 
@@ -34,7 +35,13 @@ function setup() {
     ],
   });
   store.save(review(otherWorktreeId));
-  return new ReadProofFileService(store, { base64ChunkBytes: 0x8000 });
+  return Effect.runSync(
+    ReadProofFileService.pipe(
+      Effect.provide(ReadProofFileService.layer),
+      Effect.provideService(ReviewStore, store),
+      Effect.provideService(ReadProofFileOptions, { base64ChunkBytes: 0x8000 }),
+    ),
+  );
 }
 
 describe('ReadProofFileService', () => {

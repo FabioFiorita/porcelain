@@ -1,23 +1,38 @@
-import { Effect } from 'effect';
-import type { Clock } from '@porcelain/kernel/ports';
-import type { RecordWorktreeCatalogInput } from '../models/worktree-catalog.ts';
-import type { WorktreeCatalogStore } from '../ports/worktree-catalog-store.ts';
+import { Effect, Context, Layer } from 'effect';
+import { Clock } from '@porcelain/kernel/ports';
+import { type RecordWorktreeCatalogInput } from '../models/worktree-catalog.ts';
+import { WorktreeCatalogStore } from '../ports/worktree-catalog-store.ts';
 import { catalogSnapshot } from '../rules/worktree-catalog.ts';
 
-export class RecordWorktreeCatalogService {
-  private readonly catalog: WorktreeCatalogStore;
-  private readonly clock: Clock;
-
-  constructor(catalog: WorktreeCatalogStore, clock: Clock) {
-    this.catalog = catalog;
-    this.clock = clock;
+export class RecordWorktreeCatalogService extends Context.Service<
+  RecordWorktreeCatalogService,
+  {
+    readonly execute: (
+      input: RecordWorktreeCatalogInput,
+    ) => Effect.Effect<void, never>;
   }
+>()('@porcelain/projects/RecordWorktreeCatalogService') {
+  static readonly layer = Layer.effect(
+    RecordWorktreeCatalogService,
+    Effect.gen(function* () {
+      const catalogCapability = yield* WorktreeCatalogStore;
+      const clockCapability = yield* Clock;
 
-  execute(input: RecordWorktreeCatalogInput): Effect.Effect<void, never> {
-    return Effect.sync(() => {
-      this.catalog.save(
-        catalogSnapshot(input.projects, input.listings, this.clock.now()),
-      );
-    });
-  }
+      return {
+        execute: Effect.fn('RecordWorktreeCatalogService.execute')(function* (
+          input: RecordWorktreeCatalogInput,
+        ): Effect.fn.Return<void, never> {
+          return yield* Effect.sync<void>(() => {
+            catalogCapability.save(
+              catalogSnapshot(
+                input.projects,
+                input.listings,
+                clockCapability.now(),
+              ),
+            );
+          });
+        }),
+      };
+    }),
+  );
 }

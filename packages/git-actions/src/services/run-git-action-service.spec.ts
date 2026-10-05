@@ -1,19 +1,20 @@
-import { WORKTREE_ID } from '../../spec/fixtures/git-action-samples.ts';
-import { withWriteLease } from '@porcelain/effects/worktree';
-import { Effect } from 'effect';
-import type {
-  GitActionOutcome,
-  GitActionRunnerOutcome,
-  RunGitActionInput,
-} from '@porcelain/git-actions/models';
-import type { FileChange } from '@porcelain/kernel/models';
-import { describe, expect, it } from 'vitest';
+import { GitActionRunner } from '@porcelain/git-actions/ports';
 import {
+  WORKTREE_ID,
   CLEAN_EXPECTATION,
   GUIDE_FINGERPRINT,
   README_FINGERPRINT,
   sampleRun,
 } from '../../spec/fixtures/git-action-samples.ts';
+import { withWriteLease } from '@porcelain/effects/worktree';
+import { Effect } from 'effect';
+import {
+  type GitActionOutcome,
+  type GitActionRunnerOutcome,
+  type RunGitActionInput,
+} from '@porcelain/git-actions/models';
+import { type FileChange } from '@porcelain/kernel/models';
+import { describe, expect, it } from 'vitest';
 import { ScriptedGitActionRunner } from '../../spec/fakes/scripted-git-action-runner.ts';
 import { RunGitActionService } from './run-git-action-service.ts';
 
@@ -42,7 +43,12 @@ function subject(
 ) {
   const lines: string[] = [];
   const runner = new ScriptedGitActionRunner({ answer, progress });
-  const service = new RunGitActionService(runner);
+  const service = Effect.runSync(
+    RunGitActionService.pipe(
+      Effect.provide(RunGitActionService.layer),
+      Effect.provideService(GitActionRunner, runner),
+    ),
+  );
   return {
     lines,
     execute: (input: Omit<RunGitActionInput, 'onProgress'>) =>

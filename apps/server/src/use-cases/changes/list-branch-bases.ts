@@ -1,35 +1,48 @@
-import { Effect } from 'effect';
-import type { WorktreeAccess } from '../../runtime/worktree-access.ts';
-import type { WorktreeAccessFailure } from '../../ports/worktree-access-failure.ts';
-import type { GitIoFailure } from '../../ports/git-io-failure.ts';
-import type { ListBranchBasesService } from '@porcelain/changes/services';
-import type { ListBranchBasesResponse } from '@porcelain/contracts/changes';
-import type { WorktreeParams } from '@porcelain/contracts/shared';
+import { Effect, Context, Layer } from 'effect';
+import { WorktreeAccess } from '../../runtime/worktree-access.ts';
+import { type WorktreeAccessFailure } from '../../ports/worktree-access-failure.ts';
+import { type GitIoFailure } from '@porcelain/git/errors';
+import { ListBranchBasesService } from '@porcelain/changes/services';
+import { type ListBranchBasesResponse } from '@porcelain/contracts/changes';
+import { type WorktreeParams } from '@porcelain/contracts/shared';
 
-export class ListBranchBasesUseCase {
-  private readonly access: WorktreeAccess;
-  private readonly listBranchBases: ListBranchBasesService<GitIoFailure>;
-
-  constructor(
-    access: WorktreeAccess,
-    listBranchBases: ListBranchBasesService<GitIoFailure>,
-  ) {
-    this.access = access;
-    this.listBranchBases = listBranchBases;
+export class ListBranchBasesUseCase extends Context.Service<
+  ListBranchBasesUseCase,
+  {
+    readonly execute: (
+      input: WorktreeParams,
+    ) => Effect.Effect<
+      ListBranchBasesResponse,
+      WorktreeAccessFailure | GitIoFailure
+    >;
   }
+>()('@porcelain/server/ListBranchBasesUseCase') {
+  static readonly layer = Layer.effect(
+    ListBranchBasesUseCase,
+    Effect.gen(function* () {
+      const accessCapability = yield* WorktreeAccess;
+      const listBranchBasesCapability = yield* ListBranchBasesService;
 
-  execute(
-    input: WorktreeParams,
-  ): Effect.Effect<
-    ListBranchBasesResponse,
-    WorktreeAccessFailure | GitIoFailure
-  > {
-    const { worktreeId } = input;
-    return this.access.read(worktreeId, () =>
-      Effect.gen({ self: this }, function* () {
-        const bases = yield* this.listBranchBases.execute({ worktreeId });
-        return bases;
-      }),
-    );
-  }
+      return {
+        execute: Effect.fn('ListBranchBasesUseCase.execute')(function* (
+          input: WorktreeParams,
+        ): Effect.fn.Return<
+          ListBranchBasesResponse,
+          WorktreeAccessFailure | GitIoFailure
+        > {
+          return yield* Effect.suspend(() => {
+            const { worktreeId } = input;
+            return accessCapability.read(worktreeId, () =>
+              Effect.gen(function* () {
+                const bases = yield* listBranchBasesCapability.execute({
+                  worktreeId,
+                });
+                return bases;
+              }),
+            );
+          });
+        }),
+      };
+    }),
+  );
 }

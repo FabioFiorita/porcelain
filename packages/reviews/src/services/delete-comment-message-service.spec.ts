@@ -1,10 +1,11 @@
+import { CommentStore } from '@porcelain/reviews/ports';
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import {
   CommentAuthorMismatchError,
   CommentTargetNotFoundError,
 } from '@porcelain/reviews/errors';
-import type { DeleteCommentMessageInput } from '@porcelain/reviews/models';
+import { type DeleteCommentMessageInput } from '@porcelain/reviews/models';
 import { InMemoryCommentStore } from '../../spec/fakes/in-memory-comment-store.ts';
 import { DeleteCommentMessageService } from './delete-comment-message-service.ts';
 
@@ -27,7 +28,15 @@ function setup() {
     sizeBytes: 400,
     writtenByAgent: false,
   });
-  return { store, service: new DeleteCommentMessageService(store) };
+  return {
+    store,
+    service: Effect.runSync(
+      DeleteCommentMessageService.pipe(
+        Effect.provide(DeleteCommentMessageService.layer),
+        Effect.provideService(CommentStore, store),
+      ),
+    ),
+  };
 }
 
 function input(

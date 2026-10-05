@@ -1,41 +1,43 @@
-import { Effect } from 'effect';
-import type { Clock } from '@porcelain/kernel/ports';
+import { Effect, Context, Layer } from 'effect';
+import { Clock } from '@porcelain/kernel/ports';
 import { ProjectNotFoundError } from '../errors/project-not-found-error.ts';
-import type { RecordWorktreePresenceInput } from '../models/record-worktree-presence.ts';
-import type { InventoryStore } from '../ports/inventory-store.ts';
-import type { WorktreePresenceStore } from '../ports/worktree-presence-store.ts';
+import { type RecordWorktreePresenceInput } from '../models/record-worktree-presence.ts';
+import { InventoryStore } from '../ports/inventory-store.ts';
+import { WorktreePresenceStore } from '../ports/worktree-presence-store.ts';
 import { observed, sighted } from '../rules/worktree-presence.ts';
 
-export class RecordWorktreePresenceService {
-  private readonly inventory: InventoryStore;
-  private readonly worktreePresence: WorktreePresenceStore;
-  private readonly clock: Clock;
-
-  constructor(
-    inventory: InventoryStore,
-    worktreePresence: WorktreePresenceStore,
-    clock: Clock,
-  ) {
-    this.inventory = inventory;
-    this.worktreePresence = worktreePresence;
-    this.clock = clock;
+export class RecordWorktreePresenceService extends Context.Service<
+  RecordWorktreePresenceService,
+  {
+    readonly execute: (
+      input: RecordWorktreePresenceInput,
+    ) => Effect.Effect<void, ProjectNotFoundError>;
   }
+>()('@porcelain/projects/RecordWorktreePresenceService') {
+  static readonly layer = Layer.effect(
+    RecordWorktreePresenceService,
+    Effect.gen(function* () {
+      const inventoryCapability = yield* InventoryStore;
+      const worktreePresenceCapability = yield* WorktreePresenceStore;
+      const clockCapability = yield* Clock;
 
-  execute(
-    input: RecordWorktreePresenceInput,
-  ): Effect.Effect<void, ProjectNotFoundError> {
-    return Effect.gen({ self: this }, function* () {
-      const { projectId, available, complete, worktrees } = input.worktrees;
-      const project = this.inventory.find({ projectId });
-      if (!project) return yield* Effect.fail(new ProjectNotFoundError());
-      if (!available) return;
-      const rows = this.worktreePresence.read({ projectId });
-      const presentIds = worktrees.map((worktree) => worktree.id);
-      this.worktreePresence.save({
-        rows: complete
-          ? observed(rows, projectId, presentIds, this.clock.now())
-          : sighted(rows, projectId, presentIds),
-      });
-    });
-  }
+      return {
+        execute: Effect.fn('RecordWorktreePresenceService.execute')(function* (
+          input: RecordWorktreePresenceInput,
+        ): Effect.fn.Return<void, ProjectNotFoundError> {
+          const { projectId, available, complete, worktrees } = input.worktrees;
+          const project = inventoryCapability.find({ projectId });
+          if (!project) return yield* Effect.fail(new ProjectNotFoundError());
+          if (!available) return;
+          const rows = worktreePresenceCapability.read({ projectId });
+          const presentIds = worktrees.map((worktree) => worktree.id);
+          worktreePresenceCapability.save({
+            rows: complete
+              ? observed(rows, projectId, presentIds, clockCapability.now())
+              : sighted(rows, projectId, presentIds),
+          });
+        }),
+      };
+    }),
+  );
 }

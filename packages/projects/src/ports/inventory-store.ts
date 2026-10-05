@@ -1,7 +1,8 @@
-import type {
-  Inventory,
-  ProjectKey,
-  RegisteredProject,
+import { Context } from 'effect';
+import {
+  type Inventory,
+  type ProjectKey,
+  type RegisteredProject,
 } from '../models/project.ts';
 
 export interface InventoryStore {
@@ -11,3 +12,8 @@ export interface InventoryStore {
   markAllUnavailable(): void;
   remove(input: ProjectKey): void;
 }
+
+export const InventoryStore = Context.Service<
+  '@porcelain/projects/InventoryStore',
+  InventoryStore
+>('@porcelain/projects/InventoryStore');

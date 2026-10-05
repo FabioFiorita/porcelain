@@ -1,21 +1,35 @@
-import { Effect } from 'effect';
-import type {
-  FindProjectInput,
-  FindProjectResult,
+import { Effect, Context, Layer } from 'effect';
+import {
+  type FindProjectInput,
+  type FindProjectResult,
 } from '../models/find-project.ts';
-import type { InventoryStore } from '../ports/inventory-store.ts';
+import { InventoryStore } from '../ports/inventory-store.ts';
 
-export class FindProjectService {
-  private readonly inventory: InventoryStore;
-
-  constructor(inventory: InventoryStore) {
-    this.inventory = inventory;
+export class FindProjectService extends Context.Service<
+  FindProjectService,
+  {
+    readonly execute: (
+      input: FindProjectInput,
+    ) => Effect.Effect<FindProjectResult, never>;
   }
+>()('@porcelain/projects/FindProjectService') {
+  static readonly layer = Layer.effect(
+    FindProjectService,
+    Effect.gen(function* () {
+      const inventoryCapability = yield* InventoryStore;
 
-  execute(input: FindProjectInput): Effect.Effect<FindProjectResult, never> {
-    return Effect.sync(() => {
-      const project = this.inventory.find({ projectId: input.projectId });
-      return project ? { kind: 'found', project } : { kind: 'missing' };
-    });
-  }
+      return {
+        execute: Effect.fn('FindProjectService.execute')(function* (
+          input: FindProjectInput,
+        ): Effect.fn.Return<FindProjectResult, never> {
+          return yield* Effect.sync<FindProjectResult>(() => {
+            const project = inventoryCapability.find({
+              projectId: input.projectId,
+            });
+            return project ? { kind: 'found', project } : { kind: 'missing' };
+          });
+        }),
+      };
+    }),
+  );
 }

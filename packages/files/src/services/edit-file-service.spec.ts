@@ -1,3 +1,8 @@
+import {
+  FileReader,
+  FileWriter,
+  EditFileOptions,
+} from '@porcelain/files/ports';
 import { Effect } from 'effect';
 import { withWriteLease } from '@porcelain/effects/worktree';
 import { describe, expect, it } from 'vitest';
@@ -13,11 +18,11 @@ import {
   TrashUnavailableError,
   UnsupportedTextError,
 } from '@porcelain/files/errors';
-import type {
-  FileEdit,
-  FileWrite,
-  TextRead,
-  WriteFailure,
+import {
+  type FileEdit,
+  type FileWrite,
+  type TextRead,
+  type WriteFailure,
 } from '@porcelain/files/models';
 import { InMemoryFileReader } from '../../spec/fakes/in-memory-file-reader.ts';
 import {
@@ -61,10 +66,13 @@ function withDisk(
   const writer = new InMemoryFileWriter(entries);
   return {
     writer,
-    service: new EditFileService(
-      new InMemoryFileReader({ texts }),
-      writer,
-      options,
+    service: Effect.runSync(
+      EditFileService.pipe(
+        Effect.provide(EditFileService.layer),
+        Effect.provideService(FileReader, new InMemoryFileReader({ texts })),
+        Effect.provideService(FileWriter, writer),
+        Effect.provideService(EditFileOptions, options),
+      ),
     ),
   };
 }
@@ -74,10 +82,13 @@ function failingWith(
   texts: Record<string, TextRead> = {},
 ) {
   const outcome: FileWrite = { kind: 'failed', failure };
-  return new EditFileService(
-    new InMemoryFileReader({ texts }),
-    new ScriptedFileWriter(outcome),
-    roomy,
+  return Effect.runSync(
+    EditFileService.pipe(
+      Effect.provide(EditFileService.layer),
+      Effect.provideService(FileReader, new InMemoryFileReader({ texts })),
+      Effect.provideService(FileWriter, new ScriptedFileWriter(outcome)),
+      Effect.provideService(EditFileOptions, roomy),
+    ),
   );
 }
 

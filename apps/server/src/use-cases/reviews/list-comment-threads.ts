@@ -1,35 +1,39 @@
-import { Effect } from 'effect';
-import type { WorktreeAccess } from '../../runtime/worktree-access.ts';
-import type { WorktreeAccessFailure } from '../../ports/worktree-access-failure.ts';
-import type {
-  ListCommentThreadsQuery,
-  ListCommentThreadsResponse,
+import { Effect, Context, Layer } from 'effect';
+import { WorktreeAccess } from '../../runtime/worktree-access.ts';
+import { type WorktreeAccessFailure } from '../../ports/worktree-access-failure.ts';
+import {
+  type ListCommentThreadsQuery,
+  type ListCommentThreadsResponse,
 } from '@porcelain/contracts/reviews';
-import type { WorktreeParams } from '@porcelain/contracts/shared';
-import type { ListCommentThreadsService } from '@porcelain/reviews/services';
+import { type WorktreeParams } from '@porcelain/contracts/shared';
+import { ListCommentThreadsService } from '@porcelain/reviews/services';
 
-export class ListCommentThreadsUseCase {
-  private readonly access: WorktreeAccess;
-  private readonly listCommentThreads: ListCommentThreadsService;
-
-  constructor(
-    access: WorktreeAccess,
-    listCommentThreads: ListCommentThreadsService,
-  ) {
-    this.access = access;
-    this.listCommentThreads = listCommentThreads;
+export class ListCommentThreadsUseCase extends Context.Service<
+  ListCommentThreadsUseCase,
+  {
+    readonly execute: (
+      input: WorktreeParams & ListCommentThreadsQuery,
+    ) => Effect.Effect<ListCommentThreadsResponse, WorktreeAccessFailure>;
   }
+>()('@porcelain/server/ListCommentThreadsUseCase') {
+  static readonly layer = Layer.effect(
+    ListCommentThreadsUseCase,
+    Effect.gen(function* () {
+      const accessCapability = yield* WorktreeAccess;
+      const listCommentThreadsCapability = yield* ListCommentThreadsService;
 
-  execute(
-    input: WorktreeParams & ListCommentThreadsQuery,
-  ): Effect.Effect<ListCommentThreadsResponse, WorktreeAccessFailure> {
-    return Effect.gen({ self: this }, function* () {
-      const { worktreeId } = input;
-      return yield* this.access.reviews(worktreeId, 'read', () =>
-        Effect.gen({ self: this }, function* () {
-          return yield* this.listCommentThreads.execute(input);
+      return {
+        execute: Effect.fn('ListCommentThreadsUseCase.execute')(function* (
+          input: WorktreeParams & ListCommentThreadsQuery,
+        ): Effect.fn.Return<ListCommentThreadsResponse, WorktreeAccessFailure> {
+          const { worktreeId } = input;
+          return yield* accessCapability.reviews(worktreeId, 'read', () =>
+            Effect.gen(function* () {
+              return yield* listCommentThreadsCapability.execute(input);
+            }),
+          );
         }),
-      );
-    });
-  }
+      };
+    }),
+  );
 }

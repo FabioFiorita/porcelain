@@ -1,12 +1,19 @@
+import { InventoryRefresh } from '../../ports/inventory-refresh.ts';
+import { Clock } from '@porcelain/kernel/ports';
+import {
+  WorktreeCatalogStore,
+  InventoryStore,
+  CheckWorktreeOptions,
+} from '@porcelain/projects/ports';
 import { Effect } from 'effect';
 import { WorktreeNotFoundError } from '@porcelain/kernel/errors';
 import { FixedClock } from '@porcelain/kernel/fakes';
 import { WorktreeUnavailableError } from '@porcelain/projects/errors';
-import type {
-  CatalogProject,
-  CatalogSnapshot,
-  ListedWorktree,
-  RegisteredProject,
+import {
+  type CatalogProject,
+  type CatalogSnapshot,
+  type ListedWorktree,
+  type RegisteredProject,
 } from '@porcelain/projects/models';
 import {
   CheckRefreshedWorktreeService,
@@ -67,10 +74,38 @@ function useCase(before: CatalogSnapshot, afterRefresh: CatalogSnapshot) {
   const inventory = new InMemoryInventoryStore([project]);
   const clock = new FixedClock(now);
   const staleness = { staleAfterMs: 60 * 1000 };
-  return new CheckWorktreeUseCase(
-    new CheckWorktreeService(catalog, inventory, clock, staleness),
-    new CheckRefreshedWorktreeService(catalog, inventory, clock, staleness),
-    new ScriptedInventoryRefresh(catalog, afterRefresh),
+  return Effect.runSync(
+    CheckWorktreeUseCase.pipe(
+      Effect.provide(CheckWorktreeUseCase.layer),
+      Effect.provideService(
+        CheckWorktreeService,
+        Effect.runSync(
+          CheckWorktreeService.pipe(
+            Effect.provide(CheckWorktreeService.layer),
+            Effect.provideService(WorktreeCatalogStore, catalog),
+            Effect.provideService(InventoryStore, inventory),
+            Effect.provideService(Clock, clock),
+            Effect.provideService(CheckWorktreeOptions, staleness),
+          ),
+        ),
+      ),
+      Effect.provideService(
+        CheckRefreshedWorktreeService,
+        Effect.runSync(
+          CheckRefreshedWorktreeService.pipe(
+            Effect.provide(CheckRefreshedWorktreeService.layer),
+            Effect.provideService(WorktreeCatalogStore, catalog),
+            Effect.provideService(InventoryStore, inventory),
+            Effect.provideService(Clock, clock),
+            Effect.provideService(CheckWorktreeOptions, staleness),
+          ),
+        ),
+      ),
+      Effect.provideService(
+        InventoryRefresh,
+        new ScriptedInventoryRefresh(catalog, afterRefresh),
+      ),
+    ),
   );
 }
 

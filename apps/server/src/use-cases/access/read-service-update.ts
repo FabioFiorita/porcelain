@@ -1,65 +1,60 @@
-import type { Context } from 'effect';
-import { Effect } from 'effect';
-import type {
+import { Context, Effect, Layer } from 'effect';
+import {
   AuthorizeServiceUpdateService,
   PlanServiceUpdateCheckService,
 } from '@porcelain/access/services';
-import type {
-  ReadServiceUpdateRequest,
-  ReadServiceUpdateResponse,
+import {
+  type ReadServiceUpdateRequest,
+  type ReadServiceUpdateResponse,
 } from '@porcelain/contracts/access';
-import type { LaneKeys } from '../../runtime/lane-keys.ts';
-import type { Lanes } from '../../runtime/lanes.ts';
-import type { ServiceUpdateRunner } from '../../ports/service-update-runner.ts';
+import { LaneKeys } from '../../runtime/lane-keys.ts';
+import { Lanes } from '../../runtime/lanes.ts';
+import { ServiceUpdateRunner } from '../../ports/service-update-runner.ts';
 
-export class ReadServiceUpdateUseCase {
-  private readonly updates: ServiceUpdateRunner;
-  private readonly authorizeServiceUpdate: Context.Service.Shape<
-    typeof AuthorizeServiceUpdateService
-  >;
-  private readonly planCheck: Context.Service.Shape<
-    typeof PlanServiceUpdateCheckService
-  >;
-  private readonly lanes: Lanes;
-  private readonly laneKeys: LaneKeys;
-
-  constructor(
-    updates: ServiceUpdateRunner,
-    authorizeServiceUpdate: Context.Service.Shape<
-      typeof AuthorizeServiceUpdateService
-    >,
-    planCheck: Context.Service.Shape<typeof PlanServiceUpdateCheckService>,
-    lanes: Lanes,
-    laneKeys: LaneKeys,
-  ) {
-    this.updates = updates;
-    this.authorizeServiceUpdate = authorizeServiceUpdate;
-    this.planCheck = planCheck;
-    this.lanes = lanes;
-    this.laneKeys = laneKeys;
+export class ReadServiceUpdateUseCase extends Context.Service<
+  ReadServiceUpdateUseCase,
+  {
+    readonly execute: (
+      input: ReadServiceUpdateRequest,
+    ) => Effect.Effect<ReadServiceUpdateResponse, never>;
   }
+>()('@porcelain/server/ReadServiceUpdateUseCase') {
+  static readonly layer = Layer.effect(
+    ReadServiceUpdateUseCase,
+    Effect.gen(function* () {
+      const updatesCapability = yield* ServiceUpdateRunner;
+      const authorizeServiceUpdateCapability =
+        yield* AuthorizeServiceUpdateService;
+      const planCheckCapability = yield* PlanServiceUpdateCheckService;
+      const lanesCapability = yield* Lanes;
+      const laneKeysCapability = yield* LaneKeys;
 
-  execute(
-    input: ReadServiceUpdateRequest,
-  ): Effect.Effect<ReadServiceUpdateResponse, never> {
-    return Effect.gen({ self: this }, function* () {
-      const check = yield* this.planCheck.execute();
-      const authority = yield* this.lanes.run(
-        this.laneKeys.access(),
-        'read',
-        () =>
-          Effect.gen({ self: this }, function* () {
-            return yield* this.authorizeServiceUpdate.execute(input);
-          }),
-      );
-      return yield* this.lanes.run(this.laneKeys.serviceUpdate(), 'read', () =>
-        Effect.gen({ self: this }, function* () {
-          return {
-            ...(yield* this.updates.read(check)),
-            ...authority,
-          };
+      return {
+        execute: Effect.fn('ReadServiceUpdateUseCase.execute')(function* (
+          input: ReadServiceUpdateRequest,
+        ): Effect.fn.Return<ReadServiceUpdateResponse, never> {
+          const check = yield* planCheckCapability.execute();
+          const authority = yield* lanesCapability.run(
+            laneKeysCapability.access(),
+            'read',
+            () =>
+              Effect.gen(function* () {
+                return yield* authorizeServiceUpdateCapability.execute(input);
+              }),
+          );
+          return yield* lanesCapability.run(
+            laneKeysCapability.serviceUpdate(),
+            'read',
+            () =>
+              Effect.gen(function* () {
+                return {
+                  ...(yield* updatesCapability.read(check)),
+                  ...authority,
+                };
+              }),
+          );
         }),
-      );
-    });
-  }
+      };
+    }),
+  );
 }

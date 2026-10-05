@@ -1,8 +1,9 @@
+import { WorktreeCatalogStore } from '@porcelain/projects/ports';
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
-import type {
-  ListedWorktree,
-  RegisteredProject,
+import {
+  type ListedWorktree,
+  type RegisteredProject,
 } from '@porcelain/projects/models';
 import { InMemoryWorktreeCatalogStore } from '../../spec/fakes/in-memory-worktree-catalog-store.ts';
 import { ListKnownWorktreesService } from './list-known-worktrees-service.ts';
@@ -64,7 +65,12 @@ describe('ListKnownWorktreesService', () => {
     });
     expect(
       Effect.runSync(
-        new ListKnownWorktreesService(reader).execute({
+        Effect.runSync(
+          ListKnownWorktreesService.pipe(
+            Effect.provide(ListKnownWorktreesService.layer),
+            Effect.provideService(WorktreeCatalogStore, reader),
+          ),
+        ).execute({
           projects: [project('web', true), project('api', true)],
         }),
       ),
@@ -88,7 +94,12 @@ describe('ListKnownWorktreesService', () => {
     const reader = catalog({ api: [worktree('api-main', 'api')] });
     expect(
       Effect.runSync(
-        new ListKnownWorktreesService(reader).execute({
+        Effect.runSync(
+          ListKnownWorktreesService.pipe(
+            Effect.provide(ListKnownWorktreesService.layer),
+            Effect.provideService(WorktreeCatalogStore, reader),
+          ),
+        ).execute({
           projects: [project('api', false)],
         }),
       ),
@@ -107,7 +118,12 @@ describe('ListKnownWorktreesService', () => {
     const reader = catalog({});
     expect(
       Effect.runSync(
-        new ListKnownWorktreesService(reader).execute({
+        Effect.runSync(
+          ListKnownWorktreesService.pipe(
+            Effect.provide(ListKnownWorktreesService.layer),
+            Effect.provideService(WorktreeCatalogStore, reader),
+          ),
+        ).execute({
           projects: [project('api', true)],
         }),
       ).listings[0]?.worktrees,

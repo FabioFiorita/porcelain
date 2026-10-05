@@ -1,7 +1,8 @@
+import { ReviewStore } from '@porcelain/reviews/ports';
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { ReviewLayerNotFoundError } from '@porcelain/reviews/errors';
-import type { Review, ReviewStep } from '@porcelain/reviews/models';
+import { type Review, type ReviewStep } from '@porcelain/reviews/models';
 import { InMemoryReviewStore } from '../../spec/fakes/in-memory-review-store.ts';
 import { ReadReviewLayerService } from './read-review-layer-service.ts';
 
@@ -48,7 +49,12 @@ describe('ReadReviewLayerService', () => {
     const store = new InMemoryReviewStore();
     store.save(review);
     const read = Effect.runSync(
-      new ReadReviewLayerService(store).execute({
+      Effect.runSync(
+        ReadReviewLayerService.pipe(
+          Effect.provide(ReadReviewLayerService.layer),
+          Effect.provideService(ReviewStore, store),
+        ),
+      ).execute({
         worktreeId,
         layerId: 'layer-1',
       }),
@@ -59,7 +65,12 @@ describe('ReadReviewLayerService', () => {
 
   it('does not find a layer the review does not have, nor any layer before a review is published', () => {
     const store = new InMemoryReviewStore();
-    const service = new ReadReviewLayerService(store);
+    const service = Effect.runSync(
+      ReadReviewLayerService.pipe(
+        Effect.provide(ReadReviewLayerService.layer),
+        Effect.provideService(ReviewStore, store),
+      ),
+    );
     expect(() =>
       Effect.runSync(service.execute({ worktreeId, layerId: 'layer-1' })),
     ).toThrow(ReviewLayerNotFoundError);

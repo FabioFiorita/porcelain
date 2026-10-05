@@ -10,10 +10,8 @@ export default {
     {
       kind: 'replace',
       path: 'apps/server/src/use-cases/files/read-text-file.ts',
-      old: `    return this.access.read(input.worktreeId, (worktree) =>
-      this.readTextFile.execute({ ...input, worktreeId: worktree.id }),
-    );`,
-      new: `    return this.readTextFile.execute(input);`,
+      old: 'return yield* accessCapability.read(input.worktreeId, (worktree) =>\n            readTextFileCapability.execute({\n              ...input,\n              worktreeId: worktree.id,\n            }),\n          );',
+      new: 'return yield* readTextFileCapability.execute(input);',
     },
   ],
 } satisfies Probe;

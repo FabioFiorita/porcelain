@@ -1,3 +1,4 @@
+import { ChangeDiffReader } from '@porcelain/changes/ports';
 import { Effect } from 'effect';
 import { withReadLease } from '@porcelain/effects/worktree';
 import { describe, expect, it } from 'vitest';
@@ -14,12 +15,18 @@ const b = modified('staged', 'b.md');
 
 describe('ReadChangeDiffsService', () => {
   it('pairs each selected comparison with its diff, in request order', async () => {
-    const read = new ReadChangeDiffsService(
-      new ScriptedChangeDiffReader(
-        new Map([
-          [diffKey(b), { kind: 'metadata-only', patch: '' }],
-          [diffKey(a), { kind: 'text', patch: 'patch-a' }],
-        ]),
+    const read = Effect.runSync(
+      ReadChangeDiffsService.pipe(
+        Effect.provide(ReadChangeDiffsService.layer),
+        Effect.provideService(
+          ChangeDiffReader,
+          new ScriptedChangeDiffReader(
+            new Map([
+              [diffKey(b), { kind: 'metadata-only', patch: '' }],
+              [diffKey(a), { kind: 'text', patch: 'patch-a' }],
+            ]),
+          ),
+        ),
       ),
     );
     expect(
@@ -42,9 +49,15 @@ describe('ReadChangeDiffsService', () => {
   });
 
   it('fails instead of answering with a missing diff', async () => {
-    const read = new ReadChangeDiffsService(
-      new ScriptedChangeDiffReader(
-        new Map([[diffKey(a), { kind: 'text', patch: 'patch-a' }]]),
+    const read = Effect.runSync(
+      ReadChangeDiffsService.pipe(
+        Effect.provide(ReadChangeDiffsService.layer),
+        Effect.provideService(
+          ChangeDiffReader,
+          new ScriptedChangeDiffReader(
+            new Map([[diffKey(a), { kind: 'text', patch: 'patch-a' }]]),
+          ),
+        ),
       ),
     );
     await expect(

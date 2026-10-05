@@ -1,45 +1,47 @@
-import { Effect } from 'effect';
-import type { ProjectNotFoundError } from '@porcelain/projects/errors';
-import type {
-  RenameProjectParams,
-  RenameProjectRequest,
-  RenameProjectResponse,
+import { Effect, Context, Layer } from 'effect';
+import { type ProjectNotFoundError } from '@porcelain/projects/errors';
+import {
+  type RenameProjectParams,
+  type RenameProjectRequest,
+  type RenameProjectResponse,
 } from '@porcelain/contracts/projects';
-import type { RenameProjectService } from '@porcelain/projects/services';
-import type { EventPublisher } from '../../ports/event-publisher.ts';
-import type { LaneKeys } from '../../runtime/lane-keys.ts';
-import type { Lanes } from '../../runtime/lanes.ts';
+import { RenameProjectService } from '@porcelain/projects/services';
+import { EventPublisher } from '../../ports/event-publisher.ts';
+import { LaneKeys } from '../../runtime/lane-keys.ts';
+import { Lanes } from '../../runtime/lanes.ts';
 
-export class RenameProjectUseCase {
-  private readonly renameProject: RenameProjectService;
-  private readonly lanes: Lanes;
-  private readonly laneKeys: LaneKeys;
-  private readonly events: EventPublisher;
-
-  constructor(
-    renameProject: RenameProjectService,
-    lanes: Lanes,
-    laneKeys: LaneKeys,
-    events: EventPublisher,
-  ) {
-    this.renameProject = renameProject;
-    this.lanes = lanes;
-    this.laneKeys = laneKeys;
-    this.events = events;
+export class RenameProjectUseCase extends Context.Service<
+  RenameProjectUseCase,
+  {
+    readonly execute: (
+      input: RenameProjectParams & RenameProjectRequest,
+    ) => Effect.Effect<RenameProjectResponse, ProjectNotFoundError>;
   }
+>()('@porcelain/server/RenameProjectUseCase') {
+  static readonly layer = Layer.effect(
+    RenameProjectUseCase,
+    Effect.gen(function* () {
+      const renameProjectCapability = yield* RenameProjectService;
+      const lanesCapability = yield* Lanes;
+      const laneKeysCapability = yield* LaneKeys;
+      const eventsCapability = yield* EventPublisher;
 
-  execute(
-    input: RenameProjectParams & RenameProjectRequest,
-  ): Effect.Effect<RenameProjectResponse, ProjectNotFoundError> {
-    return this.lanes
-      .run(this.laneKeys.inventory(), 'write', () =>
-        this.renameProject.execute(input),
-      )
-      .pipe(
-        Effect.map((result) => {
-          if (result.changed) this.events.inventoryChanged();
-          return result.project;
+      return {
+        execute: Effect.fn('RenameProjectUseCase.execute')(function* (
+          input: RenameProjectParams & RenameProjectRequest,
+        ): Effect.fn.Return<RenameProjectResponse, ProjectNotFoundError> {
+          return yield* lanesCapability
+            .run(laneKeysCapability.inventory(), 'write', () =>
+              renameProjectCapability.execute(input),
+            )
+            .pipe(
+              Effect.map((result) => {
+                if (result.changed) eventsCapability.inventoryChanged();
+                return result.project;
+              }),
+            );
         }),
-      );
-  }
+      };
+    }),
+  );
 }

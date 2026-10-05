@@ -1,31 +1,65 @@
 import { ChangesApi } from '@porcelain/contracts/changes';
+import type { Context } from 'effect';
 import { Layer } from 'effect';
 import { HttpApiBuilder } from 'effect/http-api';
 import { effectRoutes } from '../../effect-bridge.ts';
-import type { ListBranchBasesUseCase } from '../../../use-cases/changes/list-branch-bases.ts';
-import type { ListCommitsUseCase } from '../../../use-cases/changes/list-commits.ts';
-import type { ListFileCommitsUseCase } from '../../../use-cases/changes/list-file-commits.ts';
-import type { ReadBranchChangesUseCase } from '../../../use-cases/changes/read-branch-changes.ts';
-import type { ReadBranchDiffsUseCase } from '../../../use-cases/changes/read-branch-diffs.ts';
-import type { ReadChangeDiffsUseCase } from '../../../use-cases/changes/read-change-diffs.ts';
-import type { ReadChangeLinesUseCase } from '../../../use-cases/changes/read-change-lines.ts';
-import type { ReadChangesUseCase } from '../../../use-cases/changes/read-changes.ts';
-import type { ReadCommitDiffsUseCase } from '../../../use-cases/changes/read-commit-diffs.ts';
-import type { ReadCommitFilesUseCase } from '../../../use-cases/changes/read-commit-files.ts';
-import type { ReadGitStatusUseCase } from '../../../use-cases/changes/read-git-status.ts';
+import { type ListBranchBasesUseCase } from '../../../use-cases/changes/list-branch-bases.ts';
+import { type ListCommitsUseCase } from '../../../use-cases/changes/list-commits.ts';
+import { type ListFileCommitsUseCase } from '../../../use-cases/changes/list-file-commits.ts';
+import { type ReadBranchChangesUseCase } from '../../../use-cases/changes/read-branch-changes.ts';
+import { type ReadBranchDiffsUseCase } from '../../../use-cases/changes/read-branch-diffs.ts';
+import { type ReadChangeDiffsUseCase } from '../../../use-cases/changes/read-change-diffs.ts';
+import { type ReadChangeLinesUseCase } from '../../../use-cases/changes/read-change-lines.ts';
+import { type ReadChangesUseCase } from '../../../use-cases/changes/read-changes.ts';
+import { type ReadCommitDiffsUseCase } from '../../../use-cases/changes/read-commit-diffs.ts';
+import { type ReadCommitFilesUseCase } from '../../../use-cases/changes/read-commit-files.ts';
+import { type ReadGitStatusUseCase } from '../../../use-cases/changes/read-git-status.ts';
 
 type ChangesUseCases = {
-  listBranchBases: Pick<ListBranchBasesUseCase, 'execute'>;
-  listCommits: Pick<ListCommitsUseCase, 'execute'>;
-  listFileCommits: Pick<ListFileCommitsUseCase, 'execute'>;
-  readBranchChanges: Pick<ReadBranchChangesUseCase, 'execute'>;
-  readBranchDiffs: Pick<ReadBranchDiffsUseCase, 'execute'>;
-  readChangeDiffs: Pick<ReadChangeDiffsUseCase, 'execute'>;
-  readChangeLines: Pick<ReadChangeLinesUseCase, 'execute'>;
-  readChanges: Pick<ReadChangesUseCase, 'execute'>;
-  readCommitDiffs: Pick<ReadCommitDiffsUseCase, 'execute'>;
-  readCommitFiles: Pick<ReadCommitFilesUseCase, 'execute'>;
-  readGitStatus: Pick<ReadGitStatusUseCase, 'execute'>;
+  listBranchBases: Pick<
+    Context.Service.Shape<typeof ListBranchBasesUseCase>,
+    'execute'
+  >;
+  listCommits: Pick<
+    Context.Service.Shape<typeof ListCommitsUseCase>,
+    'execute'
+  >;
+  listFileCommits: Pick<
+    Context.Service.Shape<typeof ListFileCommitsUseCase>,
+    'execute'
+  >;
+  readBranchChanges: Pick<
+    Context.Service.Shape<typeof ReadBranchChangesUseCase>,
+    'execute'
+  >;
+  readBranchDiffs: Pick<
+    Context.Service.Shape<typeof ReadBranchDiffsUseCase>,
+    'execute'
+  >;
+  readChangeDiffs: Pick<
+    Context.Service.Shape<typeof ReadChangeDiffsUseCase>,
+    'execute'
+  >;
+  readChangeLines: Pick<
+    Context.Service.Shape<typeof ReadChangeLinesUseCase>,
+    'execute'
+  >;
+  readChanges: Pick<
+    Context.Service.Shape<typeof ReadChangesUseCase>,
+    'execute'
+  >;
+  readCommitDiffs: Pick<
+    Context.Service.Shape<typeof ReadCommitDiffsUseCase>,
+    'execute'
+  >;
+  readCommitFiles: Pick<
+    Context.Service.Shape<typeof ReadCommitFilesUseCase>,
+    'execute'
+  >;
+  readGitStatus: Pick<
+    Context.Service.Shape<typeof ReadGitStatusUseCase>,
+    'execute'
+  >;
 };
 
 export function changesRoutes(useCases: ChangesUseCases) {

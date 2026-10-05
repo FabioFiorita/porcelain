@@ -12,3 +12,4 @@ export { InvalidGitStatusError } from './invalid-git-status-error.ts';
 export { UnsupportedGitFiltersError } from './unsupported-git-filters-error.ts';
 export { UnsupportedPathEncodingError } from './unsupported-path-encoding-error.ts';
 export { isRepositoryUnavailable } from './is-repository-unavailable.ts';
+export type { GitIoFailure } from './git-io-failure.ts';

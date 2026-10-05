@@ -1,34 +1,34 @@
-import type { Context } from 'effect';
-import { Effect } from 'effect';
-import type { ReadOwnerStatusService } from '@porcelain/access/services';
-import type { ReadOwnerStatusResponse } from '@porcelain/contracts/access';
-import type { LaneKeys } from '../../runtime/lane-keys.ts';
-import type { Lanes } from '../../runtime/lanes.ts';
+import { Context, Effect, Layer } from 'effect';
+import { ReadOwnerStatusService } from '@porcelain/access/services';
+import { type ReadOwnerStatusResponse } from '@porcelain/contracts/access';
+import { LaneKeys } from '../../runtime/lane-keys.ts';
+import { Lanes } from '../../runtime/lanes.ts';
 
-export class ReadOwnerStatusUseCase {
-  private readonly readOwnerStatus: Context.Service.Shape<
-    typeof ReadOwnerStatusService
-  >;
-  private readonly lanes: Lanes;
-  private readonly laneKeys: LaneKeys;
+export class ReadOwnerStatusUseCase extends Context.Service<
+  ReadOwnerStatusUseCase,
+  { readonly execute: () => Effect.Effect<ReadOwnerStatusResponse, never> }
+>()('@porcelain/server/ReadOwnerStatusUseCase') {
+  static readonly layer = Layer.effect(
+    ReadOwnerStatusUseCase,
+    Effect.gen(function* () {
+      const readOwnerStatusCapability = yield* ReadOwnerStatusService;
+      const lanesCapability = yield* Lanes;
+      const laneKeysCapability = yield* LaneKeys;
 
-  constructor(
-    readOwnerStatus: Context.Service.Shape<typeof ReadOwnerStatusService>,
-    lanes: Lanes,
-    laneKeys: LaneKeys,
-  ) {
-    this.readOwnerStatus = readOwnerStatus;
-    this.lanes = lanes;
-    this.laneKeys = laneKeys;
-  }
-
-  execute(): Effect.Effect<ReadOwnerStatusResponse, never> {
-    return Effect.gen({ self: this }, function* () {
-      return yield* this.lanes.run(this.laneKeys.access(), 'read', () =>
-        Effect.gen({ self: this }, function* () {
-          return yield* this.readOwnerStatus.execute();
-        }),
-      );
-    });
-  }
+      return {
+        execute: Effect.fn('ReadOwnerStatusUseCase.execute')(
+          function* (): Effect.fn.Return<ReadOwnerStatusResponse, never> {
+            return yield* lanesCapability.run(
+              laneKeysCapability.access(),
+              'read',
+              () =>
+                Effect.gen(function* () {
+                  return yield* readOwnerStatusCapability.execute();
+                }),
+            );
+          },
+        ),
+      };
+    }),
+  );
 }

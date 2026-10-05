@@ -1,23 +1,27 @@
+import { Logger } from '../ports/logger.ts';
+import { EventPublisher } from '../ports/event-publisher.ts';
+import { InvalidateReviewedMarksUseCasePort } from '../ports/invalidate-reviewed-marks-use-case-port.ts';
+import { LaneOptions } from '../ports/lane-options.ts';
+import { WorktreeCatalogStore } from '@porcelain/projects/ports';
 import { Context, Effect, Layer } from 'effect';
-import type { StorageSession } from '@porcelain/storage';
+import { type StorageSession, openStorageSession } from '@porcelain/storage';
 import { nativeOperation } from '@porcelain/effects';
 import { releaseInOrder } from '../runtime/release-in-order.ts';
 import {
   ServerComponents,
   ServerResources,
 } from '../runtime/server-resources.ts';
-import type { Server } from 'node:http';
-import type {
-  NetworkAddressReader,
-  RouteListenerRunner,
-  TunnelProbe,
+import { type Server } from 'node:http';
+import {
+  type NetworkAddressReader,
+  type RouteListenerRunner,
+  type TunnelProbe,
 } from '@porcelain/access/ports';
 import { createCommitPlanner } from '@porcelain/agents/commit-planning';
 import { readGitVersion } from '@porcelain/git/discovery';
 import { ConfirmWorktreeService } from '@porcelain/projects/services';
 import { gitDirectoryName, isTemporaryWrite } from '@porcelain/kernel/rules';
 import { deriveWorktreeId } from '@porcelain/projects/rules';
-import { openStorageSession } from '@porcelain/storage';
 import { SocketOwnerProbe } from '../adapters/access/socket-owner-probe.ts';
 import { InMemoryDeviceConnectionStore } from '../adapters/access/in-memory-device-connection-store.ts';
 import { HttpPairingReachReader } from '../adapters/access/http-pairing-reach-reader.ts';
@@ -39,11 +43,11 @@ import { StderrLogger } from '../adapters/runtime/stderr-logger.ts';
 import { SystemClock } from '../adapters/runtime/system-clock.ts';
 import { FilesystemWebRootReader } from '../adapters/web/filesystem-web-root-reader.ts';
 import { operationDeadlineMs } from '../config/operation-deadline.ts';
-import type { Limits } from '../config/limits.ts';
+import { type Limits } from '../config/limits.ts';
 import { createOwnerServer } from '../http/owner-server.ts';
 import { createNetworkServer } from '../http/server.ts';
 import { IntervalJob, JobSequence } from '../runtime/interval-job.ts';
-import type { Job } from '../ports/job.ts';
+import { type Job } from '../ports/job.ts';
 import { LaneKeys } from '../runtime/lane-keys.ts';
 import { Lanes } from '../runtime/lanes.ts';
 import {
@@ -53,15 +57,15 @@ import {
 } from '../runtime/live-updates/live-connections.ts';
 import { WatchWorktrees } from '../runtime/live-updates/watch-worktrees.ts';
 import { AnnounceWorktreeChangeUseCase } from '../use-cases/files/announce-worktree-change.ts';
-import type { StartServer } from '../cli/launcher.ts';
-import type { ServerHost } from '../ports/server-host.ts';
+import { type StartServer } from '../cli/launcher.ts';
+import { type ServerHost } from '../ports/server-host.ts';
 import {
   startApplication,
   type OpenServer,
 } from '../runtime/start-application.ts';
 import { composeAccess } from './compose-access.ts';
 import { composeChanges } from './compose-changes.ts';
-import type { ComposeContext } from './compose-context.ts';
+import { type ComposeContext } from './compose-context.ts';
 import { composeFiles } from './compose-files.ts';
 import { composeGitActions } from './compose-git-actions.ts';
 import { composeProjects } from './compose-projects.ts';
@@ -127,12 +131,18 @@ function serverResources(
         const stores = composeStores(session);
         const catalog = new InMemoryWorktreeCatalogStore();
         const clock = new SystemClock();
-        const lanes = new Lanes({
-          deadlineMs: () =>
-            operationDeadlineMs(catalog.listObservations().length, limits),
-          readCapacity: limits.lanes.readCapacity,
-          consistency: new ConfirmWorktreeService(catalog),
-        });
+        const lanes = yield* Lanes.pipe(
+          Effect.provide(Lanes.layer),
+          Effect.provideService(LaneOptions, {
+            deadlineMs: () =>
+              operationDeadlineMs(catalog.listObservations().length, limits),
+            readCapacity: limits.lanes.readCapacity,
+            consistency: yield* ConfirmWorktreeService.pipe(
+              Effect.provide(ConfirmWorktreeService.layer),
+              Effect.provideService(WorktreeCatalogStore, catalog),
+            ),
+          }),
+        );
         const logger = new StderrLogger(clock);
         const liveConnections = new LiveConnections();
         const events = new WebSocketEventPublisher(liveConnections);
@@ -147,7 +157,7 @@ function serverResources(
         });
         const context: ComposeContext = {
           lanes,
-          laneKeys: new LaneKeys(),
+          laneKeys: yield* LaneKeys.pipe(Effect.provide(LaneKeys.layer)),
           events,
           settings,
           clock,
@@ -182,7 +192,7 @@ function serverResources(
             timeoutMs: limits.access.remoteAccess.probeTimeoutMs,
           }),
         });
-        const projects = composeProjects(context, {
+        const projects = yield* composeProjects(context, {
           stores,
           shared,
           projectFolderReader: new FilesystemProjectFolderReader({
@@ -190,18 +200,25 @@ function serverResources(
           }),
         });
         const { checkWorktree } = projects;
-        const changes = composeChanges(context, { shared, checkWorktree });
-        const reviews = composeReviews(context, {
+        const changes = yield* composeChanges(context, {
+          shared,
+          checkWorktree,
+        });
+        const reviews = yield* composeReviews(context, {
           stores,
           shared,
           checkWorktree,
           findWorktreeByPath: projects.findWorktreeByPath,
         });
         const worktreeWatches = new WatchWorktrees(
-          new AnnounceWorktreeChangeUseCase(
-            reviews.invalidateReviewedMarks,
-            events,
-            logger,
+          yield* AnnounceWorktreeChangeUseCase.pipe(
+            Effect.provide(AnnounceWorktreeChangeUseCase.layer),
+            Effect.provideService(
+              InvalidateReviewedMarksUseCasePort,
+              reviews.invalidateReviewedMarks,
+            ),
+            Effect.provideService(EventPublisher, events),
+            Effect.provideService(Logger, logger),
           ),
           projects.refreshInventory,
           new ParcelWorktreeWatcher({
@@ -214,14 +231,14 @@ function serverResources(
           logger,
           limits.liveUpdates,
         );
-        const files = composeFiles(context, {
+        const files = yield* composeFiles(context, {
           shared,
           checkWorktree,
           invalidateReviewedMarks: reviews.invalidateReviewedMarks,
           editAnnouncements: worktreeWatches,
         });
         const commitPlanner = createCommitPlanner(limits.agents);
-        const gitActions = composeGitActions(context, {
+        const gitActions = yield* composeGitActions(context, {
           stores,
           shared,
           checkWorktree,

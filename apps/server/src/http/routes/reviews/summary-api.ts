@@ -1,12 +1,16 @@
 import { ReviewSummaryApi } from '@porcelain/contracts/reviews';
+import type { Context } from 'effect';
 import { Effect, Layer } from 'effect';
 import { HttpApiBuilder } from 'effect/http-api';
-import type { ReadReviewSummaryUseCase } from '../../../use-cases/reviews/read-review-summary.ts';
+import { type ReadReviewSummaryUseCase } from '../../../use-cases/reviews/read-review-summary.ts';
 import { summaryPage } from '../../presenters/summary-page.ts';
 import { effectRoutes } from '../../effect-bridge.ts';
 
 export function summaryRoutes(
-  useCase: Pick<ReadReviewSummaryUseCase, 'execute'>,
+  useCase: Pick<
+    Context.Service.Shape<typeof ReadReviewSummaryUseCase>,
+    'execute'
+  >,
 ) {
   const handlers = HttpApiBuilder.group(
     ReviewSummaryApi,

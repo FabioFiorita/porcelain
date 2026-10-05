@@ -1,16 +1,16 @@
-import type { Effect } from 'effect';
-import type { WorktreeRead } from '@porcelain/effects/worktree';
+import { type Effect } from 'effect';
+import { type WorktreeRead } from '@porcelain/effects/worktree';
 import { readGit } from '../../runtime/git-io.ts';
-import type { GitIoFailure } from '../../ports/git-io-failure.ts';
-import type {
-  ChangeDiffContent,
-  ReadChangeDiffsInput,
+import { type GitIoFailure } from '@porcelain/git/errors';
+import {
+  type ChangeDiffContent,
+  type ReadChangeDiffsInput,
 } from '@porcelain/changes/models';
-import type { ChangeDiffReader } from '@porcelain/changes/ports';
+import { type ChangeDiffReader } from '@porcelain/changes/ports';
 import { toGitChange } from './git-comparisons.ts';
-import type { OpenInspection } from './inspection-checkouts.ts';
+import { type OpenInspection } from './inspection-checkouts.ts';
 
-export class GitChangeDiffReader implements ChangeDiffReader<GitIoFailure> {
+export class GitChangeDiffReader implements ChangeDiffReader {
   private readonly open: OpenInspection;
 
   constructor(open: OpenInspection) {

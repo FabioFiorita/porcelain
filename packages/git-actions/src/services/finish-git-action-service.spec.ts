@@ -1,3 +1,5 @@
+import { Clock } from '@porcelain/kernel/ports';
+import { GitActionReceiptStore } from '@porcelain/git-actions/ports';
 import { Effect } from 'effect';
 import { GitActionNotFoundError } from '@porcelain/git-actions/errors';
 import { FixedClock } from '@porcelain/kernel/fakes';
@@ -16,7 +18,13 @@ function subject() {
   const store = new InMemoryGitActionReceiptStore([running]);
   return {
     store,
-    service: new FinishGitActionService(store, new FixedClock(finishedAt)),
+    service: Effect.runSync(
+      FinishGitActionService.pipe(
+        Effect.provide(FinishGitActionService.layer),
+        Effect.provideService(GitActionReceiptStore, store),
+        Effect.provideService(Clock, new FixedClock(finishedAt)),
+      ),
+    ),
   };
 }
 

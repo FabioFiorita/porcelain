@@ -1,53 +1,64 @@
-import type {
-  CommentTargetNotFoundError,
-  CommentAuthorMismatchError,
+import {
+  type CommentTargetNotFoundError,
+  type CommentAuthorMismatchError,
 } from '@porcelain/reviews/errors';
-import { Effect } from 'effect';
-import type { WorktreeAccess } from '../../runtime/worktree-access.ts';
-import type { WorktreeAccessFailure } from '../../ports/worktree-access-failure.ts';
-import type {
-  CommentAuthor,
-  CommentThreadParams,
-  DeleteCommentMessageQuery,
-  DeleteCommentMessageResponse,
+import { Effect, Context, Layer } from 'effect';
+import { WorktreeAccess } from '../../runtime/worktree-access.ts';
+import { type WorktreeAccessFailure } from '../../ports/worktree-access-failure.ts';
+import {
+  type CommentAuthor,
+  type CommentThreadParams,
+  type DeleteCommentMessageQuery,
+  type DeleteCommentMessageResponse,
 } from '@porcelain/contracts/reviews';
-import type { DeleteCommentMessageService } from '@porcelain/reviews/services';
-import type { EventPublisher } from '../../ports/event-publisher.ts';
+import { DeleteCommentMessageService } from '@porcelain/reviews/services';
+import { EventPublisher } from '../../ports/event-publisher.ts';
 
-export class DeleteCommentMessageUseCase {
-  private readonly access: WorktreeAccess;
-  private readonly deleteCommentMessage: DeleteCommentMessageService;
-  private readonly events: EventPublisher;
-
-  constructor(
-    access: WorktreeAccess,
-    deleteCommentMessage: DeleteCommentMessageService,
-    events: EventPublisher,
-  ) {
-    this.access = access;
-    this.deleteCommentMessage = deleteCommentMessage;
-    this.events = events;
+export class DeleteCommentMessageUseCase extends Context.Service<
+  DeleteCommentMessageUseCase,
+  {
+    readonly execute: (
+      input: CommentThreadParams & DeleteCommentMessageQuery & CommentAuthor,
+    ) => Effect.Effect<
+      DeleteCommentMessageResponse,
+      | WorktreeAccessFailure
+      | CommentTargetNotFoundError
+      | CommentAuthorMismatchError
+    >;
   }
+>()('@porcelain/server/DeleteCommentMessageUseCase') {
+  static readonly layer = Layer.effect(
+    DeleteCommentMessageUseCase,
+    Effect.gen(function* () {
+      const accessCapability = yield* WorktreeAccess;
+      const deleteCommentMessageCapability = yield* DeleteCommentMessageService;
+      const eventsCapability = yield* EventPublisher;
 
-  execute(
-    input: CommentThreadParams & DeleteCommentMessageQuery & CommentAuthor,
-  ): Effect.Effect<
-    DeleteCommentMessageResponse,
-    | WorktreeAccessFailure
-    | CommentTargetNotFoundError
-    | CommentAuthorMismatchError
-  > {
-    return this.access.transaction(
-      input.worktreeId,
-      () => Effect.void,
-      () => this.deleteCommentMessage.execute(input),
-      () =>
-        Effect.sync(() => {
-          this.events.worktreeChanged({
-            worktreeId: input.worktreeId,
-            change: 'comments',
-          });
+      return {
+        execute: Effect.fn('DeleteCommentMessageUseCase.execute')(function* (
+          input: CommentThreadParams &
+            DeleteCommentMessageQuery &
+            CommentAuthor,
+        ): Effect.fn.Return<
+          DeleteCommentMessageResponse,
+          | WorktreeAccessFailure
+          | CommentTargetNotFoundError
+          | CommentAuthorMismatchError
+        > {
+          return yield* accessCapability.transaction(
+            input.worktreeId,
+            () => Effect.void,
+            () => deleteCommentMessageCapability.execute(input),
+            () =>
+              Effect.sync(() => {
+                eventsCapability.worktreeChanged({
+                  worktreeId: input.worktreeId,
+                  change: 'comments',
+                });
+              }),
+          );
         }),
-    );
-  }
+      };
+    }),
+  );
 }

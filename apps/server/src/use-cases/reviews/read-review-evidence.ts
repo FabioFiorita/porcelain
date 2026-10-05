@@ -1,61 +1,68 @@
-import type {
+import {
   ReadChangeDiffsService,
   ReadChangeFingerprintsService,
   ReadWorktreeStatusService,
 } from '@porcelain/changes/services';
-import type { ReadTextFilesService } from '@porcelain/files/services';
-import type {
-  ReadReviewEvidenceInput,
-  ReviewEvidence,
+import { ReadTextFilesService } from '@porcelain/files/services';
+import {
+  type ReadReviewEvidenceInput,
+  type ReviewEvidence,
 } from '@porcelain/reviews/models';
 import { reviewPaths, trackedComparisons } from '@porcelain/reviews/rules';
-import { Effect } from 'effect';
-import type { WorktreeRead } from '@porcelain/effects';
-import type { GitIoFailure } from '../../ports/git-io-failure.ts';
-import type { IncompleteDiffReadError } from '@porcelain/changes/errors';
+import { Effect, Context, Layer } from 'effect';
+import { type WorktreeRead } from '@porcelain/effects';
+import { type GitIoFailure } from '@porcelain/git/errors';
+import { type IncompleteDiffReadError } from '@porcelain/changes/errors';
 
-export class ReadReviewEvidenceUseCase {
-  private readonly readWorktreeStatus: ReadWorktreeStatusService<GitIoFailure>;
-  private readonly readChangeFingerprints: ReadChangeFingerprintsService<GitIoFailure>;
-  private readonly readTextFiles: ReadTextFilesService;
-  private readonly readChangeDiffs: ReadChangeDiffsService<GitIoFailure>;
-
-  constructor(
-    readWorktreeStatus: ReadWorktreeStatusService<GitIoFailure>,
-    readChangeFingerprints: ReadChangeFingerprintsService<GitIoFailure>,
-    readTextFiles: ReadTextFilesService,
-    readChangeDiffs: ReadChangeDiffsService<GitIoFailure>,
-  ) {
-    this.readWorktreeStatus = readWorktreeStatus;
-    this.readChangeFingerprints = readChangeFingerprints;
-    this.readTextFiles = readTextFiles;
-    this.readChangeDiffs = readChangeDiffs;
+export class ReadReviewEvidenceUseCase extends Context.Service<
+  ReadReviewEvidenceUseCase,
+  {
+    readonly execute: (
+      input: ReadReviewEvidenceInput,
+    ) => Effect.Effect<
+      ReviewEvidence,
+      GitIoFailure | IncompleteDiffReadError,
+      WorktreeRead
+    >;
   }
+>()('@porcelain/server/ReadReviewEvidenceUseCase') {
+  static readonly layer = Layer.effect(
+    ReadReviewEvidenceUseCase,
+    Effect.gen(function* () {
+      const readWorktreeStatusCapability = yield* ReadWorktreeStatusService;
+      const readChangeFingerprintsCapability =
+        yield* ReadChangeFingerprintsService;
+      const readTextFilesCapability = yield* ReadTextFilesService;
+      const readChangeDiffsCapability = yield* ReadChangeDiffsService;
 
-  execute(
-    input: ReadReviewEvidenceInput,
-  ): Effect.Effect<
-    ReviewEvidence,
-    GitIoFailure | IncompleteDiffReadError,
-    WorktreeRead
-  > {
-    return Effect.gen({ self: this }, function* () {
-      const { worktreeId } = input;
-      const status = yield* this.readWorktreeStatus.execute({ worktreeId });
-      const { changes } = yield* this.readChangeFingerprints.execute({
-        worktreeId,
-        comparisons: status.changes,
-        paths: undefined,
-      });
-      const { texts } = yield* this.readTextFiles.execute({
-        worktreeId,
-        paths: reviewPaths(input.layers, changes),
-      });
-      const diffs = yield* this.readChangeDiffs.execute({
-        worktreeId,
-        comparisons: trackedComparisons(changes),
-      });
-      return { changes, texts, diffs };
-    });
-  }
+      return {
+        execute: Effect.fn('ReadReviewEvidenceUseCase.execute')(function* (
+          input: ReadReviewEvidenceInput,
+        ): Effect.fn.Return<
+          ReviewEvidence,
+          GitIoFailure | IncompleteDiffReadError,
+          WorktreeRead
+        > {
+          const { worktreeId } = input;
+          const status = yield* readWorktreeStatusCapability.execute({
+            worktreeId,
+          });
+          const { changes } = yield* readChangeFingerprintsCapability.execute({
+            worktreeId,
+            comparisons: status.changes,
+            paths: undefined,
+          });
+          const { texts } = yield* readTextFilesCapability.execute({
+            worktreeId,
+            paths: reviewPaths(input.layers, changes),
+          });
+          const diffs = yield* readChangeDiffsCapability.execute({
+            worktreeId,
+            comparisons: trackedComparisons(changes),
+          });
+          return { changes, texts, diffs };
+        }),
+      };
+    }),
+  );
 }

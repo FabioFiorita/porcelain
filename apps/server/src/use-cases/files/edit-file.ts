@@ -1,81 +1,88 @@
-import type {
-  EditFileRequest,
-  EditFileResponse,
+import {
+  type EditFileRequest,
+  type EditFileResponse,
 } from '@porcelain/contracts/files';
-import type { WorktreeParams } from '@porcelain/contracts/shared';
-import type {
-  EditFileFailure,
+import { type WorktreeParams } from '@porcelain/contracts/shared';
+import {
+  type EditFileFailure,
   EditFileService,
 } from '@porcelain/files/services';
-import { Cause, Effect } from 'effect';
-import type { EditAnnouncementWriter } from '../../ports/edit-announcement-writer.ts';
-import type { EventPublisher } from '../../ports/event-publisher.ts';
-import type { Logger } from '../../ports/logger.ts';
-import type { InvalidateReviewedMarksUseCasePort } from '../../ports/invalidate-reviewed-marks-use-case-port.ts';
-import type { WorktreeAccess } from '../../runtime/worktree-access.ts';
-import type { WorktreeAccessFailure } from '../../ports/worktree-access-failure.ts';
+import { Cause, Effect, Context, Layer } from 'effect';
+import { EditAnnouncementWriter } from '../../ports/edit-announcement-writer.ts';
+import { EventPublisher } from '../../ports/event-publisher.ts';
+import { Logger } from '../../ports/logger.ts';
+import { InvalidateReviewedMarksUseCasePort } from '../../ports/invalidate-reviewed-marks-use-case-port.ts';
+import { WorktreeAccess } from '../../runtime/worktree-access.ts';
+import { type WorktreeAccessFailure } from '../../ports/worktree-access-failure.ts';
 
-export class EditFileUseCase {
-  private readonly access: WorktreeAccess;
-  private readonly editFile: EditFileService;
-  private readonly invalidateReviewedMarks: InvalidateReviewedMarksUseCasePort;
-  private readonly events: EventPublisher;
-  private readonly editAnnouncements: EditAnnouncementWriter;
-  private readonly logger: Logger;
-
-  constructor(
-    access: WorktreeAccess,
-    editFile: EditFileService,
-    invalidateReviewedMarks: InvalidateReviewedMarksUseCasePort,
-    events: EventPublisher,
-    editAnnouncements: EditAnnouncementWriter,
-    logger: Logger,
-  ) {
-    this.access = access;
-    this.editFile = editFile;
-    this.invalidateReviewedMarks = invalidateReviewedMarks;
-    this.events = events;
-    this.editAnnouncements = editAnnouncements;
-    this.logger = logger;
+export class EditFileUseCase extends Context.Service<
+  EditFileUseCase,
+  {
+    readonly execute: (
+      input: WorktreeParams & EditFileRequest,
+    ) => Effect.Effect<
+      EditFileResponse,
+      EditFileFailure | WorktreeAccessFailure
+    >;
   }
-
-  execute(
-    input: WorktreeParams & EditFileRequest,
-  ): Effect.Effect<EditFileResponse, EditFileFailure | WorktreeAccessFailure> {
-    return Effect.gen({ self: this }, function* () {
-      const { worktreeId } = input;
-      const paths =
-        input.kind === 'move'
-          ? [input.path, input.destination]
-          : input.kind === 'copy'
-            ? [input.destination]
-            : [input.path];
-      return yield* this.access.write(
-        worktreeId,
-        (worktree) =>
-          this.editFile.execute({ worktreeId: worktree.id, command: input }),
-        () => this.announce(worktreeId, paths),
-      );
-    });
-  }
-
-  private announce(worktreeId: string, paths: string[]): Effect.Effect<void> {
-    return Effect.gen({ self: this }, function* () {
-      this.editAnnouncements.announce({ worktreeId, paths });
-      const invalidated = this.invalidateReviewedMarks.execute({
-        worktreeId,
-        paths,
-      });
-      yield* Effect.catchCause(invalidated, (cause) =>
-        Effect.sync(() =>
-          this.logger.failure({
-            kind: 'reviewed-marks',
+>()('@porcelain/server/EditFileUseCase') {
+  static readonly layer = Layer.effect(
+    EditFileUseCase,
+    Effect.gen(function* () {
+      const accessCapability = yield* WorktreeAccess;
+      const editFileCapability = yield* EditFileService;
+      const invalidateReviewedMarksCapability =
+        yield* InvalidateReviewedMarksUseCasePort;
+      const eventsCapability = yield* EventPublisher;
+      const editAnnouncementsCapability = yield* EditAnnouncementWriter;
+      const loggerCapability = yield* Logger;
+      const operationAnnounce = Effect.fn('EditFileUseCase.announce')(
+        function* (
+          worktreeId: string,
+          paths: string[],
+        ): Effect.fn.Return<void> {
+          editAnnouncementsCapability.announce({ worktreeId, paths });
+          const invalidated = invalidateReviewedMarksCapability.execute({
             worktreeId,
-            error: Cause.squash(cause),
-          }),
-        ),
+            paths,
+          });
+          yield* Effect.catchCause(invalidated, (cause) =>
+            Effect.sync(() =>
+              loggerCapability.failure({
+                kind: 'reviewed-marks',
+                worktreeId,
+                error: Cause.squash(cause),
+              }),
+            ),
+          );
+          eventsCapability.filesChanged({ worktreeId, paths });
+        },
       );
-      this.events.filesChanged({ worktreeId, paths });
-    });
-  }
+      return {
+        execute: Effect.fn('EditFileUseCase.execute')(function* (
+          input: WorktreeParams & EditFileRequest,
+        ): Effect.fn.Return<
+          EditFileResponse,
+          EditFileFailure | WorktreeAccessFailure
+        > {
+          const { worktreeId } = input;
+          const paths =
+            input.kind === 'move'
+              ? [input.path, input.destination]
+              : input.kind === 'copy'
+                ? [input.destination]
+                : [input.path];
+          return yield* accessCapability.write(
+            worktreeId,
+            (worktree) =>
+              editFileCapability.execute({
+                worktreeId: worktree.id,
+                command: input,
+              }),
+            () => operationAnnounce(worktreeId, paths),
+          );
+        }),
+      };
+    }),
+  );
 }

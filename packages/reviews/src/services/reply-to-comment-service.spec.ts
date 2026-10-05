@@ -1,3 +1,5 @@
+import { IdSource, Clock } from '@porcelain/kernel/ports';
+import { CommentStore, ReplyToCommentOptions } from '@porcelain/reviews/ports';
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { FixedClock, SequentialIdSource } from '@porcelain/kernel/fakes';
@@ -6,7 +8,7 @@ import {
   CommentLimitExceededError,
   CommentTargetNotFoundError,
 } from '@porcelain/reviews/errors';
-import type { ReplyToCommentInput } from '@porcelain/reviews/models';
+import { type ReplyToCommentInput } from '@porcelain/reviews/models';
 import { InMemoryCommentStore } from '../../spec/fakes/in-memory-comment-store.ts';
 import { ReplyToCommentService } from './reply-to-comment-service.ts';
 
@@ -30,11 +32,14 @@ function setup(body = 'Opening message') {
     sizeBytes: 200 + body.length,
     writtenByAgent: false,
   });
-  const service = new ReplyToCommentService(
-    store,
-    new SequentialIdSource(),
-    new FixedClock(),
-    limits,
+  const service = Effect.runSync(
+    ReplyToCommentService.pipe(
+      Effect.provide(ReplyToCommentService.layer),
+      Effect.provideService(CommentStore, store),
+      Effect.provideService(IdSource, new SequentialIdSource()),
+      Effect.provideService(Clock, new FixedClock()),
+      Effect.provideService(ReplyToCommentOptions, limits),
+    ),
   );
   return { store, service };
 }

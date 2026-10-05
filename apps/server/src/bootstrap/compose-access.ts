@@ -1,33 +1,16 @@
-import { Effect } from 'effect';
+import { DeviceConnectionStore } from '../ports/device-connection-store.ts';
+import { ReadEnvironmentUseCaseOptions } from '../ports/read-environment-use-case-options.ts';
+import { Logger } from '../ports/logger.ts';
+import { EventPublisher } from '../ports/event-publisher.ts';
+import { ServiceUpdateRunner } from '../ports/service-update-runner.ts';
+import { LaneKeys } from '../runtime/lane-keys.ts';
+import { Lanes } from '../runtime/lanes.ts';
+import { Effect, Layer } from 'effect';
 import { accessServicesLayer } from './access-layers.ts';
 import { accessRoutes } from '../http/routes/access/access-api.ts';
-
 import {
-  AuthenticateDesktopSessionService,
-  AuthorizeServiceUpdateService,
-  CheckLocalRequestService,
-  CheckRequestOriginService,
-  CloseTunnelConnectionsService,
-  IdentifyRequestClientService,
-  OpenRemoteRoutesService,
-  ReadRemoteAccessService,
-  RenameEnvironmentService,
-  CheckServiceUpdateService,
-  PlanServiceUpdateCheckService,
-  SetRemoteAccessService,
-  AuthenticateDeviceService,
-  FlushDeviceActivityService,
-  IssuePairingService,
-  ListAccessService,
-  ReadOwnerStatusService,
-  RedeemPairingService,
-  RefundPairingAttemptService,
-  RevokeDeviceService,
-  RevokePairingGrantService,
-  SetDeviceTrustService,
-  TakePairingAttemptService,
-  IssueLiveTicketService,
-  RedeemLiveTicketService,
+  ReadEnvironmentService,
+  ReadEnvironmentNameService,
 } from '@porcelain/access/services';
 import { AuthenticateDeviceUseCase } from '../use-cases/access/authenticate-device.ts';
 import { CheckLocalRequestUseCase } from '../use-cases/access/check-local-request.ts';
@@ -55,159 +38,94 @@ import { RefundPairingAttemptUseCase } from '../use-cases/access/refund-pairing-
 import { RevokeAccessUseCase } from '../use-cases/access/revoke-access.ts';
 import { SetDeviceTrustUseCase } from '../use-cases/access/set-device-trust.ts';
 import { TakePairingAttemptUseCase } from '../use-cases/access/take-pairing-attempt.ts';
-import type { ComposeContext, AccessDependencies } from './compose-context.ts';
+import {
+  type ComposeContext,
+  type AccessDependencies,
+} from './compose-context.ts';
 
-export const composeAccess = Effect.fn('composeAccess')(
-  function* (context: ComposeContext, dependencies: AccessDependencies) {
-    const { lanes, laneKeys, logger } = context;
-
-    const openRemoteRoutes = yield* OpenRemoteRoutesService;
-    const closeTunnelConnections = yield* CloseTunnelConnectionsService;
-    const { readEnvironment } = dependencies.shared;
-
-    const planServiceUpdateCheck = yield* PlanServiceUpdateCheckService;
-    const authorizeServiceUpdate = yield* AuthorizeServiceUpdateService;
+export function composeAccess(
+  context: ComposeContext,
+  dependencies: AccessDependencies,
+) {
+  const { lanes, laneKeys, logger } = context;
+  const { readEnvironment } = dependencies.shared;
+  const ports = Layer.mergeAll(
+    Layer.succeed(Lanes, lanes),
+    Layer.succeed(LaneKeys, laneKeys),
+    Layer.succeed(ServiceUpdateRunner, dependencies.serviceUpdateRunner),
+    Layer.succeed(EventPublisher, context.events),
+    Layer.succeed(ReadEnvironmentService, readEnvironment),
+    Layer.succeed(Logger, logger),
+    Layer.succeed(
+      ReadEnvironmentNameService,
+      dependencies.shared.readEnvironmentName,
+    ),
+    Layer.succeed(ReadEnvironmentUseCaseOptions, {
+      version: dependencies.serverVersion,
+      protocol: context.settings.limits.access.environment.protocol,
+    }),
+    Layer.succeed(DeviceConnectionStore, dependencies.deviceConnections),
+  );
+  const native = accessServicesLayer(context, dependencies).pipe(
+    Layer.provideMerge(ports),
+  );
+  const services = Layer.mergeAll(
+    AuthenticateDeviceUseCase.layer,
+    IssueLiveTicketUseCase.layer,
+    RedeemLiveTicketUseCase.layer,
+    ClearBrowserSessionUseCase.layer,
+    CheckRequestOriginUseCase.layer,
+    IdentifyRequestClientUseCase.layer,
+    CheckLocalRequestUseCase.layer,
+    ReadServiceUpdateUseCase.layer,
+    StartServiceUpdateUseCase.layer,
+    RenameEnvironmentUseCase.layer,
+    ReadRemoteAccessUseCase.layer,
+    SetRemoteAccessUseCase.layer,
+    OpenRemoteRoutesUseCase.layer,
+    CloseRemoteRoutesUseCase.layer,
+    FlushDeviceActivityUseCase.layer,
+    IssuePairingUseCase.layer,
+    ListAccessUseCase.layer,
+    ReadHealthUseCase.layer,
+    ReadSessionUseCase.layer,
+    ReadEnvironmentUseCase.layer,
+    ReadOwnerStatusUseCase.layer,
+    RedeemPairingUseCase.layer,
+    TakePairingAttemptUseCase.layer,
+    RefundPairingAttemptUseCase.layer,
+    RevokeAccessUseCase.layer,
+    SetDeviceTrustUseCase.layer,
+  ).pipe(Layer.provideMerge(native));
+  return Effect.gen(function* () {
     const useCases = {
-      authenticateDevice: new AuthenticateDeviceUseCase(
-        yield* AuthenticateDeviceService,
-        lanes,
-        laneKeys,
-        yield* AuthenticateDesktopSessionService,
-      ),
-      issueLiveTicket: new IssueLiveTicketUseCase(
-        yield* IssueLiveTicketService,
-        lanes,
-        laneKeys,
-      ),
-      redeemLiveTicket: new RedeemLiveTicketUseCase(
-        yield* RedeemLiveTicketService,
-        lanes,
-        laneKeys,
-      ),
-      clearBrowserSession: new ClearBrowserSessionUseCase(lanes),
-      checkRequestOrigin: new CheckRequestOriginUseCase(
-        yield* CheckRequestOriginService,
-        lanes,
-      ),
-      identifyRequestClient: new IdentifyRequestClientUseCase(
-        yield* IdentifyRequestClientService,
-        lanes,
-      ),
-      checkLocalRequest: new CheckLocalRequestUseCase(
-        yield* CheckLocalRequestService,
-        lanes,
-      ),
-      readServiceUpdate: new ReadServiceUpdateUseCase(
-        dependencies.serviceUpdateRunner,
-        authorizeServiceUpdate,
-        planServiceUpdateCheck,
-        lanes,
-        laneKeys,
-      ),
-      startServiceUpdate: new StartServiceUpdateUseCase(
-        dependencies.serviceUpdateRunner,
-        authorizeServiceUpdate,
-        yield* CheckServiceUpdateService,
-        planServiceUpdateCheck,
-        lanes,
-        laneKeys,
-      ),
-      renameEnvironment: new RenameEnvironmentUseCase(
-        yield* RenameEnvironmentService,
-        lanes,
-        laneKeys,
-        context.events,
-      ),
-      readRemoteAccess: new ReadRemoteAccessUseCase(
-        yield* ReadRemoteAccessService,
-        lanes,
-        laneKeys,
-      ),
-      setRemoteAccess: new SetRemoteAccessUseCase(
-        yield* SetRemoteAccessService,
-        openRemoteRoutes,
-        closeTunnelConnections,
-        readEnvironment,
-        lanes,
-        laneKeys,
-        logger,
-      ),
-      openRemoteRoutes: new OpenRemoteRoutesUseCase(
-        openRemoteRoutes,
-        closeTunnelConnections,
-        readEnvironment,
-        lanes,
-        laneKeys,
-      ),
-      closeRemoteRoutes: new CloseRemoteRoutesUseCase(
-        openRemoteRoutes,
-        readEnvironment,
-        lanes,
-        laneKeys,
-      ),
-      flushDeviceActivity: new FlushDeviceActivityUseCase(
-        yield* FlushDeviceActivityService,
-        lanes,
-        laneKeys,
-      ),
-      issuePairing: new IssuePairingUseCase(
-        readEnvironment,
-        yield* IssuePairingService,
-        lanes,
-        laneKeys,
-      ),
-      listAccess: new ListAccessUseCase(
-        yield* ListAccessService,
-        lanes,
-        laneKeys,
-      ),
-      readHealth: new ReadHealthUseCase(readEnvironment, lanes, laneKeys),
-      readSession: new ReadSessionUseCase(lanes),
-      readEnvironment: new ReadEnvironmentUseCase(
-        readEnvironment,
-        dependencies.shared.readEnvironmentName,
-        lanes,
-        laneKeys,
-        {
-          version: dependencies.serverVersion,
-          protocol: context.settings.limits.access.environment.protocol,
-        },
-      ),
-      readOwnerStatus: new ReadOwnerStatusUseCase(
-        yield* ReadOwnerStatusService,
-        lanes,
-        laneKeys,
-      ),
-      redeemPairing: new RedeemPairingUseCase(
-        yield* RedeemPairingService,
-        lanes,
-        laneKeys,
-      ),
-      takePairingAttempt: new TakePairingAttemptUseCase(
-        yield* TakePairingAttemptService,
-        lanes,
-        laneKeys,
-      ),
-      refundPairingAttempt: new RefundPairingAttemptUseCase(
-        yield* RefundPairingAttemptService,
-        lanes,
-        laneKeys,
-      ),
-      revokeAccess: new RevokeAccessUseCase(
-        yield* RevokePairingGrantService,
-        yield* RevokeDeviceService,
-        dependencies.deviceConnections,
-        lanes,
-        laneKeys,
-      ),
-      setDeviceTrust: new SetDeviceTrustUseCase(
-        yield* SetDeviceTrustService,
-        lanes,
-        laneKeys,
-      ),
+      authenticateDevice: yield* AuthenticateDeviceUseCase,
+      issueLiveTicket: yield* IssueLiveTicketUseCase,
+      redeemLiveTicket: yield* RedeemLiveTicketUseCase,
+      clearBrowserSession: yield* ClearBrowserSessionUseCase,
+      checkRequestOrigin: yield* CheckRequestOriginUseCase,
+      identifyRequestClient: yield* IdentifyRequestClientUseCase,
+      checkLocalRequest: yield* CheckLocalRequestUseCase,
+      readServiceUpdate: yield* ReadServiceUpdateUseCase,
+      startServiceUpdate: yield* StartServiceUpdateUseCase,
+      renameEnvironment: yield* RenameEnvironmentUseCase,
+      readRemoteAccess: yield* ReadRemoteAccessUseCase,
+      setRemoteAccess: yield* SetRemoteAccessUseCase,
+      openRemoteRoutes: yield* OpenRemoteRoutesUseCase,
+      closeRemoteRoutes: yield* CloseRemoteRoutesUseCase,
+      flushDeviceActivity: yield* FlushDeviceActivityUseCase,
+      issuePairing: yield* IssuePairingUseCase,
+      listAccess: yield* ListAccessUseCase,
+      readHealth: yield* ReadHealthUseCase,
+      readSession: yield* ReadSessionUseCase,
+      readEnvironment: yield* ReadEnvironmentUseCase,
+      readOwnerStatus: yield* ReadOwnerStatusUseCase,
+      redeemPairing: yield* RedeemPairingUseCase,
+      takePairingAttempt: yield* TakePairingAttemptUseCase,
+      refundPairingAttempt: yield* RefundPairingAttemptUseCase,
+      revokeAccess: yield* RevokeAccessUseCase,
+      setDeviceTrust: yield* SetDeviceTrustUseCase,
     };
     return { ...useCases, routes: accessRoutes(useCases) };
-  },
-  (program, context, dependencies) =>
-    program.pipe(Effect.provide(accessServicesLayer(context, dependencies))),
-);
+  }).pipe(Effect.provide(services));
+}

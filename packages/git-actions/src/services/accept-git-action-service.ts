@@ -1,5 +1,5 @@
-import { Effect } from 'effect';
-import type { Clock } from '@porcelain/kernel/ports';
+import { Effect, Context, Layer } from 'effect';
+import { Clock } from '@porcelain/kernel/ports';
 import { DiscardExpectationMismatchError } from '../errors/discard-expectation-mismatch-error.ts';
 import { DuplicateExpectedFileError } from '../errors/duplicate-expected-file-error.ts';
 import { EmptyCommitSelectionError } from '../errors/empty-commit-selection-error.ts';
@@ -9,111 +9,131 @@ import { InvalidHunkRangeError } from '../errors/invalid-hunk-range-error.ts';
 import { MergeExpectationMismatchError } from '../errors/merge-expectation-mismatch-error.ts';
 import { MissingExpectedFilesError } from '../errors/missing-expected-files-error.ts';
 import { MissingUpstreamExpectationError } from '../errors/missing-upstream-expectation-error.ts';
-import type {
-  AcceptGitActionInput,
-  AcceptGitActionResult,
+import {
+  type AcceptGitActionInput,
+  type AcceptGitActionResult,
 } from '../models/accept-git-action.ts';
-import type { GitActionProblem } from '../models/git-action-problem.ts';
-import type { GitActionReceipt } from '../models/git-action-receipt.ts';
-import type { GitActionReceiptStore } from '../ports/git-action-receipt-store.ts';
+import { type GitActionProblem } from '../models/git-action-problem.ts';
+import { type GitActionReceipt } from '../models/git-action-receipt.ts';
+import { GitActionReceiptStore } from '../ports/git-action-receipt-store.ts';
 import { gitActionProblem } from '../rules/git-action-problem.ts';
 import { gitActionReceiptView } from '../rules/git-action-receipt-view.ts';
 import { gitActionTarget } from '../rules/git-action-target.ts';
 import { sameGitActionRequest } from '../rules/same-git-action-request.ts';
 
-export class AcceptGitActionService {
-  private readonly gitActionReceipts: GitActionReceiptStore;
-  private readonly clock: Clock;
-
-  constructor(gitActionReceipts: GitActionReceiptStore, clock: Clock) {
-    this.gitActionReceipts = gitActionReceipts;
-    this.clock = clock;
+export class AcceptGitActionService extends Context.Service<
+  AcceptGitActionService,
+  {
+    readonly execute: (
+      input: AcceptGitActionInput,
+    ) => Effect.Effect<
+      AcceptGitActionResult,
+      | GitActionReceiptMismatchError
+      | InvalidHunkRangeError
+      | DuplicateExpectedFileError
+      | MergeExpectationMismatchError
+      | EmptyCommitSelectionError
+      | MissingExpectedFilesError
+      | ExpectedFilesMismatchError
+      | DiscardExpectationMismatchError
+      | MissingUpstreamExpectationError,
+      never
+    >;
   }
-
-  execute(
-    input: AcceptGitActionInput,
-  ): Effect.Effect<
-    AcceptGitActionResult,
-    | GitActionReceiptMismatchError
-    | InvalidHunkRangeError
-    | DuplicateExpectedFileError
-    | MergeExpectationMismatchError
-    | EmptyCommitSelectionError
-    | MissingExpectedFilesError
-    | ExpectedFilesMismatchError
-    | DiscardExpectationMismatchError
-    | MissingUpstreamExpectationError,
-    never
-  > {
-    return Effect.gen({ self: this }, function* () {
-      const { intent, expected } = input;
-      const problem = gitActionProblem(intent, expected);
-      if (problem) return yield* Effect.fail(this.failure(problem));
-      const previous = this.gitActionReceipts.read({
-        requestId: input.requestId,
-      });
-      if (previous) {
-        if (!sameGitActionRequest(previous, input))
-          return yield* Effect.fail(new GitActionReceiptMismatchError());
-        return { kind: 'repeated', receipt: gitActionReceiptView(previous) };
+>()('@porcelain/git-actions/AcceptGitActionService') {
+  static readonly layer = Layer.effect(
+    AcceptGitActionService,
+    Effect.gen(function* () {
+      const gitActionReceiptsCapability = yield* GitActionReceiptStore;
+      const clockCapability = yield* Clock;
+      function operationFailure(
+        problem: GitActionProblem,
+      ):
+        | GitActionReceiptMismatchError
+        | InvalidHunkRangeError
+        | DuplicateExpectedFileError
+        | MergeExpectationMismatchError
+        | EmptyCommitSelectionError
+        | MissingExpectedFilesError
+        | ExpectedFilesMismatchError
+        | DiscardExpectationMismatchError
+        | MissingUpstreamExpectationError {
+        switch (problem.kind) {
+          case 'hunk-range':
+            return new InvalidHunkRangeError();
+          case 'duplicate-expected-file':
+            return new DuplicateExpectedFileError();
+          case 'merge-expectation':
+            return new MergeExpectationMismatchError();
+          case 'empty-commit-selection':
+            return new EmptyCommitSelectionError();
+          case 'missing-expected-files':
+            return new MissingExpectedFilesError();
+          case 'expected-files-mismatch':
+            return new ExpectedFilesMismatchError();
+          case 'discard-expectation':
+            return new DiscardExpectationMismatchError();
+          case 'missing-upstream-expectation':
+            return new MissingUpstreamExpectationError();
+        }
       }
-      const receipt: GitActionReceipt = {
-        requestId: input.requestId,
-        projectId: input.projectId,
-        worktreeId: input.worktreeId,
-        action: intent.action,
-        intent,
-        expected,
-        state: 'running',
-        progress: [],
-        refreshRequired: false,
-        acceptedAt: this.clock.now(),
-      };
-      this.gitActionReceipts.insert(receipt);
       return {
-        kind: 'accepted',
-        receipt: gitActionReceiptView(receipt),
-        run: {
-          requestId: input.requestId,
-          projectId: input.projectId,
-          worktreeId: input.worktreeId,
-          intent,
-          expected,
-          target: gitActionTarget(intent, expected),
-        },
+        execute: Effect.fn('AcceptGitActionService.execute')(function* (
+          input: AcceptGitActionInput,
+        ): Effect.fn.Return<
+          AcceptGitActionResult,
+          | GitActionReceiptMismatchError
+          | InvalidHunkRangeError
+          | DuplicateExpectedFileError
+          | MergeExpectationMismatchError
+          | EmptyCommitSelectionError
+          | MissingExpectedFilesError
+          | ExpectedFilesMismatchError
+          | DiscardExpectationMismatchError
+          | MissingUpstreamExpectationError,
+          never
+        > {
+          const { intent, expected } = input;
+          const problem = gitActionProblem(intent, expected);
+          if (problem) return yield* Effect.fail(operationFailure(problem));
+          const previous = gitActionReceiptsCapability.read({
+            requestId: input.requestId,
+          });
+          if (previous) {
+            if (!sameGitActionRequest(previous, input))
+              return yield* Effect.fail(new GitActionReceiptMismatchError());
+            return {
+              kind: 'repeated',
+              receipt: gitActionReceiptView(previous),
+            };
+          }
+          const receipt: GitActionReceipt = {
+            requestId: input.requestId,
+            projectId: input.projectId,
+            worktreeId: input.worktreeId,
+            action: intent.action,
+            intent,
+            expected,
+            state: 'running',
+            progress: [],
+            refreshRequired: false,
+            acceptedAt: clockCapability.now(),
+          };
+          gitActionReceiptsCapability.insert(receipt);
+          return {
+            kind: 'accepted',
+            receipt: gitActionReceiptView(receipt),
+            run: {
+              requestId: input.requestId,
+              projectId: input.projectId,
+              worktreeId: input.worktreeId,
+              intent,
+              expected,
+              target: gitActionTarget(intent, expected),
+            },
+          };
+        }),
       };
-    });
-  }
-
-  private failure(
-    problem: GitActionProblem,
-  ):
-    | GitActionReceiptMismatchError
-    | InvalidHunkRangeError
-    | DuplicateExpectedFileError
-    | MergeExpectationMismatchError
-    | EmptyCommitSelectionError
-    | MissingExpectedFilesError
-    | ExpectedFilesMismatchError
-    | DiscardExpectationMismatchError
-    | MissingUpstreamExpectationError {
-    switch (problem.kind) {
-      case 'hunk-range':
-        return new InvalidHunkRangeError();
-      case 'duplicate-expected-file':
-        return new DuplicateExpectedFileError();
-      case 'merge-expectation':
-        return new MergeExpectationMismatchError();
-      case 'empty-commit-selection':
-        return new EmptyCommitSelectionError();
-      case 'missing-expected-files':
-        return new MissingExpectedFilesError();
-      case 'expected-files-mismatch':
-        return new ExpectedFilesMismatchError();
-      case 'discard-expectation':
-        return new DiscardExpectationMismatchError();
-      case 'missing-upstream-expectation':
-        return new MissingUpstreamExpectationError();
-    }
-  }
+    }),
+  );
 }

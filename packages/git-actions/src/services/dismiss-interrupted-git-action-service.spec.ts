@@ -1,3 +1,5 @@
+import { Clock } from '@porcelain/kernel/ports';
+import { GitActionReceiptStore } from '@porcelain/git-actions/ports';
 import { Effect } from 'effect';
 import {
   GitActionNotFoundError,
@@ -30,9 +32,12 @@ function subject(receipt = interrupted) {
   const store = new InMemoryGitActionReceiptStore([receipt]);
   return {
     store,
-    service: new DismissInterruptedGitActionService(
-      store,
-      new FixedClock(dismissedAt),
+    service: Effect.runSync(
+      DismissInterruptedGitActionService.pipe(
+        Effect.provide(DismissInterruptedGitActionService.layer),
+        Effect.provideService(GitActionReceiptStore, store),
+        Effect.provideService(Clock, new FixedClock(dismissedAt)),
+      ),
     ),
   };
 }
@@ -60,9 +65,15 @@ describe('DismissInterruptedGitActionService', () => {
   it('keeps the first dismissal when the same action is dismissed again', () => {
     const { store, service } = subject();
     Effect.runSync(service.execute(scope));
-    const again = new DismissInterruptedGitActionService(
-      store,
-      new FixedClock('2026-09-23T14:00:00.000Z'),
+    const again = Effect.runSync(
+      DismissInterruptedGitActionService.pipe(
+        Effect.provide(DismissInterruptedGitActionService.layer),
+        Effect.provideService(GitActionReceiptStore, store),
+        Effect.provideService(
+          Clock,
+          new FixedClock('2026-09-23T14:00:00.000Z'),
+        ),
+      ),
     );
     expect(Effect.runSync(again.execute(scope)).kind).toBe('already-dismissed');
     expect(store.read({ requestId: REQUEST_ID })?.dismissedAt).toBe(

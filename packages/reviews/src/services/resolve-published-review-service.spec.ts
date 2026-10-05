@@ -1,8 +1,20 @@
+import {
+  SignatureSource,
+  ResolvePublishedReviewOptions,
+} from '@porcelain/reviews/ports';
+import { Clock } from '@porcelain/kernel/ports';
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
-import type { FileChange, TrackedComparison } from '@porcelain/kernel/models';
+import {
+  type FileChange,
+  type TrackedComparison,
+} from '@porcelain/kernel/models';
 import { FixedClock } from '@porcelain/kernel/fakes';
-import type { Review, ReviewDiff, ReviewStep } from '@porcelain/reviews/models';
+import {
+  type Review,
+  type ReviewDiff,
+  type ReviewStep,
+} from '@porcelain/reviews/models';
 import { changesDigest } from '@porcelain/reviews/rules';
 import { ScriptedSignatureSource } from '../../spec/fakes/scripted-signature-source.ts';
 import { ResolvePublishedReviewService } from './resolve-published-review-service.ts';
@@ -75,10 +87,15 @@ function text(path: string, content: string): [string, string] {
   return [path, content];
 }
 
-const service = new ResolvePublishedReviewService(
-  new FixedClock('2026-01-01T00:00:00.000Z'),
-  new ScriptedSignatureSource(),
-  { lifetimeMs: 3_600_000 },
+const service = Effect.runSync(
+  ResolvePublishedReviewService.pipe(
+    Effect.provide(ResolvePublishedReviewService.layer),
+    Effect.provideService(Clock, new FixedClock('2026-01-01T00:00:00.000Z')),
+    Effect.provideService(SignatureSource, new ScriptedSignatureSource()),
+    Effect.provideService(ResolvePublishedReviewOptions, {
+      lifetimeMs: 3_600_000,
+    }),
+  ),
 );
 
 function generate(evidence: {

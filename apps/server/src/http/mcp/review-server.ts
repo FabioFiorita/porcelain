@@ -1,3 +1,4 @@
+import { type Context, Effect } from 'effect';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import {
   createCommentThreadResponseSchema,
@@ -13,31 +14,31 @@ import {
   updateCommentThreadResponseSchema,
   resolveCommentToolRequestSchema,
 } from '@porcelain/contracts/reviews';
-import { Effect } from 'effect';
 import { registerEffectTool } from './effect-tool.ts';
-import type {
-  AtWorktreePathUseCasePort,
-  WorktreeOperationUseCasePort,
-} from '../../ports/at-worktree-path-use-case-port.ts';
-import type { CreateCommentThreadUseCase } from '../../use-cases/reviews/create-comment-thread.ts';
-import type { ListCommentThreadsUseCase } from '../../use-cases/reviews/list-comment-threads.ts';
-import type { PublishReviewUseCase } from '../../use-cases/reviews/publish-review.ts';
-import type { ReadPublishedReviewUseCase } from '../../use-cases/reviews/read-published-review.ts';
-import type { ReplyToCommentUseCase } from '../../use-cases/reviews/reply-to-comment.ts';
-import type { UpdateCommentThreadUseCase } from '../../use-cases/reviews/update-comment-thread.ts';
+import { type AtWorktreePathUseCase } from '../../use-cases/reviews/at-worktree-path.ts';
+import { type CreateCommentThreadUseCase } from '../../use-cases/reviews/create-comment-thread.ts';
+import { type ListCommentThreadsUseCase } from '../../use-cases/reviews/list-comment-threads.ts';
+import { type PublishReviewUseCase } from '../../use-cases/reviews/publish-review.ts';
+import { type ReadPublishedReviewUseCase } from '../../use-cases/reviews/read-published-review.ts';
+import { type ReplyToCommentUseCase } from '../../use-cases/reviews/reply-to-comment.ts';
+import { type UpdateCommentThreadUseCase } from '../../use-cases/reviews/update-comment-thread.ts';
 import { REVIEW_GUIDE } from './review-guide.ts';
-
-type AtPath<Operation extends WorktreeOperationUseCasePort> =
-  AtWorktreePathUseCasePort<Operation>;
 
 export type ReviewMcpUseCases = {
   reviewTools: {
-    createCommentThreadAtPath: AtPath<CreateCommentThreadUseCase>;
-    listCommentThreadsAtPath: AtPath<ListCommentThreadsUseCase>;
-    publishReviewAtPath: AtPath<PublishReviewUseCase>;
-    readPublishedReviewAtPath: AtPath<ReadPublishedReviewUseCase>;
-    replyToCommentAtPath: AtPath<ReplyToCommentUseCase>;
-    updateCommentThreadAtPath: AtPath<UpdateCommentThreadUseCase>;
+    atWorktreePath: Context.Service.Shape<typeof AtWorktreePathUseCase>;
+    createCommentThread: Context.Service.Shape<
+      typeof CreateCommentThreadUseCase
+    >;
+    listCommentThreads: Context.Service.Shape<typeof ListCommentThreadsUseCase>;
+    publishReview: Context.Service.Shape<typeof PublishReviewUseCase>;
+    readPublishedReview: Context.Service.Shape<
+      typeof ReadPublishedReviewUseCase
+    >;
+    replyToComment: Context.Service.Shape<typeof ReplyToCommentUseCase>;
+    updateCommentThread: Context.Service.Shape<
+      typeof UpdateCommentThreadUseCase
+    >;
   };
 };
 
@@ -83,11 +84,11 @@ export function createReviewMcpServer(
     },
     ({ cwd, ...review }) =>
       Effect.gen(function* () {
-        const published =
-          yield* useCases.reviewTools.publishReviewAtPath.execute({
-            cwd: cwd ?? defaultCwd,
-            request: review,
-          });
+        const published = yield* useCases.reviewTools.atWorktreePath.execute({
+          operation: useCases.reviewTools.publishReview,
+          cwd: cwd ?? defaultCwd,
+          request: review,
+        });
         return {
           ...published,
           warnings: published.warnings.map(
@@ -107,7 +108,8 @@ export function createReviewMcpServer(
       annotations: { readOnlyHint: true },
     },
     ({ cwd }) =>
-      useCases.reviewTools.readPublishedReviewAtPath.execute({
+      useCases.reviewTools.atWorktreePath.execute({
+        operation: useCases.reviewTools.readPublishedReview,
         cwd: cwd ?? defaultCwd,
         request: {},
       }),
@@ -123,7 +125,8 @@ export function createReviewMcpServer(
       annotations: { readOnlyHint: true },
     },
     ({ cwd, scope }) =>
-      useCases.reviewTools.listCommentThreadsAtPath.execute({
+      useCases.reviewTools.atWorktreePath.execute({
+        operation: useCases.reviewTools.listCommentThreads,
         cwd: cwd ?? defaultCwd,
         request: { scope },
       }),
@@ -138,7 +141,8 @@ export function createReviewMcpServer(
       input: createCommentToolRequestSchema,
     },
     ({ cwd, ...input }) =>
-      useCases.reviewTools.createCommentThreadAtPath.execute({
+      useCases.reviewTools.atWorktreePath.execute({
+        operation: useCases.reviewTools.createCommentThread,
         cwd: cwd ?? defaultCwd,
         request: { ...input, writer: agent },
       }),
@@ -153,7 +157,8 @@ export function createReviewMcpServer(
       input: replyToCommentToolRequestSchema,
     },
     ({ cwd, ...input }) =>
-      useCases.reviewTools.replyToCommentAtPath.execute({
+      useCases.reviewTools.atWorktreePath.execute({
+        operation: useCases.reviewTools.replyToComment,
         cwd: cwd ?? defaultCwd,
         request: { ...input, writer: agent },
       }),
@@ -167,7 +172,8 @@ export function createReviewMcpServer(
       input: resolveCommentToolRequestSchema,
     },
     ({ cwd, ...input }) =>
-      useCases.reviewTools.updateCommentThreadAtPath.execute({
+      useCases.reviewTools.atWorktreePath.execute({
+        operation: useCases.reviewTools.updateCommentThread,
         cwd: cwd ?? defaultCwd,
         request: input,
       }),

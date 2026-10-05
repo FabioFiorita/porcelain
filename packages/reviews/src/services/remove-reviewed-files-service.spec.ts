@@ -1,3 +1,4 @@
+import { ReviewedFileStore } from '@porcelain/reviews/ports';
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { InMemoryReviewedFileStore } from '../../spec/fakes/in-memory-reviewed-file-store.ts';
@@ -18,7 +19,15 @@ function setup() {
     { worktreeId, mark: mark('c.ts') },
     { worktreeId: other, mark: mark('a.ts') },
   ]);
-  return { store, service: new RemoveReviewedFilesService(store) };
+  return {
+    store,
+    service: Effect.runSync(
+      RemoveReviewedFilesService.pipe(
+        Effect.provide(RemoveReviewedFilesService.layer),
+        Effect.provideService(ReviewedFileStore, store),
+      ),
+    ),
+  };
 }
 
 describe('RemoveReviewedFilesService', () => {

@@ -1,40 +1,44 @@
-import { Effect } from 'effect';
-import type { WorktreeKeys } from '@porcelain/kernel/models';
-import type { Clock } from '@porcelain/kernel/ports';
-import type {
-  CollectAbsentWorktreesOptions,
-  CollectAbsentWorktreesResult,
-} from '../models/collect-absent-worktrees.ts';
-import type { WorktreePresenceStore } from '../ports/worktree-presence-store.ts';
+import { CollectAbsentWorktreesOptions } from '../ports/collect-absent-worktrees-options.ts';
+import { Effect, Context, Layer } from 'effect';
+import { type WorktreeKeys } from '@porcelain/kernel/models';
+import { Clock } from '@porcelain/kernel/ports';
+import { type CollectAbsentWorktreesResult } from '../models/collect-absent-worktrees.ts';
+import { WorktreePresenceStore } from '../ports/worktree-presence-store.ts';
 import { expired } from '../rules/worktree-presence.ts';
 
-export class CollectAbsentWorktreesService {
-  private readonly worktreePresence: WorktreePresenceStore;
-  private readonly clock: Clock;
-  private readonly options: CollectAbsentWorktreesOptions;
-
-  constructor(
-    worktreePresence: WorktreePresenceStore,
-    clock: Clock,
-    options: CollectAbsentWorktreesOptions,
-  ) {
-    this.worktreePresence = worktreePresence;
-    this.clock = clock;
-    this.options = options;
+export class CollectAbsentWorktreesService extends Context.Service<
+  CollectAbsentWorktreesService,
+  {
+    readonly execute: (
+      input: WorktreeKeys,
+    ) => Effect.Effect<CollectAbsentWorktreesResult, never>;
   }
+>()('@porcelain/projects/CollectAbsentWorktreesService') {
+  static readonly layer = Layer.effect(
+    CollectAbsentWorktreesService,
+    Effect.gen(function* () {
+      const worktreePresenceCapability = yield* WorktreePresenceStore;
+      const clockCapability = yield* Clock;
+      const optionsCapability = yield* CollectAbsentWorktreesOptions;
 
-  execute(
-    input: WorktreeKeys,
-  ): Effect.Effect<CollectAbsentWorktreesResult, never> {
-    return Effect.sync(() => {
-      const named = new Set(input.worktreeIds);
-      const collected = expired(
-        this.worktreePresence.list().filter((row) => named.has(row.worktreeId)),
-        this.clock.now(),
-        this.options.graceMs,
-      );
-      this.worktreePresence.remove({ worktreeIds: collected });
-      return { collected };
-    });
-  }
+      return {
+        execute: Effect.fn('CollectAbsentWorktreesService.execute')(function* (
+          input: WorktreeKeys,
+        ): Effect.fn.Return<CollectAbsentWorktreesResult, never> {
+          return yield* Effect.sync<CollectAbsentWorktreesResult>(() => {
+            const named = new Set(input.worktreeIds);
+            const collected = expired(
+              worktreePresenceCapability
+                .list()
+                .filter((row) => named.has(row.worktreeId)),
+              clockCapability.now(),
+              optionsCapability.graceMs,
+            );
+            worktreePresenceCapability.remove({ worktreeIds: collected });
+            return { collected };
+          });
+        }),
+      };
+    }),
+  );
 }

@@ -29,7 +29,7 @@ import {
   UnnamedDiffSelectionError,
   UnrelatedBranchError,
 } from '@porcelain/changes/errors';
-import type { RunGitActionResponse } from '@porcelain/contracts/git-actions';
+import { type RunGitActionResponse } from '@porcelain/contracts/git-actions';
 import {
   API_ERROR_STATUS,
   type ApiError,
@@ -69,16 +69,14 @@ import {
   MissingUpstreamExpectationError,
   UnsupportedCommitModelError,
 } from '@porcelain/git-actions/errors';
-import { GitActionRejectedError } from '@porcelain/git/errors';
-import { isRepositoryUnavailable } from '@porcelain/git/errors';
 import {
+  GitActionRejectedError,
+  isRepositoryUnavailable,
   HistorySnapshotUnavailableError,
   HistoryWorktreeUnavailableError,
   InvalidHistoryRequestError,
   ReadLimitExceededError,
   UnsupportedHistoryDataError,
-} from '@porcelain/git/errors';
-import {
   GitTimeoutError,
   InspectionLimitError,
   InvalidGitDiffError,
@@ -90,6 +88,7 @@ import {
   InvalidLineRangeError,
   WorktreeChangedError,
   WorktreeNotFoundError,
+  RepositoryUnavailableError,
 } from '@porcelain/kernel/errors';
 import {
   FilePreferenceLimitError,
@@ -97,7 +96,6 @@ import {
   FolderNotReadableError,
   NoWorktreeAtPathError,
   ProjectNotFoundError,
-  RepositoryUnavailableError,
   UnsupportedFolderNameError,
   WorktreeUnavailableError,
 } from '@porcelain/projects/errors';

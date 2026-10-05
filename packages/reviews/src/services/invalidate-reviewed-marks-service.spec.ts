@@ -1,3 +1,4 @@
+import { ReviewedFileStore } from '@porcelain/reviews/ports';
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { InMemoryReviewedFileStore } from '../../spec/fakes/in-memory-reviewed-file-store.ts';
@@ -24,7 +25,12 @@ function setup() {
   }
   return {
     files,
-    service: new InvalidateReviewedMarksService(files),
+    service: Effect.runSync(
+      InvalidateReviewedMarksService.pipe(
+        Effect.provide(InvalidateReviewedMarksService.layer),
+        Effect.provideService(ReviewedFileStore, files),
+      ),
+    ),
   };
 }
 

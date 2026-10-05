@@ -1,3 +1,4 @@
+import { BranchRangeReader } from '@porcelain/changes/ports';
 import { Effect } from 'effect';
 import { withReadLease } from '@porcelain/effects/worktree';
 import { describe, expect, it } from 'vitest';
@@ -24,19 +25,25 @@ describe('ReadBranchChangesService', () => {
       newMode: '000000',
       newOid: undefined,
     });
-    const read = new ReadBranchChangesService(
-      new InMemoryBranchRangeReader({
-        ranges: {
-          default: {
-            kind: 'found',
-            head,
-            base,
-            mergeBaseOid,
-            commits: 3,
-            files: [renamed, deleted],
-          },
-        },
-      }),
+    const read = Effect.runSync(
+      ReadBranchChangesService.pipe(
+        Effect.provide(ReadBranchChangesService.layer),
+        Effect.provideService(
+          BranchRangeReader,
+          new InMemoryBranchRangeReader({
+            ranges: {
+              default: {
+                kind: 'found',
+                head,
+                base,
+                mergeBaseOid,
+                commits: 3,
+                files: [renamed, deleted],
+              },
+            },
+          }),
+        ),
+      ),
     );
     expect(
       await Effect.runPromise(
@@ -71,10 +78,16 @@ describe('ReadBranchChangesService', () => {
   });
 
   it('answers no base and no files when the repository has no default branch', async () => {
-    const read = new ReadBranchChangesService(
-      new InMemoryBranchRangeReader({
-        ranges: { default: { kind: 'no-default-base', head } },
-      }),
+    const read = Effect.runSync(
+      ReadBranchChangesService.pipe(
+        Effect.provide(ReadBranchChangesService.layer),
+        Effect.provideService(
+          BranchRangeReader,
+          new InMemoryBranchRangeReader({
+            ranges: { default: { kind: 'no-default-base', head } },
+          }),
+        ),
+      ),
     );
     expect(
       await Effect.runPromise(
@@ -94,10 +107,16 @@ describe('ReadBranchChangesService', () => {
     ['unrelated', 'UnrelatedBranchError'],
     ['unborn', 'UnbornBranchError'],
   ] as const)('refuses a %s range with %s', async (kind, name) => {
-    const read = new ReadBranchChangesService(
-      new InMemoryBranchRangeReader({
-        ranges: { 'refs/heads/other': { kind } },
-      }),
+    const read = Effect.runSync(
+      ReadBranchChangesService.pipe(
+        Effect.provide(ReadBranchChangesService.layer),
+        Effect.provideService(
+          BranchRangeReader,
+          new InMemoryBranchRangeReader({
+            ranges: { 'refs/heads/other': { kind } },
+          }),
+        ),
+      ),
     );
     await expect(
       Effect.runPromise(

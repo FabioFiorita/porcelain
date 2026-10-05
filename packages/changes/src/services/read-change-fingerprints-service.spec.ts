@@ -1,7 +1,11 @@
+import {
+  WorktreeSideReader,
+  ReadChangeFingerprintsOptions,
+} from '@porcelain/changes/ports';
 import { Effect } from 'effect';
 import { withReadLease } from '@porcelain/effects/worktree';
 import { describe, expect, it } from 'vitest';
-import type { WorktreeEntry } from '@porcelain/changes/models';
+import { type WorktreeEntry } from '@porcelain/changes/models';
 import { ReadChangeFingerprintsService } from './read-change-fingerprints-service.ts';
 import { modified } from '../../spec/fixtures/comparisons.ts';
 import { InMemoryWorktreeSideReader } from '../../spec/fakes/in-memory-worktree-side-reader.ts';
@@ -33,7 +37,13 @@ function reader(
 
 describe('ReadChangeFingerprintsService', () => {
   it('fingerprints every change when no paths are given', async () => {
-    const read = new ReadChangeFingerprintsService(reader(), limits);
+    const read = Effect.runSync(
+      ReadChangeFingerprintsService.pipe(
+        Effect.provide(ReadChangeFingerprintsService.layer),
+        Effect.provideService(WorktreeSideReader, reader()),
+        Effect.provideService(ReadChangeFingerprintsOptions, limits),
+      ),
+    );
     const { changes } = await Effect.runPromise(
       withReadLease(
         'w',
@@ -54,7 +64,13 @@ describe('ReadChangeFingerprintsService', () => {
   });
 
   it('fingerprints only the requested paths', async () => {
-    const read = new ReadChangeFingerprintsService(reader(), limits);
+    const read = Effect.runSync(
+      ReadChangeFingerprintsService.pipe(
+        Effect.provide(ReadChangeFingerprintsService.layer),
+        Effect.provideService(WorktreeSideReader, reader()),
+        Effect.provideService(ReadChangeFingerprintsOptions, limits),
+      ),
+    );
     const { changes } = await Effect.runPromise(
       withReadLease(
         'w',
@@ -73,27 +89,45 @@ describe('ReadChangeFingerprintsService', () => {
     const first = await Effect.runPromise(
       withReadLease(
         'w',
-        new ReadChangeFingerprintsService(reader(), limits).execute(request),
+        Effect.runSync(
+          ReadChangeFingerprintsService.pipe(
+            Effect.provide(ReadChangeFingerprintsService.layer),
+            Effect.provideService(WorktreeSideReader, reader()),
+            Effect.provideService(ReadChangeFingerprintsOptions, limits),
+          ),
+        ).execute(request),
       ),
     );
     const staged = await Effect.runPromise(
       withReadLease(
         'w',
-        new ReadChangeFingerprintsService(
-          reader(undefined, 'staging-2'),
-          limits,
+        Effect.runSync(
+          ReadChangeFingerprintsService.pipe(
+            Effect.provide(ReadChangeFingerprintsService.layer),
+            Effect.provideService(
+              WorktreeSideReader,
+              reader(undefined, 'staging-2'),
+            ),
+            Effect.provideService(ReadChangeFingerprintsOptions, limits),
+          ),
         ).execute(request),
       ),
     );
     const touched = await Effect.runPromise(
       withReadLease(
         'w',
-        new ReadChangeFingerprintsService(
-          reader(
-            { 'a.md': { ...fileA, stamp: 'a2' }, 'b.md': fileB },
-            'staging-2',
+        Effect.runSync(
+          ReadChangeFingerprintsService.pipe(
+            Effect.provide(ReadChangeFingerprintsService.layer),
+            Effect.provideService(
+              WorktreeSideReader,
+              reader(
+                { 'a.md': { ...fileA, stamp: 'a2' }, 'b.md': fileB },
+                'staging-2',
+              ),
+            ),
+            Effect.provideService(ReadChangeFingerprintsOptions, limits),
           ),
-          limits,
         ).execute(request),
       ),
     );
@@ -105,18 +139,30 @@ describe('ReadChangeFingerprintsService', () => {
     const before = await Effect.runPromise(
       withReadLease(
         'w',
-        new ReadChangeFingerprintsService(reader(), limits).execute(request),
+        Effect.runSync(
+          ReadChangeFingerprintsService.pipe(
+            Effect.provide(ReadChangeFingerprintsService.layer),
+            Effect.provideService(WorktreeSideReader, reader()),
+            Effect.provideService(ReadChangeFingerprintsOptions, limits),
+          ),
+        ).execute(request),
       ),
     );
     const after = await Effect.runPromise(
       withReadLease(
         'w',
-        new ReadChangeFingerprintsService(
-          reader({
-            'a.md': fileA,
-            'b.md': { kind: 'file', digest: 'c'.repeat(64), stamp: 'b2' },
-          }),
-          limits,
+        Effect.runSync(
+          ReadChangeFingerprintsService.pipe(
+            Effect.provide(ReadChangeFingerprintsService.layer),
+            Effect.provideService(
+              WorktreeSideReader,
+              reader({
+                'a.md': fileA,
+                'b.md': { kind: 'file', digest: 'c'.repeat(64), stamp: 'b2' },
+              }),
+            ),
+            Effect.provideService(ReadChangeFingerprintsOptions, limits),
+          ),
         ).execute(request),
       ),
     );

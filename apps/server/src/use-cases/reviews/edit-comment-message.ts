@@ -1,58 +1,70 @@
-import type {
-  CommentTargetNotFoundError,
-  CommentAuthorMismatchError,
-  CommentLimitExceededError,
+import {
+  type CommentTargetNotFoundError,
+  type CommentAuthorMismatchError,
+  type CommentLimitExceededError,
 } from '@porcelain/reviews/errors';
-import { Effect } from 'effect';
-import type { WorktreeAccess } from '../../runtime/worktree-access.ts';
-import type { WorktreeAccessFailure } from '../../ports/worktree-access-failure.ts';
-import type {
-  CommentAuthor,
-  CommentThreadParams,
-  EditCommentMessageRequest,
-  EditCommentMessageResponse,
+import { Effect, Context, Layer } from 'effect';
+import { WorktreeAccess } from '../../runtime/worktree-access.ts';
+import { type WorktreeAccessFailure } from '../../ports/worktree-access-failure.ts';
+import {
+  type CommentAuthor,
+  type CommentThreadParams,
+  type EditCommentMessageRequest,
+  type EditCommentMessageResponse,
 } from '@porcelain/contracts/reviews';
-import type { EditCommentMessageService } from '@porcelain/reviews/services';
-import type { EventPublisher } from '../../ports/event-publisher.ts';
+import { EditCommentMessageService } from '@porcelain/reviews/services';
+import { EventPublisher } from '../../ports/event-publisher.ts';
 
-export class EditCommentMessageUseCase {
-  private readonly access: WorktreeAccess;
-  private readonly editCommentMessage: EditCommentMessageService;
-  private readonly events: EventPublisher;
-
-  constructor(
-    access: WorktreeAccess,
-    editCommentMessage: EditCommentMessageService,
-    events: EventPublisher,
-  ) {
-    this.access = access;
-    this.editCommentMessage = editCommentMessage;
-    this.events = events;
+export class EditCommentMessageUseCase extends Context.Service<
+  EditCommentMessageUseCase,
+  {
+    readonly execute: (
+      input: CommentThreadParams & EditCommentMessageRequest & CommentAuthor,
+    ) => Effect.Effect<
+      EditCommentMessageResponse,
+      | WorktreeAccessFailure
+      | CommentTargetNotFoundError
+      | CommentAuthorMismatchError
+      | CommentLimitExceededError
+    >;
   }
+>()('@porcelain/server/EditCommentMessageUseCase') {
+  static readonly layer = Layer.effect(
+    EditCommentMessageUseCase,
+    Effect.gen(function* () {
+      const accessCapability = yield* WorktreeAccess;
+      const editCommentMessageCapability = yield* EditCommentMessageService;
+      const eventsCapability = yield* EventPublisher;
 
-  execute(
-    input: CommentThreadParams & EditCommentMessageRequest & CommentAuthor,
-  ): Effect.Effect<
-    EditCommentMessageResponse,
-    | WorktreeAccessFailure
-    | CommentTargetNotFoundError
-    | CommentAuthorMismatchError
-    | CommentLimitExceededError
-  > {
-    return this.access
-      .transaction(
-        input.worktreeId,
-        () => Effect.void,
-        () => this.editCommentMessage.execute(input),
-        (value) =>
-          Effect.sync(() => {
-            if (value.changed)
-              this.events.worktreeChanged({
-                worktreeId: input.worktreeId,
-                change: 'comments',
-              });
-          }),
-      )
-      .pipe(Effect.map((value) => value.thread));
-  }
+      return {
+        execute: Effect.fn('EditCommentMessageUseCase.execute')(function* (
+          input: CommentThreadParams &
+            EditCommentMessageRequest &
+            CommentAuthor,
+        ): Effect.fn.Return<
+          EditCommentMessageResponse,
+          | WorktreeAccessFailure
+          | CommentTargetNotFoundError
+          | CommentAuthorMismatchError
+          | CommentLimitExceededError
+        > {
+          return yield* accessCapability
+            .transaction(
+              input.worktreeId,
+              () => Effect.void,
+              () => editCommentMessageCapability.execute(input),
+              (value) =>
+                Effect.sync(() => {
+                  if (value.changed)
+                    eventsCapability.worktreeChanged({
+                      worktreeId: input.worktreeId,
+                      change: 'comments',
+                    });
+                }),
+            )
+            .pipe(Effect.map((value) => value.thread));
+        }),
+      };
+    }),
+  );
 }

@@ -1,7 +1,8 @@
+import { FileReader, ReadPreviewAssetsOptions } from '@porcelain/files/ports';
 import { Effect } from 'effect';
 import { withReadLease } from '@porcelain/effects/worktree';
 import { describe, expect, it } from 'vitest';
-import type { FileRead } from '@porcelain/files/models';
+import { type FileRead } from '@porcelain/files/models';
 import { InMemoryFileReader } from '../../spec/fakes/in-memory-file-reader.ts';
 import { ReadPreviewAssetsService } from './read-preview-assets-service.ts';
 
@@ -22,9 +23,12 @@ function file(length: number): FileRead {
 }
 
 function serviceWith(files: Record<string, FileRead>, options = roomy) {
-  return new ReadPreviewAssetsService(
-    new InMemoryFileReader({ files }),
-    options,
+  return Effect.runSync(
+    ReadPreviewAssetsService.pipe(
+      Effect.provide(ReadPreviewAssetsService.layer),
+      Effect.provideService(FileReader, new InMemoryFileReader({ files })),
+      Effect.provideService(ReadPreviewAssetsOptions, options),
+    ),
   );
 }
 

@@ -1,11 +1,11 @@
-import type {
-  ReadReviewEvidenceInput,
-  ReviewEvidence,
+import {
+  type ReadReviewEvidenceInput,
+  type ReviewEvidence,
 } from '@porcelain/reviews/models';
-import type { Effect } from 'effect';
-import type { WorktreeRead } from '@porcelain/effects';
-import type { GitIoFailure } from './git-io-failure.ts';
-import type { IncompleteDiffReadError } from '@porcelain/changes/errors';
+import { type Effect, Context } from 'effect';
+import { type WorktreeRead } from '@porcelain/effects';
+import { type GitIoFailure } from '@porcelain/git/errors';
+import { type IncompleteDiffReadError } from '@porcelain/changes/errors';
 
 export interface ReadReviewEvidenceUseCasePort {
   execute(
@@ -16,3 +16,8 @@ export interface ReadReviewEvidenceUseCasePort {
     WorktreeRead
   >;
 }
+
+export const ReadReviewEvidenceUseCasePort = Context.Service<
+  '@porcelain/server/ReadReviewEvidenceUseCasePort',
+  ReadReviewEvidenceUseCasePort
+>('@porcelain/server/ReadReviewEvidenceUseCasePort');

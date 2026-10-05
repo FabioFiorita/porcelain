@@ -1,7 +1,12 @@
+import { Clock } from '@porcelain/kernel/ports';
+import {
+  WorktreePresenceStore,
+  CollectAbsentWorktreesOptions,
+} from '@porcelain/projects/ports';
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { FixedClock } from '@porcelain/kernel/fakes';
-import type { WorktreePresence } from '@porcelain/projects/models';
+import { type WorktreePresence } from '@porcelain/projects/models';
 import { InMemoryWorktreePresenceStore } from '../../spec/fakes/in-memory-worktree-presence-store.ts';
 import { CollectAbsentWorktreesService } from './collect-absent-worktrees-service.ts';
 
@@ -18,10 +23,15 @@ function row(
 function setup(now: string, rows: WorktreePresence[]) {
   const presence = new InMemoryWorktreePresenceStore();
   presence.save({ rows });
-  const service = new CollectAbsentWorktreesService(
-    presence,
-    new FixedClock(now),
-    { graceMs: THIRTY_DAYS_MS },
+  const service = Effect.runSync(
+    CollectAbsentWorktreesService.pipe(
+      Effect.provide(CollectAbsentWorktreesService.layer),
+      Effect.provideService(WorktreePresenceStore, presence),
+      Effect.provideService(Clock, new FixedClock(now)),
+      Effect.provideService(CollectAbsentWorktreesOptions, {
+        graceMs: THIRTY_DAYS_MS,
+      }),
+    ),
   );
   return { presence, service };
 }

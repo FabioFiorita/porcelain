@@ -1,9 +1,15 @@
+import { Clock } from '@porcelain/kernel/ports';
+import {
+  WorktreePresenceStore,
+  InventoryStore,
+  CollectAbsentWorktreesOptions,
+} from '@porcelain/projects/ports';
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { FixedClock } from '@porcelain/kernel/fakes';
-import type {
-  RegisteredProject,
-  WorktreePresence,
+import {
+  type RegisteredProject,
+  type WorktreePresence,
 } from '@porcelain/projects/models';
 import { InMemoryInventoryStore } from '../../spec/fakes/in-memory-inventory-store.ts';
 import { InMemoryWorktreePresenceStore } from '../../spec/fakes/in-memory-worktree-presence-store.ts';
@@ -29,11 +35,19 @@ function service(
 ) {
   const presence = new InMemoryWorktreePresenceStore();
   presence.save({ rows });
-  return new ListExpiredWorktreesService(
-    presence,
-    new InMemoryInventoryStore(projects),
-    new FixedClock('2026-08-31T00:00:00.001Z'),
-    { graceMs: THIRTY_DAYS_MS },
+  return Effect.runSync(
+    ListExpiredWorktreesService.pipe(
+      Effect.provide(ListExpiredWorktreesService.layer),
+      Effect.provideService(WorktreePresenceStore, presence),
+      Effect.provideService(
+        InventoryStore,
+        new InMemoryInventoryStore(projects),
+      ),
+      Effect.provideService(Clock, new FixedClock('2026-08-31T00:00:00.001Z')),
+      Effect.provideService(CollectAbsentWorktreesOptions, {
+        graceMs: THIRTY_DAYS_MS,
+      }),
+    ),
   );
 }
 
