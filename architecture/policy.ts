@@ -1720,7 +1720,7 @@ export const externalPackages: Record<Role, readonly string[]> = {
   ],
   'status-policy': ['effect/http', 'effect/http-api'],
   'use-case': [],
-  installer: ['zod'],
+  installer: ['zod', '@effect/platform-node'],
   'installer-api': [],
   'domain-api': [],
   service: [],
@@ -1740,9 +1740,9 @@ export const externalPackages: Record<Role, readonly string[]> = {
     '@effect/sql-sqlite-node',
   ],
   'gateway-api': [],
-  gateway: ['zod', 'trash', '@parcel/watcher'],
+  gateway: ['zod', 'trash', '@parcel/watcher', '@effect/platform-node'],
   'process-api': [],
-  process: [],
+  process: ['effect', 'effect/process'],
   runtime: [],
   'server-port': [],
   bootstrap: ['@effect/platform-node'],
@@ -1892,7 +1892,7 @@ function forbiddenNodeModule(role: Role, name: string): boolean {
   )
     return false;
   if (role === 'capture') return !captureNodeModules.has(base);
-  if (base === 'child_process') return role !== 'process';
+  if (base === 'child_process') return true;
   if (role === 'kernel' || role === 'fake') return true;
   if (role === 'fixture') return !fixtureNodeModules.has(base);
   if (typedRoles.has(role))

@@ -1,150 +1,173 @@
-import { spawn } from 'node:child_process';
-import { performance } from 'node:perf_hooks';
-import type { Readable } from 'node:stream';
-import { setTimeout as delay } from 'node:timers/promises';
+import { Clock, Deferred, Duration, Effect, Fiber, Ref, Stream } from 'effect';
+import { ChildProcess } from 'effect/process';
 
 export type ProcessGroupLimits = {
-  lingerMs: number;
-  cleanupMs: number;
-  pollMs: number;
+  readonly lingerMs: number;
+  readonly cleanupMs: number;
+  readonly pollMs: number;
 };
 
 type RunCommandInput = {
-  command: string;
-  args: readonly string[];
-  cwd?: string | undefined;
-  env?: NodeJS.ProcessEnv | undefined;
-  stdin?: string | Buffer | undefined;
-  timeoutMs?: number | undefined;
-  maxBytes: number;
-  processGroup: ProcessGroupLimits;
-  onStderr?: ((chunk: Buffer) => void) | undefined;
+  readonly command: string;
+  readonly args: readonly string[];
+  readonly cwd?: string | undefined;
+  readonly env?: NodeJS.ProcessEnv | undefined;
+  readonly stdin?: string | Buffer | undefined;
+  readonly timeoutMs?: number | undefined;
+  readonly maxBytes: number;
+  readonly processGroup: ProcessGroupLimits;
+  readonly onStderr?: ((chunk: Buffer) => void) | undefined;
 };
 
 type CommandStop = 'aborted' | 'deadline' | 'output-limit' | 'lingering';
-
-type CommandOutput = {
-  stdout: Buffer;
-  stderr: Buffer;
-  stderrTruncated: boolean;
-  exitCode: number | undefined;
-  stopped: CommandStop | undefined;
-  groupStopped: boolean;
+type Collected = {
+  readonly chunks: readonly Uint8Array[];
+  readonly bytes: number;
+  readonly truncated: boolean;
 };
 
-export async function runCommand(
+export const runCommand = Effect.fn('Process.runCommand')(function* (
   input: RunCommandInput,
   signal?: AbortSignal,
-): Promise<CommandOutput> {
-  signal?.throwIfAborted();
-  const child = spawn(input.command, [...input.args], {
+) {
+  if (signal?.aborted) return yield* Effect.interrupt;
+  const requested = yield* Deferred.make<CommandStop>();
+  const stopped = yield* Ref.make<CommandStop | undefined>(undefined);
+  const empty: Collected = { chunks: [], bytes: 0, truncated: false };
+  const stdout = yield* Ref.make(empty);
+  const stderr = yield* Ref.make(empty);
+  const child = yield* ChildProcess.make(input.command, input.args, {
     cwd: input.cwd,
     env: input.env,
     detached: true,
-    stdio: ['pipe', 'pipe', 'pipe'],
+    killSignal: 'SIGKILL',
+    forceKillAfter: Duration.millis(input.processGroup.cleanupMs),
   });
-  let stopped: CommandStop | undefined;
-  const stop = (reason: CommandStop) => {
-    stopped ??= reason;
-    if (child.pid !== undefined) signalGroup(child.pid, 'SIGKILL');
-  };
-  const stdout = collectOrStop(child.stdout, input.maxBytes, () =>
-    stop('output-limit'),
+  yield* Effect.forkScoped(
+    Deferred.await(requested).pipe(
+      Effect.tap((reason) => Ref.set(stopped, reason)),
+      Effect.andThen(
+        child.kill({
+          killSignal: 'SIGKILL',
+          forceKillAfter: Duration.millis(input.processGroup.cleanupMs),
+        }),
+      ),
+      Effect.ignore,
+    ),
+    { startImmediately: true },
   );
-  const stderr = collectUpTo(child.stderr, input.maxBytes, input.onStderr);
-  const closed = new Promise<boolean>((resolve) =>
-    child.once('close', () => resolve(true)),
-  );
-  const abort = () => stop('aborted');
-  signal?.addEventListener('abort', abort, { once: true });
-  const deadline =
-    input.timeoutMs === undefined
-      ? undefined
-      : setTimeout(() => stop('deadline'), input.timeoutMs);
-  child.stdin.on('error', () => {});
-  child.stdin.end(input.stdin);
-  try {
-    const exitCode = await new Promise<number | undefined>(
-      (resolve, reject) => {
-        child.once('error', reject);
-        child.once('exit', (code) => resolve(code ?? undefined));
-      },
+  if (signal) {
+    yield* Effect.acquireRelease(
+      Effect.sync(() => {
+        const abort = () =>
+          Deferred.doneUnsafe(requested, Effect.succeed('aborted'));
+        signal.addEventListener('abort', abort, { once: true });
+        if (signal.aborted) abort();
+        return abort;
+      }),
+      (abort) => Effect.sync(() => signal.removeEventListener('abort', abort)),
     );
-    const pid = child.pid;
-    const group = input.processGroup;
-    if (pid !== undefined && !(await groupEnds(pid, group.lingerMs, group)))
-      stop('lingering');
-    const groupStopped =
-      (pid === undefined || (await groupEnds(pid, group.cleanupMs, group))) &&
-      (await Promise.race([
-        closed,
-        delay(group.cleanupMs, false, { ref: false }),
-      ]));
-    child.stdout.destroy();
-    child.stderr.destroy();
-    return {
-      stdout: Buffer.concat(stdout),
-      stderr: Buffer.concat(stderr.chunks),
-      stderrTruncated: stderr.truncated,
-      exitCode,
-      stopped,
-      groupStopped,
-    };
-  } finally {
-    clearTimeout(deadline);
-    signal?.removeEventListener('abort', abort);
   }
-}
+  if (input.timeoutMs !== undefined)
+    yield* Effect.forkScoped(
+      Effect.sleep(Duration.millis(input.timeoutMs)).pipe(
+        Effect.andThen(Deferred.succeed(requested, 'deadline')),
+      ),
+      { startImmediately: true },
+    );
+  const collect = (
+    target: Ref.Ref<Collected>,
+    overflow: boolean,
+    observe?: (chunk: Buffer) => void,
+  ) =>
+    Effect.fn('Process.collect')(function* (chunk: Uint8Array) {
+      observe?.(Buffer.from(chunk));
+      const current = yield* Ref.get(target);
+      const room = Math.max(0, input.maxBytes - current.bytes);
+      const exceeded = chunk.length > room;
+      if (overflow && exceeded)
+        yield* Deferred.succeed(requested, 'output-limit');
+      const kept = chunk.slice(0, room);
+      yield* Ref.set(target, {
+        chunks: kept.length ? [...current.chunks, kept] : current.chunks,
+        bytes: current.bytes + kept.length,
+        truncated: current.truncated || exceeded,
+      });
+    });
+  const readers = yield* Effect.forEach(
+    [
+      Stream.runForEach(child.stdout, collect(stdout, true)),
+      Stream.runForEach(child.stderr, collect(stderr, false, input.onStderr)),
+    ],
+    (read) => Effect.forkScoped(read, { startImmediately: true }),
+  );
+  yield* Effect.forkScoped(
+    Stream.run(
+      input.stdin === undefined
+        ? Stream.empty
+        : Stream.succeed(Buffer.from(input.stdin)),
+      child.stdin,
+    ).pipe(Effect.ignore),
+    { startImmediately: true },
+  );
+  const exitCode = yield* child.exitCode.pipe(
+    Effect.orElseSucceed(() => undefined),
+  );
+  if (
+    !(yield* groupEnds(
+      child.pid,
+      input.processGroup.lingerMs,
+      input.processGroup,
+    ))
+  ) {
+    yield* Deferred.succeed(requested, 'lingering');
+    yield* child
+      .kill({
+        killSignal: 'SIGKILL',
+        forceKillAfter: Duration.millis(input.processGroup.cleanupMs),
+      })
+      .pipe(Effect.ignore);
+  }
+  const groupStopped = yield* groupEnds(
+    child.pid,
+    input.processGroup.cleanupMs,
+    input.processGroup,
+  );
+  const drained = yield* Effect.forEach(readers, Fiber.join).pipe(
+    Effect.as(true),
+    Effect.timeoutOrElse({
+      duration: Duration.millis(input.processGroup.cleanupMs),
+      orElse: () => Effect.succeed(false),
+    }),
+  );
+  const collectedOut = yield* Ref.get(stdout);
+  const collectedErr = yield* Ref.get(stderr);
+  return {
+    stdout: Buffer.concat(collectedOut.chunks),
+    stderr: Buffer.concat(collectedErr.chunks),
+    stderrTruncated: collectedErr.truncated,
+    exitCode,
+    stopped: yield* Ref.get(stopped),
+    groupStopped: groupStopped && drained,
+  };
+}, Effect.scoped);
 
-function collectOrStop(
-  stream: Readable,
-  maxBytes: number,
-  overflow: () => void,
-): Buffer[] {
-  const chunks: Buffer[] = [];
-  let bytes = 0;
-  stream.on('data', (chunk: Buffer) => {
-    bytes += chunk.length;
-    if (bytes > maxBytes) overflow();
-    else chunks.push(chunk);
-  });
-  return chunks;
-}
-
-function collectUpTo(
-  stream: Readable,
-  maxBytes: number,
-  observe: ((chunk: Buffer) => void) | undefined,
-): { chunks: Buffer[]; truncated: boolean } {
-  const collected = { chunks: new Array<Buffer>(), truncated: false };
-  let bytes = 0;
-  stream.on('data', (chunk: Buffer) => {
-    observe?.(chunk);
-    const room = maxBytes - bytes;
-    if (chunk.length > room) collected.truncated = true;
-    const kept = chunk.subarray(0, Math.max(room, 0));
-    bytes += kept.length;
-    if (kept.length > 0) collected.chunks.push(kept);
-  });
-  return collected;
-}
-
-async function groupEnds(
+const groupEnds = Effect.fn('Process.groupEnds')(function* (
   pid: number,
   withinMs: number,
-  group: ProcessGroupLimits,
-): Promise<boolean> {
-  const deadline = performance.now() + withinMs;
-  while (signalGroup(pid, 0)) {
-    if (performance.now() >= deadline) return false;
-    await delay(group.pollMs);
+  limits: ProcessGroupLimits,
+) {
+  const deadline = (yield* Clock.currentTimeMillis) + withinMs;
+  while (groupExists(pid)) {
+    if ((yield* Clock.currentTimeMillis) >= deadline) return false;
+    yield* Effect.sleep(Duration.millis(limits.pollMs));
   }
   return true;
-}
+});
 
-function signalGroup(pid: number, signal: NodeJS.Signals | 0): boolean {
+function groupExists(pid: number): boolean {
   try {
-    process.kill(-pid, signal);
+    process.kill(-pid, 0);
     return true;
   } catch (error) {
     if (error instanceof Error && 'code' in error && error.code === 'ESRCH')

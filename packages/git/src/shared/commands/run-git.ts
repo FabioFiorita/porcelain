@@ -1,3 +1,5 @@
+import { Effect } from 'effect';
+import { NodeServices } from '@effect/platform-node';
 import { devNull } from 'node:os';
 import { runCommand } from '@porcelain/process';
 import { GitCommandError } from '../errors/git-command-error.ts';
@@ -56,17 +58,19 @@ export async function runGitRead(
   options: GitReadOptions = {},
 ): Promise<Buffer> {
   signal?.throwIfAborted();
-  const output = await runCommand(
-    {
-      command: 'git',
-      args: gitArguments('read', checkout, args, limits, options),
-      env: gitEnvironment('read'),
-      stdin: options.input,
-      timeoutMs: options.timeoutMs ?? limits.readTimeoutMs,
-      maxBytes: options.maxBytes ?? limits.outputBytes,
-      processGroup: limits.processGroup,
-    },
-    signal,
+  const output = await Effect.runPromise(
+    runCommand(
+      {
+        command: 'git',
+        args: gitArguments('read', checkout, args, limits, options),
+        env: gitEnvironment('read'),
+        stdin: options.input,
+        timeoutMs: options.timeoutMs ?? limits.readTimeoutMs,
+        maxBytes: options.maxBytes ?? limits.outputBytes,
+        processGroup: limits.processGroup,
+      },
+      signal,
+    ).pipe(Effect.provide(NodeServices.layer)),
   ).catch((cause: unknown) => {
     signal?.throwIfAborted();
     throw new GitCommandError(
@@ -99,17 +103,19 @@ export async function runGitWrite(
   const progress = options.onProgress
     ? progressReader(options.onProgress)
     : undefined;
-  const output = await runCommand(
-    {
-      command: 'git',
-      args: gitArguments('write', checkout, args, limits, {}),
-      env: gitEnvironment('write', options.indexFile),
-      stdin: options.input,
-      maxBytes: options.maxBytes ?? limits.outputBytes,
-      processGroup: limits.processGroup,
-      onStderr: progress?.read,
-    },
-    signal,
+  const output = await Effect.runPromise(
+    runCommand(
+      {
+        command: 'git',
+        args: gitArguments('write', checkout, args, limits, {}),
+        env: gitEnvironment('write', options.indexFile),
+        stdin: options.input,
+        maxBytes: options.maxBytes ?? limits.outputBytes,
+        processGroup: limits.processGroup,
+        onStderr: progress?.read,
+      },
+      signal,
+    ).pipe(Effect.provide(NodeServices.layer)),
   );
   progress?.finish();
   return {

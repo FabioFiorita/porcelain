@@ -529,9 +529,15 @@ importers:
 
   packages/agents:
     dependencies:
+      '@effect/platform-node':
+        specifier: 4.0.0
+        version: 4.0.0(effect@4.0.0)(redis@6.3.0(@opentelemetry/api@1.9.1))
       '@porcelain/process':
         specifier: workspace:*
         version: link:../process
+      effect:
+        specifier: 4.0.0
+        version: 4.0.0
       zod:
         specifier: 4.5.4
         version: 4.5.4
@@ -639,12 +645,18 @@ importers:
 
   packages/git:
     dependencies:
+      '@effect/platform-node':
+        specifier: 4.0.0
+        version: 4.0.0(effect@4.0.0)(redis@6.3.0(@opentelemetry/api@1.9.1))
       '@porcelain/kernel':
         specifier: workspace:*
         version: link:../kernel
       '@porcelain/process':
         specifier: workspace:*
         version: link:../process
+      effect:
+        specifier: 4.0.0
+        version: 4.0.0
 
   packages/git-actions:
     dependencies:
@@ -667,7 +679,14 @@ importers:
         specifier: 4.0.0
         version: 4.0.0
 
-  packages/process: {}
+  packages/process:
+    dependencies:
+      '@effect/platform-node':
+        specifier: 4.0.0
+        version: 4.0.0(effect@4.0.0)(redis@6.3.0(@opentelemetry/api@1.9.1))
+      effect:
+        specifier: 4.0.0
+        version: 4.0.0
 
   packages/projects:
     dependencies:

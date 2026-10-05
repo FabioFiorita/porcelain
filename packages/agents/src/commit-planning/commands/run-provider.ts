@@ -1,3 +1,5 @@
+import { Effect } from 'effect';
+import { NodeServices } from '@effect/platform-node';
 import { runCommand, type ProcessGroupLimits } from '@porcelain/process';
 import { ProviderProcessFailedError } from '../errors/provider-process-failed-error.ts';
 
@@ -16,17 +18,19 @@ export async function runProvider(
   signal?: AbortSignal,
 ): Promise<string> {
   signal?.throwIfAborted();
-  const output = await runCommand(
-    {
-      command: input.command,
-      args: input.args,
-      cwd: input.cwd,
-      stdin: input.prompt,
-      timeoutMs: input.timeoutMs,
-      maxBytes: input.maxBytes,
-      processGroup: input.processGroup,
-    },
-    signal,
+  const output = await Effect.runPromise(
+    runCommand(
+      {
+        command: input.command,
+        args: input.args,
+        cwd: input.cwd,
+        stdin: input.prompt,
+        timeoutMs: input.timeoutMs,
+        maxBytes: input.maxBytes,
+        processGroup: input.processGroup,
+      },
+      signal,
+    ).pipe(Effect.provide(NodeServices.layer)),
   ).catch((cause: unknown) => {
     signal?.throwIfAborted();
     throw new ProviderProcessFailedError({ cause });

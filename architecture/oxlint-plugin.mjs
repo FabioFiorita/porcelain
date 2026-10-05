@@ -1309,7 +1309,8 @@ function allowedSpecImport(filename, source) {
     return true;
   if (
     source === '@effect/platform-node' &&
-    (storageSpec.test(path) ||
+    (/\/packages\/(?:git|agents|process)\/src\/.+\.spec\.ts$/.test(path) ||
+      storageSpec.test(path) ||
       adapterSpec.test(path) ||
       /apps\/server\/src\/use-cases\/.+\.spec\.ts$/.test(path))
   )

@@ -14,7 +14,9 @@
     "test": "vitest run --config ../../vitest.config.ts --project @porcelain/git"
   },
   "dependencies": {
+    "@effect/platform-node": "4.0.0",
     "@porcelain/kernel": "workspace:*",
-    "@porcelain/process": "workspace:*"
+    "@porcelain/process": "workspace:*",
+    "effect": "4.0.0"
   }
 }

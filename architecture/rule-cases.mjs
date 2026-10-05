@@ -1507,23 +1507,6 @@ export const readSchema = Effect.succeed('project');`,
   },
   {
     rule: 'no-blocking-child-process',
-    path: 'packages/process/src/commands/read-command.ts',
-    valid: `import { spawn } from 'node:child_process';
-
-export function startCommand(command: string, args: readonly string[]) {
-  return spawn(command, [...args], { stdio: ['ignore', 'pipe', 'ignore'] });
-}
-`,
-    invalid: `import { execFileSync } from 'node:child_process';
-
-export function readCommand(command: string, args: readonly string[]): string {
-  return execFileSync(command, args, { encoding: 'utf8' });
-}
-`,
-    errors: 1,
-  },
-  {
-    rule: 'no-blocking-child-process',
     path: 'apps/server/src/adapters/access/mac-network-command.ts',
     valid:
       "import {runCommand} from '@porcelain/process'; export function readRoute() { return runCommand({executable: '/sbin/route', args: ['-n', 'get', 'default']}); }",
@@ -3770,6 +3753,14 @@ const save = Effect.fail(new Error('Refused'));`,
     errors: ['TS2379', 'TS377004', 'TS2339', 'TS2339', 'TS2542'],
   },
   {
+    rule: 'native-process-types',
+    valid:
+      "import { Effect, type Context } from 'effect';\nimport { ChildProcessSpawner } from 'effect/process';\nimport { runCommand } from '__PROCESS_COMMAND__';\ndeclare const spawner: Context.Service.Shape<typeof ChildProcessSpawner.ChildProcessSpawner>;\nconst input = { command: 'git', args: ['status'], maxBytes: 1024, processGroup: { lingerMs: 250, cleanupMs: 5000, pollMs: 10 } };\nconst result = Effect.runPromise(runCommand(input).pipe(Effect.provideService(ChildProcessSpawner.ChildProcessSpawner, spawner)));",
+    invalid:
+      "import { Effect } from 'effect';\nimport { runCommand } from '__PROCESS_COMMAND__';\nconst input = { command: 'git', args: ['status'], maxBytes: 1024, processGroup: { lingerMs: 250, cleanupMs: 5000, pollMs: 10 } };\nconst result = Effect.runPromise(runCommand(input));\nconst wrong = runCommand({ ...input, maxBytes: '1024' });",
+    errors: ['TS2379', 'TS377004', 'TS2322'],
+  },
+  {
     rule: 'review-draft-types',
     valid:
       "import { Effect, type Context } from 'effect';\nimport type { ValidateReviewDraftService, PublishReviewService } from '__REVIEW_SERVICES__';\nimport type { ReviewDraft } from '__REVIEW_MODELS__';\ndeclare const validate: Context.Service.Shape<typeof ValidateReviewDraftService>;\ndeclare const publish: Context.Service.Shape<typeof PublishReviewService>;\nconst input: ReviewDraft = { expectedRevision: 0, summaryHtml: '<p>Review</p>', layers: [] };\nconst publication = validate.execute(input).pipe(Effect.flatMap((draft) => publish.execute({ worktreeId: 'tree', draft, evidence: { changes: [], texts: new Map(), diffs: [] } })));",
@@ -4235,6 +4226,7 @@ export const scriptEvasions = [
 ];
 
 export const externalCases = [
+  { role: 'process', valid: 'effect/process', invalid: 'node:child_process' },
   { role: 'config', valid: 'effect', invalid: 'effect/FileSystem' },
   { role: 'transport', valid: '@effect/platform-node', invalid: 'fastify' },
   { role: 'bootstrap', valid: '@effect/platform-node', invalid: 'effect/cli' },
