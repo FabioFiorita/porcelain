@@ -38,9 +38,9 @@ export class DeleteResolvedCommentsUseCase extends Context.Service<
             () => Effect.void,
             () => deleteResolvedCommentsCapability.execute(input),
             (value) =>
-              Effect.sync(() => {
+              Effect.gen(function* () {
                 if (value.deleted.length > 0)
-                  eventsCapability.worktreeChanged({
+                  yield* eventsCapability.worktreeChanged({
                     worktreeId: input.worktreeId,
                     change: 'comments',
                   });

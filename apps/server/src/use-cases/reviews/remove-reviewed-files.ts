@@ -46,9 +46,9 @@ export class RemoveReviewedFilesUseCase extends Context.Service<
                   paths: 'paths' in input ? input.paths : [input.path],
                 }),
               (value) =>
-                Effect.sync(() => {
+                Effect.gen(function* () {
                   if (value.removed)
-                    eventsCapability.worktreeChanged({
+                    yield* eventsCapability.worktreeChanged({
                       worktreeId: input.worktreeId,
                       change: 'reviewed',
                     });

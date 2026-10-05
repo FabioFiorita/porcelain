@@ -2097,36 +2097,48 @@ export default {
         )
           return {};
         const imports = [];
-        let implemented = false;
         return {
           ImportDeclaration(node) {
             if (
               typeof node.source.value === 'string' &&
-              /(?:^|\/)ports\/event-publisher\.ts$/.test(node.source.value) &&
-              node.specifiers.some(
-                (specifier) =>
-                  specifier.type === 'ImportSpecifier' &&
-                  specifier.imported.type === 'Identifier' &&
-                  specifier.imported.name === 'EventPublisher',
-              )
+              /(?:^|\/)ports\/event-publisher\.ts$/.test(node.source.value)
             )
-              imports.push(node);
-          },
-          TSClassImplements(node) {
-            if (
-              node.expression.type === 'Identifier' &&
-              node.expression.name === 'EventPublisher'
-            )
-              implemented = true;
+              for (const specifier of node.specifiers)
+                if (
+                  specifier.type === 'ImportNamespaceSpecifier' ||
+                  specifier.imported?.name === 'EventPublisher'
+                )
+                  imports.push({ node, specifier });
           },
           'Program:exit'() {
-            if (implemented && adapterFile.test(path)) return;
-            for (const node of imports)
+            for (const { node, specifier } of imports) {
+              const references =
+                findVariable(
+                  context.sourceCode.getScope(node),
+                  specifier.local.name,
+                )?.references.filter((reference) => reference.isRead()) ?? [];
+              if (
+                adapterFile.test(path) &&
+                references.length > 0 &&
+                references.every(
+                  ({ identifier }) =>
+                    identifier.parent?.type === 'CallExpression' &&
+                    identifier.parent.arguments[0] === identifier &&
+                    nativeMember(
+                      identifier.parent,
+                      context,
+                      'Layer',
+                      new Set(['effect']),
+                    ),
+                )
+              )
+                continue;
               context.report({
                 node,
                 message:
                   'Only a use case publishes, after its lane settles and only on change; the runtime, transport and adapters announce through a use case, never through the EventPublisher directly, because one owner decides when a completed change needs an event.',
               });
+            }
           },
         };
       },

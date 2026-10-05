@@ -52,7 +52,7 @@ export class SetFilePreferenceUseCase extends Context.Service<
             () => setFilePreferenceCapability.execute(input),
           );
           if (result.changed)
-            eventsCapability.projectChanged({
+            yield* eventsCapability.projectChanged({
               projectId: input.projectId,
               change: 'preferences',
             });

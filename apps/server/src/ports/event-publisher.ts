@@ -1,4 +1,4 @@
-import { Context } from 'effect';
+import { Context, type Effect } from 'effect';
 import { type GitActionReceiptView } from '@porcelain/git-actions/models';
 
 export type ProjectChangedNotice = {
@@ -17,11 +17,11 @@ export type FilesChangedNotice = {
 };
 
 export interface EventPublisher {
-  inventoryChanged(): void;
-  projectChanged(input: ProjectChangedNotice): void;
-  worktreeChanged(input: WorktreeChangedNotice): void;
-  filesChanged(input: FilesChangedNotice): void;
-  gitActionChanged(input: GitActionReceiptView): void;
+  inventoryChanged(): Effect.Effect<void>;
+  projectChanged(input: ProjectChangedNotice): Effect.Effect<void>;
+  worktreeChanged(input: WorktreeChangedNotice): Effect.Effect<void>;
+  filesChanged(input: FilesChangedNotice): Effect.Effect<void>;
+  gitActionChanged(input: GitActionReceiptView): Effect.Effect<void>;
 }
 
 export const EventPublisher = Context.Service<

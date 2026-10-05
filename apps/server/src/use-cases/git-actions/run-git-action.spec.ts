@@ -149,15 +149,16 @@ async function fixture(onAccepted?: () => void) {
     ),
   );
   const events: EventPublisher = {
-    inventoryChanged: () => undefined,
-    projectChanged: () => undefined,
-    worktreeChanged: () => undefined,
-    filesChanged: () => undefined,
-    gitActionChanged: (receipt) => {
-      notifications.push(receipt);
-      if (receipt.state === 'running') onAccepted?.();
-      else finished.resolve();
-    },
+    inventoryChanged: () => Effect.void,
+    projectChanged: () => Effect.void,
+    worktreeChanged: () => Effect.void,
+    filesChanged: () => Effect.void,
+    gitActionChanged: (receipt) =>
+      Effect.sync(() => {
+        notifications.push(receipt);
+        if (receipt.state === 'running') onAccepted?.();
+        else finished.resolve();
+      }),
   };
   const runner: GitActionRunner = {
     run: (request) =>

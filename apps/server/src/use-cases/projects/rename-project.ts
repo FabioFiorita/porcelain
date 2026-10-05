@@ -35,10 +35,13 @@ export class RenameProjectUseCase extends Context.Service<
               renameProjectCapability.execute(input),
             )
             .pipe(
-              Effect.map((result) => {
-                if (result.changed) eventsCapability.inventoryChanged();
-                return result.project;
-              }),
+              Effect.flatMap((result) =>
+                Effect.gen(function* () {
+                  if (result.changed)
+                    yield* eventsCapability.inventoryChanged();
+                  return result.project;
+                }),
+              ),
             );
         }),
       };

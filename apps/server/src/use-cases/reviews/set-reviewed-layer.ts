@@ -88,12 +88,10 @@ export class SetReviewedLayerUseCase extends Context.Service<
                   });
                 }),
               () =>
-                Effect.sync(() =>
-                  eventsCapability.worktreeChanged({
-                    worktreeId,
-                    change: 'reviewed',
-                  }),
-                ),
+                eventsCapability.worktreeChanged({
+                  worktreeId,
+                  change: 'reviewed',
+                }),
             );
           });
         }),

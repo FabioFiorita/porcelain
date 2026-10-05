@@ -50,11 +50,9 @@ export class DeleteCommentMessageUseCase extends Context.Service<
             () => Effect.void,
             () => deleteCommentMessageCapability.execute(input),
             () =>
-              Effect.sync(() => {
-                eventsCapability.worktreeChanged({
-                  worktreeId: input.worktreeId,
-                  change: 'comments',
-                });
+              eventsCapability.worktreeChanged({
+                worktreeId: input.worktreeId,
+                change: 'comments',
               }),
           );
         }),

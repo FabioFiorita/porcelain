@@ -36,7 +36,7 @@ export class RenameEnvironmentUseCase extends Context.Service<
                   name: input.name ?? undefined,
                 }),
               ),
-            () => Effect.sync(() => eventsCapability.inventoryChanged()),
+            () => eventsCapability.inventoryChanged(),
           );
         }),
       };

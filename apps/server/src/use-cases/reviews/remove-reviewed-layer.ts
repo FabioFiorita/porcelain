@@ -69,9 +69,9 @@ export class RemoveReviewedLayerUseCase extends Context.Service<
                     };
                   }),
                 ({ removed }) =>
-                  Effect.sync(() => {
+                  Effect.gen(function* () {
                     if (removed)
-                      eventsCapability.worktreeChanged({
+                      yield* eventsCapability.worktreeChanged({
                         worktreeId,
                         change: 'reviewed',
                       });

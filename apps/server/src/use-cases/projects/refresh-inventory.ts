@@ -78,9 +78,9 @@ export class RefreshInventoryUseCase extends Context.Service<
                 }),
               )
               .pipe(
-                Effect.map((changed) => {
-                  if (changed) eventsCapability.inventoryChanged();
-                }),
+                Effect.flatMap((changed) =>
+                  changed ? eventsCapability.inventoryChanged() : Effect.void,
+                ),
               );
           },
         ),

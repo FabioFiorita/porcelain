@@ -51,11 +51,9 @@ export class ReplyToCommentUseCase extends Context.Service<
             () => Effect.void,
             () => replyToCommentCapability.execute(input),
             () =>
-              Effect.sync(() => {
-                eventsCapability.worktreeChanged({
-                  worktreeId: input.worktreeId,
-                  change: 'comments',
-                });
+              eventsCapability.worktreeChanged({
+                worktreeId: input.worktreeId,
+                change: 'comments',
               }),
           );
         }),

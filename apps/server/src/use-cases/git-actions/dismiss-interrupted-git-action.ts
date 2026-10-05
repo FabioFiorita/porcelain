@@ -68,9 +68,9 @@ export class DismissInterruptedGitActionUseCase extends Context.Service<
                     }),
                   ),
                 (result) =>
-                  Effect.sync(() => {
+                  Effect.gen(function* () {
                     if (result.kind === 'dismissed')
-                      eventsCapability.gitActionChanged(result.receipt);
+                      yield* eventsCapability.gitActionChanged(result.receipt);
                   }),
               )
               .pipe(Effect.as({ dismissed: true as const }));

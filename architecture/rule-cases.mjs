@@ -1,20 +1,9 @@
-const fixtureWatchWorktreesEventsFromUseCases = `import type {
-  AnnounceWorktreeChangeUseCasePort,
-  WorktreeChange,
-} from '../../ports/announce-worktree-change-use-case-port.ts';
-
-export class WatchWorktrees {
-  private readonly announceWorktreeChange: AnnounceWorktreeChangeUseCasePort;
-
-  constructor(announceWorktreeChange: AnnounceWorktreeChangeUseCasePort) {
-    this.announceWorktreeChange = announceWorktreeChange;
-  }
-
-  private announceChange(change: WorktreeChange): void {
-    void this.announceWorktreeChange.execute(change, {});
-  }
-}
-`;
+const fixtureWatchWorktreesEventsFromUseCases = `import { Effect } from 'effect';
+import { AnnounceWorktreeChangeUseCasePort } from '../../ports/announce-worktree-change-use-case-port.ts';
+export const announce = Effect.flatMap(AnnounceWorktreeChangeUseCasePort, (operation) => operation.execute({ worktreeId: 'one', change: 'git' }));`;
+const fixtureNativeEventPublisherLayer = `import { Layer as NativeLayer, Effect } from 'effect';
+import { EventPublisher as Publisher } from '../../ports/event-publisher.ts';
+export const publisherLayer = NativeLayer.effect(Publisher, Effect.succeed({ inventoryChanged: () => Effect.void }));`;
 const fixtureReadChangeLinesUseCaseComputes = `import type { ReadChangeLinesService } from '@porcelain/changes/services';
 import type { ReadChangeLinesQuery } from '@porcelain/contracts/changes';
 
@@ -1087,26 +1076,23 @@ export interface ReviewStatusReader {
     rule: 'events-from-use-cases',
     path: 'apps/server/src/runtime/live-updates/watch-worktrees.ts',
     valid: fixtureWatchWorktreesEventsFromUseCases,
-    invalid: fixtureWatchWorktreesEventsFromUseCases
-      .replace(
-        `  private announceChange(change: WorktreeChange): void {
-`,
-        `  private publish(events: EventPublisher, worktreeId: string): void {
-    events.worktreeChanged({ worktreeId, change: 'git' });
-  }
-
-  private announceChange(change: WorktreeChange): void {
-`,
-      )
-      .replace(
-        `import type {
-`,
-        `import type { EventPublisher } from '../../ports/event-publisher.ts';
-import type {
-`,
-      ),
+    invalid:
+      fixtureWatchWorktreesEventsFromUseCases +
+      `\nimport { EventPublisher } from '../../ports/event-publisher.ts';
+export const direct = Effect.flatMap(EventPublisher, (events) => events.worktreeChanged({ worktreeId: 'one', change: 'git' }));`,
     errors: 1,
   },
+  ...[
+    `export const direct = Effect.flatMap(Publisher, (events) => events.inventoryChanged());`,
+    `const alias = Publisher; export const second = NativeLayer.effect(alias, Effect.succeed({}));`,
+    `import * as Events from '../../ports/event-publisher.ts'; export const direct = Effect.flatMap(Events.EventPublisher, (events) => events.inventoryChanged());`,
+  ].map((invalid) => ({
+    rule: 'events-from-use-cases',
+    path: 'apps/server/src/adapters/events/web-socket-event-publisher.ts',
+    valid: fixtureNativeEventPublisherLayer,
+    invalid: fixtureNativeEventPublisherLayer + invalid,
+    errors: 1,
+  })),
   {
     rule: 'failure-in-service',
     path: 'packages/files/src/errors/probe-failure-error.ts',

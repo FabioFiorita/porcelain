@@ -115,9 +115,9 @@ export class SetReviewedFilesUseCase extends Context.Service<
                     onConflict: input.onConflict,
                   }),
                 ({ changed }) =>
-                  Effect.sync(() => {
+                  Effect.gen(function* () {
                     if (changed)
-                      eventsCapability.worktreeChanged({
+                      yield* eventsCapability.worktreeChanged({
                         worktreeId,
                         change: 'reviewed',
                       });

@@ -62,9 +62,9 @@ export class RefreshWorktreeReviewUseCase extends Context.Service<
                     ? recordReviewActivityCapability.execute(prepared)
                     : Effect.succeed({ changed: false }),
                 ({ changed }) =>
-                  Effect.sync(() => {
+                  Effect.gen(function* () {
                     if (changed)
-                      eventsCapability.worktreeChanged({
+                      yield* eventsCapability.worktreeChanged({
                         worktreeId,
                         change: 'review',
                       });

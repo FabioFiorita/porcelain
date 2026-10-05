@@ -39,8 +39,15 @@ export class AnnounceWorktreeChangeUseCase extends Context.Service<
               ),
             );
           if (input.change === 'files')
-            eventsCapability.filesChanged({ worktreeId, paths: input.paths });
-          else eventsCapability.worktreeChanged({ worktreeId, change: 'git' });
+            yield* eventsCapability.filesChanged({
+              worktreeId,
+              paths: input.paths,
+            });
+          else
+            yield* eventsCapability.worktreeChanged({
+              worktreeId,
+              change: 'git',
+            });
         }),
       };
     }),

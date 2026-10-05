@@ -124,12 +124,10 @@ export class PublishReviewUseCase extends Context.Service<
                   };
                 }),
               () =>
-                Effect.sync(() =>
-                  eventsCapability.worktreeChanged({
-                    worktreeId,
-                    change: 'review',
-                  }),
-                ),
+                eventsCapability.worktreeChanged({
+                  worktreeId,
+                  change: 'review',
+                }),
             );
           });
         }),

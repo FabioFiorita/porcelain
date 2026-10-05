@@ -38,7 +38,7 @@ import { readNetworkPlatform } from '../config/network-platform.ts';
 import { OsNetworkAddressReader } from '../adapters/access/os-network-address-reader.ts';
 import { ProcessRuntimeStatusReader } from '../adapters/access/process-runtime-status-reader.ts';
 import { parcelWorktreeWatcherLayer } from '../adapters/events/parcel-worktree-watcher.ts';
-import { WebSocketEventPublisher } from '../adapters/events/web-socket-event-publisher.ts';
+import { webSocketEventPublisherLayer } from '../adapters/events/web-socket-event-publisher.ts';
 import { ProcessCommitDraftSource } from '../adapters/git-actions/process-commit-draft-source.ts';
 import { ProcessCommitModelReader } from '../adapters/git-actions/process-commit-model-reader.ts';
 import { FilesystemProjectFolderReader } from '../adapters/projects/filesystem-project-folder-reader.ts';
@@ -55,11 +55,7 @@ import { makeIntervalJob, jobSequence } from '../runtime/interval-job.ts';
 import { type Job } from '../ports/job.ts';
 import { LaneKeys } from '../runtime/lane-keys.ts';
 import { Lanes } from '../runtime/lanes.ts';
-import {
-  LiveConnections,
-  LiveHeartbeat,
-  LivePing,
-} from '../runtime/live-updates/live-connections.ts';
+import { LiveConnections } from '../runtime/live-updates/live-connections.ts';
 import { WatchWorktrees } from '../runtime/live-updates/watch-worktrees.ts';
 import { AnnounceWorktreeChangeUseCase } from '../use-cases/files/announce-worktree-change.ts';
 import { type StartServer } from '../cli/launcher.ts';
@@ -151,8 +147,17 @@ function serverResources(
         );
         const lanes = Context.get(laneContext, Lanes);
         const logger = new StderrLogger(clock);
-        const liveConnections = new LiveConnections();
-        const events = new WebSocketEventPublisher(liveConnections);
+        const liveContext = yield* Layer.build(
+          webSocketEventPublisherLayer.pipe(
+            Layer.provideMerge(
+              LiveConnections.layer(limits.liveUpdates.eventBuffer).pipe(
+                Layer.provide(Layer.succeed(Logger, logger)),
+              ),
+            ),
+          ),
+        );
+        const liveConnections = Context.get(liveContext, LiveConnections);
+        const events = Context.get(liveContext, EventPublisher);
         const shared = yield* composeShared({
           settings,
           stores,
@@ -302,13 +307,13 @@ function serverResources(
           ),
           yield* makeIntervalJob(
             'heartbeat',
-            new LiveHeartbeat(liveConnections),
+            { execute: liveConnections.heartbeat },
             { everyMs: limits.liveUpdates.heartbeatMs },
             logger,
           ),
           yield* makeIntervalJob(
             'ping-live-clients',
-            new LivePing(liveConnections),
+            { execute: liveConnections.ping },
             { everyMs: limits.liveUpdates.pingMs },
             logger,
           ),
@@ -349,7 +354,7 @@ function serverResources(
                 routeListenerRunner.close({ route: 'lan' }),
                 routeListenerRunner.close({ route: 'tailnet' }),
                 worktreeWatches.close(),
-                Effect.sync(() => liveConnections.close()),
+                liveConnections.close(),
                 lanes.close(),
               ]),
             ),

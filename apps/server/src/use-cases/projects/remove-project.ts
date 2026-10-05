@@ -54,7 +54,7 @@ export class RemoveProjectUseCase extends Context.Service<
           );
           if (result.deleted) {
             yield* refreshInventoryCapability.execute();
-            eventsCapability.inventoryChanged();
+            yield* eventsCapability.inventoryChanged();
           }
           return result;
         }),

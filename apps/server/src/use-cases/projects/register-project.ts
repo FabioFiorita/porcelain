@@ -80,7 +80,7 @@ export class RegisterProjectUseCase extends Context.Service<
               ),
           );
           const statuses = yield* readBadgesCapability.execute({ listings });
-          if (registered.changed) eventsCapability.inventoryChanged();
+          if (registered.changed) yield* eventsCapability.inventoryChanged();
           return registeredProjectReport(
             registered.project,
             listings,

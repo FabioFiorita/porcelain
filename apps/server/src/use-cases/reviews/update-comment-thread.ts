@@ -41,9 +41,9 @@ export class UpdateCommentThreadUseCase extends Context.Service<
               () => Effect.void,
               () => updateCommentThreadCapability.execute(input),
               (value) =>
-                Effect.sync(() => {
+                Effect.gen(function* () {
                   if (value.changed)
-                    eventsCapability.worktreeChanged({
+                    yield* eventsCapability.worktreeChanged({
                       worktreeId: input.worktreeId,
                       change: 'comments',
                     });

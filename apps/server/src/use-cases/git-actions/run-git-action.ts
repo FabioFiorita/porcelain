@@ -95,7 +95,7 @@ export class RunGitActionUseCase extends Context.Service<
                 requestId: run.requestId,
                 outcome: ran.outcome,
               });
-              eventsCapability.gitActionChanged(receipt);
+              yield* eventsCapability.gitActionChanged(receipt);
               if (ran.reviewStale)
                 yield* lanesCapability.start(
                   () =>
@@ -140,7 +140,7 @@ export class RunGitActionUseCase extends Context.Service<
             line,
           });
           if (recorded.kind === 'recorded')
-            eventsCapability.gitActionChanged(recorded.receipt);
+            yield* eventsCapability.gitActionChanged(recorded.receipt);
         },
       );
       const operationAbandon = Effect.fn('RunGitActionUseCase.abandon')(
@@ -151,7 +151,7 @@ export class RunGitActionUseCase extends Context.Service<
             const receipt = yield* interruptGitActionCapability.execute({
               requestId,
             });
-            eventsCapability.gitActionChanged(receipt);
+            yield* eventsCapability.gitActionChanged(receipt);
           }).pipe(
             Effect.catchCause((cause) =>
               Effect.sync(() =>
@@ -205,7 +205,7 @@ export class RunGitActionUseCase extends Context.Service<
               ({ worktree, accepted }) =>
                 Effect.gen(function* () {
                   if (accepted.kind !== 'accepted') return;
-                  eventsCapability.gitActionChanged(accepted.receipt);
+                  yield* eventsCapability.gitActionChanged(accepted.receipt);
                   yield* accessCapability.background(
                     worktree,
                     () => operationSettle(accepted.run),

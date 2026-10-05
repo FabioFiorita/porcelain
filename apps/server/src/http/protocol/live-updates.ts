@@ -54,6 +54,7 @@ export function liveUpdates(
         );
       const socket = yield* context.request.upgrade;
       const reader = yield* socket.reader;
+      const writer = yield* socket.writer;
       const sockets = yield* NodeLiveSockets;
       const ws = sockets.get(context.incoming);
       if (ws === undefined)
@@ -66,12 +67,13 @@ export function liveUpdates(
         return HttpServerResponse.empty();
       }
       const demand = watches.demand;
-      const connection = options.liveUpdates.connect({
-        send: (notice) => {
-          if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(notice));
-        },
-        ping: () => ws.ping(),
-        terminate: () => ws.terminate(),
+      const connection = yield* options.liveUpdates.connect({
+        send: (notice) =>
+          ws.readyState === WebSocket.OPEN
+            ? writer.write(JSON.stringify(notice)).pipe(Effect.orDie)
+            : Effect.void,
+        ping: () => Effect.sync(() => ws.ping()),
+        terminate: () => Effect.sync(() => ws.terminate()),
       });
       const releaseDevice = options.deviceConnections.insert({
         deviceId: principal.deviceId,
@@ -91,10 +93,9 @@ export function liveUpdates(
         Effect.sync(() => {
           releaseDevice();
           releaseTunnel();
-          connection.close();
         }),
       );
-      ws.on('pong', () => connection.answered());
+      ws.on('pong', () => Effect.runSync(connection.answered()));
       const receive = Effect.gen(function* () {
         const batch = yield* reader.pull;
         for (const bytes of batch) {
@@ -117,7 +118,7 @@ export function liveUpdates(
             return;
           }
           yield* demand.replace(parsed.success).pipe(
-            Effect.map((targets) => connection.follow(targets)),
+            Effect.flatMap((targets) => connection.follow(targets)),
             Effect.catchDefect((error) =>
               Effect.sync(() => {
                 options.logger.failure({ kind: 'live-updates', error });

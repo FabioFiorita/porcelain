@@ -31,9 +31,9 @@ export class InvalidateReviewedMarksUseCase extends Context.Service<
               () => Effect.void,
               () => invalidateReviewedMarksCapability.execute(input),
               (value) =>
-                Effect.sync(() => {
+                Effect.gen(function* () {
                   if (value.changed)
-                    eventsCapability.worktreeChanged({
+                    yield* eventsCapability.worktreeChanged({
                       worktreeId: input.worktreeId,
                       change: 'reviewed',
                     });

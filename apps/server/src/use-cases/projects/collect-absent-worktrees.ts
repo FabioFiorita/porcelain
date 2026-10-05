@@ -41,7 +41,8 @@ export class CollectAbsentWorktreesUseCase extends Context.Service<
               );
               collected.push(...result.collected);
             }
-            if (collected.length > 0) eventsCapability.inventoryChanged();
+            if (collected.length > 0)
+              yield* eventsCapability.inventoryChanged();
           },
         ),
       };

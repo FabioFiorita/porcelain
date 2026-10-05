@@ -57,11 +57,9 @@ export class CreateCommentThreadUseCase extends Context.Service<
             () => Effect.void,
             () => createCommentThreadCapability.execute(input),
             () =>
-              Effect.sync(() => {
-                eventsCapability.worktreeChanged({
-                  worktreeId: input.worktreeId,
-                  change: 'comments',
-                });
+              eventsCapability.worktreeChanged({
+                worktreeId: input.worktreeId,
+                change: 'comments',
               }),
           );
         }),

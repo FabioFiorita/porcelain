@@ -55,7 +55,7 @@ export class EditFileUseCase extends Context.Service<
               }),
             ),
           );
-          eventsCapability.filesChanged({ worktreeId, paths });
+          yield* eventsCapability.filesChanged({ worktreeId, paths });
         },
       );
       return {
