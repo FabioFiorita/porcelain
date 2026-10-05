@@ -17,13 +17,8 @@ export type WatchedProjectLookup = { projectId: string };
 export type IgnoreRulesRefresh = 'unchanged' | 'changed';
 
 export type FileWatch = {
-  follow(paths: readonly string[]): Promise<void>;
-  refreshIgnoreRules(): Promise<IgnoreRulesRefresh>;
-  close(): Promise<void>;
-};
-
-export type RepositoryWatch = {
-  close(): Promise<void>;
+  follow(paths: readonly string[]): Effect.Effect<void>;
+  refreshIgnoreRules(): Effect.Effect<IgnoreRulesRefresh>;
 };
 
 export type FileWatchRequest = {
@@ -39,8 +34,20 @@ export type RepositoryWatchRequest = {
 export interface WorktreeWatcher {
   findWorktree(
     input: WatchedWorktreeLookup,
-  ): Promise<WatchedWorktree | undefined>;
-  findProject(input: WatchedProjectLookup): WatchedProject | undefined;
-  watchFiles(input: FileWatchRequest): Promise<FileWatch>;
-  watchRepository(input: RepositoryWatchRequest): Promise<RepositoryWatch>;
+  ): Effect.Effect<WatchedWorktree | undefined>;
+  findProject(
+    input: WatchedProjectLookup,
+  ): Effect.Effect<WatchedProject | undefined>;
+  watchFiles(
+    input: FileWatchRequest,
+  ): Effect.Effect<FileWatch, never, Scope.Scope>;
+  watchRepository(
+    input: RepositoryWatchRequest,
+  ): Effect.Effect<void, never, Scope.Scope>;
 }
+
+export const WorktreeWatcher = Context.Service<
+  '@porcelain/server/WorktreeWatcher',
+  WorktreeWatcher
+>('@porcelain/server/WorktreeWatcher');
+import { Context, type Effect, type Scope } from 'effect';

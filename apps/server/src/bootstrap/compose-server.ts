@@ -1,5 +1,7 @@
 import { Logger } from '../ports/logger.ts';
 import { EventPublisher } from '../ports/event-publisher.ts';
+import { AnnounceWorktreeChangeUseCasePort } from '../ports/announce-worktree-change-use-case-port.ts';
+import { InventoryRefresh } from '../ports/inventory-refresh.ts';
 import { InvalidateReviewedMarksUseCasePort } from '../ports/invalidate-reviewed-marks-use-case-port.ts';
 import { LaneOptions } from '../ports/lane-options.ts';
 import { WorktreeCatalogStore } from '@porcelain/projects/ports';
@@ -35,7 +37,7 @@ import { MacNetworkAddressReader } from '../adapters/access/mac-network-address-
 import { readNetworkPlatform } from '../config/network-platform.ts';
 import { OsNetworkAddressReader } from '../adapters/access/os-network-address-reader.ts';
 import { ProcessRuntimeStatusReader } from '../adapters/access/process-runtime-status-reader.ts';
-import { ParcelWorktreeWatcher } from '../adapters/events/parcel-worktree-watcher.ts';
+import { parcelWorktreeWatcherLayer } from '../adapters/events/parcel-worktree-watcher.ts';
 import { WebSocketEventPublisher } from '../adapters/events/web-socket-event-publisher.ts';
 import { ProcessCommitDraftSource } from '../adapters/git-actions/process-commit-draft-source.ts';
 import { ProcessCommitModelReader } from '../adapters/git-actions/process-commit-model-reader.ts';
@@ -215,27 +217,34 @@ function serverResources(
           checkWorktree,
           findWorktreeByPath: projects.findWorktreeByPath,
         });
-        const worktreeWatches = new WatchWorktrees(
-          yield* AnnounceWorktreeChangeUseCase.pipe(
-            Effect.provide(AnnounceWorktreeChangeUseCase.layer),
-            Effect.provideService(
-              InvalidateReviewedMarksUseCasePort,
-              reviews.invalidateReviewedMarks,
-            ),
-            Effect.provideService(EventPublisher, events),
-            Effect.provideService(Logger, logger),
+        const announcements = yield* AnnounceWorktreeChangeUseCase.pipe(
+          Effect.provide(AnnounceWorktreeChangeUseCase.layer),
+          Effect.provideService(
+            InvalidateReviewedMarksUseCasePort,
+            reviews.invalidateReviewedMarks,
           ),
-          projects.refreshInventory,
-          new ParcelWorktreeWatcher({
-            worktrees: shared.worktreeAccess,
-            projects: () => catalog.listObservations(),
-            gitDirectory: gitDirectoryName(),
-            isTemporaryWrite,
-            limits: limits.git,
-          }),
-          logger,
-          limits.liveUpdates,
+          Effect.provideService(EventPublisher, events),
+          Effect.provideService(Logger, logger),
         );
+        const watchContext = yield* Layer.build(
+          WatchWorktrees.layer(limits.liveUpdates).pipe(
+            Layer.provide(
+              Layer.mergeAll(
+                Layer.succeed(AnnounceWorktreeChangeUseCasePort, announcements),
+                Layer.succeed(InventoryRefresh, projects.refreshInventory),
+                Layer.succeed(Logger, logger),
+                parcelWorktreeWatcherLayer({
+                  worktrees: shared.worktreeAccess,
+                  projects: () => catalog.listObservations(),
+                  gitDirectory: gitDirectoryName(),
+                  isTemporaryWrite,
+                  limits: limits.git,
+                }).pipe(Layer.provide(NodeServices.layer)),
+              ),
+            ),
+          ),
+        );
+        const worktreeWatches = Context.get(watchContext, WatchWorktrees);
         const files = yield* composeFiles(context, {
           shared,
           checkWorktree,
@@ -339,7 +348,7 @@ function serverResources(
               releaseInOrder([
                 routeListenerRunner.close({ route: 'lan' }),
                 routeListenerRunner.close({ route: 'tailnet' }),
-                nativeOperation(() => worktreeWatches.close()),
+                worktreeWatches.close(),
                 Effect.sync(() => liveConnections.close()),
                 lanes.close(),
               ]),

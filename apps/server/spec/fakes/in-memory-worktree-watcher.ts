@@ -1,7 +1,7 @@
+import { Effect, type Scope } from 'effect';
 import type {
   FileWatch,
   FileWatchRequest,
-  RepositoryWatch,
   RepositoryWatchRequest,
   WatchedProject,
   WatchedProjectLookup,
@@ -18,11 +18,20 @@ export class InMemoryWorktreeWatcher implements WorktreeWatcher {
   private readonly files: Listeners<(paths: readonly string[]) => void> =
     new Map();
   private readonly repositories: Listeners<() => void> = new Map();
+  private readonly paths = new Map<string, readonly string[]>();
+  private readonly onFilesOpened: (
+    changed: (paths: readonly string[]) => void,
+  ) => Effect.Effect<void>;
+  private readonly ignoreRules = new Map<string, 'unchanged' | 'changed'>();
 
   constructor(seed: {
     worktrees: readonly WatchedWorktree[];
     projects: readonly WatchedProject[];
+    onFilesOpened: (
+      changed: (paths: readonly string[]) => void,
+    ) => Effect.Effect<void>;
   }) {
+    this.onFilesOpened = seed.onFilesOpened;
     this.worktrees = new Map(
       seed.worktrees.map((worktree) => [worktree.worktreeId, worktree]),
     );
@@ -31,38 +40,58 @@ export class InMemoryWorktreeWatcher implements WorktreeWatcher {
     );
   }
 
-  async findWorktree(
+  findWorktree(
     input: WatchedWorktreeLookup,
-  ): Promise<WatchedWorktree | undefined> {
-    return this.worktrees.get(input.worktreeId);
+  ): Effect.Effect<WatchedWorktree | undefined> {
+    return Effect.sync(() => this.worktrees.get(input.worktreeId));
   }
 
-  findProject(input: WatchedProjectLookup): WatchedProject | undefined {
-    return this.projects.get(input.projectId);
+  findProject(
+    input: WatchedProjectLookup,
+  ): Effect.Effect<WatchedProject | undefined> {
+    return Effect.sync(() => this.projects.get(input.projectId));
   }
 
-  async watchFiles(input: FileWatchRequest): Promise<FileWatch> {
+  watchFiles(
+    input: FileWatchRequest,
+  ): Effect.Effect<FileWatch, never, Scope.Scope> {
     const { worktree, changed } = input;
-    this.files.set(worktree.worktreeId, changed);
-    return {
-      follow: async () => undefined,
-      refreshIgnoreRules: async () => 'unchanged',
-      close: async () => {
-        this.files.delete(worktree.worktreeId);
-      },
-    };
+    return Effect.acquireRelease(
+      Effect.gen({ self: this }, function* () {
+        this.files.set(worktree.worktreeId, changed);
+        yield* this.onFilesOpened(changed);
+        return {
+          follow: (paths: readonly string[]) =>
+            Effect.sync(() => {
+              this.paths.set(worktree.worktreeId, [...paths]);
+            }),
+          refreshIgnoreRules: () =>
+            Effect.sync(
+              () => this.ignoreRules.get(worktree.worktreeId) ?? 'unchanged',
+            ),
+        };
+      }),
+      () =>
+        Effect.sync(() => {
+          this.files.delete(worktree.worktreeId);
+          this.paths.delete(worktree.worktreeId);
+        }),
+    );
   }
 
-  async watchRepository(
+  watchRepository(
     input: RepositoryWatchRequest,
-  ): Promise<RepositoryWatch> {
+  ): Effect.Effect<void, never, Scope.Scope> {
     const { project, changed } = input;
-    this.repositories.set(project.projectId, changed);
-    return {
-      close: async () => {
-        this.repositories.delete(project.projectId);
-      },
-    };
+    return Effect.acquireRelease(
+      Effect.sync(() => {
+        this.repositories.set(project.projectId, changed);
+      }),
+      () =>
+        Effect.sync(() => {
+          this.repositories.delete(project.projectId);
+        }),
+    );
   }
 
   changeFiles(worktreeId: string, paths: readonly string[]): void {
@@ -71,6 +100,14 @@ export class InMemoryWorktreeWatcher implements WorktreeWatcher {
 
   changeRepository(projectId: string): void {
     this.repositories.get(projectId)?.();
+  }
+
+  changeIgnoreRules(worktreeId: string): void {
+    this.ignoreRules.set(worktreeId, 'changed');
+  }
+
+  followed(worktreeId: string): readonly string[] {
+    return this.paths.get(worktreeId) ?? [];
   }
 
   watched(): { worktrees: string[]; projects: string[] } {

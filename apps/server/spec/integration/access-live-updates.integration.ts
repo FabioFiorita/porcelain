@@ -75,6 +75,39 @@ test('a file changed immediately after confirmation is announced by its watcher'
   );
 });
 
+test('an explicitly followed ignored file is watched before its subscription is confirmed', async ({
+  session,
+}) => {
+  await session.writeFile('.gitignore', 'agent-cache/\n');
+  const created = await session.send({
+    method: 'POST',
+    path: worktreePath(session, '/files'),
+    body: { kind: 'create', path: 'agent-cache', entryKind: 'directory' },
+  });
+  expect(created.status).toBe(200);
+  await session.writeFile('agent-cache/state.txt', 'Before confirmation\n');
+  const connection = await session.live();
+  expect(await connection.next(() => true)).toStrictEqual({ type: 'ready' });
+  connection.send({
+    type: 'subscribe',
+    projects: [],
+    worktrees: [
+      {
+        projectId: session.projectId,
+        worktreeId: session.worktreeId,
+        paths: ['agent-cache/state.txt'],
+      },
+    ],
+  });
+  expect(await connection.next(() => true)).toStrictEqual({
+    type: 'subscribed',
+  });
+  await session.writeFile('agent-cache/state.txt', 'After confirmation\n');
+  expect(await connection.next(isWorktree('files'))).toStrictEqual(
+    worktreeNotice(session, 'files'),
+  );
+});
+
 test('renaming a project tells a watching viewer the inventory changed', async ({
   session,
 }) => {

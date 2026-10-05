@@ -41,7 +41,7 @@ export class EditFileUseCase extends Context.Service<
           worktreeId: string,
           paths: string[],
         ): Effect.fn.Return<void> {
-          editAnnouncementsCapability.announce({ worktreeId, paths });
+          yield* editAnnouncementsCapability.announce({ worktreeId, paths });
           const invalidated = invalidateReviewedMarksCapability.execute({
             worktreeId,
             paths,

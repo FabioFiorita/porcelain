@@ -1,12 +1,12 @@
-import { Context } from 'effect';
+import { Context, type Effect } from 'effect';
 
-export type EditAnnouncement = {
+type EditAnnouncement = {
   worktreeId: string;
   paths: readonly string[];
 };
 
 export interface EditAnnouncementWriter {
-  announce(input: EditAnnouncement): void;
+  announce(input: EditAnnouncement): Effect.Effect<void>;
 }
 
 export const EditAnnouncementWriter = Context.Service<

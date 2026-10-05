@@ -60,7 +60,7 @@ export function liveUpdates(
         return yield* Effect.die(
           new Error('The upgraded live connection was not acquired'),
         );
-      const watches = options.worktreeWatches.open();
+      const watches = yield* options.worktreeWatches.open();
       if (watches.kind === 'at-capacity') {
         ws.close(1013, 'Live update capacity reached; try again later');
         return HttpServerResponse.empty();
@@ -91,7 +91,6 @@ export function liveUpdates(
         Effect.sync(() => {
           releaseDevice();
           releaseTunnel();
-          demand.close();
           connection.close();
         }),
       );
@@ -117,7 +116,7 @@ export function liveUpdates(
             ws.close(1008, 'Invalid subscription');
             return;
           }
-          yield* Effect.promise(() => demand.replace(parsed.success)).pipe(
+          yield* demand.replace(parsed.success).pipe(
             Effect.map((targets) => connection.follow(targets)),
             Effect.catchDefect((error) =>
               Effect.sync(() => {

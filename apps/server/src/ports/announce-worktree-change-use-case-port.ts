@@ -1,4 +1,4 @@
-import type { Effect } from 'effect';
+import { Context, type Effect } from 'effect';
 
 export type WorktreeChange =
   | { worktreeId: string; change: 'files'; paths: readonly string[] }
@@ -7,3 +7,8 @@ export type WorktreeChange =
 export interface AnnounceWorktreeChangeUseCasePort {
   execute(input: WorktreeChange): Effect.Effect<void>;
 }
+
+export const AnnounceWorktreeChangeUseCasePort = Context.Service<
+  '@porcelain/server/AnnounceWorktreeChangeUseCasePort',
+  AnnounceWorktreeChangeUseCasePort
+>('@porcelain/server/AnnounceWorktreeChangeUseCasePort');

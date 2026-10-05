@@ -189,6 +189,7 @@ export type Limits = {
   liveUpdates: {
     maxConnections: number;
     maxWatchedWorktrees: number;
+    eventBuffer: number;
     burstMs: number;
     announcedEditMs: number;
     heartbeatMs: number;
@@ -424,6 +425,7 @@ export const LIMITS: Limits = {
   liveUpdates: {
     maxConnections: 64,
     maxWatchedWorktrees: 64,
+    eventBuffer: 256,
     burstMs: 150,
     announcedEditMs: 300,
     heartbeatMs: 25 * SECOND_MS,
