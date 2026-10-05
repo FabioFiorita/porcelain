@@ -2,7 +2,7 @@ import { Effect } from 'effect';
 import type { Transport } from '../../../shared/api/transport.ts';
 import { ConnectionError } from '../../../shared/api/connection-error.ts';
 import { requestEffect } from '../../../shared/api/effect-client.ts';
-import { saveFileDrafts } from '../../files/store.ts';
+import { FileDrafts, fileDraftRuntime } from '../../files/store.ts';
 import { UNSAVED_DRAFTS_MESSAGE } from '../rules/connection-error-message.ts';
 import { accessApi } from '../api.ts';
 
@@ -11,7 +11,10 @@ export function disconnectBrowserSession(
   environmentId?: string,
 ) {
   return Effect.gen(function* () {
-    if (environmentId && !(yield* saveFileDrafts(environmentId)))
+    if (
+      environmentId &&
+      !(yield* fileDraftRuntime.runSync(FileDrafts).save(environmentId))
+    )
       return yield* Effect.fail(
         new ConnectionError({ message: UNSAVED_DRAFTS_MESSAGE }),
       );

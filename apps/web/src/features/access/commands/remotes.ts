@@ -9,7 +9,7 @@ import {
   remoteStatusQueryOptions,
 } from '@porcelain/client/access';
 import { pairingPlatform } from '../store';
-import { dropFileDrafts, saveFileDrafts } from '@porcelain/client/files';
+import { FileDrafts, fileDraftRuntime } from '@porcelain/client/files';
 import { UNSAVED_DRAFTS_MESSAGE } from '@porcelain/client/access/rules';
 import { remoteLink, type Remote } from '@porcelain/client/access/rules';
 import { accessSession, accessStore } from '../store';
@@ -51,10 +51,16 @@ export function useAddRemote() {
 }
 
 async function forgetRemote(remote: Remote) {
-  if (!(await Effect.runPromise(saveFileDrafts(remote.environmentId))))
+  if (
+    !(await Effect.runPromise(
+      fileDraftRuntime.runSync(FileDrafts).save(remote.environmentId),
+    ))
+  )
     throw new ConnectionError({ message: UNSAVED_DRAFTS_MESSAGE });
   await Effect.runPromise(accessStore.forget(remote.environmentId));
-  await Effect.runPromise(dropFileDrafts(remote.environmentId));
+  await Effect.runPromise(
+    fileDraftRuntime.runSync(FileDrafts).drop(remote.environmentId),
+  );
   return remote;
 }
 

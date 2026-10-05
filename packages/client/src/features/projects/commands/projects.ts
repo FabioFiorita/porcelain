@@ -13,7 +13,7 @@ import { createScopedWriteQueues } from '../../../shared/api/write-queue.ts';
 import { projectsApi } from '../api.ts';
 import { inventoryQueryOptions } from '../queries/inventory.ts';
 import { filePreferencesQueryOptions } from '../queries/file-preferences.ts';
-import { retainedFileDrafts } from '../../files/store.ts';
+import { FileDrafts, fileDraftRuntime } from '../../files/store.ts';
 import { ConnectionError } from '../../../shared/api/connection-error.ts';
 
 const writeQueue = createScopedWriteQueues();
@@ -96,7 +96,9 @@ export function projectCommands(
           const request = connection.request();
           yield* currentAnswerEffect(request.signal);
           const prefix = `[${JSON.stringify(projectId)},`;
-          for (const [key, draft] of retainedFileDrafts(connection))
+          for (const [key, draft] of fileDraftRuntime
+            .runSync(FileDrafts)
+            .entries(connection))
             if (key.startsWith(prefix) && !(yield* draft.save()))
               return yield* Effect.fail(
                 new ConnectionError({

@@ -5,12 +5,11 @@ export { assetQueryOptions } from './queries/asset.ts';
 export { readPreviewAssets } from './queries/preview-assets.ts';
 export { refreshFileEdit } from './commands/edit-file.ts';
 export { FileEditCoordinator } from './commands/file-edit-coordinator.ts';
-export { FileDraft, type FileDraftState } from './store.ts';
 export {
-  retainedFileDrafts,
-  adoptFileDrafts,
-  draftConnection,
-  hasUnsavedFileDrafts,
-  saveFileDrafts,
-  dropFileDrafts,
+  FileDrafts,
+  FileDraftTiming,
+  fileDraftRuntime,
+  type FileDraftHandle,
+  type FileDraftState,
 } from './store.ts';
+export type { FileDraftWriteFailure } from './ports/file-draft-writer.ts';

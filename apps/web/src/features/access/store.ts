@@ -31,7 +31,7 @@ import {
   sameOriginLiveUpdates,
   webSocket,
 } from '@/shared/adapters/live-socket';
-import { adoptFileDrafts } from '@porcelain/client/files';
+import { FileDrafts, fileDraftRuntime } from '@porcelain/client/files';
 import { ConnectionError } from '@porcelain/client/transport';
 import { createOperationStore } from '@porcelain/client/git-actions';
 import {
@@ -84,7 +84,7 @@ function createConnection(environmentId: string, server: Server): Connection {
     }),
     liveUpdates: server.liveUpdates,
   };
-  adoptFileDrafts(connection);
+  fileDraftRuntime.runSync(FileDrafts).adopt(connection);
   return connection;
 }
 

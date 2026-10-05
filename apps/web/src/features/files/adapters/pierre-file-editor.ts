@@ -7,7 +7,7 @@ import {
 import { useEffect, useLayoutEffect, useRef } from 'react';
 import { useHotkey } from '@tanstack/react-hotkeys';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
-import type { FileDraft } from '@porcelain/client/files';
+import type { FileDraftHandle } from '@porcelain/client/files';
 import { editorFile, clearEditorFile } from '../store';
 
 export const createEditor: EditorFactory<undefined, undefined> = (
@@ -20,7 +20,7 @@ export function usePierreFileEditor(
   owner: string,
   path: string,
   initialText: string,
-  draft: FileDraft,
+  draft: FileDraftHandle,
   active: boolean,
   onUnsaved: (path: string) => void,
 ) {
@@ -35,7 +35,7 @@ export function usePierreFileEditor(
       editor.focus({ lineNumber: 1, character: 0 });
     },
     onBlur() {
-      if (!draft.snapshot().error) void Effect.runPromise(draft.save());
+      if (!draft.state.value.error) void Effect.runPromise(draft.save());
     },
   };
   useHotkey(SHORTCUTS.saveFile, () => void Effect.runPromise(draft.save()), {

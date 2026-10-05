@@ -1,32 +1,28 @@
-import { createStore } from 'zustand/vanilla';
-import { useStore } from 'zustand';
-import type { FileDraft } from '@porcelain/client/files';
+import { AtomRef } from 'effect/reactivity';
+import { useAtomRef } from '@effect/atom-react';
+import type { FileDraftHandle } from '@porcelain/client/files';
 
-const filesStore = createStore<{
-  quickOpenQuery: string;
-  setQuickOpenQuery: (query: string) => void;
-}>((set) => ({
-  quickOpenQuery: '',
-  setQuickOpenQuery: (quickOpenQuery) => set({ quickOpenQuery }),
-}));
-
+const quickOpenQuery = AtomRef.make('');
 export function useQuickOpenQuery() {
-  const query = useStore(filesStore, (state) => state.quickOpenQuery);
-  return { query, setQuery: filesStore.getState().setQuickOpenQuery };
+  return {
+    query: useAtomRef(quickOpenQuery),
+    setQuery: (query: string) => {
+      quickOpenQuery.set(query);
+    },
+  };
 }
-
-export function useFileDraftState(draft: FileDraft) {
-  return useStore(draft.store);
+export function useFileDraftState(draft: FileDraftHandle) {
+  return useAtomRef(draft.state);
 }
 
 type EditorFile = {
   file: { name: string; contents: string };
   initialText: string;
 };
-const sessions = new WeakMap<FileDraft, Map<string, EditorFile>>();
+const sessions = new WeakMap<FileDraftHandle, Map<string, EditorFile>>();
 
 export function editorFile(
-  draft: FileDraft,
+  draft: FileDraftHandle,
   owner: string,
   path: string,
   text: string,
@@ -45,7 +41,7 @@ export function editorFile(
 }
 
 export function clearEditorFile(
-  draft: FileDraft,
+  draft: FileDraftHandle,
   owner: string,
   expected?: EditorFile,
 ) {

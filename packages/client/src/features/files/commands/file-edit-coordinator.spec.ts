@@ -5,8 +5,11 @@ import { QueryClient } from '@tanstack/query-core';
 import type { Transport } from '@porcelain/client/transport';
 import { createWorktreeConnection } from '@porcelain/client/transport';
 import { ConnectionError, runRequest } from '@porcelain/client/transport';
-import { retainedFileDrafts, dropFileDrafts } from '@porcelain/client/files';
-import { FileDraft } from '@porcelain/client/files';
+import {
+  FileDrafts,
+  fileDraftRuntime,
+  type FileDraftWriteFailure,
+} from '@porcelain/client/files';
 import { FileEditCoordinator } from './file-edit-coordinator.ts';
 
 const scope = {
@@ -30,7 +33,26 @@ function setup(environmentId: string, transport: Transport) {
     () => 'command',
   );
   return {
-    entries: retainedFileDrafts(lifetime.connection),
+    entries: () =>
+      fileDraftRuntime.runSync(FileDrafts).entries(lifetime.connection),
+    draft: (
+      write: (input: {
+        path: string;
+        text: string;
+        expectedFingerprint: string;
+      }) => Effect.Effect<string, FileDraftWriteFailure>,
+      isBlockedError: (error: unknown) => boolean,
+    ) =>
+      Effect.runPromise(
+        fileDraftRuntime.runSync(FileDrafts).retain({
+          environmentId,
+          scope,
+          path: 'source/file.txt',
+          text: 'saved',
+          fingerprint: 'version',
+          writer: { write, isBlockedError },
+        }),
+      ),
     move: () =>
       runRequest(
         coordinator.execute({
@@ -41,7 +63,9 @@ function setup(environmentId: string, transport: Transport) {
         lifetime.connection.request().signal,
       ),
     close: async () => {
-      await Effect.runPromise(dropFileDrafts(environmentId));
+      await Effect.runPromise(
+        fileDraftRuntime.runSync(FileDrafts).drop(environmentId),
+      );
       lifetime.close();
       cache.clear();
     },
@@ -53,18 +77,15 @@ describe('shared file edit coordination', () => {
     const subject = setup('rejected-move', () =>
       Promise.resolve(new Response('unavailable', { status: 503 })),
     );
-    const draft = new FileDraft(
-      'saved',
-      'version',
+    const draft = await subject.draft(
       () => Effect.succeed('written'),
       () => false,
     );
-    subject.entries.set(key('source/file.txt'), draft);
     try {
       await expect(subject.move()).rejects.toMatchObject({ status: 503 });
-      expect(subject.entries.get(key('source/file.txt'))).toBe(draft);
-      expect(subject.entries.has(key('destination/file.txt'))).toBe(false);
-      expect(draft.snapshot().owner).toBeNull();
+      expect(subject.entries().get(key('source/file.txt'))).toBe(draft);
+      expect(subject.entries().has(key('destination/file.txt'))).toBe(false);
+      expect(draft.state.value.owner).toBeNull();
     } finally {
       await subject.close();
     }
@@ -76,21 +97,18 @@ describe('shared file edit coordination', () => {
       sent += 1;
       return Promise.resolve(Response.json({ path: 'destination' }));
     });
-    const draft = new FileDraft(
-      'saved',
-      'version',
+    const draft = await subject.draft(
       () => Effect.fail(new ConnectionError({ message: 'Conflict' })),
       () => true,
     );
-    draft.change('unsaved');
-    subject.entries.set(key('source/file.txt'), draft);
+    await Effect.runPromise(draft.change('unsaved'));
     try {
       await expect(subject.move()).rejects.toThrow(
         'Save or discard the unsaved draft',
       );
       expect(sent).toBe(0);
-      expect(subject.entries.get(key('source/file.txt'))).toBe(draft);
-      expect(draft.snapshot()).toMatchObject({
+      expect(subject.entries().get(key('source/file.txt'))).toBe(draft);
+      expect(draft.state.value).toMatchObject({
         text: 'unsaved',
         savedText: 'saved',
         owner: null,
@@ -101,21 +119,36 @@ describe('shared file edit coordination', () => {
   });
 
   it('moves retained child drafts only after server confirmation', async () => {
+    const writes: {
+      path: string;
+      text: string;
+      expectedFingerprint: string;
+    }[] = [];
     const subject = setup('confirmed-move', () =>
       Promise.resolve(Response.json({ path: 'destination' })),
     );
-    const draft = new FileDraft(
-      'saved',
-      'version',
-      () => Effect.succeed('written'),
+    const draft = await subject.draft(
+      (input) =>
+        Effect.sync(() => {
+          writes.push(input);
+          return 'written';
+        }),
       () => false,
     );
-    subject.entries.set(key('source/file.txt'), draft);
     try {
       await expect(subject.move()).resolves.toEqual({ path: 'destination' });
-      expect(subject.entries.has(key('source/file.txt'))).toBe(false);
-      expect(subject.entries.get(key('destination/file.txt'))).toBe(draft);
-      expect(draft.snapshot().owner).toBeNull();
+      expect(subject.entries().has(key('source/file.txt'))).toBe(false);
+      expect(subject.entries().get(key('destination/file.txt'))).toBe(draft);
+      expect(draft.state.value.owner).toBeNull();
+      await Effect.runPromise(draft.change('saved after relocation'));
+      expect(await Effect.runPromise(draft.save())).toBe(true);
+      expect(writes).toEqual([
+        {
+          path: 'destination/file.txt',
+          text: 'saved after relocation',
+          expectedFingerprint: 'version',
+        },
+      ]);
     } finally {
       await subject.close();
     }

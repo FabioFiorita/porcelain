@@ -12,7 +12,7 @@ import type {
 import { ConnectionError } from '../../../shared/api/connection-error.ts';
 import { requestEffect } from '../../../shared/api/effect-client.ts';
 import type { RequestError } from '../../../shared/api/request-error.ts';
-import { retainedFileDrafts } from '../store.ts';
+import { FileDrafts, fileDraftRuntime } from '../store.ts';
 import { filesApi } from '../api.ts';
 import { refreshFileEdit } from './edit-file.ts';
 type FileEditFailure =
@@ -52,7 +52,9 @@ export class FileEditCoordinator {
     signal: AbortSignal,
   ): Effect.Effect<EditFileResponse, FileEditFailure> {
     const prefix = `${JSON.stringify([this.scope.projectId, this.scope.worktreeId])}/`;
-    const retained = retainedFileDrafts(this.connection);
+    const retained = fileDraftRuntime
+      .runSync(FileDrafts)
+      .entries(this.connection);
     const moving =
       input.kind === 'move' || input.kind === 'trash'
         ? [...retained].filter(
@@ -66,7 +68,7 @@ export class FileEditCoordinator {
       (owner) =>
         Effect.uninterruptibleMask((restore) =>
           Effect.gen({ self: this }, function* () {
-            if (moving.some(([, draft]) => draft.snapshot().owner !== null))
+            if (moving.some(([, draft]) => draft.state.value.owner !== null))
               return yield* Effect.fail(
                 new ConnectionError({
                   message:
@@ -107,15 +109,12 @@ export class FileEditCoordinator {
             })();
             const edited = yield* restore(requestEffect(request));
             if (input.kind === 'move' || input.kind === 'trash')
-              for (const [key, draft] of moving) {
-                retained.delete(key);
-                if (input.kind === 'move')
-                  retained.set(
-                    `${prefix}${input.destination}${key.slice(`${prefix}${input.path}`.length)}`,
-                    draft,
-                  );
-                else yield* draft.dispose();
-              }
+              yield* fileDraftRuntime.runSync(FileDrafts).relocate(
+                this.connection.environmentId,
+                moving.map(([key]) => key),
+                input,
+                this.scope,
+              );
             return edited;
           }),
         ),
