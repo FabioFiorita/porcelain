@@ -1,3 +1,8 @@
+import { Clock, IdSource, SecretSource } from '@porcelain/kernel/ports';
+import {
+  LiveTicketStore,
+  IssueLiveTicketOptions,
+} from '@porcelain/access/ports';
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import {
@@ -21,12 +26,19 @@ const lifetimeMs = 30_000;
 function setup(maxOutstanding = 8, maxPerDevice = 4) {
   const tickets = new InMemoryLiveTicketStore();
   const clock = new FixedClock(now);
-  const service = new IssueLiveTicketService(
-    tickets,
-    clock,
-    new SequentialIdSource(),
-    new SequentialSecretSource(),
-    { lifetimeMs, maxOutstanding, maxPerDevice },
+  const service = Effect.runSync(
+    IssueLiveTicketService.pipe(
+      Effect.provide(IssueLiveTicketService.layer),
+      Effect.provideService(LiveTicketStore, tickets),
+      Effect.provideService(Clock, clock),
+      Effect.provideService(IdSource, new SequentialIdSource()),
+      Effect.provideService(SecretSource, new SequentialSecretSource()),
+      Effect.provideService(IssueLiveTicketOptions, {
+        lifetimeMs,
+        maxOutstanding,
+        maxPerDevice,
+      }),
+    ),
   );
   return { tickets, clock, service };
 }

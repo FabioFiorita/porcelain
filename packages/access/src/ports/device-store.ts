@@ -1,3 +1,4 @@
+import { Context } from 'effect';
 import type {
   DeviceKey,
   DeviceRevocation,
@@ -13,3 +14,8 @@ export interface DeviceStore {
   recordSighting(input: DeviceSighting): void;
   recordTrust(input: DeviceTrust): void;
 }
+
+export const DeviceStore = Context.Service<
+  '@porcelain/access/DeviceStore',
+  DeviceStore
+>('@porcelain/access/DeviceStore');

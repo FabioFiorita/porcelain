@@ -1,3 +1,10 @@
+import { Clock, IdSource, SecretSource } from '@porcelain/kernel/ports';
+import {
+  PairingGrantStore,
+  PairingReachReader,
+  IssuePairingOptions,
+} from '@porcelain/access/ports';
+import type { Context } from 'effect';
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import {
@@ -19,25 +26,34 @@ const environmentId = 'e0000000-0000-4000-8000-000000000001';
 
 function setup() {
   const grants = new InMemoryPairingGrantStore();
-  const service = new IssuePairingService(
-    grants,
-    new FixedPairingReachReader({
-      port: 4173,
-      policy: {
-        allowedHosts: ['laptop.local'],
-        localAddresses: ['192.168.1.20'],
-      },
-    }),
-    new FixedClock('2026-09-23T10:00:00.000Z'),
-    new SequentialIdSource(),
-    new SequentialSecretSource(),
-    { lifetimeMs: 15 * 60 * 1000, labelLength: 80 },
+  const service = Effect.runSync(
+    IssuePairingService.pipe(
+      Effect.provide(IssuePairingService.layer),
+      Effect.provideService(PairingGrantStore, grants),
+      Effect.provideService(
+        PairingReachReader,
+        new FixedPairingReachReader({
+          port: 4173,
+          policy: {
+            allowedHosts: ['laptop.local'],
+            localAddresses: ['192.168.1.20'],
+          },
+        }),
+      ),
+      Effect.provideService(Clock, new FixedClock('2026-09-23T10:00:00.000Z')),
+      Effect.provideService(IdSource, new SequentialIdSource()),
+      Effect.provideService(SecretSource, new SequentialSecretSource()),
+      Effect.provideService(IssuePairingOptions, {
+        lifetimeMs: 15 * 60 * 1000,
+        labelLength: 80,
+      }),
+    ),
   );
   return { grants, service };
 }
 
 function issueOne(
-  service: IssuePairingService,
+  service: Context.Service.Shape<typeof IssuePairingService>,
   addresses: readonly string[] = [address],
 ) {
   const [issued] = Effect.runSync(

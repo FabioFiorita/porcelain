@@ -1,17 +1,25 @@
-import { Effect } from 'effect';
+import { Effect, Context, Layer } from 'effect';
 import type { ReadOwnerStatusResult } from '../models/read-owner-status.ts';
-import type { RuntimeStatusReader } from '../ports/runtime-status-reader.ts';
+import { RuntimeStatusReader } from '../ports/runtime-status-reader.ts';
 
-export class ReadOwnerStatusService {
-  private readonly runtimeStatusReader: RuntimeStatusReader;
+export class ReadOwnerStatusService extends Context.Service<
+  ReadOwnerStatusService,
+  { readonly execute: () => Effect.Effect<ReadOwnerStatusResult, never> }
+>()('@porcelain/access/ReadOwnerStatusService') {
+  static readonly layer = Layer.effect(
+    ReadOwnerStatusService,
+    Effect.gen(function* () {
+      const runtimeStatusReader = yield* RuntimeStatusReader;
 
-  constructor(runtimeStatusReader: RuntimeStatusReader) {
-    this.runtimeStatusReader = runtimeStatusReader;
-  }
-
-  execute(): Effect.Effect<ReadOwnerStatusResult, never> {
-    return Effect.sync(() => {
-      return this.runtimeStatusReader.current();
-    });
-  }
+      return {
+        execute: Effect.fn('ReadOwnerStatusService.execute')(
+          function* (): Effect.fn.Return<ReadOwnerStatusResult, never> {
+            return yield* Effect.sync<ReadOwnerStatusResult>(() => {
+              return runtimeStatusReader.current();
+            });
+          },
+        ),
+      };
+    }),
+  );
 }

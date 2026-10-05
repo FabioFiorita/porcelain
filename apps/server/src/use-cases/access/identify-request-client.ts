@@ -1,3 +1,4 @@
+import type { Context } from 'effect';
 import { Effect } from 'effect';
 import type {
   IdentifyRequestClientInput,
@@ -7,11 +8,15 @@ import type { IdentifyRequestClientService } from '@porcelain/access/services';
 import type { Lanes } from '../../runtime/lanes.ts';
 
 export class IdentifyRequestClientUseCase {
-  private readonly identifyRequestClient: IdentifyRequestClientService;
+  private readonly identifyRequestClient: Context.Service.Shape<
+    typeof IdentifyRequestClientService
+  >;
   private readonly lanes: Lanes;
 
   constructor(
-    identifyRequestClient: IdentifyRequestClientService,
+    identifyRequestClient: Context.Service.Shape<
+      typeof IdentifyRequestClientService
+    >,
     lanes: Lanes,
   ) {
     this.identifyRequestClient = identifyRequestClient;

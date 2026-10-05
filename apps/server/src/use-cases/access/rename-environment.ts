@@ -1,3 +1,4 @@
+import type { Context } from 'effect';
 import { Effect } from 'effect';
 import type { RenameEnvironmentService } from '@porcelain/access/services';
 import type {
@@ -9,13 +10,15 @@ import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
 
 export class RenameEnvironmentUseCase {
-  private readonly renameEnvironment: RenameEnvironmentService;
+  private readonly renameEnvironment: Context.Service.Shape<
+    typeof RenameEnvironmentService
+  >;
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
   private readonly events: EventPublisher;
 
   constructor(
-    renameEnvironment: RenameEnvironmentService,
+    renameEnvironment: Context.Service.Shape<typeof RenameEnvironmentService>,
     lanes: Lanes,
     laneKeys: LaneKeys,
     events: EventPublisher,

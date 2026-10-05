@@ -1,3 +1,11 @@
+import {
+  RemoteAccessStore,
+  RouteStateStore,
+  NetworkAddressReader,
+  RouteListenerRunner,
+  TunnelProbe,
+  RemoteRouteOptions,
+} from '@porcelain/access/ports';
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import type { NetworkAddress } from '@porcelain/access/models';
@@ -61,15 +69,23 @@ function setup(options: { refusing?: boolean } = {}) {
   );
   const listeners = new InMemoryRouteListenerRunner(4173, 41000, []);
   const probe = new FixedTunnelProbe({ kind: 'answered', environmentId });
-  const service = new OpenRemoteRoutesService(
-    settings,
-    routes,
-    addresses,
-    options.refusing
-      ? new FixedRouteListenerRunner(4173, 'address-in-use')
-      : listeners,
-    probe,
-    { loopbackAddress: '127.0.0.1' },
+  const service = Effect.runSync(
+    OpenRemoteRoutesService.pipe(
+      Effect.provide(OpenRemoteRoutesService.layer),
+      Effect.provideService(RemoteAccessStore, settings),
+      Effect.provideService(RouteStateStore, routes),
+      Effect.provideService(NetworkAddressReader, addresses),
+      Effect.provideService(
+        RouteListenerRunner,
+        options.refusing
+          ? new FixedRouteListenerRunner(4173, 'address-in-use')
+          : listeners,
+      ),
+      Effect.provideService(TunnelProbe, probe),
+      Effect.provideService(RemoteRouteOptions, {
+        loopbackAddress: '127.0.0.1',
+      }),
+    ),
   );
   const open = () => Effect.runPromise(service.execute({ environmentId }));
   const close = () =>

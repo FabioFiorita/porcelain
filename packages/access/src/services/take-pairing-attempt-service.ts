@@ -1,44 +1,44 @@
-import { Effect } from 'effect';
-import type { Clock } from '@porcelain/kernel/ports';
+import { TakePairingAttemptOptions } from '../ports/take-pairing-attempt-options.ts';
+import { PairingAttemptBudgetStore } from '../ports/pairing-attempt-budget-store.ts';
+import { Effect, Context, Layer } from 'effect';
+import { Clock } from '@porcelain/kernel/ports';
 import { TooManyPairingAttemptsError } from '../errors/too-many-pairing-attempts-error.ts';
 
-import type {
-  TakePairingAttemptInput,
-  TakePairingAttemptOptions,
-} from '../models/take-pairing-attempt.ts';
-import type { PairingAttemptBudgets } from '../models/pairing-attempts.ts';
-import type { PairingAttemptStore } from '../ports/pairing-attempt-store.ts';
+import type { TakePairingAttemptInput } from '../models/take-pairing-attempt.ts';
 import { takePairingAttempt } from '../rules/pairing-attempts.ts';
 
-export class TakePairingAttemptService {
-  private readonly pairingAttempts: PairingAttemptBudgets<PairingAttemptStore>;
-  private readonly clock: Clock;
-  private readonly options: TakePairingAttemptOptions;
-
-  constructor(
-    pairingAttempts: PairingAttemptBudgets<PairingAttemptStore>,
-    clock: Clock,
-    options: TakePairingAttemptOptions,
-  ) {
-    this.pairingAttempts = pairingAttempts;
-    this.clock = clock;
-    this.options = options;
+export class TakePairingAttemptService extends Context.Service<
+  TakePairingAttemptService,
+  {
+    readonly execute: (
+      input: TakePairingAttemptInput,
+    ) => Effect.Effect<void, TooManyPairingAttemptsError>;
   }
+>()('@porcelain/access/TakePairingAttemptService') {
+  static readonly layer = Layer.effect(
+    TakePairingAttemptService,
+    Effect.gen(function* () {
+      const pairingAttempts = yield* PairingAttemptBudgetStore;
+      const clock = yield* Clock;
+      const options = yield* TakePairingAttemptOptions;
 
-  execute(
-    input: TakePairingAttemptInput,
-  ): Effect.Effect<void, TooManyPairingAttemptsError> {
-    return Effect.gen({ self: this }, function* () {
-      const budget = input.crossOrigin ? 'crossOrigin' : 'sameOrigin';
-      const store = this.pairingAttempts[budget];
-      const { attempts, taken } = takePairingAttempt(
-        store.read(),
-        input.peer,
-        this.clock.now(),
-        this.options[budget],
-      );
-      store.save(attempts);
-      if (!taken) return yield* Effect.fail(new TooManyPairingAttemptsError());
-    });
-  }
+      return {
+        execute: Effect.fn('TakePairingAttemptService.execute')(function* (
+          input: TakePairingAttemptInput,
+        ): Effect.fn.Return<void, TooManyPairingAttemptsError> {
+          const budget = input.crossOrigin ? 'crossOrigin' : 'sameOrigin';
+          const store = pairingAttempts[budget];
+          const { attempts, taken } = takePairingAttempt(
+            store.read(),
+            input.peer,
+            clock.now(),
+            options[budget],
+          );
+          store.save(attempts);
+          if (!taken)
+            return yield* Effect.fail(new TooManyPairingAttemptsError());
+        }),
+      };
+    }),
+  );
 }

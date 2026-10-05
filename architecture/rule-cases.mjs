@@ -1,3 +1,36 @@
+const fixtureWatchWorktreesEventsFromUseCases = `import type {
+  AnnounceWorktreeChangeUseCasePort,
+  WorktreeChange,
+} from '../../ports/announce-worktree-change-use-case-port.ts';
+
+export class WatchWorktrees {
+  private readonly announceWorktreeChange: AnnounceWorktreeChangeUseCasePort;
+
+  constructor(announceWorktreeChange: AnnounceWorktreeChangeUseCasePort) {
+    this.announceWorktreeChange = announceWorktreeChange;
+  }
+
+  private announceChange(change: WorktreeChange): void {
+    void this.announceWorktreeChange.execute(change, {});
+  }
+}
+`;
+const fixtureReadChangeLinesUseCaseComputes = `import type { ReadChangeLinesService } from '@porcelain/changes/services';
+import type { ReadChangeLinesQuery } from '@porcelain/contracts/changes';
+
+export class ReadChangeLinesUseCase {
+  private readonly readChangeLines: ReadChangeLinesService;
+
+  constructor(readChangeLines: ReadChangeLinesService) {
+    this.readChangeLines = readChangeLines;
+  }
+
+  execute(input: ReadChangeLinesQuery & { text: string }) {
+    const { path, from, to, at, text } = input;
+    return this.readChangeLines.execute({ path, from, to, at, text });
+  }
+}
+`;
 import { effectRuleCases } from './effect-rule-cases.mjs';
 const commentSeenStore = `import type { CommentSeenStore } from '../../src/ports/comment-seen-store.ts';
 
@@ -391,7 +424,7 @@ export type ListDirectoryOutcome =
     errors: 1,
   },
   {
-    rule: 'no-interface-in-runtime',
+    rule: 'interfaces-only-in-ports',
     path: 'apps/server/src/runtime/delay.ts',
     valid: `import type { ProbeDelay } from '../ports/probe-delay.ts'; export type DelayOptions = { delay: ProbeDelay };`,
     invalid: `
@@ -954,20 +987,13 @@ export class CheckedWorktreeAccessReader implements WorktreeAccessReader {
     rule: 'adapters-report-facts',
     path: 'apps/server/src/adapters/files/filesystem-directory-reader.ts',
     valid: filesystemDirectoryReader,
-    invalid: `export class FilesystemDirectoryReader implements DirectoryReader {
-  async list(
-  ): Promise<DirectoryRead> {
-    try {
-      for await (const entry of await opendir(before.path, {
-      })) {
-        if (name.toLowerCase() === '.git') continue;
+    invalid: filesystemDirectoryReader.replace(
+      `        if (found.length === input.limit) {
+`,
+      `        if (name.toLowerCase() === '.git') continue;
         if (found.length === input.limit) {
-        }
-      }
-    } catch (error) {
-    }
-  }
-}`,
+`,
+    ),
     errors: 1,
   },
   {
@@ -1000,20 +1026,13 @@ export async function entryNames(path: string): Promise<string[]> {
     rule: 'adapters-report-facts',
     path: 'apps/server/src/adapters/files/filesystem-directory-reader.ts',
     valid: filesystemDirectoryReader,
-    invalid: `export class FilesystemDirectoryReader implements DirectoryReader {
-  async list(
-  ): Promise<DirectoryRead> {
-    try {
-      for await (const entry of await opendir(before.path, {
-      })) {
-        if (['.git'].includes(name)) continue;
+    invalid: filesystemDirectoryReader.replace(
+      `        if (found.length === input.limit) {
+`,
+      `        if (['.git'].includes(name)) continue;
         if (found.length === input.limit) {
-        }
-      }
-    } catch (error) {
-    }
-  }
-}`,
+`,
+    ),
     errors: 1,
   },
   {
@@ -1142,45 +1161,25 @@ export interface ReviewStatusReader {
   {
     rule: 'events-from-use-cases',
     path: 'apps/server/src/runtime/live-updates/watch-worktrees.ts',
-    valid: `import type {
-  AnnounceWorktreeChangeUseCasePort,
-  WorktreeChange,
-} from '../../ports/announce-worktree-change-use-case-port.ts';
-
-export class WatchWorktrees {
-  private readonly announceWorktreeChange: AnnounceWorktreeChangeUseCasePort;
-
-  constructor(announceWorktreeChange: AnnounceWorktreeChangeUseCasePort) {
-    this.announceWorktreeChange = announceWorktreeChange;
-  }
-
-  private announceChange(change: WorktreeChange): void {
-    void this.announceWorktreeChange.execute(change, {});
-  }
-}
+    valid: fixtureWatchWorktreesEventsFromUseCases,
+    invalid: fixtureWatchWorktreesEventsFromUseCases
+      .replace(
+        `  private announceChange(change: WorktreeChange): void {
 `,
-    invalid: `import type { EventPublisher } from '../../ports/event-publisher.ts';
-import type {
-  AnnounceWorktreeChangeUseCasePort,
-  WorktreeChange,
-} from '../../ports/announce-worktree-change-use-case-port.ts';
-
-export class WatchWorktrees {
-  private readonly announceWorktreeChange: AnnounceWorktreeChangeUseCasePort;
-
-  constructor(announceWorktreeChange: AnnounceWorktreeChangeUseCasePort) {
-    this.announceWorktreeChange = announceWorktreeChange;
-  }
-
-  private publish(events: EventPublisher, worktreeId: string): void {
+        `  private publish(events: EventPublisher, worktreeId: string): void {
     events.worktreeChanged({ worktreeId, change: 'git' });
   }
 
   private announceChange(change: WorktreeChange): void {
-    void this.announceWorktreeChange.execute(change, {});
-  }
-}
 `,
+      )
+      .replace(
+        `import type {
+`,
+        `import type { EventPublisher } from '../../ports/event-publisher.ts';
+import type {
+`,
+      ),
     errors: 1,
   },
   {
@@ -1217,102 +1216,64 @@ export function probeFailureError(failure: 'missing'): Error {
       'export class InMemoryCommentSeenStore { private readonly seen = new Map<string, number>(); write(input: {worktreeId: string; seenThrough: number}) {     if ((this.seen.get(input.worktreeId) ?? 0) > input.seenThrough) return;\n    this.seen.set(input.worktreeId, input.seenThrough); } }',
     errors: 1,
   },
-  {
-    rule: 'fakes-store',
-    path: 'packages/reviews/spec/fakes/in-memory-comment-seen-store.ts',
-    valid: commentSeenStore,
-    invalid: `import type { CommentSeenStore } from '../../src/ports/comment-seen-store.ts';
+  ...[
+    {
+      invalid: commentSeenStore
+        .replace(
+          `    this.seen.set(input.worktreeId, input.seenThrough);
+`,
+          `    this.saves.push(input);
+    this.seen.set(input.worktreeId, input.seenThrough);
+`,
+        )
+        .replace(
+          `  private readonly seen = new Map<string, number>();
 
-export class InMemoryCommentSeenStore implements CommentSeenStore {
-  private readonly seen = new Map<string, number>();
+`,
+          `  private readonly seen = new Map<string, number>();
   readonly saves: { worktreeId: string; seenThrough: number }[] = [];
 
-  seenThrough(input: { worktreeId: string }): number {
-    return this.seen.get(input.worktreeId) ?? 0;
-  }
-
-  save(input: { worktreeId: string; seenThrough: number }): void {
-    this.saves.push(input);
-    this.seen.set(input.worktreeId, input.seenThrough);
-  }
-}
 `,
-    errors: 1,
-  },
-  {
-    rule: 'fakes-store',
-    path: 'packages/reviews/spec/fakes/in-memory-comment-seen-store.ts',
-    valid:
-      'export class InMemoryCommentSeenStore { private readonly seen = new Map<string, number>(); write(input: {worktreeId: string; seenThrough: number}) { this.seen.set(input.worktreeId, input.seenThrough); } }',
-    invalid:
-      'export class InMemoryCommentSeenStore { private readonly seen = new Map<string, number>(); write(input: {worktreeId: string; seenThrough: number}) {     const current = this.seen.get(input.worktreeId) ?? 0;\n    this.seen.set(\n      input.worktreeId,\n      current > input.seenThrough ? current : input.seenThrough,\n    ); } }',
-    errors: 1,
-  },
-  {
-    rule: 'fakes-store',
-    path: 'packages/reviews/spec/fakes/in-memory-comment-seen-store.ts',
-    valid: commentSeenStore,
-    invalid: `import type { CommentSeenStore } from '../../src/ports/comment-seen-store.ts';
+        ),
+      errors: 1,
+    },
+    {
+      invalid: commentSeenStore
+        .replace(
+          `    this.seen.set(input.worktreeId, input.seenThrough);
+`,
+          `    this.saves = [...this.saves, input];
+    this.seen.set(input.worktreeId, input.seenThrough);
+`,
+        )
+        .replace(
+          `  private readonly seen = new Map<string, number>();
 
-export class InMemoryCommentSeenStore implements CommentSeenStore {
-  private readonly seen = new Map<string, number>();
+`,
+          `  private readonly seen = new Map<string, number>();
   saves: { worktreeId: string; seenThrough: number }[] = [];
 
-  seenThrough(input: { worktreeId: string }): number {
-    return this.seen.get(input.worktreeId) ?? 0;
-  }
-
-  save(input: { worktreeId: string; seenThrough: number }): void {
-    this.saves = [...this.saves, input];
-    this.seen.set(input.worktreeId, input.seenThrough);
-  }
-}
 `,
-    errors: 2,
-  },
-  {
-    rule: 'fakes-store',
-    path: 'packages/reviews/spec/fakes/in-memory-comment-seen-store.ts',
-    valid: commentSeenStore,
-    invalid: `import type { CommentSeenStore } from '../../src/ports/comment-seen-store.ts';
-
-export class InMemoryCommentSeenStore implements CommentSeenStore {
-  private readonly seen = new Map<string, number>();
-
-  seenThrough(input: { worktreeId: string }): number {
-    return this.seen.get(input.worktreeId) ?? 0;
-  }
-
-  save(input: { worktreeId: string; seenThrough: number }): void {
-    const stored = this.seen.get(input.worktreeId);
+        ),
+      errors: 2,
+    },
+    {
+      invalid: commentSeenStore.replace(
+        `    this.seen.set(input.worktreeId, input.seenThrough);
+`,
+        `    const stored = this.seen.get(input.worktreeId);
     (stored === undefined || stored < input.seenThrough) &&
       this.seen.set(input.worktreeId, input.seenThrough);
-  }
-}
 `,
-    errors: 1,
-  },
-  {
-    rule: 'fakes-store',
-    path: 'packages/reviews/spec/fakes/in-memory-comment-seen-store.ts',
-    valid: commentSeenStore,
-    invalid: `import type { CommentSeenStore } from '../../src/ports/comment-seen-store.ts';
-
-export class InMemoryCommentSeenStore implements CommentSeenStore {
-  private readonly seen = new Map<string, number>();
-  #count = 0;
-  readonly #calls = new Map<string, number>();
-
-  calls(): number {
-    return this.#count + this.#calls.size;
-  }
-
-  seenThrough(input: { worktreeId: string }): number {
-    return this.seen.get(input.worktreeId) ?? 0;
-  }
-
-  save(input: { worktreeId: string; seenThrough: number }): void {
-    this.#count++;
+      ),
+      errors: 1,
+    },
+    {
+      invalid: commentSeenStore
+        .replace(
+          `    this.seen.set(input.worktreeId, input.seenThrough);
+`,
+          `    this.#count++;
     this.#calls.set(\`save:\${this.#count}\`, input.seenThrough);
     const stored = this.seen.get(input.worktreeId);
     stored === undefined && this.seen.set(input.worktreeId, input.seenThrough);
@@ -1320,126 +1281,127 @@ export class InMemoryCommentSeenStore implements CommentSeenStore {
     [stored ?? 0]
       .filter((known) => known < input.seenThrough)
       .forEach(() => this.seen.set(input.worktreeId, input.seenThrough));
-  }
-}
 `,
-    errors: 5,
-  },
-  {
-    rule: 'fakes-store',
-    path: 'packages/reviews/spec/fakes/in-memory-comment-seen-store.ts',
-    valid: commentSeenStore,
-    invalid: `import type { CommentSeenStore } from '../../src/ports/comment-seen-store.ts';
+        )
+        .replace(
+          `  private readonly seen = new Map<string, number>();
 
-export class InMemoryCommentSeenStore implements CommentSeenStore {
-  private readonly seen = new Map<string, number>();
+`,
+          `  private readonly seen = new Map<string, number>();
+  #count = 0;
+  readonly #calls = new Map<string, number>();
 
-  seenThrough(input: { worktreeId: string }): number {
-    return this.seen.get(input.worktreeId) ?? 0;
+  calls(): number {
+    return this.#count + this.#calls.size;
   }
 
-  save(input: { worktreeId: string; seenThrough: number }): void {
-    [this.seen.get(input.worktreeId) ?? 0]
+`,
+        ),
+      errors: 5,
+    },
+    {
+      invalid: commentSeenStore.replace(
+        `    this.seen.set(input.worktreeId, input.seenThrough);
+`,
+        `    [this.seen.get(input.worktreeId) ?? 0]
       .filter((stored) => stored < input.seenThrough)
       .forEach(() => this.seen.set(input.worktreeId, input.seenThrough));
-  }
-}
 `,
-    errors: 1,
-  },
-  {
-    rule: 'fakes-store',
-    path: 'packages/reviews/spec/fakes/in-memory-comment-seen-store.ts',
-    valid: commentSeenStore,
-    invalid: `import type { CommentSeenStore } from '../../src/ports/comment-seen-store.ts';
+      ),
+      errors: 1,
+    },
+    {
+      invalid: commentSeenStore
+        .replace(
+          `    this.seen.set(input.worktreeId, input.seenThrough);
+`,
+          `    this.counter.calls = input.seenThrough;
+    this.seen.set(input.worktreeId, input.seenThrough);
+`,
+        )
+        .replace(
+          `  private readonly seen = new Map<string, number>();
 
-export class InMemoryCommentSeenStore implements CommentSeenStore {
-  private readonly seen = new Map<string, number>();
+`,
+          `  private readonly seen = new Map<string, number>();
   private readonly counter = { calls: 0 };
 
-  seenThrough(input: { worktreeId: string }): number {
-    return this.seen.get(input.worktreeId) ?? 0;
-  }
-
-  save(input: { worktreeId: string; seenThrough: number }): void {
-    this.counter.calls = input.seenThrough;
-    this.seen.set(input.worktreeId, input.seenThrough);
-  }
-}
 `,
-    errors: 1,
-  },
-  {
-    rule: 'fakes-store',
-    path: 'packages/reviews/spec/fakes/in-memory-comment-seen-store.ts',
-    valid: commentSeenStore,
-    invalid: `import type { CommentSeenStore } from '../../src/ports/comment-seen-store.ts';
-
-export class InMemoryCommentSeenStore implements CommentSeenStore {
-  private readonly seen = new Map<string, number>();
-
-  seenThrough(input: { worktreeId: string }): number {
-    return this.seen.get(input.worktreeId) ?? 0;
-  }
-
-  save(input: { worktreeId: string; seenThrough: number }): void {
-    this.seen.get(input.worktreeId) ??
+        ),
+      errors: 1,
+    },
+    {
+      invalid: commentSeenStore.replace(
+        `    this.seen.set(input.worktreeId, input.seenThrough);
+`,
+        `    this.seen.get(input.worktreeId) ??
       this.seen.set(input.worktreeId, input.seenThrough);
-  }
-}
 `,
-    errors: 1,
-  },
-  {
-    rule: 'fakes-store',
-    path: 'packages/reviews/spec/fakes/in-memory-comment-seen-store.ts',
-    valid: commentSeenStore,
-    invalid: `import type { CommentSeenStore } from '../../src/ports/comment-seen-store.ts';
+      ),
+      errors: 1,
+    },
+    {
+      invalid: commentSeenStore
+        .replace(
+          `    this.seen.set(input.worktreeId, input.seenThrough);
+`,
+          `    this.#calls.set(\`save:\${this.seen.size}\`, input.seenThrough);
+    this.seen.set(input.worktreeId, input.seenThrough);
+`,
+        )
+        .replace(
+          `  private readonly seen = new Map<string, number>();
 
-export class InMemoryCommentSeenStore implements CommentSeenStore {
-  private readonly seen = new Map<string, number>();
+`,
+          `  private readonly seen = new Map<string, number>();
   readonly #calls = new Map<string, number>();
 
   calls(): number {
     return this.#calls.size;
   }
 
-  seenThrough(input: { worktreeId: string }): number {
-    return this.seen.get(input.worktreeId) ?? 0;
-  }
-
-  save(input: { worktreeId: string; seenThrough: number }): void {
-    this.#calls.set(\`save:\${this.seen.size}\`, input.seenThrough);
-    this.seen.set(input.worktreeId, input.seenThrough);
-  }
-}
 `,
-    errors: 1,
-  },
-  {
-    rule: 'fakes-store',
-    path: 'packages/reviews/spec/fakes/in-memory-comment-seen-store.ts',
-    valid: commentSeenStore,
-    invalid: `import type { CommentSeenStore } from '../../src/ports/comment-seen-store.ts';
+        ),
+      errors: 1,
+    },
+    {
+      invalid: commentSeenStore
+        .replace(
+          `    this.seen.set(input.worktreeId, input.seenThrough);
+`,
+          `    this.#count++;
+    this.seen.set(input.worktreeId, input.seenThrough);
+`,
+        )
+        .replace(
+          `  private readonly seen = new Map<string, number>();
 
-export class InMemoryCommentSeenStore implements CommentSeenStore {
-  private readonly seen = new Map<string, number>();
+`,
+          `  private readonly seen = new Map<string, number>();
   #count = 0;
 
   calls(): number {
     return this.#count;
   }
 
-  seenThrough(input: { worktreeId: string }): number {
-    return this.seen.get(input.worktreeId) ?? 0;
-  }
-
-  save(input: { worktreeId: string; seenThrough: number }): void {
-    this.#count++;
-    this.seen.set(input.worktreeId, input.seenThrough);
-  }
-}
 `,
+        ),
+      errors: 1,
+    },
+  ].map(({ invalid, errors }) => ({
+    rule: 'fakes-store',
+    path: 'packages/reviews/spec/fakes/in-memory-comment-seen-store.ts',
+    valid: commentSeenStore,
+    invalid,
+    errors,
+  })),
+  {
+    rule: 'fakes-store',
+    path: 'packages/reviews/spec/fakes/in-memory-comment-seen-store.ts',
+    valid:
+      'export class InMemoryCommentSeenStore { private readonly seen = new Map<string, number>(); write(input: {worktreeId: string; seenThrough: number}) { this.seen.set(input.worktreeId, input.seenThrough); } }',
+    invalid:
+      'export class InMemoryCommentSeenStore { private readonly seen = new Map<string, number>(); write(input: {worktreeId: string; seenThrough: number}) {     const current = this.seen.get(input.worktreeId) ?? 0;\n    this.seen.set(\n      input.worktreeId,\n      current > input.seenThrough ? current : input.seenThrough,\n    ); } }',
     errors: 1,
   },
 
@@ -1528,17 +1490,6 @@ export { utf8ByteLength };`,
     errors: 1,
   },
 
-  {
-    rule: 'kernel-is-types',
-    path: 'packages/kernel/src/models/worktree.ts',
-    valid: "export type WorktreeCheck = {kind: 'found'; worktreeId: string};",
-    invalid: `
-export function worktreeFound(check: WorktreeCheck): boolean {
-  return check.kind === 'found';
-}
-`,
-    errors: 1,
-  },
   {
     rule: 'lane-after-check',
     path: 'apps/server/src/use-cases/files/list-directory.ts',
@@ -1951,19 +1902,12 @@ export function threadCapacityLeft(threads: number): number {
     rule: 'no-number-outside-limits',
     path: 'apps/server/src/adapters/files/filesystem-directory-reader.ts',
     valid: filesystemDirectoryReader,
-    invalid: `export class FilesystemDirectoryReader implements DirectoryReader {
-  async list(
-  ): Promise<DirectoryRead> {
-    try {
-      for await (const entry of await opendir(before.path, {
-      })) {
-        if (found.length >= 2000) {
-        }
-      }
-    } catch (error) {
-    }
-  }
-}`,
+    invalid: filesystemDirectoryReader.replace(
+      `        if (found.length === input.limit) {
+`,
+      `        if (found.length >= 2000) {
+`,
+    ),
     errors: 1,
   },
   {
@@ -2662,65 +2606,42 @@ describe('remoteLink', () => {
     rule: 'spec-asserts',
     path: 'apps/web/src/features/access/rules/remotes.spec.ts',
     valid: remoteLinkCases,
-    invalid: `import { describe, expect, it } from 'vitest';
-import { remoteLink } from './remotes.ts';
-
-describe('remoteLink', () => {
-  it('reads the address, code and environment of a pairing link', () => {
-    expect(remoteLink('http://192.0.2.10:4738/pair#c=a&e=env')).toEqual({
-      address: 'http://192.0.2.10:4738',
-      code: 'a',
-      environmentId: 'env',
-    });
+    invalid: remoteLinkCases.replace(
+      `    expect(remoteLink(value)).toBeUndefined();
   });
-
-  it.each(['', 'http://192.0.2.10:4738/pair#c=a'])('reads nothing from %j', (value) => {
-    expect(remoteLink(value)).toBeUndefined();
+`,
+      `    expect(remoteLink(value)).toBeUndefined();
     expect(remoteLink('http://192.0.2.10:4738/pair#c=b&e=env')).toEqual({
       address: 'http://192.0.2.10:4738',
       code: 'b',
       environmentId: 'env',
     });
   });
-});
 `,
+    ),
     errors: 1,
   },
   {
     rule: 'spec-asserts',
     path: 'apps/web/src/features/access/rules/remotes.spec.ts',
-    valid: `import { describe, expect, it } from 'vitest';
-import { remoteLink } from './remotes.ts';
-
-describe('remoteLink', () => {
-  it('reads the address, code and environment of a pairing link', () => {
-    expect(remoteLink('http://192.0.2.10:4738/pair#c=a&e=env')).toEqual({
-      address: 'http://192.0.2.10:4738',
-      code: 'a',
-      environmentId: 'env',
-    });
+    valid: remoteLinkCases.replace(
+      `
+  it.each(['', 'http://192.0.2.10:4738/pair#c=a'])('reads nothing from %j', (value) => {
+    expect(remoteLink(value)).toBeUndefined();
   });
-});
 `,
-    invalid: `import { describe, expect, it } from 'vitest';
-import { remoteLink } from './remotes.ts';
-
-describe('remoteLink', () => {
-  it('reads the address, code and environment of a pairing link', () => {
-    expect(remoteLink('http://192.0.2.10:4738/pair#c=a&e=env')).toEqual({
-      address: 'http://192.0.2.10:4738',
-      code: 'a',
-      environmentId: 'env',
-    });
-  });
-
-  it('reads the same link the same way again', () => {
+      '',
+    ),
+    invalid: remoteLinkCases.replace(
+      `  it.each(['', 'http://192.0.2.10:4738/pair#c=a'])('reads nothing from %j', (value) => {
+    expect(remoteLink(value)).toBeUndefined();
+`,
+      `  it('reads the same link the same way again', () => {
     expect(remoteLink('http://192.0.2.10:4738/pair#c=a&e=env')).toEqual({
       ...remoteLink('http://192.0.2.10:4738/pair#c=a&e=env'),
     });
-  });
-});
 `,
+    ),
     errors: 1,
   },
   {
@@ -3083,69 +3004,49 @@ await page.waitForFunction("document.querySelector('.dark') !== null");`,
   {
     rule: 'use-case-computes',
     path: 'apps/server/src/use-cases/changes/read-change-lines.ts',
-    valid: `import type { ReadChangeLinesService } from '@porcelain/changes/services';
-import type { ReadChangeLinesQuery } from '@porcelain/contracts/changes';
-
-export class ReadChangeLinesUseCase {
-  private readonly readChangeLines: ReadChangeLinesService;
-
-  constructor(readChangeLines: ReadChangeLinesService) {
-    this.readChangeLines = readChangeLines;
-  }
-
-  execute(input: ReadChangeLinesQuery & { text: string }) {
-    const { path, from, to, at, text } = input;
-    return this.readChangeLines.execute({ path, from, to, at, text });
-  }
-}
+    valid: fixtureReadChangeLinesUseCaseComputes,
+    invalid: fixtureReadChangeLinesUseCaseComputes
+      .replace(
+        `    return this.readChangeLines.execute({ path, from, to, at, text });
 `,
-    invalid: `import { InvalidLineRangeError } from '@porcelain/kernel/errors';
+        `    if (from > to) throw new InvalidLineRangeError();
+    return this.readChangeLines.execute({ path, from, to, at, text });
+`,
+      )
+      .replace(
+        `import type { ReadChangeLinesService } from '@porcelain/changes/services';
+`,
+        `import { InvalidLineRangeError } from '@porcelain/kernel/errors';
 import type { ReadChangeLinesService } from '@porcelain/changes/services';
-import type { ReadChangeLinesQuery } from '@porcelain/contracts/changes';
-
-export class ReadChangeLinesUseCase {
-  private readonly readChangeLines: ReadChangeLinesService;
-
-  constructor(readChangeLines: ReadChangeLinesService) {
-    this.readChangeLines = readChangeLines;
-  }
-
-  execute(input: ReadChangeLinesQuery & { text: string }) {
-    const { path, from, to, at, text } = input;
-    if (from > to) throw new InvalidLineRangeError();
-    return this.readChangeLines.execute({ path, from, to, at, text });
-  }
-}
 `,
+      ),
     errors: 2,
   },
-  {
+  ...[
+    {
+      invalid:
+        "import {\n  readHealthResponseSchema,\n  type ReadHealthResponse,\n} from '@porcelain/contracts/access';\n    export async function fixture(input: Input, environmentId: string) { const check = readHealthResponseSchema.parse;\n    return check({ status: 'ok', environmentId }); }",
+      errors: 1,
+    },
+    {
+      invalid:
+        "import {\n  readHealthResponseSchema,\n  type ReadHealthResponse,\n} from '@porcelain/contracts/access';\n    export async function fixture(input: Input, environmentId: string) { const { parse: check } = readHealthResponseSchema;\n    return check({ status: 'ok', environmentId }); }",
+      errors: 1,
+    },
+    {
+      invalid:
+        "import {\n  readHealthResponseSchema,\n  type ReadHealthResponse,\n} from '@porcelain/contracts/access';\n    export async function fixture(input: Input, environmentId: string) { const decoded = readHealthResponseSchema.safeDecode({ status: 'ok', environmentId });\n    return decoded.success ? decoded.data : { status: 'ok', environmentId }; }",
+      errors: 1,
+    },
+  ].map(({ invalid, errors }) => ({
     rule: 'use-case-imports',
     path: 'apps/server/src/use-cases/access/read-health.ts',
     valid:
       "import { Effect } from 'effect';\nimport type { MissingEnvironmentIdentityError } from '@porcelain/access/errors';\nimport type { ReadEnvironmentService } from '@porcelain/access/services';\nimport type { ReadHealthResponse } from '@porcelain/contracts/access';\nimport type { LaneKeys } from '../../runtime/lane-keys.ts';\nimport type { Lanes } from '../../runtime/lanes.ts';\n\nexport class ReadHealthUseCase {\n  private readonly readEnvironment: ReadEnvironmentService;\n  private readonly lanes: Lanes;\n  private readonly laneKeys: LaneKeys;\n\n  constructor(\n    readEnvironment: ReadEnvironmentService,\n    lanes: Lanes,\n    laneKeys: LaneKeys,\n  ) {\n    this.readEnvironment = readEnvironment;\n    this.lanes = lanes;\n    this.laneKeys = laneKeys;\n  }\n\n  execute(): Effect.Effect<\n    ReadHealthResponse,\n    MissingEnvironmentIdentityError\n  > {\n    return Effect.gen({ self: this }, function* () {\n      return yield* this.lanes.run(this.laneKeys.access(), 'read', () =>\n        Effect.gen({ self: this }, function* () {\n          const { environmentId } = yield* this.readEnvironment.execute();\n          return { status: 'ok' as const, environmentId };\n        }),\n      );\n    });\n  }\n}\n",
-    invalid:
-      "import {\n  readHealthResponseSchema,\n  type ReadHealthResponse,\n} from '@porcelain/contracts/access';\n    export async function fixture(input: Input, environmentId: string) { const check = readHealthResponseSchema.parse;\n    return check({ status: 'ok', environmentId }); }",
-    errors: 1,
-  },
-  {
-    rule: 'use-case-imports',
-    path: 'apps/server/src/use-cases/access/read-health.ts',
-    valid:
-      "import { Effect } from 'effect';\nimport type { MissingEnvironmentIdentityError } from '@porcelain/access/errors';\nimport type { ReadEnvironmentService } from '@porcelain/access/services';\nimport type { ReadHealthResponse } from '@porcelain/contracts/access';\nimport type { LaneKeys } from '../../runtime/lane-keys.ts';\nimport type { Lanes } from '../../runtime/lanes.ts';\n\nexport class ReadHealthUseCase {\n  private readonly readEnvironment: ReadEnvironmentService;\n  private readonly lanes: Lanes;\n  private readonly laneKeys: LaneKeys;\n\n  constructor(\n    readEnvironment: ReadEnvironmentService,\n    lanes: Lanes,\n    laneKeys: LaneKeys,\n  ) {\n    this.readEnvironment = readEnvironment;\n    this.lanes = lanes;\n    this.laneKeys = laneKeys;\n  }\n\n  execute(): Effect.Effect<\n    ReadHealthResponse,\n    MissingEnvironmentIdentityError\n  > {\n    return Effect.gen({ self: this }, function* () {\n      return yield* this.lanes.run(this.laneKeys.access(), 'read', () =>\n        Effect.gen({ self: this }, function* () {\n          const { environmentId } = yield* this.readEnvironment.execute();\n          return { status: 'ok' as const, environmentId };\n        }),\n      );\n    });\n  }\n}\n",
-    invalid:
-      "import {\n  readHealthResponseSchema,\n  type ReadHealthResponse,\n} from '@porcelain/contracts/access';\n    export async function fixture(input: Input, environmentId: string) { const { parse: check } = readHealthResponseSchema;\n    return check({ status: 'ok', environmentId }); }",
-    errors: 1,
-  },
-  {
-    rule: 'use-case-imports',
-    path: 'apps/server/src/use-cases/access/read-health.ts',
-    valid:
-      "import { Effect } from 'effect';\nimport type { MissingEnvironmentIdentityError } from '@porcelain/access/errors';\nimport type { ReadEnvironmentService } from '@porcelain/access/services';\nimport type { ReadHealthResponse } from '@porcelain/contracts/access';\nimport type { LaneKeys } from '../../runtime/lane-keys.ts';\nimport type { Lanes } from '../../runtime/lanes.ts';\n\nexport class ReadHealthUseCase {\n  private readonly readEnvironment: ReadEnvironmentService;\n  private readonly lanes: Lanes;\n  private readonly laneKeys: LaneKeys;\n\n  constructor(\n    readEnvironment: ReadEnvironmentService,\n    lanes: Lanes,\n    laneKeys: LaneKeys,\n  ) {\n    this.readEnvironment = readEnvironment;\n    this.lanes = lanes;\n    this.laneKeys = laneKeys;\n  }\n\n  execute(): Effect.Effect<\n    ReadHealthResponse,\n    MissingEnvironmentIdentityError\n  > {\n    return Effect.gen({ self: this }, function* () {\n      return yield* this.lanes.run(this.laneKeys.access(), 'read', () =>\n        Effect.gen({ self: this }, function* () {\n          const { environmentId } = yield* this.readEnvironment.execute();\n          return { status: 'ok' as const, environmentId };\n        }),\n      );\n    });\n  }\n}\n",
-    invalid:
-      "import {\n  readHealthResponseSchema,\n  type ReadHealthResponse,\n} from '@porcelain/contracts/access';\n    export async function fixture(input: Input, environmentId: string) { const decoded = readHealthResponseSchema.safeDecode({ status: 'ok', environmentId });\n    return decoded.success ? decoded.data : { status: 'ok', environmentId }; }",
-    errors: 1,
-  },
+    invalid,
+    errors,
+  })),
+
   {
     rule: 'use-case-input-is-contract',
     path: 'apps/server/src/use-cases/reviews/rule-fixture.ts',
@@ -3792,46 +3693,43 @@ export const probeSearch = useSearch;
 `,
     errors: 1,
   },
-  {
-    rule: 'web-views-no-promise-chains',
-    path: 'apps/web/src/features/access/views/probe-view.tsx',
-    valid: 'export function probeSave(save: () => void) { save(); }',
-    invalid: `export function probeSave(save: () => Promise<void>) {
+  ...[
+    {
+      invalid: `export function probeSave(save: () => Promise<void>) {
   void save().catch(() => undefined);
 }
 `,
-    errors: 1,
-  },
-  {
-    rule: 'web-views-no-promise-chains',
-    path: 'apps/web/src/features/access/views/probe-view.tsx',
-    valid: 'export function probeSave(save: () => void) { save(); }',
-    invalid: `export function probeSave(save: () => Promise<void>) {
+      errors: 1,
+    },
+    {
+      invalid: `export function probeSave(save: () => Promise<void>) {
   void save()['then'](() => undefined);
 }
 `,
-    errors: 1,
-  },
-  {
-    rule: 'web-views-no-promise-chains',
-    path: 'apps/web/src/features/access/views/probe-view.tsx',
-    valid: 'export function probeSave(save: () => void) { save(); }',
-    invalid: `export function probeSave(save: () => Promise<void>) {
+      errors: 1,
+    },
+    {
+      invalid: `export function probeSave(save: () => Promise<void>) {
   void save().finally(() => undefined);
 }
 `,
-    errors: 1,
-  },
-  {
-    rule: 'web-views-no-promise-chains',
-    path: 'apps/web/src/features/access/views/probe-view.tsx',
-    valid: 'export function probeSave(save: () => void) { save(); }',
-    invalid: `export function probeSave(save: () => Promise<void>) {
+      errors: 1,
+    },
+    {
+      invalid: `export function probeSave(save: () => Promise<void>) {
   void save().then(() => undefined);
 }
 `,
-    errors: 1,
-  },
+      errors: 1,
+    },
+  ].map(({ invalid, errors }) => ({
+    rule: 'web-views-no-promise-chains',
+    path: 'apps/web/src/features/access/views/probe-view.tsx',
+    valid: 'export function probeSave(save: () => void) { save(); }',
+    invalid,
+    errors,
+  })),
+
   {
     rule: 'web-views-no-transport',
     path: 'apps/web/src/features/access/views/probe-view.tsx',

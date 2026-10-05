@@ -4,7 +4,7 @@ export default {
   decision: 'STYLE',
   plants: 'runtime declares a contract instead of consuming a server port',
   gate: 'lint',
-  rule: 'porcelain(no-interface-in-runtime)',
+  rule: 'porcelain(interfaces-only-in-ports)',
   edits: [
     {
       kind: 'create',

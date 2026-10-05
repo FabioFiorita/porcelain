@@ -1,3 +1,4 @@
+import type { Context } from 'effect';
 import { Effect } from 'effect';
 import type {
   DeviceViewerRequiredError,
@@ -12,12 +13,14 @@ import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
 
 export class IssueLiveTicketUseCase {
-  private readonly issueLiveTicket: IssueLiveTicketService;
+  private readonly issueLiveTicket: Context.Service.Shape<
+    typeof IssueLiveTicketService
+  >;
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
 
   constructor(
-    issueLiveTicket: IssueLiveTicketService,
+    issueLiveTicket: Context.Service.Shape<typeof IssueLiveTicketService>,
     lanes: Lanes,
     laneKeys: LaneKeys,
   ) {

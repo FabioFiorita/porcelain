@@ -1,3 +1,4 @@
+import type { Context } from 'effect';
 import { Effect } from 'effect';
 import type {
   UntrustedDeviceError,
@@ -20,17 +21,25 @@ import type { ServiceUpdateRunner } from '../../ports/service-update-runner.ts';
 
 export class StartServiceUpdateUseCase {
   private readonly updates: ServiceUpdateRunner;
-  private readonly authorizeServiceUpdate: AuthorizeServiceUpdateService;
-  private readonly checkServiceUpdate: CheckServiceUpdateService;
-  private readonly planCheck: PlanServiceUpdateCheckService;
+  private readonly authorizeServiceUpdate: Context.Service.Shape<
+    typeof AuthorizeServiceUpdateService
+  >;
+  private readonly checkServiceUpdate: Context.Service.Shape<
+    typeof CheckServiceUpdateService
+  >;
+  private readonly planCheck: Context.Service.Shape<
+    typeof PlanServiceUpdateCheckService
+  >;
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
 
   constructor(
     updates: ServiceUpdateRunner,
-    authorizeServiceUpdate: AuthorizeServiceUpdateService,
-    checkServiceUpdate: CheckServiceUpdateService,
-    planCheck: PlanServiceUpdateCheckService,
+    authorizeServiceUpdate: Context.Service.Shape<
+      typeof AuthorizeServiceUpdateService
+    >,
+    checkServiceUpdate: Context.Service.Shape<typeof CheckServiceUpdateService>,
+    planCheck: Context.Service.Shape<typeof PlanServiceUpdateCheckService>,
     lanes: Lanes,
     laneKeys: LaneKeys,
   ) {

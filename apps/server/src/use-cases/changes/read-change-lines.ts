@@ -1,4 +1,5 @@
 import type { MissingEnvironmentIdentityError } from '@porcelain/access/errors';
+import type { Context } from 'effect';
 import { Effect } from 'effect';
 import type { WorktreeAccess } from '../../runtime/worktree-access.ts';
 import type { WorktreeAccessFailure } from '../../ports/worktree-access-failure.ts';
@@ -19,13 +20,15 @@ export class ReadChangeLinesUseCase {
   private readonly access: WorktreeAccess;
   private readonly readTextFile: ReadTextFileService;
   private readonly readChangeLines: ReadChangeLinesService;
-  private readonly readEnvironment: ReadEnvironmentService;
+  private readonly readEnvironment: Context.Service.Shape<
+    typeof ReadEnvironmentService
+  >;
 
   constructor(
     access: WorktreeAccess,
     readTextFile: ReadTextFileService,
     readChangeLines: ReadChangeLinesService,
-    readEnvironment: ReadEnvironmentService,
+    readEnvironment: Context.Service.Shape<typeof ReadEnvironmentService>,
   ) {
     this.access = access;
     this.readTextFile = readTextFile;

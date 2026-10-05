@@ -1,3 +1,4 @@
+import { DeviceStore } from '@porcelain/access/ports';
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { DeviceNotFoundError } from '@porcelain/access/errors';
@@ -21,7 +22,15 @@ function device(id: string, extra: Partial<StoredDevice> = {}): StoredDevice {
 function setup(...paired: StoredDevice[]) {
   const devices = new InMemoryDeviceStore();
   paired.forEach((entry) => devices.add(entry));
-  return { devices, service: new SetDeviceTrustService(devices) };
+  return {
+    devices,
+    service: Effect.runSync(
+      SetDeviceTrustService.pipe(
+        Effect.provide(SetDeviceTrustService.layer),
+        Effect.provideService(DeviceStore, devices),
+      ),
+    ),
+  };
 }
 
 describe('SetDeviceTrustService', () => {

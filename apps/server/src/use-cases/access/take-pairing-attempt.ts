@@ -1,3 +1,4 @@
+import type { Context } from 'effect';
 import { Effect } from 'effect';
 import type { TooManyPairingAttemptsError } from '@porcelain/access/errors';
 import type { TakePairingAttemptInput } from '@porcelain/access/models';
@@ -6,12 +7,14 @@ import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
 
 export class TakePairingAttemptUseCase {
-  private readonly takePairingAttempt: TakePairingAttemptService;
+  private readonly takePairingAttempt: Context.Service.Shape<
+    typeof TakePairingAttemptService
+  >;
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
 
   constructor(
-    takePairingAttempt: TakePairingAttemptService,
+    takePairingAttempt: Context.Service.Shape<typeof TakePairingAttemptService>,
     lanes: Lanes,
     laneKeys: LaneKeys,
   ) {

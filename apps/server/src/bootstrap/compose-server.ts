@@ -136,7 +136,7 @@ function serverResources(
         const logger = new StderrLogger(clock);
         const liveConnections = new LiveConnections();
         const events = new WebSocketEventPublisher(liveConnections);
-        const shared = composeShared({
+        const shared = yield* composeShared({
           settings,
           stores,
           catalog,
@@ -159,7 +159,7 @@ function serverResources(
         const routeListenerRunner = adapters.routeListenerRunner(
           () => network.server,
         );
-        const access = composeAccess(context, {
+        const access = yield* composeAccess(context, {
           desktopSession: host.desktopSession,
           stores,
           shared,

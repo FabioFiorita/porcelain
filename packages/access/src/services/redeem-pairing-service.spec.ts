@@ -1,3 +1,8 @@
+import { Clock, IdSource, SecretSource } from '@porcelain/kernel/ports';
+import {
+  PairingGrantStore,
+  RedeemPairingOptions,
+} from '@porcelain/access/ports';
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import {
@@ -41,12 +46,18 @@ function setup(grant: Partial<StoredPairingGrant> = {}) {
     ],
   });
   const clock = new FixedClock('2026-09-23T10:05:00.000Z');
-  const service = new RedeemPairingService(
-    grants,
-    clock,
-    new SequentialIdSource(),
-    new SequentialSecretSource(),
-    { labelLength: 80, platformLength: 120 },
+  const service = Effect.runSync(
+    RedeemPairingService.pipe(
+      Effect.provide(RedeemPairingService.layer),
+      Effect.provideService(PairingGrantStore, grants),
+      Effect.provideService(Clock, clock),
+      Effect.provideService(IdSource, new SequentialIdSource()),
+      Effect.provideService(SecretSource, new SequentialSecretSource()),
+      Effect.provideService(RedeemPairingOptions, {
+        labelLength: 80,
+        platformLength: 120,
+      }),
+    ),
   );
   return {
     devices,

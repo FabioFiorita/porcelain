@@ -67,7 +67,6 @@
     "porcelain/rules-are-pure": "error",
     "porcelain/static-imports": "error",
     "porcelain/no-blocking-child-process": "error",
-    "porcelain/kernel-is-types": "error",
     "porcelain/one-clock": "error",
     "porcelain/no-undefined-union-result": "error",
     "porcelain/imports-by-path": "error",
@@ -146,7 +145,6 @@
     "porcelain/naming": "error",
     "porcelain/no-inline-execute-types": "error",
     "porcelain/interfaces-only-in-ports": "error",
-    "porcelain/no-interface-in-runtime": "error",
     "porcelain/no-port-shaped-alias": "error",
     "porcelain/models-file-shape": "error",
     "porcelain/implementation-name": "error"

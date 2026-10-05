@@ -9,6 +9,7 @@ import type {
   UnsupportedProofFileError,
   ProofFileUnreadableError,
 } from '@porcelain/reviews/errors';
+import type { Context } from 'effect';
 import { Effect } from 'effect';
 import type { WorktreeAccess } from '../../runtime/worktree-access.ts';
 import type { WorktreeAccessFailure } from '../../ports/worktree-access-failure.ts';
@@ -36,7 +37,9 @@ export class PublishReviewUseCase {
   private readonly readReviewEvidence: ReadReviewEvidenceUseCasePort;
   private readonly readBinaryFiles: ReadBinaryFilesService;
   private readonly publishReview: PublishReviewService;
-  private readonly readEnvironment: ReadEnvironmentService;
+  private readonly readEnvironment: Context.Service.Shape<
+    typeof ReadEnvironmentService
+  >;
   private readonly resolvePublishedReview: ResolvePublishedReviewService;
   private readonly events: EventPublisher;
 
@@ -47,7 +50,7 @@ export class PublishReviewUseCase {
     readReviewEvidence: ReadReviewEvidenceUseCasePort,
     readBinaryFiles: ReadBinaryFilesService,
     publishReview: PublishReviewService,
-    readEnvironment: ReadEnvironmentService,
+    readEnvironment: Context.Service.Shape<typeof ReadEnvironmentService>,
     resolvePublishedReview: ResolvePublishedReviewService,
     events: EventPublisher,
   ) {

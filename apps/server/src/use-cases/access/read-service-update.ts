@@ -1,3 +1,4 @@
+import type { Context } from 'effect';
 import { Effect } from 'effect';
 import type {
   AuthorizeServiceUpdateService,
@@ -13,15 +14,21 @@ import type { ServiceUpdateRunner } from '../../ports/service-update-runner.ts';
 
 export class ReadServiceUpdateUseCase {
   private readonly updates: ServiceUpdateRunner;
-  private readonly authorizeServiceUpdate: AuthorizeServiceUpdateService;
-  private readonly planCheck: PlanServiceUpdateCheckService;
+  private readonly authorizeServiceUpdate: Context.Service.Shape<
+    typeof AuthorizeServiceUpdateService
+  >;
+  private readonly planCheck: Context.Service.Shape<
+    typeof PlanServiceUpdateCheckService
+  >;
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
 
   constructor(
     updates: ServiceUpdateRunner,
-    authorizeServiceUpdate: AuthorizeServiceUpdateService,
-    planCheck: PlanServiceUpdateCheckService,
+    authorizeServiceUpdate: Context.Service.Shape<
+      typeof AuthorizeServiceUpdateService
+    >,
+    planCheck: Context.Service.Shape<typeof PlanServiceUpdateCheckService>,
     lanes: Lanes,
     laneKeys: LaneKeys,
   ) {

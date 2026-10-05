@@ -1,72 +1,89 @@
-import { Effect } from 'effect';
-import type { Clock } from '@porcelain/kernel/ports';
+import { Effect, Context, Layer } from 'effect';
+import { Clock } from '@porcelain/kernel/ports';
 import type {
   ListAccessInput,
   ListAccessResult,
 } from '../models/list-access.ts';
-import type { DeviceStore } from '../ports/device-store.ts';
-import type { PairingGrantStore } from '../ports/pairing-grant-store.ts';
+import { DeviceStore } from '../ports/device-store.ts';
+import { PairingGrantStore } from '../ports/pairing-grant-store.ts';
 import { deviceRevoked } from '../rules/device-activity.ts';
 import { pairingGrantPending } from '../rules/pairing-grant.ts';
 
-export class ListAccessService {
-  private readonly pairingGrants: PairingGrantStore;
-  private readonly devices: DeviceStore;
-  private readonly clock: Clock;
-
-  constructor(
-    pairingGrants: PairingGrantStore,
-    devices: DeviceStore,
-    clock: Clock,
-  ) {
-    this.pairingGrants = pairingGrants;
-    this.devices = devices;
-    this.clock = clock;
+export class ListAccessService extends Context.Service<
+  ListAccessService,
+  {
+    readonly execute: (
+      input?: ListAccessInput,
+    ) => Effect.Effect<ListAccessResult, never>;
   }
+>()('@porcelain/access/ListAccessService') {
+  static readonly layer = Layer.effect(
+    ListAccessService,
+    Effect.gen(function* () {
+      const pairingGrants = yield* PairingGrantStore;
+      const devices = yield* DeviceStore;
+      const clock = yield* Clock;
 
-  execute(input?: ListAccessInput): Effect.Effect<ListAccessResult, never> {
-    return Effect.sync(() => {
-      const now = this.clock.now();
       return {
-        grants: this.pairingGrants
-          .list()
-          .filter((grant) => pairingGrantPending(grant, now))
-          .map(({ id, label, addresses, createdAt, expiresAt, trusted }) => ({
-            id,
-            label,
-            addresses,
-            createdAt,
-            expiresAt,
-            trusted: trusted === true,
-          })),
-        devices: this.devices
-          .list()
-          .filter((device) => !deviceRevoked(device))
-          .map(
-            ({
-              id,
-              label,
-              platform,
-              createdAt,
-              lastSeenAt,
-              lastSeenAddress,
-              route,
-              routeInferred,
-              trusted,
-            }) => ({
-              id,
-              label,
-              platform,
-              createdAt,
-              lastSeenAt,
-              ...(lastSeenAddress === undefined ? {} : { lastSeenAddress }),
-              route,
-              ...(routeInferred === true ? { routeInferred } : {}),
-              trusted: trusted === true,
-              ...(id === input?.viewerDeviceId ? { current: true } : {}),
-            }),
-          ),
+        execute: Effect.fn('ListAccessService.execute')(function* (
+          input?: ListAccessInput,
+        ): Effect.fn.Return<ListAccessResult, never> {
+          return yield* Effect.sync<ListAccessResult>(() => {
+            const now = clock.now();
+            return {
+              grants: pairingGrants
+                .list()
+                .filter((grant) => pairingGrantPending(grant, now))
+                .map(
+                  ({
+                    id,
+                    label,
+                    addresses,
+                    createdAt,
+                    expiresAt,
+                    trusted,
+                  }) => ({
+                    id,
+                    label,
+                    addresses,
+                    createdAt,
+                    expiresAt,
+                    trusted: trusted === true,
+                  }),
+                ),
+              devices: devices
+                .list()
+                .filter((device) => !deviceRevoked(device))
+                .map(
+                  ({
+                    id,
+                    label,
+                    platform,
+                    createdAt,
+                    lastSeenAt,
+                    lastSeenAddress,
+                    route,
+                    routeInferred,
+                    trusted,
+                  }) => ({
+                    id,
+                    label,
+                    platform,
+                    createdAt,
+                    lastSeenAt,
+                    ...(lastSeenAddress === undefined
+                      ? {}
+                      : { lastSeenAddress }),
+                    route,
+                    ...(routeInferred === true ? { routeInferred } : {}),
+                    trusted: trusted === true,
+                    ...(id === input?.viewerDeviceId ? { current: true } : {}),
+                  }),
+                ),
+            };
+          });
+        }),
       };
-    });
-  }
+    }),
+  );
 }

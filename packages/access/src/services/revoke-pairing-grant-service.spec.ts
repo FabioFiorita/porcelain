@@ -1,3 +1,5 @@
+import { Clock } from '@porcelain/kernel/ports';
+import { PairingGrantStore } from '@porcelain/access/ports';
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { FixedClock } from '@porcelain/kernel/fakes';
@@ -24,7 +26,13 @@ function setup(grant: Partial<StoredPairingGrant> = {}) {
   return {
     grants,
     clock,
-    service: new RevokePairingGrantService(grants, clock),
+    service: Effect.runSync(
+      RevokePairingGrantService.pipe(
+        Effect.provide(RevokePairingGrantService.layer),
+        Effect.provideService(PairingGrantStore, grants),
+        Effect.provideService(Clock, clock),
+      ),
+    ),
   };
 }
 

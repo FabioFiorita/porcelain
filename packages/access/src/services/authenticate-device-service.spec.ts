@@ -1,3 +1,9 @@
+import { Clock } from '@porcelain/kernel/ports';
+import {
+  DeviceStore,
+  DeviceSightingStore,
+  AuthenticateDeviceOptions,
+} from '@porcelain/access/ports';
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { FixedClock } from '@porcelain/kernel/fakes';
@@ -29,9 +35,17 @@ function setup(device: Partial<StoredDevice> = {}) {
   });
   const sightings = new InMemoryDeviceSightingStore();
   const clock = new FixedClock('2026-09-23T10:00:05.000Z');
-  const service = new AuthenticateDeviceService(devices, sightings, clock, {
-    unusedLifetimeMs,
-  });
+  const service = Effect.runSync(
+    AuthenticateDeviceService.pipe(
+      Effect.provide(AuthenticateDeviceService.layer),
+      Effect.provideService(DeviceStore, devices),
+      Effect.provideService(DeviceSightingStore, sightings),
+      Effect.provideService(Clock, clock),
+      Effect.provideService(AuthenticateDeviceOptions, {
+        unusedLifetimeMs,
+      }),
+    ),
+  );
   return {
     devices,
     sightings,

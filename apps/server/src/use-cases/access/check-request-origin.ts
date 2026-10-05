@@ -1,3 +1,4 @@
+import type { Context } from 'effect';
 import { Effect } from 'effect';
 import type { CheckRequestOriginInput } from '@porcelain/access/models';
 import type { CheckRequestOriginService } from '@porcelain/access/services';
@@ -5,10 +6,15 @@ import type { Lanes } from '../../runtime/lanes.ts';
 import type { RequestOriginVerdict } from '../../ports/check-request-origin-use-case-port.ts';
 
 export class CheckRequestOriginUseCase {
-  private readonly checkRequestOrigin: CheckRequestOriginService;
+  private readonly checkRequestOrigin: Context.Service.Shape<
+    typeof CheckRequestOriginService
+  >;
   private readonly lanes: Lanes;
 
-  constructor(checkRequestOrigin: CheckRequestOriginService, lanes: Lanes) {
+  constructor(
+    checkRequestOrigin: Context.Service.Shape<typeof CheckRequestOriginService>,
+    lanes: Lanes,
+  ) {
     this.checkRequestOrigin = checkRequestOrigin;
     this.lanes = lanes;
   }

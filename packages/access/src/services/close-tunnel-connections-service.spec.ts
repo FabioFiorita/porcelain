@@ -1,3 +1,8 @@
+import {
+  RemoteAccessStore,
+  RouteStateStore,
+  TunnelConnectionStore,
+} from '@porcelain/access/ports';
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import type {
@@ -30,7 +35,14 @@ function answeredAfter(
   });
   const connections = new RecordingTunnelConnectionStore();
   Effect.runSync(
-    new CloseTunnelConnectionsService(settings, routes, connections).execute(),
+    Effect.runSync(
+      CloseTunnelConnectionsService.pipe(
+        Effect.provide(CloseTunnelConnectionsService.layer),
+        Effect.provideService(RemoteAccessStore, settings),
+        Effect.provideService(RouteStateStore, routes),
+        Effect.provideService(TunnelConnectionStore, connections),
+      ),
+    ).execute(),
   );
   return connections.retained();
 }

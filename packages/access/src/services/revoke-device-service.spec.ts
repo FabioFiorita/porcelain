@@ -1,3 +1,5 @@
+import { Clock } from '@porcelain/kernel/ports';
+import { DeviceStore, DeviceSightingStore } from '@porcelain/access/ports';
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { FixedClock } from '@porcelain/kernel/fakes';
@@ -22,7 +24,14 @@ function setup() {
     devices,
     sightings,
     clock,
-    service: new RevokeDeviceService(devices, sightings, clock),
+    service: Effect.runSync(
+      RevokeDeviceService.pipe(
+        Effect.provide(RevokeDeviceService.layer),
+        Effect.provideService(DeviceStore, devices),
+        Effect.provideService(DeviceSightingStore, sightings),
+        Effect.provideService(Clock, clock),
+      ),
+    ),
   };
 }
 

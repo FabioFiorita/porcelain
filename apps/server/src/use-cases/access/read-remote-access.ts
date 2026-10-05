@@ -1,3 +1,4 @@
+import type { Context } from 'effect';
 import { Effect } from 'effect';
 import type { ReadRemoteAccessService } from '@porcelain/access/services';
 import type { ReadRemoteAccessResponse } from '@porcelain/contracts/access';
@@ -5,12 +6,14 @@ import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
 
 export class ReadRemoteAccessUseCase {
-  private readonly readRemoteAccess: ReadRemoteAccessService;
+  private readonly readRemoteAccess: Context.Service.Shape<
+    typeof ReadRemoteAccessService
+  >;
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
 
   constructor(
-    readRemoteAccess: ReadRemoteAccessService,
+    readRemoteAccess: Context.Service.Shape<typeof ReadRemoteAccessService>,
     lanes: Lanes,
     laneKeys: LaneKeys,
   ) {

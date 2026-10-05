@@ -25,7 +25,7 @@ const useCaseValueModule = new RegExp(
   `^@porcelain/(?:${domainPackage}|kernel)/(?:rules|errors)$`,
 );
 const modelsSource =
-  /\/(?:packages\/(?:(?:access|changes|files|git-actions|projects|reviews)\/src\/models\/.+|kernel\/src\/(?:models|ports)\/.+)|apps\/server\/src\/ports\/.+)\.ts$/;
+  /\/(?:packages\/(?:access|changes|files|git-actions|projects|reviews|kernel)\/src\/(?:models|ports)|apps\/server\/src\/ports)\/.+\.ts$/;
 const composeSource =
   /\/apps\/server\/src\/bootstrap\/(?:.+\/)?(?:compose-[^/]+|main)\.ts$/;
 const typedPackageSource =
@@ -155,7 +155,7 @@ const storageEntry = /^@porcelain\/storage(?:\/[a-z-]+)?$/;
 const gitCapabilityEntry =
   /^@porcelain\/git\/(?:discovery|inspection|history|actions)$/;
 const specPackageEntry = new RegExp(
-  `^@porcelain/(?:${domainPackage}/(?:services|rules|models|errors|store-contracts)|kernel/(?:models|rules|errors|fakes))$`,
+  `^@porcelain/(?:${domainPackage}/(?:services|rules|models|ports|errors|store-contracts)|kernel/(?:models|ports|rules|errors|fakes))$`,
 );
 const interactionMatchers = new Set([
   'toHaveBeenCalled',
@@ -277,7 +277,6 @@ const openTypes = new Set([
   'TSUnknownKeyword',
   'TSAnyKeyword',
 ]);
-const kernelTypesFile = /^packages\/kernel\/src\/(?:models|ports)\//;
 const numberFreeFile = new RegExp(
   `^(?:packages/[^/]+/src/|apps/(?:server|web|mobile)/src/)`,
 );
@@ -934,7 +933,7 @@ function caseCall(node, context) {
   );
 }
 
-function effectMember(node, context, names) {
+function nativeMember(node, context, namespace, names) {
   if (
     node?.type !== 'CallExpression' ||
     node.callee.type !== 'MemberExpression' ||
@@ -949,8 +948,106 @@ function effectMember(node, context, names) {
   return (
     definition?.type === 'ImportBinding' &&
     definition.parent.source.value === 'effect' &&
-    definition.node.imported?.name === 'Effect'
+    definition.node.imported?.name === namespace
   );
+}
+
+function effectMember(node, context, names) {
+  return nativeMember(node, context, 'Effect', names);
+}
+
+function capabilityOwner(context) {
+  return /^(?:packages|apps)\/([^/]+)\/src\//.exec(
+    repositoryPath(context),
+  )?.[1];
+}
+
+function nativePortKey(node, context) {
+  if (!/\/ports\//.test(normalizedFilename(context.filename))) return false;
+  if (node.kind !== 'const' || node.declarations.length !== 1) return false;
+  const { id, init } = node.declarations[0];
+  if (
+    id.type !== 'Identifier' ||
+    !nativeMember(init, context, 'Context', new Set(['Service']))
+  )
+    return false;
+  const [identifier] = init.typeArguments?.params ?? [];
+  const key = `@porcelain/${capabilityOwner(context)}/${id.name}`;
+  return (
+    identifier?.type === 'TSLiteralType' &&
+    identifier.literal.value === key &&
+    init.arguments.length === 1 &&
+    init.arguments[0].value === key
+  );
+}
+
+function nativeOperation(node, context) {
+  const base = node.superClass;
+  return base?.type === 'CallExpression' &&
+    base.callee.type === 'CallExpression' &&
+    nativeMember(base.callee, context, 'Context', new Set(['Service']))
+    ? base
+    : undefined;
+}
+
+function nativeOperationProblem(node, context, role, name) {
+  const base = nativeOperation(node, context);
+  const [self, shape] = base.callee.typeArguments?.params ?? [];
+  const key = `@porcelain/${capabilityOwner(context)}/${name}`;
+  if (
+    self?.typeName?.name !== name ||
+    base.callee.arguments.length !== 0 ||
+    base.arguments.length !== 1 ||
+    base.arguments[0].type !== 'Literal' ||
+    base.arguments[0].value !== key
+  )
+    return `Use Context.Service<${name}, Shape>()('${key}') for this capability`;
+  const execute =
+    shape?.type === 'TSTypeLiteral' && shape.members.length === 1
+      ? shape.members[0]
+      : undefined;
+  const signature = execute?.typeAnnotation?.typeAnnotation;
+  if (
+    execute?.type !== 'TSPropertySignature' ||
+    execute.key.name !== 'execute' ||
+    !execute.readonly ||
+    execute.optional ||
+    signature?.type !== 'TSFunctionType'
+  )
+    return 'Declare one readonly execute function in the capability shape';
+  const problem = executeSignatureProblem(role, { value: signature });
+  if (problem) return problem;
+  if (
+    signature.params.some((input) =>
+      openParameterType(input.typeAnnotation?.typeAnnotation),
+    )
+  )
+    return 'Name the execute input in models/ or omit it when the operation has no input';
+  const [layer] = node.body.body;
+  if (
+    node.body.body.length !== 1 ||
+    layer?.type !== 'PropertyDefinition' ||
+    layer.key.name !== 'layer' ||
+    !layer.static ||
+    !layer.readonly ||
+    isPrivateMember(layer)
+  )
+    return 'Declare only static readonly layer; resolve collaborators with yield* in its factory';
+  const factory = layer.value?.arguments?.[1];
+  const returned = factory?.arguments?.[0]?.body?.body?.at(-1)?.argument;
+  const executeValue = returned?.properties?.[0]?.value;
+  if (
+    !nativeMember(layer.value, context, 'Layer', new Set(['effect'])) ||
+    layer.value.arguments[0]?.name !== name ||
+    !effectMember(factory, context, new Set(['gen', 'sync'])) ||
+    returned?.type !== 'ObjectExpression' ||
+    returned.properties.length !== 1 ||
+    returned.properties[0].key?.name !== 'execute' ||
+    !effectMember(executeValue?.callee, context, new Set(['fn'])) ||
+    executeValue.callee.arguments[0]?.value !== `${name}.execute`
+  )
+    return `Build Layer.effect(${name}, Effect.gen or Effect.sync) and return only a typed Effect.fn('${name}.execute')`;
+  return undefined;
 }
 
 function executedEffectBody(call, context) {
@@ -2169,11 +2266,21 @@ export default {
           ClassDeclaration(node) {
             const holds = node.body.body.some((member) => {
               const annotation = member.typeAnnotation?.typeAnnotation;
+              const shape = annotation?.typeName;
+              const capability = annotation?.typeArguments?.params[0];
               return (
                 member.type === 'PropertyDefinition' &&
                 annotation?.type === 'TSTypeReference' &&
-                annotation.typeName.type === 'Identifier' &&
-                laneHolderType.test(annotation.typeName.name)
+                ((shape.type === 'Identifier' &&
+                  laneHolderType.test(shape.name)) ||
+                  (shape.type === 'TSQualifiedName' &&
+                    shape.right.name === 'Shape' &&
+                    shape.left.type === 'TSQualifiedName' &&
+                    shape.left.left.name === 'Context' &&
+                    shape.left.right.name === 'Service' &&
+                    capability?.type === 'TSTypeQuery' &&
+                    capability.exprName.type === 'Identifier' &&
+                    laneHolderType.test(capability.exprName.name)))
               );
             });
             if (holds) return;
@@ -2365,28 +2472,6 @@ export default {
         };
       },
     },
-    'kernel-is-types': {
-      create(context) {
-        if (!kernelTypesFile.test(repositoryPath(context)) || isSpec(context))
-          return {};
-        const report = (node) =>
-          context.report({
-            node,
-            message:
-              'Kernel models and ports hold types only; a pure function belongs in kernel rules/, an error class in kernel errors/, anything else in a domain, because runtime behavior needs an explicit rules or domain owner.',
-          });
-        return {
-          FunctionDeclaration: report,
-          FunctionExpression: report,
-          ArrowFunctionExpression: report,
-          ClassDeclaration: report,
-          ClassExpression: report,
-          VariableDeclaration: report,
-          TSEnumDeclaration: report,
-        };
-      },
-    },
-
     'one-clock': {
       create(context) {
         const path = repositoryPath(context);
@@ -3160,10 +3245,7 @@ export default {
           }
           if (
             typeOnlyImport(node) &&
-            (/^@porcelain\/(?:projects|changes|reviews|files|git-actions|access)\/ports$/.test(
-              source,
-            ) ||
-              /^(?:\.\.\/){1,2}ports\/[^/]+\.ts$/.test(source) ||
+            (/^(?:\.\.\/){1,2}ports\/[^/]+\.ts$/.test(source) ||
               (/apps\/server\/src\/installer\/[^/]+\.spec\.ts$/.test(
                 context.filename,
               ) &&
@@ -3192,19 +3274,32 @@ export default {
         const path = normalizedFilename(context.filename);
         if (!modelsSource.test(path) || isSpec(context)) return {};
         const message =
-          'Models hold types only; behaviour belongs in rules/ and data in services, because runtime behavior in a model bypasses the rules and service owners.';
+          'Models hold types and ports hold types plus canonical Context.Service keys; behavior belongs in rules or services, because a capability key declares ownership without implementing it.';
+        const report = (node) => context.report({ node, message });
         return {
-          FunctionDeclaration(node) {
-            context.report({ node, message });
-          },
-          ClassDeclaration(node) {
-            context.report({ node, message });
-          },
+          FunctionDeclaration: report,
+          FunctionExpression: report,
+          ArrowFunctionExpression: report,
+          ClassDeclaration: report,
+          ClassExpression: report,
+          TSEnumDeclaration: report,
           VariableDeclaration(node) {
-            context.report({ node, message });
+            if (!nativePortKey(node, context))
+              context.report({ node, message });
           },
           ImportDeclaration(node) {
-            if (node.importKind !== 'type')
+            if (
+              !typeOnlyImport(node) &&
+              !(
+                /\/ports\//.test(path) &&
+                node.source.value === 'effect' &&
+                node.specifiers.every(
+                  (specifier) =>
+                    specifier.type === 'ImportSpecifier' &&
+                    specifier.imported.name === 'Context',
+                )
+              )
+            )
               context.report({
                 node,
                 message:
@@ -3377,12 +3472,9 @@ export default {
         const exportMessage = `Export only the ${expectedName} class and types from this file`;
         let found = 0;
         const checkClass = (node) => {
-          if (node.superClass)
+          if (node.superClass && !nativeOperation(node, context))
             report(node.superClass, 'An operation class extends nothing');
-          if (
-            node.type === 'ClassExpression' ||
-            node.parent?.type !== 'ExportNamedDeclaration'
-          )
+          if (node.parent?.type !== 'ExportNamedDeclaration')
             report(
               node,
               'An operation file declares only its exported class; move other classes into their own module',
@@ -3425,6 +3517,25 @@ export default {
               return;
             }
             found += 1;
+            if (nativeOperation(declaration, context)) {
+              const problem = nativeOperationProblem(
+                declaration,
+                context,
+                role,
+                expectedName,
+              );
+              if (problem) report(declaration, problem);
+              return;
+            }
+            if (
+              /\/packages\/access\/src\/services\//.test(
+                normalizedFilename(context.filename),
+              )
+            )
+              report(
+                declaration,
+                'Access services declare native Context.Service capabilities and Layer factories',
+              );
             const executes = declaration.body.body.filter(isPublicExecute);
             for (const member of declaration.body.body) {
               if (member.type === 'StaticBlock')
@@ -3653,21 +3764,6 @@ export default {
               node: node.id,
               message:
                 'Write a type alias; an interface is a port and lives in ports/, because reserving interfaces for dependency contracts gives agents one place to declare and find ports.',
-            });
-          },
-        };
-      },
-    },
-    'no-interface-in-runtime': {
-      create(context) {
-        if (!runtimeFile.test(repositoryPath(context)) || isSpec(context))
-          return {};
-        return {
-          TSInterfaceDeclaration(node) {
-            context.report({
-              node,
-              message:
-                'runtime/ implements the lanes; a contract the server depends on is a port in apps/server/src/ports/, because separating runtime implementations from port contracts gives agents one ownership pattern to copy.',
             });
           },
         };

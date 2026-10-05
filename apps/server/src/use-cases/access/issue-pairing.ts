@@ -1,3 +1,4 @@
+import type { Context } from 'effect';
 import { Effect } from 'effect';
 import type {
   InvalidPairingAddressError,
@@ -16,14 +17,18 @@ import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
 
 export class IssuePairingUseCase {
-  private readonly readEnvironment: ReadEnvironmentService;
-  private readonly issuePairing: IssuePairingService;
+  private readonly readEnvironment: Context.Service.Shape<
+    typeof ReadEnvironmentService
+  >;
+  private readonly issuePairing: Context.Service.Shape<
+    typeof IssuePairingService
+  >;
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
 
   constructor(
-    readEnvironment: ReadEnvironmentService,
-    issuePairing: IssuePairingService,
+    readEnvironment: Context.Service.Shape<typeof ReadEnvironmentService>,
+    issuePairing: Context.Service.Shape<typeof IssuePairingService>,
     lanes: Lanes,
     laneKeys: LaneKeys,
   ) {

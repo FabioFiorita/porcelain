@@ -1,4 +1,5 @@
 import type { MissingEnvironmentIdentityError } from '@porcelain/access/errors';
+import type { Context } from 'effect';
 import { Effect } from 'effect';
 import type {
   ReadEnvironmentNameService,
@@ -18,8 +19,12 @@ export class ReadInventoryUseCase {
   private readonly listRegisteredProjects: ListRegisteredProjectsService;
   private readonly listKnownWorktrees: ListKnownWorktreesService;
   private readonly readBadges: ReadInventoryBadgesUseCasePort;
-  private readonly readEnvironment: ReadEnvironmentService;
-  private readonly readEnvironmentName: ReadEnvironmentNameService;
+  private readonly readEnvironment: Context.Service.Shape<
+    typeof ReadEnvironmentService
+  >;
+  private readonly readEnvironmentName: Context.Service.Shape<
+    typeof ReadEnvironmentNameService
+  >;
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
 
@@ -27,8 +32,10 @@ export class ReadInventoryUseCase {
     listRegisteredProjects: ListRegisteredProjectsService,
     listKnownWorktrees: ListKnownWorktreesService,
     readBadges: ReadInventoryBadgesUseCasePort,
-    readEnvironment: ReadEnvironmentService,
-    readEnvironmentName: ReadEnvironmentNameService,
+    readEnvironment: Context.Service.Shape<typeof ReadEnvironmentService>,
+    readEnvironmentName: Context.Service.Shape<
+      typeof ReadEnvironmentNameService
+    >,
     lanes: Lanes,
     laneKeys: LaneKeys,
   ) {

@@ -1,3 +1,10 @@
+import {
+  RemoteAccessStore,
+  RouteStateStore,
+  RuntimeStatusReader,
+  NetworkAddressReader,
+  RemoteAccessOptions,
+} from '@porcelain/access/ports';
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import {
@@ -47,16 +54,22 @@ function setup() {
     [wifi('192.168.1.20/24')],
     routesVia('wlp2s0', HOME_ROUTER_HARDWARE),
   );
-  const service = new SetRemoteAccessService(
-    settings,
-    routes,
-    new FixedRuntimeStatusReader({
-      address: serviceUrl,
-      dataDirectory: '/data',
-      pid: 1,
-    }),
-    network,
-    { hostnameLength: 253 },
+  const service = Effect.runSync(
+    SetRemoteAccessService.pipe(
+      Effect.provide(SetRemoteAccessService.layer),
+      Effect.provideService(RemoteAccessStore, settings),
+      Effect.provideService(RouteStateStore, routes),
+      Effect.provideService(
+        RuntimeStatusReader,
+        new FixedRuntimeStatusReader({
+          address: serviceUrl,
+          dataDirectory: '/data',
+          pid: 1,
+        }),
+      ),
+      Effect.provideService(NetworkAddressReader, network),
+      Effect.provideService(RemoteAccessOptions, { hostnameLength: 253 }),
+    ),
   );
   return { settings, routes, network, service };
 }

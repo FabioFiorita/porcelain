@@ -1,3 +1,10 @@
+import { Clock } from '@porcelain/kernel/ports';
+import {
+  LiveTicketStore,
+  DeviceStore,
+  DeviceSightingStore,
+  RedeemLiveTicketOptions,
+} from '@porcelain/access/ports';
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { FixedClock } from '@porcelain/kernel/fakes';
@@ -42,12 +49,20 @@ function setup(device: Partial<StoredDevice> = {}) {
     ],
   });
   const clock = new FixedClock('2026-09-30T10:00:05.000Z');
-  const service = new RedeemLiveTicketService(
-    tickets,
-    devices,
-    new InMemoryDeviceSightingStore(),
-    clock,
-    { unusedLifetimeMs: 90 * day },
+  const service = Effect.runSync(
+    RedeemLiveTicketService.pipe(
+      Effect.provide(RedeemLiveTicketService.layer),
+      Effect.provideService(LiveTicketStore, tickets),
+      Effect.provideService(DeviceStore, devices),
+      Effect.provideService(
+        DeviceSightingStore,
+        new InMemoryDeviceSightingStore(),
+      ),
+      Effect.provideService(Clock, clock),
+      Effect.provideService(RedeemLiveTicketOptions, {
+        unusedLifetimeMs: 90 * day,
+      }),
+    ),
   );
   return { devices, tickets, clock, service };
 }

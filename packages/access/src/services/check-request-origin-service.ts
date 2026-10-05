@@ -1,30 +1,39 @@
-import { Effect } from 'effect';
+import { Effect, Context, Layer } from 'effect';
 import type {
   CheckRequestOriginInput,
   CheckRequestOriginResult,
 } from '../models/check-request-origin.ts';
-import type { RemoteAccessStore } from '../ports/remote-access-store.ts';
-import type { RouteStateStore } from '../ports/route-state-store.ts';
+import { RemoteAccessStore } from '../ports/remote-access-store.ts';
+import { RouteStateStore } from '../ports/route-state-store.ts';
 import { httpsHosts } from '../rules/remote-access.ts';
 import { requestOriginCheck } from '../rules/request-origin-check.ts';
 
-export class CheckRequestOriginService {
-  private readonly remoteAccess: RemoteAccessStore;
-  private readonly routeStates: RouteStateStore;
-
-  constructor(remoteAccess: RemoteAccessStore, routeStates: RouteStateStore) {
-    this.remoteAccess = remoteAccess;
-    this.routeStates = routeStates;
+export class CheckRequestOriginService extends Context.Service<
+  CheckRequestOriginService,
+  {
+    readonly execute: (
+      input: CheckRequestOriginInput,
+    ) => Effect.Effect<CheckRequestOriginResult, never>;
   }
+>()('@porcelain/access/CheckRequestOriginService') {
+  static readonly layer = Layer.effect(
+    CheckRequestOriginService,
+    Effect.gen(function* () {
+      const remoteAccess = yield* RemoteAccessStore;
+      const routeStates = yield* RouteStateStore;
 
-  execute(
-    input: CheckRequestOriginInput,
-  ): Effect.Effect<CheckRequestOriginResult, never> {
-    return Effect.sync(() => {
-      return requestOriginCheck(
-        input,
-        httpsHosts(this.remoteAccess.read(), this.routeStates.read(), input),
-      );
-    });
-  }
+      return {
+        execute: Effect.fn('CheckRequestOriginService.execute')(function* (
+          input: CheckRequestOriginInput,
+        ): Effect.fn.Return<CheckRequestOriginResult, never> {
+          return yield* Effect.sync<CheckRequestOriginResult>(() => {
+            return requestOriginCheck(
+              input,
+              httpsHosts(remoteAccess.read(), routeStates.read(), input),
+            );
+          });
+        }),
+      };
+    }),
+  );
 }

@@ -1,31 +1,42 @@
-import { Effect } from 'effect';
+import { Effect, Context, Layer } from 'effect';
 import type {
   AuthorizeServiceUpdateInput,
   ServiceUpdateAuthority,
 } from '../models/authorize-service-update.ts';
-import type { DeviceStore } from '../ports/device-store.ts';
+import { DeviceStore } from '../ports/device-store.ts';
 import { deviceRevoked } from '../rules/device-activity.ts';
 
-export class AuthorizeServiceUpdateService {
-  private readonly devices: DeviceStore;
-
-  constructor(devices: DeviceStore) {
-    this.devices = devices;
+export class AuthorizeServiceUpdateService extends Context.Service<
+  AuthorizeServiceUpdateService,
+  {
+    readonly execute: (
+      input: AuthorizeServiceUpdateInput,
+    ) => Effect.Effect<ServiceUpdateAuthority, never>;
   }
+>()('@porcelain/access/AuthorizeServiceUpdateService') {
+  static readonly layer = Layer.effect(
+    AuthorizeServiceUpdateService,
+    Effect.gen(function* () {
+      const devices = yield* DeviceStore;
 
-  execute(
-    input: AuthorizeServiceUpdateInput,
-  ): Effect.Effect<ServiceUpdateAuthority, never> {
-    return Effect.sync(() => {
-      const { viewer } = input;
-      if (viewer.kind === 'owner' || input.local) return { canUpdate: true };
-      const device = this.devices.find({ deviceId: viewer.deviceId });
       return {
-        canUpdate:
-          device !== undefined &&
-          !deviceRevoked(device) &&
-          device.trusted === true,
+        execute: Effect.fn('AuthorizeServiceUpdateService.execute')(function* (
+          input: AuthorizeServiceUpdateInput,
+        ): Effect.fn.Return<ServiceUpdateAuthority, never> {
+          return yield* Effect.sync<ServiceUpdateAuthority>(() => {
+            const { viewer } = input;
+            if (viewer.kind === 'owner' || input.local)
+              return { canUpdate: true };
+            const device = devices.find({ deviceId: viewer.deviceId });
+            return {
+              canUpdate:
+                device !== undefined &&
+                !deviceRevoked(device) &&
+                device.trusted === true,
+            };
+          });
+        }),
       };
-    });
-  }
+    }),
+  );
 }

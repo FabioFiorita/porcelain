@@ -1,3 +1,4 @@
+import type { Context } from 'effect';
 import { Effect } from 'effect';
 import type {
   InvalidPairingError,
@@ -12,12 +13,14 @@ import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
 
 export class RedeemPairingUseCase {
-  private readonly redeemPairing: RedeemPairingService;
+  private readonly redeemPairing: Context.Service.Shape<
+    typeof RedeemPairingService
+  >;
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
 
   constructor(
-    redeemPairing: RedeemPairingService,
+    redeemPairing: Context.Service.Shape<typeof RedeemPairingService>,
     lanes: Lanes,
     laneKeys: LaneKeys,
   ) {

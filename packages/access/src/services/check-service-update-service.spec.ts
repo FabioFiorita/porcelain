@@ -21,7 +21,11 @@ const check =
   (state: ServiceUpdateState, version = '1.1.0', canUpdate = true) =>
   () =>
     Effect.runSync(
-      new CheckServiceUpdateService().execute({
+      Effect.runSync(
+        CheckServiceUpdateService.pipe(
+          Effect.provide(CheckServiceUpdateService.layer),
+        ),
+      ).execute({
         authority: { canUpdate },
         state,
         target: { version },

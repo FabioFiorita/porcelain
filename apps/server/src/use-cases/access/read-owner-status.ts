@@ -1,3 +1,4 @@
+import type { Context } from 'effect';
 import { Effect } from 'effect';
 import type { ReadOwnerStatusService } from '@porcelain/access/services';
 import type { ReadOwnerStatusResponse } from '@porcelain/contracts/access';
@@ -5,12 +6,14 @@ import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
 
 export class ReadOwnerStatusUseCase {
-  private readonly readOwnerStatus: ReadOwnerStatusService;
+  private readonly readOwnerStatus: Context.Service.Shape<
+    typeof ReadOwnerStatusService
+  >;
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
 
   constructor(
-    readOwnerStatus: ReadOwnerStatusService,
+    readOwnerStatus: Context.Service.Shape<typeof ReadOwnerStatusService>,
     lanes: Lanes,
     laneKeys: LaneKeys,
   ) {

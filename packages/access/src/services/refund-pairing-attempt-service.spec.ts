@@ -1,3 +1,8 @@
+import { Clock } from '@porcelain/kernel/ports';
+import {
+  PairingAttemptBudgetStore,
+  RefundPairingAttemptOptions,
+} from '@porcelain/access/ports';
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { FixedClock } from '@porcelain/kernel/fakes';
@@ -21,10 +26,17 @@ function setup() {
   const spent = { tokens: 4, at };
   stores.sameOrigin.save({ shared: spent, peers: new Map([[peer, spent]]) });
   stores.crossOrigin.save({ shared: spent, peers: new Map([[peer, spent]]) });
-  const service = new RefundPairingAttemptService(stores, new FixedClock(at), {
-    sameOrigin: budget,
-    crossOrigin: budget,
-  });
+  const service = Effect.runSync(
+    RefundPairingAttemptService.pipe(
+      Effect.provide(RefundPairingAttemptService.layer),
+      Effect.provideService(PairingAttemptBudgetStore, stores),
+      Effect.provideService(Clock, new FixedClock(at)),
+      Effect.provideService(RefundPairingAttemptOptions, {
+        sameOrigin: budget,
+        crossOrigin: budget,
+      }),
+    ),
+  );
   return { stores, service };
 }
 

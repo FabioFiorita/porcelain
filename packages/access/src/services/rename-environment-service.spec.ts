@@ -1,3 +1,4 @@
+import { EnvironmentNameStore, HostNameReader } from '@porcelain/access/ports';
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { FixedHostNameReader } from '../../spec/fakes/fixed-host-name-reader.ts';
@@ -8,9 +9,15 @@ function setup() {
   const store = new InMemoryEnvironmentNameStore();
   return {
     store,
-    rename: new RenameEnvironmentService(
-      store,
-      new FixedHostNameReader('linux-desktop'),
+    rename: Effect.runSync(
+      RenameEnvironmentService.pipe(
+        Effect.provide(RenameEnvironmentService.layer),
+        Effect.provideService(EnvironmentNameStore, store),
+        Effect.provideService(
+          HostNameReader,
+          new FixedHostNameReader('linux-desktop'),
+        ),
+      ),
     ),
   };
 }

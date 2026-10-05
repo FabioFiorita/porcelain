@@ -1,3 +1,4 @@
+import type { Context } from 'effect';
 import { Effect } from 'effect';
 import type {
   AuthenticateDeviceInput,
@@ -11,16 +12,22 @@ import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
 
 export class AuthenticateDeviceUseCase {
-  private readonly authenticateDevice: AuthenticateDeviceService;
+  private readonly authenticateDevice: Context.Service.Shape<
+    typeof AuthenticateDeviceService
+  >;
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
-  private readonly authenticateDesktopSession: AuthenticateDesktopSessionService;
+  private readonly authenticateDesktopSession: Context.Service.Shape<
+    typeof AuthenticateDesktopSessionService
+  >;
 
   constructor(
-    authenticateDevice: AuthenticateDeviceService,
+    authenticateDevice: Context.Service.Shape<typeof AuthenticateDeviceService>,
     lanes: Lanes,
     laneKeys: LaneKeys,
-    authenticateDesktopSession: AuthenticateDesktopSessionService,
+    authenticateDesktopSession: Context.Service.Shape<
+      typeof AuthenticateDesktopSessionService
+    >,
   ) {
     this.authenticateDevice = authenticateDevice;
     this.lanes = lanes;

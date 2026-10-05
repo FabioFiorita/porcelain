@@ -1,3 +1,5 @@
+import { Clock } from '@porcelain/kernel/ports';
+import { PairingGrantStore, DeviceStore } from '@porcelain/access/ports';
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { FixedClock } from '@porcelain/kernel/fakes';
@@ -40,10 +42,13 @@ function device(id: string, extra: Partial<StoredDevice> = {}): StoredDevice {
 function setup() {
   const devices = new InMemoryDeviceStore();
   const grants = new InMemoryPairingGrantStore(devices);
-  const service = new ListAccessService(
-    grants,
-    devices,
-    new FixedClock('2026-09-23T10:05:00.000Z'),
+  const service = Effect.runSync(
+    ListAccessService.pipe(
+      Effect.provide(ListAccessService.layer),
+      Effect.provideService(PairingGrantStore, grants),
+      Effect.provideService(DeviceStore, devices),
+      Effect.provideService(Clock, new FixedClock('2026-09-23T10:05:00.000Z')),
+    ),
   );
   return { devices, grants, service };
 }

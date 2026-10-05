@@ -1,3 +1,4 @@
+import { RemoteAccessStore, RouteStateStore } from '@porcelain/access/ports';
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import type {
@@ -39,7 +40,13 @@ function identify(
     tailnetProxy,
   });
   return Effect.runSync(
-    new IdentifyRequestClientService(settings, routes).execute({
+    Effect.runSync(
+      IdentifyRequestClientService.pipe(
+        Effect.provide(IdentifyRequestClientService.layer),
+        Effect.provideService(RemoteAccessStore, settings),
+        Effect.provideService(RouteStateStore, routes),
+      ),
+    ).execute({
       host: tunnelHost,
       scheme: 'http',
       peerAddress: '127.0.0.1',

@@ -1,15 +1,20 @@
+import type { Context } from 'effect';
 import { Effect } from 'effect';
 import type { FlushDeviceActivityService } from '@porcelain/access/services';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
 
 export class FlushDeviceActivityUseCase {
-  private readonly flushDeviceActivity: FlushDeviceActivityService;
+  private readonly flushDeviceActivity: Context.Service.Shape<
+    typeof FlushDeviceActivityService
+  >;
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
 
   constructor(
-    flushDeviceActivity: FlushDeviceActivityService,
+    flushDeviceActivity: Context.Service.Shape<
+      typeof FlushDeviceActivityService
+    >,
     lanes: Lanes,
     laneKeys: LaneKeys,
   ) {

@@ -1,4 +1,5 @@
 import type { MissingEnvironmentIdentityError } from '@porcelain/access/errors';
+import type { Context } from 'effect';
 import { Effect } from 'effect';
 import type { WorktreeAccess } from '../../runtime/worktree-access.ts';
 import type { WorktreeAccessFailure } from '../../ports/worktree-access-failure.ts';
@@ -17,14 +18,16 @@ export class ReadChangesUseCase {
   private readonly readWorktreeStatus: ReadWorktreeStatusService<GitIoFailure>;
   private readonly readChangeFingerprints: ReadChangeFingerprintsService<GitIoFailure>;
   private readonly readInterruptedGitAction: ReadInterruptedGitActionService;
-  private readonly readEnvironment: ReadEnvironmentService;
+  private readonly readEnvironment: Context.Service.Shape<
+    typeof ReadEnvironmentService
+  >;
 
   constructor(
     access: WorktreeAccess,
     readWorktreeStatus: ReadWorktreeStatusService<GitIoFailure>,
     readChangeFingerprints: ReadChangeFingerprintsService<GitIoFailure>,
     readInterruptedGitAction: ReadInterruptedGitActionService,
-    readEnvironment: ReadEnvironmentService,
+    readEnvironment: Context.Service.Shape<typeof ReadEnvironmentService>,
   ) {
     this.access = access;
     this.readWorktreeStatus = readWorktreeStatus;

@@ -1,25 +1,36 @@
-import { Effect } from 'effect';
+import { Effect, Context, Layer } from 'effect';
 import type {
   ChosenEnvironmentName,
   EnvironmentName,
 } from '../models/environment-name.ts';
-import type { EnvironmentNameStore } from '../ports/environment-name-store.ts';
-import type { HostNameReader } from '../ports/host-name-reader.ts';
+import { EnvironmentNameStore } from '../ports/environment-name-store.ts';
+import { HostNameReader } from '../ports/host-name-reader.ts';
 import { environmentName } from '../rules/environment-name.ts';
 
-export class RenameEnvironmentService {
-  private readonly names: EnvironmentNameStore;
-  private readonly hostNames: HostNameReader;
-
-  constructor(names: EnvironmentNameStore, hostNames: HostNameReader) {
-    this.names = names;
-    this.hostNames = hostNames;
+export class RenameEnvironmentService extends Context.Service<
+  RenameEnvironmentService,
+  {
+    readonly execute: (
+      input: ChosenEnvironmentName,
+    ) => Effect.Effect<EnvironmentName, never>;
   }
+>()('@porcelain/access/RenameEnvironmentService') {
+  static readonly layer = Layer.effect(
+    RenameEnvironmentService,
+    Effect.gen(function* () {
+      const names = yield* EnvironmentNameStore;
+      const hostNames = yield* HostNameReader;
 
-  execute(input: ChosenEnvironmentName): Effect.Effect<EnvironmentName, never> {
-    return Effect.sync(() => {
-      this.names.save(input);
-      return environmentName(input, this.hostNames.hostName());
-    });
-  }
+      return {
+        execute: Effect.fn('RenameEnvironmentService.execute')(function* (
+          input: ChosenEnvironmentName,
+        ): Effect.fn.Return<EnvironmentName, never> {
+          return yield* Effect.sync<EnvironmentName>(() => {
+            names.save(input);
+            return environmentName(input, hostNames.hostName());
+          });
+        }),
+      };
+    }),
+  );
 }

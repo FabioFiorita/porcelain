@@ -1,3 +1,4 @@
+import { RemoteAccessStore, RouteStateStore } from '@porcelain/access/ports';
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import type { RouteState } from '@porcelain/access/models';
@@ -21,7 +22,13 @@ function checkThroughTunnel(cloudflare: RouteState, enabled = true) {
     origins: [],
   });
   return Effect.runSync(
-    new CheckRequestOriginService(settings, routes).execute({
+    Effect.runSync(
+      CheckRequestOriginService.pipe(
+        Effect.provide(CheckRequestOriginService.layer),
+        Effect.provideService(RemoteAccessStore, settings),
+        Effect.provideService(RouteStateStore, routes),
+      ),
+    ).execute({
       host: tunnelHost,
       origin: `https://${tunnelHost}`,
       method: 'POST',
@@ -88,7 +95,13 @@ describe('CheckRequestOriginService', () => {
       tailnetProxy: { hostname, address: '127.0.0.1', port: 41000 },
     };
     routes.save(on);
-    const service = new CheckRequestOriginService(settings, routes);
+    const service = Effect.runSync(
+      CheckRequestOriginService.pipe(
+        Effect.provide(CheckRequestOriginService.layer),
+        Effect.provideService(RemoteAccessStore, settings),
+        Effect.provideService(RouteStateStore, routes),
+      ),
+    );
     const write = (origin: string, localPort = 41000) =>
       Effect.runSync(
         service.execute({

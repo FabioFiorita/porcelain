@@ -34,6 +34,8 @@ Declare application CLI commands, flags, arguments and help in `apps/server/src/
 
 A feature crosses the repository in one order: the contract, the domain decision in `packages/<domain>`, the server use case and route, the shared client in `packages/client` (api, queries, commands, store, rules), then each app's views and adapters. The architecture check enforces each role.
 
+Domain services use named `Context.Service` capabilities with one readonly typed `execute` and a static Layer. The Layer resolves dependencies with `yield*`; execute uses named `Effect.fn`. Ports declare the capability key and its shape; models remain data types. Bootstrap supplies implementations and configuration through Layers. Copy `packages/access/src/services/read-environment-service.ts`; do not add constructor injection or a forwarding file when migrating an owner.
+
 ## Testing
 
 | Layer | Server | Web | Desktop | Mobile |
@@ -48,7 +50,7 @@ Choose test setups with judgment: weigh what each layer of isolation, retry or e
 
 ## Verifying
 
-Prove a change with the smallest local proof: `pnpm check`, the test files you changed by name, and the feature driven through its surface's skill (`server-verify`, `web-verify`, `desktop-verify`, `mobile-verify`). Each skill's CLI at `scripts/cli` starts a disposable instance, drives it and records evidence; its feature map says how to reach each feature. CI owns the full suites. A guardrail change proves its rule with a fixture in `architecture/rule-cases.mjs`, or a probe in `architecture/probes/` run by name.
+Prove a change with the smallest local proof: `pnpm check:local`, the test files you changed by name, and the feature driven through its surface's skill (`server-verify`, `web-verify`, `desktop-verify`, `mobile-verify`). Each skill's CLI at `scripts/cli` starts a disposable instance, drives it and records evidence; its feature map says how to reach each feature. CI runs `pnpm check` and owns the full suites. A guardrail change proves its rule with a fixture in `architecture/rule-cases.mjs`, or a probe in `architecture/probes/` run by name.
 
 ## Pull requests
 

@@ -1,3 +1,4 @@
+import type { Context } from 'effect';
 import { Effect } from 'effect';
 import type {
   RevokeDeviceService,
@@ -12,15 +13,19 @@ import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
 
 export class RevokeAccessUseCase {
-  private readonly revokePairingGrant: RevokePairingGrantService;
-  private readonly revokeDevice: RevokeDeviceService;
+  private readonly revokePairingGrant: Context.Service.Shape<
+    typeof RevokePairingGrantService
+  >;
+  private readonly revokeDevice: Context.Service.Shape<
+    typeof RevokeDeviceService
+  >;
   private readonly deviceConnections: DeviceConnectionStore;
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
 
   constructor(
-    revokePairingGrant: RevokePairingGrantService,
-    revokeDevice: RevokeDeviceService,
+    revokePairingGrant: Context.Service.Shape<typeof RevokePairingGrantService>,
+    revokeDevice: Context.Service.Shape<typeof RevokeDeviceService>,
     deviceConnections: DeviceConnectionStore,
     lanes: Lanes,
     laneKeys: LaneKeys,

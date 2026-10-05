@@ -1,4 +1,5 @@
 import type { MissingEnvironmentIdentityError } from '@porcelain/access/errors';
+import type { Context } from 'effect';
 import { Effect } from 'effect';
 import type { WorktreeAccess } from '../../runtime/worktree-access.ts';
 import type { WorktreeAccessFailure } from '../../ports/worktree-access-failure.ts';
@@ -16,7 +17,9 @@ export class ReadGitStatusUseCase {
   private readonly access: WorktreeAccess;
   private readonly readWorktreeStatus: ReadWorktreeStatusService<GitIoFailure>;
   private readonly readBranchDetails: ReadBranchDetailsService<GitIoFailure>;
-  private readonly readEnvironment: ReadEnvironmentService;
+  private readonly readEnvironment: Context.Service.Shape<
+    typeof ReadEnvironmentService
+  >;
   private readonly sharedReads: SharedReads<
     ReadGitStatusResponse,
     WorktreeAccessFailure | GitIoFailure | MissingEnvironmentIdentityError
@@ -26,7 +29,7 @@ export class ReadGitStatusUseCase {
     access: WorktreeAccess,
     readWorktreeStatus: ReadWorktreeStatusService<GitIoFailure>,
     readBranchDetails: ReadBranchDetailsService<GitIoFailure>,
-    readEnvironment: ReadEnvironmentService,
+    readEnvironment: Context.Service.Shape<typeof ReadEnvironmentService>,
     sharedReads: SharedReads<
       ReadGitStatusResponse,
       WorktreeAccessFailure | GitIoFailure | MissingEnvironmentIdentityError

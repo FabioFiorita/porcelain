@@ -1,6 +1,7 @@
 import type { MissingEnvironmentIdentityError } from '@porcelain/access/errors';
 import type { GitIoFailure } from '../../ports/git-io-failure.ts';
 import type { IncompleteDiffReadError } from '@porcelain/changes/errors';
+import type { Context } from 'effect';
 import { Effect } from 'effect';
 import type { WorktreeAccess } from '../../runtime/worktree-access.ts';
 import type { WorktreeAccessFailure } from '../../ports/worktree-access-failure.ts';
@@ -17,14 +18,16 @@ export class ReadPublishedReviewUseCase {
   private readonly access: WorktreeAccess;
   private readonly readPublishedReview: ReadPublishedReviewService;
   private readonly readReviewEvidence: ReadReviewEvidenceUseCasePort;
-  private readonly readEnvironment: ReadEnvironmentService;
+  private readonly readEnvironment: Context.Service.Shape<
+    typeof ReadEnvironmentService
+  >;
   private readonly resolvePublishedReview: ResolvePublishedReviewService;
 
   constructor(
     access: WorktreeAccess,
     readPublishedReview: ReadPublishedReviewService,
     readReviewEvidence: ReadReviewEvidenceUseCasePort,
-    readEnvironment: ReadEnvironmentService,
+    readEnvironment: Context.Service.Shape<typeof ReadEnvironmentService>,
     resolvePublishedReview: ResolvePublishedReviewService,
   ) {
     this.access = access;

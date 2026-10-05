@@ -1,3 +1,4 @@
+import type { Context } from 'effect';
 import { Effect } from 'effect';
 import type { DeviceNotFoundError } from '@porcelain/access/errors';
 import type { SetDeviceTrustService } from '@porcelain/access/services';
@@ -9,12 +10,14 @@ import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
 
 export class SetDeviceTrustUseCase {
-  private readonly setDeviceTrust: SetDeviceTrustService;
+  private readonly setDeviceTrust: Context.Service.Shape<
+    typeof SetDeviceTrustService
+  >;
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
 
   constructor(
-    setDeviceTrust: SetDeviceTrustService,
+    setDeviceTrust: Context.Service.Shape<typeof SetDeviceTrustService>,
     lanes: Lanes,
     laneKeys: LaneKeys,
   ) {

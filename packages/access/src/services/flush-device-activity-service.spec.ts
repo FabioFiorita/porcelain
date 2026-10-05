@@ -1,3 +1,4 @@
+import { DeviceSightingStore, DeviceStore } from '@porcelain/access/ports';
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import type { StoredDevice } from '@porcelain/access/models';
@@ -22,7 +23,13 @@ function setup() {
   return {
     devices,
     sightings,
-    service: new FlushDeviceActivityService(sightings, devices),
+    service: Effect.runSync(
+      FlushDeviceActivityService.pipe(
+        Effect.provide(FlushDeviceActivityService.layer),
+        Effect.provideService(DeviceSightingStore, sightings),
+        Effect.provideService(DeviceStore, devices),
+      ),
+    ),
   };
 }
 

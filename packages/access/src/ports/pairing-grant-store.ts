@@ -1,3 +1,4 @@
+import { Context } from 'effect';
 import type {
   NewPairingGrants,
   PairingGrantKey,
@@ -13,3 +14,8 @@ export interface PairingGrantStore {
   markRevoked(input: PairingGrantRevocation): void;
   redeem(input: PairingRedemption): void;
 }
+
+export const PairingGrantStore = Context.Service<
+  '@porcelain/access/PairingGrantStore',
+  PairingGrantStore
+>('@porcelain/access/PairingGrantStore');

@@ -1,3 +1,9 @@
+import { Clock } from '@porcelain/kernel/ports';
+import {
+  PairingAttemptBudgetStore,
+  TakePairingAttemptOptions,
+} from '@porcelain/access/ports';
+import type { Context } from 'effect';
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { FixedClock } from '@porcelain/kernel/fakes';
@@ -14,21 +20,24 @@ const budget = {
 const peer = '127.0.0.1';
 
 function setup() {
-  return new TakePairingAttemptService(
-    {
-      sameOrigin: new InMemoryPairingAttemptStore(),
-      crossOrigin: new InMemoryPairingAttemptStore(),
-    },
-    new FixedClock('2026-09-30T10:00:00.000Z'),
-    {
-      sameOrigin: budget,
-      crossOrigin: { ...budget, attemptsPerPeer: 2, attemptsOverall: 3 },
-    },
+  return Effect.runSync(
+    TakePairingAttemptService.pipe(
+      Effect.provide(TakePairingAttemptService.layer),
+      Effect.provideService(PairingAttemptBudgetStore, {
+        sameOrigin: new InMemoryPairingAttemptStore(),
+        crossOrigin: new InMemoryPairingAttemptStore(),
+      }),
+      Effect.provideService(Clock, new FixedClock('2026-09-30T10:00:00.000Z')),
+      Effect.provideService(TakePairingAttemptOptions, {
+        sameOrigin: budget,
+        crossOrigin: { ...budget, attemptsPerPeer: 2, attemptsOverall: 3 },
+      }),
+    ),
   );
 }
 
 function exhaust(
-  service: TakePairingAttemptService,
+  service: Context.Service.Shape<typeof TakePairingAttemptService>,
   input: { peer: string; crossOrigin: boolean },
 ) {
   for (;;)

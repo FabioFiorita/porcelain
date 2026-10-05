@@ -1,3 +1,4 @@
+import type { Context } from 'effect';
 import { Effect } from 'effect';
 import type {
   CheckLocalRequestInput,
@@ -7,10 +8,15 @@ import type { CheckLocalRequestService } from '@porcelain/access/services';
 import type { Lanes } from '../../runtime/lanes.ts';
 
 export class CheckLocalRequestUseCase {
-  private readonly checkLocalRequest: CheckLocalRequestService;
+  private readonly checkLocalRequest: Context.Service.Shape<
+    typeof CheckLocalRequestService
+  >;
   private readonly lanes: Lanes;
 
-  constructor(checkLocalRequest: CheckLocalRequestService, lanes: Lanes) {
+  constructor(
+    checkLocalRequest: Context.Service.Shape<typeof CheckLocalRequestService>,
+    lanes: Lanes,
+  ) {
     this.checkLocalRequest = checkLocalRequest;
     this.lanes = lanes;
   }

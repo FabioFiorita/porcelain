@@ -13,7 +13,90 @@ const operation = `export class ReadHealthUseCase {
   execute(): Effect.Effect<ReadHealthResponse, MissingEnvironmentIdentityError> { return this.reader.execute(); }
 }`;
 
+const nativeService = `import { Context, Effect, Layer } from 'effect';
+export class ReadEnvironmentService extends Context.Service<ReadEnvironmentService, {
+  readonly execute: () => Effect.Effect<ReadEnvironmentResult, MissingEnvironmentIdentityError>
+}>()('@porcelain/access/ReadEnvironmentService') {
+  static readonly layer = Layer.effect(ReadEnvironmentService, Effect.gen(function* () {
+    const identity = yield* EnvironmentIdentityReader;
+    return { execute: Effect.fn('ReadEnvironmentService.execute')(function* (): Effect.fn.Return<ReadEnvironmentResult, MissingEnvironmentIdentityError> {
+      return { environmentId: identity.environmentId() };
+    }) };
+  }));
+}`;
+const nativeClock = `import { Context } from 'effect';
+export interface Clock { now(): string; }
+export const Clock = Context.Service<'@porcelain/kernel/Clock', Clock>('@porcelain/kernel/Clock');`;
+
 export const effectRuleCases = [
+  ...[
+    nativeService.replace(
+      "'@porcelain/access/ReadEnvironmentService'",
+      "'@porcelain/access/Other'",
+    ),
+    nativeService.replace('readonly execute:', 'execute:'),
+    nativeService.replace('static readonly layer', 'readonly layer'),
+    nativeService.replace(
+      'Layer.effect(ReadEnvironmentService,',
+      'Layer.effect(OtherService,',
+    ),
+    nativeService.replace(
+      "'ReadEnvironmentService.execute'",
+      "'Other.execute'",
+    ),
+    nativeService.replace(
+      'readonly execute:',
+      'readonly refresh: () => Effect.Effect<void>; readonly execute:',
+    ),
+    nativeService.replace(
+      'static readonly layer',
+      'constructor(reader: Reader) {} static readonly layer',
+    ),
+    nativeService.replace('Layer.effect', 'custom.effect'),
+    nativeService.replace(
+      "import { Context, Effect, Layer } from 'effect';",
+      "import { Effect, Layer } from 'effect'; const Context = { Service: makeService };",
+    ),
+  ].map((invalid) => ({
+    rule: 'operation-class-shape',
+    path: 'packages/access/src/services/read-environment-service.ts',
+    valid: nativeService,
+    invalid,
+    errors: invalid.includes('const Context') ? 4 : 1,
+  })),
+  {
+    rule: 'operation-class-shape',
+    path: 'packages/access/src/services/read-environment-service.ts',
+    valid: nativeService,
+    invalid:
+      'export class ReadEnvironmentService { execute(): Effect.Effect<ReadEnvironmentResult> { return Effect.succeed(result); } }',
+    errors: 1,
+  },
+  ...['models-are-types'].flatMap((rule) => [
+    ...[
+      nativeClock.replace(
+        "Clock>('@porcelain/kernel/Clock')",
+        "Clock>('@porcelain/kernel/Other')",
+      ),
+      nativeClock.replace("'@porcelain/kernel/Clock', Clock", 'Clock, Clock'),
+      nativeClock.replace('Context.Service', 'Context.Reference'),
+      nativeClock.replace('const Clock', 'let Clock'),
+    ].map((invalid) => ({
+      rule,
+      path: 'packages/kernel/src/ports/clock.ts',
+      valid: nativeClock,
+      invalid,
+      errors: 1,
+    })),
+    {
+      rule,
+      path: 'packages/kernel/src/models/clock.ts',
+      validPath: 'packages/kernel/src/ports/clock.ts',
+      valid: nativeClock,
+      invalid: nativeClock,
+      errors: 2,
+    },
+  ]),
   ...['AbortSignal', 'AbortController'].map((raw) => ({
     rule: 'operation-class-shape',
     path: 'apps/server/src/use-cases/access/read-health.ts',

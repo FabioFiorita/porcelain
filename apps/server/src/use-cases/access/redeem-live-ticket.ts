@@ -1,3 +1,4 @@
+import type { Context } from 'effect';
 import { Effect } from 'effect';
 import type {
   AuthenticatedDevice,
@@ -8,12 +9,14 @@ import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
 
 export class RedeemLiveTicketUseCase {
-  private readonly redeemLiveTicket: RedeemLiveTicketService;
+  private readonly redeemLiveTicket: Context.Service.Shape<
+    typeof RedeemLiveTicketService
+  >;
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
 
   constructor(
-    redeemLiveTicket: RedeemLiveTicketService,
+    redeemLiveTicket: Context.Service.Shape<typeof RedeemLiveTicketService>,
     lanes: Lanes,
     laneKeys: LaneKeys,
   ) {

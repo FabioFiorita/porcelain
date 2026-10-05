@@ -1,4 +1,5 @@
 import type { MissingEnvironmentIdentityError } from '@porcelain/access/errors';
+import type { Context } from 'effect';
 import { Effect } from 'effect';
 import type { WorktreeAccess } from '../../runtime/worktree-access.ts';
 import type { WorktreeAccessFailure } from '../../ports/worktree-access-failure.ts';
@@ -29,7 +30,9 @@ export class ReadChangeDiffsUseCase {
   private readonly checkDiffSelection: CheckDiffSelectionService;
   private readonly confirmDiffObservation: ConfirmDiffObservationService;
   private readonly readChangeDiffs: ReadChangeDiffsService<GitIoFailure>;
-  private readonly readEnvironment: ReadEnvironmentService;
+  private readonly readEnvironment: Context.Service.Shape<
+    typeof ReadEnvironmentService
+  >;
 
   constructor(
     access: WorktreeAccess,
@@ -38,7 +41,7 @@ export class ReadChangeDiffsUseCase {
     checkDiffSelection: CheckDiffSelectionService,
     confirmDiffObservation: ConfirmDiffObservationService,
     readChangeDiffs: ReadChangeDiffsService<GitIoFailure>,
-    readEnvironment: ReadEnvironmentService,
+    readEnvironment: Context.Service.Shape<typeof ReadEnvironmentService>,
   ) {
     this.access = access;
     this.readWorktreeStatus = readWorktreeStatus;
