@@ -1,8 +1,9 @@
+import { requestBody } from '../../hooks/request-body.ts';
+import { handlerAudit } from '../../diagnostics.ts';
 import { ProjectsApi } from '@porcelain/contracts/projects';
 import type { Context } from 'effect';
 import { Layer } from 'effect';
 import { HttpApiBuilder } from 'effect/http-api';
-import { effectRoutes } from '../../effect-bridge.ts';
 import { type BrowseProjectFoldersUseCase } from '../../../use-cases/projects/browse-project-folders.ts';
 import { type ListFilePreferencesUseCase } from '../../../use-cases/projects/list-file-preferences.ts';
 import { type ReadInventoryUseCase } from '../../../use-cases/projects/read-inventory.ts';
@@ -46,8 +47,9 @@ export function projectsRoutes(useCases: ProjectsUseCases) {
         useCases.setFilePreference.execute({ ...params, ...payload }),
       ),
   );
-  return effectRoutes(
-    ProjectsApi,
-    HttpApiBuilder.layer(ProjectsApi).pipe(Layer.provide(handlers)),
+  return HttpApiBuilder.layer(ProjectsApi).pipe(
+    Layer.provide(handlers),
+    Layer.provide(handlerAudit.layer),
+    Layer.provide(requestBody.layer),
   );
 }

@@ -202,6 +202,7 @@ export type Limits = {
     openRemoteRoutesMs: number;
   };
   http: {
+    bodyBytes: number;
     reviewBodyBytes: number;
     editFileBodyBytes: number;
     corsMaxAgeSeconds: number;
@@ -436,6 +437,7 @@ export const LIMITS: Limits = {
     openRemoteRoutesMs: 5 * SECOND_MS,
   },
   http: {
+    bodyBytes: MEBIBYTE,
     reviewBodyBytes: JSON_ESCAPE_FACTOR * REVIEW_SUMMARY_BYTES + MEBIBYTE,
     editFileBodyBytes: 8 * MEBIBYTE,
     corsMaxAgeSeconds: (10 * MINUTE_MS) / SECOND_MS,

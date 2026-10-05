@@ -1,72 +1,70 @@
 import { Effect } from 'effect';
-import { withSignal } from '@porcelain/effects';
-import { httpErrors } from '@fastify/sensible';
-import type { FastifyReply, FastifyRequest } from 'fastify';
 import type { DeviceConnectionStore } from '../../ports/device-connection-store.ts';
 import type { AuthenticateDeviceUseCasePort } from '../../ports/authenticate-device-use-case-port.ts';
+import { RequestContext } from '../request-context.ts';
+import { RequestError } from '../../runtime/errors/request-error.ts';
 import { deviceCookie, setDeviceCookie } from './device-cookie.ts';
-
-const AUTHENTICATION_REQUIRED = 'Authentication required';
 
 export type AuthenticateOptions = {
   access: { authenticateDevice: AuthenticateDeviceUseCasePort };
   deviceConnections: Pick<DeviceConnectionStore, 'insert'>;
 };
-
-type DeviceCookieOptions = { cookieMaxAgeSeconds: number };
-
-export function bearerCredential(request: FastifyRequest): string | undefined {
-  const header = request.headers.authorization;
+export function bearerCredential(
+  context: RequestContext['Service'],
+): string | undefined {
+  const header = context.request.headers.authorization;
   return header?.startsWith('Bearer ')
     ? header.slice('Bearer '.length)
     : undefined;
 }
 
-function credentialOf(request: FastifyRequest): string | undefined {
-  return bearerCredential(request) ?? deviceCookie(request) ?? undefined;
-}
-
 export function authenticate(
   options: AuthenticateOptions,
-  cookie: DeviceCookieOptions,
+  cookie: { cookieMaxAgeSeconds: number },
 ) {
-  return async (request: FastifyRequest, reply: FastifyReply) => {
-    const credential = credentialOf(request);
-    if (!credential) throw httpErrors.unauthorized(AUTHENTICATION_REQUIRED);
-    const device = await Effect.runPromise(
-      withSignal(
-        options.access.authenticateDevice.execute({
-          credential,
-          route: request.client.route,
-          address: request.client.address,
+  return Effect.gen(function* () {
+    const context = yield* RequestContext;
+    const credential = bearerCredential(context) ?? deviceCookie(context);
+    if (!credential)
+      return yield* Effect.die(
+        new RequestError({
+          statusCode: 401,
+          message: 'Authentication required',
         }),
-        request.disconnected,
-      ),
-    );
-    if (!device) throw httpErrors.unauthorized(AUTHENTICATION_REQUIRED);
-    request.principal = { kind: 'device', deviceId: device.deviceId };
-    if (!request.ws)
-      holdUntilRevoked(reply, options.deviceConnections, device.deviceId);
-    if (reply.raw.destroyed)
-      throw httpErrors.unauthorized(AUTHENTICATION_REQUIRED);
-    if (deviceCookie(request) === credential)
+      );
+    const device = yield* options.access.authenticateDevice.execute({
+      credential,
+      route: context.client.route,
+      address: context.client.address,
+    });
+    if (!device)
+      return yield* Effect.die(
+        new RequestError({
+          statusCode: 401,
+          message: 'Authentication required',
+        }),
+      );
+    context.principal = { kind: 'device', deviceId: device.deviceId };
+    if (context.request.headers.upgrade !== 'websocket') {
+      const release = options.deviceConnections.insert({
+        deviceId: device.deviceId,
+        connection: { close: () => context.response.destroy() },
+      });
+      context.response.once('close', release);
+    }
+    if (context.response.destroyed)
+      return yield* Effect.die(
+        new RequestError({
+          statusCode: 401,
+          message: 'Authentication required',
+        }),
+      );
+    if (deviceCookie(context) === credential)
       setDeviceCookie(
-        reply,
+        context,
         credential,
-        request.client.secure,
+        context.client.secure,
         cookie.cookieMaxAgeSeconds,
       );
-  };
-}
-
-function holdUntilRevoked(
-  reply: FastifyReply,
-  deviceConnections: AuthenticateOptions['deviceConnections'],
-  deviceId: string,
-) {
-  const release = deviceConnections.insert({
-    deviceId,
-    connection: { close: () => reply.raw.destroy() },
   });
-  reply.raw.on('close', release);
 }

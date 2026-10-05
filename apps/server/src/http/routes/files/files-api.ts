@@ -1,8 +1,10 @@
+import { requestBody } from '../../hooks/request-body.ts';
+import { handlerAudit } from '../../diagnostics.ts';
+import { requestBodyLimit } from '../../hooks/request-body.ts';
 import { FilesApi } from '@porcelain/contracts/files';
 import type { Context } from 'effect';
 import { Layer } from 'effect';
 import { HttpApiBuilder } from 'effect/http-api';
-import { effectRoutes } from '../../effect-bridge.ts';
 import { type EditFileUseCase } from '../../../use-cases/files/edit-file.ts';
 import { type ListDirectoryUseCase } from '../../../use-cases/files/list-directory.ts';
 import { type ListWorktreePathsUseCase } from '../../../use-cases/files/list-worktree-paths.ts';
@@ -48,6 +50,17 @@ export function filesRoutes(
   limits: { editFileBodyBytes: number },
 ) {
   const handlers = filesGroup(useCases);
-  const api = HttpApiBuilder.layer(FilesApi).pipe(Layer.provide(handlers));
-  return effectRoutes(FilesApi, api, { editFile: limits.editFileBodyBytes });
+  const api = HttpApiBuilder.layer(FilesApi).pipe(
+    Layer.provide(handlers),
+    Layer.provide(handlerAudit.layer),
+    Layer.provide(requestBody.layer),
+  );
+  return api.pipe(
+    Layer.provide(
+      requestBodyLimit(
+        FilesApi.groups.files.endpoints.editFile,
+        limits.editFileBodyBytes,
+      ),
+    ),
+  );
 }

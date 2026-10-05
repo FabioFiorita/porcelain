@@ -1,17 +1,20 @@
-import { Result, Schema } from 'effect';
-import { httpErrors } from '@fastify/sensible';
+import { handlerAudit } from '../diagnostics.ts';
+import { Layer, Effect, Result, Schema } from 'effect';
+import { HttpRouter, HttpServerResponse } from 'effect/http';
 import {
   liveSubscriptionSchema,
   liveUpdatesQuerySchema,
   LiveUpdatesApi,
 } from '@porcelain/contracts/access';
-import type { FastifyInstance } from 'fastify';
 import { WebSocket } from 'ws';
 import type { LiveConnector } from '../../ports/live-connector.ts';
 import type { Logger } from '../../ports/logger.ts';
 import type { TunnelConnectionStore } from '../../ports/tunnel-connection-store.ts';
 import type { WatchOpener } from '../../ports/watch-demand.ts';
 import type { AuthenticateOptions } from '../hooks/authenticate.ts';
+import { NodeLiveSockets } from '../node-live-socket.ts';
+import { RequestContext } from '../request-context.ts';
+import { RequestError } from '../../runtime/errors/request-error.ts';
 
 export type LiveUpdatesOptions = {
   logger: Logger;
@@ -19,100 +22,120 @@ export type LiveUpdatesOptions = {
   liveUpdates: LiveConnector;
   worktreeWatches: WatchOpener;
 };
-
 export function liveUpdates(
-  server: FastifyInstance,
   options: Pick<AuthenticateOptions, 'deviceConnections'> & LiveUpdatesOptions,
 ) {
-  server.route({
-    method: LiveUpdatesApi.groups.live.endpoints.liveUpdates.method,
-    url: LiveUpdatesApi.groups.live.endpoints.liveUpdates.path.replace(
-      /^\/api/,
-      '',
-    ),
-    preValidation: async (request) => {
+  return HttpRouter.add(
+    LiveUpdatesApi.groups.live.endpoints.liveUpdates.method,
+    LiveUpdatesApi.groups.live.endpoints.liveUpdates.path,
+    Effect.gen(function* () {
+      const context = yield* RequestContext;
       const query = Schema.decodeUnknownResult(liveUpdatesQuerySchema, {
         onExcessProperty: 'error',
-      })(request.query);
+      })(
+        Object.fromEntries(
+          new URL(context.request.originalUrl, 'http://porcelain.invalid')
+            .searchParams,
+        ),
+      );
       if (Result.isFailure(query))
-        throw httpErrors.badRequest('Invalid request');
-    },
-    handler: (_request, reply) => reply.code(404).send(),
-    wsHandler: (socket, request) => {
-      const principal = request.caller;
-      if (principal.kind !== 'device') {
-        socket.close(1008, 'Viewer connection required');
-        return;
+        return yield* Effect.die(
+          new RequestError({ statusCode: 400, message: 'Invalid request' }),
+        );
+      if (context.request.headers.upgrade?.toLowerCase() !== 'websocket')
+        return HttpServerResponse.empty({ status: 404 });
+      const principal = context.principal;
+      if (principal?.kind !== 'device')
+        return yield* Effect.die(
+          new RequestError({
+            statusCode: 403,
+            message: 'Viewer connection required',
+          }),
+        );
+      const socket = yield* context.request.upgrade;
+      const reader = yield* socket.reader;
+      const sockets = yield* NodeLiveSockets;
+      const ws = sockets.get(context.incoming);
+      if (ws === undefined)
+        return yield* Effect.die(
+          new Error('The upgraded live connection was not acquired'),
+        );
+      const watches = options.worktreeWatches.open();
+      if (watches.kind === 'at-capacity') {
+        ws.close(1013, 'Live update capacity reached; try again later');
+        return HttpServerResponse.empty();
       }
-      const opened = options.worktreeWatches.open();
-      if (opened.kind === 'at-capacity') {
-        socket.close(1013, 'Live update capacity reached; try again later');
-        return;
-      }
-      const watches = opened.demand;
+      const demand = watches.demand;
       const connection = options.liveUpdates.connect({
         send: (notice) => {
-          if (socket.readyState === WebSocket.OPEN)
-            socket.send(JSON.stringify(notice));
+          if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(notice));
         },
-        ping: () => socket.ping(),
-        terminate: () => socket.terminate(),
+        ping: () => ws.ping(),
+        terminate: () => ws.terminate(),
       });
       const releaseDevice = options.deviceConnections.insert({
         deviceId: principal.deviceId,
-        connection: {
-          close: () => socket.close(4001, 'Device access revoked'),
-        },
+        connection: { close: () => ws.close(4001, 'Device access revoked') },
       });
-      const { tunnelHostname } = request.client;
       const releaseTunnel =
-        tunnelHostname === undefined
+        context.client.tunnelHostname === undefined
           ? () => undefined
           : options.tunnelConnections.insert({
-              hostname: tunnelHostname,
+              hostname: context.client.tunnelHostname,
               connection: {
                 close: () =>
-                  socket.close(
-                    4003,
-                    'This address no longer reaches Porcelain',
-                  ),
+                  ws.close(4003, 'This address no longer reaches Porcelain'),
               },
             });
-      const close = () => {
-        releaseDevice();
-        releaseTunnel();
-        watches.close();
-        connection.close();
-      };
-      socket.on('pong', () => connection.answered());
-      socket.on('message', (bytes, binary) => {
-        if (binary) return socket.close(1003, 'Text messages only');
-        let value: unknown;
-        try {
-          const body = Buffer.isBuffer(bytes)
-            ? bytes
-            : Array.isArray(bytes)
-              ? Buffer.concat(bytes)
-              : Buffer.from(bytes);
-          value = JSON.parse(body.toString('utf8'));
-        } catch {
-          return socket.close(1007, 'Invalid JSON');
+      yield* Effect.addFinalizer(() =>
+        Effect.sync(() => {
+          releaseDevice();
+          releaseTunnel();
+          demand.close();
+          connection.close();
+        }),
+      );
+      ws.on('pong', () => connection.answered());
+      const receive = Effect.gen(function* () {
+        const batch = yield* reader.pull;
+        for (const bytes of batch) {
+          if (typeof bytes !== 'string') {
+            ws.close(1003, 'Text messages only');
+            return;
+          }
+          let value: unknown;
+          try {
+            value = JSON.parse(bytes);
+          } catch {
+            ws.close(1007, 'Invalid JSON');
+            return;
+          }
+          const parsed = Schema.decodeUnknownResult(liveSubscriptionSchema, {
+            onExcessProperty: 'error',
+          })(value);
+          if (Result.isFailure(parsed)) {
+            ws.close(1008, 'Invalid subscription');
+            return;
+          }
+          yield* Effect.promise(() => demand.replace(parsed.success)).pipe(
+            Effect.map((targets) => connection.follow(targets)),
+            Effect.catchDefect((error) =>
+              Effect.sync(() => {
+                options.logger.failure({ kind: 'live-updates', error });
+                ws.close(1011, 'Subscription could not be followed');
+              }),
+            ),
+          );
         }
-        const parsed = Schema.decodeUnknownResult(liveSubscriptionSchema, {
-          onExcessProperty: 'error',
-        })(value);
-        if (Result.isFailure(parsed))
-          return socket.close(1008, 'Invalid subscription');
-        watches.replace(parsed.success).then(
-          (targets) => connection.follow(targets),
-          (error: unknown) => {
-            options.logger.failure({ kind: 'live-updates', error });
-            socket.close(1011, 'Subscription could not be followed');
-          },
-        );
       });
-      socket.once('close', close);
-      socket.once('error', close);
-    },
-  });
+      yield* Effect.forever(receive).pipe(
+        Effect.catchTag('SocketError', () => Effect.void),
+      );
+      return HttpServerResponse.empty();
+    }).pipe(
+      Effect.catchTag('SocketError', () =>
+        Effect.succeed(HttpServerResponse.empty()),
+      ),
+    ),
+  ).pipe(Layer.provide(handlerAudit.layer));
 }

@@ -122,116 +122,43 @@ const relay = createServer((incoming) => {
   outgoing.on('error', () => incoming.destroy());
 });
 
-type HitRequest = {
-  id: string;
-  method: string;
-  url: string;
-  routeOptions: { url?: string | undefined };
-  headers: Record<string, string | string[] | undefined>;
-};
-type RouteHandler = (this: unknown, ...args: unknown[]) => unknown;
-type RouteOptions = {
-  method: string | readonly string[];
-  url: string;
-  websocket?: boolean;
-  handler: RouteHandler;
-};
-type RouteHost = {
-  addHook(name: 'onRoute', hook: (route: RouteOptions) => void): unknown;
-  addHook(
-    name: 'onRequest',
-    hook: (request: HitRequest) => Promise<void>,
-  ): unknown;
-  addHook(
-    name: 'onResponse',
-    hook: (request: HitRequest, reply: { statusCode: number }) => Promise<void>,
-  ): unknown;
-  server: { address(): unknown };
-};
-
-function isRouteHost(value: unknown): value is RouteHost {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    'addHook' in value &&
-    typeof value.addHook === 'function' &&
-    'server' in value
-  );
-}
-
-function isHandledRequest(value: unknown): value is { id: string } {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    'id' in value &&
-    typeof value.id === 'string'
-  );
-}
-
 const listedMethods = new Set(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']);
-const listeners: { host: RouteHost; routes: string[] }[] = [];
+const routes = new Set<string>();
 const hitsFile = join(root, 'hits.jsonl');
 let fixtureReady = false;
-
-function recordHit(
-  host: RouteHost,
-  entry: { id: string } & Record<string, unknown>,
-) {
-  if (!fixtureReady) return;
-  const owner = typeof host.server.address() === 'string';
-  appendFileSync(
-    hitsFile,
-    `${JSON.stringify(owner ? { ...entry, id: `owner-${entry.id}`, owner } : entry)}\n`,
-  );
-}
-
-subscribe('fastify.initialization', (message) => {
-  const host =
-    typeof message === 'object' && message !== null && 'fastify' in message
-      ? message.fastify
-      : undefined;
-  if (!isRouteHost(host)) return;
-  const listener = { host, routes: new Array<string>() };
-  listeners.push(listener);
-  host.addHook('onRequest', async (request) => {
-    recordHit(host, {
-      event: 'request',
-      id: request.id,
-      method: request.method,
-      route: request.routeOptions.url,
-      path: request.url,
-      kit: request.headers['x-porcelain-journey'] === 'kit',
-    });
-  });
-  host.addHook('onResponse', async (request, reply) => {
-    recordHit(host, {
-      event: 'response',
-      id: request.id,
-      status: reply.statusCode,
-    });
-  });
-  host.addHook('onRoute', (route) => {
-    const { handler } = route;
-    const requestAt = route.websocket === true ? 1 : 0;
-    route.handler = function handled(...args) {
-      const request = args[requestAt];
-      if (isHandledRequest(request))
-        recordHit(host, { event: 'handled', id: request.id });
-      return handler.apply(this, args);
-    };
+subscribe('porcelain.http', (message) => {
+  if (
+    typeof message !== 'object' ||
+    message === null ||
+    !('event' in message) ||
+    !('owner' in message)
+  )
+    return;
+  const owner = message.owner === true;
+  if (
+    message.event === 'registered' &&
+    'method' in message &&
+    'route' in message &&
+    typeof message.route === 'string'
+  ) {
     const methods =
-      typeof route.method === 'string' ? [route.method] : route.method;
+      message.method === '*' ? [...listedMethods] : [message.method];
     for (const method of methods)
-      if (listedMethods.has(method))
-        listener.routes.push(`${method} ${route.url}`);
-  });
+      if (typeof method === 'string' && listedMethods.has(method))
+        routes.add(`${owner ? 'owner ' : ''}${method} ${message.route}`);
+  } else if (
+    fixtureReady &&
+    'id' in message &&
+    typeof message.id === 'string'
+  ) {
+    appendFileSync(
+      hitsFile,
+      `${JSON.stringify({ ...message, id: owner ? `owner-${message.id}` : message.id })}\n`,
+    );
+  }
 });
-
 function registeredRoutes() {
-  return listeners.flatMap(({ host, routes }) => {
-    const prefix = typeof host.server.address() === 'string' ? 'owner ' : '';
-    return [...new Set(routes)].sort().map((route) => `${prefix}${route}`);
-  });
+  return [...routes].sort();
 }
 
 const sample = process.env.PORCELAIN_DEV_SAMPLE;

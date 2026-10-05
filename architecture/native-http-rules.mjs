@@ -141,7 +141,7 @@ export const nativeHttpRules = {
     create(context) {
       if (!inRoute(context)) return {};
       let groups = 0;
-      let bridges = 0;
+      let layers = 0;
       return {
         CallExpression(node) {
           if (nativeGroup(node, context)) {
@@ -166,22 +166,24 @@ export const nativeHttpRules = {
                   'Build a named Effect group from an imported contract API, because the contract owns endpoint names, request codecs and complete handler coverage.',
               });
           }
-          if (node.callee.type === 'Identifier') {
-            const definition = variable(context, node.callee)?.defs[0];
-            if (
-              definition?.type === 'ImportBinding' &&
-              definition.node.imported?.name === 'effectRoutes' &&
-              /\/effect-bridge\.ts$/.test(definition.parent.source.value)
+          if (
+            node.callee.type === 'MemberExpression' &&
+            property(node.callee) === 'layer' &&
+            imported(
+              context,
+              node.callee.object,
+              'effect/http-api',
+              'HttpApiBuilder',
             )
-              bridges += 1;
-          }
+          )
+            layers += 1;
         },
         'Program:exit'(node) {
-          if (groups === 0 || bridges === 0)
+          if (groups === 0 || layers === 0)
             context.report({
               node,
               message:
-                'Export contract-backed Effect handler groups through effectRoutes, because hand-written transport declarations disconnect the server from its generated client.',
+                'Export contract-backed Effect handler groups as a native HttpApiBuilder.layer, because hand-written transport declarations disconnect the server from its generated client.',
             });
         },
       };
@@ -199,7 +201,7 @@ export const nativeHttpRules = {
             context.report({
               node,
               message:
-                'Register feature endpoints through the typed Effect group, because hand-written Fastify methods, paths and hooks bypass the shared contract and scope policy.',
+                'Register feature endpoints through the typed Effect group, because hand-written transport methods, paths and hooks bypass the shared contract and scope policy.',
             });
         },
       };

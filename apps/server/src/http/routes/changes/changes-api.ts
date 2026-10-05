@@ -1,8 +1,9 @@
+import { requestBody } from '../../hooks/request-body.ts';
+import { handlerAudit } from '../../diagnostics.ts';
 import { ChangesApi } from '@porcelain/contracts/changes';
 import type { Context } from 'effect';
 import { Layer } from 'effect';
 import { HttpApiBuilder } from 'effect/http-api';
-import { effectRoutes } from '../../effect-bridge.ts';
 import { type ListBranchBasesUseCase } from '../../../use-cases/changes/list-branch-bases.ts';
 import { type ListCommitsUseCase } from '../../../use-cases/changes/list-commits.ts';
 import { type ListFileCommitsUseCase } from '../../../use-cases/changes/list-file-commits.ts';
@@ -99,8 +100,9 @@ export function changesRoutes(useCases: ChangesUseCases) {
         useCases.readGitStatus.execute(params),
       ),
   );
-  return effectRoutes(
-    ChangesApi,
-    HttpApiBuilder.layer(ChangesApi).pipe(Layer.provide(handlers)),
+  return HttpApiBuilder.layer(ChangesApi).pipe(
+    Layer.provide(handlers),
+    Layer.provide(handlerAudit.layer),
+    Layer.provide(requestBody.layer),
   );
 }

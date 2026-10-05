@@ -1,3 +1,5 @@
+import { requestBody } from '../../hooks/request-body.ts';
+import { handlerAudit } from '../../diagnostics.ts';
 import {
   PublicAccessApi,
   BrowserAccessApi,
@@ -11,7 +13,6 @@ import { RequestCaller, RequestConnection } from '@porcelain/contracts/shared';
 import type { Context } from 'effect';
 import { Effect, Layer } from 'effect';
 import { HttpApiBuilder } from 'effect/http-api';
-import { effectRoutes } from '../../effect-bridge.ts';
 import { type ClearBrowserSessionUseCase } from '../../../use-cases/access/clear-browser-session.ts';
 import { type IssueLiveTicketUseCase } from '../../../use-cases/access/issue-live-ticket.ts';
 import { type IssuePairingUseCase } from '../../../use-cases/access/issue-pairing.ts';
@@ -239,41 +240,40 @@ export function accessRoutes(useCases: AccessUseCases) {
       ),
   );
   return {
-    public: effectRoutes(
-      PublicAccessApi,
-      HttpApiBuilder.layer(PublicAccessApi).pipe(Layer.provide(publicHandlers)),
+    public: HttpApiBuilder.layer(PublicAccessApi).pipe(
+      Layer.provide(publicHandlers),
+      Layer.provide(handlerAudit.layer),
+      Layer.provide(requestBody.layer),
     ),
-    browser: effectRoutes(
-      BrowserAccessApi,
-      HttpApiBuilder.layer(BrowserAccessApi).pipe(
-        Layer.provide(browserHandlers),
-      ),
+    browser: HttpApiBuilder.layer(BrowserAccessApi).pipe(
+      Layer.provide(browserHandlers),
+      Layer.provide(handlerAudit.layer),
+      Layer.provide(requestBody.layer),
     ),
-    pairing: effectRoutes(
-      PairingApi,
-      HttpApiBuilder.layer(PairingApi).pipe(Layer.provide(pairingHandlers)),
+    pairing: HttpApiBuilder.layer(PairingApi).pipe(
+      Layer.provide(pairingHandlers),
+      Layer.provide(handlerAudit.layer),
+      Layer.provide(requestBody.layer),
     ),
-    session: effectRoutes(
-      SessionApi,
-      HttpApiBuilder.layer(SessionApi).pipe(Layer.provide(sessionHandlers)),
+    session: HttpApiBuilder.layer(SessionApi).pipe(
+      Layer.provide(sessionHandlers),
+      Layer.provide(handlerAudit.layer),
+      Layer.provide(requestBody.layer),
     ),
-    updates: effectRoutes(
-      ServiceUpdatesApi,
-      HttpApiBuilder.layer(ServiceUpdatesApi).pipe(
-        Layer.provide(updatesHandlers),
-      ),
+    updates: HttpApiBuilder.layer(ServiceUpdatesApi).pipe(
+      Layer.provide(updatesHandlers),
+      Layer.provide(handlerAudit.layer),
+      Layer.provide(requestBody.layer),
     ),
-    host: effectRoutes(
-      HostAccessApi,
-      HttpApiBuilder.layer(HostAccessApi).pipe(
-        Layer.provide(Layer.merge(hostAdministration, environmentName)),
-      ),
+    host: HttpApiBuilder.layer(HostAccessApi).pipe(
+      Layer.provide(Layer.merge(hostAdministration, environmentName)),
+      Layer.provide(handlerAudit.layer),
+      Layer.provide(requestBody.layer),
     ),
-    owner: effectRoutes(
-      OwnerAccessApi,
-      HttpApiBuilder.layer(OwnerAccessApi).pipe(
-        Layer.provide(Layer.merge(ownerAdministration, ownerStatus)),
-      ),
+    owner: HttpApiBuilder.layer(OwnerAccessApi).pipe(
+      Layer.provide(Layer.merge(ownerAdministration, ownerStatus)),
+      Layer.provide(handlerAudit.layer),
+      Layer.provide(requestBody.layer),
     ),
   };
 }

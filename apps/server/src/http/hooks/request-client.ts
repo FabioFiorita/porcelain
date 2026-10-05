@@ -1,6 +1,5 @@
 import { Effect } from 'effect';
-import { withSignal } from '@porcelain/effects';
-import type { FastifyReply, FastifyRequest } from 'fastify';
+import { RequestContext } from '../request-context.ts';
 import type { IdentifyRequestClientUseCasePort } from '../../ports/identify-request-client-use-case-port.ts';
 import { headerValue } from './header-value.ts';
 
@@ -15,27 +14,23 @@ export function identifyRequestClient(
   options: RequestClientOptions,
   strictTransport: { maxAgeSeconds: number },
 ) {
-  return async (request: FastifyRequest, reply: FastifyReply) => {
-    request.client = await Effect.runPromise(
-      withSignal(
-        options.access.identifyRequestClient.execute({
-          host: request.headers.host,
-          scheme: request.protocol,
-          peerAddress: request.ip,
-          localAddress: request.socket.localAddress,
-          localPort: request.socket.localPort,
-          connectingAddress: headerValue(
-            request.headers[CONNECTING_ADDRESS_HEADER],
-          ),
-          forwardedFor: headerValue(request.headers[FORWARDED_FOR_HEADER]),
-        }),
-        request.disconnected,
+  return Effect.gen(function* () {
+    const context = yield* RequestContext;
+    context.client = yield* options.access.identifyRequestClient.execute({
+      host: context.request.headers.host,
+      scheme: context.client.secure ? 'https' : 'http',
+      peerAddress: context.incoming.socket.remoteAddress ?? '',
+      localAddress: context.incoming.socket.localAddress,
+      localPort: context.incoming.socket.localPort,
+      connectingAddress: headerValue(
+        context.request.headers[CONNECTING_ADDRESS_HEADER],
       ),
-    );
-    if (request.client.secure)
-      reply.header(
+      forwardedFor: headerValue(context.request.headers[FORWARDED_FOR_HEADER]),
+    });
+    if (context.client.secure)
+      context.response.setHeader(
         'Strict-Transport-Security',
         `max-age=${strictTransport.maxAgeSeconds}`,
       );
-  };
+  });
 }

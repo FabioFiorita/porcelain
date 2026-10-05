@@ -1,8 +1,6 @@
 import { Effect } from 'effect';
-import type { FastifyInstance } from 'fastify';
 import { afterEach, describe, expect, it } from 'vitest';
-import { createServer } from '../../server-factory.ts';
-import { mountEffectRoutes } from '../../effect-bridge.ts';
+import { openHttpApplication } from '@porcelain/server/kit/http';
 import { gitActionsRoutes } from './git-actions-api.ts';
 
 const worktreeId = '0123456789abcdef0123456789abcdef';
@@ -30,13 +28,10 @@ const request = {
     mergeHeadOid: null,
   },
 };
-const opened: { server: FastifyInstance; dispose: () => Promise<void> }[] = [];
+const opened: Awaited<ReturnType<typeof openHttpApplication>>[] = [];
 
 afterEach(async () => {
-  for (const { server, dispose } of opened.splice(0)) {
-    await server.close();
-    await dispose();
-  }
+  for (const server of opened.splice(0)) await server.close();
 });
 
 async function serverFor(
@@ -49,10 +44,6 @@ async function serverFor(
     | 'interrupted',
   captured: unknown[] = [],
 ) {
-  const server = createServer({
-    logger: { failure: () => undefined },
-    principal: { kind: 'owner' },
-  });
   const routes = gitActionsRoutes({
     runGitAction: {
       execute: (input) => {
@@ -73,13 +64,8 @@ async function serverFor(
       execute: () => Effect.succeed({ dismissed: true }),
     },
   });
-  server.register(
-    async (api) => {
-      api.register(mountEffectRoutes, { routes });
-    },
-    { prefix: '/api' },
-  );
-  opened.push({ server, dispose: routes.dispose });
+  const server = await openHttpApplication(routes, { kind: 'owner' });
+  opened.push(server);
   return server;
 }
 
@@ -96,13 +82,13 @@ describe('Git action native HTTP contract', () => {
     async (state, status) => {
       const captured: unknown[] = [];
       const server = await serverFor(state, captured);
-      const response = await server.inject({
+      const response = await server.send({
         method: 'POST',
-        url: `/api/worktrees/${worktreeId}/git/actions`,
-        payload: request,
+        path: `/api/worktrees/${worktreeId}/git/actions`,
+        body: request,
       });
-      expect(response.statusCode).toBe(status);
-      expect(response.json()).toEqual({ ...receipt, state });
+      expect(response.status).toBe(status);
+      expect(await response.json()).toEqual({ ...receipt, state });
       expect(captured).toEqual([
         {
           ...request,
@@ -125,21 +111,21 @@ describe('Git action native HTTP contract', () => {
       ...request,
       input: { action: 'stash-apply', stashOid: 'a'.repeat(40) },
     };
-    const valid = await server.inject({
+    const valid = await server.send({
       method: 'POST',
-      url: `/api/worktrees/${worktreeId}/git/actions`,
-      payload: stashing,
+      path: `/api/worktrees/${worktreeId}/git/actions`,
+      body: stashing,
     });
-    expect(valid.statusCode).toBe(202);
+    expect(valid.status).toBe(202);
     expect(captured).toMatchObject([
       { input: { action: 'stash-apply', restoreIndex: false } },
     ]);
-    const forged = await server.inject({
+    const forged = await server.send({
       method: 'POST',
-      url: `/api/worktrees/${worktreeId}/git/actions`,
-      payload: { ...stashing, caller: 'owner' },
+      path: `/api/worktrees/${worktreeId}/git/actions`,
+      body: { ...stashing, caller: 'owner' },
     });
-    expect(forged.statusCode).toBe(400);
+    expect(forged.status).toBe(400);
     expect(captured).toHaveLength(1);
   });
 });

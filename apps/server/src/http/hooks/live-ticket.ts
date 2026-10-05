@@ -1,42 +1,43 @@
 import { Effect } from 'effect';
-import { withSignal } from '@porcelain/effects';
-import { httpErrors } from '@fastify/sensible';
-import type { FastifyReply, FastifyRequest } from 'fastify';
 import type { RedeemLiveTicketUseCasePort } from '../../ports/redeem-live-ticket-use-case-port.ts';
+import { RequestContext } from '../request-context.ts';
+import { RequestError } from '../../runtime/errors/request-error.ts';
 import { authenticate, type AuthenticateOptions } from './authenticate.ts';
-
-const TICKET_PARAMETER = 'ticket';
 
 export type LiveTicketOptions = {
   access: { redeemLiveTicket: RedeemLiveTicketUseCasePort };
 };
-
-export function presentedTicket(request: FastifyRequest): string | undefined {
-  const query = request.query;
-  if (typeof query !== 'object' || query === null) return undefined;
-  if (!(TICKET_PARAMETER in query)) return undefined;
-  const ticket: unknown = Reflect.get(query, TICKET_PARAMETER);
-  return typeof ticket === 'string' ? ticket : '';
+export function presentedTicket(
+  context: RequestContext['Service'],
+): string | undefined {
+  const query = new URL(context.request.originalUrl, 'http://porcelain.invalid')
+    .searchParams;
+  const tickets = query.getAll('ticket');
+  return tickets.length === 0
+    ? undefined
+    : tickets.length === 1
+      ? tickets[0]
+      : '';
 }
-
 export function authenticateLiveViewer(
   options: AuthenticateOptions & LiveTicketOptions,
   cookie: { cookieMaxAgeSeconds: number },
 ) {
-  const byCredential = authenticate(options, cookie);
-  return async (request: FastifyRequest, reply: FastifyReply) => {
-    const ticket = presentedTicket(request);
-    if (ticket === undefined) return byCredential(request, reply);
-    const device = await Effect.runPromise(
-      withSignal(
-        options.access.redeemLiveTicket.execute({
-          ticket,
-          route: request.client.route,
+  return Effect.gen(function* () {
+    const context = yield* RequestContext;
+    const ticket = presentedTicket(context);
+    if (ticket === undefined) return yield* authenticate(options, cookie);
+    const device = yield* options.access.redeemLiveTicket.execute({
+      ticket,
+      route: context.client.route,
+    });
+    if (!device)
+      return yield* Effect.die(
+        new RequestError({
+          statusCode: 401,
+          message: 'Authentication required',
         }),
-        request.disconnected,
-      ),
-    );
-    if (!device) throw httpErrors.unauthorized('Authentication required');
-    request.principal = { kind: 'device', deviceId: device.deviceId };
-  };
+      );
+    context.principal = { kind: 'device', deviceId: device.deviceId };
+  });
 }

@@ -1,7 +1,6 @@
 import { Effect } from 'effect';
-import { withSignal } from '@porcelain/effects';
-import { httpErrors } from '@fastify/sensible';
-import type { FastifyRequest } from 'fastify';
+import { RequestContext } from '../request-context.ts';
+import { RequestError } from '../../runtime/errors/request-error.ts';
 import type {
   CheckRequestOriginUseCasePort,
   CrossOriginPolicy,
@@ -41,38 +40,39 @@ function refusalMessage(refusal: Refusal): string {
 }
 
 function presentedCredential(
-  request: FastifyRequest,
+  context: RequestContext['Service'],
   policy: OriginPolicy,
 ): PresentedCredential {
-  if (policy.crossOrigin === 'ticket' && presentedTicket(request) !== undefined)
+  if (policy.crossOrigin === 'ticket' && presentedTicket(context) !== undefined)
     return 'ticket';
-  return bearerCredential(request) === undefined ? 'none' : 'bearer';
+  return bearerCredential(context) === undefined ? 'none' : 'bearer';
 }
 
 export function checkRequestOrigin(
   options: RequestOriginOptions,
   policy: OriginPolicy,
 ) {
-  return async (request: FastifyRequest) => {
-    const result = await Effect.runPromise(
-      withSignal(
-        options.access.checkRequestOrigin.execute({
-          host: request.headers.host,
-          origin: request.headers.origin,
-          method: request.method,
-          scheme: request.protocol,
-          localAddress: request.socket.localAddress,
-          localPort: request.socket.localPort,
-          allowedHosts: options.allowedHosts,
-          requireSameOrigin: policy.requireSameOrigin ?? false,
-          crossOrigin: policy.crossOrigin,
-          credential: presentedCredential(request, policy),
-        }),
-        request.disconnected,
-      ),
-    );
+  return Effect.gen(function* () {
+    const context = yield* RequestContext;
+    const result = yield* options.access.checkRequestOrigin.execute({
+      host: context.request.headers.host,
+      origin: context.request.headers.origin,
+      method: context.request.method,
+      scheme: context.client.secure ? 'https' : 'http',
+      localAddress: context.incoming.socket.localAddress,
+      localPort: context.incoming.socket.localPort,
+      allowedHosts: options.allowedHosts,
+      requireSameOrigin: policy.requireSameOrigin ?? false,
+      crossOrigin: policy.crossOrigin,
+      credential: presentedCredential(context, policy),
+    });
     if (!result.allowed)
-      throw httpErrors.forbidden(refusalMessage(result.refusal));
-    request.crossOrigin = result.crossOrigin;
-  };
+      return yield* Effect.die(
+        new RequestError({
+          statusCode: 403,
+          message: refusalMessage(result.refusal),
+        }),
+      );
+    context.crossOrigin = result.crossOrigin;
+  });
 }

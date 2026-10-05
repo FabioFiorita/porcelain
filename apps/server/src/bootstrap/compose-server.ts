@@ -340,15 +340,6 @@ function serverResources(
                 nativeOperation(() => changes.statusReads.close()),
                 Effect.sync(() => liveConnections.close()),
                 nativeOperation(() => lanes.close()),
-                nativeOperation(() => files.dispose()),
-                nativeOperation(() => gitActions.routes.dispose()),
-                nativeOperation(() => projects.routes.dispose()),
-                nativeOperation(() => changes.routes.dispose()),
-                nativeOperation(() => reviews.routes.dispose()),
-                nativeOperation(() => reviews.summaryRoutes.dispose()),
-                ...Object.values(access.routes).map((routes) =>
-                  nativeOperation(() => routes.dispose()),
-                ),
               ]),
             ),
         };

@@ -123,12 +123,24 @@ export function toolCall(
     method: 'POST',
     path: '/mcp',
     target: 'owner',
-    headers: mcpHeaders(session.repository),
+    headers: {
+      ...mcpHeaders(session.repository),
+      'mcp-protocol-version': '2026-07-28',
+      'mcp-method': 'tools/call',
+      'mcp-name': name,
+    },
     body: {
       jsonrpc: '2.0',
       id,
       method: 'tools/call',
-      params: { name, arguments: input },
+      params: {
+        name,
+        arguments: input,
+        _meta: {
+          'io.modelcontextprotocol/protocolVersion': '2026-07-28',
+          'io.modelcontextprotocol/clientCapabilities': {},
+        },
+      },
     },
   };
 }

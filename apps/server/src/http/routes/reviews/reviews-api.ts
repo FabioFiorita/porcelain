@@ -1,9 +1,11 @@
+import { requestBody } from '../../hooks/request-body.ts';
+import { handlerAudit } from '../../diagnostics.ts';
+import { requestBodyLimit } from '../../hooks/request-body.ts';
 import { ReviewsApi } from '@porcelain/contracts/reviews';
 import { RequestCaller } from '@porcelain/contracts/shared';
 import type { Context } from 'effect';
 import { Effect, Layer } from 'effect';
 import { HttpApiBuilder } from 'effect/http-api';
-import { effectRoutes } from '../../effect-bridge.ts';
 import { type CreateCommentThreadUseCase } from '../../../use-cases/reviews/create-comment-thread.ts';
 import { type DeleteCommentMessageUseCase } from '../../../use-cases/reviews/delete-comment-message.ts';
 import { type DeleteResolvedCommentsUseCase } from '../../../use-cases/reviews/delete-resolved-comments.ts';
@@ -193,9 +195,18 @@ export function reviewsRoutes(
         useCases.updateCommentThread.execute({ ...params, ...payload }),
       ),
   );
-  return effectRoutes(
-    ReviewsApi,
-    HttpApiBuilder.layer(ReviewsApi).pipe(Layer.provide(handlers)),
-    { publishReview: limits.reviewBodyBytes },
-  );
+  return HttpApiBuilder.layer(ReviewsApi)
+    .pipe(
+      Layer.provide(handlers),
+      Layer.provide(handlerAudit.layer),
+      Layer.provide(requestBody.layer),
+    )
+    .pipe(
+      Layer.provide(
+        requestBodyLimit(
+          ReviewsApi.groups.reviews.endpoints.publishReview,
+          limits.reviewBodyBytes,
+        ),
+      ),
+    );
 }

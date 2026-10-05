@@ -60,7 +60,7 @@ test("the agent reads the reviewer's comment on a branch line with its base, tip
 
   expect(response.status).toBe(200);
   expect(response.body).toMatchObject(answered(1));
-  expect(toolValue(response.body)).toMatchObject([
+  expect(record(toolValue(response.body)).threads).toMatchObject([
     {
       id: threadId,
       anchor,

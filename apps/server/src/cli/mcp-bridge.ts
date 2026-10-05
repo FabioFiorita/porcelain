@@ -17,6 +17,7 @@ export async function runMcpBridge(
   output: (line: string) => void = (line) => process.stdout.write(line),
 ): Promise<void> {
   const socketPath = ownerSocketPath(dataDirectory);
+  const sessionHeaders: Record<string, string> = {};
   const lines = createInterface({ input, crlfDelay: Number.POSITIVE_INFINITY });
   for await (const line of lines) {
     const trimmed = line.trim();
@@ -34,7 +35,13 @@ export async function runMcpBridge(
         message,
         process.cwd(),
         timeoutMs,
+        sessionHeaders,
       );
+      const sessionId = answer.headers.get('mcp-session-id');
+      if (sessionId !== null) sessionHeaders['mcp-session-id'] = sessionId;
+      const protocolVersion = answer.headers.get('mcp-protocol-version');
+      if (protocolVersion !== null)
+        sessionHeaders['mcp-protocol-version'] = protocolVersion;
       if (answer.body.trim().length === 0) continue;
       if (answer.status !== 200) {
         if (id !== null) output(`${failure(id, answer.body)}\n`);

@@ -1,20 +1,9 @@
-import { type Context, Effect } from 'effect';
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import {
-  createCommentThreadResponseSchema,
-  createCommentToolRequestSchema,
-  listCommentsToolRequestSchema,
-  listCommentThreadsResponseSchema,
-  publishReviewToolRequestSchema,
-  publishReviewToolResponseSchema,
-  readPublishedReviewResponseSchema,
-  readReviewToolRequestSchema,
-  replyToCommentResponseSchema,
-  replyToCommentToolRequestSchema,
-  updateCommentThreadResponseSchema,
-  resolveCommentToolRequestSchema,
-} from '@porcelain/contracts/reviews';
-import { registerEffectTool } from './effect-tool.ts';
+import { type Context, Effect, Layer } from 'effect';
+import { McpServer } from 'effect/ai';
+import { HttpServerRequest } from 'effect/http';
+import { ReviewToolkit } from '@porcelain/contracts/reviews';
+import { toStatusResponse } from '../status-policy.ts';
+import { RequestError } from '../../runtime/errors/request-error.ts';
 import { type AtWorktreePathUseCase } from '../../use-cases/reviews/at-worktree-path.ts';
 import { type CreateCommentThreadUseCase } from '../../use-cases/reviews/create-comment-thread.ts';
 import { type ListCommentThreadsUseCase } from '../../use-cases/reviews/list-comment-threads.ts';
@@ -23,7 +12,6 @@ import { type ReadPublishedReviewUseCase } from '../../use-cases/reviews/read-pu
 import { type ReplyToCommentUseCase } from '../../use-cases/reviews/reply-to-comment.ts';
 import { type UpdateCommentThreadUseCase } from '../../use-cases/reviews/update-comment-thread.ts';
 import { REVIEW_GUIDE } from './review-guide.ts';
-
 export type ReviewMcpUseCases = {
   reviewTools: {
     atWorktreePath: Context.Service.Shape<typeof AtWorktreePathUseCase>;
@@ -49,134 +37,109 @@ const summaryWarnings: Readonly<Record<string, string>> = {
     'No authored CSS was detected in the summary HTML. The review was published. Add CSS and republish, matching the reviewed application’s colors, background, typography and components where possible. Style the layer links and content hierarchy, then visually verify the result. If styles are generated at runtime, verify that they load correctly.',
 };
 
-export function createReviewMcpServer(
-  useCases: ReviewMcpUseCases,
-  defaultCwd: string,
-) {
-  const server = new McpServer(
-    { name: 'porcelain', version: '1.0.0' },
-    {
-      instructions:
-        'Publish and discuss the review for the registered worktree containing this MCP process cwd. Read porcelain://review-guide before publishing. Shell and editor tools remain the source for reading code.',
-    },
+function invocation<A, E>(operation: (cwd: string) => Effect.Effect<A, E>) {
+  return Effect.gen(function* () {
+    const request = yield* Effect.serviceOption(
+      HttpServerRequest.HttpServerRequest,
+    );
+    const cwd =
+      request._tag === 'Some'
+        ? request.value.headers['x-porcelain-cwd']
+        : undefined;
+    if (cwd === undefined || cwd === '')
+      return yield* Effect.die(
+        new RequestError({
+          statusCode: 400,
+          message: 'The x-porcelain-cwd header is required',
+        }),
+      );
+    return yield* operation(cwd);
+  }).pipe(
+    Effect.mapError(
+      (error) =>
+        toStatusResponse(error).body ?? {
+          statusCode: 500,
+          error: 'Internal Server Error',
+          message: 'Operation failed',
+        },
+    ),
   );
-  server.registerResource(
-    'review-guide',
-    'porcelain://review-guide',
-    {
-      title: 'Porcelain review writing and design guide',
+}
+
+export function reviewMcpHandlers(useCases: ReviewMcpUseCases) {
+  return Layer.mergeAll(
+    McpServer.toolkit(ReviewToolkit).pipe(
+      Layer.provide(
+        ReviewToolkit.toLayer({
+          publish_review: ({ cwd, ...review }) =>
+            invocation((defaultCwd) =>
+              Effect.gen(function* () {
+                const published =
+                  yield* useCases.reviewTools.atWorktreePath.execute({
+                    operation: useCases.reviewTools.publishReview,
+                    cwd: cwd ?? defaultCwd,
+                    request: review,
+                  });
+                return {
+                  ...published,
+                  warnings: published.warnings.map(
+                    (warning) => summaryWarnings[warning] ?? warning,
+                  ),
+                };
+              }),
+            ),
+          read_review: ({ cwd }) =>
+            invocation((defaultCwd) =>
+              useCases.reviewTools.atWorktreePath.execute({
+                operation: useCases.reviewTools.readPublishedReview,
+                cwd: cwd ?? defaultCwd,
+                request: {},
+              }),
+            ),
+          list_comments: ({ cwd, scope }) =>
+            invocation((defaultCwd) =>
+              Effect.map(
+                useCases.reviewTools.atWorktreePath.execute({
+                  operation: useCases.reviewTools.listCommentThreads,
+                  cwd: cwd ?? defaultCwd,
+                  request: { scope },
+                }),
+                (threads) => ({ threads }),
+              ),
+            ),
+          create_comment: ({ cwd, ...input }) =>
+            invocation((defaultCwd) =>
+              useCases.reviewTools.atWorktreePath.execute({
+                operation: useCases.reviewTools.createCommentThread,
+                cwd: cwd ?? defaultCwd,
+                request: { ...input, writer: agent },
+              }),
+            ),
+          reply_to_comment: ({ cwd, ...input }) =>
+            invocation((defaultCwd) =>
+              useCases.reviewTools.atWorktreePath.execute({
+                operation: useCases.reviewTools.replyToComment,
+                cwd: cwd ?? defaultCwd,
+                request: { ...input, writer: agent },
+              }),
+            ),
+          resolve_comment: ({ cwd, ...input }) =>
+            invocation((defaultCwd) =>
+              useCases.reviewTools.atWorktreePath.execute({
+                operation: useCases.reviewTools.updateCommentThread,
+                cwd: cwd ?? defaultCwd,
+                request: input,
+              }),
+            ),
+        }),
+      ),
+    ),
+    McpServer.resource({
+      uri: 'porcelain://review-guide',
+      name: 'review-guide',
+      description: 'Porcelain review writing and design guide',
       mimeType: 'text/markdown',
-    },
-    async (uri) => ({
-      contents: [
-        { uri: uri.href, mimeType: 'text/markdown', text: REVIEW_GUIDE },
-      ],
+      content: Effect.succeed(REVIEW_GUIDE),
     }),
   );
-  registerEffectTool(
-    server,
-    {
-      name: 'publish_review',
-      output: publishReviewToolResponseSchema,
-      description:
-        'Atomically replace the latest summary, diagram, review layers and proof. Read the current revision and porcelain://review-guide first. Include your own CSS, matching the reviewed application where possible; missing CSS produces an advisory warning. Attach proof that the work is done: checks you ran with their result, and screenshots, short videos or links.',
-      input: publishReviewToolRequestSchema,
-    },
-    ({ cwd, ...review }) =>
-      Effect.gen(function* () {
-        const published = yield* useCases.reviewTools.atWorktreePath.execute({
-          operation: useCases.reviewTools.publishReview,
-          cwd: cwd ?? defaultCwd,
-          request: review,
-        });
-        return {
-          ...published,
-          warnings: published.warnings.map(
-            (warning) => summaryWarnings[warning] ?? warning,
-          ),
-        };
-      }),
-  );
-  registerEffectTool(
-    server,
-    {
-      name: 'read_review',
-      output: readPublishedReviewResponseSchema,
-      description:
-        'Read the latest published review, resolved pointers and uncovered changed lines.',
-      input: readReviewToolRequestSchema,
-      annotations: { readOnlyHint: true },
-    },
-    ({ cwd }) =>
-      useCases.reviewTools.atWorktreePath.execute({
-        operation: useCases.reviewTools.readPublishedReview,
-        cwd: cwd ?? defaultCwd,
-        request: {},
-      }),
-  );
-  registerEffectTool(
-    server,
-    {
-      name: 'list_comments',
-      output: listCommentThreadsResponseSchema,
-      description:
-        'Read review threads waiting for the agent. Omit scope, or pass waiting, for unresolved threads whose latest message is not from the agent. Pass all to include every thread.',
-      input: listCommentsToolRequestSchema,
-      annotations: { readOnlyHint: true },
-    },
-    ({ cwd, scope }) =>
-      useCases.reviewTools.atWorktreePath.execute({
-        operation: useCases.reviewTools.listCommentThreads,
-        cwd: cwd ?? defaultCwd,
-        request: { scope },
-      }),
-  );
-  registerEffectTool(
-    server,
-    {
-      name: 'create_comment',
-      output: createCommentThreadResponseSchema,
-      description:
-        'Create an agent review thread on the whole change (kind change, with a branch comparison and its tip for a branch review), a file or a code range. Stable optional IDs make retries idempotent.',
-      input: createCommentToolRequestSchema,
-    },
-    ({ cwd, ...input }) =>
-      useCases.reviewTools.atWorktreePath.execute({
-        operation: useCases.reviewTools.createCommentThread,
-        cwd: cwd ?? defaultCwd,
-        request: { ...input, writer: agent },
-      }),
-  );
-  registerEffectTool(
-    server,
-    {
-      name: 'reply_to_comment',
-      output: replyToCommentResponseSchema,
-      description:
-        'Reply to a review thread. Stable optional messageId makes retries idempotent.',
-      input: replyToCommentToolRequestSchema,
-    },
-    ({ cwd, ...input }) =>
-      useCases.reviewTools.atWorktreePath.execute({
-        operation: useCases.reviewTools.replyToComment,
-        cwd: cwd ?? defaultCwd,
-        request: { ...input, writer: agent },
-      }),
-  );
-  registerEffectTool(
-    server,
-    {
-      name: 'resolve_comment',
-      output: updateCommentThreadResponseSchema,
-      description: 'Resolve or reopen a review thread.',
-      input: resolveCommentToolRequestSchema,
-    },
-    ({ cwd, ...input }) =>
-      useCases.reviewTools.atWorktreePath.execute({
-        operation: useCases.reviewTools.updateCommentThread,
-        cwd: cwd ?? defaultCwd,
-        request: input,
-      }),
-  );
-  return server;
 }

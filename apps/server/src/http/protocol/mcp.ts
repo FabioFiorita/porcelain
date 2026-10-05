@@ -1,67 +1,65 @@
+import { requestBody, requestBodyLimit } from '../hooks/request-body.ts';
+import { handlerAudit } from '../diagnostics.ts';
 import { ReviewMcpApi } from '@porcelain/contracts/access';
-import { httpErrors } from '@fastify/sensible';
-import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
-import type { FastifyInstance, FastifyReply } from 'fastify';
+import { McpProtocol, McpServer } from 'effect/ai';
+import { Effect, Layer } from 'effect';
+import { HttpRouter, HttpServerRequest, HttpServerResponse } from 'effect/http';
 import type { Limits } from '../../config/limits.ts';
+import { RequestError } from '../../runtime/errors/request-error.ts';
 import {
-  createReviewMcpServer,
+  reviewMcpHandlers,
   type ReviewMcpUseCases,
 } from '../mcp/review-server.ts';
 
-function asTransport(transport: StreamableHTTPServerTransport): Transport {
-  const connection: Transport = {
-    start: () => transport.start(),
-    send: (message, options) => transport.send(message, options),
-    close: () => transport.close(),
-  };
-  transport.onclose = () => connection.onclose?.();
-  transport.onerror = (error) => connection.onerror?.(error);
-  transport.onmessage = (message, extra) =>
-    connection.onmessage?.(message, extra);
-  return connection;
-}
+const endpoint = ReviewMcpApi.groups.reviewMcp.endpoints.reviewMcp;
+const invocationPolicy = HttpRouter.middleware((app) =>
+  Effect.gen(function* () {
+    const request = yield* HttpServerRequest.HttpServerRequest;
+    if (request.method !== endpoint.method)
+      return HttpServerResponse.jsonUnsafe(
+        {
+          statusCode: 405,
+          error: 'Method Not Allowed',
+          message: 'Method Not Allowed',
+        },
+        { status: 405, headers: { allow: 'POST' } },
+      );
+    const cwd = request.headers['x-porcelain-cwd'];
+    if (cwd === undefined || cwd === '')
+      return yield* Effect.die(
+        new RequestError({
+          statusCode: 400,
+          message: 'The x-porcelain-cwd header is required',
+        }),
+      );
+    return yield* app;
+  }),
+);
 
-function keepHookHeaders(reply: FastifyReply) {
-  for (const [name, value] of Object.entries(reply.getHeaders()))
-    if (value !== undefined) reply.raw.setHeader(name, value);
-}
-
-export function reviewMcp(
-  server: FastifyInstance,
-  options: { useCases: ReviewMcpUseCases; limits: Limits['http'] },
-) {
-  server.all(
-    ReviewMcpApi.groups.reviewMcp.endpoints.reviewMcp.path,
-    {
-      bodyLimit: options.limits.reviewBodyBytes,
-    },
-    async (request, reply) => {
-      if (
-        request.method !==
-        ReviewMcpApi.groups.reviewMcp.endpoints.reviewMcp.method
-      ) {
-        reply.header(
-          'Allow',
-          ReviewMcpApi.groups.reviewMcp.endpoints.reviewMcp.method,
-        );
-        throw httpErrors.methodNotAllowed();
-      }
-      const cwd = request.headers['x-porcelain-cwd'];
-      if (typeof cwd !== 'string' || cwd === '')
-        throw httpErrors.badRequest('The x-porcelain-cwd header is required');
-      const mcp = createReviewMcpServer(options.useCases, cwd);
-      const transport = new StreamableHTTPServerTransport({
-        enableJsonResponse: true,
-      });
-      await mcp.connect(asTransport(transport));
-      reply.hijack();
-      keepHookHeaders(reply);
-      try {
-        await transport.handleRequest(request.raw, reply.raw, request.body);
-      } finally {
-        await mcp.close();
-      }
-    },
+export function reviewMcp(options: {
+  useCases: ReviewMcpUseCases;
+  limits: Limits['http'];
+}) {
+  return Layer.mergeAll(
+    reviewMcpHandlers(options.useCases),
+    McpServer.layerHttp({
+      name: 'porcelain',
+      version: '1.0.0',
+      path: endpoint.path,
+      instructions:
+        'Publish and discuss the review for the registered worktree containing this MCP process cwd. Read porcelain://review-guide before publishing. Shell and editor tools remain the source for reading code.',
+      protocols: [
+        McpProtocol.v2026_07_28,
+        McpProtocol.v2025_11_25,
+        McpProtocol.v2025_06_18,
+        McpProtocol.v2025_03_26,
+        McpProtocol.v2024_11_05,
+      ],
+    }).pipe(Layer.orDie),
+  ).pipe(
+    Layer.provide(handlerAudit.layer),
+    Layer.provide(requestBody.layer),
+    Layer.provide(requestBodyLimit(endpoint, options.limits.reviewBodyBytes)),
+    Layer.provide(invocationPolicy.layer),
   );
 }

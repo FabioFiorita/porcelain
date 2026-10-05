@@ -132,7 +132,7 @@ test("deleting confirmed resolved threads removes the reviewer's whole threads a
   );
   expect(listed).toMatchObject(answered(4));
   expect(
-    list(toolValue(listed)).map((entry) => record(entry).id),
+    list(record(toolValue(listed)).threads).map((entry) => record(entry).id),
   ).toStrictEqual([notedId, openId, fromAgentId]);
 });
 

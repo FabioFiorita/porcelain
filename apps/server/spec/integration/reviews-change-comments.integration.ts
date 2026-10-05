@@ -39,7 +39,7 @@ test('the agent reads a reviewer comment on the whole uncommitted change', async
   expect(response.status).toBe(200);
   expect(response.body).toMatchObject(answered(1));
   expect(
-    list(toolValue(response.body)).map((entry) => ({
+    list(record(toolValue(response.body)).threads).map((entry) => ({
       id: record(entry).id,
       anchor: record(entry).anchor,
       body: record(list(record(entry).messages)[0]).body,
@@ -98,7 +98,7 @@ test('a reviewer comment on the whole branch names its base and tip and reaches 
   });
   expect(listed.status).toBe(200);
   expect(listed.body).toMatchObject(answered(2));
-  expect(toolValue(listed.body)).toMatchObject([
+  expect(record(toolValue(listed.body)).threads).toMatchObject([
     { id: changeThreadId, anchor: { kind: 'change' } },
     {
       id: branchThreadId,

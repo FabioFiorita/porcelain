@@ -42,16 +42,7 @@ export {
   type ReadReviewSummaryQuery,
   type ReadReviewSummaryResponse,
 } from './review-summary.ts';
-export {
-  createCommentToolRequestSchema,
-  listCommentsToolRequestSchema,
-  publishReviewToolRequestSchema,
-  publishReviewToolResponseSchema,
-  readReviewToolRequestSchema,
-  replyToCommentToolRequestSchema,
-  resolveCommentToolRequestSchema,
-  type PublishReviewToolResponse,
-} from './review-tools.ts';
+export { type PublishReviewToolResponse } from './review-tools.ts';
 export {
   listReviewedFilesResponseSchema,
   listReviewedLayersResponseSchema,
@@ -76,3 +67,4 @@ export {
 } from './reviewed-files.ts';
 export { ReviewsApi } from './api.ts';
 export { ReviewSummaryApi } from './summary-api.ts';
+export { ReviewToolkit } from './review-toolkit.ts';

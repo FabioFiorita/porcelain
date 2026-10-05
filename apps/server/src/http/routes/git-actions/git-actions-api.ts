@@ -1,3 +1,5 @@
+import { requestBody } from '../../hooks/request-body.ts';
+import { handlerAudit } from '../../diagnostics.ts';
 import {
   GitActionsApi,
   runGitActionResponseSchema,
@@ -11,7 +13,6 @@ import { type GenerateCommitDraftUseCase } from '../../../use-cases/git-actions/
 import { type ListCommitModelsUseCase } from '../../../use-cases/git-actions/list-commit-models.ts';
 import { type ReadGitActionReceiptUseCase } from '../../../use-cases/git-actions/read-git-action-receipt.ts';
 import { type RunGitActionUseCase } from '../../../use-cases/git-actions/run-git-action.ts';
-import { effectRoutes } from '../../effect-bridge.ts';
 import { gitActionReceiptStatus } from '../../status-policy.ts';
 
 type GitActionsUseCases = {
@@ -68,8 +69,9 @@ export function gitActionsRoutes(useCases: GitActionsUseCases) {
           ),
         ),
   );
-  return effectRoutes(
-    GitActionsApi,
-    HttpApiBuilder.layer(GitActionsApi).pipe(Layer.provide(handlers)),
+  return HttpApiBuilder.layer(GitActionsApi).pipe(
+    Layer.provide(handlers),
+    Layer.provide(handlerAudit.layer),
+    Layer.provide(requestBody.layer),
   );
 }

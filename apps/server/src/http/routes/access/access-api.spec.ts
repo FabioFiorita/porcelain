@@ -1,8 +1,9 @@
-import { Effect } from 'effect';
+import { requestBoundary } from '../../server-factory.ts';
+import { Effect, Layer } from 'effect';
 import { expect, it } from 'vitest';
-import { createServer } from '../../server-factory.ts';
+import { openHttpApplication } from '@porcelain/server/kit/http';
+import { HttpRouter } from 'effect/http';
 import { deliverBrowserCredential } from '../../hooks/browser-credential.ts';
-import { mountEffectRoutes } from '../../effect-bridge.ts';
 import { accessRoutes } from './access-api.ts';
 
 const environmentId = 'e0000000-0000-4000-8000-000000000001';
@@ -62,51 +63,52 @@ async function fixture(owner = false) {
     setRemoteAccess: unused,
     startServiceUpdate: unused,
   });
-  const server = createServer({
-    principal: owner ? { kind: 'owner' } : undefined,
-    logger: { failure: () => undefined },
-  });
-  if (owner) await server.register(mountEffectRoutes, { routes: routes.owner });
-  else {
-    await server.register(mountEffectRoutes, {
-      prefix: '/api',
-      routes: routes.public,
-    });
-    await server.register(
-      async (pairing) => {
-        pairing.addHook(
-          'preSerialization',
-          deliverBrowserCredential({ cookieMaxAgeSeconds: 600 }),
-        );
-        pairing.register(mountEffectRoutes, { routes: routes.pairing });
-      },
-      { prefix: '/api' },
-    );
-  }
-  return {
-    server,
-    calls,
-    close: async () => {
-      await server.close();
-      for (const scope of Object.values(routes)) await scope.dispose();
-    },
-  };
+  const application = owner
+    ? routes.owner
+    : Layer.merge(
+        routes.public,
+        routes.pairing.pipe(
+          Layer.provide(
+            HttpRouter.middleware((app) =>
+              app.pipe(
+                Effect.flatMap((response) =>
+                  deliverBrowserCredential(
+                    { cookieMaxAgeSeconds: 600 },
+                    response,
+                  ),
+                ),
+              ),
+            ).combine(
+              requestBoundary({
+                principal: undefined,
+                logger: { failure: () => undefined },
+                bodyBytes: 1024,
+              }),
+            ).layer,
+          ),
+        ),
+      );
+  const server = await openHttpApplication(
+    application,
+    owner ? { kind: 'owner' } : undefined,
+  );
+  return { server, calls, close: server.close };
 }
 
 it('serves public health without a caller and preserves explicit null for the absent version', async () => {
   const test = await fixture();
   try {
-    const health = await test.server.inject({
+    const health = await test.server.send({
       method: 'GET',
-      url: '/api/health',
+      path: '/api/health',
     });
-    expect(health.statusCode, health.body).toBe(200);
-    expect(health.json()).toEqual({ status: 'ok', environmentId });
-    const environment = await test.server.inject({
+    expect(health.status).toBe(200);
+    expect(await health.json()).toEqual({ status: 'ok', environmentId });
+    const environment = await test.server.send({
       method: 'GET',
-      url: '/api/environment',
+      path: '/api/environment',
     });
-    expect(environment.json()).toEqual({
+    expect(await environment.json()).toEqual({
       environmentId,
       name: 'Workstation',
       version: null,
@@ -120,14 +122,14 @@ it('serves public health without a caller and preserves explicit null for the ab
 it('delivers a browser pairing credential as a cookie and removes it from the JSON body', async () => {
   const test = await fixture();
   try {
-    const response = await test.server.inject({
+    const response = await test.server.send({
       method: 'POST',
-      url: '/api/pair',
+      path: '/api/pair',
       headers: { 'x-porcelain-browser': '1' },
-      payload: { code: 'pcp_test', platform: 'iPadOS' },
+      body: { code: 'pcp_test', platform: 'iPadOS' },
     });
-    expect(response.statusCode, response.body).toBe(200);
-    expect(response.json()).toEqual({
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
       device: {
         id: deviceId,
         label: 'iPad',
@@ -135,7 +137,7 @@ it('delivers a browser pairing credential as a cookie and removes it from the JS
         createdAt: '2026-10-05T03:00:00.000Z',
       },
     });
-    expect(response.headers['set-cookie']).toContain('pcd_test_secret');
+    expect(response.headers.get('set-cookie')).toContain('pcd_test_secret');
     expect(test.calls).toEqual([
       { code: 'pcp_test', platform: 'iPadOS', route: 'lan' },
     ]);
@@ -147,19 +149,19 @@ it('delivers a browser pairing credential as a cookie and removes it from the JS
 it('rejects null optional input and malformed JSON before issuing a credential', async () => {
   const test = await fixture();
   try {
-    const nulled = await test.server.inject({
+    const nulled = await test.server.send({
       method: 'POST',
-      url: '/api/pair',
-      payload: { code: 'pcp_test', platform: 'iPadOS', label: null },
+      path: '/api/pair',
+      body: { code: 'pcp_test', platform: 'iPadOS', label: null },
     });
-    expect(nulled.statusCode, nulled.body).toBe(400);
-    const malformed = await test.server.inject({
+    expect(nulled.status).toBe(400);
+    const malformed = await test.server.send({
       method: 'POST',
-      url: '/api/pair',
+      path: '/api/pair',
       headers: { 'content-type': 'application/json' },
-      payload: '{',
+      body: '{',
     });
-    expect(malformed.statusCode, malformed.body).toBe(400);
+    expect(malformed.status).toBe(400);
     expect(test.calls).toEqual([]);
   } finally {
     await test.close();
@@ -169,21 +171,21 @@ it('rejects null optional input and malformed JSON before issuing a credential',
 it('keeps the owner protocol at its original paths without adding an api prefix', async () => {
   const test = await fixture(true);
   try {
-    const status = await test.server.inject({ method: 'GET', url: '/status' });
-    expect(status.statusCode, status.body).toBe(200);
-    expect(status.json()).toEqual({
+    const status = await test.server.send({ method: 'GET', path: '/status' });
+    expect(status.status).toBe(200);
+    expect(await status.json()).toEqual({
       address: 'http://127.0.0.1:4173',
       dataDirectory: '/disposable',
       pid: 1234,
     });
-    const access = await test.server.inject({ method: 'GET', url: '/access' });
-    expect(access.statusCode, access.body).toBe(200);
-    expect(access.json()).toEqual({ grants: [], devices: [] });
-    const extra = await test.server.inject({
+    const access = await test.server.send({ method: 'GET', path: '/access' });
+    expect(access.status).toBe(200);
+    expect(await access.json()).toEqual({ grants: [], devices: [] });
+    const extra = await test.server.send({
       method: 'GET',
-      url: '/api/status',
+      path: '/api/status',
     });
-    expect(extra.statusCode).toBe(404);
+    expect(extra.status).toBe(404);
   } finally {
     await test.close();
   }

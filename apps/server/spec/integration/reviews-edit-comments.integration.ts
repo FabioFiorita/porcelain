@@ -123,7 +123,7 @@ test('the reviewer rewrites their comment in place, stamped and at the next revi
     toolCall(session, 2, 'list_comments', { scope: 'all' }),
   );
   expect(listed).toMatchObject(answered(2));
-  expect(toolValue(listed)).toMatchObject([
+  expect(record(toolValue(listed)).threads).toMatchObject([
     {
       id: threadId,
       messages: [
@@ -225,7 +225,7 @@ test('deleting the last message of a thread removes the thread for the reviewer 
   );
   expect(listed).toMatchObject(answered(3));
   expect(
-    list(toolValue(listed)).map((entry) => record(entry).id),
+    list(record(toolValue(listed)).threads).map((entry) => record(entry).id),
   ).toStrictEqual([threadId]);
   expect(
     (await threads(session)).map((entry) => record(entry).id),

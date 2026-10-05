@@ -1575,10 +1575,10 @@ export function editFile(
   {
     rule: 'mcp-tool-handler',
     path: 'apps/server/src/http/mcp/review-server.ts',
-    valid: `import { registerEffectTool } from './effect-tool.ts';
-export function createReviewMcpServer() { registerEffectTool(server, definition, (input) => useCases.reviews.readPublishedReviewAtPath.execute(input)); }`,
-    invalid: `import { registerEffectTool } from './effect-tool.ts';
-export function createReviewMcpServer() { registerEffectTool(server, definition, (input) => useCases.reviews.readPublishedReviewAtPath.run(input)); }`,
+    valid: `import { ReviewToolkit } from '@porcelain/contracts/reviews';
+export function reviewMcpHandlers() { return ReviewToolkit.toLayer({ read_review: (input) => useCases.reviews.readPublishedReviewAtPath.execute(input) }); }`,
+    invalid: `import { ReviewToolkit } from '@porcelain/contracts/reviews';
+export function reviewMcpHandlers() { return ReviewToolkit.toLayer({ read_review: (input) => useCases.reviews.readPublishedReviewAtPath.run(input) }); }`,
     errors: 2,
   },
   {
@@ -2329,29 +2329,8 @@ export function parseCredential(
   {
     rule: 'scope-shape',
     path: 'apps/server/src/http/scopes/paired.ts',
-    valid: `export async function pairedScope(
-  server: FastifyInstance,
-) {
-  server.addHook(
-    authenticate(options.application, {
-      cookieMaxAgeSeconds: options.limits.access.device.cookieMaxAgeSeconds,
-    }),
-  );
-  server.register(runGitAction, {
-  });
-}`,
-    invalid: `export async function pairedScope(
-  server: FastifyInstance,
-) {
-  server.addHook(
-    authenticate(options.application, {
-      cookieMaxAgeSeconds: options.limits.access.device.cookieMaxAgeSeconds,
-    }),
-  );
-  server.get('/debug/lanes', async () => ({ ok: true }));
-  server.register(runGitAction, {
-  });
-}`,
+    valid: `import { Layer } from 'effect'; export function pairedScope(options) { return Layer.mergeAll(options.application.files, options.application.reviews).pipe(Layer.provide(policy(options).combine(options.boundary).layer)); }`,
+    invalid: `import { Layer } from 'effect'; export function pairedScope(options) { return options.application.files.execute(options.input); }`,
     errors: 1,
   },
 
@@ -4418,6 +4397,6 @@ export const scriptEvasions = [
 
 export const externalCases = [
   { role: 'config', valid: 'effect', invalid: 'effect/FileSystem' },
-  { role: 'transport', valid: 'effect/cli', invalid: '@effect/platform-node' },
+  { role: 'transport', valid: '@effect/platform-node', invalid: 'fastify' },
   { role: 'bootstrap', valid: '@effect/platform-node', invalid: 'effect/cli' },
 ];

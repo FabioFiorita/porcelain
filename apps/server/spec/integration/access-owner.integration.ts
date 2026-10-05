@@ -261,12 +261,17 @@ test('the owner socket serves the review MCP endpoint with its review tools', as
     owner({
       method: 'POST',
       path: '/mcp',
-      headers: mcpHeaders(session.repository),
+      headers: {
+        ...mcpHeaders(session.repository),
+        'mcp-session-id': initialized.headers['mcp-session-id'] ?? '',
+        'mcp-protocol-version': '2025-06-18',
+      },
       body: { jsonrpc: '2.0', id: 2, method: 'tools/list' },
     }),
   );
 
   expect(initialized.status).toBe(200);
+  expect(initialized.headers['mcp-session-id']).toEqual(expect.any(String));
   expect(initialized.body).toMatchObject({
     jsonrpc: '2.0',
     id: 1,

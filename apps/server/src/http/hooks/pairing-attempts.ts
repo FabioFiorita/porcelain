@@ -1,6 +1,7 @@
+import type { HttpServerResponse } from 'effect/http';
+import { deliverBrowserCredential } from './browser-credential.ts';
 import { Effect } from 'effect';
-import { withSignal } from '@porcelain/effects';
-import type { FastifyReply, FastifyRequest } from 'fastify';
+import { RequestContext } from '../request-context.ts';
 import type { RefundPairingAttemptUseCasePort } from '../../ports/refund-pairing-attempt-use-case-port.ts';
 import type { TakePairingAttemptUseCasePort } from '../../ports/take-pairing-attempt-use-case-port.ts';
 
@@ -12,30 +13,33 @@ export type PairingAttemptOptions = {
 };
 
 export function takePairingAttempt(options: PairingAttemptOptions) {
-  return async (request: FastifyRequest) => {
-    await Effect.runPromise(
-      withSignal(
-        options.access.takePairingAttempt.execute({
-          peer: request.client.address,
-          crossOrigin: request.crossOrigin,
-        }),
-        request.disconnected,
-      ),
-    );
-  };
+  return Effect.gen(function* () {
+    const context = yield* RequestContext;
+    yield* options.access.takePairingAttempt.execute({
+      peer: context.client.address,
+      crossOrigin: context.crossOrigin,
+    });
+  });
 }
 
-export function refundSucceededPairingAttempt(options: PairingAttemptOptions) {
-  return async (request: FastifyRequest, reply: FastifyReply) => {
-    if (reply.statusCode === 200)
-      await Effect.runPromise(
-        withSignal(
-          options.access.refundPairingAttempt.execute({
-            peer: request.client.address,
-            crossOrigin: request.crossOrigin,
-          }),
-          request.disconnected,
-        ),
-      );
-  };
+function refundSucceededPairingAttempt(options: PairingAttemptOptions) {
+  return Effect.gen(function* () {
+    const context = yield* RequestContext;
+    yield* options.access.refundPairingAttempt.execute({
+      peer: context.client.address,
+      crossOrigin: context.crossOrigin,
+    });
+  });
+}
+
+export function pairingResponse(
+  options: PairingAttemptOptions,
+  cookie: { cookieMaxAgeSeconds: number },
+) {
+  return (response: HttpServerResponse.HttpServerResponse) =>
+    Effect.gen(function* () {
+      if (response.status === 200)
+        yield* refundSucceededPairingAttempt(options);
+      return yield* deliverBrowserCredential(cookie, response);
+    });
 }

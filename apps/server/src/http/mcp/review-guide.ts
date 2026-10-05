@@ -92,7 +92,7 @@ Proof describes the changes as they were when you published it. Once they change
 
 Nothing is pushed to you. When asked to read comments, call \`list_comments\`.
 
-The default, and \`scope: "waiting"\`, returns unresolved threads whose latest message is not from the agent. That is the work waiting on you. A thread you already answered, and a resolved thread, stay out of that list.
+The tool result includes a \`threads\` array. The default, and \`scope: "waiting"\`, returns unresolved threads whose latest message is not from the agent. That is the work waiting on you. A thread you already answered, and a resolved thread, stay out of that list.
 
 \`scope: "all"\` returns every thread, including resolved threads and threads whose latest message is yours.
 

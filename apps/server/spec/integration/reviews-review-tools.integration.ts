@@ -59,7 +59,10 @@ test('an agent publishes the review with publish_review and a reviewer reads it 
 
   expect(response.status).toBe(200);
   expect(response.body).toMatchObject(answered(1));
-  expect(Object.keys(toolResult(response.body))).toStrictEqual(['content']);
+  expect(toolResult(response.body).structuredContent).toStrictEqual(
+    toolValue(response.body),
+  );
+  expect(toolResult(response.body).isError).toBe(false);
   expect(toolValue(response.body)).toMatchObject({
     review: { revision: 1, layers: [{ id: layerId, title: 'Readme' }] },
   });
@@ -126,7 +129,7 @@ test('list_comments lists only the threads waiting for the agent, and every thre
   );
 
   expect(waiting.status).toBe(200);
-  expect(toolValue(waiting.body)).toMatchObject([
+  expect(record(toolValue(waiting.body)).threads).toMatchObject([
     {
       id: threadId,
       messages: [{ body: 'From the reviewer', author: 'reviewer' }],
@@ -134,7 +137,7 @@ test('list_comments lists only the threads waiting for the agent, and every thre
   ]);
   expect(all.status).toBe(200);
   expect(
-    list(toolValue(all.body))
+    list(record(toolValue(all.body)).threads)
       .map((entry) => text(record(entry).id))
       .sort(),
   ).toStrictEqual([agentThreadId, threadId].sort());
@@ -165,7 +168,7 @@ test('an agent replies with reply_to_comment as the agent and the thread stops w
     toolText(
       (await session.read(toolCall(session, 7, 'list_comments', {}))).body,
     ),
-  ).toBe('[]');
+  ).toBe('{"threads":[]}');
 });
 
 test('an agent resolves a thread with resolve_comment and a reviewer sees it resolved', async ({

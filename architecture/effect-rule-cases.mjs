@@ -1,10 +1,10 @@
 const route = `
 import { FilesApi } from '@porcelain/contracts/files';
 import { HttpApiBuilder } from 'effect/http-api';
-import { effectRoutes } from '../../effect-bridge.ts';
+import { Layer } from 'effect';
 const handlers = HttpApiBuilder.group(FilesApi, 'files', (handlers) =>
   handlers.handle('readTextFile', ({ params, query }) => useCases.readTextFile.execute({ ...params, ...query })));
-export const routes = effectRoutes(FilesApi, layer);`;
+export const routes = HttpApiBuilder.layer(FilesApi).pipe(Layer.provide(handlers));`;
 const path = 'apps/server/src/http/routes/files/files-api.ts';
 
 export const nativeHealthOperation = `import { Context, Effect, Layer } from 'effect';
@@ -198,13 +198,10 @@ it('reads once', async () => { const result = await read(); if (result) it('asse
       'buildHandlers',
     ),
     route.replace(
-      "import { effectRoutes } from '../../effect-bridge.ts';",
-      'const effectRoutes = (api, layer) => layer;',
+      "import { HttpApiBuilder } from 'effect/http-api';",
+      'const HttpApiBuilder = custom;',
     ),
-    route.replace(
-      'effectRoutes(FilesApi, layer)',
-      'manualRoutes(FilesApi, layer)',
-    ),
+    route.replace('HttpApiBuilder.layer(FilesApi)', 'manualRoutes(FilesApi)'),
   ].map((invalid) => ({
     rule: 'feature-route-shape',
     path,

@@ -830,21 +830,6 @@ function isFunction(node) {
   );
 }
 
-function routePlugins(program) {
-  return program.body.flatMap((statement) => {
-    const declaration =
-      statement.type === 'ExportNamedDeclaration' ||
-      statement.type === 'ExportDefaultDeclaration'
-        ? statement.declaration
-        : undefined;
-    if (declaration?.type === 'FunctionDeclaration') return [declaration];
-    if (declaration?.type !== 'VariableDeclaration') return [];
-    return declaration.declarations
-      .map((declarator) => declarator.init)
-      .filter(isFunction);
-  });
-}
-
 function unwrapPromise(node) {
   const argument = (node?.typeArguments ?? node?.typeParameters)?.params[0];
   return node?.type === 'TSTypeReference' &&
@@ -1145,19 +1130,22 @@ function allowedSpecImport(filename, source) {
     return true;
   if (
     /apps\/server\/src\/http\/.+\.spec\.ts$/.test(path) &&
-    (source === 'fastify' ||
+    (source === 'effect/http' ||
+      source === '@porcelain/server/kit/http' ||
       source === 'effect/http-api' ||
       /^@porcelain\/contracts\/[^/]+$/.test(source) ||
-      /^(?:\.\.\/){1,2}(?:server-factory|effect-bridge|hooks\/browser-credential)\.ts$/.test(
+      /^(?:\.\.\/){1,2}(?:server-factory|hooks\/browser-credential)\.ts$/.test(
         source,
       ))
   )
     return true;
   if (
     /apps\/server\/src\/http\/mcp\/[^/]+\.spec\.ts$/.test(path) &&
-    /^@modelcontextprotocol\/sdk\/(?:client\/index|inMemory|server\/mcp)\.js$/.test(
+    (/^@modelcontextprotocol\/sdk\/client\/(?:index|streamableHttp)\.js$/.test(
       source,
-    )
+    ) ||
+      source === '../protocol/mcp.ts' ||
+      source === '../../config/limits.ts')
   )
     return true;
   if (
@@ -1175,6 +1163,7 @@ function allowedSpecImport(filename, source) {
   if (
     /apps\/server\/src\/cli\/[^/]+\.spec\.ts$/.test(path) &&
     (source === 'node:http' ||
+      source === 'node:stream' ||
       source === '@effect/platform-node' ||
       source === 'effect/cli' ||
       source === './operations.ts' ||
@@ -1516,53 +1505,51 @@ export default {
         return {
           CallExpression(node) {
             const callee = node.callee;
-            const raw =
+            if (
               callee.type === 'MemberExpression' &&
-              propertyName(callee, context) === 'registerTool';
-            const binding =
-              callee.type === 'Identifier'
-                ? findVariable(context.sourceCode.getScope(node), callee.name)
-                    ?.defs[0]
-                : undefined;
-            const native =
-              binding?.type === 'ImportBinding' &&
-              binding.parent.source.value === './effect-tool.ts' &&
-              binding.node.imported?.name === 'registerEffectTool';
-            if (raw || native) {
-              if (
-                raw &&
-                !normalizedFilename(context.filename).endsWith(
-                  '/http/mcp/effect-tool.ts',
-                )
-              ) {
-                context.report({
-                  node,
-                  message:
-                    'Register a tool through registerEffectTool, because the native contract must own input decoding, output encoding and expected failures.',
-                });
-                return;
-              }
-              const handler = node.arguments[2];
-              if (!isFunction(handler)) {
-                context.report({
-                  node,
-                  message:
-                    'Register an MCP tool with an explicit operation callback, because domain sequencing belongs to the use case shared by every transport.',
-                });
-                return;
-              }
-              handlers.push({ node, handler, executes: 0, bridge: raw });
+              propertyName(callee, context) === 'registerTool'
+            ) {
+              context.report({
+                node,
+                message:
+                  'Register MCP tools with the native ReviewToolkit, because the contract owns validation, results and handler completeness.',
+              });
               return;
             }
             if (
-              effectMember(node, context, new Set(['flatMap'])) &&
-              node.arguments[0]?.type === 'Identifier' &&
-              node.arguments[0].name === 'operation'
+              callee.type === 'MemberExpression' &&
+              propertyName(callee, context) === 'toLayer'
             ) {
-              const current = handlers.find(
-                (entry) => entry.bridge && within(node, entry.handler),
-              );
-              if (current) current.executes += 1;
+              const binding = findVariable(
+                context.sourceCode.getScope(node),
+                callee.object.name,
+              )?.defs[0];
+              if (
+                binding?.type === 'ImportBinding' &&
+                binding.parent.source.value ===
+                  '@porcelain/contracts/reviews' &&
+                binding.node.imported?.name === 'ReviewToolkit'
+              ) {
+                const object = node.arguments[0];
+                if (object?.type !== 'ObjectExpression') {
+                  context.report({
+                    node,
+                    message:
+                      'Declare native toolkit handlers explicitly, because every tool must dispatch one shared use case.',
+                  });
+                  return;
+                }
+                for (const property of object.properties) {
+                  if (!isFunction(property.value))
+                    context.report({
+                      node: property,
+                      message:
+                        'Declare each MCP operation as a callback, because domain sequencing belongs to its shared use case.',
+                    });
+                  else handlers.push({ handler: property.value, executes: 0 });
+                }
+                return;
+              }
             }
             const path = memberPath(callee);
             if (path?.[0] !== 'useCases') return;
@@ -1575,19 +1562,17 @@ export default {
               context.report({
                 node,
                 message:
-                  'An MCP tool handler calls only execute on its use case, because domain sequencing belongs to the use case shared by every transport.',
+                  'An MCP handler calls only execute on its use case, because domain sequencing belongs to the use case shared by every transport.',
               });
           },
-          'CallExpression:exit'(node) {
-            const index = handlers.findIndex((entry) => entry.node === node);
-            if (index === -1) return;
-            const [entry] = handlers.splice(index, 1);
-            if (entry.executes !== 1)
-              context.report({
-                node: entry.handler,
-                message:
-                  'An MCP tool handler calls one use case once; a sequence of use cases belongs in one use case, because domain sequencing belongs to the use case shared by every transport.',
-              });
+          'Program:exit'() {
+            for (const entry of handlers)
+              if (entry.executes !== 1)
+                context.report({
+                  node: entry.handler,
+                  message:
+                    'An MCP handler calls one use case once, because sequencing several operations belongs in one shared use case.',
+                });
           },
         };
       },
@@ -1743,35 +1728,49 @@ export default {
     'scope-shape': {
       create(context) {
         if (!scopeFile.test(repositoryPath(context))) return {};
+        const report = (node) =>
+          context.report({
+            node,
+            message:
+              'A scope composes native handler Layers and request policies only, because endpoint declarations and domain decisions need their contract and hook owners.',
+          });
         return {
-          Program(program) {
-            for (const plugin of routePlugins(program)) {
-              const server = plugin.params[0];
-              if (server?.type !== 'Identifier') continue;
-              for (const variable of context.sourceCode
-                .getDeclaredVariables(plugin)
-                .filter((entry) => entry.name === server.name))
-                for (const reference of variable.references) {
-                  const member = reference.identifier.parent;
-                  const call = member?.parent;
-                  const method =
-                    member?.type === 'MemberExpression' &&
-                    member.object === reference.identifier
-                      ? propertyName(member, context)
-                      : undefined;
-                  if (
-                    call?.type === 'CallExpression' &&
-                    call.callee === member &&
-                    (method === 'register' || method === 'addHook')
-                  )
-                    continue;
-                  context.report({
-                    node: reference.identifier,
-                    message:
-                      'A scope only registers routes and adds hooks; an endpoint lives in http/routes/<feature>/<operation>.ts with a schema and a use case, because endpoint logic outside routes escapes contract checks.',
-                  });
-                }
-            }
+          AwaitExpression: report,
+          IfStatement: report,
+          SwitchStatement: report,
+          ConditionalExpression: report,
+          ForStatement: report,
+          ForOfStatement: report,
+          WhileStatement: report,
+          TryStatement: report,
+          ThrowStatement: report,
+          CallExpression(node) {
+            if (node.callee.type !== 'MemberExpression') return;
+            if (
+              [
+                'execute',
+                'handle',
+                'handleRaw',
+                'add',
+                'get',
+                'post',
+                'put',
+                'patch',
+                'delete',
+                'route',
+                'all',
+              ].includes(propertyName(node.callee, context))
+            )
+              report(node);
+          },
+          ImportDeclaration(node) {
+            if (
+              !typeOnlyImport(node) &&
+              /use-cases|@porcelain\/[^/]+\/services|effect\/http-api/.test(
+                node.source.value,
+              )
+            )
+              report(node);
           },
         };
       },

@@ -189,6 +189,7 @@ export async function relayToOwner(
   message: unknown,
   cwd: string,
   timeoutMs: number,
+  sessionHeaders: Record<string, string>,
 ): Promise<OwnerAnswer> {
   try {
     return await exchange(socketPath, {
@@ -196,6 +197,7 @@ export async function relayToOwner(
       path: ReviewMcpApi.groups.reviewMcp.endpoints.reviewMcp.path,
       body: JSON.stringify(message),
       headers: {
+        ...sessionHeaders,
         accept: 'application/json, text/event-stream',
         'x-porcelain-cwd': cwd,
       },

@@ -58,7 +58,7 @@ Work on your own branch from `main`, in your own worktree, and open a pull reque
 
 ## Where code lives
 
-- `apps/server`: the Fastify server, its use cases, routes and installer.
+- `apps/server`: the Effect HTTP server, its use cases, routes and installer.
 - `apps/web`: React and Vite; UI primitives come from the shadcn registry and stay as installed.
 - `apps/desktop`: Electron around the web.
 - `apps/mobile`: Expo, with Expo UI controls and Uniwind.

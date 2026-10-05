@@ -1,6 +1,8 @@
+import { handlerAudit } from './diagnostics.ts';
 import { basename, extname, isAbsolute, posix } from 'node:path';
-import { httpErrors } from '@fastify/sensible';
-import type { FastifyInstance } from 'fastify';
+import { Layer, Effect, Stream } from 'effect';
+import { HttpRouter, HttpServerRequest, HttpServerResponse } from 'effect/http';
+import { RequestError } from '../runtime/errors/request-error.ts';
 import type { WebRootReader } from '../ports/web-root-reader.ts';
 
 const SHELL = 'index.html';
@@ -117,31 +119,35 @@ async function findStaticFile(
   return fallback ? { ...fallback, fallback: true } : null;
 }
 
-export function staticFiles(
-  server: FastifyInstance,
-  options: { files: WebRootReader },
-) {
-  server.route({
-    method: ['GET', 'HEAD'],
-    url: '/*',
-    handler: async (request, reply) => {
-      const urlPath = request.raw.url ?? request.url;
-      const file = await findStaticFile(options.files, urlPath);
-      if (file === null) throw httpErrors.notFound();
-
-      reply
-        .header(
-          'Cache-Control',
-          !file.fallback && isViteHashedAsset(urlPath)
-            ? IMMUTABLE_CACHE
-            : NO_CACHE,
-        )
-        .header('Content-Length', String(file.size))
-        .type(contentTypeForPath(file.path));
-      if (request.method === 'HEAD') return reply.send();
-      return reply.send(
-        options.files.open({ path: file.path, size: file.size }),
+export function staticFiles(files: WebRootReader) {
+  const answer = Effect.gen(function* () {
+    const request = yield* HttpServerRequest.HttpServerRequest;
+    const urlPath = request.originalUrl;
+    const file = yield* Effect.promise(() => findStaticFile(files, urlPath));
+    if (file === null)
+      return yield* Effect.die(
+        new RequestError({ statusCode: 404, message: 'Not Found' }),
       );
-    },
+    const headers = {
+      'Cache-Control':
+        !file.fallback && isViteHashedAsset(urlPath)
+          ? IMMUTABLE_CACHE
+          : NO_CACHE,
+      'Content-Length': String(file.size),
+      'Content-Type': contentTypeForPath(file.path),
+    };
+    if (request.method === 'HEAD')
+      return HttpServerResponse.empty({ status: 200, headers });
+    return HttpServerResponse.stream(
+      Stream.fromReadableStream({
+        evaluate: () => files.open({ path: file.path, size: file.size }),
+        onError: (error) =>
+          new Error('Web asset could not be streamed', { cause: error }),
+      }),
+      { headers },
+    );
   });
+  return HttpRouter.add('GET', '/*', answer).pipe(
+    Layer.provide(handlerAudit.layer),
+  );
 }
