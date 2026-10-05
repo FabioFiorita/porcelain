@@ -1,5 +1,14 @@
 import { expect, it } from '@effect/vitest';
-import { Cause, Deferred, Effect, Fiber, Exit } from 'effect';
+import {
+  Cause,
+  Deferred,
+  Effect,
+  Fiber,
+  Exit,
+  Context,
+  Layer,
+  Scope,
+} from 'effect';
 import { TestClock } from 'effect/testing';
 import { nativeOperation } from '@porcelain/effects';
 import { Lanes } from './lanes.ts';
@@ -15,11 +24,9 @@ it.effect(
   'background failure is settled once and close waits for its durable recovery',
   () =>
     Effect.gen(function* () {
-      const subject = Effect.runSync(
-        Lanes.pipe(
-          Effect.provide(Lanes.layer),
-          Effect.provideService(LaneOptions, options),
-        ),
+      const subject = yield* Layer.build(Lanes.layer).pipe(
+        Effect.map((context) => Context.get(context, Lanes)),
+        Effect.provideService(LaneOptions, options),
       );
       const started = yield* Deferred.make<void>();
       const recovered = yield* Deferred.make<void>();
@@ -40,7 +47,7 @@ it.effect(
       );
       yield* Deferred.await(started);
       yield* Deferred.await(recovered);
-      yield* Effect.promise(() => subject.close());
+      yield* subject.close();
       expect(failures).toEqual([error]);
     }),
 );
@@ -49,11 +56,9 @@ it.effect(
   'close waits for native cleanup before durable interruption can acquire the same lane',
   () =>
     Effect.gen(function* () {
-      const subject = Effect.runSync(
-        Lanes.pipe(
-          Effect.provide(Lanes.layer),
-          Effect.provideService(LaneOptions, options),
-        ),
+      const subject = yield* Layer.build(Lanes.layer).pipe(
+        Effect.map((context) => Context.get(context, Lanes)),
+        Effect.provideService(LaneOptions, options),
       );
       const started = Promise.withResolvers<void>();
       const aborted = Promise.withResolvers<void>();
@@ -80,7 +85,7 @@ it.effect(
       );
       yield* Effect.promise(() => started.promise);
       let closed = false;
-      const closing = subject.close().then(() => {
+      const closing = Effect.runPromise(subject.close()).then(() => {
         closed = true;
       });
       yield* Effect.promise(() => aborted.promise);
@@ -95,11 +100,9 @@ it.effect(
 
 it.effect('finish claims handed over before and during close are drained', () =>
   Effect.gen(function* () {
-    const subject = Effect.runSync(
-      Lanes.pipe(
-        Effect.provide(Lanes.layer),
-        Effect.provideService(LaneOptions, options),
-      ),
+    const subject = yield* Layer.build(Lanes.layer).pipe(
+      Effect.map((context) => Context.get(context, Lanes)),
+      Effect.provideService(LaneOptions, options),
     );
     const started = yield* Deferred.make<void>();
     const release = yield* Deferred.make<void>();
@@ -117,7 +120,7 @@ it.effect('finish claims handed over before and during close are drained', () =>
       ),
     );
     yield* Deferred.await(started);
-    const closing = subject.close();
+    const closing = Effect.runPromise(subject.close());
     const after = yield* Effect.forkChild(
       subject.finish('second', () =>
         Effect.sync(() => {
@@ -137,11 +140,9 @@ it.effect(
   'an unqueued custom deadline refuses the caller and still waits for owned cleanup at close',
   () =>
     Effect.gen(function* () {
-      const subject = Effect.runSync(
-        Lanes.pipe(
-          Effect.provide(Lanes.layer),
-          Effect.provideService(LaneOptions, options),
-        ),
+      const subject = yield* Layer.build(Lanes.layer).pipe(
+        Effect.map((context) => Context.get(context, Lanes)),
+        Effect.provideService(LaneOptions, options),
       );
       const started = Promise.withResolvers<void>();
       const release = Promise.withResolvers<string>();
@@ -162,7 +163,7 @@ it.effect(
         name: 'TimeoutError',
       });
       let closed = false;
-      const closing = subject.close().then(() => {
+      const closing = Effect.runPromise(subject.close()).then(() => {
         closed = true;
       });
       yield* Effect.yieldNow;
@@ -177,13 +178,11 @@ it.effect(
   'a queued writer takes precedence over a queued read after the admitted reads drain',
   () =>
     Effect.gen(function* () {
-      const lanes = Effect.runSync(
-        Lanes.pipe(
-          Effect.provide(Lanes.layer),
-          Effect.provideService(LaneOptions, options),
-        ),
+      const lanes = yield* Layer.build(Lanes.layer).pipe(
+        Effect.map((context) => Context.get(context, Lanes)),
+        Effect.provideService(LaneOptions, options),
       );
-      yield* Effect.addFinalizer(() => Effect.promise(() => lanes.close()));
+      yield* Effect.addFinalizer(() => lanes.close());
       const holding = yield* Deferred.make<void>();
       const firstStarted = yield* Deferred.make<void>();
       const secondStarted = yield* Deferred.make<void>();
@@ -230,13 +229,11 @@ it.effect(
   'a deadline answers before uncooperative IO settles but keeps the lane until cleanup',
   () =>
     Effect.gen(function* () {
-      const lanes = Effect.runSync(
-        Lanes.pipe(
-          Effect.provide(Lanes.layer),
-          Effect.provideService(LaneOptions, options),
-        ),
+      const lanes = yield* Layer.build(Lanes.layer).pipe(
+        Effect.map((context) => Context.get(context, Lanes)),
+        Effect.provideService(LaneOptions, options),
       );
-      yield* Effect.addFinalizer(() => Effect.promise(() => lanes.close()));
+      yield* Effect.addFinalizer(() => lanes.close());
       const started = Promise.withResolvers<void>();
       const aborted = Promise.withResolvers<void>();
       const native = Promise.withResolvers<string>();
@@ -276,13 +273,11 @@ it.effect(
 
 it.effect('cancelling a queued read removes its admission', () =>
   Effect.gen(function* () {
-    const lanes = Effect.runSync(
-      Lanes.pipe(
-        Effect.provide(Lanes.layer),
-        Effect.provideService(LaneOptions, options),
-      ),
+    const lanes = yield* Layer.build(Lanes.layer).pipe(
+      Effect.map((context) => Context.get(context, Lanes)),
+      Effect.provideService(LaneOptions, options),
     );
-    yield* Effect.addFinalizer(() => Effect.promise(() => lanes.close()));
+    yield* Effect.addFinalizer(() => lanes.close());
     const holding = yield* Deferred.make<void>();
     const started = yield* Deferred.make<void>();
     let reads = 0;
@@ -314,11 +309,9 @@ it.effect('cancelling a queued read removes its admission', () =>
 
 it.effect('runs completion after the writer releases the lane', () =>
   Effect.gen(function* () {
-    const lanes = Effect.runSync(
-      Lanes.pipe(
-        Effect.provide(Lanes.layer),
-        Effect.provideService(LaneOptions, options),
-      ),
+    const lanes = yield* Layer.build(Lanes.layer).pipe(
+      Effect.map((context) => Context.get(context, Lanes)),
+      Effect.provideService(LaneOptions, options),
     );
     const order: string[] = [];
     const result = yield* lanes.commit(
@@ -337,7 +330,7 @@ it.effect('runs completion after the writer releases the lane', () =>
     );
     expect(result).toBe('saved');
     expect(order).toEqual(['committed', 'published:saved']);
-    yield* Effect.promise(() => lanes.close());
+    yield* lanes.close();
   }),
 );
 
@@ -345,11 +338,9 @@ it.effect(
   'caller cancellation cannot discard completion after a mutation succeeds',
   () =>
     Effect.gen(function* () {
-      const lanes = Effect.runSync(
-        Lanes.pipe(
-          Effect.provide(Lanes.layer),
-          Effect.provideService(LaneOptions, options),
-        ),
+      const lanes = yield* Layer.build(Lanes.layer).pipe(
+        Effect.map((context) => Context.get(context, Lanes)),
+        Effect.provideService(LaneOptions, options),
       );
       const committed = yield* Deferred.make<void>();
       const completion = yield* Deferred.make<void>();
@@ -376,9 +367,7 @@ it.effect(
       yield* Deferred.await(enteredCompletion);
       yield* Fiber.interrupt(caller);
       expect(order).toEqual(['saved']);
-      const closing = yield* Effect.forkChild(
-        Effect.promise(() => lanes.close()),
-      );
+      const closing = yield* Effect.forkChild(lanes.close());
       expect(order).toEqual(['saved']);
       yield* Deferred.succeed(completion, undefined);
       yield* Fiber.join(closing);
@@ -390,11 +379,9 @@ it.effect(
   'an interrupted atomic mutation still publishes its confirmed result after releasing the lane',
   () =>
     Effect.gen(function* () {
-      const lanes = Effect.runSync(
-        Lanes.pipe(
-          Effect.provide(Lanes.layer),
-          Effect.provideService(LaneOptions, options),
-        ),
+      const lanes = yield* Layer.build(Lanes.layer).pipe(
+        Effect.map((context) => Context.get(context, Lanes)),
+        Effect.provideService(LaneOptions, options),
       );
       const committing = yield* Deferred.make<void>();
       const committed = yield* Deferred.make<void>();
@@ -421,7 +408,7 @@ it.effect(
       expect(
         yield* lanes.run('mutation', 'read', () => Effect.succeed('available')),
       ).toBe('available');
-      yield* Effect.promise(() => lanes.close());
+      yield* lanes.close();
     }),
 );
 
@@ -429,11 +416,9 @@ it.effect(
   'cancelling preparation prevents both the transaction commit and its publication',
   () =>
     Effect.gen(function* () {
-      const lanes = Effect.runSync(
-        Lanes.pipe(
-          Effect.provide(Lanes.layer),
-          Effect.provideService(LaneOptions, options),
-        ),
+      const lanes = yield* Layer.build(Lanes.layer).pipe(
+        Effect.map((context) => Context.get(context, Lanes)),
+        Effect.provideService(LaneOptions, options),
       );
       const preparing = yield* Deferred.make<void>();
       const stopped = yield* Deferred.make<void>();
@@ -463,17 +448,15 @@ it.effect(
         yield* lanes.run('mutation', 'read', () => Effect.succeed('available')),
       ).toBe('available');
       expect(order).toEqual([]);
-      yield* Effect.promise(() => lanes.close());
+      yield* lanes.close();
     }),
 );
 
 it.effect('a rejected transaction never publishes and releases its lane', () =>
   Effect.gen(function* () {
-    const lanes = Effect.runSync(
-      Lanes.pipe(
-        Effect.provide(Lanes.layer),
-        Effect.provideService(LaneOptions, options),
-      ),
+    const lanes = yield* Layer.build(Lanes.layer).pipe(
+      Effect.map((context) => Context.get(context, Lanes)),
+      Effect.provideService(LaneOptions, options),
     );
     const failure = new Error('Commit refused');
     let publications = 0;
@@ -493,17 +476,17 @@ it.effect('a rejected transaction never publishes and releases its lane', () =>
     expect(
       yield* lanes.run('mutation', 'read', () => Effect.succeed('available')),
     ).toBe('available');
-    yield* Effect.promise(() => lanes.close());
+    yield* lanes.close();
   }),
 );
 
 it.effect('admits queued writers in order before later readers', () =>
   Effect.gen(function* () {
-    const lanes = yield* Lanes.pipe(
-      Effect.provide(Lanes.layer),
+    const lanes = yield* Layer.build(Lanes.layer).pipe(
+      Effect.map((context) => Context.get(context, Lanes)),
       Effect.provideService(LaneOptions, options),
     );
-    yield* Effect.addFinalizer(() => Effect.promise(() => lanes.close()));
+    yield* Effect.addFinalizer(() => lanes.close());
     const started = yield* Deferred.make<void>();
     const release = yield* Deferred.make<void>();
     const order: string[] = [];
@@ -547,11 +530,11 @@ it.effect(
   'cancelling the first queued writer preserves the next writer and releases its priority after completion',
   () =>
     Effect.gen(function* () {
-      const lanes = yield* Lanes.pipe(
-        Effect.provide(Lanes.layer),
+      const lanes = yield* Layer.build(Lanes.layer).pipe(
+        Effect.map((context) => Context.get(context, Lanes)),
         Effect.provideService(LaneOptions, options),
       );
-      yield* Effect.addFinalizer(() => Effect.promise(() => lanes.close()));
+      yield* Effect.addFinalizer(() => lanes.close());
       const started = yield* Deferred.make<void>();
       const release = yield* Deferred.make<void>();
       const order: string[] = [];
@@ -590,5 +573,52 @@ it.effect(
       yield* Deferred.succeed(release, undefined);
       yield* Fiber.joinAll([holding, next, reader]);
       expect(order).toEqual(['write', 'read']);
+    }),
+);
+
+it.effect(
+  'closing the owning scope drains interrupted recovery before closing lane resources',
+  () =>
+    Effect.gen(function* () {
+      const owner = yield* Scope.make();
+      const order: string[] = [];
+      const context = yield* Layer.buildWithScope(Lanes.layer, owner).pipe(
+        Effect.provideService(LaneOptions, {
+          ...options,
+          closeResources: () => {
+            order.push('resources');
+          },
+        }),
+      );
+      const subject = Context.get(context, Lanes);
+      const started = Promise.withResolvers<void>();
+      const aborted = Promise.withResolvers<void>();
+      const cleanup = Promise.withResolvers<void>();
+      yield* subject.background(
+        'repository',
+        () =>
+          nativeOperation((signal) => {
+            signal.addEventListener('abort', () => aborted.resolve(), {
+              once: true,
+            });
+            started.resolve();
+            return cleanup.promise.then(() => {
+              order.push('cleanup');
+            });
+          }),
+        () =>
+          subject.finish('repository', () =>
+            Effect.sync(() => {
+              order.push('recovered');
+            }),
+          ),
+      );
+      yield* Effect.promise(() => started.promise);
+      const closing = Effect.runPromise(Scope.close(owner, Exit.void));
+      yield* Effect.promise(() => aborted.promise);
+      expect(order).toEqual([]);
+      cleanup.resolve();
+      yield* Effect.promise(() => closing);
+      expect(order).toEqual(['cleanup', 'recovered', 'resources']);
     }),
 );

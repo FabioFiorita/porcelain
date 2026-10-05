@@ -29,7 +29,7 @@ export class ReadReviewSummaryUseCase extends Context.Service<
           ReadReviewSummaryResponse,
           ReviewSummaryNotFoundError
         > {
-          lanesCapability.assertOpen();
+          yield* lanesCapability.assertOpen();
           return (yield* readReviewSummaryCapability.execute({
             token: input.token,
             expires: input.expires,

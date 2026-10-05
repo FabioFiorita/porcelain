@@ -35,7 +35,7 @@ import {
   RunGitActionService,
 } from '@porcelain/git-actions/services';
 import { type ListedWorktree } from '@porcelain/projects/models';
-import { Effect } from 'effect';
+import { Effect, Layer, ManagedRuntime } from 'effect';
 import { expect, it } from 'vitest';
 import { EventPublisher } from '../../ports/event-publisher.ts';
 import { LaneKeys } from '../../runtime/lane-keys.ts';
@@ -114,7 +114,7 @@ const input = {
 };
 const clock = { now: () => '2026-10-05T05:00:00.000Z' };
 
-function fixture(onAccepted?: () => void) {
+async function fixture(onAccepted?: () => void) {
   const receipts = new Receipts();
   const started = Promise.withResolvers<void>();
   const aborted = Promise.withResolvers<void>();
@@ -124,16 +124,18 @@ function fixture(onAccepted?: () => void) {
   const failures: unknown[] = [];
   let calls = 0;
   const consistency = { execute: () => Effect.void };
-  const lanes = Effect.runSync(
-    Lanes.pipe(
-      Effect.provide(Lanes.layer),
-      Effect.provideService(LaneOptions, {
-        readCapacity: 2,
-        deadlineMs: 1000,
-        consistency,
-      }),
+  const laneRuntime = ManagedRuntime.make(
+    Lanes.layer.pipe(
+      Layer.provide(
+        Layer.succeed(LaneOptions, {
+          readCapacity: 2,
+          deadlineMs: 1000,
+          consistency,
+        }),
+      ),
     ),
   );
+  const lanes = await laneRuntime.runPromise(Lanes);
   const keys = Effect.runSync(LaneKeys.pipe(Effect.provide(LaneKeys.layer)));
   const access = Effect.runSync(
     WorktreeAccess.pipe(
@@ -288,6 +290,7 @@ function fixture(onAccepted?: () => void) {
     useCase,
     receipts,
     lanes,
+    laneRuntime,
     started,
     aborted,
     finished,
@@ -299,7 +302,7 @@ function fixture(onAccepted?: () => void) {
 }
 
 it('accepted work survives caller disconnection and repeated requests do not run it twice', async () => {
-  const test = fixture();
+  const test = await fixture();
   try {
     const controller = new AbortController();
     const accepted = await Effect.runPromise(test.useCase.execute(input), {
@@ -319,13 +322,13 @@ it('accepted work survives caller disconnection and repeated requests do not run
     ]);
   } finally {
     test.cleanup.resolve();
-    await test.lanes.close();
+    await test.laneRuntime.dispose();
   }
 });
 
 it('a disconnect during publication cannot orphan an accepted receipt', async () => {
   const controller = new AbortController();
-  const test = fixture(() => controller.abort());
+  const test = await fixture(() => controller.abort());
   try {
     const response = Effect.runPromiseExit(test.useCase.execute(input), {
       signal: controller.signal,
@@ -340,16 +343,16 @@ it('a disconnect during publication cannot orphan an accepted receipt', async ()
     expect(test.calls()).toBe(1);
   } finally {
     test.cleanup.resolve();
-    await test.lanes.close();
+    await test.laneRuntime.dispose();
   }
 });
 
 it('shutdown records interruption only after the native action has stopped', async () => {
-  const test = fixture();
+  const test = await fixture();
   try {
     await Effect.runPromise(test.useCase.execute(input));
     await test.started.promise;
-    const closing = test.lanes.close();
+    const closing = Effect.runPromise(test.lanes.close());
     await test.aborted.promise;
     expect(
       (await Effect.runPromise(test.receipts.read({ requestId })))?.state,
@@ -369,6 +372,6 @@ it('shutdown records interruption only after the native action has stopped', asy
     expect(test.failures).toHaveLength(1);
   } finally {
     test.cleanup.resolve();
-    await test.lanes.close();
+    await test.laneRuntime.dispose();
   }
 });

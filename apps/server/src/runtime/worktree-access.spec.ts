@@ -1,6 +1,6 @@
 import { nativeOperation, nativeWrite } from '@porcelain/effects';
 import { describe, expect, it } from 'vitest';
-import { Cause, Effect, Exit } from 'effect';
+import { Cause, Effect, Exit, Layer, ManagedRuntime } from 'effect';
 import {
   WorktreeChangedError,
   WorktreeNotFoundError,
@@ -39,16 +39,18 @@ describe('worktree admission', () => {
           changed ? Effect.fail(new WorktreeChangedError()) : Effect.void,
         ),
     };
-    const lanes = Effect.runSync(
-      Lanes.pipe(
-        Effect.provide(Lanes.layer),
-        Effect.provideService(LaneOptions, {
-          readCapacity: 2,
-          deadlineMs: 1000,
-          consistency,
-        }),
+    const laneRuntime = ManagedRuntime.make(
+      Lanes.layer.pipe(
+        Layer.provide(
+          Layer.succeed(LaneOptions, {
+            readCapacity: 2,
+            deadlineMs: 1000,
+            consistency,
+          }),
+        ),
       ),
     );
+    const lanes = await laneRuntime.runPromise(Lanes);
     const access = Effect.runSync(
       WorktreeAccess.pipe(
         Effect.provide(WorktreeAccess.layer),
@@ -88,7 +90,7 @@ describe('worktree admission', () => {
       WorktreeChangedError,
     );
     expect(reads).toBe(0);
-    await lanes.close();
+    await laneRuntime.dispose();
   });
 
   it('refuses publication if identity changes during a read', async () => {
@@ -99,16 +101,18 @@ describe('worktree admission', () => {
           changed ? Effect.fail(new WorktreeChangedError()) : Effect.void,
         ),
     };
-    const lanes = Effect.runSync(
-      Lanes.pipe(
-        Effect.provide(Lanes.layer),
-        Effect.provideService(LaneOptions, {
-          readCapacity: 2,
-          deadlineMs: 1000,
-          consistency,
-        }),
+    const laneRuntime = ManagedRuntime.make(
+      Lanes.layer.pipe(
+        Layer.provide(
+          Layer.succeed(LaneOptions, {
+            readCapacity: 2,
+            deadlineMs: 1000,
+            consistency,
+          }),
+        ),
       ),
     );
+    const lanes = await laneRuntime.runPromise(Lanes);
     const access = Effect.runSync(
       WorktreeAccess.pipe(
         Effect.provide(WorktreeAccess.layer),
@@ -134,22 +138,24 @@ describe('worktree admission', () => {
     expect(Exit.isFailure(exit) && Cause.squash(exit.cause)).toBeInstanceOf(
       WorktreeChangedError,
     );
-    await lanes.close();
+    await laneRuntime.dispose();
   });
 
   it('requires an available project for writes and passes the checked identity', async () => {
     const requests: Parameters<CheckWorktreeUseCasePort['execute']>[0][] = [];
     const consistency = { execute: () => Effect.void };
-    const lanes = Effect.runSync(
-      Lanes.pipe(
-        Effect.provide(Lanes.layer),
-        Effect.provideService(LaneOptions, {
-          readCapacity: 2,
-          deadlineMs: 1000,
-          consistency,
-        }),
+    const laneRuntime = ManagedRuntime.make(
+      Lanes.layer.pipe(
+        Layer.provide(
+          Layer.succeed(LaneOptions, {
+            readCapacity: 2,
+            deadlineMs: 1000,
+            consistency,
+          }),
+        ),
       ),
     );
+    const lanes = await laneRuntime.runPromise(Lanes);
     const access = Effect.runSync(
       WorktreeAccess.pipe(
         Effect.provide(WorktreeAccess.layer),
@@ -177,21 +183,23 @@ describe('worktree admission', () => {
     expect(requests).toEqual([
       { worktreeId: 'tree', requireAvailableProject: true },
     ]);
-    await lanes.close();
+    await laneRuntime.dispose();
   });
 
   it('keeps a missing worktree in the failure channel and unexpected faults as defects', async () => {
     const consistency = { execute: () => Effect.void };
-    const lanes = Effect.runSync(
-      Lanes.pipe(
-        Effect.provide(Lanes.layer),
-        Effect.provideService(LaneOptions, {
-          readCapacity: 2,
-          deadlineMs: 1000,
-          consistency,
-        }),
+    const laneRuntime = ManagedRuntime.make(
+      Lanes.layer.pipe(
+        Layer.provide(
+          Layer.succeed(LaneOptions, {
+            readCapacity: 2,
+            deadlineMs: 1000,
+            consistency,
+          }),
+        ),
       ),
     );
+    const lanes = await laneRuntime.runPromise(Lanes);
     const missing = new WorktreeNotFoundError();
     const expected = Effect.runSync(
       WorktreeAccess.pipe(
@@ -232,7 +240,7 @@ describe('worktree admission', () => {
     );
     expect(Exit.isFailure(crashed) && Cause.hasDies(crashed.cause)).toBe(true);
     expect(Exit.isFailure(crashed) && Cause.squash(crashed.cause)).toBe(fault);
-    await lanes.close();
+    await laneRuntime.dispose();
   });
 });
 
@@ -241,16 +249,18 @@ it('publishes a confirmed filesystem commit after cancellation and native cleanu
   const cleanup = Promise.withResolvers<string>();
   const published = Promise.withResolvers<void>();
   const consistency = { execute: () => Effect.void };
-  const lanes = Effect.runSync(
-    Lanes.pipe(
-      Effect.provide(Lanes.layer),
-      Effect.provideService(LaneOptions, {
-        readCapacity: 2,
-        deadlineMs: 1000,
-        consistency,
-      }),
+  const laneRuntime = ManagedRuntime.make(
+    Lanes.layer.pipe(
+      Layer.provide(
+        Layer.succeed(LaneOptions, {
+          readCapacity: 2,
+          deadlineMs: 1000,
+          consistency,
+        }),
+      ),
     ),
   );
+  const lanes = await laneRuntime.runPromise(Lanes);
   const access = Effect.runSync(
     WorktreeAccess.pipe(
       Effect.provide(WorktreeAccess.layer),
@@ -299,21 +309,23 @@ it('publishes a confirmed filesystem commit after cancellation and native cleanu
   cleanup.resolve('saved');
   await published.promise;
   expect(order).toEqual(['commit', 'cleanup', 'published']);
-  await lanes.close();
+  await laneRuntime.dispose();
 });
 
 it('publishes a confirmed filesystem change even when later cleanup fails', async () => {
   const consistency = { execute: () => Effect.void };
-  const lanes = Effect.runSync(
-    Lanes.pipe(
-      Effect.provide(Lanes.layer),
-      Effect.provideService(LaneOptions, {
-        readCapacity: 2,
-        deadlineMs: 1000,
-        consistency,
-      }),
+  const laneRuntime = ManagedRuntime.make(
+    Lanes.layer.pipe(
+      Layer.provide(
+        Layer.succeed(LaneOptions, {
+          readCapacity: 2,
+          deadlineMs: 1000,
+          consistency,
+        }),
+      ),
     ),
   );
+  const lanes = await laneRuntime.runPromise(Lanes);
   const access = Effect.runSync(
     WorktreeAccess.pipe(
       Effect.provide(WorktreeAccess.layer),
@@ -346,7 +358,7 @@ it('publishes a confirmed filesystem change even when later cleanup fails', asyn
   );
   expect(Exit.isFailure(exit) && Cause.squash(exit.cause)).toBe(failure);
   expect(notifications).toBe(1);
-  await lanes.close();
+  await laneRuntime.dispose();
 });
 
 it('refuses a review commit if worktree identity changes during preparation', async () => {
@@ -359,16 +371,18 @@ it('refuses a review commit if worktree identity changes during preparation', as
         changed ? new WorktreeChangedError() : Effect.void,
       ),
   };
-  const lanes = Effect.runSync(
-    Lanes.pipe(
-      Effect.provide(Lanes.layer),
-      Effect.provideService(LaneOptions, {
-        readCapacity: 2,
-        deadlineMs: 1000,
-        consistency,
-      }),
+  const laneRuntime = ManagedRuntime.make(
+    Lanes.layer.pipe(
+      Layer.provide(
+        Layer.succeed(LaneOptions, {
+          readCapacity: 2,
+          deadlineMs: 1000,
+          consistency,
+        }),
+      ),
     ),
   );
+  const lanes = await laneRuntime.runPromise(Lanes);
   const access = Effect.runSync(
     WorktreeAccess.pipe(
       Effect.provide(WorktreeAccess.layer),
@@ -406,7 +420,7 @@ it('refuses a review commit if worktree identity changes during preparation', as
   );
   expect(writes).toBe(0);
   expect(publications).toBe(0);
-  await lanes.close();
+  await laneRuntime.dispose();
 });
 
 it('does not publish a cancelled filesystem operation that never committed', async () => {
@@ -414,16 +428,18 @@ it('does not publish a cancelled filesystem operation that never committed', asy
   const aborted = Promise.withResolvers<void>();
   const cleanup = Promise.withResolvers<void>();
   const consistency = { execute: () => Effect.void };
-  const lanes = Effect.runSync(
-    Lanes.pipe(
-      Effect.provide(Lanes.layer),
-      Effect.provideService(LaneOptions, {
-        readCapacity: 2,
-        deadlineMs: 1000,
-        consistency,
-      }),
+  const laneRuntime = ManagedRuntime.make(
+    Lanes.layer.pipe(
+      Layer.provide(
+        Layer.succeed(LaneOptions, {
+          readCapacity: 2,
+          deadlineMs: 1000,
+          consistency,
+        }),
+      ),
     ),
   );
+  const lanes = await laneRuntime.runPromise(Lanes);
   const access = Effect.runSync(
     WorktreeAccess.pipe(
       Effect.provide(WorktreeAccess.layer),
@@ -463,6 +479,6 @@ it('does not publish a cancelled filesystem operation that never committed', asy
   await aborted.promise;
   expect(Exit.hasInterrupts(await caller)).toBe(true);
   cleanup.resolve();
-  await lanes.close();
+  await laneRuntime.dispose();
   expect(publications).toBe(0);
 });

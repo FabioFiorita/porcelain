@@ -10,8 +10,9 @@ import {
   Scope,
   Exit,
   RcMap,
+  Ref,
+  TxRef,
 } from 'effect';
-import { withSignal } from '@porcelain/effects';
 import { channel } from 'node:diagnostics_channel';
 import { type ListedWorktree } from '@porcelain/projects/models';
 import { type WorktreeChangedError } from '@porcelain/kernel/errors';
@@ -27,14 +28,12 @@ type OperationEvent = {
   failed?: boolean;
 };
 
-let sequence = 0;
-
 type LaneMode = 'read' | 'write';
 
 export class Lanes extends Context.Service<
   Lanes,
   {
-    readonly assertOpen: () => void;
+    readonly assertOpen: () => Effect.Effect<void>;
     readonly run: <A, E>(
       lane: string,
       mode: LaneMode,
@@ -78,17 +77,20 @@ export class Lanes extends Context.Service<
       worktree: ListedWorktree,
       work: () => Effect.Effect<A, E>,
     ) => Effect.Effect<A, E | WorktreeChangedError>;
-    readonly close: () => Promise<void>;
+    readonly close: () => Effect.Effect<void>;
   }
 >()('@porcelain/server/Lanes') {
   static readonly layer = Layer.effect(
     Lanes,
     Effect.gen(function* () {
       const options = yield* LaneOptions;
-      const shutdown = new AbortController();
-      const scope = Scope.makeUnsafe();
-      const finishing = new Set<Deferred.Deferred<void>>();
-      let closed = false;
+      const shutdown = yield* Deferred.make<void>();
+      const scope = yield* Scope.make();
+      const sequence = yield* Ref.make(0);
+      const lifecycle = yield* TxRef.make<{
+        phase: 'open' | 'closing' | 'closed';
+        finishing: number;
+      }>({ phase: 'open', finishing: 0 });
 
       const admissionScope = yield* Scope.make();
       const admissions = yield* RcMap.make({
@@ -103,10 +105,10 @@ export class Lanes extends Context.Service<
       const closeResources = options.closeResources ?? (() => undefined);
       const consistency = options.consistency;
 
-      let closing: Promise<void> | undefined;
-      function assertOpen(): void {
-        if (shutdown.signal.aborted) throw new ApplicationClosedError();
-      }
+      const assertOpen = Effect.fn('Lanes.assertOpen')(function* () {
+        if ((yield* TxRef.get(lifecycle)).phase !== 'open')
+          return yield* Effect.die(new ApplicationClosedError());
+      });
       function run<A, E>(
         lane: string,
         mode: LaneMode,
@@ -166,8 +168,8 @@ export class Lanes extends Context.Service<
       ): Effect.Effect<A, E> {
         return Effect.uninterruptibleMask((restore) =>
           Effect.gen(function* () {
-            assertOpen();
-            const id = ++sequence;
+            yield* assertOpen();
+            const id = yield* Ref.updateAndGet(sequence, (value) => value + 1);
             publish(id, lane, 'queued');
             return yield* admittedEffect(
               id,
@@ -186,9 +188,9 @@ export class Lanes extends Context.Service<
       ): Effect.Effect<A, E> {
         return Effect.uninterruptibleMask((restore) =>
           Effect.gen(function* () {
-            assertOpen();
+            yield* assertOpen();
             return yield* admittedEffect(
-              ++sequence,
+              yield* Ref.updateAndGet(sequence, (value) => value + 1),
               'unqueued',
               work,
               restore,
@@ -220,9 +222,15 @@ export class Lanes extends Context.Service<
       ): Effect.Effect<A, E> {
         return Effect.uninterruptible(
           Effect.gen(function* () {
-            if (closed) return yield* Effect.die(new ApplicationClosedError());
-            const completed = yield* Deferred.make<void>();
-            finishing.add(completed);
+            yield* Effect.gen(function* () {
+              const current = yield* TxRef.get(lifecycle);
+              if (current.phase === 'closed')
+                return yield* Effect.die(new ApplicationClosedError());
+              yield* TxRef.set(lifecycle, {
+                ...current,
+                finishing: current.finishing + 1,
+              });
+            }).pipe(Effect.tx);
             const operation = Effect.gen(function* () {
               const admission = yield* RcMap.get(admissions, lane);
               return yield* withLaneAdmission(
@@ -233,10 +241,10 @@ export class Lanes extends Context.Service<
             }).pipe(Effect.scoped);
             return yield* operation.pipe(
               Effect.ensuring(
-                Effect.gen(function* () {
-                  finishing.delete(completed);
-                  yield* Deferred.succeed(completed, undefined);
-                }),
+                TxRef.update(lifecycle, (current) => ({
+                  ...current,
+                  finishing: current.finishing - 1,
+                })),
               ),
             );
           }),
@@ -273,7 +281,7 @@ export class Lanes extends Context.Service<
           const admitted = yield* Deferred.make<void>();
           let started = false;
           const operation = Effect.gen(function* () {
-            assertOpen();
+            yield* assertOpen();
             publish(id, lane, 'started');
             started = true;
             yield* Deferred.succeed(admitted, undefined);
@@ -318,8 +326,17 @@ export class Lanes extends Context.Service<
             );
             return yield* Effect.raceFirst(Fiber.join(worker), timeout);
           });
-          return yield* restore(withSignal(awaited, shutdown.signal)).pipe(
-            Effect.onExit(() => Effect.sync(() => worker.interruptUnsafe())),
+          return yield* restore(
+            Effect.raceFirst(
+              awaited,
+              Deferred.await(shutdown).pipe(Effect.andThen(Effect.interrupt)),
+            ),
+          ).pipe(
+            Effect.onExit(() =>
+              Effect.forkIn(Fiber.interrupt(worker), scope, {
+                startImmediately: true,
+              }).pipe(Effect.asVoid),
+            ),
           );
         });
       }
@@ -343,24 +360,29 @@ export class Lanes extends Context.Service<
         if (failed !== undefined) event.failed = failed;
         operationChannel.publish(event);
       }
-      function close(): Promise<void> {
-        if (!closing) {
-          shutdown.abort(new ApplicationClosedError());
-          closing = (async () => {
-            await Effect.runPromise(Scope.close(scope, Exit.void));
-            while (finishing.size > 0)
-              await Effect.runPromise(
-                Effect.forEach([...finishing], Deferred.await, {
-                  concurrency: 'unbounded',
-                }),
-              );
-            closed = true;
-            await Effect.runPromise(Scope.close(admissionScope, Exit.void));
-            closeResources();
-          })();
-        }
-        return closing;
-      }
+      const closing = yield* Effect.cached(
+        Effect.uninterruptible(
+          Effect.gen(function* () {
+            yield* TxRef.update(lifecycle, (current) => ({
+              ...current,
+              phase: 'closing' as const,
+            }));
+            yield* Deferred.succeed(shutdown, undefined);
+            yield* Scope.close(scope, Exit.void);
+            yield* Effect.gen(function* () {
+              const current = yield* TxRef.get(lifecycle);
+              if (current.finishing > 0) return yield* Effect.txRetry;
+              yield* TxRef.set(lifecycle, {
+                ...current,
+                phase: 'closed' as const,
+              });
+            }).pipe(Effect.tx);
+            yield* Scope.close(admissionScope, Exit.void);
+            yield* Effect.sync(closeResources);
+          }),
+        ),
+      );
+      yield* Effect.addFinalizer(() => closing);
       return {
         assertOpen,
         run,
@@ -371,7 +393,7 @@ export class Lanes extends Context.Service<
         finish,
         start,
         runConsistent,
-        close,
+        close: () => closing,
       };
     }),
   );

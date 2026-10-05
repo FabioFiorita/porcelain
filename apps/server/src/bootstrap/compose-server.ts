@@ -136,8 +136,7 @@ function serverResources(
         const stores = yield* composeStores();
         const catalog = new InMemoryWorktreeCatalogStore();
         const clock = new SystemClock();
-        const lanes = yield* Lanes.pipe(
-          Effect.provide(Lanes.layer),
+        const laneContext = yield* Layer.build(Lanes.layer).pipe(
           Effect.provideService(LaneOptions, {
             deadlineMs: () =>
               operationDeadlineMs(catalog.listObservations().length, limits),
@@ -148,6 +147,7 @@ function serverResources(
             ),
           }),
         );
+        const lanes = Context.get(laneContext, Lanes);
         const logger = new StderrLogger(clock);
         const liveConnections = new LiveConnections();
         const events = new WebSocketEventPublisher(liveConnections);
@@ -341,7 +341,7 @@ function serverResources(
                 routeListenerRunner.close({ route: 'tailnet' }),
                 nativeOperation(() => worktreeWatches.close()),
                 Effect.sync(() => liveConnections.close()),
-                nativeOperation(() => lanes.close()),
+                lanes.close(),
               ]),
             ),
         };

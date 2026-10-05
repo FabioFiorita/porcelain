@@ -126,16 +126,18 @@ it('lets an arriving writer finish before badge text reads, without holding a re
     }),
   );
   const consistency = { execute: () => Effect.void };
-  const lanes = Effect.runSync(
-    Lanes.pipe(
-      Effect.provide(Lanes.layer),
-      Effect.provideService(LaneOptions, {
-        readCapacity: 2,
-        deadlineMs: 1000,
-        consistency,
-      }),
+  const laneRuntime = ManagedRuntime.make(
+    Lanes.layer.pipe(
+      Layer.provide(
+        Layer.succeed(LaneOptions, {
+          readCapacity: 2,
+          deadlineMs: 1000,
+          consistency,
+        }),
+      ),
     ),
   );
+  const lanes = await laneRuntime.runPromise(Lanes);
   const keys = Effect.runSync(LaneKeys.pipe(Effect.provide(LaneKeys.layer)));
   const order: string[] = [];
   let writer: Promise<void> | undefined;
@@ -228,7 +230,7 @@ it('lets an arriving writer finish before badge text reads, without holding a re
     expect([...result]).toEqual([[worktree.id, 'reviewed']]);
     expect(order).toEqual(['write', 'read:README.md']);
   } finally {
-    await lanes.close();
+    await laneRuntime.dispose();
     await session.dispose();
     rmSync(directory, { recursive: true, force: true });
   }
