@@ -2,7 +2,8 @@ import { useMutation } from '@tanstack/react-query';
 import { desktopProjectPicker } from '@/shared/adapters/desktop';
 import type { WorktreeTarget } from '../rules/worktree-target';
 import type { Project } from '@porcelain/client/projects/rules';
-import { useProjectBrowserStore } from '../store';
+import { projectFolder } from '../store';
+import { useAtomSet } from '@effect/atom-react';
 import { useRegisterProject } from './register-project';
 import { type Connection } from '@/shared/workspace/connection';
 
@@ -20,6 +21,7 @@ export function useOpenProject(
   selectWorktree: Opened,
 ) {
   const register = useRegisterProject(connection);
+  const setFolder = useAtomSet(projectFolder);
   const submit = async (path: string) => {
     if (register.isPending) return;
     let project;
@@ -29,7 +31,7 @@ export function useOpenProject(
       return;
     }
     const target = openedWorktree(remote, project);
-    useProjectBrowserStore.getState().reset();
+    setFolder(undefined);
     close();
     if (target) await selectWorktree(target);
   };
@@ -40,8 +42,11 @@ export function useOpenProject(
   };
 }
 
-export function resetProjectBrowser(open: boolean) {
-  if (!open) useProjectBrowserStore.getState().reset();
+export function useResetProjectBrowser() {
+  const setFolder = useAtomSet(projectFolder);
+  return (open: boolean) => {
+    if (!open) setFolder(undefined);
+  };
 }
 
 export function useNativeProjectPicker(

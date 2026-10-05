@@ -10,7 +10,8 @@ import {
   type ExpectedFile,
 } from '@porcelain/client/changes/rules';
 import { diffBatches } from '@porcelain/client/changes/rules';
-import { useChangesStore } from '../store';
+import { changedDiffRecovery } from '../store';
+import { useAtomRef } from '@effect/atom-react';
 import { type Connection } from '@/shared/workspace/connection';
 
 export function useChangeDiffs(
@@ -27,8 +28,10 @@ export function useChangeDiffs(
     scope.projectId,
     scope.worktreeId,
   ]);
-  const recovering = useChangesStore(
-    (state) => state.pending[key] === statusToken,
+  const recovering = useAtomRef(
+    changedDiffRecovery.state.map(
+      (state) => state.pending[key] === statusToken,
+    ),
   );
   const batches = diffBatches(expectedFiles, selections, DIFFS_PER_REQUEST);
   const read = useBatchedReads({

@@ -3,7 +3,8 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { connectionErrorMessage } from '@porcelain/client/access/rules';
 import type { useProjectFolder } from '../queries/project-locations';
-import { useProjectBrowserStore } from '../store';
+import { projectFolder } from '../store';
+import { useAtomSet } from '@effect/atom-react';
 
 export function ProjectFolderList({
   folder,
@@ -12,7 +13,7 @@ export function ProjectFolderList({
   folder: ReturnType<typeof useProjectFolder>;
   disabled: boolean;
 }) {
-  const setPath = useProjectBrowserStore((state) => state.setFolderPath);
+  const setPath = useAtomSet(projectFolder);
   const current = folder.data;
   return (
     <ScrollArea className="h-40" aria-label="Folders">

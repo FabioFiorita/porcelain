@@ -535,12 +535,9 @@ export const webRules = {
         const source = sourceOf(node);
         if (
           source !== undefined &&
-          (/^(?:react(?:-native|-dom)?|@effect\/atom-react|@tanstack\/react-query|expo(?:-[^/]+)?|@expo\/[^/]+)(?:\/|$)/.test(
+          /^(?:react(?:-native|-dom)?|@effect\/atom-react|@tanstack\/react-query|expo(?:-[^/]+)?|@expo\/[^/]+)(?:\/|$)/.test(
             source,
-          ) ||
-            source === 'zustand' ||
-            (source.startsWith('zustand/') &&
-              !/^zustand\/vanilla(?:\/|$)/.test(source)))
+          )
         )
           context.report({ node, message });
       };
@@ -613,18 +610,61 @@ export const webRules = {
     message: (name) =>
       `\`${name}\` is not ours here: the React Compiler memoizes every component; hand memoization hides what it cannot compile, because hand memoization hides failures of the compiler used by the build.`,
   }),
-  'web-store-owns-zustand': {
+  'web-store-owns-atoms': {
     create(context) {
       const path = webPath(context);
-      if (!runtimeWeb(path) || webPart(path) === 'store') return {};
+      if (!runtimeWeb(path)) return {};
+      const part = webPart(path);
+      const message =
+        'Native Atom state has one feature owner: mutable AtomRef values and persisted atoms belong to store.ts; queries and commands own async atoms, because competing stores or view-created atoms split subscriptions and cancellation. Zustand is retired.';
+      let atoms = { locals: new Map(), namespaces: new Set() };
+      let methods = { locals: new Map(), namespaces: new Set() };
       return {
+        Program(program) {
+          atoms = importedFrom(
+            program,
+            (source) => source === 'effect/reactivity',
+          );
+          methods = importedFrom(
+            program,
+            (source) => source === 'effect/reactivity/Atom',
+          );
+        },
+        CallExpression(node) {
+          const callee = node.callee;
+          if (
+            part !== 'store' &&
+            (calledImport(callee, methods) === 'kvs' ||
+              (callee.type === 'MemberExpression' &&
+                promiseContinuationName(callee) === 'kvs' &&
+                calledImport(callee.object, atoms) === 'Atom'))
+          )
+            context.report({ node, message });
+        },
         ImportDeclaration(node) {
-          if (zustandModule.test(sourceOf(node) ?? ''))
-            context.report({
-              node,
-              message:
-                'Zustand is created in the feature store.ts only; a view reads it through the hooks store.ts exports, because a second store splits state ownership and subscriptions.',
-            });
+          const source = sourceOf(node) ?? '';
+          if (zustandModule.test(source)) {
+            context.report({ node, message });
+            return;
+          }
+          if (node.importKind === 'type') return;
+          for (const binding of node.specifiers) {
+            if (binding.importKind === 'type') continue;
+            const imported = source.startsWith('effect/reactivity/')
+              ? source.slice('effect/reactivity/'.length)
+              : source === 'effect/reactivity' &&
+                  binding.type === 'ImportSpecifier'
+                ? importedName(binding)
+                : source === 'effect/reactivity'
+                  ? '*'
+                  : undefined;
+            if (
+              (['AtomRef', '*'].includes(imported) && part !== 'store') ||
+              (['Atom', '*'].includes(imported) &&
+                ['view', 'route'].includes(part))
+            )
+              context.report({ node: binding, message });
+          }
         },
       };
     },

@@ -62,7 +62,7 @@ export function useTabLayout({
     return target === undefined ? urlActive[index] : (target ?? undefined);
   };
 
-  const base: Pane[] = stored ?? [
+  const base: readonly Pane[] = stored ?? [
     fallback == null ? emptyPane() : { tabs: [fallback], pinned: [] },
   ];
   const actives: [string | null, string | null] = [

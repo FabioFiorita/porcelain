@@ -20,7 +20,8 @@ import {
   receiptFailed,
   receiptWords,
 } from '@porcelain/client/git-actions/rules';
-import { useCommitState, commitRuntime } from '../store';
+import { commitState, commitDraftControllers } from '../store';
+import { useAtomRef } from '@effect/atom-react';
 import { useCommitModels } from '../queries/git-actions';
 import { useGitAction } from './run-action';
 import { useCommitDraft } from './commit-draft';
@@ -51,13 +52,14 @@ function useCommitFormState(
       lastCommitMessage,
     ),
   });
-  const { state, controllers } = commitRuntime(form);
+  const state = commitState(form);
+  const controllers = commitDraftControllers(form);
   const { mode, message, amendMessage, excluded, added, groups } = useSelector(
     form.store,
     (state) => state.values,
   );
   const { done, activeGroup, ownHead, busy, error, drafted, editingFiles } =
-    useCommitState(state);
+    useAtomRef(state);
   const setMode = (value: CommitMode) => form.setFieldValue('mode', value);
   const setMessage = (value: string) => form.setFieldValue('message', value);
   const setAmendMessage = (value: string) =>
@@ -73,16 +75,21 @@ function useCommitFormState(
       | ReadonlySet<string>
       | ((current: ReadonlySet<string>) => ReadonlySet<string>),
   ) =>
-    state.setState((current) => ({
+    state.update((current) => ({
+      ...current,
       done: typeof value === 'function' ? value(current.done) : value,
     }));
   const setActiveGroup = (activeGroup: string | null) =>
-    state.setState({ activeGroup });
-  const setOwnHead = (ownHead: string | null) => state.setState({ ownHead });
-  const setBusy = (busy: boolean) => state.setState({ busy });
-  const setError = (error: unknown) => state.setState({ error });
+    state.update((current) => ({ ...current, activeGroup }));
+  const setOwnHead = (ownHead: string | null) =>
+    state.update((current) => ({ ...current, ownHead }));
+  const setBusy = (busy: boolean) =>
+    state.update((current) => ({ ...current, busy }));
+  const setError = (error: unknown) =>
+    state.update((current) => ({ ...current, error }));
   const setDrafted = (kind: keyof Drafts, files: DraftedFiles | null) =>
-    state.setState((current) => ({
+    state.update((current) => ({
+      ...current,
       drafted: { ...current.drafted, [kind]: files },
     }));
   const commitAction: 'amend' | 'commit' =
@@ -395,7 +402,10 @@ export function useCommitForm(
     checkOutcome: () => void checkOutcome(controls),
     setModel: commitModel.set,
     toggleEditingFiles: () =>
-      state.setState((current) => ({ editingFiles: !current.editingFiles })),
+      state.update((current) => ({
+        ...current,
+        editingFiles: !current.editingFiles,
+      })),
     setCurrentMessage: (value: string) => {
       if (commitAction === 'amend') setAmendMessage(value);
       else setMessage(value);

@@ -10,7 +10,10 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { connectionErrorMessage } from '@porcelain/client/access/rules';
 import { type RemoteConnection } from '@/features/access/index';
-import { resetProjectBrowser, useOpenProject } from '../commands/open-project';
+import {
+  useResetProjectBrowser,
+  useOpenProject,
+} from '../commands/open-project';
 import { openProjectDialog } from '../overlays';
 import type { WorktreeTarget } from '../rules/worktree-target';
 import { ProjectFolderPicker } from './project-folder-picker';
@@ -27,6 +30,7 @@ export function OpenProjectDialog({
   remotes: readonly RemoteConnection[];
   onOpened: Opened;
 }) {
+  const resetProjectBrowser = useResetProjectBrowser();
   const computer = (remote: string | null) => {
     if (remote === null) return { connection, name: undefined };
     const entry = remotes.find((each) => each.remote.environmentId === remote);

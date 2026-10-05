@@ -11,3 +11,4 @@ export {
   readCurrentChanges,
   refreshGitLook,
 } from './commands/read-current-changes.ts';
+export { ChangedDiffRecovery } from './store/recovery.ts';

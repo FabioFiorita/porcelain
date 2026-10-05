@@ -1,5 +1,4 @@
-import { createStore } from 'zustand/vanilla';
-import { useStore } from 'zustand';
+import { Atom, AtomRef } from 'effect/reactivity';
 import { useAtomRef } from '@effect/atom-react';
 import type { Context } from 'effect';
 import type { OperationStore } from '@porcelain/client/git-actions';
@@ -15,16 +14,17 @@ export function useGitOperation(
   return useAtomRef(selected);
 }
 
-function createCommitState() {
-  return createStore<{
-    done: ReadonlySet<string>;
-    activeGroup: string | null;
-    ownHead: string | null;
-    busy: boolean;
-    error: unknown;
-    drafted: Drafts;
-    editingFiles: boolean;
-  }>(() => ({
+type CommitState = {
+  done: ReadonlySet<string>;
+  activeGroup: string | null;
+  ownHead: string | null;
+  busy: boolean;
+  error: unknown;
+  drafted: Drafts;
+  editingFiles: boolean;
+};
+export const commitState = Atom.family((_owner: object) =>
+  AtomRef.make<CommitState>({
     done: new Set(),
     activeGroup: null,
     ownHead: null,
@@ -32,28 +32,8 @@ function createCommitState() {
     error: null,
     drafted: { message: null, groups: null },
     editingFiles: false,
-  }));
-}
-
-export function useCommitState(store: ReturnType<typeof createCommitState>) {
-  return useStore(store);
-}
-
-const commitRuntimes = new WeakMap<
-  object,
-  {
-    state: ReturnType<typeof createCommitState>;
-    controllers: Set<AbortController>;
-  }
->();
-
-export function commitRuntime(owner: object) {
-  const retained = commitRuntimes.get(owner);
-  if (retained) return retained;
-  const runtime = {
-    state: createCommitState(),
-    controllers: new Set<AbortController>(),
-  };
-  commitRuntimes.set(owner, runtime);
-  return runtime;
-}
+  }),
+);
+export const commitDraftControllers = Atom.family(
+  (_owner: object) => new Set<AbortController>(),
+);

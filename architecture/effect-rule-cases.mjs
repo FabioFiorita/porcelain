@@ -482,3 +482,45 @@ for (const path of [
     invalid: "import { HttpApiClient } from 'effect/http-api';",
     errors: 1,
   });
+
+for (const invalid of [
+  "import { AtomRef as State } from 'effect/reactivity'; State.make(false);",
+  "import * as State from 'effect/reactivity/AtomRef'; State.make(false);",
+  "import { make as state } from 'effect/reactivity/AtomRef'; state(false);",
+  "import { Atom as State } from 'effect/reactivity'; State.make(false);",
+  "import * as State from 'effect/reactivity/Atom'; State.make(false);",
+])
+  effectRuleCases.push({
+    rule: 'web-store-owns-atoms',
+    path: 'apps/web/src/features/files/views/ownership.tsx',
+    valid:
+      "import { AsyncResult } from 'effect/reactivity'; import type { AtomRef } from 'effect/reactivity';",
+    invalid,
+    errors: 1,
+  });
+for (const path of [
+  'apps/web/src/features/files/store.ts',
+  'apps/mobile/src/features/projects/store.ts',
+  'packages/client/src/features/files/store.ts',
+])
+  effectRuleCases.push({
+    rule: 'web-store-owns-atoms',
+    path,
+    valid:
+      "import { Atom, AtomRef } from 'effect/reactivity'; const state = AtomRef.make(false);",
+    invalid: "import { createStore } from 'zustand/vanilla';",
+    errors: 1,
+  });
+
+for (const invalid of [
+  "import { Atom as State } from 'effect/reactivity'; State.kvs({});",
+  "import { kvs as persisted } from 'effect/reactivity/Atom'; persisted({});",
+])
+  effectRuleCases.push({
+    rule: 'web-store-owns-atoms',
+    path: 'apps/web/src/features/files/commands/save.ts',
+    valid:
+      "import { Atom } from 'effect/reactivity'; const command = Atom.fn(() => undefined);",
+    invalid,
+    errors: 1,
+  });

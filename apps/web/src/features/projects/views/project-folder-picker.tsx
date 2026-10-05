@@ -10,7 +10,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import { useProjectFolder } from '../queries/project-locations';
-import { useProjectBrowserStore } from '../store';
+import { projectFolder } from '../store';
+import { useAtomSet, useAtomValue } from '@effect/atom-react';
 import { ProjectFolderList } from './project-folder-list';
 import { type Connection } from '@/shared/workspace/connection';
 
@@ -23,8 +24,8 @@ export function ProjectFolderPicker({
   disabled: boolean;
   onOpen: (path: string) => void;
 }) {
-  const path = useProjectBrowserStore((state) => state.folderPath);
-  const setPath = useProjectBrowserStore((state) => state.setFolderPath);
+  const path = useAtomValue(projectFolder);
+  const setPath = useAtomSet(projectFolder);
   const folder = useProjectFolder(connection, path, true);
   const current = folder.data;
   const crumbs = current

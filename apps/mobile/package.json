@@ -34,8 +34,7 @@
     "react-native-screens": "4.28.0",
     "tailwindcss": "4.3.3",
     "uniwind": "1.12.1",
-    "zod": "4.5.4",
-    "zustand": "5.0.15"
+    "zod": "4.5.4"
   },
   "devDependencies": {
     "@porcelain/server": "workspace:*",

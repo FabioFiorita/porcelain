@@ -1,7 +1,8 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { changesQueryOptions } from '@porcelain/client/changes';
 import { type ChangesScope } from '@porcelain/client/changes/rules';
-import { useChangesStore } from '../store';
+import { changedDiffRecovery } from '../store';
+import { Effect } from 'effect';
 import { type Connection } from '@/shared/workspace/connection';
 
 export function useRecoverChangedDiffs(
@@ -17,9 +18,11 @@ export function useRecoverChangedDiffs(
     scope.worktreeId,
   ]);
   return (statusToken: string) => {
-    if (!useChangesStore.getState().begin(key, statusToken)) return;
+    if (!Effect.runSync(changedDiffRecovery.begin(key, statusToken))) return;
     void client
       .invalidateQueries({ queryKey: options.queryKey })
-      .finally(() => useChangesStore.getState().finish(key, statusToken));
+      .finally(() =>
+        Effect.runSync(changedDiffRecovery.finish(key, statusToken)),
+      );
   };
 }

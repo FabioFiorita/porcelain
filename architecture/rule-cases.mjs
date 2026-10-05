@@ -656,13 +656,6 @@ test('access.pairing: works', async ({ workspace }) => {
     errors: 1,
   },
   {
-    rule: 'client-platform-through-ports',
-    path: 'packages/client/src/features/access/store.ts',
-    valid: "import { Context, Effect, Layer } from 'effect';",
-    invalid: "import { useShallow } from 'zustand/react/shallow';",
-    errors: 1,
-  },
-  {
     rule: 'spec-imports',
     path: 'packages/client/src/features/access/commands/pairing.spec.ts',
     valid:
@@ -676,13 +669,6 @@ test('access.pairing: works', async ({ workspace }) => {
     path: 'packages/client/src/features/access/queries/environments.ts',
     valid: "import type { QueryFunctionContext } from '@tanstack/query-core';",
     invalid: "import { useQuery } from '@tanstack/react-query';",
-    errors: 1,
-  },
-  {
-    rule: 'web-store-owns-zustand',
-    path: 'apps/mobile/src/features/access/commands/pairing.ts',
-    valid: "import { accessStore } from '../store';",
-    invalid: "import { createStore } from 'zustand/vanilla';",
     errors: 1,
   },
   {
@@ -707,13 +693,6 @@ test('access.pairing: works', async ({ workspace }) => {
     valid:
       'export const name = (platform: { name(): string }) => platform.name();',
     invalid: 'export const name = navigator.userAgent;',
-    errors: 1,
-  },
-  {
-    rule: 'web-store-owns-zustand',
-    path: 'packages/client/src/features/access/commands/pairing.ts',
-    valid: "import { accessStore } from '../store';",
-    invalid: "import { create } from 'zustand';",
     errors: 1,
   },
   {
@@ -1432,40 +1411,15 @@ export { utf8ByteLength };`,
   },
   {
     rule: 'limits-from-settings',
-    path: 'apps/server/src/http/routes/files/edit-file.ts',
-    valid: `import type { FastifyInstance } from 'fastify';
-import type { Limits } from '../../../config/limits.ts';
-import type { EditFileUseCase } from '../../../use-cases/files/edit-file.ts';
-
-export function editFile(
-  server: FastifyInstance,
-  options: {
-    useCase: Pick<EditFileUseCase, 'execute'>;
-    limits: Limits['http'];
-  },
-) {
-  server.post(
-    '/worktrees/:worktreeId/files',
-    { bodyLimit: options.limits.editFileBodyBytes },
-    async (request) => options.useCase.execute(request.body, {}),
-  );
-}
-`,
-    invalid: `import type { FastifyInstance } from 'fastify';
-import { LIMITS } from '../../../config/limits.ts';
-import type { EditFileUseCase } from '../../../use-cases/files/edit-file.ts';
-
-export function editFile(
-  server: FastifyInstance,
-  options: { useCase: Pick<EditFileUseCase, 'execute'> },
-) {
-  server.post(
-    '/worktrees/:worktreeId/files',
-    { bodyLimit: LIMITS.http.editFileBodyBytes },
-    async (request) => options.useCase.execute(request.body, {}),
-  );
-}
-`,
+    path: 'apps/server/src/http/routes/files/files-api.ts',
+    valid: `import type { Limits } from '../../../config/limits.ts';
+export function filesRoutes(limits: Limits['http']) {
+  return requestBodyLimit(FilesApi.groups.files.endpoints.editFile, limits.editFileBodyBytes);
+}`,
+    invalid: `import { LIMITS } from '../../../config/limits.ts';
+export function filesRoutes() {
+  return requestBodyLimit(FilesApi.groups.files.endpoints.editFile, LIMITS.http.editFileBodyBytes);
+}`,
     errors: 1,
   },
   {
@@ -3215,32 +3169,18 @@ export const ProbeContext = createContext('');
 `,
     errors: 1,
   },
-  {
+  ...[
+    'apps/web/src/features/files/views/file-editor.tsx',
+    'apps/web/src/features/access/queries/probe-query.ts',
+  ].map((path) => ({
     rule: 'web-no-empty-catch',
-    path: 'apps/web/src/features/files/views/file-editor.tsx',
-    valid: 'export function probeEditor(run: () => void) { run(); }',
-    invalid: `
-export function probeSwallow(run: () => void) {
-  try {
-    run();
-  } catch {}
-}
-`,
-    errors: 1,
-  },
-  {
-    rule: 'web-no-empty-catch',
-    path: 'apps/web/src/features/access/queries/probe-query.ts',
+    path,
     valid:
-      'export function probeRead(run: () => void) { try { run(); } catch(error) { throw error; } }',
-    invalid: `export function probeSwallow(run: () => void) {
-  try {
-    run();
-  } catch {}
-}
-`,
+      'export function read(run: () => void) { try { run(); } catch(error) { throw error; } }',
+    invalid:
+      'export function read(run: () => void) { try { run(); } catch {} }',
     errors: 1,
-  },
+  })),
   {
     rule: 'web-no-manual-memo',
     path: 'apps/web/src/features/access/views/probe-view.tsx',
@@ -3311,26 +3251,16 @@ export function ProbeView() {
 `,
     errors: 2,
   },
-  {
+  ...[
+    "import { useState } from 'react'; export const probeHook = useState;",
+    'export const probeWidth = () => window.innerWidth;',
+  ].map((invalid) => ({
     rule: 'web-rules-are-pure',
     path: 'apps/web/src/features/access/rules/probe-rule.ts',
-    valid: 'export const probeLabel = (value: string) => value.trim();',
-    invalid: `import { useState } from 'react';
-
-export const probeHook = useState;
-`,
+    valid: 'export const label = (value: string) => value.trim();',
+    invalid,
     errors: 1,
-  },
-  {
-    rule: 'web-rules-are-pure',
-    path: 'apps/web/src/features/access/rules/probe-rule.ts',
-    valid: 'export const probeWidth = (width: number) => width;',
-    invalid: `export function probeWidth() {
-  return window.innerWidth;
-}
-`,
-    errors: 1,
-  },
+  })),
   {
     rule: 'web-shadcn-wrapper',
     path: 'apps/web/src/features/access/views/probe-view.tsx',
@@ -3352,17 +3282,6 @@ export function SaveControl(props: ComponentProps<'button'>) {
     invalid: `export function probeSaved() {
   return localStorage.getItem('probe');
 }
-`,
-    errors: 1,
-  },
-  {
-    rule: 'web-store-owns-zustand',
-    path: 'apps/web/src/features/access/views/probe-view.tsx',
-    valid:
-      "import {useAccessStore} from '../store'; export const ProbeView = () => <p>{useAccessStore().open}</p>;",
-    invalid: `import { create } from 'zustand';
-
-export const probeStore = create(() => ({ open: false }));
 `,
     errors: 1,
   },

@@ -96,7 +96,7 @@
     "porcelain/web-no-context": "error",
     "porcelain/web-no-action-hooks": "error",
     "porcelain/web-no-manual-memo": "error",
-    "porcelain/web-store-owns-zustand": "error",
+    "porcelain/web-store-owns-atoms": "error",
     "porcelain/web-store-owns-storage": "error",
     "porcelain/web-queries-own-reads": "error",
     "porcelain/web-queries-export-reads": "error",

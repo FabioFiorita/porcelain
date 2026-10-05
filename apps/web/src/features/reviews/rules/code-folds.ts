@@ -1,4 +1,7 @@
-export type CodeFolds = { folded: string[]; expanded: string[] };
+export type CodeFolds = {
+  readonly folded: readonly string[];
+  readonly expanded: readonly string[];
+};
 
 function strings(items: unknown): items is string[] {
   return (

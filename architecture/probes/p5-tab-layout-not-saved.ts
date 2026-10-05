@@ -11,8 +11,8 @@ export default {
     {
       kind: 'replace',
       path: 'apps/web/src/features/reviews/store.ts',
-      old: '        partialize: (state) => ({ panes: state.panes }),\n',
-      new: '        partialize: () => ({ panes: null }),\n',
+      old: '      encode: SchemaGetter.passthrough(),\n    },\n  ),\n);\nconst foldsSchema',
+      new: '      encode: SchemaGetter.transform(() => ({ panes: null, saved: true })),\n    },\n  ),\n);\nconst foldsSchema',
     },
   ],
 } satisfies Probe;
