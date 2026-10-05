@@ -72,31 +72,29 @@ export const effectRuleCases = [
       'export class ReadEnvironmentService { execute(): Effect.Effect<ReadEnvironmentResult> { return Effect.succeed(result); } }',
     errors: 1,
   },
-  ...['models-are-types'].flatMap((rule) => [
-    ...[
-      nativeClock.replace(
-        "Clock>('@porcelain/kernel/Clock')",
-        "Clock>('@porcelain/kernel/Other')",
-      ),
-      nativeClock.replace("'@porcelain/kernel/Clock', Clock", 'Clock, Clock'),
-      nativeClock.replace('Context.Service', 'Context.Reference'),
-      nativeClock.replace('const Clock', 'let Clock'),
-    ].map((invalid) => ({
-      rule,
-      path: 'packages/kernel/src/ports/clock.ts',
-      valid: nativeClock,
-      invalid,
-      errors: 1,
-    })),
-    {
-      rule,
-      path: 'packages/kernel/src/models/clock.ts',
-      validPath: 'packages/kernel/src/ports/clock.ts',
-      valid: nativeClock,
-      invalid: nativeClock,
-      errors: 2,
-    },
-  ]),
+  ...[
+    nativeClock.replace(
+      "Clock>('@porcelain/kernel/Clock')",
+      "Clock>('@porcelain/kernel/Other')",
+    ),
+    nativeClock.replace("'@porcelain/kernel/Clock', Clock", 'Clock, Clock'),
+    nativeClock.replace('Context.Service', 'Context.Reference'),
+    nativeClock.replace('const Clock', 'let Clock'),
+  ].map((invalid) => ({
+    rule: 'models-are-types',
+    path: 'packages/kernel/src/ports/clock.ts',
+    valid: nativeClock,
+    invalid,
+    errors: 1,
+  })),
+  {
+    rule: 'models-are-types',
+    path: 'packages/kernel/src/models/clock.ts',
+    validPath: 'packages/kernel/src/ports/clock.ts',
+    valid: nativeClock,
+    invalid: nativeClock,
+    errors: 2,
+  },
   ...['AbortSignal', 'AbortController'].map((raw) => ({
     rule: 'operation-class-shape',
     path: 'apps/server/src/use-cases/access/read-health.ts',
