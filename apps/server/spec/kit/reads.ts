@@ -102,8 +102,7 @@ export async function threeCommits(session: Session) {
 export async function watching(session: Session) {
   const connection = await session.live();
   await connection.next((notice) => notice.type === 'ready');
-  connection.send({
-    type: 'subscribe',
+  await connection.follow({
     projects: [session.projectId],
     worktrees: [
       {

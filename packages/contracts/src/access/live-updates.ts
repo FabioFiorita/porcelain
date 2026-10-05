@@ -1,4 +1,5 @@
 import { Schema } from 'effect';
+import { Rpc, RpcGroup } from 'effect/rpc';
 import {
   LIVE_PATHS_PER_WORKTREE,
   LIVE_PROJECTS,
@@ -11,7 +12,6 @@ import type { DeviceRoute } from './pairing.ts';
 import type { Principal } from './principal.ts';
 
 export const liveSubscriptionSchema = Schema.Struct({
-  type: Schema.Literal('subscribe'),
   projects: Schema.Array(Schema.String.check(Schema.isUUID())).check(
     Schema.isMaxLength(LIVE_PROJECTS),
   ),
@@ -24,7 +24,7 @@ export const liveSubscriptionSchema = Schema.Struct({
       ),
     }),
   ).check(Schema.isMaxLength(LIVE_WORKTREES)),
-});
+}).annotate({ parseOptions: { onExcessProperty: 'error' } });
 
 export const liveNoticeSchema = Schema.Union([
   Schema.Struct({ type: Schema.Literal('ready') }),
@@ -51,6 +51,11 @@ export const liveNoticeSchema = Schema.Union([
 ]);
 
 export type LiveNotice = typeof liveNoticeSchema.Type;
+
+export const LiveUpdatesRpc = RpcGroup.make(
+  Rpc.make('notices', { success: liveNoticeSchema, stream: true }),
+  Rpc.make('follow', { payload: liveSubscriptionSchema }),
+);
 
 export const issueLiveTicketResponseSchema = Schema.Struct({
   ticket: Schema.String,

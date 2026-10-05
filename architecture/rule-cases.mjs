@@ -9,11 +9,6 @@ import type { ReadChangeLinesQuery } from '@porcelain/contracts/changes';
 
 export class ReadChangeLinesUseCase {
   private readonly readChangeLines: ReadChangeLinesService;
-
-  constructor(readChangeLines: ReadChangeLinesService) {
-    this.readChangeLines = readChangeLines;
-  }
-
   execute(input: ReadChangeLinesQuery & { text: string }) {
     const { path, from, to, at, text } = input;
     return this.readChangeLines.execute({ path, from, to, at, text });
@@ -2697,8 +2692,6 @@ describe('commitPaths', () => {
     valid:
       "import {statusPolicy} from './status-policy.ts'; import {expect, it} from 'vitest'; it('maps the outcome to a response', () => { expect(statusPolicy({kind: 'missing'})).toBe(404); });",
     invalid: `import { openStorageSession } from '@porcelain/storage';
-
-
 describe('probe', () => {
   it('opens storage', () => {
     expect(openStorageSession).toBeTypeOf('function');
@@ -3768,12 +3761,12 @@ const save = Effect.fail(new Error('Refused'));`,
     errors: ['TS377001', 'TS377023'],
   },
   {
-    rule: 'native-http-types',
+    rule: 'native-transport-types',
     valid:
-      "import { Effect, Schema } from 'effect';\nimport { HttpApi, HttpApiBuilder, HttpApiClient, HttpApiEndpoint, HttpApiGroup } from 'effect/http-api';\nimport type { HttpClient } from 'effect/http';\nconst api = HttpApi.make('test').add(HttpApiGroup.make('files').add(HttpApiEndpoint.post('save', '/api/files/:id', { params: Schema.Struct({ id: Schema.String }), payload: Schema.Struct({ text: Schema.String }), success: Schema.Struct({ fingerprint: Schema.String }) })));\ndeclare const httpClient: HttpClient.HttpClient;\nconst client = Effect.runSync(HttpApiClient.makeWith(api, { httpClient })).files;\nconst handlers = HttpApiBuilder.group(api, 'files', (handlers) => handlers.handle('save', ({ params, payload }) => Effect.succeed({ fingerprint: params.id + payload.text })));\nconst request = client.save({ params: { id: 'tree' }, payload: { text: 'saved' } });",
+      "import { Effect, Schema } from 'effect';\nimport { HttpApi, HttpApiBuilder, HttpApiClient, HttpApiEndpoint, HttpApiGroup } from 'effect/http-api';\nimport type { HttpClient } from 'effect/http';\nconst api = HttpApi.make('test').add(HttpApiGroup.make('files').add(HttpApiEndpoint.post('save', '/api/files/:id', { params: Schema.Struct({ id: Schema.String }), payload: Schema.Struct({ text: Schema.String }), success: Schema.Struct({ fingerprint: Schema.String }) })));\ndeclare const httpClient: HttpClient.HttpClient;\nconst client = Effect.runSync(HttpApiClient.makeWith(api, { httpClient })).files;\nconst handlers = HttpApiBuilder.group(api, 'files', (handlers) => handlers.handle('save', ({ params, payload }) => Effect.succeed({ fingerprint: params.id + payload.text })));\nconst request = client.save({ params: { id: 'tree' }, payload: { text: 'saved' } });\nimport { Rpc, RpcClient, RpcGroup } from 'effect/rpc';\nconst group = RpcGroup.make(Rpc.make('save', { payload: Schema.Struct({ text: Schema.String }), success: Schema.Struct({ fingerprint: Schema.String }) }));\ndeclare const rpcClient: RpcClient.FromGroup<typeof group>;\nconst rpcHandlers = group.toLayer({ save: ({ text }) => Effect.succeed({ fingerprint: text }) });\nconst rpcRequest = rpcClient.save({ text: 'saved' });",
     invalid:
-      "import { Effect, Schema } from 'effect';\nimport { HttpApi, HttpApiBuilder, HttpApiClient, HttpApiEndpoint, HttpApiGroup } from 'effect/http-api';\nimport type { HttpClient } from 'effect/http';\nconst api = HttpApi.make('test').add(HttpApiGroup.make('files').add(HttpApiEndpoint.post('save', '/api/files/:id', { params: Schema.Struct({ id: Schema.String }), payload: Schema.Struct({ text: Schema.String }), success: Schema.Struct({ fingerprint: Schema.String }) })));\ndeclare const httpClient: HttpClient.HttpClient;\nconst client = Effect.runSync(HttpApiClient.makeWith(api, { httpClient })).files;\nconst incomplete = HttpApiBuilder.group(api, 'files', (handlers) => handlers);\nconst invalidHandler = HttpApiBuilder.group(api, 'files', (handlers) => handlers.handle('save', () => Effect.succeed({ fingerprint: 123 })));\nconst invalidRequest = client.save({ params: { id: 'tree' }, payload: { text: 123 } });\nconst missingRequest = client.missing({});",
-    errors: ['TS2322', 'TS2375', 'TS2322', 'TS2339'],
+      "import { Effect, Schema } from 'effect';\nimport { HttpApi, HttpApiBuilder, HttpApiClient, HttpApiEndpoint, HttpApiGroup } from 'effect/http-api';\nimport type { HttpClient } from 'effect/http';\nconst api = HttpApi.make('test').add(HttpApiGroup.make('files').add(HttpApiEndpoint.post('save', '/api/files/:id', { params: Schema.Struct({ id: Schema.String }), payload: Schema.Struct({ text: Schema.String }), success: Schema.Struct({ fingerprint: Schema.String }) })));\ndeclare const httpClient: HttpClient.HttpClient;\nconst client = Effect.runSync(HttpApiClient.makeWith(api, { httpClient })).files;\nconst incomplete = HttpApiBuilder.group(api, 'files', (handlers) => handlers);\nconst invalidHandler = HttpApiBuilder.group(api, 'files', (handlers) => handlers.handle('save', () => Effect.succeed({ fingerprint: 123 })));\nconst invalidRequest = client.save({ params: { id: 'tree' }, payload: { text: 123 } });\nconst missingRequest = client.missing({});\nimport { Rpc, RpcClient, RpcGroup } from 'effect/rpc';\nconst group = RpcGroup.make(Rpc.make('save', { payload: Schema.Struct({ text: Schema.String }), success: Schema.Struct({ fingerprint: Schema.String }) }));\ndeclare const rpcClient: RpcClient.FromGroup<typeof group>;\nconst rpcHandlers = group.of({ save: () => Effect.succeed({ fingerprint: 123 }) });\nconst rpcRequest = rpcClient.save({ text: 123 });",
+    errors: ['TS2322', 'TS2375', 'TS2322', 'TS2339', 'TS2322', 'TS2322'],
   },
   {
     rule: 'review-draft-types',

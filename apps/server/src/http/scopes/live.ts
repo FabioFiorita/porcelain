@@ -26,7 +26,10 @@ export function liveScope(options: {
   application: LiveUseCases;
   allowedHosts: readonly string[];
 }) {
-  return liveUpdates(options.application).pipe(
+  return liveUpdates({
+    ...options.application,
+    eventBuffer: options.limits.liveUpdates.eventBuffer,
+  }).pipe(
     Layer.provide(
       requestPolicy(
         checkRequestOrigin(

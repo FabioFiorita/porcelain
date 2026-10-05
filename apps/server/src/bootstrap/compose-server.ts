@@ -334,7 +334,6 @@ function serverResources(
             worktreeWatches,
             deviceConnections,
             tunnelConnections,
-            logger,
           },
           settings,
           files: new FilesystemWebRootReader(settings.webRoot),

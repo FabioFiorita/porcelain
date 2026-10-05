@@ -1,7 +1,19 @@
-import { Cause, Context, Effect, Queue, Result, Schema } from 'effect';
+import {
+  Cause,
+  Context,
+  Deferred,
+  Effect,
+  Queue,
+  Ref,
+  Exit,
+  Schedule,
+  Stream,
+  type Scope,
+} from 'effect';
+import { RpcClient, RpcClientError, RpcSerialization } from 'effect/rpc';
 import { Socket } from 'effect/socket';
-import { ScopedTasks, withSignal } from '@porcelain/effects';
-import { liveNoticeSchema } from '@porcelain/contracts/access';
+import { withSignal } from '@porcelain/effects';
+import { LiveUpdatesRpc } from '@porcelain/contracts/access';
 import { RequestError } from '../../../shared/api/request-error.ts';
 import type { LiveSubscription, LiveUpdatePort } from '../ports/live-update.ts';
 import {
@@ -12,31 +24,29 @@ import {
   LIVE_SUBSCRIPTION_BUFFER,
 } from '../../../config/limits.ts';
 
-const decodeNotice = Schema.decodeUnknownResult(
-  Schema.fromJsonString(liveNoticeSchema),
-);
-
 function unauthorized(error: unknown) {
-  return (
-    (error instanceof RequestError && error.status === 401) ||
-    (Socket.isSocketError(error) &&
+  if (error instanceof RequestError) return error.status === 401;
+  if (
+    error instanceof RpcClientError.RpcClientError ||
+    Socket.isSocketError(error)
+  )
+    return (
       error.reason._tag === 'SocketCloseError' &&
-      error.reason.code === LIVE_ACCESS_REVOKED_CLOSE_CODE)
-  );
+      error.reason.code === LIVE_ACCESS_REVOKED_CLOSE_CODE
+    );
+  return false;
 }
 
 export function createLiveUpdates<E>(
-  open: Effect.Effect<Socket.Socket, E>,
+  open: Effect.Effect<Socket.Socket, E, Scope.Scope>,
   context: Context.Context<never> = Context.empty(),
 ): LiveUpdatePort {
   return {
     connect({ signal, onNotice, onReconnect, onUnauthorized }) {
-      const tasks = new ScopedTasks(context);
-      let subscription: LiveSubscription = {
-        type: 'subscribe',
+      const desired = Ref.makeUnsafe<LiveSubscription>({
         projects: [],
         worktrees: [],
-      };
+      });
       const updates = Effect.runSync(
         Queue.sliding<LiveSubscription>(LIVE_SUBSCRIPTION_BUFFER),
       );
@@ -45,64 +55,82 @@ export function createLiveUpdates<E>(
       const connection = Effect.scoped(
         Effect.gen(function* () {
           const socket = yield* open;
-          const current = yield* socket.writer;
-          const pull = yield* Socket.readerString(socket);
-          const receive = Effect.gen(function* () {
-            while (true) {
-              const frames = yield* pull;
-              for (const frame of frames) {
-                const notice = decodeNotice(frame);
-                if (Result.isFailure(notice)) continue;
-                if (notice.success.type === 'ready') {
+          const disconnected = yield* Deferred.make<
+            never,
+            Socket.SocketError
+          >();
+          const protocol = yield* RpcClient.makeProtocolSocket({
+            retryPolicy: Schedule.forever.pipe(
+              Schedule.setInputType<Socket.SocketError>(),
+              Schedule.tap(({ input }) => Deferred.fail(disconnected, input)),
+              Schedule.upTo({ times: 0 }),
+            ),
+          }).pipe(
+            Effect.provideService(Socket.Socket, socket),
+            Effect.provideService(
+              RpcSerialization.RpcSerialization,
+              RpcSerialization.json,
+            ),
+          );
+          const client = yield* RpcClient.make(LiveUpdatesRpc, {
+            disableTracing: true,
+          }).pipe(Effect.provideService(RpcClient.Protocol, protocol));
+          const receive = client.notices(undefined).pipe(
+            Stream.runForEach((notice) =>
+              Effect.gen(function* () {
+                if (notice.type === 'ready') {
                   if (readyCount > 0) onReconnect();
                   readyCount += 1;
                   retryMs = LIVE_RECONNECT_FIRST_MS;
-                  yield* current.write(JSON.stringify(subscription));
+                  yield* client.follow(yield* Ref.get(desired));
                 }
-                onNotice(notice.success);
-              }
-            }
-          });
+                onNotice(notice);
+              }),
+            ),
+          );
           const send = Effect.forever(
             Effect.flatMap(Queue.take(updates), (value) =>
-              current.write(JSON.stringify(value)),
+              client.follow(value),
             ),
           );
-          yield* Effect.all([receive, send], { concurrency: 'unbounded' });
+          yield* Effect.all([receive, send], { concurrency: 'unbounded' }).pipe(
+            Effect.raceFirst(Deferred.await(disconnected)),
+          );
         }),
       );
-      const session = Effect.gen(function* () {
-        while (true) {
-          const result = yield* Effect.result(connection);
-          if (Result.isFailure(result) && unauthorized(result.failure)) {
-            onUnauthorized();
-            return;
+      const session = Effect.scoped(
+        Effect.gen(function* () {
+          yield* Effect.addFinalizer(() => Queue.shutdown(updates));
+          while (true) {
+            const result = yield* Effect.exit(connection);
+            if (
+              Exit.isFailure(result) &&
+              unauthorized(Cause.squash(result.cause))
+            ) {
+              onUnauthorized();
+              return;
+            }
+            yield* Effect.sleep(retryMs);
+            retryMs = Math.min(
+              retryMs * LIVE_RECONNECT_BACKOFF,
+              LIVE_RECONNECT_MAX_MS,
+            );
           }
-          yield* Effect.sleep(retryMs);
-          retryMs = Math.min(
-            retryMs * LIVE_RECONNECT_BACKOFF,
-            LIVE_RECONNECT_MAX_MS,
-          );
-        }
-      });
-      void tasks
-        .run(
-          withSignal(session, signal).pipe(
-            Effect.catchCause((cause) =>
-              Cause.hasInterrupts(cause)
-                ? Effect.void
-                : Effect.logError('Live updates stopped unexpectedly'),
-            ),
+        }),
+      );
+      Effect.runForkWith(context)(
+        withSignal(session, signal).pipe(
+          Effect.catchCause((cause) =>
+            Cause.hasInterrupts(cause)
+              ? Effect.void
+              : Effect.logError('Live updates stopped unexpectedly'),
           ),
-        )
-        .then(() => {
-          Queue.shutdownUnsafe(updates);
-          return Effect.runPromise(tasks.close());
-        });
+        ),
+      );
       return {
         subscribe(value) {
           if (signal.aborted) return;
-          subscription = value;
+          Effect.runSync(Ref.set(desired, value));
           Queue.offerUnsafe(updates, value);
         },
       };

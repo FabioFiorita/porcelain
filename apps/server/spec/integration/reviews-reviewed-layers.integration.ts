@@ -144,7 +144,7 @@ test('a file change while a viewer watches keeps the layer mark and flags it sta
   await eventually(session, { method: 'GET', path: layers(session) }, (body) =>
     marks(body).some((mark) => record(mark).stale === true),
   ).catch(() => undefined);
-  connection.close();
+  await connection.close();
 
   const response = await session.send({ method: 'GET', path: layers(session) });
 

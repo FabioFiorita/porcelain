@@ -76,7 +76,6 @@ function liveSubscription(
     watched.set(key, entry);
   }
   return {
-    type: 'subscribe' as const,
     projects:
       data?.projects.map((project) => project.id).slice(0, LIVE_PROJECTS) ?? [],
     worktrees: [...watched.values()].slice(0, LIVE_WORKTREES).map((entry) => ({

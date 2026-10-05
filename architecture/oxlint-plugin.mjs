@@ -1302,7 +1302,8 @@ function allowedSpecImport(filename, source) {
       )
     )
       return true;
-    if (source === 'effect/socket') return true;
+    if (['effect/socket', 'effect/rpc', 'effect/net'].includes(source))
+      return true;
   }
   if (statusPolicySpec.test(path) && gitCapabilityEntry.test(source))
     return true;

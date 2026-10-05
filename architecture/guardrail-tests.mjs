@@ -246,7 +246,7 @@ export function runGuardrailCases(named = []) {
     if (
       [
         'worktree-capability-types',
-        'native-http-types',
+        'native-transport-types',
         'native-effect-diagnostics',
         'review-draft-types',
         'worktree-transaction-types',

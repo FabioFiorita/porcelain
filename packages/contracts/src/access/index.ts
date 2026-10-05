@@ -11,6 +11,7 @@ export {
   liveNoticeSchema,
   liveUpdatesQuerySchema,
   liveSubscriptionSchema,
+  LiveUpdatesRpc,
   type IssueLiveTicketRequest,
   type IssueLiveTicketResponse,
   type LiveNotice,

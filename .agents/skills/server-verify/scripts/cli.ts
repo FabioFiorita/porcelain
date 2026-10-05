@@ -265,8 +265,7 @@ function live(
     async ({ instance, session, visible }) => {
       const connection = await session.live();
       const until = performance.now() + duration;
-      connection.send({
-        type: 'subscribe',
+      await connection.follow({
         projects: [instance.detail.projectId],
         worktrees: [
           {
@@ -287,7 +286,7 @@ function live(
         if (notice === undefined) break;
         process.stdout.write(`${visible(JSON.stringify(notice))}\n`);
       }
-      connection.close();
+      await connection.close();
       return { output: '', record: {} };
     },
   );

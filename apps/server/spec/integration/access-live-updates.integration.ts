@@ -45,12 +45,11 @@ test('every subscription is confirmed, including an empty replacement', async ({
 }) => {
   const connection = await session.live();
   expect(await connection.next(() => true)).toStrictEqual({ type: 'ready' });
-  connection.send({
-    type: 'subscribe',
+  await connection.follow({
     projects: [session.projectId],
     worktrees: [],
   });
-  connection.send({ type: 'subscribe', projects: [], worktrees: [] });
+  await connection.follow({ projects: [], worktrees: [] });
 
   for (let index = 0; index < 2; index += 1) {
     const notice = await connection.next(() => true);
@@ -88,8 +87,7 @@ test('an explicitly followed ignored file is watched before its subscription is 
   await session.writeFile('agent-cache/state.txt', 'Before confirmation\n');
   const connection = await session.live();
   expect(await connection.next(() => true)).toStrictEqual({ type: 'ready' });
-  connection.send({
-    type: 'subscribe',
+  await connection.follow({
     projects: [],
     worktrees: [
       {
@@ -349,13 +347,12 @@ test('watching never opens a reflog, so a commit whose reflog is a named pipe en
   await session.remove(`.git/refs/heads/${session.fixture.branch}.lock`);
 });
 
-test('a malformed subscription closes the connection and the viewer can still read', async ({
+test('RPC rejects a malformed subscription before following it and the viewer can still read', async ({
   session,
 }) => {
   const connection = await session.live();
   await connection.next((notice) => notice.type === 'ready');
-  connection.send({
-    type: 'subscribe',
+  const rejected = await connection.invalidFollow({
     projects: ['not-a-uuid'],
     worktrees: [],
   });
@@ -366,10 +363,15 @@ test('a malformed subscription closes the connection and the viewer can still re
     path: '/api/inventory',
   });
 
-  expect(await connection.closed()).toStrictEqual({
-    code: 1008,
-    reason: 'Invalid subscription',
+  expect(rejected).toMatchObject({
+    _tag: 'Exit',
+    requestId: '999999',
+    exit: { _tag: 'Failure', cause: [{ _tag: 'Die' }] },
   });
+  await connection.follow({ projects: [], worktrees: [] });
+  expect(
+    await connection.next((notice) => notice.type === 'subscribed'),
+  ).toStrictEqual({ type: 'subscribed' });
   expect(response.status).toBe(200);
   expect(response.body).toStrictEqual(before);
 });

@@ -143,7 +143,7 @@ export const effectRuleCases = [
   {
     rule: 'spec-imports',
     path: 'packages/client/src/features/live/commands/live-queries.spec.ts',
-    valid: `import { createOperationStore } from '@porcelain/client/git-actions'; import { Socket } from 'effect/socket';`,
+    valid: `import { createOperationStore } from '@porcelain/client/git-actions'; import { Socket } from 'effect/socket'; import { RpcClient } from 'effect/rpc'; import { NetAddress } from 'effect/net';`,
     invalid: `import { createOperationStore } from '../../git-actions/store/operations.ts';`,
     errors: 1,
   },

@@ -107,8 +107,7 @@ test('a ticket opens live updates from another origin that hear changes and clos
   const { ticket } = await ticketFor(session, device.credential);
   const connection = await session.live({ ticket, origin: APP });
   const ready = await connection.next((notice) => notice.type === 'ready');
-  connection.send({
-    type: 'subscribe',
+  await connection.follow({
     projects: [session.projectId],
     worktrees: [],
   });
