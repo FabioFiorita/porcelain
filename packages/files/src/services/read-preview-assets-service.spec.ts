@@ -1,3 +1,5 @@
+import { Effect } from 'effect';
+import { withReadLease } from '@porcelain/effects/worktree';
 import { describe, expect, it } from 'vitest';
 import type { FileRead } from '@porcelain/files/models';
 import { InMemoryFileReader } from '../../spec/fakes/in-memory-file-reader.ts';
@@ -30,17 +32,22 @@ describe('ReadPreviewAssetsService', () => {
   it('answers every reference in request order as an asset or unavailable', async () => {
     const service = serviceWith({ 'a.png': file(3), 'notes.txt': file(4) });
     await expect(
-      service.execute({
-        worktreeId,
-        document: 'README.md',
-        paths: [
-          'missing.png',
-          'a.png',
-          'notes.txt',
-          '../outside.png',
-          '.git/x.png',
-        ],
-      }),
+      Effect.runPromise(
+        withReadLease(
+          worktreeId,
+          service.execute({
+            worktreeId,
+            document: 'README.md',
+            paths: [
+              'missing.png',
+              'a.png',
+              'notes.txt',
+              '../outside.png',
+              '.git/x.png',
+            ],
+          }),
+        ),
+      ),
     ).resolves.toEqual({
       assets: [
         { kind: 'unavailable', path: 'missing.png' },
@@ -59,11 +66,16 @@ describe('ReadPreviewAssetsService', () => {
 
   it('answers a repeated reference once', async () => {
     const service = serviceWith({ 'a.png': file(3) });
-    const { assets } = await service.execute({
-      worktreeId,
-      document: 'README.md',
-      paths: ['a.png', 'a.png'],
-    });
+    const { assets } = await Effect.runPromise(
+      withReadLease(
+        worktreeId,
+        service.execute({
+          worktreeId,
+          document: 'README.md',
+          paths: ['a.png', 'a.png'],
+        }),
+      ),
+    );
     expect(assets.map((asset) => asset.path)).toEqual(['a.png']);
   });
 
@@ -73,11 +85,16 @@ describe('ReadPreviewAssetsService', () => {
       'docs-old/b.png': file(3),
       'c.png': file(3),
     });
-    const { assets } = await service.execute({
-      worktreeId,
-      document: 'docs/guide.md',
-      paths: ['docs/a.png', 'docs-old/b.png', 'c.png'],
-    });
+    const { assets } = await Effect.runPromise(
+      withReadLease(
+        worktreeId,
+        service.execute({
+          worktreeId,
+          document: 'docs/guide.md',
+          paths: ['docs/a.png', 'docs-old/b.png', 'c.png'],
+        }),
+      ),
+    );
     expect(assets.map((asset) => asset.kind)).toEqual([
       'asset',
       'unavailable',
@@ -90,11 +107,16 @@ describe('ReadPreviewAssetsService', () => {
       { 'a.png': file(4), 'b.png': file(4), 'c.png': file(1) },
       { ...roomy, maxAssetBytes: 10, maxTotalBytes: 6, maxPathLength: 4096 },
     );
-    const { assets } = await service.execute({
-      worktreeId,
-      document: 'README.md',
-      paths: ['a.png', 'b.png', 'c.png'],
-    });
+    const { assets } = await Effect.runPromise(
+      withReadLease(
+        worktreeId,
+        service.execute({
+          worktreeId,
+          document: 'README.md',
+          paths: ['a.png', 'b.png', 'c.png'],
+        }),
+      ),
+    );
     expect(assets.map((asset) => asset.kind)).toEqual([
       'asset',
       'unavailable',
@@ -107,11 +129,16 @@ describe('ReadPreviewAssetsService', () => {
       { 'big.png': file(5), 'ok.png': file(4) },
       { ...roomy, maxAssetBytes: 4, maxTotalBytes: 100, maxPathLength: 4096 },
     );
-    const { assets } = await service.execute({
-      worktreeId,
-      document: 'README.md',
-      paths: ['big.png', 'ok.png'],
-    });
+    const { assets } = await Effect.runPromise(
+      withReadLease(
+        worktreeId,
+        service.execute({
+          worktreeId,
+          document: 'README.md',
+          paths: ['big.png', 'ok.png'],
+        }),
+      ),
+    );
     expect(assets.map((asset) => asset.kind)).toEqual(['unavailable', 'asset']);
   });
 
@@ -120,11 +147,16 @@ describe('ReadPreviewAssetsService', () => {
       'big.png': { kind: 'too-large' },
       'folder.png': { kind: 'failed', failure: 'unreadable' },
     });
-    const { assets } = await service.execute({
-      worktreeId,
-      document: 'README.md',
-      paths: ['big.png', 'folder.png'],
-    });
+    const { assets } = await Effect.runPromise(
+      withReadLease(
+        worktreeId,
+        service.execute({
+          worktreeId,
+          document: 'README.md',
+          paths: ['big.png', 'folder.png'],
+        }),
+      ),
+    );
     expect(assets.map((asset) => asset.kind)).toEqual([
       'unavailable',
       'unavailable',
@@ -136,11 +168,16 @@ describe('ReadPreviewAssetsService', () => {
       { 'abcdef.png': file(1), 'abcdefg.png': file(1) },
       { ...roomy, maxAssetBytes: 10, maxTotalBytes: 100, maxPathLength: 10 },
     );
-    const { assets } = await service.execute({
-      worktreeId,
-      document: 'README.md',
-      paths: ['abcdef.png', 'abcdefg.png'],
-    });
+    const { assets } = await Effect.runPromise(
+      withReadLease(
+        worktreeId,
+        service.execute({
+          worktreeId,
+          document: 'README.md',
+          paths: ['abcdef.png', 'abcdefg.png'],
+        }),
+      ),
+    );
     expect(assets.map((asset) => asset.kind)).toEqual(['asset', 'unavailable']);
   });
 });

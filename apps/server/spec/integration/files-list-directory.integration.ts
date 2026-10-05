@@ -1,3 +1,4 @@
+import * as Schema from 'effect/Schema';
 import { listDirectoryResponseSchema } from '@porcelain/contracts/files';
 import { expect } from 'vitest';
 import {
@@ -32,7 +33,9 @@ test('listing the root names each entry with its kind, flags an ignored file and
 
   expect(response.status).toBe(200);
   expect(response.body).toEqual(
-    expect.schemaMatching(listDirectoryResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(Schema.toEncoded(listDirectoryResponseSchema)),
+    ),
   );
   expect(response.body).toStrictEqual({
     worktreeId: session.worktreeId,

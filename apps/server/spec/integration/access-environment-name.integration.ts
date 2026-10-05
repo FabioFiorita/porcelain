@@ -1,3 +1,4 @@
+import * as Schema from 'effect/Schema';
 import { renameEnvironmentResponseSchema } from '@porcelain/contracts/access';
 import { readInventoryResponseSchema } from '@porcelain/contracts/projects';
 import { expect } from 'vitest';
@@ -30,7 +31,9 @@ test('the environment is named after the host until the owner names it', async (
 
   expect(response.status).toBe(200);
   expect(response.body).toEqual(
-    expect.schemaMatching(readInventoryResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(Schema.toEncoded(readInventoryResponseSchema)),
+    ),
   );
   expect(response.body).toMatchObject({ environment: { custom: false } });
   expect(text(record(record(response.body).environment).name)).toMatch(/\S/u);
@@ -45,7 +48,11 @@ test('the owner names the environment with the spaces trimmed and live viewers h
 
   expect(response.status).toBe(200);
   expect(response.body).toEqual(
-    expect.schemaMatching(renameEnvironmentResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(
+        Schema.toEncoded(renameEnvironmentResponseSchema),
+      ),
+    ),
   );
   expect(response.body).toStrictEqual({ name: 'Workstation', custom: true });
   expect(await environment(session)).toStrictEqual({

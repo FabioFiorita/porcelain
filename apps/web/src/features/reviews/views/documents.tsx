@@ -5,15 +5,15 @@ import { DiscardButton } from '@/features/git-actions/index';
 import { useChanges } from '@/features/changes/index';
 import { usePublishedReview } from '../queries/published-review';
 import { usePrefetchReviewed, useReviewChangeItems } from '../queries/reviewed';
-import type { RevealComment } from '../rules/comments';
+import type { RevealComment } from '@porcelain/client/reviews/rules';
 import {
   type DocumentInteraction,
   type DocumentRef,
   entryKey,
   type OpenDocument,
 } from '../rules/documents';
-import { proofOnLayer } from '../rules/proof';
-import type { ReviewScope } from '../rules/review';
+import { proofOnLayer } from '@porcelain/client/reviews/rules';
+import type { ReviewScope } from '@porcelain/client/reviews/rules';
 import { BranchDocument, BranchFileDocument } from './branch-document';
 import { CommitDocument } from './commit-document';
 import { DocumentToolbar } from './document-toolbar';

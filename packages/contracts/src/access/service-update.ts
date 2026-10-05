@@ -1,46 +1,44 @@
-import { z } from 'zod';
+import { Schema } from 'effect';
 import type { Principal } from './principal.ts';
-import { absentAsNull } from '../shared/absent-as-null.ts';
+import { nullableAsUndefined } from '../shared/schema.ts';
 import { SERVICE_VERSION_LENGTH } from '../shared/limits.ts';
 
-const serviceUpdateSchema = z.object({
-  from: z.string(),
-  target: z.string(),
-  stage: z.enum([
+const serviceUpdateSchema = Schema.Struct({
+  from: Schema.String,
+  target: Schema.String,
+  stage: Schema.Literals([
     'downloading',
     'installing',
     'restarting',
     'updated',
     'failed',
   ]),
-  reason: absentAsNull(z.string()),
+  reason: nullableAsUndefined(Schema.String),
 });
 
-export const readServiceUpdateResponseSchema = z.object({
-  managed: z.boolean(),
-  version: absentAsNull(z.string()),
-  latest: absentAsNull(z.string()),
-  available: z.boolean(),
-  running: z.boolean(),
-  last: absentAsNull(serviceUpdateSchema),
-  canUpdate: z.boolean(),
+export const readServiceUpdateResponseSchema = Schema.Struct({
+  managed: Schema.Boolean,
+  version: nullableAsUndefined(Schema.String),
+  latest: nullableAsUndefined(Schema.String),
+  available: Schema.Boolean,
+  running: Schema.Boolean,
+  last: nullableAsUndefined(serviceUpdateSchema),
+  canUpdate: Schema.Boolean,
 });
 
-export const startServiceUpdateRequestSchema = z.strictObject({
-  version: z.string().min(1).max(SERVICE_VERSION_LENGTH),
+export const startServiceUpdateRequestSchema = Schema.Struct({
+  version: Schema.String.check(Schema.isMinLength(1)).check(
+    Schema.isMaxLength(SERVICE_VERSION_LENGTH),
+  ),
 });
 
 export const startServiceUpdateResponseSchema = readServiceUpdateResponseSchema;
 
 export type ReadServiceUpdateRequest = { viewer: Principal; local: boolean };
-export type ReadServiceUpdateResponse = z.output<
-  typeof readServiceUpdateResponseSchema
->;
-type StartServiceUpdateRequest = z.output<
-  typeof startServiceUpdateRequestSchema
->;
+export type ReadServiceUpdateResponse =
+  typeof readServiceUpdateResponseSchema.Type;
+type StartServiceUpdateRequest = typeof startServiceUpdateRequestSchema.Type;
 export type StartServiceUpdateInput = StartServiceUpdateRequest &
   ReadServiceUpdateRequest;
-export type StartServiceUpdateResponse = z.output<
-  typeof startServiceUpdateResponseSchema
->;
+export type StartServiceUpdateResponse =
+  typeof startServiceUpdateResponseSchema.Type;

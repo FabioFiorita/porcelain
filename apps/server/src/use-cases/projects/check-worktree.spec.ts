@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { WorktreeNotFoundError } from '@porcelain/kernel/errors';
 import { FixedClock } from '@porcelain/kernel/fakes';
 import { WorktreeUnavailableError } from '@porcelain/projects/errors';
@@ -81,7 +82,9 @@ describe('CheckWorktreeUseCase', () => {
       { projects: [observed(now, [worktree])] },
       { projects: [observed(now, [])] },
     );
-    await expect(subject.execute(check, {})).resolves.toEqual(worktree);
+    await expect(Effect.runPromise(subject.execute(check))).resolves.toEqual(
+      worktree,
+    );
   });
 
   it('refreshes a stale worktree once and answers it as the refresh found it', async () => {
@@ -90,7 +93,9 @@ describe('CheckWorktreeUseCase', () => {
       { projects: [observed(longAgo, [worktree])] },
       { projects: [observed(now, [moved])] },
     );
-    await expect(subject.execute(check, {})).resolves.toEqual(moved);
+    await expect(Effect.runPromise(subject.execute(check))).resolves.toEqual(
+      moved,
+    );
   });
 
   it('refreshes before refusing a worktree no refresh has observed yet', async () => {
@@ -98,7 +103,9 @@ describe('CheckWorktreeUseCase', () => {
       { projects: [] },
       { projects: [observed(now, [worktree])] },
     );
-    await expect(subject.execute(check, {})).resolves.toEqual(worktree);
+    await expect(Effect.runPromise(subject.execute(check))).resolves.toEqual(
+      worktree,
+    );
   });
 
   it('refuses a worktree the refresh did not find', async () => {
@@ -106,7 +113,7 @@ describe('CheckWorktreeUseCase', () => {
       { projects: [] },
       { projects: [observed(now, [])] },
     );
-    await expect(subject.execute(check, {})).rejects.toThrow(
+    await expect(Effect.runPromise(subject.execute(check))).rejects.toThrow(
       WorktreeNotFoundError,
     );
   });
@@ -114,7 +121,7 @@ describe('CheckWorktreeUseCase', () => {
   it('refuses as unavailable a worktree still stale after the refresh', async () => {
     const stale = { projects: [observed(longAgo, [worktree])] };
     const subject = useCase(stale, stale);
-    await expect(subject.execute(check, {})).rejects.toThrow(
+    await expect(Effect.runPromise(subject.execute(check))).rejects.toThrow(
       WorktreeUnavailableError,
     );
   });

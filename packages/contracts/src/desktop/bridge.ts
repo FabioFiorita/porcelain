@@ -1,45 +1,63 @@
-import { z } from 'zod';
+import { Schema } from 'effect';
 
-export const desktopActionSchema = z.enum(['open-project', 'open-settings']);
-export const desktopAppearanceSchema = z.enum(['system', 'light', 'dark']);
-export const desktopAppUpdateCheckSchema = z.object({
-  available: z.string().nullable(),
+export const desktopActionSchema = Schema.Literals([
+  'open-project',
+  'open-settings',
+]);
+export const desktopAppearanceSchema = Schema.Literals([
+  'system',
+  'light',
+  'dark',
+]);
+export const desktopAppUpdateCheckSchema = Schema.Struct({
+  available: Schema.NullOr(Schema.String),
 });
-export const desktopAppUpdateStateSchema = z.discriminatedUnion('status', [
-  z.object({ status: z.literal('idle') }),
-  z.object({ status: z.literal('checking') }),
-  z.object({ status: z.literal('unavailable') }),
-  z.object({ status: z.literal('available'), version: z.string() }),
-  z.object({ status: z.literal('downloading'), version: z.string() }),
-  z.object({ status: z.literal('verifying'), version: z.string() }),
-  z.object({ status: z.literal('ready'), version: z.string() }),
-  z.object({ status: z.literal('installing'), version: z.string() }),
-  z.object({ status: z.literal('error'), message: z.string() }),
-]);
-export const desktopCredentialsSchema = z.discriminatedUnion('status', [
-  z.object({ status: z.literal('empty') }),
-  z.object({ status: z.literal('saved'), value: z.string() }),
-  z.object({ status: z.literal('unreadable'), message: z.string() }),
-]);
-export const desktopWindowStateSchema = z.object({
-  bounds: z.object({
-    x: z.number().int(),
-    y: z.number().int(),
-    width: z.number().int().positive(),
-    height: z.number().int().positive(),
+export const desktopAppUpdateStateSchema = Schema.Union([
+  Schema.Struct({ status: Schema.Literal('idle') }),
+  Schema.Struct({ status: Schema.Literal('checking') }),
+  Schema.Struct({ status: Schema.Literal('unavailable') }),
+  Schema.Struct({
+    status: Schema.Literal('available'),
+    version: Schema.String,
   }),
-  maximized: z.boolean(),
+  Schema.Struct({
+    status: Schema.Literal('downloading'),
+    version: Schema.String,
+  }),
+  Schema.Struct({
+    status: Schema.Literal('verifying'),
+    version: Schema.String,
+  }),
+  Schema.Struct({ status: Schema.Literal('ready'), version: Schema.String }),
+  Schema.Struct({
+    status: Schema.Literal('installing'),
+    version: Schema.String,
+  }),
+  Schema.Struct({ status: Schema.Literal('error'), message: Schema.String }),
+]);
+export const desktopCredentialsSchema = Schema.Union([
+  Schema.Struct({ status: Schema.Literal('empty') }),
+  Schema.Struct({ status: Schema.Literal('saved'), value: Schema.String }),
+  Schema.Struct({
+    status: Schema.Literal('unreadable'),
+    message: Schema.String,
+  }),
+]);
+export const desktopWindowStateSchema = Schema.Struct({
+  bounds: Schema.Struct({
+    x: Schema.Number.check(Schema.isInt()),
+    y: Schema.Number.check(Schema.isInt()),
+    width: Schema.Number.check(Schema.isInt()).check(Schema.isGreaterThan(0)),
+    height: Schema.Number.check(Schema.isInt()).check(Schema.isGreaterThan(0)),
+  }),
+  maximized: Schema.Boolean,
 });
-export type DesktopAction = z.output<typeof desktopActionSchema>;
-export type DesktopAppearance = z.output<typeof desktopAppearanceSchema>;
-export type DesktopWindowState = z.output<typeof desktopWindowStateSchema>;
-export type DesktopCredentials = z.output<typeof desktopCredentialsSchema>;
-export type DesktopAppUpdateCheck = z.output<
-  typeof desktopAppUpdateCheckSchema
->;
-export type DesktopAppUpdateState = z.output<
-  typeof desktopAppUpdateStateSchema
->;
+export type DesktopAction = typeof desktopActionSchema.Type;
+export type DesktopAppearance = typeof desktopAppearanceSchema.Type;
+export type DesktopWindowState = typeof desktopWindowStateSchema.Type;
+export type DesktopCredentials = typeof desktopCredentialsSchema.Type;
+export type DesktopAppUpdateCheck = typeof desktopAppUpdateCheckSchema.Type;
+export type DesktopAppUpdateState = typeof desktopAppUpdateStateSchema.Type;
 export type DesktopBridge = {
   pickProjectFolder: () => Promise<string | null>;
   credentials: {

@@ -1,7 +1,10 @@
-export class RepositoryUnavailableError extends Error {
-  override readonly name = 'RepositoryUnavailableError';
+import { Schema } from 'effect';
 
-  constructor() {
-    super('Repository could not be inspected');
+export class RepositoryUnavailableError extends Schema.TaggedError<RepositoryUnavailableError>()(
+  'RepositoryUnavailableError',
+  {},
+) {
+  override get message() {
+    return 'Repository could not be inspected';
   }
 }

@@ -1,7 +1,10 @@
-export class CommentIdentityConflictError extends Error {
-  override readonly name = 'CommentIdentityConflictError';
+import { Schema } from 'effect';
 
-  constructor() {
-    super('Comment ID belongs to a different write');
+export class CommentIdentityConflictError extends Schema.TaggedError<CommentIdentityConflictError>()(
+  'CommentIdentityConflictError',
+  {},
+) {
+  override get message() {
+    return 'Comment ID belongs to a different write';
   }
 }

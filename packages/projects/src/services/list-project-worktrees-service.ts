@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type {
   ListProjectWorktreesInput,
   ListProjectWorktreesResult,
@@ -19,25 +20,26 @@ export class ListProjectWorktreesService {
     this.worktreeCatalog = worktreeCatalog;
   }
 
-  async execute(
+  execute(
     input: ListProjectWorktreesInput,
-    signal?: AbortSignal,
-  ): Promise<ListProjectWorktreesResult> {
-    const listing = await this.worktreeListing.list(input.project, signal);
-    if (listing.kind === 'listed' && !repositoryMoved(input.project, listing))
+  ): Effect.Effect<ListProjectWorktreesResult, never> {
+    return Effect.gen({ self: this }, function* () {
+      const listing = yield* this.worktreeListing.list(input.project);
+      if (listing.kind === 'listed' && !repositoryMoved(input.project, listing))
+        return {
+          projectId: listing.projectId,
+          available: true,
+          complete: listing.unidentified === 0,
+          worktrees: listing.worktrees,
+        };
       return {
         projectId: listing.projectId,
-        available: true,
-        complete: listing.unidentified === 0,
-        worktrees: listing.worktrees,
+        available: false,
+        complete: false,
+        worktrees: unavailableWorktrees(
+          this.worktreeCatalog.lastSeen({ projectId: listing.projectId }),
+        ),
       };
-    return {
-      projectId: listing.projectId,
-      available: false,
-      complete: false,
-      worktrees: unavailableWorktrees(
-        this.worktreeCatalog.lastSeen({ projectId: listing.projectId }),
-      ),
-    };
+    });
   }
 }

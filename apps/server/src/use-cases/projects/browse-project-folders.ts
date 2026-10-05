@@ -1,3 +1,9 @@
+import type { Effect } from 'effect';
+import type {
+  FolderNotFoundError,
+  FolderNotReadableError,
+  UnsupportedFolderNameError,
+} from '@porcelain/projects/errors';
 import type {
   BrowseProjectFoldersQuery,
   BrowseProjectFoldersResponse,
@@ -5,7 +11,6 @@ import type {
 import type { BrowseProjectFoldersService } from '@porcelain/projects/services';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
 
 export class BrowseProjectFoldersUseCase {
   private readonly browseProjectFolders: BrowseProjectFoldersService;
@@ -24,13 +29,12 @@ export class BrowseProjectFoldersUseCase {
 
   execute(
     input: BrowseProjectFoldersQuery,
-    context: OperationContext,
-  ): Promise<BrowseProjectFoldersResponse> {
-    return this.lanes.run(
-      this.laneKeys.filesystem(),
-      'read',
-      ({ signal }) => this.browseProjectFolders.execute(input, signal),
-      { callerSignal: context.signal },
+  ): Effect.Effect<
+    BrowseProjectFoldersResponse,
+    FolderNotFoundError | FolderNotReadableError | UnsupportedFolderNameError
+  > {
+    return this.lanes.run(this.laneKeys.filesystem(), 'read', () =>
+      this.browseProjectFolders.execute(input),
     );
   }
 }

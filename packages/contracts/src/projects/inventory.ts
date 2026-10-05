@@ -1,109 +1,110 @@
-import { z } from 'zod';
-import { absentAsNull } from '../shared/absent-as-null.ts';
 import { environmentSchema } from '../shared/environment.ts';
-import { worktreeIdSchema } from '../shared/worktree-params.ts';
+import { Schema, SchemaTransformation } from 'effect';
+import {
+  nullableAsUndefined,
+  projectIdSchema,
+  worktreeIdSchema,
+} from '../shared/schema.ts';
+import { requestParseOptions } from '../shared/http-api.ts';
 import { PATH_LENGTH, PROJECT_NAME_LENGTH } from '../shared/limits.ts';
 
-const reviewStatusSchema = z.enum(['pending', 'reviewed', 'replied']);
-
-const absolutePathSchema = z
-  .string()
-  .min(1)
-  .max(PATH_LENGTH)
-  .startsWith('/')
-  .refine((path) => !path.includes('\0'));
-
-const worktreeSchema = z.object({
+const absolutePathSchema = Schema.String.check(
+  Schema.isMinLength(1),
+  Schema.isMaxLength(PATH_LENGTH),
+  Schema.makeFilter(
+    (path: string) => path.startsWith('/') && !path.includes('\0'),
+    { expected: 'an absolute path without NUL' },
+  ),
+);
+const worktreeSchema = Schema.Struct({
   id: worktreeIdSchema,
-  path: z.string(),
-  main: z.boolean(),
-  branch: absentAsNull(z.string()),
-  available: z.boolean(),
-  status: absentAsNull(reviewStatusSchema),
+  path: Schema.String,
+  main: Schema.Boolean,
+  branch: nullableAsUndefined(Schema.String),
+  available: Schema.Boolean,
+  status: nullableAsUndefined(
+    Schema.Literals(['pending', 'reviewed', 'replied']),
+  ),
+});
+const projectSchema = Schema.Struct({
+  id: projectIdSchema,
+  name: Schema.String,
+  available: Schema.Boolean,
+  worktrees: Schema.Array(worktreeSchema),
 });
 
-const projectSchema = z.object({
-  id: z.uuid(),
-  name: z.string(),
-  available: z.boolean(),
-  worktrees: z.array(worktreeSchema),
+export const renameProjectParamsSchema = Schema.Struct({
+  projectId: projectIdSchema,
 });
+export const removeProjectParamsSchema = renameProjectParamsSchema;
+export const listFilePreferencesParamsSchema = renameProjectParamsSchema;
+export const setFilePreferenceParamsSchema = renameProjectParamsSchema;
 
-const projectParamsSchema = z.strictObject({ projectId: z.uuid() });
-
-export const renameProjectParamsSchema = projectParamsSchema;
-export const removeProjectParamsSchema = projectParamsSchema;
-export const listFilePreferencesParamsSchema = projectParamsSchema;
-export const setFilePreferenceParamsSchema = projectParamsSchema;
-
-export const readInventoryResponseSchema = z.object({
-  environmentId: z.uuid(),
-  environment: environmentSchema,
-  projects: z.array(projectSchema),
-});
-
-export const registerProjectRequestSchema = z.strictObject({
+export const readInventoryResponseSchema = Schema.toStandardSchemaV1(
+  Schema.Struct({
+    environmentId: projectIdSchema,
+    environment: environmentSchema,
+    projects: Schema.Array(projectSchema),
+  }),
+);
+export const registerProjectRequestSchema = Schema.Struct({
   path: absolutePathSchema,
 });
-export const registerProjectResponseSchema = projectSchema;
-
-export const removeProjectResponseSchema = z.object({ deleted: z.boolean() });
-
-const projectLocationSchema = z.object({ name: z.string(), path: z.string() });
-
-export const browseProjectFoldersQuerySchema = z.strictObject({
-  path: absolutePathSchema.optional(),
+export const registerProjectResponseSchema =
+  Schema.toStandardSchemaV1(projectSchema);
+export const removeProjectResponseSchema = Schema.Struct({
+  deleted: Schema.Boolean,
 });
-export const browseProjectFoldersResponseSchema = z.object({
-  path: z.string(),
-  parent: absentAsNull(z.string()),
-  directories: z.array(projectLocationSchema),
-  repository: z.boolean(),
-  truncated: z.boolean(),
+export const browseProjectFoldersQuerySchema = Schema.Struct({
+  path: Schema.optionalKey(absolutePathSchema),
 });
-
-export const renameProjectRequestSchema = z.strictObject({
-  name: z
-    .string()
-    .trim()
-    .min(1)
-    .max(PROJECT_NAME_LENGTH)
-    .refine((value) => !/[\p{Cc}\p{Cf}]/u.test(value), {
-      message: 'The name must not contain control characters',
+export const browseProjectFoldersResponseSchema = Schema.toStandardSchemaV1(
+  Schema.Struct({
+    path: Schema.String,
+    parent: nullableAsUndefined(Schema.String),
+    directories: Schema.Array(
+      Schema.Struct({ name: Schema.String, path: Schema.String }),
+    ),
+    repository: Schema.Boolean,
+    truncated: Schema.Boolean,
+  }),
+);
+const projectName = Schema.String.pipe(
+  Schema.decodeTo(
+    Schema.String.check(
+      Schema.isMinLength(1),
+      Schema.isMaxLength(PROJECT_NAME_LENGTH),
+      Schema.makeFilter((value: string) => !/[\p{Cc}\p{Cf}]/u.test(value), {
+        expected: 'a name without control characters',
+      }),
+    ),
+    SchemaTransformation.transform({
+      decode: (value: string) => value.trim(),
+      encode: (value: string) => value,
     }),
-});
-export const renameProjectResponseSchema = z.object({
-  id: z.uuid(),
-  name: z.string(),
+  ),
+);
+export const renameProjectRequestSchema = Schema.toStandardSchemaV1(
+  Schema.Struct({ name: projectName }),
+  { parseOptions: requestParseOptions },
+);
+export const renameProjectResponseSchema = Schema.Struct({
+  id: projectIdSchema,
+  name: Schema.String,
 });
 
-export type RenameProjectParams = z.output<typeof renameProjectParamsSchema>;
-export type RemoveProjectParams = z.output<typeof removeProjectParamsSchema>;
-export type ListFilePreferencesParams = z.output<
-  typeof listFilePreferencesParamsSchema
->;
-export type SetFilePreferenceParams = z.output<
-  typeof setFilePreferenceParamsSchema
->;
-export type ReadInventoryResponse = z.output<
-  typeof readInventoryResponseSchema
->;
-export type RegisterProjectRequest = z.output<
-  typeof registerProjectRequestSchema
->;
-export type RegisterProjectResponse = z.output<
-  typeof registerProjectResponseSchema
->;
-export type RemoveProjectResponse = z.output<
-  typeof removeProjectResponseSchema
->;
-export type BrowseProjectFoldersQuery = z.output<
-  typeof browseProjectFoldersQuerySchema
->;
-export type BrowseProjectFoldersResponse = z.output<
-  typeof browseProjectFoldersResponseSchema
->;
-export type RenameProjectRequest = z.output<typeof renameProjectRequestSchema>;
-export type RenameProjectResponse = z.output<
-  typeof renameProjectResponseSchema
->;
+export type RenameProjectParams = typeof renameProjectParamsSchema.Type;
+export type RemoveProjectParams = typeof removeProjectParamsSchema.Type;
+export type ListFilePreferencesParams =
+  typeof listFilePreferencesParamsSchema.Type;
+export type SetFilePreferenceParams = typeof setFilePreferenceParamsSchema.Type;
+export type ReadInventoryResponse = typeof readInventoryResponseSchema.Type;
+export type RegisterProjectRequest = typeof registerProjectRequestSchema.Type;
+export type RegisterProjectResponse = typeof registerProjectResponseSchema.Type;
+export type RemoveProjectResponse = typeof removeProjectResponseSchema.Type;
+export type BrowseProjectFoldersQuery =
+  typeof browseProjectFoldersQuerySchema.Type;
+export type BrowseProjectFoldersResponse =
+  typeof browseProjectFoldersResponseSchema.Type;
+export type RenameProjectRequest = typeof renameProjectRequestSchema.Type;
+export type RenameProjectResponse = typeof renameProjectResponseSchema.Type;

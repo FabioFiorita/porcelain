@@ -1,3 +1,4 @@
+import * as Schema from 'effect/Schema';
 import {
   listBranchBasesResponseSchema,
   readBranchChangesResponseSchema,
@@ -57,7 +58,11 @@ test('the branch changes list the files the branch changed since it forked from 
 
   expect(response.status).toBe(200);
   expect(response.body).toEqual(
-    expect.schemaMatching(readBranchChangesResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(
+        Schema.toEncoded(readBranchChangesResponseSchema),
+      ),
+    ),
   );
   const body = record(response.body);
   expect(body.head).toStrictEqual({
@@ -126,7 +131,11 @@ test('the branch bases list every local branch to compare against and name the d
 
   expect(response.status).toBe(200);
   expect(response.body).toEqual(
-    expect.schemaMatching(listBranchBasesResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(
+        Schema.toEncoded(listBranchBasesResponseSchema),
+      ),
+    ),
   );
   expect(response.body).toStrictEqual({
     defaultRef: `refs/heads/${session.fixture.branch}`,

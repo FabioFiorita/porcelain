@@ -1,9 +1,12 @@
 import { COMMIT_MESSAGE_BYTES } from '@porcelain/contracts/shared';
 import { useMutation } from '@tanstack/react-query';
-import type { FormAction } from '../rules/action-form';
-import type { ActionInput, GitScope } from '../rules/git-action';
-import { expectationFor } from '../rules/feedback';
-import type { GitActionStatus } from '../rules/status';
+import type { FormAction } from '@porcelain/client/git-actions/rules';
+import type {
+  ActionInput,
+  GitScope,
+} from '@porcelain/client/git-actions/rules';
+import { expectationFor } from '@porcelain/client/git-actions/rules';
+import type { GitActionStatus } from '@porcelain/client/git-actions/rules';
 import { useGitAction } from './run-action';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
@@ -38,7 +41,7 @@ export function useActionForm(
   const look = useMutation({
     mutationFn: async (lookAgain: () => Promise<void>) => {
       await lookAgain();
-      git.startNew();
+      await git.startNew();
     },
   });
   const recover = useMutation({ mutationFn: () => git.recover.submit() });

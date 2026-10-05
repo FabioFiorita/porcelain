@@ -1,3 +1,5 @@
+import type { WorktreeRead } from '@porcelain/effects/worktree';
+import type { Effect } from 'effect';
 import type {
   WorktreePathsRead,
   WorktreePathsReadInput,
@@ -6,6 +8,5 @@ import type {
 export interface WorktreePathsReader {
   read(
     input: WorktreePathsReadInput,
-    signal?: AbortSignal,
-  ): Promise<WorktreePathsRead>;
+  ): Effect.Effect<WorktreePathsRead, never, WorktreeRead>;
 }

@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type {
   ReadGitActionReceiptParams,
   ReadGitActionReceiptResponse,
@@ -5,7 +6,6 @@ import type {
 import type { ReadGitActionReceiptService } from '@porcelain/git-actions/services';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
 import type { CheckWorktreeUseCasePort } from '../../ports/check-worktree-use-case-port.ts';
 
 export class ReadGitActionReceiptUseCase {
@@ -26,23 +26,27 @@ export class ReadGitActionReceiptUseCase {
     this.laneKeys = laneKeys;
   }
 
-  async execute(
+  execute(
     input: ReadGitActionReceiptParams,
-    context: OperationContext,
-  ): Promise<ReadGitActionReceiptResponse> {
-    const worktree = await this.checkWorktree.execute(
-      { worktreeId: input.worktreeId, requireAvailableProject: false },
-      context,
-    );
-    return this.lanes.run(
-      this.laneKeys.receipts(worktree),
-      'read',
-      async () =>
-        this.readGitActionReceipt.execute({
-          worktreeId: worktree.id,
-          requestId: input.requestId,
-        }),
-      { callerSignal: context.signal },
-    );
+  ): Effect.Effect<
+    ReadGitActionReceiptResponse,
+    | Effect.Error<ReturnType<CheckWorktreeUseCasePort['execute']>>
+    | Effect.Error<ReturnType<ReadGitActionReceiptService['execute']>>
+  > {
+    return Effect.gen({ self: this }, function* () {
+      const worktree = yield* this.checkWorktree.execute({
+        worktreeId: input.worktreeId,
+        requireAvailableProject: false,
+      });
+      return yield* this.lanes.run(
+        this.laneKeys.receipts(worktree),
+        'read',
+        () =>
+          this.readGitActionReceipt.execute({
+            worktreeId: worktree.id,
+            requestId: input.requestId,
+          }),
+      );
+    });
   }
 }

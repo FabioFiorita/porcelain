@@ -10,9 +10,11 @@ export default {
       kind: 'append',
       path: 'packages/client/src/features/files/api.ts',
       content: `
-import { publishReviewEndpoint as probeEndpoint, type PublishReviewRequest } from '@porcelain/contracts/reviews';
+import { ReviewsApi as ProbeReviewsApi, type PublishReviewRequest } from '@porcelain/contracts/reviews';
+import { HttpApiClient as ProbeClient } from 'effect/http-api';
 export function probePublish(transport: Transport, worktreeId: string, body: PublishReviewRequest, signal: AbortSignal) {
-  return requestEndpoint(transport, probeEndpoint, { params: { worktreeId }, body, signal });
+  const client = Effect.runSync(ProbeClient.makeWith(ProbeReviewsApi, { httpClient: transportClient(transport) }));
+  return client.reviews.publishReview({ params: { worktreeId }, payload: body });
 }
 `,
     },

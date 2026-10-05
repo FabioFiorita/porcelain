@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { FixedClock } from '@porcelain/kernel/fakes';
 import { ProjectNotFoundError } from '@porcelain/projects/errors';
@@ -47,14 +48,16 @@ function setup() {
     ids: string[],
     listing: { available?: boolean; complete?: boolean } = {},
   ) =>
-    service.execute({
-      worktrees: {
-        projectId: project.id,
-        available: listing.available ?? true,
-        complete: listing.complete ?? true,
-        worktrees: ids.map(worktree),
-      },
-    });
+    Effect.runSync(
+      service.execute({
+        worktrees: {
+          projectId: project.id,
+          available: listing.available ?? true,
+          complete: listing.complete ?? true,
+          worktrees: ids.map(worktree),
+        },
+      }),
+    );
   const missing = () =>
     Object.fromEntries(
       presence

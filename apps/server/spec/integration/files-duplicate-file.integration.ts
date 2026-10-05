@@ -1,3 +1,4 @@
+import * as Schema from 'effect/Schema';
 import { editFileResponseSchema } from '@porcelain/contracts/files';
 import { expect } from 'vitest';
 import {
@@ -29,7 +30,11 @@ test('duplicating a changed file writes a copy with the same text and leaves the
 
   expect(response.status).toBe(200);
   expect(response.body).toStrictEqual({ path: 'README copy.md' });
-  expect(response.body).toEqual(expect.schemaMatching(editFileResponseSchema));
+  expect(response.body).toEqual(
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(Schema.toEncoded(editFileResponseSchema)),
+    ),
+  );
   expect(await session.readFile('README copy.md')).toBe(
     session.fixture.readme.changed,
   );

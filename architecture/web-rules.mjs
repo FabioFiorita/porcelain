@@ -1,6 +1,6 @@
 import { posix } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { shadcnRegistry, webPart } from './policy.ts';
+import { classify, shadcnRegistry, webPart } from './policy.ts';
 
 const repositoryRoot = fileURLToPath(new URL('..', import.meta.url)).replaceAll(
   '\\',
@@ -682,9 +682,9 @@ export const webRules = {
     create(context) {
       if (webPart(webPath(context)) !== 'query') return {};
       const message =
-        'A queries/ file exports only queryOptions factories and read hooks; pure decisions belong in rules/, and re-exports belong in index.ts, because mixing decisions with reads hides their independent owner.';
+        'A queries/ file exports only queryOptions factories, native reads and read hooks; pure decisions belong in rules/, and re-exports belong in index.ts, because mixing decisions with reads hides their independent owner.';
       const readName = (name) =>
-        /^use[A-Z]/.test(name) || /QueryOptions$/.test(name);
+        /^(?:use|read)[A-Z]/.test(name) || /QueryOptions$/.test(name);
       return {
         ExportAllDeclaration(node) {
           context.report({ node, message });
@@ -766,28 +766,46 @@ export const webRules = {
     create(context) {
       const path = webPath(context);
       const part = webPart(path);
-      if (!runtimeWeb(path) || part === 'api' || part === 'web-shared')
+      if (
+        !runtimeWeb(path) ||
+        (path.startsWith('packages/client/') &&
+          (part === 'api' ||
+            path.startsWith('packages/client/src/shared/api/')))
+      )
         return {};
       const check = (node) => {
         const specifier = sourceOf(node);
         if (specifier === undefined) return;
         if (
-          localTarget(path, specifier) === 'shared/api/request' ||
-          (specifier === '@porcelain/client/transport' &&
+          ((specifier === 'effect/http-api' ||
+            specifier === 'effect/http-api/HttpApiClient') &&
+            (node.type === 'ImportExpression' ||
+              node.type === 'ExportAllDeclaration' ||
+              specifier === 'effect/http-api/HttpApiClient' ||
+              node.specifiers?.some(
+                (binding) =>
+                  binding.type === 'ImportNamespaceSpecifier' ||
+                  binding.imported?.name === 'HttpApiClient' ||
+                  binding.imported?.value === 'HttpApiClient' ||
+                  (node.type === 'ExportNamedDeclaration' &&
+                    binding.local?.name === 'HttpApiClient'),
+              ))) ||
+          (specifier.startsWith('.') &&
+            /(?:^|\/)shared\/api\/effect-client(?:\.ts)?$/.test(
+              posix.normalize(posix.join(posix.dirname(path), specifier)),
+            ) &&
             (node.type === 'ImportExpression' ||
               node.type === 'ExportAllDeclaration' ||
               node.specifiers?.some(
                 (binding) =>
                   binding.type === 'ImportNamespaceSpecifier' ||
-                  binding.imported?.name === 'requestEndpoint' ||
-                  binding.imported?.value === 'requestEndpoint' ||
-                  binding.local?.name === 'requestEndpoint',
+                  binding.imported?.name === 'transportClient',
               )))
         )
           context.report({
             node,
             message:
-              'The shared request function is called by the feature api.ts only; queries and commands call api.ts, so every request for a domain has one home.',
+              'Only the shared feature api.ts constructs the typed HTTP client; queries and commands use that API, because codec and transport policy must have one owner for every app.',
           });
       };
       return {
@@ -829,12 +847,14 @@ export const webRules = {
         NewExpression(node) {
           if (
             globalCallee(node.callee, new Set(['WebSocket', 'EventSource'])) &&
-            !inside.startsWith('shared/live/')
+            !/^apps\/(?:web|mobile)\/src\/shared\/adapters\/live-socket\.ts$/.test(
+              path,
+            )
           )
             context.report({
               node,
               message:
-                'Live connections belong in shared/live; a feature hears them through its live.ts, because connection setup and errors need one transport owner.',
+                'Construct sockets only in the app shared/adapters/live-socket.ts and supply them to packages/client/live, because the shared Effect lifecycle owns reconnects, cancellation and protocol handling for every client.',
             });
         },
       };
@@ -872,6 +892,10 @@ export const webRules = {
           specifier.startsWith('./') && !specifier.slice(2).includes('/');
         if (
           target === 'config/limits' ||
+          (specifier.startsWith('.') &&
+            classify(
+              posix.normalize(posix.join(posix.dirname(path), specifier)),
+            )?.role === 'web-limits') ||
           sibling ||
           (target === undefined && pureRuleModules.test(specifier))
         )

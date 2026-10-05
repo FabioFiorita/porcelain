@@ -4,7 +4,7 @@ export type ReadCommitDiffsInput = {
   worktreeId: string;
   oid: string;
   parent: number | undefined;
-  paths: string[][];
+  paths: readonly (readonly string[])[];
 };
 
 export type ReadCommitDiffsResult = CommitDiffs;

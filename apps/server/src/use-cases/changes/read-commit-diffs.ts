@@ -1,3 +1,8 @@
+import { Effect } from 'effect';
+import type { WorktreeAccess } from '../../runtime/worktree-access.ts';
+import type { WorktreeAccessFailure } from '../../ports/worktree-access-failure.ts';
+import type { GitIoFailure } from '../../ports/git-io-failure.ts';
+import type { CommitNotFoundError } from '@porcelain/changes/errors';
 import type {
   CheckCommitService,
   ReadCommitDiffsService,
@@ -7,53 +12,40 @@ import type {
   ReadCommitDiffsRequest,
   ReadCommitDiffsResponse,
 } from '@porcelain/contracts/changes';
-import type { LaneKeys } from '../../runtime/lane-keys.ts';
-import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
-import type { CheckWorktreeUseCasePort } from '../../ports/check-worktree-use-case-port.ts';
 
 export class ReadCommitDiffsUseCase {
-  private readonly checkWorktree: CheckWorktreeUseCasePort;
-  private readonly checkCommit: CheckCommitService;
-  private readonly readCommitDiffs: ReadCommitDiffsService;
-  private readonly lanes: Lanes;
-  private readonly laneKeys: LaneKeys;
+  private readonly access: WorktreeAccess;
+  private readonly checkCommit: CheckCommitService<GitIoFailure>;
+  private readonly readCommitDiffs: ReadCommitDiffsService<GitIoFailure>;
 
   constructor(
-    checkWorktree: CheckWorktreeUseCasePort,
-    checkCommit: CheckCommitService,
-    readCommitDiffs: ReadCommitDiffsService,
-    lanes: Lanes,
-    laneKeys: LaneKeys,
+    access: WorktreeAccess,
+    checkCommit: CheckCommitService<GitIoFailure>,
+    readCommitDiffs: ReadCommitDiffsService<GitIoFailure>,
   ) {
-    this.checkWorktree = checkWorktree;
+    this.access = access;
     this.checkCommit = checkCommit;
     this.readCommitDiffs = readCommitDiffs;
-    this.lanes = lanes;
-    this.laneKeys = laneKeys;
   }
 
-  async execute(
+  execute(
     input: ReadCommitDiffsParams & ReadCommitDiffsRequest,
-    context: OperationContext,
-  ): Promise<ReadCommitDiffsResponse> {
+  ): Effect.Effect<
+    ReadCommitDiffsResponse,
+    WorktreeAccessFailure | GitIoFailure | CommitNotFoundError
+  > {
     const { worktreeId, oid, parent, paths } = input;
-    const worktree = await this.checkWorktree.execute(
-      { worktreeId, requireAvailableProject: false },
-      context,
-    );
-    return this.lanes.runConsistent(
-      this.laneKeys.repository(worktree),
-      worktree,
-      async ({ signal }) => {
-        await this.checkCommit.execute({ worktreeId, oid, parent }, signal);
-        const diffs = await this.readCommitDiffs.execute(
-          { worktreeId, oid, parent, paths },
-          signal,
-        );
+    return this.access.read(worktreeId, () =>
+      Effect.gen({ self: this }, function* () {
+        yield* this.checkCommit.execute({ worktreeId, oid, parent });
+        const diffs = yield* this.readCommitDiffs.execute({
+          worktreeId,
+          oid,
+          parent,
+          paths,
+        });
         return diffs;
-      },
-      { callerSignal: context.signal },
+      }),
     );
   }
 }

@@ -1,3 +1,4 @@
+import * as Schema from 'effect/Schema';
 import { readInventoryResponseSchema } from '@porcelain/contracts/projects';
 import { expect } from 'vitest';
 import { unauthenticated } from '../kit/answers.ts';
@@ -18,7 +19,9 @@ test("the desktop app's session credential reads the inventory as a paired devic
   expect(response.status).toBe(200);
   expect(response.body).toStrictEqual(before);
   expect(response.body).toEqual(
-    expect.schemaMatching(readInventoryResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(Schema.toEncoded(readInventoryResponseSchema)),
+    ),
   );
 });
 

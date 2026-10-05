@@ -1,30 +1,33 @@
-import { z } from 'zod';
-import { relativePathSchema } from '../shared/relative-path.ts';
+import { Schema } from 'effect';
+import { PATH_LENGTH } from '../shared/limits.ts';
+import { isRelativePath } from '../shared/relative-path.ts';
 
-const filePreferenceSchema = z.object({
-  path: relativePathSchema,
-  pinned: z.boolean(),
-  hidden: z.boolean(),
-});
-
-export const listFilePreferencesResponseSchema = z.object({
-  preferences: z.array(filePreferenceSchema),
-});
-
-export const setFilePreferenceRequestSchema = z.strictObject({
-  path: relativePathSchema,
-  flag: z.enum(['pinned', 'hidden']),
-  value: z.boolean(),
+const pathSchema = Schema.String.check(
+  Schema.makeFilter((path: string) => isRelativePath(path, PATH_LENGTH), {
+    expected: 'a normalized relative path',
+  }),
+);
+export const listFilePreferencesResponseSchema = Schema.toStandardSchemaV1(
+  Schema.Struct({
+    preferences: Schema.Array(
+      Schema.Struct({
+        path: pathSchema,
+        pinned: Schema.Boolean,
+        hidden: Schema.Boolean,
+      }),
+    ),
+  }),
+);
+export const setFilePreferenceRequestSchema = Schema.Struct({
+  path: pathSchema,
+  flag: Schema.Literals(['pinned', 'hidden']),
+  value: Schema.Boolean,
 });
 export const setFilePreferenceResponseSchema =
   listFilePreferencesResponseSchema;
-
-export type ListFilePreferencesResponse = z.output<
-  typeof listFilePreferencesResponseSchema
->;
-export type SetFilePreferenceRequest = z.output<
-  typeof setFilePreferenceRequestSchema
->;
-export type SetFilePreferenceResponse = z.output<
-  typeof setFilePreferenceResponseSchema
->;
+export type ListFilePreferencesResponse =
+  typeof listFilePreferencesResponseSchema.Type;
+export type SetFilePreferenceRequest =
+  typeof setFilePreferenceRequestSchema.Type;
+export type SetFilePreferenceResponse =
+  typeof setFilePreferenceResponseSchema.Type;

@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type { RecordedWorktreesResult } from '../models/collect-absent-worktrees.ts';
 import type { InventoryStore } from '../ports/inventory-store.ts';
 import type { WorktreePresenceStore } from '../ports/worktree-presence-store.ts';
@@ -15,12 +16,14 @@ export class ListRecordedWorktreesService {
     this.inventory = inventory;
   }
 
-  execute(): RecordedWorktreesResult {
-    return {
-      worktrees: recordedWorktrees(
-        this.worktreePresence.list(),
-        this.inventory.read().projects,
-      ),
-    };
+  execute(): Effect.Effect<RecordedWorktreesResult, never> {
+    return Effect.sync(() => {
+      return {
+        worktrees: recordedWorktrees(
+          this.worktreePresence.list(),
+          this.inventory.read().projects,
+        ),
+      };
+    });
   }
 }

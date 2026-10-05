@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type {
   FileRead,
   FileReadInput,
@@ -20,11 +21,11 @@ export class InMemoryFileReader implements FileReader {
     this.texts = new Map(Object.entries(stored.texts ?? {}));
   }
 
-  read(input: FileReadInput): Promise<FileRead> {
-    return Promise.resolve(this.files.get(input.path) ?? missingFile);
+  read(input: FileReadInput): Effect.Effect<FileRead> {
+    return Effect.succeed(this.files.get(input.path) ?? missingFile);
   }
 
-  readText(input: FileReadInput): Promise<TextRead> {
-    return Promise.resolve(this.texts.get(input.path) ?? missingText);
+  readText(input: FileReadInput): Effect.Effect<TextRead> {
+    return Effect.succeed(this.texts.get(input.path) ?? missingText);
   }
 }

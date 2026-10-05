@@ -1,13 +1,16 @@
-import { z } from 'zod';
+import { Schema } from 'effect';
 
-const principalSchema = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('owner') }),
-  z.object({ kind: z.literal('device'), deviceId: z.uuid() }),
+export const principalSchema = Schema.Union([
+  Schema.Struct({ kind: Schema.Literal('owner') }),
+  Schema.Struct({
+    kind: Schema.Literal('device'),
+    deviceId: Schema.String.check(Schema.isUUID()),
+  }),
 ]);
 
-export type Principal = z.output<typeof principalSchema>;
+export type Principal = typeof principalSchema.Type;
 
 export const readSessionResponseSchema = principalSchema;
 
 export type ReadSessionRequest = { viewer: Principal };
-export type ReadSessionResponse = z.output<typeof readSessionResponseSchema>;
+export type ReadSessionResponse = typeof readSessionResponseSchema.Type;

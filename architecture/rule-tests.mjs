@@ -11,7 +11,11 @@ import ruleCases, {
   proseCases,
 } from './rule-cases.mjs';
 import { unownedProse } from './prose-policy.ts';
-import { scriptInvokes } from './script-policy.ts';
+import {
+  scriptInvokes,
+  localCheckCommand,
+  localCheckMatches,
+} from './script-policy.ts';
 import { architectureLines } from './guardrail-budget.ts';
 import { readFileSync } from 'node:fs';
 import { manualAuditProblems } from './ci-policy.ts';
@@ -56,6 +60,17 @@ deepStrictEqual(
 );
 deepStrictEqual(architectureLines(['', 'one', 'two\n', 'three\nfour']), 4);
 
+deepStrictEqual(localCheckMatches(localCheckCommand), true);
+for (const invalid of [
+  'pnpm check',
+  `${localCheckCommand} test`,
+  `${localCheckCommand} && vitest run`,
+  `${localCheckCommand} --dry-run`,
+  localCheckCommand.replace('arch:check ', ''),
+  localCheckCommand.replace('--concurrency=2', '--concurrency=100%'),
+])
+  deepStrictEqual(localCheckMatches(invalid), false, invalid);
+
 const root = new URL('../', import.meta.url);
 function requireReason(message) {
   ok(
@@ -89,6 +104,7 @@ function checkMessageSource(node) {
 }
 for (const path of [
   'architecture/oxlint-plugin.mjs',
+  'architecture/native-http-rules.mjs',
   'architecture/web-rules.mjs',
   'architecture/mobile-rules.mjs',
   'architecture/hollow-tests.mjs',
@@ -274,10 +290,13 @@ deepStrictEqual(classify('packages/client/src/shared/api/request.ts'), {
   role: 'web-shared',
   owner: 'client',
 });
-deepStrictEqual(classify('packages/client/src/shared/api/request.spec.ts'), {
-  role: 'client-transport-spec',
-  owner: 'client',
-});
+deepStrictEqual(
+  classify('packages/client/src/shared/api/effect-client.spec.ts'),
+  {
+    role: 'client-transport-spec',
+    owner: 'client',
+  },
+);
 deepStrictEqual(
   classify('packages/client/src/shared/api/nested/request.ts'),
   undefined,

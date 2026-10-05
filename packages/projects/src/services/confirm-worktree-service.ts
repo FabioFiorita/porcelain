@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { WorktreeChangedError } from '@porcelain/kernel/errors';
 import type { ConfirmWorktreeInput } from '../models/check-worktree.ts';
 import type { WorktreeCatalogStore } from '../ports/worktree-catalog-store.ts';
@@ -10,9 +11,13 @@ export class ConfirmWorktreeService {
     this.catalog = catalog;
   }
 
-  execute(input: ConfirmWorktreeInput): void {
-    const current = this.catalog.find({ worktreeId: input.worktree.id });
-    if (!sameWorktree(input.worktree, current?.worktree))
-      throw new WorktreeChangedError();
+  execute(
+    input: ConfirmWorktreeInput,
+  ): Effect.Effect<void, WorktreeChangedError> {
+    return Effect.gen({ self: this }, function* () {
+      const current = this.catalog.find({ worktreeId: input.worktree.id });
+      if (!sameWorktree(input.worktree, current?.worktree))
+        return yield* Effect.fail(new WorktreeChangedError());
+    });
   }
 }

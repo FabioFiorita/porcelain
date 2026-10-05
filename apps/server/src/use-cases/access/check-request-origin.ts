@@ -1,8 +1,8 @@
+import { Effect } from 'effect';
 import type { CheckRequestOriginInput } from '@porcelain/access/models';
 import type { CheckRequestOriginService } from '@porcelain/access/services';
 import type { Lanes } from '../../runtime/lanes.ts';
 import type { RequestOriginVerdict } from '../../ports/check-request-origin-use-case-port.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
 
 export class CheckRequestOriginUseCase {
   private readonly checkRequestOrigin: CheckRequestOriginService;
@@ -15,16 +15,16 @@ export class CheckRequestOriginUseCase {
 
   execute(
     input: CheckRequestOriginInput,
-    context: OperationContext,
-  ): Promise<RequestOriginVerdict> {
-    return this.lanes.unqueued(
-      async (): Promise<RequestOriginVerdict> => {
-        const result = this.checkRequestOrigin.execute(input);
-        return result.kind === 'allowed'
-          ? { allowed: true, crossOrigin: result.crossOrigin }
-          : { allowed: false, refusal: result.refusal };
-      },
-      { callerSignal: context.signal },
-    );
+  ): Effect.Effect<RequestOriginVerdict, never> {
+    return Effect.gen({ self: this }, function* () {
+      return yield* this.lanes.unqueued(() =>
+        Effect.gen({ self: this }, function* () {
+          const result = yield* this.checkRequestOrigin.execute(input);
+          return result.kind === 'allowed'
+            ? { allowed: true as const, crossOrigin: result.crossOrigin }
+            : { allowed: false as const, refusal: result.refusal };
+        }),
+      );
+    });
   }
 }

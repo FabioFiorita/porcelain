@@ -14,8 +14,8 @@ import {
   type ProofAsset,
   type ProofCheck,
   type ReviewProof,
-} from '../rules/proof';
-import type { ReviewLayer, ReviewScope } from '../rules/review';
+} from '@porcelain/client/reviews/rules';
+import type { ReviewLayer, ReviewScope } from '@porcelain/client/reviews/rules';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
 type Target = { layerId?: string | undefined; stepId?: string | undefined };

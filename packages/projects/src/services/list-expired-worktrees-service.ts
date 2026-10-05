@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type { Clock } from '@porcelain/kernel/ports';
 import type {
   CollectAbsentWorktreesOptions,
@@ -25,16 +26,18 @@ export class ListExpiredWorktreesService {
     this.options = options;
   }
 
-  execute(): RecordedWorktreesResult {
-    const rows = this.worktreePresence.list();
-    const expiredIds = new Set(
-      expired(rows, this.clock.now(), this.options.graceMs),
-    );
-    return {
-      worktrees: recordedWorktrees(
-        rows.filter((row) => expiredIds.has(row.worktreeId)),
-        this.inventory.read().projects,
-      ),
-    };
+  execute(): Effect.Effect<RecordedWorktreesResult, never> {
+    return Effect.sync(() => {
+      const rows = this.worktreePresence.list();
+      const expiredIds = new Set(
+        expired(rows, this.clock.now(), this.options.graceMs),
+      );
+      return {
+        worktrees: recordedWorktrees(
+          rows.filter((row) => expiredIds.has(row.worktreeId)),
+          this.inventory.read().projects,
+        ),
+      };
+    });
   }
 }

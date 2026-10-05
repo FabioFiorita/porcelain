@@ -1,7 +1,7 @@
 import { expect, test } from './fixtures.tsx';
 
 const subjects = async (
-  read: () => Promise<{ commits: { subject: string }[] }>,
+  read: () => Promise<{ commits: readonly { subject: string }[] }>,
 ) => (await read()).commits.map((commit) => commit.subject);
 
 test('History shows a commit made on disk above the start of history, and the server lists it as the newest commit', async ({

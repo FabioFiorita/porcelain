@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { InMemoryReviewedFileStore } from '../../spec/fakes/in-memory-reviewed-file-store.ts';
 import { InvalidateReviewedMarksService } from './invalidate-reviewed-marks-service.ts';
@@ -36,7 +37,9 @@ const stalePaths = (store: InMemoryReviewedFileStore, id: string) =>
 describe('InvalidateReviewedMarksService', () => {
   it('makes stale the marks at a changed path or under a changed directory', () => {
     const { service, files } = setup();
-    expect(service.execute({ worktreeId, paths: ['src'] })).toEqual({
+    expect(
+      Effect.runSync(service.execute({ worktreeId, paths: ['src'] })),
+    ).toEqual({
       changed: true,
     });
     expect(stalePaths(files, worktreeId)).toEqual([
@@ -47,25 +50,27 @@ describe('InvalidateReviewedMarksService', () => {
 
   it('does not treat a shared name prefix as a directory', () => {
     const { service, files } = setup();
-    service.execute({ worktreeId, paths: ['src/app.ts'] });
+    Effect.runSync(service.execute({ worktreeId, paths: ['src/app.ts'] }));
     expect(stalePaths(files, worktreeId)).toEqual(['src/app.ts']);
   });
 
   it('makes every mark stale when the changed paths are unknown', () => {
     const { service, files } = setup();
-    service.execute({ worktreeId });
+    Effect.runSync(service.execute({ worktreeId }));
     expect(stalePaths(files, worktreeId)).toHaveLength(4);
   });
 
   it('reports no change once every touched mark is already stale', () => {
     const { service } = setup();
-    service.execute({ worktreeId });
-    expect(service.execute({ worktreeId })).toEqual({ changed: false });
+    Effect.runSync(service.execute({ worktreeId }));
+    expect(Effect.runSync(service.execute({ worktreeId }))).toEqual({
+      changed: false,
+    });
   });
 
   it('changes nothing for an empty list of paths', () => {
     const { service, files } = setup();
-    expect(service.execute({ worktreeId, paths: [] })).toEqual({
+    expect(Effect.runSync(service.execute({ worktreeId, paths: [] }))).toEqual({
       changed: false,
     });
     expect(stalePaths(files, worktreeId)).toEqual([]);
@@ -73,7 +78,7 @@ describe('InvalidateReviewedMarksService', () => {
 
   it('leaves other worktrees alone', () => {
     const { service, files } = setup();
-    service.execute({ worktreeId });
+    Effect.runSync(service.execute({ worktreeId }));
     expect(stalePaths(files, otherWorktreeId)).toEqual([]);
   });
 });

@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type { RemoteAccess } from '../models/remote-access.ts';
 import type { NetworkAddressReader } from '../ports/network-address-reader.ts';
 import type { RemoteAccessStore } from '../ports/remote-access-store.ts';
@@ -24,16 +25,18 @@ export class ReadRemoteAccessService {
     this.networkAddresses = networkAddresses;
   }
 
-  async execute(): Promise<RemoteAccess> {
-    const here = localNetwork(
-      this.networkAddresses.list(),
-      await this.networkAddresses.defaultRoutes(),
-    );
-    return remoteAccessView(
-      this.remoteAccess.read(),
-      this.routeStates.read(),
-      this.runtimeStatusReader.current().address,
-      here,
-    );
+  execute(): Effect.Effect<RemoteAccess, never> {
+    return Effect.gen({ self: this }, function* () {
+      const here = localNetwork(
+        this.networkAddresses.list(),
+        yield* this.networkAddresses.defaultRoutes(),
+      );
+      return remoteAccessView(
+        this.remoteAccess.read(),
+        this.routeStates.read(),
+        this.runtimeStatusReader.current().address,
+        here,
+      );
+    });
   }
 }

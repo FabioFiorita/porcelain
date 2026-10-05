@@ -59,6 +59,10 @@ export const targetPackageExports: Record<string, Record<string, string>> = {
   agents: {
     './commit-planning': './src/commit-planning/index.ts',
   },
+  effects: {
+    '.': './src/index.ts',
+    './worktree': './src/worktree-lease.ts',
+  },
   kernel: {
     './models': './src/models/index.ts',
     './ports': './src/ports/index.ts',
@@ -77,16 +81,26 @@ export const targetPackageExports: Record<string, Record<string, string>> = {
     './projects/rules': './src/features/projects/rules/index.ts',
     './files': './src/features/files/index.ts',
     './files/api': './src/features/files/api.ts',
+    './files/rules': './src/features/files/rules/index.ts',
     './changes': './src/features/changes/index.ts',
     './changes/api': './src/features/changes/api.ts',
+    './changes/rules': './src/features/changes/rules/index.ts',
     './history': './src/features/history/index.ts',
-    './history/api': './src/features/history/api.ts',
+    './history/rules': './src/features/history/rules/index.ts',
     './git-actions': './src/features/git-actions/index.ts',
     './git-actions/api': './src/features/git-actions/api.ts',
+    './git-actions/rules': './src/features/git-actions/rules/index.ts',
     './reviews': './src/features/reviews/index.ts',
     './reviews/api': './src/features/reviews/api.ts',
+    './reviews/rules': './src/features/reviews/rules/index.ts',
+    './live': './src/features/live/index.ts',
     './transport': './src/shared/api/index.ts',
   },
+};
+
+targetPackageExports.git = {
+  ...targetPackageExports.git,
+  './errors': './src/shared/errors/index.ts',
 };
 
 for (const name of ['access', 'git-actions', 'projects', 'reviews'])
@@ -109,7 +123,6 @@ export const requiredServerFiles: readonly string[] = [
   'apps/server/src/runtime/shared-reads.ts',
   'apps/server/src/runtime/launch-limit.ts',
   'apps/server/src/runtime/lane-keys.ts',
-  'apps/server/src/ports/operation-context.ts',
   'apps/server/src/ports/event-publisher.ts',
 ];
 
@@ -523,6 +536,7 @@ function classifyPackage(name: string, inside: string) {
       ? classified('theme-tokens', name)
       : undefined;
   if (name === 'client') {
+    if (inside === 'config/limits.ts') return classified('web-limits', name);
     if (/^shared\/api\/[a-z-]+\.spec\.ts$/.test(inside))
       return classified('client-transport-spec', name);
     if (/^shared\/api\/[a-z-]+\.ts$/.test(inside))
@@ -542,7 +556,7 @@ function classifyPackage(name: string, inside: string) {
     if (part === 'store.spec.ts')
       return classified('client-feature-spec', name);
     const member =
-      /^(rules|queries|commands|ports)\/([a-z]+(?:-[a-z]+)*(?:\.spec)?\.ts)$/.exec(
+      /^(rules|queries|commands|ports|store)\/([a-z]+(?:-[a-z]+)*(?:\.spec)?\.ts)$/.exec(
         part,
       );
     if (!member) return;
@@ -566,18 +580,26 @@ function classifyPackage(name: string, inside: string) {
         ? 'query'
         : folder === 'commands'
           ? 'command'
-          : 'client-port',
+          : folder === 'store'
+            ? 'store'
+            : 'client-port',
       name,
     );
   }
   if (/\.test\.ts$/.test(inside)) return;
   if (/\.spec\.ts$/.test(inside)) return classified('test', name);
+  if (name === 'effects') return classified('runtime', name);
   if (domainSet.has(name)) return classifyDomain(name, inside);
   const section = inside.split('/')[0] ?? '';
   if (name === 'git') {
     if (gitCapabilitySet.has(section))
       return classified(
         inside === `${section}/index.ts` ? 'gateway-api' : 'gateway',
+        name,
+      );
+    if (inside.startsWith('shared/errors/'))
+      return classified(
+        inside === 'shared/errors/index.ts' ? 'error-api' : 'error',
         name,
       );
     if (section === 'shared') return classified('gateway', name);
@@ -642,6 +664,7 @@ function classifyServer(inside: string) {
         'server-factory.ts',
         'static-files.ts',
         'principal.ts',
+        'effect-bridge.ts',
       ].includes(http)
     )
       return classified('transport', owner);
@@ -1107,7 +1130,7 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
   ]),
   model: new Set(['kernel', 'model', 'model-api']),
   port: new Set(['kernel', 'port', 'model', 'model-api']),
-  error: new Set(['error']),
+  error: new Set(['error', 'error-api']),
   repository: new Set([
     'kernel',
     'repository',
@@ -1160,7 +1183,7 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
     'config',
     'kernel',
   ]),
-  contract: new Set(['contract', 'rule-api']),
+  contract: new Set(['contract', 'rule-api', 'error-api']),
   config: new Set(['config', 'contract']),
   kernel: new Set(['kernel']),
   fake: new Set([
@@ -1266,6 +1289,7 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
     'contract',
   ]),
   live: new Set([
+    'client-rules-api',
     'client-transport-api',
     'query',
     'web-rule',
@@ -1280,6 +1304,7 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
     'contract',
   ]),
   adapter: new Set([
+    'client-rules-api',
     'client-feature-api',
     'adapter',
     'store',
@@ -1386,6 +1411,33 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
   ]),
 };
 
+for (const [role, targets] of [
+  ['service', ['runtime']],
+  ['model', ['runtime']],
+  ['port', ['runtime']],
+  ['client-feature-spec', ['runtime', 'error-api']],
+  ['client-transport-spec', ['error-api', 'client-transport-api']],
+  ['client-request-api', ['error-api']],
+  ['transport', ['runtime']],
+  ['query', ['error-api']],
+  ['server-port', ['error-api', 'runtime']],
+  ['client-test-kit', ['runtime']],
+  ['client-feature-spec', ['web-shared']],
+  ['command', ['runtime']],
+  ['store', ['runtime', 'error-api']],
+  ['web-shared', ['runtime', 'error-api']],
+  ['runtime', ['error-api']],
+  ['gateway', ['error-api', 'error']],
+  ['bootstrap', ['model-api', 'error-api']],
+  ['client-request-api', ['client-request-api']],
+  ['shell', ['client-feature-api']],
+  ['web-shared', ['client-feature-api', 'client-request-api']],
+  ['route', ['client-rules-api']],
+  ['shell', ['client-rules-api']],
+  ['web-rule-spec', ['client-rules-api']],
+] as const)
+  allowedTargets[role] = new Set([...allowedTargets[role], ...targets]);
+
 const specSupportRoles: ReadonlySet<string> = new Set(['fake', 'fixture']);
 
 const serverKitClients: ReadonlySet<Role> = new Set<Role>([
@@ -1462,6 +1514,8 @@ export function violation(
     from.owner === 'client' &&
     to.owner !== 'client' &&
     to.owner !== 'contracts' &&
+    !(to.owner === 'effects' && to.role === 'runtime') &&
+    to.role !== 'error-api' &&
     !(serverKitClients.has(from.role) && to.role === 'server-kit')
   )
     return 'client-imports-client-and-contracts-only';
@@ -1521,7 +1575,11 @@ export function violation(
   )
     return 'contract-imports-kernel-rules-only';
   if (from.owner !== to.owner) {
-    if (to.owner === 'git' && to.role !== 'gateway-api')
+    if (
+      to.owner === 'git' &&
+      to.role !== 'gateway-api' &&
+      to.role !== 'error-api'
+    )
       return 'git-public-api-only';
     if (domainSet.has(to.owner) && !domainApiRoles.has(to.role))
       return 'domain-public-api-only';
@@ -1633,7 +1691,7 @@ export const externalPackages: Record<Role, readonly string[]> = {
   'client-integration-test': ['vitest', '@tanstack/query-core'],
   'client-test-kit': ['vitest'],
   'client-transport-api': [],
-  'client-transport-spec': ['vitest'],
+  'client-transport-spec': ['vitest', '@effect/vitest'],
   desktop: ['electron', 'fix-path', 'zod'],
   'desktop-gateway': [],
   'desktop-server-api': [],
@@ -1675,8 +1733,8 @@ export const externalPackages: Record<Role, readonly string[]> = {
   fixture: [],
   capture: [],
   'store-contract': ['vitest'],
-  'server-kit': ['esbuild', 'zod', 'vitest'],
-  'integration-test': ['vitest'],
+  'server-kit': ['esbuild', 'zod', 'vitest', 'effect/Schema'],
+  'integration-test': ['vitest', 'effect/Schema'],
   'server-cli': ['zod'],
   'verify-core': ['zod'],
   test: [],
@@ -1720,6 +1778,46 @@ export const externalPackages: Record<Role, readonly string[]> = {
   'web-entry': [],
 };
 
+for (const role of [
+  'service',
+  'model',
+  'port',
+  'error',
+  'kernel',
+  'fake',
+  'use-case',
+  'server-port',
+  'runtime',
+  'bootstrap',
+  'transport',
+  'contract',
+  'gateway',
+  'installer',
+  'desktop',
+  'desktop-gateway',
+  'desktop-e2e',
+  'server-kit',
+  'mobile-test-kit',
+  'client-feature-spec',
+  'client-transport-spec',
+  'client-test-kit',
+] as const)
+  externalPackages[role] = [...externalPackages[role], 'effect'];
+for (const role of [
+  'transport',
+  'contract',
+  'gateway',
+  'runtime',
+  'desktop',
+  'client-transport-spec',
+  'server-kit',
+] as const)
+  externalPackages[role] = [
+    ...externalPackages[role],
+    'effect/http',
+    'effect/http-api',
+  ];
+
 const fixtureNodeModules = new Set(['fs', 'path', 'url']);
 const captureNodeModules = new Set([
   'child_process',
@@ -1740,6 +1838,7 @@ function packageName(module: string): string {
 
 function allowedPackage(role: Role, module: string): boolean {
   const name = packageName(module);
+  if (name === 'effect') return externalPackages[role].includes(module);
   return externalPackages[role].some((entry) =>
     entry.endsWith('/*') ? name.startsWith(entry.slice(0, -1)) : entry === name,
   );

@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type { RenameEnvironmentService } from '@porcelain/access/services';
 import type {
   RenameEnvironmentRequest,
@@ -6,7 +7,6 @@ import type {
 import type { EventPublisher } from '../../ports/event-publisher.ts';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
 
 export class RenameEnvironmentUseCase {
   private readonly renameEnvironment: RenameEnvironmentService;
@@ -26,18 +26,16 @@ export class RenameEnvironmentUseCase {
     this.events = events;
   }
 
-  async execute(
+  execute(
     input: RenameEnvironmentRequest,
-    context: OperationContext,
-  ): Promise<RenameEnvironmentResponse> {
-    const renamed = await this.lanes.run(
+  ): Effect.Effect<RenameEnvironmentResponse> {
+    return this.lanes.commit(
       this.laneKeys.access(),
-      'write',
-      async () =>
-        this.renameEnvironment.execute({ name: input.name ?? undefined }),
-      { callerSignal: context.signal },
+      () =>
+        Effect.uninterruptible(
+          this.renameEnvironment.execute({ name: input.name ?? undefined }),
+        ),
+      () => Effect.sync(() => this.events.inventoryChanged()),
     );
-    this.events.inventoryChanged();
-    return renamed;
   }
 }

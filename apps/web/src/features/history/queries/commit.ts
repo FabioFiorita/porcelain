@@ -1,6 +1,6 @@
 import { commitQueryOptions } from '@porcelain/client/history';
 import { useSuspenseQuery } from '@tanstack/react-query';
-import type { HistoryScope } from '../rules/connection';
+import type { HistoryScope } from '@porcelain/client/history/rules';
 import { type Connection } from '@/shared/workspace/connection';
 
 export function useCommit(

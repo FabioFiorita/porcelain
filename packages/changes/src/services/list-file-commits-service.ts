@@ -1,20 +1,21 @@
+import type { Effect } from 'effect';
+import type { WorktreeRead } from '@porcelain/effects/worktree';
 import type {
   FileCommits,
   ListFileCommitsInput,
 } from '../models/list-file-commits.ts';
 import type { CommitHistoryReader } from '../ports/commit-history-reader.ts';
 
-export class ListFileCommitsService {
-  private readonly commitHistoryReader: CommitHistoryReader;
+export class ListFileCommitsService<E = never> {
+  private readonly commitHistoryReader: CommitHistoryReader<E>;
 
-  constructor(commitHistoryReader: CommitHistoryReader) {
+  constructor(commitHistoryReader: CommitHistoryReader<E>) {
     this.commitHistoryReader = commitHistoryReader;
   }
 
   execute(
     input: ListFileCommitsInput,
-    signal?: AbortSignal,
-  ): Promise<FileCommits> {
-    return this.commitHistoryReader.listFileCommits(input, signal);
+  ): Effect.Effect<FileCommits, E, WorktreeRead> {
+    return this.commitHistoryReader.listFileCommits(input);
   }
 }

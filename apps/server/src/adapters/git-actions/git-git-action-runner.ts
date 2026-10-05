@@ -1,22 +1,27 @@
+import { writeGit } from '../../runtime/git-io.ts';
+import type { GitIoFailure } from '../../ports/git-io-failure.ts';
+import { Effect } from 'effect';
+import type { WorktreeWrite } from '@porcelain/effects/worktree';
 import type {
   GitActionExpectation,
   GitActionRunnerOutcome,
   GitActionRunRequest,
 } from '@porcelain/git-actions/models';
 import type { GitActionRunner } from '@porcelain/git-actions/ports';
-import {
-  GitActionRejectedError,
-  type GitActionExpectation as GitExpectation,
-  type GitActionWriterFactory,
+import { GitActionRejectedError } from '@porcelain/git/errors';
+import type {
+  GitActionExpectation as GitExpectation,
+  GitActionWriterFactory,
 } from '@porcelain/git/actions';
-import { GitTimeoutError, RequestGitSession } from '@porcelain/git/inspection';
+import { GitTimeoutError } from '@porcelain/git/errors';
+import { RequestGitSession } from '@porcelain/git/inspection';
 import type { Limits } from '../../config/limits.ts';
 import {
   openCheckout,
   type ListedWorktrees,
 } from '../projects/checkout-session.ts';
 
-export class GitGitActionRunner implements GitActionRunner {
+export class GitGitActionRunner implements GitActionRunner<GitIoFailure> {
   private readonly worktrees: ListedWorktrees;
   private readonly git: GitActionWriterFactory;
   private readonly limits: Limits['git'];
@@ -31,11 +36,19 @@ export class GitGitActionRunner implements GitActionRunner {
     this.limits = limits;
   }
 
-  async run(
+  run(
+    input: GitActionRunRequest,
+  ): Effect.Effect<GitActionRunnerOutcome, GitIoFailure, WorktreeWrite> {
+    return writeGit(input.run.worktreeId, (signal) =>
+      this.runNative(input, signal),
+    );
+  }
+
+  private async runNative(
     input: GitActionRunRequest,
     signal?: AbortSignal,
   ): Promise<GitActionRunnerOutcome> {
-    const { run } = input;
+    const { run, onProgress } = input;
     try {
       const { checkout } = await openCheckout(
         this.worktrees,
@@ -50,7 +63,11 @@ export class GitGitActionRunner implements GitActionRunner {
           run.intent,
           gitExpectation(run.expected),
           signal ?? new AbortController().signal,
-          input.onProgress,
+          onProgress === undefined
+            ? undefined
+            : (line) => {
+                Effect.runSync(onProgress(line));
+              },
         ),
       };
     } catch (error) {

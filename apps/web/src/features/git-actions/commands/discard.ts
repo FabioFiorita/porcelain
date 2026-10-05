@@ -1,6 +1,6 @@
 import type { ReadChangesResponse } from '@porcelain/contracts/changes';
 import { useMutation } from '@tanstack/react-query';
-import type { GitScope, Receipt } from '../rules/git-action';
+import type { GitScope, Receipt } from '@porcelain/client/git-actions/rules';
 import {
   changedSinceLooked,
   expectationFor,
@@ -8,8 +8,11 @@ import {
   type GitNotice,
   receiptFailed,
   receiptWords,
-} from '../rules/feedback';
-import { type GitActionStatus, statusFromChanges } from '../rules/status';
+} from '@porcelain/client/git-actions/rules';
+import {
+  type GitActionStatus,
+  statusFromChanges,
+} from '@porcelain/client/git-actions/rules';
 import { DISCARD_RESTORE_TOAST_MS } from '@/config/limits';
 import { restoreStash } from './restore-stash';
 import { useGitAction } from './run-action';

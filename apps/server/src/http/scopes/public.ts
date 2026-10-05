@@ -1,9 +1,6 @@
 import type { Limits } from '../../config/limits.ts';
 import type { FastifyInstance } from 'fastify';
-import type { ClearBrowserSessionUseCase } from '../../use-cases/access/clear-browser-session.ts';
-import type { ReadEnvironmentUseCase } from '../../use-cases/access/read-environment.ts';
-import type { ReadHealthUseCase } from '../../use-cases/access/read-health.ts';
-import type { RedeemPairingUseCase } from '../../use-cases/access/redeem-pairing.ts';
+import { mountEffectRoutes, type EffectRoutes } from '../effect-bridge.ts';
 import {
   deliverBrowserCredential,
   clearBrowserCredential,
@@ -18,18 +15,15 @@ import {
   checkRequestOrigin,
   type RequestOriginOptions,
 } from '../hooks/request-origin.ts';
-import { clearBrowserSession } from '../routes/access/clear-browser-session.ts';
-import { readEnvironment } from '../routes/access/read-environment.ts';
-import { readHealth } from '../routes/access/read-health.ts';
-import { redeemPairing } from '../routes/access/redeem-pairing.ts';
 
 export type PublicUseCases = {
   access: PairingAttemptOptions['access'] &
     RequestOriginOptions['access'] & {
-      clearBrowserSession: Pick<ClearBrowserSessionUseCase, 'execute'>;
-      readEnvironment: Pick<ReadEnvironmentUseCase, 'execute'>;
-      readHealth: Pick<ReadHealthUseCase, 'execute'>;
-      redeemPairing: Pick<RedeemPairingUseCase, 'execute'>;
+      routes: {
+        public: EffectRoutes;
+        browser: EffectRoutes;
+        pairing: EffectRoutes;
+      };
     };
 };
 
@@ -51,17 +45,14 @@ export async function publicScope(
       'onRequest',
       checkRequestOrigin(origins, { crossOrigin: 'refused' }),
     );
-    anyone.register(readHealth, {
-      useCase: application.access.readHealth,
-    });
-    anyone.register(readEnvironment, {
-      useCase: application.access.readEnvironment,
+    anyone.register(mountEffectRoutes, {
+      routes: application.access.routes.public,
     });
     anyone.register(async (session) => {
       session.addHook('preHandler', requireBrowserRequest);
       session.addHook('preHandler', clearBrowserCredential);
-      session.register(clearBrowserSession, {
-        useCase: application.access.clearBrowserSession,
+      session.register(mountEffectRoutes, {
+        routes: application.access.routes.browser,
       });
     });
   });
@@ -78,8 +69,8 @@ export async function publicScope(
         cookieMaxAgeSeconds: options.limits.access.device.cookieMaxAgeSeconds,
       }),
     );
-    pairing.register(redeemPairing, {
-      useCase: application.access.redeemPairing,
+    pairing.register(mountEffectRoutes, {
+      routes: application.access.routes.pairing,
     });
   });
 }

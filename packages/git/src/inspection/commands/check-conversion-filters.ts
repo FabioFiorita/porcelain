@@ -1,6 +1,6 @@
 import type { GitLimits } from '../../shared/dtos/git-limits.ts';
 import type { CheckoutSession } from '../interfaces/git-session.ts';
-import { UnsupportedGitFiltersError } from '../errors/unsupported-git-filters-error.ts';
+import { UnsupportedGitFiltersError } from '../../shared/errors/unsupported-git-filters-error.ts';
 import {
   disabledFilterConfig,
   filterDrivers,

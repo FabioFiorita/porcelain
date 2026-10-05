@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { GitActionNotFoundError } from '@porcelain/git-actions/errors';
 import { describe, expect, it } from 'vitest';
 import { sampleReceipt } from '../../spec/fixtures/git-action-samples.ts';
@@ -11,9 +12,14 @@ describe('ReadGitActionReceiptService', () => {
       reason: 'CHANGED_SINCE_LOOKED',
       finishedAt: '2026-09-01T10:00:01.000Z',
     });
-    const view = new ReadGitActionReceiptService(
-      new InMemoryGitActionReceiptStore([receipt]),
-    ).execute({ worktreeId: receipt.worktreeId, requestId: receipt.requestId });
+    const view = Effect.runSync(
+      new ReadGitActionReceiptService(
+        new InMemoryGitActionReceiptStore([receipt]),
+      ).execute({
+        worktreeId: receipt.worktreeId,
+        requestId: receipt.requestId,
+      }),
+    );
     expect(view).toEqual({
       requestId: receipt.requestId,
       projectId: receipt.projectId,
@@ -29,21 +35,25 @@ describe('ReadGitActionReceiptService', () => {
 
   it('does not find a request it never accepted', () => {
     expect(() =>
-      new ReadGitActionReceiptService(
-        new InMemoryGitActionReceiptStore(),
-      ).execute({
-        worktreeId: sampleReceipt().worktreeId,
-        requestId: 'e0c7a0f4-3b1c-4b58-9a57-4b3cf6f6b0d1',
-      }),
+      Effect.runSync(
+        new ReadGitActionReceiptService(
+          new InMemoryGitActionReceiptStore(),
+        ).execute({
+          worktreeId: sampleReceipt().worktreeId,
+          requestId: 'e0c7a0f4-3b1c-4b58-9a57-4b3cf6f6b0d1',
+        }),
+      ),
     ).toThrow(GitActionNotFoundError);
   });
 
   it("does not show another worktree's receipt", () => {
     const receipt = sampleReceipt();
     expect(() =>
-      new ReadGitActionReceiptService(
-        new InMemoryGitActionReceiptStore([receipt]),
-      ).execute({ worktreeId: 'f'.repeat(64), requestId: receipt.requestId }),
+      Effect.runSync(
+        new ReadGitActionReceiptService(
+          new InMemoryGitActionReceiptStore([receipt]),
+        ).execute({ worktreeId: 'f'.repeat(64), requestId: receipt.requestId }),
+      ),
     ).toThrow(GitActionNotFoundError);
   });
 });

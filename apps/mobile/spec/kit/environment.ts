@@ -1,3 +1,4 @@
+import { Schema } from 'effect';
 import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 import {
@@ -77,7 +78,7 @@ export class Environment {
   }
 
   private async nativeDevices() {
-    const access = listAccessResponseSchema.parse(
+    const access = Schema.decodeUnknownSync(listAccessResponseSchema)(
       (
         await this.server.read(this.recorder, {
           method: 'GET',
@@ -130,7 +131,7 @@ export async function issuePairingLink(
   recorder: Recorder,
   label: string,
 ): Promise<string> {
-  const issued = issuePairingResponseSchema.parse(
+  const issued = Schema.decodeUnknownSync(issuePairingResponseSchema)(
     (
       await server.read(recorder, {
         method: 'POST',
@@ -159,7 +160,7 @@ async function addWorkspace(
   title: string,
   name: string,
 ): Promise<Workspace> {
-  const inventory = readInventoryResponseSchema.parse(
+  const inventory = Schema.decodeUnknownSync(readInventoryResponseSchema)(
     (await server.read(recorder, { method: 'GET', path: '/api/inventory' }))
       .body,
   );

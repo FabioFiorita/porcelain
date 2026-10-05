@@ -1,7 +1,7 @@
 import { ArrowUpIcon, FolderIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { connectionErrorMessage } from '@/features/access/index';
+import { connectionErrorMessage } from '@porcelain/client/access/rules';
 import type { useProjectFolder } from '../queries/project-locations';
 import { useProjectBrowserStore } from '../store';
 

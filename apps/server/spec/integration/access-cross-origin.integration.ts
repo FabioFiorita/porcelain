@@ -1,3 +1,4 @@
+import * as Schema from 'effect/Schema';
 import {
   listAccessResponseSchema,
   readEnvironmentResponseSchema,
@@ -102,11 +103,19 @@ test('a page on another origin cannot read the public environment or health, whi
 
   expect(anonymous.status).toBe(200);
   expect(anonymous.body).toEqual(
-    expect.schemaMatching(readEnvironmentResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(
+        Schema.toEncoded(readEnvironmentResponseSchema),
+      ),
+    ),
   );
   expect(anonymous.headers['access-control-allow-origin']).toBeUndefined();
   expect(health.status).toBe(200);
-  expect(health.body).toEqual(expect.schemaMatching(readHealthResponseSchema));
+  expect(health.body).toEqual(
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(Schema.toEncoded(readHealthResponseSchema)),
+    ),
+  );
   expect(health.headers['access-control-allow-origin']).toBeUndefined();
   expect(bearer.status).toBe(200);
   expect(bearer.body).toStrictEqual(anonymous.body);
@@ -311,7 +320,9 @@ test('a pairing code is redeemed from another origin without a cookie, bound to 
 
   expect(response.status).toBe(200);
   expect(response.body).toEqual(
-    expect.schemaMatching(redeemPairingResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(Schema.toEncoded(redeemPairingResponseSchema)),
+    ),
   );
   const body = record(response.body);
   expect(body.device).toMatchObject({
@@ -333,7 +344,11 @@ test('a pairing code is redeemed from another origin without a cookie, bound to 
     path: '/access',
     target: 'owner',
   });
-  expect(owner).toEqual(expect.schemaMatching(listAccessResponseSchema));
+  expect(owner).toEqual(
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(Schema.toEncoded(listAccessResponseSchema)),
+    ),
+  );
   expect(
     list(owner.devices).filter(
       (device) => record(device).id === record(body.device).id,

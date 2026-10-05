@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { FixedClock } from '@porcelain/kernel/fakes';
 import { describe, expect, it } from 'vitest';
 import { sampleReceipt } from '../../spec/fixtures/git-action-samples.ts';
@@ -15,10 +16,12 @@ describe('RecoverInterruptedGitActionsService', () => {
       finishedAt: '2026-09-23T13:00:00.000Z',
     });
     const store = new InMemoryGitActionReceiptStore([running, settled]);
-    new RecoverInterruptedGitActionsService(
-      store,
-      new FixedClock(restartedAt),
-    ).execute({ worktreeId: running.worktreeId });
+    Effect.runSync(
+      new RecoverInterruptedGitActionsService(
+        store,
+        new FixedClock(restartedAt),
+      ).execute({ worktreeId: running.worktreeId }),
+    );
     expect(store.read({ requestId: running.requestId })).toMatchObject({
       state: 'interrupted',
       reason: 'OUTCOME_UNKNOWN',
@@ -31,10 +34,12 @@ describe('RecoverInterruptedGitActionsService', () => {
   it('leaves the running actions of other worktrees to their own recovery', () => {
     const elsewhere = sampleReceipt({ worktreeId: 'other-worktree' });
     const store = new InMemoryGitActionReceiptStore([elsewhere]);
-    new RecoverInterruptedGitActionsService(
-      store,
-      new FixedClock(restartedAt),
-    ).execute({ worktreeId: 'worktree-without-actions' });
+    Effect.runSync(
+      new RecoverInterruptedGitActionsService(
+        store,
+        new FixedClock(restartedAt),
+      ).execute({ worktreeId: 'worktree-without-actions' }),
+    );
     expect(store.read({ requestId: elsewhere.requestId })).toEqual(elsewhere);
   });
 });

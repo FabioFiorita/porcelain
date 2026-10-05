@@ -11,7 +11,15 @@ import type {
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
 import type { Logger } from '../../ports/logger.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
+import { Cause, Effect } from 'effect';
+import type {
+  InvalidTailnetHostnameError,
+  InvalidTunnelHostnameError,
+  MissingTailnetHostnameError,
+  MissingTunnelHostnameError,
+  NoLocalNetworkError,
+  UnidentifiedLocalNetworkError,
+} from '@porcelain/access/errors';
 
 export class SetRemoteAccessUseCase {
   private readonly setRemoteAccess: SetRemoteAccessService;
@@ -40,38 +48,48 @@ export class SetRemoteAccessUseCase {
     this.logger = logger;
   }
 
-  async execute(
+  execute(
     input: SetRemoteAccessRequest,
-    context: OperationContext,
-  ): Promise<SetRemoteAccessResponse> {
-    const changed = await this.lanes.run(
+  ): Effect.Effect<
+    SetRemoteAccessResponse,
+    | InvalidTailnetHostnameError
+    | InvalidTunnelHostnameError
+    | MissingTailnetHostnameError
+    | MissingTunnelHostnameError
+    | NoLocalNetworkError
+    | UnidentifiedLocalNetworkError
+  > {
+    return this.lanes.commit(
       this.laneKeys.remoteAccess(),
-      'write',
-      async () => {
-        const changed = await this.setRemoteAccess.execute(input);
-        this.closeTunnelConnections.execute();
-        return changed;
-      },
-      { callerSignal: context.signal },
-    );
-    this.lanes.background(
-      this.laneKeys.remoteAccess(),
-      async ({ signal }) => {
-        await this.openRemoteRoutes.execute(
-          this.readEnvironment.execute(),
-          signal,
-        );
-        this.closeTunnelConnections.execute();
-      },
-      {
-        onFailure: (error) =>
-          this.logger.failure({
-            kind: 'job',
-            job: 'open-remote-routes',
-            error,
+      () =>
+        Effect.uninterruptible(
+          Effect.gen({ self: this }, function* () {
+            const changed = yield* this.setRemoteAccess.execute(input);
+            yield* this.closeTunnelConnections.execute();
+            return changed;
           }),
-      },
+        ),
+      () =>
+        this.lanes.background(
+          this.laneKeys.remoteAccess(),
+          () =>
+            Effect.gen({ self: this }, function* () {
+              yield* this.openRemoteRoutes.execute(
+                yield* this.readEnvironment.execute(),
+              );
+              yield* this.closeTunnelConnections.execute();
+            }),
+          (cause) =>
+            Cause.hasInterruptsOnly(cause)
+              ? Effect.void
+              : Effect.sync(() =>
+                  this.logger.failure({
+                    kind: 'job',
+                    job: 'open-remote-routes',
+                    error: Cause.squash(cause),
+                  }),
+                ),
+        ),
     );
-    return changed;
   }
 }

@@ -32,7 +32,7 @@ import {
   changeAnchor,
   commentsSeenThrough,
   type CommentThread,
-} from '../rules/comments';
+} from '@porcelain/client/reviews/rules';
 import {
   BRANCH,
   type DocumentRef,
@@ -41,22 +41,22 @@ import {
   UNEXPLAINED,
   type OpenDocument,
 } from '../rules/documents';
-import { proofLabel, proofStatus } from '../rules/proof';
-import type { ReadinessKey } from '../rules/readiness';
+import { proofLabel, proofStatus } from '@porcelain/client/reviews/rules';
+import type { ReadinessKey } from '@porcelain/client/reviews/rules';
 import {
   type ChangeList,
   notExplainedLabel,
   type ReviewChangeItem,
   type ReviewResponse,
   type ReviewScope,
-} from '../rules/review';
+} from '@porcelain/client/reviews/rules';
 import { BranchIndex } from './branch-index';
 import { ChangeRow, ROW } from './change-row';
 import { DeleteResolved } from './delete-resolved';
 import { InlineComposer } from './inline-composer';
 import { BranchReadiness, ChangeReadiness } from './readiness-panel';
 import { ThreadCard } from './thread-card';
-import { groupSpecPaths } from '../rules/spec-paths';
+import { groupSpecPaths } from '@porcelain/client/reviews/rules';
 import { usePreferences } from '@/features/preferences/index';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 

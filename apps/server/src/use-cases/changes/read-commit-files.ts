@@ -1,52 +1,43 @@
+import { Effect } from 'effect';
+import type { WorktreeAccess } from '../../runtime/worktree-access.ts';
+import type { WorktreeAccessFailure } from '../../ports/worktree-access-failure.ts';
+import type { GitIoFailure } from '../../ports/git-io-failure.ts';
+import type { CommitNotFoundError } from '@porcelain/changes/errors';
 import type { ReadCommitFilesService } from '@porcelain/changes/services';
 import type {
   ReadCommitFilesParams,
   ReadCommitFilesQuery,
   ReadCommitFilesResponse,
 } from '@porcelain/contracts/changes';
-import type { LaneKeys } from '../../runtime/lane-keys.ts';
-import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
-import type { CheckWorktreeUseCasePort } from '../../ports/check-worktree-use-case-port.ts';
 
 export class ReadCommitFilesUseCase {
-  private readonly checkWorktree: CheckWorktreeUseCasePort;
-  private readonly readCommitFiles: ReadCommitFilesService;
-  private readonly lanes: Lanes;
-  private readonly laneKeys: LaneKeys;
+  private readonly access: WorktreeAccess;
+  private readonly readCommitFiles: ReadCommitFilesService<GitIoFailure>;
 
   constructor(
-    checkWorktree: CheckWorktreeUseCasePort,
-    readCommitFiles: ReadCommitFilesService,
-    lanes: Lanes,
-    laneKeys: LaneKeys,
+    access: WorktreeAccess,
+    readCommitFiles: ReadCommitFilesService<GitIoFailure>,
   ) {
-    this.checkWorktree = checkWorktree;
+    this.access = access;
     this.readCommitFiles = readCommitFiles;
-    this.lanes = lanes;
-    this.laneKeys = laneKeys;
   }
 
-  async execute(
+  execute(
     input: ReadCommitFilesParams & ReadCommitFilesQuery,
-    context: OperationContext,
-  ): Promise<ReadCommitFilesResponse> {
+  ): Effect.Effect<
+    ReadCommitFilesResponse,
+    WorktreeAccessFailure | GitIoFailure | CommitNotFoundError
+  > {
     const { worktreeId, oid, parent } = input;
-    const worktree = await this.checkWorktree.execute(
-      { worktreeId, requireAvailableProject: false },
-      context,
-    );
-    return this.lanes.runConsistent(
-      this.laneKeys.repository(worktree),
-      worktree,
-      async ({ signal }) => {
-        const files = await this.readCommitFiles.execute(
-          { worktreeId, oid, parent },
-          signal,
-        );
+    return this.access.read(worktreeId, () =>
+      Effect.gen({ self: this }, function* () {
+        const files = yield* this.readCommitFiles.execute({
+          worktreeId,
+          oid,
+          parent,
+        });
         return files;
-      },
-      { callerSignal: context.signal },
+      }),
     );
   }
 }

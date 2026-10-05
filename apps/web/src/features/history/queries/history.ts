@@ -1,7 +1,7 @@
 import { historyQueryOptions } from '@porcelain/client/history';
 import { useSuspenseInfiniteQuery } from '@tanstack/react-query';
 import { discardRejection } from '@/shared/lib/submit-form';
-import type { HistoryScope } from '../rules/connection';
+import type { HistoryScope } from '@porcelain/client/history/rules';
 import { type Connection } from '@/shared/workspace/connection';
 
 export function useHistory(connection: Connection, scope: HistoryScope) {

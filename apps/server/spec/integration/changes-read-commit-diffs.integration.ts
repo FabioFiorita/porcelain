@@ -1,3 +1,4 @@
+import * as Schema from 'effect/Schema';
 import { readCommitDiffsResponseSchema } from '@porcelain/contracts/changes';
 import { expect } from 'vitest';
 import {
@@ -57,7 +58,11 @@ test('commit diffs return the patch of a modified file and a metadata-only patch
 
   expect(responses.map((entry) => entry.status)).toStrictEqual([200, 200]);
   expect(responses[0]?.body).toEqual(
-    expect.schemaMatching(readCommitDiffsResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(
+        Schema.toEncoded(readCommitDiffsResponseSchema),
+      ),
+    ),
   );
   expect(responses[0]?.body).toStrictEqual({
     commitOid: commits.second,

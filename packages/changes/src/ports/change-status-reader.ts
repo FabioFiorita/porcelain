@@ -1,3 +1,5 @@
+import type { Effect } from 'effect';
+import type { WorktreeRead } from '@porcelain/effects/worktree';
 import type {
   BranchDetails,
   BranchDetailsRequest,
@@ -5,13 +7,11 @@ import type {
 } from '../models/change-status.ts';
 import type { ReadWorktreeStatusInput } from '../models/read-worktree-status.ts';
 
-export interface ChangeStatusReader {
+export interface ChangeStatusReader<E = never> {
   readStatus(
     input: ReadWorktreeStatusInput,
-    signal?: AbortSignal,
-  ): Promise<ChangeStatusObservation>;
+  ): Effect.Effect<ChangeStatusObservation, E, WorktreeRead>;
   readBranchDetails(
     input: BranchDetailsRequest,
-    signal?: AbortSignal,
-  ): Promise<BranchDetails>;
+  ): Effect.Effect<BranchDetails, E, WorktreeRead>;
 }

@@ -1,7 +1,7 @@
 import { CopyIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useReviewOverview } from '@/features/changes/index';
-import type { GitScope } from '../rules/git-action';
+import type { GitScope } from '@porcelain/client/git-actions/rules';
 import { copyText } from '@/shared/workspace/copy';
 
 export function ConflictGuidance({

@@ -1,5 +1,7 @@
+import type { WorktreeRead } from '@porcelain/effects/worktree';
+import type { Effect } from 'effect';
 import type { FileReadInput, TextRead } from '../models/file-read.ts';
 
 export interface HeadTextReader {
-  readText(input: FileReadInput, signal?: AbortSignal): Promise<TextRead>;
+  readText(input: FileReadInput): Effect.Effect<TextRead, never, WorktreeRead>;
 }

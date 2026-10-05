@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import type { StoredDevice } from '@porcelain/access/models';
 import { InMemoryDeviceStore } from '../../spec/fakes/in-memory-device-store.ts';
@@ -30,27 +31,35 @@ const remote = (deviceId: string) => ({
 describe('AuthorizeServiceUpdateService', () => {
   it('lets a device the owner trusts update from anywhere it was paired', () => {
     const { service } = setup(device('desktop', { trusted: true }));
-    expect(service.execute(remote('desktop'))).toEqual({ canUpdate: true });
+    expect(Effect.runSync(service.execute(remote('desktop')))).toEqual({
+      canUpdate: true,
+    });
   });
 
   it('refuses a paired device the owner has not trusted', () => {
     const { service } = setup(device('phone'));
-    expect(service.execute(remote('phone'))).toEqual({ canUpdate: false });
+    expect(Effect.runSync(service.execute(remote('phone')))).toEqual({
+      canUpdate: false,
+    });
   });
 
   it('lets any paired device update when it asks from a browser on this computer, as before trust existed', () => {
     const { service } = setup(device('browser', { route: 'loopback' }));
     expect(
-      service.execute({
-        viewer: { kind: 'device', deviceId: 'browser' },
-        local: true,
-      }),
+      Effect.runSync(
+        service.execute({
+          viewer: { kind: 'device', deviceId: 'browser' },
+          local: true,
+        }),
+      ),
     ).toEqual({ canUpdate: true });
   });
 
   it('lets the owner update', () => {
     expect(
-      setup().service.execute({ viewer: { kind: 'owner' }, local: false }),
+      Effect.runSync(
+        setup().service.execute({ viewer: { kind: 'owner' }, local: false }),
+      ),
     ).toEqual({ canUpdate: true });
   });
 
@@ -61,19 +70,27 @@ describe('AuthorizeServiceUpdateService', () => {
         revokedAt: '2026-09-23T08:00:00.000Z',
       }),
     );
-    expect(service.execute(remote('desktop'))).toEqual({ canUpdate: false });
+    expect(Effect.runSync(service.execute(remote('desktop')))).toEqual({
+      canUpdate: false,
+    });
   });
 
   it('refuses a device it does not know', () => {
     const { service } = setup(device('desktop', { trusted: true }));
-    expect(service.execute(remote('stranger'))).toEqual({ canUpdate: false });
+    expect(Effect.runSync(service.execute(remote('stranger')))).toEqual({
+      canUpdate: false,
+    });
   });
 
   it('follows the owner changing their mind', () => {
     const { devices, service } = setup(device('desktop'));
     devices.recordTrust({ device: device('desktop'), trusted: true });
-    expect(service.execute(remote('desktop'))).toEqual({ canUpdate: true });
+    expect(Effect.runSync(service.execute(remote('desktop')))).toEqual({
+      canUpdate: true,
+    });
     devices.recordTrust({ device: device('desktop'), trusted: false });
-    expect(service.execute(remote('desktop'))).toEqual({ canUpdate: false });
+    expect(Effect.runSync(service.execute(remote('desktop')))).toEqual({
+      canUpdate: false,
+    });
   });
 });

@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import {
   InvalidTailnetHostnameError,
@@ -64,7 +65,7 @@ describe('SetRemoteAccessService', () => {
   it('saves a route turned on and shows it starting until it is opened', async () => {
     const { settings, service } = setup();
 
-    expect(await service.execute({ lan: true })).toEqual({
+    expect(await Effect.runPromise(service.execute({ lan: true }))).toEqual({
       routes: {
         lan: { enabled: true, status: { kind: 'starting' } },
         tailnet: { enabled: false, status: { kind: 'off' } },
@@ -84,16 +85,20 @@ describe('SetRemoteAccessService', () => {
 
   it('turns the local network on for the network the computer is on now, which a second turn-on replaces', async () => {
     const { settings, network, service } = setup();
-    await service.execute({ lan: true });
+    await Effect.runPromise(service.execute({ lan: true }));
     network.replace([wifi('10.20.30.40/16')]);
 
     expect(
-      await service.execute({ tailnet: true, tailnetHostname }),
+      await Effect.runPromise(
+        service.execute({ tailnet: true, tailnetHostname }),
+      ),
     ).toMatchObject({
       lanNetwork: home,
       localNetwork: office,
     });
-    expect(await service.execute({ lan: true })).toMatchObject({
+    expect(
+      await Effect.runPromise(service.execute({ lan: true })),
+    ).toMatchObject({
       routes: { lan: { enabled: true, status: { kind: 'starting' } } },
       lanNetwork: office,
       localNetwork: office,
@@ -103,8 +108,8 @@ describe('SetRemoteAccessService', () => {
 
   it('forgets the network when the local network is turned off', async () => {
     const { settings, service } = setup();
-    await service.execute({ lan: true });
-    const view = await service.execute({ lan: false });
+    await Effect.runPromise(service.execute({ lan: true }));
+    const view = await Effect.runPromise(service.execute({ lan: false }));
 
     expect(view.lanNetwork).toBeUndefined();
     expect(view.localNetwork).toEqual(home);
@@ -119,9 +124,9 @@ describe('SetRemoteAccessService', () => {
     const { settings, network, service } = setup();
     network.replace([wifi('192.168.1.20/24')], routesVia('wlp2s0'));
 
-    await expect(service.execute({ lan: true })).rejects.toThrow(
-      UnidentifiedLocalNetworkError,
-    );
+    await expect(
+      Effect.runPromise(service.execute({ lan: true })),
+    ).rejects.toThrow(UnidentifiedLocalNetworkError);
     expect(settings.read()).toEqual({
       lan: false,
       tailnet: false,
@@ -134,11 +139,13 @@ describe('SetRemoteAccessService', () => {
     network.replace([wifi('192.168.1.20/24')], []);
 
     await expect(
-      service.execute({ lan: true, tailnet: true, tailnetHostname }),
+      Effect.runPromise(
+        service.execute({ lan: true, tailnet: true, tailnetHostname }),
+      ),
     ).rejects.toThrow(NoLocalNetworkError);
-    await expect(service.execute({ lan: true })).rejects.toThrow(
-      NoLocalNetworkError,
-    );
+    await expect(
+      Effect.runPromise(service.execute({ lan: true })),
+    ).rejects.toThrow(NoLocalNetworkError);
     expect(settings.read()).toEqual({
       lan: false,
       tailnet: false,
@@ -148,14 +155,19 @@ describe('SetRemoteAccessService', () => {
 
   it('keeps a route that is turned off in its current state until it is closed', async () => {
     const { routes, service } = setup();
-    await service.execute({ tailnet: true, tailnetHostname });
+    await Effect.runPromise(
+      service.execute({ tailnet: true, tailnetHostname }),
+    );
     const open = { kind: 'on' as const, urls: ['http://100.64.0.9:4173'] };
     routes.save({
       states: { ...routes.read().states, tailnet: open },
       origins: open.urls,
     });
 
-    expect((await service.execute({ tailnet: false })).routes.tailnet).toEqual({
+    expect(
+      (await Effect.runPromise(service.execute({ tailnet: false }))).routes
+        .tailnet,
+    ).toEqual({
       enabled: false,
       status: open,
     });
@@ -164,7 +176,9 @@ describe('SetRemoteAccessService', () => {
 
   it('names the listener to forward Tailscale Serve to once the tailnet listens, and checks the name again when the tailnet is turned on again or its name changes', async () => {
     const { routes, service } = setup();
-    await service.execute({ tailnet: true, tailnetHostname });
+    await Effect.runPromise(
+      service.execute({ tailnet: true, tailnetHostname }),
+    );
     const failed = { kind: 'failed' as const, reason: 'unreachable' as const };
     routes.save({
       states: { ...routes.read().states, tailnet: failed },
@@ -176,7 +190,9 @@ describe('SetRemoteAccessService', () => {
       },
     });
 
-    expect(await service.execute({ tailnet: true })).toMatchObject({
+    expect(
+      await Effect.runPromise(service.execute({ tailnet: true })),
+    ).toMatchObject({
       routes: { tailnet: { enabled: true, status: { kind: 'starting' } } },
       tailnetHostname,
       tailnetTarget: 'http://127.0.0.1:41000',
@@ -186,8 +202,11 @@ describe('SetRemoteAccessService', () => {
       states: { ...routes.read().states, tailnet: failed },
     });
     expect(
-      (await service.execute({ tailnetHostname: 'desk.tail0000.ts.net' }))
-        .routes.tailnet.status,
+      (
+        await Effect.runPromise(
+          service.execute({ tailnetHostname: 'desk.tail0000.ts.net' }),
+        )
+      ).routes.tailnet.status,
     ).toEqual({ kind: 'starting' });
   });
 
@@ -195,11 +214,13 @@ describe('SetRemoteAccessService', () => {
     const { settings, service } = setup();
 
     await expect(
-      service.execute({ tailnet: true, tailnetHostname: 'a.example.com' }),
+      Effect.runPromise(
+        service.execute({ tailnet: true, tailnetHostname: 'a.example.com' }),
+      ),
     ).rejects.toThrow(InvalidTailnetHostnameError);
-    await expect(service.execute({ tailnet: true })).rejects.toThrow(
-      MissingTailnetHostnameError,
-    );
+    await expect(
+      Effect.runPromise(service.execute({ tailnet: true })),
+    ).rejects.toThrow(MissingTailnetHostnameError);
     expect(settings.read()).toEqual({
       lan: false,
       tailnet: false,
@@ -223,17 +244,19 @@ describe('SetRemoteAccessService', () => {
       origins: on.urls,
       tailnetProxy,
     });
-    await service.execute({ lan: true });
+    await Effect.runPromise(service.execute({ lan: true }));
 
     expect(routes.read().tailnetProxy).toEqual(tailnetProxy);
   });
 
   it('checks the tunnel again when Cloudflare is turned on again or its hostname changes', async () => {
     const { routes, service } = setup();
-    await service.execute({
-      cloudflare: true,
-      cloudflareHostname: 'a.example.com',
-    });
+    await Effect.runPromise(
+      service.execute({
+        cloudflare: true,
+        cloudflareHostname: 'a.example.com',
+      }),
+    );
     routes.save({
       states: {
         ...routes.read().states,
@@ -243,7 +266,8 @@ describe('SetRemoteAccessService', () => {
     });
 
     expect(
-      (await service.execute({ cloudflare: true })).routes.cloudflare,
+      (await Effect.runPromise(service.execute({ cloudflare: true }))).routes
+        .cloudflare,
     ).toEqual({
       enabled: true,
       status: { kind: 'starting' },
@@ -256,7 +280,9 @@ describe('SetRemoteAccessService', () => {
       origins: ['https://a.example.com'],
     });
     expect(
-      await service.execute({ cloudflareHostname: 'b.example.com' }),
+      await Effect.runPromise(
+        service.execute({ cloudflareHostname: 'b.example.com' }),
+      ),
     ).toMatchObject({
       routes: { cloudflare: { enabled: true, status: { kind: 'starting' } } },
       cloudflareHostname: 'b.example.com',
@@ -268,7 +294,7 @@ describe('SetRemoteAccessService', () => {
     const { settings, service } = setup();
 
     await expect(
-      service.execute({ tailnet: true, cloudflare: true }),
+      Effect.runPromise(service.execute({ tailnet: true, cloudflare: true })),
     ).rejects.toThrow(MissingTunnelHostnameError);
     expect(settings.read()).toEqual({
       lan: false,
@@ -281,10 +307,12 @@ describe('SetRemoteAccessService', () => {
     const { settings, service } = setup();
 
     await expect(
-      service.execute({
-        cloudflare: true,
-        cloudflareHostname: 'porcelain.example.com/review',
-      }),
+      Effect.runPromise(
+        service.execute({
+          cloudflare: true,
+          cloudflareHostname: 'porcelain.example.com/review',
+        }),
+      ),
     ).rejects.toThrow(InvalidTunnelHostnameError);
     expect(settings.read().cloudflareHostname).toBeUndefined();
   });

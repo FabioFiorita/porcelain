@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { InMemoryCommentSeenStore } from '../../spec/fakes/in-memory-comment-seen-store.ts';
 import { InMemoryCommentStore } from '../../spec/fakes/in-memory-comment-store.ts';
@@ -30,7 +31,9 @@ function setup() {
 describe('MarkCommentsSeenService', () => {
   it('records the revision the reader saw', () => {
     const { service, seen } = setup();
-    expect(service.execute({ worktreeId, throughRevision: 1 })).toEqual({
+    expect(
+      Effect.runSync(service.execute({ worktreeId, throughRevision: 1 })),
+    ).toEqual({
       worktreeId,
       seenThrough: 1,
       changed: true,
@@ -41,23 +44,26 @@ describe('MarkCommentsSeenService', () => {
   it('never marks past the latest revision of the worktree', () => {
     const { service } = setup();
     expect(
-      service.execute({ worktreeId, throughRevision: 99 }).seenThrough,
+      Effect.runSync(service.execute({ worktreeId, throughRevision: 99 }))
+        .seenThrough,
     ).toBe(2);
   });
 
   it('reports no change when the reader has already seen that far', () => {
     const { service } = setup();
-    service.execute({ worktreeId, throughRevision: 2 });
-    expect(service.execute({ worktreeId, throughRevision: 2 }).changed).toBe(
-      false,
-    );
+    Effect.runSync(service.execute({ worktreeId, throughRevision: 2 }));
+    expect(
+      Effect.runSync(service.execute({ worktreeId, throughRevision: 2 }))
+        .changed,
+    ).toBe(false);
   });
 
   it('never moves the mark backwards', () => {
     const { service, seen } = setup();
-    service.execute({ worktreeId, throughRevision: 2 });
+    Effect.runSync(service.execute({ worktreeId, throughRevision: 2 }));
     expect(
-      service.execute({ worktreeId, throughRevision: 1 }).seenThrough,
+      Effect.runSync(service.execute({ worktreeId, throughRevision: 1 }))
+        .seenThrough,
     ).toBe(2);
     expect(seen.seenThrough({ worktreeId })).toBe(2);
   });

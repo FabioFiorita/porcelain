@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type { Clock } from '@porcelain/kernel/ports';
 import { instantAfter, utf8ByteLength } from '@porcelain/kernel/rules';
 import type {
@@ -30,48 +31,52 @@ export class ResolvePublishedReviewService {
     this.options = options;
   }
 
-  execute(input: ResolvePublishedReviewInput): ResolvePublishedReviewResult {
-    const { review, evidence } = input;
-    const { changes, diagnostics, layers } = resolveReview(review, evidence);
-    const expires = instantAfter(this.clock.now(), this.options.lifetimeMs);
-    const signature = this.signatureSource.sign({
-      secret: review.summarySecret,
-      message: summaryMessage(review.summaryToken, expires),
-    });
-    return {
-      environmentId: input.environmentId,
-      worktreeId: review.worktreeId,
-      revision: review.revision,
-      publishedAt: review.publishedAt,
-      active: reviewIsActive(layers),
-      diagnostics: 'current',
-      summary: {
-        token: review.summaryToken,
-        expires,
-        signature,
-        byteLength: utf8ByteLength(review.summaryHtml),
-      },
-      ...(review.diagram === undefined
-        ? {}
-        : { diagram: structuredClone(review.diagram) }),
-      layers,
-      notExplained: unexplainedChanges(
-        changes,
-        evidence.texts,
-        diagnostics,
+  execute(
+    input: ResolvePublishedReviewInput,
+  ): Effect.Effect<ResolvePublishedReviewResult, never> {
+    return Effect.sync(() => {
+      const { review, evidence } = input;
+      const { changes, diagnostics, layers } = resolveReview(review, evidence);
+      const expires = instantAfter(this.clock.now(), this.options.lifetimeMs);
+      const signature = this.signatureSource.sign({
+        secret: review.summarySecret,
+        message: summaryMessage(review.summaryToken, expires),
+      });
+      return {
+        environmentId: input.environmentId,
+        worktreeId: review.worktreeId,
+        revision: review.revision,
+        publishedAt: review.publishedAt,
+        active: reviewIsActive(layers),
+        diagnostics: 'current',
+        summary: {
+          token: review.summaryToken,
+          expires,
+          signature,
+          byteLength: utf8ByteLength(review.summaryHtml),
+        },
+        ...(review.diagram === undefined
+          ? {}
+          : { diagram: structuredClone(review.diagram) }),
         layers,
-      ),
-      proof: {
-        checks: structuredClone(review.proof?.checks ?? []),
-        assets: structuredClone(review.proof?.assets ?? []),
-        current:
-          review.proof === undefined ||
-          review.proof.baseline?.digest ===
-            changesDigest(
-              evidence.changes,
-              review.proof.baseline?.proofPaths ?? [],
-            ),
-      },
-    };
+        notExplained: unexplainedChanges(
+          changes,
+          evidence.texts,
+          diagnostics,
+          layers,
+        ),
+        proof: {
+          checks: structuredClone(review.proof?.checks ?? []),
+          assets: structuredClone(review.proof?.assets ?? []),
+          current:
+            review.proof === undefined ||
+            review.proof.baseline?.digest ===
+              changesDigest(
+                evidence.changes,
+                review.proof.baseline?.proofPaths ?? [],
+              ),
+        },
+      };
+    });
   }
 }

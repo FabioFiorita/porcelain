@@ -31,19 +31,26 @@ export async function installRuntime(
   source: string,
   destination: string,
   version: string,
+  signal?: AbortSignal,
 ): Promise<void> {
+  signal?.throwIfAborted();
   await rm(destination, { recursive: true, force: true });
   await mkdir(destination, { recursive: true, mode: 0o700 });
-  const result = await runner('npm', [
-    'install',
-    '--no-audit',
-    '--no-fund',
-    '--package-lock=false',
-    '--install-links=true',
-    '--prefix',
-    destination,
-    source,
-  ]);
+  const result = await runner(
+    'npm',
+    [
+      'install',
+      '--no-audit',
+      '--no-fund',
+      '--package-lock=false',
+      '--install-links=true',
+      '--prefix',
+      destination,
+      source,
+    ],
+    { signal },
+  );
+  signal?.throwIfAborted();
   if (result.code !== 0) throw new RuntimeInstallError(result.stderr.trim());
   const manifestPath = join(
     destination,
@@ -56,11 +63,13 @@ export async function installRuntime(
     manifest.kind === 'value' ? manifest.value.version : undefined;
   if (reported !== version)
     throw new RuntimeVersionMismatchError(reported, version);
-  const loaded = await runner(nodeExecutable, [
-    '-e',
-    NATIVE_MODULES_LOAD,
-    manifestPath,
-  ]);
+  signal?.throwIfAborted();
+  const loaded = await runner(
+    nodeExecutable,
+    ['-e', NATIVE_MODULES_LOAD, manifestPath],
+    { signal },
+  );
+  signal?.throwIfAborted();
   if (loaded.code !== 0)
     throw new RuntimeNativeModulesError(loaded.stderr.trim());
 }

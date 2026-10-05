@@ -1,3 +1,4 @@
+import * as Schema from 'effect/Schema';
 import { randomUUID } from 'node:crypto';
 import { setTimeout as delay } from 'node:timers/promises';
 import { liveNoticeSchema } from '@porcelain/contracts/access';
@@ -54,7 +55,11 @@ test('every subscription is confirmed, including an empty replacement', async ({
   for (let index = 0; index < 2; index += 1) {
     const notice = await connection.next(() => true);
     expect(notice).toStrictEqual({ type: 'subscribed' });
-    expect(notice).toEqual(expect.schemaMatching(liveNoticeSchema));
+    expect(notice).toEqual(
+      expect.schemaMatching(
+        Schema.toStandardSchemaV1(Schema.toEncoded(liveNoticeSchema)),
+      ),
+    );
   }
 });
 
@@ -88,7 +93,11 @@ test('renaming a project tells a watching viewer the inventory changed', async (
   });
   const notice = await connection.next((entry) => entry.type === 'inventory');
   expect(notice).toStrictEqual({ type: 'inventory' });
-  expect(notice).toEqual(expect.schemaMatching(liveNoticeSchema));
+  expect(notice).toEqual(
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(Schema.toEncoded(liveNoticeSchema)),
+    ),
+  );
 });
 
 test("pinning a file tells a watching viewer the project's preferences changed", async ({
@@ -198,7 +207,11 @@ test('a Git action is announced to a watching viewer with its receipt and then i
       entry.type === 'git-action' &&
       record(entry.receipt).state === 'succeeded',
   );
-  expect(settled).toEqual(expect.schemaMatching(liveNoticeSchema));
+  expect(settled).toEqual(
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(Schema.toEncoded(liveNoticeSchema)),
+    ),
+  );
   expect(settled).toMatchObject({
     type: 'git-action',
     projectId: session.projectId,

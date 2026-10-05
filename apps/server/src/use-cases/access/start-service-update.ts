@@ -1,3 +1,10 @@
+import { Effect } from 'effect';
+import type {
+  UntrustedDeviceError,
+  ServiceNotManagedError,
+  ServiceUpdateRunningError,
+  ServiceUpdateNotOfferedError,
+} from '@porcelain/access/errors';
 import type {
   AuthorizeServiceUpdateService,
   CheckServiceUpdateService,
@@ -9,7 +16,6 @@ import type {
 } from '@porcelain/contracts/access';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
 import type { ServiceUpdateRunner } from '../../ports/service-update-runner.ts';
 
 export class StartServiceUpdateUseCase {
@@ -36,35 +42,40 @@ export class StartServiceUpdateUseCase {
     this.laneKeys = laneKeys;
   }
 
-  async execute(
+  execute(
     input: StartServiceUpdateInput,
-    context: OperationContext,
-  ): Promise<StartServiceUpdateResponse> {
-    const check = this.planCheck.execute();
-    const target = { version: input.version };
-    const authority = await this.lanes.run(
-      this.laneKeys.access(),
-      'read',
-      async () =>
-        this.authorizeServiceUpdate.execute({
-          viewer: input.viewer,
-          local: input.local,
+  ): Effect.Effect<
+    StartServiceUpdateResponse,
+    | UntrustedDeviceError
+    | ServiceNotManagedError
+    | ServiceUpdateRunningError
+    | ServiceUpdateNotOfferedError
+  > {
+    return Effect.gen({ self: this }, function* () {
+      const check = yield* this.planCheck.execute();
+      const target = { version: input.version };
+      const authority = yield* this.lanes.run(
+        this.laneKeys.access(),
+        'read',
+        () =>
+          Effect.gen({ self: this }, function* () {
+            return yield* this.authorizeServiceUpdate.execute({
+              viewer: input.viewer,
+              local: input.local,
+            });
+          }),
+      );
+      return yield* this.lanes.run(this.laneKeys.serviceUpdate(), 'write', () =>
+        Effect.gen({ self: this }, function* () {
+          yield* this.checkServiceUpdate.execute({
+            authority,
+            state: yield* this.updates.read(check),
+            target,
+          });
+          yield* this.updates.start(target);
+          return { ...(yield* this.updates.read(check)), ...authority };
         }),
-      { callerSignal: context.signal },
-    );
-    return this.lanes.run(
-      this.laneKeys.serviceUpdate(),
-      'write',
-      async ({ signal }) => {
-        this.checkServiceUpdate.execute({
-          authority,
-          state: await this.updates.read(check, signal),
-          target,
-        });
-        await this.updates.start(target, signal);
-        return { ...(await this.updates.read(check)), ...authority };
-      },
-      { callerSignal: context.signal },
-    );
+      );
+    });
   }
 }

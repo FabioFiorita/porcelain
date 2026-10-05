@@ -1,3 +1,4 @@
+import * as Schema from 'effect/Schema';
 import { generateCommitDraftResponseSchema } from '@porcelain/contracts/git-actions';
 import { expect } from 'vitest';
 import {
@@ -189,7 +190,11 @@ test('drafting a message for the selected change answers the drafted message wit
     expectedFiles: expectedFiles(state, [session.fixture.readme.path]),
   });
   expect(response.body).toEqual(
-    expect.schemaMatching(generateCommitDraftResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(
+        Schema.toEncoded(generateCommitDraftResponseSchema),
+      ),
+    ),
   );
   expect(await head(session)).toBe(state.head);
 });
@@ -214,7 +219,11 @@ test('drafting a grouping for the selected changes answers the drafted groups wi
     expectedFiles: expectedFiles(state, groupedPaths(session)),
   });
   expect(response.body).toEqual(
-    expect.schemaMatching(generateCommitDraftResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(
+        Schema.toEncoded(generateCommitDraftResponseSchema),
+      ),
+    ),
   );
 });
 

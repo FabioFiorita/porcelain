@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type { ListRegisteredProjectsResult } from '../models/list-registered-projects.ts';
 import type { InventoryStore } from '../ports/inventory-store.ts';
 
@@ -8,7 +9,9 @@ export class ListRegisteredProjectsService {
     this.inventory = inventory;
   }
 
-  execute(): ListRegisteredProjectsResult {
-    return this.inventory.read();
+  execute(): Effect.Effect<ListRegisteredProjectsResult, never> {
+    return Effect.sync(() => {
+      return this.inventory.read();
+    });
   }
 }

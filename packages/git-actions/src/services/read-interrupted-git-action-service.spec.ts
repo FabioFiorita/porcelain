@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import {
   WORKTREE_ID,
@@ -32,7 +33,7 @@ describe('ReadInterruptedGitActionService', () => {
         ),
       ]),
     );
-    const answer = service.execute({ worktreeId: WORKTREE_ID });
+    const answer = Effect.runSync(service.execute({ worktreeId: WORKTREE_ID }));
     expect(answer.kind === 'interrupted' && answer.receipt.requestId).toBe(
       '00000000-0000-4000-8000-000000000002',
     );
@@ -62,7 +63,9 @@ describe('ReadInterruptedGitActionService', () => {
         }),
       ]),
     );
-    expect(service.execute({ worktreeId: WORKTREE_ID })).toEqual({
+    expect(
+      Effect.runSync(service.execute({ worktreeId: WORKTREE_ID })),
+    ).toEqual({
       kind: 'none',
     });
   });

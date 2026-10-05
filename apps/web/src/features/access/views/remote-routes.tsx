@@ -18,7 +18,7 @@ import { Switch } from '@/components/ui/switch';
 import { copyText } from '@/shared/workspace/copy';
 import { submitForm } from '@/shared/lib/submit-form';
 import { useSetRemoteAccess } from '../commands/share';
-import { connectionErrorMessage } from '../rules/connection-error-message';
+import { connectionErrorMessage } from '@porcelain/client/access/rules';
 import {
   localNetworkNote,
   networkName,
@@ -28,7 +28,7 @@ import {
   type RemoteAccess,
   type RemoteRoute,
   type RemoteRouteName,
-} from '../rules/share';
+} from '@porcelain/client/access/rules';
 import { type Connection } from '@/shared/workspace/connection';
 
 const descriptions: Record<RemoteRouteName, string> = {

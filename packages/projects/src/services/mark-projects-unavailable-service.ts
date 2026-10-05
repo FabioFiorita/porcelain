@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type { InventoryStore } from '../ports/inventory-store.ts';
 
 export class MarkProjectsUnavailableService {
@@ -7,7 +8,9 @@ export class MarkProjectsUnavailableService {
     this.inventory = inventory;
   }
 
-  execute(): void {
-    this.inventory.markAllUnavailable();
+  execute(): Effect.Effect<void, never> {
+    return Effect.sync(() => {
+      this.inventory.markAllUnavailable();
+    });
   }
 }

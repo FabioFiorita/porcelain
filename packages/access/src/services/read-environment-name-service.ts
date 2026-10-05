@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type { EnvironmentName } from '../models/environment-name.ts';
 import type { EnvironmentNameStore } from '../ports/environment-name-store.ts';
 import type { HostNameReader } from '../ports/host-name-reader.ts';
@@ -12,7 +13,9 @@ export class ReadEnvironmentNameService {
     this.hostNames = hostNames;
   }
 
-  execute(): EnvironmentName {
-    return environmentName(this.names.read(), this.hostNames.hostName());
+  execute(): Effect.Effect<EnvironmentName, never> {
+    return Effect.sync(() => {
+      return environmentName(this.names.read(), this.hostNames.hostName());
+    });
   }
 }

@@ -1,12 +1,12 @@
+import { nativeRead, type WorktreeRead } from '@porcelain/effects';
 import type {
   WorktreePathsRead,
   WorktreePathsReadInput,
 } from '@porcelain/files/models';
 import type { WorktreePathsReader } from '@porcelain/files/ports';
-import {
-  InspectionLimitError,
-  listTrackedPaths,
-} from '@porcelain/git/inspection';
+import type { Effect } from 'effect';
+import { InspectionLimitError } from '@porcelain/git/errors';
+import { listTrackedPaths } from '@porcelain/git/inspection';
 import type { Limits } from '../../config/limits.ts';
 import {
   listedWorktree,
@@ -21,8 +21,15 @@ export class GitWorktreePathsReader implements WorktreePathsReader {
     this.worktrees = worktrees;
     this.limits = limits;
   }
+  read(
+    input: WorktreePathsReadInput,
+  ): Effect.Effect<WorktreePathsRead, never, WorktreeRead> {
+    return nativeRead(input.worktreeId, (signal) =>
+      this.readTracked(input, signal),
+    );
+  }
 
-  async read(
+  private async readTracked(
     input: WorktreePathsReadInput,
     signal?: AbortSignal,
   ): Promise<WorktreePathsRead> {

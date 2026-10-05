@@ -69,15 +69,15 @@ import {
   MissingUpstreamExpectationError,
   UnsupportedCommitModelError,
 } from '@porcelain/git-actions/errors';
-import { GitActionRejectedError } from '@porcelain/git/actions';
-import { isRepositoryUnavailable } from '@porcelain/git/discovery';
+import { GitActionRejectedError } from '@porcelain/git/errors';
+import { isRepositoryUnavailable } from '@porcelain/git/errors';
 import {
   HistorySnapshotUnavailableError,
   HistoryWorktreeUnavailableError,
   InvalidHistoryRequestError,
   ReadLimitExceededError,
   UnsupportedHistoryDataError,
-} from '@porcelain/git/history';
+} from '@porcelain/git/errors';
 import {
   GitTimeoutError,
   InspectionLimitError,
@@ -85,7 +85,7 @@ import {
   InvalidGitStatusError,
   UnsupportedGitFiltersError,
   UnsupportedPathEncodingError,
-} from '@porcelain/git/inspection';
+} from '@porcelain/git/errors';
 import {
   InvalidLineRangeError,
   WorktreeChangedError,

@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type { Clock, IdSource, SecretSource } from '@porcelain/kernel/ports';
 import { sha256Hex } from '@porcelain/kernel/rules';
 import { InvalidDeviceDetailsError } from '../errors/invalid-device-details-error.ts';
@@ -38,48 +39,62 @@ export class RedeemPairingService {
     this.options = options;
   }
 
-  execute(input: RedeemPairingInput): RedeemPairingResult {
-    const code = parseCredential('pcp', input.code);
-    if (!code) throw new InvalidPairingError();
-    const label =
-      input.label === undefined
-        ? undefined
-        : this.detail(validLabel(input.label, this.options.labelLength));
-    const platform = this.detail(
-      validPlatform(input.platform, this.options.platformLength),
-    );
-    const now = this.clock.now();
-    const grant = this.pairingGrants.find({ grantId: code.id });
-    if (
-      !grant ||
-      !secretMatches(grant.secretHash, code.secret) ||
-      !pairingGrantRedeemable(grant, now)
-    )
-      throw new InvalidPairingError();
-    const issued = credential(
-      'pcd',
-      this.idSource.next(),
-      this.secretSource.next(),
-    );
-    const device: Device = {
-      id: issued.id,
-      label: label ?? grant.label,
-      platform,
-      createdAt: now,
-      lastSeenAt: now,
-      route: input.route,
-      ...(grant.trusted === true ? { trusted: true } : {}),
-    };
-    this.pairingGrants.redeem({
-      grant,
-      redeemedAt: now,
-      device: { ...device, secretHash: sha256Hex(issued.secret) },
+  execute(
+    input: RedeemPairingInput,
+  ): Effect.Effect<
+    RedeemPairingResult,
+    InvalidPairingError | InvalidDeviceDetailsError
+  > {
+    return Effect.gen({ self: this }, function* () {
+      const code = parseCredential('pcp', input.code);
+      if (!code) return yield* Effect.fail(new InvalidPairingError());
+      const label =
+        input.label === undefined
+          ? undefined
+          : yield* this.detail(
+              validLabel(input.label, this.options.labelLength),
+            );
+      const platform = yield* this.detail(
+        validPlatform(input.platform, this.options.platformLength),
+      );
+      const now = this.clock.now();
+      const grant = this.pairingGrants.find({ grantId: code.id });
+      if (
+        !grant ||
+        !secretMatches(grant.secretHash, code.secret) ||
+        !pairingGrantRedeemable(grant, now)
+      )
+        return yield* Effect.fail(new InvalidPairingError());
+      const issued = credential(
+        'pcd',
+        this.idSource.next(),
+        this.secretSource.next(),
+      );
+      const device: Device = {
+        id: issued.id,
+        label: label ?? grant.label,
+        platform,
+        createdAt: now,
+        lastSeenAt: now,
+        route: input.route,
+        ...(grant.trusted === true ? { trusted: true } : {}),
+      };
+      this.pairingGrants.redeem({
+        grant,
+        redeemedAt: now,
+        device: { ...device, secretHash: sha256Hex(issued.secret) },
+      });
+      return { device, credential: issued.token };
     });
-    return { device, credential: issued.token };
   }
 
-  private detail(value: string | undefined): string {
-    if (value === undefined) throw new InvalidDeviceDetailsError();
-    return value;
+  private detail(
+    value: string | undefined,
+  ): Effect.Effect<string, InvalidDeviceDetailsError> {
+    return Effect.gen({ self: this }, function* () {
+      if (value === undefined)
+        return yield* Effect.fail(new InvalidDeviceDetailsError());
+      return value;
+    });
   }
 }

@@ -1,9 +1,10 @@
-export class UnknownProofTargetError extends Error {
-  override readonly name = 'UnknownProofTargetError';
+import { Schema } from 'effect';
 
-  constructor() {
-    super(
-      'A check or asset names a layer or step the review does not have; a step also needs its layer',
-    );
+export class UnknownProofTargetError extends Schema.TaggedError<UnknownProofTargetError>()(
+  'UnknownProofTargetError',
+  {},
+) {
+  override get message() {
+    return 'A check or asset names a layer or step the review does not have; a step also needs its layer';
   }
 }

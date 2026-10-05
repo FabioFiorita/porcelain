@@ -5,16 +5,14 @@ import type {
   Expectation,
   GitAction,
   GitScope,
-  Receipt,
-} from '../rules/git-action';
+} from '@porcelain/client/git-actions/rules';
 import { useGitOperation } from '../store';
 import { createId } from '@/shared/lib/id';
 import { asMutation } from '@/shared/query/mutation';
-import { isTerminal, operationKey } from '@/shared/query/operation-store';
+import { isTerminal, operationKey } from '@porcelain/client/git-actions';
 import { type ConnectionContext } from '@/shared/workspace/connection';
-import { gitActionCommands } from '@porcelain/client/git-actions';
-import { assertCurrentAnswer } from '@porcelain/client/transport';
-import { refreshGitReceipt } from './refresh-receipt';
+import { GitActionController } from '@porcelain/client/git-actions';
+import { runRequest } from '@porcelain/client/transport';
 
 export function useGitAction(
   scope: GitScope,
@@ -33,49 +31,22 @@ export function useGitAction(
   });
   const followed = useGitOperation(operations, key);
   const operation = followed?.requestId === settledBefore ? null : followed;
-  const commands = gitActionCommands(scope, connection, client);
-  async function accept(receipt: Receipt) {
-    assertCurrentAnswer(connection.controller.signal);
-    assertCurrentAnswer(
-      connection.controller.signal,
-      receipt.requestId === operations.get(key)?.requestId,
-    );
-    await refreshGitReceipt(client, connection.environmentId, receipt);
-    assertCurrentAnswer(connection.controller.signal);
-    operations.accept(receipt);
-    return receipt;
-  }
+  const controller = new GitActionController(
+    scope,
+    action,
+    connection,
+    operations,
+    client,
+    connection.controller.signal,
+    createId,
+  );
   const execution = useMutation({
-    mutationFn: async ({
-      input,
-      expected,
-    }: {
-      input: ActionInput;
-      expected: Expectation;
-    }) => {
-      const previous = operations.get(key);
-      if (previous && (!previous.receipt || !isTerminal(previous.receipt)))
-        throw new Error(
-          'Check the existing receipt before starting another operation.',
-        );
-      if (input.action !== action) throw new Error('Action mismatch');
-      const body = { requestId: createId(), input, expected };
-      operations.set(key, {
-        ...scope,
-        requestId: body.requestId,
-        request: body,
-      });
-      await accept(await commands.run(body));
-      return operations.wait(key, connection.controller.signal);
-    },
+    mutationFn: (input: { input: ActionInput; expected: Expectation }) =>
+      runRequest(controller.execute(input), connection.request().signal),
   });
   const recovery = useMutation({
-    mutationFn: async () => {
-      const current = operations.get(key);
-      if (!current) throw new Error('No operation to recover');
-      await accept(await commands.run(current.request));
-      return operations.wait(key, connection.controller.signal);
-    },
+    mutationFn: () =>
+      runRequest(controller.recover(), connection.request().signal),
   });
   const terminal = operation?.receipt && isTerminal(operation.receipt);
   return {
@@ -84,9 +55,10 @@ export function useGitAction(
     execute: asMutation(execution),
     recover: asMutation(recovery),
     operation,
-    startNew: () => {
-      if (terminal) {
-        operations.set(key, null);
+    startNew: async () => {
+      if (
+        await runRequest(controller.startNew(), connection.request().signal)
+      ) {
         execution.reset();
         recovery.reset();
       }

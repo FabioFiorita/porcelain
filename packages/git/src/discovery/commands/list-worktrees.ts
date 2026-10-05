@@ -2,9 +2,9 @@ import { realpath, stat } from 'node:fs/promises';
 import type { DiscoveredRepository } from '../dtos/discovered-repository.ts';
 import type { DiscoveryIssue } from '../dtos/discovery-issue.ts';
 import type { DiscoveryResult } from '../dtos/discovery-result.ts';
-import { InvalidWorktreeInventoryError } from '../errors/invalid-worktree-inventory-error.ts';
-import { isRepositoryUnavailable } from '../errors/is-repository-unavailable.ts';
-import { RepositoryIdentityMismatchError } from '../errors/repository-identity-mismatch-error.ts';
+import { InvalidWorktreeInventoryError } from '../../shared/errors/invalid-worktree-inventory-error.ts';
+import { isRepositoryUnavailable } from '../../shared/errors/is-repository-unavailable.ts';
+import { RepositoryIdentityMismatchError } from '../../shared/errors/repository-identity-mismatch-error.ts';
 import { parseWorktreeList } from '../parsers/parse-worktree-list.ts';
 import {
   contained,

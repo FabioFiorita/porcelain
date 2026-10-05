@@ -1,3 +1,10 @@
+import type {
+  ReviewLayerNotFoundError,
+  ReviewedMarkConflictError,
+} from '@porcelain/reviews/errors';
+import { Effect } from 'effect';
+import type { WorktreeAccess } from '../../runtime/worktree-access.ts';
+import type { WorktreeAccessFailure } from '../../ports/worktree-access-failure.ts';
 import type { ReadTextFilesService } from '@porcelain/files/services';
 import type {
   SetReviewedLayerRequest,
@@ -10,92 +17,73 @@ import type {
   ReadReviewLayerService,
   SetReviewedLayerService,
 } from '@porcelain/reviews/services';
-import type { ConfirmWorktreeService } from '@porcelain/projects/services';
 import type { EventPublisher } from '../../ports/event-publisher.ts';
-import type { LaneKeys } from '../../runtime/lane-keys.ts';
-import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
-import type { CheckWorktreeUseCasePort } from '../../ports/check-worktree-use-case-port.ts';
 
 export class SetReviewedLayerUseCase {
-  private readonly checkWorktree: CheckWorktreeUseCasePort;
-  private readonly confirmWorktree: ConfirmWorktreeService;
+  private readonly access: WorktreeAccess;
   private readonly readReviewLayer: ReadReviewLayerService;
   private readonly readTextFiles: ReadTextFilesService;
   private readonly setReviewedLayer: SetReviewedLayerService;
   private readonly listReviewedLayerPaths: ListReviewedLayerPathsService;
   private readonly listReviewedLayers: ListReviewedLayersService;
-  private readonly lanes: Lanes;
-  private readonly laneKeys: LaneKeys;
   private readonly events: EventPublisher;
 
   constructor(
-    checkWorktree: CheckWorktreeUseCasePort,
-    confirmWorktree: ConfirmWorktreeService,
+    access: WorktreeAccess,
     readReviewLayer: ReadReviewLayerService,
     readTextFiles: ReadTextFilesService,
     setReviewedLayer: SetReviewedLayerService,
     listReviewedLayerPaths: ListReviewedLayerPathsService,
     listReviewedLayers: ListReviewedLayersService,
-    lanes: Lanes,
-    laneKeys: LaneKeys,
     events: EventPublisher,
   ) {
-    this.checkWorktree = checkWorktree;
-    this.confirmWorktree = confirmWorktree;
+    this.access = access;
     this.readReviewLayer = readReviewLayer;
     this.readTextFiles = readTextFiles;
     this.setReviewedLayer = setReviewedLayer;
     this.listReviewedLayerPaths = listReviewedLayerPaths;
     this.listReviewedLayers = listReviewedLayers;
-    this.lanes = lanes;
-    this.laneKeys = laneKeys;
     this.events = events;
   }
 
-  async execute(
+  execute(
     input: WorktreeParams & SetReviewedLayerRequest,
-    context: OperationContext,
-  ): Promise<SetReviewedLayerResponse> {
+  ): Effect.Effect<
+    SetReviewedLayerResponse,
+    WorktreeAccessFailure | ReviewLayerNotFoundError | ReviewedMarkConflictError
+  > {
     const { worktreeId } = input;
-    const worktree = await this.checkWorktree.execute(
-      { worktreeId, requireAvailableProject: false },
-      context,
+    return this.access.transaction(
+      worktreeId,
+      () =>
+        Effect.gen({ self: this }, function* () {
+          const { layer, paths } = yield* this.readReviewLayer.execute({
+            worktreeId,
+            layerId: input.layerId,
+          });
+          const marked = yield* this.listReviewedLayerPaths.execute({
+            worktreeId,
+          });
+          const { texts } = yield* this.readTextFiles.execute({
+            worktreeId,
+            paths: [...new Set([...paths, ...marked.paths])],
+          });
+          return { layer, texts };
+        }),
+      ({ layer, texts }) =>
+        Effect.gen({ self: this }, function* () {
+          yield* this.setReviewedLayer.execute({
+            worktreeId,
+            layer,
+            fingerprint: input.fingerprint,
+            texts,
+          });
+          return yield* this.listReviewedLayers.execute({ worktreeId, texts });
+        }),
+      () =>
+        Effect.sync(() =>
+          this.events.worktreeChanged({ worktreeId, change: 'reviewed' }),
+        ),
     );
-    const result = await this.lanes.run(
-      this.laneKeys.reviews(worktree),
-      'write',
-      async ({ signal }) => {
-        const { layer, paths } = this.readReviewLayer.execute({
-          worktreeId,
-          layerId: input.layerId,
-        });
-        const { texts } = await this.readTextFiles.execute(
-          { worktreeId, paths },
-          signal,
-        );
-        this.confirmWorktree.execute({ worktree });
-        this.setReviewedLayer.execute({
-          worktreeId,
-          layer,
-          fingerprint: input.fingerprint,
-          texts,
-        });
-        const { paths: marked } = this.listReviewedLayerPaths.execute({
-          worktreeId,
-        });
-        const listed = await this.readTextFiles.execute(
-          { worktreeId, paths: marked },
-          signal,
-        );
-        return this.listReviewedLayers.execute({
-          worktreeId,
-          texts: listed.texts,
-        });
-      },
-      { callerSignal: context.signal },
-    );
-    this.events.worktreeChanged({ worktreeId, change: 'reviewed' });
-    return result;
   }
 }

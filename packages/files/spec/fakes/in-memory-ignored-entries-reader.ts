@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type { IgnoredEntriesReader } from '../../src/ports/ignored-entries-reader.ts';
 
 export class InMemoryIgnoredEntriesReader implements IgnoredEntriesReader {
@@ -7,7 +8,7 @@ export class InMemoryIgnoredEntriesReader implements IgnoredEntriesReader {
     this.ignored = new Set(ignored);
   }
 
-  read(): Promise<ReadonlySet<string>> {
-    return Promise.resolve(this.ignored);
+  read(): Effect.Effect<ReadonlySet<string>> {
+    return Effect.succeed(this.ignored);
   }
 }

@@ -14,7 +14,7 @@ import {
   usePublishedReview,
 } from '../queries/published-review';
 import type { OpenDocument } from '../rules/documents';
-import type { ReviewScope } from '../rules/review';
+import type { ReviewScope } from '@porcelain/client/reviews/rules';
 import {
   type ChangeScope,
   isSurface,

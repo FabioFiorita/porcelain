@@ -1,3 +1,7 @@
+import {
+  remoteStatusNote,
+  remoteStatusText,
+} from '@porcelain/client/access/rules';
 import { ServerOffIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -8,11 +12,8 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from '@/components/ui/empty';
-import {
-  remoteStatusNote,
-  remoteStatusText,
-  type RemoteStatus,
-} from '../rules/remotes';
+
+import { type RemoteStatus } from '@porcelain/client/access/rules';
 
 export function RemoteUnavailable({
   name,

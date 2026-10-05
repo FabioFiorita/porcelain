@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type { WorktreeKeys } from '@porcelain/kernel/models';
 import type { Clock } from '@porcelain/kernel/ports';
 import type {
@@ -22,14 +23,18 @@ export class CollectAbsentWorktreesService {
     this.options = options;
   }
 
-  execute(input: WorktreeKeys): CollectAbsentWorktreesResult {
-    const named = new Set(input.worktreeIds);
-    const collected = expired(
-      this.worktreePresence.list().filter((row) => named.has(row.worktreeId)),
-      this.clock.now(),
-      this.options.graceMs,
-    );
-    this.worktreePresence.remove({ worktreeIds: collected });
-    return { collected };
+  execute(
+    input: WorktreeKeys,
+  ): Effect.Effect<CollectAbsentWorktreesResult, never> {
+    return Effect.sync(() => {
+      const named = new Set(input.worktreeIds);
+      const collected = expired(
+        this.worktreePresence.list().filter((row) => named.has(row.worktreeId)),
+        this.clock.now(),
+        this.options.graceMs,
+      );
+      this.worktreePresence.remove({ worktreeIds: collected });
+      return { collected };
+    });
   }
 }

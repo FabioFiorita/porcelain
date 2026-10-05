@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { InvalidTailnetHostnameError } from '../errors/invalid-tailnet-hostname-error.ts';
 import { InvalidTunnelHostnameError } from '../errors/invalid-tunnel-hostname-error.ts';
 import { MissingTailnetHostnameError } from '../errors/missing-tailnet-hostname-error.ts';
@@ -43,32 +44,53 @@ export class SetRemoteAccessService {
     this.options = options;
   }
 
-  async execute(input: RemoteAccessChange): Promise<RemoteAccess> {
-    const here = localNetwork(
-      this.networkAddresses.list(),
-      await this.networkAddresses.defaultRoutes(),
-    );
-    const decision = changedRemoteAccess(
-      this.remoteAccess.read(),
-      input,
-      this.options.hostnameLength,
-      here,
-    );
-    if (decision.kind !== 'settings') throw this.failure(decision);
-    this.remoteAccess.save(decision.settings);
-    const current = this.routeStates.read();
-    const states = requestedStates(current.states, input, decision.settings);
-    const routes = { ...current, states, origins: reachableOrigins(states) };
-    this.routeStates.save(routes);
-    return remoteAccessView(
-      decision.settings,
-      routes,
-      this.runtimeStatusReader.current().address,
-      here,
-    );
+  execute(
+    input: RemoteAccessChange,
+  ): Effect.Effect<
+    RemoteAccess,
+    | InvalidTunnelHostnameError
+    | MissingTunnelHostnameError
+    | InvalidTailnetHostnameError
+    | MissingTailnetHostnameError
+    | NoLocalNetworkError
+    | UnidentifiedLocalNetworkError
+  > {
+    return Effect.gen({ self: this }, function* () {
+      const here = localNetwork(
+        this.networkAddresses.list(),
+        yield* Effect.interruptible(this.networkAddresses.defaultRoutes()),
+      );
+      const decision = changedRemoteAccess(
+        this.remoteAccess.read(),
+        input,
+        this.options.hostnameLength,
+        here,
+      );
+      if (decision.kind !== 'settings')
+        return yield* Effect.fail(this.failure(decision));
+      this.remoteAccess.save(decision.settings);
+      const current = this.routeStates.read();
+      const states = requestedStates(current.states, input, decision.settings);
+      const routes = { ...current, states, origins: reachableOrigins(states) };
+      this.routeStates.save(routes);
+      return remoteAccessView(
+        decision.settings,
+        routes,
+        this.runtimeStatusReader.current().address,
+        here,
+      );
+    });
   }
 
-  private failure(problem: RemoteAccessProblem): Error {
+  private failure(
+    problem: RemoteAccessProblem,
+  ):
+    | InvalidTunnelHostnameError
+    | MissingTunnelHostnameError
+    | InvalidTailnetHostnameError
+    | MissingTailnetHostnameError
+    | NoLocalNetworkError
+    | UnidentifiedLocalNetworkError {
     switch (problem.kind) {
       case 'invalid-hostname':
         return new InvalidTunnelHostnameError();

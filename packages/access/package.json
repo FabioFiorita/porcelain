@@ -15,6 +15,7 @@
     "test": "vitest run --config ../../vitest.config.ts --project @porcelain/access"
   },
   "dependencies": {
-    "@porcelain/kernel": "workspace:*"
+    "@porcelain/kernel": "workspace:*",
+    "effect": "4.0.0"
   }
 }

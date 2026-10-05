@@ -5,3 +5,4 @@ export { commentsQueryOptions } from './queries/comments.ts';
 export { commentCommands } from './commands/comments.ts';
 export { reviewedCommands } from './commands/reviewed.ts';
 export { toggleLayerMark } from './commands/layer-marks.ts';
+export { proofFileQueryOptions } from './queries/proof.ts';

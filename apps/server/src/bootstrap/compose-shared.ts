@@ -10,11 +10,6 @@ import {
   ReadChangeFingerprintsService,
   ReadWorktreeStatusService,
 } from '@porcelain/changes/services';
-import {
-  ReadTextFileService,
-  ReadBinaryFilesService,
-  ReadTextFilesService,
-} from '@porcelain/files/services';
 import { ReadInterruptedGitActionService } from '@porcelain/git-actions/services';
 import {
   ActionsGit,
@@ -51,11 +46,17 @@ import { GitChangeDiffReader } from '../adapters/changes/git-change-diff-reader.
 import { GitChangeStatusReader } from '../adapters/changes/git-change-status-reader.ts';
 import { GitWorktreeSideReader } from '../adapters/changes/git-worktree-side-reader.ts';
 import { inspectionCheckouts } from '../adapters/changes/inspection-checkouts.ts';
+import { gitSessionPerSignal } from '../adapters/projects/checkout-session.ts';
+import {
+  ReadBinaryFilesService,
+  ReadTextFileService,
+  ReadTextFilesService,
+} from '@porcelain/files/services';
 import { FilesystemFileReader } from '../adapters/files/filesystem-file-reader.ts';
 import { GitHeadTextReader } from '../adapters/files/git-head-text-reader.ts';
-import { gitSessionPerSignal } from '../adapters/projects/checkout-session.ts';
 import { GitWorktreeAccessReader } from '../adapters/projects/git-worktree-access-reader.ts';
 import { GitWorktreeListingReader } from '../adapters/projects/git-worktree-listing-reader.ts';
+import type { WorktreeListing } from '@porcelain/projects/models';
 import type { ServerSettings } from '../config/server-settings.ts';
 import type { Logger } from '../ports/logger.ts';
 import { LaunchLimit } from '../runtime/launch-limit.ts';
@@ -86,9 +87,10 @@ export function composeShared(dependencies: SharedDependencies) {
     new HistoryGit(checkout, gitVersion, limits.git);
   const inspection: InspectionFactory = (checkout) =>
     new InspectionGit(checkout, limits.git);
+  const inventoryReads = new SharedReads<WorktreeListing>();
   const worktreeListing = new GitWorktreeListingReader({
     git,
-    sharedReads: new SharedReads(),
+    sharedReads: inventoryReads,
     launchLimit: new LaunchLimit(limits.inventory.listingLaunches),
     timeoutMs: limits.inventory.listingTimeoutMs,
     worktreeId: dependencies.worktreeId,
@@ -104,12 +106,12 @@ export function composeShared(dependencies: SharedDependencies) {
   );
   const changeStatusReader = new GitChangeStatusReader(openInspection);
   const fileReader = new FilesystemFileReader(worktreeAccess);
-  const readTextFile = new ReadTextFileService(
+  const readTextFileService = new ReadTextFileService(
     fileReader,
     new GitHeadTextReader(openInspection),
     limits.files.readTextFile,
   );
-  const readTextFiles = new ReadTextFilesService(
+  const readTextFilesService = new ReadTextFilesService(
     fileReader,
     limits.files.readTextFile,
   );
@@ -128,6 +130,7 @@ export function composeShared(dependencies: SharedDependencies) {
     commitGit,
     catalog,
     worktreeListing,
+    inventoryReads,
     worktreeAccess,
     gitSessions,
     openInspection,
@@ -152,7 +155,7 @@ export function composeShared(dependencies: SharedDependencies) {
       hostNames,
     ),
     hostNames,
-    readTextFile,
+    readTextFileService,
     readWorktreeStatus,
     readChangeFingerprints,
     branchRangeReader,
@@ -178,7 +181,7 @@ export function composeShared(dependencies: SharedDependencies) {
       stores.reviews,
       stores.reviewedLayers,
     ),
-    readTextFiles,
+    readTextFilesService,
     readBinaryFiles: new ReadBinaryFilesService(
       fileReader,
       limits.reviews.proof,
@@ -186,7 +189,7 @@ export function composeShared(dependencies: SharedDependencies) {
     readReviewEvidence: new ReadReviewEvidenceUseCase(
       readWorktreeStatus,
       readChangeFingerprints,
-      readTextFiles,
+      readTextFilesService,
       readChangeDiffs,
     ),
     recordReviewActivity: new RecordReviewActivityService(stores.reviews),

@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import type {
   IdentifyRequestClientInput,
@@ -37,16 +38,18 @@ function identify(
     origins: [],
     tailnetProxy,
   });
-  return new IdentifyRequestClientService(settings, routes).execute({
-    host: tunnelHost,
-    scheme: 'http',
-    peerAddress: '127.0.0.1',
-    localAddress: '127.0.0.1',
-    localPort: 4173,
-    connectingAddress: visitor,
-    forwardedFor: undefined,
-    ...request,
-  });
+  return Effect.runSync(
+    new IdentifyRequestClientService(settings, routes).execute({
+      host: tunnelHost,
+      scheme: 'http',
+      peerAddress: '127.0.0.1',
+      localAddress: '127.0.0.1',
+      localPort: 4173,
+      connectingAddress: visitor,
+      forwardedFor: undefined,
+      ...request,
+    }),
+  );
 }
 
 describe('IdentifyRequestClientService', () => {

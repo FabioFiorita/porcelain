@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type { Clock } from '@porcelain/kernel/ports';
 import type { ServiceUpdateCheck } from '../models/service-update.ts';
 import { serviceUpdateCheck } from '../rules/service-update-check.ts';
@@ -11,7 +12,9 @@ export class PlanServiceUpdateCheckService {
     this.latestVersionTtlMs = options.latestVersionTtlMs;
   }
 
-  execute(): ServiceUpdateCheck {
-    return serviceUpdateCheck(this.clock.now(), this.latestVersionTtlMs);
+  execute(): Effect.Effect<ServiceUpdateCheck, never> {
+    return Effect.sync(() => {
+      return serviceUpdateCheck(this.clock.now(), this.latestVersionTtlMs);
+    });
   }
 }

@@ -6,6 +6,7 @@ import {
   type WorktreeScope,
 } from '../../../shared/api/connection.ts';
 import { reviewsApi } from '../api.ts';
+import { runRequest } from '../../../shared/api/effect-client.ts';
 
 export function publishedReviewQueryOptions(
   scope: WorktreeScope,
@@ -15,10 +16,13 @@ export function publishedReviewQueryOptions(
     queryKey: queryKeys.worktreeSurface(connection, scope, ['review']),
     queryFn: async ({ signal }: Pick<QueryFunctionContext, 'signal'>) => {
       const connected = connection.request(signal);
-      const result = await reviewsApi(connection).review({
-        worktreeId: scope.worktreeId,
-        ...connected,
-      });
+      const { review } = await runRequest(
+        reviewsApi(connection).readPublishedReview({
+          params: { worktreeId: scope.worktreeId },
+        }),
+        connected.signal,
+      );
+      const result = review ?? null;
       const matches =
         result === null ||
         (result.environmentId === connection.environmentId &&

@@ -1,6 +1,10 @@
-export class DeviceViewerRequiredError extends Error {
-  override readonly name = 'DeviceViewerRequiredError';
-  constructor() {
-    super('A live ticket is issued to a paired device');
+import { Schema } from 'effect';
+
+export class DeviceViewerRequiredError extends Schema.TaggedError<DeviceViewerRequiredError>()(
+  'DeviceViewerRequiredError',
+  {},
+) {
+  override get message() {
+    return 'A live ticket is issued to a paired device';
   }
 }

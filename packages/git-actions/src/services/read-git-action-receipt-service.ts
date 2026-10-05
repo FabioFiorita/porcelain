@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { GitActionNotFoundError } from '../errors/git-action-not-found-error.ts';
 import type {
   ReadGitActionReceiptInput,
@@ -13,12 +14,16 @@ export class ReadGitActionReceiptService {
     this.gitActionReceipts = gitActionReceipts;
   }
 
-  execute(input: ReadGitActionReceiptInput): ReadGitActionReceiptResult {
-    const receipt = this.gitActionReceipts.read({
-      requestId: input.requestId,
+  execute(
+    input: ReadGitActionReceiptInput,
+  ): Effect.Effect<ReadGitActionReceiptResult, GitActionNotFoundError, never> {
+    return Effect.gen({ self: this }, function* () {
+      const receipt = this.gitActionReceipts.read({
+        requestId: input.requestId,
+      });
+      if (!receipt || receipt.worktreeId !== input.worktreeId)
+        return yield* Effect.fail(new GitActionNotFoundError());
+      return gitActionReceiptView(receipt);
     });
-    if (!receipt || receipt.worktreeId !== input.worktreeId)
-      throw new GitActionNotFoundError();
-    return gitActionReceiptView(receipt);
   }
 }

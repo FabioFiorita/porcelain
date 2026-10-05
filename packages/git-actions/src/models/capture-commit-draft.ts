@@ -4,7 +4,7 @@ import type { CommitDraftObservation } from './commit-draft-evidence.ts';
 export type CaptureCommitDraftInput = {
   worktreeId: string;
   observation: CommitDraftObservation;
-  paths: string[];
+  paths: readonly string[];
 };
 
 export type CaptureCommitDraftResult = CommitDraftCapture;

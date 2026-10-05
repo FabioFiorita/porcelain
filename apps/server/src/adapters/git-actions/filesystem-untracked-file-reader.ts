@@ -1,4 +1,6 @@
 import type { FileReader } from '@porcelain/files/ports';
+import type { WorktreeRead } from '@porcelain/effects/worktree';
+import { Effect } from 'effect';
 import type {
   UntrackedFileRead,
   UntrackedFileRequest,
@@ -6,31 +8,29 @@ import type {
 import type { UntrackedFileReader } from '@porcelain/git-actions/ports';
 
 export class FilesystemUntrackedFileReader implements UntrackedFileReader {
-  private readonly files: Pick<FileReader, 'readText'>;
+  private readonly files: FileReader;
 
-  constructor(files: Pick<FileReader, 'readText'>) {
+  constructor(files: FileReader) {
     this.files = files;
   }
 
-  async read(
+  read(
     input: UntrackedFileRequest,
-    signal?: AbortSignal,
-  ): Promise<UntrackedFileRead> {
-    const read = await this.files.readText(
-      {
+  ): Effect.Effect<UntrackedFileRead, never, WorktreeRead> {
+    return Effect.gen({ self: this }, function* () {
+      const read = yield* this.files.readText({
         worktreeId: input.worktreeId,
         path: input.path,
         maxBytes: input.maxBytes,
-      },
-      signal,
-    );
-    switch (read.kind) {
-      case 'text':
-        return { kind: 'text', text: read.text, byteLength: read.byteLength };
-      case 'too-large':
-        return { kind: 'too-large' };
-      case 'failed':
-        return { kind: 'failed', failure: read.failure };
-    }
+      });
+      switch (read.kind) {
+        case 'text':
+          return { kind: 'text', text: read.text, byteLength: read.byteLength };
+        case 'too-large':
+          return { kind: 'too-large' };
+        case 'failed':
+          return { kind: 'failed', failure: read.failure };
+      }
+    });
   }
 }

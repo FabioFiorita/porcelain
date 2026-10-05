@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type { LiveNotice } from '@porcelain/contracts/access';
 import type { LiveChannel } from '../../ports/live-channel.ts';
 import type { LiveClient } from '../../ports/live-client.ts';
@@ -96,8 +97,10 @@ export class LiveHeartbeat {
     this.connections = connections;
   }
 
-  async execute(): Promise<void> {
-    this.connections.toEveryone({ type: 'heartbeat' });
+  execute(): Effect.Effect<void> {
+    return Effect.sync(() =>
+      this.connections.toEveryone({ type: 'heartbeat' }),
+    );
   }
 }
 
@@ -108,7 +111,7 @@ export class LivePing {
     this.connections = connections;
   }
 
-  async execute(): Promise<void> {
-    this.connections.ping();
+  execute(): Effect.Effect<void> {
+    return Effect.sync(() => this.connections.ping());
   }
 }

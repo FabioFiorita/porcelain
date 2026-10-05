@@ -1,3 +1,5 @@
+import { Effect } from 'effect';
+import type { WorktreeRead } from '@porcelain/effects/worktree';
 import { IncompleteDiffReadError } from '../errors/incomplete-diff-read-error.ts';
 import type {
   ReadChangeDiffsInput,
@@ -5,29 +7,37 @@ import type {
 } from '../models/read-change-diffs.ts';
 import type { ChangeDiffReader } from '../ports/change-diff-reader.ts';
 
-export class ReadChangeDiffsService {
-  private readonly changeDiffReader: ChangeDiffReader;
+export class ReadChangeDiffsService<E = never> {
+  private readonly changeDiffReader: ChangeDiffReader<E>;
 
-  constructor(changeDiffReader: ChangeDiffReader) {
+  constructor(changeDiffReader: ChangeDiffReader<E>) {
     this.changeDiffReader = changeDiffReader;
   }
 
-  async execute(
+  execute(
     input: ReadChangeDiffsInput,
-    signal?: AbortSignal,
-  ): Promise<ReadChangeDiffsResult> {
-    const contents = await this.changeDiffReader.readDiffs(input, signal);
-    return input.comparisons.map((comparison, index) => {
-      const content = contents[index];
-      if (content === undefined) throw new IncompleteDiffReadError();
-      return {
-        selection: {
-          scope: comparison.scope,
-          oldPath: comparison.oldPath,
-          newPath: comparison.newPath,
-        },
-        content,
-      };
+  ): Effect.Effect<
+    ReadChangeDiffsResult,
+    E | IncompleteDiffReadError,
+    WorktreeRead
+  > {
+    return Effect.gen({ self: this }, function* () {
+      const contents = yield* this.changeDiffReader.readDiffs(input);
+      return yield* Effect.forEach(input.comparisons, (comparison, index) =>
+        Effect.gen(function* () {
+          const content = contents[index];
+          if (content === undefined)
+            return yield* Effect.fail(new IncompleteDiffReadError());
+          return {
+            selection: {
+              scope: comparison.scope,
+              oldPath: comparison.oldPath,
+              newPath: comparison.newPath,
+            },
+            content,
+          };
+        }),
+      );
     });
   }
 }

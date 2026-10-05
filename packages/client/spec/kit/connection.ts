@@ -1,3 +1,4 @@
+import { Schema } from 'effect';
 import { type WorktreeConnection } from '../../src/shared/api/connection.ts';
 import { remoteTransport } from '../../src/shared/api/transport.ts';
 import type { IsolatedServer } from '@porcelain/server/kit/isolated-server';
@@ -8,8 +9,9 @@ import { readInventoryResponseSchema } from '@porcelain/contracts/projects';
 export async function connection(server: IsolatedServer, session: Session) {
   const controller = new AbortController();
   const connected: WorktreeConnection = {
-    environmentId: readInventoryResponseSchema.parse(await inventory(session))
-      .environmentId,
+    environmentId: Schema.decodeUnknownSync(readInventoryResponseSchema)(
+      await inventory(session),
+    ).environmentId,
     transport: remoteTransport(server.address, server.credential, fetch),
     request: (signal) => ({
       signal: signal

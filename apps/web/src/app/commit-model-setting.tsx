@@ -6,7 +6,7 @@ import {
 import {
   groupedCommitModels,
   resolveCommitModel,
-} from '@/features/git-actions/index';
+} from '@porcelain/client/git-actions/rules';
 import { useCommitModels } from '@/features/git-actions/index';
 import { useConnectedContext } from '@/features/access/index';
 import { usePreferences } from '@/features/preferences/index';

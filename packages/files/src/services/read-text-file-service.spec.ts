@@ -1,3 +1,5 @@
+import { Effect } from 'effect';
+import { withReadLease } from '@porcelain/effects/worktree';
 import { describe, expect, it } from 'vitest';
 import {
   ContentChangedError,
@@ -32,7 +34,12 @@ describe('ReadTextFileService', () => {
   it('answers the text with its byte length and content fingerprint', async () => {
     const service = serviceWith({ 'docs/café.md': text('café\n', 6) });
     await expect(
-      service.execute({ worktreeId, path: 'docs/café.md' }),
+      Effect.runPromise(
+        withReadLease(
+          worktreeId,
+          service.execute({ worktreeId, path: 'docs/café.md' }),
+        ),
+      ),
     ).resolves.toEqual({
       worktreeId,
       path: 'docs/café.md',
@@ -49,7 +56,12 @@ describe('ReadTextFileService', () => {
       'README.md': text('committed\n', 10),
     });
     await expect(
-      service.execute({ worktreeId, path: 'README.md', at: 'head' }),
+      Effect.runPromise(
+        withReadLease(
+          worktreeId,
+          service.execute({ worktreeId, path: 'README.md', at: 'head' }),
+        ),
+      ),
     ).resolves.toMatchObject({ text: 'committed\n', byteLength: 10 });
   });
 
@@ -71,7 +83,12 @@ describe('ReadTextFileService', () => {
         'README.md': read,
       });
       await expect(
-        service.execute({ worktreeId, path: 'README.md', at: 'head' }),
+        Effect.runPromise(
+          withReadLease(
+            worktreeId,
+            service.execute({ worktreeId, path: 'README.md', at: 'head' }),
+          ),
+        ),
       ).rejects.toThrow(error);
     },
   );
@@ -79,7 +96,12 @@ describe('ReadTextFileService', () => {
   it('refuses a file the reader stopped reading at the limit', async () => {
     const service = serviceWith({ 'big.txt': { kind: 'too-large' } });
     await expect(
-      service.execute({ worktreeId, path: 'big.txt' }),
+      Effect.runPromise(
+        withReadLease(
+          worktreeId,
+          service.execute({ worktreeId, path: 'big.txt' }),
+        ),
+      ),
     ).rejects.toThrow(FileTooLargeError);
   });
 
@@ -89,7 +111,12 @@ describe('ReadTextFileService', () => {
       1000,
     );
     await expect(
-      service.execute({ worktreeId, path: 'over.txt' }),
+      Effect.runPromise(
+        withReadLease(
+          worktreeId,
+          service.execute({ worktreeId, path: 'over.txt' }),
+        ),
+      ),
     ).rejects.toThrow(FileTooLargeError);
   });
 
@@ -99,14 +126,24 @@ describe('ReadTextFileService', () => {
       200,
     );
     await expect(
-      service.execute({ worktreeId, path: 'controls.txt' }),
+      Effect.runPromise(
+        withReadLease(
+          worktreeId,
+          service.execute({ worktreeId, path: 'controls.txt' }),
+        ),
+      ),
     ).rejects.toThrow(FileTooLargeError);
   });
 
   it('reports a missing path as not found', async () => {
     const service = serviceWith({});
     await expect(
-      service.execute({ worktreeId, path: 'missing.md' }),
+      Effect.runPromise(
+        withReadLease(
+          worktreeId,
+          service.execute({ worktreeId, path: 'missing.md' }),
+        ),
+      ),
     ).rejects.toThrow(PathNotFoundError);
   });
 
@@ -114,9 +151,14 @@ describe('ReadTextFileService', () => {
     const service = serviceWith({
       docs: { kind: 'failed', failure: 'unreadable' },
     });
-    await expect(service.execute({ worktreeId, path: 'docs' })).rejects.toThrow(
-      PathNotReadableError,
-    );
+    await expect(
+      Effect.runPromise(
+        withReadLease(
+          worktreeId,
+          service.execute({ worktreeId, path: 'docs' }),
+        ),
+      ),
+    ).rejects.toThrow(PathNotReadableError);
   });
 
   it('reports a file that changed while it was read as changed', async () => {
@@ -124,7 +166,12 @@ describe('ReadTextFileService', () => {
       'notes.md': { kind: 'failed', failure: 'changed' },
     });
     await expect(
-      service.execute({ worktreeId, path: 'notes.md' }),
+      Effect.runPromise(
+        withReadLease(
+          worktreeId,
+          service.execute({ worktreeId, path: 'notes.md' }),
+        ),
+      ),
     ).rejects.toThrow(ContentChangedError);
   });
 
@@ -133,7 +180,12 @@ describe('ReadTextFileService', () => {
       'image.bin': { kind: 'failed', failure: 'unsupported-text' },
     });
     await expect(
-      service.execute({ worktreeId, path: 'image.bin' }),
+      Effect.runPromise(
+        withReadLease(
+          worktreeId,
+          service.execute({ worktreeId, path: 'image.bin' }),
+        ),
+      ),
     ).rejects.toThrow(UnsupportedTextError);
   });
 });

@@ -1,3 +1,4 @@
+import { runRequest } from '../../../shared/api/effect-client.ts';
 import { assertCurrentAnswer } from '../../../shared/api/stale-answer.ts';
 import { queryKeys } from '../../../shared/api/query-keys.ts';
 import type { QueryFunctionContext } from '@tanstack/query-core';
@@ -16,11 +17,13 @@ export function directoryQueryOptions(
     queryKey: queryKeys.worktreeSurface(connection, scope, ['directory', path]),
     queryFn: async ({ signal }: Pick<QueryFunctionContext, 'signal'>) => {
       const connected = connection.request(signal);
-      const result = await filesApi(connection).directory({
-        signal: connected.signal,
-        worktreeId: scope.worktreeId,
-        path,
-      });
+      const result = await runRequest(
+        filesApi(connection).listDirectory({
+          params: { worktreeId: scope.worktreeId },
+          query: { path },
+        }),
+        connected.signal,
+      );
       assertCurrentAnswer(
         connected.signal,
         result.worktreeId === scope.worktreeId,

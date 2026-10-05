@@ -1,9 +1,10 @@
-export class ProofFileUnreadableError extends Error {
-  override readonly name = 'ProofFileUnreadableError';
+import { Schema } from 'effect';
 
-  constructor() {
-    super(
-      'A proof file is missing from the worktree or is not a readable file',
-    );
+export class ProofFileUnreadableError extends Schema.TaggedError<ProofFileUnreadableError>()(
+  'ProofFileUnreadableError',
+  {},
+) {
+  override get message() {
+    return 'A proof file is missing from the worktree or is not a readable file';
   }
 }

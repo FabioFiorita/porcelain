@@ -1,4 +1,4 @@
-import { InvalidGitDiffError } from '../errors/invalid-git-diff-error.ts';
+import { InvalidGitDiffError } from '../../shared/errors/invalid-git-diff-error.ts';
 import { isOid } from '../../shared/parsers/oid.ts';
 
 export type RawDiffEntry = {

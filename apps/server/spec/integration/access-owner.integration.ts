@@ -1,3 +1,4 @@
+import * as Schema from 'effect/Schema';
 import {
   issuePairingResponseSchema,
   listAccessResponseSchema,
@@ -26,7 +27,11 @@ test('the owner socket reports where the server runs and is never cached', async
 
   expect(response.status).toBe(200);
   expect(response.body).toEqual(
-    expect.schemaMatching(readOwnerStatusResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(
+        Schema.toEncoded(readOwnerStatusResponseSchema),
+      ),
+    ),
   );
   expect(record(response.body).address).toBe(session.address);
   expect(response.headers['cache-control']).toBe('no-store');
@@ -39,7 +44,9 @@ test('the owner lists no open pairing grants and the paired fixture device', asy
 
   expect(response.status).toBe(200);
   expect(response.body).toEqual(
-    expect.schemaMatching(listAccessResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(Schema.toEncoded(listAccessResponseSchema)),
+    ),
   );
   expect(record(response.body).grants).toStrictEqual([]);
   expect(
@@ -63,7 +70,9 @@ test('the owner issues a pairing whose link opens the pairing page and which is 
 
   expect(response.status).toBe(200);
   expect(response.body).toEqual(
-    expect.schemaMatching(issuePairingResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(Schema.toEncoded(issuePairingResponseSchema)),
+    ),
   );
   const grant = record(list(record(response.body).grants)[0]);
   expect(grant.grant).toMatchObject({
@@ -77,7 +86,11 @@ test('the owner issues a pairing whose link opens the pairing page and which is 
     ),
   );
   const access = await read(session, ownerAccess);
-  expect(access).toEqual(expect.schemaMatching(listAccessResponseSchema));
+  expect(access).toEqual(
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(Schema.toEncoded(listAccessResponseSchema)),
+    ),
+  );
   expect(list(access.grants).map((entry) => record(entry).id)).toStrictEqual([
     record(grant.grant).id,
   ]);

@@ -1,16 +1,15 @@
 import { changeDiffsQueryOptions } from '@porcelain/client/changes';
 import { DIFFS_PER_REQUEST } from '@porcelain/contracts/shared';
 import { useBatchedReads } from './batched-reads';
-import { readChangeDiffsEndpoint } from '@porcelain/contracts/changes';
-import { isEndpointError } from '@porcelain/client/transport';
+import { isStaleChangeObservation } from '@porcelain/client/transport';
 import {
   selectionKey,
   type ChangesScope,
   type ChangeSelection,
   type DiffContent,
   type ExpectedFile,
-} from '../rules/changes';
-import { diffBatches } from '../rules/diff-batches';
+} from '@porcelain/client/changes/rules';
+import { diffBatches } from '@porcelain/client/changes/rules';
 import { useChangesStore } from '../store';
 import { type Connection } from '@/shared/workspace/connection';
 
@@ -51,8 +50,7 @@ export function useChangeDiffs(
       );
     },
     retry: (_failureCount, error) => {
-      if (isEndpointError(error, readChangeDiffsEndpoint, 'worktree_changed'))
-        recover(statusToken);
+      if (isStaleChangeObservation(error)) recover(statusToken);
       return false;
     },
   });

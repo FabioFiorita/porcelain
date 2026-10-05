@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { ProofFileNotFoundError } from '@porcelain/reviews/errors';
 import type { Review } from '@porcelain/reviews/models';
@@ -38,7 +39,9 @@ function setup() {
 
 describe('ReadProofFileService', () => {
   it('answers a stored proof file with its media type and base64 content', () => {
-    expect(setup().execute({ worktreeId, proofId: 'shot' })).toEqual({
+    expect(
+      Effect.runSync(setup().execute({ worktreeId, proofId: 'shot' })),
+    ).toEqual({
       id: 'shot',
       mediaType: 'image/png',
       base64: 'AP8B',
@@ -46,14 +49,16 @@ describe('ReadProofFileService', () => {
   });
 
   it('refuses an id the review does not hold', () => {
-    expect(() => setup().execute({ worktreeId, proofId: 'other' })).toThrow(
-      ProofFileNotFoundError,
-    );
+    expect(() =>
+      Effect.runSync(setup().execute({ worktreeId, proofId: 'other' })),
+    ).toThrow(ProofFileNotFoundError);
   });
 
   it("refuses another worktree's proof file", () => {
     expect(() =>
-      setup().execute({ worktreeId: otherWorktreeId, proofId: 'shot' }),
+      Effect.runSync(
+        setup().execute({ worktreeId: otherWorktreeId, proofId: 'shot' }),
+      ),
     ).toThrow(ProofFileNotFoundError);
   });
 });

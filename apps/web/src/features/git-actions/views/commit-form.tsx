@@ -14,17 +14,17 @@ import {
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { FileTypeIcon } from '@/features/files/index';
-import { groupedCommitModels } from '../rules/commit-model';
+import { groupedCommitModels } from '@porcelain/client/git-actions/rules';
 import {
   changedSinceLooked,
   gitErrorMessage,
   receiptFailed,
-} from '../rules/feedback';
+} from '@porcelain/client/git-actions/rules';
 import { GitActionError } from './git-action-message';
 import { useCommitForm } from '../commands/commit-form';
-import type { CommitFormProps } from '../rules/commit-form';
+import type { CommitFormProps } from '@porcelain/client/git-actions/rules';
 import { useDraftCancellation } from '../adapters/form-lifetime';
-import { commitFiles } from '@/features/changes/index';
+import { commitFiles } from '@porcelain/client/changes/rules';
 import { usePreferences } from '@/features/preferences/index';
 
 export function CommitForm(

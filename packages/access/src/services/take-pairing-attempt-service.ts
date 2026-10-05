@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type { Clock } from '@porcelain/kernel/ports';
 import { TooManyPairingAttemptsError } from '../errors/too-many-pairing-attempts-error.ts';
 
@@ -24,16 +25,20 @@ export class TakePairingAttemptService {
     this.options = options;
   }
 
-  execute(input: TakePairingAttemptInput): void {
-    const budget = input.crossOrigin ? 'crossOrigin' : 'sameOrigin';
-    const store = this.pairingAttempts[budget];
-    const { attempts, taken } = takePairingAttempt(
-      store.read(),
-      input.peer,
-      this.clock.now(),
-      this.options[budget],
-    );
-    store.save(attempts);
-    if (!taken) throw new TooManyPairingAttemptsError();
+  execute(
+    input: TakePairingAttemptInput,
+  ): Effect.Effect<void, TooManyPairingAttemptsError> {
+    return Effect.gen({ self: this }, function* () {
+      const budget = input.crossOrigin ? 'crossOrigin' : 'sameOrigin';
+      const store = this.pairingAttempts[budget];
+      const { attempts, taken } = takePairingAttempt(
+        store.read(),
+        input.peer,
+        this.clock.now(),
+        this.options[budget],
+      );
+      store.save(attempts);
+      if (!taken) return yield* Effect.fail(new TooManyPairingAttemptsError());
+    });
   }
 }

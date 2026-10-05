@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { FixedClock } from '@porcelain/kernel/fakes';
 import type {
@@ -39,13 +40,15 @@ function service(
 describe('ListExpiredWorktreesService', () => {
   it('answers each worktree absent past the grace period with the repository of its project', () => {
     expect(
-      service([
-        {
-          worktreeId: 'gone',
-          projectId: 'project-1',
-          missingSince: '2026-08-01T00:00:00.000Z',
-        },
-      ]).execute(),
+      Effect.runSync(
+        service([
+          {
+            worktreeId: 'gone',
+            projectId: 'project-1',
+            missingSince: '2026-08-01T00:00:00.000Z',
+          },
+        ]).execute(),
+      ),
     ).toEqual({
       worktrees: [
         { id: 'gone', projectId: 'project-1', repositoryId: 'repository-1' },
@@ -55,29 +58,37 @@ describe('ListExpiredWorktreesService', () => {
 
   it('leaves out present worktrees and those still within the grace period', () => {
     expect(
-      service([
-        { worktreeId: 'here', projectId: 'project-1', missingSince: undefined },
-        {
-          worktreeId: 'recent',
-          projectId: 'project-1',
-          missingSince: '2026-08-30T00:00:00.000Z',
-        },
-      ]).execute(),
+      Effect.runSync(
+        service([
+          {
+            worktreeId: 'here',
+            projectId: 'project-1',
+            missingSince: undefined,
+          },
+          {
+            worktreeId: 'recent',
+            projectId: 'project-1',
+            missingSince: '2026-08-30T00:00:00.000Z',
+          },
+        ]).execute(),
+      ),
     ).toEqual({ worktrees: [] });
   });
 
   it('leaves out a worktree whose project is no longer registered', () => {
     expect(
-      service(
-        [
-          {
-            worktreeId: 'orphan',
-            projectId: 'project-gone',
-            missingSince: '2026-08-01T00:00:00.000Z',
-          },
-        ],
-        [],
-      ).execute(),
+      Effect.runSync(
+        service(
+          [
+            {
+              worktreeId: 'orphan',
+              projectId: 'project-gone',
+              missingSince: '2026-08-01T00:00:00.000Z',
+            },
+          ],
+          [],
+        ).execute(),
+      ),
     ).toEqual({ worktrees: [] });
   });
 });

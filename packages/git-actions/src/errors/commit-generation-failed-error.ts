@@ -1,7 +1,10 @@
-export class CommitGenerationFailedError extends Error {
-  override readonly name = 'CommitGenerationFailedError';
+import { Schema } from 'effect';
 
-  constructor() {
-    super('Commit generation failed.');
+export class CommitGenerationFailedError extends Schema.TaggedError<CommitGenerationFailedError>()(
+  'CommitGenerationFailedError',
+  {},
+) {
+  override get message() {
+    return 'Commit generation failed.';
   }
 }

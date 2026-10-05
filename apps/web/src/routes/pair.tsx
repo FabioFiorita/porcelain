@@ -1,14 +1,14 @@
 import { createFileRoute, redirect, useRouter } from '@tanstack/react-router';
 import { useEffect } from 'react';
+import { connectionErrorMessage } from '@porcelain/client/access/rules';
 import {
-  connectionErrorMessage,
   DisconnectedPage,
   NotPaired,
   pairBrowser,
-  parsePairingLink,
   PairingView,
   restoreSession,
 } from '@/features/access/index';
+import { parsePairingLink } from '@porcelain/client/access/rules';
 import { PAIRING_PENDING_MS } from '@/config/limits';
 import { WorkspaceError } from '@/app/workspace-error';
 

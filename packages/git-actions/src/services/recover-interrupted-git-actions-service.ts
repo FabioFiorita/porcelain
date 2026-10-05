@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type { WorktreeKey } from '@porcelain/kernel/models';
 import type { Clock } from '@porcelain/kernel/ports';
 import type { GitActionReceiptStore } from '../ports/git-action-receipt-store.ts';
@@ -12,10 +13,12 @@ export class RecoverInterruptedGitActionsService {
     this.clock = clock;
   }
 
-  execute(input: WorktreeKey): void {
-    const finishedAt = this.clock.now();
-    for (const receipt of this.gitActionReceipts.running())
-      if (receipt.worktreeId === input.worktreeId)
-        this.gitActionReceipts.save(interruptedReceipt(receipt, finishedAt));
+  execute(input: WorktreeKey): Effect.Effect<void, never, never> {
+    return Effect.sync(() => {
+      const finishedAt = this.clock.now();
+      for (const receipt of this.gitActionReceipts.running())
+        if (receipt.worktreeId === input.worktreeId)
+          this.gitActionReceipts.save(interruptedReceipt(receipt, finishedAt));
+    });
   }
 }

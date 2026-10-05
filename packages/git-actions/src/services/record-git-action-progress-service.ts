@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type {
   RecordGitActionProgressInput,
   RecordGitActionProgressOptions,
@@ -18,18 +19,22 @@ export class RecordGitActionProgressService {
     this.options = options;
   }
 
-  execute(input: RecordGitActionProgressInput): RecordGitActionProgressResult {
-    const current = this.gitActionReceipts.read({
-      requestId: input.requestId,
+  execute(
+    input: RecordGitActionProgressInput,
+  ): Effect.Effect<RecordGitActionProgressResult, never, never> {
+    return Effect.sync(() => {
+      const current = this.gitActionReceipts.read({
+        requestId: input.requestId,
+      });
+      if (current?.state !== 'running') return { kind: 'not-running' };
+      const updated = {
+        ...current,
+        progress: [...current.progress, input.line].slice(
+          -this.options.progressLines,
+        ),
+      };
+      this.gitActionReceipts.save(updated);
+      return { kind: 'recorded', receipt: gitActionReceiptView(updated) };
     });
-    if (current?.state !== 'running') return { kind: 'not-running' };
-    const updated = {
-      ...current,
-      progress: [...current.progress, input.line].slice(
-        -this.options.progressLines,
-      ),
-    };
-    this.gitActionReceipts.save(updated);
-    return { kind: 'recorded', receipt: gitActionReceiptView(updated) };
   }
 }

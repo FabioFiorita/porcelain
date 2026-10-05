@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type {
   UntrackedFileRead,
   UntrackedFileRequest,
@@ -11,7 +12,9 @@ export class InMemoryUntrackedFileReader implements UntrackedFileReader {
     this.files = files;
   }
 
-  async read(input: UntrackedFileRequest): Promise<UntrackedFileRead> {
-    return this.files[input.path] ?? { kind: 'failed', failure: 'missing' };
+  read(input: UntrackedFileRequest): Effect.Effect<UntrackedFileRead> {
+    return Effect.sync(() => {
+      return this.files[input.path] ?? { kind: 'failed', failure: 'missing' };
+    });
   }
 }

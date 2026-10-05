@@ -1,15 +1,15 @@
 import {
+  firstWaitingWorktree,
+  selectedWorktreeInProject,
+} from '@porcelain/client/projects/rules';
+import {
   createFileRoute,
   Navigate,
   useRouterState,
 } from '@tanstack/react-router';
 import { z } from 'zod';
 import { useConnectedContext } from '@/features/access/index';
-import {
-  firstWaitingWorktree,
-  selectedWorktreeInProject,
-  useInventory,
-} from '@/features/projects/index';
+import { useInventory } from '@/features/projects/index';
 import { ConnectedWorkspace } from '@/app/connected-workspace';
 import { WorkspaceError } from '@/app/workspace-error';
 import { WorkspacePending } from '@/app/workspace-pending';

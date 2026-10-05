@@ -1,6 +1,9 @@
 import type { ReactNode } from 'react';
 import { usePublishedReview } from '../queries/published-review';
-import type { ReviewResponse, ReviewScope } from '../rules/review';
+import type {
+  ReviewResponse,
+  ReviewScope,
+} from '@porcelain/client/reviews/rules';
 import { ReviewEmpty } from './review-empty';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 

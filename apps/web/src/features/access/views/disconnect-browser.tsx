@@ -3,7 +3,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import { useDisconnect } from '../commands/disconnect';
-import { connectionErrorMessage } from '../rules/connection-error-message';
+import { connectionErrorMessage } from '@porcelain/client/access/rules';
 
 export function DisconnectBrowser() {
   const disconnect = useDisconnect();

@@ -1,7 +1,10 @@
-export class DiskFullError extends Error {
-  override readonly name = 'DiskFullError';
+import { Schema } from 'effect';
 
-  constructor() {
-    super('There is not enough space on the disk');
+export class DiskFullError extends Schema.TaggedError<DiskFullError>()(
+  'DiskFullError',
+  {},
+) {
+  override get message() {
+    return 'There is not enough space on the disk';
   }
 }

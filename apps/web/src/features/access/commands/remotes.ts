@@ -1,51 +1,27 @@
+import { Effect } from 'effect';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { ConnectionError } from '@porcelain/client/transport';
 import { REQUEST_TIMEOUT_MS } from '@/config/limits';
-import { remoteTransport } from '@porcelain/client/transport';
-import { dropFileDrafts, saveFileDrafts } from '@/shared/query/file-drafts';
-import { remoteApi } from '../api';
-import { remoteStatusQueryOptions } from '../queries/remotes';
-import { unsavedDraftsMessage } from '../rules/connection-error-message';
-import { remoteLink, remoteStatus, type Remote } from '../rules/remotes';
+import { runRequest } from '@porcelain/client/transport';
+import { pairRemote, remoteStatusQueryOptions } from '@porcelain/client/access';
+import { pairingPlatform } from '../store';
+import { dropFileDrafts, saveFileDrafts } from '@porcelain/client/files';
+import { UNSAVED_DRAFTS_MESSAGE } from '@porcelain/client/access/rules';
+import { remoteLink, type Remote } from '@porcelain/client/access/rules';
 import { useAccessStore, useRemotesStore } from '../store';
 
-async function addRemote(value: string): Promise<Remote> {
+function addRemote(value: string): Promise<Remote> {
   const link = remoteLink(value);
-  if (!link)
-    throw new ConnectionError(
-      'Paste the whole link porcelain pair printed, starting with http.',
-    );
   if (
-    link.environmentId === useAccessStore.getState().connection?.environmentId
+    link?.environmentId === useAccessStore.getState().connection?.environmentId
   )
-    throw new ConnectionError('That link is for this computer.');
-  const signal = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
-  const { credential, deviceId } = await remoteApi.pair({
-    transport: remoteTransport(link.address, undefined, fetch),
-    link: link,
-    signal: signal,
-  });
-  const answer = await remoteApi.describe({
-    transport: remoteTransport(link.address, credential, fetch),
-    signal: signal,
-    environmentId: link.environmentId,
-  });
-  const status = remoteStatus(link, answer);
-  if (status.kind !== 'online')
-    throw new ConnectionError(
-      status.kind === 'other-server'
-        ? 'Another Porcelain answered at that address than the one that made the link.'
-        : status.kind === 'incompatible'
-          ? 'That Porcelain runs a version this app cannot talk to. Update both to the same version.'
-          : 'The remote paired but did not answer afterwards. Try again.',
+    return Promise.reject(
+      new ConnectionError({ message: 'That link is for this computer.' }),
     );
-  return {
-    environmentId: link.environmentId,
-    name: status.name,
-    address: link.address,
-    credential,
-    deviceId,
-  };
+  return runRequest(
+    pairRemote(pairingPlatform, value),
+    AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+  );
 }
 
 export function useAddRemote() {
@@ -70,10 +46,10 @@ export function useAddRemote() {
 }
 
 async function forgetRemote(remote: Remote) {
-  if (!(await saveFileDrafts(remote.environmentId)))
-    throw new ConnectionError(unsavedDraftsMessage);
+  if (!(await Effect.runPromise(saveFileDrafts(remote.environmentId))))
+    throw new ConnectionError({ message: UNSAVED_DRAFTS_MESSAGE });
   useRemotesStore.getState().forget(remote.environmentId);
-  dropFileDrafts(remote.environmentId);
+  await Effect.runPromise(dropFileDrafts(remote.environmentId));
   return remote;
 }
 
@@ -83,7 +59,7 @@ export function useForgetRemote() {
     mutationFn: forgetRemote,
     onSuccess: (remote) =>
       client.removeQueries({
-        queryKey: remoteStatusQueryOptions(remote).queryKey,
+        queryKey: remoteStatusQueryOptions(pairingPlatform, remote).queryKey,
       }),
   });
   return {
@@ -98,6 +74,6 @@ export function useRecheckRemote() {
   const client = useQueryClient();
   return (remote: Remote) =>
     client.invalidateQueries({
-      queryKey: remoteStatusQueryOptions(remote).queryKey,
+      queryKey: remoteStatusQueryOptions(pairingPlatform, remote).queryKey,
     });
 }

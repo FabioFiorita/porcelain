@@ -1,11 +1,21 @@
-import { reviewMcpEndpoint } from '@porcelain/contracts/access';
-import type { Endpoint } from '@porcelain/contracts/shared';
+import { nativeOperation } from '@porcelain/effects';
+import { Cause, Effect, Exit, Schema } from 'effect';
+import {
+  HttpClient,
+  HttpClientRequest,
+  HttpClientResponse,
+  HttpClientError,
+} from 'effect/http';
+import { HttpApiClient } from 'effect/http-api';
+import { OwnerAccessApi, ReviewMcpApi } from '@porcelain/contracts/access';
+import type { HttpMethod } from 'effect/http';
 import { request as httpRequest } from 'node:http';
+import type { IncomingHttpHeaders } from 'node:http';
 import { ownerSocketPath } from '../config/owner-socket-settings.ts';
 import { OwnerRequestError } from './errors/owner-request-error.ts';
 import { OwnerSocketTimeoutError } from './errors/owner-socket-timeout-error.ts';
 
-type OwnerMethod = Endpoint['method'];
+type OwnerMethod = HttpMethod.HttpMethod;
 
 type OwnerExchange = {
   method: OwnerMethod;
@@ -14,9 +24,10 @@ type OwnerExchange = {
   headers?: Record<string, string> | undefined;
   timeoutMs: number;
   timeoutMessage: string;
+  signal?: AbortSignal;
 };
 
-type OwnerAnswer = { status: number; body: string };
+type OwnerAnswer = { status: number; body: string; headers: Headers };
 
 function exchange(
   socketPath: string,
@@ -30,6 +41,7 @@ function exchange(
         method: call.method,
         timeout: call.timeoutMs,
         agent: false,
+        ...(call.signal === undefined ? {} : { signal: call.signal }),
         headers:
           call.body === undefined
             ? (call.headers ?? {})
@@ -45,6 +57,7 @@ function exchange(
         response.on('end', () =>
           resolve({
             status: response.statusCode ?? 0,
+            headers: responseHeaders(response.headers),
             body: Buffer.concat(chunks).toString('utf8'),
           }),
         );
@@ -72,52 +85,103 @@ function reasonOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-function parsedJson(text: string): unknown {
-  try {
-    return JSON.parse(text);
-  } catch {
-    return undefined;
-  }
+function responseHeaders(headers: IncomingHttpHeaders): Headers {
+  const result = new Headers();
+  for (const [name, value] of Object.entries(headers))
+    if (value !== undefined)
+      result.set(name, Array.isArray(value) ? value.join(', ') : value);
+  return result;
 }
 
-function messageFrom(answer: OwnerAnswer): string {
-  const body = parsedJson(answer.body);
-  return body &&
-    typeof body === 'object' &&
-    'message' in body &&
-    typeof body.message === 'string'
-    ? body.message
-    : `The server answered ${answer.status || 'nothing'}.`;
-}
-
-export async function askOwner(
-  dataDirectory: string,
-  endpoint: Pick<Endpoint, 'method' | 'path'>,
-  body: unknown,
-  timeoutMs: number,
-): Promise<unknown> {
+export function ownerHttpClient(dataDirectory: string, timeoutMs: number) {
   const socketPath = ownerSocketPath(dataDirectory);
-  let answer: OwnerAnswer;
-  try {
-    answer = await exchange(socketPath, {
-      method: endpoint.method,
-      path: endpoint.path,
-      body: body === undefined ? undefined : JSON.stringify(body),
-      timeoutMs,
-      timeoutMessage: 'The server did not answer in time.',
-    });
-  } catch (error) {
-    throw new OwnerRequestError(
-      socketAbsent(error)
-        ? `Porcelain is not running for ${dataDirectory}.`
-        : reasonOf(error),
-    );
+  return HttpClient.mapRequest(
+    HttpClient.make((request, url, signal) => {
+      if (request.body._tag !== 'Empty' && request.body._tag !== 'Uint8Array')
+        return Effect.fail(
+          new HttpClientError.HttpClientError({
+            reason: new HttpClientError.EncodeError({
+              request,
+              description: 'The owner socket accepts only JSON request bodies.',
+            }),
+          }),
+        );
+      return nativeOperation(() =>
+        exchange(socketPath, {
+          method: request.method,
+          path: `${url.pathname}${url.search}`,
+          headers: request.headers,
+          ...(request.body._tag === 'Uint8Array'
+            ? { body: new TextDecoder().decode(request.body.body) }
+            : {}),
+          timeoutMs,
+          timeoutMessage: 'The server did not answer in time.',
+          signal,
+        }),
+      ).pipe(
+        Effect.map((answer) =>
+          HttpClientResponse.fromWeb(
+            request,
+            new Response(answer.status === 204 ? null : answer.body, {
+              status: answer.status,
+              headers: answer.headers,
+            }),
+          ),
+        ),
+        Effect.catchDefect((cause) =>
+          Effect.fail(
+            new HttpClientError.HttpClientError({
+              reason: new HttpClientError.TransportError({
+                request,
+                cause: new OwnerRequestError(
+                  socketAbsent(cause)
+                    ? `Porcelain is not running for ${dataDirectory}.`
+                    : reasonOf(cause),
+                ),
+              }),
+            }),
+          ),
+        ),
+      );
+    }),
+    HttpClientRequest.prependUrl('http://porcelain-owner.invalid'),
+  );
+}
+
+export function ownerClient(dataDirectory: string, timeoutMs: number) {
+  return Effect.runSync(
+    HttpApiClient.makeWith(OwnerAccessApi, {
+      httpClient: ownerHttpClient(dataDirectory, timeoutMs),
+    }),
+  );
+}
+
+export async function runOwner<A, E>(request: Effect.Effect<A, E>): Promise<A> {
+  const exit = await Effect.runPromiseExit(request);
+  if (Exit.isSuccess(exit)) return exit.value;
+  const error = Cause.squash(exit.cause);
+  if (HttpClientError.isHttpClientError(error)) {
+    if (error.reason._tag === 'TransportError')
+      throw new OwnerRequestError(reasonOf(error.reason.cause));
+    if (error.response !== undefined) {
+      const body: unknown = await Effect.runPromise(
+        Effect.orElseSucceed(error.response.json, () => undefined),
+      );
+      const message =
+        body &&
+        typeof body === 'object' &&
+        'message' in body &&
+        typeof body.message === 'string'
+          ? body.message
+          : `The server answered ${error.response.status || 'nothing'}.`;
+      throw new OwnerRequestError(message);
+    }
   }
-  if (answer.status !== 200) throw new OwnerRequestError(messageFrom(answer));
-  const parsed = parsedJson(answer.body);
-  if (parsed === undefined)
-    throw new OwnerRequestError('The server answered unrecognizably.');
-  return parsed;
+  throw new OwnerRequestError(
+    Schema.isSchemaError(error)
+      ? 'The server answered unrecognizably.'
+      : reasonOf(error),
+  );
 }
 
 export async function relayToOwner(
@@ -128,8 +192,8 @@ export async function relayToOwner(
 ): Promise<OwnerAnswer> {
   try {
     return await exchange(socketPath, {
-      method: reviewMcpEndpoint.method,
-      path: reviewMcpEndpoint.path,
+      method: ReviewMcpApi.groups.reviewMcp.endpoints.reviewMcp.method,
+      path: ReviewMcpApi.groups.reviewMcp.endpoints.reviewMcp.path,
       body: JSON.stringify(message),
       headers: {
         accept: 'application/json, text/event-stream',

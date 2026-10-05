@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { FilePreferenceLimitError } from '@porcelain/projects/errors';
 import { InMemoryFilePreferenceStore } from '../../spec/fakes/in-memory-file-preference-store.ts';
@@ -19,12 +20,14 @@ describe('SetFilePreferenceService', () => {
   it('pins a path and answers the full list', () => {
     const { service } = setup();
     expect(
-      service.execute({
-        projectId: project.id,
-        path: 'README.md',
-        flag: 'pinned',
-        value: true,
-      }),
+      Effect.runSync(
+        service.execute({
+          projectId: project.id,
+          path: 'README.md',
+          flag: 'pinned',
+          value: true,
+        }),
+      ),
     ).toEqual({
       preferences: [{ path: 'README.md', pinned: true, hidden: false }],
       changed: true,
@@ -33,19 +36,23 @@ describe('SetFilePreferenceService', () => {
 
   it('keeps the other flag when one flag changes', () => {
     const { service } = setup();
-    service.execute({
-      projectId: project.id,
-      path: 'a.md',
-      flag: 'pinned',
-      value: true,
-    });
-    expect(
+    Effect.runSync(
       service.execute({
         projectId: project.id,
         path: 'a.md',
-        flag: 'hidden',
+        flag: 'pinned',
         value: true,
       }),
+    );
+    expect(
+      Effect.runSync(
+        service.execute({
+          projectId: project.id,
+          path: 'a.md',
+          flag: 'hidden',
+          value: true,
+        }),
+      ),
     ).toEqual({
       preferences: [{ path: 'a.md', pinned: true, hidden: true }],
       changed: true,
@@ -54,19 +61,23 @@ describe('SetFilePreferenceService', () => {
 
   it('forgets a path once neither flag is set', () => {
     const { preferences, service } = setup();
-    service.execute({
-      projectId: project.id,
-      path: 'a.md',
-      flag: 'pinned',
-      value: true,
-    });
-    expect(
+    Effect.runSync(
       service.execute({
         projectId: project.id,
         path: 'a.md',
         flag: 'pinned',
-        value: false,
+        value: true,
       }),
+    );
+    expect(
+      Effect.runSync(
+        service.execute({
+          projectId: project.id,
+          path: 'a.md',
+          flag: 'pinned',
+          value: false,
+        }),
+      ),
     ).toEqual({ preferences: [], changed: true });
     expect(preferences.count({ projectId: project.id })).toBe(0);
   });
@@ -74,31 +85,37 @@ describe('SetFilePreferenceService', () => {
   it('stores nothing and reports no change when clearing a flag on a path without preferences', () => {
     const { preferences, service } = setup();
     expect(
-      service.execute({
-        projectId: project.id,
-        path: 'a.md',
-        flag: 'hidden',
-        value: false,
-      }).changed,
+      Effect.runSync(
+        service.execute({
+          projectId: project.id,
+          path: 'a.md',
+          flag: 'hidden',
+          value: false,
+        }),
+      ).changed,
     ).toBe(false);
     expect(preferences.count({ projectId: project.id })).toBe(0);
   });
 
   it('reports no change when a flag is set to the value it already has', () => {
     const { service } = setup();
-    service.execute({
-      projectId: project.id,
-      path: 'a.md',
-      flag: 'pinned',
-      value: true,
-    });
-    expect(
+    Effect.runSync(
       service.execute({
         projectId: project.id,
         path: 'a.md',
         flag: 'pinned',
         value: true,
       }),
+    );
+    expect(
+      Effect.runSync(
+        service.execute({
+          projectId: project.id,
+          path: 'a.md',
+          flag: 'pinned',
+          value: true,
+        }),
+      ),
     ).toEqual({
       preferences: [{ path: 'a.md', pinned: true, hidden: false }],
       changed: false,
@@ -113,12 +130,14 @@ describe('SetFilePreferenceService', () => {
         preference: { path: `f${index}`, pinned: true, hidden: false },
       });
     expect(() =>
-      service.execute({
-        projectId: project.id,
-        path: 'new.md',
-        flag: 'pinned',
-        value: true,
-      }),
+      Effect.runSync(
+        service.execute({
+          projectId: project.id,
+          path: 'new.md',
+          flag: 'pinned',
+          value: true,
+        }),
+      ),
     ).toThrow(FilePreferenceLimitError);
     expect(
       preferences.find({ projectId: project.id, path: 'new.md' }),
@@ -132,12 +151,14 @@ describe('SetFilePreferenceService', () => {
         projectId: project.id,
         preference: { path: `f${index}`, pinned: true, hidden: false },
       });
-    service.execute({
-      projectId: project.id,
-      path: 'last.md',
-      flag: 'pinned',
-      value: true,
-    });
+    Effect.runSync(
+      service.execute({
+        projectId: project.id,
+        path: 'last.md',
+        flag: 'pinned',
+        value: true,
+      }),
+    );
     expect(preferences.count({ projectId: project.id })).toBe(LIMIT);
   });
 
@@ -148,23 +169,27 @@ describe('SetFilePreferenceService', () => {
         projectId: project.id,
         preference: { path: `f${index}`, pinned: true, hidden: false },
       });
-    service.execute({
-      projectId: project.id,
-      path: 'f0',
-      flag: 'hidden',
-      value: true,
-    });
+    Effect.runSync(
+      service.execute({
+        projectId: project.id,
+        path: 'f0',
+        flag: 'hidden',
+        value: true,
+      }),
+    );
     expect(preferences.find({ projectId: project.id, path: 'f0' })).toEqual({
       path: 'f0',
       pinned: true,
       hidden: true,
     });
-    service.execute({
-      projectId: project.id,
-      path: 'f1',
-      flag: 'pinned',
-      value: false,
-    });
+    Effect.runSync(
+      service.execute({
+        projectId: project.id,
+        path: 'f1',
+        flag: 'pinned',
+        value: false,
+      }),
+    );
     expect(preferences.count({ projectId: project.id })).toBe(LIMIT - 1);
   });
 });

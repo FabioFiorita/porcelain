@@ -1,17 +1,17 @@
 import type { ReviewEvidence } from './review-evidence.ts';
-import type { Review, ReviewDraft } from './review.ts';
+import type { Review, ValidatedReviewDraft } from './review.ts';
 import type { ProofFileReads } from './review-proof.ts';
 
 export type PublishReviewInput = {
   worktreeId: string;
-  draft: ReviewDraft;
+  draft: ValidatedReviewDraft;
   evidence: ReviewEvidence;
   proofFiles?: ProofFileReads | undefined;
 };
 
 export type PublishReviewResult = {
   review: Review;
-  warnings: SummaryStyleWarning[];
+  warnings: readonly SummaryStyleWarning[];
 };
 
 export type SummaryStyleWarning = 'missing-style';

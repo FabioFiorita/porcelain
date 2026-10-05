@@ -1,3 +1,5 @@
+import { Cause, Effect, Exit } from 'effect';
+import { withSignal } from '@porcelain/effects';
 import { describe, expect, it } from 'vitest';
 import { GitWorktreeListingReader } from './git-worktree-listing-reader.ts';
 
@@ -15,7 +17,7 @@ function reader(failure: unknown) {
       readOriginUrl: async () => null,
     }),
     sharedReads: {
-      run: (_key, work, signal) => work(signal ?? new AbortController().signal),
+      run: (_key, work) => work(),
     },
     launchLimit: { run: (work) => work() },
     timeoutMs: 5000,
@@ -30,7 +32,7 @@ describe('GitWorktreeListingReader', () => {
   it('reports a project whose listing fails unexpectedly as unavailable and logs why', async () => {
     const failure = new Error('git output could not be parsed');
     const { listing, reports } = reader(failure);
-    expect(await listing.list(project)).toEqual({
+    expect(await Effect.runPromise(listing.list(project))).toEqual({
       kind: 'unavailable',
       projectId: project.id,
     });
@@ -43,7 +45,7 @@ describe('GitWorktreeListingReader', () => {
     const { listing, reports } = reader(
       Object.assign(new Error('no such folder'), { code: 'ENOENT' }),
     );
-    expect(await listing.list(project)).toEqual({
+    expect(await Effect.runPromise(listing.list(project))).toEqual({
       kind: 'unavailable',
       projectId: project.id,
     });
@@ -53,7 +55,12 @@ describe('GitWorktreeListingReader', () => {
   it('stops instead of reporting the project when its caller cancels', async () => {
     const cancelled = AbortSignal.abort(new Error('cancelled'));
     const { listing, reports } = reader(new Error('interrupted'));
-    await expect(listing.list(project, cancelled)).rejects.toThrow('cancelled');
+    const exit = await Effect.runPromiseExit(
+      withSignal(listing.list(project), cancelled),
+    );
+    expect(Exit.isFailure(exit) && Cause.hasInterruptsOnly(exit.cause)).toBe(
+      true,
+    );
     expect(reports).toEqual([]);
   });
 });

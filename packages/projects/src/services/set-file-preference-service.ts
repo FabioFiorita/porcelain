@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { FilePreferenceLimitError } from '../errors/file-preference-limit-error.ts';
 import type { FilePreference } from '../models/file-preference.ts';
 import type {
@@ -19,30 +20,38 @@ export class SetFilePreferenceService {
     this.options = options;
   }
 
-  execute(input: SetFilePreferenceInput): SetFilePreferenceResult {
-    const { projectId, path } = input;
-    const existing = this.filePreference.find({ projectId, path });
-    const next: FilePreference = {
-      path,
-      pinned: existing?.pinned ?? false,
-      hidden: existing?.hidden ?? false,
-      [input.flag]: input.value,
-    };
-    const changed =
-      (existing?.pinned ?? false) !== next.pinned ||
-      (existing?.hidden ?? false) !== next.hidden;
-    if (!changed)
+  execute(
+    input: SetFilePreferenceInput,
+  ): Effect.Effect<SetFilePreferenceResult, FilePreferenceLimitError> {
+    return Effect.gen({ self: this }, function* () {
+      const { projectId, path } = input;
+      const existing = this.filePreference.find({ projectId, path });
+      const next: FilePreference = {
+        path,
+        pinned: existing?.pinned ?? false,
+        hidden: existing?.hidden ?? false,
+        [input.flag]: input.value,
+      };
+      const changed =
+        (existing?.pinned ?? false) !== next.pinned ||
+        (existing?.hidden ?? false) !== next.hidden;
+      if (!changed)
+        return {
+          preferences: this.filePreference.list({ projectId }),
+          changed,
+        };
+      if (!next.pinned && !next.hidden) {
+        this.filePreference.remove({ projectId, path });
+      } else {
+        if (
+          !existing &&
+          this.filePreference.count({ projectId }) >=
+            this.options.maxPreferences
+        )
+          return yield* Effect.fail(new FilePreferenceLimitError());
+        this.filePreference.save({ projectId, preference: next });
+      }
       return { preferences: this.filePreference.list({ projectId }), changed };
-    if (!next.pinned && !next.hidden) {
-      this.filePreference.remove({ projectId, path });
-    } else {
-      if (
-        !existing &&
-        this.filePreference.count({ projectId }) >= this.options.maxPreferences
-      )
-        throw new FilePreferenceLimitError();
-      this.filePreference.save({ projectId, preference: next });
-    }
-    return { preferences: this.filePreference.list({ projectId }), changed };
+    });
   }
 }

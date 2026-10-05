@@ -1,3 +1,6 @@
+import { Effect } from 'effect';
+import type { NoWorktreeAtPathError } from '@porcelain/projects/errors';
+import type { ProjectNotFoundError } from '@porcelain/projects/errors';
 import type {
   FindWorktreeByPathRequest,
   FindWorktreeByPathResponse,
@@ -9,16 +12,15 @@ import type {
   ListRegisteredProjectsService,
 } from '@porcelain/projects/services';
 import { worktreeAtPath } from '@porcelain/projects/rules';
-import type { JobWork } from '../../ports/job-work.ts';
+import type { JobRunner } from '../../ports/job-runner.ts';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
 
 export class FindWorktreeByPathUseCase {
   private readonly listRegisteredProjects: ListRegisteredProjectsService;
   private readonly listKnownWorktrees: ListKnownWorktreesService;
   private readonly findWorktreeAtPath: FindWorktreeAtPathService;
-  private readonly refreshInventory: JobWork;
+  private readonly refreshInventory: JobRunner<ProjectNotFoundError>;
   private readonly lanes: Lanes;
   private readonly laneKeys: LaneKeys;
 
@@ -26,7 +28,7 @@ export class FindWorktreeByPathUseCase {
     listRegisteredProjects: ListRegisteredProjectsService,
     listKnownWorktrees: ListKnownWorktreesService,
     findWorktreeAtPath: FindWorktreeAtPathService,
-    refreshInventory: JobWork,
+    refreshInventory: JobRunner<ProjectNotFoundError>,
     lanes: Lanes,
     laneKeys: LaneKeys,
   ) {
@@ -38,28 +40,30 @@ export class FindWorktreeByPathUseCase {
     this.laneKeys = laneKeys;
   }
 
-  async execute(
+  execute(
     input: FindWorktreeByPathRequest,
-    context: OperationContext,
-  ): Promise<FindWorktreeByPathResponse> {
-    const known = await this.listings(context);
-    const worktreeId = worktreeAtPath(input.path, known);
-    if (worktreeId !== undefined) return { worktreeId };
-    await this.refreshInventory.execute(context);
-    return this.findWorktreeAtPath.execute({
-      path: input.path,
-      listings: await this.listings(context),
+  ): Effect.Effect<
+    FindWorktreeByPathResponse,
+    NoWorktreeAtPathError | ProjectNotFoundError
+  > {
+    return Effect.gen({ self: this }, function* () {
+      const known = yield* this.listings();
+      const worktreeId = worktreeAtPath(input.path, known);
+      if (worktreeId !== undefined) return { worktreeId };
+      yield* this.refreshInventory.execute();
+      return yield* this.findWorktreeAtPath.execute({
+        path: input.path,
+        listings: yield* this.listings(),
+      });
     });
   }
 
-  private listings(context: OperationContext): Promise<ProjectWorktrees[]> {
-    return this.lanes.run(
-      this.laneKeys.inventory(),
-      'read',
-      async () =>
-        this.listKnownWorktrees.execute(this.listRegisteredProjects.execute())
-          .listings,
-      { callerSignal: context.signal },
+  private listings(): Effect.Effect<ProjectWorktrees[]> {
+    return this.lanes.run(this.laneKeys.inventory(), 'read', () =>
+      Effect.gen({ self: this }, function* () {
+        const inventory = yield* this.listRegisteredProjects.execute();
+        return (yield* this.listKnownWorktrees.execute(inventory)).listings;
+      }),
     );
   }
 }

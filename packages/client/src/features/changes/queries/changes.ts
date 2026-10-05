@@ -1,3 +1,4 @@
+import { runRequest } from '../../../shared/api/effect-client.ts';
 import { assertCurrentAnswer } from '../../../shared/api/stale-answer.ts';
 import { queryKeys } from '../../../shared/api/query-keys.ts';
 import type { QueryFunctionContext } from '@tanstack/query-core';
@@ -17,10 +18,12 @@ export function changesQueryOptions(
     refetchOnReconnect: false,
     queryFn: async ({ signal }: Pick<QueryFunctionContext, 'signal'>) => {
       const connected = connection.request(signal);
-      const result = await changesApi(connection).list({
-        signal: connected.signal,
-        worktreeId: scope.worktreeId,
-      });
+      const result = await runRequest(
+        changesApi(connection).readChanges({
+          params: { worktreeId: scope.worktreeId },
+        }),
+        connected.signal,
+      );
       assertCurrentAnswer(
         connected.signal,
         result.environmentId === connection.environmentId &&

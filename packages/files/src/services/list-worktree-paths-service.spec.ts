@@ -1,3 +1,5 @@
+import { Effect } from 'effect';
+import { withReadLease } from '@porcelain/effects/worktree';
 import { describe, expect, it } from 'vitest';
 import { DirectoryTooLargeError } from '@porcelain/files/errors';
 import { InMemoryWorktreePathsReader } from '../../spec/fakes/in-memory-worktree-paths-reader.ts';
@@ -13,7 +15,11 @@ describe('ListWorktreePathsService', () => {
         paths: ['README.md', 'src/app.ts'],
       }),
     );
-    await expect(service.execute({ worktreeId })).resolves.toEqual({
+    await expect(
+      Effect.runPromise(
+        withReadLease(worktreeId, service.execute({ worktreeId })),
+      ),
+    ).resolves.toEqual({
       worktreeId,
       paths: ['README.md', 'src/app.ts'],
     });
@@ -23,8 +29,10 @@ describe('ListWorktreePathsService', () => {
     const service = new ListWorktreePathsService(
       new InMemoryWorktreePathsReader({ kind: 'too-large' }),
     );
-    await expect(service.execute({ worktreeId })).rejects.toThrow(
-      DirectoryTooLargeError,
-    );
+    await expect(
+      Effect.runPromise(
+        withReadLease(worktreeId, service.execute({ worktreeId })),
+      ),
+    ).rejects.toThrow(DirectoryTooLargeError);
   });
 });

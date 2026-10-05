@@ -1,8 +1,8 @@
+import { Effect } from 'effect';
 import type { ReadOwnerStatusService } from '@porcelain/access/services';
 import type { ReadOwnerStatusResponse } from '@porcelain/contracts/access';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
 
 export class ReadOwnerStatusUseCase {
   private readonly readOwnerStatus: ReadOwnerStatusService;
@@ -19,12 +19,13 @@ export class ReadOwnerStatusUseCase {
     this.laneKeys = laneKeys;
   }
 
-  execute(context: OperationContext): Promise<ReadOwnerStatusResponse> {
-    return this.lanes.run(
-      this.laneKeys.access(),
-      'read',
-      async () => this.readOwnerStatus.execute(),
-      { callerSignal: context.signal },
-    );
+  execute(): Effect.Effect<ReadOwnerStatusResponse, never> {
+    return Effect.gen({ self: this }, function* () {
+      return yield* this.lanes.run(this.laneKeys.access(), 'read', () =>
+        Effect.gen({ self: this }, function* () {
+          return yield* this.readOwnerStatus.execute();
+        }),
+      );
+    });
   }
 }

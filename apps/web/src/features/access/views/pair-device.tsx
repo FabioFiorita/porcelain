@@ -16,12 +16,12 @@ import { PAIRING_LABEL_MAX_LENGTH } from '@/config/limits';
 import { copyText } from '@/shared/workspace/copy';
 import { submitForm } from '@/shared/lib/submit-form';
 import { useIssuePairing } from '../commands/share';
-import { connectionErrorMessage } from '../rules/connection-error-message';
+import { connectionErrorMessage } from '@porcelain/client/access/rules';
 import {
   pairingAddresses,
   remoteRouteTitles,
   type RemoteAccess,
-} from '../rules/share';
+} from '@porcelain/client/access/rules';
 import { PairingQr } from './pairing-qr';
 import { type Connection } from '@/shared/workspace/connection';
 

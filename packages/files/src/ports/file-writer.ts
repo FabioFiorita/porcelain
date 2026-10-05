@@ -1,3 +1,5 @@
+import type { WorktreeWrite } from '@porcelain/effects/worktree';
+import type { Effect } from 'effect';
 import type { FileLocation } from '../models/file-location.ts';
 import type {
   EntryCopyInput,
@@ -8,9 +10,11 @@ import type {
 } from '../models/file-write.ts';
 
 export interface FileWriter {
-  write(input: FileWriteInput, signal?: AbortSignal): Promise<FileWrite>;
-  create(input: EntryCreateInput, signal?: AbortSignal): Promise<FileWrite>;
-  move(input: EntryMoveInput, signal?: AbortSignal): Promise<FileWrite>;
-  trash(input: FileLocation, signal?: AbortSignal): Promise<FileWrite>;
-  copy(input: EntryCopyInput, signal?: AbortSignal): Promise<FileWrite>;
+  write(input: FileWriteInput): Effect.Effect<FileWrite, never, WorktreeWrite>;
+  create(
+    input: EntryCreateInput,
+  ): Effect.Effect<FileWrite, never, WorktreeWrite>;
+  move(input: EntryMoveInput): Effect.Effect<FileWrite, never, WorktreeWrite>;
+  trash(input: FileLocation): Effect.Effect<FileWrite, never, WorktreeWrite>;
+  copy(input: EntryCopyInput): Effect.Effect<FileWrite, never, WorktreeWrite>;
 }

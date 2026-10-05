@@ -1,3 +1,13 @@
+import type { InvalidLineRangeError } from '@porcelain/kernel/errors';
+import type {
+  CommentIdentityConflictError,
+  CommentLimitExceededError,
+  CommentRevisionMismatchError,
+  UnsupportedCommentComparisonError,
+} from '@porcelain/reviews/errors';
+import { Effect } from 'effect';
+import type { WorktreeAccess } from '../../runtime/worktree-access.ts';
+import type { WorktreeAccessFailure } from '../../ports/worktree-access-failure.ts';
 import type {
   CommentAuthor,
   CreateCommentThreadRequest,
@@ -6,48 +16,44 @@ import type {
 import type { WorktreeParams } from '@porcelain/contracts/shared';
 import type { CreateCommentThreadService } from '@porcelain/reviews/services';
 import type { EventPublisher } from '../../ports/event-publisher.ts';
-import type { LaneKeys } from '../../runtime/lane-keys.ts';
-import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
-import type { CheckWorktreeUseCasePort } from '../../ports/check-worktree-use-case-port.ts';
 
 export class CreateCommentThreadUseCase {
-  private readonly checkWorktree: CheckWorktreeUseCasePort;
+  private readonly access: WorktreeAccess;
   private readonly createCommentThread: CreateCommentThreadService;
-  private readonly lanes: Lanes;
-  private readonly laneKeys: LaneKeys;
   private readonly events: EventPublisher;
 
   constructor(
-    checkWorktree: CheckWorktreeUseCasePort,
+    access: WorktreeAccess,
     createCommentThread: CreateCommentThreadService,
-    lanes: Lanes,
-    laneKeys: LaneKeys,
     events: EventPublisher,
   ) {
-    this.checkWorktree = checkWorktree;
+    this.access = access;
     this.createCommentThread = createCommentThread;
-    this.lanes = lanes;
-    this.laneKeys = laneKeys;
     this.events = events;
   }
 
-  async execute(
+  execute(
     input: WorktreeParams & CreateCommentThreadRequest & CommentAuthor,
-    context: OperationContext,
-  ): Promise<CreateCommentThreadResponse> {
-    const { worktreeId } = input;
-    const worktree = await this.checkWorktree.execute(
-      { worktreeId, requireAvailableProject: false },
-      context,
+  ): Effect.Effect<
+    CreateCommentThreadResponse,
+    | WorktreeAccessFailure
+    | CommentIdentityConflictError
+    | CommentLimitExceededError
+    | InvalidLineRangeError
+    | CommentRevisionMismatchError
+    | UnsupportedCommentComparisonError
+  > {
+    return this.access.transaction(
+      input.worktreeId,
+      () => Effect.void,
+      () => this.createCommentThread.execute(input),
+      () =>
+        Effect.sync(() => {
+          this.events.worktreeChanged({
+            worktreeId: input.worktreeId,
+            change: 'comments',
+          });
+        }),
     );
-    const thread = await this.lanes.run(
-      this.laneKeys.reviews(worktree),
-      'write',
-      async () => this.createCommentThread.execute(input),
-      { callerSignal: context.signal },
-    );
-    this.events.worktreeChanged({ worktreeId, change: 'comments' });
-    return thread;
   }
 }

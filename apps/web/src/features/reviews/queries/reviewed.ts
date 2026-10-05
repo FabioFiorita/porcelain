@@ -4,8 +4,11 @@ import {
   type ChangeList,
   mergeReviewChanges,
   type ReviewScope,
-} from '../rules/review';
-import { type ReviewRange, WORKTREE_RANGE } from '../rules/reviewed';
+} from '@porcelain/client/reviews/rules';
+import {
+  type ReviewRange,
+  WORKTREE_RANGE,
+} from '@porcelain/client/reviews/rules';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
 export function useReviewedMarks(

@@ -1,3 +1,5 @@
+import { Effect } from 'effect';
+import { withReadLease } from '@porcelain/effects/worktree';
 import { describe, expect, it } from 'vitest';
 import { IncompleteDiffReadError } from '@porcelain/changes/errors';
 import { ReadChangeDiffsService } from './read-change-diffs-service.ts';
@@ -21,7 +23,12 @@ describe('ReadChangeDiffsService', () => {
       ),
     );
     expect(
-      await read.execute({ worktreeId: 'w', comparisons: [a, b] }),
+      await Effect.runPromise(
+        withReadLease(
+          'w',
+          read.execute({ worktreeId: 'w', comparisons: [a, b] }),
+        ),
+      ),
     ).toEqual([
       {
         selection: { scope: 'unstaged', oldPath: 'a.md', newPath: 'a.md' },
@@ -41,7 +48,12 @@ describe('ReadChangeDiffsService', () => {
       ),
     );
     await expect(
-      read.execute({ worktreeId: 'w', comparisons: [a, b] }),
+      Effect.runPromise(
+        withReadLease(
+          'w',
+          read.execute({ worktreeId: 'w', comparisons: [a, b] }),
+        ),
+      ),
     ).rejects.toThrow(IncompleteDiffReadError);
   });
 });

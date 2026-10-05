@@ -1,9 +1,9 @@
-import type { OperationContext } from './operation-context.ts';
+import type { Effect } from 'effect';
 
 export type WorktreeChange =
   | { worktreeId: string; change: 'files'; paths: readonly string[] }
   | { worktreeId: string; change: 'git' };
 
 export interface AnnounceWorktreeChangeUseCasePort {
-  execute(input: WorktreeChange, context: OperationContext): Promise<void>;
+  execute(input: WorktreeChange): Effect.Effect<void>;
 }

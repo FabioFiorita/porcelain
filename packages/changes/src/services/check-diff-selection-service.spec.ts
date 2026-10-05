@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import {
   SelectionMismatchError,
@@ -22,45 +23,53 @@ const service = new CheckDiffSelectionService();
 describe('CheckDiffSelectionService', () => {
   it('answers the listed comparisons and paths of a matching selection', () => {
     expect(
-      service.execute({
-        status,
-        expectedFiles: stated,
-        selections: [{ scope: 'unstaged', oldPath: 'a.md', newPath: 'a.md' }],
-      }),
+      Effect.runSync(
+        service.execute({
+          status,
+          expectedFiles: stated,
+          selections: [{ scope: 'unstaged', oldPath: 'a.md', newPath: 'a.md' }],
+        }),
+      ),
     ).toEqual({ comparisons: [modified('unstaged', 'a.md')], paths: ['a.md'] });
   });
 
   it('refuses a selection that names no path', () => {
     expect(() =>
-      service.execute({
-        status,
-        expectedFiles: stated,
-        selections: [
-          { scope: 'unstaged', oldPath: undefined, newPath: undefined },
-        ],
-      }),
+      Effect.runSync(
+        service.execute({
+          status,
+          expectedFiles: stated,
+          selections: [
+            { scope: 'unstaged', oldPath: undefined, newPath: undefined },
+          ],
+        }),
+      ),
     ).toThrow(UnnamedDiffSelectionError);
   });
 
   it('refuses a selection of a file that was not stated', () => {
     expect(() =>
-      service.execute({
-        status,
-        expectedFiles: stated,
-        selections: [
-          { scope: 'staged', oldPath: 'other.md', newPath: 'other.md' },
-        ],
-      }),
+      Effect.runSync(
+        service.execute({
+          status,
+          expectedFiles: stated,
+          selections: [
+            { scope: 'staged', oldPath: 'other.md', newPath: 'other.md' },
+          ],
+        }),
+      ),
     ).toThrow(SelectionMismatchError);
   });
 
   it('reports a changed worktree when a stated selection is no longer listed', () => {
     expect(() =>
-      service.execute({
-        status,
-        expectedFiles: stated,
-        selections: [{ scope: 'staged', oldPath: 'a.md', newPath: 'a.md' }],
-      }),
+      Effect.runSync(
+        service.execute({
+          status,
+          expectedFiles: stated,
+          selections: [{ scope: 'staged', oldPath: 'a.md', newPath: 'a.md' }],
+        }),
+      ),
     ).toThrow(WorktreeChangedError);
   });
 });

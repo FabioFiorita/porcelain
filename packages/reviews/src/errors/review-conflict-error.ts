@@ -1,7 +1,10 @@
-export class ReviewConflictError extends Error {
-  override readonly name = 'ReviewConflictError';
+import { Schema } from 'effect';
 
-  constructor() {
-    super('The review changed; reload before retrying');
+export class ReviewConflictError extends Schema.TaggedError<ReviewConflictError>()(
+  'ReviewConflictError',
+  {},
+) {
+  override get message() {
+    return 'The review changed; reload before retrying';
   }
 }

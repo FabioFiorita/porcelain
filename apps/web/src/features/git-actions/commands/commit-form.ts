@@ -4,7 +4,7 @@ import {
 } from '@porcelain/contracts/shared';
 import { useForm, useSelector } from '@tanstack/react-form';
 import { createId } from '@/shared/lib/id';
-import { resolveCommitModel } from '../rules/commit-model';
+import { resolveCommitModel } from '@porcelain/client/git-actions/rules';
 import {
   commitFormDefaults,
   type CommitFormProps,
@@ -13,9 +13,13 @@ import {
   type Drafts,
   draftIsStale,
   type Group,
-} from '../rules/commit-form';
-import { gitActionBlocker } from '../rules/status';
-import { expectationFor, receiptFailed, receiptWords } from '../rules/feedback';
+} from '@porcelain/client/git-actions/rules';
+import { gitActionBlocker } from '@porcelain/client/git-actions/rules';
+import {
+  expectationFor,
+  receiptFailed,
+  receiptWords,
+} from '@porcelain/client/git-actions/rules';
 import { useCommitState, commitRuntime } from '../store';
 import { useCommitModels } from '../queries/git-actions';
 import { useGitAction } from './run-action';
@@ -336,7 +340,7 @@ async function lookAgain(controls: ReturnType<typeof useCommitFormState>) {
   setError(null);
   try {
     await onLookAgain();
-    git.startNew();
+    await git.startNew();
     setOwnHead(null);
   } catch (error) {
     setError(error);

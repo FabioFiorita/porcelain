@@ -1,7 +1,7 @@
 import { createStore } from 'zustand/vanilla';
 import { useStore } from 'zustand';
-import type { OperationStore } from '@/shared/query/operation-store';
-import type { Drafts } from './rules/commit-form';
+import type { OperationStore } from '@porcelain/client/git-actions';
+import type { Drafts } from '@porcelain/client/git-actions/rules';
 
 export function useGitOperation(operations: OperationStore, key: string) {
   const snapshot = () => operations.get(key);

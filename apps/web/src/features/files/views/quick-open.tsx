@@ -6,12 +6,12 @@ import {
   CommandItem,
   CommandList,
 } from '@/components/ui/command';
-import type { FilesScope } from '../rules/scope';
+import type { FilesScope } from '@porcelain/client/files/rules';
 import { useWorktreePaths } from '../queries/paths';
 import { quickOpenDialog, quickOpenOperations } from '../overlays';
 import { useQuickOpenActions } from '../commands/quick-open';
 import { useQuickOpenShortcut } from '../adapters/quick-open-shortcut';
-import { quickOpenMatches } from '../rules/quick-open';
+import { quickOpenMatches } from '@porcelain/client/files/rules';
 import { type Connection } from '@/shared/workspace/connection';
 
 export function QuickOpen({

@@ -2,21 +2,27 @@ import type {
   ReadChangesResponse,
   ReadGitStatusResponse,
 } from '@porcelain/contracts/changes';
-import type { ActionInput, GitScope } from '../rules/git-action';
+import type {
+  ActionInput,
+  GitScope,
+} from '@porcelain/client/git-actions/rules';
 import {
   expectationFor,
   gitErrorMessage,
   type GitNotice,
   receiptFailed,
   receiptWords,
-} from '../rules/feedback';
+} from '@porcelain/client/git-actions/rules';
 import {
   type NetworkAction,
   networkInput,
   networkTarget,
   networkTitle,
-} from '../rules/network';
-import { type GitActionStatus, statusFromChanges } from '../rules/status';
+} from '@porcelain/client/git-actions/rules';
+import {
+  type GitActionStatus,
+  statusFromChanges,
+} from '@porcelain/client/git-actions/rules';
 import { restoreStash } from './restore-stash';
 import { useGitAction } from './run-action';
 import { type ConnectionContext } from '@/shared/workspace/connection';

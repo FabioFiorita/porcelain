@@ -1,5 +1,7 @@
+import type { Effect } from 'effect';
+import { nativeOperation } from '@porcelain/effects';
 import type { DiscoveryResult, GitFactory } from '@porcelain/git/discovery';
-import { isRepositoryUnavailable } from '@porcelain/git/discovery';
+import { isRepositoryUnavailable } from '@porcelain/git/errors';
 import type {
   ListableProject,
   ListedWorktree,
@@ -26,11 +28,10 @@ export class GitWorktreeListingReader implements WorktreeListingReader {
     this.options = options;
   }
 
-  list(input: ListableProject, signal?: AbortSignal): Promise<WorktreeListing> {
+  list(input: ListableProject): Effect.Effect<WorktreeListing> {
     return this.options.sharedReads.run(
       `worktrees\0${input.id}\0${input.commonDirectory}`,
-      async (shared) => this.listNow(input, shared),
-      signal,
+      () => nativeOperation((signal) => this.listNow(input, signal)),
     );
   }
 

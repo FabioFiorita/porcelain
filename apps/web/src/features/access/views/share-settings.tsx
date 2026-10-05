@@ -1,3 +1,4 @@
+import { remoteStatusText } from '@porcelain/client/access/rules';
 import type { ReactNode } from 'react';
 import { FieldLegend, FieldSet } from '@/components/ui/field';
 import {
@@ -11,15 +12,15 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Spinner } from '@/components/ui/spinner';
 import { desktopShell } from '@/shared/shell';
 import { useRemoteAccess } from '../queries/share';
-import { connectionErrorMessage } from '../rules/connection-error-message';
-import type { Environment, RemoteAccess } from '../rules/share';
+import { connectionErrorMessage } from '@porcelain/client/access/rules';
+import type { Environment, RemoteAccess } from '@porcelain/client/access/rules';
 import {
   useAccessStore,
   useRemoteConnections,
   type RemoteConnection,
 } from '../store';
 import { useRemoteStatus } from '../queries/remotes';
-import { remoteStatusText } from '../rules/remotes';
+
 import { desktopAppUpdate } from '@/shared/adapters/desktop';
 import { EnvironmentName } from './environment-name';
 import { RemoteServiceUpdate, ServiceUpdateSettings } from './service-update';

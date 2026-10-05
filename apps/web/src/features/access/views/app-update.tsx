@@ -10,7 +10,7 @@ import {
   noUpdateMessage,
   type AppUpdateState,
 } from '../rules/app-update';
-import { connectionErrorMessage } from '../rules/connection-error-message';
+import { connectionErrorMessage } from '@porcelain/client/access/rules';
 
 export function AppUpdateSettings() {
   const update = useAppUpdate();

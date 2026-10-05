@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type {
   ListCommentThreadsInput,
   ListCommentThreadsResult,
@@ -12,8 +13,14 @@ export class ListCommentThreadsService {
     this.comments = comments;
   }
 
-  execute(input: ListCommentThreadsInput): ListCommentThreadsResult {
-    const threads = this.comments.list({ worktreeId: input.worktreeId });
-    return input.scope === 'waiting' ? threads.filter(waitsForAgent) : threads;
+  execute(
+    input: ListCommentThreadsInput,
+  ): Effect.Effect<ListCommentThreadsResult, never> {
+    return Effect.sync(() => {
+      const threads = this.comments.list({ worktreeId: input.worktreeId });
+      return input.scope === 'waiting'
+        ? threads.filter(waitsForAgent)
+        : threads;
+    });
   }
 }

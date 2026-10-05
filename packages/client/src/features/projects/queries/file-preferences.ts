@@ -1,3 +1,4 @@
+import { runRequest } from '../../../shared/api/effect-client.ts';
 import type { QueryFunctionContext } from '@tanstack/query-core';
 import type { WorktreeConnection } from '../../../shared/api/connection.ts';
 import { queryKeys } from '../../../shared/api/query-keys.ts';
@@ -15,10 +16,10 @@ export function filePreferencesQueryOptions(
     ),
     queryFn: async ({ signal }: Pick<QueryFunctionContext, 'signal'>) => {
       const connected = connection.request(signal);
-      const result = await projectsApi(connection).filePreferences.list({
-        ...connected,
-        projectId,
-      });
+      const result = await runRequest(
+        projectsApi(connection).listFilePreferences({ params: { projectId } }),
+        connected.signal,
+      );
       assertCurrentAnswer(connected.signal);
       return result;
     },

@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/context-menu';
 import { cn } from '@/shared/lib/utils';
 import { copyText } from '@/shared/workspace/copy';
-import { worktreeLabel, type Project } from '../rules/inventory';
+import { worktreeLabel, type Project } from '@porcelain/client/projects/rules';
 
 type Worktree = Project['worktrees'][number];
 

@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { environmentQueryOptions } from '@porcelain/client/access';
 import type { Remote } from '@porcelain/client/access/rules';
@@ -16,7 +17,9 @@ export function useForgetEnvironment(
     mutationFn: async () => {
       const query = environmentQueryOptions(pairingPlatform(), remote);
       await client.cancelQueries({ queryKey: query.queryKey });
-      await accessStore.getState().forget(remote.environmentId);
+      await Effect.runPromise(
+        accessStore.getState().forget(remote.environmentId),
+      );
       client.removeQueries({ queryKey: query.queryKey });
       await forgetProjectEnvironment(remote.environmentId);
     },

@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import type { CommentAuthorRole } from '@porcelain/reviews/models';
 import { InMemoryCommentStore } from '../../spec/fakes/in-memory-comment-store.ts';
@@ -45,14 +46,15 @@ describe('ListCommentThreadsService', () => {
   it('lists every thread of the worktree when no scope or the all scope is asked', () => {
     const service = setup();
     const every = ['asked', 'answered', 'followed-up', 'done'];
-    expect(ids(service.execute({ worktreeId }))).toEqual(every);
-    expect(ids(service.execute({ worktreeId, scope: 'all' }))).toEqual(every);
+    expect(ids(Effect.runSync(service.execute({ worktreeId })))).toEqual(every);
+    expect(
+      ids(Effect.runSync(service.execute({ worktreeId, scope: 'all' }))),
+    ).toEqual(every);
   });
 
   it('lists only open threads whose latest message is not from the agent when waiting is asked', () => {
-    expect(ids(setup().execute({ worktreeId, scope: 'waiting' }))).toEqual([
-      'asked',
-      'followed-up',
-    ]);
+    expect(
+      ids(Effect.runSync(setup().execute({ worktreeId, scope: 'waiting' }))),
+    ).toEqual(['asked', 'followed-up']);
   });
 });

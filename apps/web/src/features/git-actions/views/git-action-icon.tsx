@@ -6,7 +6,7 @@ import {
   GitCommitHorizontalIcon,
   HistoryIcon,
 } from 'lucide-react';
-import type { GitAction } from '../rules/git-action';
+import type { GitAction } from '@porcelain/client/git-actions/rules';
 
 export function GitActionIcon({
   action,

@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type {
   AuthenticateDeviceInput,
   AuthenticateDeviceResult,
@@ -12,13 +13,17 @@ export class AuthenticateDesktopSessionService {
     this.session = session;
   }
 
-  execute(input: AuthenticateDeviceInput): AuthenticateDeviceResult {
-    if (
-      this.session === undefined ||
-      input.route !== 'loopback' ||
-      !secretMatches(this.session.secretHash, input.credential)
-    )
-      return { kind: 'refused' };
-    return { kind: 'authenticated', deviceId: this.session.deviceId };
+  execute(
+    input: AuthenticateDeviceInput,
+  ): Effect.Effect<AuthenticateDeviceResult, never> {
+    return Effect.sync(() => {
+      if (
+        this.session === undefined ||
+        input.route !== 'loopback' ||
+        !secretMatches(this.session.secretHash, input.credential)
+      )
+        return { kind: 'refused' };
+      return { kind: 'authenticated', deviceId: this.session.deviceId };
+    });
   }
 }

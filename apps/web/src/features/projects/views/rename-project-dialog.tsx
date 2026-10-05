@@ -13,14 +13,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Field, FieldError } from '@/components/ui/field';
 import { Spinner } from '@/components/ui/spinner';
-import { connectionErrorMessage } from '@/features/access/index';
+import { connectionErrorMessage } from '@porcelain/client/access/rules';
 import { submitForm } from '@/shared/lib/submit-form';
 import {
   renameProjectValidator,
   useRenameProject,
 } from '../commands/rename-project';
 import { renameProjectDialog } from '../overlays';
-import { projectPath, type Project } from '../rules/inventory';
+import { projectPath } from '@porcelain/client/projects/rules';
+import { type Project } from '@porcelain/client/projects/rules';
 import { type Connection } from '@/shared/workspace/connection';
 
 export function RenameProjectDialog({

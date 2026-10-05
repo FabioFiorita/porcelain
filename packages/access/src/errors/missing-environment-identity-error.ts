@@ -1,6 +1,10 @@
-export class MissingEnvironmentIdentityError extends Error {
-  override readonly name = 'MissingEnvironmentIdentityError';
-  constructor() {
-    super('This server has no environment identity.');
+import { Schema } from 'effect';
+
+export class MissingEnvironmentIdentityError extends Schema.TaggedError<MissingEnvironmentIdentityError>()(
+  'MissingEnvironmentIdentityError',
+  {},
+) {
+  override get message() {
+    return 'This server has no environment identity.';
   }
 }

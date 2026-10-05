@@ -1,3 +1,4 @@
+import * as Schema from 'effect/Schema';
 import { randomUUID } from 'node:crypto';
 import {
   publishReviewResponseSchema,
@@ -89,7 +90,9 @@ test('publishing checks, a screenshot and a link keeps the screenshot as a PNG o
 
   expect(response.status).toBe(200);
   expect(response.body).toEqual(
-    expect.schemaMatching(publishReviewResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(Schema.toEncoded(publishReviewResponseSchema)),
+    ),
   );
   const proof = record(record(record(response.body).review).proof);
   expect(proof.checks).toStrictEqual(checks);
@@ -115,7 +118,9 @@ test('a reviewer reads a kept screenshot by its id as the published bytes', asyn
 
   expect(response.status).toBe(200);
   expect(response.body).toEqual(
-    expect.schemaMatching(readProofFileResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(Schema.toEncoded(readProofFileResponseSchema)),
+    ),
   );
   expect(response.body).toStrictEqual({
     id: proofId,

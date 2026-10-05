@@ -1,3 +1,5 @@
+import { WorktreeAccess } from '../runtime/worktree-access.ts';
+import { gitActionsRoutes } from '../http/routes/git-actions/git-actions-api.ts';
 import { ConfirmDiffObservationService } from '@porcelain/changes/services';
 import type {
   CommitDraftSource,
@@ -54,9 +56,15 @@ export function composeGitActions(
     clock,
     limits.receipts,
   );
-  return {
+  const access = new WorktreeAccess(
+    dependencies.checkWorktree,
+    shared.confirmWorktree,
+    lanes,
+    laneKeys,
+  );
+  const useCases = {
     runGitAction: new RunGitActionUseCase(
-      dependencies.checkWorktree,
+      access,
       expireGitActionReceipts,
       new AcceptGitActionService(store, clock),
       shared.readWorktreeStatus,
@@ -97,7 +105,7 @@ export function composeGitActions(
       { deadlineMs: limits.processDeadlineMs },
     ),
     generateCommitDraft: new GenerateCommitDraftUseCase(
-      dependencies.checkWorktree,
+      access,
       shared.readWorktreeStatus,
       shared.readChangeFingerprints,
       new ConfirmDiffObservationService(),
@@ -115,7 +123,6 @@ export function composeGitActions(
         limits.commitGroups,
       ),
       lanes,
-      laneKeys,
       { deadlineMs: limits.processDeadlineMs },
     ),
     recoverInterruptedGitActions: new RecoverInterruptedGitActionsUseCase(
@@ -126,4 +133,5 @@ export function composeGitActions(
       laneKeys,
     ),
   };
+  return { ...useCases, routes: gitActionsRoutes(useCases) };
 }

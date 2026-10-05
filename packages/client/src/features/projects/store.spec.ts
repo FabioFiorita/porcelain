@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { createProjectSelectionStore } from './store.ts';
 import type { ProjectSelectionSnapshot } from '@porcelain/client/projects';
@@ -16,18 +17,20 @@ describe('remembered workspaces', () => {
       },
     };
     const store = createProjectSelectionStore(storage);
-    await store.getState().load();
-    await store.getState().selectEnvironment('first');
-    await store
-      .getState()
-      .selectWorktree('first', 'first-project', 'first-tree');
-    await store.getState().selectEnvironment('second');
-    await store
-      .getState()
-      .selectWorktree('second', 'second-project', 'second-tree');
-    await store.getState().selectEnvironment('first');
+    await Effect.runPromise(store.getState().load());
+    await Effect.runPromise(store.getState().selectEnvironment('first'));
+    await Effect.runPromise(
+      store.getState().selectWorktree('first', 'first-project', 'first-tree'),
+    );
+    await Effect.runPromise(store.getState().selectEnvironment('second'));
+    await Effect.runPromise(
+      store
+        .getState()
+        .selectWorktree('second', 'second-project', 'second-tree'),
+    );
+    await Effect.runPromise(store.getState().selectEnvironment('first'));
     const restored = createProjectSelectionStore(storage);
-    await restored.getState().load();
+    await Effect.runPromise(restored.getState().load());
     expect(restored.getState().currentEnvironmentId).toBe('first');
     expect(restored.getState().selections).toEqual({
       first: { projectId: 'first-project', worktreeId: 'first-tree' },
@@ -45,9 +48,11 @@ describe('remembered workspaces', () => {
         return Promise.resolve();
       },
     });
-    await store.getState().load();
+    await Effect.runPromise(store.getState().load());
     await expect(
-      store.getState().selectWorktree('first', 'project', 'tree'),
+      Effect.runPromise(
+        store.getState().selectWorktree('first', 'project', 'tree'),
+      ),
     ).rejects.toThrow('environment changed');
     expect(store.getState().currentEnvironmentId).toBe('second');
     expect(store.getState().selections).toEqual({});
@@ -69,14 +74,14 @@ describe('remembered workspaces', () => {
         return Promise.resolve();
       },
     });
-    await store.getState().load();
-    await store.getState().forgetEnvironment('first');
+    await Effect.runPromise(store.getState().load());
+    await Effect.runPromise(store.getState().forgetEnvironment('first'));
     expect(saved).toEqual({
       currentEnvironmentId: undefined,
       selections: { second: { projectId: 'two', worktreeId: 'tree-two' } },
     });
-    await store.getState().selectEnvironment('second');
-    await store.getState().forgetEnvironment('first');
+    await Effect.runPromise(store.getState().selectEnvironment('second'));
+    await Effect.runPromise(store.getState().forgetEnvironment('first'));
     expect(store.getState().currentEnvironmentId).toBe('second');
     expect(store.getState().selections.second).toEqual({
       projectId: 'two',
@@ -96,11 +101,13 @@ describe('remembered workspaces', () => {
         persisted.push(snapshot);
       },
     });
-    await store.getState().load();
+    await Effect.runPromise(store.getState().load());
     await Promise.all([
-      store.getState().selectEnvironment('first'),
-      store.getState().selectWorktree('first', 'project', 'tree'),
-      store.getState().selectEnvironment('second'),
+      Effect.runPromise(store.getState().selectEnvironment('first')),
+      Effect.runPromise(
+        store.getState().selectWorktree('first', 'project', 'tree'),
+      ),
+      Effect.runPromise(store.getState().selectEnvironment('second')),
     ]);
     expect(observed).toEqual([undefined, 'first', 'first']);
     expect(persisted.at(-1)).toEqual({
@@ -119,17 +126,17 @@ describe('remembered workspaces', () => {
         return Promise.reject(new Error('private storage failure'));
       },
     });
-    await store.getState().load();
-    await expect(store.getState().selectEnvironment('second')).rejects.toThrow(
-      'updated',
-    );
+    await Effect.runPromise(store.getState().load());
+    await expect(
+      Effect.runPromise(store.getState().selectEnvironment('second')),
+    ).rejects.toThrow('updated');
     expect(store.getState().currentEnvironmentId).toBe('first');
     expect(store.getState().status).toBe('unreadable');
-    await expect(store.getState().forgetEnvironment('first')).rejects.toThrow(
-      'read',
-    );
+    await expect(
+      Effect.runPromise(store.getState().forgetEnvironment('first')),
+    ).rejects.toThrow('read');
     expect(writes).toBe(1);
-    await store.getState().load();
+    await Effect.runPromise(store.getState().load());
     expect(store.getState().status).toBe('ready');
   });
 
@@ -142,16 +149,16 @@ describe('remembered workspaces', () => {
         return Promise.resolve();
       },
     });
-    await expect(store.getState().selectEnvironment('first')).rejects.toThrow(
-      'read',
-    );
-    await store.getState().load();
+    await expect(
+      Effect.runPromise(store.getState().selectEnvironment('first')),
+    ).rejects.toThrow('read');
+    await Effect.runPromise(store.getState().load());
     expect(store.getState().error).toBe(
       'Saved workspace selections could not be read. Try reading them again.',
     );
-    await expect(store.getState().selectEnvironment('first')).rejects.toThrow(
-      'read',
-    );
+    await expect(
+      Effect.runPromise(store.getState().selectEnvironment('first')),
+    ).rejects.toThrow('read');
     expect(writes).toBe(0);
   });
 });

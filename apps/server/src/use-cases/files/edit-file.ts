@@ -3,81 +3,79 @@ import type {
   EditFileResponse,
 } from '@porcelain/contracts/files';
 import type { WorktreeParams } from '@porcelain/contracts/shared';
-import type { EditFileService } from '@porcelain/files/services';
-import type { ConfirmWorktreeService } from '@porcelain/projects/services';
+import type {
+  EditFileFailure,
+  EditFileService,
+} from '@porcelain/files/services';
+import { Cause, Effect } from 'effect';
 import type { EditAnnouncementWriter } from '../../ports/edit-announcement-writer.ts';
 import type { EventPublisher } from '../../ports/event-publisher.ts';
 import type { Logger } from '../../ports/logger.ts';
-import type { LaneKeys } from '../../runtime/lane-keys.ts';
-import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
 import type { InvalidateReviewedMarksUseCasePort } from '../../ports/invalidate-reviewed-marks-use-case-port.ts';
-import type { CheckWorktreeUseCasePort } from '../../ports/check-worktree-use-case-port.ts';
+import type { WorktreeAccess } from '../../runtime/worktree-access.ts';
+import type { WorktreeAccessFailure } from '../../ports/worktree-access-failure.ts';
 
 export class EditFileUseCase {
-  private readonly checkWorktree: CheckWorktreeUseCasePort;
-  private readonly confirmWorktree: ConfirmWorktreeService;
+  private readonly access: WorktreeAccess;
   private readonly editFile: EditFileService;
   private readonly invalidateReviewedMarks: InvalidateReviewedMarksUseCasePort;
-  private readonly lanes: Lanes;
-  private readonly laneKeys: LaneKeys;
   private readonly events: EventPublisher;
   private readonly editAnnouncements: EditAnnouncementWriter;
   private readonly logger: Logger;
 
   constructor(
-    checkWorktree: CheckWorktreeUseCasePort,
-    confirmWorktree: ConfirmWorktreeService,
+    access: WorktreeAccess,
     editFile: EditFileService,
     invalidateReviewedMarks: InvalidateReviewedMarksUseCasePort,
-    lanes: Lanes,
-    laneKeys: LaneKeys,
     events: EventPublisher,
     editAnnouncements: EditAnnouncementWriter,
     logger: Logger,
   ) {
-    this.checkWorktree = checkWorktree;
-    this.confirmWorktree = confirmWorktree;
+    this.access = access;
     this.editFile = editFile;
     this.invalidateReviewedMarks = invalidateReviewedMarks;
-    this.lanes = lanes;
-    this.laneKeys = laneKeys;
     this.events = events;
     this.editAnnouncements = editAnnouncements;
     this.logger = logger;
   }
 
-  async execute(
+  execute(
     input: WorktreeParams & EditFileRequest,
-    context: OperationContext,
-  ): Promise<EditFileResponse> {
-    const { worktreeId } = input;
-    const worktree = await this.checkWorktree.execute(
-      { worktreeId, requireAvailableProject: true },
-      context,
-    );
-    const paths =
-      input.kind === 'move'
-        ? [input.path, input.destination]
-        : input.kind === 'copy'
-          ? [input.destination]
-          : [input.path];
-    const edited = await this.lanes.run(
-      this.laneKeys.repository(worktree),
-      'write',
-      async ({ signal }) => {
-        this.confirmWorktree.execute({ worktree });
-        return this.editFile.execute({ worktreeId, command: input }, signal);
-      },
-      { callerSignal: context.signal },
-    );
-    this.editAnnouncements.announce({ worktreeId, paths });
-    await this.invalidateReviewedMarks
-      .execute({ worktreeId, paths }, {})
-      .catch((error: unknown) =>
-        this.logger.failure({ kind: 'reviewed-marks', worktreeId, error }),
+  ): Effect.Effect<EditFileResponse, EditFileFailure | WorktreeAccessFailure> {
+    return Effect.gen({ self: this }, function* () {
+      const { worktreeId } = input;
+      const paths =
+        input.kind === 'move'
+          ? [input.path, input.destination]
+          : input.kind === 'copy'
+            ? [input.destination]
+            : [input.path];
+      return yield* this.access.write(
+        worktreeId,
+        (worktree) =>
+          this.editFile.execute({ worktreeId: worktree.id, command: input }),
+        () => this.announce(worktreeId, paths),
       );
-    this.events.filesChanged({ worktreeId, paths });
-    return edited;
+    });
+  }
+
+  private announce(worktreeId: string, paths: string[]): Effect.Effect<void> {
+    return Effect.gen({ self: this }, function* () {
+      this.editAnnouncements.announce({ worktreeId, paths });
+      const invalidated = this.invalidateReviewedMarks.execute({
+        worktreeId,
+        paths,
+      });
+      yield* Effect.catchCause(invalidated, (cause) =>
+        Effect.sync(() =>
+          this.logger.failure({
+            kind: 'reviewed-marks',
+            worktreeId,
+            error: Cause.squash(cause),
+          }),
+        ),
+      );
+      this.events.filesChanged({ worktreeId, paths });
+    });
   }
 }

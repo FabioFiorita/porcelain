@@ -1,7 +1,10 @@
-export class ContentChangedError extends Error {
-  override readonly name = 'ContentChangedError';
+import { Schema } from 'effect';
 
-  constructor() {
-    super('Content changed; retry the operation');
+export class ContentChangedError extends Schema.TaggedError<ContentChangedError>()(
+  'ContentChangedError',
+  {},
+) {
+  override get message() {
+    return 'Content changed; retry the operation';
   }
 }

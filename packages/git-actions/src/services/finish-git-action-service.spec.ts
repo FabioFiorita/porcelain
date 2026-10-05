@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { GitActionNotFoundError } from '@porcelain/git-actions/errors';
 import { FixedClock } from '@porcelain/kernel/fakes';
 import { describe, expect, it } from 'vitest';
@@ -22,14 +23,16 @@ function subject() {
 describe('FinishGitActionService', () => {
   it('settles the receipt with the outcome and the time it finished', () => {
     const { store, service } = subject();
-    const view = service.execute({
-      requestId: REQUEST_ID,
-      outcome: {
-        state: 'succeeded',
-        result: { branch: 'feature' },
-        refreshRequired: true,
-      },
-    });
+    const view = Effect.runSync(
+      service.execute({
+        requestId: REQUEST_ID,
+        outcome: {
+          state: 'succeeded',
+          result: { branch: 'feature' },
+          refreshRequired: true,
+        },
+      }),
+    );
     expect(view).toEqual({
       requestId: REQUEST_ID,
       projectId: running.projectId,
@@ -50,14 +53,16 @@ describe('FinishGitActionService', () => {
 
   it('records an outcome Git could not determine as interrupted', () => {
     const { service } = subject();
-    const view = service.execute({
-      requestId: REQUEST_ID,
-      outcome: {
-        state: 'indeterminate',
-        reason: 'OUTCOME_UNKNOWN',
-        refreshRequired: true,
-      },
-    });
+    const view = Effect.runSync(
+      service.execute({
+        requestId: REQUEST_ID,
+        outcome: {
+          state: 'indeterminate',
+          reason: 'OUTCOME_UNKNOWN',
+          refreshRequired: true,
+        },
+      }),
+    );
     expect(view.state).toBe('interrupted');
     expect(view.reason).toBe('OUTCOME_UNKNOWN');
   });
@@ -65,10 +70,12 @@ describe('FinishGitActionService', () => {
   it('does not find a request it never accepted', () => {
     const { service } = subject();
     expect(() =>
-      service.execute({
-        requestId: 'e0c7a0f4-3b1c-4b58-9a57-4b3cf6f6b0d1',
-        outcome: { state: 'succeeded', refreshRequired: false },
-      }),
+      Effect.runSync(
+        service.execute({
+          requestId: 'e0c7a0f4-3b1c-4b58-9a57-4b3cf6f6b0d1',
+          outcome: { state: 'succeeded', refreshRequired: false },
+        }),
+      ),
     ).toThrow(GitActionNotFoundError);
   });
 });

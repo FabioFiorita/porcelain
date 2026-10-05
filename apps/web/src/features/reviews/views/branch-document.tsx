@@ -8,6 +8,8 @@ import {
   branchFilePaths,
   branchName,
   branchRange,
+} from '@porcelain/client/changes/rules';
+import {
   commitEntry,
   useBranchChanges,
   useBranchDiffs,
@@ -23,8 +25,11 @@ import {
   type DiffContent,
   mergeBranchChanges,
   type ReviewScope,
-} from '../rules/review';
-import { branchReviewRange, type ReviewRange } from '../rules/reviewed';
+} from '@porcelain/client/reviews/rules';
+import {
+  branchReviewRange,
+  type ReviewRange,
+} from '@porcelain/client/reviews/rules';
 import { CodeDocument } from './code-document';
 import { DocumentToolbar } from './document-toolbar';
 import { ReadMoreFiles } from './read-more-files';

@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { InvalidLineRangeError } from '@porcelain/kernel/errors';
 import type { ChangeLines, LineRangeProblem } from '../models/change-lines.ts';
 import type {
@@ -16,13 +17,17 @@ export class ReadChangeLinesService {
     this.options = options;
   }
 
-  execute(input: ReadChangeLinesInput): ChangeLines {
-    const problem = lineRangeProblem(input);
-    if (problem) throw this.failure(problem);
-    return sliceChangeLines(input, this.options.maxLines);
+  execute(
+    input: ReadChangeLinesInput,
+  ): Effect.Effect<ChangeLines, InvalidLineRangeError> {
+    return Effect.gen({ self: this }, function* () {
+      const problem = lineRangeProblem(input);
+      if (problem) return yield* Effect.fail(this.failure(problem));
+      return sliceChangeLines(input, this.options.maxLines);
+    });
   }
 
-  private failure(problem: LineRangeProblem): Error {
+  private failure(problem: LineRangeProblem): InvalidLineRangeError {
     switch (problem.kind) {
       case 'reversed-range':
         return new InvalidLineRangeError();

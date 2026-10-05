@@ -1,7 +1,10 @@
-export class CommitToolMissingError extends Error {
-  override readonly name = 'CommitToolMissingError';
+import { Schema } from 'effect';
 
-  constructor() {
-    super('The selected coding CLI is not installed.');
+export class CommitToolMissingError extends Schema.TaggedError<CommitToolMissingError>()(
+  'CommitToolMissingError',
+  {},
+) {
+  override get message() {
+    return 'The selected coding CLI is not installed.';
   }
 }

@@ -5,7 +5,7 @@ selectors:
   - "Branch"
   - "Compare against "
   - "the default branch"
-  - "checkpoint"
+  - "Find a base branch"
   - "Comment on "
   - "Comment"
   - "Comments"

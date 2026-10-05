@@ -18,6 +18,8 @@ export const reviews = sqliteTable('reviews', {
   summaryToken: text('summary_token').notNull().unique(),
   summarySecret: text('summary_secret').notNull(),
   diagram: text('diagram', { mode: 'json' }).$type<ReviewDiagram>(),
-  layers: text('layers', { mode: 'json' }).$type<ReviewLayer[]>().notNull(),
+  layers: text('layers', { mode: 'json' })
+    .$type<readonly ReviewLayer[]>()
+    .notNull(),
   proof: text('proof', { mode: 'json' }).$type<ReviewProof>(),
 });

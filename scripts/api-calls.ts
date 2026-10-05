@@ -13,9 +13,9 @@ import * as files from '@porcelain/contracts/files';
 import * as gitActions from '@porcelain/contracts/git-actions';
 import * as projects from '@porcelain/contracts/projects';
 import * as reviews from '@porcelain/contracts/reviews';
-import type { Endpoint } from '@porcelain/contracts/shared';
+import { HttpApi, type HttpApiEndpoint } from 'effect/http-api';
 
-const contractEndpoints = new Map<string, Endpoint>();
+const contractApis = new Map<string, HttpApi.Top>();
 for (const [name, value] of Object.entries({
   ...access,
   ...changes,
@@ -24,8 +24,12 @@ for (const [name, value] of Object.entries({
   ...projects,
   ...reviews,
 }))
-  if ('method' in value && 'responses' in value)
-    contractEndpoints.set(name, value);
+  if (HttpApi.isHttpApi(value)) contractApis.set(name, value);
+const endpointNames = new Set(
+  [...contractApis.values()].flatMap((api) =>
+    Object.values(api.groups).flatMap((group) => Object.keys(group.endpoints)),
+  ),
+);
 
 export type ApiCall = {
   method: string;
@@ -49,8 +53,8 @@ type Declaration = SourceRange & {
 
 type Module = {
   file: string;
-  endpoints: Map<string, Endpoint>;
-  callers: Map<string, string>;
+  apis: Map<string, HttpApi.Top>;
+  calls: NodePath[];
   imports: Map<string, { from: string; name: string }>;
   exports: Map<string, { from: string; name: string }>;
   exportAll: string[];
@@ -61,10 +65,6 @@ type Module = {
 };
 
 const transportCallee = /(?:^|[a-z])(?:transport|Transport)$/;
-const serverRouteFolders = [
-  'apps/server/src/http/routes',
-  'apps/server/src/http/protocol',
-];
 const clientManifestSchema = z.object({
   exports: z.record(z.string(), z.string()),
 });
@@ -340,8 +340,8 @@ class RouteReader {
     if (known) return known;
     const loaded: Module = {
       file,
-      endpoints: new Map(),
-      callers: new Map(),
+      apis: new Map(),
+      calls: [],
       imports: new Map(),
       exports: new Map(),
       exportAll: [],
@@ -355,25 +355,14 @@ class RouteReader {
     new Visitor({
       ImportDeclaration: (node) => {
         if (node.importKind === 'type') return;
-        for (const specifier of node.specifiers)
-          if (
-            specifier.type === 'ImportSpecifier' &&
-            specifier.importKind !== 'type' &&
-            specifier.imported.type === 'Identifier' &&
-            ['requestEndpoint', 'endpointPath'].includes(
-              specifier.imported.name,
-            )
-          )
-            loaded.callers.set(specifier.local.name, specifier.imported.name);
         if (node.source.value.startsWith('@porcelain/contracts/')) {
           for (const specifier of node.specifiers)
             if (
               specifier.type === 'ImportSpecifier' &&
               specifier.imported.type === 'Identifier'
             ) {
-              const endpoint = contractEndpoints.get(specifier.imported.name);
-              if (endpoint)
-                loaded.endpoints.set(specifier.local.name, endpoint);
+              const api = contractApis.get(specifier.imported.name);
+              if (api) loaded.apis.set(specifier.local.name, api);
             }
           return;
         }
@@ -536,6 +525,7 @@ class RouteReader {
           }
       },
       CallExpression(path) {
+        loaded.calls.push(path);
         if (path.getFunctionParent() !== null) return;
         loaded.startup.push({
           start: path.node.start ?? 0,
@@ -553,8 +543,184 @@ class RouteReader {
     return loaded;
   }
 
+  sdkEndpoint(
+    file: string,
+    callee: NodePath,
+    seen = new Set<string>(),
+  ): HttpApiEndpoint.Top | undefined {
+    const key = `${file}:${callee.node.start}`;
+    if (seen.has(key)) return undefined;
+    seen.add(key);
+    if (callee.isIdentifier()) {
+      const binding = callee.scope.getBinding(callee.node.name);
+      const imported =
+        binding?.path.isImportSpecifier() ||
+        binding?.path.isImportDefaultSpecifier()
+          ? this.module(file).imports.get(callee.node.name)
+          : undefined;
+      if (imported)
+        return this.exportedEndpoint(imported.from, imported.name, seen);
+      if (binding?.constant && binding.path.isVariableDeclarator()) {
+        const init = binding.path.get('init');
+        const id = binding.path.get('id');
+        if (
+          id.isIdentifier() &&
+          (init.isMemberExpression() || init.isIdentifier())
+        )
+          return this.sdkEndpoint(file, init, seen);
+        if (id.isObjectPattern() && init.isExpression()) {
+          let method: string | undefined;
+          id.traverse({
+            ObjectProperty(property) {
+              const value = property.get('value');
+              if (value.isIdentifier({ name: callee.node.name }))
+                method = propertyName(property);
+            },
+          });
+          if (method && endpointNames.has(method))
+            return this.endpointFor(
+              this.sdkApis(file, init, new Set()),
+              method,
+            );
+        }
+      }
+      return undefined;
+    }
+    if (!callee.isMemberExpression()) return undefined;
+    const name = propertyName(callee);
+    const receiver = callee.get('object');
+    if (name && receiver.isIdentifier()) {
+      const binding = receiver.scope.getBinding(receiver.node.name);
+      const imported = binding?.path.isImportNamespaceSpecifier()
+        ? this.module(file).imports.get(receiver.node.name)
+        : undefined;
+      if (imported) return this.exportedEndpoint(imported.from, name, seen);
+    }
+    if (!name || !endpointNames.has(name)) return undefined;
+    const object = callee.get('object');
+    const apis = this.sdkApis(file, object, new Set());
+    return this.endpointFor(apis, name);
+  }
+
+  private exportedEndpoint(
+    file: string,
+    name: string,
+    seen: Set<string>,
+  ): HttpApiEndpoint.Top | undefined {
+    const key = `${file}:endpoint:${name}`;
+    if (seen.has(key)) return undefined;
+    seen.add(key);
+    const module = this.module(file);
+    const exported = module.exports.get(name);
+    if (exported?.from !== file && exported)
+      return this.exportedEndpoint(exported.from, exported.name, seen);
+    const declaration = exported && module.locals.get(exported.name);
+    if (declaration?.path.isVariableDeclarator()) {
+      const init = declaration.path.get('init');
+      return init.isExpression()
+        ? this.sdkEndpoint(file, init, seen)
+        : undefined;
+    }
+    const matches = module.exportAll
+      .map((from) => this.exportedEndpoint(from, name, seen))
+      .filter((endpoint) => endpoint !== undefined);
+    return new Set(
+      matches.map((endpoint) => `${endpoint.method} ${endpoint.path}`),
+    ).size === 1
+      ? matches[0]
+      : undefined;
+  }
+
+  private endpointFor(
+    apis: readonly HttpApi.Top[],
+    name: string,
+  ): HttpApiEndpoint.Top | undefined {
+    const matches = apis.flatMap((api) =>
+      Object.values(api.groups).flatMap((group) => {
+        const endpoint = group.endpoints[name];
+        return endpoint ? [endpoint] : [];
+      }),
+    );
+    const routes = new Set(
+      matches.map((endpoint) => `${endpoint.method} ${endpoint.path}`),
+    );
+    return routes.size === 1 ? matches[0] : undefined;
+  }
+
+  private sdkApis(
+    file: string,
+    expression: NodePath,
+    seen: Set<string>,
+  ): HttpApi.Top[] {
+    if (expression.isIdentifier()) {
+      const name = expression.node.name;
+      const key = `${file}:${expression.node.start}:${name}`;
+      if (seen.has(key)) return [];
+      seen.add(key);
+      const module = this.module(file);
+      const api = module.apis.get(name);
+      if (api) return [api];
+      const imported = module.imports.get(name);
+      if (imported)
+        return this.exportedApis(imported.from, imported.name, seen);
+      const binding = expression.scope.getBinding(name);
+      if (!binding?.constant) return [];
+      if (binding.path.isVariableDeclarator()) {
+        const init = binding.path.get('init');
+        return init.isExpression() ? this.sdkApis(file, init, seen) : [];
+      }
+      const apis: HttpApi.Top[] = [];
+      binding.path.traverse({
+        ReferencedIdentifier: (reference) => {
+          if (!reference.findParent((parent) => parent.isTSType()))
+            apis.push(...this.sdkApis(file, reference, seen));
+        },
+      });
+      return apis;
+    }
+    if (expression.isMemberExpression())
+      return this.sdkApis(file, expression.get('object'), seen);
+    const apis: HttpApi.Top[] = [];
+    expression.traverse({
+      ReferencedIdentifier: (reference) => {
+        if (!reference.findParent((parent) => parent.isTSType()))
+          apis.push(...this.sdkApis(file, reference, seen));
+      },
+    });
+    return apis;
+  }
+
+  private exportedApis(
+    file: string,
+    name: string,
+    seen: Set<string>,
+  ): HttpApi.Top[] {
+    const key = `${file}:export:${name}`;
+    if (seen.has(key)) return [];
+    seen.add(key);
+    const module = this.module(file);
+    const exported = module.exports.get(name);
+    if (!exported)
+      return module.exportAll.flatMap((from) =>
+        this.exportedApis(from, name, seen),
+      );
+    if (exported.from !== file)
+      return this.exportedApis(exported.from, exported.name, seen);
+    const declaration = module.locals.get(exported.name);
+    if (!declaration) return [];
+    const apis: HttpApi.Top[] = [];
+    declaration.path.traverse({
+      ReferencedIdentifier: (reference) => {
+        if (!reference.findParent((parent) => parent.isTSType()))
+          apis.push(...this.sdkApis(file, reference, seen));
+      },
+    });
+    return apis;
+  }
+
   importedDeclarations(folders: readonly string[]) {
     const reached = new Map<string, ReachableRange[]>();
+    const problems = new Set<string>();
     const visited = new Set<string>();
     const evaluated = new Set<string>();
     const include = (
@@ -596,6 +762,11 @@ class RouteReader {
       const module = this.module(file);
       if (exported) {
         if (name === '*') {
+          const selected = member?.[0];
+          if (selected !== undefined && module.exports.has(selected)) {
+            visit(file, selected, true, member?.slice(1));
+            return;
+          }
           for (const name of module.exports.keys()) visit(file, name, true);
           for (const from of module.exportAll) visit(from, '*', true);
           return;
@@ -614,6 +785,20 @@ class RouteReader {
       }
       const declaration = module.locals.get(name);
       if (declaration === undefined) return;
+      const value = declaration.path.isVariableDeclarator()
+        ? declaration.path.get('init')
+        : undefined;
+      if (
+        /^packages\/client\/src\/features\/[^/]+\/api\.ts$/.test(file) &&
+        declaration.references.some((reference) =>
+          module.apis.has(reference.name),
+        ) &&
+        !(value?.isExpression() && this.sdkEndpoint(file, value)) &&
+        (member === undefined || !endpointNames.has(member.at(-1) ?? ''))
+      )
+        problems.add(
+          `${file}:${lineOf(readFileSync(join(this.root, file), 'utf8'), declaration.start)}: select a literal generated endpoint, because an escaped or dynamic client binding cannot prove feature route coverage.`,
+        );
       const selection = memberSelection(declaration.path, member, module);
       include(file, declaration, true, selection.excluded);
       for (const reference of declaration.references) {
@@ -643,7 +828,7 @@ class RouteReader {
               visit(binding.from, binding.name, true, member);
           }
         }
-    return reached;
+    return { reached, problems: [...problems] };
   }
 }
 
@@ -663,76 +848,77 @@ export function apiCalls(
       ? undefined
       : reader.importedDeclarations(importedFrom);
   const calls: ApiCall[] = [];
-  const problems: string[] = [];
+  const problems: string[] = [...(imported?.problems ?? [])];
   const files = folders
     .flatMap((folder) => filesUnder(root, folder))
     .map((path) => path.replaceAll('\\', '/'))
-    .filter((path) => layer.some((pattern) => pattern.test(path)))
+    .filter((path) => /\.tsx?$/.test(path) && !/\.(?:spec|d)\.tsx?$/.test(path))
     .filter(
       (path) =>
         !path.startsWith('packages/client/src/') ||
         imported === undefined ||
-        imported.has(path),
+        imported.reached.has(path),
     )
     .toSorted();
   for (const file of files) {
     const module = reader.module(file);
     const source = readFileSync(join(root, file), 'utf8');
-    new Visitor({
-      CallExpression(node) {
+    for (const path of module.calls) {
+      const range = sourceRange(path);
+      if (
+        file.startsWith('packages/client/src/') &&
+        imported !== undefined &&
+        !imported.reached
+          .get(file)
+          ?.some((reached) =>
+            reached.includesBody
+              ? range.start >= reached.start &&
+                range.end <= reached.end &&
+                outsideExcluded(range, reached.excluded)
+              : range.start === reached.start && range.end === reached.end,
+          )
+      )
+        continue;
+      const callee = path.get('callee');
+      if (Array.isArray(callee)) continue;
+      const endpoint = reader.sdkEndpoint(file, callee);
+      if (endpoint)
+        calls.push({
+          method: endpoint.method,
+          path: endpoint.path,
+          file,
+          line: lineOf(source, range.start),
+        });
+      else if (
+        layer.some((pattern) => pattern.test(file)) &&
+        callee.isIdentifier() &&
+        (callee.node.name === 'fetch' || transportCallee.test(callee.node.name))
+      ) {
+        const binding = module.imports.get(callee.node.name);
         if (
-          file.startsWith('packages/client/src/') &&
-          imported !== undefined &&
-          !imported
-            .get(file)
-            ?.some((range) =>
-              range.includesBody
-                ? node.start >= range.start &&
-                  node.end <= range.end &&
-                  outsideExcluded(node, range.excluded)
-                : node.start === range.start && node.end === range.end,
-            )
+          binding?.from === 'packages/client/src/shared/api/transport.ts' &&
+          binding.name === 'remoteTransport'
         )
-          return;
-        if (node.callee.type !== 'Identifier') return;
-        const operation = module.callers.get(node.callee.name);
-        if (operation === 'requestEndpoint' || operation === 'endpointPath') {
-          const reference =
-            node.arguments[operation === 'requestEndpoint' ? 1 : 0];
-          const endpoint =
-            reference?.type === 'Identifier'
-              ? module.endpoints.get(reference.name)
-              : undefined;
-          const line = lineOf(source, node.start);
-          if (endpoint === undefined) {
-            problems.push(
-              `${file}:${line}: call an endpoint imported from its contract so features:check can name its route.`,
-            );
-            return;
-          }
-          calls.push({
-            method: endpoint.method,
-            path: `${endpoint.prefix}${endpoint.path}`,
-            file,
-            line,
-          });
-        } else if (
-          node.callee.name === 'fetch' ||
-          transportCallee.test(node.callee.name)
-        ) {
-          const input = node.arguments[0];
-          if (input?.type === 'Identifier') return;
-          problems.push(
-            `${file}:${lineOf(source, node.start)}: call through requestEndpoint; the contract owns HTTP paths, methods and schemas.`,
-          );
-        }
-      },
-    }).visit(parseSync(file, source).program);
+          continue;
+        const input = path.get('arguments')[0];
+        if (input?.isIdentifier()) continue;
+        problems.push(
+          `${file}:${lineOf(source, range.start)}: call the generated Effect client so the contract owns the method, path and schemas.`,
+        );
+      } else if (
+        layer.some((pattern) => pattern.test(file)) &&
+        callee.isMemberExpression() &&
+        endpointNames.has(propertyName(callee) ?? '')
+      )
+        problems.push(
+          `${file}:${lineOf(source, range.start)}: keep the generated client binding traceable so its feature map can name the route.`,
+        );
+    }
   }
   return {
     calls,
     problems,
-    sharedSources: [...(imported?.keys() ?? [])].filter((file) =>
+    sharedSources: [...(imported?.reached.keys() ?? [])].filter((file) =>
       file.startsWith('packages/client/src/'),
     ),
   };
@@ -742,41 +928,16 @@ export function sameRoute(route: string, call: ApiCall): boolean {
   return route === `${call.method} ${call.path}`;
 }
 
-export function serverRoutes(root: string): string[] {
-  const reader = new RouteReader(root);
-  const routes = new Set<string>();
-  for (const file of serverRouteFolders.flatMap((folder) =>
-    filesUnder(root, folder),
-  )) {
-    const module = reader.module(file);
-    const source = readFileSync(join(root, file), 'utf8');
-    new Visitor({
-      CallExpression(node) {
-        if (
-          node.callee.type !== 'MemberExpression' ||
-          node.callee.property.type !== 'Identifier' ||
-          node.callee.property.name !== 'route'
-        )
-          return;
-        const options = node.arguments[0];
-        if (options?.type !== 'ObjectExpression') return;
-        const method = options.properties.find(
-          (property) =>
-            property.type === 'Property' &&
-            property.key.type === 'Identifier' &&
-            property.key.name === 'method',
-        );
-        if (
-          method?.type !== 'Property' ||
-          method.value.type !== 'MemberExpression' ||
-          method.value.object.type !== 'Identifier'
-        )
-          return;
-        const endpoint = module.endpoints.get(method.value.object.name);
-        if (endpoint)
-          routes.add(`${endpoint.method} ${endpoint.prefix}${endpoint.path}`);
-      },
-    }).visit(parseSync(file, source).program);
-  }
-  return [...routes].toSorted();
+export function serverRoutes(_root: string): string[] {
+  return [
+    ...new Set(
+      [...contractApis.values()].flatMap((api) =>
+        Object.values(api.groups).flatMap((group) =>
+          Object.values(group.endpoints).map(
+            (endpoint) => `${endpoint.method} ${endpoint.path}`,
+          ),
+        ),
+      ),
+    ),
+  ].toSorted();
 }

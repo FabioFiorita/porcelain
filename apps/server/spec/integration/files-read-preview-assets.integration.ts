@@ -1,3 +1,4 @@
+import * as Schema from 'effect/Schema';
 import { readPreviewAssetsResponseSchema } from '@porcelain/contracts/files';
 import { expect } from 'vitest';
 import {
@@ -27,7 +28,11 @@ test('a preview gets each referenced image in request order, with missing and es
 
   expect(response.status).toBe(200);
   expect(response.body).toEqual(
-    expect.schemaMatching(readPreviewAssetsResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(
+        Schema.toEncoded(readPreviewAssetsResponseSchema),
+      ),
+    ),
   );
   expect(response.body).toStrictEqual({
     assets: [

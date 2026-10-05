@@ -1,17 +1,20 @@
 import type { WorktreeKey } from '@porcelain/kernel/models';
-import type { OperationContext } from './operation-context.ts';
+import type { Effect } from 'effect';
+import type {
+  NoWorktreeAtPathError,
+  ProjectNotFoundError,
+} from '@porcelain/projects/errors';
 
 type WorktreePathLookup = { path: string };
 
 export interface FindWorktreeByPathUseCasePort {
   execute(
     input: WorktreePathLookup,
-    context: OperationContext,
-  ): Promise<WorktreeKey>;
+  ): Effect.Effect<WorktreeKey, NoWorktreeAtPathError | ProjectNotFoundError>;
 }
 
 export interface WorktreeOperationUseCasePort {
-  execute(input: WorktreeKey, context: OperationContext): Promise<unknown>;
+  execute(input: WorktreeKey): Effect.Effect<unknown, unknown>;
 }
 
 type AtPathRequest<Operation extends WorktreeOperationUseCasePort> = Omit<
@@ -20,7 +23,7 @@ type AtPathRequest<Operation extends WorktreeOperationUseCasePort> = Omit<
 >;
 
 export type AtPathResponse<Operation extends WorktreeOperationUseCasePort> =
-  Awaited<ReturnType<Operation['execute']>>;
+  Effect.Success<ReturnType<Operation['execute']>>;
 
 type AtPathOperationInput<Operation extends WorktreeOperationUseCasePort> =
   AtPathRequest<Operation> & WorktreeKey;
@@ -30,8 +33,10 @@ export interface AtPathOperationUseCasePort<
 > {
   execute(
     input: AtPathOperationInput<Operation>,
-    context: OperationContext,
-  ): Promise<AtPathResponse<Operation>>;
+  ): Effect.Effect<
+    AtPathResponse<Operation>,
+    Effect.Error<ReturnType<Operation['execute']>>
+  >;
 }
 
 export type AtPathInput<Operation extends WorktreeOperationUseCasePort> = {
@@ -44,6 +49,10 @@ export interface AtWorktreePathUseCasePort<
 > {
   execute(
     input: AtPathInput<Operation>,
-    context: OperationContext,
-  ): Promise<AtPathResponse<Operation>>;
+  ): Effect.Effect<
+    AtPathResponse<Operation>,
+    | Effect.Error<ReturnType<Operation['execute']>>
+    | NoWorktreeAtPathError
+    | ProjectNotFoundError
+  >;
 }

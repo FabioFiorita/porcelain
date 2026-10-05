@@ -5,4 +5,4 @@ export type ListCommentThreadsInput = {
   scope?: CommentThreadScope | undefined;
 };
 
-export type ListCommentThreadsResult = CommentThread[];
+export type ListCommentThreadsResult = readonly CommentThread[];

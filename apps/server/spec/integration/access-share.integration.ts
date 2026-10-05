@@ -1,3 +1,4 @@
+import * as Schema from 'effect/Schema';
 import {
   issuePairingResponseSchema,
   listAccessResponseSchema,
@@ -39,7 +40,9 @@ test('listing access shows no pending links and marks the asking device as the c
 
   expect(response.status).toBe(200);
   expect(response.body).toEqual(
-    expect.schemaMatching(listAccessResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(Schema.toEncoded(listAccessResponseSchema)),
+    ),
   );
   expect(record(response.body).grants).toStrictEqual([]);
   expect(
@@ -62,7 +65,9 @@ test('issuing a pairing link returns a one-time link to the pairing page that st
 
   expect(response.status).toBe(200);
   expect(response.body).toEqual(
-    expect.schemaMatching(issuePairingResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(Schema.toEncoded(issuePairingResponseSchema)),
+    ),
   );
   const grant = record(list(record(response.body).grants)[0]);
   expect(grant.grant).toMatchObject({
@@ -133,7 +138,9 @@ test('revoking a pending link removes it and revoking an unknown id revokes noth
 
   expect(revoked.status).toBe(200);
   expect(revoked.body).toEqual(
-    expect.schemaMatching(revokeAccessResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(Schema.toEncoded(revokeAccessResponseSchema)),
+    ),
   );
   expect(revoked.body).toStrictEqual({ revoked: true, kind: 'grant' });
   expect(unknown.status).toBe(200);

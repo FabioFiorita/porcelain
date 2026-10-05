@@ -1,6 +1,6 @@
 import type { GitLimits } from '../../shared/dtos/git-limits.ts';
 import type { GitStatusObservation } from '../dtos/git-status.ts';
-import { InspectionLimitError } from '../errors/inspection-limit-error.ts';
+import { InspectionLimitError } from '../../shared/errors/inspection-limit-error.ts';
 import type { CheckoutSession } from '../interfaces/git-session.ts';
 import { parseGitStatus } from '../parsers/parse-git-status.ts';
 import { sessionConversionFilters } from './check-conversion-filters.ts';

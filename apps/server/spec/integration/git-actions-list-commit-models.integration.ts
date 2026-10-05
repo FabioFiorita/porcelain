@@ -1,3 +1,4 @@
+import * as Schema from 'effect/Schema';
 import { listCommitModelsResponseSchema } from '@porcelain/contracts/git-actions';
 import { expect } from 'vitest';
 import { unauthenticated } from '../kit/answers.ts';
@@ -14,7 +15,11 @@ test('listing commit models with no model tool on the path answers an empty list
   expect(response.status).toBe(200);
   expect(response.body).toStrictEqual([]);
   expect(response.body).toEqual(
-    expect.schemaMatching(listCommitModelsResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(
+        Schema.toEncoded(listCommitModelsResponseSchema),
+      ),
+    ),
   );
 });
 
@@ -34,7 +39,11 @@ test('listing commit models once the Claude command-line tool is installed answe
     { id: 'claude:haiku', label: 'Haiku' },
   ]);
   expect(response.body).toEqual(
-    expect.schemaMatching(listCommitModelsResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(
+        Schema.toEncoded(listCommitModelsResponseSchema),
+      ),
+    ),
   );
 });
 

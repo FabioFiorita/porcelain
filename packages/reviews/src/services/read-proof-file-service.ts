@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { encodeBase64 } from '@porcelain/kernel/rules';
 import { ProofFileNotFoundError } from '../errors/proof-file-not-found-error.ts';
 import type {
@@ -16,13 +17,18 @@ export class ReadProofFileService {
     this.options = options;
   }
 
-  execute(input: ReadProofFileInput): ReadProofFileResult {
-    const file = this.reviews.readProofFile(input);
-    if (file === undefined) throw new ProofFileNotFoundError();
-    return {
-      id: file.id,
-      mediaType: file.mediaType,
-      base64: encodeBase64(file.bytes, this.options.base64ChunkBytes),
-    };
+  execute(
+    input: ReadProofFileInput,
+  ): Effect.Effect<ReadProofFileResult, ProofFileNotFoundError> {
+    return Effect.gen({ self: this }, function* () {
+      const file = this.reviews.readProofFile(input);
+      if (file === undefined)
+        return yield* Effect.fail(new ProofFileNotFoundError());
+      return {
+        id: file.id,
+        mediaType: file.mediaType,
+        base64: encodeBase64(file.bytes, this.options.base64ChunkBytes),
+      };
+    });
   }
 }

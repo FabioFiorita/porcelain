@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { FixedClock } from '@porcelain/kernel/fakes';
 import { InMemoryDeviceSightingStore } from '../../spec/fakes/in-memory-device-sighting-store.ts';
@@ -28,7 +29,9 @@ function setup() {
 describe('RevokeDeviceService', () => {
   it('revokes a paired device at the current time', () => {
     const { devices, service } = setup();
-    expect(service.execute({ id: 'device' })).toEqual({ kind: 'revoked' });
+    expect(Effect.runSync(service.execute({ id: 'device' }))).toEqual({
+      kind: 'revoked',
+    });
     expect(devices.find({ deviceId: 'device' })?.revokedAt).toBe(
       '2026-09-23T10:05:00.000Z',
     );
@@ -36,9 +39,11 @@ describe('RevokeDeviceService', () => {
 
   it('keeps the first revocation time when the device is revoked again', () => {
     const { devices, clock, service } = setup();
-    service.execute({ id: 'device' });
+    Effect.runSync(service.execute({ id: 'device' }));
     clock.set('2026-09-23T10:06:00.000Z');
-    expect(service.execute({ id: 'device' })).toEqual({ kind: 'not-revoked' });
+    expect(Effect.runSync(service.execute({ id: 'device' }))).toEqual({
+      kind: 'not-revoked',
+    });
     expect(devices.find({ deviceId: 'device' })?.revokedAt).toBe(
       '2026-09-23T10:05:00.000Z',
     );
@@ -68,7 +73,7 @@ describe('RevokeDeviceService', () => {
         secretHash: 'tablet-hash',
       },
     });
-    service.execute({ id: 'device' });
+    Effect.runSync(service.execute({ id: 'device' }));
     expect(sightings.take()).toEqual([
       {
         id: 'tablet',
@@ -83,7 +88,7 @@ describe('RevokeDeviceService', () => {
   });
 
   it('reports an unknown id as not revoked', () => {
-    expect(setup().service.execute({ id: 'unknown' })).toEqual({
+    expect(Effect.runSync(setup().service.execute({ id: 'unknown' }))).toEqual({
       kind: 'not-revoked',
     });
   });

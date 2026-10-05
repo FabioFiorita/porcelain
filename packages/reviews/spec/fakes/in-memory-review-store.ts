@@ -16,7 +16,7 @@ function activityKey(worktreeId: string, revision: number): string {
 export class InMemoryReviewStore implements ReviewStore {
   private readonly rows: Map<string, Review>;
   private readonly activity = new Map<string, boolean>();
-  private readonly proofFiles = new Map<string, ProofFile[]>();
+  private readonly proofFiles = new Map<string, readonly ProofFile[]>();
 
   constructor(reviews: readonly Review[] = []) {
     this.rows = new Map(

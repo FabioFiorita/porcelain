@@ -1,5 +1,7 @@
+import { nativeRead, type WorktreeRead } from '@porcelain/effects';
 import type { FileReadInput, TextRead } from '@porcelain/files/models';
 import type { HeadTextReader } from '@porcelain/files/ports';
+import type { Effect } from 'effect';
 import type { OpenInspection } from '../changes/inspection-checkouts.ts';
 import { decodedText } from './filesystem-file-reader.ts';
 
@@ -9,8 +11,13 @@ export class GitHeadTextReader implements HeadTextReader {
   constructor(open: OpenInspection) {
     this.open = open;
   }
+  readText(input: FileReadInput): Effect.Effect<TextRead, never, WorktreeRead> {
+    return nativeRead(input.worktreeId, (signal) =>
+      this.readHeadText(input, signal),
+    );
+  }
 
-  async readText(
+  private async readHeadText(
     input: FileReadInput,
     signal?: AbortSignal,
   ): Promise<TextRead> {

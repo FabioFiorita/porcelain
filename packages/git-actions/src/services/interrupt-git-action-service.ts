@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type { Clock } from '@porcelain/kernel/ports';
 import { GitActionNotFoundError } from '../errors/git-action-not-found-error.ts';
 import type {
@@ -17,14 +18,18 @@ export class InterruptGitActionService {
     this.clock = clock;
   }
 
-  execute(input: InterruptGitActionInput): InterruptGitActionResult {
-    const current = this.gitActionReceipts.read({
-      requestId: input.requestId,
+  execute(
+    input: InterruptGitActionInput,
+  ): Effect.Effect<InterruptGitActionResult, GitActionNotFoundError, never> {
+    return Effect.gen({ self: this }, function* () {
+      const current = this.gitActionReceipts.read({
+        requestId: input.requestId,
+      });
+      if (!current) return yield* Effect.fail(new GitActionNotFoundError());
+      if (current.state !== 'running') return gitActionReceiptView(current);
+      const interrupted = interruptedReceipt(current, this.clock.now());
+      this.gitActionReceipts.save(interrupted);
+      return gitActionReceiptView(interrupted);
     });
-    if (!current) throw new GitActionNotFoundError();
-    if (current.state !== 'running') return gitActionReceiptView(current);
-    const interrupted = interruptedReceipt(current, this.clock.now());
-    this.gitActionReceipts.save(interrupted);
-    return gitActionReceiptView(interrupted);
   }
 }

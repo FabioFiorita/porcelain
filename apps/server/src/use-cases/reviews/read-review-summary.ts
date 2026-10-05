@@ -5,7 +5,8 @@ import type {
 } from '@porcelain/contracts/reviews';
 import type { ReadReviewSummaryService } from '@porcelain/reviews/services';
 import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
+import { Effect } from 'effect';
+import type { ReviewSummaryNotFoundError } from '@porcelain/reviews/errors';
 
 export class ReadReviewSummaryUseCase {
   private readonly readReviewSummary: ReadReviewSummaryService;
@@ -18,16 +19,14 @@ export class ReadReviewSummaryUseCase {
 
   execute(
     input: ReadReviewSummaryParams & ReadReviewSummaryQuery,
-    context: OperationContext,
-  ): Promise<ReadReviewSummaryResponse> {
-    return this.lanes.unqueued(
-      async () =>
-        this.readReviewSummary.execute({
-          token: input.token,
-          expires: input.expires,
-          signature: input.signature,
-        }).html,
-      { callerSignal: context.signal },
-    );
+  ): Effect.Effect<ReadReviewSummaryResponse, ReviewSummaryNotFoundError> {
+    return Effect.gen({ self: this }, function* () {
+      this.lanes.assertOpen();
+      return (yield* this.readReviewSummary.execute({
+        token: input.token,
+        expires: input.expires,
+        signature: input.signature,
+      })).html;
+    });
   }
 }

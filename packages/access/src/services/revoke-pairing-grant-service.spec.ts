@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { FixedClock } from '@porcelain/kernel/fakes';
 import type { StoredPairingGrant } from '@porcelain/access/models';
@@ -30,7 +31,9 @@ function setup(grant: Partial<StoredPairingGrant> = {}) {
 describe('RevokePairingGrantService', () => {
   it('revokes an unredeemed grant at the current time', () => {
     const { grants, service } = setup();
-    expect(service.execute({ id: 'grant' })).toEqual({ kind: 'revoked' });
+    expect(Effect.runSync(service.execute({ id: 'grant' }))).toEqual({
+      kind: 'revoked',
+    });
     expect(grants.find({ grantId: 'grant' })?.revokedAt).toBe(
       '2026-09-23T10:05:00.000Z',
     );
@@ -38,9 +41,11 @@ describe('RevokePairingGrantService', () => {
 
   it('keeps the first revocation time when the grant is revoked again', () => {
     const { grants, clock, service } = setup();
-    service.execute({ id: 'grant' });
+    Effect.runSync(service.execute({ id: 'grant' }));
     clock.set('2026-09-23T10:06:00.000Z');
-    expect(service.execute({ id: 'grant' })).toEqual({ kind: 'not-revoked' });
+    expect(Effect.runSync(service.execute({ id: 'grant' }))).toEqual({
+      kind: 'not-revoked',
+    });
     expect(grants.find({ grantId: 'grant' })?.revokedAt).toBe(
       '2026-09-23T10:05:00.000Z',
     );
@@ -48,19 +53,23 @@ describe('RevokePairingGrantService', () => {
 
   it('revokes a grant that has already expired', () => {
     const { service } = setup({ expiresAt: '2026-09-23T10:01:00.000Z' });
-    expect(service.execute({ id: 'grant' })).toEqual({ kind: 'revoked' });
+    expect(Effect.runSync(service.execute({ id: 'grant' }))).toEqual({
+      kind: 'revoked',
+    });
   });
 
   it('leaves a redeemed grant alone', () => {
     const { grants, service } = setup({
       redeemedAt: '2026-09-23T10:02:00.000Z',
     });
-    expect(service.execute({ id: 'grant' })).toEqual({ kind: 'not-revoked' });
+    expect(Effect.runSync(service.execute({ id: 'grant' }))).toEqual({
+      kind: 'not-revoked',
+    });
     expect(grants.find({ grantId: 'grant' })?.revokedAt).toBeUndefined();
   });
 
   it('reports an unknown id as not revoked', () => {
-    expect(setup().service.execute({ id: 'unknown' })).toEqual({
+    expect(Effect.runSync(setup().service.execute({ id: 'unknown' }))).toEqual({
       kind: 'not-revoked',
     });
   });

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import type { FileDraft } from '../store';
+import type { FileDraft } from '@porcelain/client/files';
 
 export function useDiskChangeNotice(
   draft: FileDraft,

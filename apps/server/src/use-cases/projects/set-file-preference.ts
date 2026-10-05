@@ -1,3 +1,8 @@
+import { Effect } from 'effect';
+import type {
+  ProjectNotFoundError,
+  FilePreferenceLimitError,
+} from '@porcelain/projects/errors';
 import type {
   SetFilePreferenceParams,
   SetFilePreferenceRequest,
@@ -10,7 +15,6 @@ import type {
 import type { EventPublisher } from '../../ports/event-publisher.ts';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
 
 export class SetFilePreferenceUseCase {
   private readonly checkProject: CheckProjectService;
@@ -33,22 +37,27 @@ export class SetFilePreferenceUseCase {
     this.events = events;
   }
 
-  async execute(
+  execute(
     input: SetFilePreferenceParams & SetFilePreferenceRequest,
-    context: OperationContext,
-  ): Promise<SetFilePreferenceResponse> {
-    const project = this.checkProject.execute({ projectId: input.projectId });
-    const result = await this.lanes.run(
-      this.laneKeys.project(project),
-      'write',
-      async () => this.setFilePreference.execute(input),
-      { callerSignal: context.signal },
-    );
-    if (result.changed)
-      this.events.projectChanged({
+  ): Effect.Effect<
+    SetFilePreferenceResponse,
+    ProjectNotFoundError | FilePreferenceLimitError
+  > {
+    return Effect.gen({ self: this }, function* () {
+      const project = yield* this.checkProject.execute({
         projectId: input.projectId,
-        change: 'preferences',
       });
-    return { preferences: result.preferences };
+      const result = yield* this.lanes.run(
+        this.laneKeys.project(project),
+        'write',
+        () => this.setFilePreference.execute(input),
+      );
+      if (result.changed)
+        this.events.projectChanged({
+          projectId: input.projectId,
+          change: 'preferences',
+        });
+      return { preferences: result.preferences };
+    });
   }
 }

@@ -1,3 +1,5 @@
+import { Effect } from 'effect';
+import { withSignal } from '@porcelain/effects';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import type { IdentifyRequestClientUseCasePort } from '../../ports/identify-request-client-use-case-port.ts';
 import { headerValue } from './header-value.ts';
@@ -14,19 +16,21 @@ export function identifyRequestClient(
   strictTransport: { maxAgeSeconds: number },
 ) {
   return async (request: FastifyRequest, reply: FastifyReply) => {
-    request.client = await options.access.identifyRequestClient.execute(
-      {
-        host: request.headers.host,
-        scheme: request.protocol,
-        peerAddress: request.ip,
-        localAddress: request.socket.localAddress,
-        localPort: request.socket.localPort,
-        connectingAddress: headerValue(
-          request.headers[CONNECTING_ADDRESS_HEADER],
-        ),
-        forwardedFor: headerValue(request.headers[FORWARDED_FOR_HEADER]),
-      },
-      { signal: request.disconnected },
+    request.client = await Effect.runPromise(
+      withSignal(
+        options.access.identifyRequestClient.execute({
+          host: request.headers.host,
+          scheme: request.protocol,
+          peerAddress: request.ip,
+          localAddress: request.socket.localAddress,
+          localPort: request.socket.localPort,
+          connectingAddress: headerValue(
+            request.headers[CONNECTING_ADDRESS_HEADER],
+          ),
+          forwardedFor: headerValue(request.headers[FORWARDED_FOR_HEADER]),
+        }),
+        request.disconnected,
+      ),
     );
     if (request.client.secure)
       reply.header(

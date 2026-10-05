@@ -1,6 +1,10 @@
-export class MissingTailnetHostnameError extends Error {
-  override readonly name = 'MissingTailnetHostnameError';
-  constructor() {
-    super("Tailscale needs this computer's Tailscale name.");
+import { Schema } from 'effect';
+
+export class MissingTailnetHostnameError extends Schema.TaggedError<MissingTailnetHostnameError>()(
+  'MissingTailnetHostnameError',
+  {},
+) {
+  override get message() {
+    return "Tailscale needs this computer's Tailscale name.";
   }
 }

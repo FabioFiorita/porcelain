@@ -1,3 +1,4 @@
+import { nativeRead, type WorktreeRead } from '@porcelain/effects';
 import type { Dirent } from 'node:fs';
 import { lstat, opendir, readlink } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -8,6 +9,7 @@ import type {
   EntryKind,
 } from '@porcelain/files/models';
 import type { DirectoryReader } from '@porcelain/files/ports';
+import type { Effect } from 'effect';
 import { inspectPath, readFailure, verifyPath } from './inspect-path.ts';
 import {
   listedWorktree,
@@ -24,8 +26,15 @@ export class FilesystemDirectoryReader implements DirectoryReader {
     this.worktrees = worktrees;
     this.options = options;
   }
+  list(
+    input: DirectoryReadInput,
+  ): Effect.Effect<DirectoryRead, never, WorktreeRead> {
+    return nativeRead(input.worktreeId, (signal) =>
+      this.listFromDisk(input, signal),
+    );
+  }
 
-  async list(
+  private async listFromDisk(
     input: DirectoryReadInput,
     signal?: AbortSignal,
   ): Promise<DirectoryRead> {

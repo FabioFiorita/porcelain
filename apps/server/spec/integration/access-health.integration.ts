@@ -1,3 +1,4 @@
+import * as Schema from 'effect/Schema';
 import { readHealthResponseSchema } from '@porcelain/contracts/access';
 import { expect } from 'vitest';
 import { inventory } from '../kit/reads.ts';
@@ -21,7 +22,9 @@ test('anyone asks for health without a credential and hears the server is up in 
     environmentId: before.environmentId,
   });
   expect(response.body).toEqual(
-    expect.schemaMatching(readHealthResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(Schema.toEncoded(readHealthResponseSchema)),
+    ),
   );
 });
 

@@ -1,3 +1,4 @@
+import { runRequest } from '../../../shared/api/effect-client.ts';
 import { assertCurrentAnswer } from '../../../shared/api/stale-answer.ts';
 import { queryKeys } from '../../../shared/api/query-keys.ts';
 import type { ListCommitsResponse } from '@porcelain/contracts/changes';
@@ -6,9 +7,9 @@ import {
   type WorktreeConnection,
   type WorktreeScope,
 } from '../../../shared/api/connection.ts';
-import { historyApi } from '../api.ts';
+import { changesApi } from '../../changes/api.ts';
 
-type Continuation = { after: string[]; tip: string };
+type Continuation = { after: readonly string[]; tip: string };
 
 function selectHistory(
   data: InfiniteData<ListCommitsResponse, Continuation | undefined>,
@@ -38,12 +39,13 @@ export function historyQueryOptions(
       pageParam: Continuation | undefined;
     }) => {
       const connected = connection.request(signal);
-      const page = await historyApi(connection).list({
-        signal: connected.signal,
-        worktreeId: scope.worktreeId,
-        after: pageParam?.after,
-        tip: pageParam?.tip,
-      });
+      const page = await runRequest(
+        changesApi(connection).listCommits({
+          params: { worktreeId: scope.worktreeId },
+          query: { after: pageParam?.after, tip: pageParam?.tip },
+        }),
+        connected.signal,
+      );
       assertCurrentAnswer(connected.signal);
       return page;
     },

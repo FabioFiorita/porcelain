@@ -1,7 +1,10 @@
-export class UnsupportedCommentComparisonError extends Error {
-  override readonly name = 'UnsupportedCommentComparisonError';
+import { Schema } from 'effect';
 
-  constructor() {
-    super('A comment on the whole change compares only against a branch');
+export class UnsupportedCommentComparisonError extends Schema.TaggedError<UnsupportedCommentComparisonError>()(
+  'UnsupportedCommentComparisonError',
+  {},
+) {
+  override get message() {
+    return 'A comment on the whole change compares only against a branch';
   }
 }

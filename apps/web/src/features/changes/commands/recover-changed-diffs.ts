@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { changesQueryOptions } from '@porcelain/client/changes';
-import { type ChangesScope } from '../rules/changes';
+import { type ChangesScope } from '@porcelain/client/changes/rules';
 import { useChangesStore } from '../store';
 import { type Connection } from '@/shared/workspace/connection';
 

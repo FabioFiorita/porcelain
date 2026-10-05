@@ -9,7 +9,7 @@ export default {
   edits: [
     {
       kind: 'prepend',
-      path: 'apps/web/src/features/access/api.ts',
+      path: 'apps/web/src/features/access/store.ts',
       content:
         "import '../../../../../packages/client/src/features/access/rules/pairing-link.ts';\n",
     },

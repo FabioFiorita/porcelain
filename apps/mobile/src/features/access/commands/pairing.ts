@@ -1,5 +1,7 @@
+import { Effect } from 'effect';
 import { useMutation } from '@tanstack/react-query';
 import { useRef, useEffect } from 'react';
+import { runRequest } from '@porcelain/client/transport';
 import { pairEnvironment } from '@porcelain/client/access';
 import { pairingPlatform, accessStore } from '../store';
 
@@ -11,10 +13,8 @@ export function usePairEnvironment(onPaired: () => void) {
     mutationFn: (value: string) => {
       controller.current?.abort();
       controller.current = new AbortController();
-      return pairEnvironment(
-        accessStore,
-        pairingPlatform(),
-        value,
+      return runRequest(
+        pairEnvironment(accessStore, pairingPlatform(), value),
         controller.current.signal,
       );
     },
@@ -31,7 +31,7 @@ export function usePairEnvironment(onPaired: () => void) {
 export function useReadEnvironments() {
   const mutation = useMutation({
     scope: { id: 'access.environments' },
-    mutationFn: () => accessStore.getState().load(),
+    mutationFn: () => Effect.runPromise(accessStore.getState().load()),
   });
   return mutation.mutate;
 }

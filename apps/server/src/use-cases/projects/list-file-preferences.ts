@@ -1,3 +1,5 @@
+import { Effect } from 'effect';
+import type { ProjectNotFoundError } from '@porcelain/projects/errors';
 import type {
   ListFilePreferencesParams,
   ListFilePreferencesResponse,
@@ -8,7 +10,6 @@ import type {
 } from '@porcelain/projects/services';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
 
 export class ListFilePreferencesUseCase {
   private readonly checkProject: CheckProjectService;
@@ -30,14 +31,14 @@ export class ListFilePreferencesUseCase {
 
   execute(
     input: ListFilePreferencesParams,
-    context: OperationContext,
-  ): Promise<ListFilePreferencesResponse> {
-    const project = this.checkProject.execute({ projectId: input.projectId });
-    return this.lanes.run(
-      this.laneKeys.project(project),
-      'read',
-      async () => this.listFilePreferences.execute(input),
-      { callerSignal: context.signal },
-    );
+  ): Effect.Effect<ListFilePreferencesResponse, ProjectNotFoundError> {
+    return Effect.gen({ self: this }, function* () {
+      const project = yield* this.checkProject.execute({
+        projectId: input.projectId,
+      });
+      return yield* this.lanes.run(this.laneKeys.project(project), 'read', () =>
+        this.listFilePreferences.execute(input),
+      );
+    });
   }
 }

@@ -1,3 +1,4 @@
+import * as Schema from 'effect/Schema';
 import { setTimeout as delay } from 'node:timers/promises';
 import { readChangesResponseSchema } from '@porcelain/contracts/changes';
 import { expect } from 'vitest';
@@ -77,7 +78,9 @@ test('reading the changes of the sample unstaged change returns its entry, the h
 
   expect(response.status).toBe(200);
   expect(response.body).toEqual(
-    expect.schemaMatching(readChangesResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(Schema.toEncoded(readChangesResponseSchema)),
+    ),
   );
   expect(response.body).toStrictEqual({
     environmentId: environment.environmentId,
@@ -167,7 +170,9 @@ test('reading the changes during a merge conflict reports the merge and the conf
 
   expect(response.status).toBe(200);
   expect(response.body).toEqual(
-    expect.schemaMatching(readChangesResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(Schema.toEncoded(readChangesResponseSchema)),
+    ),
   );
   expect(response.body).toMatchObject({
     headOid,
@@ -220,7 +225,9 @@ test('a conversion filter on a tracked file refuses the changes read wherever th
   expect(response.body).toStrictEqual(filtersUnsupported);
   await session.remove('nested/.gitattributes');
   expect(await read(session, changesRead(session))).toEqual(
-    expect.schemaMatching(readChangesResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(Schema.toEncoded(readChangesResponseSchema)),
+    ),
   );
   await session.writeFile(
     '.git/info/attributes',

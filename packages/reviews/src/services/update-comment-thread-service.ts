@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { CommentTargetNotFoundError } from '../errors/comment-target-not-found-error.ts';
 import type {
   UpdateCommentThreadInput,
@@ -12,18 +13,22 @@ export class UpdateCommentThreadService {
     this.comments = comments;
   }
 
-  execute(input: UpdateCommentThreadInput): UpdateCommentThreadResult {
-    const current = this.comments.find({ threadId: input.threadId });
-    if (!current || current.worktreeId !== input.worktreeId)
-      throw new CommentTargetNotFoundError();
-    if (current.resolved === input.resolved)
-      return { thread: current, changed: false };
-    return {
-      thread: this.comments.resolve({
-        thread: current,
-        resolved: input.resolved,
-      }),
-      changed: true,
-    };
+  execute(
+    input: UpdateCommentThreadInput,
+  ): Effect.Effect<UpdateCommentThreadResult, CommentTargetNotFoundError> {
+    return Effect.gen({ self: this }, function* () {
+      const current = this.comments.find({ threadId: input.threadId });
+      if (!current || current.worktreeId !== input.worktreeId)
+        return yield* Effect.fail(new CommentTargetNotFoundError());
+      if (current.resolved === input.resolved)
+        return { thread: current, changed: false };
+      return {
+        thread: this.comments.resolve({
+          thread: current,
+          resolved: input.resolved,
+        }),
+        changed: true,
+      };
+    });
   }
 }

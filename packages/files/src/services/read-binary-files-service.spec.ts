@@ -1,3 +1,5 @@
+import { Effect } from 'effect';
+import { withReadLease } from '@porcelain/effects/worktree';
 import { describe, expect, it } from 'vitest';
 import { InMemoryFileReader } from '../../spec/fakes/in-memory-file-reader.ts';
 import { ReadBinaryFilesService } from './read-binary-files-service.ts';
@@ -20,17 +22,33 @@ const bytes = (length: number) => new Uint8Array(length);
 
 describe('ReadBinaryFilesService', () => {
   it('maps every readable path to its bytes', async () => {
-    const read = await service.execute({ worktreeId, paths: ['shot.png'] });
+    const read = await Effect.runPromise(
+      withReadLease(
+        worktreeId,
+        service.execute({ worktreeId, paths: ['shot.png'] }),
+      ),
+    );
     expect([...read.files]).toEqual([['shot.png', shot]]);
     expect(read.tooLarge).toEqual([]);
     expect(read.unreadable).toEqual([]);
   });
 
   it('reports a path over the limit apart from one it could not read', async () => {
-    const read = await service.execute({
-      worktreeId,
-      paths: ['shot.png', 'huge.webm', 'gone.png', 'folder.png', 'moving.png'],
-    });
+    const read = await Effect.runPromise(
+      withReadLease(
+        worktreeId,
+        service.execute({
+          worktreeId,
+          paths: [
+            'shot.png',
+            'huge.webm',
+            'gone.png',
+            'folder.png',
+            'moving.png',
+          ],
+        }),
+      ),
+    );
     expect([...read.files.keys()]).toEqual(['shot.png']);
     expect(read.tooLarge).toEqual(['huge.webm']);
     expect(read.unreadable).toEqual(['gone.png', 'folder.png', 'moving.png']);
@@ -45,10 +63,15 @@ describe('ReadBinaryFilesService', () => {
         'd.png': { kind: 'file', bytes: bytes(20), revision: 'r1' },
       },
     });
-    const read = await new ReadBinaryFilesService(reader, {
-      maxBytes: 64,
-      totalBytes: 100,
-    }).execute({ worktreeId, paths: ['a.png', 'b.png', 'c.png', 'd.png'] });
+    const read = await Effect.runPromise(
+      withReadLease(
+        worktreeId,
+        new ReadBinaryFilesService(reader, {
+          maxBytes: 64,
+          totalBytes: 100,
+        }).execute({ worktreeId, paths: ['a.png', 'b.png', 'c.png', 'd.png'] }),
+      ),
+    );
     expect([...read.files.keys()]).toEqual(['a.png', 'b.png', 'd.png']);
     expect(read.tooLarge).toEqual(['c.png']);
   });
@@ -60,10 +83,15 @@ describe('ReadBinaryFilesService', () => {
         'b.png': { kind: 'file', bytes: bytes(1), revision: 'r1' },
       },
     });
-    const read = await new ReadBinaryFilesService(reader, {
-      maxBytes: 64,
-      totalBytes: 50,
-    }).execute({ worktreeId, paths: ['a.png', 'b.png'] });
+    const read = await Effect.runPromise(
+      withReadLease(
+        worktreeId,
+        new ReadBinaryFilesService(reader, {
+          maxBytes: 64,
+          totalBytes: 50,
+        }).execute({ worktreeId, paths: ['a.png', 'b.png'] }),
+      ),
+    );
     expect([...read.files.keys()]).toEqual(['a.png']);
     expect(read.tooLarge).toEqual(['b.png']);
   });

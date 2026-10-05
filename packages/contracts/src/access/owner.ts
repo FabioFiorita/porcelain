@@ -1,11 +1,9 @@
-import { z } from 'zod';
+import { Schema } from 'effect';
 
-export const readOwnerStatusResponseSchema = z.object({
-  address: z.string(),
-  dataDirectory: z.string(),
-  pid: z.number().int().positive(),
+export const readOwnerStatusResponseSchema = Schema.Struct({
+  address: Schema.String,
+  dataDirectory: Schema.String,
+  pid: Schema.Number.check(Schema.isInt()).check(Schema.isGreaterThan(0)),
 });
 
-export type ReadOwnerStatusResponse = z.output<
-  typeof readOwnerStatusResponseSchema
->;
+export type ReadOwnerStatusResponse = typeof readOwnerStatusResponseSchema.Type;

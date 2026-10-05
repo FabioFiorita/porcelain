@@ -1,3 +1,4 @@
+import type { Effect } from 'effect';
 import type {
   ServiceUpdateCheck,
   ServiceUpdateState,
@@ -5,9 +6,7 @@ import type {
 } from '@porcelain/access/models';
 
 export interface ServiceUpdateRunner {
-  read(
-    input: ServiceUpdateCheck,
-    signal?: AbortSignal,
-  ): Promise<ServiceUpdateState>;
-  start(input: ServiceUpdateTarget, signal?: AbortSignal): Promise<void>;
+  read(input: ServiceUpdateCheck): Effect.Effect<ServiceUpdateState>;
+  start(input: ServiceUpdateTarget): Effect.Effect<void>;
+  close(): Effect.Effect<void>;
 }

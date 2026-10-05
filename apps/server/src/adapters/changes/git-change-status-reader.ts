@@ -1,3 +1,7 @@
+import type { Effect } from 'effect';
+import type { WorktreeRead } from '@porcelain/effects/worktree';
+import { readGit } from '../../runtime/git-io.ts';
+import type { GitIoFailure } from '../../ports/git-io-failure.ts';
 import type {
   BranchDetails,
   BranchDetailsRequest,
@@ -8,14 +12,22 @@ import type { ChangeStatusReader } from '@porcelain/changes/ports';
 import { fromGitChange } from './git-comparisons.ts';
 import type { OpenInspection } from './inspection-checkouts.ts';
 
-export class GitChangeStatusReader implements ChangeStatusReader {
+export class GitChangeStatusReader implements ChangeStatusReader<GitIoFailure> {
   private readonly open: OpenInspection;
 
   constructor(open: OpenInspection) {
     this.open = open;
   }
 
-  async readStatus(
+  readStatus(
+    input: ReadWorktreeStatusInput,
+  ): Effect.Effect<ChangeStatusObservation, GitIoFailure, WorktreeRead> {
+    return readGit(input.worktreeId, (signal) =>
+      this.readStatusNative(input, signal),
+    );
+  }
+
+  private async readStatusNative(
     input: ReadWorktreeStatusInput,
     signal?: AbortSignal,
   ): Promise<ChangeStatusObservation> {
@@ -36,7 +48,15 @@ export class GitChangeStatusReader implements ChangeStatusReader {
     };
   }
 
-  async readBranchDetails(
+  readBranchDetails(
+    input: BranchDetailsRequest,
+  ): Effect.Effect<BranchDetails, GitIoFailure, WorktreeRead> {
+    return readGit(input.worktreeId, (signal) =>
+      this.readBranchDetailsNative(input, signal),
+    );
+  }
+
+  private async readBranchDetailsNative(
     input: BranchDetailsRequest,
     signal?: AbortSignal,
   ): Promise<BranchDetails> {

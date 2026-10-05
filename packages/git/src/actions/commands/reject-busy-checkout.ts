@@ -1,7 +1,7 @@
 import { lstat } from 'node:fs/promises';
 import { isMissing } from '../../shared/errors/is-missing.ts';
 import { readActionCommand } from './read-action-command.ts';
-import { GitActionRejectedError } from '../errors/git-action-rejected-error.ts';
+import { GitActionRejectedError } from '../../shared/errors/git-action-rejected-error.ts';
 import type { GitProcessRunner } from '../interfaces/git-process-runner.ts';
 
 export async function rejectBusyCheckout(

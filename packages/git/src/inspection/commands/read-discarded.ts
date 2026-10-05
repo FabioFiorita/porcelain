@@ -1,6 +1,6 @@
 import type { GitLimits } from '../../shared/dtos/git-limits.ts';
 import type { GitDiscardedChange } from '../dtos/git-status.ts';
-import { InspectionLimitError } from '../errors/inspection-limit-error.ts';
+import { InspectionLimitError } from '../../shared/errors/inspection-limit-error.ts';
 import { parseDiscarded } from '../parsers/parse-discarded.ts';
 import { parseObjectBatch } from '../parsers/parse-object-batch.ts';
 import { isOid } from '../../shared/parsers/oid.ts';

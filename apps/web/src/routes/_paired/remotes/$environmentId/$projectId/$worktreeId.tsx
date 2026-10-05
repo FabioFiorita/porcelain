@@ -1,13 +1,11 @@
+import { selectedWorktreeInProject } from '@porcelain/client/projects/rules';
 import { createFileRoute, Navigate } from '@tanstack/react-router';
 import {
   useRemoteConnection,
   useRemoteStatus,
   type RemoteConnection,
 } from '@/features/access/index';
-import {
-  selectedWorktreeInProject,
-  useInventory,
-} from '@/features/projects/index';
+import { useInventory } from '@/features/projects/index';
 import { ConnectedWorkspace } from '@/app/connected-workspace';
 import { WorkspaceError } from '@/app/workspace-error';
 import { WorkspacePending } from '@/app/workspace-pending';

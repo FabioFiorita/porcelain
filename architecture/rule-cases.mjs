@@ -1,3 +1,4 @@
+import { effectRuleCases } from './effect-rule-cases.mjs';
 const commentSeenStore = `import type { CommentSeenStore } from '../../src/ports/comment-seen-store.ts';
 
 export class InMemoryCommentSeenStore implements CommentSeenStore {
@@ -62,12 +63,6 @@ test('the changes of an unknown worktree are refused with the error contract', a
 });
 `;
 
-const healthRoute = `import { readHealthEndpoint as endpoint } from '@porcelain/contracts/access';
-export function readHealth() {
-  api.route({ method: endpoint.method, url: endpoint.path, schema: endpoint.schema,
-    handler: async (request) => options.useCase.execute({ signal: request.disconnected }) });
-}`;
-
 const encodedCredential = `import type { CredentialKind, CredentialParts } from '../models/credential.ts';
 
 export function parseCredential(
@@ -80,17 +75,6 @@ export function parseCredential(
     : undefined;
 }
 `;
-
-const separateWorktreeLanes = `export class MarkCommentsSeenUseCase {
-  async execute(
-  ): Promise<MarkCommentsSeenResponse> {
-    const { changed, ...seen } = await this.lanes.run(
-      this.laneKeys.reviews(worktree),
-      'write',
-      async () => this.markCommentsSeen.execute(input),
-    );
-  }
-}`;
 
 const runtimeJobs = `const openServer: OpenServer = async (input) => {
   const jobs: readonly Job[] = [
@@ -115,12 +99,12 @@ const observedStoreState = `describe('MarkCommentsSeenService', () => {
 `;
 
 export default [
+  ...effectRuleCases,
   {
     rule: 'web-api-owns-request',
     path: 'apps/web/src/features/reviews/live.ts',
-    valid:
-      "import { reviewSurfaceFilters } from '@porcelain/client/transport';",
-    invalid: "import { requestEndpoint } from '@porcelain/client/transport';",
+    valid: "import { RequestError } from '@porcelain/client/transport';",
+    invalid: "import { HttpApiClient } from 'effect/http-api';",
     errors: 1,
   },
   {
@@ -142,10 +126,23 @@ export default [
 
   {
     rule: 'client-owns-shared-logic',
-    path: 'apps/web/src/features/reviews/api.ts',
-    valid: "export { reviewsApi } from '@porcelain/client/reviews/api';",
-    invalid:
-      "import { requestEndpoint as send } from '@porcelain/client/transport';",
+    path: 'apps/web/src/shared/query/file-drafts.ts',
+    valid: "import { retainedFileDrafts } from '@porcelain/client/files';",
+    invalid: "export { retainedFileDrafts } from '@porcelain/client/files';",
+    errors: 1,
+  },
+  {
+    rule: 'client-owns-shared-logic',
+    path: 'apps/web/src/features/files/index.ts',
+    valid: "export { FileEditor } from './views/file-editor';",
+    invalid: "export type { FileDraftState } from '@porcelain/client/files';",
+    errors: 1,
+  },
+  {
+    rule: 'client-owns-shared-logic',
+    path: 'apps/mobile/src/features/files/api.ts',
+    valid: "import { filesApi } from '@porcelain/client/files/api';",
+    invalid: "export * from '@porcelain/client/files/api';",
     errors: 1,
   },
   {
@@ -354,50 +351,10 @@ export type ListDirectoryOutcome =
   {
     rule: 'naming',
     path: 'apps/server/src/use-cases/access/read-health.ts',
-    valid: `import type { ReadEnvironmentService } from '@porcelain/access/services';
-import type { ReadHealthResponse } from '@porcelain/contracts/access';
-import type { OperationContext } from '../../ports/operation-context.ts';
-import type { Lanes } from '../../runtime/lanes.ts';
-
-export class ReadHealthUseCase {
-  private readonly readEnvironment: ReadEnvironmentService;
-  private readonly lanes: Lanes;
-
-  constructor(readEnvironment: ReadEnvironmentService, lanes: Lanes) {
-    this.readEnvironment = readEnvironment;
-    this.lanes = lanes;
-  }
-
-  execute(context: OperationContext): Promise<ReadHealthResponse> {
-    return this.lanes.run('access', 'read', async () => {
-      const { environmentId } = this.readEnvironment.execute();
-      return { status: 'ok', environmentId };
-    }, { callerSignal: context.signal });
-  }
-}
-`,
-    invalid: `import type { ReadEnvironmentService } from '@porcelain/access/services';
-import type { ReadHealthResponse } from '@porcelain/contracts/access';
-import type { OperationContext } from '../../ports/operation-context.ts';
-import type { Lanes } from '../../runtime/lanes.ts';
-
-export class ReadHealthUseCase {
-  private readonly readEnvironmentService: ReadEnvironmentService;
-  private readonly lanes: Lanes;
-
-  constructor(readEnvironment: ReadEnvironmentService, lanes: Lanes) {
-    this.readEnvironmentService = readEnvironment;
-    this.lanes = lanes;
-  }
-
-  execute(context: OperationContext): Promise<ReadHealthResponse> {
-    return this.lanes.run('access', 'read', async () => {
-      const { environmentId } = this.readEnvironmentService.execute();
-      return { status: 'ok', environmentId };
-    }, { callerSignal: context.signal });
-  }
-}
-`,
+    valid:
+      "import { Effect } from 'effect';\nimport type { MissingEnvironmentIdentityError } from '@porcelain/access/errors';\nimport type { ReadEnvironmentService } from '@porcelain/access/services';\nimport type { ReadHealthResponse } from '@porcelain/contracts/access';\nimport type { LaneKeys } from '../../runtime/lane-keys.ts';\nimport type { Lanes } from '../../runtime/lanes.ts';\n\nexport class ReadHealthUseCase {\n  private readonly readEnvironment: ReadEnvironmentService;\n  private readonly lanes: Lanes;\n  private readonly laneKeys: LaneKeys;\n\n  constructor(\n    readEnvironment: ReadEnvironmentService,\n    lanes: Lanes,\n    laneKeys: LaneKeys,\n  ) {\n    this.readEnvironment = readEnvironment;\n    this.lanes = lanes;\n    this.laneKeys = laneKeys;\n  }\n\n  execute(): Effect.Effect<\n    ReadHealthResponse,\n    MissingEnvironmentIdentityError\n  > {\n    return Effect.gen({ self: this }, function* () {\n      return yield* this.lanes.run(this.laneKeys.access(), 'read', () =>\n        Effect.gen({ self: this }, function* () {\n          const { environmentId } = yield* this.readEnvironment.execute();\n          return { status: 'ok' as const, environmentId };\n        }),\n      );\n    });\n  }\n}\n",
+    invalid:
+      "import { Effect } from 'effect';\nimport type { MissingEnvironmentIdentityError } from '@porcelain/access/errors';\nimport type { ReadEnvironmentService } from '@porcelain/access/services';\nimport type { ReadHealthResponse } from '@porcelain/contracts/access';\nimport type { LaneKeys } from '../../runtime/lane-keys.ts';\nimport type { Lanes } from '../../runtime/lanes.ts';\n\nexport class ReadHealthUseCase {\n  private readonly readEnvironmentService: ReadEnvironmentService;\n  private readonly lanes: Lanes;\n  private readonly laneKeys: LaneKeys;\n\n  constructor(\n    readEnvironment: ReadEnvironmentService,\n    lanes: Lanes,\n    laneKeys: LaneKeys,\n  ) {\n    this.readEnvironmentService = readEnvironment;\n    this.lanes = lanes;\n    this.laneKeys = laneKeys;\n  }\n\n  execute(): Effect.Effect<\n    ReadHealthResponse,\n    MissingEnvironmentIdentityError\n  > {\n    return Effect.gen({ self: this }, function* () {\n      return yield* this.lanes.run(this.laneKeys.access(), 'read', () =>\n        Effect.gen({ self: this }, function* () {\n          const { environmentId } = yield* this.readEnvironmentService.execute();\n          return { status: 'ok' as const, environmentId };\n        }),\n      );\n    });\n  }\n}\n",
     errors: 1,
   },
   {
@@ -467,13 +424,7 @@ export interface ProbeDelay {
     invalid: `export class ListDirectoryService { execute(input: ListDirectoryInput): Promise<{ entries: DirectoryEntry[] }> {} }`,
     errors: 1,
   },
-  {
-    rule: 'operation-class-shape',
-    path: 'apps/server/src/use-cases/access/read-health.ts',
-    valid: `export class ReadHealthUseCase { execute(context: OperationContext): Promise<ReadHealthResponse> {} }`,
-    invalid: `export class ReadHealthController { execute(context: OperationContext): Promise<ReadHealthResponse> {} }`,
-    errors: 2,
-  },
+
   {
     rule: 'port-shape',
     path: 'apps/server/src/ports/notice-port.ts',
@@ -665,9 +616,9 @@ test('access.pairing: works', async ({ workspace }) => {
   },
   {
     rule: 'no-number-outside-limits',
-    path: 'packages/contracts/src/files/endpoints.ts',
+    path: 'packages/contracts/src/files/failures.ts',
     valid:
-      "export const endpoint = defineEndpoint({ errors: ['content_changed'] });",
+      "export const contentChanged = httpFailure(ContentChangedError, 'Conflict', { code: 'content_changed' });",
     invalid: 'export const API_ERROR_STATUS = { content_changed: 409 };',
     errors: 1,
   },
@@ -675,48 +626,21 @@ test('access.pairing: works', async ({ workspace }) => {
   {
     rule: 'no-number-outside-limits',
     path: 'apps/server/src/adapters/access/http-tunnel-probe.ts',
-    valid: 'export const schema = readHealthEndpoint.responses[200];',
-    invalid: 'export const schema = responses[200];',
+    valid:
+      'export const decodeHealth = Schema.decodeUnknownResult(readHealthResponseSchema);',
+    invalid: 'export const schema = readHealthEndpoint.responses[200];',
     errors: 1,
   },
 
   {
     rule: 'spec-imports',
-    path: 'packages/contracts/src/shared/endpoint.spec.ts',
-    valid: "import { z } from 'zod';",
+    path: 'packages/contracts/src/shared/http-api.spec.ts',
+    valid: "import { Schema } from 'effect';",
     invalid:
       "import { readHealth } from '@porcelain/server/src/http/routes/access/read-health';",
     errors: 1,
   },
 
-  {
-    rule: 'feature-route-shape',
-    path: 'apps/server/src/http/routes/files/read-text-file.ts',
-    valid: `import { readTextFileEndpoint as endpoint } from '@porcelain/contracts/files'; api.route({ method: endpoint.method, url: endpoint.path, schema: endpoint.schema, handler: async (request) => options.useCase.execute(request.params, { signal: request.disconnected }) });`,
-    invalid: `import { readTextFileEndpoint as endpoint, readFileAssetEndpoint as other } from '@porcelain/contracts/files'; api.route({ method: endpoint.method, url: other.path, schema: endpoint.schema, handler: async (request) => options.useCase.execute(request.params, { signal: request.disconnected }) });`,
-    errors: 1,
-  },
-  {
-    rule: 'feature-route-shape',
-    path: 'apps/server/src/http/routes/files/read-text-file.ts',
-    valid: `import { readTextFileEndpoint as endpoint } from '@porcelain/contracts/files'; api.route({ method: endpoint.method, url: endpoint.path, schema: endpoint.schema, handler: async (request) => options.useCase.execute(request.params, { signal: request.disconnected }) });`,
-    invalid: `import { readTextFileEndpoint as endpoint } from '@porcelain/contracts/files'; api.route({ method: 'GET', url: endpoint.path, schema: endpoint.schema, handler: async (request) => options.useCase.execute(request.params, { signal: request.disconnected }) });`,
-    errors: 1,
-  },
-  {
-    rule: 'feature-route-shape',
-    path: 'apps/server/src/http/routes/files/read-text-file.ts',
-    valid: `import { readTextFileEndpoint as endpoint } from '@porcelain/contracts/files'; api.route({ method: endpoint.method, url: endpoint.path, schema: endpoint.schema, handler: async (request) => options.useCase.execute(request.params, { signal: request.disconnected }) });`,
-    invalid: `import { readTextFileEndpoint as endpoint } from '@porcelain/contracts/files'; api.route({ method: endpoint.method, url: '/worktrees/:worktreeId/text', schema: endpoint.schema, handler: async (request) => options.useCase.execute(request.params, { signal: request.disconnected }) });`,
-    errors: 1,
-  },
-  {
-    rule: 'feature-route-shape',
-    path: 'apps/server/src/http/routes/files/read-text-file.ts',
-    valid: `import { readTextFileEndpoint as endpoint } from '@porcelain/contracts/files'; api.route({ method: endpoint.method, url: endpoint.path, schema: endpoint.schema, handler: async (request) => options.useCase.execute(request.params, { signal: request.disconnected }) });`,
-    invalid: `import { readTextFileEndpoint as endpoint } from '@porcelain/contracts/files'; api.route({ method: endpoint.method, url: endpoint.path, schema: {}, handler: async (request) => options.useCase.execute(request.params, { signal: request.disconnected }) });`,
-    errors: 1,
-  },
   {
     rule: 'root-scripts-import-no-package',
     path: 'scripts/api-calls.ts',
@@ -726,19 +650,19 @@ test('access.pairing: works', async ({ workspace }) => {
   },
   {
     rule: 'spec-imports',
-    path: 'packages/client/src/shared/api/request.spec.ts',
-    valid: "import { readTextFileEndpoint } from '@porcelain/contracts/files';",
+    path: 'packages/client/src/shared/api/effect-client.spec.ts',
+    valid: "import { FilesApi } from '@porcelain/contracts/files';",
     invalid:
       "import { ReadTextFileUseCase } from '@porcelain/server/src/use-cases/files/read-text-file';",
     errors: 1,
   },
   {
     rule: 'no-number-outside-limits',
-    path: 'packages/contracts/src/files/endpoints.ts',
+    path: 'packages/contracts/src/files/failures.ts',
     valid:
-      "export const endpoint = defineEndpoint({ errors: ['content_changed'] });",
+      "export const contentChanged = httpFailure(ContentChangedError, 'Conflict', { code: 'content_changed' });",
     invalid:
-      'export const endpoint = defineEndpoint({ errors: { content_changed: 409 } });',
+      'export const contentChanged = httpFailure(ContentChangedError, 409);',
     errors: 1,
   },
 
@@ -855,7 +779,7 @@ test('access.pairing: works', async ({ workspace }) => {
     rule: 'web-api-owns-request',
     path: 'packages/client/src/features/access/commands/pairing.ts',
     valid: "import { ConnectionError } from '@porcelain/client/transport';",
-    invalid: "import { requestEndpoint } from '@porcelain/client/transport';",
+    invalid: "import { HttpApiClient } from 'effect/http-api';",
     errors: 1,
   },
   {
@@ -1200,140 +1124,7 @@ export interface ReviewStatusReader {
 `,
     errors: 1,
   },
-  {
-    rule: 'events-after-lane',
-    path: 'apps/server/src/use-cases/git-actions/run-git-action.ts',
-    valid: `export class RunGitActionUseCase {
-  private runInBackground(worktree: Worktree, run: GitActionRun): void {
-    this.lanes.background(
-      this.laneKeys.receipts(worktree),
-      ({ signal }) => this.settle(run, signal),
-    );
-  }
-  private async settle(run: GitActionRun, signal: AbortSignal): Promise<void> {
-    const ran = await this.runGitAction.execute(
-      {
-        changes: await this.targetChanges(run, signal),
-    });
-  }
-  private async targetChanges(
-  ): Promise<FileChange[]> {
-    if (run.target.kind === 'unchecked') return [];
-  }
-}`,
-    invalid: `export class RunGitActionUseCase {
-  private runInBackground(worktree: Worktree, run: GitActionRun): void {
-    this.lanes.background(
-      this.laneKeys.receipts(worktree),
-      ({ signal }) => this.settle(run, signal),
-    );
-  }
-  private async settle(run: GitActionRun, signal: AbortSignal): Promise<void> {
-    const ran = await this.runGitAction.execute(
-      {
-        changes: await this.targetChanges(run, signal),
-    });
-  }
-  private async targetChanges(
-  ): Promise<FileChange[]> {
-    this.events.worktreeChanged({ worktreeId: run.worktreeId, change: 'git' });
-    if (run.target.kind === 'unchecked') return [];
-  }
-}`,
-    errors: 1,
-  },
-  {
-    rule: 'events-after-lane',
-    path: 'apps/server/src/use-cases/reviews/list-reviewed-layers.ts',
-    valid: `export class ListReviewedLayersUseCase {
-  constructor(
-  ) {
-    return this.lanes.runConsistent(
-      this.laneKeys.reviews(worktree),
-      worktree,
-      async ({ signal }) => {
-        const { paths: marked } = this.listReviewedLayerPaths.execute({
-        });
-      },
-    );
-  }
-}`,
-    invalid: `export class ListReviewedLayersUseCase {
-  constructor(
-  ) {
-    return this.lanes.runConsistent(
-      this.laneKeys.reviews(worktree),
-      worktree,
-      async ({ signal }) => {
-        this.events.inventoryChanged();
-        const { paths: marked } = this.listReviewedLayerPaths.execute({
-        });
-      },
-    );
-  }
-}`,
-    errors: 1,
-  },
-  {
-    rule: 'events-after-lane',
-    path: 'apps/server/src/use-cases/git-actions/run-git-action.ts',
-    valid: `import type { GitActionRun } from '@porcelain/git-actions/models';
-import type { InterruptGitActionService } from '@porcelain/git-actions/services';
-import type { EventPublisher } from '../../ports/event-publisher.ts';
-import type { Lanes } from '../../runtime/lanes.ts';
 
-export class RunGitActionUseCase {
-  private readonly interruptGitAction: InterruptGitActionService;
-  private readonly lanes: Lanes;
-  private readonly events: EventPublisher;
-
-  constructor(interruptGitAction: InterruptGitActionService, lanes: Lanes, events: EventPublisher) {
-    this.interruptGitAction = interruptGitAction;
-    this.lanes = lanes;
-    this.events = events;
-  }
-
-  private failed(run: GitActionRun, error: unknown): Promise<void> {
-    return this.lanes.finish(async () => this.abandon(run, error), {});
-  }
-
-  private abandon(run: GitActionRun, error: unknown): void {
-    this.events.gitActionChanged(this.interruptGitAction.execute({ requestId: run.requestId }));
-  }
-}
-`,
-    invalid: `import type { GitActionRun } from '@porcelain/git-actions/models';
-import type { InterruptGitActionService } from '@porcelain/git-actions/services';
-import type { EventPublisher } from '../../ports/event-publisher.ts';
-import type { Lanes } from '../../runtime/lanes.ts';
-
-export class RunGitActionUseCase {
-  private readonly interruptGitAction: InterruptGitActionService;
-  private readonly lanes: Lanes;
-  private readonly events: EventPublisher;
-
-  constructor(interruptGitAction: InterruptGitActionService, lanes: Lanes, events: EventPublisher) {
-    this.interruptGitAction = interruptGitAction;
-    this.lanes = lanes;
-    this.events = events;
-  }
-
-  private failed(run: GitActionRun, error: unknown): Promise<void> {
-    return this.lanes.finish(async () => this.announceAbandon(run, error), {});
-  }
-
-  private announceAbandon(run: GitActionRun, error: unknown): void {
-    this.events.gitActionChanged(this.interruptGitAction.execute({ requestId: run.requestId }));
-    this.abandon(run, error);
-  }
-
-  private abandon(run: GitActionRun, error: unknown): void {
-    this.events.gitActionChanged(this.interruptGitAction.execute({ requestId: run.requestId }));
-  }
-}
-`,
-    errors: 1,
-  },
   {
     rule: 'events-from-use-cases',
     path: 'apps/server/src/runtime/live-updates/watch-worktrees.ts',
@@ -1637,146 +1428,7 @@ export class InMemoryCommentSeenStore implements CommentSeenStore {
 `,
     errors: 1,
   },
-  {
-    rule: 'feature-route-handler',
-    path: 'apps/server/src/http/routes/git-actions/run-git-action.ts',
-    valid:
-      "import {statusPolicy} from '../../status-policy.ts'; api.post('/run', {schema}, (request, reply) => reply.code(statusPolicy(receipt)).send(options.useCase.execute(request.body, request.context)));",
-    invalid: `
-reply.code(statusOf(receipt))
 
-function statusOf(receipt: { state: string }): number {
-  return receipt.state === 'rejected' ? 409 : 200;
-}
-`,
-    errors: 1,
-  },
-  {
-    rule: 'feature-route-handler',
-    path: 'apps/server/src/http/routes/access/clear-browser-session.ts',
-    valid: `export function clearBrowserSession(
-) {
-  api.route({ method: endpoint.method, url: endpoint.path, schema: endpoint.schema, handler: async (request, reply) =>
-      reply
-        .code(204)
-        .send(await options.useCase.execute({ signal: request.disconnected })) });
-}`,
-    invalid: `export function clearBrowserSession(
-) {
-  api.route({ method: endpoint.method, url: endpoint.path, schema: endpoint.schema, handler: async (_request, reply) => reply.code(204).send() });
-}`,
-    errors: 1,
-  },
-  {
-    rule: 'feature-route-handler',
-    path: 'apps/server/src/http/routes/changes/read-changes.ts',
-    valid: `export function readChanges(
-) {
-  api.route({ method: endpoint.method, url: endpoint.path, schema: endpoint.schema, handler: async (request) =>
-      options.useCase.execute(request.params, {
-        signal: request.disconnected,
-      }) });
-}`,
-    invalid: `export function readChanges(
-) {
-  api.route({ method: endpoint.method, url: endpoint.path, schema: endpoint.schema, handler: async (request) => {
-      const { worktreeId } = request.params;
-      return options.useCase.execute(
-        { worktreeId },
-        { signal: request.disconnected },
-      );
-    } });
-}`,
-    errors: 1,
-  },
-  {
-    rule: 'feature-route-registrations',
-    path: 'apps/server/src/http/routes/changes/read-changes.ts',
-    valid: `export function readChanges(
-  server: FastifyInstance,
-) {
-  const api = server.withTypeProvider<ZodTypeProvider>();
-  api.route({ method: endpoint.method, url: endpoint.path, schema: endpoint.schema, handler: options.useCase.execute(request.params, {
-      }) });
-}`,
-    invalid: `export function readChanges(
-  server: FastifyInstance,
-) {
-  const api = server.withTypeProvider<ZodTypeProvider>();
-  api.addHook('preHandler', async () => undefined);
-  api.route({ method: endpoint.method, url: endpoint.path, schema: endpoint.schema, handler: options.useCase.execute(request.params, {
-      }) });
-}`,
-    errors: 1,
-  },
-  {
-    rule: 'feature-route-registrations',
-    path: 'apps/server/src/http/routes/changes/read-changes.ts',
-    valid: `export function readChanges(
-  server: FastifyInstance,
-) {
-  const api = server.withTypeProvider<ZodTypeProvider>();
-  api.route({ method: endpoint.method, url: endpoint.path, schema: endpoint.schema, handler: options.useCase.execute(request.params, {
-      }) });
-}`,
-    invalid: `export function readChanges(
-  server: FastifyInstance,
-) {
-  const api = server.withTypeProvider<ZodTypeProvider>();
-  api.route({ method: endpoint.method, url: endpoint.path, schema: endpoint.schema, preHandler: async () => undefined, handler: options.useCase.execute(request.params, {
-      }) });
-}`,
-    errors: 1,
-  },
-  {
-    rule: 'feature-route-shape',
-    path: 'apps/server/src/http/routes/access/read-health.ts',
-    valid: healthRoute,
-    invalid: `import { readHealthResponseSchema } from '@porcelain/contracts/access';
-export function readHealth(
-) {
-  const METHOD = 'get';
-  api[METHOD](
-    '/health',
-    {
-      schema: {
-        response: { 200: readHealthResponseSchema },
-      },
-    },
-    async (request) =>
-      options.useCase.execute({ signal: request.disconnected }),
-  );
-}`,
-    errors: 1,
-  },
-  {
-    rule: 'feature-route-shape',
-    path: 'apps/server/src/http/routes/access/read-health.ts',
-    valid: healthRoute,
-    invalid: `import { readHealthResponseSchema } from '@porcelain/contracts/access';
-export function readHealth(
-) {
-  api['get'](
-    '/health',
-    {
-      schema: {
-        response: { 200: readHealthResponseSchema },
-      },
-    },
-    async (request) =>
-      options.useCase.execute({ signal: request.disconnected }),
-  );
-}`,
-    errors: 1,
-  },
-  {
-    rule: 'feature-route-shape',
-    path: 'apps/server/src/http/routes/access/read-health.ts',
-    valid: healthRoute,
-    invalid: `type Options = { service: Pick<ReadHealthUseCase, 'execute'> };
-options.service.execute({ signal: request.disconnected });`,
-    errors: 1,
-  },
   {
     rule: 'fixture-imports',
     path: 'packages/git/spec/fixtures/capture.ts',
@@ -1955,32 +1607,10 @@ export function editFile(
   {
     rule: 'mcp-tool-handler',
     path: 'apps/server/src/http/mcp/review-server.ts',
-    valid: `export function createReviewMcpServer(
-) {
-  server.registerTool(
-    'read_review',
-    {
-    },
-    ({ cwd }, { signal }) =>
-      result(readPublishedReviewResponseSchema, async () =>
-        useCases.reviews.readPublishedReviewAtPath.execute(
-        ),
-      ),
-  );
-}`,
-    invalid: `export function createReviewMcpServer(
-) {
-  server.registerTool(
-    'read_review',
-    {
-    },
-    ({ cwd }, { signal }) =>
-      result(readPublishedReviewResponseSchema, async () =>
-        useCases.reviews.readPublishedReviewAtPath.run(
-        ),
-      ),
-  );
-}`,
+    valid: `import { registerEffectTool } from './effect-tool.ts';
+export function createReviewMcpServer() { registerEffectTool(server, definition, (input) => useCases.reviews.readPublishedReviewAtPath.execute(input)); }`,
+    invalid: `import { registerEffectTool } from './effect-tool.ts';
+export function createReviewMcpServer() { registerEffectTool(server, definition, (input) => useCases.reviews.readPublishedReviewAtPath.run(input)); }`,
     errors: 2,
   },
   {
@@ -2058,47 +1688,6 @@ export class ListDirectoryService {
   },
 
   {
-    rule: 'no-nested-lane',
-    path: 'apps/server/src/use-cases/reviews/mark-comments-seen.ts',
-    valid: separateWorktreeLanes,
-    invalid: `export class MarkCommentsSeenUseCase {
-  async execute(
-  ): Promise<MarkCommentsSeenResponse> {
-    const { changed, ...seen } = await this.lanes.run(
-      this.laneKeys.reviews(worktree),
-      'write',
-      async () => {
-        await this.checkWorktree.execute(
-          { worktreeId, requireAvailableProject: false },
-          context,
-        );
-        return this.markCommentsSeen.execute(input);
-      },
-    );
-  }
-}`,
-    errors: 1,
-  },
-  {
-    rule: 'no-nested-lane',
-    path: 'apps/server/src/use-cases/reviews/mark-comments-seen.ts',
-    valid: separateWorktreeLanes,
-    invalid: `export class MarkCommentsSeenUseCase {
-  async execute(
-  ): Promise<MarkCommentsSeenResponse> {
-    const { changed, ...seen } = await this.lanes.run(
-      this.laneKeys.reviews(worktree),
-      'write',
-      async () =>
-        this.lanes.run(this.laneKeys.reviews(worktree), 'write', async () =>
-          this.markCommentsSeen.execute(input),
-        ),
-    );
-  }
-}`,
-    errors: 1,
-  },
-  {
     rule: 'no-loose-equality-in-domain',
     path: 'packages/access/src/services/issue-pairing-service.ts',
     valid: 'if (value === undefined) throw new InvalidDeviceDetailsError();',
@@ -2139,16 +1728,9 @@ import { withoutGitDirectory } from '@porcelain/kernel/rules';`,
     rule: 'no-node-globals',
     path: 'apps/server/src/use-cases/projects/probe-env.ts',
     valid:
-      "import type {OperationContext} from '../../ports/operation-context.ts'; export class ProbeEnvUseCase { constructor(private readonly reader: EnvironmentReader) {} execute(context: OperationContext): Promise<string> { return this.reader.read(context.signal); } }",
-    invalid: `import type { OperationContext } from '../../ports/operation-context.ts';
-
-export class ProbeEnvUseCase {
-  async execute(context: OperationContext): Promise<string> {
-    const fs = process.getBuiltinModule('node:fs');
-    return fs.readFileSync(\`\${process.env.HOME ?? ''}/.gitconfig\`, 'utf8');
-  }
-}
-`,
+      "import { Effect } from 'effect'; export class ProbeEnvUseCase { constructor(private readonly reader: EnvironmentReader) {} execute(): Effect.Effect<string, EnvironmentUnavailableError> { return this.reader.read(); } }",
+    invalid:
+      "import { Effect } from 'effect';\nexport class ProbeEnvUseCase {\n  execute(): Effect.Effect<string> {\n    const fs = process.getBuiltinModule('node:fs');\n    return fs.readFileSync(`${process.env.HOME ?? ''}/.gitconfig`, 'utf8');\n  }\n}\n",
     errors: 2,
   },
   {
@@ -2513,251 +2095,24 @@ export class ReadInterruptedGitActionService {
     errors: 2,
   },
   {
-    rule: 'operation-class-members',
+    rule: 'operation-class-shape',
     path: 'apps/server/src/use-cases/access/read-health.ts',
     valid:
-      "export class ReadHealthUseCase { execute(context: OperationContext): ReadHealthResponse { return { status: 'ok', environmentId: context.environmentId }; } }",
+      "import { Effect } from 'effect';\nimport type { MissingEnvironmentIdentityError } from '@porcelain/access/errors';\nimport type { ReadEnvironmentService } from '@porcelain/access/services';\nimport type { ReadHealthResponse } from '@porcelain/contracts/access';\nimport type { LaneKeys } from '../../runtime/lane-keys.ts';\nimport type { Lanes } from '../../runtime/lanes.ts';\n\nexport class ReadHealthUseCase {\n  private readonly readEnvironment: ReadEnvironmentService;\n  private readonly lanes: Lanes;\n  private readonly laneKeys: LaneKeys;\n\n  constructor(\n    readEnvironment: ReadEnvironmentService,\n    lanes: Lanes,\n    laneKeys: LaneKeys,\n  ) {\n    this.readEnvironment = readEnvironment;\n    this.lanes = lanes;\n    this.laneKeys = laneKeys;\n  }\n\n  execute(): Effect.Effect<\n    ReadHealthResponse,\n    MissingEnvironmentIdentityError\n  > {\n    return Effect.gen({ self: this }, function* () {\n      return yield* this.lanes.run(this.laneKeys.access(), 'read', () =>\n        Effect.gen({ self: this }, function* () {\n          const { environmentId } = yield* this.readEnvironment.execute();\n          return { status: 'ok' as const, environmentId };\n        }),\n      );\n    });\n  }\n}\n",
     invalid:
       "export async function fixture(input: Input, environmentId: string) {         return new HealthReply(\n          this.readEnvironment.execute().environmentId,\n        ).body();\n\nclass HealthReply {\n  private readonly environmentId: string;\n\n  constructor(environmentId: string) {\n    this.environmentId = environmentId;\n  }\n\n  body(): ReadHealthResponse {\n    return { status: 'ok', environmentId: this.environmentId };\n  }\n}\n }",
-    errors: 1,
-  },
-  {
-    rule: 'operation-class-members',
-    path: 'apps/server/src/use-cases/access/read-health.ts',
-    valid: `import type { ReadEnvironmentService } from '@porcelain/access/services';
-import type { ReadHealthResponse } from '@porcelain/contracts/access';
-import type { OperationContext } from '../../ports/operation-context.ts';
-
-export class ReadHealthUseCase {
-  private readonly readEnvironment: ReadEnvironmentService;
-
-  constructor(readEnvironment: ReadEnvironmentService) {
-    this.readEnvironment = readEnvironment;
-  }
-
-  async execute(context: OperationContext): Promise<ReadHealthResponse> {
-    return this.respond(this.readEnvironment.execute().environmentId);
-  }
-
-  private respond(environmentId: string): ReadHealthResponse {
-    return { status: 'ok', environmentId };
-  }
-}
-`,
-    invalid: `import type { ReadEnvironmentService } from '@porcelain/access/services';
-import type { ReadHealthResponse } from '@porcelain/contracts/access';
-import type { OperationContext } from '../../ports/operation-context.ts';
-
-export class ReadHealthUseCase {
-  private readonly readEnvironment: ReadEnvironmentService;
-
-  constructor(readEnvironment: ReadEnvironmentService) {
-    this.readEnvironment = readEnvironment;
-  }
-
-  async execute(context: OperationContext): Promise<ReadHealthResponse> {
-    return this.respond(this.readEnvironment.execute().environmentId);
-  }
-
-  private readonly respond = (environmentId: string): ReadHealthResponse => ({
-    status: 'ok',
-    environmentId,
-  });
-}
-`,
-    errors: 1,
+    errors: 3,
   },
   {
     rule: 'operation-class-shape',
-    path: 'apps/server/src/use-cases/projects/collect-absent-worktrees.ts',
+    path: 'apps/server/src/use-cases/access/read-health.ts',
     valid:
-      'export class CollectAbsentWorktreesUseCase { execute(context: OperationContext): Promise<CollectAbsentWorktreesResult> { return this.listExpiredWorktrees.execute(context); } }',
+      "import { Effect } from 'effect';\nimport type { MissingEnvironmentIdentityError } from '@porcelain/access/errors';\nimport type { ReadEnvironmentService } from '@porcelain/access/services';\nimport type { ReadHealthResponse } from '@porcelain/contracts/access';\nimport type { LaneKeys } from '../../runtime/lane-keys.ts';\nimport type { Lanes } from '../../runtime/lanes.ts';\n\nexport class ReadHealthUseCase {\n  private readonly readEnvironment: ReadEnvironmentService;\n  private readonly lanes: Lanes;\n  private readonly laneKeys: LaneKeys;\n\n  constructor(\n    readEnvironment: ReadEnvironmentService,\n    lanes: Lanes,\n    laneKeys: LaneKeys,\n  ) {\n    this.readEnvironment = readEnvironment;\n    this.lanes = lanes;\n    this.laneKeys = laneKeys;\n  }\n\n  execute(): Effect.Effect<\n    ReadHealthResponse,\n    MissingEnvironmentIdentityError\n  > {\n    return Effect.gen({ self: this }, function* () {\n      return yield* this.lanes.run(this.laneKeys.access(), 'read', () =>\n        Effect.gen({ self: this }, function* () {\n          const { environmentId } = yield* this.readEnvironment.execute();\n          return { status: 'ok' as const, environmentId };\n        }),\n      );\n    });\n  }\n}\n",
     invalid:
-      'export class CollectAbsentWorktreesUseCase { execute(input: Input): Promise<Result> { return this.listExpiredWorktrees.execute(input); } }',
+      "import { Effect } from 'effect';\nimport type { ReadEnvironmentService } from '@porcelain/access/services';\nimport type { ReadHealthResponse } from '@porcelain/contracts/access';\nexport class ReadHealthUseCase {\n  private readonly readEnvironment: ReadEnvironmentService;\n\n  constructor(readEnvironment: ReadEnvironmentService) {\n    this.readEnvironment = readEnvironment;\n  }\n\n  execute(): Effect.Effect<ReadHealthResponse> {\n    return Effect.map(this.readEnvironment.execute(), ({ environmentId }) => this.respond(environmentId));\n  }\n\n  private readonly respond = (environmentId: string): ReadHealthResponse => ({\n    status: 'ok',\n    environmentId,\n  });\n}\n",
     errors: 1,
   },
-  {
-    rule: 'operation-class-shape',
-    path: 'apps/server/src/use-cases/projects/collect-absent-worktrees.ts',
-    valid:
-      'export class CollectAbsentWorktreesUseCase { execute(context: OperationContext): Promise<CollectAbsentWorktreesResult> { return this.listExpiredWorktrees.execute(context); } }',
-    invalid:
-      'export class CollectAbsentWorktreesUseCase { execute(input: Input): Promise<Result> { return this.listExpiredWorktrees.execute(input); } }',
-    errors: 1,
-  },
-  {
-    rule: 'operation-class-shape',
-    path: 'apps/server/src/use-cases/access/read-health.ts',
-    valid: `import type { ReadEnvironmentService } from '@porcelain/access/services';
-import type { ReadHealthResponse } from '@porcelain/contracts/access';
-import type { OperationContext } from '../../ports/operation-context.ts';
-import type { Lanes } from '../../runtime/lanes.ts';
 
-export class ReadHealthUseCase {
-  private readonly readEnvironment: ReadEnvironmentService;
-  private readonly lanes: Lanes;
-
-  constructor(readEnvironment: ReadEnvironmentService, lanes: Lanes) {
-    this.readEnvironment = readEnvironment;
-    this.lanes = lanes;
-  }
-
-  execute(context: OperationContext): Promise<ReadHealthResponse> {
-    return this.lanes.run('access', 'read', async () => {
-      const { environmentId } = this.readEnvironment.execute();
-      return { status: 'ok', environmentId };
-    }, { callerSignal: context.signal });
-  }
-}
-`,
-    invalid: `import type { ReadEnvironmentService } from '@porcelain/access/services';
-import type { ReadHealthResponse } from '@porcelain/contracts/access';
-import type { OperationContext } from '../../ports/operation-context.ts';
-import type { Lanes } from '../../runtime/lanes.ts';
-
-export class ReadHealthUseCase {
-  private readEnvironmentService: ReadEnvironmentService;
-  private readonly lanes: Lanes;
-
-  constructor(readEnvironment: ReadEnvironmentService, lanes: Lanes) {
-    this.readEnvironmentService = readEnvironment;
-    this.lanes = lanes;
-  }
-
-  execute(context: OperationContext): Promise<ReadHealthResponse> {
-    return this.lanes.run('access', 'read', async () => {
-      const { environmentId } = this.readEnvironmentService.execute();
-      return { status: 'ok', environmentId };
-    }, { callerSignal: context.signal });
-  }
-}
-`,
-    errors: 1,
-  },
-  {
-    rule: 'operation-class-shape',
-    path: 'apps/server/src/use-cases/access/read-health.ts',
-    valid: `export class ReadHealthUseCase {
-  execute(context: OperationContext): Promise<ReadHealthResponse> {
-    return this.lanes.run(
-      this.laneKeys.access(),
-      'read',
-      async () => {
-        const { environmentId } = this.readEnvironment.execute();
-        return { status: 'ok', environmentId };
-      },
-      { callerSignal: context.signal },
-    );
-  }
-}`,
-    invalid: `export class ReadHealthUseCase {
-  readonly execute = (
-    context: OperationContext,
-  ): Promise<ReadHealthResponse> =>
-    this.lanes.run(
-      this.laneKeys.access(),
-      'read',
-      async () => {
-        const { environmentId } = this.readEnvironment.execute();
-        return { status: 'ok', environmentId };
-      },
-      { callerSignal: context.signal },
-    );
-}`,
-    errors: 2,
-  },
-  {
-    rule: 'operation-class-shape',
-    path: 'apps/server/src/use-cases/access/read-health.ts',
-    valid: `import type { ReadEnvironmentService } from '@porcelain/access/services';
-import type { ReadHealthResponse } from '@porcelain/contracts/access';
-import type { OperationContext } from '../../ports/operation-context.ts';
-
-export class ReadHealthUseCase {
-  private readonly readEnvironment: ReadEnvironmentService;
-
-  constructor(readEnvironment: ReadEnvironmentService) {
-    this.readEnvironment = readEnvironment;
-  }
-
-  async execute(context: OperationContext): Promise<ReadHealthResponse> {
-    const { environmentId } = this.readEnvironment.execute();
-    return { status: 'ok', environmentId };
-  }
-}
-`,
-    invalid: `import type { ReadEnvironmentService } from '@porcelain/access/services';
-import type { ReadHealthResponse } from '@porcelain/contracts/access';
-import type { OperationContext } from '../../ports/operation-context.ts';
-import { Operation } from '../../runtime/operation.ts';
-
-export class ReadHealthUseCase extends Operation<ReadHealthResponse> {
-  private readonly readEnvironment: ReadEnvironmentService;
-
-  constructor(readEnvironment: ReadEnvironmentService) {
-    super();
-    this.readEnvironment = readEnvironment;
-  }
-
-  protected async run(context: OperationContext): Promise<ReadHealthResponse> {
-    const { environmentId } = this.readEnvironment.execute();
-    return { status: 'ok', environmentId };
-  }
-}
-`,
-    errors: 1,
-  },
-  {
-    rule: 'operation-class-shape',
-    path: 'apps/server/src/use-cases/access/read-health.ts',
-    valid: `export class ReadHealthUseCase { execute(context: OperationContext): ReadHealthResponse { return {status: 'ok', environmentId: context.environmentId}; } }`,
-    invalid: `export class ReadHealthUseCase { read(context: OperationContext): ReadHealthResponse { return {status: "ok", environmentId: context.environmentId}; } }`,
-    errors: 2,
-  },
-  {
-    rule: 'operation-class-shape',
-    path: 'apps/server/src/use-cases/access/read-health.ts',
-    valid: `export class ReadHealthUseCase {
-  execute(context: OperationContext): Promise<ReadHealthResponse> {
-  }
-}`,
-    invalid: `export class ReadHealthUseCase {
-  executeForOwner(context: OperationContext): Promise<ReadHealthResponse> {
-    return this.execute(context);
-  }
-
-  execute(context: OperationContext): Promise<ReadHealthResponse> {
-  }
-}`,
-    errors: 1,
-  },
-  {
-    rule: 'operation-class-shape',
-    path: 'apps/server/src/use-cases/access/read-health.ts',
-    valid: `export class ReadHealthUseCase {
-  execute(context: OperationContext): Promise<ReadHealthResponse> {
-    return this.lanes.run(
-    );
-  }
-}`,
-    invalid: `export class ReadHealthUseCase {
-  execute(context: OperationContext): Promise<ReadHealthResponse>;
-  execute(
-    context: OperationContext,
-    verbose: boolean,
-  ): Promise<ReadHealthResponse>;
-  execute(
-    context: OperationContext,
-    verbose?: boolean,
-  ): Promise<ReadHealthResponse> {
-    if (verbose)
-      return Promise.resolve({ status: 'ok', environmentId: 'verbose' });
-    return this.lanes.run(
-    );
-  }
-}`,
-    errors: 1,
-  },
   {
     rule: 'port-shape',
     path: 'apps/server/src/ports/edit-announcement-writer.ts',
@@ -2776,15 +2131,13 @@ export interface ContextualEditWriter {
     valid: `export interface CheckWorktreeUseCasePort {
   execute(
     input: CheckWorktreeInput,
-    context: OperationContext,
-  ): Promise<ListedWorktree>;
+  ): Effect.Effect<ListedWorktree, WorktreeAccessFailure>;
 }`,
     invalid: `export interface CheckWorktreeUseCasePort {
   execute(
     input: CheckWorktreeInput,
-    context: OperationContext,
-  ): Promise<ListedWorktree>;
-  refresh(input: CheckWorktreeInput, context: OperationContext): Promise<void>;
+  ): Effect.Effect<ListedWorktree, WorktreeAccessFailure>;
+  refresh(input: CheckWorktreeInput): Effect.Effect<void>;
 }`,
     errors: 1,
   },
@@ -3050,45 +2403,7 @@ export function parseCredential(
 }`,
     errors: 1,
   },
-  {
-    rule: 'signals-are-passed',
-    path: 'packages/files/src/services/list-directory-service.ts',
-    valid:
-      'export class ListDirectoryService { constructor(private readonly reader: DirectoryReader) {} execute(input: DirectoryInput, signal?: AbortSignal) { return this.reader.read(input, signal); } }',
-    invalid: `    const { aborted } = signal ?? { aborted: false };
-    if (aborted) throw new DirectoryTooLargeError();
-    if (read.kind === 'failed') throw this.failure(read.failure);`,
-    errors: 1,
-  },
-  {
-    rule: 'signals-are-passed',
-    path: 'packages/files/src/services/list-directory-service.ts',
-    valid:
-      'export class ListDirectoryService { constructor(private readonly reader: DirectoryReader) {} execute(input: DirectoryInput, signal?: AbortSignal) { return this.reader.read(input, signal); } }',
-    invalid: `    signal?.throwIfAborted();
-    if (read.kind === 'failed') throw this.failure(read.failure);`,
-    errors: 1,
-  },
-  {
-    rule: 'signals-are-passed',
-    path: 'apps/server/src/use-cases/changes/read-changes.ts',
-    valid: `export class ReadChangesUseCase {
-  constructor(
-  ) {
-    return this.lanes.runConsistent<ReadChangesResponse>(
-    );
-  }
-}`,
-    invalid: `export class ReadChangesUseCase {
-  constructor(
-  ) {
-    context.signal?.throwIfAborted();
-    return this.lanes.runConsistent<ReadChangesResponse>(
-    );
-  }
-}`,
-    errors: 1,
-  },
+
   {
     rule: 'spec-asserts',
     path: 'packages/projects/src/rules/derive-project-name.spec.ts',
@@ -3746,7 +3061,7 @@ await page.waitForFunction("document.querySelector('.dark') !== null");`,
     rule: 'use-case-computes',
     path: 'apps/server/src/use-cases/projects/find-worktree-by-path.ts',
     valid:
-      'export class FindWorktreeByPathUseCase { execute(input: FindWorktreeInput, context: OperationContext) { return this.findWorktree.execute(input, context.signal); } }',
+      "import { Effect } from 'effect';\nexport class FindWorktreeByPathUseCase { execute(input: FindWorktreeInput) { return this.findWorktree.execute(input); } }",
     invalid:
       "import { NoWorktreeAtPathError } from '@porcelain/projects/errors';\n\n    export async function fixture(input: Input, environmentId: string) { if (input.path === '') return Promise.reject(new NoWorktreeAtPathError());\n    await this.refreshInventory.execute(context); }",
     errors: 2,
@@ -3794,7 +3109,7 @@ export class ReadChangeLinesUseCase {
     rule: 'use-case-imports',
     path: 'apps/server/src/use-cases/access/read-health.ts',
     valid:
-      "import type {ReadHealthResponse} from '@porcelain/contracts/access'; export class ReadHealthUseCase { execute(context: OperationContext): ReadHealthResponse { return {status: 'ok', environmentId: context.environmentId}; } }",
+      "import { Effect } from 'effect';\nimport type { MissingEnvironmentIdentityError } from '@porcelain/access/errors';\nimport type { ReadEnvironmentService } from '@porcelain/access/services';\nimport type { ReadHealthResponse } from '@porcelain/contracts/access';\nimport type { LaneKeys } from '../../runtime/lane-keys.ts';\nimport type { Lanes } from '../../runtime/lanes.ts';\n\nexport class ReadHealthUseCase {\n  private readonly readEnvironment: ReadEnvironmentService;\n  private readonly lanes: Lanes;\n  private readonly laneKeys: LaneKeys;\n\n  constructor(\n    readEnvironment: ReadEnvironmentService,\n    lanes: Lanes,\n    laneKeys: LaneKeys,\n  ) {\n    this.readEnvironment = readEnvironment;\n    this.lanes = lanes;\n    this.laneKeys = laneKeys;\n  }\n\n  execute(): Effect.Effect<\n    ReadHealthResponse,\n    MissingEnvironmentIdentityError\n  > {\n    return Effect.gen({ self: this }, function* () {\n      return yield* this.lanes.run(this.laneKeys.access(), 'read', () =>\n        Effect.gen({ self: this }, function* () {\n          const { environmentId } = yield* this.readEnvironment.execute();\n          return { status: 'ok' as const, environmentId };\n        }),\n      );\n    });\n  }\n}\n",
     invalid:
       "import {\n  readHealthResponseSchema,\n  type ReadHealthResponse,\n} from '@porcelain/contracts/access';\n    export async function fixture(input: Input, environmentId: string) { const check = readHealthResponseSchema.parse;\n    return check({ status: 'ok', environmentId }); }",
     errors: 1,
@@ -3803,7 +3118,7 @@ export class ReadChangeLinesUseCase {
     rule: 'use-case-imports',
     path: 'apps/server/src/use-cases/access/read-health.ts',
     valid:
-      "import type {ReadHealthResponse} from '@porcelain/contracts/access'; export class ReadHealthUseCase { execute(context: OperationContext): ReadHealthResponse { return {status: 'ok', environmentId: context.environmentId}; } }",
+      "import { Effect } from 'effect';\nimport type { MissingEnvironmentIdentityError } from '@porcelain/access/errors';\nimport type { ReadEnvironmentService } from '@porcelain/access/services';\nimport type { ReadHealthResponse } from '@porcelain/contracts/access';\nimport type { LaneKeys } from '../../runtime/lane-keys.ts';\nimport type { Lanes } from '../../runtime/lanes.ts';\n\nexport class ReadHealthUseCase {\n  private readonly readEnvironment: ReadEnvironmentService;\n  private readonly lanes: Lanes;\n  private readonly laneKeys: LaneKeys;\n\n  constructor(\n    readEnvironment: ReadEnvironmentService,\n    lanes: Lanes,\n    laneKeys: LaneKeys,\n  ) {\n    this.readEnvironment = readEnvironment;\n    this.lanes = lanes;\n    this.laneKeys = laneKeys;\n  }\n\n  execute(): Effect.Effect<\n    ReadHealthResponse,\n    MissingEnvironmentIdentityError\n  > {\n    return Effect.gen({ self: this }, function* () {\n      return yield* this.lanes.run(this.laneKeys.access(), 'read', () =>\n        Effect.gen({ self: this }, function* () {\n          const { environmentId } = yield* this.readEnvironment.execute();\n          return { status: 'ok' as const, environmentId };\n        }),\n      );\n    });\n  }\n}\n",
     invalid:
       "import {\n  readHealthResponseSchema,\n  type ReadHealthResponse,\n} from '@porcelain/contracts/access';\n    export async function fixture(input: Input, environmentId: string) { const { parse: check } = readHealthResponseSchema;\n    return check({ status: 'ok', environmentId }); }",
     errors: 1,
@@ -3812,7 +3127,7 @@ export class ReadChangeLinesUseCase {
     rule: 'use-case-imports',
     path: 'apps/server/src/use-cases/access/read-health.ts',
     valid:
-      "import type {ReadHealthResponse} from '@porcelain/contracts/access'; export class ReadHealthUseCase { execute(context: OperationContext): ReadHealthResponse { return {status: 'ok', environmentId: context.environmentId}; } }",
+      "import { Effect } from 'effect';\nimport type { MissingEnvironmentIdentityError } from '@porcelain/access/errors';\nimport type { ReadEnvironmentService } from '@porcelain/access/services';\nimport type { ReadHealthResponse } from '@porcelain/contracts/access';\nimport type { LaneKeys } from '../../runtime/lane-keys.ts';\nimport type { Lanes } from '../../runtime/lanes.ts';\n\nexport class ReadHealthUseCase {\n  private readonly readEnvironment: ReadEnvironmentService;\n  private readonly lanes: Lanes;\n  private readonly laneKeys: LaneKeys;\n\n  constructor(\n    readEnvironment: ReadEnvironmentService,\n    lanes: Lanes,\n    laneKeys: LaneKeys,\n  ) {\n    this.readEnvironment = readEnvironment;\n    this.lanes = lanes;\n    this.laneKeys = laneKeys;\n  }\n\n  execute(): Effect.Effect<\n    ReadHealthResponse,\n    MissingEnvironmentIdentityError\n  > {\n    return Effect.gen({ self: this }, function* () {\n      return yield* this.lanes.run(this.laneKeys.access(), 'read', () =>\n        Effect.gen({ self: this }, function* () {\n          const { environmentId } = yield* this.readEnvironment.execute();\n          return { status: 'ok' as const, environmentId };\n        }),\n      );\n    });\n  }\n}\n",
     invalid:
       "import {\n  readHealthResponseSchema,\n  type ReadHealthResponse,\n} from '@porcelain/contracts/access';\n    export async function fixture(input: Input, environmentId: string) { const decoded = readHealthResponseSchema.safeDecode({ status: 'ok', environmentId });\n    return decoded.success ? decoded.data : { status: 'ok', environmentId }; }",
     errors: 1,
@@ -3820,50 +3135,10 @@ export class ReadChangeLinesUseCase {
   {
     rule: 'use-case-input-is-contract',
     path: 'apps/server/src/use-cases/reviews/rule-fixture.ts',
-    valid: `import type {
-  CommentAuthor,
-  CreateCommentThreadRequest,
-  CreateCommentThreadResponse,
-} from '@porcelain/contracts/reviews';
-import type { WorktreeParams } from '@porcelain/contracts/shared';
-import type { CreateCommentThreadService } from '@porcelain/reviews/services';
-import type { OperationContext } from '../../ports/operation-context.ts';
-
-export class CreateCommentThreadUseCase {
-  private readonly createCommentThread: CreateCommentThreadService;
-
-  constructor(createCommentThread: CreateCommentThreadService) {
-    this.createCommentThread = createCommentThread;
-  }
-
-  async execute(
-    input: WorktreeParams & CreateCommentThreadRequest & CommentAuthor,
-    context: OperationContext,
-  ): Promise<CreateCommentThreadResponse> {
-    return this.createCommentThread.execute(input);
-  }
-}
-`,
-    invalid: `import type { CreateCommentThreadResponse } from '@porcelain/contracts/reviews';
-import type { CreateCommentThreadInput } from '@porcelain/reviews/models';
-import type { CreateCommentThreadService } from '@porcelain/reviews/services';
-import type { OperationContext } from '../../ports/operation-context.ts';
-
-export class CreateCommentThreadUseCase {
-  private readonly createCommentThread: CreateCommentThreadService;
-
-  constructor(createCommentThread: CreateCommentThreadService) {
-    this.createCommentThread = createCommentThread;
-  }
-
-  async execute(
-    input: CreateCommentThreadInput,
-    context: OperationContext,
-  ): Promise<CreateCommentThreadResponse> {
-    return this.createCommentThread.execute(input);
-  }
-}
-`,
+    valid:
+      "import { Effect } from 'effect';\nimport type {\n  CommentAuthor,\n  CreateCommentThreadRequest,\n  CreateCommentThreadResponse,\n} from '@porcelain/contracts/reviews';\nimport type { WorktreeParams } from '@porcelain/contracts/shared';\nimport type { CreateCommentThreadService } from '@porcelain/reviews/services';\nexport class CreateCommentThreadUseCase {\n  private readonly createCommentThread: CreateCommentThreadService;\n\n  constructor(createCommentThread: CreateCommentThreadService) {\n    this.createCommentThread = createCommentThread;\n  }\n\n  execute(\n    input: WorktreeParams & CreateCommentThreadRequest & CommentAuthor,\n  ): Effect.Effect<CreateCommentThreadResponse, CreateCommentThreadError> {\n    return this.createCommentThread.execute(input);\n  }\n}\n",
+    invalid:
+      "import { Effect } from 'effect';\nimport type { CreateCommentThreadResponse } from '@porcelain/contracts/reviews';\nimport type { CreateCommentThreadInput } from '@porcelain/reviews/models';\nimport type { CreateCommentThreadService } from '@porcelain/reviews/services';\nexport class CreateCommentThreadUseCase {\n  private readonly createCommentThread: CreateCommentThreadService;\n\n  constructor(createCommentThread: CreateCommentThreadService) {\n    this.createCommentThread = createCommentThread;\n  }\n\n  execute(\n    input: CreateCommentThreadInput,\n  ): Effect.Effect<CreateCommentThreadResponse, CreateCommentThreadError> {\n    return this.createCommentThread.execute(input);\n  }\n}\n",
     errors: 1,
   },
   {
@@ -3871,9 +3146,9 @@ export class CreateCommentThreadUseCase {
     path: 'apps/web/src/features/access/queries/probe-query.ts',
     valid:
       "import {pairingApi} from '../api'; export const pairingQuery = () => pairingApi.read();",
-    invalid: `import { requestEndpoint } from '@/shared/api/request';
+    invalid: `import { HttpApiClient } from 'effect/http-api';
 
-export const probeRequest = requestEndpoint;
+export const probeRequest = HttpApiClient;
 `,
     errors: 1,
   },
@@ -3881,8 +3156,7 @@ export const probeRequest = requestEndpoint;
     rule: 'web-api-owns-request',
     path: 'apps/web/src/features/access/commands/pairing.ts',
     valid: "import { RequestError } from '@porcelain/client/transport';",
-    invalid:
-      "import { requestEndpoint as read } from '@porcelain/client/transport';",
+    invalid: "import { HttpApiClient as read } from 'effect/http-api';",
     errors: 1,
   },
   {
@@ -3890,7 +3164,7 @@ export const probeRequest = requestEndpoint;
     path: 'apps/mobile/src/features/access/views/access-screen.tsx',
     valid:
       "import {useEnvironments} from '@porcelain/client/access'; export const Screen = () => <Text>{useEnvironments().length}</Text>;",
-    invalid: "import * as client from '@porcelain/client/transport';",
+    invalid: "import * as client from 'effect/http-api';",
     errors: 1,
   },
   {
@@ -4581,107 +3855,75 @@ const duplicateFixtureSource = `export function matchPaths(paths: readonly strin
 
 const clientRouteFiles = {
   'packages/client/package.json': JSON.stringify({
-    exports: { './files': './src/features/files/index.ts' },
+    exports: {
+      './files': './src/features/files/index.ts',
+      './reviews': './src/features/reviews/index.ts',
+      './access': './src/features/access/index.ts',
+    },
   }),
   'packages/client/src/features/files/index.ts': `
 export { textQuery as textQueryOptions } from './queries/text.ts';
-export { unusedQuery as unusedQueryOptions } from './queries/unused.ts';`,
-  'packages/client/src/features/files/queries/text.ts': `
-import { readText as read } from '../api.ts';
-export const textQuery = () => ({ queryFn: () => read() });`,
-  'packages/client/src/features/files/queries/unused.ts': `
-import { publish as write } from '../api.ts';
-export const unusedQuery = () => ({ queryFn: () => write() });`,
-  'packages/client/src/features/files/api.ts': `
-import { readTextFileEndpoint } from '@porcelain/contracts/files';
-import { publishReviewEndpoint as publishEndpoint } from '@porcelain/contracts/reviews';
-import { requestEndpoint as request } from '../../shared/api/request.ts';
-export const readText = () => request(transport, readTextFileEndpoint, {});
-export const publish = () => request(transport, publishEndpoint, {});`,
-};
-
-const clientMethodFiles = {
-  ...clientRouteFiles,
-  'packages/client/src/features/files/index.ts': `
-export { textQuery as textQueryOptions } from './queries/text.ts';
 export { unusedQuery as unusedQueryOptions } from './queries/unused.ts';
-export { filesApi, createFilesApi } from './api.ts';`,
+export { filesApi } from './api.ts';`,
+  'packages/client/src/features/reviews/index.ts': `export { reviewsApi } from './api.ts';`,
   'packages/client/src/shared/api/per-connection.ts': `
 export const perConnection = (create) => (connection) => create(connection.transport);`,
-  'packages/client/src/features/files/api.ts': `
-import { readTextFileEndpoint } from '@porcelain/contracts/files';
-import { publishReviewEndpoint } from '@porcelain/contracts/reviews';
-import { requestEndpoint } from '../../shared/api/request.ts';
-import { perConnection as connect } from '../../shared/api/per-connection.ts';
-export function createFilesApi(transport) {
-  return {
-    readText: () => requestEndpoint(transport, readTextFileEndpoint, {}),
-    publish() {
-      return requestEndpoint(transport, publishReviewEndpoint, {});
-    },
-  };
-}
-export const filesApi = connect(createFilesApi);`,
-  'packages/client/src/features/files/queries/unused.ts': `
+  'packages/client/src/features/files/queries/text.ts': `
 import { filesApi } from '../api.ts';
-export const unusedQuery = () => ({ queryFn: () => filesApi(connection).publish() });`,
+export const textQuery = () => ({ queryFn: () => filesApi(connection).readTextFile({ params, query }) });`,
+  'packages/client/src/features/files/queries/unused.ts': `
+import { reviewsApi } from '../../reviews/api.ts';
+export const unusedQuery = () => ({ queryFn: () => reviewsApi(connection).publishReview({ params, payload }) });`,
+  'packages/client/src/features/files/api.ts': `
+import { FilesApi } from '@porcelain/contracts/files';
+import { Effect } from 'effect';
+import { HttpApiClient } from 'effect/http-api';
+import { perConnection } from '../../shared/api/per-connection.ts';
+function createFilesApi(transport) {
+  return Effect.runSync(HttpApiClient.makeWith(FilesApi, { httpClient })).files;
+}
+export const filesApi = perConnection(createFilesApi);`,
+  'packages/client/src/features/reviews/api.ts': `
+import { ReviewsApi } from '@porcelain/contracts/reviews';
+import { Effect } from 'effect';
+import { HttpApiClient } from 'effect/http-api';
+import { perConnection } from '../../shared/api/per-connection.ts';
+function createReviewsApi(transport) {
+  return Effect.runSync(HttpApiClient.makeWith(ReviewsApi, { httpClient })).reviews;
+}
+export const reviewsApi = perConnection(createReviewsApi);`,
 };
 
 const clientMethodReads = [
-  `return filesApi(connection).readText();`,
-  `const api = filesApi(connection);
-const alias = api;
-return alias.readText();`,
-  `const { readText: read } = filesApi(connection);
-return read();`,
-  `const factory = filesApi;
-return factory(connection)["readText"]();`,
-  `return createFilesApi(transport).readText();`,
+  `return filesApi(connection).readTextFile({ params, query });`,
+  `const api = filesApi(connection); const alias = api; return alias.readTextFile({ params, query });`,
+  `const read = filesApi(connection).readTextFile; const alias = read; return alias({ params, query });`,
+  `const { readTextFile: read } = filesApi(connection); return read({ params, query });`,
+  `const factory = filesApi; return factory(connection)["readTextFile"]({ params, query });`,
 ];
 
 const clientNestedMethodFiles = {
-  ...clientMethodFiles,
-  'packages/client/src/features/files/index.ts': `
-export { textQuery as textQueryOptions } from './queries/text.ts';
-export { unusedQuery as unusedQueryOptions } from './queries/unused.ts';
-export { reviewsApi } from './api.ts';`,
-  'packages/client/src/features/files/api.ts': `
-import {
-  listReviewedFilesEndpoint,
-  setReviewedFileEndpoint,
-  listReviewedLayersEndpoint,
-} from '@porcelain/contracts/reviews';
-import { requestEndpoint } from '../../shared/api/request.ts';
+  ...clientRouteFiles,
+  'packages/client/src/features/access/index.ts': `export { accessApi } from './api.ts';`,
+  'packages/client/src/features/access/api.ts': `
+import { AccessApi } from '@porcelain/contracts/access';
+import { Effect } from 'effect';
+import { HttpApiClient } from 'effect/http-api';
 import { perConnection } from '../../shared/api/per-connection.ts';
-function createReviewsApi(transport) {
-  return {
-    reviewed: {
-      list: () => requestEndpoint(transport, listReviewedFilesEndpoint, {}),
-      set: () => requestEndpoint(transport, setReviewedFileEndpoint, {}),
-    },
-    reviewedLayers: {
-      list: () => requestEndpoint(transport, listReviewedLayersEndpoint, {}),
-    },
-  };
+function createAccessApi(transport) {
+  return Effect.runSync(HttpApiClient.makeWith(AccessApi, { httpClient }));
 }
-export const reviewsApi = perConnection(createReviewsApi);`,
+export const accessApi = perConnection(createAccessApi);`,
   'packages/client/src/features/files/queries/unused.ts': `
-import { reviewsApi } from '../api.ts';
-export const unusedQuery = () => ({
-  queryFn: () => reviewsApi(connection).reviewed.set(),
-});`,
+import { accessApi } from '../../access/api.ts';
+export const unusedQuery = () => ({ queryFn: () => accessApi(connection).session.issueLiveTicket() });`,
 };
 
 const clientNestedMethodReads = [
-  `return reviewsApi(connection).reviewed.list();`,
-  `const { reviewed: group } = reviewsApi(connection);
-const { list: read } = group;
-return read();`,
-  `const group = reviewsApi(connection).reviewed;
-const alias = group;
-return alias.list();`,
-  `const { reviewed: { list: read } } = reviewsApi(connection);
-return read();`,
+  `return accessApi(connection).session.readSession();`,
+  `const { session: group } = accessApi(connection); const { readSession: read } = group; return read();`,
+  `const group = accessApi(connection).session; const alias = group; return alias.readSession();`,
+  `const { session: { readSession: read } } = accessApi(connection); return read();`,
 ];
 
 function clientRoutesCase(files = clientRouteFiles, overrides = {}) {
@@ -4703,46 +3945,155 @@ export const write = () => unused();`,
 }
 
 export const guardrailCases = [
+  {
+    rule: 'unused-export',
+    files: {
+      'package.json': '{"private":true,"type":"module"}',
+      'apps/desktop/package.json': '{"private":true}',
+      'apps/mobile/package.json':
+        '{"private":true,"dependencies":{"expo":"58.0.0"}}',
+      'apps/mobile/tsconfig.json':
+        '{"compilerOptions":{"moduleResolution":"Bundler","moduleSuffixes":[".ios",".android",""]}}',
+      'apps/web/package.json': '{"private":true}',
+      'packages/client/package.json':
+        '{"name":"@porcelain/client","private":true,"exports":{".":"./src/index.ts"}}',
+      'apps/desktop/src/main.ts':
+        "import { kept as alias } from '@porcelain/client'; console.log(alias); void import('./dynamic.ts').then(module => console.log(module));",
+      'apps/desktop/src/dynamic.ts': 'export const dynamicLive = true;',
+      'apps/web/src/main.tsx':
+        "import * as names from './namespace.ts'; console.log(names.live);",
+      'apps/web/src/namespace.ts': 'export const live = true;',
+      'packages/client/src/index.ts': "export { kept } from './owner.ts';",
+      'packages/client/src/owner.ts': 'export const kept = true;',
+      'apps/mobile/src/app/_layout.tsx':
+        "export { RootLayout as default } from '../shell/root-layout.tsx';",
+      'apps/mobile/src/shell/root-layout.tsx':
+        "import { native } from './native'; export function RootLayout() { return native(); }",
+      'apps/mobile/src/shell/native.ios.tsx':
+        'export function native() { return null; }',
+      'apps/mobile/src/shell/native.android.tsx':
+        'export function native() { return null; }',
+    },
+    valid: {},
+    invalid: {
+      'apps/desktop/src/unread.ts': 'export const unread = true;',
+      'apps/mobile/src/app/_layout.tsx':
+        "export { RootLayout as default } from '../shell/root-layout.tsx';\nexport const unusedRoute = true;",
+      'apps/web/src/namespace.ts':
+        'export const live = true; export const unusedMember = true;',
+      'packages/client/src/owner.ts':
+        'export const kept = true; export const unused = true;',
+    },
+    errors: [
+      'unused-export: apps/desktop/src/unread.ts: apps/desktop/src/unread.ts',
+      'unused-export: apps/mobile/src/app/_layout.tsx: unusedRoute',
+      'unused-export: apps/web/src/namespace.ts: unusedMember',
+      'unused-export: packages/client/src/owner.ts: unused',
+    ],
+  },
+  {
+    rule: 'unused-dependency',
+    files: {
+      'package.json': '{"private":true,"type":"module"}',
+      'apps/web/package.json':
+        '{"private":true,"dependencies":{"cmdk":"1.1.1","tailwindcss":"4.3.3"}}',
+      'apps/web/src/main.tsx': "import './app.css';",
+      'apps/web/src/app.css': "@import 'tailwindcss';",
+    },
+    valid: { 'apps/web/src/main.tsx': "import 'cmdk'; import './app.css';" },
+    invalid: {},
+    errors: ['unused-dependency: apps/web/package.json: cmdk'],
+  },
+  ...[
+    "import { liveUrl as address } from '../api.ts'; export const unusedQuery = () => ({ queryFn: () => address({ query: {} }) });",
+    "import * as urls from '../api.ts'; export const unusedQuery = () => ({ queryFn: () => urls.liveUrl({ query: {} }) });",
+  ].map((query) =>
+    clientRoutesCase(
+      {
+        ...clientRouteFiles,
+        'packages/client/src/features/files/api.ts':
+          clientRouteFiles['packages/client/src/features/files/api.ts'] +
+          `
+import { LiveUpdatesApi } from '@porcelain/contracts/access';
+export const liveUrl = HttpApiClient.urlBuilder(LiveUpdatesApi).live.liveUpdates;`,
+        'packages/client/src/features/files/queries/unused.ts': query,
+      },
+      { errors: ['GET /api/live'] },
+    ),
+  ),
+  {
+    rule: 'native-effect-diagnostics',
+    valid: `import { Effect, Schema } from 'effect';
+class Refused extends Schema.TaggedError<Refused>()('Refused', { message: Schema.String }) {}
+const save = Effect.gen(function* () {
+  yield* Effect.void;
+  return yield* Effect.fail(new Refused({ message: 'Refused' }));
+});
+const settled = Effect.exit(save);`,
+    invalid: `import { Effect } from 'effect';
+Effect.succeed('never executed');
+const save = Effect.fail(new Error('Refused'));`,
+    errors: ['TS377001', 'TS377023'],
+  },
+  {
+    rule: 'native-http-types',
+    valid:
+      "import { Effect, Schema } from 'effect';\nimport { HttpApi, HttpApiBuilder, HttpApiClient, HttpApiEndpoint, HttpApiGroup } from 'effect/http-api';\nimport type { HttpClient } from 'effect/http';\nconst api = HttpApi.make('test').add(HttpApiGroup.make('files').add(HttpApiEndpoint.post('save', '/api/files/:id', { params: Schema.Struct({ id: Schema.String }), payload: Schema.Struct({ text: Schema.String }), success: Schema.Struct({ fingerprint: Schema.String }) })));\ndeclare const httpClient: HttpClient.HttpClient;\nconst client = Effect.runSync(HttpApiClient.makeWith(api, { httpClient })).files;\nconst handlers = HttpApiBuilder.group(api, 'files', (handlers) => handlers.handle('save', ({ params, payload }) => Effect.succeed({ fingerprint: params.id + payload.text })));\nconst request = client.save({ params: { id: 'tree' }, payload: { text: 'saved' } });",
+    invalid:
+      "import { Effect, Schema } from 'effect';\nimport { HttpApi, HttpApiBuilder, HttpApiClient, HttpApiEndpoint, HttpApiGroup } from 'effect/http-api';\nimport type { HttpClient } from 'effect/http';\nconst api = HttpApi.make('test').add(HttpApiGroup.make('files').add(HttpApiEndpoint.post('save', '/api/files/:id', { params: Schema.Struct({ id: Schema.String }), payload: Schema.Struct({ text: Schema.String }), success: Schema.Struct({ fingerprint: Schema.String }) })));\ndeclare const httpClient: HttpClient.HttpClient;\nconst client = Effect.runSync(HttpApiClient.makeWith(api, { httpClient })).files;\nconst incomplete = HttpApiBuilder.group(api, 'files', (handlers) => handlers);\nconst invalidHandler = HttpApiBuilder.group(api, 'files', (handlers) => handlers.handle('save', () => Effect.succeed({ fingerprint: 123 })));\nconst invalidRequest = client.save({ params: { id: 'tree' }, payload: { text: 123 } });\nconst missingRequest = client.missing({});",
+    errors: ['TS2322', 'TS2375', 'TS2322', 'TS2339'],
+  },
+  {
+    rule: 'review-draft-types',
+    valid:
+      "import { Effect } from 'effect';\nimport type { ValidateReviewDraftService, PublishReviewService } from '__REVIEW_SERVICES__';\nimport type { ReviewDraft } from '__REVIEW_MODELS__';\ndeclare const validate: ValidateReviewDraftService;\ndeclare const publish: PublishReviewService;\nconst input: ReviewDraft = { expectedRevision: 0, summaryHtml: '<p>Review</p>', layers: [] };\nconst publication = validate.execute(input).pipe(Effect.flatMap((draft) => publish.execute({ worktreeId: 'tree', draft, evidence: { changes: [], texts: new Map(), diffs: [] } })));",
+    invalid:
+      "import { Effect } from 'effect';\nimport type { ValidateReviewDraftService, PublishReviewService } from '__REVIEW_SERVICES__';\nimport type { ReviewDraft } from '__REVIEW_MODELS__';\ndeclare const validate: ValidateReviewDraftService;\ndeclare const publish: PublishReviewService;\nconst input: ReviewDraft = { expectedRevision: 0, summaryHtml: '<p>Review</p>', layers: [] };\nconst publication = publish.execute({ worktreeId: 'tree', draft: input, evidence: { changes: [], texts: new Map(), diffs: [] } });",
+    errors: ['TS2322'],
+  },
+  {
+    rule: 'worktree-transaction-types',
+    valid:
+      "import { Effect } from 'effect';\nimport { nativeRead, withReadLease } from '__ADMISSION__';\nimport type { Lanes } from '__LANES__';\ndeclare const lanes: Lanes;\nconst transaction = lanes.transaction('review', () => withReadLease('tree', nativeRead('tree', () => Promise.resolve('text'))), (text) => Effect.succeed(text), () => Effect.void);",
+    invalid:
+      "import { Effect } from 'effect';\nimport { nativeRead, withReadLease } from '__ADMISSION__';\nimport type { Lanes } from '__LANES__';\ndeclare const lanes: Lanes;\nconst transaction = lanes.transaction('review', () => Effect.succeed('prepared'), () => nativeRead('tree', () => Promise.resolve('text')), () => Effect.void);",
+    errors: ['TS2375', 'TS377004'],
+  },
+  {
+    rule: 'worktree-capability-types',
+    valid: `import { Effect } from 'effect';
+import { nativeRead, nativeWrite, withReadLease, withWriteLease } from '__ADMISSION__';
+const read = nativeRead('tree', () => Promise.resolve('text'));
+const write = nativeWrite('tree', () => Promise.resolve('written'));
+Effect.runPromise(withReadLease('tree', read));
+Effect.runPromise(withWriteLease('tree', Effect.andThen(read, write)));`,
+    invalid: `import { Effect } from 'effect';
+import { nativeRead, nativeWrite, withReadLease, WorktreeRead } from '__ADMISSION__';
+const read = nativeRead('tree', () => Promise.resolve('text'));
+const write = nativeWrite('tree', () => Promise.resolve('written'));
+Effect.runPromise(read);
+Effect.runPromise(withReadLease('tree', write));
+Effect.runPromise(Effect.provideService(read, WorktreeRead, { assert: () => undefined }));`,
+    errors: ['TS2379', 'TS377004', 'TS2379', 'TS377004', 'TS2739'],
+  },
   ...['web', 'desktop', 'mobile'].map((app) =>
     clientRoutesCase(clientRouteFiles, { app: `apps/${app}/src/app.ts` }),
   ),
-  ...[
+  clientRoutesCase(
     {
-      'packages/client/src/features/files/index.ts': `
-export * from './forward.ts';`,
-      'packages/client/src/features/files/forward.ts': `
-export * from './index.ts';
-export { default as textQueryOptions, unusedQuery as unusedQueryOptions } from './queries/text.ts';`,
+      ...clientRouteFiles,
       'packages/client/src/features/files/queries/text.ts': `
-import { readText, publish } from '../api.ts';
-const textQuery = () => ({ queryFn: () => readText() });
-export default textQuery;
-export const unusedQuery = () => ({ queryFn: () => publish() });`,
-    },
-    {
-      'packages/client/src/features/files/queries/text.ts': `
-import { readText, publish } from '../api.ts';
-const read = () => readText();
-const shadow = (publish: () => void) => publish();
+import { filesApi } from '../api.ts';
+const read = () => filesApi(connection).readTextFile({ params, query });
+const shadow = (reviewsApi: () => void) => reviewsApi();
 export const textQuery = () => ({ queryFn: () => { shadow(read); return read(); } });`,
-      'packages/client/src/features/files/api.ts': `
-import { readTextFileEndpoint } from '@porcelain/contracts/files';
-import { publishReviewEndpoint } from '@porcelain/contracts/reviews';
-import { requestEndpoint } from '../../shared/api/request.ts';
-const register = (callback) => callback;
-export const readText = () => requestEndpoint(transport, readTextFileEndpoint, {});
-export const publish = register(() => requestEndpoint(transport, publishReviewEndpoint, {}));`,
     },
-  ].map((files) =>
-    clientRoutesCase(
-      { ...clientRouteFiles, ...files },
-      {
-        valid: `
+    {
+      valid: `
 import { textQueryOptions as options, type unusedQueryOptions } from '@porcelain/client/files';
 import '@porcelain/client/files';
 export const read = () => options();`,
-      },
-    ),
+    },
   ),
   clientRoutesCase(clientRouteFiles, {
     invalid: `
@@ -4753,14 +4104,14 @@ export const write = () => files.unusedQueryOptions();`,
   clientRoutesCase(
     {
       ...clientRouteFiles,
-      'packages/client/src/features/files/startup.ts': `
-import { publish } from './api.ts';
-publish();`,
+      'packages/client/src/features/files/commands/startup.ts': `
+import { reviewsApi } from '../../reviews/api.ts';
+reviewsApi(connection).publishReview({ params, payload });`,
     },
     {
       invalid: `
 import { textQueryOptions } from '@porcelain/client/files';
-import '../../../packages/client/src/features/files/startup.ts';
+import '../../../packages/client/src/features/files/commands/startup.ts';
 export const read = () => textQueryOptions();`,
     },
   ),
@@ -4768,9 +4119,9 @@ export const read = () => textQueryOptions();`,
     clientMethodReads.map((read) =>
       clientRoutesCase(
         {
-          ...clientMethodFiles,
+          ...clientRouteFiles,
           'packages/client/src/features/files/queries/text.ts': `
-import { filesApi, createFilesApi } from '../api.ts';
+import { filesApi } from '../api.ts';
 export const textQuery = () => ({
   queryFn: () => {
     ${read}
@@ -4782,102 +4133,69 @@ export const textQuery = () => ({
     ),
   ),
   ...clientMethodReads.map((read) =>
-    clientRoutesCase(clientMethodFiles, {
+    clientRoutesCase(clientRouteFiles, {
       app: 'apps/mobile/src/app.ts',
       valid: `
-import { ${read.includes('createFilesApi') ? 'createFilesApi' : 'filesApi'} } from '@porcelain/client/files';
+import { filesApi } from '@porcelain/client/files';
 export const read = () => {
   ${read}
 };`,
       invalid: `
-import { ${read.includes('createFilesApi') ? 'createFilesApi, filesApi' : 'filesApi'} } from '@porcelain/client/files';
+import { filesApi } from '@porcelain/client/files';
+import { reviewsApi } from '@porcelain/client/reviews';
 export const read = () => {
   ${read}
 };
 export const write = () => {
-  const api = filesApi(connection);
+  const api = reviewsApi(connection);
   const alias = api;
-  const { publish: write } = alias;
-  return write();
+  const { publishReview: write } = alias;
+  return write({ params, payload });
 };`,
     }),
   ),
   ...[
     `return filesApi(connection)[method]();`,
     `return consume(filesApi(connection));`,
-    `const { readText, ...rest } = filesApi(connection);
-return rest;`,
-    `let api = filesApi(connection);
-api = other;
-return api.readText();`,
+    `const { readTextFile, ...rest } = filesApi(connection); return rest;`,
+    `let api = filesApi(connection); api = other; return api.readTextFile({ params, query });`,
     `return filesApi(connection).unknown();`,
   ].map((use) =>
-    clientRoutesCase({
-      ...clientMethodFiles,
-      'packages/client/src/features/files/queries/text.ts': `
-import { filesApi } from '../api.ts';
-export const textQuery = () => ({ queryFn: () => filesApi(connection).readText() });`,
-      'packages/client/src/features/files/queries/unused.ts': `
-import { filesApi } from '../api.ts';
-export const unusedQuery = () => ({
-  queryFn: () => {
-    ${use}
-  },
-});`,
-    }),
-  ),
-  ...[
-    `return {
-  ...other,
-  readText: () => requestEndpoint(transport, readTextFileEndpoint, {}),
-  publish: () => requestEndpoint(transport, publishReviewEndpoint, {}),
-};`,
-    `if (flag) return {
-  readText: () => requestEndpoint(transport, readTextFileEndpoint, {}),
-};
-return {
-  readText: () => requestEndpoint(transport, readTextFileEndpoint, {}),
-  publish: () => requestEndpoint(transport, publishReviewEndpoint, {}),
-};`,
-    `return {
-  readText() {
-    return this.publish();
-  },
-  publish: () => requestEndpoint(transport, publishReviewEndpoint, {}),
-};`,
-    `requestEndpoint(transport, publishReviewEndpoint, {});
-return {
-  readText: () => requestEndpoint(transport, readTextFileEndpoint, {}),
-};`,
-    `return {
-  readText: () => requestEndpoint(transport, readTextFileEndpoint, {}),
-  eager: requestEndpoint(transport, publishReviewEndpoint, {}),
-};`,
-  ].map((body) =>
     clientRoutesCase(
       {
-        ...clientMethodFiles,
-        'packages/client/src/features/files/api.ts':
-          clientMethodFiles['packages/client/src/features/files/api.ts'] +
-          `
-export function otherApi(transport) {
-  ${body}
-}`,
-        'packages/client/src/features/files/index.ts':
-          clientMethodFiles['packages/client/src/features/files/index.ts'] +
-          `
-export { otherApi } from './api.ts';`,
+        ...clientRouteFiles,
+        'packages/client/src/features/files/queries/unused.ts': `
+import { filesApi } from '../api.ts';
+export const unusedQuery = () => ({ queryFn: () => { ${use} } });`,
       },
       {
-        valid: `
-import { filesApi } from '@porcelain/client/files';
-export const read = () => filesApi(connection).readText();`,
-        invalid: `
-import { filesApi, otherApi } from '@porcelain/client/files';
-export const read = () => filesApi(connection).readText();
-export const write = () => otherApi(transport).readText();`,
+        errors: [
+          'select a literal generated endpoint, because an escaped or dynamic client binding cannot prove feature route coverage.',
+          ...(use.includes('let api')
+            ? [
+                'keep the generated client binding traceable so its feature map can name the route.',
+              ]
+            : []),
+        ],
       },
     ),
+  ),
+  ...[
+    `if (dirty) yield* reviewsApi(connection).publishReview({ params, payload });`,
+    `const read = filesApi(connection).readTextFile; const write = reviewsApi(connection).publishReview; yield* read({ params, query }); if (dirty) yield* write({ params, payload });`,
+    `const plan = { ...other, dirty }; if (plan.dirty) yield* reviewsApi(connection).publishReview({ params, payload });`,
+  ].map((decision) =>
+    clientRoutesCase({
+      ...clientRouteFiles,
+      'packages/client/src/features/files/queries/unused.ts': `
+import { Effect } from 'effect';
+import { filesApi } from '../api.ts';
+import { reviewsApi } from '../../reviews/api.ts';
+export const unusedQuery = () => ({ queryFn: () => Effect.gen(function* () {
+  yield* filesApi(connection).readTextFile({ params, query });
+  ${decision}
+}) });`,
+    }),
   ),
   ...['web', 'desktop', 'mobile'].flatMap((app) =>
     clientNestedMethodReads.map((read) =>
@@ -4885,7 +4203,7 @@ export const write = () => otherApi(transport).readText();`,
         {
           ...clientNestedMethodFiles,
           'packages/client/src/features/files/queries/text.ts': `
-import { reviewsApi } from '../api.ts';
+import { accessApi } from '../../access/api.ts';
 export const textQuery = () => ({
   queryFn: () => {
     ${read}
@@ -4894,42 +4212,37 @@ export const textQuery = () => ({
         },
         {
           app: `apps/${app}/src/app.ts`,
-          mapped: ['GET /api/worktrees/:worktreeId/reviewed'],
-          errors: ['PUT /api/worktrees/:worktreeId/reviewed'],
+          mapped: ['GET /api/session'],
+          errors: ['POST /api/live/tickets'],
         },
       ),
     ),
   ),
   ...[
-    `return reviewsApi(connection).reviewed[method]();`,
-    `return reviewsApi(connection).reviewed.unknown();`,
-    `const { reviewed: group } = reviewsApi(connection);
-return consume(group);`,
-    `let group = reviewsApi(connection).reviewed;
-group = other;
-return group.list();`,
+    `return accessApi(connection).session[method]();`,
+    `return accessApi(connection).session.unknown();`,
+    `const { session: group } = accessApi(connection); return consume(group);`,
+    `let group = accessApi(connection).session; group = other; return group.readSession();`,
   ].map((use) =>
     clientRoutesCase(
       {
         ...clientNestedMethodFiles,
         'packages/client/src/features/files/queries/text.ts': `
-import { reviewsApi } from '../api.ts';
-export const textQuery = () => ({
-  queryFn: () => reviewsApi(connection).reviewed.list(),
-});`,
+import { accessApi } from '../../access/api.ts';
+export const textQuery = () => ({ queryFn: () => accessApi(connection).session.readSession() });`,
         'packages/client/src/features/files/queries/unused.ts': `
-import { reviewsApi } from '../api.ts';
-export const unusedQuery = () => ({
-  queryFn: () => {
-    ${use}
-  },
-});`,
+import { accessApi } from '../../access/api.ts';
+export const unusedQuery = () => ({ queryFn: () => { ${use} } });`,
       },
       {
-        mapped: ['GET /api/worktrees/:worktreeId/reviewed'],
+        mapped: ['GET /api/session'],
         errors: [
-          'PUT /api/worktrees/:worktreeId/reviewed',
-          'GET /api/worktrees/:worktreeId/reviewed-layers',
+          'select a literal generated endpoint, because an escaped or dynamic client binding cannot prove feature route coverage.',
+          ...(use.includes('let group')
+            ? [
+                'keep the generated client binding traceable so its feature map can name the route.',
+              ]
+            : []),
         ],
       },
     ),

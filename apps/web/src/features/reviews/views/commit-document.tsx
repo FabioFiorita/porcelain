@@ -11,13 +11,15 @@ import {
   commitMessage,
   type CommitFile,
   type CommitFiles,
+} from '@porcelain/client/history/rules';
+import {
   historyRefLabel,
   ordinal,
   shortOid,
   useCommit,
 } from '@/features/history/index';
 import type { DocumentInteraction } from '../rules/documents';
-import type { DiffContent, ReviewScope } from '../rules/review';
+import type { DiffContent, ReviewScope } from '@porcelain/client/reviews/rules';
 import { CodeDocument } from './code-document';
 import { DocumentToolbar } from './document-toolbar';
 import { ReadMoreFiles } from './read-more-files';

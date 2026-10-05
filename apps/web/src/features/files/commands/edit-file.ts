@@ -1,97 +1,36 @@
-import { ConnectionError } from '@porcelain/client/transport';
+import { Effect } from 'effect';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { FileDraft, type FileDraftState } from '@/features/files/store';
+import { FileDraft } from '@porcelain/client/files';
 import type { EditFileRequest as FileEdit } from '@porcelain/contracts/files';
-import type { FilesScope } from '../rules/scope';
-import { editFileEndpoint } from '@porcelain/contracts/files';
-import { isEndpointError } from '@porcelain/client/transport';
+import type { FilesScope } from '@porcelain/client/files/rules';
 import { createId } from '@/shared/lib/id';
-import { useFileDraftState } from '../store';
-import {
-  draftConnection,
-  retainedFileDrafts,
-} from '@/shared/query/file-drafts';
+import { useFileDraftState, clearEditorFile } from '../store';
+import { draftConnection, retainedFileDrafts } from '@porcelain/client/files';
 import { asMutation } from '@/shared/query/mutation';
-import { editFile, refreshFileEdit } from '@porcelain/client/files';
+import { FileEditCoordinator } from '@porcelain/client/files';
+import { runRequest } from '@porcelain/client/transport';
 import { copyText } from '@/shared/workspace/copy';
-import { type Connection } from '@/shared/workspace/connection';
+import type { WorktreeConnection } from '@porcelain/client/transport';
 
 const withoutTrailingSlash = (path: string) => path.replace(/\/$/, '');
 
-function releaseDrafts(
-  connection: Connection,
-  scope: FilesScope,
-  input: FileEdit,
-) {
-  if (input.kind !== 'move' && input.kind !== 'trash') return;
-  const prefix = `${JSON.stringify([scope.projectId, scope.worktreeId])}/`;
-  const retained = retainedFileDrafts(connection);
-  const moved = input.kind === 'move' ? input.destination : null;
-  for (const key of [...retained.keys()]) {
-    if (
-      key !== `${prefix}${input.path}` &&
-      !key.startsWith(`${prefix}${input.path}/`)
-    )
-      continue;
-    const draft = retained.get(key);
-    retained.delete(key);
-    if (draft && moved !== null)
-      retained.set(
-        `${prefix}${moved}${key.slice(`${prefix}${input.path}`.length)}`,
-        draft,
-      );
-  }
-}
-
-async function executeFileWrite(
-  connection: Connection,
-  scope: FilesScope,
-  client: ReturnType<typeof useQueryClient>,
-  input: FileEdit,
-) {
-  const prefix = `${JSON.stringify([scope.projectId, scope.worktreeId])}/`;
-  const moving =
-    input.kind === 'move' || input.kind === 'trash'
-      ? [...retainedFileDrafts(connection)]
-          .filter(
-            ([key]) =>
-              key === `${prefix}${input.path}` ||
-              key.startsWith(`${prefix}${input.path}/`),
-          )
-          .map(([, draft]) => draft)
-      : [];
-  if (moving.some((draft) => draft.snapshot().owner !== null))
-    throw new ConnectionError(
-      'Finish editing this file or its open children before moving this entry.',
-    );
-  const owner = createId();
-  for (const draft of moving) draft.claim(owner);
-  const request = connection.request();
-  try {
-    for (const draft of moving)
-      if (!(await draft.save()))
-        throw new ConnectionError(
-          'Save or discard the unsaved draft before moving this entry.',
-        );
-    const result = await editFile(connection, scope, input, request.signal);
-    return result;
-  } finally {
-    for (const draft of moving) draft.release(owner);
-    if (!request.signal.aborted) {
-      releaseDrafts(connection, scope, input);
-      await refreshFileEdit(client, connection, scope, input);
-    }
-  }
-}
-
-function useFileWriter(connection: Connection, scope: FilesScope) {
+function useFileWriter(connection: WorktreeConnection, scope: FilesScope) {
   const client = useQueryClient();
-  return (input: FileEdit) =>
-    executeFileWrite(draftConnection(connection), scope, client, input);
+  return (input: FileEdit) => {
+    const current = draftConnection(connection);
+    return new FileEditCoordinator(current, scope, client, createId).execute(
+      input,
+    );
+  };
 }
-export function useEditFile(connection: Connection, scope: FilesScope) {
+export function useEditFile(connection: WorktreeConnection, scope: FilesScope) {
   const write = useFileWriter(connection, scope);
-  const edit = asMutation(useMutation({ mutationFn: write }));
+  const edit = asMutation(
+    useMutation({
+      mutationFn: (input: FileEdit) =>
+        runRequest(write(input), draftConnection(connection).request().signal),
+    }),
+  );
   return {
     ...edit,
     create: async (
@@ -133,7 +72,7 @@ export function useEditFile(connection: Connection, scope: FilesScope) {
 }
 
 export function useFileDraft(
-  connection: Connection,
+  connection: WorktreeConnection,
   scope: FilesScope,
   path: string,
   text: string,
@@ -144,26 +83,24 @@ export function useFileDraft(
   const key = `${JSON.stringify([scope.projectId, scope.worktreeId])}/${path}`;
   const existing = entries.get(key);
   const draft =
-    existing instanceof FileDraft
-      ? existing
-      : new FileDraft(
-          text,
-          fingerprint,
-          async (text, expectedFingerprint) => {
-            const result = await write({
-              kind: 'write',
-              path,
-              text,
-              expectedFingerprint,
-            });
-            if (!result.contentFingerprint)
-              throw new Error('The server did not confirm the saved version.');
-            return result.contentFingerprint;
-          },
-          (error) =>
-            isEndpointError(error, editFileEndpoint, 'content_changed'),
-        );
-  if (!(existing instanceof FileDraft)) entries.set(key, draft);
+    existing ??
+    new FileDraft(text, fingerprint, (text, expectedFingerprint) =>
+      write({
+        kind: 'write',
+        path,
+        text,
+        expectedFingerprint,
+      }).pipe(
+        Effect.flatMap((result) =>
+          result.contentFingerprint
+            ? Effect.succeed(result.contentFingerprint)
+            : Effect.die(
+                new Error('The server did not confirm the saved version.'),
+              ),
+        ),
+      ),
+    );
+  if (!existing) entries.set(key, draft);
   const state = useFileDraftState(draft);
   return { draft, state };
 }
@@ -171,7 +108,6 @@ export function useFileDraft(
 export function useFileDraftSaving(
   owner: string,
   draft: FileDraft,
-  state: FileDraftState,
   notify: (message: {
     title: string;
     description: string;
@@ -179,11 +115,7 @@ export function useFileDraftSaving(
   }) => void,
 ) {
   return {
-    changedOnDisk: isEndpointError(
-      state.error,
-      editFileEndpoint,
-      'content_changed',
-    ),
+    changedOnDisk: draft.blocked,
     change: (text: string) => draft.change(text),
     copyDraft: () => copyText(draft.snapshot().text, 'draft'),
     notifyUnsaved: (path: string) =>
@@ -193,15 +125,15 @@ export function useFileDraftSaving(
           'Your draft is kept in this session. Reopen Edit to retry.',
         type: 'error',
       }),
-    save: () => draft.save(),
+    save: () => Effect.runPromise(draft.save()),
     done: async (onDone: () => void) => {
-      if (await draft.save()) {
-        draft.clearEditorFile(owner);
+      if (await Effect.runPromise(draft.save())) {
+        clearEditorFile(draft, owner);
         onDone();
       }
     },
     discard: (onDiscard: () => void) => {
-      draft.clearEditorFile(owner);
+      clearEditorFile(draft, owner);
       onDiscard();
     },
   };

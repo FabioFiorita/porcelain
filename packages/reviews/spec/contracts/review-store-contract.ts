@@ -225,16 +225,21 @@ export function reviewStoreContract(
       expect(store.read({ worktreeId: second })).toEqual(review(second));
     });
 
-    it('hands out copies, so changing a returned review leaves the stored one unchanged', () => {
-      const saved = review(first);
-      store.save(saved);
-      saved.summaryHtml = '<p>Changed after saving</p>';
-      store.read({ worktreeId: first })?.layers.pop();
-      store
-        .byWorktrees({ worktreeIds: [first] })
-        .at(0)
-        ?.layers.pop();
-      expect(store.read({ worktreeId: first })).toEqual(review(first));
-    });
+    it.each(['read', 'bulk read'])(
+      'hands out a copy of the %s review, so changing it leaves the stored one unchanged',
+      (source) => {
+        const saved = review(first);
+        store.save(saved);
+        saved.summaryHtml = '<p>Changed after saving</p>';
+        const returned =
+          source === 'read'
+            ? store.read({ worktreeId: first })
+            : store.byWorktrees({ worktreeIds: [first] }).at(0);
+        expect(returned).toBeDefined();
+        if (!returned) throw new Error('The saved review must be available');
+        Array.prototype.pop.call(returned.layers);
+        expect(store.read({ worktreeId: first })).toEqual(review(first));
+      },
+    );
   });
 }

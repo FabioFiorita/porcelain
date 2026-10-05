@@ -1,3 +1,5 @@
+import type { Effect } from 'effect';
+import { nativeOperation } from '@porcelain/effects';
 import { lstat, opendir, realpath, stat } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import type {
@@ -46,7 +48,11 @@ export class FilesystemProjectFolderReader implements ProjectFolderReader {
     this.options = options;
   }
 
-  async read(
+  read(input: ReadProjectFolderInput): Effect.Effect<ProjectFolderRead> {
+    return nativeOperation((signal) => this.readNative(input, signal));
+  }
+
+  private async readNative(
     input: ReadProjectFolderInput,
     signal?: AbortSignal,
   ): Promise<ProjectFolderRead> {

@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { hasUnsavedFileDrafts } from '@/shared/query/file-drafts';
+import { hasUnsavedFileDrafts } from '@porcelain/client/files';
 
 export function useUnsavedDraftsGuard(environmentIds: readonly string[]) {
   useEffect(() => {

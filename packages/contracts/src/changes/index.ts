@@ -40,4 +40,4 @@ export {
   readGitStatusResponseSchema,
   type ReadGitStatusResponse,
 } from './git-status.ts';
-export * from './endpoints.ts';
+export { ChangesApi } from './api.ts';

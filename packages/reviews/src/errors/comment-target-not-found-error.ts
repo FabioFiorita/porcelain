@@ -1,7 +1,10 @@
-export class CommentTargetNotFoundError extends Error {
-  override readonly name = 'CommentTargetNotFoundError';
+import { Schema } from 'effect';
 
-  constructor() {
-    super('Comment target not found');
+export class CommentTargetNotFoundError extends Schema.TaggedError<CommentTargetNotFoundError>()(
+  'CommentTargetNotFoundError',
+  {},
+) {
+  override get message() {
+    return 'Comment target not found';
   }
 }

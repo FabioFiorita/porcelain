@@ -1,7 +1,10 @@
+import { Result, Schema, type Effect } from 'effect';
+import { nativeOperation } from '@porcelain/effects';
+import { readHealthResponseSchema } from '@porcelain/contracts/access';
 import type { TunnelAnswer, TunnelTarget } from '@porcelain/access/models';
 import type { TunnelProbe } from '@porcelain/access/ports';
-import { readHealthEndpoint } from '@porcelain/contracts/access';
-import { endpointPath } from '@porcelain/contracts/shared';
+import { PublicAccessApi } from '@porcelain/contracts/access';
+import { HttpApiClient } from 'effect/http-api';
 
 export class HttpTunnelProbe implements TunnelProbe {
   private readonly timeoutMs: number;
@@ -10,16 +13,24 @@ export class HttpTunnelProbe implements TunnelProbe {
     this.timeoutMs = options.timeoutMs;
   }
 
-  async probe(
+  probe(input: TunnelTarget): Effect.Effect<TunnelAnswer> {
+    return nativeOperation((signal) => this.probeNative(input, signal));
+  }
+
+  private async probeNative(
     input: TunnelTarget,
     signal?: AbortSignal,
   ): Promise<TunnelAnswer> {
     let response: Response;
     try {
       response = await fetch(
-        new URL(endpointPath(readHealthEndpoint), input.origin),
+        new URL(
+          HttpApiClient.urlBuilder(PublicAccessApi).publicAccess.readHealth(),
+          input.origin,
+        ),
         {
-          method: readHealthEndpoint.method,
+          method:
+            PublicAccessApi.groups.publicAccess.endpoints.readHealth.method,
           headers: { accept: 'application/json' },
           redirect: 'error',
           signal: AbortSignal.any([
@@ -34,11 +45,11 @@ export class HttpTunnelProbe implements TunnelProbe {
     }
     if (response.status >= 500) return { kind: 'unreachable' };
     if (!response.ok) return { kind: 'foreign' };
-    const health = readHealthEndpoint.schema.response[200].safeParse(
+    const health = Schema.decodeUnknownResult(readHealthResponseSchema)(
       await response.json().catch(() => undefined),
     );
-    return health.success
-      ? { kind: 'answered', environmentId: health.data.environmentId }
+    return Result.isSuccess(health)
+      ? { kind: 'answered', environmentId: health.success.environmentId }
       : { kind: 'foreign' };
   }
 }

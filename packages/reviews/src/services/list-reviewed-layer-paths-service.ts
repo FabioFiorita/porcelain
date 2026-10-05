@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type {
   ListReviewedLayerPathsInput,
   ListReviewedLayerPathsResult,
@@ -16,12 +17,16 @@ export class ListReviewedLayerPathsService {
     this.reviewedLayers = reviewedLayers;
   }
 
-  execute(input: ListReviewedLayerPathsInput): ListReviewedLayerPathsResult {
-    const { worktreeId } = input;
-    const layers = markedLayers(
-      this.reviews.read({ worktreeId })?.layers ?? [],
-      this.reviewedLayers.list({ worktreeId }),
-    );
-    return { paths: reviewPaths(layers, []) };
+  execute(
+    input: ListReviewedLayerPathsInput,
+  ): Effect.Effect<ListReviewedLayerPathsResult, never> {
+    return Effect.sync(() => {
+      const { worktreeId } = input;
+      const layers = markedLayers(
+        this.reviews.read({ worktreeId })?.layers ?? [],
+        this.reviewedLayers.list({ worktreeId }),
+      );
+      return { paths: reviewPaths(layers, []) };
+    });
   }
 }

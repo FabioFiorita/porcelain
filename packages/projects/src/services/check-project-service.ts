@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { ProjectNotFoundError } from '../errors/project-not-found-error.ts';
 import type {
   CheckProjectResult,
@@ -12,9 +13,13 @@ export class CheckProjectService {
     this.inventory = inventory;
   }
 
-  execute(input: FindProjectInput): CheckProjectResult {
-    const project = this.inventory.find({ projectId: input.projectId });
-    if (!project) throw new ProjectNotFoundError();
-    return project;
+  execute(
+    input: FindProjectInput,
+  ): Effect.Effect<CheckProjectResult, ProjectNotFoundError> {
+    return Effect.gen({ self: this }, function* () {
+      const project = this.inventory.find({ projectId: input.projectId });
+      if (!project) return yield* Effect.fail(new ProjectNotFoundError());
+      return project;
+    });
   }
 }

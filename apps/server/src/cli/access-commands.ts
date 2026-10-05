@@ -1,23 +1,11 @@
-import {
-  issuePairingEndpoint,
-  listAccessEndpoint,
-  revokeAccessEndpoint,
-  setDeviceTrustEndpoint,
-} from '@porcelain/contracts/access';
-import {
-  issuePairingResponseSchema,
-  pairingLink,
-  listAccessResponseSchema,
-  revokeAccessResponseSchema,
-  setDeviceTrustResponseSchema,
-} from '@porcelain/contracts/access';
+import { pairingLink } from '@porcelain/contracts/access';
 import {
   DEVICE_LABEL_LENGTH,
   DEVICE_PLATFORM_LENGTH,
 } from '@porcelain/contracts/shared';
 import qrcode from 'qrcode-terminal';
 import { MINUTE_MS, type Limits } from '../config/limits.ts';
-import { askOwner } from './owner-client.ts';
+import { ownerClient, runOwner } from './owner-client.ts';
 
 type Output = {
   stdout: (message: string) => void;
@@ -55,13 +43,11 @@ export async function issuePairings(
   withQr = true,
 ): Promise<void> {
   const minutes = limits.access.pairingGrant.lifetimeMs / MINUTE_MS;
-  const answer = issuePairingResponseSchema.parse(
-    await askOwner(
+  const answer = await runOwner(
+    ownerClient(
       dataDirectory,
-      issuePairingEndpoint,
-      pairing,
       limits.owner.requestTimeoutMs,
-    ),
+    ).administration.issuePairing({ payload: pairing }),
   );
   for (const grant of answer.grants) {
     output.stdout(`${printable(grant.grant.label, DEVICE_LABEL_LENGTH)}\n`);
@@ -86,13 +72,11 @@ export async function listAccess(
   output: Output,
   limits: Limits,
 ): Promise<void> {
-  const listing = listAccessResponseSchema.parse(
-    await askOwner(
+  const listing = await runOwner(
+    ownerClient(
       dataDirectory,
-      listAccessEndpoint,
-      undefined,
       limits.owner.requestTimeoutMs,
-    ),
+    ).administration.listAccess(),
   );
   if (listing.grants.length > 0) {
     output.stdout('Pending links\n');
@@ -122,13 +106,11 @@ export async function revokeAccess(
   output: Output,
   limits: Limits,
 ): Promise<boolean> {
-  const answer = revokeAccessResponseSchema.parse(
-    await askOwner(
+  const answer = await runOwner(
+    ownerClient(
       dataDirectory,
-      revokeAccessEndpoint,
-      { id },
       limits.owner.requestTimeoutMs,
-    ),
+    ).administration.revokeAccess({ payload: { id } }),
   );
   if (!answer.revoked) {
     output.stderr(
@@ -150,13 +132,11 @@ export async function setDeviceTrust(
   output: Output,
   limits: Limits,
 ): Promise<void> {
-  const answer = setDeviceTrustResponseSchema.parse(
-    await askOwner(
+  const answer = await runOwner(
+    ownerClient(
       dataDirectory,
-      setDeviceTrustEndpoint,
-      change,
       limits.owner.requestTimeoutMs,
-    ),
+    ).administration.setDeviceTrust({ payload: change }),
   );
   output.stdout(
     answer.trusted

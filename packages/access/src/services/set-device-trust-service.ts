@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { DeviceNotFoundError } from '../errors/device-not-found-error.ts';
 import type {
   SetDeviceTrustInput,
@@ -13,10 +14,15 @@ export class SetDeviceTrustService {
     this.devices = devices;
   }
 
-  execute(input: SetDeviceTrustInput): SetDeviceTrustResult {
-    const device = this.devices.find({ deviceId: input.id });
-    if (!device || deviceRevoked(device)) throw new DeviceNotFoundError();
-    this.devices.recordTrust({ device, trusted: input.trusted });
-    return { id: device.id, trusted: input.trusted };
+  execute(
+    input: SetDeviceTrustInput,
+  ): Effect.Effect<SetDeviceTrustResult, DeviceNotFoundError> {
+    return Effect.gen({ self: this }, function* () {
+      const device = this.devices.find({ deviceId: input.id });
+      if (!device || deviceRevoked(device))
+        return yield* Effect.fail(new DeviceNotFoundError());
+      this.devices.recordTrust({ device, trusted: input.trusted });
+      return { id: device.id, trusted: input.trusted };
+    });
   }
 }

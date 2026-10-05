@@ -1,52 +1,40 @@
+import { Effect } from 'effect';
+import type { WorktreeAccess } from '../../runtime/worktree-access.ts';
+import type { WorktreeAccessFailure } from '../../ports/worktree-access-failure.ts';
+import type { GitIoFailure } from '../../ports/git-io-failure.ts';
 import type { ListCommitsService } from '@porcelain/changes/services';
 import type {
   ListCommitsQuery,
   ListCommitsResponse,
 } from '@porcelain/contracts/changes';
 import type { WorktreeParams } from '@porcelain/contracts/shared';
-import type { LaneKeys } from '../../runtime/lane-keys.ts';
-import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
-import type { CheckWorktreeUseCasePort } from '../../ports/check-worktree-use-case-port.ts';
 
 export class ListCommitsUseCase {
-  private readonly checkWorktree: CheckWorktreeUseCasePort;
-  private readonly listCommits: ListCommitsService;
-  private readonly lanes: Lanes;
-  private readonly laneKeys: LaneKeys;
+  private readonly access: WorktreeAccess;
+  private readonly listCommits: ListCommitsService<GitIoFailure>;
 
   constructor(
-    checkWorktree: CheckWorktreeUseCasePort,
-    listCommits: ListCommitsService,
-    lanes: Lanes,
-    laneKeys: LaneKeys,
+    access: WorktreeAccess,
+    listCommits: ListCommitsService<GitIoFailure>,
   ) {
-    this.checkWorktree = checkWorktree;
+    this.access = access;
     this.listCommits = listCommits;
-    this.lanes = lanes;
-    this.laneKeys = laneKeys;
   }
 
-  async execute(
+  execute(
     input: WorktreeParams & ListCommitsQuery,
-    context: OperationContext,
-  ): Promise<ListCommitsResponse> {
+  ): Effect.Effect<ListCommitsResponse, WorktreeAccessFailure | GitIoFailure> {
     const { worktreeId, limit, after, tip } = input;
-    const worktree = await this.checkWorktree.execute(
-      { worktreeId, requireAvailableProject: false },
-      context,
-    );
-    return this.lanes.runConsistent(
-      this.laneKeys.repository(worktree),
-      worktree,
-      async ({ signal }) => {
-        const page = await this.listCommits.execute(
-          { worktreeId, limit, after, tip },
-          signal,
-        );
+    return this.access.read(worktreeId, () =>
+      Effect.gen({ self: this }, function* () {
+        const page = yield* this.listCommits.execute({
+          worktreeId,
+          limit,
+          after,
+          tip,
+        });
         return page;
-      },
-      { callerSignal: context.signal },
+      }),
     );
   }
 }

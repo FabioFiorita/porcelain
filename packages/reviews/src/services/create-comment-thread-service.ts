@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { InvalidLineRangeError } from '@porcelain/kernel/errors';
 import type { Clock, IdSource } from '@porcelain/kernel/ports';
 import { CommentIdentityConflictError } from '../errors/comment-identity-conflict-error.ts';
@@ -40,53 +41,71 @@ export class CreateCommentThreadService {
     this.options = options;
   }
 
-  execute(input: CreateCommentThreadInput): CreateCommentThreadResult {
-    const problem = commentAnchorProblem(input.anchor);
-    if (problem) throw this.failure(problem);
-    const threadId = input.threadId ?? this.idSource.next();
-    const messageId = input.messageId ?? this.idSource.next();
-    const author = commentAuthor(input.writer);
-    const existing = this.comments.find({ threadId });
-    if (existing) {
-      if (
-        !repeatsCreation(existing, {
-          worktreeId: input.worktreeId,
-          anchor: input.anchor,
-          messageId,
-          body: input.body,
-          author,
-        })
-      )
-        throw new CommentIdentityConflictError();
-      return existing;
-    }
-    if (this.comments.findMessage({ messageId }))
-      throw new CommentIdentityConflictError();
-    const content: CommentContent = {
-      id: threadId,
-      worktreeId: input.worktreeId,
-      anchor: structuredClone(input.anchor),
-      messages: [
-        {
-          id: messageId,
-          body: input.body,
-          author,
-          createdAt: this.clock.now(),
-        },
-      ],
-    };
-    const sizeBytes = commentStorageSize(content);
-    const usage = this.comments.usage({ worktreeId: input.worktreeId });
-    if (!threadFits(usage, sizeBytes, this.options))
-      throw new CommentLimitExceededError();
-    return this.comments.insert({
-      content,
-      sizeBytes,
-      writtenByAgent: author === 'agent',
+  execute(
+    input: CreateCommentThreadInput,
+  ): Effect.Effect<
+    CreateCommentThreadResult,
+    | CommentIdentityConflictError
+    | CommentLimitExceededError
+    | InvalidLineRangeError
+    | CommentRevisionMismatchError
+    | UnsupportedCommentComparisonError
+  > {
+    return Effect.gen({ self: this }, function* () {
+      const problem = commentAnchorProblem(input.anchor);
+      if (problem) return yield* Effect.fail(this.failure(problem));
+      const threadId = input.threadId ?? this.idSource.next();
+      const messageId = input.messageId ?? this.idSource.next();
+      const author = commentAuthor(input.writer);
+      const existing = this.comments.find({ threadId });
+      if (existing) {
+        if (
+          !repeatsCreation(existing, {
+            worktreeId: input.worktreeId,
+            anchor: input.anchor,
+            messageId,
+            body: input.body,
+            author,
+          })
+        )
+          return yield* Effect.fail(new CommentIdentityConflictError());
+        return existing;
+      }
+      if (this.comments.findMessage({ messageId }))
+        return yield* Effect.fail(new CommentIdentityConflictError());
+      const content: CommentContent = {
+        id: threadId,
+        worktreeId: input.worktreeId,
+        anchor: structuredClone(input.anchor),
+        messages: [
+          {
+            id: messageId,
+            body: input.body,
+            author,
+            createdAt: this.clock.now(),
+          },
+        ],
+      };
+      const sizeBytes = commentStorageSize(content);
+      const usage = this.comments.usage({ worktreeId: input.worktreeId });
+      if (!threadFits(usage, sizeBytes, this.options))
+        return yield* Effect.fail(new CommentLimitExceededError());
+      return this.comments.insert({
+        content,
+        sizeBytes,
+        writtenByAgent: author === 'agent',
+      });
     });
   }
 
-  private failure(problem: CommentAnchorProblem): Error {
+  private failure(
+    problem: CommentAnchorProblem,
+  ):
+    | CommentIdentityConflictError
+    | CommentLimitExceededError
+    | InvalidLineRangeError
+    | CommentRevisionMismatchError
+    | UnsupportedCommentComparisonError {
     switch (problem.kind) {
       case 'reversed-range':
         return new InvalidLineRangeError();

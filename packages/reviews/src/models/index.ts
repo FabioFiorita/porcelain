@@ -32,6 +32,7 @@ export type {
   Review,
   ReviewDiagram,
   ReviewDraft,
+  ValidatedReviewDraft,
   ReviewLayer,
   ReviewSave,
   ReviewStep,

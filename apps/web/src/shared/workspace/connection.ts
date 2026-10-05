@@ -1,12 +1,7 @@
-import type { WorktreeConnection } from '@porcelain/client/transport';
-import type { LiveUpdatePort } from '@/shared/live/port';
-import type { OperationStore } from '@/shared/query/operation-store';
+import type { LiveConnection } from '@porcelain/client/live';
 
-export type Connection = WorktreeConnection & {
+export type Connection = LiveConnection & {
   address: string;
-  controller: AbortController;
-  operations: OperationStore;
-  liveUpdates: LiveUpdatePort;
 };
 
 export type ConnectionContext = { connection: Connection };

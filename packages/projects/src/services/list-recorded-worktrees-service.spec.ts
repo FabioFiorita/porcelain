@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import type { RegisteredProject } from '@porcelain/projects/models';
 import { InMemoryInventoryStore } from '../../spec/fakes/in-memory-inventory-store.ts';
@@ -33,10 +34,12 @@ describe('ListRecordedWorktreesService', () => {
       ],
     });
     expect(
-      new ListRecordedWorktreesService(
-        presence,
-        new InMemoryInventoryStore([project]),
-      ).execute(),
+      Effect.runSync(
+        new ListRecordedWorktreesService(
+          presence,
+          new InMemoryInventoryStore([project]),
+        ).execute(),
+      ),
     ).toEqual({
       worktrees: [
         { id: 'here', projectId: project.id, repositoryId: 'repository-1' },

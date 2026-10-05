@@ -14,13 +14,16 @@ tests:
   - apps/mobile/spec/e2e/workspace.e2e.ts
 api:
   - GET /api/inventory
+  - POST /api/live/tickets
+  - GET /api/live
+  - GET /api/worktrees/:worktreeId/git/receipts/:requestId
 ---
 
 # projects.workspace-picker
 
 ## What it is
 
-The workspace picker in each destination's toolbar (the detail toolbar on iPad) chooses an environment, then a project and one of its worktrees, without leaving the current destination. Its label becomes `<project> · <worktree>`. Each environment remembers its own worktree: switching environments restores that environment's choice, and the choice survives a cold launch. Forgetting an environment drops its remembered worktree.
+The workspace picker in each destination's toolbar (the detail toolbar on iPad) chooses an environment, then a project and one of its worktrees, without leaving the current destination. Its label becomes `<project> · <worktree>`. Each environment remembers its own worktree: switching environments restores that environment's choice, and the choice survives a cold launch. Forgetting an environment drops its remembered worktree. The selected connection subscribes through the shared live client, so project and worktree notices refresh the picker. The shared client can recover retained Git receipts; mobile Git screens are still pending.
 
 ## How a user reaches it
 
@@ -53,6 +56,8 @@ Look for: the sample project with its main worktree. Tap the project, then the w
 - `apps/mobile/spec/e2e/workspace.e2e.ts`: two real environments, each with a renamed project and an added worktree, are selected through the Environment and Project menus while Files stays selected; switching environments restores each one's worktree, a cold launch restores the last choice, and forgetting both environments clears the label. Each server holds one device labelled “Native mobile proof” and answered at least two inventory reads from the app.
 
 ## Gotchas
+
+- Live tickets and receipt recovery use the shared client. The focused shared live and operation-store specs prove their lifecycle; this native flow still needs a drive that observes a server-side project rename updating the picker.
 
 - After an environment is chosen the toolbar label becomes its name, so the second tap above reopens the picker through the new label.
 - The phone uses Expo Router's toolbar menu; the iPad uses a SwiftUI Menu with Pickers, which the e2e test does not drive yet.

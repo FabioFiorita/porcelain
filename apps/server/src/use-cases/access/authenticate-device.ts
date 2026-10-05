@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type {
   AuthenticateDeviceInput,
   AuthenticatedDevice,
@@ -8,7 +9,6 @@ import type {
 } from '@porcelain/access/services';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
 
 export class AuthenticateDeviceUseCase {
   private readonly authenticateDevice: AuthenticateDeviceService;
@@ -28,20 +28,24 @@ export class AuthenticateDeviceUseCase {
     this.authenticateDesktopSession = authenticateDesktopSession;
   }
 
-  async execute(
+  execute(
     input: AuthenticateDeviceInput,
-    context: OperationContext,
-  ): Promise<AuthenticatedDevice | undefined> {
-    const desktop = this.authenticateDesktopSession.execute(input);
-    if (desktop.kind === 'authenticated') return { deviceId: desktop.deviceId };
-    const result = await this.lanes.run(
-      this.laneKeys.access(),
-      'write',
-      async () => this.authenticateDevice.execute(input),
-      { callerSignal: context.signal },
-    );
-    return result.kind === 'authenticated'
-      ? { deviceId: result.deviceId }
-      : undefined;
+  ): Effect.Effect<AuthenticatedDevice | undefined, never> {
+    return Effect.gen({ self: this }, function* () {
+      const desktop = yield* this.authenticateDesktopSession.execute(input);
+      if (desktop.kind === 'authenticated')
+        return { deviceId: desktop.deviceId };
+      const result = yield* this.lanes.run(
+        this.laneKeys.access(),
+        'write',
+        () =>
+          Effect.gen({ self: this }, function* () {
+            return yield* this.authenticateDevice.execute(input);
+          }),
+      );
+      return result.kind === 'authenticated'
+        ? { deviceId: result.deviceId }
+        : undefined;
+    });
   }
 }

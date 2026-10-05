@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type { ListAccessService } from '@porcelain/access/services';
 import type {
   ListAccessRequest,
@@ -5,7 +6,6 @@ import type {
 } from '@porcelain/contracts/access';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
 
 export class ListAccessUseCase {
   private readonly listAccess: ListAccessService;
@@ -18,20 +18,17 @@ export class ListAccessUseCase {
     this.laneKeys = laneKeys;
   }
 
-  execute(
-    input: ListAccessRequest,
-    context: OperationContext,
-  ): Promise<ListAccessResponse> {
-    const { viewer } = input;
-    return this.lanes.run(
-      this.laneKeys.access(),
-      'read',
-      async () =>
-        this.listAccess.execute({
-          viewerDeviceId:
-            viewer.kind === 'device' ? viewer.deviceId : undefined,
+  execute(input: ListAccessRequest): Effect.Effect<ListAccessResponse, never> {
+    return Effect.gen({ self: this }, function* () {
+      const { viewer } = input;
+      return yield* this.lanes.run(this.laneKeys.access(), 'read', () =>
+        Effect.gen({ self: this }, function* () {
+          return yield* this.listAccess.execute({
+            viewerDeviceId:
+              viewer.kind === 'device' ? viewer.deviceId : undefined,
+          });
         }),
-      { callerSignal: context.signal },
-    );
+      );
+    });
   }
 }

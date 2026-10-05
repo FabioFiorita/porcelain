@@ -1,6 +1,6 @@
-export class ConnectionError extends Error {
-  constructor(message: string, options?: ErrorOptions) {
-    super(message, options);
-    this.name = 'ConnectionError';
-  }
-}
+import { Schema } from 'effect';
+
+export class ConnectionError extends Schema.TaggedError<ConnectionError>()(
+  'ConnectionError',
+  { message: Schema.String, cause: Schema.optionalKey(Schema.Unknown) },
+) {}

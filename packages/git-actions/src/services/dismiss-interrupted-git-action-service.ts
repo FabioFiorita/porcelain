@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type { Clock } from '@porcelain/kernel/ports';
 import { GitActionNotFoundError } from '../errors/git-action-not-found-error.ts';
 import { GitActionReceiptMismatchError } from '../errors/git-action-receipt-mismatch-error.ts';
@@ -19,24 +20,30 @@ export class DismissInterruptedGitActionService {
 
   execute(
     input: DismissInterruptedGitActionInput,
-  ): DismissInterruptedGitActionResult {
-    const receipt = this.gitActionReceipts.read({
-      requestId: input.requestId,
+  ): Effect.Effect<
+    DismissInterruptedGitActionResult,
+    GitActionNotFoundError | GitActionReceiptMismatchError,
+    never
+  > {
+    return Effect.gen({ self: this }, function* () {
+      const receipt = this.gitActionReceipts.read({
+        requestId: input.requestId,
+      });
+      if (!receipt) return yield* Effect.fail(new GitActionNotFoundError());
+      if (
+        receipt.projectId !== input.projectId ||
+        receipt.worktreeId !== input.worktreeId ||
+        receipt.state !== 'interrupted'
+      )
+        return yield* Effect.fail(new GitActionReceiptMismatchError());
+      if (receipt.dismissedAt !== undefined)
+        return {
+          kind: 'already-dismissed',
+          receipt: gitActionReceiptView(receipt),
+        };
+      const dismissed = { ...receipt, dismissedAt: this.clock.now() };
+      this.gitActionReceipts.save(dismissed);
+      return { kind: 'dismissed', receipt: gitActionReceiptView(dismissed) };
     });
-    if (!receipt) throw new GitActionNotFoundError();
-    if (
-      receipt.projectId !== input.projectId ||
-      receipt.worktreeId !== input.worktreeId ||
-      receipt.state !== 'interrupted'
-    )
-      throw new GitActionReceiptMismatchError();
-    if (receipt.dismissedAt !== undefined)
-      return {
-        kind: 'already-dismissed',
-        receipt: gitActionReceiptView(receipt),
-      };
-    const dismissed = { ...receipt, dismissedAt: this.clock.now() };
-    this.gitActionReceipts.save(dismissed);
-    return { kind: 'dismissed', receipt: gitActionReceiptView(dismissed) };
   }
 }

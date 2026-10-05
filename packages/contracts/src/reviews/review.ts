@@ -1,6 +1,7 @@
+import { isoDateTimeSchema } from '../shared/schema.ts';
 import { utf8ByteLength } from '../shared/utf8-byte-length.ts';
-import { z } from 'zod';
-import { absentAsNull } from '../shared/absent-as-null.ts';
+import { Schema, SchemaTransformation } from 'effect';
+import { nullableAsUndefined } from '../shared/schema.ts';
 import { fingerprintSchema } from '../shared/fingerprint.ts';
 import {
   CHANGED_PATHS,
@@ -23,159 +24,227 @@ import {
 import { relativePathSchema } from '../shared/relative-path.ts';
 import { proofDraftSchema, publishedProofSchema } from './review-proof.ts';
 import { reviewSummaryLinkSchema } from './review-summary-link.ts';
-import { worktreeIdSchema } from '../shared/worktree-params.ts';
+import { worktreeIdSchema } from '../shared/schema.ts';
 
-const idSchema = z.uuid();
-const lineSchema = z.number().int().min(1).max(LINE_NUMBER_MAX);
+const idSchema = Schema.String.check(Schema.isUUID());
+const lineSchema = Schema.Number.check(Schema.isInt())
+  .check(Schema.isGreaterThanOrEqualTo(1))
+  .check(Schema.isLessThanOrEqualTo(LINE_NUMBER_MAX));
 
-const codePointerSchema = z.strictObject({
+const codePointerSchema = Schema.Struct({
   path: relativePathSchema,
   startLine: lineSchema,
   endLine: lineSchema,
-  symbol: z.string().trim().min(1).max(REVIEW_SYMBOL_LENGTH).optional(),
+  symbol: Schema.optional(
+    Schema.String.pipe(Schema.decode(SchemaTransformation.trim()))
+      .check(Schema.isMinLength(1))
+      .check(Schema.isMaxLength(REVIEW_SYMBOL_LENGTH)),
+  ),
 });
 
-const resolvedCodePointerSchema = codePointerSchema.safeExtend({
-  textFingerprint: fingerprintSchema,
+const resolvedCodePointerSchema = Schema.Struct({
+  ...codePointerSchema.fields,
+  ...{
+    textFingerprint: fingerprintSchema,
+  },
 });
 
-const stepLocationSchema = z.discriminatedUnion('state', [
-  z.strictObject({ state: z.literal('changed') }),
-  z.strictObject({
-    state: z.literal('current'),
+const stepLocationSchema = Schema.Union([
+  Schema.Struct({ state: Schema.Literal('changed') }),
+  Schema.Struct({
+    state: Schema.Literal('current'),
     startLine: lineSchema,
     endLine: lineSchema,
   }),
-  z.strictObject({
-    state: z.literal('committed'),
+  Schema.Struct({
+    state: Schema.Literal('committed'),
     startLine: lineSchema,
     endLine: lineSchema,
   }),
 ]);
 
-const reviewStepSchema = z.strictObject({
+const reviewStepSchema = Schema.Struct({
   id: idSchema,
-  lane: z
-    .number()
-    .int()
-    .min(0)
-    .max(REVIEW_LANES - 1),
-  title: z.string().trim().min(1).max(REVIEW_TITLE_LENGTH),
-  text: z.string().trim().min(1).max(REVIEW_STEP_TEXT_LENGTH),
-  kind: z.enum(['changed', 'context']),
+  lane: Schema.Number.check(Schema.isInt())
+    .check(Schema.isGreaterThanOrEqualTo(0))
+    .check(Schema.isLessThanOrEqualTo(REVIEW_LANES - 1)),
+  title: Schema.String.pipe(Schema.decode(SchemaTransformation.trim()))
+    .check(Schema.isMinLength(1))
+    .check(Schema.isMaxLength(REVIEW_TITLE_LENGTH)),
+  text: Schema.String.pipe(Schema.decode(SchemaTransformation.trim()))
+    .check(Schema.isMinLength(1))
+    .check(Schema.isMaxLength(REVIEW_STEP_TEXT_LENGTH)),
+  kind: Schema.Literals(['changed', 'context']),
   pointer: codePointerSchema,
 });
 
-const resolvedReviewStepSchema = reviewStepSchema.extend({
-  pointer: resolvedCodePointerSchema,
-  location: stepLocationSchema,
+const resolvedReviewStepSchema = Schema.Struct({
+  ...reviewStepSchema.fields,
+  ...{
+    pointer: resolvedCodePointerSchema,
+    location: stepLocationSchema,
+  },
 });
 
-const arrowSchema = z.strictObject({
+const arrowSchema = Schema.Struct({
   from: idSchema,
   to: idSchema,
-  label: z.string().trim().min(1).max(REVIEW_LABEL_LENGTH).optional(),
+  label: Schema.optional(
+    Schema.String.pipe(Schema.decode(SchemaTransformation.trim()))
+      .check(Schema.isMinLength(1))
+      .check(Schema.isMaxLength(REVIEW_LABEL_LENGTH)),
+  ),
 });
 
-const reviewLayerSchema = z.strictObject({
+const reviewLayerSchema = Schema.Struct({
   id: idSchema,
-  title: z.string().trim().min(1).max(REVIEW_TITLE_LENGTH),
-  summary: z.string().trim().min(1).max(REVIEW_PROSE_LENGTH),
-  lanes: z
-    .array(z.string().trim().min(1).max(REVIEW_LANE_NAME_LENGTH))
-    .min(1)
-    .max(REVIEW_LANES),
-  steps: z.array(reviewStepSchema).min(1).max(REVIEW_STEPS),
-  arrows: z.array(arrowSchema).max(REVIEW_STEP_ARROWS).optional(),
+  title: Schema.String.pipe(Schema.decode(SchemaTransformation.trim()))
+    .check(Schema.isMinLength(1))
+    .check(Schema.isMaxLength(REVIEW_TITLE_LENGTH)),
+  summary: Schema.String.pipe(Schema.decode(SchemaTransformation.trim()))
+    .check(Schema.isMinLength(1))
+    .check(Schema.isMaxLength(REVIEW_PROSE_LENGTH)),
+  lanes: Schema.Array(
+    Schema.String.pipe(Schema.decode(SchemaTransformation.trim()))
+      .check(Schema.isMinLength(1))
+      .check(Schema.isMaxLength(REVIEW_LANE_NAME_LENGTH)),
+  )
+    .check(Schema.isMinLength(1))
+    .check(Schema.isMaxLength(REVIEW_LANES)),
+  steps: Schema.Array(reviewStepSchema)
+    .check(Schema.isMinLength(1))
+    .check(Schema.isMaxLength(REVIEW_STEPS)),
+  arrows: Schema.optional(
+    Schema.Array(arrowSchema).check(Schema.isMaxLength(REVIEW_STEP_ARROWS)),
+  ),
 });
 
-const resolvedReviewLayerSchema = reviewLayerSchema.safeExtend({
-  steps: z.array(resolvedReviewStepSchema).min(1).max(REVIEW_STEPS),
-  fingerprint: fingerprintSchema,
+const resolvedReviewLayerSchema = Schema.Struct({
+  ...reviewLayerSchema.fields,
+  ...{
+    steps: Schema.Array(resolvedReviewStepSchema)
+      .check(Schema.isMinLength(1))
+      .check(Schema.isMaxLength(REVIEW_STEPS)),
+    fingerprint: fingerprintSchema,
+  },
 });
 
-const diagramArrowSchema = z.strictObject({
+const diagramArrowSchema = Schema.Struct({
   from: idSchema,
   to: idSchema,
-  label: z.string().trim().min(1).max(REVIEW_LABEL_LENGTH).optional(),
-  dashed: z.boolean().optional(),
+  label: Schema.optional(
+    Schema.String.pipe(Schema.decode(SchemaTransformation.trim()))
+      .check(Schema.isMinLength(1))
+      .check(Schema.isMaxLength(REVIEW_LABEL_LENGTH)),
+  ),
+  dashed: Schema.optional(Schema.Boolean),
 });
-const diagramBoxSchema = z.strictObject({
+const diagramBoxSchema = Schema.Struct({
   id: idSchema,
-  lane: z
-    .number()
-    .int()
-    .min(0)
-    .max(REVIEW_LANES - 1),
-  label: z.string().trim().min(1).max(REVIEW_LABEL_LENGTH),
-  detail: z.string().trim().min(1).max(REVIEW_PROSE_LENGTH).optional(),
-  kind: z.enum(['actor', 'component', 'storage', 'transport', 'credential']),
-  change: z.enum(['new', 'changed', 'removed']).optional(),
-  problem: z.string().trim().min(1).max(REVIEW_PROSE_LENGTH).optional(),
-  layerId: idSchema.optional(),
+  lane: Schema.Number.check(Schema.isInt())
+    .check(Schema.isGreaterThanOrEqualTo(0))
+    .check(Schema.isLessThanOrEqualTo(REVIEW_LANES - 1)),
+  label: Schema.String.pipe(Schema.decode(SchemaTransformation.trim()))
+    .check(Schema.isMinLength(1))
+    .check(Schema.isMaxLength(REVIEW_LABEL_LENGTH)),
+  detail: Schema.optional(
+    Schema.String.pipe(Schema.decode(SchemaTransformation.trim()))
+      .check(Schema.isMinLength(1))
+      .check(Schema.isMaxLength(REVIEW_PROSE_LENGTH)),
+  ),
+  kind: Schema.Literals([
+    'actor',
+    'component',
+    'storage',
+    'transport',
+    'credential',
+  ]),
+  change: Schema.optional(Schema.Literals(['new', 'changed', 'removed'])),
+  problem: Schema.optional(
+    Schema.String.pipe(Schema.decode(SchemaTransformation.trim()))
+      .check(Schema.isMinLength(1))
+      .check(Schema.isMaxLength(REVIEW_PROSE_LENGTH)),
+  ),
+  layerId: Schema.optional(idSchema),
 });
-const diagramSchema = z.strictObject({
-  lanes: z
-    .array(z.string().trim().min(1).max(REVIEW_LANE_NAME_LENGTH))
-    .min(1)
-    .max(REVIEW_LANES),
-  boxes: z.array(diagramBoxSchema).max(DIAGRAM_BOXES),
-  arrows: z.array(diagramArrowSchema).max(DIAGRAM_ARROWS),
+const diagramSchema = Schema.Struct({
+  lanes: Schema.Array(
+    Schema.String.pipe(Schema.decode(SchemaTransformation.trim()))
+      .check(Schema.isMinLength(1))
+      .check(Schema.isMaxLength(REVIEW_LANE_NAME_LENGTH)),
+  )
+    .check(Schema.isMinLength(1))
+    .check(Schema.isMaxLength(REVIEW_LANES)),
+  boxes: Schema.Array(diagramBoxSchema).check(
+    Schema.isMaxLength(DIAGRAM_BOXES),
+  ),
+  arrows: Schema.Array(diagramArrowSchema).check(
+    Schema.isMaxLength(DIAGRAM_ARROWS),
+  ),
 });
-const reviewDiagramSchema = z.strictObject({
+const reviewDiagramSchema = Schema.Struct({
   after: diagramSchema,
-  before: diagramSchema.optional(),
+  before: Schema.optional(diagramSchema),
 });
 
-const summaryHtmlSchema = z
-  .string()
-  .min(1)
-  .max(REVIEW_SUMMARY_BYTES)
-  .refine((value) => value.isWellFormed(), 'Expected valid Unicode text')
-  .refine(
-    (value) => utf8ByteLength(value) <= REVIEW_SUMMARY_BYTES,
-    `Summary exceeds ${REVIEW_SUMMARY_MEBIBYTES} MiB`,
+const summaryHtmlSchema = Schema.String.check(Schema.isMinLength(1))
+  .check(Schema.isMaxLength(REVIEW_SUMMARY_BYTES))
+  .check(
+    Schema.makeFilter((value: string) => value.isWellFormed(), {
+      expected: 'Expected valid Unicode text',
+    }),
+  )
+  .check(
+    Schema.makeFilter(
+      (value: string) => utf8ByteLength(value) <= REVIEW_SUMMARY_BYTES,
+      { expected: `Summary exceeds ${REVIEW_SUMMARY_MEBIBYTES} MiB` },
+    ),
   );
 
-const notExplainedSchema = z.object({
+const notExplainedSchema = Schema.Struct({
   path: relativePathSchema,
-  ranges: z.array(z.object({ startLine: lineSchema, endLine: lineSchema })),
-  deleted: z.boolean().optional(),
-  binary: z.boolean().optional(),
+  ranges: Schema.Array(
+    Schema.Struct({ startLine: lineSchema, endLine: lineSchema }),
+  ),
+  deleted: Schema.optional(Schema.Boolean),
+  binary: Schema.optional(Schema.Boolean),
 });
 
-const publishedReviewSchema = z.object({
-  environmentId: z.uuid(),
+const publishedReviewSchema = Schema.Struct({
+  environmentId: Schema.String.check(Schema.isUUID()),
   worktreeId: worktreeIdSchema,
-  revision: z.number().int().positive(),
-  publishedAt: z.iso.datetime(),
-  active: z.boolean(),
-  diagnostics: z.enum(['current', 'unavailable']),
+  revision: Schema.Number.check(Schema.isInt()).check(Schema.isGreaterThan(0)),
+  publishedAt: isoDateTimeSchema,
+  active: Schema.Boolean,
+  diagnostics: Schema.Literals(['current', 'unavailable']),
   summary: reviewSummaryLinkSchema,
-  diagram: reviewDiagramSchema.optional(),
-  layers: z.array(resolvedReviewLayerSchema).max(REVIEW_LAYERS),
-  notExplained: z.array(notExplainedSchema).max(CHANGED_PATHS),
+  diagram: Schema.optional(reviewDiagramSchema),
+  layers: Schema.Array(resolvedReviewLayerSchema).check(
+    Schema.isMaxLength(REVIEW_LAYERS),
+  ),
+  notExplained: Schema.Array(notExplainedSchema).check(
+    Schema.isMaxLength(CHANGED_PATHS),
+  ),
   proof: publishedProofSchema,
 });
 
-export const publishReviewRequestSchema = z.strictObject({
-  expectedRevision: z
-    .number()
-    .int()
-    .nonnegative()
-    .max(Number.MAX_SAFE_INTEGER - 1),
+export const publishReviewRequestSchema = Schema.Struct({
+  expectedRevision: Schema.Number.check(Schema.isInt())
+    .check(Schema.isGreaterThanOrEqualTo(0))
+    .check(Schema.isLessThanOrEqualTo(Number.MAX_SAFE_INTEGER - 1)),
   summaryHtml: summaryHtmlSchema,
-  diagram: reviewDiagramSchema.optional(),
-  layers: z.array(reviewLayerSchema).min(1).max(REVIEW_LAYERS),
-  proof: proofDraftSchema.optional(),
+  diagram: Schema.optional(reviewDiagramSchema),
+  layers: Schema.Array(reviewLayerSchema)
+    .check(Schema.isMinLength(1))
+    .check(Schema.isMaxLength(REVIEW_LAYERS)),
+  proof: Schema.optional(proofDraftSchema),
 });
 
-export const readPublishedReviewResponseSchema = z.object({
-  review: absentAsNull(publishedReviewSchema),
+export const readPublishedReviewResponseSchema = Schema.Struct({
+  review: nullableAsUndefined(publishedReviewSchema),
 });
 export const publishReviewResponseSchema = readPublishedReviewResponseSchema;
 
-export type PublishReviewRequest = z.output<typeof publishReviewRequestSchema>;
-export type ReadPublishedReviewResponse = z.output<
-  typeof readPublishedReviewResponseSchema
->;
+export type PublishReviewRequest = typeof publishReviewRequestSchema.Type;
+export type ReadPublishedReviewResponse =
+  typeof readPublishedReviewResponseSchema.Type;

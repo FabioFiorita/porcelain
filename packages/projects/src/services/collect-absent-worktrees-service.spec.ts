@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { FixedClock } from '@porcelain/kernel/fakes';
 import type { WorktreePresence } from '@porcelain/projects/models';
@@ -31,7 +32,7 @@ describe('CollectAbsentWorktreesService', () => {
       row('gone', '2026-08-01T00:00:00.000Z'),
       row('here', undefined),
     ]);
-    expect(service.execute({ worktreeIds: ['gone'] })).toEqual({
+    expect(Effect.runSync(service.execute({ worktreeIds: ['gone'] }))).toEqual({
       collected: ['gone'],
     });
     expect(presence.list()).toEqual([row('here', undefined)]);
@@ -41,7 +42,7 @@ describe('CollectAbsentWorktreesService', () => {
     const { presence, service } = setup('2026-08-31T00:00:00.000Z', [
       row('gone', '2026-08-01T00:00:00.000Z'),
     ]);
-    expect(service.execute({ worktreeIds: ['gone'] })).toEqual({
+    expect(Effect.runSync(service.execute({ worktreeIds: ['gone'] }))).toEqual({
       collected: [],
     });
     expect(presence.list()).toEqual([row('gone', '2026-08-01T00:00:00.000Z')]);
@@ -51,7 +52,7 @@ describe('CollectAbsentWorktreesService', () => {
     const { presence, service } = setup('2100-01-01T00:00:00.000Z', [
       row('back', undefined),
     ]);
-    expect(service.execute({ worktreeIds: ['back'] })).toEqual({
+    expect(Effect.runSync(service.execute({ worktreeIds: ['back'] }))).toEqual({
       collected: [],
     });
     expect(presence.list()).toEqual([row('back', undefined)]);
@@ -62,9 +63,11 @@ describe('CollectAbsentWorktreesService', () => {
       row('first', '2026-08-01T00:00:00.000Z', 'project-1'),
       row('second', '2026-08-01T00:00:00.000Z', 'project-2'),
     ]);
-    expect(service.execute({ worktreeIds: ['first'] })).toEqual({
-      collected: ['first'],
-    });
+    expect(Effect.runSync(service.execute({ worktreeIds: ['first'] }))).toEqual(
+      {
+        collected: ['first'],
+      },
+    );
     expect(presence.list()).toEqual([
       row('second', '2026-08-01T00:00:00.000Z', 'project-2'),
     ]);
@@ -72,7 +75,9 @@ describe('CollectAbsentWorktreesService', () => {
 
   it('collects nothing for a worktree it does not know', () => {
     const { service } = setup('2026-12-01T00:00:00.000Z', []);
-    expect(service.execute({ worktreeIds: ['unknown'] })).toEqual({
+    expect(
+      Effect.runSync(service.execute({ worktreeIds: ['unknown'] })),
+    ).toEqual({
       collected: [],
     });
   });

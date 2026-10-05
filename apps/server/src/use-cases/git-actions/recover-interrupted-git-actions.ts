@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type {
   ExpireGitActionReceiptsService,
   RecoverInterruptedGitActionsService,
@@ -5,7 +6,6 @@ import type {
 import type { ListRecordedWorktreesService } from '@porcelain/projects/services';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
 
 export class RecoverInterruptedGitActionsUseCase {
   private readonly listRecordedWorktrees: ListRecordedWorktreesService;
@@ -28,24 +28,24 @@ export class RecoverInterruptedGitActionsUseCase {
     this.laneKeys = laneKeys;
   }
 
-  async execute(context: OperationContext): Promise<void> {
-    const { worktrees } = await this.lanes.run(
-      this.laneKeys.inventory(),
-      'read',
-      async () => this.listRecordedWorktrees.execute(),
-      { callerSignal: context.signal },
-    );
-    for (const worktree of worktrees)
-      await this.lanes.run(
-        this.laneKeys.receipts(worktree),
-        'write',
-        async () => {
-          this.recoverInterruptedGitActions.execute({
-            worktreeId: worktree.id,
-          });
-          this.expireGitActionReceipts.execute({ worktreeId: worktree.id });
-        },
-        { callerSignal: context.signal },
+  execute(): Effect.Effect<void> {
+    return Effect.gen({ self: this }, function* () {
+      const { worktrees } = yield* this.lanes.run(
+        this.laneKeys.inventory(),
+        'read',
+        () => this.listRecordedWorktrees.execute(),
       );
+      for (const worktree of worktrees)
+        yield* this.lanes.run(this.laneKeys.receipts(worktree), 'write', () =>
+          Effect.gen({ self: this }, function* () {
+            yield* this.recoverInterruptedGitActions.execute({
+              worktreeId: worktree.id,
+            });
+            yield* this.expireGitActionReceipts.execute({
+              worktreeId: worktree.id,
+            });
+          }),
+        );
+    });
   }
 }

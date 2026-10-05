@@ -1,10 +1,10 @@
+import { Effect } from 'effect';
 import type {
   CheckLocalRequestInput,
   CheckLocalRequestResult,
 } from '@porcelain/access/models';
 import type { CheckLocalRequestService } from '@porcelain/access/services';
 import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
 
 export class CheckLocalRequestUseCase {
   private readonly checkLocalRequest: CheckLocalRequestService;
@@ -17,11 +17,13 @@ export class CheckLocalRequestUseCase {
 
   execute(
     input: CheckLocalRequestInput,
-    context: OperationContext,
-  ): Promise<CheckLocalRequestResult> {
-    return this.lanes.unqueued(
-      async () => this.checkLocalRequest.execute(input),
-      { callerSignal: context.signal },
-    );
+  ): Effect.Effect<CheckLocalRequestResult, never> {
+    return Effect.gen({ self: this }, function* () {
+      return yield* this.lanes.unqueued(() =>
+        Effect.gen({ self: this }, function* () {
+          return yield* this.checkLocalRequest.execute(input);
+        }),
+      );
+    });
   }
 }

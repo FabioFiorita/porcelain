@@ -1,3 +1,5 @@
+import { Effect } from 'effect';
+import type { WorktreeRead } from '@porcelain/effects/worktree';
 import { CommitNotFoundError } from '../errors/commit-not-found-error.ts';
 import type {
   ReadCommitFilesInput,
@@ -5,22 +7,25 @@ import type {
 } from '../models/read-commit-files.ts';
 import type { CommitHistoryReader } from '../ports/commit-history-reader.ts';
 
-export class ReadCommitFilesService {
-  private readonly commitHistoryReader: CommitHistoryReader;
+export class ReadCommitFilesService<E = never> {
+  private readonly commitHistoryReader: CommitHistoryReader<E>;
 
-  constructor(commitHistoryReader: CommitHistoryReader) {
+  constructor(commitHistoryReader: CommitHistoryReader<E>) {
     this.commitHistoryReader = commitHistoryReader;
   }
 
-  async execute(
+  execute(
     input: ReadCommitFilesInput,
-    signal?: AbortSignal,
-  ): Promise<ReadCommitFilesResult> {
-    const lookup = await this.commitHistoryReader.readCommitFiles(
-      input,
-      signal,
-    );
-    if (lookup.kind === 'missing') throw new CommitNotFoundError();
-    return lookup.files;
+  ): Effect.Effect<
+    ReadCommitFilesResult,
+    E | CommitNotFoundError,
+    WorktreeRead
+  > {
+    return Effect.gen({ self: this }, function* () {
+      const lookup = yield* this.commitHistoryReader.readCommitFiles(input);
+      if (lookup.kind === 'missing')
+        return yield* Effect.fail(new CommitNotFoundError());
+      return lookup.files;
+    });
   }
 }

@@ -4,8 +4,8 @@ import {
 } from '@porcelain/client/reviews';
 import { useQuery } from '@tanstack/react-query';
 import { PUBLISHED_REVIEW_REFRESH_MS } from '@/config/limits';
-import type { ReviewLayer, ReviewScope } from '../rules/review';
-import { layerReviewState } from '../rules/reviewed';
+import type { ReviewLayer, ReviewScope } from '@porcelain/client/reviews/rules';
+import { layerReviewState } from '@porcelain/client/reviews/rules';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
 export function usePublishedReview(

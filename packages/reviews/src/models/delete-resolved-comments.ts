@@ -8,10 +8,10 @@ type ConfirmedCommentThread = {
 export type DeleteResolvedCommentsInput = {
   worktreeId: string;
   writer: CommentWriter;
-  threads: ConfirmedCommentThread[];
+  threads: readonly ConfirmedCommentThread[];
 };
 
 export type DeleteResolvedCommentsResult = {
-  deleted: string[];
-  skipped: string[];
+  deleted: readonly string[];
+  skipped: readonly string[];
 };

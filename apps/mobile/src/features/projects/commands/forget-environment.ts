@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { useQueryClient } from '@tanstack/react-query';
 import { inventoryScopeQueryOptions } from '@porcelain/client/projects';
 import { projectSelectionStore } from '../store';
@@ -8,7 +9,9 @@ export function useForgetProjectEnvironment() {
     const query = inventoryScopeQueryOptions(environmentId);
     await client.cancelQueries(query);
     try {
-      await projectSelectionStore.getState().forgetEnvironment(environmentId);
+      await Effect.runPromise(
+        projectSelectionStore.getState().forgetEnvironment(environmentId),
+      );
     } finally {
       client.removeQueries(query);
     }

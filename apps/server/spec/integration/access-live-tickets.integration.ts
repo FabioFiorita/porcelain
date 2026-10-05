@@ -1,3 +1,4 @@
+import * as Schema from 'effect/Schema';
 import { setTimeout as delay } from 'node:timers/promises';
 import {
   issueLiveTicketResponseSchema,
@@ -80,7 +81,11 @@ test('a paired device on another origin gets a live ticket and nobody else does'
 
   expect(issued.status).toBe(200);
   expect(issued.body).toEqual(
-    expect.schemaMatching(issueLiveTicketResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(
+        Schema.toEncoded(issueLiveTicketResponseSchema),
+      ),
+    ),
   );
   expect(record(issued.body).ticket).toMatch(liveTicketForm);
   expect(record(issued.body).expiresAt).toMatch(
@@ -129,7 +134,11 @@ test('a ticket opens live updates from another origin that hear changes and clos
   });
   const notice = await connection.next((entry) => entry.type === 'inventory');
   expect(notice).toStrictEqual({ type: 'inventory' });
-  expect(notice).toEqual(expect.schemaMatching(liveNoticeSchema));
+  expect(notice).toEqual(
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(Schema.toEncoded(liveNoticeSchema)),
+    ),
+  );
   expect(revoked.status).toBe(200);
   expect(revoked.body).toStrictEqual({ revoked: true, kind: 'device' });
   expect(await connection.closed()).toStrictEqual({

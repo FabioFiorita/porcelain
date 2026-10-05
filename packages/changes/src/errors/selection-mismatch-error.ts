@@ -1,7 +1,10 @@
-export class SelectionMismatchError extends Error {
-  override readonly name = 'SelectionMismatchError';
+import { Schema } from 'effect';
 
-  constructor() {
-    super('Selections must cover exactly the expected files');
+export class SelectionMismatchError extends Schema.TaggedError<SelectionMismatchError>()(
+  'SelectionMismatchError',
+  {},
+) {
+  override get message() {
+    return 'Selections must cover exactly the expected files';
   }
 }

@@ -1,3 +1,5 @@
+import { Effect } from 'effect';
+import { withSignal } from '@porcelain/effects';
 import { httpErrors } from '@fastify/sensible';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import type { DeviceConnectionStore } from '../../ports/device-connection-store.ts';
@@ -31,13 +33,15 @@ export function authenticate(
   return async (request: FastifyRequest, reply: FastifyReply) => {
     const credential = credentialOf(request);
     if (!credential) throw httpErrors.unauthorized(AUTHENTICATION_REQUIRED);
-    const device = await options.access.authenticateDevice.execute(
-      {
-        credential,
-        route: request.client.route,
-        address: request.client.address,
-      },
-      { signal: request.disconnected },
+    const device = await Effect.runPromise(
+      withSignal(
+        options.access.authenticateDevice.execute({
+          credential,
+          route: request.client.route,
+          address: request.client.address,
+        }),
+        request.disconnected,
+      ),
     );
     if (!device) throw httpErrors.unauthorized(AUTHENTICATION_REQUIRED);
     request.principal = { kind: 'device', deviceId: device.deviceId };

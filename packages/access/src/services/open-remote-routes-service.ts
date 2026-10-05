@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type {
   NetworkAddress,
   OpenRemoteRoutesInput,
@@ -55,122 +56,124 @@ export class OpenRemoteRoutesService {
     this.options = options;
   }
 
-  async execute(
-    input: OpenRemoteRoutesInput,
-    signal?: AbortSignal,
-  ): Promise<void> {
-    const saved = this.remoteAccess.read();
-    const settings = input.closing
-      ? { ...saved, lan: false, tailnet: false, cloudflare: false }
-      : saved;
-    const current = this.routeStates.read().states;
-    const lan = await this.lan(settings, this.networkAddresses.list(), signal);
-    const tailnet = await this.tailnet(settings, current.tailnet, signal);
-    const opened = { ...current, lan, tailnet: tailnet.state };
-    this.save(opened, tailnet.proxy);
-    this.save(
-      {
-        ...opened,
-        tailnet: await this.checked(tailnet, input.environmentId, signal),
-        cloudflare: await this.tunnel(
-          settings,
-          opened.cloudflare,
-          input.environmentId,
-          signal,
-        ),
-      },
-      tailnet.proxy,
-    );
+  execute(input: OpenRemoteRoutesInput): Effect.Effect<void, never> {
+    return Effect.gen({ self: this }, function* () {
+      const saved = this.remoteAccess.read();
+      const settings = input.closing
+        ? { ...saved, lan: false, tailnet: false, cloudflare: false }
+        : saved;
+      const current = this.routeStates.read().states;
+      const lan = yield* this.lan(settings, this.networkAddresses.list());
+      const tailnet = yield* this.tailnet(settings, current.tailnet);
+      const opened = { ...current, lan, tailnet: tailnet.state };
+      this.save(opened, tailnet.proxy);
+      this.save(
+        {
+          ...opened,
+          tailnet: yield* this.checked(tailnet, input.environmentId),
+          cloudflare: yield* this.tunnel(
+            settings,
+            opened.cloudflare,
+            input.environmentId,
+          ),
+        },
+        tailnet.proxy,
+      );
+    });
   }
 
-  private async lan(
+  private lan(
     settings: RemoteAccessSettings,
     found: NetworkAddress[],
-    signal: AbortSignal | undefined,
-  ): Promise<RouteState> {
-    const here = localNetwork(
-      found,
-      await this.networkAddresses.defaultRoutes(),
-    );
-    if (!settings.lan || !sameNetwork(here, settings.lanNetwork)) {
-      await this.routeListeners.close({ route: 'lan' });
-      return settings.lan ? { kind: 'paused' } : { kind: 'off' };
-    }
-    return listenedState(
-      await this.routeListeners.listen(
-        { route: 'lan', addresses: here ? [here.address] : [], port: 'server' },
-        signal,
-      ),
-    );
+  ): Effect.Effect<RouteState, never> {
+    return Effect.gen({ self: this }, function* () {
+      const here = localNetwork(
+        found,
+        yield* this.networkAddresses.defaultRoutes(),
+      );
+      if (!settings.lan || !sameNetwork(here, settings.lanNetwork)) {
+        yield* this.routeListeners.close({ route: 'lan' });
+        return settings.lan ? { kind: 'paused' } : { kind: 'off' };
+      }
+      return listenedState(
+        yield* this.routeListeners.listen({
+          route: 'lan',
+          addresses: here ? [here.address] : [],
+          port: 'server',
+        }),
+      );
+    });
   }
 
-  private async tailnet(
+  private tailnet(
     settings: RemoteAccessSettings,
     current: RouteState,
-    signal: AbortSignal | undefined,
-  ): Promise<TailnetOpening> {
-    const hostname = settings.tailnetHostname;
-    if (!settings.tailnet || hostname === undefined) {
-      await this.routeListeners.close({ route: 'tailnet' });
-      return { state: { kind: 'off' } };
-    }
-    const outcome = await this.routeListeners.listen(
-      {
+  ): Effect.Effect<TailnetOpening, never> {
+    return Effect.gen({ self: this }, function* () {
+      const hostname = settings.tailnetHostname;
+      if (!settings.tailnet || hostname === undefined) {
+        yield* this.routeListeners.close({ route: 'tailnet' });
+        return { state: { kind: 'off' } };
+      }
+      const outcome = yield* this.routeListeners.listen({
         route: 'tailnet',
         addresses: [this.options.loopbackAddress],
         port: settings.tailnetPort ?? 'own',
-      },
-      signal,
-    );
-    if (outcome.bound.length === 0) {
-      await this.routeListeners.close({ route: 'tailnet' });
-      return { state: listenedState(outcome) };
-    }
-    if (settings.tailnetPort === undefined)
-      this.remoteAccess.save({
-        ...this.remoteAccess.read(),
-        tailnetPort: outcome.port,
       });
-    return {
-      state: tailnetShownWhileChecking(current),
-      check: tailnetNeedsCheck(current),
-      proxy: {
-        address: this.options.loopbackAddress,
-        port: outcome.port,
-        hostname,
-      },
-    };
+      if (outcome.bound.length === 0) {
+        yield* this.routeListeners.close({ route: 'tailnet' });
+        return { state: listenedState(outcome) };
+      }
+      if (settings.tailnetPort === undefined)
+        this.remoteAccess.save({
+          ...this.remoteAccess.read(),
+          tailnetPort: outcome.port,
+        });
+      return {
+        state: tailnetShownWhileChecking(current),
+        check: tailnetNeedsCheck(current),
+        proxy: {
+          address: this.options.loopbackAddress,
+          port: outcome.port,
+          hostname,
+        },
+      };
+    });
   }
 
-  private async checked(
+  private checked(
     tailnet: TailnetOpening,
     environmentId: string,
-    signal: AbortSignal | undefined,
-  ): Promise<RouteState> {
-    if (tailnet.proxy === undefined || !tailnet.check) return tailnet.state;
-    return this.answerAt(tailnet.proxy.hostname, environmentId, signal);
+  ): Effect.Effect<RouteState, never> {
+    return Effect.gen({ self: this }, function* () {
+      if (tailnet.proxy === undefined || !tailnet.check) return tailnet.state;
+      return yield* this.answerAt(tailnet.proxy.hostname, environmentId);
+    });
   }
 
-  private async tunnel(
+  private tunnel(
     settings: RemoteAccessSettings,
     current: RouteState,
     environmentId: string,
-    signal: AbortSignal | undefined,
-  ): Promise<RouteState> {
-    const hostname = settings.cloudflareHostname;
-    if (!settings.cloudflare || hostname === undefined) return { kind: 'off' };
-    if (!tunnelNeedsCheck(current)) return current;
-    return this.answerAt(hostname, environmentId, signal);
+  ): Effect.Effect<RouteState, never> {
+    return Effect.gen({ self: this }, function* () {
+      const hostname = settings.cloudflareHostname;
+      if (!settings.cloudflare || hostname === undefined)
+        return { kind: 'off' };
+      if (!tunnelNeedsCheck(current)) return current;
+      return yield* this.answerAt(hostname, environmentId);
+    });
   }
 
-  private async answerAt(
+  private answerAt(
     hostname: string,
     environmentId: string,
-    signal: AbortSignal | undefined,
-  ): Promise<RouteState> {
-    const origin = tunnelOrigin(hostname);
-    const answer = await this.tunnelProbe.probe({ origin }, signal);
-    return tunnelState(answer, environmentId, origin);
+  ): Effect.Effect<RouteState, never> {
+    return Effect.gen({ self: this }, function* () {
+      const origin = tunnelOrigin(hostname);
+      const answer = yield* this.tunnelProbe.probe({ origin });
+      return tunnelState(answer, environmentId, origin);
+    });
   }
 
   private save(

@@ -1,3 +1,5 @@
+import { Effect } from 'effect';
+import { withReadLease } from '@porcelain/effects/worktree';
 import { describe, expect, it } from 'vitest';
 import { InMemoryBranchRangeReader } from '../../spec/fakes/in-memory-branch-range-reader.ts';
 import { branchFile } from '../../spec/fixtures/branch-files.ts';
@@ -36,7 +38,11 @@ describe('ReadBranchChangesService', () => {
         },
       }),
     );
-    expect(await read.execute({ worktreeId: 'w', base: undefined })).toEqual({
+    expect(
+      await Effect.runPromise(
+        withReadLease('w', read.execute({ worktreeId: 'w', base: undefined })),
+      ),
+    ).toEqual({
       head: { oid: head.oid, branch: head.ref },
       base,
       mergeBaseOid,
@@ -70,7 +76,11 @@ describe('ReadBranchChangesService', () => {
         ranges: { default: { kind: 'no-default-base', head } },
       }),
     );
-    expect(await read.execute({ worktreeId: 'w', base: undefined })).toEqual({
+    expect(
+      await Effect.runPromise(
+        withReadLease('w', read.execute({ worktreeId: 'w', base: undefined })),
+      ),
+    ).toEqual({
       head: { oid: head.oid, branch: head.ref },
       base: undefined,
       mergeBaseOid: undefined,
@@ -90,7 +100,12 @@ describe('ReadBranchChangesService', () => {
       }),
     );
     await expect(
-      read.execute({ worktreeId: 'w', base: 'refs/heads/other' }),
+      Effect.runPromise(
+        withReadLease(
+          'w',
+          read.execute({ worktreeId: 'w', base: 'refs/heads/other' }),
+        ),
+      ),
     ).rejects.toMatchObject({ name });
   });
 });

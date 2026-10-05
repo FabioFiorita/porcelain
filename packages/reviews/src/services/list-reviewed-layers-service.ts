@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type {
   ListReviewedLayersInput,
   ListReviewedLayersResult,
@@ -15,15 +16,19 @@ export class ListReviewedLayersService {
     this.reviewedLayers = reviewedLayers;
   }
 
-  execute(input: ListReviewedLayersInput): ListReviewedLayersResult {
-    const { worktreeId } = input;
-    return {
-      worktreeId,
-      marks: reviewedLayerMarks(
-        this.reviewedLayers.list({ worktreeId }),
-        this.reviews.read({ worktreeId })?.layers ?? [],
-        input.texts,
-      ),
-    };
+  execute(
+    input: ListReviewedLayersInput,
+  ): Effect.Effect<ListReviewedLayersResult, never> {
+    return Effect.sync(() => {
+      const { worktreeId } = input;
+      return {
+        worktreeId,
+        marks: reviewedLayerMarks(
+          this.reviewedLayers.list({ worktreeId }),
+          this.reviews.read({ worktreeId })?.layers ?? [],
+          input.texts,
+        ),
+      };
+    });
   }
 }

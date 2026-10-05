@@ -1,3 +1,6 @@
+import { createOperationStore } from '@porcelain/client/git-actions';
+import type { Remote } from '@porcelain/client/access/rules';
+import { operationStorage } from './adapters/operation-storage';
 import { useStore } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
 import {
@@ -19,4 +22,17 @@ export function useProjectSelection() {
       error: state.error,
     })),
   );
+}
+
+export function createProjectOperations(
+  remote: Pick<Remote, 'environmentId' | 'address' | 'deviceId'>,
+) {
+  return createOperationStore({
+    storage: operationStorage,
+    key: JSON.stringify([
+      remote.environmentId,
+      remote.address,
+      remote.deviceId,
+    ]),
+  });
 }

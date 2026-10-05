@@ -1,7 +1,7 @@
 import { assetUrl } from '@/features/files/rules/html-assets';
-import type { FilesScope } from '../rules/scope';
+import type { FilesScope } from '@porcelain/client/files/rules';
 import { useAsset } from '@/features/files/queries/preview-assets';
-import { fileErrorMessage } from '../rules/error-message';
+import { fileErrorMessage } from '@porcelain/client/files/rules';
 import { type Connection } from '@/shared/workspace/connection';
 
 export function ImagePreview({

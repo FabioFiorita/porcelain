@@ -1,7 +1,10 @@
-export class FolderNotReadableError extends Error {
-  override readonly name = 'FolderNotReadableError';
+import { Schema } from 'effect';
 
-  constructor() {
-    super('Path could not be read');
+export class FolderNotReadableError extends Schema.TaggedError<FolderNotReadableError>()(
+  'FolderNotReadableError',
+  {},
+) {
+  override get message() {
+    return 'Path could not be read';
   }
 }

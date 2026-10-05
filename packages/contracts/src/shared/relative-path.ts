@@ -1,10 +1,10 @@
-import { z } from 'zod';
+import { Schema } from 'effect';
 import { PATH_LENGTH } from './limits.ts';
 
 const loneSurrogate =
   /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/u;
 
-function isRelativePath(path: string, maxLength: number): boolean {
+export function isRelativePath(path: string, maxLength: number): boolean {
   return (
     path.length > 0 &&
     path.length <= maxLength &&
@@ -24,11 +24,10 @@ function isRelativePath(path: string, maxLength: number): boolean {
   );
 }
 
-export const relativePathSchema = z
-  .string()
-  .min(1)
-  .max(PATH_LENGTH)
-  .refine(
-    (path) => isRelativePath(path, PATH_LENGTH),
-    'Expected a normalized relative path',
+export const relativePathSchema = Schema.String.check(Schema.isMinLength(1))
+  .check(Schema.isMaxLength(PATH_LENGTH))
+  .check(
+    Schema.makeFilter((path: string) => isRelativePath(path, PATH_LENGTH), {
+      expected: 'Expected a normalized relative path',
+    }),
   );

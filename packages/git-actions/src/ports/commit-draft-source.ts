@@ -1,3 +1,4 @@
+import type { Effect } from 'effect';
 import type {
   CommitDraftGeneration,
   CommitDraftRequest,
@@ -6,6 +7,5 @@ import type {
 export interface CommitDraftSource {
   generate(
     input: CommitDraftRequest,
-    signal?: AbortSignal,
-  ): Promise<CommitDraftGeneration>;
+  ): Effect.Effect<CommitDraftGeneration, never, never>;
 }

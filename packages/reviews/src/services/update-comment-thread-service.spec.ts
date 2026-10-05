@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { CommentTargetNotFoundError } from '@porcelain/reviews/errors';
 import { InMemoryCommentStore } from '../../spec/fakes/in-memory-comment-store.ts';
@@ -24,11 +25,13 @@ function setup() {
 describe('UpdateCommentThreadService', () => {
   it('resolves an open thread at the next revision', () => {
     const { service, store } = setup();
-    const { thread, changed } = service.execute({
-      worktreeId,
-      threadId,
-      resolved: true,
-    });
+    const { thread, changed } = Effect.runSync(
+      service.execute({
+        worktreeId,
+        threadId,
+        resolved: true,
+      }),
+    );
     expect({ thread, changed }).toMatchObject({
       thread: { resolved: true, revision: 2 },
       changed: true,
@@ -38,9 +41,11 @@ describe('UpdateCommentThreadService', () => {
 
   it('reopens a resolved thread', () => {
     const { service } = setup();
-    service.execute({ worktreeId, threadId, resolved: true });
+    Effect.runSync(service.execute({ worktreeId, threadId, resolved: true }));
     expect(
-      service.execute({ worktreeId, threadId, resolved: false }),
+      Effect.runSync(
+        service.execute({ worktreeId, threadId, resolved: false }),
+      ),
     ).toMatchObject({
       thread: { resolved: false, revision: 3 },
       changed: true,
@@ -50,7 +55,9 @@ describe('UpdateCommentThreadService', () => {
   it('answers a thread already in the requested state without a new revision and reports no change', () => {
     const { service, store } = setup();
     expect(
-      service.execute({ worktreeId, threadId, resolved: false }),
+      Effect.runSync(
+        service.execute({ worktreeId, threadId, resolved: false }),
+      ),
     ).toMatchObject({ thread: { revision: 1 }, changed: false });
     expect(store.find({ threadId })?.revision).toBe(1);
   });
@@ -58,14 +65,18 @@ describe('UpdateCommentThreadService', () => {
   it('does not find a thread of another worktree or an unknown thread', () => {
     const { service, store } = setup();
     expect(() =>
-      service.execute({
-        worktreeId: 'b'.repeat(64),
-        threadId,
-        resolved: true,
-      }),
+      Effect.runSync(
+        service.execute({
+          worktreeId: 'b'.repeat(64),
+          threadId,
+          resolved: true,
+        }),
+      ),
     ).toThrow(CommentTargetNotFoundError);
     expect(() =>
-      service.execute({ worktreeId, threadId: 'missing', resolved: true }),
+      Effect.runSync(
+        service.execute({ worktreeId, threadId: 'missing', resolved: true }),
+      ),
     ).toThrow(CommentTargetNotFoundError);
     expect(store.find({ threadId })?.resolved).toBe(false);
   });

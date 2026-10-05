@@ -1,3 +1,7 @@
+import { Effect } from 'effect';
+import { ScopedTasks } from '@porcelain/effects';
+
+import type { ProjectNotFoundError } from '@porcelain/projects/errors';
 import type {
   EditAnnouncement,
   EditAnnouncementWriter,
@@ -19,7 +23,7 @@ import type {
   WatchedWorktree,
   WorktreeWatcher,
 } from '../../ports/worktree-watcher.ts';
-import type { JobWork } from '../../ports/job-work.ts';
+import type { JobRunner } from '../../ports/job-runner.ts';
 import type { OpenedWatch, WatchOpener } from '../../ports/watch-demand.ts';
 
 type WatchWorktreesOptions = {
@@ -42,14 +46,14 @@ type WorktreeEntry = {
   demands: Map<Demand, ReadonlySet<string>>;
   pendingPaths: Set<string>;
   announcedPaths: Map<string, number>;
-  timer: NodeJS.Timeout | undefined;
+  timer: (() => void) | undefined;
 };
 
 type ProjectEntry = {
   project: WatchedProject;
   watch: RepositoryWatch | undefined;
   demands: Set<Demand>;
-  timer: NodeJS.Timeout | undefined;
+  timer: (() => void) | undefined;
 };
 
 const settledEitherWay = () => undefined;
@@ -60,7 +64,7 @@ function changesIgnoreRules(path: string): boolean {
 
 export class WatchWorktrees implements EditAnnouncementWriter, WatchOpener {
   private readonly announceWorktreeChange: AnnounceWorktreeChangeUseCasePort;
-  private readonly refreshInventory: JobWork;
+  private readonly refreshInventory: JobRunner<ProjectNotFoundError>;
   private readonly watcher: WorktreeWatcher;
   private readonly logger: Logger;
   private readonly options: WatchWorktreesOptions;
@@ -70,10 +74,11 @@ export class WatchWorktrees implements EditAnnouncementWriter, WatchOpener {
   private readonly pendingStops = new Set<Promise<void>>();
   private registryUpdate: Promise<void> = Promise.resolve();
   private stopped = false;
+  private readonly tasks = new ScopedTasks();
 
   constructor(
     announceWorktreeChange: AnnounceWorktreeChangeUseCasePort,
-    refreshInventory: JobWork,
+    refreshInventory: JobRunner<ProjectNotFoundError>,
     watcher: WorktreeWatcher,
     logger: Logger,
     options: WatchWorktreesOptions,
@@ -94,6 +99,7 @@ export class WatchWorktrees implements EditAnnouncementWriter, WatchOpener {
     }
     this.demands.clear();
     await this.registryUpdate;
+    await Effect.runPromise(this.tasks.close());
     const worktrees = [...this.worktrees.values()];
     const projects = [...this.projects.values()];
     this.worktrees.clear();
@@ -110,14 +116,13 @@ export class WatchWorktrees implements EditAnnouncementWriter, WatchOpener {
     if (!entry) return;
     for (const path of input.paths)
       entry.announcedPaths.set(path, (entry.announcedPaths.get(path) ?? 0) + 1);
-    const expiry = setTimeout(() => {
+    this.tasks.after(this.options.announcedEditMs, () => {
       for (const path of input.paths) {
         const remaining = (entry.announcedPaths.get(path) ?? 1) - 1;
         if (remaining > 0) entry.announcedPaths.set(path, remaining);
         else entry.announcedPaths.delete(path);
       }
-    }, this.options.announcedEditMs);
-    expiry.unref();
+    });
   }
 
   open(): OpenedWatch {
@@ -273,7 +278,7 @@ export class WatchWorktrees implements EditAnnouncementWriter, WatchOpener {
   private queueFiles(entry: WorktreeEntry, paths: readonly string[]): void {
     for (const path of paths) entry.pendingPaths.add(path);
     if (entry.timer) return;
-    entry.timer = setTimeout(() => {
+    entry.timer = this.tasks.after(this.options.burstMs, () => {
       entry.timer = undefined;
       const pending = [...entry.pendingPaths];
       entry.pendingPaths.clear();
@@ -282,13 +287,12 @@ export class WatchWorktrees implements EditAnnouncementWriter, WatchOpener {
       if (pending.length === 0 || changed.length > 0)
         this.announceChange({ worktreeId, change: 'files', paths: changed });
       if (pending.some(changesIgnoreRules)) this.queueIgnoreRules([entry]);
-    }, this.options.burstMs);
-    entry.timer.unref();
+    });
   }
 
   private queueRepository(entry: ProjectEntry): void {
     if (entry.timer) return;
-    entry.timer = setTimeout(() => {
+    entry.timer = this.tasks.after(this.options.burstMs, () => {
       entry.timer = undefined;
       const watched = [...this.worktrees.values()].filter(
         (worktree) => worktree.worktree.projectId === entry.project.projectId,
@@ -298,17 +302,16 @@ export class WatchWorktrees implements EditAnnouncementWriter, WatchOpener {
           worktreeId: worktree.worktree.worktreeId,
           change: 'git',
         });
-      this.refreshInventory
-        .execute({})
+      void this.tasks
+        .run(this.refreshInventory.execute())
         .catch((error: unknown) => this.reportFailure(error));
       this.queueIgnoreRules(watched);
-    }, this.options.burstMs);
-    entry.timer.unref();
+    });
   }
 
   private announceChange(change: WorktreeChange): void {
-    this.announceWorktreeChange
-      .execute(change, {})
+    this.tasks
+      .run(this.announceWorktreeChange.execute(change))
       .catch((error: unknown) => this.reportFailure(error));
   }
 
@@ -369,12 +372,12 @@ export class WatchWorktrees implements EditAnnouncementWriter, WatchOpener {
   }
 
   private async stopWorktree(entry: WorktreeEntry): Promise<void> {
-    if (entry.timer) clearTimeout(entry.timer);
+    entry.timer?.();
     await entry.watch?.close();
   }
 
   private async stopProject(entry: ProjectEntry): Promise<void> {
-    if (entry.timer) clearTimeout(entry.timer);
+    entry.timer?.();
     await entry.watch?.close();
   }
 

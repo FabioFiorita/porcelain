@@ -1,4 +1,4 @@
-import { issuePairingEndpoint } from '@porcelain/contracts/access';
+import { ownerClient, runOwner } from '../../src/cli/owner-client.ts';
 import { execFile } from 'node:child_process';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { subscribe } from 'node:diagnostics_channel';
@@ -13,7 +13,6 @@ import { InMemoryRouteListenerRunner } from '../fakes/in-memory-route-listener-r
 import { ScriptedServiceUpdateRunner } from '../fakes/scripted-service-update-runner.ts';
 import { ScriptedTunnelProbe } from '../fakes/scripted-tunnel-probe.ts';
 import { composeServer } from '../../src/bootstrap/compose-server.ts';
-import { askOwner } from '../../src/cli/owner-client.ts';
 import { readServerSettings } from '../../src/config/server-settings.ts';
 import type { Runtime } from '../../src/ports/runtime.ts';
 import { codingTool } from './coding-tool.ts';
@@ -557,14 +556,17 @@ try {
     },
   );
   const [grant] = issuedPairingSchema.parse(
-    await askOwner(
-      state,
-      issuePairingEndpoint,
-      {
-        labels: [fixture.device.label],
-        addresses: [new URL(server.address).origin],
-      },
-      settings.limits.owner.requestTimeoutMs,
+    await runOwner(
+      ownerClient(
+        state,
+        settings.limits.owner.requestTimeoutMs,
+      ).administration.issuePairing({
+        payload: {
+          labels: [fixture.device.label],
+          addresses: [new URL(server.address).origin],
+          trusted: false,
+        },
+      }),
     ),
   ).grants;
   if (!grant) throw new Error('Could not create a development pairing');

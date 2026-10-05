@@ -1,3 +1,7 @@
+import type { Effect } from 'effect';
+import type { WorktreeRead } from '@porcelain/effects/worktree';
+import { readGit } from '../../runtime/git-io.ts';
+import type { GitIoFailure } from '../../ports/git-io-failure.ts';
 import type {
   BranchBases,
   BranchPatches,
@@ -15,7 +19,7 @@ import {
 
 type CommitReader = ReturnType<CommitReaderFactory>;
 
-export class GitBranchRangeReader implements BranchRangeReader {
+export class GitBranchRangeReader implements BranchRangeReader<GitIoFailure> {
   private readonly worktrees: ListedWorktrees;
   private readonly git: CommitReaderFactory;
 
@@ -24,7 +28,15 @@ export class GitBranchRangeReader implements BranchRangeReader {
     this.git = git;
   }
 
-  async readBranchRange(
+  readBranchRange(
+    input: BranchRangeRequest,
+  ): Effect.Effect<BranchRangeLookup, GitIoFailure, WorktreeRead> {
+    return readGit(input.worktreeId, (signal) =>
+      this.readBranchRangeNative(input, signal),
+    );
+  }
+
+  private async readBranchRangeNative(
     input: BranchRangeRequest,
     signal?: AbortSignal,
   ): Promise<BranchRangeLookup> {
@@ -61,7 +73,15 @@ export class GitBranchRangeReader implements BranchRangeReader {
     }
   }
 
-  async readBranchPatches(
+  readBranchPatches(
+    input: BranchPatchesRequest,
+  ): Effect.Effect<BranchPatches, GitIoFailure, WorktreeRead> {
+    return readGit(input.worktreeId, (signal) =>
+      this.readBranchPatchesNative(input, signal),
+    );
+  }
+
+  private async readBranchPatchesNative(
     input: BranchPatchesRequest,
     signal?: AbortSignal,
   ): Promise<BranchPatches> {
@@ -81,7 +101,15 @@ export class GitBranchRangeReader implements BranchRangeReader {
     };
   }
 
-  async listBranchBases(
+  listBranchBases(
+    input: ListBranchBasesInput,
+  ): Effect.Effect<BranchBases, GitIoFailure, WorktreeRead> {
+    return readGit(input.worktreeId, (signal) =>
+      this.listBranchBasesNative(input, signal),
+    );
+  }
+
+  private async listBranchBasesNative(
     input: ListBranchBasesInput,
     signal?: AbortSignal,
   ): Promise<BranchBases> {

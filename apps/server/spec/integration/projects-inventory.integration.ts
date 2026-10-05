@@ -1,3 +1,4 @@
+import * as Schema from 'effect/Schema';
 import { readInventoryResponseSchema } from '@porcelain/contracts/projects';
 import { expect } from 'vitest';
 import { eventually } from '../kit/reads.ts';
@@ -43,7 +44,9 @@ test('reading the inventory lists the registered project with its main worktree 
 
   expect(response.status).toBe(200);
   expect(response.body).toEqual(
-    expect.schemaMatching(readInventoryResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(Schema.toEncoded(readInventoryResponseSchema)),
+    ),
   );
   expect(response.headers['cache-control']).toBe('no-store');
   expect(list(record(response.body).projects)).toStrictEqual([
@@ -65,7 +68,9 @@ test('a project whose folder has gone away stays registered as unavailable and i
 
   expect(response.status).toBe(200);
   expect(response.body).toEqual(
-    expect.schemaMatching(readInventoryResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(Schema.toEncoded(readInventoryResponseSchema)),
+    ),
   );
   expect(list(record(response.body).projects)).toStrictEqual([
     registered(session, false),

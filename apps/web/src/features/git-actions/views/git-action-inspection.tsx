@@ -15,15 +15,18 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { HISTORY_OID_LENGTH } from '@/config/limits';
 import { useActionForm } from '../commands/action-form';
-import { actionFormInput, type FormAction } from '../rules/action-form';
-import type { GitAction, GitScope } from '../rules/git-action';
-import { gitActionLabel } from '../rules/git-action-options';
+import {
+  actionFormInput,
+  type FormAction,
+} from '@porcelain/client/git-actions/rules';
+import type { GitAction, GitScope } from '@porcelain/client/git-actions/rules';
+import { gitActionLabel } from '@porcelain/client/git-actions/rules';
 import {
   changedSinceLooked,
   gitErrorMessage,
   receiptFailed,
-} from '../rules/feedback';
-import type { GitActionStatus } from '../rules/status';
+} from '@porcelain/client/git-actions/rules';
+import type { GitActionStatus } from '@porcelain/client/git-actions/rules';
 import { CommitForm } from './commit-form';
 import { GitActionError } from './git-action-message';
 import { type ConnectionContext } from '@/shared/workspace/connection';

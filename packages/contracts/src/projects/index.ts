@@ -8,7 +8,6 @@ export {
   browseProjectFoldersResponseSchema,
   readInventoryResponseSchema,
   registerProjectResponseSchema,
-  renameProjectParamsSchema,
   renameProjectRequestSchema,
   type BrowseProjectFoldersQuery,
   type BrowseProjectFoldersResponse,
@@ -27,4 +26,9 @@ export {
   type FindWorktreeByPathRequest,
   type FindWorktreeByPathResponse,
 } from './worktree-path.ts';
-export * from './endpoints.ts';
+export { ProjectsApi } from './api.ts';
+
+export {
+  FilePreferenceLimitError,
+  ProjectNotFoundError,
+} from '@porcelain/projects/errors';

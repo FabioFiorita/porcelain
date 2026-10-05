@@ -1,3 +1,6 @@
+import { requestEffect } from '../../../shared/api/effect-client.ts';
+import { Effect } from 'effect';
+import { nativeOperation } from '@porcelain/effects';
 import type { QueryClient } from '@tanstack/query-core';
 import type {
   ReadInventoryResponse,
@@ -5,11 +8,13 @@ import type {
 } from '@porcelain/contracts/projects';
 import type { WorktreeConnection } from '../../../shared/api/connection.ts';
 import { queryKeys } from '../../../shared/api/query-keys.ts';
-import { assertCurrentAnswer } from '../../../shared/api/stale-answer.ts';
+import { currentAnswerEffect } from '../../../shared/api/stale-answer.ts';
 import { createScopedWriteQueues } from '../../../shared/api/write-queue.ts';
 import { projectsApi } from '../api.ts';
 import { inventoryQueryOptions } from '../queries/inventory.ts';
 import { filePreferencesQueryOptions } from '../queries/file-preferences.ts';
+import { retainedFileDrafts } from '../../files/store.ts';
+import { ConnectionError } from '../../../shared/api/connection-error.ts';
 
 const writeQueue = createScopedWriteQueues();
 
@@ -20,79 +25,112 @@ export function projectCommands(
   const api = projectsApi(connection);
   const key = inventoryQueryOptions(connection).queryKey;
   const queue = writeQueue(connection, key);
-  async function update(
+  function update(
     change: (inventory: ReadInventoryResponse) => ReadInventoryResponse,
     signal: AbortSignal,
   ) {
-    await client.cancelQueries({ queryKey: key });
-    assertCurrentAnswer(signal);
-    client.setQueryData<ReadInventoryResponse>(
-      key,
-      (inventory) => inventory && change(inventory),
-    );
+    return Effect.gen(function* () {
+      yield* nativeOperation(() => client.cancelQueries({ queryKey: key }));
+      yield* currentAnswerEffect(signal);
+      client.setQueryData<ReadInventoryResponse>(
+        key,
+        (inventory) => inventory && change(inventory),
+      );
+    });
   }
   return {
     register: (path: string) =>
-      queue.enqueue(async () => {
-        await client.cancelQueries({ queryKey: key });
-        const request = connection.request();
-        const project = await api.inventory.register({ ...request, path });
-        assertCurrentAnswer(request.signal);
-        await update((inventory) => {
-          const exists = inventory.projects.some(
-            (entry) => entry.id === project.id,
+      queue.enqueue(
+        Effect.gen(function* () {
+          const request = connection.request();
+          yield* currentAnswerEffect(request.signal);
+          yield* nativeOperation(() => client.cancelQueries({ queryKey: key }));
+          const project = yield* requestEffect(
+            api.registerProject({ payload: { path } }),
+            request.signal,
           );
-          const projects = exists
-            ? inventory.projects.map((entry) =>
-                entry.id === project.id ? project : entry,
-              )
-            : [...inventory.projects, project];
-          return { ...inventory, projects };
-        }, request.signal);
-        return project;
-      }),
+          yield* currentAnswerEffect(request.signal);
+          yield* update((inventory) => {
+            const exists = inventory.projects.some(
+              (entry) => entry.id === project.id,
+            );
+            const projects = exists
+              ? inventory.projects.map((entry) =>
+                  entry.id === project.id ? project : entry,
+                )
+              : [...inventory.projects, project];
+            return { ...inventory, projects };
+          }, request.signal);
+          return project;
+        }),
+      ),
     rename: (input: { projectId: string; name: string }) =>
-      queue.enqueue(async () => {
-        const request = connection.request();
-        const project = await api.inventory.rename({ ...request, ...input });
-        assertCurrentAnswer(request.signal);
-        await update(
-          (inventory) => ({
-            ...inventory,
-            projects: inventory.projects.map((entry) =>
-              entry.id === project.id
-                ? { ...entry, name: project.name }
-                : entry,
-            ),
-          }),
-          request.signal,
-        );
-        return project;
-      }),
+      queue.enqueue(
+        Effect.gen(function* () {
+          const request = connection.request();
+          const project = yield* requestEffect(
+            api.renameProject({
+              params: { projectId: input.projectId },
+              payload: { name: input.name },
+            }),
+            request.signal,
+          );
+          yield* currentAnswerEffect(request.signal);
+          yield* update(
+            (inventory) => ({
+              ...inventory,
+              projects: inventory.projects.map((entry) =>
+                entry.id === project.id
+                  ? { ...entry, name: project.name }
+                  : entry,
+              ),
+            }),
+            request.signal,
+          );
+          return project;
+        }),
+      ),
     remove: (projectId: string) =>
-      queue.enqueue(async () => {
-        await client.cancelQueries({ queryKey: key });
-        const request = connection.request();
-        const result = await api.inventory.remove({ ...request, projectId });
-        assertCurrentAnswer(request.signal);
-        await update(
-          (inventory) => ({
-            ...inventory,
-            projects: inventory.projects.filter(
-              (project) => project.id !== projectId,
-            ),
-          }),
-          request.signal,
-        );
-        const projectKey = queryKeys.reviewProject(
-          connection.environmentId,
-          projectId,
-        );
-        await client.cancelQueries({ queryKey: projectKey });
-        assertCurrentAnswer(request.signal);
-        client.removeQueries({ queryKey: projectKey });
-        return result;
-      }),
+      queue.enqueue(
+        Effect.gen(function* () {
+          const request = connection.request();
+          yield* currentAnswerEffect(request.signal);
+          const prefix = `[${JSON.stringify(projectId)},`;
+          for (const [key, draft] of retainedFileDrafts(connection))
+            if (key.startsWith(prefix) && !(yield* draft.save()))
+              return yield* Effect.fail(
+                new ConnectionError({
+                  message:
+                    'Save or discard unsaved file drafts before removing this project.',
+                }),
+              );
+          yield* nativeOperation(() => client.cancelQueries({ queryKey: key }));
+          const result = yield* requestEffect(
+            api.removeProject({ params: { projectId } }),
+            request.signal,
+          );
+          yield* currentAnswerEffect(request.signal);
+          yield* update(
+            (inventory) => ({
+              ...inventory,
+              projects: inventory.projects.filter(
+                (project) => project.id !== projectId,
+              ),
+            }),
+            request.signal,
+          );
+          const projectKey = queryKeys.reviewProject(
+            connection.environmentId,
+            projectId,
+          );
+          yield* nativeOperation(() =>
+            client.cancelQueries({ queryKey: projectKey }),
+          );
+          yield* currentAnswerEffect(request.signal);
+          client.removeQueries({ queryKey: projectKey });
+          return result;
+        }),
+      ),
   };
 }
 
@@ -103,17 +141,23 @@ export function setFilePreference(
   input: SetFilePreferenceRequest,
 ) {
   const key = filePreferencesQueryOptions(connection, projectId).queryKey;
-  return writeQueue(connection, key).enqueue(async () => {
-    const request = connection.request();
-    const result = await projectsApi(connection).filePreferences.set({
-      ...request,
-      projectId,
-      input,
-    });
-    assertCurrentAnswer(request.signal);
-    await client.cancelQueries({ queryKey: key, exact: true });
-    assertCurrentAnswer(request.signal);
-    client.setQueryData(key, result);
-    return result;
-  });
+  return writeQueue(connection, key).enqueue(
+    Effect.gen(function* () {
+      const request = connection.request();
+      const result = yield* requestEffect(
+        projectsApi(connection).setFilePreference({
+          params: { projectId },
+          payload: input,
+        }),
+        request.signal,
+      );
+      yield* currentAnswerEffect(request.signal);
+      yield* nativeOperation(() =>
+        client.cancelQueries({ queryKey: key, exact: true }),
+      );
+      yield* currentAnswerEffect(request.signal);
+      client.setQueryData(key, result);
+      return result;
+    }),
+  );
 }

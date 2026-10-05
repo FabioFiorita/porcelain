@@ -4,7 +4,7 @@ import {
   notExplainedLabel,
   type ReviewResponse,
   type ReviewScope,
-} from '../rules/review';
+} from '@porcelain/client/reviews/rules';
 import { ActiveReview } from './active-review';
 import { DocumentToolbar } from './document-toolbar';
 import { ReviewCodeDocument } from './review-code-document';

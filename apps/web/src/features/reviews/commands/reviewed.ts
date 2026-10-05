@@ -1,13 +1,12 @@
-import { REVIEWED_FILE_MARKS } from '@porcelain/contracts/shared';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { asMutation } from '@/shared/query/mutation';
+import { asMutation, operationMutation } from '@/shared/query/mutation';
 import { reviewClock } from '@/shared/adapters/review-clock';
 import { reviewedCommands } from '@porcelain/client/reviews';
-import { reviewErrorMessage, type ReviewScope } from '../rules/review';
 import {
-  bulkMarkPlan,
-  bulkMarkReport,
-  inChunks,
+  reviewErrorMessage,
+  type ReviewScope,
+} from '@porcelain/client/reviews/rules';
+import {
   type MarkReviewedInput,
   type ReviewableItem,
   type ReviewNotice,
@@ -16,7 +15,7 @@ import {
   type ReviewToggleTarget,
   visibleBulkReport,
   WORKTREE_RANGE,
-} from '../rules/reviewed';
+} from '@porcelain/client/reviews/rules';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
 function useReviewedCommands(
@@ -39,9 +38,9 @@ export function useMarkReviewed(
   range: ReviewRange = WORKTREE_RANGE,
 ) {
   const commands = useReviewedCommands(scope, context, range);
-  const mutation = useMutation({
-    mutationFn: commands.set,
-  });
+  const mutation = useMutation(
+    operationMutation(commands.set, context.connection),
+  );
   return {
     ...asMutation(mutation),
     start: (input: MarkReviewedInput) => mutation.mutate(input),
@@ -54,7 +53,9 @@ export function useUnmarkReviewed(
   range: ReviewRange = WORKTREE_RANGE,
 ) {
   const commands = useReviewedCommands(scope, context, range);
-  const mutation = useMutation({ mutationFn: commands.remove });
+  const mutation = useMutation(
+    operationMutation(commands.remove, context.connection),
+  );
   return {
     ...asMutation(mutation),
     start: (path: string) => mutation.mutate(path),
@@ -67,23 +68,12 @@ export function useMarkAllReviewed(
   range: ReviewRange = WORKTREE_RANGE,
 ) {
   const commands = useReviewedCommands(scope, context, range);
-  const bulk = useMutation({
-    mutationFn: async (entries: readonly ReviewableItem[]) => {
-      const plan = bulkMarkPlan(entries);
-      let report = plan.report;
-      for (const files of inChunks(plan.files, REVIEWED_FILE_MARKS)) {
-        const response = await commands.setAll(files);
-        report = bulkMarkReport(report, response);
-      }
-      return report;
-    },
-  });
-  const unmark = useMutation({
-    mutationFn: async (paths: readonly string[]) => {
-      for (const chunk of inChunks(paths, REVIEWED_FILE_MARKS))
-        await commands.removeAll(chunk);
-    },
-  });
+  const bulk = useMutation(
+    operationMutation(commands.markAll, context.connection),
+  );
+  const unmark = useMutation(
+    operationMutation(commands.unmarkAll, context.connection),
+  );
   return {
     report: visibleBulkReport(
       { report: bulk.data, submittedAt: bulk.submittedAt },

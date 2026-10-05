@@ -1,3 +1,5 @@
+import { Effect } from 'effect';
+import { withSignal } from '@porcelain/effects';
 import { httpErrors } from '@fastify/sensible';
 import type { FastifyRequest } from 'fastify';
 import type {
@@ -52,20 +54,22 @@ export function checkRequestOrigin(
   policy: OriginPolicy,
 ) {
   return async (request: FastifyRequest) => {
-    const result = await options.access.checkRequestOrigin.execute(
-      {
-        host: request.headers.host,
-        origin: request.headers.origin,
-        method: request.method,
-        scheme: request.protocol,
-        localAddress: request.socket.localAddress,
-        localPort: request.socket.localPort,
-        allowedHosts: options.allowedHosts,
-        requireSameOrigin: policy.requireSameOrigin ?? false,
-        crossOrigin: policy.crossOrigin,
-        credential: presentedCredential(request, policy),
-      },
-      { signal: request.disconnected },
+    const result = await Effect.runPromise(
+      withSignal(
+        options.access.checkRequestOrigin.execute({
+          host: request.headers.host,
+          origin: request.headers.origin,
+          method: request.method,
+          scheme: request.protocol,
+          localAddress: request.socket.localAddress,
+          localPort: request.socket.localPort,
+          allowedHosts: options.allowedHosts,
+          requireSameOrigin: policy.requireSameOrigin ?? false,
+          crossOrigin: policy.crossOrigin,
+          credential: presentedCredential(request, policy),
+        }),
+        request.disconnected,
+      ),
     );
     if (!result.allowed)
       throw httpErrors.forbidden(refusalMessage(result.refusal));

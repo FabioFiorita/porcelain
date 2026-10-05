@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type {
   ReadInterruptedGitActionInput,
   ReadInterruptedGitActionResult,
@@ -14,12 +15,14 @@ export class ReadInterruptedGitActionService {
 
   execute(
     input: ReadInterruptedGitActionInput,
-  ): ReadInterruptedGitActionResult {
-    const receipt = this.gitActionReceipts.latestInterrupted({
-      worktreeId: input.worktreeId,
+  ): Effect.Effect<ReadInterruptedGitActionResult, never, never> {
+    return Effect.sync(() => {
+      const receipt = this.gitActionReceipts.latestInterrupted({
+        worktreeId: input.worktreeId,
+      });
+      return receipt
+        ? { kind: 'interrupted', receipt: gitActionReceiptView(receipt) }
+        : { kind: 'none' };
     });
-    return receipt
-      ? { kind: 'interrupted', receipt: gitActionReceiptView(receipt) }
-      : { kind: 'none' };
   }
 }

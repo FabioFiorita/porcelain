@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { RepositoryUnavailableError } from '../errors/repository-unavailable-error.ts';
 import type {
   InspectProjectRepositoryInput,
@@ -12,15 +13,16 @@ export class InspectProjectRepositoryService {
     this.projectRepositoryReader = projectRepositoryReader;
   }
 
-  async execute(
+  execute(
     input: InspectProjectRepositoryInput,
-    signal?: AbortSignal,
-  ): Promise<InspectProjectRepositoryResult> {
-    const repository = await this.projectRepositoryReader.find(
-      { path: input.path },
-      signal,
-    );
-    if (!repository) throw new RepositoryUnavailableError();
-    return repository;
+  ): Effect.Effect<InspectProjectRepositoryResult, RepositoryUnavailableError> {
+    return Effect.gen({ self: this }, function* () {
+      const repository = yield* this.projectRepositoryReader.find({
+        path: input.path,
+      });
+      if (!repository)
+        return yield* Effect.fail(new RepositoryUnavailableError());
+      return repository;
+    });
   }
 }

@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import {
   FixedClock,
@@ -39,11 +40,13 @@ function issueOne(
   service: IssuePairingService,
   addresses: readonly string[] = [address],
 ) {
-  const [issued] = service.execute({
-    labels: ['Phone'],
-    addresses,
-    environmentId,
-  }).grants;
+  const [issued] = Effect.runSync(
+    service.execute({
+      labels: ['Phone'],
+      addresses,
+      environmentId,
+    }),
+  ).grants;
   if (!issued) throw new Error('No grant was issued');
   return issued;
 }
@@ -51,11 +54,13 @@ function issueOne(
 describe('IssuePairingService', () => {
   it('issues one grant per label, each with its own one-time code', () => {
     const { service } = setup();
-    const { grants } = service.execute({
-      labels: ['Phone', 'Tablet'],
-      addresses: [address],
-      environmentId,
-    });
+    const { grants } = Effect.runSync(
+      service.execute({
+        labels: ['Phone', 'Tablet'],
+        addresses: [address],
+        environmentId,
+      }),
+    );
     expect(grants.map(({ grant }) => grant.label)).toEqual(['Phone', 'Tablet']);
     expect(grants.map(({ code }) => parseCredential('pcp', code)?.id)).toEqual(
       grants.map(({ grant }) => grant.id),
@@ -99,12 +104,14 @@ describe('IssuePairingService', () => {
   it('issues an untrusted grant unless the owner asks for a trusted one', () => {
     const { grants, service } = setup();
     const plain = issueOne(service);
-    const [trusted] = service.execute({
-      labels: ['Desktop'],
-      addresses: [address],
-      environmentId,
-      trusted: true,
-    }).grants;
+    const [trusted] = Effect.runSync(
+      service.execute({
+        labels: ['Desktop'],
+        addresses: [address],
+        environmentId,
+        trusted: true,
+      }),
+    ).grants;
     expect(plain.grant.trusted).toBe(false);
     expect(trusted?.grant.trusted).toBe(true);
     expect(grants.find({ grantId: plain.grant.id })?.trusted).toBe(false);
@@ -116,11 +123,13 @@ describe('IssuePairingService', () => {
   it('refuses an address the server does not answer at and issues nothing', () => {
     const { grants, service } = setup();
     expect(() =>
-      service.execute({
-        labels: ['Phone'],
-        addresses: [address, 'http://192.168.1.99:4173'],
-        environmentId,
-      }),
+      Effect.runSync(
+        service.execute({
+          labels: ['Phone'],
+          addresses: [address, 'http://192.168.1.99:4173'],
+          environmentId,
+        }),
+      ),
     ).toThrow(InvalidPairingAddressError);
     expect(grants.list()).toEqual([]);
   });
@@ -128,11 +137,13 @@ describe('IssuePairingService', () => {
   it('refuses the whole request when any label is invalid', () => {
     const { grants, service } = setup();
     expect(() =>
-      service.execute({
-        labels: ['Phone', ' \t '],
-        addresses: [address],
-        environmentId,
-      }),
+      Effect.runSync(
+        service.execute({
+          labels: ['Phone', ' \t '],
+          addresses: [address],
+          environmentId,
+        }),
+      ),
     ).toThrow(InvalidDeviceDetailsError);
     expect(grants.list()).toEqual([]);
   });

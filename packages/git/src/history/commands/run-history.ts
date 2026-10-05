@@ -2,8 +2,8 @@ import type { GitLimits } from '../../shared/dtos/git-limits.ts';
 import { GitCommandError } from '../../shared/errors/git-command-error.ts';
 import { GitOutputLimitError } from '../../shared/errors/git-output-limit-error.ts';
 import { runGitRead } from '../../shared/commands/run-git.ts';
-import { HistorySnapshotUnavailableError } from '../errors/history-snapshot-unavailable-error.ts';
-import { ReadLimitExceededError } from '../errors/read-limit-exceeded-error.ts';
+import { HistorySnapshotUnavailableError } from '../../shared/errors/history-snapshot-unavailable-error.ts';
+import { ReadLimitExceededError } from '../../shared/errors/read-limit-exceeded-error.ts';
 
 export async function runHistory(
   checkout: string,

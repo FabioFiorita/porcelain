@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import type { NetworkAddress } from '@porcelain/access/models';
 import { FixedNetworkAddressReader } from '../../spec/fakes/fixed-network-address-reader.ts';
@@ -13,7 +14,6 @@ import {
 import { OpenRemoteRoutesService } from './open-remote-routes-service.ts';
 
 const environmentId = 'environment-here';
-const signal: AbortSignal = { aborted: false, reason: undefined };
 
 function address(
   interfaceName: string,
@@ -71,8 +71,9 @@ function setup(options: { refusing?: boolean } = {}) {
     probe,
     { loopbackAddress: '127.0.0.1' },
   );
-  const open = () => service.execute({ environmentId }, signal);
-  const close = () => service.execute({ environmentId, closing: true }, signal);
+  const open = () => Effect.runPromise(service.execute({ environmentId }));
+  const close = () =>
+    Effect.runPromise(service.execute({ environmentId, closing: true }));
   return { settings, routes, addresses, listeners, probe, open, close };
 }
 

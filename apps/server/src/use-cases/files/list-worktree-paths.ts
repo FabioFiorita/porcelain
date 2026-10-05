@@ -1,45 +1,31 @@
 import type { ListWorktreePathsResponse } from '@porcelain/contracts/files';
 import type { WorktreeParams } from '@porcelain/contracts/shared';
 import type { ListWorktreePathsService } from '@porcelain/files/services';
-import type { LaneKeys } from '../../runtime/lane-keys.ts';
-import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
-import type { CheckWorktreeUseCasePort } from '../../ports/check-worktree-use-case-port.ts';
+import type { DirectoryTooLargeError } from '@porcelain/files/errors';
+import type { Effect } from 'effect';
+import type { WorktreeAccess } from '../../runtime/worktree-access.ts';
+import type { WorktreeAccessFailure } from '../../ports/worktree-access-failure.ts';
 
 export class ListWorktreePathsUseCase {
-  private readonly checkWorktree: CheckWorktreeUseCasePort;
+  private readonly access: WorktreeAccess;
   private readonly listWorktreePaths: ListWorktreePathsService;
-  private readonly lanes: Lanes;
-  private readonly laneKeys: LaneKeys;
 
   constructor(
-    checkWorktree: CheckWorktreeUseCasePort,
+    access: WorktreeAccess,
     listWorktreePaths: ListWorktreePathsService,
-    lanes: Lanes,
-    laneKeys: LaneKeys,
   ) {
-    this.checkWorktree = checkWorktree;
+    this.access = access;
     this.listWorktreePaths = listWorktreePaths;
-    this.lanes = lanes;
-    this.laneKeys = laneKeys;
   }
 
-  async execute(
+  execute(
     input: WorktreeParams,
-    context: OperationContext,
-  ): Promise<ListWorktreePathsResponse> {
-    const worktree = await this.checkWorktree.execute(
-      { worktreeId: input.worktreeId, requireAvailableProject: false },
-      context,
-    );
-    return this.lanes.runConsistent(
-      this.laneKeys.repository(worktree),
-      worktree,
-      async ({ signal }) => {
-        const result = await this.listWorktreePaths.execute(input, signal);
-        return result;
-      },
-      { callerSignal: context.signal },
+  ): Effect.Effect<
+    ListWorktreePathsResponse,
+    WorktreeAccessFailure | DirectoryTooLargeError
+  > {
+    return this.access.read(input.worktreeId, (worktree) =>
+      this.listWorktreePaths.execute({ ...input, worktreeId: worktree.id }),
     );
   }
 }

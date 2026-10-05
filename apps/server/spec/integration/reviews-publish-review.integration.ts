@@ -1,3 +1,4 @@
+import * as Schema from 'effect/Schema';
 import { randomUUID } from 'node:crypto';
 import { publishReviewResponseSchema } from '@porcelain/contracts/reviews';
 import { expect } from 'vitest';
@@ -39,7 +40,9 @@ test('the first publish resolves each pointer, signs a summary link and marks th
 
   expect(response.status).toBe(200);
   expect(response.body).toEqual(
-    expect.schemaMatching(publishReviewResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(Schema.toEncoded(publishReviewResponseSchema)),
+    ),
   );
   const review = record(record(response.body).review);
   expect(review).toMatchObject({

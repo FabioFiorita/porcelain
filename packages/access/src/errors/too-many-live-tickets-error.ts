@@ -1,7 +1,10 @@
-export class TooManyLiveTicketsError extends Error {
-  override readonly name = 'TooManyLiveTicketsError';
+import { Schema } from 'effect';
 
-  constructor() {
-    super('Too many live tickets are waiting to be used. Try again shortly.');
+export class TooManyLiveTicketsError extends Schema.TaggedError<TooManyLiveTicketsError>()(
+  'TooManyLiveTicketsError',
+  {},
+) {
+  override get message() {
+    return 'Too many live tickets are waiting to be used. Try again shortly.';
   }
 }

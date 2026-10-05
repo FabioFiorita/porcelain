@@ -1,3 +1,5 @@
+import type { Effect } from 'effect';
+import { nativeOperation } from '@porcelain/effects';
 import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { networkInterfaces } from 'node:os';
@@ -37,7 +39,11 @@ export class OsNetworkAddressReader implements NetworkAddressReader {
     });
   }
 
-  async defaultRoutes(): Promise<DefaultRoute[]> {
+  defaultRoutes(): Effect.Effect<DefaultRoute[]> {
+    return nativeOperation(() => this.defaultRoutesNative());
+  }
+
+  private async defaultRoutesNative(): Promise<DefaultRoute[]> {
     const [routes, neighbours] = await Promise.all([
       kernelTable(ROUTE_TABLE),
       kernelTable(NEIGHBOUR_TABLE),

@@ -1,10 +1,13 @@
 import type { QueryClient } from '@tanstack/query-core';
 import type { SetRemoteAccessRequest } from '@porcelain/contracts/access';
+import { Effect } from 'effect';
+import { nativeOperation } from '@porcelain/effects';
 import type { WorktreeConnection } from '../../../shared/api/connection.ts';
 import { queryKeys } from '../../../shared/api/query-keys.ts';
-import { assertCurrentAnswer } from '../../../shared/api/stale-answer.ts';
+import { currentAnswerEffect } from '../../../shared/api/stale-answer.ts';
 import { createScopedWriteQueues } from '../../../shared/api/write-queue.ts';
-import { shareApi } from '../api.ts';
+import { accessApi } from '../api.ts';
+import { requestEffect } from '../../../shared/api/effect-client.ts';
 
 const writeQueue = createScopedWriteQueues();
 
@@ -12,95 +15,110 @@ export function shareCommands(
   connection: WorktreeConnection,
   client: QueryClient,
 ) {
-  const api = shareApi(connection);
+  const api = accessApi(connection);
   const accessKey = queryKeys.pairedAccess(connection.environmentId);
   const remoteKey = queryKeys.remoteAccess(connection.environmentId);
   const updateKey = queryKeys.serviceUpdate(connection.environmentId);
-  function run<T>(
+  function run<A, E, P>(
     key: readonly unknown[],
-    send: (signal: AbortSignal) => Promise<T>,
-    publish: (answer: T, signal: AbortSignal) => Promise<void>,
+    send: (signal: AbortSignal) => Effect.Effect<A, E>,
+    publish: (answer: A, signal: AbortSignal) => Effect.Effect<void, P>,
   ) {
-    return writeQueue(connection, key).enqueue(async () => {
-      const request = connection.request();
-      const answer = await send(request.signal);
-      assertCurrentAnswer(request.signal);
-      await publish(answer, request.signal);
-      return answer;
-    });
+    return writeQueue(connection, key).enqueue(
+      Effect.gen(function* () {
+        const request = connection.request();
+        yield* currentAnswerEffect(request.signal);
+        const answer = yield* send(request.signal);
+        yield* currentAnswerEffect(request.signal);
+        yield* publish(answer, request.signal);
+        return answer;
+      }),
+    );
   }
-  async function cache(
+  function refresh(key: readonly unknown[], signal: AbortSignal) {
+    return Effect.suspend(() =>
+      signal.aborted
+        ? Effect.void
+        : nativeOperation(() => client.invalidateQueries({ queryKey: key })),
+    );
+  }
+  function cache(
     key: readonly unknown[],
     answer: unknown,
     signal: AbortSignal,
   ) {
-    await client.cancelQueries({ queryKey: key });
-    assertCurrentAnswer(signal);
-    client.setQueryData(key, answer);
+    return Effect.gen(function* () {
+      yield* nativeOperation(() => client.cancelQueries({ queryKey: key }));
+      yield* currentAnswerEffect(signal);
+      client.setQueryData(key, answer);
+    });
   }
   return {
     issue: (input: { label: string; addresses: string[]; trusted: boolean }) =>
       run(
         accessKey,
-        (signal) => api.issue({ ...input, signal }),
-        async () => {
-          await client.invalidateQueries({ queryKey: accessKey });
-        },
+        (signal) =>
+          requestEffect(
+            api.administration.issuePairing({
+              payload: {
+                labels: [input.label],
+                addresses: input.addresses,
+                ...(input.trusted ? { trusted: true } : {}),
+              },
+            }),
+            signal,
+          ),
+        (_answer, signal) => refresh(accessKey, signal),
       ),
     revoke: (id: string) =>
       run(
         accessKey,
-        async (signal) => {
-          try {
-            return await api.revoke({ signal, id });
-          } finally {
-            if (!signal.aborted)
-              await client.invalidateQueries({ queryKey: accessKey });
-          }
-        },
-        async () => {},
+        (signal) =>
+          requestEffect(
+            api.administration.revokeAccess({ payload: { id } }),
+            signal,
+          ).pipe(Effect.ensuring(refresh(accessKey, signal))),
+        () => Effect.void,
       ),
     trust: (input: { id: string; trusted: boolean }) =>
       run(
         accessKey,
-        async (signal) => {
-          try {
-            return await api.trust({ ...input, signal });
-          } finally {
-            if (!signal.aborted)
-              await client.invalidateQueries({ queryKey: accessKey });
-          }
-        },
-        async () => {},
+        (signal) =>
+          requestEffect(
+            api.administration.setDeviceTrust({ payload: input }),
+            signal,
+          ).pipe(Effect.ensuring(refresh(accessKey, signal))),
+        () => Effect.void,
       ),
     setRemote: (change: SetRemoteAccessRequest) =>
       run(
         remoteKey,
-        (signal) => api.setRemote({ signal, change }),
+        (signal) =>
+          requestEffect(
+            api.administration.setRemoteAccess({ payload: change }),
+            signal,
+          ),
         (answer, signal) => cache(remoteKey, answer, signal),
       ),
     rename: (name: string | null) =>
       run(
         queryKeys.inventory(connection.environmentId),
-        (signal) => api.rename({ signal, name }),
-        async () => {
-          await client.invalidateQueries({
-            queryKey: queryKeys.inventory(connection.environmentId),
-          });
-        },
+        (signal) =>
+          requestEffect(
+            api.environmentName.renameEnvironment({ payload: { name } }),
+            signal,
+          ),
+        (_answer, signal) =>
+          refresh(queryKeys.inventory(connection.environmentId), signal),
       ),
     startServiceUpdate: (version: string) =>
       run(
         updateKey,
-        async (signal) => {
-          try {
-            return await api.startServiceUpdate({ signal, version });
-          } catch (error) {
-            if (!signal.aborted)
-              await client.invalidateQueries({ queryKey: updateKey });
-            throw error;
-          }
-        },
+        (signal) =>
+          requestEffect(
+            api.serviceUpdates.startServiceUpdate({ payload: { version } }),
+            signal,
+          ).pipe(Effect.tapError(() => refresh(updateKey, signal))),
         (answer, signal) => cache(updateKey, answer, signal),
       ),
   };

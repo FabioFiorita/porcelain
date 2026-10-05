@@ -6,6 +6,7 @@ import {
   type WorktreeScope,
 } from '../../../shared/api/connection.ts';
 import { reviewsApi } from '../api.ts';
+import { runRequest } from '../../../shared/api/effect-client.ts';
 
 export function reviewedQueryOptions(
   scope: WorktreeScope,
@@ -21,11 +22,21 @@ export function reviewedQueryOptions(
     ]),
     queryFn: async ({ signal }: Pick<QueryFunctionContext, 'signal'>) => {
       const connected = connection.request(signal);
-      const result = await reviewsApi(connection).reviewed.list({
-        worktreeId: scope.worktreeId,
-        ...connected,
-        range,
-      });
+      const result = await runRequest(
+        reviewsApi(connection).listReviewedFiles({
+          params: { worktreeId: scope.worktreeId },
+          query:
+            range.kind === 'branch'
+              ? {
+                  scope: 'branch',
+                  ...(range.branch === undefined
+                    ? {}
+                    : { branch: range.branch }),
+                }
+              : {},
+        }),
+        connected.signal,
+      );
       assertCurrentAnswer(
         connected.signal,
         result.worktreeId === scope.worktreeId,
@@ -44,10 +55,12 @@ export function layerMarksQueryOptions(
     queryKey: queryKeys.worktreeSurface(connection, scope, ['reviewed-layers']),
     queryFn: async ({ signal }: Pick<QueryFunctionContext, 'signal'>) => {
       const connected = connection.request(signal);
-      const result = await reviewsApi(connection).reviewedLayers.list({
-        worktreeId: scope.worktreeId,
-        ...connected,
-      });
+      const result = await runRequest(
+        reviewsApi(connection).listReviewedLayers({
+          params: { worktreeId: scope.worktreeId },
+        }),
+        connected.signal,
+      );
       assertCurrentAnswer(
         connected.signal,
         result.worktreeId === scope.worktreeId,

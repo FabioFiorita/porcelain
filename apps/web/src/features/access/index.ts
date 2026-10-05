@@ -1,19 +1,11 @@
 export { useWorkspaceRetry } from './adapters/workspace-retry';
 export { pairBrowser } from './commands/pairing';
 export { restoreSession } from './commands/restore-session';
-export { connectionErrorMessage } from './rules/connection-error-message';
-export { parsePairingLink } from '@porcelain/client/access/rules';
+
 export { useRecheckRemote } from './commands/remotes';
 export { useSignOutWhenUnauthorized } from './commands/unauthorized';
 export { useRemoteStatus } from './queries/remotes';
-export {
-  remoteKey,
-  remoteLiveOpen,
-  remoteStatusNote,
-  remoteStatusText,
-  remoteStatusVariant,
-  type RemoteStatus,
-} from './rules/remotes';
+export { remoteLiveOpen, remoteStatusVariant } from './rules/remotes';
 export {
   useAccessStore,
   useConnectedContext,

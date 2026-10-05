@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import {
   CommentAuthorMismatchError,
@@ -44,7 +45,7 @@ function input(
 describe('DeleteCommentMessageService', () => {
   it("removes the reviewer's own message and answers the rest of the thread at the next revision", () => {
     const { service, store } = setup();
-    const result = service.execute(input());
+    const result = Effect.runSync(service.execute(input()));
     expect(result.threadId).toBe(threadId);
     expect(result.thread?.revision).toBe(2);
     expect(result.thread?.messages.map((message) => message.id)).toEqual([
@@ -57,7 +58,7 @@ describe('DeleteCommentMessageService', () => {
 
   it('keeps the replies when the opening message is removed', () => {
     const { service, store } = setup();
-    service.execute(input({ messageId: 'question' }));
+    Effect.runSync(service.execute(input({ messageId: 'question' })));
     expect(
       store.find({ threadId })?.messages.map((message) => message.id),
     ).toEqual(['answer', 'follow-up']);
@@ -65,11 +66,13 @@ describe('DeleteCommentMessageService', () => {
 
   it('removes the thread with its last message', () => {
     const { service, store } = setup();
-    service.execute(input({ messageId: 'question' }));
-    service.execute(input());
+    Effect.runSync(service.execute(input({ messageId: 'question' })));
+    Effect.runSync(service.execute(input()));
     expect(
-      service.execute(
-        input({ messageId: 'answer', writer: { kind: 'agent' } }),
+      Effect.runSync(
+        service.execute(
+          input({ messageId: 'answer', writer: { kind: 'agent' } }),
+        ),
       ),
     ).toEqual({ threadId, thread: undefined });
     expect(store.find({ threadId })).toBeUndefined();
@@ -79,29 +82,33 @@ describe('DeleteCommentMessageService', () => {
 
   it("refuses a reviewer removing the agent's message and keeps it", () => {
     const { service, store } = setup();
-    expect(() => service.execute(input({ messageId: 'answer' }))).toThrow(
-      CommentAuthorMismatchError,
-    );
+    expect(() =>
+      Effect.runSync(service.execute(input({ messageId: 'answer' }))),
+    ).toThrow(CommentAuthorMismatchError);
     expect(store.find({ threadId })?.messages).toHaveLength(3);
   });
 
   it("refuses the agent removing a reviewer's message", () => {
     const { service } = setup();
-    expect(() => service.execute(input({ writer: { kind: 'agent' } }))).toThrow(
-      CommentAuthorMismatchError,
-    );
+    expect(() =>
+      Effect.runSync(service.execute(input({ writer: { kind: 'agent' } }))),
+    ).toThrow(CommentAuthorMismatchError);
   });
 
   it('does not find a message already removed, an unknown thread or a thread of another worktree', () => {
     const { service } = setup();
-    service.execute(input());
-    expect(() => service.execute(input())).toThrow(CommentTargetNotFoundError);
-    expect(() => service.execute(input({ threadId: 'missing' }))).toThrow(
+    Effect.runSync(service.execute(input()));
+    expect(() => Effect.runSync(service.execute(input()))).toThrow(
       CommentTargetNotFoundError,
     );
     expect(() =>
-      service.execute(
-        input({ worktreeId: 'b'.repeat(64), messageId: 'question' }),
+      Effect.runSync(service.execute(input({ threadId: 'missing' }))),
+    ).toThrow(CommentTargetNotFoundError);
+    expect(() =>
+      Effect.runSync(
+        service.execute(
+          input({ worktreeId: 'b'.repeat(64), messageId: 'question' }),
+        ),
       ),
     ).toThrow(CommentTargetNotFoundError);
   });

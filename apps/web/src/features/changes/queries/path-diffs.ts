@@ -1,7 +1,7 @@
 import { assertCurrentAnswer } from '@porcelain/client/transport';
 import { DIFF_WINDOW_FILES } from '@/config/limits';
 import { useBatchedReads } from './batched-reads';
-import { consecutiveBatches } from '../rules/diff-batches';
+import { consecutiveBatches } from '@porcelain/client/changes/rules';
 import { type Connection } from '@/shared/workspace/connection';
 
 type PathBatch = readonly (readonly string[])[];

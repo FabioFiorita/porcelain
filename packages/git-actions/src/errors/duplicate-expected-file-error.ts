@@ -1,7 +1,10 @@
-export class DuplicateExpectedFileError extends Error {
-  override readonly name = 'DuplicateExpectedFileError';
+import { Schema } from 'effect';
 
-  constructor() {
-    super('Each expected file may appear only once');
+export class DuplicateExpectedFileError extends Schema.TaggedError<DuplicateExpectedFileError>()(
+  'DuplicateExpectedFileError',
+  {},
+) {
+  override get message() {
+    return 'Each expected file may appear only once';
   }
 }

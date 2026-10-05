@@ -1,3 +1,5 @@
+import type { Effect } from 'effect';
+import type { WorktreeRead } from '@porcelain/effects/worktree';
 import type {
   CommitFilesLookup,
   CommitPage,
@@ -11,21 +13,17 @@ import type {
 } from '../models/list-file-commits.ts';
 import type { ReadCommitFilesInput } from '../models/read-commit-files.ts';
 
-export interface CommitHistoryReader {
+export interface CommitHistoryReader<E = never> {
   listCommits(
     input: ListCommitsInput,
-    signal?: AbortSignal,
-  ): Promise<CommitPage>;
+  ): Effect.Effect<CommitPage, E, WorktreeRead>;
   listFileCommits(
     input: ListFileCommitsInput,
-    signal?: AbortSignal,
-  ): Promise<FileCommits>;
+  ): Effect.Effect<FileCommits, E, WorktreeRead>;
   readCommitFiles(
     input: ReadCommitFilesInput,
-    signal?: AbortSignal,
-  ): Promise<CommitFilesLookup>;
+  ): Effect.Effect<CommitFilesLookup, E, WorktreeRead>;
   readCommitPatches(
     input: CommitPatchesRequest,
-    signal?: AbortSignal,
-  ): Promise<CommitPatches>;
+  ): Effect.Effect<CommitPatches, E, WorktreeRead>;
 }

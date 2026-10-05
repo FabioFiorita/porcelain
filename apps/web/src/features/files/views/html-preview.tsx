@@ -1,6 +1,6 @@
-import type { FilesScope } from '../rules/scope';
+import type { FilesScope } from '@porcelain/client/files/rules';
 import { useHtmlPreview } from '@/features/files/queries/preview-assets';
-import { fileErrorMessage } from '../rules/error-message';
+import { fileErrorMessage } from '@porcelain/client/files/rules';
 import { HtmlFrame } from './html-frame';
 import { type Connection } from '@/shared/workspace/connection';
 

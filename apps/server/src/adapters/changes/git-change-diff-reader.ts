@@ -1,3 +1,7 @@
+import type { Effect } from 'effect';
+import type { WorktreeRead } from '@porcelain/effects/worktree';
+import { readGit } from '../../runtime/git-io.ts';
+import type { GitIoFailure } from '../../ports/git-io-failure.ts';
 import type {
   ChangeDiffContent,
   ReadChangeDiffsInput,
@@ -6,14 +10,22 @@ import type { ChangeDiffReader } from '@porcelain/changes/ports';
 import { toGitChange } from './git-comparisons.ts';
 import type { OpenInspection } from './inspection-checkouts.ts';
 
-export class GitChangeDiffReader implements ChangeDiffReader {
+export class GitChangeDiffReader implements ChangeDiffReader<GitIoFailure> {
   private readonly open: OpenInspection;
 
   constructor(open: OpenInspection) {
     this.open = open;
   }
 
-  async readDiffs(
+  readDiffs(
+    input: ReadChangeDiffsInput,
+  ): Effect.Effect<ChangeDiffContent[], GitIoFailure, WorktreeRead> {
+    return readGit(input.worktreeId, (signal) =>
+      this.readDiffsNative(input, signal),
+    );
+  }
+
+  private async readDiffsNative(
     input: ReadChangeDiffsInput,
     signal?: AbortSignal,
   ): Promise<ChangeDiffContent[]> {

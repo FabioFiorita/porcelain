@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import type { ReviewLayer } from '@porcelain/reviews/models';
 import { currentLayerFingerprint } from '@porcelain/reviews/rules';
@@ -66,7 +67,7 @@ function setup() {
 
 describe('ListReviewedLayerPathsService', () => {
   it('names only the files that the marked layers point at', () => {
-    expect(setup().paths.execute({ worktreeId })).toEqual({
+    expect(Effect.runSync(setup().paths.execute({ worktreeId }))).toEqual({
       paths: ['README.md'],
     });
   });

@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type {
   RecordReviewActivityInput,
   RecordReviewActivityResult,
@@ -12,15 +13,19 @@ export class RecordReviewActivityService {
     this.reviews = reviews;
   }
 
-  execute(input: RecordReviewActivityInput): RecordReviewActivityResult {
-    const { review } = input;
-    const active = reviewActivity(review, input.evidence);
-    if (active === review.active) return { changed: false };
-    this.reviews.setActive({
-      worktreeId: review.worktreeId,
-      revision: review.revision,
-      active,
+  execute(
+    input: RecordReviewActivityInput,
+  ): Effect.Effect<RecordReviewActivityResult, never> {
+    return Effect.sync(() => {
+      const { review } = input;
+      const active = reviewActivity(review, input.evidence);
+      if (active === review.active) return { changed: false };
+      this.reviews.setActive({
+        worktreeId: review.worktreeId,
+        revision: review.revision,
+        active,
+      });
+      return { changed: true };
     });
-    return { changed: true };
   }
 }

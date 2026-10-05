@@ -1,3 +1,8 @@
+import { Effect } from 'effect';
+import type {
+  DeviceViewerRequiredError,
+  TooManyLiveTicketsError,
+} from '@porcelain/access/errors';
 import type { IssueLiveTicketService } from '@porcelain/access/services';
 import type {
   IssueLiveTicketRequest,
@@ -5,7 +10,6 @@ import type {
 } from '@porcelain/contracts/access';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
 
 export class IssueLiveTicketUseCase {
   private readonly issueLiveTicket: IssueLiveTicketService;
@@ -24,13 +28,16 @@ export class IssueLiveTicketUseCase {
 
   execute(
     input: IssueLiveTicketRequest,
-    context: OperationContext,
-  ): Promise<IssueLiveTicketResponse> {
-    return this.lanes.run(
-      this.laneKeys.access(),
-      'write',
-      async () => this.issueLiveTicket.execute(input),
-      { callerSignal: context.signal },
-    );
+  ): Effect.Effect<
+    IssueLiveTicketResponse,
+    DeviceViewerRequiredError | TooManyLiveTicketsError
+  > {
+    return Effect.gen({ self: this }, function* () {
+      return yield* this.lanes.run(this.laneKeys.access(), 'write', () =>
+        Effect.gen({ self: this }, function* () {
+          return yield* this.issueLiveTicket.execute(input);
+        }),
+      );
+    });
   }
 }

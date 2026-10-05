@@ -1,3 +1,5 @@
+import type { Effect } from 'effect';
+import type { WorktreeRead } from '@porcelain/effects/worktree';
 import type {
   StagingStampRequest,
   SubmoduleHeadsRequest,
@@ -5,17 +7,14 @@ import type {
   WorktreeEntry,
 } from '../models/worktree-side.ts';
 
-export interface WorktreeSideReader {
+export interface WorktreeSideReader<E = never> {
   readEntries(
     input: WorktreeEntriesRequest,
-    signal?: AbortSignal,
-  ): Promise<ReadonlyMap<string, WorktreeEntry>>;
+  ): Effect.Effect<ReadonlyMap<string, WorktreeEntry>, E, WorktreeRead>;
   readSubmoduleHeads(
     input: SubmoduleHeadsRequest,
-    signal?: AbortSignal,
-  ): Promise<ReadonlyMap<string, string>>;
+  ): Effect.Effect<ReadonlyMap<string, string>, E, WorktreeRead>;
   readStagingStamp(
     input: StagingStampRequest,
-    signal?: AbortSignal,
-  ): Promise<string | undefined>;
+  ): Effect.Effect<string | undefined, E, WorktreeRead>;
 }

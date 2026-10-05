@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { ProjectNotFoundError } from '../errors/project-not-found-error.ts';
 import type {
   RenameProjectInput,
@@ -12,13 +13,17 @@ export class RenameProjectService {
     this.inventory = inventory;
   }
 
-  execute(input: RenameProjectInput): RenameProjectResult {
-    const project = this.inventory.find({ projectId: input.projectId });
-    if (!project) throw new ProjectNotFoundError();
-    const renamed = { id: project.id, name: input.name };
-    if (project.namedByOwner && project.name === input.name)
-      return { project: renamed, changed: false };
-    this.inventory.save({ ...project, name: input.name, namedByOwner: true });
-    return { project: renamed, changed: true };
+  execute(
+    input: RenameProjectInput,
+  ): Effect.Effect<RenameProjectResult, ProjectNotFoundError> {
+    return Effect.gen({ self: this }, function* () {
+      const project = this.inventory.find({ projectId: input.projectId });
+      if (!project) return yield* Effect.fail(new ProjectNotFoundError());
+      const renamed = { id: project.id, name: input.name };
+      if (project.namedByOwner && project.name === input.name)
+        return { project: renamed, changed: false };
+      this.inventory.save({ ...project, name: input.name, namedByOwner: true });
+      return { project: renamed, changed: true };
+    });
   }
 }

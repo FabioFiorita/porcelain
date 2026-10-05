@@ -1,3 +1,4 @@
+import * as Schema from 'effect/Schema';
 import { randomUUID } from 'node:crypto';
 import {
   deleteCommentMessageResponseSchema,
@@ -100,7 +101,11 @@ test('the reviewer rewrites their comment in place, stamped and at the next revi
 
   expect(response.status).toBe(200);
   expect(response.body).toEqual(
-    expect.schemaMatching(editCommentMessageResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(
+        Schema.toEncoded(editCommentMessageResponseSchema),
+      ),
+    ),
   );
   expect(response.body).toMatchObject({
     id: threadId,
@@ -172,7 +177,11 @@ test('the reviewer deletes a reply and the rest of the thread stays at the next 
 
   expect(response.status).toBe(200);
   expect(response.body).toEqual(
-    expect.schemaMatching(deleteCommentMessageResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(
+        Schema.toEncoded(deleteCommentMessageResponseSchema),
+      ),
+    ),
   );
   expect(response.body).toMatchObject({
     threadId,

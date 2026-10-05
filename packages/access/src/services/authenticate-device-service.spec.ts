@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { FixedClock } from '@porcelain/kernel/fakes';
 import type { StoredDevice } from '@porcelain/access/models';
@@ -48,24 +49,32 @@ describe('AuthenticateDeviceService', () => {
   it('recognises a paired device by its credential', () => {
     const { service, token } = setup();
     expect(
-      service.execute({ credential: token, route: 'lan', address: '10.0.0.1' }),
+      Effect.runSync(
+        service.execute({
+          credential: token,
+          route: 'lan',
+          address: '10.0.0.1',
+        }),
+      ),
     ).toEqual({ kind: 'authenticated', deviceId });
   });
 
   it('keeps when and from where the device was last seen as a pending sighting, not yet stored', () => {
     const { devices, sightings, clock, service, token } = setup();
-    service.execute({
-      credential: token,
-      route: 'lan',
-      address: '192.168.1.40',
-    });
+    Effect.runSync(
+      service.execute({
+        credential: token,
+        route: 'lan',
+        address: '192.168.1.40',
+      }),
+    );
     expect(sightings.find({ deviceId })).toMatchObject({
       lastSeenAt: '2026-09-23T10:00:05.000Z',
       lastSeenAddress: '192.168.1.40',
     });
     expect(devices.find({ deviceId })?.lastSeenAt).toBe(lastSeenAt);
     clock.set('2026-09-23T10:00:06.000Z');
-    service.execute({ credential: token, route: 'lan' });
+    Effect.runSync(service.execute({ credential: token, route: 'lan' }));
     expect(sightings.find({ deviceId })?.lastSeenAt).toBe(
       '2026-09-23T10:00:06.000Z',
     );
@@ -76,17 +85,25 @@ describe('AuthenticateDeviceService', () => {
     const { sightings, clock, service, token } = setup();
     clock.set(lastSeenAt);
     expect(
-      service.execute({ credential: token, route: 'lan', address: '10.0.0.1' }),
+      Effect.runSync(
+        service.execute({
+          credential: token,
+          route: 'lan',
+          address: '10.0.0.1',
+        }),
+      ),
     ).toEqual({ kind: 'authenticated', deviceId });
     expect(sightings.find({ deviceId })).toBeUndefined();
   });
 
   it('measures the unused lifetime from the pending sighting when there is one', () => {
     const { sightings, clock, service, token } = setup();
-    service.execute({ credential: token, route: 'lan' });
+    Effect.runSync(service.execute({ credential: token, route: 'lan' }));
     clock.set(at('2026-09-23T10:00:05.000Z', unusedLifetimeMs - 1));
     expect(sightings.find({ deviceId })).toBeDefined();
-    expect(service.execute({ credential: token, route: 'lan' })).toEqual({
+    expect(
+      Effect.runSync(service.execute({ credential: token, route: 'lan' })),
+    ).toEqual({
       kind: 'authenticated',
       deviceId,
     });
@@ -109,7 +126,9 @@ describe('AuthenticateDeviceService', () => {
     },
   ])('refuses $name', ({ attempt }) => {
     const { service } = setup();
-    expect(service.execute({ credential: attempt, route: 'lan' })).toEqual({
+    expect(
+      Effect.runSync(service.execute({ credential: attempt, route: 'lan' })),
+    ).toEqual({
       kind: 'refused',
     });
   });
@@ -119,7 +138,9 @@ describe('AuthenticateDeviceService', () => {
     (route) => {
       const { sightings, service, token } = setup();
       expect(
-        service.execute({ credential: token, route, address: '10.0.0.1' }),
+        Effect.runSync(
+          service.execute({ credential: token, route, address: '10.0.0.1' }),
+        ),
       ).toEqual({ kind: 'refused' });
       expect(sightings.find({ deviceId })).toBeUndefined();
     },
@@ -127,11 +148,15 @@ describe('AuthenticateDeviceService', () => {
 
   it('accepts a device only over the route it is bound to, whichever that is', () => {
     const { service, token } = setup({ route: 'tunnel' });
-    expect(service.execute({ credential: token, route: 'tunnel' })).toEqual({
+    expect(
+      Effect.runSync(service.execute({ credential: token, route: 'tunnel' })),
+    ).toEqual({
       kind: 'authenticated',
       deviceId,
     });
-    expect(service.execute({ credential: token, route: 'lan' })).toEqual({
+    expect(
+      Effect.runSync(service.execute({ credential: token, route: 'lan' })),
+    ).toEqual({
       kind: 'refused',
     });
   });
@@ -140,7 +165,9 @@ describe('AuthenticateDeviceService', () => {
     const { service, token } = setup({
       revokedAt: '2026-09-22T10:00:00.000Z',
     });
-    expect(service.execute({ credential: token, route: 'lan' })).toEqual({
+    expect(
+      Effect.runSync(service.execute({ credential: token, route: 'lan' })),
+    ).toEqual({
       kind: 'refused',
     });
   });
@@ -149,7 +176,9 @@ describe('AuthenticateDeviceService', () => {
     const fresh = setup();
     fresh.clock.set(at(lastSeenAt, unusedLifetimeMs - 1));
     expect(
-      fresh.service.execute({ credential: fresh.token, route: 'lan' }),
+      Effect.runSync(
+        fresh.service.execute({ credential: fresh.token, route: 'lan' }),
+      ),
     ).toEqual({
       kind: 'authenticated',
       deviceId,
@@ -157,7 +186,9 @@ describe('AuthenticateDeviceService', () => {
     const stale = setup();
     stale.clock.set(at(lastSeenAt, unusedLifetimeMs));
     expect(
-      stale.service.execute({ credential: stale.token, route: 'lan' }),
+      Effect.runSync(
+        stale.service.execute({ credential: stale.token, route: 'lan' }),
+      ),
     ).toEqual({
       kind: 'refused',
     });
@@ -167,25 +198,34 @@ describe('AuthenticateDeviceService', () => {
     const seenLater = setup();
     seenLater.clock.set('2026-09-23T09:59:59.999Z');
     expect(
-      seenLater.service.execute({ credential: seenLater.token, route: 'lan' }),
+      Effect.runSync(
+        seenLater.service.execute({
+          credential: seenLater.token,
+          route: 'lan',
+        }),
+      ),
     ).toEqual({
       kind: 'refused',
     });
     const createdLater = setup({ createdAt: '2026-09-24T00:00:00.000Z' });
     expect(
-      createdLater.service.execute({
-        credential: createdLater.token,
-        route: 'lan',
-      }),
+      Effect.runSync(
+        createdLater.service.execute({
+          credential: createdLater.token,
+          route: 'lan',
+        }),
+      ),
     ).toEqual({ kind: 'refused' });
   });
 
   it('keeps a device usable while it authenticates again within its lifetime', () => {
     const { clock, service, token } = setup();
     clock.set('2026-12-21T10:00:05.000Z');
-    service.execute({ credential: token, route: 'lan' });
+    Effect.runSync(service.execute({ credential: token, route: 'lan' }));
     clock.set('2027-03-20T10:00:05.000Z');
-    expect(service.execute({ credential: token, route: 'lan' })).toEqual({
+    expect(
+      Effect.runSync(service.execute({ credential: token, route: 'lan' })),
+    ).toEqual({
       kind: 'authenticated',
       deviceId,
     });

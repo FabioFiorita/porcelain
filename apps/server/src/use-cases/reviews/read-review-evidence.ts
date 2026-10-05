@@ -9,19 +9,22 @@ import type {
   ReviewEvidence,
 } from '@porcelain/reviews/models';
 import { reviewPaths, trackedComparisons } from '@porcelain/reviews/rules';
-import type { OperationContext } from '../../ports/operation-context.ts';
+import { Effect } from 'effect';
+import type { WorktreeRead } from '@porcelain/effects';
+import type { GitIoFailure } from '../../ports/git-io-failure.ts';
+import type { IncompleteDiffReadError } from '@porcelain/changes/errors';
 
 export class ReadReviewEvidenceUseCase {
-  private readonly readWorktreeStatus: ReadWorktreeStatusService;
-  private readonly readChangeFingerprints: ReadChangeFingerprintsService;
+  private readonly readWorktreeStatus: ReadWorktreeStatusService<GitIoFailure>;
+  private readonly readChangeFingerprints: ReadChangeFingerprintsService<GitIoFailure>;
   private readonly readTextFiles: ReadTextFilesService;
-  private readonly readChangeDiffs: ReadChangeDiffsService;
+  private readonly readChangeDiffs: ReadChangeDiffsService<GitIoFailure>;
 
   constructor(
-    readWorktreeStatus: ReadWorktreeStatusService,
-    readChangeFingerprints: ReadChangeFingerprintsService,
+    readWorktreeStatus: ReadWorktreeStatusService<GitIoFailure>,
+    readChangeFingerprints: ReadChangeFingerprintsService<GitIoFailure>,
     readTextFiles: ReadTextFilesService,
-    readChangeDiffs: ReadChangeDiffsService,
+    readChangeDiffs: ReadChangeDiffsService<GitIoFailure>,
   ) {
     this.readWorktreeStatus = readWorktreeStatus;
     this.readChangeFingerprints = readChangeFingerprints;
@@ -29,27 +32,30 @@ export class ReadReviewEvidenceUseCase {
     this.readChangeDiffs = readChangeDiffs;
   }
 
-  async execute(
+  execute(
     input: ReadReviewEvidenceInput,
-    context: OperationContext,
-  ): Promise<ReviewEvidence> {
-    const { worktreeId } = input;
-    const status = await this.readWorktreeStatus.execute(
-      { worktreeId },
-      context.signal,
-    );
-    const { changes } = await this.readChangeFingerprints.execute(
-      { worktreeId, comparisons: status.changes, paths: undefined },
-      context.signal,
-    );
-    const { texts } = await this.readTextFiles.execute(
-      { worktreeId, paths: reviewPaths(input.layers, changes) },
-      context.signal,
-    );
-    const diffs = await this.readChangeDiffs.execute(
-      { worktreeId, comparisons: trackedComparisons(changes) },
-      context.signal,
-    );
-    return { changes, texts, diffs };
+  ): Effect.Effect<
+    ReviewEvidence,
+    GitIoFailure | IncompleteDiffReadError,
+    WorktreeRead
+  > {
+    return Effect.gen({ self: this }, function* () {
+      const { worktreeId } = input;
+      const status = yield* this.readWorktreeStatus.execute({ worktreeId });
+      const { changes } = yield* this.readChangeFingerprints.execute({
+        worktreeId,
+        comparisons: status.changes,
+        paths: undefined,
+      });
+      const { texts } = yield* this.readTextFiles.execute({
+        worktreeId,
+        paths: reviewPaths(input.layers, changes),
+      });
+      const diffs = yield* this.readChangeDiffs.execute({
+        worktreeId,
+        comparisons: trackedComparisons(changes),
+      });
+      return { changes, texts, diffs };
+    });
   }
 }

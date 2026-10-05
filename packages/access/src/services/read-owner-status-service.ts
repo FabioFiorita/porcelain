@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type { ReadOwnerStatusResult } from '../models/read-owner-status.ts';
 import type { RuntimeStatusReader } from '../ports/runtime-status-reader.ts';
 
@@ -8,7 +9,9 @@ export class ReadOwnerStatusService {
     this.runtimeStatusReader = runtimeStatusReader;
   }
 
-  execute(): ReadOwnerStatusResult {
-    return this.runtimeStatusReader.current();
+  execute(): Effect.Effect<ReadOwnerStatusResult, never> {
+    return Effect.sync(() => {
+      return this.runtimeStatusReader.current();
+    });
   }
 }

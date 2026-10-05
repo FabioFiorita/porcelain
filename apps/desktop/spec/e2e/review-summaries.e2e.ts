@@ -1,3 +1,4 @@
+import { Schema } from 'effect';
 import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 import {
@@ -122,7 +123,7 @@ async function focusSummaryLink(
 }
 
 async function publishSummary(page: Page, repository: string, title: string) {
-  const project = registerProjectResponseSchema.parse(
+  const project = Schema.decodeUnknownSync(registerProjectResponseSchema)(
     await appRequest(page, 'POST', '/api/projects', { path: repository }),
   );
   const worktree = project.worktrees.find((entry) => entry.main);
@@ -150,7 +151,7 @@ async function publishSummary(page: Page, repository: string, title: string) {
       },
     ],
   };
-  const published = publishReviewResponseSchema.parse(
+  const published = Schema.decodeUnknownSync(publishReviewResponseSchema)(
     await appRequest(
       page,
       'PUT',
@@ -158,8 +159,8 @@ async function publishSummary(page: Page, repository: string, title: string) {
       review,
     ),
   );
-  const summaryUrl =
-    publishReviewResponseSchema.encode(published).review?.summary.url;
+  const summaryUrl = Schema.encodeSync(publishReviewResponseSchema)(published)
+    .review?.summary.url;
   if (summaryUrl === undefined)
     throw new Error('The published summary is missing');
   return { project, worktree, summaryUrl };
@@ -219,7 +220,7 @@ test('a remote computer summary renders through the app from that computer, cann
     'Remote summary',
   );
   const status = await other.server();
-  const [grant] = issuePairingResponseSchema.parse(
+  const [grant] = Schema.decodeUnknownSync(issuePairingResponseSchema)(
     await other.askOwner('POST', '/pairings', {
       labels: ['Desktop summary proof'],
       addresses: [status.address],
@@ -227,7 +228,7 @@ test('a remote computer summary renders through the app from that computer, cann
   ).grants;
   if (grant === undefined)
     throw new Error('The remote pairing grant is missing');
-  const remote = readInventoryResponseSchema.parse(
+  const remote = Schema.decodeUnknownSync(readInventoryResponseSchema)(
     await appRequest(otherPage, 'GET', '/api/inventory'),
   );
 

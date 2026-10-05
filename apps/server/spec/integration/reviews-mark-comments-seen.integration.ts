@@ -1,3 +1,4 @@
+import * as Schema from 'effect/Schema';
 import { markCommentsSeenResponseSchema } from '@porcelain/contracts/reviews';
 import { expect } from 'vitest';
 import {
@@ -33,7 +34,11 @@ test('marking comments seen through an existing revision records that revision',
 
   expect(response.status).toBe(200);
   expect(response.body).toEqual(
-    expect.schemaMatching(markCommentsSeenResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(
+        Schema.toEncoded(markCommentsSeenResponseSchema),
+      ),
+    ),
   );
   expect(response.body).toStrictEqual({
     worktreeId: session.worktreeId,

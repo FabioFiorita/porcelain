@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import {
   FixedClock,
@@ -33,7 +34,9 @@ function setup(maxOutstanding = 8, maxPerDevice = 4) {
 describe('IssueLiveTicketService', () => {
   it('issues a live ticket for the device and route that expires after its lifetime', () => {
     const { tickets, service } = setup();
-    const issued = service.execute({ viewer, route: 'tailnet' });
+    const issued = Effect.runSync(
+      service.execute({ viewer, route: 'tailnet' }),
+    );
     const parts = parseCredential('pct', issued.ticket);
     expect(issued.expiresAt).toBe('2026-09-30T10:00:30.000Z');
     expect(parts).toBeDefined();
@@ -51,7 +54,7 @@ describe('IssueLiveTicketService', () => {
 
   it('keeps only a hash of the ticket secret', () => {
     const { tickets, service } = setup();
-    const issued = service.execute({ viewer, route: 'lan' });
+    const issued = Effect.runSync(service.execute({ viewer, route: 'lan' }));
     const [stored] = tickets.read().tickets;
     const secret = parseCredential('pct', issued.ticket)?.secret ?? '';
     expect(JSON.stringify(tickets.read())).not.toContain(secret);
@@ -60,16 +63,16 @@ describe('IssueLiveTicketService', () => {
 
   it('issues a different ticket every time', () => {
     const { service } = setup();
-    const first = service.execute({ viewer, route: 'lan' });
-    const second = service.execute({ viewer, route: 'lan' });
+    const first = Effect.runSync(service.execute({ viewer, route: 'lan' }));
+    const second = Effect.runSync(service.execute({ viewer, route: 'lan' }));
     expect(second.ticket).not.toBe(first.ticket);
   });
 
   it('forgets tickets that expired when it issues another', () => {
     const { tickets, clock, service } = setup();
-    service.execute({ viewer, route: 'lan' });
+    Effect.runSync(service.execute({ viewer, route: 'lan' }));
     clock.set('2026-09-30T10:00:30.000Z');
-    const fresh = service.execute({ viewer, route: 'lan' });
+    const fresh = Effect.runSync(service.execute({ viewer, route: 'lan' }));
     expect(tickets.read().tickets.map((ticket) => ticket.expiresAt)).toEqual([
       fresh.expiresAt,
     ]);
@@ -81,9 +84,11 @@ describe('IssueLiveTicketService', () => {
       kind: 'device' as const,
       deviceId: '00000000-0000-4000-8000-00000000000e',
     };
-    const kept = service.execute({ viewer: other, route: 'lan' });
+    const kept = Effect.runSync(
+      service.execute({ viewer: other, route: 'lan' }),
+    );
     const issued = [1, 2, 3].map(() =>
-      service.execute({ viewer, route: 'lan' }),
+      Effect.runSync(service.execute({ viewer, route: 'lan' })),
     );
     expect(tickets.read().tickets.map((ticket) => ticket.id)).toEqual(
       [kept, ...issued.slice(1)].map(
@@ -102,20 +107,20 @@ describe('IssueLiveTicketService', () => {
       kind: 'device' as const,
       deviceId: '00000000-0000-4000-8000-00000000000f',
     };
-    service.execute({ viewer: first, route: 'lan' });
-    service.execute({ viewer: second, route: 'lan' });
+    Effect.runSync(service.execute({ viewer: first, route: 'lan' }));
+    Effect.runSync(service.execute({ viewer: second, route: 'lan' }));
     const before = tickets.read();
-    expect(() => service.execute({ viewer, route: 'lan' })).toThrow(
-      TooManyLiveTicketsError,
-    );
+    expect(() =>
+      Effect.runSync(service.execute({ viewer, route: 'lan' })),
+    ).toThrow(TooManyLiveTicketsError);
     expect(tickets.read()).toEqual(before);
   });
 
   it('lets a device at the outstanding limit replace its own oldest ticket', () => {
     const { tickets, service } = setup(2, 2);
-    const first = service.execute({ viewer, route: 'lan' });
-    service.execute({ viewer, route: 'lan' });
-    const third = service.execute({ viewer, route: 'lan' });
+    const first = Effect.runSync(service.execute({ viewer, route: 'lan' }));
+    Effect.runSync(service.execute({ viewer, route: 'lan' }));
+    const third = Effect.runSync(service.execute({ viewer, route: 'lan' }));
     expect(tickets.read().tickets).toHaveLength(2);
     expect(tickets.read().tickets.map((ticket) => ticket.id)).not.toContain(
       parseCredential('pct', first.ticket)?.id,
@@ -128,7 +133,9 @@ describe('IssueLiveTicketService', () => {
   it('refuses the owner, who is not a paired device, and keeps no ticket', () => {
     const { tickets, service } = setup();
     expect(() =>
-      service.execute({ viewer: { kind: 'owner' }, route: 'loopback' }),
+      Effect.runSync(
+        service.execute({ viewer: { kind: 'owner' }, route: 'loopback' }),
+      ),
     ).toThrow(DeviceViewerRequiredError);
     expect(tickets.read().tickets).toEqual([]);
   });

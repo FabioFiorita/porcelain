@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type { SelectedDiffRequest } from '../../src/models/commit-draft-evidence.ts';
 import type { SelectedDiffReader } from '../../src/ports/selected-diff-reader.ts';
 
@@ -8,7 +9,9 @@ export class InMemorySelectedDiffReader implements SelectedDiffReader {
     this.patches = patches;
   }
 
-  async read(input: SelectedDiffRequest): Promise<string> {
-    return input.paths.map((path) => this.patches[path] ?? '').join('');
+  read(input: SelectedDiffRequest): Effect.Effect<string> {
+    return Effect.sync(() => {
+      return input.paths.map((path) => this.patches[path] ?? '').join('');
+    });
   }
 }

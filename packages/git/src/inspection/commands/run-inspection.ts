@@ -4,7 +4,7 @@ import {
   type GitReadOptions,
   runGitRead,
 } from '../../shared/commands/run-git.ts';
-import { InspectionLimitError } from '../errors/inspection-limit-error.ts';
+import { InspectionLimitError } from '../../shared/errors/inspection-limit-error.ts';
 
 export async function runInspection(
   checkout: string,

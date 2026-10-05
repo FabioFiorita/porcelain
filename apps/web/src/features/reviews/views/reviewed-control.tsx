@@ -17,7 +17,7 @@ import {
   type ReviewChangeItem,
   type ReviewScope,
   type ReviewStatus,
-} from '../rules/review';
+} from '@porcelain/client/reviews/rules';
 import {
   type BulkReviewReport,
   bulkReportText,
@@ -26,7 +26,7 @@ import {
   reviewedControlLabel,
   type ReviewRange,
   WORKTREE_RANGE,
-} from '../rules/reviewed';
+} from '@porcelain/client/reviews/rules';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
 export function fileReviewControl(

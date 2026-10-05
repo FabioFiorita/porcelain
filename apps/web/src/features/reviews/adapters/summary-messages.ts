@@ -1,5 +1,5 @@
 import { type RefObject, useEffect } from 'react';
-import { summaryLayerNumber } from '../rules/review';
+import { summaryLayerNumber } from '@porcelain/client/reviews/rules';
 
 export function useSummaryLayerRequests(
   frame: RefObject<HTMLIFrameElement | null>,

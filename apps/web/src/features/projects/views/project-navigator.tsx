@@ -11,7 +11,8 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { SidebarMenuSubItem } from '@/components/ui/sidebar';
 import type { RemoteConnection } from '@/features/access/index';
-import type { Inventory, WorktreeTarget } from '../rules/inventory';
+import type { WorktreeTarget } from '../rules/worktree-target';
+import type { Inventory } from '@porcelain/client/projects/rules';
 import { MachineSection } from './machine-section';
 import { OpenProjectMenu } from './open-project-menu';
 import { RemoteMachine } from './remote-machine';

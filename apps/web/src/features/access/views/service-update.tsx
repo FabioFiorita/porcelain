@@ -4,12 +4,12 @@ import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import { useStartServiceUpdate } from '../commands/share';
 import { useServiceUpdate } from '../queries/share';
-import { connectionErrorMessage } from '../rules/connection-error-message';
+import { connectionErrorMessage } from '@porcelain/client/access/rules';
 import {
   type ServiceUpdate,
   serviceUpdateOutcome,
   serviceUpdateProgress,
-} from '../rules/service-update';
+} from '@porcelain/client/access/rules';
 import { useAccessStore } from '../store';
 import { type Connection } from '@/shared/workspace/connection';
 

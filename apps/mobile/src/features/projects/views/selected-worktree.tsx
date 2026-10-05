@@ -4,7 +4,7 @@ import {
   pairingPlatform,
 } from '../../access';
 import { useProjectSelection } from '../store';
-import { useWorkspaceConnection } from '../queries/connection';
+import { useWorkspaceConnection } from '../commands/workspace-connection';
 
 export function useWorkspace() {
   const environments = useEnvironments();

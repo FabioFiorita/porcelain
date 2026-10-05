@@ -391,16 +391,23 @@ export function commentStoreContract(
       });
     });
 
-    it('hands out copies, so changing a returned thread leaves the stored one unchanged', () => {
-      open(store, 'thread').messages.push(message('intruder'));
-      store.find({ threadId: 'thread' })?.messages.push(message('intruder'));
-      store
-        .list({ worktreeId: first })
-        .at(0)
-        ?.messages.push(message('intruder'));
-      expect(
-        store.find({ threadId: 'thread' })?.messages.map((entry) => entry.id),
-      ).toEqual(['thread-opening']);
-    });
+    it.each(['inserted', 'found', 'listed'])(
+      'hands out a copy of the %s thread, so changing it leaves the stored one unchanged',
+      (source) => {
+        const inserted = open(store, 'thread');
+        const thread =
+          source === 'inserted'
+            ? inserted
+            : source === 'found'
+              ? store.find({ threadId: 'thread' })
+              : store.list({ worktreeId: first }).at(0);
+        expect(thread).toBeDefined();
+        if (!thread) throw new Error('The inserted thread must be available');
+        Array.prototype.push.call(thread.messages, message('intruder'));
+        expect(
+          store.find({ threadId: 'thread' })?.messages.map((entry) => entry.id),
+        ).toEqual(['thread-opening']);
+      },
+    );
   });
 }

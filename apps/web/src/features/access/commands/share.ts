@@ -1,6 +1,8 @@
+import { runRequest } from '@porcelain/client/transport';
+import { operationMutation } from '@/shared/query/mutation';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { shareCommands } from '@porcelain/client/access';
-import { issuedLink } from '../rules/share';
+import { issuedLink } from '@porcelain/client/access/rules';
 import { type Connection } from '@/shared/workspace/connection';
 
 export function useIssuePairing(connection: Connection) {
@@ -10,7 +12,10 @@ export function useIssuePairing(connection: Connection) {
       label: string;
       addresses: string[];
       trusted: boolean;
-    }) => issuedLink(await commands.issue(input)),
+    }) =>
+      issuedLink(
+        await runRequest(commands.issue(input), connection.request().signal),
+      ),
   });
   return {
     submit: mutation.mutateAsync,
@@ -24,9 +29,7 @@ export function useIssuePairing(connection: Connection) {
 
 export function useRevokeAccess(connection: Connection) {
   const commands = shareCommands(connection, useQueryClient());
-  const mutation = useMutation({
-    mutationFn: commands.revoke,
-  });
+  const mutation = useMutation(operationMutation(commands.revoke, connection));
   return {
     submit: mutation.mutateAsync,
     onSubmit: mutation.mutate,
@@ -37,9 +40,7 @@ export function useRevokeAccess(connection: Connection) {
 
 export function useSetDeviceTrust(connection: Connection) {
   const commands = shareCommands(connection, useQueryClient());
-  const mutation = useMutation({
-    mutationFn: commands.trust,
-  });
+  const mutation = useMutation(operationMutation(commands.trust, connection));
   return {
     submit: mutation.mutateAsync,
     onSubmit: mutation.mutate,
@@ -50,9 +51,9 @@ export function useSetDeviceTrust(connection: Connection) {
 
 export function useSetRemoteAccess(connection: Connection) {
   const commands = shareCommands(connection, useQueryClient());
-  const mutation = useMutation({
-    mutationFn: commands.setRemote,
-  });
+  const mutation = useMutation(
+    operationMutation(commands.setRemote, connection),
+  );
   return {
     submit: mutation.mutateAsync,
     onSubmit: mutation.mutate,
@@ -63,9 +64,7 @@ export function useSetRemoteAccess(connection: Connection) {
 
 export function useRenameEnvironment(connection: Connection) {
   const commands = shareCommands(connection, useQueryClient());
-  const mutation = useMutation({
-    mutationFn: commands.rename,
-  });
+  const mutation = useMutation(operationMutation(commands.rename, connection));
   return {
     submit: mutation.mutateAsync,
     isPending: mutation.isPending,
@@ -76,9 +75,9 @@ export function useRenameEnvironment(connection: Connection) {
 
 export function useStartServiceUpdate(connection: Connection) {
   const commands = shareCommands(connection, useQueryClient());
-  const mutation = useMutation({
-    mutationFn: commands.startServiceUpdate,
-  });
+  const mutation = useMutation(
+    operationMutation(commands.startServiceUpdate, connection),
+  );
   return {
     submit: mutation.mutateAsync,
     onSubmit: mutation.mutate,

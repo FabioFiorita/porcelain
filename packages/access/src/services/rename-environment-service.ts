@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type {
   ChosenEnvironmentName,
   EnvironmentName,
@@ -15,8 +16,10 @@ export class RenameEnvironmentService {
     this.hostNames = hostNames;
   }
 
-  execute(input: ChosenEnvironmentName): EnvironmentName {
-    this.names.save(input);
-    return environmentName(input, this.hostNames.hostName());
+  execute(input: ChosenEnvironmentName): Effect.Effect<EnvironmentName, never> {
+    return Effect.sync(() => {
+      this.names.save(input);
+      return environmentName(input, this.hostNames.hostName());
+    });
   }
 }

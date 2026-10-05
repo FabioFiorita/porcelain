@@ -1,157 +1,147 @@
-import { z } from 'zod';
+import { isoDateTimeSchema } from '../shared/schema.ts';
+import { Schema } from 'effect';
 import { branchRefSchema } from '../shared/branch-ref.ts';
 import { fingerprintSchema } from '../shared/fingerprint.ts';
 import { relativePathSchema } from '../shared/relative-path.ts';
-import { worktreeIdSchema } from '../shared/worktree-params.ts';
+import { worktreeIdSchema } from '../shared/schema.ts';
 import {
   REVIEWED_BRANCH_FILE_MARKS,
   REVIEWED_FILE_MARKS,
   REVIEWED_LAYER_MARKS,
 } from '../shared/limits.ts';
 
-const reviewedMarkSchema = z.object({
+const reviewedMarkSchema = Schema.Struct({
   path: relativePathSchema,
   fingerprint: fingerprintSchema,
-  reviewedAt: z.iso.datetime(),
+  reviewedAt: isoDateTimeSchema,
 });
 
-const reviewedScopeSchema = z.enum(['worktree', 'branch']);
+const reviewedScopeSchema = Schema.Literals(['worktree', 'branch']);
 const branchScope = {
-  scope: z.literal('branch'),
+  scope: Schema.Literal('branch'),
   base: branchRefSchema,
 };
 
-export const listReviewedFilesQuerySchema = z.strictObject({
-  scope: reviewedScopeSchema.optional(),
-  branch: branchRefSchema.optional(),
+export const listReviewedFilesQuerySchema = Schema.Struct({
+  scope: Schema.optional(reviewedScopeSchema),
+  branch: Schema.optional(branchRefSchema),
 });
-export const listReviewedFilesResponseSchema = z.object({
+export const listReviewedFilesResponseSchema = Schema.Struct({
   worktreeId: worktreeIdSchema,
-  marks: z.array(reviewedMarkSchema).max(REVIEWED_BRANCH_FILE_MARKS),
+  marks: Schema.Array(reviewedMarkSchema).check(
+    Schema.isMaxLength(REVIEWED_BRANCH_FILE_MARKS),
+  ),
 });
 
 const reviewedFileShape = {
   path: relativePathSchema,
-  reviewed: z.literal(true),
+  reviewed: Schema.Literal(true),
   fingerprint: fingerprintSchema,
 };
-export const setReviewedFileRequestSchema = z.union([
-  z.strictObject({
+export const setReviewedFileRequestSchema = Schema.Union([
+  Schema.Struct({
     ...reviewedFileShape,
-    scope: z.literal('worktree').optional(),
+    scope: Schema.optional(Schema.Literal('worktree')),
   }),
-  z.strictObject({ ...reviewedFileShape, ...branchScope }),
+  Schema.Struct({ ...reviewedFileShape, ...branchScope }),
 ]);
 export const setReviewedFileResponseSchema = listReviewedFilesResponseSchema;
 
 const reviewedFilesShape = {
-  files: z
-    .array(
-      z.strictObject({
-        path: relativePathSchema,
-        fingerprint: fingerprintSchema,
-      }),
-    )
-    .min(1)
-    .max(REVIEWED_FILE_MARKS),
+  files: Schema.Array(
+    Schema.Struct({
+      path: relativePathSchema,
+      fingerprint: fingerprintSchema,
+    }),
+  )
+    .check(Schema.isMinLength(1))
+    .check(Schema.isMaxLength(REVIEWED_FILE_MARKS)),
 };
-export const setReviewedFilesRequestSchema = z.union([
-  z.strictObject({
+export const setReviewedFilesRequestSchema = Schema.Union([
+  Schema.Struct({
     ...reviewedFilesShape,
-    scope: z.literal('worktree').optional(),
+    scope: Schema.optional(Schema.Literal('worktree')),
   }),
-  z.strictObject({ ...reviewedFilesShape, ...branchScope }),
+  Schema.Struct({ ...reviewedFilesShape, ...branchScope }),
 ]);
-export const setReviewedFilesResponseSchema =
-  listReviewedFilesResponseSchema.extend({
-    marked: z.array(relativePathSchema).max(REVIEWED_FILE_MARKS),
-    conflicts: z
-      .array(
-        z.object({
-          path: relativePathSchema,
-          reason: z.enum(['stale', 'missing']),
-        }),
-      )
-      .max(REVIEWED_FILE_MARKS),
-  });
+export const setReviewedFilesResponseSchema = Schema.Struct({
+  ...listReviewedFilesResponseSchema.fields,
+  ...{
+    marked: Schema.Array(relativePathSchema).check(
+      Schema.isMaxLength(REVIEWED_FILE_MARKS),
+    ),
+    conflicts: Schema.Array(
+      Schema.Struct({
+        path: relativePathSchema,
+        reason: Schema.Literals(['stale', 'missing']),
+      }),
+    ).check(Schema.isMaxLength(REVIEWED_FILE_MARKS)),
+  },
+});
 
-export const removeReviewedFileQuerySchema = z.strictObject({
+export const removeReviewedFileQuerySchema = Schema.Struct({
   path: relativePathSchema,
-  scope: reviewedScopeSchema.optional(),
-  branch: branchRefSchema.optional(),
+  scope: Schema.optional(reviewedScopeSchema),
+  branch: Schema.optional(branchRefSchema),
 });
 export const removeReviewedFileResponseSchema = listReviewedFilesResponseSchema;
 
-export const removeReviewedFilesRequestSchema = z.strictObject({
-  paths: z.array(relativePathSchema).min(1).max(REVIEWED_FILE_MARKS),
-  scope: reviewedScopeSchema.optional(),
-  branch: branchRefSchema.optional(),
+export const removeReviewedFilesRequestSchema = Schema.Struct({
+  paths: Schema.Array(relativePathSchema)
+    .check(Schema.isMinLength(1))
+    .check(Schema.isMaxLength(REVIEWED_FILE_MARKS)),
+  scope: Schema.optional(reviewedScopeSchema),
+  branch: Schema.optional(branchRefSchema),
 });
 export const removeReviewedFilesResponseSchema =
   listReviewedFilesResponseSchema;
 
-const reviewedLayerMarkSchema = z.object({
-  layerId: z.uuid(),
+const reviewedLayerMarkSchema = Schema.Struct({
+  layerId: Schema.String.check(Schema.isUUID()),
   fingerprint: fingerprintSchema,
-  reviewedAt: z.iso.datetime(),
-  stale: z.boolean(),
+  reviewedAt: isoDateTimeSchema,
+  stale: Schema.Boolean,
 });
 
-export const listReviewedLayersResponseSchema = z.object({
+export const listReviewedLayersResponseSchema = Schema.Struct({
   worktreeId: worktreeIdSchema,
-  marks: z.array(reviewedLayerMarkSchema).max(REVIEWED_LAYER_MARKS),
+  marks: Schema.Array(reviewedLayerMarkSchema).check(
+    Schema.isMaxLength(REVIEWED_LAYER_MARKS),
+  ),
 });
 
-export const setReviewedLayerRequestSchema = z.strictObject({
-  layerId: z.uuid(),
-  reviewed: z.literal(true),
+export const setReviewedLayerRequestSchema = Schema.Struct({
+  layerId: Schema.String.check(Schema.isUUID()),
+  reviewed: Schema.Literal(true),
   fingerprint: fingerprintSchema,
 });
 export const setReviewedLayerResponseSchema = listReviewedLayersResponseSchema;
 
-export const removeReviewedLayerQuerySchema = z.strictObject({
-  layerId: z.uuid(),
+export const removeReviewedLayerQuerySchema = Schema.Struct({
+  layerId: Schema.String.check(Schema.isUUID()),
 });
 export const removeReviewedLayerResponseSchema =
   listReviewedLayersResponseSchema;
 
-export type ListReviewedFilesQuery = z.output<
-  typeof listReviewedFilesQuerySchema
->;
-export type ListReviewedFilesResponse = z.output<
-  typeof listReviewedFilesResponseSchema
->;
-export type SetReviewedFileRequest = z.output<
-  typeof setReviewedFileRequestSchema
->;
+export type ListReviewedFilesQuery = typeof listReviewedFilesQuerySchema.Type;
+export type ListReviewedFilesResponse =
+  typeof listReviewedFilesResponseSchema.Type;
+export type SetReviewedFileRequest = typeof setReviewedFileRequestSchema.Type;
 export type ReviewedFileConflictPolicy = { onConflict: 'report' | 'refuse' };
-export type SetReviewedFilesRequest = z.output<
-  typeof setReviewedFilesRequestSchema
->;
-export type SetReviewedFilesResponse = z.output<
-  typeof setReviewedFilesResponseSchema
->;
-export type RemoveReviewedFileQuery = z.output<
-  typeof removeReviewedFileQuerySchema
->;
-export type RemoveReviewedFilesRequest = z.output<
-  typeof removeReviewedFilesRequestSchema
->;
-export type RemoveReviewedFilesResponse = z.output<
-  typeof removeReviewedFilesResponseSchema
->;
-export type ListReviewedLayersResponse = z.output<
-  typeof listReviewedLayersResponseSchema
->;
-export type SetReviewedLayerRequest = z.output<
-  typeof setReviewedLayerRequestSchema
->;
-export type SetReviewedLayerResponse = z.output<
-  typeof setReviewedLayerResponseSchema
->;
-export type RemoveReviewedLayerQuery = z.output<
-  typeof removeReviewedLayerQuerySchema
->;
-export type RemoveReviewedLayerResponse = z.output<
-  typeof removeReviewedLayerResponseSchema
->;
+export type SetReviewedFilesRequest = typeof setReviewedFilesRequestSchema.Type;
+export type SetReviewedFilesResponse =
+  typeof setReviewedFilesResponseSchema.Type;
+export type RemoveReviewedFileQuery = typeof removeReviewedFileQuerySchema.Type;
+export type RemoveReviewedFilesRequest =
+  typeof removeReviewedFilesRequestSchema.Type;
+export type RemoveReviewedFilesResponse =
+  typeof removeReviewedFilesResponseSchema.Type;
+export type ListReviewedLayersResponse =
+  typeof listReviewedLayersResponseSchema.Type;
+export type SetReviewedLayerRequest = typeof setReviewedLayerRequestSchema.Type;
+export type SetReviewedLayerResponse =
+  typeof setReviewedLayerResponseSchema.Type;
+export type RemoveReviewedLayerQuery =
+  typeof removeReviewedLayerQuerySchema.Type;
+export type RemoveReviewedLayerResponse =
+  typeof removeReviewedLayerResponseSchema.Type;

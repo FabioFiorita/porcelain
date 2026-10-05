@@ -1,3 +1,5 @@
+import { nativeOperation } from '@porcelain/effects';
+import type { Effect } from 'effect';
 import {
   CommitPlanFailedError,
   ProviderNotInstalledError,
@@ -18,7 +20,11 @@ export class ProcessCommitDraftSource implements CommitDraftSource {
     this.planner = planner;
   }
 
-  async generate(
+  generate(input: CommitDraftRequest): Effect.Effect<CommitDraftGeneration> {
+    return nativeOperation((signal) => this.generateNative(input, signal));
+  }
+
+  private async generateNative(
     input: CommitDraftRequest,
     signal?: AbortSignal,
   ): Promise<CommitDraftGeneration> {

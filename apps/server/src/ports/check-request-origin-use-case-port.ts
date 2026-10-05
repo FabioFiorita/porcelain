@@ -2,7 +2,7 @@ import type {
   CheckRequestOriginInput,
   RequestOriginRefusal,
 } from '@porcelain/access/models';
-import type { OperationContext } from './operation-context.ts';
+import type { Effect } from 'effect';
 
 export type CrossOriginPolicy = CheckRequestOriginInput['crossOrigin'];
 
@@ -13,8 +13,5 @@ export type RequestOriginVerdict =
   | { allowed: false; refusal: RequestOriginRefusal };
 
 export interface CheckRequestOriginUseCasePort {
-  execute(
-    input: CheckRequestOriginInput,
-    context: OperationContext,
-  ): Promise<RequestOriginVerdict>;
+  execute(input: CheckRequestOriginInput): Effect.Effect<RequestOriginVerdict>;
 }

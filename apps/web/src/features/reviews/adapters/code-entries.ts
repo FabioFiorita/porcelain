@@ -1,7 +1,7 @@
 import type { FileContents, FileDiffMetadata } from '@pierre/diffs';
 import type { ReactNode } from 'react';
 import { contentVersion } from '@/shared/lib/pierre';
-import type { CommentTarget } from '../rules/comments';
+import type { CommentTarget } from '@porcelain/client/reviews/rules';
 
 type CodeReview = {
   path: string;

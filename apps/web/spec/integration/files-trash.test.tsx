@@ -4,7 +4,9 @@ const kept = 'old-notes.md';
 const gone = 'gone-notes.md';
 
 const names = async (server: {
-  directory: (path: string) => Promise<{ entries: { name: string }[] }>;
+  directory: (
+    path: string,
+  ) => Promise<{ entries: readonly { name: string }[] }>;
 }) => (await server.directory('')).entries.map((entry) => entry.name);
 
 test('moving a file to the trash from the tree removes it from disk and the tree', async ({

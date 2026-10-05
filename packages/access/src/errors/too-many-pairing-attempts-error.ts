@@ -1,7 +1,10 @@
-export class TooManyPairingAttemptsError extends Error {
-  override readonly name = 'TooManyPairingAttemptsError';
+import { Schema } from 'effect';
 
-  constructor() {
-    super('Too many pairing attempts. Wait a moment and try again.');
+export class TooManyPairingAttemptsError extends Schema.TaggedError<TooManyPairingAttemptsError>()(
+  'TooManyPairingAttemptsError',
+  {},
+) {
+  override get message() {
+    return 'Too many pairing attempts. Wait a moment and try again.';
   }
 }

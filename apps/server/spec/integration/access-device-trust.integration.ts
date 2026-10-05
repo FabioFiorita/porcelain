@@ -1,3 +1,4 @@
+import * as Schema from 'effect/Schema';
 import {
   listAccessResponseSchema,
   setDeviceTrustResponseSchema,
@@ -57,14 +58,20 @@ test('a paired device is untrusted until the owner trusts it, and untrusted agai
   const untrusted = await session.send(trust(device.deviceId, false));
 
   expect(before.status).toBe(200);
-  expect(before.body).toEqual(expect.schemaMatching(listAccessResponseSchema));
+  expect(before.body).toEqual(
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(Schema.toEncoded(listAccessResponseSchema)),
+    ),
+  );
   expect(deviceTrust(record(before.body), device.deviceId)).toStrictEqual({
     label: 'Desktop',
     trusted: false,
   });
   expect(trusted.status).toBe(200);
   expect(trusted.body).toEqual(
-    expect.schemaMatching(setDeviceTrustResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(Schema.toEncoded(setDeviceTrustResponseSchema)),
+    ),
   );
   expect(trusted.body).toStrictEqual({ id: device.deviceId, trusted: true });
   expect(untrusted.status).toBe(200);

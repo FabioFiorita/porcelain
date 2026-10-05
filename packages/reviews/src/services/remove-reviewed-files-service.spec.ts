@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { InMemoryReviewedFileStore } from '../../spec/fakes/in-memory-reviewed-file-store.ts';
 import { RemoveReviewedFilesService } from './remove-reviewed-files-service.ts';
@@ -23,7 +24,9 @@ function setup() {
 describe('RemoveReviewedFilesService', () => {
   it('removes the mark and answers the marks that remain', () => {
     const { service } = setup();
-    expect(service.execute({ worktreeId, paths: ['a.ts'] })).toEqual({
+    expect(
+      Effect.runSync(service.execute({ worktreeId, paths: ['a.ts'] })),
+    ).toEqual({
       worktreeId,
       marks: [
         { path: 'b.ts', fingerprint: 'fingerprint-b.ts', reviewedAt },
@@ -35,14 +38,18 @@ describe('RemoveReviewedFilesService', () => {
 
   it('removes every listed mark in one call and keeps the unlisted ones', () => {
     const { store, service } = setup();
-    const result = service.execute({ worktreeId, paths: ['a.ts', 'c.ts'] });
+    const result = Effect.runSync(
+      service.execute({ worktreeId, paths: ['a.ts', 'c.ts'] }),
+    );
     expect(result.removed).toBe(true);
     expect(store.list({ worktreeId })).toEqual([mark('b.ts')]);
   });
 
   it('removes the marked paths among unmarked ones and reports a removal', () => {
     const { store, service } = setup();
-    const result = service.execute({ worktreeId, paths: ['x.ts', 'b.ts'] });
+    const result = Effect.runSync(
+      service.execute({ worktreeId, paths: ['x.ts', 'b.ts'] }),
+    );
     expect(result.removed).toBe(true);
     expect(store.list({ worktreeId }).map((entry) => entry.path)).toEqual([
       'a.ts',
@@ -52,7 +59,9 @@ describe('RemoveReviewedFilesService', () => {
 
   it('leaves the same path marked in another worktree', () => {
     const { store, service } = setup();
-    service.execute({ worktreeId, paths: ['a.ts', 'b.ts', 'c.ts'] });
+    Effect.runSync(
+      service.execute({ worktreeId, paths: ['a.ts', 'b.ts', 'c.ts'] }),
+    );
     expect(store.list({ worktreeId })).toEqual([]);
     expect(store.list({ worktreeId: other })).toEqual([mark('a.ts')]);
   });
@@ -60,23 +69,26 @@ describe('RemoveReviewedFilesService', () => {
   it('reports nothing removed for paths that were never marked', () => {
     const { store, service } = setup();
     expect(
-      service.execute({ worktreeId, paths: ['x.ts', 'y.ts'] }).removed,
+      Effect.runSync(service.execute({ worktreeId, paths: ['x.ts', 'y.ts'] }))
+        .removed,
     ).toBe(false);
     expect(store.list({ worktreeId })).toHaveLength(3);
   });
 
   it('reports nothing removed when the same marks are removed twice', () => {
     const { service } = setup();
-    service.execute({ worktreeId, paths: ['a.ts', 'b.ts'] });
+    Effect.runSync(service.execute({ worktreeId, paths: ['a.ts', 'b.ts'] }));
     expect(
-      service.execute({ worktreeId, paths: ['a.ts', 'b.ts'] }).removed,
+      Effect.runSync(service.execute({ worktreeId, paths: ['a.ts', 'b.ts'] }))
+        .removed,
     ).toBe(false);
   });
 
   it('removes a mark listed twice once', () => {
     const { store, service } = setup();
     expect(
-      service.execute({ worktreeId, paths: ['a.ts', 'a.ts'] }).removed,
+      Effect.runSync(service.execute({ worktreeId, paths: ['a.ts', 'a.ts'] }))
+        .removed,
     ).toBe(true);
     expect(store.list({ worktreeId }).map((entry) => entry.path)).toEqual([
       'b.ts',

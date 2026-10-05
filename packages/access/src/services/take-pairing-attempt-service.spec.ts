@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { FixedClock } from '@porcelain/kernel/fakes';
 import { TooManyPairingAttemptsError } from '@porcelain/access/errors';
@@ -32,7 +33,7 @@ function exhaust(
 ) {
   for (;;)
     try {
-      service.execute(input);
+      Effect.runSync(service.execute(input));
     } catch (error) {
       if (error instanceof TooManyPairingAttemptsError) return;
       throw error;
@@ -43,28 +44,32 @@ describe('TakePairingAttemptService', () => {
   it('keeps pages on other origins that exhaust their attempts from starving pairing from the same peer', () => {
     const service = setup();
     exhaust(service, { peer, crossOrigin: true });
-    expect(() => service.execute({ peer, crossOrigin: true })).toThrow(
-      TooManyPairingAttemptsError,
-    );
-    expect(() => service.execute({ peer, crossOrigin: false })).not.toThrow();
+    expect(() =>
+      Effect.runSync(service.execute({ peer, crossOrigin: true })),
+    ).toThrow(TooManyPairingAttemptsError);
+    expect(() =>
+      Effect.runSync(service.execute({ peer, crossOrigin: false })),
+    ).not.toThrow();
   });
 
   it('keeps exhausted same-origin attempts from blocking a cross-origin redemption', () => {
     const service = setup();
     exhaust(service, { peer, crossOrigin: false });
-    expect(() => service.execute({ peer, crossOrigin: true })).not.toThrow();
+    expect(() =>
+      Effect.runSync(service.execute({ peer, crossOrigin: true })),
+    ).not.toThrow();
   });
 
   it('holds cross-origin attempts to their own limits, per peer and overall', () => {
     const service = setup();
-    service.execute({ peer: '10.0.0.1', crossOrigin: true });
-    service.execute({ peer: '10.0.0.1', crossOrigin: true });
+    Effect.runSync(service.execute({ peer: '10.0.0.1', crossOrigin: true }));
+    Effect.runSync(service.execute({ peer: '10.0.0.1', crossOrigin: true }));
     expect(() =>
-      service.execute({ peer: '10.0.0.1', crossOrigin: true }),
+      Effect.runSync(service.execute({ peer: '10.0.0.1', crossOrigin: true })),
     ).toThrow(TooManyPairingAttemptsError);
-    service.execute({ peer: '10.0.0.2', crossOrigin: true });
+    Effect.runSync(service.execute({ peer: '10.0.0.2', crossOrigin: true }));
     expect(() =>
-      service.execute({ peer: '10.0.0.3', crossOrigin: true }),
+      Effect.runSync(service.execute({ peer: '10.0.0.3', crossOrigin: true })),
     ).toThrow(TooManyPairingAttemptsError);
   });
 });

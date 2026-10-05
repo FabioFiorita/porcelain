@@ -41,7 +41,7 @@ export type CommentThread = {
   worktreeId: string;
   anchor: CommentAnchor;
   resolved: boolean;
-  messages: CommentMessage[];
+  messages: readonly CommentMessage[];
   revision: number;
 };
 

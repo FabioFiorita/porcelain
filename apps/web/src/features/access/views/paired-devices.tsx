@@ -15,8 +15,8 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { useRevokeAccess, useSetDeviceTrust } from '../commands/share';
 import { usePairedAccess } from '../queries/share';
-import { connectionErrorMessage } from '../rules/connection-error-message';
-import { deviceRouteTitles } from '../rules/share';
+import { connectionErrorMessage } from '@porcelain/client/access/rules';
+import { deviceRouteTitles } from '@porcelain/client/access/rules';
 import { type Connection } from '@/shared/workspace/connection';
 
 export function PairedDevices({ connection }: { connection: Connection }) {

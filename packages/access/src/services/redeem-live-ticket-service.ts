@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type { Clock } from '@porcelain/kernel/ports';
 import type {
   RedeemLiveTicketInput,
@@ -32,31 +33,35 @@ export class RedeemLiveTicketService {
     this.options = options;
   }
 
-  execute(input: RedeemLiveTicketInput): RedeemLiveTicketResult {
-    const parts = parseCredential('pct', input.ticket);
-    if (!parts) return { kind: 'refused' };
-    const now = this.clock.now();
-    const { tickets, ticket } = liveTicketTaken(
-      this.liveTickets.read(),
-      parts.id,
-      now,
-    );
-    this.liveTickets.save(tickets);
-    if (
-      !ticket ||
-      !secretMatches(ticket.secretHash, parts.secret) ||
-      ticket.route !== input.route
-    )
-      return { kind: 'refused' };
-    const device =
-      this.deviceSightings.find({ deviceId: ticket.deviceId }) ??
-      this.devices.find({ deviceId: ticket.deviceId });
-    if (
-      !device ||
-      device.route !== input.route ||
-      !deviceUsable(device, now, this.options.unusedLifetimeMs)
-    )
-      return { kind: 'refused' };
-    return { kind: 'authenticated', deviceId: device.id };
+  execute(
+    input: RedeemLiveTicketInput,
+  ): Effect.Effect<RedeemLiveTicketResult, never> {
+    return Effect.sync(() => {
+      const parts = parseCredential('pct', input.ticket);
+      if (!parts) return { kind: 'refused' };
+      const now = this.clock.now();
+      const { tickets, ticket } = liveTicketTaken(
+        this.liveTickets.read(),
+        parts.id,
+        now,
+      );
+      this.liveTickets.save(tickets);
+      if (
+        !ticket ||
+        !secretMatches(ticket.secretHash, parts.secret) ||
+        ticket.route !== input.route
+      )
+        return { kind: 'refused' };
+      const device =
+        this.deviceSightings.find({ deviceId: ticket.deviceId }) ??
+        this.devices.find({ deviceId: ticket.deviceId });
+      if (
+        !device ||
+        device.route !== input.route ||
+        !deviceUsable(device, now, this.options.unusedLifetimeMs)
+      )
+        return { kind: 'refused' };
+      return { kind: 'authenticated', deviceId: device.id };
+    });
   }
 }

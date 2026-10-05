@@ -5,7 +5,7 @@ export type WorkspaceMenuProps = {
   label: string;
   environments: { environmentId: string; name: string }[];
   environmentId: string | undefined;
-  projects: Project[];
+  projects: readonly Project[];
   projectId: string | undefined;
   worktreeId: string | undefined;
   disabled: boolean;

@@ -1,3 +1,4 @@
+import { runRequest } from '../../../shared/api/effect-client.ts';
 import { assertCurrentAnswer } from '../../../shared/api/stale-answer.ts';
 import { queryKeys } from '../../../shared/api/query-keys.ts';
 import type { ReadChangeDiffsRequest } from '@porcelain/contracts/changes';
@@ -21,11 +22,13 @@ export function changeDiffsQueryOptions(
     retry: false,
     queryFn: async ({ signal }: Pick<QueryFunctionContext, 'signal'>) => {
       const connected = connection.request(signal);
-      const result = await changesApi(connection).diffs({
-        signal: connected.signal,
-        worktreeId: scope.worktreeId,
-        input,
-      });
+      const result = await runRequest(
+        changesApi(connection).readChangeDiffs({
+          params: { worktreeId: scope.worktreeId },
+          payload: input,
+        }),
+        connected.signal,
+      );
       assertCurrentAnswer(
         connected.signal,
         result.environmentId === connection.environmentId &&

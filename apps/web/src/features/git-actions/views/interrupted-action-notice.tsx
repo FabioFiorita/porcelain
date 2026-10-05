@@ -1,8 +1,8 @@
 import { Button } from '@/components/ui/button';
 import { useReviewOverview } from '@/features/changes/index';
-import type { GitScope } from '../rules/git-action';
+import type { GitScope } from '@porcelain/client/git-actions/rules';
 import { useDismissInterrupted } from '../commands/dismiss-interrupted';
-import { gitErrorMessage } from '../rules/feedback';
+import { gitErrorMessage } from '@porcelain/client/git-actions/rules';
 
 export function InterruptedActionNotice({
   scope,

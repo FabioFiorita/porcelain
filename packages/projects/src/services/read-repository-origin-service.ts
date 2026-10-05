@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type {
   ReadRepositoryOriginInput,
   ReadRepositoryOriginResult,
@@ -11,15 +12,15 @@ export class ReadRepositoryOriginService {
     this.projectRepositoryReader = projectRepositoryReader;
   }
 
-  async execute(
+  execute(
     input: ReadRepositoryOriginInput,
-    signal?: AbortSignal,
-  ): Promise<ReadRepositoryOriginResult> {
-    return {
-      originUrl: await this.projectRepositoryReader.readOriginUrl(
-        { path: input.path },
-        signal,
-      ),
-    };
+  ): Effect.Effect<ReadRepositoryOriginResult, never> {
+    return Effect.gen({ self: this }, function* () {
+      return {
+        originUrl: yield* this.projectRepositoryReader.readOriginUrl({
+          path: input.path,
+        }),
+      };
+    });
   }
 }

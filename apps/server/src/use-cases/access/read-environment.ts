@@ -1,3 +1,5 @@
+import { Effect } from 'effect';
+import type { MissingEnvironmentIdentityError } from '@porcelain/access/errors';
 import type {
   ReadEnvironmentNameService,
   ReadEnvironmentService,
@@ -5,7 +7,6 @@ import type {
 import type { ReadEnvironmentResponse } from '@porcelain/contracts/access';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
 
 type ReadEnvironmentOptions = {
   version: string | undefined;
@@ -33,17 +34,22 @@ export class ReadEnvironmentUseCase {
     this.options = options;
   }
 
-  execute(context: OperationContext): Promise<ReadEnvironmentResponse> {
-    return this.lanes.run(
-      this.laneKeys.access(),
-      'read',
-      async () => ({
-        environmentId: this.readEnvironment.execute().environmentId,
-        name: this.readEnvironmentName.execute().name,
-        version: this.options.version,
-        protocol: this.options.protocol,
-      }),
-      { callerSignal: context.signal },
-    );
+  execute(): Effect.Effect<
+    ReadEnvironmentResponse,
+    MissingEnvironmentIdentityError
+  > {
+    return Effect.gen({ self: this }, function* () {
+      return yield* this.lanes.run(this.laneKeys.access(), 'read', () =>
+        Effect.gen({ self: this }, function* () {
+          return {
+            environmentId: (yield* this.readEnvironment.execute())
+              .environmentId,
+            name: (yield* this.readEnvironmentName.execute()).name,
+            version: this.options.version,
+            protocol: this.options.protocol,
+          };
+        }),
+      );
+    });
   }
 }

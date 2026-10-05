@@ -1,3 +1,4 @@
+import * as Schema from 'effect/Schema';
 import { readInventoryResponseSchema } from '@porcelain/contracts/projects';
 import { expect } from 'vitest';
 import { apiError, deviceCookieForm, unauthenticated } from '../kit/answers.ts';
@@ -28,7 +29,9 @@ test('a browser device cookie reads the inventory exactly as the bearer credenti
   expect(response.status).toBe(200);
   expect(response.body).toStrictEqual(before);
   expect(response.body).toEqual(
-    expect.schemaMatching(readInventoryResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(Schema.toEncoded(readInventoryResponseSchema)),
+    ),
   );
   expect(response.headers['set-cookie']).toMatch(deviceCookieForm);
 });

@@ -1,4 +1,4 @@
-import { GitActionRejectedError } from '../errors/git-action-rejected-error.ts';
+import { GitActionRejectedError } from '../../shared/errors/git-action-rejected-error.ts';
 import type { GitProcessRunner } from '../interfaces/git-process-runner.ts';
 import { processFailure } from '../parsers/parse-process-result.ts';
 

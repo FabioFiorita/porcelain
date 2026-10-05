@@ -30,7 +30,7 @@ import {
   type Classification,
 } from '../architecture/policy.ts';
 import { typeRuleFindings } from '../architecture/type-rules.ts';
-import { unusedExportFindings } from '../architecture/unused-exports.ts';
+import { knipFindings } from '../architecture/knip.ts';
 import {
   mobileMetroFile,
   mobileMetroValid,
@@ -672,7 +672,7 @@ try {
     ...placementFindings(),
     ...themeFindings(),
     ...typeRuleFindings(repositoryRoot),
-    ...unusedExportFindings(repositoryRoot),
+    ...knipFindings(repositoryRoot),
   ];
   const byRule = new Map<ArchRule, Finding[]>();
   for (const finding of violations) {

@@ -1,13 +1,13 @@
+import { Effect } from 'effect';
+import { nativeOperation } from '@porcelain/effects';
+import { requestEffect } from '../../../shared/api/effect-client.ts';
 import type { QueryClient } from '@tanstack/query-core';
-import type {
-  GenerateCommitDraftRequest,
-  RunGitActionRequest,
-} from '@porcelain/contracts/git-actions';
+import type { GenerateCommitDraftRequest } from '@porcelain/contracts/git-actions';
 import type {
   WorktreeConnection,
   WorktreeScope,
 } from '../../../shared/api/connection.ts';
-import { assertCurrentAnswer } from '../../../shared/api/stale-answer.ts';
+import { currentAnswerEffect } from '../../../shared/api/stale-answer.ts';
 import { queryKeys } from '../../../shared/api/query-keys.ts';
 import { gitActionsApi } from '../api.ts';
 
@@ -17,36 +17,40 @@ export function gitActionCommands(
   client: QueryClient,
 ) {
   const api = gitActionsApi(connection);
-  const request = (signal?: AbortSignal) => ({
+  const request = () => ({
     ...scope,
-    ...connection.request(signal),
+    ...connection.request(),
   });
   return {
-    run: async (input: RunGitActionRequest) => {
-      const connected = request();
-      const receipt = await api.run({ ...connected, input });
-      const matches =
-        receipt.projectId === scope.projectId &&
-        receipt.worktreeId === scope.worktreeId &&
-        receipt.requestId === input.requestId &&
-        receipt.action === input.input.action;
-      assertCurrentAnswer(connected.signal, matches);
-      return receipt;
-    },
-    draft: async (input: GenerateCommitDraftRequest, signal?: AbortSignal) => {
-      const connected = request(signal);
-      const result = await api.draft({ ...connected, input });
-      assertCurrentAnswer(connected.signal);
-      return result;
-    },
-    dismiss: async (requestId: string) => {
-      const connected = request();
-      await api.dismissInterrupted({ ...connected, requestId });
-      assertCurrentAnswer(connected.signal);
-      await client.invalidateQueries({
-        queryKey: queryKeys.worktreeSurface(connection, scope, ['changes']),
-        exact: true,
-      });
-    },
+    draft: (input: GenerateCommitDraftRequest) =>
+      Effect.gen(function* () {
+        const connected = request();
+        const result = yield* requestEffect(
+          api.generateCommitDraft({
+            params: { worktreeId: scope.worktreeId },
+            payload: input,
+          }),
+          connected.signal,
+        );
+        yield* currentAnswerEffect(connected.signal);
+        return result;
+      }),
+    dismiss: (requestId: string) =>
+      Effect.gen(function* () {
+        const connected = request();
+        yield* requestEffect(
+          api.dismissInterruptedGitAction({
+            params: { worktreeId: scope.worktreeId, requestId },
+          }),
+          connected.signal,
+        );
+        yield* currentAnswerEffect(connected.signal);
+        yield* nativeOperation(() =>
+          client.invalidateQueries({
+            queryKey: queryKeys.worktreeSurface(connection, scope, ['changes']),
+            exact: true,
+          }),
+        );
+      }),
   };
 }

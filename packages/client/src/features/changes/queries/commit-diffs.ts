@@ -1,3 +1,4 @@
+import { runRequest } from '../../../shared/api/effect-client.ts';
 import { assertCurrentAnswer } from '../../../shared/api/stale-answer.ts';
 import { queryKeys } from '../../../shared/api/query-keys.ts';
 import type { QueryFunctionContext } from '@tanstack/query-core';
@@ -23,13 +24,13 @@ export function commitDiffsQueryOptions(
     ]),
     queryFn: async ({ signal }: Pick<QueryFunctionContext, 'signal'>) => {
       const connected = connection.request(signal);
-      const result = await changesApi(connection).commitDiffs({
-        signal: connected.signal,
-        worktreeId: scope.worktreeId,
-        oid,
-        parent,
-        paths: paths.map((entry) => [...entry]),
-      });
+      const result = await runRequest(
+        changesApi(connection).readCommitDiffs({
+          params: { worktreeId: scope.worktreeId, oid: oid },
+          payload: { parent: parent, paths: paths.map((entry) => [...entry]) },
+        }),
+        connected.signal,
+      );
       assertCurrentAnswer(connected.signal, result.commitOid === oid);
       return result;
     },

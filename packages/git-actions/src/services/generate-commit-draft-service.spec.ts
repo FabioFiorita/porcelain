@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import {
   CommitGenerationFailedError,
   CommitGroupsMismatchError,
@@ -25,10 +26,12 @@ const generate = (
   generations: Record<string, CommitDraftGeneration>,
   model = 'claude:sonnet',
 ) =>
-  new GenerateCommitDraftService(
-    new ScriptedCommitDraftSource(generations),
-    limits,
-  ).execute({ capture, mode: 'message', model });
+  Effect.runPromise(
+    new GenerateCommitDraftService(
+      new ScriptedCommitDraftSource(generations),
+      limits,
+    ).execute({ capture, mode: 'message', model }),
+  );
 
 describe('GenerateCommitDraftService', () => {
   it('returns the groups the chosen model drafted with the files the draft was based on', async () => {

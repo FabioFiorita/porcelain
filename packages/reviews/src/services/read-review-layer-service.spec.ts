@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { ReviewLayerNotFoundError } from '@porcelain/reviews/errors';
 import type { Review, ReviewStep } from '@porcelain/reviews/models';
@@ -46,10 +47,12 @@ describe('ReadReviewLayerService', () => {
   it('reads a layer of the published review with the files its steps point at', () => {
     const store = new InMemoryReviewStore();
     store.save(review);
-    const read = new ReadReviewLayerService(store).execute({
-      worktreeId,
-      layerId: 'layer-1',
-    });
+    const read = Effect.runSync(
+      new ReadReviewLayerService(store).execute({
+        worktreeId,
+        layerId: 'layer-1',
+      }),
+    );
     expect(read.layer.id).toBe('layer-1');
     expect(read.paths).toEqual(['README.md', 'docs/guide.md']);
   });
@@ -57,12 +60,12 @@ describe('ReadReviewLayerService', () => {
   it('does not find a layer the review does not have, nor any layer before a review is published', () => {
     const store = new InMemoryReviewStore();
     const service = new ReadReviewLayerService(store);
-    expect(() => service.execute({ worktreeId, layerId: 'layer-1' })).toThrow(
-      ReviewLayerNotFoundError,
-    );
+    expect(() =>
+      Effect.runSync(service.execute({ worktreeId, layerId: 'layer-1' })),
+    ).toThrow(ReviewLayerNotFoundError);
     store.save(review);
-    expect(() => service.execute({ worktreeId, layerId: 'layer-9' })).toThrow(
-      ReviewLayerNotFoundError,
-    );
+    expect(() =>
+      Effect.runSync(service.execute({ worktreeId, layerId: 'layer-9' })),
+    ).toThrow(ReviewLayerNotFoundError);
   });
 });

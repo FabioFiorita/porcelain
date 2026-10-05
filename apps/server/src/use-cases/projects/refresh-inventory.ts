@@ -1,3 +1,5 @@
+import { Effect } from 'effect';
+import type { ProjectNotFoundError } from '@porcelain/projects/errors';
 import type {
   ListKnownWorktreesService,
   ListProjectWorktreesService,
@@ -11,7 +13,6 @@ import { knownWorktreesChanged } from '@porcelain/projects/rules';
 import type { EventPublisher } from '../../ports/event-publisher.ts';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
 
 export class RefreshInventoryUseCase {
   private readonly listRegisteredProjects: ListRegisteredProjectsService;
@@ -49,34 +50,41 @@ export class RefreshInventoryUseCase {
     this.events = events;
   }
 
-  async execute(context: OperationContext): Promise<void> {
-    const changed = await this.lanes.run(
-      this.laneKeys.inventory(),
-      'write',
-      async ({ signal }) => {
-        const inventory = this.listRegisteredProjects.execute();
-        const before = this.listKnownWorktrees.execute(inventory).listings;
-        const listings = await Promise.all(
-          inventory.projects.map((project) =>
-            this.listProjectWorktrees.execute({ project }, signal),
-          ),
-        );
-        this.markProjectsUnavailable.execute();
-        for (const worktrees of listings) {
-          this.updateProjectAvailability.execute({ worktrees });
-          this.recordWorktreePresence.execute({ worktrees });
-        }
-        this.recordWorktreeCatalog.execute({
-          projects: inventory.projects,
-          listings,
-        });
-        const after = this.listKnownWorktrees.execute(
-          this.listRegisteredProjects.execute(),
-        ).listings;
-        return knownWorktreesChanged(before, after);
-      },
-      { callerSignal: context.signal },
-    );
-    if (changed) this.events.inventoryChanged();
+  execute(): Effect.Effect<void, ProjectNotFoundError> {
+    return this.lanes
+      .run(this.laneKeys.inventory(), 'write', () =>
+        Effect.gen({ self: this }, function* () {
+          const inventory = yield* this.listRegisteredProjects.execute();
+          const { listings: before } =
+            yield* this.listKnownWorktrees.execute(inventory);
+          const listings = yield* Effect.forEach(
+            inventory.projects,
+            (project) => this.listProjectWorktrees.execute({ project }),
+            { concurrency: 'unbounded' },
+          );
+          return yield* Effect.uninterruptible(
+            Effect.gen({ self: this }, function* () {
+              yield* this.markProjectsUnavailable.execute();
+              for (const worktrees of listings) {
+                yield* this.updateProjectAvailability.execute({ worktrees });
+                yield* this.recordWorktreePresence.execute({ worktrees });
+              }
+              yield* this.recordWorktreeCatalog.execute({
+                projects: inventory.projects,
+                listings,
+              });
+              const refreshed = yield* this.listRegisteredProjects.execute();
+              const { listings: after } =
+                yield* this.listKnownWorktrees.execute(refreshed);
+              return knownWorktreesChanged(before, after);
+            }),
+          );
+        }),
+      )
+      .pipe(
+        Effect.map((changed) => {
+          if (changed) this.events.inventoryChanged();
+        }),
+      );
   }
 }

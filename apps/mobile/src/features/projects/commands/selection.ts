@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { useIsMutating, useMutation } from '@tanstack/react-query';
 import { projectSelectionStore } from '../store';
 
@@ -22,7 +23,7 @@ export function useProjectSelectionCommands(access: {
     mutationFn: async (command: SelectionCommand) => {
       const state = projectSelectionStore.getState();
       if (command.kind === 'read') {
-        await state.load();
+        await Effect.runPromise(state.load());
         const paired = access.readEnvironmentIds();
         const saved = projectSelectionStore.getState();
         if (!paired || saved.status !== 'ready') return;
@@ -31,7 +32,7 @@ export function useProjectSelectionCommands(access: {
           remembered.add(saved.currentEnvironmentId);
         for (const environmentId of remembered) {
           if (!paired.includes(environmentId))
-            await saved.forgetEnvironment(environmentId);
+            await Effect.runPromise(saved.forgetEnvironment(environmentId));
         }
         return;
       }
@@ -40,11 +41,15 @@ export function useProjectSelectionCommands(access: {
           'That environment is no longer paired. Open the environment picker again.',
         );
       if (command.kind === 'environment')
-        return state.selectEnvironment(command.environmentId);
-      return state.selectWorktree(
-        command.environmentId,
-        command.projectId,
-        command.worktreeId,
+        return Effect.runPromise(
+          state.selectEnvironment(command.environmentId),
+        );
+      return Effect.runPromise(
+        state.selectWorktree(
+          command.environmentId,
+          command.projectId,
+          command.worktreeId,
+        ),
       );
     },
   });

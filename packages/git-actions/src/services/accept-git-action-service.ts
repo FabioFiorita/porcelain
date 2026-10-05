@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type { Clock } from '@porcelain/kernel/ports';
 import { DiscardExpectationMismatchError } from '../errors/discard-expectation-mismatch-error.ts';
 import { DuplicateExpectedFileError } from '../errors/duplicate-expected-file-error.ts';
@@ -29,46 +30,73 @@ export class AcceptGitActionService {
     this.clock = clock;
   }
 
-  execute(input: AcceptGitActionInput): AcceptGitActionResult {
-    const { intent, expected } = input;
-    const problem = gitActionProblem(intent, expected);
-    if (problem) throw this.failure(problem);
-    const previous = this.gitActionReceipts.read({
-      requestId: input.requestId,
-    });
-    if (previous) {
-      if (!sameGitActionRequest(previous, input))
-        throw new GitActionReceiptMismatchError();
-      return { kind: 'repeated', receipt: gitActionReceiptView(previous) };
-    }
-    const receipt: GitActionReceipt = {
-      requestId: input.requestId,
-      projectId: input.projectId,
-      worktreeId: input.worktreeId,
-      action: intent.action,
-      intent,
-      expected,
-      state: 'running',
-      progress: [],
-      refreshRequired: false,
-      acceptedAt: this.clock.now(),
-    };
-    this.gitActionReceipts.insert(receipt);
-    return {
-      kind: 'accepted',
-      receipt: gitActionReceiptView(receipt),
-      run: {
+  execute(
+    input: AcceptGitActionInput,
+  ): Effect.Effect<
+    AcceptGitActionResult,
+    | GitActionReceiptMismatchError
+    | InvalidHunkRangeError
+    | DuplicateExpectedFileError
+    | MergeExpectationMismatchError
+    | EmptyCommitSelectionError
+    | MissingExpectedFilesError
+    | ExpectedFilesMismatchError
+    | DiscardExpectationMismatchError
+    | MissingUpstreamExpectationError,
+    never
+  > {
+    return Effect.gen({ self: this }, function* () {
+      const { intent, expected } = input;
+      const problem = gitActionProblem(intent, expected);
+      if (problem) return yield* Effect.fail(this.failure(problem));
+      const previous = this.gitActionReceipts.read({
+        requestId: input.requestId,
+      });
+      if (previous) {
+        if (!sameGitActionRequest(previous, input))
+          return yield* Effect.fail(new GitActionReceiptMismatchError());
+        return { kind: 'repeated', receipt: gitActionReceiptView(previous) };
+      }
+      const receipt: GitActionReceipt = {
         requestId: input.requestId,
         projectId: input.projectId,
         worktreeId: input.worktreeId,
+        action: intent.action,
         intent,
         expected,
-        target: gitActionTarget(intent, expected),
-      },
-    };
+        state: 'running',
+        progress: [],
+        refreshRequired: false,
+        acceptedAt: this.clock.now(),
+      };
+      this.gitActionReceipts.insert(receipt);
+      return {
+        kind: 'accepted',
+        receipt: gitActionReceiptView(receipt),
+        run: {
+          requestId: input.requestId,
+          projectId: input.projectId,
+          worktreeId: input.worktreeId,
+          intent,
+          expected,
+          target: gitActionTarget(intent, expected),
+        },
+      };
+    });
   }
 
-  private failure(problem: GitActionProblem): Error {
+  private failure(
+    problem: GitActionProblem,
+  ):
+    | GitActionReceiptMismatchError
+    | InvalidHunkRangeError
+    | DuplicateExpectedFileError
+    | MergeExpectationMismatchError
+    | EmptyCommitSelectionError
+    | MissingExpectedFilesError
+    | ExpectedFilesMismatchError
+    | DiscardExpectationMismatchError
+    | MissingUpstreamExpectationError {
     switch (problem.kind) {
       case 'hunk-range':
         return new InvalidHunkRangeError();

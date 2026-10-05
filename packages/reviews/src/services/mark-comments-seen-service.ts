@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type {
   MarkCommentsSeenInput,
   MarkCommentsSeenResult,
@@ -15,17 +16,21 @@ export class MarkCommentsSeenService {
     this.comments = comments;
   }
 
-  execute(input: MarkCommentsSeenInput): MarkCommentsSeenResult {
-    const { worktreeId } = input;
-    const before = this.commentSeen.seenThrough({ worktreeId });
-    const seen = seenThrough(
-      before,
-      input.throughRevision,
-      this.comments.lastRevision({ worktreeId }),
-    );
-    if (seen === before)
-      return { worktreeId, seenThrough: seen, changed: false };
-    this.commentSeen.save({ worktreeId, seenThrough: seen });
-    return { worktreeId, seenThrough: seen, changed: true };
+  execute(
+    input: MarkCommentsSeenInput,
+  ): Effect.Effect<MarkCommentsSeenResult, never> {
+    return Effect.sync(() => {
+      const { worktreeId } = input;
+      const before = this.commentSeen.seenThrough({ worktreeId });
+      const seen = seenThrough(
+        before,
+        input.throughRevision,
+        this.comments.lastRevision({ worktreeId }),
+      );
+      if (seen === before)
+        return { worktreeId, seenThrough: seen, changed: false };
+      this.commentSeen.save({ worktreeId, seenThrough: seen });
+      return { worktreeId, seenThrough: seen, changed: true };
+    });
   }
 }

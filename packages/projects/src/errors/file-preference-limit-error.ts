@@ -1,7 +1,10 @@
-export class FilePreferenceLimitError extends Error {
-  override readonly name = 'FilePreferenceLimitError';
+import { Schema } from 'effect';
 
-  constructor() {
-    super('File preference limit reached');
+export class FilePreferenceLimitError extends Schema.TaggedError<FilePreferenceLimitError>()(
+  'FilePreferenceLimitError',
+  {},
+) {
+  override get message() {
+    return 'File preference limit reached';
   }
 }

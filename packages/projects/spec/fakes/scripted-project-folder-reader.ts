@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type {
   ProjectFolderContents,
   ProjectFolderRead,
@@ -19,7 +20,9 @@ export class ScriptedProjectFolderReader implements ProjectFolderReader {
     this.reads.set(path, { kind });
   }
 
-  async read(input: ReadProjectFolderInput): Promise<ProjectFolderRead> {
-    return this.reads.get(input.path) ?? { kind: 'missing' };
+  read(input: ReadProjectFolderInput): Effect.Effect<ProjectFolderRead> {
+    return Effect.sync(() => {
+      return this.reads.get(input.path) ?? { kind: 'missing' };
+    });
   }
 }

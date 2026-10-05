@@ -8,13 +8,11 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import {
-  connectionErrorMessage,
-  type RemoteConnection,
-} from '@/features/access/index';
+import { connectionErrorMessage } from '@porcelain/client/access/rules';
+import { type RemoteConnection } from '@/features/access/index';
 import { resetProjectBrowser, useOpenProject } from '../commands/open-project';
 import { openProjectDialog } from '../overlays';
-import type { WorktreeTarget } from '../rules/inventory';
+import type { WorktreeTarget } from '../rules/worktree-target';
 import { ProjectFolderPicker } from './project-folder-picker';
 import { type Connection } from '@/shared/workspace/connection';
 

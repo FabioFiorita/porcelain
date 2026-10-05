@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { DeviceNotFoundError } from '@porcelain/access/errors';
 import type { StoredDevice } from '@porcelain/access/models';
@@ -26,7 +27,9 @@ function setup(...paired: StoredDevice[]) {
 describe('SetDeviceTrustService', () => {
   it('trusts the asked device and leaves the others untrusted', () => {
     const { devices, service } = setup(device('phone'), device('tablet'));
-    expect(service.execute({ id: 'phone', trusted: true })).toEqual({
+    expect(
+      Effect.runSync(service.execute({ id: 'phone', trusted: true })),
+    ).toEqual({
       id: 'phone',
       trusted: true,
     });
@@ -36,7 +39,9 @@ describe('SetDeviceTrustService', () => {
 
   it('stops trusting a trusted device', () => {
     const { devices, service } = setup(device('phone', { trusted: true }));
-    expect(service.execute({ id: 'phone', trusted: false })).toEqual({
+    expect(
+      Effect.runSync(service.execute({ id: 'phone', trusted: false })),
+    ).toEqual({
       id: 'phone',
       trusted: false,
     });
@@ -45,7 +50,9 @@ describe('SetDeviceTrustService', () => {
 
   it('answers the same when the device already has the asked trust', () => {
     const { devices, service } = setup(device('phone', { trusted: true }));
-    expect(service.execute({ id: 'phone', trusted: true })).toEqual({
+    expect(
+      Effect.runSync(service.execute({ id: 'phone', trusted: true })),
+    ).toEqual({
       id: 'phone',
       trusted: true,
     });
@@ -54,18 +61,18 @@ describe('SetDeviceTrustService', () => {
 
   it('refuses an unknown device and changes nothing', () => {
     const { devices, service } = setup(device('phone'));
-    expect(() => service.execute({ id: 'stranger', trusted: true })).toThrow(
-      DeviceNotFoundError,
-    );
+    expect(() =>
+      Effect.runSync(service.execute({ id: 'stranger', trusted: true })),
+    ).toThrow(DeviceNotFoundError);
     expect(devices.list()).toEqual([device('phone')]);
   });
 
   it('refuses a revoked device, so trust never outlives its access', () => {
     const revoked = device('phone', { revokedAt: '2026-09-23T08:00:00.000Z' });
     const { devices, service } = setup(revoked);
-    expect(() => service.execute({ id: 'phone', trusted: true })).toThrow(
-      DeviceNotFoundError,
-    );
+    expect(() =>
+      Effect.runSync(service.execute({ id: 'phone', trusted: true })),
+    ).toThrow(DeviceNotFoundError);
     expect(devices.find({ deviceId: 'phone' })?.trusted).toBeUndefined();
   });
 });

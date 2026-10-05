@@ -17,6 +17,7 @@
     "@porcelain/contracts": "workspace:*",
     "@porcelain/theme": "workspace:*",
     "@tanstack/react-query": "5.102.8",
+    "effect": "4.0.0",
     "expo": "58.0.0",
     "expo-build-properties": "58.0.9",
     "expo-dev-client": "58.0.9",

@@ -1,3 +1,4 @@
+import * as Schema from 'effect/Schema';
 import { issuePairingResponseSchema } from '@porcelain/contracts/access';
 import {
   list,
@@ -31,7 +32,7 @@ export async function pairingGrant(
   label: string,
   trusted = false,
 ) {
-  const [grant] = issuePairingResponseSchema.parse(
+  const [grant] = Schema.decodeUnknownSync(issuePairingResponseSchema)(
     await read(session, {
       method: 'POST',
       path: '/pairings',

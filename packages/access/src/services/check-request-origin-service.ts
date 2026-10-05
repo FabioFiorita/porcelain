@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type {
   CheckRequestOriginInput,
   CheckRequestOriginResult,
@@ -16,10 +17,14 @@ export class CheckRequestOriginService {
     this.routeStates = routeStates;
   }
 
-  execute(input: CheckRequestOriginInput): CheckRequestOriginResult {
-    return requestOriginCheck(
-      input,
-      httpsHosts(this.remoteAccess.read(), this.routeStates.read(), input),
-    );
+  execute(
+    input: CheckRequestOriginInput,
+  ): Effect.Effect<CheckRequestOriginResult, never> {
+    return Effect.sync(() => {
+      return requestOriginCheck(
+        input,
+        httpsHosts(this.remoteAccess.read(), this.routeStates.read(), input),
+      );
+    });
   }
 }

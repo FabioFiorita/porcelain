@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { FixedClock } from '@porcelain/kernel/fakes';
 import { InMemoryPairingAttemptStore } from '../../spec/fakes/in-memory-pairing-attempt-store.ts';
@@ -30,14 +31,14 @@ function setup() {
 describe('RefundPairingAttemptService', () => {
   it('gives a cross-origin success its attempt back in the cross-origin budget only', () => {
     const { stores, service } = setup();
-    service.execute({ peer, crossOrigin: true });
+    Effect.runSync(service.execute({ peer, crossOrigin: true }));
     expect(stores.crossOrigin.read().peers.get(peer)?.tokens).toBe(5);
     expect(stores.sameOrigin.read().peers.get(peer)?.tokens).toBe(4);
   });
 
   it('gives a same-origin success its attempt back in the same-origin budget only', () => {
     const { stores, service } = setup();
-    service.execute({ peer, crossOrigin: false });
+    Effect.runSync(service.execute({ peer, crossOrigin: false }));
     expect(stores.sameOrigin.read().peers.get(peer)?.tokens).toBe(5);
     expect(stores.crossOrigin.read().peers.get(peer)?.tokens).toBe(4);
   });

@@ -2,8 +2,8 @@ import { parsePatchFiles } from '@pierre/diffs';
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { selectionKey } from '@porcelain/client/changes/rules';
 import {
-  selectionKey,
   useChangeDiffs,
   useChangeLines,
   useChanges,
@@ -17,14 +17,14 @@ import { useLayerMark } from '../queries/published-review';
 import { usePrefetchReviewed, useReviewChangeItems } from '../queries/reviewed';
 import type { DocumentInteraction, OpenDocument } from '../rules/documents';
 import { contextPatch, focusPatch } from '../rules/patch-focus';
-import type { ReviewProof } from '../rules/proof';
+import type { ReviewProof } from '@porcelain/client/reviews/rules';
 import type {
   ChangeSelection,
   ReviewChangeItem,
   ReviewLayer,
   ReviewScope,
   ReviewStep,
-} from '../rules/review';
+} from '@porcelain/client/reviews/rules';
 import { CodeDocument } from './code-document';
 import { fileReviewControl } from './reviewed-control';
 import { DocumentToolbar } from './document-toolbar';

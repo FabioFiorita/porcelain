@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type {
   IdentifyRequestClientInput,
   RequestClient,
@@ -16,12 +17,16 @@ export class IdentifyRequestClientService {
     this.routeStates = routeStates;
   }
 
-  execute(input: IdentifyRequestClientInput): RequestClient {
-    const routes = this.routeStates.read();
-    return requestClient(
-      input,
-      answeredTunnelHosts(this.remoteAccess.read(), routes.states),
-      routes.tailnetProxy,
-    );
+  execute(
+    input: IdentifyRequestClientInput,
+  ): Effect.Effect<RequestClient, never> {
+    return Effect.sync(() => {
+      const routes = this.routeStates.read();
+      return requestClient(
+        input,
+        answeredTunnelHosts(this.remoteAccess.read(), routes.states),
+        routes.tailnetProxy,
+      );
+    });
   }
 }

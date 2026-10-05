@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { FixedClock } from '@porcelain/kernel/fakes';
 import { describe, expect, it } from 'vitest';
 import { sampleReceipt } from '../../spec/fixtures/git-action-samples.ts';
@@ -10,11 +11,13 @@ function expire(
   store: InMemoryGitActionReceiptStore,
   worktreeId = sampleReceipt().worktreeId,
 ) {
-  new ExpireGitActionReceiptsService(
-    store,
-    new FixedClock('2026-09-23T12:00:00.000Z'),
-    { retentionMs: 30 * day },
-  ).execute({ worktreeId });
+  Effect.runSync(
+    new ExpireGitActionReceiptsService(
+      store,
+      new FixedClock('2026-09-23T12:00:00.000Z'),
+      { retentionMs: 30 * day },
+    ).execute({ worktreeId }),
+  );
 }
 
 describe('ExpireGitActionReceiptsService', () => {

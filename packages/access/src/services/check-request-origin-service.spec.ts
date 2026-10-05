@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import type { RouteState } from '@porcelain/access/models';
 import { InMemoryRemoteAccessStore } from '../../spec/fakes/in-memory-remote-access-store.ts';
@@ -19,18 +20,20 @@ function checkThroughTunnel(cloudflare: RouteState, enabled = true) {
     states: { lan: { kind: 'off' }, tailnet: { kind: 'off' }, cloudflare },
     origins: [],
   });
-  return new CheckRequestOriginService(settings, routes).execute({
-    host: tunnelHost,
-    origin: `https://${tunnelHost}`,
-    method: 'POST',
-    scheme: 'http',
-    localAddress: '127.0.0.1',
-    localPort: 4173,
-    allowedHosts: [],
-    requireSameOrigin: false,
-    crossOrigin: 'refused',
-    credential: 'none',
-  });
+  return Effect.runSync(
+    new CheckRequestOriginService(settings, routes).execute({
+      host: tunnelHost,
+      origin: `https://${tunnelHost}`,
+      method: 'POST',
+      scheme: 'http',
+      localAddress: '127.0.0.1',
+      localPort: 4173,
+      allowedHosts: [],
+      requireSameOrigin: false,
+      crossOrigin: 'refused',
+      credential: 'none',
+    }),
+  );
 }
 
 describe('CheckRequestOriginService', () => {
@@ -87,18 +90,20 @@ describe('CheckRequestOriginService', () => {
     routes.save(on);
     const service = new CheckRequestOriginService(settings, routes);
     const write = (origin: string, localPort = 41000) =>
-      service.execute({
-        host: hostname,
-        origin,
-        method: 'POST',
-        scheme: 'http',
-        localAddress: '127.0.0.1',
-        localPort,
-        allowedHosts: [],
-        requireSameOrigin: false,
-        crossOrigin: 'refused',
-        credential: 'none',
-      });
+      Effect.runSync(
+        service.execute({
+          host: hostname,
+          origin,
+          method: 'POST',
+          scheme: 'http',
+          localAddress: '127.0.0.1',
+          localPort,
+          allowedHosts: [],
+          requireSameOrigin: false,
+          crossOrigin: 'refused',
+          credential: 'none',
+        }),
+      );
     const notAnswered = {
       kind: 'refused',
       refusal: { kind: 'host-not-allowed', hostname },

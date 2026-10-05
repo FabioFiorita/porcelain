@@ -21,11 +21,11 @@ export function probeRead(path: string): Promise<string> {
       kind: 'create',
       path: 'apps/server/src/use-cases/projects/probe-read-file.ts',
       content: `import { probeRead } from '../../runtime/probe-read.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
+import { Effect } from 'effect';
 
 export class ProbeReadFileUseCase {
-  async execute(context: OperationContext): Promise<string> {
-    return probeRead('/etc/hostname');
+  execute(): Effect.Effect<string> {
+    return Effect.promise(() => probeRead('/etc/hostname'));
   }
 }
 `,

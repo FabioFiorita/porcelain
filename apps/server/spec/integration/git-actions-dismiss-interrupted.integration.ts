@@ -1,3 +1,4 @@
+import * as Schema from 'effect/Schema';
 import { randomUUID } from 'node:crypto';
 import { dismissInterruptedGitActionResponseSchema } from '@porcelain/contracts/git-actions';
 import { expect } from 'vitest';
@@ -116,7 +117,11 @@ test('an interrupted action marks the changes until it is dismissed, and dismiss
   expect(marked.interrupted).toMatchObject({ requestId, action: 'commit' });
   expect(dismissed.status).toBe(200);
   expect(dismissed.body).toEqual(
-    expect.schemaMatching(dismissInterruptedGitActionResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(
+        Schema.toEncoded(dismissInterruptedGitActionResponseSchema),
+      ),
+    ),
   );
   expect(dismissed.body).toStrictEqual({ dismissed: true });
   expect(again.status).toBe(200);

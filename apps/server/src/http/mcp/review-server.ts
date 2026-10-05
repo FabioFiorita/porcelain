@@ -13,7 +13,8 @@ import {
   updateCommentThreadResponseSchema,
   resolveCommentToolRequestSchema,
 } from '@porcelain/contracts/reviews';
-import { z } from 'zod';
+import { Effect } from 'effect';
+import { registerEffectTool } from './effect-tool.ts';
 import type {
   AtWorktreePathUseCasePort,
   WorktreeOperationUseCasePort,
@@ -24,14 +25,13 @@ import type { PublishReviewUseCase } from '../../use-cases/reviews/publish-revie
 import type { ReadPublishedReviewUseCase } from '../../use-cases/reviews/read-published-review.ts';
 import type { ReplyToCommentUseCase } from '../../use-cases/reviews/reply-to-comment.ts';
 import type { UpdateCommentThreadUseCase } from '../../use-cases/reviews/update-comment-thread.ts';
-import { toStatusResponse } from '../status-policy.ts';
 import { REVIEW_GUIDE } from './review-guide.ts';
 
 type AtPath<Operation extends WorktreeOperationUseCasePort> =
   AtWorktreePathUseCasePort<Operation>;
 
 export type ReviewMcpUseCases = {
-  reviews: {
+  reviewTools: {
     createCommentThreadAtPath: AtPath<CreateCommentThreadUseCase>;
     listCommentThreadsAtPath: AtPath<ListCommentThreadsUseCase>;
     publishReviewAtPath: AtPath<PublishReviewUseCase>;
@@ -72,19 +72,22 @@ export function createReviewMcpServer(
       ],
     }),
   );
-  server.registerTool(
-    'publish_review',
+  registerEffectTool(
+    server,
     {
+      name: 'publish_review',
+      output: publishReviewToolResponseSchema,
       description:
         'Atomically replace the latest summary, diagram, review layers and proof. Read the current revision and porcelain://review-guide first. Include your own CSS, matching the reviewed application where possible; missing CSS produces an advisory warning. Attach proof that the work is done: checks you ran with their result, and screenshots, short videos or links.',
-      inputSchema: publishReviewToolRequestSchema,
+      input: publishReviewToolRequestSchema,
     },
-    ({ cwd, ...review }, { signal }) =>
-      result(publishReviewToolResponseSchema, async () => {
-        const published = await useCases.reviews.publishReviewAtPath.execute(
-          { cwd: cwd ?? defaultCwd, request: review },
-          { signal },
-        );
+    ({ cwd, ...review }) =>
+      Effect.gen(function* () {
+        const published =
+          yield* useCases.reviewTools.publishReviewAtPath.execute({
+            cwd: cwd ?? defaultCwd,
+            request: review,
+          });
         return {
           ...published,
           warnings: published.warnings.map(
@@ -93,107 +96,81 @@ export function createReviewMcpServer(
         };
       }),
   );
-  server.registerTool(
-    'read_review',
+  registerEffectTool(
+    server,
     {
+      name: 'read_review',
+      output: readPublishedReviewResponseSchema,
       description:
         'Read the latest published review, resolved pointers and uncovered changed lines.',
-      inputSchema: readReviewToolRequestSchema,
+      input: readReviewToolRequestSchema,
       annotations: { readOnlyHint: true },
     },
-    ({ cwd }, { signal }) =>
-      result(readPublishedReviewResponseSchema, async () =>
-        useCases.reviews.readPublishedReviewAtPath.execute(
-          { cwd: cwd ?? defaultCwd, request: {} },
-          { signal },
-        ),
-      ),
+    ({ cwd }) =>
+      useCases.reviewTools.readPublishedReviewAtPath.execute({
+        cwd: cwd ?? defaultCwd,
+        request: {},
+      }),
   );
-  server.registerTool(
-    'list_comments',
+  registerEffectTool(
+    server,
     {
+      name: 'list_comments',
+      output: listCommentThreadsResponseSchema,
       description:
         'Read review threads waiting for the agent. Omit scope, or pass waiting, for unresolved threads whose latest message is not from the agent. Pass all to include every thread.',
-      inputSchema: listCommentsToolRequestSchema,
+      input: listCommentsToolRequestSchema,
       annotations: { readOnlyHint: true },
     },
-    ({ cwd, scope }, { signal }) =>
-      result(listCommentThreadsResponseSchema, async () =>
-        useCases.reviews.listCommentThreadsAtPath.execute(
-          { cwd: cwd ?? defaultCwd, request: { scope } },
-          { signal },
-        ),
-      ),
+    ({ cwd, scope }) =>
+      useCases.reviewTools.listCommentThreadsAtPath.execute({
+        cwd: cwd ?? defaultCwd,
+        request: { scope },
+      }),
   );
-  server.registerTool(
-    'create_comment',
+  registerEffectTool(
+    server,
     {
+      name: 'create_comment',
+      output: createCommentThreadResponseSchema,
       description:
         'Create an agent review thread on the whole change (kind change, with a branch comparison and its tip for a branch review), a file or a code range. Stable optional IDs make retries idempotent.',
-      inputSchema: createCommentToolRequestSchema,
+      input: createCommentToolRequestSchema,
     },
-    ({ cwd, ...input }, { signal }) =>
-      result(createCommentThreadResponseSchema, async () =>
-        useCases.reviews.createCommentThreadAtPath.execute(
-          { cwd: cwd ?? defaultCwd, request: { ...input, writer: agent } },
-          { signal },
-        ),
-      ),
+    ({ cwd, ...input }) =>
+      useCases.reviewTools.createCommentThreadAtPath.execute({
+        cwd: cwd ?? defaultCwd,
+        request: { ...input, writer: agent },
+      }),
   );
-  server.registerTool(
-    'reply_to_comment',
+  registerEffectTool(
+    server,
     {
+      name: 'reply_to_comment',
+      output: replyToCommentResponseSchema,
       description:
         'Reply to a review thread. Stable optional messageId makes retries idempotent.',
-      inputSchema: replyToCommentToolRequestSchema,
+      input: replyToCommentToolRequestSchema,
     },
-    ({ cwd, ...input }, { signal }) =>
-      result(replyToCommentResponseSchema, async () =>
-        useCases.reviews.replyToCommentAtPath.execute(
-          { cwd: cwd ?? defaultCwd, request: { ...input, writer: agent } },
-          { signal },
-        ),
-      ),
+    ({ cwd, ...input }) =>
+      useCases.reviewTools.replyToCommentAtPath.execute({
+        cwd: cwd ?? defaultCwd,
+        request: { ...input, writer: agent },
+      }),
   );
-  server.registerTool(
-    'resolve_comment',
+  registerEffectTool(
+    server,
     {
+      name: 'resolve_comment',
+      output: updateCommentThreadResponseSchema,
       description: 'Resolve or reopen a review thread.',
-      inputSchema: resolveCommentToolRequestSchema,
+      input: resolveCommentToolRequestSchema,
     },
-    ({ cwd, ...input }, { signal }) =>
-      result(updateCommentThreadResponseSchema, async () =>
-        useCases.reviews.updateCommentThreadAtPath.execute(
-          { cwd: cwd ?? defaultCwd, request: input },
-          { signal },
-        ),
-      ),
+    ({ cwd, ...input }) =>
+      useCases.reviewTools.updateCommentThreadAtPath.execute({
+        cwd: cwd ?? defaultCwd,
+        request: input,
+      }),
   );
   return server;
-}
-
-async function result<Schema extends z.ZodType>(
-  schema: Schema,
-  operation: () => Promise<z.output<Schema>>,
-) {
-  try {
-    return {
-      content: [
-        {
-          type: 'text' as const,
-          text: JSON.stringify(z.encode(schema, await operation())),
-        },
-      ],
-    };
-  } catch (error) {
-    return {
-      isError: true,
-      content: [
-        {
-          type: 'text' as const,
-          text: JSON.stringify(toStatusResponse(error).body ?? null),
-        },
-      ],
-    };
-  }
 }

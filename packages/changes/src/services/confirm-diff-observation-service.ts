@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { WorktreeChangedError } from '@porcelain/kernel/errors';
 import type {
   DiffObservation,
@@ -6,12 +7,14 @@ import type {
 import { observationProblem } from '../rules/observation-problem.ts';
 
 export class ConfirmDiffObservationService {
-  execute(input: DiffObservation): void {
-    const problem = observationProblem(input);
-    if (problem) throw this.failure(problem);
+  execute(input: DiffObservation): Effect.Effect<void, WorktreeChangedError> {
+    return Effect.gen({ self: this }, function* () {
+      const problem = observationProblem(input);
+      if (problem) return yield* Effect.fail(this.failure(problem));
+    });
   }
 
-  private failure(problem: ObservationProblem): Error {
+  private failure(problem: ObservationProblem): WorktreeChangedError {
     switch (problem.kind) {
       case 'worktree-changed':
         return new WorktreeChangedError();

@@ -2,7 +2,7 @@ import { Component, type ReactNode, Suspense } from 'react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { reviewErrorMessage } from '../rules/review';
+import { reviewErrorMessage } from '@porcelain/client/reviews/rules';
 import { useReviewReset } from '../queries/review-reset';
 
 class ReviewErrorBoundary extends Component<

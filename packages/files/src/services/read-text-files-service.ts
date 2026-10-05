@@ -1,3 +1,5 @@
+import type { WorktreeRead } from '@porcelain/effects/worktree';
+import { Effect } from 'effect';
 import type {
   ReadTextFilesInput,
   ReadTextFilesOptions,
@@ -14,29 +16,37 @@ export class ReadTextFilesService {
     this.options = options;
   }
 
-  async execute(
+  execute(
     input: ReadTextFilesInput,
-    signal?: AbortSignal,
-  ): Promise<ReadTextFilesResult> {
-    const { worktreeId } = input;
-    const reads = await Promise.all(
-      input.paths.map(async (path) => ({
+  ): Effect.Effect<ReadTextFilesResult, never, WorktreeRead> {
+    return Effect.gen({ self: this }, function* () {
+      const { worktreeId } = input;
+      const reads = yield* Effect.forEach(
+        input.paths,
+        (path) => this.readText(worktreeId, path),
+        { concurrency: 'unbounded' },
+      );
+      return {
+        texts: new Map(
+          reads.flatMap(({ path, read }) =>
+            read.kind === 'text' ? [[path, read.text] as const] : [],
+          ),
+        ),
+        unreadable: reads.flatMap(({ path, read }) =>
+          read.kind === 'text' ? [] : [path],
+        ),
+      };
+    });
+  }
+
+  private readText(worktreeId: string, path: string) {
+    return Effect.gen({ self: this }, function* () {
+      const read = yield* this.fileReader.readText({
+        worktreeId,
         path,
-        read: await this.fileReader.readText(
-          { worktreeId, path, maxBytes: this.options.maxBytes },
-          signal,
-        ),
-      })),
-    );
-    return {
-      texts: new Map(
-        reads.flatMap(({ path, read }) =>
-          read.kind === 'text' ? [[path, read.text]] : [],
-        ),
-      ),
-      unreadable: reads.flatMap(({ path, read }) =>
-        read.kind === 'text' ? [] : [path],
-      ),
-    };
+        maxBytes: this.options.maxBytes,
+      });
+      return { path, read };
+    });
   }
 }

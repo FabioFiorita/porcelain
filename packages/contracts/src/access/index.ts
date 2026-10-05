@@ -9,6 +9,7 @@ export { readHealthResponseSchema, type ReadHealthResponse } from './health.ts';
 export {
   issueLiveTicketResponseSchema,
   liveNoticeSchema,
+  liveUpdatesQuerySchema,
   liveSubscriptionSchema,
   type IssueLiveTicketRequest,
   type IssueLiveTicketResponse,
@@ -57,4 +58,14 @@ export {
   type SetRemoteAccessResponse,
 } from './remote-access.ts';
 export { pairingLink } from './pairing-link.ts';
-export * from './endpoints.ts';
+export {
+  PublicAccessApi,
+  BrowserAccessApi,
+  PairingApi,
+  SessionApi,
+  ServiceUpdatesApi,
+  HostAccessApi,
+  OwnerAccessApi,
+  AccessApi,
+} from './api.ts';
+export { LiveUpdatesApi, ReviewMcpApi } from './protocols.ts';

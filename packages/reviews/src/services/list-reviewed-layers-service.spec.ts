@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import type { ReviewLayer } from '@porcelain/reviews/models';
 import { currentLayerFingerprint } from '@porcelain/reviews/rules';
@@ -55,16 +56,18 @@ function service() {
 describe('ListReviewedLayersService', () => {
   it('answers a mark fresh while the lines it covers read as they did', () => {
     expect(
-      service().execute({ worktreeId, texts: reviewed }).marks,
+      Effect.runSync(service().execute({ worktreeId, texts: reviewed })).marks,
     ).toMatchObject([{ layerId: layer.id, stale: false }]);
   });
 
   it('answers a mark stale once the lines it covers changed, computed on this read', () => {
     expect(
-      service().execute({
-        worktreeId,
-        texts: new Map([['README.md', 'first\nchanged\n']]),
-      }).marks,
+      Effect.runSync(
+        service().execute({
+          worktreeId,
+          texts: new Map([['README.md', 'first\nchanged\n']]),
+        }),
+      ).marks,
     ).toMatchObject([{ layerId: layer.id, stale: true }]);
   });
 });

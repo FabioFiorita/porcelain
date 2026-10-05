@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { FixedClock } from '@porcelain/kernel/fakes';
 import { ReviewedMarkConflictError } from '@porcelain/reviews/errors';
@@ -50,21 +51,23 @@ function fill(
 describe('SetReviewedFilesService', () => {
   it('marks files whose fingerprint is current and reports the others', () => {
     const { service } = setup();
-    const result = service.execute({
-      worktreeId,
-      files: [
-        { path: 'a.txt', fingerprint: 'fa' },
-        { path: 'b.txt', fingerprint: 'old' },
-        { path: 'c.txt', fingerprint: 'fc' },
-        { path: 'unreadable.bin', fingerprint: 'fu' },
-      ],
-      changes: changes([
-        { path: 'a.txt', fingerprint: 'fa' },
-        { path: 'b.txt', fingerprint: 'fb' },
-        { path: 'unreadable.bin' },
-      ]),
-      onConflict: 'report',
-    });
+    const result = Effect.runSync(
+      service.execute({
+        worktreeId,
+        files: [
+          { path: 'a.txt', fingerprint: 'fa' },
+          { path: 'b.txt', fingerprint: 'old' },
+          { path: 'c.txt', fingerprint: 'fc' },
+          { path: 'unreadable.bin', fingerprint: 'fu' },
+        ],
+        changes: changes([
+          { path: 'a.txt', fingerprint: 'fa' },
+          { path: 'b.txt', fingerprint: 'fb' },
+          { path: 'unreadable.bin' },
+        ]),
+        onConflict: 'report',
+      }),
+    );
     expect(result.marked).toEqual(['a.txt']);
     expect(result.changed).toBe(true);
     expect(result.conflicts).toEqual([
@@ -83,30 +86,34 @@ describe('SetReviewedFilesService', () => {
 
   it('uses the last fingerprint sent for a repeated path, in the order first sent', () => {
     const { service } = setup();
-    const result = service.execute({
-      worktreeId,
-      files: [
-        { path: 'b.txt', fingerprint: 'old' },
-        { path: 'a.txt', fingerprint: 'fa' },
-        { path: 'b.txt', fingerprint: 'fb' },
-      ],
-      changes: changes([
-        { path: 'a.txt', fingerprint: 'fa' },
-        { path: 'b.txt', fingerprint: 'fb' },
-      ]),
-      onConflict: 'report',
-    });
+    const result = Effect.runSync(
+      service.execute({
+        worktreeId,
+        files: [
+          { path: 'b.txt', fingerprint: 'old' },
+          { path: 'a.txt', fingerprint: 'fa' },
+          { path: 'b.txt', fingerprint: 'fb' },
+        ],
+        changes: changes([
+          { path: 'a.txt', fingerprint: 'fa' },
+          { path: 'b.txt', fingerprint: 'fb' },
+        ]),
+        onConflict: 'report',
+      }),
+    );
     expect(result.marked).toEqual(['b.txt', 'a.txt']);
   });
 
   it('reports no change when every file conflicts', () => {
     const { service, store } = setup();
-    const result = service.execute({
-      worktreeId,
-      files: [{ path: 'b.txt', fingerprint: 'old' }],
-      changes: changes([{ path: 'b.txt', fingerprint: 'fb' }]),
-      onConflict: 'report',
-    });
+    const result = Effect.runSync(
+      service.execute({
+        worktreeId,
+        files: [{ path: 'b.txt', fingerprint: 'old' }],
+        changes: changes([{ path: 'b.txt', fingerprint: 'fb' }]),
+        onConflict: 'report',
+      }),
+    );
     expect(result.changed).toBe(false);
     expect(store.list({ worktreeId })).toEqual([]);
   });
@@ -114,12 +121,14 @@ describe('SetReviewedFilesService', () => {
   it('refuses the whole request when conflicts must not be reported', () => {
     const { service, store } = setup();
     expect(() =>
-      service.execute({
-        worktreeId,
-        files: [{ path: 'missing.txt', fingerprint: 'fm' }],
-        changes: changes([{ path: 'a.txt', fingerprint: 'fa' }]),
-        onConflict: 'refuse',
-      }),
+      Effect.runSync(
+        service.execute({
+          worktreeId,
+          files: [{ path: 'missing.txt', fingerprint: 'fm' }],
+          changes: changes([{ path: 'a.txt', fingerprint: 'fa' }]),
+          onConflict: 'refuse',
+        }),
+      ),
     ).toThrow(ReviewedMarkConflictError);
     expect(store.list({ worktreeId })).toEqual([]);
   });
@@ -137,12 +146,14 @@ describe('SetReviewedFilesService', () => {
         },
       ],
     });
-    service.execute({
-      worktreeId,
-      files: [{ path: 'a.txt', fingerprint: 'fa' }],
-      changes: changes([{ path: 'a.txt', fingerprint: 'fa' }]),
-      onConflict: 'refuse',
-    });
+    Effect.runSync(
+      service.execute({
+        worktreeId,
+        files: [{ path: 'a.txt', fingerprint: 'fa' }],
+        changes: changes([{ path: 'a.txt', fingerprint: 'fa' }]),
+        onConflict: 'refuse',
+      }),
+    );
     expect(marked(store, 'a.txt')).toEqual({
       path: 'a.txt',
       fingerprint: 'fa',
@@ -156,18 +167,20 @@ describe('SetReviewedFilesService', () => {
     fill(store, (index) =>
       index === 1500 ? '2025-01-01T00:00:00.000Z' : '2025-06-01T00:00:00.000Z',
     );
-    service.execute({
-      worktreeId,
-      files: [
-        { path: 'new-1', fingerprint: 'n1' },
-        { path: 'new-2', fingerprint: 'n2' },
-      ],
-      changes: changes([
-        { path: 'new-1', fingerprint: 'n1' },
-        { path: 'new-2', fingerprint: 'n2' },
-      ]),
-      onConflict: 'report',
-    });
+    Effect.runSync(
+      service.execute({
+        worktreeId,
+        files: [
+          { path: 'new-1', fingerprint: 'n1' },
+          { path: 'new-2', fingerprint: 'n2' },
+        ],
+        changes: changes([
+          { path: 'new-1', fingerprint: 'n1' },
+          { path: 'new-2', fingerprint: 'n2' },
+        ]),
+        onConflict: 'report',
+      }),
+    );
     expect(store.list({ worktreeId })).toHaveLength(2000);
     expect(marked(store, 'file-1500')).toBeUndefined();
     expect(marked(store, 'file-0000')).toBeUndefined();
@@ -179,31 +192,37 @@ describe('SetReviewedFilesService', () => {
   it('evicts nothing when a mark already present is renewed at the limit', () => {
     const { service, store } = setup();
     fill(store, () => '2025-06-01T00:00:00.000Z');
-    service.execute({
-      worktreeId,
-      files: [{ path: 'file-1999', fingerprint: 'g' }],
-      changes: changes([{ path: 'file-1999', fingerprint: 'g' }]),
-      onConflict: 'report',
-    });
+    Effect.runSync(
+      service.execute({
+        worktreeId,
+        files: [{ path: 'file-1999', fingerprint: 'g' }],
+        changes: changes([{ path: 'file-1999', fingerprint: 'g' }]),
+        onConflict: 'report',
+      }),
+    );
     expect(store.list({ worktreeId })).toHaveLength(2000);
     expect(marked(store, 'file-0000')).toBeDefined();
   });
 
   it('marks a branch file without touching the worktree mark of the same path', () => {
     const { store, service } = setup();
-    service.execute({
-      worktreeId,
-      files: [{ path: 'a.txt', fingerprint: 'worktree' }],
-      changes: changes([{ path: 'a.txt', fingerprint: 'worktree' }]),
-      onConflict: 'refuse',
-    });
-    const result = service.execute({
-      worktreeId,
-      scope: 'branch',
-      files: [{ path: 'a.txt', fingerprint: 'branch' }],
-      changes: changes([{ path: 'a.txt', fingerprint: 'branch' }]),
-      onConflict: 'refuse',
-    });
+    Effect.runSync(
+      service.execute({
+        worktreeId,
+        files: [{ path: 'a.txt', fingerprint: 'worktree' }],
+        changes: changes([{ path: 'a.txt', fingerprint: 'worktree' }]),
+        onConflict: 'refuse',
+      }),
+    );
+    const result = Effect.runSync(
+      service.execute({
+        worktreeId,
+        scope: 'branch',
+        files: [{ path: 'a.txt', fingerprint: 'branch' }],
+        changes: changes([{ path: 'a.txt', fingerprint: 'branch' }]),
+        onConflict: 'refuse',
+      }),
+    );
     expect(result.marks).toEqual([
       {
         path: 'a.txt',
@@ -226,22 +245,26 @@ describe('SetReviewedFilesService', () => {
       path: `file-${String(index).padStart(4, '0')}`,
       fingerprint: 'f',
     }));
-    service.execute({
-      worktreeId,
-      scope: 'branch',
-      branch,
-      files: files.slice(0, 2000),
-      changes: changes(files),
-      onConflict: 'report',
-    });
-    service.execute({
-      worktreeId,
-      scope: 'branch',
-      branch,
-      files: files.slice(2000),
-      changes: changes(files),
-      onConflict: 'report',
-    });
+    Effect.runSync(
+      service.execute({
+        worktreeId,
+        scope: 'branch',
+        branch,
+        files: files.slice(0, 2000),
+        changes: changes(files),
+        onConflict: 'report',
+      }),
+    );
+    Effect.runSync(
+      service.execute({
+        worktreeId,
+        scope: 'branch',
+        branch,
+        files: files.slice(2000),
+        changes: changes(files),
+        onConflict: 'report',
+      }),
+    );
     expect(store.list({ worktreeId, scope: 'branch', branch })).toHaveLength(
       2001,
     );
@@ -274,17 +297,19 @@ describe('SetReviewedFilesService', () => {
         },
       ],
     });
-    service.execute({
-      worktreeId,
-      scope: 'branch',
-      branch,
-      files: [{ path: 'new', fingerprint: 'n' }],
-      changes: changes([
-        { path: 'kept', fingerprint: 'k' },
-        { path: 'new', fingerprint: 'n' },
-      ]),
-      onConflict: 'report',
-    });
+    Effect.runSync(
+      service.execute({
+        worktreeId,
+        scope: 'branch',
+        branch,
+        files: [{ path: 'new', fingerprint: 'n' }],
+        changes: changes([
+          { path: 'kept', fingerprint: 'k' },
+          { path: 'new', fingerprint: 'n' },
+        ]),
+        onConflict: 'report',
+      }),
+    );
     expect(
       store
         .list({ worktreeId, scope: 'branch', branch })

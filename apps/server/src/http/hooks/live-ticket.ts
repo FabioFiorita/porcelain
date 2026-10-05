@@ -1,3 +1,5 @@
+import { Effect } from 'effect';
+import { withSignal } from '@porcelain/effects';
 import { httpErrors } from '@fastify/sensible';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import type { RedeemLiveTicketUseCasePort } from '../../ports/redeem-live-ticket-use-case-port.ts';
@@ -25,9 +27,14 @@ export function authenticateLiveViewer(
   return async (request: FastifyRequest, reply: FastifyReply) => {
     const ticket = presentedTicket(request);
     if (ticket === undefined) return byCredential(request, reply);
-    const device = await options.access.redeemLiveTicket.execute(
-      { ticket, route: request.client.route },
-      { signal: request.disconnected },
+    const device = await Effect.runPromise(
+      withSignal(
+        options.access.redeemLiveTicket.execute({
+          ticket,
+          route: request.client.route,
+        }),
+        request.disconnected,
+      ),
     );
     if (!device) throw httpErrors.unauthorized('Authentication required');
     request.principal = { kind: 'device', deviceId: device.deviceId };

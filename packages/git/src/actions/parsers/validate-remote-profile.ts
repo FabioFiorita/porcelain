@@ -1,5 +1,5 @@
 import { isAbsolute } from 'node:path';
-import { GitActionRejectedError } from '../errors/git-action-rejected-error.ts';
+import { GitActionRejectedError } from '../../shared/errors/git-action-rejected-error.ts';
 
 const SCP_LIKE = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+:[^\s]+$/u;
 

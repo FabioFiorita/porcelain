@@ -8,5 +8,5 @@ export type GitActionExpectation = {
   inProgress?: 'merge' | 'rebase' | undefined;
   mergeHeadOid?: string | undefined;
   upstream?: UpstreamExpectation | undefined;
-  files?: FingerprintedFile[] | undefined;
+  files?: readonly FingerprintedFile[] | undefined;
 };

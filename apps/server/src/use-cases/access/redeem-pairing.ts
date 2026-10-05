@@ -1,3 +1,8 @@
+import { Effect } from 'effect';
+import type {
+  InvalidPairingError,
+  InvalidDeviceDetailsError,
+} from '@porcelain/access/errors';
 import type { RedeemPairingService } from '@porcelain/access/services';
 import type {
   RedeemPairingInput,
@@ -5,7 +10,6 @@ import type {
 } from '@porcelain/contracts/access';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
 
 export class RedeemPairingUseCase {
   private readonly redeemPairing: RedeemPairingService;
@@ -24,13 +28,16 @@ export class RedeemPairingUseCase {
 
   execute(
     input: RedeemPairingInput,
-    context: OperationContext,
-  ): Promise<RedeemPairingResponse> {
-    return this.lanes.run(
-      this.laneKeys.access(),
-      'write',
-      async () => this.redeemPairing.execute(input),
-      { callerSignal: context.signal },
-    );
+  ): Effect.Effect<
+    RedeemPairingResponse,
+    InvalidPairingError | InvalidDeviceDetailsError
+  > {
+    return Effect.gen({ self: this }, function* () {
+      return yield* this.lanes.run(this.laneKeys.access(), 'write', () =>
+        Effect.gen({ self: this }, function* () {
+          return yield* this.redeemPairing.execute(input);
+        }),
+      );
+    });
   }
 }

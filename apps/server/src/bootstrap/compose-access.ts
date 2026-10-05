@@ -1,3 +1,4 @@
+import { accessRoutes } from '../http/routes/access/access-api.ts';
 import type {
   NetworkAddressReader,
   PairingReachReader,
@@ -117,7 +118,7 @@ export function composeAccess(
     limits.serviceUpdate,
   );
   const authorizeServiceUpdate = new AuthorizeServiceUpdateService(deviceStore);
-  return {
+  const useCases = {
     authenticateDevice: new AuthenticateDeviceUseCase(
       new AuthenticateDeviceService(
         deviceStore,
@@ -309,4 +310,5 @@ export function composeAccess(
       laneKeys,
     ),
   };
+  return { ...useCases, routes: accessRoutes(useCases) };
 }

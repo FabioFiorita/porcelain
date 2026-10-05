@@ -1,8 +1,9 @@
+import { Effect } from 'effect';
+import type { MissingEnvironmentIdentityError } from '@porcelain/access/errors';
 import type { ReadEnvironmentService } from '@porcelain/access/services';
 import type { ReadHealthResponse } from '@porcelain/contracts/access';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
 
 export class ReadHealthUseCase {
   private readonly readEnvironment: ReadEnvironmentService;
@@ -19,15 +20,17 @@ export class ReadHealthUseCase {
     this.laneKeys = laneKeys;
   }
 
-  execute(context: OperationContext): Promise<ReadHealthResponse> {
-    return this.lanes.run(
-      this.laneKeys.access(),
-      'read',
-      async () => {
-        const { environmentId } = this.readEnvironment.execute();
-        return { status: 'ok', environmentId };
-      },
-      { callerSignal: context.signal },
-    );
+  execute(): Effect.Effect<
+    ReadHealthResponse,
+    MissingEnvironmentIdentityError
+  > {
+    return Effect.gen({ self: this }, function* () {
+      return yield* this.lanes.run(this.laneKeys.access(), 'read', () =>
+        Effect.gen({ self: this }, function* () {
+          const { environmentId } = yield* this.readEnvironment.execute();
+          return { status: 'ok' as const, environmentId };
+        }),
+      );
+    });
   }
 }

@@ -16,7 +16,7 @@ import {
   nextCreatePath,
   selectedDirectories,
   topLevelDraggedPaths,
-} from '../rules/tree-actions';
+} from '@porcelain/client/files/rules';
 
 function focusFirstMenuItem(event: KeyboardEvent<HTMLDivElement>) {
   if (event.key !== 'ArrowDown' || event.target !== event.currentTarget) return;

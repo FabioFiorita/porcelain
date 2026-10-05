@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import type {
   RemoteAccessSettings,
@@ -28,7 +29,9 @@ function answeredAfter(
     origins: [],
   });
   const connections = new RecordingTunnelConnectionStore();
-  new CloseTunnelConnectionsService(settings, routes, connections).execute();
+  Effect.runSync(
+    new CloseTunnelConnectionsService(settings, routes, connections).execute(),
+  );
   return connections.retained();
 }
 

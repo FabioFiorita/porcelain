@@ -17,12 +17,12 @@ export type ResolvedStep = Omit<StepDraft, 'pointer'> & {
 };
 
 export type ResolvedLayer = Omit<ReviewLayer, 'steps'> & {
-  steps: ResolvedStep[];
+  steps: readonly ResolvedStep[];
 };
 
 export type UnexplainedChange = {
   path: string;
-  ranges: { startLine: number; endLine: number }[];
+  ranges: readonly { startLine: number; endLine: number }[];
   deleted?: boolean | undefined;
   binary?: boolean | undefined;
 };
@@ -47,13 +47,13 @@ export type ResolvedReview = {
   diagnostics: 'current';
   summary: SummaryGrant;
   diagram?: ReviewDiagram | undefined;
-  layers: ResolvedLayer[];
-  notExplained: UnexplainedChange[];
+  layers: readonly ResolvedLayer[];
+  notExplained: readonly UnexplainedChange[];
   proof: ResolvedProof;
 };
 
 export type ReviewResolution = {
-  changes: ReviewChange[];
+  changes: readonly ReviewChange[];
   diagnostics: ReviewDiagnostics;
-  layers: ResolvedLayer[];
+  layers: readonly ResolvedLayer[];
 };

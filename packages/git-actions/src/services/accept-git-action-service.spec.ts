@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import {
   DiscardExpectationMismatchError,
   DuplicateExpectedFileError,
@@ -46,7 +47,7 @@ function subject(store = new InMemoryGitActionReceiptStore()) {
 describe('AcceptGitActionService', () => {
   it('keeps a running receipt for a new request and hands back the run', () => {
     const { store, service } = subject();
-    const accepted = service.execute(request);
+    const accepted = Effect.runSync(service.execute(request));
     expect(accepted).toEqual({
       kind: 'accepted',
       receipt: {
@@ -72,11 +73,13 @@ describe('AcceptGitActionService', () => {
 
   it('hands back a run that checks the files a commit expects', () => {
     const { service } = subject();
-    const accepted = service.execute({
-      ...request,
-      intent: { action: 'commit', message: 'Fix', paths: ['README.md'] },
-      expected: { ...CLEAN_EXPECTATION, files: [readme] },
-    });
+    const accepted = Effect.runSync(
+      service.execute({
+        ...request,
+        intent: { action: 'commit', message: 'Fix', paths: ['README.md'] },
+        expected: { ...CLEAN_EXPECTATION, files: [readme] },
+      }),
+    );
     expect(accepted.kind === 'accepted' && accepted.run.target).toEqual({
       kind: 'checked',
       paths: ['README.md'],
@@ -85,7 +88,7 @@ describe('AcceptGitActionService', () => {
 
   it('answers a repeated request with its receipt and runs nothing again', () => {
     const { store, service } = subject();
-    service.execute(request);
+    Effect.runSync(service.execute(request));
     const settled = store.read({ requestId: REQUEST_ID });
     if (!settled) throw new Error('receipt missing');
     store.save({
@@ -93,7 +96,7 @@ describe('AcceptGitActionService', () => {
       state: 'succeeded',
       finishedAt: '2026-09-23T12:00:05.000Z',
     });
-    const replay = service.execute(structuredClone(request));
+    const replay = Effect.runSync(service.execute(structuredClone(request)));
     expect(replay.kind).toBe('repeated');
     expect(replay.receipt.state).toBe('succeeded');
     expect(store.all()).toHaveLength(1);
@@ -101,24 +104,28 @@ describe('AcceptGitActionService', () => {
 
   it('refuses a request ID reused for a different action', () => {
     const { service } = subject();
-    service.execute(request);
+    Effect.runSync(service.execute(request));
     expect(() =>
-      service.execute({
-        ...request,
-        intent: {
-          action: 'fetch',
-          remoteName: 'origin',
-          sourceRef: 'refs/heads/other',
-        },
-      }),
+      Effect.runSync(
+        service.execute({
+          ...request,
+          intent: {
+            action: 'fetch',
+            remoteName: 'origin',
+            sourceRef: 'refs/heads/other',
+          },
+        }),
+      ),
     ).toThrow(GitActionReceiptMismatchError);
   });
 
   it('refuses a request ID reused for another worktree', () => {
     const { service } = subject();
-    service.execute(request);
+    Effect.runSync(service.execute(request));
     expect(() =>
-      service.execute({ ...request, worktreeId: 'f'.repeat(32) }),
+      Effect.runSync(
+        service.execute({ ...request, worktreeId: 'f'.repeat(32) }),
+      ),
     ).toThrow(GitActionReceiptMismatchError);
   });
 
@@ -203,7 +210,9 @@ describe('AcceptGitActionService', () => {
     'refuses $name with its own error and keeps nothing',
     ({ change, error }) => {
       const { store, service } = subject();
-      expect(() => service.execute({ ...request, ...change })).toThrow(error);
+      expect(() =>
+        Effect.runSync(service.execute({ ...request, ...change })),
+      ).toThrow(error);
       expect(store.all()).toEqual([]);
     },
   );

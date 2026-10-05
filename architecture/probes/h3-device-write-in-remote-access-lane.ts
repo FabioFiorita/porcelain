@@ -10,8 +10,8 @@ export default {
     {
       kind: 'replace',
       path: 'apps/server/src/use-cases/access/set-device-trust.ts',
-      old: `      this.laneKeys.access(),`,
-      new: `      this.laneKeys.remoteAccess(),`,
+      old: `this.lanes.run(this.laneKeys.access(),`,
+      new: `this.lanes.run(this.laneKeys.remoteAccess(),`,
     },
   ],
 } satisfies Probe;

@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type {
   ListenOutcome,
   RouteAddresses,
@@ -13,15 +14,19 @@ export class InMemoryRouteListenerRunner implements RouteListenerRunner {
     this.ports = { server: serverPort, own: ownPort };
   }
 
-  async listen(input: RouteAddresses): Promise<ListenOutcome> {
-    this.listening.set(input.route, [...input.addresses]);
-    return {
-      port: this.ports[String(input.port)]?.() ?? Number(input.port),
-      bound: [...input.addresses],
-    };
+  listen(input: RouteAddresses): Effect.Effect<ListenOutcome> {
+    return Effect.sync(() => {
+      this.listening.set(input.route, [...input.addresses]);
+      return {
+        port: this.ports[String(input.port)]?.() ?? Number(input.port),
+        bound: [...input.addresses],
+      };
+    });
   }
 
-  async close(input: RouteKey): Promise<void> {
-    this.listening.delete(input.route);
+  close(input: RouteKey): Effect.Effect<void> {
+    return Effect.sync(() => {
+      this.listening.delete(input.route);
+    });
   }
 }

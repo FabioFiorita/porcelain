@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type { Clock } from '@porcelain/kernel/ports';
 import type {
   AuthenticateDeviceInput,
@@ -31,25 +32,29 @@ export class AuthenticateDeviceService {
     this.options = options;
   }
 
-  execute(input: AuthenticateDeviceInput): AuthenticateDeviceResult {
-    const credential = parseCredential('pcd', input.credential);
-    if (!credential) return { kind: 'refused' };
-    const device =
-      this.deviceSightings.find({ deviceId: credential.id }) ??
-      this.devices.find({ deviceId: credential.id });
-    if (
-      !device ||
-      !secretMatches(device.secretHash, credential.secret) ||
-      device.route !== input.route
-    )
-      return { kind: 'refused' };
-    const now = this.clock.now();
-    if (!deviceUsable(device, now, this.options.unusedLifetimeMs))
-      return { kind: 'refused' };
-    if (sightingDue(device, now))
-      this.deviceSightings.save({
-        device: sighted(device, now, input.address),
-      });
-    return { kind: 'authenticated', deviceId: device.id };
+  execute(
+    input: AuthenticateDeviceInput,
+  ): Effect.Effect<AuthenticateDeviceResult, never> {
+    return Effect.sync(() => {
+      const credential = parseCredential('pcd', input.credential);
+      if (!credential) return { kind: 'refused' };
+      const device =
+        this.deviceSightings.find({ deviceId: credential.id }) ??
+        this.devices.find({ deviceId: credential.id });
+      if (
+        !device ||
+        !secretMatches(device.secretHash, credential.secret) ||
+        device.route !== input.route
+      )
+        return { kind: 'refused' };
+      const now = this.clock.now();
+      if (!deviceUsable(device, now, this.options.unusedLifetimeMs))
+        return { kind: 'refused' };
+      if (sightingDue(device, now))
+        this.deviceSightings.save({
+          device: sighted(device, now, input.address),
+        });
+      return { kind: 'authenticated', deviceId: device.id };
+    });
   }
 }

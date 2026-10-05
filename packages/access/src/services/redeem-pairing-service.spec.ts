@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import {
   FixedClock,
@@ -59,11 +60,13 @@ function setup(grant: Partial<StoredPairingGrant> = {}) {
 describe('RedeemPairingService', () => {
   it('turns a code into a device named after its grant', () => {
     const { devices, service, code } = setup();
-    const { device, credential: issued } = service.execute({
-      code,
-      platform: 'iOS',
-      route: 'lan',
-    });
+    const { device, credential: issued } = Effect.runSync(
+      service.execute({
+        code,
+        platform: 'iOS',
+        route: 'lan',
+      }),
+    );
     expect(device).toEqual({
       id: '00000000-0000-4000-8000-000000000001',
       label: 'Phone',
@@ -82,18 +85,22 @@ describe('RedeemPairingService', () => {
 
   it('pairs a trusted device from a trusted grant', () => {
     const { devices, service, code } = setup({ trusted: true });
-    const { device } = service.execute({
-      code,
-      platform: 'macOS',
-      route: 'lan',
-    });
+    const { device } = Effect.runSync(
+      service.execute({
+        code,
+        platform: 'macOS',
+        route: 'lan',
+      }),
+    );
     expect(device.trusted).toBe(true);
     expect(devices.find({ deviceId: device.id })?.trusted).toBe(true);
   });
 
   it('pairs an untrusted device from an ordinary grant', () => {
     const { devices, service, code } = setup({ trusted: false });
-    const { device } = service.execute({ code, platform: 'iOS', route: 'lan' });
+    const { device } = Effect.runSync(
+      service.execute({ code, platform: 'iOS', route: 'lan' }),
+    );
     expect(device.trusted).toBeUndefined();
     expect(devices.find({ deviceId: device.id })?.trusted).toBeUndefined();
   });
@@ -102,7 +109,9 @@ describe('RedeemPairingService', () => {
     'binds the device to the route it was paired over, %s',
     (route) => {
       const { devices, service, code } = setup();
-      const { device } = service.execute({ code, platform: 'iOS', route });
+      const { device } = Effect.runSync(
+        service.execute({ code, platform: 'iOS', route }),
+      );
       expect(device.route).toBe(route);
       expect(devices.find({ deviceId: device.id })?.route).toBe(route);
     },
@@ -110,23 +119,25 @@ describe('RedeemPairingService', () => {
 
   it('names the device with the label it submits, trimmed', () => {
     const { service, code } = setup();
-    const { device } = service.execute({
-      code,
-      platform: ' Browser ',
-      route: 'lan',
-      label: ' Work laptop ',
-    });
+    const { device } = Effect.runSync(
+      service.execute({
+        code,
+        platform: ' Browser ',
+        route: 'lan',
+        label: ' Work laptop ',
+      }),
+    );
     expect(device).toMatchObject({ label: 'Work laptop', platform: 'Browser' });
   });
 
   it('consumes the code, so a second redemption is refused', () => {
     const { devices, grants, service, code } = setup();
-    service.execute({ code, platform: 'iOS', route: 'lan' });
+    Effect.runSync(service.execute({ code, platform: 'iOS', route: 'lan' }));
     expect(grants.find({ grantId })?.redeemedAt).toBe(
       '2026-09-23T10:05:00.000Z',
     );
     expect(() =>
-      service.execute({ code, platform: 'iOS', route: 'lan' }),
+      Effect.runSync(service.execute({ code, platform: 'iOS', route: 'lan' })),
     ).toThrow(InvalidPairingError);
     expect(devices.list()).toHaveLength(1);
   });
@@ -149,7 +160,9 @@ describe('RedeemPairingService', () => {
   ])('refuses $name as an invalid pairing', ({ attempt }) => {
     const { service } = setup();
     expect(() =>
-      service.execute({ code: attempt, platform: 'iOS', route: 'lan' }),
+      Effect.runSync(
+        service.execute({ code: attempt, platform: 'iOS', route: 'lan' }),
+      ),
     ).toThrow(InvalidPairingError);
   });
 
@@ -157,13 +170,24 @@ describe('RedeemPairingService', () => {
     const early = setup();
     early.clock.set('2026-09-23T10:14:59.999Z');
     expect(
-      early.service.execute({ code: early.code, platform: 'iOS', route: 'lan' })
-        .device.label,
+      Effect.runSync(
+        early.service.execute({
+          code: early.code,
+          platform: 'iOS',
+          route: 'lan',
+        }),
+      ).device.label,
     ).toBe('Phone');
     const late = setup();
     late.clock.set('2026-09-23T10:15:00.000Z');
     expect(() =>
-      late.service.execute({ code: late.code, platform: 'iOS', route: 'lan' }),
+      Effect.runSync(
+        late.service.execute({
+          code: late.code,
+          platform: 'iOS',
+          route: 'lan',
+        }),
+      ),
     ).toThrow(InvalidPairingError);
   });
 
@@ -171,24 +195,28 @@ describe('RedeemPairingService', () => {
     const { clock, service, code } = setup();
     clock.set('2026-09-23T09:59:59.999Z');
     expect(() =>
-      service.execute({ code, platform: 'iOS', route: 'lan' }),
+      Effect.runSync(service.execute({ code, platform: 'iOS', route: 'lan' })),
     ).toThrow(InvalidPairingError);
   });
 
   it('refuses a revoked grant', () => {
     const { service, code } = setup({ revokedAt: '2026-09-23T10:01:00.000Z' });
     expect(() =>
-      service.execute({ code, platform: 'iOS', route: 'lan' }),
+      Effect.runSync(service.execute({ code, platform: 'iOS', route: 'lan' })),
     ).toThrow(InvalidPairingError);
   });
 
   it('refuses invalid device details without consuming the code', () => {
     const { devices, grants, service, code } = setup();
     expect(() =>
-      service.execute({ code, platform: 'iOS\u0007', route: 'lan' }),
+      Effect.runSync(
+        service.execute({ code, platform: 'iOS\u0007', route: 'lan' }),
+      ),
     ).toThrow(InvalidDeviceDetailsError);
     expect(() =>
-      service.execute({ code, platform: 'iOS', route: 'lan', label: '  ' }),
+      Effect.runSync(
+        service.execute({ code, platform: 'iOS', route: 'lan', label: '  ' }),
+      ),
     ).toThrow(InvalidDeviceDetailsError);
     expect(grants.find({ grantId })?.redeemedAt).toBeUndefined();
     expect(devices.list()).toEqual([]);

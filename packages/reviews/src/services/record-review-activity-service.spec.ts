@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import type { FileChange } from '@porcelain/kernel/models';
 import type { Review, ReviewEvidence } from '@porcelain/reviews/models';
@@ -86,7 +87,11 @@ function setup(stored: Review) {
 describe('RecordReviewActivityService', () => {
   it('records the review inactive once every line it explains is committed', () => {
     const { store, service } = setup(review());
-    expect(service.execute({ review: review(), evidence: committed })).toEqual({
+    expect(
+      Effect.runSync(
+        service.execute({ review: review(), evidence: committed }),
+      ),
+    ).toEqual({
       changed: true,
     });
     expect(store.read({ worktreeId })?.active).toBe(false);
@@ -94,23 +99,27 @@ describe('RecordReviewActivityService', () => {
 
   it('records the review active again while a line it explains still changes', () => {
     const { store, service } = setup(review({ active: false }));
-    service.execute({
-      review: review({ active: false }),
-      evidence: stillChanged,
-    });
+    Effect.runSync(
+      service.execute({
+        review: review({ active: false }),
+        evidence: stillChanged,
+      }),
+    );
     expect(store.read({ worktreeId })?.active).toBe(true);
   });
 
   it('reports no change while the review stays as active as it was', () => {
     const { service } = setup(review());
     expect(
-      service.execute({ review: review(), evidence: stillChanged }),
+      Effect.runSync(
+        service.execute({ review: review(), evidence: stillChanged }),
+      ),
     ).toEqual({ changed: false });
   });
 
   it('leaves a review published after the one it resolved alone', () => {
     const { store, service } = setup(review({ revision: 2 }));
-    service.execute({ review: review(), evidence: committed });
+    Effect.runSync(service.execute({ review: review(), evidence: committed }));
     expect(store.read({ worktreeId })).toMatchObject({
       revision: 2,
       active: true,

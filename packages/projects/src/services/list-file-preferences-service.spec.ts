@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { InMemoryFilePreferenceStore } from '../../spec/fakes/in-memory-file-preference-store.ts';
 import { ListFilePreferencesService } from './list-file-preferences-service.ts';
@@ -19,7 +20,7 @@ describe('ListFilePreferencesService', () => {
       projectId: 'api',
       preference: { path: 'README.md', pinned: false, hidden: true },
     });
-    expect(service.execute({ projectId: 'api' })).toEqual({
+    expect(Effect.runSync(service.execute({ projectId: 'api' }))).toEqual({
       preferences: [
         { path: 'README.md', pinned: false, hidden: true },
         { path: 'src/b.ts', pinned: true, hidden: false },
@@ -33,6 +34,8 @@ describe('ListFilePreferencesService', () => {
       projectId: 'web',
       preference: { path: 'index.html', pinned: true, hidden: false },
     });
-    expect(service.execute({ projectId: 'api' })).toEqual({ preferences: [] });
+    expect(Effect.runSync(service.execute({ projectId: 'api' }))).toEqual({
+      preferences: [],
+    });
   });
 });

@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import {
   REQUEST_ID,
@@ -13,8 +14,11 @@ describe('RecordGitActionProgressService', () => {
     const store = new InMemoryGitActionReceiptStore([
       sampleReceipt({ progress: ['Counting objects'] }),
     ]);
-    const recorded = new RecordGitActionProgressService(store, options).execute(
-      { requestId: REQUEST_ID, line: 'Receiving objects' },
+    const recorded = Effect.runSync(
+      new RecordGitActionProgressService(store, options).execute({
+        requestId: REQUEST_ID,
+        line: 'Receiving objects',
+      }),
     );
     expect(recorded.kind === 'recorded' && recorded.receipt.progress).toEqual([
       'Counting objects',
@@ -30,10 +34,12 @@ describe('RecordGitActionProgressService', () => {
     const store = new InMemoryGitActionReceiptStore([
       sampleReceipt({ progress: ['one', 'two', 'three'] }),
     ]);
-    new RecordGitActionProgressService(store, options).execute({
-      requestId: REQUEST_ID,
-      line: 'four',
-    });
+    Effect.runSync(
+      new RecordGitActionProgressService(store, options).execute({
+        requestId: REQUEST_ID,
+        line: 'four',
+      }),
+    );
     expect(store.read({ requestId: REQUEST_ID })?.progress).toEqual([
       'two',
       'three',
@@ -49,14 +55,18 @@ describe('RecordGitActionProgressService', () => {
       }),
     ]);
     const service = new RecordGitActionProgressService(store, options);
-    expect(service.execute({ requestId: REQUEST_ID, line: 'late' })).toEqual({
+    expect(
+      Effect.runSync(service.execute({ requestId: REQUEST_ID, line: 'late' })),
+    ).toEqual({
       kind: 'not-running',
     });
     expect(
-      service.execute({
-        requestId: 'e0c7a0f4-3b1c-4b58-9a57-4b3cf6f6b0d1',
-        line: 'stray',
-      }),
+      Effect.runSync(
+        service.execute({
+          requestId: 'e0c7a0f4-3b1c-4b58-9a57-4b3cf6f6b0d1',
+          line: 'stray',
+        }),
+      ),
     ).toEqual({ kind: 'not-running' });
     expect(store.read({ requestId: REQUEST_ID })?.progress).toEqual([]);
   });

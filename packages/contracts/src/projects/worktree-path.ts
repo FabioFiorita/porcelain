@@ -1,17 +1,17 @@
-import { z } from 'zod';
-import { worktreeIdSchema } from '../shared/worktree-params.ts';
+import { Schema } from 'effect';
+import { worktreeIdSchema } from '../shared/schema.ts';
 import { PATH_LENGTH } from '../shared/limits.ts';
 
-const findWorktreeByPathRequestSchema = z.strictObject({
-  path: z.string().min(1).max(PATH_LENGTH),
+const findWorktreeByPathRequestSchema = Schema.Struct({
+  path: Schema.String.check(Schema.isMinLength(1)).check(
+    Schema.isMaxLength(PATH_LENGTH),
+  ),
 });
-const findWorktreeByPathResponseSchema = z.object({
+const findWorktreeByPathResponseSchema = Schema.Struct({
   worktreeId: worktreeIdSchema,
 });
 
-export type FindWorktreeByPathRequest = z.output<
-  typeof findWorktreeByPathRequestSchema
->;
-export type FindWorktreeByPathResponse = z.output<
-  typeof findWorktreeByPathResponseSchema
->;
+export type FindWorktreeByPathRequest =
+  typeof findWorktreeByPathRequestSchema.Type;
+export type FindWorktreeByPathResponse =
+  typeof findWorktreeByPathResponseSchema.Type;

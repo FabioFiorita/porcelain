@@ -5,7 +5,11 @@ import type {
   FindWorktreeByPathUseCasePort,
   WorktreeOperationUseCasePort,
 } from '../../ports/at-worktree-path-use-case-port.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
+import { Effect } from 'effect';
+import type {
+  NoWorktreeAtPathError,
+  ProjectNotFoundError,
+} from '@porcelain/projects/errors';
 
 export class AtWorktreePathUseCase<
   Operation extends WorktreeOperationUseCasePort,
@@ -21,14 +25,19 @@ export class AtWorktreePathUseCase<
     this.operation = operation;
   }
 
-  async execute(
+  execute(
     input: AtPathInput<Operation>,
-    context: OperationContext,
-  ): Promise<AtPathResponse<Operation>> {
-    const { worktreeId } = await this.findWorktreeByPath.execute(
-      { path: input.cwd },
-      context,
-    );
-    return this.operation.execute({ ...input.request, worktreeId }, context);
+  ): Effect.Effect<
+    AtPathResponse<Operation>,
+    | Effect.Error<ReturnType<Operation['execute']>>
+    | NoWorktreeAtPathError
+    | ProjectNotFoundError
+  > {
+    return Effect.gen({ self: this }, function* () {
+      const { worktreeId } = yield* this.findWorktreeByPath.execute({
+        path: input.cwd,
+      });
+      return yield* this.operation.execute({ ...input.request, worktreeId });
+    });
   }
 }

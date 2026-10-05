@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { GitActionNotFoundError } from '@porcelain/git-actions/errors';
 import { FixedClock } from '@porcelain/kernel/fakes';
 import { describe, expect, it } from 'vitest';
@@ -24,7 +25,7 @@ function subject(receipt = sampleReceipt()) {
 describe('InterruptGitActionService', () => {
   it('settles a running action as interrupted with an unknown outcome', () => {
     const { store, service } = subject();
-    const view = service.execute({ requestId: REQUEST_ID });
+    const view = Effect.runSync(service.execute({ requestId: REQUEST_ID }));
     expect(view).toMatchObject({
       state: 'interrupted',
       reason: 'OUTCOME_UNKNOWN',
@@ -42,14 +43,18 @@ describe('InterruptGitActionService', () => {
       finishedAt: '2026-09-23T12:00:00.000Z',
     });
     const { store, service } = subject(settled);
-    expect(service.execute({ requestId: REQUEST_ID }).state).toBe('succeeded');
+    expect(
+      Effect.runSync(service.execute({ requestId: REQUEST_ID })).state,
+    ).toBe('succeeded');
     expect(store.read({ requestId: REQUEST_ID })).toEqual(settled);
   });
 
   it('does not find a request it never accepted', () => {
     const { service } = subject();
     expect(() =>
-      service.execute({ requestId: 'e0c7a0f4-3b1c-4b58-9a57-4b3cf6f6b0d1' }),
+      Effect.runSync(
+        service.execute({ requestId: 'e0c7a0f4-3b1c-4b58-9a57-4b3cf6f6b0d1' }),
+      ),
     ).toThrow(GitActionNotFoundError);
   });
 });

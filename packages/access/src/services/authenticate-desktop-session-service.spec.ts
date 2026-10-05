@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { sha256Hex } from '@porcelain/kernel/rules';
 import { AuthenticateDesktopSessionService } from './authenticate-desktop-session-service.ts';
@@ -10,10 +11,12 @@ describe('AuthenticateDesktopSessionService', () => {
   it('authenticates its private startup credential on loopback', () => {
     const service = new AuthenticateDesktopSessionService(session);
     expect(
-      service.execute({
-        credential: 'private-startup-secret',
-        route: 'loopback',
-      }),
+      Effect.runSync(
+        service.execute({
+          credential: 'private-startup-secret',
+          route: 'loopback',
+        }),
+      ),
     ).toEqual({ kind: 'authenticated', deviceId: 'desktop-session' });
   });
   it.each(['lan', 'tailnet', 'tunnel'] as const)(
@@ -21,7 +24,9 @@ describe('AuthenticateDesktopSessionService', () => {
     (route) => {
       const service = new AuthenticateDesktopSessionService(session);
       expect(
-        service.execute({ credential: 'private-startup-secret', route }),
+        Effect.runSync(
+          service.execute({ credential: 'private-startup-secret', route }),
+        ),
       ).toEqual({ kind: 'refused' });
     },
   );
@@ -29,7 +34,9 @@ describe('AuthenticateDesktopSessionService', () => {
     'refuses a different credential: %s',
     (credential) => {
       const service = new AuthenticateDesktopSessionService(session);
-      expect(service.execute({ credential, route: 'loopback' })).toEqual({
+      expect(
+        Effect.runSync(service.execute({ credential, route: 'loopback' })),
+      ).toEqual({
         kind: 'refused',
       });
     },
@@ -37,10 +44,12 @@ describe('AuthenticateDesktopSessionService', () => {
   it('leaves ordinary servers without a desktop session', () => {
     const service = new AuthenticateDesktopSessionService(undefined);
     expect(
-      service.execute({
-        credential: 'private-startup-secret',
-        route: 'loopback',
-      }),
+      Effect.runSync(
+        service.execute({
+          credential: 'private-startup-secret',
+          route: 'loopback',
+        }),
+      ),
     ).toEqual({ kind: 'refused' });
   });
   it('refuses a previous launch credential after the session changes', () => {
@@ -49,10 +58,12 @@ describe('AuthenticateDesktopSessionService', () => {
       secretHash: sha256Hex('new-startup-secret'),
     });
     expect(
-      service.execute({
-        credential: 'private-startup-secret',
-        route: 'loopback',
-      }),
+      Effect.runSync(
+        service.execute({
+          credential: 'private-startup-secret',
+          route: 'loopback',
+        }),
+      ),
     ).toEqual({ kind: 'refused' });
   });
 });

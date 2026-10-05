@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type { Clock } from '@porcelain/kernel/ports';
 import type {
   RevokeDeviceInput,
@@ -22,11 +23,13 @@ export class RevokeDeviceService {
     this.clock = clock;
   }
 
-  execute(input: RevokeDeviceInput): RevokeDeviceResult {
-    const device = this.devices.find({ deviceId: input.id });
-    if (!device || deviceRevoked(device)) return { kind: 'not-revoked' };
-    this.devices.markRevoked({ device, revokedAt: this.clock.now() });
-    this.deviceSightings.remove({ deviceId: device.id });
-    return { kind: 'revoked' };
+  execute(input: RevokeDeviceInput): Effect.Effect<RevokeDeviceResult, never> {
+    return Effect.sync(() => {
+      const device = this.devices.find({ deviceId: input.id });
+      if (!device || deviceRevoked(device)) return { kind: 'not-revoked' };
+      this.devices.markRevoked({ device, revokedAt: this.clock.now() });
+      this.deviceSightings.remove({ deviceId: device.id });
+      return { kind: 'revoked' };
+    });
   }
 }

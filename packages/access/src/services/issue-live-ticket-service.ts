@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type { Clock, IdSource, SecretSource } from '@porcelain/kernel/ports';
 import { instantAfter, sha256Hex } from '@porcelain/kernel/rules';
 import { DeviceViewerRequiredError } from '../errors/device-viewer-required-error.ts';
@@ -32,30 +33,39 @@ export class IssueLiveTicketService {
     this.options = options;
   }
 
-  execute(input: IssueLiveTicketInput): IssueLiveTicketResult {
-    const { viewer } = input;
-    if (viewer.kind !== 'device') throw new DeviceViewerRequiredError();
-    const now = this.clock.now();
-    const expiresAt = instantAfter(now, this.options.lifetimeMs);
-    const issued = credential(
-      'pct',
-      this.idSource.next(),
-      this.secretSource.next(),
-    );
-    const tickets = liveTicketIssued(
-      this.liveTickets.read(),
-      {
-        id: issued.id,
-        secretHash: sha256Hex(issued.secret),
-        deviceId: viewer.deviceId,
-        route: input.route,
-        expiresAt,
-      },
-      now,
-      this.options,
-    );
-    if (tickets === undefined) throw new TooManyLiveTicketsError();
-    this.liveTickets.save(tickets);
-    return { ticket: issued.token, expiresAt };
+  execute(
+    input: IssueLiveTicketInput,
+  ): Effect.Effect<
+    IssueLiveTicketResult,
+    DeviceViewerRequiredError | TooManyLiveTicketsError
+  > {
+    return Effect.gen({ self: this }, function* () {
+      const { viewer } = input;
+      if (viewer.kind !== 'device')
+        return yield* Effect.fail(new DeviceViewerRequiredError());
+      const now = this.clock.now();
+      const expiresAt = instantAfter(now, this.options.lifetimeMs);
+      const issued = credential(
+        'pct',
+        this.idSource.next(),
+        this.secretSource.next(),
+      );
+      const tickets = liveTicketIssued(
+        this.liveTickets.read(),
+        {
+          id: issued.id,
+          secretHash: sha256Hex(issued.secret),
+          deviceId: viewer.deviceId,
+          route: input.route,
+          expiresAt,
+        },
+        now,
+        this.options,
+      );
+      if (tickets === undefined)
+        return yield* Effect.fail(new TooManyLiveTicketsError());
+      this.liveTickets.save(tickets);
+      return { ticket: issued.token, expiresAt };
+    });
   }
 }

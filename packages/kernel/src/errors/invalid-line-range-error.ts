@@ -1,7 +1,10 @@
-export class InvalidLineRangeError extends Error {
-  override readonly name = 'InvalidLineRangeError';
+import { Schema } from 'effect';
 
-  constructor() {
-    super('The line range ends before it starts');
+export class InvalidLineRangeError extends Schema.TaggedError<InvalidLineRangeError>()(
+  'InvalidLineRangeError',
+  {},
+) {
+  override get message() {
+    return 'The line range ends before it starts';
   }
 }

@@ -1,5 +1,4 @@
-import { redeemPairingEndpoint } from '@porcelain/contracts/access';
-import { endpointPath } from '@porcelain/contracts/shared';
+import { redeemPairingUrl } from '@porcelain/client/access/api';
 import type { Transport } from '@porcelain/client/transport';
 import { reportUnauthorized } from './unauthorized';
 
@@ -18,7 +17,7 @@ export function browserTransport(
     });
     if (
       response.status === 401 &&
-      input !== endpointPath(redeemPairingEndpoint) &&
+      input !== redeemPairingUrl() &&
       options.reportUnauthorized !== false
     )
       reportUnauthorized();

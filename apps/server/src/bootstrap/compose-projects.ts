@@ -1,3 +1,4 @@
+import { projectsRoutes } from '../http/routes/projects/projects-api.ts';
 import type { ProjectFolderReader } from '@porcelain/projects/ports';
 import {
   FindWorktreeAtPathService,
@@ -22,6 +23,8 @@ import {
 } from '@porcelain/projects/services';
 import { GitProjectRepositoryReader } from '../adapters/projects/git-project-repository-reader.ts';
 import { CoalescedWork } from '../runtime/coalesced-work.ts';
+import { WorktreeAccess } from '../runtime/worktree-access.ts';
+import { ReadInventoryBadgesUseCase } from '../use-cases/projects/read-inventory-badges.ts';
 import { BrowseProjectFoldersUseCase } from '../use-cases/projects/browse-project-folders.ts';
 import { CheckWorktreeUseCase } from '../use-cases/projects/check-worktree.ts';
 import { CollectAbsentWorktreesUseCase } from '../use-cases/projects/collect-absent-worktrees.ts';
@@ -85,14 +88,31 @@ export function composeProjects(
       events,
     ),
   );
+  const checkWorktree = new CheckWorktreeUseCase(
+    shared.checkWorktreeService,
+    shared.checkRefreshedWorktree,
+    refreshInventory,
+  );
+  const access = new WorktreeAccess(
+    checkWorktree,
+    shared.confirmWorktree,
+    lanes,
+    laneKeys,
+  );
+  const readBadges = new ReadInventoryBadgesUseCase(
+    access,
+    shared.listReviewedLayerPaths,
+    shared.readTextFilesService,
+    readWorktreeStatuses,
+    lanes,
+    laneKeys,
+  );
 
-  return {
+  const useCases = {
     readInventory: new ReadInventoryUseCase(
       listRegisteredProjects,
       listKnownWorktrees,
-      readWorktreeStatuses,
-      shared.listReviewedLayerPaths,
-      shared.readTextFiles,
+      readBadges,
       shared.readEnvironment,
       shared.readEnvironmentName,
       lanes,
@@ -107,11 +127,7 @@ export function composeProjects(
       laneKeys,
     ),
     refreshInventory,
-    checkWorktree: new CheckWorktreeUseCase(
-      shared.checkWorktreeService,
-      shared.checkRefreshedWorktree,
-      refreshInventory,
-    ),
+    checkWorktree,
     registerProject: new RegisterProjectUseCase(
       new InspectProjectRepositoryService(projectRepositoryReader),
       new ReadRepositoryOriginService(projectRepositoryReader),
@@ -119,9 +135,7 @@ export function composeProjects(
       refreshInventory,
       listRegisteredProjects,
       listKnownWorktrees,
-      readWorktreeStatuses,
-      shared.listReviewedLayerPaths,
-      shared.readTextFiles,
+      readBadges,
       lanes,
       laneKeys,
       events,
@@ -180,4 +194,5 @@ export function composeProjects(
       events,
     ),
   };
+  return { ...useCases, routes: projectsRoutes(useCases) };
 }

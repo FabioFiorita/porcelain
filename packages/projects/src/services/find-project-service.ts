@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type {
   FindProjectInput,
   FindProjectResult,
@@ -11,8 +12,10 @@ export class FindProjectService {
     this.inventory = inventory;
   }
 
-  execute(input: FindProjectInput): FindProjectResult {
-    const project = this.inventory.find({ projectId: input.projectId });
-    return project ? { kind: 'found', project } : { kind: 'missing' };
+  execute(input: FindProjectInput): Effect.Effect<FindProjectResult, never> {
+    return Effect.sync(() => {
+      const project = this.inventory.find({ projectId: input.projectId });
+      return project ? { kind: 'found', project } : { kind: 'missing' };
+    });
   }
 }

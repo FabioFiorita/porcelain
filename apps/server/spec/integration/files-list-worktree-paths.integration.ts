@@ -1,3 +1,4 @@
+import * as Schema from 'effect/Schema';
 import { listWorktreePathsResponseSchema } from '@porcelain/contracts/files';
 import { expect } from 'vitest';
 import {
@@ -22,7 +23,11 @@ test('listing worktree paths answers tracked and untracked files but not ignored
 
   expect(response.status).toBe(200);
   expect(response.body).toEqual(
-    expect.schemaMatching(listWorktreePathsResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(
+        Schema.toEncoded(listWorktreePathsResponseSchema),
+      ),
+    ),
   );
   expect(response.body).toStrictEqual({
     worktreeId: session.worktreeId,

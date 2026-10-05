@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { Schema } from 'effect';
 
-export const mcpPayloadSchema = z.unknown();
-export const mcpAcceptedResponseSchema = z.undefined();
+export const mcpPayloadSchema = Schema.Unknown;
+export const mcpAcceptedResponseSchema = Schema.Undefined;

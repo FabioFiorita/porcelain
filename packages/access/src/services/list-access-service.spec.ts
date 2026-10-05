@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { FixedClock } from '@porcelain/kernel/fakes';
 import type {
@@ -60,7 +61,7 @@ describe('ListAccessService', () => {
       ],
     });
 
-    expect(service.execute().grants).toEqual([
+    expect(Effect.runSync(service.execute()).grants).toEqual([
       {
         id: '1',
         label: 'Grant 1',
@@ -88,7 +89,7 @@ describe('ListAccessService', () => {
     devices.add(device('1'));
     devices.add(device('3', { revokedAt: '2026-09-23T08:00:00.000Z' }));
 
-    expect(service.execute().devices).toEqual([
+    expect(Effect.runSync(service.execute()).devices).toEqual([
       {
         id: '1',
         label: 'Device 1',
@@ -117,9 +118,9 @@ describe('ListAccessService', () => {
     devices.add(device('2', { routeInferred: false }));
 
     expect(
-      service
-        .execute()
-        .devices.map(({ id, routeInferred }) => ({ id, routeInferred })),
+      Effect.runSync(service.execute()).devices.map(
+        ({ id, routeInferred }) => ({ id, routeInferred }),
+      ),
     ).toEqual([
       { id: '1', routeInferred: true },
       { id: '2', routeInferred: undefined },
@@ -132,7 +133,7 @@ describe('ListAccessService', () => {
     devices.add(device('2'));
     grants.add({ grants: [grant('1', { trusted: true }), grant('2')] });
 
-    const listing = service.execute();
+    const listing = Effect.runSync(service.execute());
     expect(listing.devices.map(({ id, trusted }) => ({ id, trusted }))).toEqual(
       [
         { id: '1', trusted: true },
@@ -146,7 +147,10 @@ describe('ListAccessService', () => {
   });
 
   it('lists nothing when nothing was ever paired', () => {
-    expect(setup().service.execute()).toEqual({ grants: [], devices: [] });
+    expect(Effect.runSync(setup().service.execute())).toEqual({
+      grants: [],
+      devices: [],
+    });
   });
 
   it('marks the device that asks as the current one and no other', () => {
@@ -155,9 +159,9 @@ describe('ListAccessService', () => {
     devices.add(device('2'));
 
     expect(
-      service
-        .execute({ viewerDeviceId: '2' })
-        .devices.map(({ id, current }) => ({ id, current })),
+      Effect.runSync(service.execute({ viewerDeviceId: '2' })).devices.map(
+        ({ id, current }) => ({ id, current }),
+      ),
     ).toEqual([
       { id: '1', current: undefined },
       { id: '2', current: true },

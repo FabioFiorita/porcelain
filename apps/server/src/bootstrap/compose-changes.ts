@@ -1,3 +1,6 @@
+import type { Effect } from 'effect';
+import { changesRoutes } from '../http/routes/changes/changes-api.ts';
+import { WorktreeAccess } from '../runtime/worktree-access.ts';
 import {
   CheckCommitService,
   ListBranchBasesService,
@@ -41,6 +44,16 @@ export function composeChanges(
   const { shared } = dependencies;
   const limits = context.settings.limits.changes;
   const { checkWorktree } = dependencies;
+  const access = new WorktreeAccess(
+    checkWorktree,
+    shared.confirmWorktree,
+    lanes,
+    laneKeys,
+  );
+  const statusReads = new SharedReads<
+    Effect.Success<ReturnType<ReadGitStatusUseCase['execute']>>,
+    Effect.Error<ReturnType<ReadGitStatusUseCase['execute']>>
+  >();
   const {
     readEnvironment,
     readWorktreeStatus,
@@ -59,86 +72,60 @@ export function composeChanges(
   const readCommitFiles = new ReadCommitFilesService(commitHistoryReader);
   const checkCommit = new CheckCommitService(commitHistoryReader);
   const readCommitDiffs = new ReadCommitDiffsService(commitHistoryReader);
-  return {
+  const useCases = {
+    statusReads,
     readBranchChanges: new ReadBranchChangesUseCase(
-      checkWorktree,
+      access,
       shared.readBranchChanges,
-      lanes,
-      laneKeys,
     ),
     readBranchDiffs: new ReadBranchDiffsUseCase(
-      checkWorktree,
+      access,
       new ReadBranchDiffsService(branchRangeReader),
-      lanes,
-      laneKeys,
     ),
     listBranchBases: new ListBranchBasesUseCase(
-      checkWorktree,
+      access,
       new ListBranchBasesService(branchRangeReader),
-      lanes,
-      laneKeys,
     ),
     readChanges: new ReadChangesUseCase(
-      checkWorktree,
+      access,
       readWorktreeStatus,
       readChangeFingerprints,
       shared.readInterruptedGitAction,
       readEnvironment,
-      lanes,
-      laneKeys,
     ),
     readChangeDiffs: new ReadChangeDiffsUseCase(
-      checkWorktree,
+      access,
       readWorktreeStatus,
       readChangeFingerprints,
       new CheckDiffSelectionService(),
       new ConfirmDiffObservationService(),
       readChangeDiffs,
       readEnvironment,
-      lanes,
-      laneKeys,
     ),
     readChangeLines: new ReadChangeLinesUseCase(
-      checkWorktree,
-      shared.readTextFile,
+      access,
+      shared.readTextFileService,
       new ReadChangeLinesService(limits.changeLines),
       readEnvironment,
-      lanes,
-      laneKeys,
     ),
     readGitStatus: new ReadGitStatusUseCase(
-      checkWorktree,
+      access,
       readWorktreeStatus,
       readBranchDetails,
       readEnvironment,
-      lanes,
-      laneKeys,
-      new SharedReads(),
+      statusReads,
     ),
-    listCommits: new ListCommitsUseCase(
-      checkWorktree,
-      listCommits,
-      lanes,
-      laneKeys,
-    ),
+    listCommits: new ListCommitsUseCase(access, listCommits),
     listFileCommits: new ListFileCommitsUseCase(
-      checkWorktree,
+      access,
       new ListFileCommitsService(commitHistoryReader),
-      lanes,
-      laneKeys,
     ),
-    readCommitFiles: new ReadCommitFilesUseCase(
-      checkWorktree,
-      readCommitFiles,
-      lanes,
-      laneKeys,
-    ),
+    readCommitFiles: new ReadCommitFilesUseCase(access, readCommitFiles),
     readCommitDiffs: new ReadCommitDiffsUseCase(
-      checkWorktree,
+      access,
       checkCommit,
       readCommitDiffs,
-      lanes,
-      laneKeys,
     ),
   };
+  return { ...useCases, routes: changesRoutes(useCases) };
 }

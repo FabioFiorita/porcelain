@@ -1,7 +1,6 @@
 ---
 route: /
 selectors:
-  - "Mark all 2 files reviewed"
   - "Mark all reviewed"
   - "Unmark "
   - "Marked "

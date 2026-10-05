@@ -1,3 +1,4 @@
+import type { selectedWorktreeInProject } from '@porcelain/client/projects/rules';
 import { detectPlatform, useHotkey } from '@tanstack/react-hotkeys';
 import { useNavigate } from '@tanstack/react-router';
 import { type ReactNode, type RefObject, useRef, useState } from 'react';
@@ -13,17 +14,16 @@ import {
   useConnectedContext,
   useRemoteConnections,
   type RemoteConnection,
-  type RemoteStatus,
 } from '@/features/access/index';
+import { type RemoteStatus } from '@porcelain/client/access/rules';
 import {
   openProjectDialog,
   ProjectNavigator,
   ProjectWorkspace,
   useInventory,
-  type Inventory,
-  type selectedWorktreeInProject,
   type WorktreeTarget,
 } from '@/features/projects/index';
+import { type Inventory } from '@porcelain/client/projects/rules';
 import { ReviewWorkspace, workspaceTitle } from '@/features/reviews/index';
 import { useDocumentTitle } from '@/shared/hooks/use-document-title';
 import {

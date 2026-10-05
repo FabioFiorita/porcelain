@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type {
   CollectAbsentWorktreesService,
   ListExpiredWorktreesService,
@@ -5,7 +6,6 @@ import type {
 import type { EventPublisher } from '../../ports/event-publisher.ts';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
 
 export class CollectAbsentWorktreesUseCase {
   private readonly listExpiredWorktrees: ListExpiredWorktreesService;
@@ -28,24 +28,24 @@ export class CollectAbsentWorktreesUseCase {
     this.events = events;
   }
 
-  async execute(context: OperationContext): Promise<void> {
-    const { worktrees } = await this.lanes.run(
-      this.laneKeys.inventory(),
-      'read',
-      async () => this.listExpiredWorktrees.execute(),
-      { callerSignal: context.signal },
-    );
-    const collected: string[] = [];
-    for (const worktree of worktrees) {
-      const result = await this.lanes.run(
-        this.laneKeys.repository(worktree),
-        'write',
-        async () =>
-          this.collectAbsentWorktrees.execute({ worktreeIds: [worktree.id] }),
-        { callerSignal: context.signal },
+  execute(): Effect.Effect<void> {
+    return Effect.gen({ self: this }, function* () {
+      const { worktrees } = yield* this.lanes.run(
+        this.laneKeys.inventory(),
+        'read',
+        () => this.listExpiredWorktrees.execute(),
       );
-      collected.push(...result.collected);
-    }
-    if (collected.length > 0) this.events.inventoryChanged();
+      const collected: string[] = [];
+      for (const worktree of worktrees) {
+        const result = yield* this.lanes.run(
+          this.laneKeys.repository(worktree),
+          'write',
+          () =>
+            this.collectAbsentWorktrees.execute({ worktreeIds: [worktree.id] }),
+        );
+        collected.push(...result.collected);
+      }
+      if (collected.length > 0) this.events.inventoryChanged();
+    });
   }
 }

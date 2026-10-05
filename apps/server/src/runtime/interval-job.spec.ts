@@ -1,143 +1,176 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from '@effect/vitest';
+import { Effect } from 'effect';
+import { TestClock } from 'effect/testing';
+import { nativeOperation } from '@porcelain/effects';
 import { IntervalJob } from './interval-job.ts';
-
-function settle(ms = 20): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
 
 function reporting() {
   const reports: unknown[] = [];
   return {
     reports,
-    logger: { failure: (report: unknown) => reports.push(report) },
-  };
-}
-
-function counting(
-  work: (signal: AbortSignal) => Promise<void> = async () => undefined,
-) {
-  const runs: AbortSignal[] = [];
-  return {
-    runs,
-    work: {
-      execute: async (context: { signal?: AbortSignal | undefined }) => {
-        const signal = context.signal ?? new AbortController().signal;
-        runs.push(signal);
-        await work(signal);
+    logger: {
+      failure: (report: unknown) => {
+        reports.push(report);
       },
     },
   };
 }
 
+function counting(
+  work: (signal: AbortSignal) => Promise<void> = () => Promise.resolve(),
+) {
+  const runs: AbortSignal[] = [];
+  return {
+    runs,
+    work: {
+      execute: () =>
+        nativeOperation((signal) => {
+          runs.push(signal);
+          return work(signal);
+        }),
+    },
+  };
+}
+
 describe('IntervalJob', () => {
-  it('runs its work once when it starts, if scheduled at start', async () => {
-    const { runs, work } = counting();
-    const job = new IntervalJob(
-      'job',
-      work,
-      { atStart: true },
-      reporting().logger,
-    );
-    job.start();
-    await settle();
-    await job.stop();
-    expect(runs).toHaveLength(1);
-  });
+  it.effect('runs once at start when scheduled at start', () =>
+    Effect.gen(function* () {
+      const { runs, work } = counting();
+      const job = new IntervalJob(
+        'job',
+        work,
+        { atStart: true },
+        reporting().logger,
+        yield* Effect.context(),
+      );
+      job.start();
+      yield* Effect.promise(() => job.stop());
+      expect(runs).toHaveLength(1);
+    }),
+  );
 
-  it('runs its work again on every interval', async () => {
-    const { runs, work } = counting();
-    const job = new IntervalJob(
-      'job',
-      work,
-      { everyMs: 2 },
-      reporting().logger,
-    );
-    job.start();
-    await settle(40);
-    await job.stop();
-    expect(runs.length).toBeGreaterThanOrEqual(2);
-  });
+  it.effect('starts at the first deadline and repeats at a fixed cadence', () =>
+    Effect.gen(function* () {
+      const { runs, work } = counting();
+      const job = new IntervalJob(
+        'job',
+        work,
+        { everyMs: 1000 },
+        reporting().logger,
+        yield* Effect.context(),
+      );
+      yield* Effect.addFinalizer(() => Effect.promise(() => job.stop()));
+      job.start();
+      yield* TestClock.adjust(999);
+      expect(runs).toHaveLength(0);
+      yield* TestClock.adjust(1);
+      expect(runs).toHaveLength(1);
+      yield* TestClock.adjust(2000);
+      expect(runs).toHaveLength(3);
+    }),
+  );
 
-  it('never starts a run while the previous one is still going', async () => {
-    const release = Promise.withResolvers<void>();
-    const { runs, work } = counting(() => release.promise);
-    const job = new IntervalJob(
-      'job',
-      work,
-      { atStart: true, everyMs: 2 },
-      reporting().logger,
-    );
-    job.start();
-    await settle(40);
-    release.resolve();
-    await job.stop();
-    expect(runs).toHaveLength(1);
-  });
+  it.effect('never overlaps a run even when multiple deadlines pass', () =>
+    Effect.gen(function* () {
+      const release = Promise.withResolvers<void>();
+      const { runs, work } = counting(() => release.promise);
+      const job = new IntervalJob(
+        'job',
+        work,
+        { atStart: true, everyMs: 1000 },
+        reporting().logger,
+        yield* Effect.context(),
+      );
+      job.start();
+      yield* TestClock.adjust(4000);
+      expect(runs).toHaveLength(1);
+      release.resolve();
+      yield* Effect.promise(() => job.stop());
+    }),
+  );
 
-  it('aborts the running work when it stops and waits for it to settle', async () => {
-    const settled = { value: false };
-    const { runs, work } = counting(
-      (signal) =>
-        new Promise<void>((resolve) =>
-          signal.addEventListener('abort', () => {
-            settled.value = true;
-            resolve();
-          }),
-        ),
-    );
-    const job = new IntervalJob(
-      'job',
-      work,
-      { atStart: true },
-      reporting().logger,
-    );
-    job.start();
-    await job.stop();
-    expect([runs[0]?.aborted, settled.value]).toEqual([true, true]);
-  });
+  it.effect(
+    'aborts running work and holds stop until its native cleanup settles',
+    () =>
+      Effect.gen(function* () {
+        const aborted = Promise.withResolvers<void>();
+        const cleanup = Promise.withResolvers<void>();
+        const { runs, work } = counting((signal) => {
+          signal.addEventListener('abort', () => aborted.resolve(), {
+            once: true,
+          });
+          return cleanup.promise;
+        });
+        const job = new IntervalJob(
+          'job',
+          work,
+          { atStart: true },
+          reporting().logger,
+          yield* Effect.context(),
+        );
+        job.start();
+        let stopped = false;
+        const stopping = job.stop().then(() => {
+          stopped = true;
+        });
+        yield* Effect.promise(() => aborted.promise);
+        expect(runs[0]?.aborted).toBe(true);
+        expect(stopped).toBe(false);
+        cleanup.resolve();
+        yield* Effect.promise(() => stopping);
+        expect(stopped).toBe(true);
+      }),
+  );
 
-  it('reports a failing run to the logger under its name', async () => {
-    const failure = new Error('refresh failed');
-    const { reports, logger } = reporting();
-    const { work } = counting(() => Promise.reject(failure));
-    const job = new IntervalJob(
-      'refresh-inventory',
-      work,
-      { atStart: true },
-      logger,
-    );
-    job.start();
-    await settle();
-    await job.stop();
-    expect(reports).toEqual([
-      { kind: 'job', job: 'refresh-inventory', error: failure },
-    ]);
-  });
+  it.effect('reports a failing run under its job name', () =>
+    Effect.gen(function* () {
+      const failure = new Error('refresh failed');
+      const { reports, logger } = reporting();
+      const work = { execute: () => Effect.fail(failure) };
+      const job = new IntervalJob(
+        'refresh-inventory',
+        work,
+        { atStart: true },
+        logger,
+        yield* Effect.context(),
+      );
+      job.start();
+      yield* Effect.promise(() => job.stop());
+      expect(reports).toEqual([
+        { kind: 'job', job: 'refresh-inventory', error: failure },
+      ]);
+    }),
+  );
 
-  it('does not report a run that failed because it was stopped', async () => {
-    const { reports, logger } = reporting();
-    const { work } = counting(
-      (signal) =>
-        new Promise<void>((_resolve, reject) =>
-          signal.addEventListener('abort', () => reject(signal.reason)),
-        ),
-    );
-    const job = new IntervalJob('job', work, { atStart: true }, logger);
-    job.start();
-    await job.stop();
-    expect(reports).toEqual([]);
-  });
+  it.effect('does not report interruption caused by stopping', () =>
+    Effect.gen(function* () {
+      const { reports, logger } = reporting();
+      const job = new IntervalJob(
+        'job',
+        { execute: () => Effect.never },
+        { atStart: true },
+        logger,
+        yield* Effect.context(),
+      );
+      job.start();
+      yield* Effect.promise(() => job.stop());
+      expect(reports).toEqual([]);
+    }),
+  );
 
-  it('runs a final time with a live signal when it stops, if scheduled at stop', async () => {
-    const { runs, work } = counting();
-    const job = new IntervalJob(
-      'job',
-      work,
-      { atStop: true },
-      reporting().logger,
-    );
-    job.start();
-    await job.stop();
-    expect(runs.map((signal) => signal.aborted)).toEqual([false]);
-  });
+  it.effect('runs once at stop with a live native signal', () =>
+    Effect.gen(function* () {
+      const { runs, work } = counting();
+      const job = new IntervalJob(
+        'job',
+        work,
+        { atStop: true },
+        reporting().logger,
+        yield* Effect.context(),
+      );
+      job.start();
+      yield* Effect.promise(() => job.stop());
+      expect(runs.map((signal) => signal.aborted)).toEqual([false]);
+    }),
+  );
 });

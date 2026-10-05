@@ -1,3 +1,6 @@
+import { Effect } from 'effect';
+import type { WorktreeAccess } from '../../runtime/worktree-access.ts';
+import type { WorktreeAccessFailure } from '../../ports/worktree-access-failure.ts';
 import type {
   RemoveReviewedLayerQuery,
   RemoveReviewedLayerResponse,
@@ -10,77 +13,62 @@ import type {
   RemoveReviewedLayerService,
 } from '@porcelain/reviews/services';
 import type { EventPublisher } from '../../ports/event-publisher.ts';
-import type { LaneKeys } from '../../runtime/lane-keys.ts';
-import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
-import type { CheckWorktreeUseCasePort } from '../../ports/check-worktree-use-case-port.ts';
 
 export class RemoveReviewedLayerUseCase {
-  private readonly checkWorktree: CheckWorktreeUseCasePort;
+  private readonly access: WorktreeAccess;
   private readonly removeReviewedLayer: RemoveReviewedLayerService;
   private readonly listReviewedLayerPaths: ListReviewedLayerPathsService;
   private readonly readTextFiles: ReadTextFilesService;
   private readonly listReviewedLayers: ListReviewedLayersService;
-  private readonly lanes: Lanes;
-  private readonly laneKeys: LaneKeys;
   private readonly events: EventPublisher;
 
   constructor(
-    checkWorktree: CheckWorktreeUseCasePort,
+    access: WorktreeAccess,
     removeReviewedLayer: RemoveReviewedLayerService,
     listReviewedLayerPaths: ListReviewedLayerPathsService,
     readTextFiles: ReadTextFilesService,
     listReviewedLayers: ListReviewedLayersService,
-    lanes: Lanes,
-    laneKeys: LaneKeys,
     events: EventPublisher,
   ) {
-    this.checkWorktree = checkWorktree;
+    this.access = access;
     this.removeReviewedLayer = removeReviewedLayer;
     this.listReviewedLayerPaths = listReviewedLayerPaths;
     this.readTextFiles = readTextFiles;
     this.listReviewedLayers = listReviewedLayers;
-    this.lanes = lanes;
-    this.laneKeys = laneKeys;
     this.events = events;
   }
 
-  async execute(
+  execute(
     input: WorktreeParams & RemoveReviewedLayerQuery,
-    context: OperationContext,
-  ): Promise<RemoveReviewedLayerResponse> {
+  ): Effect.Effect<RemoveReviewedLayerResponse, WorktreeAccessFailure> {
     const { worktreeId } = input;
-    const worktree = await this.checkWorktree.execute(
-      { worktreeId, requireAvailableProject: false },
-      context,
-    );
-    const result = await this.lanes.run(
-      this.laneKeys.reviews(worktree),
-      'write',
-      async ({ signal }) => {
-        const { removed } = this.removeReviewedLayer.execute(input);
-        return {
-          removed,
-          ...this.listReviewedLayers.execute({
-            worktreeId,
-            texts: (
-              await this.readTextFiles.execute(
-                {
-                  worktreeId,
-                  paths: this.listReviewedLayerPaths.execute({ worktreeId })
-                    .paths,
-                },
-                signal,
-              )
-            ).texts,
+    return this.access
+      .transaction(
+        worktreeId,
+        () =>
+          Effect.gen({ self: this }, function* () {
+            const { paths } = yield* this.listReviewedLayerPaths.execute({
+              worktreeId,
+            });
+            return yield* this.readTextFiles.execute({ worktreeId, paths });
           }),
-        };
-      },
-      { callerSignal: context.signal },
-    );
-    const { removed, ...response } = result;
-    if (removed)
-      this.events.worktreeChanged({ worktreeId, change: 'reviewed' });
-    return response;
+        ({ texts }) =>
+          Effect.gen({ self: this }, function* () {
+            const { removed } = yield* this.removeReviewedLayer.execute(input);
+            return {
+              removed,
+              ...(yield* this.listReviewedLayers.execute({
+                worktreeId,
+                texts,
+              })),
+            };
+          }),
+        ({ removed }) =>
+          Effect.sync(() => {
+            if (removed)
+              this.events.worktreeChanged({ worktreeId, change: 'reviewed' });
+          }),
+      )
+      .pipe(Effect.map(({ removed, ...response }) => response));
   }
 }

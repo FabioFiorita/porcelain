@@ -1,10 +1,11 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { runRequest } from '@porcelain/client/transport';
 import { asMutation } from '@/shared/query/mutation';
 import type {
   CommitDraft,
   CommitDraftInput,
   GitScope,
-} from '../rules/git-action';
+} from '@porcelain/client/git-actions/rules';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 import { gitActionCommands } from '@porcelain/client/git-actions';
 
@@ -21,7 +22,7 @@ export function useCommitDraft(
         signal,
         ...input
       }: CommitDraftInput & { signal?: AbortSignal }) =>
-        commands.draft(input, signal),
+        runRequest(commands.draft(input), connection.request(signal).signal),
     }),
   );
   return {

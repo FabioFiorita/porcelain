@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type {
   ProjectRepository,
   RepositoryLocation,
@@ -18,13 +19,17 @@ export class ScriptedProjectRepositoryReader implements ProjectRepositoryReader 
     this.origins = new Map(Object.entries(stored.origins ?? {}));
   }
 
-  async find(
+  find(
     input: RepositoryLocation,
-  ): Promise<ProjectRepository | undefined> {
-    return this.repositories.get(input.path);
+  ): Effect.Effect<ProjectRepository | undefined> {
+    return Effect.sync(() => {
+      return this.repositories.get(input.path);
+    });
   }
 
-  async readOriginUrl(input: RepositoryLocation): Promise<string | undefined> {
-    return this.origins.get(input.path);
+  readOriginUrl(input: RepositoryLocation): Effect.Effect<string | undefined> {
+    return Effect.sync(() => {
+      return this.origins.get(input.path);
+    });
   }
 }

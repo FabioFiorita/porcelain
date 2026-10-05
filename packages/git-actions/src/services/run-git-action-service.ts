@@ -1,3 +1,5 @@
+import { Effect } from 'effect';
+import type { WorktreeRead, WorktreeWrite } from '@porcelain/effects/worktree';
 import type { FileChange } from '@porcelain/kernel/models';
 import type { GitActionOutcome } from '../models/git-action-outcome.ts';
 import type {
@@ -12,32 +14,33 @@ import type { GitActionRunner } from '../ports/git-action-runner.ts';
 import { expectsWholeChangeList } from '../rules/expects-whole-change-list.ts';
 import { targetMatchesExpectation } from '../rules/target-matches-expectation.ts';
 
-export class RunGitActionService {
-  private readonly gitActionRunner: GitActionRunner;
+export class RunGitActionService<E = never> {
+  private readonly gitActionRunner: GitActionRunner<E>;
 
-  constructor(gitActionRunner: GitActionRunner) {
+  constructor(gitActionRunner: GitActionRunner<E>) {
     this.gitActionRunner = gitActionRunner;
   }
 
-  async execute(
+  execute(
     input: RunGitActionInput,
-    signal?: AbortSignal,
-  ): Promise<RunGitActionResult> {
-    const { run } = input;
-    const outcome = this.targetMatches(run, input.changes)
-      ? this.outcome(
-          await this.gitActionRunner.run(
-            { run, onProgress: input.onProgress },
-            signal,
-          ),
-        )
-      : this.changedSinceLooked();
-    return {
-      outcome,
-      reviewStale:
-        (run.intent.action === 'commit' || run.intent.action === 'amend') &&
-        outcome.state === 'succeeded',
-    };
+  ): Effect.Effect<RunGitActionResult, E, WorktreeRead | WorktreeWrite> {
+    return Effect.gen({ self: this }, function* () {
+      const { run } = input;
+      const outcome = this.targetMatches(run, input.changes)
+        ? this.outcome(
+            yield* this.gitActionRunner.run({
+              run,
+              onProgress: input.onProgress,
+            }),
+          )
+        : this.changedSinceLooked();
+      return {
+        outcome,
+        reviewStale:
+          (run.intent.action === 'commit' || run.intent.action === 'amend') &&
+          outcome.state === 'succeeded',
+      };
+    });
   }
 
   private targetMatches(

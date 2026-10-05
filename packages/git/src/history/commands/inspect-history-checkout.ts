@@ -11,7 +11,7 @@ import type {
   HistoryCheckout,
   HistorySnapshot,
 } from '../dtos/commit-history.ts';
-import { HistoryWorktreeUnavailableError } from '../errors/history-worktree-unavailable-error.ts';
+import { HistoryWorktreeUnavailableError } from '../../shared/errors/history-worktree-unavailable-error.ts';
 
 export async function confirmHistoryCheckout(
   checkout: HistoryCheckout,

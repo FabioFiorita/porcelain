@@ -1,9 +1,6 @@
+import { InvalidGitDiffError } from '../../shared/errors/invalid-git-diff-error.ts';
 import type { GitLimits } from '../../shared/dtos/git-limits.ts';
-import {
-  InvalidGitDiffError,
-  parseRawDiff,
-  type RawDiffEntry,
-} from '../../inspection/index.ts';
+import { parseRawDiff, type RawDiffEntry } from '../../inspection/index.ts';
 import { isOid } from '../../shared/parsers/oid.ts';
 import type {
   CommitFile,
@@ -11,9 +8,9 @@ import type {
   CommitFilesRequest,
   HistoryCheckout,
 } from '../dtos/commit-history.ts';
-import { InvalidHistoryRequestError } from '../errors/invalid-history-request-error.ts';
-import { ReadLimitExceededError } from '../errors/read-limit-exceeded-error.ts';
-import { UnsupportedHistoryDataError } from '../errors/unsupported-history-data-error.ts';
+import { InvalidHistoryRequestError } from '../../shared/errors/invalid-history-request-error.ts';
+import { ReadLimitExceededError } from '../../shared/errors/read-limit-exceeded-error.ts';
+import { UnsupportedHistoryDataError } from '../../shared/errors/unsupported-history-data-error.ts';
 import { decodeHistory } from '../parsers/decode-history.ts';
 import {
   COMMIT_FIELDS,

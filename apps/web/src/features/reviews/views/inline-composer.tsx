@@ -9,8 +9,11 @@ import {
   anchorPath,
   commentBodyValid,
   retainIntent,
-} from '../rules/comments';
-import { reviewErrorMessage, type ReviewScope } from '../rules/review';
+} from '@porcelain/client/reviews/rules';
+import {
+  reviewErrorMessage,
+  type ReviewScope,
+} from '@porcelain/client/reviews/rules';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
 export function InlineComposer({

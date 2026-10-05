@@ -1,8 +1,8 @@
+import { Effect } from 'effect';
 import type { RefundPairingAttemptInput } from '@porcelain/access/models';
 import type { RefundPairingAttemptService } from '@porcelain/access/services';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
 
 export class RefundPairingAttemptUseCase {
   private readonly refundPairingAttempt: RefundPairingAttemptService;
@@ -19,15 +19,13 @@ export class RefundPairingAttemptUseCase {
     this.laneKeys = laneKeys;
   }
 
-  execute(
-    input: RefundPairingAttemptInput,
-    context: OperationContext,
-  ): Promise<void> {
-    return this.lanes.run(
-      this.laneKeys.access(),
-      'write',
-      async () => this.refundPairingAttempt.execute(input),
-      { callerSignal: context.signal },
-    );
+  execute(input: RefundPairingAttemptInput): Effect.Effect<void, never> {
+    return Effect.gen({ self: this }, function* () {
+      return yield* this.lanes.run(this.laneKeys.access(), 'write', () =>
+        Effect.gen({ self: this }, function* () {
+          return yield* this.refundPairingAttempt.execute(input);
+        }),
+      );
+    });
   }
 }

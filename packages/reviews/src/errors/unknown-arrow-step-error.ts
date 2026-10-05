@@ -1,7 +1,10 @@
-export class UnknownArrowStepError extends Error {
-  override readonly name = 'UnknownArrowStepError';
+import { Schema } from 'effect';
 
-  constructor() {
-    super('A layer arrow joins a step its layer does not have');
+export class UnknownArrowStepError extends Schema.TaggedError<UnknownArrowStepError>()(
+  'UnknownArrowStepError',
+  {},
+) {
+  override get message() {
+    return 'A layer arrow joins a step its layer does not have';
   }
 }

@@ -12,6 +12,7 @@ const caseModifiers = new Set([
   'runIf',
   'each',
   'for',
+  'effect',
 ]);
 const assertionEntries = new Set(['soft', 'poll', 'element']);
 const equalityMatchers = new Set(['toBe', 'toEqual', 'toStrictEqual']);

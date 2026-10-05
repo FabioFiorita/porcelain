@@ -1,4 +1,6 @@
-import { editFile, refreshFileEdit } from '@porcelain/client/files';
+import { filesApi } from '@porcelain/client/files/api';
+import { runRequest } from '@porcelain/client/transport';
+import { refreshFileEdit } from '@porcelain/client/files';
 import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { expect } from 'vitest';
@@ -53,7 +55,10 @@ test('missing files retain the server error and binary files explain why text is
       ...textQueryOptions(scope, connected, 'missing.md'),
       retry: false,
     }),
-  ).rejects.toMatchObject({ status: 404 });
+  ).rejects.toMatchObject({
+    _tag: 'PathNotFoundError',
+    message: 'Path not found',
+  });
   await expect(
     cache.query({
       ...textQueryOptions(scope, connected, 'binary.dat'),
@@ -82,14 +87,18 @@ test('save exact text through the shared writer and refuse an older fingerprint'
     text: 'Saved by the shared client.\n',
     expectedFingerprint: original.contentFingerprint,
   };
-  const saved = await editFile(
-    connected,
-    scope,
-    input,
+  const saved = await runRequest(
+    filesApi(connected).editFile({
+      params: { worktreeId: scope.worktreeId },
+      payload: input,
+    }),
     connected.request().signal,
   );
   expect(saved.contentFingerprint).not.toBe(original.contentFingerprint);
-  await refreshFileEdit(cache, connected, scope, input);
+  await runRequest(
+    refreshFileEdit(cache, connected, scope, input),
+    connected.request().signal,
+  );
   const current = await cache.query(
     textQueryOptions(scope, connected, session.fixture.readme.path),
   );
@@ -98,13 +107,17 @@ test('save exact text through the shared writer and refuse an older fingerprint'
     contentFingerprint: saved.contentFingerprint,
   });
   await expect(
-    editFile(
-      connected,
-      scope,
-      { ...input, text: 'Overwrite with an old fingerprint.\n' },
+    runRequest(
+      filesApi(connected).editFile({
+        params: { worktreeId: scope.worktreeId },
+        payload: { ...input, text: 'Overwrite with an old fingerprint.\n' },
+      }),
       connected.request().signal,
     ),
-  ).rejects.toMatchObject({ status: 409, code: 'content_changed' });
+  ).rejects.toMatchObject({
+    _tag: 'ContentChangedError',
+    message: 'Content changed; retry the operation',
+  });
   expect(
     await cache.query(
       textQueryOptions(scope, connected, session.fixture.readme.path),

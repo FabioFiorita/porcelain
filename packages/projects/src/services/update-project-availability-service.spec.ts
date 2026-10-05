@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { ProjectNotFoundError } from '@porcelain/projects/errors';
 import type { RegisteredProject } from '@porcelain/projects/models';
@@ -27,14 +28,18 @@ function listing(available: boolean) {
 describe('UpdateProjectAvailabilityService', () => {
   it('stores the availability the listing observed', () => {
     const store = new InMemoryInventoryStore([project]);
-    new UpdateProjectAvailabilityService(store).execute(listing(true));
+    Effect.runSync(
+      new UpdateProjectAvailabilityService(store).execute(listing(true)),
+    );
     expect(store.read().projects).toEqual([{ ...project, available: true }]);
   });
 
   it('keeps the rest of the stored project, including a rename made while listing', () => {
     const store = new InMemoryInventoryStore([project]);
     store.save({ ...project, name: 'Renamed meanwhile' });
-    new UpdateProjectAvailabilityService(store).execute(listing(true));
+    Effect.runSync(
+      new UpdateProjectAvailabilityService(store).execute(listing(true)),
+    );
     expect(store.read().projects[0]?.name).toBe('Renamed meanwhile');
   });
 
@@ -42,14 +47,18 @@ describe('UpdateProjectAvailabilityService', () => {
     const store = new InMemoryInventoryStore([project]);
     store.remove({ projectId: project.id });
     expect(() =>
-      new UpdateProjectAvailabilityService(store).execute(listing(true)),
+      Effect.runSync(
+        new UpdateProjectAvailabilityService(store).execute(listing(true)),
+      ),
     ).toThrow(ProjectNotFoundError);
     expect(store.read().projects).toEqual([]);
   });
 
   it('marks a listed project unavailable when the listing could not reach it', () => {
     const store = new InMemoryInventoryStore([{ ...project, available: true }]);
-    new UpdateProjectAvailabilityService(store).execute(listing(false));
+    Effect.runSync(
+      new UpdateProjectAvailabilityService(store).execute(listing(false)),
+    );
     expect(store.read().projects[0]?.available).toBe(false);
   });
 });

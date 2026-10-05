@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { ProjectNotFoundError } from '@porcelain/projects/errors';
 import type { RegisteredProject } from '@porcelain/projects/models';
@@ -17,17 +18,21 @@ const project: RegisteredProject = {
 describe('CheckProjectService', () => {
   it('answers a registered project, available or not', () => {
     expect(
-      new CheckProjectService(new InMemoryInventoryStore([project])).execute({
-        projectId: project.id,
-      }),
+      Effect.runSync(
+        new CheckProjectService(new InMemoryInventoryStore([project])).execute({
+          projectId: project.id,
+        }),
+      ),
     ).toEqual(project);
   });
 
   it('refuses a project that is not registered', () => {
     expect(() =>
-      new CheckProjectService(new InMemoryInventoryStore([project])).execute({
-        projectId: 'project-2',
-      }),
+      Effect.runSync(
+        new CheckProjectService(new InMemoryInventoryStore([project])).execute({
+          projectId: 'project-2',
+        }),
+      ),
     ).toThrow(ProjectNotFoundError);
   });
 });

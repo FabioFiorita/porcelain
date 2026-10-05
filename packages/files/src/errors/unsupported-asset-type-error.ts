@@ -1,7 +1,10 @@
-export class UnsupportedAssetTypeError extends Error {
-  override readonly name = 'UnsupportedAssetTypeError';
+import { Schema } from 'effect';
 
-  constructor() {
-    super('File type cannot be previewed');
+export class UnsupportedAssetTypeError extends Schema.TaggedError<UnsupportedAssetTypeError>()(
+  'UnsupportedAssetTypeError',
+  {},
+) {
+  override get message() {
+    return 'File type cannot be previewed';
   }
 }

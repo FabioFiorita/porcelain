@@ -1,4 +1,8 @@
-import { createWriteQueue } from '../../shared/api/write-queue.ts';
+import { Effect } from 'effect';
+import {
+  createWriteQueue,
+  type WriteNotSentError,
+} from '../../shared/api/write-queue.ts';
 import { createStore } from 'zustand/vanilla';
 import { ConnectionError } from '../../shared/api/connection-error.ts';
 import type {
@@ -9,14 +13,18 @@ import type {
 type ProjectSelectionState = ProjectSelectionSnapshot & {
   status: 'loading' | 'ready' | 'unreadable';
   error: string | undefined;
-  load: () => Promise<void>;
-  selectEnvironment: (environmentId: string) => Promise<void>;
+  load: () => Effect.Effect<void, ConnectionError | WriteNotSentError>;
+  selectEnvironment: (
+    environmentId: string,
+  ) => Effect.Effect<void, ConnectionError | WriteNotSentError>;
   selectWorktree: (
     environmentId: string,
     projectId: string,
     worktreeId: string,
-  ) => Promise<void>;
-  forgetEnvironment: (environmentId: string) => Promise<void>;
+  ) => Effect.Effect<void, ConnectionError | WriteNotSentError>;
+  forgetEnvironment: (
+    environmentId: string,
+  ) => Effect.Effect<void, ConnectionError | WriteNotSentError>;
 };
 
 export function createProjectSelectionStore(storage: ProjectSelectionStorage) {
@@ -25,22 +33,37 @@ export function createProjectSelectionStore(storage: ProjectSelectionStorage) {
     function write(
       update: (snapshot: ProjectSelectionSnapshot) => ProjectSelectionSnapshot,
     ) {
-      return queue.enqueue(async () => {
-        if (get().status !== 'ready')
-          throw new ConnectionError(
-            'Saved workspace selections must be read before changing them.',
-          );
-        const snapshot = update(get());
-        try {
-          await storage.write(snapshot);
-          set(snapshot);
-        } catch (error) {
+      return queue.enqueue(
+        Effect.gen(function* () {
+          if (get().status !== 'ready')
+            return yield* Effect.fail(
+              new ConnectionError({
+                message:
+                  'Saved workspace selections must be read before changing them.',
+              }),
+            );
+          const snapshot = yield* Effect.suspend(() => {
+            try {
+              return Effect.succeed(update(get()));
+            } catch (error) {
+              return error instanceof ConnectionError
+                ? Effect.fail(error)
+                : Effect.die(error);
+            }
+          });
           const message =
             'Saved workspace selections could not be updated. Read them again before making changes.';
-          set({ status: 'unreadable', error: message });
-          throw new ConnectionError(message, { cause: error });
-        }
-      });
+          yield* Effect.tryPromise({
+            try: () => storage.write(snapshot),
+            catch: (cause) => new ConnectionError({ message: message, cause }),
+          }).pipe(
+            Effect.tapError(() =>
+              Effect.sync(() => set({ status: 'unreadable', error: message })),
+            ),
+          );
+          set(snapshot);
+        }),
+      );
     }
     return {
       currentEnvironmentId: undefined,
@@ -48,19 +71,29 @@ export function createProjectSelectionStore(storage: ProjectSelectionStorage) {
       status: 'loading',
       error: undefined,
       load: () =>
-        queue.enqueue(async () => {
-          set({ status: 'loading', error: undefined });
-          try {
-            const snapshot = await storage.read();
-            set({ ...snapshot, status: 'ready' });
-          } catch {
-            set({
-              status: 'unreadable',
-              error:
-                'Saved workspace selections could not be read. Try reading them again.',
-            });
-          }
-        }),
+        queue.enqueue(
+          Effect.gen(function* () {
+            set({ status: 'loading', error: undefined });
+            yield* Effect.tryPromise({
+              try: () => storage.read(),
+              catch: (cause) =>
+                new ConnectionError({
+                  message:
+                    'Saved workspace selections could not be read. Try reading them again.',
+                  cause,
+                }),
+            }).pipe(
+              Effect.matchEffect({
+                onSuccess: (snapshot) =>
+                  Effect.sync(() => set({ ...snapshot, status: 'ready' })),
+                onFailure: (error) =>
+                  Effect.sync(() =>
+                    set({ status: 'unreadable', error: error.message }),
+                  ),
+              }),
+            );
+          }),
+        ),
       selectEnvironment: (environmentId) =>
         write(({ selections }) => ({
           currentEnvironmentId: environmentId,
@@ -69,9 +102,10 @@ export function createProjectSelectionStore(storage: ProjectSelectionStorage) {
       selectWorktree: (environmentId, projectId, worktreeId) =>
         write(({ currentEnvironmentId, selections }) => {
           if (currentEnvironmentId !== environmentId)
-            throw new ConnectionError(
-              'The selected environment changed. Open its project picker again.',
-            );
+            throw new ConnectionError({
+              message:
+                'The selected environment changed. Open its project picker again.',
+            });
           return {
             currentEnvironmentId,
             selections: {

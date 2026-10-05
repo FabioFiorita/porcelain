@@ -1,3 +1,4 @@
+import { nativeWrite, type WorktreeWrite } from '@porcelain/effects';
 import { randomUUID } from 'node:crypto';
 import { type BigIntStats, constants } from 'node:fs';
 import {
@@ -23,6 +24,7 @@ import type {
   FileWriteInput,
 } from '@porcelain/files/models';
 import type { FileWriter } from '@porcelain/files/ports';
+import type { Effect } from 'effect';
 import {
   type CheckoutPath,
   type InspectedPath,
@@ -66,8 +68,43 @@ export class FilesystemFileWriter implements FileWriter {
     this.worktrees = worktrees;
     this.options = options;
   }
+  write(input: FileWriteInput): Effect.Effect<FileWrite, never, WorktreeWrite> {
+    return nativeWrite(input.worktreeId, (signal, committed) =>
+      this.writeToDisk(input, committed, signal),
+    );
+  }
 
-  async write(input: FileWriteInput, signal?: AbortSignal): Promise<FileWrite> {
+  create(
+    input: EntryCreateInput,
+  ): Effect.Effect<FileWrite, never, WorktreeWrite> {
+    return nativeWrite(input.worktreeId, (signal, committed) =>
+      this.createOnDisk(input, committed, signal),
+    );
+  }
+
+  move(input: EntryMoveInput): Effect.Effect<FileWrite, never, WorktreeWrite> {
+    return nativeWrite(input.worktreeId, (signal, committed) =>
+      this.moveOnDisk(input, committed, signal),
+    );
+  }
+
+  copy(input: EntryCopyInput): Effect.Effect<FileWrite, never, WorktreeWrite> {
+    return nativeWrite(input.worktreeId, (signal, committed) =>
+      this.copyOnDisk(input, committed, signal),
+    );
+  }
+
+  trash(input: FileLocation): Effect.Effect<FileWrite, never, WorktreeWrite> {
+    return nativeWrite(input.worktreeId, (signal, committed) =>
+      this.trashOnDisk(input, committed, signal),
+    );
+  }
+
+  private async writeToDisk(
+    input: FileWriteInput,
+    markCommitted: () => void,
+    signal?: AbortSignal,
+  ): Promise<FileWrite> {
     const target = await this.locate(input, signal);
     return this.attempt(async () => {
       const before = await inspectPath(target, signal);
@@ -98,6 +135,7 @@ export class FilesystemFileWriter implements FileWriter {
         signal?.throwIfAborted();
         await rename(temporary, before.path);
         committed = true;
+        markCommitted();
       } finally {
         await handle.close();
         if (!committed) await unlink(temporary).catch(() => undefined);
@@ -105,8 +143,9 @@ export class FilesystemFileWriter implements FileWriter {
     });
   }
 
-  async create(
+  private async createOnDisk(
     input: EntryCreateInput,
+    markCommitted: () => void,
     signal?: AbortSignal,
   ): Promise<FileWrite> {
     const target = await this.locate(input, signal);
@@ -114,9 +153,10 @@ export class FilesystemFileWriter implements FileWriter {
       const parent = await this.parent(target, signal);
       signal?.throwIfAborted();
       const path = join(parent.path, basename(target.path));
+      let file: FileHandle | undefined;
       if (input.entryKind === 'directory') await mkdir(path);
-      else {
-        const file = await open(
+      else
+        file = await open(
           path,
           constants.O_WRONLY |
             constants.O_CREAT |
@@ -124,19 +164,28 @@ export class FilesystemFileWriter implements FileWriter {
             constants.O_NOFOLLOW,
           this.options.fileMode,
         );
-        await file.close();
-      }
-      const made = await lstat(path, { bigint: true });
       try {
-        await this.verifyParent(parent, target, signal);
-      } catch (error) {
-        await removeReservation(path, made);
-        throw error;
+        const made = file
+          ? await file.stat({ bigint: true })
+          : await lstat(path, { bigint: true });
+        try {
+          await this.verifyParent(parent, target, signal);
+          markCommitted();
+        } catch (error) {
+          await removeReservation(path, made);
+          throw error;
+        }
+      } finally {
+        await file?.close();
       }
     });
   }
 
-  async move(input: EntryMoveInput, signal?: AbortSignal): Promise<FileWrite> {
+  private async moveOnDisk(
+    input: EntryMoveInput,
+    markCommitted: () => void,
+    signal?: AbortSignal,
+  ): Promise<FileWrite> {
     const target = await this.locate(input, signal);
     return this.attempt(async () => {
       const sourceParent = await this.parent(target, signal);
@@ -154,10 +203,15 @@ export class FilesystemFileWriter implements FileWriter {
         },
         signal,
       );
+      markCommitted();
     });
   }
 
-  async copy(input: EntryCopyInput, signal?: AbortSignal): Promise<FileWrite> {
+  private async copyOnDisk(
+    input: EntryCopyInput,
+    markCommitted: () => void,
+    signal?: AbortSignal,
+  ): Promise<FileWrite> {
     const target = await this.locate(input, signal);
     return this.attempt(async () => {
       const sourceParent = await this.parent(target, signal);
@@ -195,6 +249,7 @@ export class FilesystemFileWriter implements FileWriter {
           await this.verifyParent(destinationParent, destinationTarget, signal);
           if (!unchanged(info, await lstat(source, { bigint: true })))
             throw pathRefused('changed');
+          markCommitted();
         } catch (error) {
           await removeReservation(destination, created);
           throw error;
@@ -207,7 +262,11 @@ export class FilesystemFileWriter implements FileWriter {
     });
   }
 
-  async trash(input: FileLocation, signal?: AbortSignal): Promise<FileWrite> {
+  private async trashOnDisk(
+    input: FileLocation,
+    markCommitted: () => void,
+    signal?: AbortSignal,
+  ): Promise<FileWrite> {
     const target = await this.locate(input, signal);
     return this.attempt(async () => {
       const parent = await this.parent(target, signal);
@@ -219,6 +278,7 @@ export class FilesystemFileWriter implements FileWriter {
         throw pathRefused('changed');
       try {
         await trash([path], { glob: false });
+        markCommitted();
       } catch (cause) {
         throw pathRefused('trash-unavailable', { cause });
       }

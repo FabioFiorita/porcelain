@@ -14,8 +14,9 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { branchName, useBranchBases } from '@/features/changes/index';
-import type { ReviewScope } from '../rules/review';
+import { branchName } from '@porcelain/client/changes/rules';
+import { useBranchBases } from '@/features/changes/index';
+import type { ReviewScope } from '@porcelain/client/reviews/rules';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
 export function BranchBasePicker({

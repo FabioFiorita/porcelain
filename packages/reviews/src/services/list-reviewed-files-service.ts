@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type {
   ListReviewedFilesInput,
   ListReviewedFilesResult,
@@ -12,13 +13,17 @@ export class ListReviewedFilesService {
     this.reviewedFiles = reviewedFiles;
   }
 
-  execute(input: ListReviewedFilesInput): ListReviewedFilesResult {
-    const { worktreeId, scope, branch } = input;
-    return {
-      worktreeId,
-      marks: reviewedMarks(
-        this.reviewedFiles.list({ worktreeId, scope, branch }),
-      ),
-    };
+  execute(
+    input: ListReviewedFilesInput,
+  ): Effect.Effect<ListReviewedFilesResult, never> {
+    return Effect.sync(() => {
+      const { worktreeId, scope, branch } = input;
+      return {
+        worktreeId,
+        marks: reviewedMarks(
+          this.reviewedFiles.list({ worktreeId, scope, branch }),
+        ),
+      };
+    });
   }
 }

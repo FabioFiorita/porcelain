@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { Effect, Schema } from 'effect';
 import {
   commentThreadScopeSchema,
   createCommentThreadRequestSchema,
@@ -11,33 +11,51 @@ import {
 } from './review.ts';
 import { PATH_LENGTH } from '../shared/limits.ts';
 
-const reviewToolScopeSchema = z.strictObject({
-  cwd: z.string().min(1).max(PATH_LENGTH).optional(),
+const reviewToolScopeSchema = Schema.Struct({
+  cwd: Schema.optionalKey(
+    Schema.String.check(Schema.isMinLength(1)).check(
+      Schema.isMaxLength(PATH_LENGTH),
+    ),
+  ),
 });
 
-export const publishReviewToolRequestSchema = reviewToolScopeSchema.extend(
-  publishReviewRequestSchema.shape,
-);
-export const publishReviewToolResponseSchema =
-  readPublishedReviewResponseSchema.extend({
-    warnings: z.array(z.string()),
-  });
+export const publishReviewToolRequestSchema = Schema.Struct({
+  ...reviewToolScopeSchema.fields,
+  ...publishReviewRequestSchema.fields,
+});
+export const publishReviewToolResponseSchema = Schema.Struct({
+  ...readPublishedReviewResponseSchema.fields,
+  ...{
+    warnings: Schema.Array(Schema.String),
+  },
+});
 export const readReviewToolRequestSchema = reviewToolScopeSchema;
-export const listCommentsToolRequestSchema = reviewToolScopeSchema.extend({
-  scope: commentThreadScopeSchema.default('waiting'),
+export const listCommentsToolRequestSchema = Schema.Struct({
+  ...reviewToolScopeSchema.fields,
+  ...{
+    scope: commentThreadScopeSchema.pipe(
+      Schema.withDecodingDefaultKey(Effect.succeed('waiting')),
+    ),
+  },
 });
-export const createCommentToolRequestSchema = reviewToolScopeSchema.extend(
-  createCommentThreadRequestSchema.shape,
-);
-export const replyToCommentToolRequestSchema = reviewToolScopeSchema.extend({
-  threadId: z.uuid(),
-  ...replyToCommentRequestSchema.shape,
+export const createCommentToolRequestSchema = Schema.Struct({
+  ...reviewToolScopeSchema.fields,
+  ...createCommentThreadRequestSchema.fields,
 });
-export const resolveCommentToolRequestSchema = reviewToolScopeSchema.extend({
-  threadId: z.uuid(),
-  ...updateCommentThreadRequestSchema.shape,
+export const replyToCommentToolRequestSchema = Schema.Struct({
+  ...reviewToolScopeSchema.fields,
+  ...{
+    threadId: Schema.String.check(Schema.isUUID()),
+    ...replyToCommentRequestSchema.fields,
+  },
+});
+export const resolveCommentToolRequestSchema = Schema.Struct({
+  ...reviewToolScopeSchema.fields,
+  ...{
+    threadId: Schema.String.check(Schema.isUUID()),
+    ...updateCommentThreadRequestSchema.fields,
+  },
 });
 
-export type PublishReviewToolResponse = z.output<
-  typeof publishReviewToolResponseSchema
->;
+export type PublishReviewToolResponse =
+  typeof publishReviewToolResponseSchema.Type;

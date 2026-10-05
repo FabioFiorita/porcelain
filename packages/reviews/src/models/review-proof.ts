@@ -35,8 +35,8 @@ type ProofLinkDraft = ProofTarget & {
 type ProofAssetDraft = ProofFileDraft | ProofLinkDraft;
 
 export type ProofDraft = {
-  checks?: ProofCheck[] | undefined;
-  assets?: ProofAssetDraft[] | undefined;
+  checks?: readonly ProofCheck[] | undefined;
+  assets?: readonly ProofAssetDraft[] | undefined;
 };
 
 type ProofFileAsset = ProofTarget & {
@@ -52,19 +52,19 @@ type ProofLinkAsset = ProofLinkDraft & { id: string };
 export type ProofAsset = ProofFileAsset | ProofLinkAsset;
 
 export type ReviewProof = {
-  checks: ProofCheck[];
-  assets: ProofAsset[];
+  checks: readonly ProofCheck[];
+  assets: readonly ProofAsset[];
   baseline?: ProofBaseline | undefined;
 };
 
 type ProofBaseline = {
   digest: string;
-  proofPaths: string[];
+  proofPaths: readonly string[];
 };
 
 export type ResolvedProof = {
-  checks: ProofCheck[];
-  assets: ProofAsset[];
+  checks: readonly ProofCheck[];
+  assets: readonly ProofAsset[];
   current: boolean;
 };
 

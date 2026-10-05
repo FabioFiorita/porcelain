@@ -1,14 +1,12 @@
-import { assertCurrentAnswer } from '@porcelain/client/transport';
 import {
   branchQueryOptions,
+  branchBasesQueryOptions,
   branchDiffsQueryOptions,
 } from '@porcelain/client/changes';
 import { useQuery } from '@tanstack/react-query';
 import { usePathDiffs } from './path-diffs';
-import { queryKeys } from '@porcelain/client/transport';
-import { changesApi } from '../api';
-import type { BranchRange } from '../rules/branch';
-import { type ChangesScope } from '../rules/changes';
+import type { BranchRange } from '@porcelain/client/changes/rules';
+import { type ChangesScope } from '@porcelain/client/changes/rules';
 import { type Connection } from '@/shared/workspace/connection';
 
 export function useBranchChanges(
@@ -24,22 +22,7 @@ export function useBranchBases(
   connection: Connection,
   enabled: boolean,
 ) {
-  const connected = connection;
-  return useQuery({
-    queryKey: queryKeys.reviewSurface(connected.environmentId, scope, [
-      'branch-bases',
-    ]),
-    enabled,
-    queryFn: async ({ signal }) => {
-      const request = connected.request(signal);
-      const bases = await changesApi(connected).branchBases({
-        signal: request.signal,
-        worktreeId: scope.worktreeId,
-      });
-      assertCurrentAnswer(request.signal);
-      return bases;
-    },
-  });
+  return useQuery({ ...branchBasesQueryOptions(scope, connection), enabled });
 }
 
 export function useBranchDiffs(

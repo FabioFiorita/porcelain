@@ -1,131 +1,149 @@
-import { utf8ByteLength } from '../shared/utf8-byte-length.ts';
-import { z } from 'zod';
-import { fingerprintSchema } from '../shared/fingerprint.ts';
-import { relativePathSchema } from '../shared/relative-path.ts';
-import { worktreeIdSchema } from '../shared/worktree-params.ts';
+import { Schema } from 'effect';
+import { worktreeIdSchema } from '../shared/schema.ts';
 import {
   PATH_LENGTH,
   PREVIEW_ASSETS,
   TEXT_BYTES,
   WORKTREE_PATHS,
 } from '../shared/limits.ts';
+import { relativePathSchema } from '../shared/relative-path.ts';
+import { fingerprintSchema } from '../shared/fingerprint.ts';
+import { utf8ByteLength } from '../shared/utf8-byte-length.ts';
 
-const directoryPathSchema = z.union([z.literal(''), relativePathSchema]);
-const editableTextSchema = z
-  .string()
-  .max(TEXT_BYTES)
-  .refine(
-    (text) => !text.includes('\0') && utf8ByteLength(text) <= TEXT_BYTES,
-    'Expected UTF-8 text without NUL within the write limit',
-  );
-
-export const listDirectoryQuerySchema = z.strictObject({
-  path: directoryPathSchema,
-});
-export const listDirectoryResponseSchema = z.object({
-  worktreeId: worktreeIdSchema,
-  path: z.string(),
-  entries: z.array(
-    z.object({
-      name: z.string(),
-      kind: z.enum(['file', 'directory', 'symlink', 'submodule', 'other']),
-      ignored: z.boolean().optional(),
-      target: z.string().optional(),
-    }),
+const directoryPath = Schema.Union([Schema.Literal(''), relativePathSchema]);
+const editableText = Schema.String.check(
+  Schema.makeFilter(
+    (text: string) =>
+      text.length <= TEXT_BYTES &&
+      !text.includes('\0') &&
+      utf8ByteLength(text) <= TEXT_BYTES,
+    { expected: 'UTF-8 text without NUL within the write limit' },
   ),
-});
+);
 
-export const listWorktreePathsResponseSchema = z.object({
-  worktreeId: worktreeIdSchema,
-  paths: z.array(z.string()).max(WORKTREE_PATHS),
-});
+export const listDirectoryQuerySchema = Schema.Struct({ path: directoryPath });
+export const listDirectoryResponseSchema = Schema.toStandardSchemaV1(
+  Schema.Struct({
+    worktreeId: worktreeIdSchema,
+    path: Schema.String,
+    entries: Schema.Array(
+      Schema.Struct({
+        name: Schema.String,
+        kind: Schema.Literals([
+          'file',
+          'directory',
+          'symlink',
+          'submodule',
+          'other',
+        ]),
+        ignored: Schema.optional(Schema.Boolean),
+        target: Schema.optional(Schema.String),
+      }),
+    ),
+  }),
+);
 
-export const readTextFileQuerySchema = z.strictObject({
+export const listWorktreePathsResponseSchema = Schema.toStandardSchemaV1(
+  Schema.Struct({
+    worktreeId: worktreeIdSchema,
+    paths: Schema.Array(Schema.String).check(
+      Schema.isMaxLength(WORKTREE_PATHS),
+    ),
+  }),
+);
+
+export const readTextFileQuerySchema = Schema.Struct({
   path: relativePathSchema,
 });
-export const readTextFileResponseSchema = z.object({
-  worktreeId: worktreeIdSchema,
-  path: z.string(),
-  encoding: z.literal('utf-8'),
-  byteLength: z.number().int().nonnegative(),
-  text: z.string(),
-  contentFingerprint: fingerprintSchema.optional(),
-});
+export const readTextFileResponseSchema = Schema.toStandardSchemaV1(
+  Schema.Struct({
+    worktreeId: worktreeIdSchema,
+    path: Schema.String,
+    encoding: Schema.Literal('utf-8'),
+    byteLength: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
+    text: Schema.String,
+    contentFingerprint: Schema.optional(fingerprintSchema),
+  }),
+);
 
-export const editFileRequestSchema = z.discriminatedUnion('kind', [
-  z.strictObject({
-    kind: z.literal('write'),
+export const editFileRequestSchema = Schema.Union([
+  Schema.Struct({
+    kind: Schema.Literal('write'),
     path: relativePathSchema,
-    text: editableTextSchema,
+    text: editableText,
     expectedFingerprint: fingerprintSchema,
   }),
-  z.strictObject({
-    kind: z.literal('create'),
+  Schema.Struct({
+    kind: Schema.Literal('create'),
     path: relativePathSchema,
-    entryKind: z.enum(['file', 'directory']),
+    entryKind: Schema.Literals(['file', 'directory']),
   }),
-  z.strictObject({
-    kind: z.literal('move'),
+  Schema.Struct({
+    kind: Schema.Literal('move'),
     path: relativePathSchema,
     destination: relativePathSchema,
   }),
-  z.strictObject({ kind: z.literal('trash'), path: relativePathSchema }),
-  z.strictObject({
-    kind: z.literal('copy'),
+  Schema.Struct({ kind: Schema.Literal('trash'), path: relativePathSchema }),
+  Schema.Struct({
+    kind: Schema.Literal('copy'),
     path: relativePathSchema,
     destination: relativePathSchema,
   }),
 ]);
-export const editFileResponseSchema = z.object({
-  path: z.string(),
-  contentFingerprint: fingerprintSchema.optional(),
-});
+export const editFileResponseSchema = Schema.toStandardSchemaV1(
+  Schema.Struct({
+    path: Schema.String,
+    contentFingerprint: Schema.optional(fingerprintSchema),
+  }),
+);
 
-export const readFileAssetQuerySchema = z.strictObject({
+export const readFileAssetQuerySchema = Schema.Struct({
   path: relativePathSchema,
 });
-export const readFileAssetResponseSchema = z.object({
-  path: z.string(),
-  mediaType: z.string(),
-  base64: z.string(),
-});
+export const readFileAssetResponseSchema = Schema.toStandardSchemaV1(
+  Schema.Struct({
+    path: Schema.String,
+    mediaType: Schema.String,
+    base64: Schema.String,
+  }),
+);
 
-export const readPreviewAssetsRequestSchema = z.strictObject({
+export const readPreviewAssetsRequestSchema = Schema.Struct({
   document: relativePathSchema,
-  paths: z.array(z.string().max(PATH_LENGTH)).min(1).max(PREVIEW_ASSETS),
+  paths: Schema.Array(
+    Schema.String.check(Schema.isMaxLength(PATH_LENGTH)),
+  ).check(Schema.isMinLength(1), Schema.isMaxLength(PREVIEW_ASSETS)),
 });
-export const readPreviewAssetsResponseSchema = z.object({
-  assets: z.array(
-    z.discriminatedUnion('kind', [
-      z.object({
-        kind: z.literal('asset'),
-        path: z.string(),
-        mediaType: z.string(),
-        base64: z.string(),
-      }),
-      z.object({ kind: z.literal('unavailable'), path: z.string() }),
-    ]),
-  ),
-});
+export const readPreviewAssetsResponseSchema = Schema.toStandardSchemaV1(
+  Schema.Struct({
+    assets: Schema.Array(
+      Schema.Union([
+        Schema.Struct({
+          kind: Schema.Literal('asset'),
+          path: Schema.String,
+          mediaType: Schema.String,
+          base64: Schema.String,
+        }),
+        Schema.Struct({
+          kind: Schema.Literal('unavailable'),
+          path: Schema.String,
+        }),
+      ]),
+    ),
+  }),
+);
 
-export type ListDirectoryQuery = z.output<typeof listDirectoryQuerySchema>;
-export type ListDirectoryResponse = z.output<
-  typeof listDirectoryResponseSchema
->;
-export type ListWorktreePathsResponse = z.output<
-  typeof listWorktreePathsResponseSchema
->;
-export type ReadTextFileQuery = z.output<typeof readTextFileQuerySchema>;
-export type ReadTextFileResponse = z.output<typeof readTextFileResponseSchema>;
-export type EditFileRequest = z.output<typeof editFileRequestSchema>;
-export type EditFileResponse = z.output<typeof editFileResponseSchema>;
-export type ReadFileAssetQuery = z.output<typeof readFileAssetQuerySchema>;
-export type ReadFileAssetResponse = z.output<
-  typeof readFileAssetResponseSchema
->;
-export type ReadPreviewAssetsRequest = z.output<
-  typeof readPreviewAssetsRequestSchema
->;
-export type ReadPreviewAssetsResponse = z.output<
-  typeof readPreviewAssetsResponseSchema
->;
+export type ListDirectoryQuery = typeof listDirectoryQuerySchema.Type;
+export type ListDirectoryResponse = typeof listDirectoryResponseSchema.Type;
+export type ReadTextFileQuery = typeof readTextFileQuerySchema.Type;
+export type ReadFileAssetQuery = typeof readFileAssetQuerySchema.Type;
+export type ReadPreviewAssetsRequest =
+  typeof readPreviewAssetsRequestSchema.Type;
+export type ReadFileAssetResponse = typeof readFileAssetResponseSchema.Type;
+export type ReadTextFileResponse = typeof readTextFileResponseSchema.Type;
+export type ListWorktreePathsResponse =
+  typeof listWorktreePathsResponseSchema.Type;
+export type ReadPreviewAssetsResponse =
+  typeof readPreviewAssetsResponseSchema.Type;
+export type EditFileResponse = typeof editFileResponseSchema.Type;
+export type EditFileRequest = typeof editFileRequestSchema.Type;

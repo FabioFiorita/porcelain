@@ -1,7 +1,10 @@
-export class PathNotFoundError extends Error {
-  override readonly name = 'PathNotFoundError';
+import { Schema } from 'effect';
 
-  constructor() {
-    super('Path not found');
+export class PathNotFoundError extends Schema.TaggedError<PathNotFoundError>()(
+  'PathNotFoundError',
+  {},
+) {
+  override get message() {
+    return 'Path not found';
   }
 }

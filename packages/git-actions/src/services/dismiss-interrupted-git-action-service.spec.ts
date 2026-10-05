@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import {
   GitActionNotFoundError,
   GitActionReceiptMismatchError,
@@ -39,7 +40,7 @@ function subject(receipt = interrupted) {
 describe('DismissInterruptedGitActionService', () => {
   it('dismisses an interrupted action so the worktree no longer shows it', () => {
     const { store, service } = subject();
-    service.execute(scope);
+    Effect.runSync(service.execute(scope));
     expect(store.read({ requestId: REQUEST_ID })?.dismissedAt).toBe(
       dismissedAt,
     );
@@ -50,7 +51,7 @@ describe('DismissInterruptedGitActionService', () => {
 
   it('answers the dismissed receipt', () => {
     const { service } = subject();
-    expect(service.execute(scope)).toMatchObject({
+    expect(Effect.runSync(service.execute(scope))).toMatchObject({
       kind: 'dismissed',
       receipt: { requestId: REQUEST_ID, state: 'interrupted' },
     });
@@ -58,12 +59,12 @@ describe('DismissInterruptedGitActionService', () => {
 
   it('keeps the first dismissal when the same action is dismissed again', () => {
     const { store, service } = subject();
-    service.execute(scope);
+    Effect.runSync(service.execute(scope));
     const again = new DismissInterruptedGitActionService(
       store,
       new FixedClock('2026-09-23T14:00:00.000Z'),
     );
-    expect(again.execute(scope).kind).toBe('already-dismissed');
+    expect(Effect.runSync(again.execute(scope)).kind).toBe('already-dismissed');
     expect(store.read({ requestId: REQUEST_ID })?.dismissedAt).toBe(
       dismissedAt,
     );
@@ -72,23 +73,27 @@ describe('DismissInterruptedGitActionService', () => {
   it('does not find a request it never accepted', () => {
     const { service } = subject();
     expect(() =>
-      service.execute({
-        ...scope,
-        requestId: 'e0c7a0f4-3b1c-4b58-9a57-4b3cf6f6b0d1',
-      }),
+      Effect.runSync(
+        service.execute({
+          ...scope,
+          requestId: 'e0c7a0f4-3b1c-4b58-9a57-4b3cf6f6b0d1',
+        }),
+      ),
     ).toThrow(GitActionNotFoundError);
   });
 
   it('refuses a request that belongs to another worktree or project', () => {
     const { service } = subject();
     expect(() =>
-      service.execute({ ...scope, worktreeId: 'f'.repeat(32) }),
+      Effect.runSync(service.execute({ ...scope, worktreeId: 'f'.repeat(32) })),
     ).toThrow(GitActionReceiptMismatchError);
     expect(() =>
-      service.execute({
-        ...scope,
-        projectId: '11111111-1111-4111-8111-111111111111',
-      }),
+      Effect.runSync(
+        service.execute({
+          ...scope,
+          projectId: '11111111-1111-4111-8111-111111111111',
+        }),
+      ),
     ).toThrow(GitActionReceiptMismatchError);
   });
 
@@ -99,7 +104,9 @@ describe('DismissInterruptedGitActionService', () => {
         finishedAt: '2026-09-23T12:00:00.000Z',
       }),
     );
-    expect(() => service.execute(scope)).toThrow(GitActionReceiptMismatchError);
+    expect(() => Effect.runSync(service.execute(scope))).toThrow(
+      GitActionReceiptMismatchError,
+    );
     expect(store.read({ requestId: REQUEST_ID })?.dismissedAt).toBeUndefined();
   });
 });

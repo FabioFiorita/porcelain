@@ -1,3 +1,4 @@
+import * as Schema from 'effect/Schema';
 import { readChangeDiffsResponseSchema } from '@porcelain/contracts/changes';
 import { expect } from 'vitest';
 import {
@@ -62,7 +63,11 @@ test('reading the diff of the sample change returns the patch Git reports for th
 
   expect(response.status).toBe(200);
   expect(response.body).toEqual(
-    expect.schemaMatching(readChangeDiffsResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(
+        Schema.toEncoded(readChangeDiffsResponseSchema),
+      ),
+    ),
   );
   expect(response.body).toStrictEqual({
     environmentId,

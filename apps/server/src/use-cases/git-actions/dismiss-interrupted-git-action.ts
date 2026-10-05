@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type {
   DismissInterruptedGitActionParams,
   DismissInterruptedGitActionResponse,
@@ -6,7 +7,6 @@ import type { DismissInterruptedGitActionService } from '@porcelain/git-actions/
 import type { EventPublisher } from '../../ports/event-publisher.ts';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
 import type { CheckWorktreeUseCasePort } from '../../ports/check-worktree-use-case-port.ts';
 
 export class DismissInterruptedGitActionUseCase {
@@ -30,27 +30,36 @@ export class DismissInterruptedGitActionUseCase {
     this.events = events;
   }
 
-  async execute(
+  execute(
     input: DismissInterruptedGitActionParams,
-    context: OperationContext,
-  ): Promise<DismissInterruptedGitActionResponse> {
-    const worktree = await this.checkWorktree.execute(
-      { worktreeId: input.worktreeId, requireAvailableProject: false },
-      context,
-    );
-    const result = await this.lanes.run(
-      this.laneKeys.receipts(worktree),
-      'write',
-      async () =>
-        this.dismissInterruptedGitAction.execute({
-          projectId: worktree.projectId,
-          worktreeId: worktree.id,
-          requestId: input.requestId,
-        }),
-      { callerSignal: context.signal },
-    );
-    if (result.kind === 'dismissed')
-      this.events.gitActionChanged(result.receipt);
-    return { dismissed: true };
+  ): Effect.Effect<
+    DismissInterruptedGitActionResponse,
+    | Effect.Error<ReturnType<CheckWorktreeUseCasePort['execute']>>
+    | Effect.Error<ReturnType<DismissInterruptedGitActionService['execute']>>
+  > {
+    return Effect.gen({ self: this }, function* () {
+      const worktree = yield* this.checkWorktree.execute({
+        worktreeId: input.worktreeId,
+        requireAvailableProject: false,
+      });
+      return yield* this.lanes
+        .commit(
+          this.laneKeys.receipts(worktree),
+          () =>
+            Effect.uninterruptible(
+              this.dismissInterruptedGitAction.execute({
+                projectId: worktree.projectId,
+                worktreeId: worktree.id,
+                requestId: input.requestId,
+              }),
+            ),
+          (result) =>
+            Effect.sync(() => {
+              if (result.kind === 'dismissed')
+                this.events.gitActionChanged(result.receipt);
+            }),
+        )
+        .pipe(Effect.as({ dismissed: true as const }));
+    });
   }
 }

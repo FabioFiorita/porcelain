@@ -1,83 +1,43 @@
-type Group<T> = {
-  readonly controller: AbortController;
-  readonly result: Promise<T>;
-  subscribers: number;
-};
+import { Effect, Exit, Fiber, Scope } from 'effect';
 
-export class SharedReads<T> {
-  private readonly groups = new Map<string, Group<T>>();
+type Group<A, E> = { readonly fiber: Fiber.Fiber<A, E>; subscribers: number };
 
-  run(
-    key: string,
-    work: (signal: AbortSignal) => Promise<T>,
-    callerSignal?: AbortSignal,
-  ): Promise<T> {
-    const existing = this.groups.get(key);
-    const group = existing ?? this.start(key, work);
-    group.subscribers += 1;
-    return this.attach(key, group, callerSignal);
+export class SharedReads<A, E = never> {
+  private readonly groups = new Map<string, Group<A, E>>();
+  private readonly scope = Scope.makeUnsafe();
+  private closing: Promise<void> | undefined;
+
+  run(key: string, work: () => Effect.Effect<A, E>): Effect.Effect<A, E> {
+    return Effect.acquireUseRelease(
+      Effect.gen({ self: this }, function* () {
+        if (this.closing !== undefined) return yield* Effect.interrupt;
+        let group = this.groups.get(key);
+        if (group === undefined) {
+          const fiber = yield* Effect.forkIn(Effect.suspend(work), this.scope);
+          group = { fiber, subscribers: 0 };
+          this.groups.set(key, group);
+          const started = group;
+          fiber.addObserver(() => {
+            if (this.groups.get(key) === started) this.groups.delete(key);
+          });
+        }
+        group.subscribers += 1;
+        return group;
+      }),
+      (group) => Fiber.join(group.fiber),
+      (group) =>
+        Effect.suspend(() => {
+          group.subscribers -= 1;
+          if (group.subscribers !== 0) return Effect.void;
+          if (this.groups.get(key) === group) this.groups.delete(key);
+          return Fiber.interrupt(group.fiber);
+        }),
+    );
   }
 
-  private start(key: string, work: (signal: AbortSignal) => Promise<T>) {
-    const controller = new AbortController();
-    const group: Group<T> = {
-      controller,
-      subscribers: 0,
-      result: (async () => work(controller.signal))(),
-    };
-    void group.result
-      .catch(() => undefined)
-      .finally(() => {
-        if (this.groups.get(key) === group) this.groups.delete(key);
-      });
-    this.groups.set(key, group);
-    return group;
-  }
-
-  private attach(
-    key: string,
-    group: Group<T>,
-    callerSignal?: AbortSignal,
-  ): Promise<T> {
-    const leave = () => {
-      group.subscribers -= 1;
-      if (group.subscribers === 0) {
-        this.groups.delete(key);
-        group.controller.abort(
-          new DOMException('The last caller left', 'AbortError'),
-        );
-      }
-    };
-    if (!callerSignal)
-      return group.result.then(
-        (value) => {
-          group.subscribers -= 1;
-          return value;
-        },
-        (cause: unknown) => {
-          group.subscribers -= 1;
-          throw cause;
-        },
-      );
-    return new Promise<T>((resolve, reject) => {
-      const abandon = () => {
-        leave();
-        reject(callerSignal.reason);
-      };
-      if (callerSignal.aborted) return abandon();
-      callerSignal.addEventListener('abort', abandon, { once: true });
-      group.result.then(
-        (value) => {
-          callerSignal.removeEventListener('abort', abandon);
-          group.subscribers -= 1;
-          resolve(value);
-        },
-        (cause: unknown) => {
-          callerSignal.removeEventListener('abort', abandon);
-          group.subscribers -= 1;
-          reject(cause);
-        },
-      );
-    });
+  close(): Promise<void> {
+    return (this.closing ??= Effect.runPromise(
+      Scope.close(this.scope, Exit.void),
+    ));
   }
 }

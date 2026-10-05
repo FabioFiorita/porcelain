@@ -1,3 +1,5 @@
+import { Effect } from 'effect';
+import { withReadLease } from '@porcelain/effects/worktree';
 import { describe, expect, it } from 'vitest';
 import {
   ContentChangedError,
@@ -53,7 +55,11 @@ describe('ListDirectoryService', () => {
         ['a', 'directory'],
       ]),
     });
-    await expect(service.execute({ worktreeId, path: '' })).resolves.toEqual({
+    await expect(
+      Effect.runPromise(
+        withReadLease(worktreeId, service.execute({ worktreeId, path: '' })),
+      ),
+    ).resolves.toEqual({
       worktreeId,
       path: '',
       entries: [
@@ -76,7 +82,9 @@ describe('ListDirectoryService', () => {
       ['src/app.log', 'app.ts'],
     );
     await expect(
-      service.execute({ worktreeId, path: 'src' }),
+      Effect.runPromise(
+        withReadLease(worktreeId, service.execute({ worktreeId, path: 'src' })),
+      ),
     ).resolves.toMatchObject({
       entries: [
         { name: 'app.log', kind: 'file', ignored: true },
@@ -92,7 +100,11 @@ describe('ListDirectoryService', () => {
         ['.github', 'directory'],
       ]),
     });
-    await expect(service.execute({ worktreeId, path: '' })).resolves.toEqual({
+    await expect(
+      Effect.runPromise(
+        withReadLease(worktreeId, service.execute({ worktreeId, path: '' })),
+      ),
+    ).resolves.toEqual({
       worktreeId,
       path: '',
       entries: [{ name: '.github', kind: 'directory' }],
@@ -105,31 +117,45 @@ describe('ListDirectoryService', () => {
       { maxEntries: 3, maxResponseBytes: 1024 },
     );
     await expect(
-      service.execute({ worktreeId, path: '' }),
+      Effect.runPromise(
+        withReadLease(worktreeId, service.execute({ worktreeId, path: '' })),
+      ),
     ).resolves.toMatchObject({ entries: { length: 3 } });
   });
 
   it('lists a folder at the entry limit and refuses one entry more', async () => {
     const options = { maxEntries: 3, maxResponseBytes: 1024 };
     await expect(
-      serviceWith({ '': listed(files(3)) }, options).execute({
-        worktreeId,
-        path: '',
-      }),
+      Effect.runPromise(
+        withReadLease(
+          worktreeId,
+          serviceWith({ '': listed(files(3)) }, options).execute({
+            worktreeId,
+            path: '',
+          }),
+        ),
+      ),
     ).resolves.toMatchObject({ entries: { length: 3 } });
     await expect(
-      serviceWith({ '': listed(files(4)) }, options).execute({
-        worktreeId,
-        path: '',
-      }),
+      Effect.runPromise(
+        withReadLease(
+          worktreeId,
+          serviceWith({ '': listed(files(4)) }, options).execute({
+            worktreeId,
+            path: '',
+          }),
+        ),
+      ),
     ).rejects.toThrow(DirectoryTooLargeError);
   });
 
   it('refuses a folder the reader stopped listing at its limit', async () => {
     const service = serviceWith({ '': listed(files(1), true) });
-    await expect(service.execute({ worktreeId, path: '' })).rejects.toThrow(
-      DirectoryTooLargeError,
-    );
+    await expect(
+      Effect.runPromise(
+        withReadLease(worktreeId, service.execute({ worktreeId, path: '' })),
+      ),
+    ).rejects.toThrow(DirectoryTooLargeError);
   });
 
   it('refuses a listing whose answer exceeds the response limit', async () => {
@@ -137,15 +163,22 @@ describe('ListDirectoryService', () => {
       { '': listed([[`${'n'.repeat(200)}.md`, 'file']]) },
       { maxEntries: 10, maxResponseBytes: 200 },
     );
-    await expect(service.execute({ worktreeId, path: '' })).rejects.toThrow(
-      DirectoryTooLargeError,
-    );
+    await expect(
+      Effect.runPromise(
+        withReadLease(worktreeId, service.execute({ worktreeId, path: '' })),
+      ),
+    ).rejects.toThrow(DirectoryTooLargeError);
   });
 
   it('reports a missing folder as not found', async () => {
     const service = serviceWith({});
     await expect(
-      service.execute({ worktreeId, path: 'missing' }),
+      Effect.runPromise(
+        withReadLease(
+          worktreeId,
+          service.execute({ worktreeId, path: 'missing' }),
+        ),
+      ),
     ).rejects.toThrow(PathNotFoundError);
   });
 
@@ -154,7 +187,12 @@ describe('ListDirectoryService', () => {
       'README.md': { kind: 'failed', failure: 'unreadable' },
     });
     await expect(
-      service.execute({ worktreeId, path: 'README.md' }),
+      Effect.runPromise(
+        withReadLease(
+          worktreeId,
+          service.execute({ worktreeId, path: 'README.md' }),
+        ),
+      ),
     ).rejects.toThrow(PathNotReadableError);
   });
 
@@ -162,17 +200,21 @@ describe('ListDirectoryService', () => {
     const service = serviceWith({
       raw: { kind: 'failed', failure: 'unsupported-name' },
     });
-    await expect(service.execute({ worktreeId, path: 'raw' })).rejects.toThrow(
-      UnsupportedEntryNameError,
-    );
+    await expect(
+      Effect.runPromise(
+        withReadLease(worktreeId, service.execute({ worktreeId, path: 'raw' })),
+      ),
+    ).rejects.toThrow(UnsupportedEntryNameError);
   });
 
   it('reports a folder that changed while it was listed as changed', async () => {
     const service = serviceWith({
       src: { kind: 'failed', failure: 'changed' },
     });
-    await expect(service.execute({ worktreeId, path: 'src' })).rejects.toThrow(
-      ContentChangedError,
-    );
+    await expect(
+      Effect.runPromise(
+        withReadLease(worktreeId, service.execute({ worktreeId, path: 'src' })),
+      ),
+    ).rejects.toThrow(ContentChangedError);
   });
 });

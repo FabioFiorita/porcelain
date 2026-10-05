@@ -1,5 +1,7 @@
+import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { ENVIRONMENT_PROTOCOL } from '@porcelain/contracts/shared';
+import { runRequest } from '@porcelain/client/transport';
 import { pairEnvironment } from './pairing.ts';
 import {
   createAccessStore,
@@ -30,7 +32,10 @@ function fixture(
       requests.push({
         path: url.pathname,
         authorization: new Headers(init?.headers).get('authorization'),
-        body: init?.body,
+        body:
+          init?.body instanceof Uint8Array
+            ? new TextDecoder().decode(init.body)
+            : init?.body,
       });
       return Promise.resolve(
         Response.json(
@@ -57,11 +62,13 @@ function fixture(
 describe('pairing an environment', () => {
   it('uses native device identity and authenticates the installation before saving', async () => {
     const { store, platform, saved, requests } = fixture();
-    await store.getState().load();
-    const remote = await pairEnvironment(
-      store,
-      platform,
-      'http://computer.local:4738/pair#c=one-time&e=installation',
+    await Effect.runPromise(store.getState().load());
+    const remote = await runRequest(
+      pairEnvironment(
+        store,
+        platform,
+        'http://computer.local:4738/pair#c=one-time&e=installation',
+      ),
       new AbortController().signal,
     );
     expect(requests).toEqual([
@@ -111,12 +118,14 @@ describe('pairing an environment', () => {
     'does not save an incompatible or different installation $environmentId/$protocol',
     async ({ environmentId, protocol, message }) => {
       const { store, platform, saved } = fixture(environmentId, protocol);
-      await store.getState().load();
+      await Effect.runPromise(store.getState().load());
       await expect(
-        pairEnvironment(
-          store,
-          platform,
-          'http://computer.local:4738/pair#c=code&e=installation',
+        runRequest(
+          pairEnvironment(
+            store,
+            platform,
+            'http://computer.local:4738/pair#c=code&e=installation',
+          ),
           new AbortController().signal,
         ),
       ).rejects.toThrow(message);
@@ -127,7 +136,7 @@ describe('pairing an environment', () => {
 
   it('does not save a cancelled pairing even when the transport completes', async () => {
     const { store, platform, saved } = fixture();
-    await store.getState().load();
+    await Effect.runPromise(store.getState().load());
     const controller = new AbortController();
     const cancellingPlatform: AccessPlatform = {
       ...platform,
@@ -137,10 +146,12 @@ describe('pairing an environment', () => {
       },
     };
     await expect(
-      pairEnvironment(
-        store,
-        cancellingPlatform,
-        'http://computer.local:4738/pair#c=code&e=installation',
+      runRequest(
+        pairEnvironment(
+          store,
+          cancellingPlatform,
+          'http://computer.local:4738/pair#c=code&e=installation',
+        ),
         controller.signal,
       ),
     ).rejects.toThrow();
@@ -149,12 +160,10 @@ describe('pairing an environment', () => {
 
   it('refuses an incomplete link without making a request', async () => {
     const { store, platform, saved, requests } = fixture();
-    await store.getState().load();
+    await Effect.runPromise(store.getState().load());
     await expect(
-      pairEnvironment(
-        store,
-        platform,
-        'http://computer.local:4738/pair',
+      runRequest(
+        pairEnvironment(store, platform, 'http://computer.local:4738/pair'),
         new AbortController().signal,
       ),
     ).rejects.toThrow('whole link');

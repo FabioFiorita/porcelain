@@ -5,20 +5,26 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   branchErrorMessage,
   branchName,
-  useBranchChanges,
-} from '@/features/changes/index';
+} from '@porcelain/client/changes/rules';
+import { useBranchChanges } from '@/features/changes/index';
 import { cn } from '@/shared/lib/utils';
 import { toast } from '@/components/ui/toast';
 import { useToggleReviewed } from '../commands/reviewed';
 import { useReviewedMarks } from '../queries/reviewed';
-import { anchorPath, type CommentThread } from '../rules/comments';
+import {
+  anchorPath,
+  type CommentThread,
+} from '@porcelain/client/reviews/rules';
 import { BRANCH, entryKey, type OpenDocument } from '../rules/documents';
-import { mergeBranchChanges, type ReviewScope } from '../rules/review';
-import { branchReviewRange } from '../rules/reviewed';
+import {
+  mergeBranchChanges,
+  type ReviewScope,
+} from '@porcelain/client/reviews/rules';
+import { branchReviewRange } from '@porcelain/client/reviews/rules';
 import { BranchBasePicker } from './branch-base-picker';
 import { ChangeRow, ROW } from './change-row';
 import { ReviewEmpty } from './review-empty';
-import { groupSpecPaths } from '../rules/spec-paths';
+import { groupSpecPaths } from '@porcelain/client/reviews/rules';
 import { usePreferences } from '@/features/preferences/index';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 

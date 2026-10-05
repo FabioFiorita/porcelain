@@ -1,3 +1,8 @@
+import { Effect } from 'effect';
+import {
+  createWriteQueue,
+  type WriteNotSentError,
+} from '../../shared/api/write-queue.ts';
 import { createStore } from 'zustand/vanilla';
 import { ConnectionError } from '../../shared/api/connection-error.ts';
 import type { EnvironmentStorage } from './ports/environment-storage.ts';
@@ -7,51 +12,75 @@ type AccessState = {
   remotes: Remote[];
   status: 'loading' | 'ready' | 'unreadable';
   error: string | undefined;
-  load: () => Promise<void>;
-  save: (remote: Remote) => Promise<void>;
-  forget: (environmentId: string) => Promise<void>;
+  load: () => Effect.Effect<void, ConnectionError | WriteNotSentError>;
+  save: (
+    remote: Remote,
+  ) => Effect.Effect<void, ConnectionError | WriteNotSentError>;
+  forget: (
+    environmentId: string,
+  ) => Effect.Effect<void, ConnectionError | WriteNotSentError>;
 };
 
 export function createAccessStore(storage: EnvironmentStorage) {
   return createStore<AccessState>()((set, get) => {
-    async function write(remotes: Remote[]) {
-      if (get().status !== 'ready')
-        throw new ConnectionError(
-          'Saved environments must be read before changing them.',
-        );
-      try {
-        await storage.write(remotes);
-        set({ remotes });
-      } catch (error) {
-        const message =
-          'The saved environments could not be updated. Read them again before making changes.';
-        set({ status: 'unreadable', error: message });
-        throw new ConnectionError(message, { cause: error });
-      }
+    const queue = createWriteQueue();
+    function write(update: (remotes: readonly Remote[]) => Remote[]) {
+      return queue.enqueue(
+        Effect.gen(function* () {
+          if (get().status !== 'ready')
+            return yield* Effect.fail(
+              new ConnectionError({
+                message:
+                  'Saved environments must be read before changing them.',
+              }),
+            );
+          const remotes = update(get().remotes);
+          const message =
+            'The saved environments could not be updated. Read them again before making changes.';
+          yield* Effect.tryPromise({
+            try: () => storage.write(remotes),
+            catch: (cause) => new ConnectionError({ message: message, cause }),
+          }).pipe(
+            Effect.tapError(() =>
+              Effect.sync(() => set({ status: 'unreadable', error: message })),
+            ),
+          );
+          set({ remotes });
+        }),
+      );
     }
     return {
       remotes: [],
       status: 'loading',
       error: undefined,
-      async load() {
-        set({ status: 'loading', error: undefined });
-        try {
-          const remotes = await storage.read();
-          set({ remotes, status: 'ready' });
-        } catch {
-          set({
-            status: 'unreadable',
-            error:
-              'Saved environments could not be read. Try reading them again.',
-          });
-        }
-      },
-      save: (remote) => write(withRemote(get().remotes, remote)),
+      load: () =>
+        queue.enqueue(
+          Effect.gen(function* () {
+            set({ status: 'loading', error: undefined });
+            yield* Effect.tryPromise({
+              try: () => storage.read(),
+              catch: (cause) =>
+                new ConnectionError({
+                  message:
+                    'Saved environments could not be read. Try reading them again.',
+                  cause,
+                }),
+            }).pipe(
+              Effect.matchEffect({
+                onSuccess: (remotes) =>
+                  Effect.sync(() => set({ remotes, status: 'ready' })),
+                onFailure: (error) =>
+                  Effect.sync(() =>
+                    set({ status: 'unreadable', error: error.message }),
+                  ),
+              }),
+            );
+          }),
+        ),
+      save: (remote) => write((remotes) => withRemote(remotes, remote)),
       forget: (environmentId) =>
-        write(
-          get().remotes.filter(
-            (remote) => remote.environmentId !== environmentId,
-          ),
+        write((remotes) =>
+          remotes.filter((remote) => remote.environmentId !== environmentId),
         ),
     };
   });

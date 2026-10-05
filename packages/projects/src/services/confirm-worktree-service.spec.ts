@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { WorktreeChangedError } from '@porcelain/kernel/errors';
 import { describe, expect, it } from 'vitest';
 import type { ListedWorktree } from '@porcelain/projects/models';
@@ -39,34 +40,44 @@ function service(current: ListedWorktree[]) {
 
 describe('ConfirmWorktreeService', () => {
   it('confirms a worktree the catalog still holds as it was checked', () => {
-    expect(() => service([worktree]).execute({ worktree })).not.toThrow();
+    expect(() =>
+      Effect.runSync(service([worktree]).execute({ worktree })),
+    ).not.toThrow();
   });
 
   it('still confirms a worktree whose branch or availability changed in place', () => {
     expect(() =>
-      service([
-        { ...worktree, branch: 'refs/heads/other', available: false },
-      ]).execute({ worktree }),
+      Effect.runSync(
+        service([
+          { ...worktree, branch: 'refs/heads/other', available: false },
+        ]).execute({ worktree }),
+      ),
     ).not.toThrow();
   });
 
   it('refuses a worktree the catalog no longer holds', () => {
-    expect(() => service([]).execute({ worktree })).toThrow(
+    expect(() => Effect.runSync(service([]).execute({ worktree }))).toThrow(
       WorktreeChangedError,
     );
   });
 
   it('refuses a worktree that moved to another folder', () => {
     expect(() =>
-      service([{ ...worktree, path: '/srv/api-moved' }]).execute({ worktree }),
+      Effect.runSync(
+        service([{ ...worktree, path: '/srv/api-moved' }]).execute({
+          worktree,
+        }),
+      ),
     ).toThrow(WorktreeChangedError);
   });
 
   it('refuses a worktree whose repository is no longer the one checked', () => {
     expect(() =>
-      service([{ ...worktree, repositoryIdentity: 'repository-2' }]).execute({
-        worktree,
-      }),
+      Effect.runSync(
+        service([{ ...worktree, repositoryIdentity: 'repository-2' }]).execute({
+          worktree,
+        }),
+      ),
     ).toThrow(WorktreeChangedError);
   });
 });

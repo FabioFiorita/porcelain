@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { FixedClock } from '@porcelain/kernel/fakes';
 import type { StoredDevice } from '@porcelain/access/models';
@@ -56,7 +57,9 @@ const refused = { kind: 'refused' };
 describe('RedeemLiveTicketService', () => {
   it('authenticates the device the ticket was issued to, over the same route', () => {
     const { service } = setup();
-    expect(service.execute({ ticket, route: 'tailnet' })).toEqual({
+    expect(
+      Effect.runSync(service.execute({ ticket, route: 'tailnet' })),
+    ).toEqual({
       kind: 'authenticated',
       deviceId,
     });
@@ -64,36 +67,48 @@ describe('RedeemLiveTicketService', () => {
 
   it('refuses a ticket used once already', () => {
     const { tickets, service } = setup();
-    service.execute({ ticket, route: 'tailnet' });
-    expect(service.execute({ ticket, route: 'tailnet' })).toEqual(refused);
+    Effect.runSync(service.execute({ ticket, route: 'tailnet' }));
+    expect(
+      Effect.runSync(service.execute({ ticket, route: 'tailnet' })),
+    ).toEqual(refused);
     expect(tickets.read().tickets).toEqual([]);
   });
 
   it('accepts a ticket until the moment it expires and refuses it from then on', () => {
     const early = setup();
     early.clock.set('2026-09-30T10:00:29.999Z');
-    expect(early.service.execute({ ticket, route: 'tailnet' })).toEqual({
+    expect(
+      Effect.runSync(early.service.execute({ ticket, route: 'tailnet' })),
+    ).toEqual({
       kind: 'authenticated',
       deviceId,
     });
     const late = setup();
     late.clock.set(expiresAt);
-    expect(late.service.execute({ ticket, route: 'tailnet' })).toEqual(refused);
+    expect(
+      Effect.runSync(late.service.execute({ ticket, route: 'tailnet' })),
+    ).toEqual(refused);
   });
 
   it('refuses a ticket over another route and does not let it be tried again', () => {
     const { service } = setup();
-    expect(service.execute({ ticket, route: 'tunnel' })).toEqual(refused);
-    expect(service.execute({ ticket, route: 'tailnet' })).toEqual(refused);
+    expect(
+      Effect.runSync(service.execute({ ticket, route: 'tunnel' })),
+    ).toEqual(refused);
+    expect(
+      Effect.runSync(service.execute({ ticket, route: 'tailnet' })),
+    ).toEqual(refused);
   });
 
   it('refuses a ticket whose secret does not match', () => {
     const { service } = setup();
     expect(
-      service.execute({
-        ticket: credential('pct', ticketId, 'x'.repeat(43)).token,
-        route: 'tailnet',
-      }),
+      Effect.runSync(
+        service.execute({
+          ticket: credential('pct', ticketId, 'x'.repeat(43)).token,
+          route: 'tailnet',
+        }),
+      ),
     ).toEqual(refused);
   });
 
@@ -105,10 +120,12 @@ describe('RedeemLiveTicketService', () => {
     ['a malformed value', `pct_${ticketId}_short`],
   ])('refuses %s without spending the ticket', (_, value) => {
     const { service } = setup();
-    expect(service.execute({ ticket: value, route: 'tailnet' })).toEqual(
-      refused,
-    );
-    expect(service.execute({ ticket, route: 'tailnet' })).toEqual({
+    expect(
+      Effect.runSync(service.execute({ ticket: value, route: 'tailnet' })),
+    ).toEqual(refused);
+    expect(
+      Effect.runSync(service.execute({ ticket, route: 'tailnet' })),
+    ).toEqual({
       kind: 'authenticated',
       deviceId,
     });
@@ -118,11 +135,15 @@ describe('RedeemLiveTicketService', () => {
     const { devices, service } = setup();
     const device = devices.find({ deviceId });
     if (device) devices.markRevoked({ device, revokedAt: issuedAt });
-    expect(service.execute({ ticket, route: 'tailnet' })).toEqual(refused);
+    expect(
+      Effect.runSync(service.execute({ ticket, route: 'tailnet' })),
+    ).toEqual(refused);
   });
 
   it('refuses the ticket of a device left unused past its lifetime', () => {
     const { service } = setup({ lastSeenAt: '2026-06-01T10:00:00.000Z' });
-    expect(service.execute({ ticket, route: 'tailnet' })).toEqual(refused);
+    expect(
+      Effect.runSync(service.execute({ ticket, route: 'tailnet' })),
+    ).toEqual(refused);
   });
 });

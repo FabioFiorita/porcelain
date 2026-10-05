@@ -5,8 +5,8 @@ import {
   useQueryClient,
 } from '@tanstack/react-query';
 import { commentCommands } from '@porcelain/client/reviews';
-import { asMutation } from '@/shared/query/mutation';
-import type { ReviewScope } from '../rules/review';
+import { asMutation, operationMutation } from '@/shared/query/mutation';
+import type { ReviewScope } from '@porcelain/client/reviews/rules';
 import type { ConnectionContext } from '@/shared/workspace/connection';
 
 function useCommentCommands(scope: ReviewScope, context: ConnectionContext) {
@@ -27,7 +27,7 @@ export function useMarkCommentsSeen(
   context: ConnectionContext,
 ) {
   const commands = useCommentCommands(scope, context);
-  return useMutation({ mutationFn: commands.seen });
+  return useMutation(operationMutation(commands.seen, context.connection));
 }
 export function useCreateComment(
   scope: ReviewScope,
@@ -35,7 +35,9 @@ export function useCreateComment(
 ) {
   const commands = useCommentCommands(scope, context);
   return {
-    ...withSend(useMutation({ mutationFn: commands.create })),
+    ...withSend(
+      useMutation(operationMutation(commands.create, context.connection)),
+    ),
     bodyLimit: COMMENT_BODY_LENGTH,
   };
 }
@@ -45,7 +47,9 @@ export function useReplyComment(
 ) {
   const commands = useCommentCommands(scope, context);
   return {
-    ...withSend(useMutation({ mutationFn: commands.reply })),
+    ...withSend(
+      useMutation(operationMutation(commands.reply, context.connection)),
+    ),
     bodyLimit: COMMENT_BODY_LENGTH,
   };
 }
@@ -54,12 +58,16 @@ export function useResolveComment(
   context: ConnectionContext,
 ) {
   const commands = useCommentCommands(scope, context);
-  return withSend(useMutation({ mutationFn: commands.resolve }));
+  return withSend(
+    useMutation(operationMutation(commands.resolve, context.connection)),
+  );
 }
 export function useEditComment(scope: ReviewScope, context: ConnectionContext) {
   const commands = useCommentCommands(scope, context);
   return {
-    ...withSend(useMutation({ mutationFn: commands.edit })),
+    ...withSend(
+      useMutation(operationMutation(commands.edit, context.connection)),
+    ),
     bodyLimit: COMMENT_BODY_LENGTH,
   };
 }
@@ -68,13 +76,17 @@ export function useDeleteComment(
   context: ConnectionContext,
 ) {
   const commands = useCommentCommands(scope, context);
-  return withSend(useMutation({ mutationFn: commands.remove }));
+  return withSend(
+    useMutation(operationMutation(commands.remove, context.connection)),
+  );
 }
 export function useDeleteResolvedComments(
   scope: ReviewScope,
   context: ConnectionContext,
 ) {
   const commands = useCommentCommands(scope, context);
-  const mutation = useMutation({ mutationFn: commands.removeResolved });
+  const mutation = useMutation(
+    operationMutation(commands.removeResolved, context.connection),
+  );
   return { ...withSend(mutation), result: mutation.data };
 }

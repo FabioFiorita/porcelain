@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type {
   RevokeDeviceService,
   RevokePairingGrantService,
@@ -9,7 +10,6 @@ import type {
 import type { DeviceConnectionStore } from '../../ports/device-connection-store.ts';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
 
 export class RevokeAccessUseCase {
   private readonly revokePairingGrant: RevokePairingGrantService;
@@ -34,21 +34,21 @@ export class RevokeAccessUseCase {
 
   execute(
     input: RevokeAccessRequest,
-    context: OperationContext,
-  ): Promise<RevokeAccessResponse> {
-    return this.lanes.run(
-      this.laneKeys.access(),
-      'write',
-      async () => {
-        if (this.revokePairingGrant.execute(input).kind === 'revoked')
-          return { revoked: true, kind: 'grant' };
-        if (this.revokeDevice.execute(input).kind === 'revoked') {
-          this.deviceConnections.remove({ deviceId: input.id });
-          return { revoked: true, kind: 'device' };
-        }
-        return { revoked: false };
-      },
-      { callerSignal: context.signal },
-    );
+  ): Effect.Effect<RevokeAccessResponse, never> {
+    return Effect.gen({ self: this }, function* () {
+      return yield* this.lanes.run(this.laneKeys.access(), 'write', () =>
+        Effect.gen({ self: this }, function* () {
+          if (
+            (yield* this.revokePairingGrant.execute(input)).kind === 'revoked'
+          )
+            return { revoked: true, kind: 'grant' as const };
+          if ((yield* this.revokeDevice.execute(input)).kind === 'revoked') {
+            this.deviceConnections.remove({ deviceId: input.id });
+            return { revoked: true, kind: 'device' as const };
+          }
+          return { revoked: false };
+        }),
+      );
+    });
   }
 }

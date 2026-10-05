@@ -34,7 +34,10 @@ import {
   ARCHITECTURE_LINE_BUDGET,
   architectureLines,
 } from '../architecture/guardrail-budget.ts';
-import { scriptInvokes } from '../architecture/script-policy.ts';
+import {
+  scriptInvokes,
+  localCheckMatches,
+} from '../architecture/script-policy.ts';
 import { unownedProse } from '../architecture/prose-policy.ts';
 import { manualAuditProblems } from '../architecture/ci-policy.ts';
 import {
@@ -242,9 +245,8 @@ function prePushChecks(): boolean {
   const parsed = prePushSchema.safeParse(lefthookConfig());
   return (
     parsed.success &&
-    parsed.data['pre-push'].jobs.some((job) =>
-      scriptInvokes(job.run, [['pnpm', 'check']], '.'),
-    )
+    parsed.data['pre-push'].jobs.length === 1 &&
+    parsed.data['pre-push'].jobs[0]?.run.trim() === 'pnpm check:local'
   );
 }
 
@@ -297,7 +299,7 @@ function ciProblems(): Problem[] {
       : [
           problem(
             'ci-steps',
-            'lefthook.yml, merged with any local or extended Lefthook configuration, runs pnpm check before every push, with no skip, only or file filter, because required checks must run before a change can be shipped.',
+            'lefthook.yml, merged with any local or extended Lefthook configuration, runs only pnpm check:local before every push; local static checks use two workers and CI keeps pnpm check with the full suites, because broad local runs have exhausted these machines.',
           ),
         ]),
   ];
@@ -791,6 +793,7 @@ const rootCommands: Readonly<Record<string, readonly Invocation[]>> = {
   'db:check': [['pnpm', '--filter', '@porcelain/storage', 'db:check']],
   prepare: [['lefthook', 'install']],
   check: [['turbo', 'run', ...fastTasks]],
+  'check:local': [['turbo', 'run', ...rootTasks]],
 };
 
 function scriptProblems(): Problem[] {
@@ -872,7 +875,8 @@ function scriptProblems(): Problem[] {
         };
     }
     return Object.entries(expected).flatMap(([name, invocations]) =>
-      scriptInvokes(scripts[name] ?? '', invocations, folder)
+      scriptInvokes(scripts[name] ?? '', invocations, folder) &&
+      (name !== 'check:local' || localCheckMatches(scripts[name] ?? ''))
         ? []
         : [
             problem(

@@ -1,7 +1,10 @@
-export class CommentRevisionMismatchError extends Error {
-  override readonly name = 'CommentRevisionMismatchError';
+import { Schema } from 'effect';
 
-  constructor() {
-    super('The comparison must identify the revision it belongs to');
+export class CommentRevisionMismatchError extends Schema.TaggedError<CommentRevisionMismatchError>()(
+  'CommentRevisionMismatchError',
+  {},
+) {
+  override get message() {
+    return 'The comparison must identify the revision it belongs to';
   }
 }

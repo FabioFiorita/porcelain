@@ -1,3 +1,4 @@
+export { GitActionsApi } from './api.ts';
 export {
   generateCommitDraftResponseSchema,
   listCommitModelsResponseSchema,
@@ -9,6 +10,7 @@ export {
   dismissInterruptedGitActionResponseSchema,
   readGitActionReceiptResponseSchema,
   runGitActionRequestSchema,
+  runGitActionResponseSchema,
   type DismissInterruptedGitActionParams,
   type DismissInterruptedGitActionResponse,
   type ReadGitActionReceiptParams,
@@ -16,4 +18,3 @@ export {
   type RunGitActionRequest,
   type RunGitActionResponse,
 } from './git-actions.ts';
-export * from './endpoints.ts';

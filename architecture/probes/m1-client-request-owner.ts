@@ -3,7 +3,7 @@ import type { Probe } from '../probe.ts';
 export default {
   decision: 'M1',
   plants:
-    'a feature command reaches the shared request function instead of its API',
+    'a feature command constructs the typed HTTP client instead of using its shared feature API',
   gate: 'web-lint',
   rule: 'porcelain(web-api-owns-request)',
   edits: [
@@ -11,7 +11,7 @@ export default {
       kind: 'prepend',
       path: 'apps/web/src/features/access/commands/pairing.ts',
       content:
-        "import { requestEndpoint as directRequest } from '@porcelain/client/transport';\n",
+        "import { HttpApiClient as directClient } from 'effect/http-api';\n",
     },
   ],
 } satisfies Probe;

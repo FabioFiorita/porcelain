@@ -1,3 +1,7 @@
+import type { Effect } from 'effect';
+import type { WorktreeRead } from '@porcelain/effects/worktree';
+import { readGit } from '../../runtime/git-io.ts';
+import type { GitIoFailure } from '../../ports/git-io-failure.ts';
 import { join } from 'node:path';
 import type {
   StagingStampRequest,
@@ -13,7 +17,7 @@ import {
   type WorktreeReadOptions,
 } from './worktree-files.ts';
 
-export class GitWorktreeSideReader implements WorktreeSideReader {
+export class GitWorktreeSideReader implements WorktreeSideReader<GitIoFailure> {
   private readonly open: OpenInspection;
   private readonly options: WorktreeReadOptions;
 
@@ -22,7 +26,19 @@ export class GitWorktreeSideReader implements WorktreeSideReader {
     this.options = options;
   }
 
-  async readEntries(
+  readEntries(
+    input: WorktreeEntriesRequest,
+  ): Effect.Effect<
+    ReadonlyMap<string, WorktreeEntry>,
+    GitIoFailure,
+    WorktreeRead
+  > {
+    return readGit(input.worktreeId, (signal) =>
+      this.readEntriesNative(input, signal),
+    );
+  }
+
+  private async readEntriesNative(
     input: WorktreeEntriesRequest,
     signal?: AbortSignal,
   ): Promise<ReadonlyMap<string, WorktreeEntry>> {
@@ -35,7 +51,15 @@ export class GitWorktreeSideReader implements WorktreeSideReader {
     );
   }
 
-  async readSubmoduleHeads(
+  readSubmoduleHeads(
+    input: SubmoduleHeadsRequest,
+  ): Effect.Effect<ReadonlyMap<string, string>, GitIoFailure, WorktreeRead> {
+    return readGit(input.worktreeId, (signal) =>
+      this.readSubmoduleHeadsNative(input, signal),
+    );
+  }
+
+  private async readSubmoduleHeadsNative(
     input: SubmoduleHeadsRequest,
     signal?: AbortSignal,
   ): Promise<ReadonlyMap<string, string>> {
@@ -43,7 +67,15 @@ export class GitWorktreeSideReader implements WorktreeSideReader {
     return git.readSubmoduleHeads(input.paths, signal);
   }
 
-  async readStagingStamp(
+  readStagingStamp(
+    input: StagingStampRequest,
+  ): Effect.Effect<string | undefined, GitIoFailure, WorktreeRead> {
+    return readGit(input.worktreeId, (signal) =>
+      this.readStagingStampNative(input, signal),
+    );
+  }
+
+  private async readStagingStampNative(
     input: StagingStampRequest,
     signal?: AbortSignal,
   ): Promise<string | undefined> {

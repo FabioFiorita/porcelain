@@ -34,7 +34,7 @@ import { type CodeEntry, codeTarget } from '../adapters/code-entries';
 import { useToggleReviewed } from '../commands/reviewed';
 import { useComments } from '../queries/comments';
 import { isFolded } from '../rules/code-folds';
-import { groupSpecPaths, isSpecPath } from '../rules/spec-paths';
+import { groupSpecPaths, isSpecPath } from '@porcelain/client/reviews/rules';
 import {
   anchorLabel,
   commentIsStale,
@@ -42,10 +42,10 @@ import {
   type CommentThread,
   matchesCommentTarget,
   rangeAnchor,
-} from '../rules/comments';
+} from '@porcelain/client/reviews/rules';
 import type { DocumentInteraction } from '../rules/documents';
-import { basename, type ReviewScope } from '../rules/review';
-import type { ReviewRange } from '../rules/reviewed';
+import { basename, type ReviewScope } from '@porcelain/client/reviews/rules';
+import type { ReviewRange } from '@porcelain/client/reviews/rules';
 import { useCodeFolds } from '../store';
 import { InlineComposer } from './inline-composer';
 import { ThreadCard } from './thread-card';

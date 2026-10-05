@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { FixedClock } from '@porcelain/kernel/fakes';
 import type {
@@ -46,10 +47,12 @@ function record(
     worktrees: ListedWorktree[];
   }[],
 ) {
-  new RecordWorktreeCatalogService(catalog, new FixedClock(now)).execute({
-    projects,
-    listings: listings.map((listing) => ({ ...listing, complete: true })),
-  });
+  Effect.runSync(
+    new RecordWorktreeCatalogService(catalog, new FixedClock(now)).execute({
+      projects,
+      listings: listings.map((listing) => ({ ...listing, complete: true })),
+    }),
+  );
 }
 
 describe('RecordWorktreeCatalogService', () => {

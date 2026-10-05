@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type { Clock } from '@porcelain/kernel/ports';
 import { ReviewedMarkConflictError } from '../errors/reviewed-mark-conflict-error.ts';
 import type {
@@ -16,16 +17,20 @@ export class SetReviewedLayerService {
     this.clock = clock;
   }
 
-  execute(input: SetReviewedLayerInput): SetReviewedLayerResult {
-    const { worktreeId, layer, fingerprint } = input;
-    if (currentLayerFingerprint(layer, input.texts) !== fingerprint)
-      throw new ReviewedMarkConflictError();
-    const mark = {
-      layerId: layer.id,
-      fingerprint,
-      reviewedAt: this.clock.now(),
-    };
-    this.reviewedLayers.save({ worktreeId, marks: [mark] });
-    return mark;
+  execute(
+    input: SetReviewedLayerInput,
+  ): Effect.Effect<SetReviewedLayerResult, ReviewedMarkConflictError> {
+    return Effect.gen({ self: this }, function* () {
+      const { worktreeId, layer, fingerprint } = input;
+      if (currentLayerFingerprint(layer, input.texts) !== fingerprint)
+        return yield* Effect.fail(new ReviewedMarkConflictError());
+      const mark = {
+        layerId: layer.id,
+        fingerprint,
+        reviewedAt: this.clock.now(),
+      };
+      this.reviewedLayers.save({ worktreeId, marks: [mark] });
+      return mark;
+    });
   }
 }

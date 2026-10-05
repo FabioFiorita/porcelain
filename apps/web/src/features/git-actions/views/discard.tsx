@@ -15,9 +15,12 @@ import {
   useReadCurrentChanges,
   useReviewOverview,
 } from '@/features/changes/index';
-import { fileName, type GitScope } from '../rules/git-action';
+import { fileName, type GitScope } from '@porcelain/client/git-actions/rules';
 import { useDiscard } from '../commands/discard';
-import { type GitActionStatus, statusFromChanges } from '../rules/status';
+import {
+  type GitActionStatus,
+  statusFromChanges,
+} from '@porcelain/client/git-actions/rules';
 import { GitActionError } from './git-action-message';
 
 export function DiscardButton({

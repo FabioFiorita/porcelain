@@ -1,3 +1,4 @@
+import { runRequest } from '@porcelain/client/transport';
 import { describe, expect, it } from 'vitest';
 import { QueryClient } from '@tanstack/query-core';
 import { commentCommands } from './comments.ts';
@@ -33,15 +34,21 @@ describe('comment writes report failed intent', () => {
     const key = commentsQueryOptions(scope, connection).queryKey;
     client.setQueryData(key, []);
     const commands = commentCommands(scope, connection, client);
-    const create = commands.create({
-      anchor: { kind: 'change' },
-      body: 'Please explain the change.',
-    });
-    const reply = commands.reply({
-      threadId: 'bb6a4c6a-4898-426c-ac20-bf4f53fc47d7',
-      body: 'A dependent reply.',
-      messageId: 'eb90812a-6a3e-464e-92ca-5c962094b867',
-    });
+    const create = runRequest(
+      commands.create({
+        anchor: { kind: 'change' },
+        body: 'Please explain the change.',
+      }),
+      controller.signal,
+    );
+    const reply = runRequest(
+      commands.reply({
+        threadId: 'bb6a4c6a-4898-426c-ac20-bf4f53fc47d7',
+        body: 'A dependent reply.',
+        messageId: 'eb90812a-6a3e-464e-92ca-5c962094b867',
+      }),
+      controller.signal,
+    );
     const results = await Promise.allSettled([create, reply]);
     expect(results.map((result) => result.status)).toEqual([
       'rejected',

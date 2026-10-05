@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type { Clock, IdSource } from '@porcelain/kernel/ports';
 import { CommentIdentityConflictError } from '../errors/comment-identity-conflict-error.ts';
 import { CommentLimitExceededError } from '../errors/comment-limit-exceeded-error.ts';
@@ -34,44 +35,53 @@ export class ReplyToCommentService {
     this.options = options;
   }
 
-  execute(input: ReplyToCommentInput): ReplyToCommentResult {
-    const messageId = input.messageId ?? this.idSource.next();
-    const author = commentAuthor(input.writer);
-    const earlier = this.comments.findMessage({ messageId });
-    const current = this.comments.find({ threadId: input.threadId });
-    if (earlier) {
-      if (
-        !current ||
-        !repeatsReply(earlier, {
-          worktreeId: input.worktreeId,
-          threadId: input.threadId,
-          body: input.body,
-          author,
-        })
-      )
-        throw new CommentIdentityConflictError();
-      return current;
-    }
-    if (!current || current.worktreeId !== input.worktreeId)
-      throw new CommentTargetNotFoundError();
-    const message: CommentMessage = {
-      id: messageId,
-      body: input.body,
-      author,
-      createdAt: this.clock.now(),
-    };
-    const sizeBytes = commentStorageSize({
-      ...current,
-      messages: [...current.messages, message],
-    });
-    const usage = this.comments.usage({ worktreeId: input.worktreeId });
-    if (!replyFits(current, usage, sizeBytes, this.options))
-      throw new CommentLimitExceededError();
-    return this.comments.append({
-      thread: current,
-      message,
-      sizeBytes,
-      writtenByAgent: author === 'agent',
+  execute(
+    input: ReplyToCommentInput,
+  ): Effect.Effect<
+    ReplyToCommentResult,
+    | CommentIdentityConflictError
+    | CommentTargetNotFoundError
+    | CommentLimitExceededError
+  > {
+    return Effect.gen({ self: this }, function* () {
+      const messageId = input.messageId ?? this.idSource.next();
+      const author = commentAuthor(input.writer);
+      const earlier = this.comments.findMessage({ messageId });
+      const current = this.comments.find({ threadId: input.threadId });
+      if (earlier) {
+        if (
+          !current ||
+          !repeatsReply(earlier, {
+            worktreeId: input.worktreeId,
+            threadId: input.threadId,
+            body: input.body,
+            author,
+          })
+        )
+          return yield* Effect.fail(new CommentIdentityConflictError());
+        return current;
+      }
+      if (!current || current.worktreeId !== input.worktreeId)
+        return yield* Effect.fail(new CommentTargetNotFoundError());
+      const message: CommentMessage = {
+        id: messageId,
+        body: input.body,
+        author,
+        createdAt: this.clock.now(),
+      };
+      const sizeBytes = commentStorageSize({
+        ...current,
+        messages: [...current.messages, message],
+      });
+      const usage = this.comments.usage({ worktreeId: input.worktreeId });
+      if (!replyFits(current, usage, sizeBytes, this.options))
+        return yield* Effect.fail(new CommentLimitExceededError());
+      return this.comments.append({
+        thread: current,
+        message,
+        sizeBytes,
+        writtenByAgent: author === 'agent',
+      });
     });
   }
 }

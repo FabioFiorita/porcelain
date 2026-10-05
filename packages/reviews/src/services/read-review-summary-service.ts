@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type { Clock } from '@porcelain/kernel/ports';
 import { constantTimeEquals } from '@porcelain/kernel/rules';
 import { ReviewSummaryNotFoundError } from '../errors/review-summary-not-found-error.ts';
@@ -24,20 +25,24 @@ export class ReadReviewSummaryService {
     this.signatureSource = signatureSource;
   }
 
-  execute(input: ReadReviewSummaryInput): ReadReviewSummaryResult {
-    const summary = this.reviews.findSummary({ token: input.token });
-    if (
-      summary === undefined ||
-      summaryExpired(input.expires, this.clock.now()) ||
-      !constantTimeEquals(
-        this.signatureSource.sign({
-          secret: summary.summarySecret,
-          message: summaryMessage(input.token, input.expires),
-        }),
-        input.signature,
+  execute(
+    input: ReadReviewSummaryInput,
+  ): Effect.Effect<ReadReviewSummaryResult, ReviewSummaryNotFoundError> {
+    return Effect.gen({ self: this }, function* () {
+      const summary = this.reviews.findSummary({ token: input.token });
+      if (
+        summary === undefined ||
+        summaryExpired(input.expires, this.clock.now()) ||
+        !constantTimeEquals(
+          this.signatureSource.sign({
+            secret: summary.summarySecret,
+            message: summaryMessage(input.token, input.expires),
+          }),
+          input.signature,
+        )
       )
-    )
-      throw new ReviewSummaryNotFoundError();
-    return { html: summary.summaryHtml };
+        return yield* Effect.fail(new ReviewSummaryNotFoundError());
+      return { html: summary.summaryHtml };
+    });
   }
 }

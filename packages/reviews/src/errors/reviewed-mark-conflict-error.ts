@@ -1,7 +1,10 @@
-export class ReviewedMarkConflictError extends Error {
-  override readonly name = 'ReviewedMarkConflictError';
+import { Schema } from 'effect';
 
-  constructor() {
-    super('The reviewed mark is based on a version that has changed');
+export class ReviewedMarkConflictError extends Schema.TaggedError<ReviewedMarkConflictError>()(
+  'ReviewedMarkConflictError',
+  {},
+) {
+  override get message() {
+    return 'The reviewed mark is based on a version that has changed';
   }
 }

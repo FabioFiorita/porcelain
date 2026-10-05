@@ -15,8 +15,11 @@ import {
   type CommentThread,
   type ConfirmedThreads,
   resolvedCleanup,
-} from '../rules/comments';
-import { reviewErrorMessage, type ReviewScope } from '../rules/review';
+} from '@porcelain/client/reviews/rules';
+import {
+  reviewErrorMessage,
+  type ReviewScope,
+} from '@porcelain/client/reviews/rules';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
 function threadCount(count: number) {

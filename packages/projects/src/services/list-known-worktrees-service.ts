@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type {
   ListKnownWorktreesInput,
   ListKnownWorktreesResult,
@@ -12,20 +13,24 @@ export class ListKnownWorktreesService {
     this.worktreeCatalog = worktreeCatalog;
   }
 
-  execute(input: ListKnownWorktreesInput): ListKnownWorktreesResult {
-    return {
-      listings: input.projects.map((project) => {
-        const worktrees = this.worktreeCatalog.lastSeen({
-          projectId: project.id,
-        });
-        return {
-          projectId: project.id,
-          available: project.available,
-          worktrees: project.available
-            ? worktrees
-            : unavailableWorktrees(worktrees),
-        };
-      }),
-    };
+  execute(
+    input: ListKnownWorktreesInput,
+  ): Effect.Effect<ListKnownWorktreesResult, never> {
+    return Effect.sync(() => {
+      return {
+        listings: input.projects.map((project) => {
+          const worktrees = this.worktreeCatalog.lastSeen({
+            projectId: project.id,
+          });
+          return {
+            projectId: project.id,
+            available: project.available,
+            worktrees: project.available
+              ? worktrees
+              : unavailableWorktrees(worktrees),
+          };
+        }),
+      };
+    });
   }
 }

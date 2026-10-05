@@ -1,5 +1,5 @@
+import * as Schema from 'effect/Schema';
 import { randomUUID } from 'node:crypto';
-import { editFileRequestSchema } from '@porcelain/contracts/files';
 import { readInventoryResponseSchema } from '@porcelain/contracts/projects';
 import { kitHeaders } from './isolated-server.ts';
 import { sampleReview, toolCall, toolResult } from './requests.ts';
@@ -17,9 +17,9 @@ async function mainWorktree(agent: Session) {
     path: '/api/inventory',
     headers: kitHeaders,
   });
-  const worktree = readInventoryResponseSchema
-    .parse(response.body)
-    .projects[0]?.worktrees.find((entry) => entry.main);
+  const worktree = Schema.decodeUnknownSync(readInventoryResponseSchema)(
+    response.body,
+  ).projects[0]?.worktrees.find((entry) => entry.main);
   if (worktree === undefined)
     throw new Error('The isolated server has no main worktree.');
   return worktree.id;
@@ -33,7 +33,7 @@ async function agentRequest(
     return {
       method: 'POST',
       path: `/api/worktrees/${encodeURIComponent(await mainWorktree(agent))}/files`,
-      body: editFileRequestSchema.parse(action.edit),
+      body: action.edit,
     };
   if (action.kind === 'publish-proof') {
     const layerId = randomUUID();

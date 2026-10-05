@@ -1,3 +1,8 @@
+import type { MissingEnvironmentIdentityError } from '@porcelain/access/errors';
+import { Effect } from 'effect';
+import type { WorktreeAccess } from '../../runtime/worktree-access.ts';
+import type { WorktreeAccessFailure } from '../../ports/worktree-access-failure.ts';
+import type { GitIoFailure } from '../../ports/git-io-failure.ts';
 import type { ReadEnvironmentService } from '@porcelain/access/services';
 import type {
   ReadBranchDetailsService,
@@ -5,87 +10,73 @@ import type {
 } from '@porcelain/changes/services';
 import type { ReadGitStatusResponse } from '@porcelain/contracts/changes';
 import type { WorktreeParams } from '@porcelain/contracts/shared';
-import type { LaneKeys } from '../../runtime/lane-keys.ts';
-import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
-import type { CheckWorktreeUseCasePort } from '../../ports/check-worktree-use-case-port.ts';
 import type { SharedReads } from '../../runtime/shared-reads.ts';
 
 export class ReadGitStatusUseCase {
-  private readonly checkWorktree: CheckWorktreeUseCasePort;
-  private readonly readWorktreeStatus: ReadWorktreeStatusService;
-  private readonly readBranchDetails: ReadBranchDetailsService;
+  private readonly access: WorktreeAccess;
+  private readonly readWorktreeStatus: ReadWorktreeStatusService<GitIoFailure>;
+  private readonly readBranchDetails: ReadBranchDetailsService<GitIoFailure>;
   private readonly readEnvironment: ReadEnvironmentService;
-  private readonly lanes: Lanes;
-  private readonly laneKeys: LaneKeys;
-  private readonly sharedReads: SharedReads<ReadGitStatusResponse>;
+  private readonly sharedReads: SharedReads<
+    ReadGitStatusResponse,
+    WorktreeAccessFailure | GitIoFailure | MissingEnvironmentIdentityError
+  >;
 
   constructor(
-    checkWorktree: CheckWorktreeUseCasePort,
-    readWorktreeStatus: ReadWorktreeStatusService,
-    readBranchDetails: ReadBranchDetailsService,
+    access: WorktreeAccess,
+    readWorktreeStatus: ReadWorktreeStatusService<GitIoFailure>,
+    readBranchDetails: ReadBranchDetailsService<GitIoFailure>,
     readEnvironment: ReadEnvironmentService,
-    lanes: Lanes,
-    laneKeys: LaneKeys,
-    sharedReads: SharedReads<ReadGitStatusResponse>,
+    sharedReads: SharedReads<
+      ReadGitStatusResponse,
+      WorktreeAccessFailure | GitIoFailure | MissingEnvironmentIdentityError
+    >,
   ) {
-    this.checkWorktree = checkWorktree;
+    this.access = access;
     this.readWorktreeStatus = readWorktreeStatus;
     this.readBranchDetails = readBranchDetails;
     this.readEnvironment = readEnvironment;
-    this.lanes = lanes;
-    this.laneKeys = laneKeys;
     this.sharedReads = sharedReads;
   }
 
-  async execute(
+  execute(
     input: WorktreeParams,
-    context: OperationContext,
-  ): Promise<ReadGitStatusResponse> {
+  ): Effect.Effect<
+    ReadGitStatusResponse,
+    WorktreeAccessFailure | GitIoFailure | MissingEnvironmentIdentityError
+  > {
     const { worktreeId } = input;
-    const worktree = await this.checkWorktree.execute(
-      { worktreeId, requireAvailableProject: false },
-      context,
-    );
-    const lane = this.laneKeys.repository(worktree);
-    return this.sharedReads.run(
-      `status\0${lane}\0${worktreeId}`,
-      (shared) =>
-        this.lanes.runConsistent<ReadGitStatusResponse>(
-          lane,
-          worktree,
-          async ({ signal }) => {
-            const status = await this.readWorktreeStatus.execute(
-              { worktreeId },
-              signal,
-            );
-            const details = await this.readBranchDetails.execute(
-              { worktreeId, branch: status.branch, headOid: status.headOid },
-              signal,
-            );
-            return {
-              environmentId: this.readEnvironment.execute().environmentId,
-              worktreeId,
-              statusToken: status.statusToken,
-              branch: status.branch && {
-                ...status.branch,
-                remoteName: details.remoteName,
-                sourceRef: details.sourceRef,
-                upstreamOid: details.upstreamOid,
-                stashes: details.stashes,
-                discarded: details.discarded,
-              },
-              consistency: 'best-effort',
-              headOid: status.headOid,
-              inProgress: status.inProgress,
-              mergeHeadOid: status.mergeHeadOid,
-              headCommit: details.headCommit,
-              changes: status.changes,
-            };
-          },
-          { callerSignal: shared },
-        ),
-      context.signal,
+    return this.sharedReads.run(`status\0${worktreeId}`, () =>
+      this.access.read(worktreeId, () =>
+        Effect.gen({ self: this }, function* () {
+          const status = yield* this.readWorktreeStatus.execute({ worktreeId });
+          const details = yield* this.readBranchDetails.execute({
+            worktreeId,
+            branch: status.branch,
+            headOid: status.headOid,
+          });
+          return {
+            environmentId: (yield* this.readEnvironment.execute())
+              .environmentId,
+            worktreeId,
+            statusToken: status.statusToken,
+            branch: status.branch && {
+              ...status.branch,
+              remoteName: details.remoteName,
+              sourceRef: details.sourceRef,
+              upstreamOid: details.upstreamOid,
+              stashes: details.stashes,
+              discarded: details.discarded,
+            },
+            consistency: 'best-effort',
+            headOid: status.headOid,
+            inProgress: status.inProgress,
+            mergeHeadOid: status.mergeHeadOid,
+            headCommit: details.headCommit,
+            changes: status.changes,
+          };
+        }),
+      ),
     );
   }
 }

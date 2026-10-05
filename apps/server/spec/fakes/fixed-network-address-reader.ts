@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type { DefaultRoute, NetworkAddress } from '@porcelain/access/models';
 import type { NetworkAddressReader } from '@porcelain/access/ports';
 
@@ -14,7 +15,7 @@ export class FixedNetworkAddressReader implements NetworkAddressReader {
     return [...this.addresses];
   }
 
-  async defaultRoutes(): Promise<DefaultRoute[]> {
-    return this.routes.map((route) => ({ ...route }));
+  defaultRoutes(): Effect.Effect<DefaultRoute[]> {
+    return Effect.sync(() => this.routes.map((route) => ({ ...route })));
   }
 }

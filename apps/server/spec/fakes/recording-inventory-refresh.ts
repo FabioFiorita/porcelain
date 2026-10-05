@@ -1,10 +1,13 @@
-import type { JobWork } from '../../src/ports/job-work.ts';
+import { Effect } from 'effect';
+import type { JobRunner } from '../../src/ports/job-runner.ts';
 
-export class RecordingInventoryRefresh implements JobWork {
+export class RecordingInventoryRefresh implements JobRunner {
   private fresh = false;
 
-  async execute(): Promise<void> {
-    this.fresh = true;
+  execute(): Effect.Effect<void> {
+    return Effect.sync(() => {
+      this.fresh = true;
+    });
   }
 
   isFresh(): boolean {

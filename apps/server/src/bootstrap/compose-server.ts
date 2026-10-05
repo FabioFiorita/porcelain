@@ -1,3 +1,11 @@
+import { Context, Effect, Layer } from 'effect';
+import type { StorageSession } from '@porcelain/storage';
+import { nativeOperation } from '@porcelain/effects';
+import { releaseInOrder } from '../runtime/release-in-order.ts';
+import {
+  ServerComponents,
+  ServerResources,
+} from '../runtime/server-resources.ts';
 import type { Server } from 'node:http';
 import type {
   NetworkAddressReader,
@@ -69,206 +77,277 @@ type RemoteRouteAdapters = {
   tunnelProbe: (options: { timeoutMs: number }) => TunnelProbe;
 };
 
+class ServerFoundation extends Context.Service<
+  ServerFoundation,
+  {
+    readonly session: StorageSession;
+    readonly gitVersion: Awaited<ReturnType<typeof readGitVersion>>;
+  }
+>()('@porcelain/server/ServerFoundation') {}
+
+function serverResources(
+  adapters: RemoteRouteAdapters,
+  host: ServerHost,
+  input: Parameters<OpenServer>[0],
+) {
+  const foundation = Layer.effect(
+    ServerFoundation,
+    Effect.gen(function* () {
+      yield* Effect.addFinalizer(() => host.serviceUpdateRunner.close());
+      const { settings } = input;
+      const { limits } = settings;
+      const gitVersion = yield* nativeOperation((signal) =>
+        readGitVersion(limits.git, signal),
+      );
+      const session = yield* Effect.acquireRelease(
+        Effect.sync(() =>
+          openStorageSession(settings.dataDirectory, {
+            worktreeIdLength: limits.projects.worktreeIds.length,
+            busyTimeoutMs: limits.storage.busyTimeoutMs,
+          }),
+        ),
+        (opened) => Effect.sync(() => opened.close()),
+      );
+      return { session, gitVersion };
+    }),
+  );
+  const components = Layer.effect(
+    ServerComponents,
+    Effect.acquireRelease(
+      Effect.gen(function* () {
+        const { settings } = input;
+        const { limits } = settings;
+        const { session, gitVersion } = yield* ServerFoundation;
+        const worktreeId = (projectId: string, metadataIdentity: string) =>
+          deriveWorktreeId(
+            projectId,
+            metadataIdentity,
+            limits.projects.worktreeIds.length,
+          );
+        const stores = composeStores(session);
+        const catalog = new InMemoryWorktreeCatalogStore();
+        const clock = new SystemClock();
+        const lanes = new Lanes({
+          deadlineMs: () =>
+            operationDeadlineMs(catalog.listObservations().length, limits),
+          readCapacity: limits.lanes.readCapacity,
+          consistency: new ConfirmWorktreeService(catalog),
+        });
+        const logger = new StderrLogger(clock);
+        const liveConnections = new LiveConnections();
+        const events = new WebSocketEventPublisher(liveConnections);
+        const shared = composeShared({
+          settings,
+          stores,
+          catalog,
+          gitVersion,
+          worktreeId,
+          clock,
+          logger,
+        });
+        const context: ComposeContext = {
+          lanes,
+          laneKeys: new LaneKeys(),
+          events,
+          settings,
+          clock,
+          ids: new RandomIdSource(),
+          logger,
+        };
+        const deviceConnections = new InMemoryDeviceConnectionStore();
+        const tunnelConnections = new InMemoryTunnelConnectionStore();
+        const routeListenerRunner = adapters.routeListenerRunner(
+          () => network.server,
+        );
+        const access = composeAccess(context, {
+          desktopSession: host.desktopSession,
+          stores,
+          shared,
+          deviceConnections,
+          tunnelConnections,
+          pairingReachReader: new HttpPairingReachReader(
+            input.pairingReach,
+            stores.routeStates,
+          ),
+          runtimeStatusReader: new ProcessRuntimeStatusReader(
+            input.runtimeStatus,
+          ),
+          serviceUpdateRunner: host.serviceUpdateRunner,
+          serverVersion: host.version,
+          networkAddressReader: adapters.networkAddressReader(
+            limits.access.networkDiscovery,
+          ),
+          routeListenerRunner,
+          tunnelProbe: adapters.tunnelProbe({
+            timeoutMs: limits.access.remoteAccess.probeTimeoutMs,
+          }),
+        });
+        const projects = composeProjects(context, {
+          stores,
+          shared,
+          projectFolderReader: new FilesystemProjectFolderReader({
+            gitDirectory: gitDirectoryName(),
+          }),
+        });
+        const { checkWorktree } = projects;
+        const changes = composeChanges(context, { shared, checkWorktree });
+        const reviews = composeReviews(context, {
+          stores,
+          shared,
+          checkWorktree,
+          findWorktreeByPath: projects.findWorktreeByPath,
+        });
+        const worktreeWatches = new WatchWorktrees(
+          new AnnounceWorktreeChangeUseCase(
+            reviews.invalidateReviewedMarks,
+            events,
+            logger,
+          ),
+          projects.refreshInventory,
+          new ParcelWorktreeWatcher({
+            worktrees: shared.worktreeAccess,
+            projects: () => catalog.listObservations(),
+            gitDirectory: gitDirectoryName(),
+            isTemporaryWrite,
+            limits: limits.git,
+          }),
+          logger,
+          limits.liveUpdates,
+        );
+        const files = composeFiles(context, {
+          shared,
+          checkWorktree,
+          invalidateReviewedMarks: reviews.invalidateReviewedMarks,
+          editAnnouncements: worktreeWatches,
+        });
+        const commitPlanner = createCommitPlanner(limits.agents);
+        const gitActions = composeGitActions(context, {
+          stores,
+          shared,
+          checkWorktree,
+          refreshWorktreeReview: reviews.refreshWorktreeReview,
+          commitDraftSource: new ProcessCommitDraftSource(commitPlanner),
+          commitModelReader: new ProcessCommitModelReader(commitPlanner),
+        });
+        const jobs: readonly Job[] = [
+          new IntervalJob(
+            'recover-interrupted-git-actions',
+            gitActions.recoverInterruptedGitActions,
+            { atStart: true },
+            logger,
+          ),
+          new IntervalJob(
+            'refresh-inventory',
+            new JobSequence([
+              projects.refreshInventory,
+              reviews.refreshReviewActivity,
+            ]),
+            { atStart: true, everyMs: limits.jobs.refreshInventoryMs },
+            logger,
+          ),
+          new IntervalJob(
+            'collect-absent-worktrees',
+            projects.collectAbsentWorktrees,
+            { everyMs: limits.jobs.collectAbsentWorktreesMs },
+            logger,
+          ),
+          new IntervalJob(
+            'flush-device-activity',
+            access.flushDeviceActivity,
+            { everyMs: limits.jobs.flushDeviceActivityMs, atStop: true },
+            logger,
+          ),
+          new IntervalJob(
+            'open-remote-routes',
+            access.openRemoteRoutes,
+            { atStart: true, everyMs: limits.jobs.openRemoteRoutesMs },
+            logger,
+          ),
+          new IntervalJob(
+            'close-remote-routes',
+            access.closeRemoteRoutes,
+            { atStop: true },
+            logger,
+          ),
+          new IntervalJob(
+            'heartbeat',
+            new LiveHeartbeat(liveConnections),
+            { everyMs: limits.liveUpdates.heartbeatMs },
+            logger,
+          ),
+          new IntervalJob(
+            'ping-live-clients',
+            new LivePing(liveConnections),
+            { everyMs: limits.liveUpdates.pingMs },
+            logger,
+          ),
+        ];
+        const useCases = {
+          access,
+          projects: projects.routes,
+          files,
+          changes: changes.routes,
+          reviews: reviews.routes,
+          gitActions: gitActions.routes,
+        };
+        const network = createNetworkServer({
+          application: {
+            ...useCases,
+            reviewPages: reviews.summaryRoutes,
+            liveUpdates: liveConnections,
+            worktreeWatches,
+            deviceConnections,
+            tunnelConnections,
+            logger,
+          },
+          settings,
+          files: new FilesystemWebRootReader(settings.webRoot),
+          logger,
+        });
+        return {
+          jobs,
+          network,
+          owner: createOwnerServer({
+            application: { ...useCases, reviewTools: reviews },
+            logger,
+            limits,
+          }),
+          close: () =>
+            Effect.runPromise(
+              releaseInOrder([
+                routeListenerRunner.close({ route: 'lan' }),
+                routeListenerRunner.close({ route: 'tailnet' }),
+                nativeOperation(() => worktreeWatches.close()),
+                nativeOperation(() => projects.refreshInventory.close()),
+                nativeOperation(() => shared.inventoryReads.close()),
+                nativeOperation(() => changes.statusReads.close()),
+                Effect.sync(() => liveConnections.close()),
+                nativeOperation(() => lanes.close()),
+                nativeOperation(() => files.dispose()),
+                nativeOperation(() => gitActions.routes.dispose()),
+                nativeOperation(() => projects.routes.dispose()),
+                nativeOperation(() => changes.routes.dispose()),
+                nativeOperation(() => reviews.routes.dispose()),
+                nativeOperation(() => reviews.summaryRoutes.dispose()),
+                ...Object.values(access.routes).map((routes) =>
+                  nativeOperation(() => routes.dispose()),
+                ),
+              ]),
+            ),
+        };
+      }),
+      (opened) => nativeOperation(() => opened.close()),
+    ),
+  );
+  return components.pipe(Layer.provide(foundation));
+}
+
 const openServerWith =
   (adapters: RemoteRouteAdapters, host: ServerHost): OpenServer =>
-  async (input) => {
-    const { settings } = input;
-    const { limits } = settings;
-    const worktreeId = (projectId: string, metadataIdentity: string) =>
-      deriveWorktreeId(
-        projectId,
-        metadataIdentity,
-        limits.projects.worktreeIds.length,
-      );
-    const gitVersion = await readGitVersion(limits.git, input.signal);
-    const session = openStorageSession(settings.dataDirectory, {
-      worktreeIdLength: limits.projects.worktreeIds.length,
-      busyTimeoutMs: limits.storage.busyTimeoutMs,
-    });
-    const stores = composeStores(session);
-    const catalog = new InMemoryWorktreeCatalogStore();
-    const clock = new SystemClock();
-    const lanes = new Lanes({
-      deadlineMs: () =>
-        operationDeadlineMs(catalog.listObservations().length, limits),
-      readCapacity: limits.lanes.readCapacity,
-      consistency: new ConfirmWorktreeService(catalog),
-      closeResources: () => session.close(),
-    });
-    const logger = new StderrLogger(clock);
-    const liveConnections = new LiveConnections();
-    const events = new WebSocketEventPublisher(liveConnections);
-    const shared = composeShared({
-      settings,
-      stores,
-      catalog,
-      gitVersion,
-      worktreeId,
-      clock,
-      logger,
-    });
-    const context: ComposeContext = {
-      lanes,
-      laneKeys: new LaneKeys(),
-      events,
-      settings,
-      clock,
-      ids: new RandomIdSource(),
-      logger,
-    };
-    const deviceConnections = new InMemoryDeviceConnectionStore();
-    const tunnelConnections = new InMemoryTunnelConnectionStore();
-    const routeListenerRunner = adapters.routeListenerRunner(
-      () => network.server,
+  (input) =>
+    new ServerResources(serverResources(adapters, host, input)).open(
+      input.signal,
     );
-    const access = composeAccess(context, {
-      desktopSession: host.desktopSession,
-      stores,
-      shared,
-      deviceConnections,
-      tunnelConnections,
-      pairingReachReader: new HttpPairingReachReader(
-        input.pairingReach,
-        stores.routeStates,
-      ),
-      runtimeStatusReader: new ProcessRuntimeStatusReader(input.runtimeStatus),
-      serviceUpdateRunner: host.serviceUpdateRunner,
-      serverVersion: host.version,
-      networkAddressReader: adapters.networkAddressReader(
-        limits.access.networkDiscovery,
-      ),
-      routeListenerRunner,
-      tunnelProbe: adapters.tunnelProbe({
-        timeoutMs: limits.access.remoteAccess.probeTimeoutMs,
-      }),
-    });
-    const projects = composeProjects(context, {
-      stores,
-      shared,
-      projectFolderReader: new FilesystemProjectFolderReader({
-        gitDirectory: gitDirectoryName(),
-      }),
-    });
-    const { checkWorktree } = projects;
-    const changes = composeChanges(context, { shared, checkWorktree });
-    const reviews = composeReviews(context, {
-      stores,
-      shared,
-      checkWorktree,
-      findWorktreeByPath: projects.findWorktreeByPath,
-    });
-    const worktreeWatches = new WatchWorktrees(
-      new AnnounceWorktreeChangeUseCase(
-        reviews.invalidateReviewedMarks,
-        events,
-        logger,
-      ),
-      projects.refreshInventory,
-      new ParcelWorktreeWatcher({
-        worktrees: shared.worktreeAccess,
-        projects: () => catalog.listObservations(),
-        gitDirectory: gitDirectoryName(),
-        isTemporaryWrite,
-        limits: limits.git,
-      }),
-      logger,
-      limits.liveUpdates,
-    );
-    const files = composeFiles(context, {
-      shared,
-      checkWorktree,
-      invalidateReviewedMarks: reviews.invalidateReviewedMarks,
-      editAnnouncements: worktreeWatches,
-    });
-    const commitPlanner = createCommitPlanner(limits.agents);
-    const gitActions = composeGitActions(context, {
-      stores,
-      shared,
-      checkWorktree,
-      refreshWorktreeReview: reviews.refreshWorktreeReview,
-      commitDraftSource: new ProcessCommitDraftSource(commitPlanner),
-      commitModelReader: new ProcessCommitModelReader(commitPlanner),
-    });
-    const jobs: readonly Job[] = [
-      new IntervalJob(
-        'recover-interrupted-git-actions',
-        gitActions.recoverInterruptedGitActions,
-        { atStart: true },
-        logger,
-      ),
-      new IntervalJob(
-        'refresh-inventory',
-        new JobSequence([
-          projects.refreshInventory,
-          reviews.refreshReviewActivity,
-        ]),
-        { atStart: true, everyMs: limits.jobs.refreshInventoryMs },
-        logger,
-      ),
-      new IntervalJob(
-        'collect-absent-worktrees',
-        projects.collectAbsentWorktrees,
-        { everyMs: limits.jobs.collectAbsentWorktreesMs },
-        logger,
-      ),
-      new IntervalJob(
-        'flush-device-activity',
-        access.flushDeviceActivity,
-        { everyMs: limits.jobs.flushDeviceActivityMs, atStop: true },
-        logger,
-      ),
-      new IntervalJob(
-        'open-remote-routes',
-        access.openRemoteRoutes,
-        { atStart: true, everyMs: limits.jobs.openRemoteRoutesMs },
-        logger,
-      ),
-      new IntervalJob(
-        'close-remote-routes',
-        access.closeRemoteRoutes,
-        { atStop: true },
-        logger,
-      ),
-      new IntervalJob(
-        'heartbeat',
-        new LiveHeartbeat(liveConnections),
-        { everyMs: limits.liveUpdates.heartbeatMs },
-        logger,
-      ),
-      new IntervalJob(
-        'ping-live-clients',
-        new LivePing(liveConnections),
-        { everyMs: limits.liveUpdates.pingMs },
-        logger,
-      ),
-    ];
-    const useCases = { access, projects, files, changes, reviews, gitActions };
-    const network = createNetworkServer({
-      application: {
-        ...useCases,
-        liveUpdates: liveConnections,
-        worktreeWatches,
-        deviceConnections,
-        tunnelConnections,
-        logger,
-      },
-      settings,
-      files: new FilesystemWebRootReader(settings.webRoot),
-      logger,
-    });
-    return {
-      jobs,
-      network,
-      owner: createOwnerServer({ application: useCases, logger, limits }),
-      close: async () => {
-        await routeListenerRunner.close({ route: 'lan' });
-        await routeListenerRunner.close({ route: 'tailnet' });
-        await worktreeWatches.close();
-        liveConnections.close();
-        await lanes.close();
-      },
-    };
-  };
 
 export const composeServer =
   (adapters: RemoteRouteAdapters): StartServer =>

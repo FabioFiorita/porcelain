@@ -1,7 +1,10 @@
-export class EntryExistsError extends Error {
-  override readonly name = 'EntryExistsError';
+import { Schema } from 'effect';
 
-  constructor() {
-    super('An entry already exists at that path');
+export class EntryExistsError extends Schema.TaggedError<EntryExistsError>()(
+  'EntryExistsError',
+  {},
+) {
+  override get message() {
+    return 'An entry already exists at that path';
   }
 }

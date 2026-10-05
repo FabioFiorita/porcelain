@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { createAccessStore } from './store.ts';
 import type { Remote } from '@porcelain/client/access/rules';
@@ -28,11 +29,11 @@ describe('saved environments', () => {
       },
     };
     const store = createAccessStore(storage);
-    await store.getState().load();
-    await store.getState().forget(first.environmentId);
+    await Effect.runPromise(store.getState().load());
+    await Effect.runPromise(store.getState().forget(first.environmentId));
     expect(store.getState().remotes).toEqual([second]);
     const restored = createAccessStore(storage);
-    await restored.getState().load();
+    await Effect.runPromise(restored.getState().load());
     expect(restored.getState().remotes).toEqual([second]);
   });
   it('refuses a write before saved state has been read', async () => {
@@ -44,9 +45,11 @@ describe('saved environments', () => {
         return Promise.resolve();
       },
     });
-    await expect(store.getState().save(second)).rejects.toThrow('read');
+    await expect(
+      Effect.runPromise(store.getState().save(second)),
+    ).rejects.toThrow('read');
     expect(persisted).toEqual([]);
-    await store.getState().load();
+    await Effect.runPromise(store.getState().load());
     expect(store.getState().remotes).toEqual([first]);
     expect(store.getState().status).toBe('ready');
   });
@@ -62,16 +65,16 @@ describe('saved environments', () => {
         return Promise.resolve();
       },
     });
-    await store.getState().load();
+    await Effect.runPromise(store.getState().load());
     const replacement = { ...first, credential: 'new', deviceId: 'new-device' };
-    await store.getState().save(replacement);
+    await Effect.runPromise(store.getState().save(replacement));
     expect(observed).toEqual([[first, second]]);
     expect(store.getState().remotes).toEqual([second, replacement]);
     const restored = createAccessStore({
       read: () => Promise.resolve(saved),
       write: () => Promise.resolve(),
     });
-    await restored.getState().load();
+    await Effect.runPromise(restored.getState().load());
     expect(restored.getState().remotes).toEqual([second, replacement]);
   });
 
@@ -84,15 +87,17 @@ describe('saved environments', () => {
         return Promise.reject(new Error('secure storage failed'));
       },
     });
-    await store.getState().load();
-    await expect(store.getState().save(second)).rejects.toThrow('updated');
+    await Effect.runPromise(store.getState().load());
+    await expect(
+      Effect.runPromise(store.getState().save(second)),
+    ).rejects.toThrow('updated');
     expect(store.getState().remotes).toEqual([first]);
     expect(store.getState().status).toBe('unreadable');
-    await expect(store.getState().forget(first.environmentId)).rejects.toThrow(
-      'read',
-    );
+    await expect(
+      Effect.runPromise(store.getState().forget(first.environmentId)),
+    ).rejects.toThrow('read');
     expect(writes).toBe(1);
-    await store.getState().load();
+    await Effect.runPromise(store.getState().load());
     expect(store.getState().status).toBe('ready');
   });
 
@@ -105,12 +110,76 @@ describe('saved environments', () => {
         return Promise.resolve();
       },
     });
-    await store.getState().load();
+    await Effect.runPromise(store.getState().load());
     expect(store.getState().status).toBe('unreadable');
     expect(store.getState().error).toBe(
       'Saved environments could not be read. Try reading them again.',
     );
-    await expect(store.getState().save(second)).rejects.toThrow('read');
+    await expect(
+      Effect.runPromise(store.getState().save(second)),
+    ).rejects.toThrow('read');
     expect(writes).toBe(0);
   });
+});
+
+it('serializes concurrent saved environments against the last persisted state', async () => {
+  const started = Promise.withResolvers<void>();
+  const finish = Promise.withResolvers<void>();
+  const writes: Remote[][] = [];
+  const store = createAccessStore({
+    read: () => Promise.resolve([]),
+    write: async (remotes) => {
+      writes.push([...remotes]);
+      if (writes.length === 1) {
+        started.resolve();
+        await finish.promise;
+      }
+    },
+  });
+  await Effect.runPromise(store.getState().load());
+  const savingFirst = Effect.runPromise(store.getState().save(first));
+  const savingSecond = Effect.runPromise(store.getState().save(second));
+  await started.promise;
+  expect(writes).toEqual([[first]]);
+  expect(store.getState().remotes).toEqual([]);
+  finish.resolve();
+  await Promise.all([savingFirst, savingSecond]);
+  expect(writes).toEqual([[first], [first, second]]);
+  expect(store.getState().remotes).toEqual([first, second]);
+});
+it('stops dependent persistence after a failed save and retains its cause', async () => {
+  const writes: Remote[][] = [];
+  const failure = new Error('storage unavailable');
+  const store = createAccessStore({
+    read: () => Promise.resolve([first]),
+    write: (remotes) => {
+      writes.push([...remotes]);
+      return Promise.reject(failure);
+    },
+  });
+  await Effect.runPromise(store.getState().load());
+  const saving = Effect.runPromise(store.getState().save(second));
+  const forgetting = Effect.runPromise(
+    store.getState().forget(first.environmentId),
+  );
+  const results = await Promise.allSettled([saving, forgetting]);
+  expect(results[0]).toMatchObject({
+    status: 'rejected',
+    reason: {
+      name: 'ConnectionError',
+      message:
+        'The saved environments could not be updated. Read them again before making changes.',
+      cause: failure,
+    },
+  });
+  expect(results[1]).toMatchObject({
+    status: 'rejected',
+    reason: {
+      name: 'WriteNotSentError',
+      cause: { name: 'ConnectionError', cause: failure },
+    },
+  });
+  expect(writes).toEqual([[first, second]]);
+  expect(store.getState().remotes).toEqual([first]);
+  expect(store.getState().status).toBe('unreadable');
 });

@@ -1,5 +1,7 @@
+import type { Effect } from 'effect';
+import { nativeOperation } from '@porcelain/effects';
 import type { GitFactory } from '@porcelain/git/discovery';
-import { isRepositoryUnavailable } from '@porcelain/git/discovery';
+import { isRepositoryUnavailable } from '@porcelain/git/errors';
 import type {
   ProjectRepository,
   RepositoryLocation,
@@ -29,7 +31,13 @@ export class GitProjectRepositoryReader implements ProjectRepositoryReader {
     };
   }
 
-  async find(
+  find(
+    input: RepositoryLocation,
+  ): Effect.Effect<ProjectRepository | undefined> {
+    return nativeOperation((signal) => this.findNative(input, signal));
+  }
+
+  private async findNative(
     input: RepositoryLocation,
     signal?: AbortSignal,
   ): Promise<ProjectRepository | undefined> {
@@ -42,7 +50,11 @@ export class GitProjectRepositoryReader implements ProjectRepositoryReader {
     }
   }
 
-  async readOriginUrl(
+  readOriginUrl(input: RepositoryLocation): Effect.Effect<string | undefined> {
+    return nativeOperation((signal) => this.readOriginUrlNative(input, signal));
+  }
+
+  private async readOriginUrlNative(
     input: RepositoryLocation,
     signal?: AbortSignal,
   ): Promise<string | undefined> {

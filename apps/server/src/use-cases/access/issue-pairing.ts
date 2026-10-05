@@ -1,3 +1,9 @@
+import { Effect } from 'effect';
+import type {
+  InvalidPairingAddressError,
+  InvalidDeviceDetailsError,
+  MissingEnvironmentIdentityError,
+} from '@porcelain/access/errors';
 import type {
   IssuePairingService,
   ReadEnvironmentService,
@@ -8,7 +14,6 @@ import type {
 } from '@porcelain/contracts/access';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
 
 export class IssuePairingUseCase {
   private readonly readEnvironment: ReadEnvironmentService;
@@ -30,16 +35,19 @@ export class IssuePairingUseCase {
 
   execute(
     input: IssuePairingRequest,
-    context: OperationContext,
-  ): Promise<IssuePairingResponse> {
-    return this.lanes.run(
-      this.laneKeys.access(),
-      'write',
-      async () => {
-        const { environmentId } = this.readEnvironment.execute();
-        return this.issuePairing.execute({ ...input, environmentId });
-      },
-      { callerSignal: context.signal },
-    );
+  ): Effect.Effect<
+    IssuePairingResponse,
+    | InvalidPairingAddressError
+    | InvalidDeviceDetailsError
+    | MissingEnvironmentIdentityError
+  > {
+    return Effect.gen({ self: this }, function* () {
+      return yield* this.lanes.run(this.laneKeys.access(), 'write', () =>
+        Effect.gen({ self: this }, function* () {
+          const { environmentId } = yield* this.readEnvironment.execute();
+          return yield* this.issuePairing.execute({ ...input, environmentId });
+        }),
+      );
+    });
   }
 }

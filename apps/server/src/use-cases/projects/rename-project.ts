@@ -1,3 +1,5 @@
+import { Effect } from 'effect';
+import type { ProjectNotFoundError } from '@porcelain/projects/errors';
 import type {
   RenameProjectParams,
   RenameProjectRequest,
@@ -7,7 +9,6 @@ import type { RenameProjectService } from '@porcelain/projects/services';
 import type { EventPublisher } from '../../ports/event-publisher.ts';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
 
 export class RenameProjectUseCase {
   private readonly renameProject: RenameProjectService;
@@ -27,17 +28,18 @@ export class RenameProjectUseCase {
     this.events = events;
   }
 
-  async execute(
+  execute(
     input: RenameProjectParams & RenameProjectRequest,
-    context: OperationContext,
-  ): Promise<RenameProjectResponse> {
-    const result = await this.lanes.run(
-      this.laneKeys.inventory(),
-      'write',
-      async () => this.renameProject.execute(input),
-      { callerSignal: context.signal },
-    );
-    if (result.changed) this.events.inventoryChanged();
-    return result.project;
+  ): Effect.Effect<RenameProjectResponse, ProjectNotFoundError> {
+    return this.lanes
+      .run(this.laneKeys.inventory(), 'write', () =>
+        this.renameProject.execute(input),
+      )
+      .pipe(
+        Effect.map((result) => {
+          if (result.changed) this.events.inventoryChanged();
+          return result.project;
+        }),
+      );
   }
 }

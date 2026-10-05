@@ -1,3 +1,4 @@
+import type { Effect } from 'effect';
 import type { GitActionExpectation } from './git-action-expectation.ts';
 import type { GitActionIntent } from './git-action-intent.ts';
 import type { GitActionOutcome } from './git-action-outcome.ts';
@@ -16,7 +17,7 @@ export type GitActionRun = {
   target: GitActionTarget;
 };
 
-export type GitActionProgressListener = (line: string) => void;
+export type GitActionProgressListener = (line: string) => Effect.Effect<void>;
 
 export type GitActionRunRequest = {
   run: GitActionRun;

@@ -1,7 +1,10 @@
-export class WorktreeUnavailableError extends Error {
-  override readonly name = 'WorktreeUnavailableError';
+import { Schema } from 'effect';
 
-  constructor() {
-    super('Worktree is unavailable');
+export class WorktreeUnavailableError extends Schema.TaggedError<WorktreeUnavailableError>()(
+  'WorktreeUnavailableError',
+  {},
+) {
+  override get message() {
+    return 'Worktree is unavailable';
   }
 }

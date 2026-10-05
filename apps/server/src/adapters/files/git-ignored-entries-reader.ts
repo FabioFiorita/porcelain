@@ -1,5 +1,7 @@
+import { nativeRead, type WorktreeRead } from '@porcelain/effects';
 import type { IgnoredEntriesReadInput } from '@porcelain/files/models';
 import type { IgnoredEntriesReader } from '@porcelain/files/ports';
+import type { Effect } from 'effect';
 import { checkIgnored } from '@porcelain/git/inspection';
 import type { Limits } from '../../config/limits.ts';
 import {
@@ -15,8 +17,15 @@ export class GitIgnoredEntriesReader implements IgnoredEntriesReader {
     this.worktrees = worktrees;
     this.limits = limits;
   }
+  read(
+    input: IgnoredEntriesReadInput,
+  ): Effect.Effect<ReadonlySet<string>, never, WorktreeRead> {
+    return nativeRead(input.worktreeId, (signal) =>
+      this.readIgnored(input, signal),
+    );
+  }
 
-  async read(
+  private async readIgnored(
     input: IgnoredEntriesReadInput,
     signal?: AbortSignal,
   ): Promise<ReadonlySet<string>> {

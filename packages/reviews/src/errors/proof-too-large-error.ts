@@ -1,9 +1,10 @@
-export class ProofTooLargeError extends Error {
-  override readonly name = 'ProofTooLargeError';
+import { Schema } from 'effect';
 
-  constructor() {
-    super(
-      'A proof file, or the proof files together, are over their size limit',
-    );
+export class ProofTooLargeError extends Schema.TaggedError<ProofTooLargeError>()(
+  'ProofTooLargeError',
+  {},
+) {
+  override get message() {
+    return 'A proof file, or the proof files together, are over their size limit';
   }
 }

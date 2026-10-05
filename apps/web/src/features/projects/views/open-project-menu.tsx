@@ -1,3 +1,4 @@
+import { remoteStatusText } from '@porcelain/client/access/rules';
 import { MonitorIcon, PlusIcon, ServerIcon } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -10,7 +11,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
-  remoteStatusText,
   remoteStatusVariant,
   useRemoteStatus,
   type RemoteConnection,

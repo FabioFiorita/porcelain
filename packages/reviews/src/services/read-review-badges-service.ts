@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type {
   ReadReviewBadgesInput,
   ReadReviewBadgesResult,
@@ -26,16 +27,20 @@ export class ReadReviewBadgesService {
     this.commentSeen = commentSeen;
   }
 
-  execute(input: ReadReviewBadgesInput): ReadReviewBadgesResult {
-    const { worktreeIds } = input;
-    return {
-      statuses: worktreeStatuses(
-        this.reviews.byWorktrees({ worktreeIds }),
-        this.reviewedLayers.byWorktrees({ worktreeIds }),
-        this.comments.listAgentReplies({ worktreeIds }),
-        this.commentSeen.seenByWorktrees({ worktreeIds }),
-        input.texts,
-      ),
-    };
+  execute(
+    input: ReadReviewBadgesInput,
+  ): Effect.Effect<ReadReviewBadgesResult, never> {
+    return Effect.sync(() => {
+      const { worktreeIds } = input;
+      return {
+        statuses: worktreeStatuses(
+          this.reviews.byWorktrees({ worktreeIds }),
+          this.reviewedLayers.byWorktrees({ worktreeIds }),
+          this.comments.listAgentReplies({ worktreeIds }),
+          this.commentSeen.seenByWorktrees({ worktreeIds }),
+          input.texts,
+        ),
+      };
+    });
   }
 }

@@ -1,6 +1,6 @@
+import { InvalidGitDiffError } from '../../shared/errors/invalid-git-diff-error.ts';
 import type { GitLimits } from '../../shared/dtos/git-limits.ts';
 import {
-  InvalidGitDiffError,
   parseRawDiffObjects,
   type RawDiffObjects,
 } from '../../inspection/index.ts';
@@ -12,9 +12,9 @@ import type {
   BranchRangeRequest,
 } from '../dtos/branch-range.ts';
 import type { HistoryCheckout } from '../dtos/commit-history.ts';
-import { InvalidHistoryRequestError } from '../errors/invalid-history-request-error.ts';
-import { ReadLimitExceededError } from '../errors/read-limit-exceeded-error.ts';
-import { UnsupportedHistoryDataError } from '../errors/unsupported-history-data-error.ts';
+import { InvalidHistoryRequestError } from '../../shared/errors/invalid-history-request-error.ts';
+import { ReadLimitExceededError } from '../../shared/errors/read-limit-exceeded-error.ts';
+import { UnsupportedHistoryDataError } from '../../shared/errors/unsupported-history-data-error.ts';
 import {
   confirmHistoryCheckout,
   inspectHistoryCheckout,

@@ -1,6 +1,7 @@
 import { useMutation } from '@tanstack/react-query';
 import { desktopProjectPicker } from '@/shared/adapters/desktop';
-import type { Project, WorktreeTarget } from '../rules/inventory';
+import type { WorktreeTarget } from '../rules/worktree-target';
+import type { Project } from '@porcelain/client/projects/rules';
 import { useProjectBrowserStore } from '../store';
 import { useRegisterProject } from './register-project';
 import { type Connection } from '@/shared/workspace/connection';

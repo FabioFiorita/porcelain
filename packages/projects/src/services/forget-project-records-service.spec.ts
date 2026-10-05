@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { InMemoryFilePreferenceStore } from '../../spec/fakes/in-memory-file-preference-store.ts';
 import { InMemoryWorktreePresenceStore } from '../../spec/fakes/in-memory-worktree-presence-store.ts';
@@ -36,14 +37,14 @@ function setup() {
 describe('ForgetProjectRecordsService', () => {
   it("forgets every worktree the project recorded, present or absent, and the project's file preferences", () => {
     const { presence, preferences, service } = setup();
-    service.execute({ projectId: 'api' });
+    Effect.runSync(service.execute({ projectId: 'api' }));
     expect(presence.read({ projectId: 'api' })).toEqual([]);
     expect(preferences.list({ projectId: 'api' })).toEqual([]);
   });
 
   it("keeps other projects' worktrees and preferences", () => {
     const { presence, preferences, service } = setup();
-    service.execute({ projectId: 'api' });
+    Effect.runSync(service.execute({ projectId: 'api' }));
     expect(presence.list()).toEqual([
       { worktreeId: 'web-main', projectId: 'web', missingSince: undefined },
     ]);

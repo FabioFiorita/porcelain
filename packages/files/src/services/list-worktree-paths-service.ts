@@ -1,3 +1,5 @@
+import type { WorktreeRead } from '@porcelain/effects/worktree';
+import { Effect } from 'effect';
 import { DirectoryTooLargeError } from '../errors/directory-too-large-error.ts';
 import type {
   ListWorktreePathsInput,
@@ -12,15 +14,19 @@ export class ListWorktreePathsService {
     this.worktreePathsReader = worktreePathsReader;
   }
 
-  async execute(
+  execute(
     input: ListWorktreePathsInput,
-    signal?: AbortSignal,
-  ): Promise<ListWorktreePathsResult> {
-    const read = await this.worktreePathsReader.read(
-      { worktreeId: input.worktreeId },
-      signal,
-    );
-    if (read.kind === 'too-large') throw new DirectoryTooLargeError();
-    return { worktreeId: input.worktreeId, paths: read.paths };
+  ): Effect.Effect<
+    ListWorktreePathsResult,
+    DirectoryTooLargeError,
+    WorktreeRead
+  > {
+    return Effect.gen({ self: this }, function* () {
+      const read = yield* this.worktreePathsReader.read({
+        worktreeId: input.worktreeId,
+      });
+      if (read.kind === 'too-large') return yield* new DirectoryTooLargeError();
+      return { worktreeId: input.worktreeId, paths: read.paths };
+    });
   }
 }

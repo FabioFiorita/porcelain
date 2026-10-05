@@ -12,8 +12,8 @@ export type GitActionIntent =
       destinationRef: string;
       allowCreate: boolean;
     }
-  | { action: 'commit'; message: string; paths: string[] }
-  | { action: 'amend'; message: string; paths: string[] }
+  | { action: 'commit'; message: string; paths: readonly string[] }
+  | { action: 'amend'; message: string; paths: readonly string[] }
   | { action: 'stash-create'; message: string; includeUntracked: boolean }
   | {
       action: 'stash-apply' | 'stash-pop';

@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type {
   ReadPublishedReviewInput,
   ReadPublishedReviewResult,
@@ -11,8 +12,12 @@ export class ReadPublishedReviewService {
     this.reviews = reviews;
   }
 
-  execute(input: ReadPublishedReviewInput): ReadPublishedReviewResult {
-    const review = this.reviews.read({ worktreeId: input.worktreeId });
-    return review ? { kind: 'published', review } : { kind: 'none' };
+  execute(
+    input: ReadPublishedReviewInput,
+  ): Effect.Effect<ReadPublishedReviewResult, never> {
+    return Effect.sync(() => {
+      const review = this.reviews.read({ worktreeId: input.worktreeId });
+      return review ? { kind: 'published', review } : { kind: 'none' };
+    });
   }
 }

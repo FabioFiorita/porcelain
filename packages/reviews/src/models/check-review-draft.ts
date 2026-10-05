@@ -1,6 +1,6 @@
-import type { ReviewDraft } from './review.ts';
+import type { ValidatedReviewDraft } from './review.ts';
 
 export type CheckReviewDraftInput = {
   worktreeId: string;
-  draft: ReviewDraft;
+  draft: ValidatedReviewDraft;
 };

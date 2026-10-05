@@ -1,6 +1,6 @@
 import { changesQueryOptions } from '@porcelain/client/changes';
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query';
-import { type ChangesScope } from '../rules/changes';
+import { type ChangesScope } from '@porcelain/client/changes/rules';
 import { type Connection } from '@/shared/workspace/connection';
 
 export function useChanges(scope: ChangesScope, connection: Connection) {

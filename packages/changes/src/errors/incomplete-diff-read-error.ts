@@ -1,7 +1,10 @@
-export class IncompleteDiffReadError extends Error {
-  override readonly name = 'IncompleteDiffReadError';
+import { Schema } from 'effect';
 
-  constructor() {
-    super('Diff read returned fewer results than requested');
+export class IncompleteDiffReadError extends Schema.TaggedError<IncompleteDiffReadError>()(
+  'IncompleteDiffReadError',
+  {},
+) {
+  override get message() {
+    return 'Diff read returned fewer results than requested';
   }
 }

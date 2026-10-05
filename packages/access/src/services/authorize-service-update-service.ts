@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type {
   AuthorizeServiceUpdateInput,
   ServiceUpdateAuthority,
@@ -12,15 +13,19 @@ export class AuthorizeServiceUpdateService {
     this.devices = devices;
   }
 
-  execute(input: AuthorizeServiceUpdateInput): ServiceUpdateAuthority {
-    const { viewer } = input;
-    if (viewer.kind === 'owner' || input.local) return { canUpdate: true };
-    const device = this.devices.find({ deviceId: viewer.deviceId });
-    return {
-      canUpdate:
-        device !== undefined &&
-        !deviceRevoked(device) &&
-        device.trusted === true,
-    };
+  execute(
+    input: AuthorizeServiceUpdateInput,
+  ): Effect.Effect<ServiceUpdateAuthority, never> {
+    return Effect.sync(() => {
+      const { viewer } = input;
+      if (viewer.kind === 'owner' || input.local) return { canUpdate: true };
+      const device = this.devices.find({ deviceId: viewer.deviceId });
+      return {
+        canUpdate:
+          device !== undefined &&
+          !deviceRevoked(device) &&
+          device.trusted === true,
+      };
+    });
   }
 }

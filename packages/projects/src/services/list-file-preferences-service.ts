@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type {
   ListFilePreferencesInput,
   ListFilePreferencesResult,
@@ -11,9 +12,13 @@ export class ListFilePreferencesService {
     this.filePreference = filePreference;
   }
 
-  execute(input: ListFilePreferencesInput): ListFilePreferencesResult {
-    return {
-      preferences: this.filePreference.list({ projectId: input.projectId }),
-    };
+  execute(
+    input: ListFilePreferencesInput,
+  ): Effect.Effect<ListFilePreferencesResult, never> {
+    return Effect.sync(() => {
+      return {
+        preferences: this.filePreference.list({ projectId: input.projectId }),
+      };
+    });
   }
 }

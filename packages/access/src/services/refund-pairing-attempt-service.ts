@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type { Clock } from '@porcelain/kernel/ports';
 
 import type {
@@ -23,16 +24,18 @@ export class RefundPairingAttemptService {
     this.options = options;
   }
 
-  execute(input: RefundPairingAttemptInput): void {
-    const budget = input.crossOrigin ? 'crossOrigin' : 'sameOrigin';
-    const store = this.pairingAttempts[budget];
-    store.save(
-      refundPairingAttempt(
-        store.read(),
-        input.peer,
-        this.clock.now(),
-        this.options[budget],
-      ),
-    );
+  execute(input: RefundPairingAttemptInput): Effect.Effect<void, never> {
+    return Effect.sync(() => {
+      const budget = input.crossOrigin ? 'crossOrigin' : 'sameOrigin';
+      const store = this.pairingAttempts[budget];
+      store.save(
+        refundPairingAttempt(
+          store.read(),
+          input.peer,
+          this.clock.now(),
+          this.options[budget],
+        ),
+      );
+    });
   }
 }

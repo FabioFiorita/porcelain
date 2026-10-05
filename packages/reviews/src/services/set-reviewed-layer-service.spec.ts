@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { FixedClock } from '@porcelain/kernel/fakes';
 import { ReviewedMarkConflictError } from '@porcelain/reviews/errors';
@@ -50,12 +51,14 @@ function setup() {
 describe('SetReviewedLayerService', () => {
   it('marks a layer at the fingerprint it has in the current files', () => {
     const { service, store } = setup();
-    const result = service.execute({
-      worktreeId,
-      layer,
-      fingerprint: seen,
-      texts: readme('first\nadded\n'),
-    });
+    const result = Effect.runSync(
+      service.execute({
+        worktreeId,
+        layer,
+        fingerprint: seen,
+        texts: readme('first\nadded\n'),
+      }),
+    );
     const mark = {
       layerId: 'layer-1',
       fingerprint: seen,
@@ -68,12 +71,14 @@ describe('SetReviewedLayerService', () => {
   it('still accepts the fingerprint when the step text only moved', () => {
     const { service } = setup();
     expect(
-      service.execute({
-        worktreeId,
-        layer,
-        fingerprint: seen,
-        texts: readme('zero\nfirst\nadded\n'),
-      }).fingerprint,
+      Effect.runSync(
+        service.execute({
+          worktreeId,
+          layer,
+          fingerprint: seen,
+          texts: readme('zero\nfirst\nadded\n'),
+        }),
+      ).fingerprint,
     ).toBe(seen);
   });
 
@@ -85,7 +90,9 @@ describe('SetReviewedLayerService', () => {
     ({ texts }) => {
       const { service, store } = setup();
       expect(() =>
-        service.execute({ worktreeId, layer, fingerprint: seen, texts }),
+        Effect.runSync(
+          service.execute({ worktreeId, layer, fingerprint: seen, texts }),
+        ),
       ).toThrow(ReviewedMarkConflictError);
       expect(store.list({ worktreeId })).toEqual([]);
     },

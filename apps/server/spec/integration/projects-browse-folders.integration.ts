@@ -1,3 +1,4 @@
+import * as Schema from 'effect/Schema';
 import { browseProjectFoldersResponseSchema } from '@porcelain/contracts/projects';
 import { expect } from 'vitest';
 import { apiError, invalidRequest } from '../kit/answers.ts';
@@ -13,7 +14,11 @@ test('browsing without a path lists the project home with its parent and subfold
 
   expect(response.status).toBe(200);
   expect(response.body).toEqual(
-    expect.schemaMatching(browseProjectFoldersResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(
+        Schema.toEncoded(browseProjectFoldersResponseSchema),
+      ),
+    ),
   );
   expect(response.body).toStrictEqual({
     path: session.projectHome,

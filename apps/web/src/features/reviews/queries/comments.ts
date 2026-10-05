@@ -1,6 +1,6 @@
 import { commentsQueryOptions } from '@porcelain/client/reviews';
 import { usePrefetchQuery, useSuspenseQuery } from '@tanstack/react-query';
-import type { ReviewScope } from '../rules/review';
+import type { ReviewScope } from '@porcelain/client/reviews/rules';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
 export function useComments(scope: ReviewScope, context: ConnectionContext) {

@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { FixedHostNameReader } from '../../spec/fakes/fixed-host-name-reader.ts';
 import { InMemoryEnvironmentNameStore } from '../../spec/fakes/in-memory-environment-name-store.ts';
@@ -17,7 +18,7 @@ function setup() {
 describe('RenameEnvironmentService', () => {
   it('keeps the chosen name and answers it', () => {
     const { rename, store } = setup();
-    expect(rename.execute({ name: 'Workstation' })).toEqual({
+    expect(Effect.runSync(rename.execute({ name: 'Workstation' }))).toEqual({
       name: 'Workstation',
       custom: true,
     });
@@ -26,8 +27,8 @@ describe('RenameEnvironmentService', () => {
 
   it('goes back to the host name when the name is cleared', () => {
     const { rename, store } = setup();
-    rename.execute({ name: 'Workstation' });
-    expect(rename.execute({ name: undefined })).toEqual({
+    Effect.runSync(rename.execute({ name: 'Workstation' }));
+    expect(Effect.runSync(rename.execute({ name: undefined }))).toEqual({
       name: 'linux-desktop',
       custom: false,
     });

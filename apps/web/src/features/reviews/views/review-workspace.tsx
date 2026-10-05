@@ -29,7 +29,7 @@ import {
 import { SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
 import { cn } from '@/shared/lib/utils';
 import { useReviewOverview } from '@/features/changes/index';
-import type { Project } from '@/features/projects/index';
+import type { Project } from '@porcelain/client/projects/rules';
 import {
   ConflictGuidance,
   GitButton,
@@ -44,9 +44,12 @@ import type {
 import { useDesktopReview } from '../adapters/desktop-review';
 import { type PaneIndex, useTabLayout } from '../adapters/tab-layout';
 import { usePublishedReview } from '../queries/published-review';
-import { anchorBase, type RevealComment } from '../rules/comments';
+import {
+  anchorBase,
+  type RevealComment,
+} from '@porcelain/client/reviews/rules';
 import { entryKey, type OpenDocument, parseEntry } from '../rules/documents';
-import type { ReviewLayer } from '../rules/review';
+import type { ReviewLayer } from '@porcelain/client/reviews/rules';
 import { DocumentTabs } from './document-tabs';
 import { DocumentView } from './documents';
 import { ReviewBoundary } from './review-boundary';

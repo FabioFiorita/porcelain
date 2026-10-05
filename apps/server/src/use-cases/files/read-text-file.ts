@@ -3,46 +3,31 @@ import type {
   ReadTextFileResponse,
 } from '@porcelain/contracts/files';
 import type { WorktreeParams } from '@porcelain/contracts/shared';
-import type { ReadTextFileService } from '@porcelain/files/services';
-import type { LaneKeys } from '../../runtime/lane-keys.ts';
-import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
-import type { CheckWorktreeUseCasePort } from '../../ports/check-worktree-use-case-port.ts';
+import type {
+  ReadTextFileService,
+  ReadTextFileFailure,
+} from '@porcelain/files/services';
+import type { Effect } from 'effect';
+import type { WorktreeAccess } from '../../runtime/worktree-access.ts';
+import type { WorktreeAccessFailure } from '../../ports/worktree-access-failure.ts';
 
 export class ReadTextFileUseCase {
-  private readonly checkWorktree: CheckWorktreeUseCasePort;
+  private readonly access: WorktreeAccess;
   private readonly readTextFile: ReadTextFileService;
-  private readonly lanes: Lanes;
-  private readonly laneKeys: LaneKeys;
 
-  constructor(
-    checkWorktree: CheckWorktreeUseCasePort,
-    readTextFile: ReadTextFileService,
-    lanes: Lanes,
-    laneKeys: LaneKeys,
-  ) {
-    this.checkWorktree = checkWorktree;
+  constructor(access: WorktreeAccess, readTextFile: ReadTextFileService) {
+    this.access = access;
     this.readTextFile = readTextFile;
-    this.lanes = lanes;
-    this.laneKeys = laneKeys;
   }
 
-  async execute(
+  execute(
     input: WorktreeParams & ReadTextFileQuery,
-    context: OperationContext,
-  ): Promise<ReadTextFileResponse> {
-    const worktree = await this.checkWorktree.execute(
-      { worktreeId: input.worktreeId, requireAvailableProject: false },
-      context,
-    );
-    return this.lanes.runConsistent(
-      this.laneKeys.repository(worktree),
-      worktree,
-      async ({ signal }) => {
-        const result = await this.readTextFile.execute(input, signal);
-        return result;
-      },
-      { callerSignal: context.signal },
+  ): Effect.Effect<
+    ReadTextFileResponse,
+    WorktreeAccessFailure | ReadTextFileFailure
+  > {
+    return this.access.read(input.worktreeId, (worktree) =>
+      this.readTextFile.execute({ ...input, worktreeId: worktree.id }),
     );
   }
 }

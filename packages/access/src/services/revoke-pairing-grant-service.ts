@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type { Clock } from '@porcelain/kernel/ports';
 import type {
   RevokePairingGrantInput,
@@ -15,10 +16,15 @@ export class RevokePairingGrantService {
     this.clock = clock;
   }
 
-  execute(input: RevokePairingGrantInput): RevokePairingGrantResult {
-    const grant = this.pairingGrants.find({ grantId: input.id });
-    if (!grant || !pairingGrantRevocable(grant)) return { kind: 'not-revoked' };
-    this.pairingGrants.markRevoked({ grant, revokedAt: this.clock.now() });
-    return { kind: 'revoked' };
+  execute(
+    input: RevokePairingGrantInput,
+  ): Effect.Effect<RevokePairingGrantResult, never> {
+    return Effect.sync(() => {
+      const grant = this.pairingGrants.find({ grantId: input.id });
+      if (!grant || !pairingGrantRevocable(grant))
+        return { kind: 'not-revoked' };
+      this.pairingGrants.markRevoked({ grant, revokedAt: this.clock.now() });
+      return { kind: 'revoked' };
+    });
   }
 }

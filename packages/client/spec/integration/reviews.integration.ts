@@ -1,3 +1,4 @@
+import { runRequest } from '@porcelain/client/transport';
 import { commentCommands, reviewedCommands } from '@porcelain/client/reviews';
 import { expect } from 'vitest';
 import { QueryClient } from '@tanstack/query-core';
@@ -101,7 +102,10 @@ test('read changes and the exact Git patch, and refuse a stale diff snapshot', a
   await session.writeFile(file.path, 'A newer change\n');
   await expect(
     cache.query(changeDiffsQueryOptions(scope, connected, input)),
-  ).rejects.toMatchObject({ status: 409, code: 'worktree_changed' });
+  ).rejects.toMatchObject({
+    _tag: 'WorktreeChangedError',
+    message: 'Worktree changed during inspection',
+  });
 });
 
 test('write the discussion through the shared owner and read each persisted edit', async ({
@@ -111,33 +115,45 @@ test('write the discussion through the shared owner and read each persisted edit
   const { connected, scope } = await connection(server, session);
   const cache = new QueryClient();
   const commands = commentCommands(scope, connected, cache);
-  const created = await commands.create({
-    anchor: { kind: 'change' },
-    body: 'Explain the change.',
-  });
+  const created = await runRequest(
+    commands.create({
+      anchor: { kind: 'change' },
+      body: 'Explain the change.',
+    }),
+    connected.request().signal,
+  );
   const thread = created[0];
   if (!thread) throw new Error('Expected the created discussion');
   expect(thread.messages.map((message) => message.body)).toEqual([
     'Explain the change.',
   ]);
-  const replied = await commands.reply({
-    threadId: thread.id,
-    body: 'Please include its test.',
-    messageId: 'eb90812a-6a3e-464e-92ca-5c962094b867',
-  });
+  const replied = await runRequest(
+    commands.reply({
+      threadId: thread.id,
+      body: 'Please include its test.',
+      messageId: 'eb90812a-6a3e-464e-92ca-5c962094b867',
+    }),
+    connected.request().signal,
+  );
   expect(replied[0]?.messages.map((message) => message.body)).toEqual([
     'Explain the change.',
     'Please include its test.',
   ]);
-  await commands.edit({
-    threadId: thread.id,
-    messageId: 'eb90812a-6a3e-464e-92ca-5c962094b867',
-    body: 'Include the regression test.',
-  });
-  const resolved = await commands.resolve({
-    threadId: thread.id,
-    resolved: true,
-  });
+  await runRequest(
+    commands.edit({
+      threadId: thread.id,
+      messageId: 'eb90812a-6a3e-464e-92ca-5c962094b867',
+      body: 'Include the regression test.',
+    }),
+    connected.request().signal,
+  );
+  const resolved = await runRequest(
+    commands.resolve({
+      threadId: thread.id,
+      resolved: true,
+    }),
+    connected.request().signal,
+  );
   expect(resolved[0]?.resolved).toBe(true);
   expect(
     (await cache.query(commentsQueryOptions(scope, connected)))
@@ -148,8 +164,12 @@ test('write the discussion through the shared owner and read each persisted edit
   if (revision === undefined)
     throw new Error('Expected the confirmed thread revision');
   expect(
-    (await commands.removeResolved([{ threadId: thread.id, revision }]))
-      .deleted,
+    (
+      await runRequest(
+        commands.removeResolved([{ threadId: thread.id, revision }]),
+        connected.request().signal,
+      )
+    ).deleted,
   ).toEqual([thread.id]);
   expect(
     (await cache.query(commentsQueryOptions(scope, connected))).some(
@@ -178,7 +198,10 @@ test('mark and unmark the actual changed file through the shared reviewed owner'
   await cache.query(reviewedQueryOptions(scope, connected));
   expect(
     (
-      await commands.set({ path: file.path, fingerprint: file.fingerprint })
+      await runRequest(
+        commands.set({ path: file.path, fingerprint: file.fingerprint }),
+        connected.request().signal,
+      )
     ).marks.map((mark) => mark.path),
   ).toEqual([session.fixture.readme.path]);
   expect(
@@ -186,7 +209,10 @@ test('mark and unmark the actual changed file through the shared reviewed owner'
       (mark) => mark.path,
     ),
   ).toEqual([session.fixture.readme.path]);
-  expect((await commands.remove(file.path)).marks).toEqual([]);
+  expect(
+    (await runRequest(commands.remove(file.path), connected.request().signal))
+      .marks,
+  ).toEqual([]);
   expect(
     (await cache.query(reviewedQueryOptions(scope, connected))).marks,
   ).toEqual([]);

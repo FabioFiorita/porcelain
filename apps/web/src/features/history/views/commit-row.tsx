@@ -10,7 +10,10 @@ import {
 } from '@/components/ui/context-menu';
 import { cn } from '@/shared/lib/utils';
 import { copyText } from '@/shared/workspace/copy';
-import { commitMessage, type CommitSummary } from '../rules/commit';
+import {
+  commitMessage,
+  type CommitSummary,
+} from '@porcelain/client/history/rules';
 import { historyRefLabel, shortOid } from '../rules/graph';
 
 export function CommitRow({

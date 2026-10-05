@@ -1,7 +1,7 @@
+import { Cause, Context, Effect, Exit, Schedule, Scope } from 'effect';
 import type { Logger } from '../ports/logger.ts';
-import type { JobWork } from '../ports/job-work.ts';
+import type { JobRunner } from '../ports/job-runner.ts';
 import type { Job } from '../ports/job.ts';
-import type { OperationContext } from '../ports/operation-context.ts';
 
 type JobSchedule = {
   everyMs?: number | undefined;
@@ -9,73 +9,95 @@ type JobSchedule = {
   atStop?: boolean | undefined;
 };
 
-export class JobSequence implements JobWork {
-  private readonly works: readonly JobWork[];
-
-  constructor(works: readonly JobWork[]) {
+export class JobSequence<Failure> implements JobRunner<Failure> {
+  private readonly works: readonly JobRunner<Failure>[];
+  constructor(works: readonly JobRunner<Failure>[]) {
     this.works = works;
   }
-
-  async execute(context: OperationContext): Promise<void> {
-    for (const work of this.works) await work.execute(context);
+  execute(): Effect.Effect<void, Failure> {
+    return Effect.forEach(this.works, (work) => work.execute(), {
+      discard: true,
+      concurrency: 1,
+    });
   }
 }
 
-export class IntervalJob implements Job {
+export class IntervalJob<Failure> implements Job {
   private readonly name: string;
-  private readonly work: JobWork;
+  private readonly work: JobRunner<Failure>;
   private readonly schedule: JobSchedule;
   private readonly logger: Logger;
-  private timer: NodeJS.Timeout | undefined;
-  private running: Promise<void> | undefined;
-  private stopped = new AbortController();
-  private started = false;
+  private readonly context: Context.Context<never>;
+  private scope: Scope.Closeable | undefined;
+  private stopping: Promise<void> | undefined;
 
   constructor(
     name: string,
-    work: JobWork,
+    work: JobRunner<Failure>,
     schedule: JobSchedule,
     logger: Logger,
+    context: Context.Context<never> = Context.empty(),
   ) {
     this.name = name;
     this.work = work;
     this.schedule = schedule;
     this.logger = logger;
+    this.context = context;
   }
 
   start(): void {
-    if (this.started) return;
-    this.started = true;
-    this.stopped = new AbortController();
-    if (this.schedule.atStart) this.tick();
-    if (this.schedule.everyMs === undefined) return;
-    this.timer = setInterval(() => this.tick(), this.schedule.everyMs);
-    this.timer.unref();
+    if (this.scope) return;
+    const scope = Scope.makeUnsafe();
+    this.scope = scope;
+    this.stopping = undefined;
+    const everyMs = this.schedule.everyMs;
+    if (!this.schedule.atStart && everyMs === undefined) return;
+    const repeated =
+      everyMs === undefined
+        ? this.attempt()
+        : this.attempt().pipe(
+            Effect.repeat(Schedule.fixed(everyMs)),
+            Effect.asVoid,
+          );
+    const scheduled =
+      this.schedule.atStart || everyMs === undefined
+        ? repeated
+        : Effect.delay(repeated, everyMs);
+    Effect.runSyncWith(this.context)(
+      Effect.forkIn(scheduled, scope, { startImmediately: true }),
+    );
   }
 
-  async stop(): Promise<void> {
-    if (!this.started) return;
-    this.started = false;
-    clearInterval(this.timer);
-    this.timer = undefined;
-    this.stopped.abort();
-    await this.running;
-    if (this.schedule.atStop) await this.attempt(new AbortController().signal);
+  stop(): Promise<void> {
+    if (this.stopping) return this.stopping;
+    const scope = this.scope;
+    if (!scope) return Promise.resolve();
+    this.stopping = Effect.runPromiseWith(this.context)(
+      Scope.close(scope, Exit.void).pipe(
+        Effect.andThen(this.schedule.atStop ? this.attempt() : Effect.void),
+        Effect.ensuring(
+          Effect.sync(() => {
+            this.scope = undefined;
+          }),
+        ),
+      ),
+    );
+    return this.stopping;
   }
 
-  private tick(): void {
-    if (this.running !== undefined) return;
-    this.running = this.attempt(this.stopped.signal).finally(() => {
-      this.running = undefined;
-    });
-  }
-
-  private async attempt(signal: AbortSignal): Promise<void> {
-    try {
-      await this.work.execute({ signal });
-    } catch (error) {
-      if (!signal.aborted)
-        this.logger.failure({ kind: 'job', job: this.name, error });
-    }
+  private attempt(): Effect.Effect<void> {
+    return Effect.suspend(() => this.work.execute()).pipe(
+      Effect.catchCause((cause) =>
+        Cause.hasInterruptsOnly(cause)
+          ? Effect.interrupt
+          : Effect.sync(() => {
+              this.logger.failure({
+                kind: 'job',
+                job: this.name,
+                error: Cause.squash(cause),
+              });
+            }),
+      ),
+    );
   }
 }

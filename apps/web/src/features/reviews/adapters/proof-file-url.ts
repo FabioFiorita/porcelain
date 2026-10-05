@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react';
-import { type ProofFile, proofFileBytes } from '../rules/proof';
+import {
+  type ProofFile,
+  proofFileBytes,
+} from '@porcelain/client/reviews/rules';
 
 export function useProofFileUrl(file: ProofFile | undefined) {
   const [shown, setShown] = useState<{ file: ProofFile; url: string }>();

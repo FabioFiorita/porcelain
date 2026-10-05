@@ -68,3 +68,10 @@ export function scriptInvokes(
     }),
   );
 }
+
+export const localCheckCommand =
+  'turbo run typecheck lint:server lint:web format:server:check format:web:check arch:check test:rules probes:check features:check --output-logs=errors-only --continue --concurrency=2';
+
+export function localCheckMatches(source: string): boolean {
+  return source.trim().split(/\s+/).join(' ') === localCheckCommand;
+}

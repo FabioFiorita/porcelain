@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { CommitGenerationFailedError } from '../errors/commit-generation-failed-error.ts';
 import { CommitGroupsMismatchError } from '../errors/commit-groups-mismatch-error.ts';
 import { CommitToolFailedError } from '../errors/commit-tool-failed-error.ts';
@@ -27,39 +28,59 @@ export class GenerateCommitDraftService {
     this.options = options;
   }
 
-  async execute(
+  execute(
     input: GenerateCommitDraftInput,
-    signal?: AbortSignal,
-  ): Promise<GenerateCommitDraftResult> {
-    const { capture } = input;
-    const groups = this.drafted(
-      await this.commitDraftSource.generate(
-        {
+  ): Effect.Effect<
+    GenerateCommitDraftResult,
+    | CommitGroupsMismatchError
+    | UnsupportedCommitModelError
+    | CommitToolMissingError
+    | CommitToolFailedError
+    | CommitGenerationFailedError,
+    never
+  > {
+    return Effect.gen({ self: this }, function* () {
+      const { capture } = input;
+      const groups = yield* this.drafted(
+        yield* this.commitDraftSource.generate({
           mode: input.mode,
           model: input.model,
           paths: capture.paths,
           evidence: capture.evidence,
-        },
-        signal,
-      ),
-    );
-    if (!commitGroupsCoverSelection(groups, capture, input.mode, this.options))
-      throw new CommitGroupsMismatchError();
-    return { groups, expectedFiles: capture.expectedFiles };
+        }),
+      );
+      if (
+        !commitGroupsCoverSelection(groups, capture, input.mode, this.options)
+      )
+        return yield* Effect.fail(new CommitGroupsMismatchError());
+      return { groups, expectedFiles: capture.expectedFiles };
+    });
   }
 
-  private drafted(generation: CommitDraftGeneration): CommitGroup[] {
-    switch (generation.kind) {
-      case 'drafted':
-        return generation.groups;
-      case 'unsupported-model':
-        throw new UnsupportedCommitModelError();
-      case 'tool-missing':
-        throw new CommitToolMissingError();
-      case 'tool-failed':
-        throw new CommitToolFailedError();
-      case 'failed':
-        throw new CommitGenerationFailedError();
-    }
+  private drafted(
+    generation: CommitDraftGeneration,
+  ): Effect.Effect<
+    CommitGroup[],
+    | CommitGroupsMismatchError
+    | UnsupportedCommitModelError
+    | CommitToolMissingError
+    | CommitToolFailedError
+    | CommitGenerationFailedError,
+    never
+  > {
+    return Effect.gen({ self: this }, function* () {
+      switch (generation.kind) {
+        case 'drafted':
+          return generation.groups;
+        case 'unsupported-model':
+          return yield* Effect.fail(new UnsupportedCommitModelError());
+        case 'tool-missing':
+          return yield* Effect.fail(new CommitToolMissingError());
+        case 'tool-failed':
+          return yield* Effect.fail(new CommitToolFailedError());
+        case 'failed':
+          return yield* Effect.fail(new CommitGenerationFailedError());
+      }
+    });
   }
 }

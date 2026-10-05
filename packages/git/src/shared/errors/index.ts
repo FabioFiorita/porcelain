@@ -1,0 +1,14 @@
+export { GitActionRejectedError } from './git-action-rejected-error.ts';
+export { RepositoryIdentityMismatchError } from './repository-identity-mismatch-error.ts';
+export { HistorySnapshotUnavailableError } from './history-snapshot-unavailable-error.ts';
+export { HistoryWorktreeUnavailableError } from './history-worktree-unavailable-error.ts';
+export { InvalidHistoryRequestError } from './invalid-history-request-error.ts';
+export { ReadLimitExceededError } from './read-limit-exceeded-error.ts';
+export { UnsupportedHistoryDataError } from './unsupported-history-data-error.ts';
+export { GitTimeoutError } from './git-timeout-error.ts';
+export { InspectionLimitError } from './inspection-limit-error.ts';
+export { InvalidGitDiffError } from './invalid-git-diff-error.ts';
+export { InvalidGitStatusError } from './invalid-git-status-error.ts';
+export { UnsupportedGitFiltersError } from './unsupported-git-filters-error.ts';
+export { UnsupportedPathEncodingError } from './unsupported-path-encoding-error.ts';
+export { isRepositoryUnavailable } from './is-repository-unavailable.ts';

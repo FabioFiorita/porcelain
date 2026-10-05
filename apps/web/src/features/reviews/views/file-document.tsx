@@ -1,3 +1,4 @@
+import type { FileDraft } from '@porcelain/client/files';
 import { CopyIcon, FileDiffIcon, HistoryIcon, PencilIcon } from 'lucide-react';
 import { useHotkey } from '@tanstack/react-hotkeys';
 import { type ReactNode, useEffect, useId, useState } from 'react';
@@ -9,8 +10,6 @@ import { copyText } from '@/shared/workspace/copy';
 import { usePreferences } from '@/features/preferences/index';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
 import {
-  type FileDraft,
-  type FileDraftState,
   FileEditor,
   FileTypeIcon,
   HtmlPreview,
@@ -22,9 +21,10 @@ import {
   useFileDraft,
   useTextFile,
 } from '@/features/files/index';
+import type { FileDraftState } from '@porcelain/client/files';
 import { fileEntry } from '../adapters/code-entries';
 import type { DocumentInteraction, OpenDocument } from '../rules/documents';
-import type { ReviewScope } from '../rules/review';
+import type { ReviewScope } from '@porcelain/client/reviews/rules';
 import { CodeDocument } from './code-document';
 import { DocumentToolbar } from './document-toolbar';
 import { FindBar } from './find-bar';

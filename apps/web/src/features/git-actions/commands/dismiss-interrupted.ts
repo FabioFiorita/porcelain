@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import type { GitScope } from '../rules/git-action';
+import type { GitScope } from '@porcelain/client/git-actions/rules';
 import { type ConnectionContext } from '@/shared/workspace/connection';
+import { operationMutation } from '@/shared/query/mutation';
 import { gitActionCommands } from '@porcelain/client/git-actions';
 
 export function useDismissInterrupted(
@@ -9,9 +10,7 @@ export function useDismissInterrupted(
 ) {
   const { connection } = context;
   const commands = gitActionCommands(scope, connection, useQueryClient());
-  const mutation = useMutation({
-    mutationFn: commands.dismiss,
-  });
+  const mutation = useMutation(operationMutation(commands.dismiss, connection));
   return {
     isPending: mutation.isPending,
     error: mutation.error,

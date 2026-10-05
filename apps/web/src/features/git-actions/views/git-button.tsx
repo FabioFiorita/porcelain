@@ -35,14 +35,17 @@ import { Spinner } from '@/components/ui/spinner';
 import { toast } from '@/components/ui/toast';
 import { usePreferences } from '@/features/preferences/index';
 import { useGitMenu } from '../commands/git-menu';
-import type { GitNotice } from '../rules/feedback';
-import type { GitAction, GitScope } from '../rules/git-action';
-import { gitActionGroups, gitActions } from '../rules/git-action-options';
+import type { GitNotice } from '@porcelain/client/git-actions/rules';
+import type { GitAction, GitScope } from '@porcelain/client/git-actions/rules';
+import {
+  gitActionGroups,
+  gitActions,
+} from '@porcelain/client/git-actions/rules';
 import {
   isNetworkAction,
   networkLabel,
   primaryTooltip,
-} from '../rules/network';
+} from '@porcelain/client/git-actions/rules';
 import {
   branchStatus,
   type GitActionStatus,
@@ -52,7 +55,7 @@ import {
   shownBranch,
   statusFromChanges,
   suggestedCount,
-} from '../rules/status';
+} from '@porcelain/client/git-actions/rules';
 import { GitActionIcon } from './git-action-icon';
 import { GitActionInspection } from './git-action-inspection';
 import { GitActionError, GitActionMessage } from './git-action-message';

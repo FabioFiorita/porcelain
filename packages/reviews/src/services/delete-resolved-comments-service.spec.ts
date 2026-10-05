@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import type {
   CommentAuthorRole,
@@ -57,11 +58,13 @@ const confirmed = (store: InMemoryCommentStore, ...threadIds: string[]) =>
 describe('DeleteResolvedCommentsService', () => {
   it('deletes the confirmed resolved threads the reviewer started, the agent replies in them included', () => {
     const { store, service } = setup();
-    const result = service.execute({
-      worktreeId,
-      writer: device,
-      threads: confirmed(store, 'answered', 'noted'),
-    });
+    const result = Effect.runSync(
+      service.execute({
+        worktreeId,
+        writer: device,
+        threads: confirmed(store, 'answered', 'noted'),
+      }),
+    );
     expect(result).toEqual({ deleted: ['answered', 'noted'], skipped: [] });
     expect(ids(store)).toEqual(['open', 'from-agent']);
     expect(store.findMessage({ messageId: 'answered-1' })).toBeUndefined();
@@ -78,7 +81,9 @@ describe('DeleteResolvedCommentsService', () => {
         sizeBytes: 150,
         writtenByAgent: true,
       });
-    const result = service.execute({ worktreeId, writer: device, threads });
+    const result = Effect.runSync(
+      service.execute({ worktreeId, writer: device, threads }),
+    );
     expect(result).toEqual({ deleted: ['noted'], skipped: ['answered'] });
     expect(store.findMessage({ messageId: 'late' })?.body).toBe(
       'One more thing',
@@ -90,7 +95,9 @@ describe('DeleteResolvedCommentsService', () => {
     const threads = confirmed(store, 'noted');
     const noted = store.find({ threadId: 'noted' });
     if (noted) store.resolve({ thread: noted, resolved: false });
-    expect(service.execute({ worktreeId, writer: device, threads })).toEqual({
+    expect(
+      Effect.runSync(service.execute({ worktreeId, writer: device, threads })),
+    ).toEqual({
       deleted: [],
       skipped: ['noted'],
     });
@@ -99,11 +106,13 @@ describe('DeleteResolvedCommentsService', () => {
 
   it('keeps an open thread, a thread the agent started and a thread of another worktree even when named', () => {
     const { store, service } = setup();
-    const result = service.execute({
-      worktreeId,
-      writer: device,
-      threads: confirmed(store, 'open', 'from-agent', 'elsewhere', 'unknown'),
-    });
+    const result = Effect.runSync(
+      service.execute({
+        worktreeId,
+        writer: device,
+        threads: confirmed(store, 'open', 'from-agent', 'elsewhere', 'unknown'),
+      }),
+    );
     expect(result).toEqual({
       deleted: [],
       skipped: ['open', 'from-agent', 'elsewhere', 'unknown'],
@@ -114,30 +123,36 @@ describe('DeleteResolvedCommentsService', () => {
 
   it('writes as the reviewer for the owner as for a paired device', () => {
     const { store, service } = setup();
-    service.execute({
-      worktreeId,
-      writer: { kind: 'owner' },
-      threads: confirmed(store, 'noted'),
-    });
+    Effect.runSync(
+      service.execute({
+        worktreeId,
+        writer: { kind: 'owner' },
+        threads: confirmed(store, 'noted'),
+      }),
+    );
     expect(ids(store)).not.toContain('noted');
   });
 
   it("deletes only the agent's own resolved threads when the agent asks", () => {
     const { store, service } = setup();
     expect(
-      service.execute({
-        worktreeId,
-        writer: { kind: 'agent' },
-        threads: confirmed(store, 'from-agent', 'noted'),
-      }),
+      Effect.runSync(
+        service.execute({
+          worktreeId,
+          writer: { kind: 'agent' },
+          threads: confirmed(store, 'from-agent', 'noted'),
+        }),
+      ),
     ).toEqual({ deleted: ['from-agent'], skipped: ['noted'] });
   });
 
   it('deletes nothing the second time', () => {
     const { store, service } = setup();
     const threads = confirmed(store, 'noted');
-    service.execute({ worktreeId, writer: device, threads });
-    expect(service.execute({ worktreeId, writer: device, threads })).toEqual({
+    Effect.runSync(service.execute({ worktreeId, writer: device, threads }));
+    expect(
+      Effect.runSync(service.execute({ worktreeId, writer: device, threads })),
+    ).toEqual({
       deleted: [],
       skipped: ['noted'],
     });

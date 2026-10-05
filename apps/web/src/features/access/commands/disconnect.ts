@@ -1,24 +1,18 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { accessApi } from '../api';
+import { disconnectBrowserSession } from '@porcelain/client/access';
+import { runRequest } from '@porcelain/client/transport';
+import { browserTransport } from '@/shared/api/transport';
+import { REQUEST_TIMEOUT_MS } from '@/config/limits';
 import { useAccessStore } from '../store';
-import { ConnectionError } from '@porcelain/client/transport';
-import { saveFileDrafts } from '@/shared/query/file-drafts';
-import { unsavedDraftsMessage } from '../rules/connection-error-message';
 
-async function disconnectSession() {
-  const connection = useAccessStore.getState().connection;
-  try {
-    if (connection && !(await saveFileDrafts(connection.environmentId)))
-      throw new ConnectionError(unsavedDraftsMessage);
-    await accessApi.session.disconnect();
-  } catch (error) {
-    throw error instanceof ConnectionError
-      ? error
-      : new ConnectionError(
-          'Could not disconnect. Check the connection and try again.',
-          { cause: error },
-        );
-  }
+function disconnectSession() {
+  return runRequest(
+    disconnectBrowserSession(
+      browserTransport(fetch),
+      useAccessStore.getState().connection?.environmentId,
+    ),
+    AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+  );
 }
 
 export function useDisconnect() {

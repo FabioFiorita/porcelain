@@ -1,10 +1,10 @@
+import { Effect } from 'effect';
 import type {
   IdentifyRequestClientInput,
   RequestClient,
 } from '@porcelain/access/models';
 import type { IdentifyRequestClientService } from '@porcelain/access/services';
 import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
 
 export class IdentifyRequestClientUseCase {
   private readonly identifyRequestClient: IdentifyRequestClientService;
@@ -20,11 +20,13 @@ export class IdentifyRequestClientUseCase {
 
   execute(
     input: IdentifyRequestClientInput,
-    context: OperationContext,
-  ): Promise<RequestClient> {
-    return this.lanes.unqueued(
-      async () => this.identifyRequestClient.execute(input),
-      { callerSignal: context.signal },
-    );
+  ): Effect.Effect<RequestClient, never> {
+    return Effect.gen({ self: this }, function* () {
+      return yield* this.lanes.unqueued(() =>
+        Effect.gen({ self: this }, function* () {
+          return yield* this.identifyRequestClient.execute(input);
+        }),
+      );
+    });
   }
 }

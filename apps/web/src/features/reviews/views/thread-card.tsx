@@ -44,12 +44,12 @@ import {
   threadStarter,
   threadState,
   threadStateLabel,
-} from '../rules/comments';
+} from '@porcelain/client/reviews/rules';
 import {
   basename,
   reviewErrorMessage,
   type ReviewScope,
-} from '../rules/review';
+} from '@porcelain/client/reviews/rules';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
 const relative = (iso?: string) =>

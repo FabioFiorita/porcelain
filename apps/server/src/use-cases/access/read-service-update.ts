@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type {
   AuthorizeServiceUpdateService,
   PlanServiceUpdateCheckService,
@@ -8,7 +9,6 @@ import type {
 } from '@porcelain/contracts/access';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
 import type { ServiceUpdateRunner } from '../../ports/service-update-runner.ts';
 
 export class ReadServiceUpdateUseCase {
@@ -32,25 +32,27 @@ export class ReadServiceUpdateUseCase {
     this.laneKeys = laneKeys;
   }
 
-  async execute(
+  execute(
     input: ReadServiceUpdateRequest,
-    context: OperationContext,
-  ): Promise<ReadServiceUpdateResponse> {
-    const check = this.planCheck.execute();
-    const authority = await this.lanes.run(
-      this.laneKeys.access(),
-      'read',
-      async () => this.authorizeServiceUpdate.execute(input),
-      { callerSignal: context.signal },
-    );
-    return this.lanes.run(
-      this.laneKeys.serviceUpdate(),
-      'read',
-      async ({ signal }) => ({
-        ...(await this.updates.read(check, signal)),
-        ...authority,
-      }),
-      { callerSignal: context.signal },
-    );
+  ): Effect.Effect<ReadServiceUpdateResponse, never> {
+    return Effect.gen({ self: this }, function* () {
+      const check = yield* this.planCheck.execute();
+      const authority = yield* this.lanes.run(
+        this.laneKeys.access(),
+        'read',
+        () =>
+          Effect.gen({ self: this }, function* () {
+            return yield* this.authorizeServiceUpdate.execute(input);
+          }),
+      );
+      return yield* this.lanes.run(this.laneKeys.serviceUpdate(), 'read', () =>
+        Effect.gen({ self: this }, function* () {
+          return {
+            ...(yield* this.updates.read(check)),
+            ...authority,
+          };
+        }),
+      );
+    });
   }
 }

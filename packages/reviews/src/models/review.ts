@@ -1,3 +1,4 @@
+import type { Brand } from 'effect';
 import type { ProofDraft, ProofFile, ReviewProof } from './review-proof.ts';
 
 export type CodePointer = {
@@ -26,9 +27,9 @@ export type LayerDraft = {
   id: string;
   title: string;
   summary: string;
-  lanes: string[];
-  steps: StepDraft[];
-  arrows?: LayerArrow[] | undefined;
+  lanes: readonly string[];
+  steps: readonly StepDraft[];
+  arrows?: readonly LayerArrow[] | undefined;
 };
 
 export type DiagramBox = {
@@ -50,9 +51,9 @@ type DiagramArrow = {
 };
 
 export type Diagram = {
-  lanes: string[];
-  boxes: DiagramBox[];
-  arrows: DiagramArrow[];
+  lanes: readonly string[];
+  boxes: readonly DiagramBox[];
+  arrows: readonly DiagramArrow[];
 };
 
 export type ReviewDiagram = {
@@ -64,16 +65,16 @@ export type ReviewDraft = {
   expectedRevision: number;
   summaryHtml: string;
   diagram?: ReviewDiagram | undefined;
-  layers: LayerDraft[];
+  layers: readonly LayerDraft[];
   proof?: ProofDraft | undefined;
 };
 
 export type ReviewStep = StepDraft & {
-  published: string[];
+  published: readonly string[];
 };
 
 export type ReviewLayer = Omit<LayerDraft, 'steps'> & {
-  steps: ReviewStep[];
+  steps: readonly ReviewStep[];
   fingerprint: string;
 };
 
@@ -86,23 +87,13 @@ export type Review = {
   summaryToken: string;
   summarySecret: string;
   diagram?: ReviewDiagram | undefined;
-  layers: ReviewLayer[];
+  layers: readonly ReviewLayer[];
   proof?: ReviewProof | undefined;
 };
 
 export type ReviewSave = Review & {
-  proofFiles?: ProofFile[] | undefined;
+  proofFiles?: readonly ProofFile[] | undefined;
 };
-
-export type ReviewDraftProblem =
-  | { kind: 'duplicate-layer-id' }
-  | { kind: 'reversed-pointer' }
-  | { kind: 'duplicate-step-id' }
-  | { kind: 'step-lane-out-of-range' }
-  | { kind: 'unknown-arrow-step' }
-  | { kind: 'box-lane-out-of-range' }
-  | { kind: 'unknown-arrow-box' }
-  | { kind: 'unknown-proof-target' };
 
 export type ReviewSummary = Pick<
   Review,
@@ -118,3 +109,18 @@ export type ReviewActivity = {
 };
 
 export type SignatureRequest = { secret: string; message: string };
+
+export type ReviewDraftProblem =
+  | { kind: 'duplicate-layer-id' }
+  | { kind: 'reversed-pointer' }
+  | { kind: 'duplicate-step-id' }
+  | { kind: 'step-lane-out-of-range' }
+  | { kind: 'unknown-arrow-step' }
+  | { kind: 'box-lane-out-of-range' }
+  | { kind: 'unknown-arrow-box' }
+  | { kind: 'unknown-proof-target' };
+
+export type ValidatedReviewDraft = Brand.Branded<
+  Readonly<ReviewDraft>,
+  'Porcelain/ValidatedReviewDraft'
+>;

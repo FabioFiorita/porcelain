@@ -1,4 +1,8 @@
 import {
+  remoteStatusNote,
+  remoteStatusText,
+} from '@porcelain/client/access/rules';
+import {
   KeyRoundIcon,
   MonitorIcon,
   ServerIcon,
@@ -30,13 +34,9 @@ import {
 import { submitForm } from '@/shared/lib/submit-form';
 import { useAddRemote, useForgetRemote } from '../commands/remotes';
 import { useRemoteStatus } from '../queries/remotes';
-import { connectionErrorMessage } from '../rules/connection-error-message';
-import {
-  remoteStatusNote,
-  remoteStatusText,
-  remoteStatusVariant,
-  type Remote,
-} from '../rules/remotes';
+import { connectionErrorMessage } from '@porcelain/client/access/rules';
+import { remoteStatusVariant } from '../rules/remotes';
+import { type Remote } from '@porcelain/client/access/rules';
 import { useRemotesStore } from '../store';
 
 function RemoteRow({ remote }: { remote: Remote }) {

@@ -1,8 +1,8 @@
+import { Effect } from 'effect';
 import type { ReadRemoteAccessService } from '@porcelain/access/services';
 import type { ReadRemoteAccessResponse } from '@porcelain/contracts/access';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
 
 export class ReadRemoteAccessUseCase {
   private readonly readRemoteAccess: ReadRemoteAccessService;
@@ -19,12 +19,13 @@ export class ReadRemoteAccessUseCase {
     this.laneKeys = laneKeys;
   }
 
-  execute(context: OperationContext): Promise<ReadRemoteAccessResponse> {
-    return this.lanes.run(
-      this.laneKeys.remoteAccess(),
-      'read',
-      async () => this.readRemoteAccess.execute(),
-      { callerSignal: context.signal },
-    );
+  execute(): Effect.Effect<ReadRemoteAccessResponse, never> {
+    return Effect.gen({ self: this }, function* () {
+      return yield* this.lanes.run(this.laneKeys.remoteAccess(), 'read', () =>
+        Effect.gen({ self: this }, function* () {
+          return yield* this.readRemoteAccess.execute();
+        }),
+      );
+    });
   }
 }

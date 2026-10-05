@@ -1,3 +1,4 @@
+import * as Schema from 'effect/Schema';
 import { readBranchDiffsResponseSchema } from '@porcelain/contracts/changes';
 import { expect } from 'vitest';
 import {
@@ -53,7 +54,11 @@ test('branch diffs are the patches between the fork point and the tip, not the u
 
   expect(response.status).toBe(200);
   expect(response.body).toEqual(
-    expect.schemaMatching(readBranchDiffsResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(
+        Schema.toEncoded(readBranchDiffsResponseSchema),
+      ),
+    ),
   );
   expect(response.body).toStrictEqual({
     diffs: [

@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type {
   AuthenticatedDevice,
   RedeemLiveTicketInput,
@@ -5,7 +6,6 @@ import type {
 import type { RedeemLiveTicketService } from '@porcelain/access/services';
 import type { LaneKeys } from '../../runtime/lane-keys.ts';
 import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
 
 export class RedeemLiveTicketUseCase {
   private readonly redeemLiveTicket: RedeemLiveTicketService;
@@ -22,18 +22,21 @@ export class RedeemLiveTicketUseCase {
     this.laneKeys = laneKeys;
   }
 
-  async execute(
+  execute(
     input: RedeemLiveTicketInput,
-    context: OperationContext,
-  ): Promise<AuthenticatedDevice | undefined> {
-    const result = await this.lanes.run(
-      this.laneKeys.access(),
-      'write',
-      async () => this.redeemLiveTicket.execute(input),
-      { callerSignal: context.signal },
-    );
-    return result.kind === 'authenticated'
-      ? { deviceId: result.deviceId }
-      : undefined;
+  ): Effect.Effect<AuthenticatedDevice | undefined, never> {
+    return Effect.gen({ self: this }, function* () {
+      const result = yield* this.lanes.run(
+        this.laneKeys.access(),
+        'write',
+        () =>
+          Effect.gen({ self: this }, function* () {
+            return yield* this.redeemLiveTicket.execute(input);
+          }),
+      );
+      return result.kind === 'authenticated'
+        ? { deviceId: result.deviceId }
+        : undefined;
+    });
   }
 }

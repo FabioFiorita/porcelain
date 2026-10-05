@@ -1,3 +1,5 @@
+import type { Effect } from 'effect';
+import type { WorktreeRead } from '@porcelain/effects/worktree';
 import type {
   BranchBases,
   BranchPatches,
@@ -7,17 +9,14 @@ import type {
 } from '../models/branch-changes.ts';
 import type { ListBranchBasesInput } from '../models/list-branch-bases.ts';
 
-export interface BranchRangeReader {
+export interface BranchRangeReader<E = never> {
   readBranchRange(
     input: BranchRangeRequest,
-    signal?: AbortSignal,
-  ): Promise<BranchRangeLookup>;
+  ): Effect.Effect<BranchRangeLookup, E, WorktreeRead>;
   readBranchPatches(
     input: BranchPatchesRequest,
-    signal?: AbortSignal,
-  ): Promise<BranchPatches>;
+  ): Effect.Effect<BranchPatches, E, WorktreeRead>;
   listBranchBases(
     input: ListBranchBasesInput,
-    signal?: AbortSignal,
-  ): Promise<BranchBases>;
+  ): Effect.Effect<BranchBases, E, WorktreeRead>;
 }

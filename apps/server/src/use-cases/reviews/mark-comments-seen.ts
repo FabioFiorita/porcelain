@@ -1,3 +1,6 @@
+import { Effect } from 'effect';
+import type { WorktreeAccess } from '../../runtime/worktree-access.ts';
+import type { WorktreeAccessFailure } from '../../ports/worktree-access-failure.ts';
 import type {
   MarkCommentsSeenRequest,
   MarkCommentsSeenResponse,
@@ -5,49 +8,39 @@ import type {
 import type { WorktreeParams } from '@porcelain/contracts/shared';
 import type { MarkCommentsSeenService } from '@porcelain/reviews/services';
 import type { EventPublisher } from '../../ports/event-publisher.ts';
-import type { LaneKeys } from '../../runtime/lane-keys.ts';
-import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
-import type { CheckWorktreeUseCasePort } from '../../ports/check-worktree-use-case-port.ts';
 
 export class MarkCommentsSeenUseCase {
-  private readonly checkWorktree: CheckWorktreeUseCasePort;
+  private readonly access: WorktreeAccess;
   private readonly markCommentsSeen: MarkCommentsSeenService;
-  private readonly lanes: Lanes;
-  private readonly laneKeys: LaneKeys;
   private readonly events: EventPublisher;
 
   constructor(
-    checkWorktree: CheckWorktreeUseCasePort,
+    access: WorktreeAccess,
     markCommentsSeen: MarkCommentsSeenService,
-    lanes: Lanes,
-    laneKeys: LaneKeys,
     events: EventPublisher,
   ) {
-    this.checkWorktree = checkWorktree;
+    this.access = access;
     this.markCommentsSeen = markCommentsSeen;
-    this.lanes = lanes;
-    this.laneKeys = laneKeys;
     this.events = events;
   }
 
-  async execute(
+  execute(
     input: WorktreeParams & MarkCommentsSeenRequest,
-    context: OperationContext,
-  ): Promise<MarkCommentsSeenResponse> {
-    const { worktreeId } = input;
-    const worktree = await this.checkWorktree.execute(
-      { worktreeId, requireAvailableProject: false },
-      context,
-    );
-    const { changed, ...seen } = await this.lanes.run(
-      this.laneKeys.reviews(worktree),
-      'write',
-      async () => this.markCommentsSeen.execute(input),
-      { callerSignal: context.signal },
-    );
-    if (changed)
-      this.events.worktreeChanged({ worktreeId, change: 'comments' });
-    return seen;
+  ): Effect.Effect<MarkCommentsSeenResponse, WorktreeAccessFailure> {
+    return this.access
+      .transaction(
+        input.worktreeId,
+        () => Effect.void,
+        () => this.markCommentsSeen.execute(input),
+        (value) =>
+          Effect.sync(() => {
+            if (value.changed)
+              this.events.worktreeChanged({
+                worktreeId: input.worktreeId,
+                change: 'comments',
+              });
+          }),
+      )
+      .pipe(Effect.map((value) => (({ changed, ...seen }) => seen)(value)));
   }
 }

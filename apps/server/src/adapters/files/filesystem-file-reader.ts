@@ -1,3 +1,4 @@
+import { nativeRead, type WorktreeRead } from '@porcelain/effects';
 import { constants } from 'node:fs';
 import { open } from 'node:fs/promises';
 import type {
@@ -6,6 +7,7 @@ import type {
   TextRead,
 } from '@porcelain/files/models';
 import type { FileReader } from '@porcelain/files/ports';
+import type { Effect } from 'effect';
 import {
   inspectPath,
   readFailure,
@@ -27,12 +29,23 @@ export class FilesystemFileReader implements FileReader {
   constructor(worktrees: ListedWorktrees) {
     this.worktrees = worktrees;
   }
+  readText(input: FileReadInput): Effect.Effect<TextRead, never, WorktreeRead> {
+    return nativeRead(input.worktreeId, (signal) =>
+      this.readTextFromDisk(input, signal),
+    );
+  }
 
-  async readText(
+  read(input: FileReadInput): Effect.Effect<FileRead, never, WorktreeRead> {
+    return nativeRead(input.worktreeId, (signal) =>
+      this.readFromDisk(input, signal),
+    );
+  }
+
+  private async readTextFromDisk(
     input: FileReadInput,
     signal?: AbortSignal,
   ): Promise<TextRead> {
-    const read = await this.read(input, signal);
+    const read = await this.readFromDisk(input, signal);
     if (read.kind !== 'file') return read;
     const text = decodedText(read.bytes);
     return text === undefined
@@ -45,7 +58,10 @@ export class FilesystemFileReader implements FileReader {
         };
   }
 
-  async read(input: FileReadInput, signal?: AbortSignal): Promise<FileRead> {
+  private async readFromDisk(
+    input: FileReadInput,
+    signal?: AbortSignal,
+  ): Promise<FileRead> {
     const { maxBytes } = input;
     const checkout = await listedWorktree(
       this.worktrees,

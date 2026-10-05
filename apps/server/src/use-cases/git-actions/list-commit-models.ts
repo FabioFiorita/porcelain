@@ -1,7 +1,7 @@
+import type { Effect } from 'effect';
 import type { ListCommitModelsResponse } from '@porcelain/contracts/git-actions';
 import type { ListCommitModelsService } from '@porcelain/git-actions/services';
 import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
 
 type ListCommitModelsOptions = { deadlineMs: number };
 
@@ -20,10 +20,10 @@ export class ListCommitModelsUseCase {
     this.options = options;
   }
 
-  execute(context: OperationContext): Promise<ListCommitModelsResponse> {
-    return this.lanes.unqueued(() => this.listCommitModels.execute(), {
-      callerSignal: context.signal,
-      deadlineMs: this.options.deadlineMs,
-    });
+  execute(): Effect.Effect<ListCommitModelsResponse> {
+    return this.lanes.unqueued(
+      () => this.listCommitModels.execute(),
+      this.options,
+    );
   }
 }

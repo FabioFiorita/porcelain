@@ -17,8 +17,8 @@ export type SetReviewedFilesInput = {
 };
 
 export type SetReviewedFilesResult = ReviewedFiles & {
-  marked: string[];
-  conflicts: ReviewedFileConflict[];
+  marked: readonly string[];
+  conflicts: readonly ReviewedFileConflict[];
   changed: boolean;
 };
 

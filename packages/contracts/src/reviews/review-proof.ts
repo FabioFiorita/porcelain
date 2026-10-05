@@ -1,4 +1,5 @@
-import { z } from 'zod';
+import { urlStringSchema } from '../shared/schema.ts';
+import { Result, Schema, SchemaTransformation } from 'effect';
 import {
   REVIEW_PROOF_ASSETS,
   REVIEW_PROOF_CHECKS,
@@ -8,14 +9,18 @@ import {
 } from '../shared/limits.ts';
 import { relativePathSchema } from '../shared/relative-path.ts';
 
-const idSchema = z.uuid();
-const titleSchema = z.string().trim().min(1).max(REVIEW_TITLE_LENGTH);
+const idSchema = Schema.String.check(Schema.isUUID());
+const titleSchema = Schema.String.pipe(
+  Schema.decode(SchemaTransformation.trim()),
+)
+  .check(Schema.isMinLength(1))
+  .check(Schema.isMaxLength(REVIEW_TITLE_LENGTH));
 const targetShape = {
-  layerId: idSchema.optional(),
-  stepId: idSchema.optional(),
+  layerId: Schema.optional(idSchema),
+  stepId: Schema.optional(idSchema),
 };
 
-const proofMediaTypeSchema = z.enum([
+const proofMediaTypeSchema = Schema.Literals([
   'image/png',
   'image/jpeg',
   'image/gif',
@@ -24,81 +29,110 @@ const proofMediaTypeSchema = z.enum([
   'video/webm',
 ]);
 
-const proofCheckSchema = z.strictObject({
+const proofCheckSchema = Schema.Struct({
   name: titleSchema,
-  result: z.enum(['pass', 'fail', 'skipped']),
-  output: z.string().min(1).max(REVIEW_PROOF_OUTPUT_LENGTH).optional(),
+  result: Schema.Literals(['pass', 'fail', 'skipped']),
+  output: Schema.optional(
+    Schema.String.check(Schema.isMinLength(1)).check(
+      Schema.isMaxLength(REVIEW_PROOF_OUTPUT_LENGTH),
+    ),
+  ),
   ...targetShape,
 });
 
-const linkUrlSchema = z
-  .url({ protocol: /^https?$/ })
-  .max(REVIEW_PROOF_URL_LENGTH);
+const linkUrlSchema = urlStringSchema
+  .check(
+    Schema.makeFilter((url: string) => {
+      const parsed = Schema.decodeUnknownResult(Schema.URLFromString)(url);
+      return (
+        Result.isSuccess(parsed) && /^https?:$/.test(parsed.success.protocol)
+      );
+    }),
+  )
+  .check(Schema.isMaxLength(REVIEW_PROOF_URL_LENGTH));
 
 const proofFileDraftSchema = <Kind extends 'image' | 'video'>(kind: Kind) =>
-  z
-    .strictObject({
-      kind: z.literal(kind),
-      title: titleSchema,
-      path: relativePathSchema.optional(),
-      proofId: idSchema.optional(),
-      ...targetShape,
-    })
-    .refine(
-      (asset) => (asset.path === undefined) !== (asset.proofId === undefined),
-      'Name either the path of a new file or the proofId of a published one',
-    );
+  Schema.Struct({
+    kind: Schema.Literal(kind),
+    title: titleSchema,
+    path: Schema.optional(relativePathSchema),
+    proofId: Schema.optional(idSchema),
+    ...targetShape,
+  }).check(
+    Schema.makeFilter(
+      (asset: {
+        readonly path?: string | undefined;
+        readonly proofId?: string | undefined;
+      }) => (asset.path === undefined) !== (asset.proofId === undefined),
+      {
+        expected:
+          'Name either the path of a new file or the proofId of a published one',
+      },
+    ),
+  );
 
-const proofAssetDraftSchema = z.discriminatedUnion('kind', [
+const proofAssetDraftSchema = Schema.Union([
   proofFileDraftSchema('image'),
   proofFileDraftSchema('video'),
-  z.strictObject({
-    kind: z.literal('link'),
+  Schema.Struct({
+    kind: Schema.Literal('link'),
     title: titleSchema,
     url: linkUrlSchema,
     ...targetShape,
   }),
 ]);
 
-export const proofDraftSchema = z.strictObject({
-  checks: z.array(proofCheckSchema).max(REVIEW_PROOF_CHECKS).optional(),
-  assets: z.array(proofAssetDraftSchema).max(REVIEW_PROOF_ASSETS).optional(),
+export const proofDraftSchema = Schema.Struct({
+  checks: Schema.optional(
+    Schema.Array(proofCheckSchema).check(
+      Schema.isMaxLength(REVIEW_PROOF_CHECKS),
+    ),
+  ),
+  assets: Schema.optional(
+    Schema.Array(proofAssetDraftSchema).check(
+      Schema.isMaxLength(REVIEW_PROOF_ASSETS),
+    ),
+  ),
 });
 
-const publishedAssetSchema = z.discriminatedUnion('kind', [
-  z.object({
+const publishedAssetSchema = Schema.Union([
+  Schema.Struct({
     id: idSchema,
-    kind: z.enum(['image', 'video']),
+    kind: Schema.Literals(['image', 'video']),
     title: titleSchema,
     mediaType: proofMediaTypeSchema,
-    byteLength: z.number().int().positive(),
+    byteLength: Schema.Number.check(Schema.isInt()).check(
+      Schema.isGreaterThan(0),
+    ),
     ...targetShape,
   }),
-  z.object({
+  Schema.Struct({
     id: idSchema,
-    kind: z.literal('link'),
+    kind: Schema.Literal('link'),
     title: titleSchema,
     url: linkUrlSchema,
     ...targetShape,
   }),
 ]);
 
-export const publishedProofSchema = z.object({
-  checks: z.array(proofCheckSchema).max(REVIEW_PROOF_CHECKS),
-  assets: z.array(publishedAssetSchema).max(REVIEW_PROOF_ASSETS),
-  current: z.boolean(),
+export const publishedProofSchema = Schema.Struct({
+  checks: Schema.Array(proofCheckSchema).check(
+    Schema.isMaxLength(REVIEW_PROOF_CHECKS),
+  ),
+  assets: Schema.Array(publishedAssetSchema).check(
+    Schema.isMaxLength(REVIEW_PROOF_ASSETS),
+  ),
+  current: Schema.Boolean,
 });
 
-export const readProofFileQuerySchema = z.strictObject({
+export const readProofFileQuerySchema = Schema.Struct({
   proofId: idSchema,
 });
-export const readProofFileResponseSchema = z.object({
+export const readProofFileResponseSchema = Schema.Struct({
   id: idSchema,
   mediaType: proofMediaTypeSchema,
-  base64: z.string(),
+  base64: Schema.String,
 });
 
-export type ReadProofFileQuery = z.output<typeof readProofFileQuerySchema>;
-export type ReadProofFileResponse = z.output<
-  typeof readProofFileResponseSchema
->;
+export type ReadProofFileQuery = typeof readProofFileQuerySchema.Type;
+export type ReadProofFileResponse = typeof readProofFileResponseSchema.Type;

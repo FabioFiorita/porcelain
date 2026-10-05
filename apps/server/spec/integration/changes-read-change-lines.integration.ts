@@ -1,3 +1,4 @@
+import * as Schema from 'effect/Schema';
 import { readChangeLinesResponseSchema } from '@porcelain/contracts/changes';
 import { expect } from 'vitest';
 import {
@@ -49,7 +50,11 @@ test('reading lines returns the worktree version or the head version, clamped to
 
   expect(responses.map((entry) => entry.status)).toStrictEqual([200, 200]);
   expect(responses[0]?.body).toEqual(
-    expect.schemaMatching(readChangeLinesResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(
+        Schema.toEncoded(readChangeLinesResponseSchema),
+      ),
+    ),
   );
   const worktree = linesOf(session.fixture.readme.changed);
   const committed = linesOf(session.fixture.readme.committed);

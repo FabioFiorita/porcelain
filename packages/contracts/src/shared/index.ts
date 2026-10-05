@@ -44,9 +44,12 @@ export {
   worktreeParamsSchema,
   type WorktreeParams,
 } from './worktree-params.ts';
+
+export { projectIdSchema, worktreeIdSchema } from './schema.ts';
 export {
-  endpointPath,
-  type Endpoint,
-  type EndpointRequest,
-  type EndpointResponse,
-} from './endpoint.ts';
+  RequestCaller,
+  PairedRequest,
+  RequestConnection,
+  ClientRequest,
+} from './http-caller.ts';
+export { porcelainApi } from './http-api.ts';

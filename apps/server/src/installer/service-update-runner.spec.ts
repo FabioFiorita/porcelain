@@ -1,8 +1,11 @@
+import { Effect } from 'effect';
+import { withSignal } from '@porcelain/effects';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { openServiceUpdateRunner } from './service-update-runner.ts';
+import type { CommandRunner } from './command-runner.ts';
 
 type Answer = { code: number; stdout: string; stderr: string };
 
@@ -12,6 +15,7 @@ let updaterActive: boolean;
 let npmViews: number;
 let nativeModulesLoad: Answer;
 let commands: string[];
+const owned: ReturnType<typeof openServiceUpdateRunner>[] = [];
 
 const packageName = '@fabiofiorita/porcelain';
 const serviceNode = '/opt/service/bin/node';
@@ -66,8 +70,11 @@ function install(version: string) {
   );
 }
 
-const runner = (packageRoot = runtimePackage()) =>
-  openServiceUpdateRunner({
+const runner = (
+  packageRoot = runtimePackage(),
+  command: CommandRunner = answer,
+) => {
+  const updates = openServiceUpdateRunner({
     homeDirectory: home,
     packageRoot,
     searchPath: '/usr/bin',
@@ -76,9 +83,12 @@ const runner = (packageRoot = runtimePackage()) =>
       maxBytes: 1024,
       processGroup: { lingerMs: 10, cleanupMs: 10, pollMs: 1 },
     },
-    runner: answer,
+    runner: command,
     nodeExecutable: serviceNode,
   });
+  owned.push(updates);
+  return updates;
+};
 const check = (now: string, staleBefore: string) => ({ now, staleBefore });
 
 beforeEach(() => {
@@ -91,15 +101,71 @@ beforeEach(() => {
   install('1.0.0');
 });
 
-afterEach(() => {
+afterEach(async () => {
+  await Promise.all(
+    owned.splice(0).map((updates) => Effect.runPromise(updates.close())),
+  );
   rmSync(home, { recursive: true, force: true });
 });
 
 describe('the installed service update runner', () => {
+  it('owns accepted preparation after caller disconnect and waits for native cleanup before recording shutdown', async () => {
+    const started = Promise.withResolvers<AbortSignal>();
+    const aborted = Promise.withResolvers<void>();
+    const cleanup = Promise.withResolvers<Answer>();
+    const updates = runner(runtimePackage(), (command, args, options) => {
+      if (command !== 'npm' || args[0] !== 'install')
+        return answer(command, args);
+      const signal = options?.signal;
+      if (!signal) throw new Error('Update preparation needs a cleanup signal');
+      signal.addEventListener('abort', () => aborted.resolve(), { once: true });
+      started.resolve(signal);
+      return cleanup.promise;
+    });
+    const caller = new AbortController();
+    await Effect.runPromise(
+      withSignal(updates.start({ version: '1.1.0' }), caller.signal),
+    );
+    const preparation = await started.promise;
+    caller.abort();
+    expect(preparation.aborted).toBe(false);
+    const closing = Effect.runPromise(updates.close());
+    await aborted.promise;
+    expect(
+      (
+        await Effect.runPromise(
+          updates.read(
+            check('2026-09-29T12:00:00.000Z', '2026-09-29T11:50:00.000Z'),
+          ),
+        )
+      ).running,
+    ).toBe(true);
+    cleanup.resolve({ code: 1, stdout: '', stderr: 'Stopped' });
+    await closing;
+    expect(
+      await Effect.runPromise(
+        updates.read(
+          check('2026-09-29T12:00:00.000Z', '2026-09-29T11:50:00.000Z'),
+        ),
+      ),
+    ).toMatchObject({
+      running: false,
+      last: {
+        from: '1.0.0',
+        target: '1.1.0',
+        stage: 'failed',
+        reason: 'The server stopped before the update was handed off.',
+      },
+    });
+    expect(commands).not.toContain('systemd-run');
+  });
+
   it('offers the newer published version to the installed service', async () => {
     expect(
-      await runner().read(
-        check('2026-09-29T12:00:00.000Z', '2026-09-29T11:50:00.000Z'),
+      await Effect.runPromise(
+        runner().read(
+          check('2026-09-29T12:00:00.000Z', '2026-09-29T11:50:00.000Z'),
+        ),
       ),
     ).toEqual({
       managed: true,
@@ -113,17 +179,23 @@ describe('the installed service update runner', () => {
 
   it('asks the registry again only once its last answer is older than the freshness window', async () => {
     const updates = runner();
-    await updates.read(
-      check('2026-09-29T12:00:00.000Z', '2026-09-29T11:50:00.000Z'),
+    await Effect.runPromise(
+      updates.read(
+        check('2026-09-29T12:00:00.000Z', '2026-09-29T11:50:00.000Z'),
+      ),
     );
     published = '1.2.0';
-    const fresh = await updates.read(
-      check('2026-09-29T12:05:00.000Z', '2026-09-29T11:55:00.000Z'),
+    const fresh = await Effect.runPromise(
+      updates.read(
+        check('2026-09-29T12:05:00.000Z', '2026-09-29T11:55:00.000Z'),
+      ),
     );
     expect(fresh.latest).toBe('1.1.0');
     expect(npmViews).toBe(1);
-    const stale = await updates.read(
-      check('2026-09-29T12:11:00.000Z', '2026-09-29T12:01:00.000Z'),
+    const stale = await Effect.runPromise(
+      updates.read(
+        check('2026-09-29T12:11:00.000Z', '2026-09-29T12:01:00.000Z'),
+      ),
     );
     expect(stale.latest).toBe('1.2.0');
     expect(npmViews).toBe(2);
@@ -131,8 +203,10 @@ describe('the installed service update runner', () => {
 
   it('does not ask the registry while an update runs', async () => {
     updaterActive = true;
-    const state = await runner().read(
-      check('2026-09-29T12:00:00.000Z', '2026-09-29T11:50:00.000Z'),
+    const state = await Effect.runPromise(
+      runner().read(
+        check('2026-09-29T12:00:00.000Z', '2026-09-29T11:50:00.000Z'),
+      ),
     );
     expect(state.running).toBe(true);
     expect(npmViews).toBe(0);
@@ -142,9 +216,13 @@ describe('the installed service update runner', () => {
     const aborted = new AbortController();
     aborted.abort();
     await expect(
-      runner().read(
-        check('2026-09-29T12:00:00.000Z', '2026-09-29T11:50:00.000Z'),
-        aborted.signal,
+      Effect.runPromise(
+        withSignal(
+          runner().read(
+            check('2026-09-29T12:00:00.000Z', '2026-09-29T11:50:00.000Z'),
+          ),
+          aborted.signal,
+        ),
       ),
     ).rejects.toThrow();
   });
@@ -154,17 +232,23 @@ describe('the installed service update runner', () => {
     const aborted = new AbortController();
     aborted.abort();
     await expect(
-      updates.start({ version: '1.1.0' }, aborted.signal),
+      Effect.runPromise(
+        withSignal(updates.start({ version: '1.1.0' }), aborted.signal),
+      ),
     ).rejects.toThrow();
-    const state = await updates.read(
-      check('2026-09-29T12:00:00.000Z', '2026-09-29T11:50:00.000Z'),
+    const state = await Effect.runPromise(
+      updates.read(
+        check('2026-09-29T12:00:00.000Z', '2026-09-29T11:50:00.000Z'),
+      ),
     );
     expect(state).toMatchObject({ running: false, last: undefined });
   });
 
   it('offers nothing to a server that does not run from the installed runtime', async () => {
-    const state = await runner(join(home, 'elsewhere')).read(
-      check('2026-09-29T12:00:00.000Z', '2026-09-29T11:50:00.000Z'),
+    const state = await Effect.runPromise(
+      runner(join(home, 'elsewhere')).read(
+        check('2026-09-29T12:00:00.000Z', '2026-09-29T11:50:00.000Z'),
+      ),
     );
     expect(state).toMatchObject({ managed: false, available: false });
     expect(npmViews).toBe(0);
@@ -177,13 +261,15 @@ describe('the installed service update runner', () => {
       stderr: 'Could not locate the bindings file.',
     };
     const updates = runner();
-    await updates.start({ version: '1.1.0' });
+    await Effect.runPromise(updates.start({ version: '1.1.0' }));
     await expect
       .poll(
         async () =>
           (
-            await updates.read(
-              check('2026-09-29T12:00:00.000Z', '2026-09-29T11:50:00.000Z'),
+            await Effect.runPromise(
+              updates.read(
+                check('2026-09-29T12:00:00.000Z', '2026-09-29T11:50:00.000Z'),
+              ),
             )
           ).last,
       )

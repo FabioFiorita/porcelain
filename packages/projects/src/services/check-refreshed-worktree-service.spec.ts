@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { WorktreeNotFoundError } from '@porcelain/kernel/errors';
 import { describe, expect, it } from 'vitest';
 import { FixedClock } from '@porcelain/kernel/fakes';
@@ -59,28 +60,34 @@ function service(observedAt: string, worktrees: ListedWorktree[] = [worktree]) {
 describe('CheckRefreshedWorktreeService', () => {
   it('answers the worktree the refresh just found', () => {
     expect(
-      service('2026-09-24T12:00:00.000Z').execute({
-        worktreeId: worktree.id,
-        requireAvailableProject: false,
-      }),
+      Effect.runSync(
+        service('2026-09-24T12:00:00.000Z').execute({
+          worktreeId: worktree.id,
+          requireAvailableProject: false,
+        }),
+      ),
     ).toEqual(worktree);
   });
 
   it('refuses a worktree the refresh did not observe as unavailable instead of asking for another refresh', () => {
     expect(() =>
-      service('2026-09-24T11:00:00.000Z').execute({
-        worktreeId: worktree.id,
-        requireAvailableProject: false,
-      }),
+      Effect.runSync(
+        service('2026-09-24T11:00:00.000Z').execute({
+          worktreeId: worktree.id,
+          requireAvailableProject: false,
+        }),
+      ),
     ).toThrow(WorktreeUnavailableError);
   });
 
   it('refuses a worktree the refresh did not find', () => {
     expect(() =>
-      service('2026-09-24T12:00:00.000Z', []).execute({
-        worktreeId: worktree.id,
-        requireAvailableProject: false,
-      }),
+      Effect.runSync(
+        service('2026-09-24T12:00:00.000Z', []).execute({
+          worktreeId: worktree.id,
+          requireAvailableProject: false,
+        }),
+      ),
     ).toThrow(WorktreeNotFoundError);
   });
 });

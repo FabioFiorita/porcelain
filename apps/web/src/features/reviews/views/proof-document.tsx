@@ -1,7 +1,14 @@
 import { CircleXIcon, HistoryIcon } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { proofLabel, proofStatus, publishedLabel } from '../rules/proof';
-import type { ReviewResponse, ReviewScope } from '../rules/review';
+import {
+  proofLabel,
+  proofStatus,
+  publishedLabel,
+} from '@porcelain/client/reviews/rules';
+import type {
+  ReviewResponse,
+  ReviewScope,
+} from '@porcelain/client/reviews/rules';
 import { ActiveReview } from './active-review';
 import { DocumentToolbar } from './document-toolbar';
 import { ProofList } from './proof-list';

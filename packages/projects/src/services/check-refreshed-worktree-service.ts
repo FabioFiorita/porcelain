@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { WorktreeNotFoundError } from '@porcelain/kernel/errors';
 import type { Clock } from '@porcelain/kernel/ports';
 import { WorktreeUnavailableError } from '../errors/worktree-unavailable-error.ts';
@@ -28,19 +29,27 @@ export class CheckRefreshedWorktreeService {
     this.options = options;
   }
 
-  execute(input: CheckWorktreeInput): CheckRefreshedWorktreeResult {
-    const entry = this.catalog.find({ worktreeId: input.worktreeId });
-    const answer = checkedWorktree(
-      input,
-      entry,
-      this.catalog.listObservations(),
-      entry && input.requireAvailableProject
-        ? this.inventory.find({ projectId: entry.worktree.projectId })
-        : undefined,
-      { now: this.clock.now(), staleAfterMs: this.options.staleAfterMs },
-    );
-    if (answer.kind === 'found') return answer.worktree;
-    if (answer.kind === 'missing') throw new WorktreeNotFoundError();
-    throw new WorktreeUnavailableError();
+  execute(
+    input: CheckWorktreeInput,
+  ): Effect.Effect<
+    CheckRefreshedWorktreeResult,
+    WorktreeNotFoundError | WorktreeUnavailableError
+  > {
+    return Effect.gen({ self: this }, function* () {
+      const entry = this.catalog.find({ worktreeId: input.worktreeId });
+      const answer = checkedWorktree(
+        input,
+        entry,
+        this.catalog.listObservations(),
+        entry && input.requireAvailableProject
+          ? this.inventory.find({ projectId: entry.worktree.projectId })
+          : undefined,
+        { now: this.clock.now(), staleAfterMs: this.options.staleAfterMs },
+      );
+      if (answer.kind === 'found') return answer.worktree;
+      if (answer.kind === 'missing')
+        return yield* Effect.fail(new WorktreeNotFoundError());
+      return yield* Effect.fail(new WorktreeUnavailableError());
+    });
   }
 }

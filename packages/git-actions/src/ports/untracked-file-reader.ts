@@ -1,3 +1,5 @@
+import type { WorktreeRead } from '@porcelain/effects/worktree';
+import type { Effect } from 'effect';
 import type {
   UntrackedFileRead,
   UntrackedFileRequest,
@@ -6,6 +8,5 @@ import type {
 export interface UntrackedFileReader {
   read(
     input: UntrackedFileRequest,
-    signal?: AbortSignal,
-  ): Promise<UntrackedFileRead>;
+  ): Effect.Effect<UntrackedFileRead, never, WorktreeRead>;
 }

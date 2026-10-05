@@ -1,6 +1,9 @@
+import { Result, Schema } from 'effect';
+import { httpErrors } from '@fastify/sensible';
 import {
   liveSubscriptionSchema,
-  liveUpdatesEndpoint,
+  liveUpdatesQuerySchema,
+  LiveUpdatesApi,
 } from '@porcelain/contracts/access';
 import type { FastifyInstance } from 'fastify';
 import { WebSocket } from 'ws';
@@ -22,8 +25,18 @@ export function liveUpdates(
   options: Pick<AuthenticateOptions, 'deviceConnections'> & LiveUpdatesOptions,
 ) {
   server.route({
-    method: liveUpdatesEndpoint.method,
-    url: liveUpdatesEndpoint.path,
+    method: LiveUpdatesApi.groups.live.endpoints.liveUpdates.method,
+    url: LiveUpdatesApi.groups.live.endpoints.liveUpdates.path.replace(
+      /^\/api/,
+      '',
+    ),
+    preValidation: async (request) => {
+      const query = Schema.decodeUnknownResult(liveUpdatesQuerySchema, {
+        onExcessProperty: 'error',
+      })(request.query);
+      if (Result.isFailure(query))
+        throw httpErrors.badRequest('Invalid request');
+    },
     handler: (_request, reply) => reply.code(404).send(),
     wsHandler: (socket, request) => {
       const principal = request.caller;
@@ -85,9 +98,12 @@ export function liveUpdates(
         } catch {
           return socket.close(1007, 'Invalid JSON');
         }
-        const parsed = liveSubscriptionSchema.safeParse(value);
-        if (!parsed.success) return socket.close(1008, 'Invalid subscription');
-        watches.replace(parsed.data).then(
+        const parsed = Schema.decodeUnknownResult(liveSubscriptionSchema, {
+          onExcessProperty: 'error',
+        })(value);
+        if (Result.isFailure(parsed))
+          return socket.close(1008, 'Invalid subscription');
+        watches.replace(parsed.success).then(
           (targets) => connection.follow(targets),
           (error: unknown) => {
             options.logger.failure({ kind: 'live-updates', error });

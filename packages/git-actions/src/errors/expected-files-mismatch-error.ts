@@ -1,7 +1,10 @@
-export class ExpectedFilesMismatchError extends Error {
-  override readonly name = 'ExpectedFilesMismatchError';
+import { Schema } from 'effect';
 
-  constructor() {
-    super('The expected files do not match the selected paths');
+export class ExpectedFilesMismatchError extends Schema.TaggedError<ExpectedFilesMismatchError>()(
+  'ExpectedFilesMismatchError',
+  {},
+) {
+  override get message() {
+    return 'The expected files do not match the selected paths';
   }
 }

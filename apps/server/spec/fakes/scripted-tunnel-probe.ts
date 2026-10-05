@@ -1,3 +1,5 @@
+import type { Effect } from 'effect';
+import { nativeOperation } from '@porcelain/effects';
 import type { TunnelAnswer, TunnelTarget } from '@porcelain/access/models';
 import type { TunnelProbe } from '@porcelain/access/ports';
 
@@ -8,7 +10,7 @@ export class ScriptedTunnelProbe implements TunnelProbe {
     this.answer = answer;
   }
 
-  probe(input: TunnelTarget): Promise<TunnelAnswer> {
-    return this.answer(input);
+  probe(input: TunnelTarget): Effect.Effect<TunnelAnswer> {
+    return nativeOperation(() => this.answer(input));
   }
 }

@@ -19,15 +19,18 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from '@/components/ui/toast';
-import { changePath, useReviewOverview } from '@/features/changes/index';
+import { changePath } from '@porcelain/client/changes/rules';
+import { useReviewOverview } from '@/features/changes/index';
 import {
   canonicalPreferencePath,
   hiddenPathFor,
+  visibleFileTreePaths,
+} from '@porcelain/client/projects/rules';
+import {
   useHiddenPaths,
   usePinnedPaths,
   useSetHidden,
   useSetPinned,
-  visibleFileTreePaths,
 } from '@/features/projects/index';
 import { discardRejection } from '@/shared/lib/submit-form';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
@@ -35,15 +38,21 @@ import { PierreFileTree } from '../adapters/pierre-file-tree';
 import { useEditFile } from '../commands/edit-file';
 import { runFileTreeAction } from '../commands/tree-menu';
 import { useDirectories, useDirectory } from '../queries/directory';
-import { fileErrorMessage, surfaceErrorMessage } from '../rules/error-message';
-import { fileTreeAncestors, mergeFileTreeEntries } from '../rules/file-tree';
+import {
+  fileErrorMessage,
+  surfaceErrorMessage,
+} from '@porcelain/client/files/rules';
+import {
+  fileTreeAncestors,
+  mergeFileTreeEntries,
+} from '@porcelain/client/files/rules';
 import { isImagePath } from '../rules/html-assets';
-import type { FilesScope } from '../rules/scope';
+import type { FilesScope } from '@porcelain/client/files/rules';
 import {
   duplicatePath,
   treeActions,
   type TreeAction,
-} from '../rules/tree-actions';
+} from '@porcelain/client/files/rules';
 import { FileTreeMenu } from './file-tree-menu';
 import { PinnedFiles } from './pinned-files';
 import { QuickOpen } from './quick-open';

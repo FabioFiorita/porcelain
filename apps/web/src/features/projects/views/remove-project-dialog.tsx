@@ -10,10 +10,11 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Spinner } from '@/components/ui/spinner';
-import { connectionErrorMessage } from '@/features/access/index';
+import { connectionErrorMessage } from '@porcelain/client/access/rules';
 import { useRemoveProject } from '../commands/remove-project';
 import { removeProjectDialog } from '../overlays';
-import { projectPath, type Project } from '../rules/inventory';
+import { projectPath } from '@porcelain/client/projects/rules';
+import { type Project } from '@porcelain/client/projects/rules';
 import { type Connection } from '@/shared/workspace/connection';
 
 export function RemoveProjectDialog({

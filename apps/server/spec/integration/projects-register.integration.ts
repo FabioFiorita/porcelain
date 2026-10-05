@@ -1,3 +1,4 @@
+import * as Schema from 'effect/Schema';
 import { registerProjectResponseSchema } from '@porcelain/contracts/projects';
 import { expect } from 'vitest';
 import { apiError, invalidRequest } from '../kit/answers.ts';
@@ -27,7 +28,11 @@ test('registering a second repository names the project after its folder, lists 
 
   expect(response.status).toBe(200);
   expect(response.body).toEqual(
-    expect.schemaMatching(registerProjectResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(
+        Schema.toEncoded(registerProjectResponseSchema),
+      ),
+    ),
   );
   expect(response.body).toMatchObject({
     name: 'second',

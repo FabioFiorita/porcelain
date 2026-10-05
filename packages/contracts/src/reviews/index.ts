@@ -74,4 +74,5 @@ export {
   type SetReviewedLayerRequest,
   type SetReviewedLayerResponse,
 } from './reviewed-files.ts';
-export * from './endpoints.ts';
+export { ReviewsApi } from './api.ts';
+export { ReviewSummaryApi } from './summary-api.ts';

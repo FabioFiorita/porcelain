@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type {
   DeleteResolvedCommentsInput,
   DeleteResolvedCommentsResult,
@@ -15,24 +16,28 @@ export class DeleteResolvedCommentsService {
     this.comments = comments;
   }
 
-  execute(input: DeleteResolvedCommentsInput): DeleteResolvedCommentsResult {
-    const author = commentAuthor(input.writer);
-    const deleted: string[] = [];
-    const skipped: string[] = [];
-    for (const confirmed of input.threads) {
-      const thread = this.comments.find({ threadId: confirmed.threadId });
-      if (
-        thread !== undefined &&
-        unchangedResolvedThread(thread, {
-          worktreeId: input.worktreeId,
-          revision: confirmed.revision,
-          author,
-        })
-      ) {
-        this.comments.remove({ threadId: thread.id });
-        deleted.push(thread.id);
-      } else skipped.push(confirmed.threadId);
-    }
-    return { deleted, skipped };
+  execute(
+    input: DeleteResolvedCommentsInput,
+  ): Effect.Effect<DeleteResolvedCommentsResult, never> {
+    return Effect.sync(() => {
+      const author = commentAuthor(input.writer);
+      const deleted: string[] = [];
+      const skipped: string[] = [];
+      for (const confirmed of input.threads) {
+        const thread = this.comments.find({ threadId: confirmed.threadId });
+        if (
+          thread !== undefined &&
+          unchangedResolvedThread(thread, {
+            worktreeId: input.worktreeId,
+            revision: confirmed.revision,
+            author,
+          })
+        ) {
+          this.comments.remove({ threadId: thread.id });
+          deleted.push(thread.id);
+        } else skipped.push(confirmed.threadId);
+      }
+      return { deleted, skipped };
+    });
   }
 }

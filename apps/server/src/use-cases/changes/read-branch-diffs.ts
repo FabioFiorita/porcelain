@@ -1,52 +1,50 @@
+import { Effect } from 'effect';
+import type { WorktreeAccess } from '../../runtime/worktree-access.ts';
+import type { WorktreeAccessFailure } from '../../ports/worktree-access-failure.ts';
+import type { GitIoFailure } from '../../ports/git-io-failure.ts';
+import type {
+  CommitNotFoundError,
+  IncompleteDiffReadError,
+} from '@porcelain/changes/errors';
 import type { ReadBranchDiffsService } from '@porcelain/changes/services';
 import type {
   ReadBranchDiffsRequest,
   ReadBranchDiffsResponse,
 } from '@porcelain/contracts/changes';
 import type { WorktreeParams } from '@porcelain/contracts/shared';
-import type { LaneKeys } from '../../runtime/lane-keys.ts';
-import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
-import type { CheckWorktreeUseCasePort } from '../../ports/check-worktree-use-case-port.ts';
 
 export class ReadBranchDiffsUseCase {
-  private readonly checkWorktree: CheckWorktreeUseCasePort;
-  private readonly readBranchDiffs: ReadBranchDiffsService;
-  private readonly lanes: Lanes;
-  private readonly laneKeys: LaneKeys;
+  private readonly access: WorktreeAccess;
+  private readonly readBranchDiffs: ReadBranchDiffsService<GitIoFailure>;
 
   constructor(
-    checkWorktree: CheckWorktreeUseCasePort,
-    readBranchDiffs: ReadBranchDiffsService,
-    lanes: Lanes,
-    laneKeys: LaneKeys,
+    access: WorktreeAccess,
+    readBranchDiffs: ReadBranchDiffsService<GitIoFailure>,
   ) {
-    this.checkWorktree = checkWorktree;
+    this.access = access;
     this.readBranchDiffs = readBranchDiffs;
-    this.lanes = lanes;
-    this.laneKeys = laneKeys;
   }
 
-  async execute(
+  execute(
     input: WorktreeParams & ReadBranchDiffsRequest,
-    context: OperationContext,
-  ): Promise<ReadBranchDiffsResponse> {
+  ): Effect.Effect<
+    ReadBranchDiffsResponse,
+    | WorktreeAccessFailure
+    | GitIoFailure
+    | CommitNotFoundError
+    | IncompleteDiffReadError
+  > {
     const { worktreeId, baseOid, headOid, paths } = input;
-    const worktree = await this.checkWorktree.execute(
-      { worktreeId, requireAvailableProject: false },
-      context,
-    );
-    return this.lanes.runConsistent(
-      this.laneKeys.repository(worktree),
-      worktree,
-      async ({ signal }) => {
-        const diffs = await this.readBranchDiffs.execute(
-          { worktreeId, baseOid, headOid, paths },
-          signal,
-        );
+    return this.access.read(worktreeId, () =>
+      Effect.gen({ self: this }, function* () {
+        const diffs = yield* this.readBranchDiffs.execute({
+          worktreeId,
+          baseOid,
+          headOid,
+          paths,
+        });
         return diffs;
-      },
-      { callerSignal: context.signal },
+      }),
     );
   }
 }

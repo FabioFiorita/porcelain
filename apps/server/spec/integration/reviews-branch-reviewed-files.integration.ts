@@ -1,3 +1,4 @@
+import * as Schema from 'effect/Schema';
 import {
   listReviewedFilesResponseSchema,
   removeReviewedFilesResponseSchema,
@@ -105,7 +106,11 @@ test('marking one path in both the working-tree and the branch scope keeps both 
 
   expect([inWorktree.status, inBranch.status]).toStrictEqual([200, 200]);
   expect(inBranch.body).toEqual(
-    expect.schemaMatching(listReviewedFilesResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(
+        Schema.toEncoded(listReviewedFilesResponseSchema),
+      ),
+    ),
   );
   expect(paths(inWorktree.body)).toStrictEqual([session.fixture.readme.path]);
   expect(paths(inBranch.body)).toStrictEqual([
@@ -203,7 +208,11 @@ test('unmarking files in the branch scope leaves the working-tree marks alone', 
 
   expect([one.status, many.status]).toStrictEqual([200, 200]);
   expect(one.body).toEqual(
-    expect.schemaMatching(removeReviewedFilesResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(
+        Schema.toEncoded(removeReviewedFilesResponseSchema),
+      ),
+    ),
   );
   expect(paths(one.body)).toStrictEqual([session.fixture.readme.path]);
   expect(many.body).toStrictEqual({

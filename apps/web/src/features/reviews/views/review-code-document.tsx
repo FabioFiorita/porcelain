@@ -1,10 +1,9 @@
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { changeId, selectionKey } from '@porcelain/client/changes/rules';
 import {
-  changeId,
   diffEntry,
-  selectionKey,
   useChangeDiffs,
   useChanges,
   useRecoverChangedDiffs,
@@ -26,7 +25,7 @@ import {
   orderReviewChanges,
   type ReviewChangeItem,
   type ReviewScope,
-} from '../rules/review';
+} from '@porcelain/client/reviews/rules';
 import { CodeDocument } from './code-document';
 import { InlineComposer } from './inline-composer';
 import { fileReviewControl, ReviewedControl } from './reviewed-control';

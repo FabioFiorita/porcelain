@@ -1,5 +1,8 @@
 import { HISTORY_OID_LENGTH } from '@/config/limits';
-import type { CommentAnchor, RevealComment } from './comments';
+import type {
+  CommentAnchor,
+  RevealComment,
+} from '@porcelain/client/reviews/rules';
 export type DocumentRef =
   | { kind: 'handoff' }
   | { kind: 'layer'; layerId: string }

@@ -1,3 +1,4 @@
+import * as Schema from 'effect/Schema';
 import { randomUUID } from 'node:crypto';
 import { createCommentThreadResponseSchema } from '@porcelain/contracts/reviews';
 import { expect } from 'vitest';
@@ -80,7 +81,11 @@ test('a reviewer comment on the whole branch names its base and tip and reaches 
 
   expect(created.status).toBe(200);
   expect(created.body).toEqual(
-    expect.schemaMatching(createCommentThreadResponseSchema),
+    expect.schemaMatching(
+      Schema.toStandardSchemaV1(
+        Schema.toEncoded(createCommentThreadResponseSchema),
+      ),
+    ),
   );
   expect(created.body).toMatchObject({
     id: branchThreadId,

@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type { Clock } from '@porcelain/kernel/ports';
 import { GitActionNotFoundError } from '../errors/git-action-not-found-error.ts';
 import type {
@@ -17,22 +18,27 @@ export class FinishGitActionService {
     this.clock = clock;
   }
 
-  execute(input: FinishGitActionInput): FinishGitActionResult {
-    const current = this.gitActionReceipts.read({
-      requestId: input.requestId,
+  execute(
+    input: FinishGitActionInput,
+  ): Effect.Effect<FinishGitActionResult, GitActionNotFoundError, never> {
+    return Effect.gen({ self: this }, function* () {
+      const current = this.gitActionReceipts.read({
+        requestId: input.requestId,
+      });
+      if (!current) return yield* Effect.fail(new GitActionNotFoundError());
+      const { outcome } = input;
+      const finished: GitActionReceipt = {
+        ...current,
+        state:
+          outcome.state === 'indeterminate' ? 'interrupted' : outcome.state,
+        reason: outcome.reason,
+        message: outcome.message,
+        result: outcome.result,
+        refreshRequired: outcome.refreshRequired,
+        finishedAt: this.clock.now(),
+      };
+      this.gitActionReceipts.save(finished);
+      return gitActionReceiptView(finished);
     });
-    if (!current) throw new GitActionNotFoundError();
-    const { outcome } = input;
-    const finished: GitActionReceipt = {
-      ...current,
-      state: outcome.state === 'indeterminate' ? 'interrupted' : outcome.state,
-      reason: outcome.reason,
-      message: outcome.message,
-      result: outcome.result,
-      refreshRequired: outcome.refreshRequired,
-      finishedAt: this.clock.now(),
-    };
-    this.gitActionReceipts.save(finished);
-    return gitActionReceiptView(finished);
   }
 }

@@ -1,77 +1,89 @@
-import { z } from 'zod';
+import { Schema } from 'effect';
 import {
   COMMIT_FILES,
   COMMIT_PARENTS,
   DIFFS_PER_REQUEST,
   PATHS_PER_CHANGE,
 } from '../shared/limits.ts';
-import { absentAsNull } from '../shared/absent-as-null.ts';
+import { nullableAsUndefined } from '../shared/schema.ts';
 import { oidSchema } from '../shared/oid.ts';
-import { worktreeIdSchema } from '../shared/worktree-params.ts';
+import { worktreeIdSchema } from '../shared/schema.ts';
 import { commitSummarySchema } from './commit-history.ts';
 import { gitDiffContentSchema } from './git-diff.ts';
 
-const commitComparisonSchema = z.discriminatedUnion('kind', [
-  z.object({
-    kind: z.literal('parent'),
-    parentNumber: z.number().int().positive(),
+const commitComparisonSchema = Schema.Union([
+  Schema.Struct({
+    kind: Schema.Literal('parent'),
+    parentNumber: Schema.Number.check(Schema.isInt()).check(
+      Schema.isGreaterThan(0),
+    ),
     baseOid: oidSchema,
   }),
-  z.object({ kind: z.literal('empty-tree') }),
+  Schema.Struct({ kind: Schema.Literal('empty-tree') }),
 ]);
 
-const commitFileSchema = z.object({
-  oldPath: absentAsNull(z.string()),
-  newPath: absentAsNull(z.string()),
-  status: z.enum(['added', 'deleted', 'modified', 'renamed', 'type-changed']),
-  oldMode: z.string(),
-  newMode: z.string(),
+const commitFileSchema = Schema.Struct({
+  oldPath: nullableAsUndefined(Schema.String),
+  newPath: nullableAsUndefined(Schema.String),
+  status: Schema.Literals([
+    'added',
+    'deleted',
+    'modified',
+    'renamed',
+    'type-changed',
+  ]),
+  oldMode: Schema.String,
+  newMode: Schema.String,
 });
 
-export const readCommitFilesParamsSchema = z.strictObject({
+export const readCommitFilesParamsSchema = Schema.Struct({
   worktreeId: worktreeIdSchema,
   oid: oidSchema,
 });
-export const readCommitFilesQuerySchema = z.strictObject({
-  parent: z.coerce.number().int().min(1).max(COMMIT_PARENTS).optional(),
+export const readCommitFilesQuerySchema = Schema.Struct({
+  parent: Schema.optional(
+    Schema.NumberFromString.check(Schema.isInt())
+      .check(Schema.isGreaterThanOrEqualTo(1))
+      .check(Schema.isLessThanOrEqualTo(COMMIT_PARENTS)),
+  ),
 });
-export const readCommitFilesResponseSchema = z.object({
+export const readCommitFilesResponseSchema = Schema.Struct({
   commit: commitSummarySchema,
   comparison: commitComparisonSchema,
-  files: z.array(commitFileSchema).max(COMMIT_FILES),
+  files: Schema.Array(commitFileSchema).check(Schema.isMaxLength(COMMIT_FILES)),
 });
 
-export const readCommitDiffsParamsSchema = z.strictObject({
+export const readCommitDiffsParamsSchema = Schema.Struct({
   worktreeId: worktreeIdSchema,
   oid: oidSchema,
 });
-export const readCommitDiffsRequestSchema = z.strictObject({
-  parent: z.number().int().min(1).max(COMMIT_PARENTS).optional(),
-  paths: z
-    .array(z.array(z.string()).min(1).max(PATHS_PER_CHANGE))
-    .min(1)
-    .max(DIFFS_PER_REQUEST),
+export const readCommitDiffsRequestSchema = Schema.Struct({
+  parent: Schema.optional(
+    Schema.Number.check(Schema.isInt())
+      .check(Schema.isGreaterThanOrEqualTo(1))
+      .check(Schema.isLessThanOrEqualTo(COMMIT_PARENTS)),
+  ),
+  paths: Schema.Array(
+    Schema.Array(Schema.String)
+      .check(Schema.isMinLength(1))
+      .check(Schema.isMaxLength(PATHS_PER_CHANGE)),
+  )
+    .check(Schema.isMinLength(1))
+    .check(Schema.isMaxLength(DIFFS_PER_REQUEST)),
 });
-export const readCommitDiffsResponseSchema = z.object({
+export const readCommitDiffsResponseSchema = Schema.Struct({
   commitOid: oidSchema,
-  diffs: z.array(
-    z.object({ paths: z.array(z.string()), content: gitDiffContentSchema }),
+  diffs: Schema.Array(
+    Schema.Struct({
+      paths: Schema.Array(Schema.String),
+      content: gitDiffContentSchema,
+    }),
   ),
 });
 
-export type ReadCommitFilesParams = z.output<
-  typeof readCommitFilesParamsSchema
->;
-export type ReadCommitFilesQuery = z.output<typeof readCommitFilesQuerySchema>;
-export type ReadCommitFilesResponse = z.output<
-  typeof readCommitFilesResponseSchema
->;
-export type ReadCommitDiffsParams = z.output<
-  typeof readCommitDiffsParamsSchema
->;
-export type ReadCommitDiffsRequest = z.output<
-  typeof readCommitDiffsRequestSchema
->;
-export type ReadCommitDiffsResponse = z.output<
-  typeof readCommitDiffsResponseSchema
->;
+export type ReadCommitFilesParams = typeof readCommitFilesParamsSchema.Type;
+export type ReadCommitFilesQuery = typeof readCommitFilesQuerySchema.Type;
+export type ReadCommitFilesResponse = typeof readCommitFilesResponseSchema.Type;
+export type ReadCommitDiffsParams = typeof readCommitDiffsParamsSchema.Type;
+export type ReadCommitDiffsRequest = typeof readCommitDiffsRequestSchema.Type;
+export type ReadCommitDiffsResponse = typeof readCommitDiffsResponseSchema.Type;

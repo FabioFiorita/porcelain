@@ -1,3 +1,6 @@
+import { Effect } from 'effect';
+import type { WorktreeAccess } from '../../runtime/worktree-access.ts';
+import type { WorktreeAccessFailure } from '../../ports/worktree-access-failure.ts';
 import type {
   CommentAuthor,
   DeleteResolvedCommentsRequest,
@@ -6,49 +9,37 @@ import type {
 import type { WorktreeParams } from '@porcelain/contracts/shared';
 import type { DeleteResolvedCommentsService } from '@porcelain/reviews/services';
 import type { EventPublisher } from '../../ports/event-publisher.ts';
-import type { LaneKeys } from '../../runtime/lane-keys.ts';
-import type { Lanes } from '../../runtime/lanes.ts';
-import type { OperationContext } from '../../ports/operation-context.ts';
-import type { CheckWorktreeUseCasePort } from '../../ports/check-worktree-use-case-port.ts';
 
 export class DeleteResolvedCommentsUseCase {
-  private readonly checkWorktree: CheckWorktreeUseCasePort;
+  private readonly access: WorktreeAccess;
   private readonly deleteResolvedComments: DeleteResolvedCommentsService;
-  private readonly lanes: Lanes;
-  private readonly laneKeys: LaneKeys;
   private readonly events: EventPublisher;
 
   constructor(
-    checkWorktree: CheckWorktreeUseCasePort,
+    access: WorktreeAccess,
     deleteResolvedComments: DeleteResolvedCommentsService,
-    lanes: Lanes,
-    laneKeys: LaneKeys,
     events: EventPublisher,
   ) {
-    this.checkWorktree = checkWorktree;
+    this.access = access;
     this.deleteResolvedComments = deleteResolvedComments;
-    this.lanes = lanes;
-    this.laneKeys = laneKeys;
     this.events = events;
   }
 
-  async execute(
+  execute(
     input: WorktreeParams & DeleteResolvedCommentsRequest & CommentAuthor,
-    context: OperationContext,
-  ): Promise<DeleteResolvedCommentsResponse> {
-    const { worktreeId } = input;
-    const worktree = await this.checkWorktree.execute(
-      { worktreeId, requireAvailableProject: false },
-      context,
+  ): Effect.Effect<DeleteResolvedCommentsResponse, WorktreeAccessFailure> {
+    return this.access.transaction(
+      input.worktreeId,
+      () => Effect.void,
+      () => this.deleteResolvedComments.execute(input),
+      (value) =>
+        Effect.sync(() => {
+          if (value.deleted.length > 0)
+            this.events.worktreeChanged({
+              worktreeId: input.worktreeId,
+              change: 'comments',
+            });
+        }),
     );
-    const result = await this.lanes.run(
-      this.laneKeys.reviews(worktree),
-      'write',
-      async () => this.deleteResolvedComments.execute(input),
-      { callerSignal: context.signal },
-    );
-    if (result.deleted.length > 0)
-      this.events.worktreeChanged({ worktreeId, change: 'comments' });
-    return result;
   }
 }

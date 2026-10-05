@@ -132,7 +132,8 @@ const web: Surface = {
       [
         /^apps\/web\/src\/features\/[^/]+\/api\.ts$/,
         /^apps\/web\/src\/shared\/(?:api|live)\/[^/]+\.ts$/,
-        /^packages\/client\/src\/features\/[^/]+\/api\.ts$/,
+        /^apps\/web\/src\/shared\/adapters\/live-socket\.ts$/,
+        /^packages\/client\/src\/features\/[^/]+\/(?:api\.ts|(?:queries|commands)\/[a-z-]+\.ts)$/,
       ],
       ['apps/web/src'],
     ),
@@ -151,7 +152,7 @@ const desktop: Surface = {
       ['apps/desktop/src', 'packages/client/src'],
       [
         /^apps\/desktop\/src\/features\/[^/]+\/api\.ts$/,
-        /^packages\/client\/src\/features\/[^/]+\/api\.ts$/,
+        /^packages\/client\/src\/features\/[^/]+\/(?:api\.ts|(?:queries|commands)\/[a-z-]+\.ts)$/,
       ],
       ['apps/desktop/src'],
     ),
@@ -192,7 +193,7 @@ const mobile: Surface = {
       [
         /^apps\/mobile\/src\/features\/[^/]+\/api\.ts$/,
         /^apps\/mobile\/src\/shared\/api\/[^/]+\.ts$/,
-        /^packages\/client\/src\/features\/[^/]+\/api\.ts$/,
+        /^packages\/client\/src\/features\/[^/]+\/(?:api\.ts|(?:queries|commands)\/[a-z-]+\.ts)$/,
       ],
       ['apps/mobile/src'],
     ),

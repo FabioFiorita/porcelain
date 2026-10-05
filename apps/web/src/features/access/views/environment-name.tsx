@@ -7,8 +7,8 @@ import { Label } from '@/components/ui/label';
 import { ENVIRONMENT_NAME_MAX_LENGTH } from '@/config/limits';
 import { submitForm } from '@/shared/lib/submit-form';
 import { useRenameEnvironment } from '../commands/share';
-import { connectionErrorMessage } from '../rules/connection-error-message';
-import type { Environment } from '../rules/share';
+import { connectionErrorMessage } from '@porcelain/client/access/rules';
+import type { Environment } from '@porcelain/client/access/rules';
 import { type Connection } from '@/shared/workspace/connection';
 
 export function EnvironmentName({
