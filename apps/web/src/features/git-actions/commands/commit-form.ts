@@ -1,3 +1,5 @@
+import { AsyncResult } from 'effect/reactivity';
+import { Option } from 'effect';
 import {
   COMMIT_MESSAGE_BYTES,
   COMMIT_GROUPS,
@@ -97,7 +99,10 @@ function useCommitFormState(
   const git = useGitAction(scope, commitAction, context);
   const generator = useCommitDraft(scope, context, controllers);
   const models = useCommitModels(context);
-  const model = resolveCommitModel(models.data, commitModel.value);
+  const model = resolveCommitModel(
+    Option.getOrUndefined(AsyncResult.value(models)),
+    commitModel.value,
+  );
   const commitPaths = [
     ...new Set(
       files

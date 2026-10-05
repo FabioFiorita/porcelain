@@ -1,3 +1,5 @@
+import { AsyncResult } from 'effect/reactivity';
+import { Option } from 'effect';
 import {
   NativeSelect,
   NativeSelectOptGroup,
@@ -13,8 +15,10 @@ import { usePreferences } from '@/features/preferences/index';
 
 export function CommitModelSetting() {
   const models = useCommitModels(useConnectedContext());
+  const choices = Option.getOrUndefined(AsyncResult.value(models));
+  const pending = AsyncResult.isInitial(models);
   const { preferences, setPreference } = usePreferences();
-  const value = resolveCommitModel(models.data, preferences.commitModel) ?? '';
+  const value = resolveCommitModel(choices, preferences.commitModel) ?? '';
   return (
     <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-x-6">
       <div className="min-w-0 flex-1">
@@ -29,20 +33,20 @@ export function CommitModelSetting() {
         id="commit-model"
         className="w-full shrink-0 sm:w-56"
         value={value}
-        disabled={models.isPending || !models.data?.length}
+        disabled={pending || !choices?.length}
         onChange={(event) => setPreference('commitModel', event.target.value)}
       >
         {!value && (
           <NativeSelectOption value="" disabled>
-            {models.isPending
+            {pending
               ? 'Loading models…'
-              : models.data?.length
+              : choices?.length
                 ? 'Choose a model'
                 : 'No models available'}
           </NativeSelectOption>
         )}
         {groupedCommitModels(
-          models.data?.filter((model) => !model.id.endsWith(':default')) ?? [],
+          choices?.filter((model) => !model.id.endsWith(':default')) ?? [],
         ).map(([provider, entries]) => (
           <NativeSelectOptGroup key={provider} label={provider}>
             {entries.map((model) => (
@@ -54,9 +58,9 @@ export function CommitModelSetting() {
         ))}
       </NativeSelect>
       <p className="w-full text-xs text-muted-foreground">
-        {models.isError
+        {AsyncResult.isFailure(models)
           ? 'Could not load installed coding CLIs.'
-          : !models.isPending && !models.data?.length
+          : !pending && !choices?.length
             ? 'Install and sign in to Codex or Claude Code on the server to generate drafts.'
             : 'Uses a signed-in coding CLI on the server. Codex models come from its local catalogue.'}
       </p>

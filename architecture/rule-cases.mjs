@@ -3487,6 +3487,14 @@ function createReviewsApi(transport) {
 export const reviewsApi = perConnection(createReviewsApi);`,
 };
 
+const clientAtomRouteFiles = {
+  ...clientRouteFiles,
+  'packages/client/src/features/files/api.ts': `import { FilesApi } from '@porcelain/contracts/files'; import { Atom, AtomHttpApi } from 'effect/reactivity'; export const filesApi = Atom.family((connection) => { class Client extends AtomHttpApi.Service<Client>()('FilesClient', { api: FilesApi, httpClient }) {} return Client; });`,
+  'packages/client/src/features/reviews/api.ts': `import { ReviewsApi } from '@porcelain/contracts/reviews'; import { Atom, AtomHttpApi } from 'effect/reactivity'; export const reviewsApi = Atom.family((connection) => { class Client extends AtomHttpApi.Service<Client>()('ReviewsClient', { api: ReviewsApi, httpClient }) {} return Client; });`,
+  'packages/client/src/features/files/queries/text.ts': `import { filesApi } from '../api.ts'; const shadow = (reviewsApi: () => void) => reviewsApi(); export const textQuery = () => { shadow(() => undefined); return filesApi(connection).query('files', 'readTextFile', { params, query }); };`,
+  'packages/client/src/features/files/queries/unused.ts': `import { reviewsApi } from '../../reviews/api.ts'; export const unusedQuery = () => reviewsApi(connection).mutation('reviews', 'publishReview');`,
+};
+
 const clientMethodReads = [
   `return filesApi(connection).readTextFile({ params, query });`,
   `const api = filesApi(connection); const alias = api; return alias.readTextFile({ params, query });`,
@@ -3631,10 +3639,10 @@ const save = Effect.fail(new Error('Refused'));`,
   {
     rule: 'native-transport-types',
     valid:
-      "import { Effect, Schema } from 'effect';\nimport { HttpApi, HttpApiBuilder, HttpApiClient, HttpApiEndpoint, HttpApiGroup } from 'effect/http-api';\nimport type { HttpClient } from 'effect/http';\nconst api = HttpApi.make('test').add(HttpApiGroup.make('files').add(HttpApiEndpoint.post('save', '/api/files/:id', { params: Schema.Struct({ id: Schema.String }), payload: Schema.Struct({ text: Schema.String }), success: Schema.Struct({ fingerprint: Schema.String }) })));\ndeclare const httpClient: HttpClient.HttpClient;\nconst client = Effect.runSync(HttpApiClient.makeWith(api, { httpClient })).files;\nconst handlers = HttpApiBuilder.group(api, 'files', (handlers) => handlers.handle('save', ({ params, payload }) => Effect.succeed({ fingerprint: params.id + payload.text })));\nconst request = client.save({ params: { id: 'tree' }, payload: { text: 'saved' } });\nimport { Rpc, RpcClient, RpcGroup } from 'effect/rpc';\nconst group = RpcGroup.make(Rpc.make('save', { payload: Schema.Struct({ text: Schema.String }), success: Schema.Struct({ fingerprint: Schema.String }) }));\ndeclare const rpcClient: RpcClient.FromGroup<typeof group>;\nconst rpcHandlers = group.toLayer({ save: ({ text }) => Effect.succeed({ fingerprint: text }) });\nconst rpcRequest = rpcClient.save({ text: 'saved' });",
+      "import { Effect, Schema } from 'effect';\nimport { HttpApi, HttpApiBuilder, HttpApiClient, HttpApiEndpoint, HttpApiGroup } from 'effect/http-api';\nimport type { HttpClient } from 'effect/http';\nconst api = HttpApi.make('test').add(HttpApiGroup.make('files').add(HttpApiEndpoint.post('save', '/api/files/:id', { params: Schema.Struct({ id: Schema.String }), payload: Schema.Struct({ text: Schema.String }), success: Schema.Struct({ fingerprint: Schema.String }) })));\ndeclare const httpClient: HttpClient.HttpClient;\nconst client = Effect.runSync(HttpApiClient.makeWith(api, { httpClient })).files;\nconst handlers = HttpApiBuilder.group(api, 'files', (handlers) => handlers.handle('save', ({ params, payload }) => Effect.succeed({ fingerprint: params.id + payload.text })));\nconst request = client.save({ params: { id: 'tree' }, payload: { text: 'saved' } });\nimport { Rpc, RpcClient, RpcGroup } from 'effect/rpc';\nconst group = RpcGroup.make(Rpc.make('save', { payload: Schema.Struct({ text: Schema.String }), success: Schema.Struct({ fingerprint: Schema.String }) }));\ndeclare const rpcClient: RpcClient.FromGroup<typeof group>;\nconst rpcHandlers = group.toLayer({ save: ({ text }) => Effect.succeed({ fingerprint: text }) });\nconst rpcRequest = rpcClient.save({ text: 'saved' });\nimport { AtomHttpApi } from 'effect/reactivity';\nimport { Layer } from 'effect';\nimport { HttpClient as NativeHttpClient } from 'effect/http';\nclass Client extends AtomHttpApi.Service<Client>()('Client', { api, httpClient: Layer.succeed(NativeHttpClient.HttpClient, httpClient) }) {}\nconst nativeRequest = Client.query('files', 'save', { params: { id: 'tree' }, payload: { text: 'saved' } });",
     invalid:
-      "import { Effect, Schema } from 'effect';\nimport { HttpApi, HttpApiBuilder, HttpApiClient, HttpApiEndpoint, HttpApiGroup } from 'effect/http-api';\nimport type { HttpClient } from 'effect/http';\nconst api = HttpApi.make('test').add(HttpApiGroup.make('files').add(HttpApiEndpoint.post('save', '/api/files/:id', { params: Schema.Struct({ id: Schema.String }), payload: Schema.Struct({ text: Schema.String }), success: Schema.Struct({ fingerprint: Schema.String }) })));\ndeclare const httpClient: HttpClient.HttpClient;\nconst client = Effect.runSync(HttpApiClient.makeWith(api, { httpClient })).files;\nconst incomplete = HttpApiBuilder.group(api, 'files', (handlers) => handlers);\nconst invalidHandler = HttpApiBuilder.group(api, 'files', (handlers) => handlers.handle('save', () => Effect.succeed({ fingerprint: 123 })));\nconst invalidRequest = client.save({ params: { id: 'tree' }, payload: { text: 123 } });\nconst missingRequest = client.missing({});\nimport { Rpc, RpcClient, RpcGroup } from 'effect/rpc';\nconst group = RpcGroup.make(Rpc.make('save', { payload: Schema.Struct({ text: Schema.String }), success: Schema.Struct({ fingerprint: Schema.String }) }));\ndeclare const rpcClient: RpcClient.FromGroup<typeof group>;\nconst rpcHandlers = group.of({ save: () => Effect.succeed({ fingerprint: 123 }) });\nconst rpcRequest = rpcClient.save({ text: 123 });",
-    errors: ['TS2322', 'TS2375', 'TS2322', 'TS2339', 'TS2322', 'TS2322'],
+      "import { Effect, Schema } from 'effect';\nimport { HttpApi, HttpApiBuilder, HttpApiClient, HttpApiEndpoint, HttpApiGroup } from 'effect/http-api';\nimport type { HttpClient } from 'effect/http';\nconst api = HttpApi.make('test').add(HttpApiGroup.make('files').add(HttpApiEndpoint.post('save', '/api/files/:id', { params: Schema.Struct({ id: Schema.String }), payload: Schema.Struct({ text: Schema.String }), success: Schema.Struct({ fingerprint: Schema.String }) })));\ndeclare const httpClient: HttpClient.HttpClient;\nconst client = Effect.runSync(HttpApiClient.makeWith(api, { httpClient })).files;\nconst incomplete = HttpApiBuilder.group(api, 'files', (handlers) => handlers);\nconst invalidHandler = HttpApiBuilder.group(api, 'files', (handlers) => handlers.handle('save', () => Effect.succeed({ fingerprint: 123 })));\nconst invalidRequest = client.save({ params: { id: 'tree' }, payload: { text: 123 } });\nconst missingRequest = client.missing({});\nimport { Rpc, RpcClient, RpcGroup } from 'effect/rpc';\nconst group = RpcGroup.make(Rpc.make('save', { payload: Schema.Struct({ text: Schema.String }), success: Schema.Struct({ fingerprint: Schema.String }) }));\ndeclare const rpcClient: RpcClient.FromGroup<typeof group>;\nconst rpcHandlers = group.of({ save: () => Effect.succeed({ fingerprint: 123 }) });\nconst rpcRequest = rpcClient.save({ text: 123 });\nimport { AtomHttpApi } from 'effect/reactivity';\nimport { Layer } from 'effect';\nimport { HttpClient as NativeHttpClient } from 'effect/http';\nclass Client extends AtomHttpApi.Service<Client>()('Client', { api, httpClient: Layer.succeed(NativeHttpClient.HttpClient, httpClient) }) {}\nconst nativeRequest = Client.query('files', 'save', { params: { id: 'tree' }, payload: { text: 123 } });",
+    errors: 'TS2322 TS2375 TS2322 TS2339 TS2322 TS2322 TS2322'.split(' '),
   },
   {
     rule: 'native-client-state-types',
@@ -3703,23 +3711,10 @@ Effect.runPromise(Effect.provideService(read, WorktreeRead, { assert: () => unde
     errors: ['TS2379', 'TS377004', 'TS2379', 'TS377004', 'TS2739'],
   },
   ...['web', 'desktop', 'mobile'].map((app) =>
-    clientRoutesCase(clientRouteFiles, { app: `apps/${app}/src/app.ts` }),
-  ),
-  clientRoutesCase(
-    {
-      ...clientRouteFiles,
-      'packages/client/src/features/files/queries/text.ts': `
-import { filesApi } from '../api.ts';
-const read = () => filesApi(connection).readTextFile({ params, query });
-const shadow = (reviewsApi: () => void) => reviewsApi();
-export const textQuery = () => ({ queryFn: () => { shadow(read); return read(); } });`,
-    },
-    {
-      valid: `
-import { textQueryOptions as options, type unusedQueryOptions } from '@porcelain/client/files';
-import '@porcelain/client/files';
-export const read = () => options();`,
-    },
+    clientRoutesCase(clientAtomRouteFiles, {
+      app: `apps/${app}/src/app.ts`,
+      valid: `import { textQueryOptions as options, type unusedQueryOptions } from '@porcelain/client/files'; import '@porcelain/client/files'; export const read = () => options();`,
+    }),
   ),
   clientRoutesCase(clientRouteFiles, {
     invalid: `
@@ -3786,6 +3781,9 @@ export const write = () => {
     `const { readTextFile, ...rest } = filesApi(connection); return rest;`,
     `let api = filesApi(connection); api = other; return api.readTextFile({ params, query });`,
     `return filesApi(connection).unknown();`,
+    `return filesApi(connection).query(group, 'readTextFile', { params, query });`,
+    `return filesApi(connection).query('files', endpoint, { params, query });`,
+    `return filesApi(connection).mutation('files', endpoint);`,
   ].map((use) =>
     clientRoutesCase(
       {
@@ -3797,7 +3795,7 @@ export const unusedQuery = () => ({ queryFn: () => { ${use} } });`,
       {
         errors: [
           'select a literal generated endpoint, because an escaped or dynamic client binding cannot prove feature route coverage.',
-          ...(use.includes('let api')
+          ...(use.includes('let api') || /\.(?:query|mutation)\(/.test(use)
             ? [
                 'keep the generated client binding traceable so its feature map can name the route.',
               ]

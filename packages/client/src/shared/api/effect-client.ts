@@ -75,10 +75,10 @@ function unansweredRequest(
   );
 }
 
-export function requestEffect<A, E>(
-  request: Effect.Effect<A, E>,
+export function requestEffect<A, E, R>(
+  request: Effect.Effect<A, E, R>,
   signal?: AbortSignal,
-): Effect.Effect<A, E | ConnectionError | RequestError> {
+): Effect.Effect<A, E | ConnectionError | RequestError, R> {
   const checked = Effect.catch(
     request,
     (error): Effect.Effect<never, E | ConnectionError | RequestError> =>

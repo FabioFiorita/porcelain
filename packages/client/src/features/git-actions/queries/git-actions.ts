@@ -1,16 +1,17 @@
-import { runRequest } from '../../../shared/api/effect-client.ts';
-import type { QueryFunctionContext } from '@tanstack/query-core';
+import { Atom } from 'effect/reactivity';
 import type { WorktreeConnection } from '../../../shared/api/connection.ts';
-import { queryKeys } from '../../../shared/api/query-keys.ts';
-import { gitActionsApi } from '../api.ts';
+import { COMMIT_MODELS_STALE_MS } from '../../../config/limits.ts';
+import { gitActionsClient } from '../api.ts';
 
-export function commitModelsQueryOptions(connection: WorktreeConnection) {
-  return {
-    queryKey: queryKeys.commitModels(connection.environmentId),
-    queryFn: ({ signal }: Pick<QueryFunctionContext, 'signal'>) =>
-      runRequest(
-        gitActionsApi(connection).listCommitModels({}),
-        connection.request(signal).signal,
-      ),
-  };
+const models = Atom.family((connection: WorktreeConnection) =>
+  gitActionsClient(connection)
+    .query('gitActions', 'listCommitModels', {
+      timeToLive: COMMIT_MODELS_STALE_MS,
+    })
+    .pipe(
+      Atom.swr({ staleTime: COMMIT_MODELS_STALE_MS, revalidateOnFocus: false }),
+    ),
+);
+export function readCommitModels(connection: WorktreeConnection) {
+  return models(connection);
 }

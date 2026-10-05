@@ -1,3 +1,5 @@
+import { AsyncResult } from 'effect/reactivity';
+import { Option } from 'effect';
 import { GitBranchIcon, PlusIcon, SparklesIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -69,6 +71,7 @@ export function CommitForm(
     commitModeBlocker,
     amendModeBlocker,
   } = form;
+  const choices = Option.getOrUndefined(AsyncResult.value(models));
   return (
     <form
       className="flex min-w-0 flex-col gap-4"
@@ -238,18 +241,18 @@ export function CommitForm(
                   className="w-auto max-w-48"
                   size="sm"
                   value={model ?? ''}
-                  disabled={!models.data?.length}
+                  disabled={!choices?.length}
                   onChange={(event) => form.setModel(event.target.value)}
                 >
                   {!model && (
                     <NativeSelectOption value="" disabled>
-                      {models.data?.length
+                      {choices?.length
                         ? 'Choose a model'
                         : 'No coding CLI available'}
                     </NativeSelectOption>
                   )}
                   {groupedCommitModels(
-                    models.data?.filter(
+                    choices?.filter(
                       (entry) => !entry.id.endsWith(':default'),
                     ) ?? [],
                   ).map(([provider, entries]) => (

@@ -129,6 +129,21 @@ function propertyName(path: NodePath): string | undefined {
   return undefined;
 }
 
+function atomEndpoint(callee: NodePath) {
+  if (
+    !callee.isMemberExpression() ||
+    !['query', 'mutation'].includes(propertyName(callee) ?? '')
+  )
+    return undefined;
+  const call = callee.parentPath;
+  if (!call?.isCallExpression() || call.get('callee') !== callee)
+    return undefined;
+  const [group, endpoint] = call.get('arguments');
+  return group?.isStringLiteral() && endpoint?.isStringLiteral()
+    ? { group: group.node.value, endpoint: endpoint.node.value }
+    : undefined;
+}
+
 function prependMember(name: string, chains: MemberChain[]): MemberChain[] {
   return chains.map((chain) =>
     chain === undefined ? undefined : [name, ...chain],
@@ -180,6 +195,8 @@ function usedMembers(
   if (parent.isMemberExpression() && parent.get('object') === path) {
     const name = propertyName(parent);
     if (name === undefined) return [undefined];
+    const selected = atomEndpoint(parent);
+    if (selected) return [[selected.endpoint]];
     const nested = usedMembers(parent, nextSeen, true);
     return prependMember(name, nested);
   }
@@ -589,6 +606,13 @@ class RouteReader {
     if (!callee.isMemberExpression()) return undefined;
     const name = propertyName(callee);
     const receiver = callee.get('object');
+    const selected = atomEndpoint(callee);
+    if (selected)
+      return this.endpointFor(
+        this.sdkApis(file, receiver, new Set()),
+        selected.endpoint,
+        selected.group,
+      );
     if (name && receiver.isIdentifier()) {
       const binding = receiver.scope.getBinding(receiver.node.name);
       const imported = binding?.path.isImportNamespaceSpecifier()
@@ -634,9 +658,12 @@ class RouteReader {
   private endpointFor(
     apis: readonly HttpApi.Top[],
     name: string,
+    groupName?: string,
   ): HttpApiEndpoint.Top | undefined {
     const matches = apis.flatMap((api) =>
       Object.values(api.groups).flatMap((group) => {
+        if (groupName !== undefined && group.identifier !== groupName)
+          return [];
         const endpoint = group.endpoints[name];
         return endpoint ? [endpoint] : [];
       }),
@@ -645,6 +672,14 @@ class RouteReader {
       matches.map((endpoint) => `${endpoint.method} ${endpoint.path}`),
     );
     return routes.size === 1 ? matches[0] : undefined;
+  }
+
+  isAtomClientCall(file: string, callee: NodePath): boolean {
+    return (
+      callee.isMemberExpression() &&
+      ['query', 'mutation'].includes(propertyName(callee) ?? '') &&
+      this.sdkApis(file, callee.get('object'), new Set()).length > 0
+    );
   }
 
   private sdkApis(
@@ -908,7 +943,8 @@ export function apiCalls(
       } else if (
         layer.some((pattern) => pattern.test(file)) &&
         callee.isMemberExpression() &&
-        endpointNames.has(propertyName(callee) ?? '')
+        (endpointNames.has(propertyName(callee) ?? '') ||
+          reader.isAtomClientCall(file, callee))
       )
         problems.push(
           `${file}:${lineOf(source, range.start)}: keep the generated client binding traceable so its feature map can name the route.`,
