@@ -1,11 +1,12 @@
-import { z } from 'zod';
+import { Effect, Schema } from 'effect';
 
-const claudeEnvelopeSchema = z.object({ structured_output: z.unknown() });
+const claudeEnvelopeSchema = Schema.fromJsonString(
+  Schema.Struct({ structured_output: Schema.Json }),
+);
+const codexAnswerSchema = Schema.fromJsonString(Schema.Json);
 
-export function claudeAnswer(output: string): unknown {
-  return claudeEnvelopeSchema.parse(JSON.parse(output)).structured_output;
-}
-
-export function codexAnswer(lastMessage: string): unknown {
-  return JSON.parse(lastMessage);
-}
+export const claudeAnswer = (output: string) =>
+  Schema.decodeUnknownEffect(claudeEnvelopeSchema)(output).pipe(
+    Effect.map((reply) => reply.structured_output),
+  );
+export const codexAnswer = Schema.decodeUnknownEffect(codexAnswerSchema);

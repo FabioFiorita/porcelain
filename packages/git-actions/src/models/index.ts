@@ -2,9 +2,7 @@ export type { AcceptGitActionInput } from './accept-git-action.ts';
 export type {
   CommitDraftCapture,
   CommitDraftGeneration,
-  CommitDraftRequest,
   CommitGroupLimits,
-  CommitModel,
 } from './commit-draft.ts';
 export type {
   CommitDraftObservation,

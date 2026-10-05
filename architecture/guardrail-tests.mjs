@@ -38,6 +38,7 @@ function nativeTypeFixture(source) {
         __CLIENT_ACCESS__: 'packages/client/src/features/access/store.ts',
         __CLIENT_SELECTION__: 'packages/client/src/features/projects/store.ts',
         __PROCESS_COMMAND__: 'packages/process/src/commands/run-command.ts',
+        __COMMIT_PLANNING__: 'packages/agents/src/commit-planning/index.ts',
       }).reduce(
         (text, [key, path]) => text.replaceAll(key, join(repository, path)),
         source,
@@ -244,6 +245,7 @@ export function runGuardrailCases(named = []) {
         'native-transport-types',
         'native-client-state-types',
         'native-process-types',
+        'native-agent-types',
         'native-effect-diagnostics',
         'review-draft-types',
         'worktree-transaction-types',

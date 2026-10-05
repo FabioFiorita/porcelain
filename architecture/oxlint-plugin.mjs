@@ -1308,6 +1308,11 @@ function allowedSpecImport(filename, source) {
   if (statusPolicySpec.test(path) && gitCapabilityEntry.test(source))
     return true;
   if (
+    /packages\/agents\/src\/.+\.spec\.ts$/.test(path) &&
+    ['effect/ai', '@porcelain/agents/commit-planning'].includes(source)
+  )
+    return true;
+  if (
     source === '@effect/platform-node' &&
     (/\/packages\/(?:git|agents|process)\/src\/.+\.spec\.ts$/.test(path) ||
       storageSpec.test(path) ||

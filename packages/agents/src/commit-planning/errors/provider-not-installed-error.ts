@@ -1,7 +1,10 @@
-export class ProviderNotInstalledError extends Error {
-  override readonly name = 'ProviderNotInstalledError';
+import { Schema } from 'effect';
 
-  constructor() {
-    super('The selected coding CLI is not installed.');
+export class ProviderNotInstalledError extends Schema.TaggedError<ProviderNotInstalledError>()(
+  'ProviderNotInstalledError',
+  {},
+) {
+  override get message() {
+    return 'The selected coding CLI is not installed.';
   }
 }

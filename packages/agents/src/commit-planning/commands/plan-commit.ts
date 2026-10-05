@@ -1,20 +1,4 @@
 import type { CommitPlanRequest } from '../dtos/commit-plan-request.ts';
-import type { Provider } from '../interfaces/provider.ts';
-
-export function planCommit(
-  provider: Provider,
-  model: string,
-  request: CommitPlanRequest,
-  outputSchema: string,
-  signal?: AbortSignal,
-): Promise<unknown> {
-  return provider.answer(
-    model,
-    commitPlanPrompt(request),
-    outputSchema,
-    signal,
-  );
-}
 
 export function commitPlanPrompt(request: CommitPlanRequest): string {
   const shape =

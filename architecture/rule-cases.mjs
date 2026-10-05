@@ -1604,32 +1604,12 @@ import { withoutGitDirectory } from '@porcelain/kernel/rules';`,
   {
     rule: 'no-number-outside-limits',
     path: 'packages/agents/src/commit-planning/claude-provider.ts',
-    valid: `export class ClaudeProvider implements Provider {
-  async answer(
-  ): Promise<unknown> {
-    try {
-      const output = await runProvider(
-        {
-          maxBytes: this.limits.claudeOutputBytes,
-        },
-      );
-    } finally {
-    }
-  }
-}`,
-    invalid: `export class ClaudeProvider implements Provider {
-  async answer(
-  ): Promise<unknown> {
-    try {
-      const output = await runProvider(
-        {
-          maxBytes: 1024 * 1024,
-        },
-      );
-    } finally {
-    }
-  }
-}`,
+    valid: `export const answer = Effect.fn('ClaudeProvider.answer')(function* () {
+  return yield* runProvider({ maxBytes: limits.claudeOutputBytes });
+});`,
+    invalid: `export const answer = Effect.fn('ClaudeProvider.answer')(function* () {
+  return yield* runProvider({ maxBytes: 1024 * 1024 });
+});`,
     errors: 3,
   },
   {
@@ -3758,6 +3738,14 @@ const save = Effect.fail(new Error('Refused'));`,
       "import { Effect, type Context } from 'effect';\nimport { ChildProcessSpawner } from 'effect/process';\nimport { runCommand } from '__PROCESS_COMMAND__';\ndeclare const spawner: Context.Service.Shape<typeof ChildProcessSpawner.ChildProcessSpawner>;\nconst input = { command: 'git', args: ['status'], maxBytes: 1024, processGroup: { lingerMs: 250, cleanupMs: 5000, pollMs: 10 } };\nconst result = Effect.runPromise(runCommand(input).pipe(Effect.provideService(ChildProcessSpawner.ChildProcessSpawner, spawner)));",
     invalid:
       "import { Effect } from 'effect';\nimport { runCommand } from '__PROCESS_COMMAND__';\nconst input = { command: 'git', args: ['status'], maxBytes: 1024, processGroup: { lingerMs: 250, cleanupMs: 5000, pollMs: 10 } };\nconst result = Effect.runPromise(runCommand(input));\nconst wrong = runCommand({ ...input, maxBytes: '1024' });",
+    errors: ['TS2379', 'TS377004', 'TS2322'],
+  },
+  {
+    rule: 'native-agent-types',
+    valid:
+      "import { Effect, type Context } from 'effect';\nimport { CommitPlanner, CodexProvider, ClaudeProvider } from '__COMMIT_PLANNING__';\ndeclare const codex: Context.Service.Shape<typeof CodexProvider>;\ndeclare const claude: Context.Service.Shape<typeof ClaudeProvider>;\nconst limits = { maxGroups: 20, maxPaths: 2000, maxMessageLength: 16384, maxPathLength: 4096 };\nconst planner = Effect.runSync(CommitPlanner.pipe(Effect.provide(CommitPlanner.layer(limits)), Effect.provideService(CodexProvider, codex), Effect.provideService(ClaudeProvider, claude)));\nconst plan = planner.plan({ mode: 'message', model: 'claude:sonnet', paths: ['README.md'], evidence: 'diff' });",
+    invalid:
+      "import { Effect, type Context } from 'effect';\nimport { CommitPlanner } from '__COMMIT_PLANNING__';\nconst limits = { maxGroups: 20, maxPaths: 2000, maxMessageLength: 16384, maxPathLength: 4096 };\nconst planner = Effect.runSync(CommitPlanner.pipe(Effect.provide(CommitPlanner.layer(limits))));\ndeclare const subject: Context.Service.Shape<typeof CommitPlanner>;\nconst plan = subject.plan({ mode: 'message', model: 'claude:sonnet', paths: [123], evidence: 'diff' });",
     errors: ['TS2379', 'TS377004', 'TS2322'],
   },
   {

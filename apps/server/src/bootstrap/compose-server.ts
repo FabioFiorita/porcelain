@@ -1,3 +1,7 @@
+import {
+  CommitDraftSource,
+  CommitModelReader,
+} from '@porcelain/git-actions/ports';
 import { Logger } from '../ports/logger.ts';
 import { EventPublisher } from '../ports/event-publisher.ts';
 import { AnnounceWorktreeChangeUseCasePort } from '../ports/announce-worktree-change-use-case-port.ts';
@@ -22,7 +26,11 @@ import {
   type RouteListenerRunner,
   type TunnelProbe,
 } from '@porcelain/access/ports';
-import { createCommitPlanner } from '@porcelain/agents/commit-planning';
+import {
+  CommitPlanner,
+  CodexProvider,
+  ClaudeProvider,
+} from '@porcelain/agents/commit-planning';
 import { readGitVersion } from '@porcelain/git/discovery';
 import { ConfirmWorktreeService } from '@porcelain/projects/services';
 import { gitDirectoryName, isTemporaryWrite } from '@porcelain/kernel/rules';
@@ -39,8 +47,8 @@ import { OsNetworkAddressReader } from '../adapters/access/os-network-address-re
 import { ProcessRuntimeStatusReader } from '../adapters/access/process-runtime-status-reader.ts';
 import { parcelWorktreeWatcherLayer } from '../adapters/events/parcel-worktree-watcher.ts';
 import { webSocketEventPublisherLayer } from '../adapters/events/web-socket-event-publisher.ts';
-import { ProcessCommitDraftSource } from '../adapters/git-actions/process-commit-draft-source.ts';
-import { ProcessCommitModelReader } from '../adapters/git-actions/process-commit-model-reader.ts';
+import { processCommitDraftSourceLayer } from '../adapters/git-actions/process-commit-draft-source.ts';
+import { processCommitModelReaderLayer } from '../adapters/git-actions/process-commit-model-reader.ts';
 import { FilesystemProjectFolderReader } from '../adapters/projects/filesystem-project-folder-reader.ts';
 import { InMemoryWorktreeCatalogStore } from '../adapters/projects/in-memory-worktree-catalog-store.ts';
 import { RandomIdSource } from '../adapters/runtime/random-id-source.ts';
@@ -256,14 +264,31 @@ function serverResources(
           invalidateReviewedMarks: reviews.invalidateReviewedMarks,
           editAnnouncements: worktreeWatches,
         });
-        const commitPlanner = createCommitPlanner(limits.agents);
+        const plannerContext = yield* Layer.build(
+          Layer.mergeAll(
+            processCommitDraftSourceLayer,
+            processCommitModelReaderLayer,
+          ).pipe(
+            Layer.provide(
+              CommitPlanner.layer(limits.agents.plan).pipe(
+                Layer.provide(
+                  Layer.mergeAll(
+                    CodexProvider.layer(limits.agents),
+                    ClaudeProvider.layer(limits.agents),
+                  ),
+                ),
+                Layer.provide(NodeServices.layer),
+              ),
+            ),
+          ),
+        );
         const gitActions = yield* composeGitActions(context, {
           stores,
           shared,
           checkWorktree,
           refreshWorktreeReview: reviews.refreshWorktreeReview,
-          commitDraftSource: new ProcessCommitDraftSource(commitPlanner),
-          commitModelReader: new ProcessCommitModelReader(commitPlanner),
+          commitDraftSource: Context.get(plannerContext, CommitDraftSource),
+          commitModelReader: Context.get(plannerContext, CommitModelReader),
         });
         const jobs: readonly Job[] = [
           yield* makeIntervalJob(
