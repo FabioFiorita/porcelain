@@ -27,14 +27,11 @@ export class RevokeDeviceService extends Context.Service<
         execute: Effect.fn('RevokeDeviceService.execute')(function* (
           input: RevokeDeviceInput,
         ): Effect.fn.Return<RevokeDeviceResult, never> {
-          return yield* Effect.sync<RevokeDeviceResult>(() => {
-            const device = devices.find({ deviceId: input.id });
-            if (!device || deviceRevoked(device))
-              return { kind: 'not-revoked' };
-            devices.markRevoked({ device, revokedAt: clock.now() });
-            deviceSightings.remove({ deviceId: device.id });
-            return { kind: 'revoked' };
-          });
+          const device = yield* devices.find({ deviceId: input.id });
+          if (!device || deviceRevoked(device)) return { kind: 'not-revoked' };
+          yield* devices.markRevoked({ device, revokedAt: clock.now() });
+          deviceSightings.remove({ deviceId: device.id });
+          return { kind: 'revoked' };
         }),
       };
     }),

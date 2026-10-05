@@ -32,7 +32,7 @@ export class ReadGitActionReceiptService extends Context.Service<
           GitActionNotFoundError,
           never
         > {
-          const receipt = gitActionReceiptsCapability.read({
+          const receipt = yield* gitActionReceiptsCapability.read({
             requestId: input.requestId,
           });
           if (!receipt || receipt.worktreeId !== input.worktreeId)

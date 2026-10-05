@@ -92,8 +92,8 @@ export class OpenRemoteRoutesService extends Context.Service<
           return { state: listenedState(outcome) };
         }
         if (settings.tailnetPort === undefined)
-          remoteAccess.save({
-            ...remoteAccess.read(),
+          yield* remoteAccess.save({
+            ...(yield* remoteAccess.read()),
             tailnetPort: outcome.port,
           });
         return {
@@ -152,7 +152,7 @@ export class OpenRemoteRoutesService extends Context.Service<
         execute: Effect.fn('OpenRemoteRoutesService.execute')(function* (
           input: OpenRemoteRoutesInput,
         ): Effect.fn.Return<void, never> {
-          const saved = remoteAccess.read();
+          const saved = yield* remoteAccess.read();
           const settings = input.closing
             ? { ...saved, lan: false, tailnet: false, cloudflare: false }
             : saved;

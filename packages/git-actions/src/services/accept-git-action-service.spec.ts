@@ -53,7 +53,7 @@ function subject(store = new InMemoryGitActionReceiptStore()) {
 }
 
 describe('AcceptGitActionService', () => {
-  it('keeps a running receipt for a new request and hands back the run', () => {
+  it('keeps a running receipt for a new request and hands back the run', async () => {
     const { store, service } = subject();
     const accepted = Effect.runSync(service.execute(request));
     expect(accepted).toEqual({
@@ -76,7 +76,9 @@ describe('AcceptGitActionService', () => {
         target: { kind: 'unchecked' },
       },
     });
-    expect(store.read({ requestId: REQUEST_ID })?.state).toBe('running');
+    expect(
+      (await Effect.runPromise(store.read({ requestId: REQUEST_ID })))?.state,
+    ).toBe('running');
   });
 
   it('hands back a run that checks the files a commit expects', () => {
@@ -94,16 +96,20 @@ describe('AcceptGitActionService', () => {
     });
   });
 
-  it('answers a repeated request with its receipt and runs nothing again', () => {
+  it('answers a repeated request with its receipt and runs nothing again', async () => {
     const { store, service } = subject();
     Effect.runSync(service.execute(request));
-    const settled = store.read({ requestId: REQUEST_ID });
+    const settled = await Effect.runPromise(
+      store.read({ requestId: REQUEST_ID }),
+    );
     if (!settled) throw new Error('receipt missing');
-    store.save({
-      ...settled,
-      state: 'succeeded',
-      finishedAt: '2026-09-23T12:00:05.000Z',
-    });
+    await Effect.runPromise(
+      store.save({
+        ...settled,
+        state: 'succeeded',
+        finishedAt: '2026-09-23T12:00:05.000Z',
+      }),
+    );
     const replay = Effect.runSync(service.execute(structuredClone(request)));
     expect(replay.kind).toBe('repeated');
     expect(replay.receipt.state).toBe('succeeded');

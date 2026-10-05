@@ -22,19 +22,20 @@ export class ExpireGitActionReceiptsService extends Context.Service<
         execute: Effect.fn('ExpireGitActionReceiptsService.execute')(function* (
           input: WorktreeKey,
         ): Effect.fn.Return<void, never, never> {
-          return yield* Effect.sync<void>(() => {
-            gitActionReceiptsCapability.remove({
-              requestIds: expiredReceipts(
-                gitActionReceiptsCapability.finished(),
-                clockCapability.now(),
-                optionsCapability.retentionMs,
-              ).filter(
-                (requestId) =>
-                  gitActionReceiptsCapability.read({ requestId })
-                    ?.worktreeId === input.worktreeId,
-              ),
+          const expired = expiredReceipts(
+            yield* gitActionReceiptsCapability.finished(),
+            clockCapability.now(),
+            optionsCapability.retentionMs,
+          );
+          const requestIds: string[] = [];
+          for (const requestId of expired) {
+            const receipt = yield* gitActionReceiptsCapability.read({
+              requestId,
             });
-          });
+            if (receipt?.worktreeId === input.worktreeId)
+              requestIds.push(requestId);
+          }
+          yield* gitActionReceiptsCapability.remove({ requestIds });
         }),
       };
     }),

@@ -34,20 +34,24 @@ function setup() {
 }
 
 describe('RemoveProjectService', () => {
-  it('removes a registered project and reports that it deleted it', () => {
+  it('removes a registered project and reports that it deleted it', async () => {
     const { inventory, service } = setup();
     expect(Effect.runSync(service.execute({ projectId: 'api' }))).toEqual({
       deleted: true,
     });
-    expect(inventory.read()).toEqual({ projects: [project('web', 2)] });
+    expect(await Effect.runPromise(inventory.read())).toEqual({
+      projects: [project('web', 2)],
+    });
   });
 
-  it('reports nothing deleted for an unknown project and keeps the others', () => {
+  it('reports nothing deleted for an unknown project and keeps the others', async () => {
     const { inventory, service } = setup();
     expect(Effect.runSync(service.execute({ projectId: 'unknown' }))).toEqual({
       deleted: false,
     });
-    expect(inventory.read().projects).toHaveLength(2);
+    expect((await Effect.runPromise(inventory.read())).projects).toHaveLength(
+      2,
+    );
   });
 
   it('reports nothing deleted when the same project is removed again', () => {

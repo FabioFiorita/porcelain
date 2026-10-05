@@ -8,14 +8,16 @@ import { CheckRequestOriginService } from './check-request-origin-service.ts';
 
 const tunnelHost = 'porcelain.example.com';
 
-function checkThroughTunnel(cloudflare: RouteState, enabled = true) {
+async function checkThroughTunnel(cloudflare: RouteState, enabled = true) {
   const settings = new InMemoryRemoteAccessStore();
-  settings.save({
-    lan: false,
-    tailnet: false,
-    cloudflare: enabled,
-    cloudflareHostname: tunnelHost,
-  });
+  await Effect.runPromise(
+    settings.save({
+      lan: false,
+      tailnet: false,
+      cloudflare: enabled,
+      cloudflareHostname: tunnelHost,
+    }),
+  );
   const routes = new InMemoryRouteStateStore();
   routes.save({
     states: { lan: { kind: 'off' }, tailnet: { kind: 'off' }, cloudflare },
@@ -52,38 +54,40 @@ describe('CheckRequestOriginService', () => {
       'while nothing answers at the hostname yet',
       { kind: 'failed', reason: 'unreachable' },
     ],
-  ])('answers the tunnel hostname %s', (_moment, cloudflare) => {
-    expect(checkThroughTunnel(cloudflare)).toEqual({
+  ])('answers the tunnel hostname %s', async (_moment, cloudflare) => {
+    expect(await checkThroughTunnel(cloudflare)).toEqual({
       kind: 'allowed',
       crossOrigin: false,
     });
   });
 
-  it('refuses the tunnel hostname once the check found another server behind it', () => {
+  it('refuses the tunnel hostname once the check found another server behind it', async () => {
     expect(
-      checkThroughTunnel({ kind: 'failed', reason: 'other-server' }),
+      await checkThroughTunnel({ kind: 'failed', reason: 'other-server' }),
     ).toEqual({
       kind: 'refused',
       refusal: { kind: 'host-not-allowed', hostname: tunnelHost },
     });
   });
 
-  it('refuses the saved tunnel hostname while Cloudflare is off', () => {
-    expect(checkThroughTunnel({ kind: 'off' }, false)).toEqual({
+  it('refuses the saved tunnel hostname while Cloudflare is off', async () => {
+    expect(await checkThroughTunnel({ kind: 'off' }, false)).toEqual({
       kind: 'refused',
       refusal: { kind: 'host-not-allowed', hostname: tunnelHost },
     });
   });
 
-  it('answers the Tailscale name only on the listener Tailscale Serve forwards to, as an HTTPS origin, and refuses it on any other listener or once that listener is gone', () => {
+  it('answers the Tailscale name only on the listener Tailscale Serve forwards to, as an HTTPS origin, and refuses it on any other listener or once that listener is gone', async () => {
     const settings = new InMemoryRemoteAccessStore();
     const hostname = 'laptop.tail0000.ts.net';
-    settings.save({
-      lan: false,
-      tailnet: true,
-      tailnetHostname: hostname,
-      cloudflare: false,
-    });
+    await Effect.runPromise(
+      settings.save({
+        lan: false,
+        tailnet: true,
+        tailnetHostname: hostname,
+        cloudflare: false,
+      }),
+    );
     const routes = new InMemoryRouteStateStore();
     const on = {
       states: {

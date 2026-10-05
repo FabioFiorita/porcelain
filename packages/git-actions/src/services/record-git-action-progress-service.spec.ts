@@ -14,7 +14,7 @@ import { RecordGitActionProgressService } from './record-git-action-progress-ser
 const options = { progressLines: 3 };
 
 describe('RecordGitActionProgressService', () => {
-  it('appends a line to a running action', () => {
+  it('appends a line to a running action', async () => {
     const store = new InMemoryGitActionReceiptStore([
       sampleReceipt({ progress: ['Counting objects'] }),
     ]);
@@ -34,13 +34,13 @@ describe('RecordGitActionProgressService', () => {
       'Counting objects',
       'Receiving objects',
     ]);
-    expect(store.read({ requestId: REQUEST_ID })?.progress).toEqual([
-      'Counting objects',
-      'Receiving objects',
-    ]);
+    expect(
+      (await Effect.runPromise(store.read({ requestId: REQUEST_ID })))
+        ?.progress,
+    ).toEqual(['Counting objects', 'Receiving objects']);
   });
 
-  it('keeps only the most recent lines once the log is full', () => {
+  it('keeps only the most recent lines once the log is full', async () => {
     const store = new InMemoryGitActionReceiptStore([
       sampleReceipt({ progress: ['one', 'two', 'three'] }),
     ]);
@@ -56,14 +56,13 @@ describe('RecordGitActionProgressService', () => {
         line: 'four',
       }),
     );
-    expect(store.read({ requestId: REQUEST_ID })?.progress).toEqual([
-      'two',
-      'three',
-      'four',
-    ]);
+    expect(
+      (await Effect.runPromise(store.read({ requestId: REQUEST_ID })))
+        ?.progress,
+    ).toEqual(['two', 'three', 'four']);
   });
 
-  it('ignores lines for an action that already settled or is unknown', () => {
+  it('ignores lines for an action that already settled or is unknown', async () => {
     const store = new InMemoryGitActionReceiptStore([
       sampleReceipt({
         state: 'succeeded',
@@ -90,6 +89,9 @@ describe('RecordGitActionProgressService', () => {
         }),
       ),
     ).toEqual({ kind: 'not-running' });
-    expect(store.read({ requestId: REQUEST_ID })?.progress).toEqual([]);
+    expect(
+      (await Effect.runPromise(store.read({ requestId: REQUEST_ID })))
+        ?.progress,
+    ).toEqual([]);
   });
 });

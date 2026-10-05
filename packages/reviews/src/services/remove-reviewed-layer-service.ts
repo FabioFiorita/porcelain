@@ -22,15 +22,13 @@ export class RemoveReviewedLayerService extends Context.Service<
         execute: Effect.fn('RemoveReviewedLayerService.execute')(function* (
           input: RemoveReviewedLayerInput,
         ): Effect.fn.Return<RemoveReviewedLayerResult, never> {
-          return yield* Effect.sync<RemoveReviewedLayerResult>(() => {
-            const { worktreeId, layerId } = input;
-            const removed = reviewedLayersCapability
-              .list({ worktreeId })
-              .some((mark) => mark.layerId === layerId);
-            if (removed)
-              reviewedLayersCapability.remove({ worktreeId, layerId });
-            return { removed };
-          });
+          const { worktreeId, layerId } = input;
+          const removed = (yield* reviewedLayersCapability.list({
+            worktreeId,
+          })).some((mark) => mark.layerId === layerId);
+          if (removed)
+            yield* reviewedLayersCapability.remove({ worktreeId, layerId });
+          return { removed };
         }),
       };
     }),

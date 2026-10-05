@@ -21,18 +21,16 @@ export class ListExpiredWorktreesService extends Context.Service<
       return {
         execute: Effect.fn('ListExpiredWorktreesService.execute')(
           function* (): Effect.fn.Return<RecordedWorktreesResult, never> {
-            return yield* Effect.sync<RecordedWorktreesResult>(() => {
-              const rows = worktreePresenceCapability.list();
-              const expiredIds = new Set(
-                expired(rows, clockCapability.now(), optionsCapability.graceMs),
-              );
-              return {
-                worktrees: recordedWorktrees(
-                  rows.filter((row) => expiredIds.has(row.worktreeId)),
-                  inventoryCapability.read().projects,
-                ),
-              };
-            });
+            const rows = yield* worktreePresenceCapability.list();
+            const expiredIds = new Set(
+              expired(rows, clockCapability.now(), optionsCapability.graceMs),
+            );
+            return {
+              worktrees: recordedWorktrees(
+                rows.filter((row) => expiredIds.has(row.worktreeId)),
+                (yield* inventoryCapability.read()).projects,
+              ),
+            };
           },
         ),
       };

@@ -54,17 +54,19 @@ function setup() {
 }
 
 describe('ListAccessService', () => {
-  it('lists only grants that can still be redeemed, oldest first, without their secrets', () => {
+  it('lists only grants that can still be redeemed, oldest first, without their secrets', async () => {
     const { grants, service } = setup();
-    grants.add({
-      grants: [
-        grant('5'),
-        grant('2', { redeemedAt: '2026-09-23T10:01:00.000Z' }),
-        grant('3', { revokedAt: '2026-09-23T10:01:00.000Z' }),
-        grant('4', { expiresAt: '2026-09-23T10:05:00.000Z' }),
-        grant('1'),
-      ],
-    });
+    await Effect.runPromise(
+      grants.add({
+        grants: [
+          grant('5'),
+          grant('2', { redeemedAt: '2026-09-23T10:01:00.000Z' }),
+          grant('3', { revokedAt: '2026-09-23T10:01:00.000Z' }),
+          grant('4', { expiresAt: '2026-09-23T10:05:00.000Z' }),
+          grant('1'),
+        ],
+      }),
+    );
 
     expect(Effect.runSync(service.execute()).grants).toEqual([
       {
@@ -132,11 +134,13 @@ describe('ListAccessService', () => {
     ]);
   });
 
-  it('says which devices and which pending links the owner trusts', () => {
+  it('says which devices and which pending links the owner trusts', async () => {
     const { devices, grants, service } = setup();
     devices.add(device('1', { trusted: true }));
     devices.add(device('2'));
-    grants.add({ grants: [grant('1', { trusted: true }), grant('2')] });
+    await Effect.runPromise(
+      grants.add({ grants: [grant('1', { trusted: true }), grant('2')] }),
+    );
 
     const listing = Effect.runSync(service.execute());
     expect(listing.devices.map(({ id, trusted }) => ({ id, trusted }))).toEqual(

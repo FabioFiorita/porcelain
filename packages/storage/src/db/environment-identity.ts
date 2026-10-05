@@ -1,15 +1,10 @@
 import { randomUUID } from 'node:crypto';
-import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
-import { environment } from './schema/environment.ts';
+import { Effect } from 'effect';
+import { SqlClient } from 'effect/sql';
 
-export function createEnvironmentIdentity(db: BetterSQLite3Database): void {
-  db.transaction(
-    (tx) => {
-      tx.insert(environment)
-        .values({ singleton: 1, id: randomUUID() })
-        .onConflictDoNothing()
-        .run();
-    },
-    { behavior: 'immediate' },
-  );
-}
+export const createEnvironmentIdentity = Effect.fn(
+  'Storage.createEnvironmentIdentity',
+)(function* () {
+  const sql = yield* SqlClient.SqlClient;
+  yield* sql`INSERT INTO environment (singleton, id) VALUES (1, ${randomUUID()}) ON CONFLICT (singleton) DO NOTHING`;
+});

@@ -17,9 +17,7 @@ export class ReadEnvironmentNameService extends Context.Service<
       return {
         execute: Effect.fn('ReadEnvironmentNameService.execute')(
           function* (): Effect.fn.Return<EnvironmentName, never> {
-            return yield* Effect.sync<EnvironmentName>(() => {
-              return environmentName(names.read(), hostNames.hostName());
-            });
+            return environmentName(yield* names.read(), hostNames.hostName());
           },
         ),
       };

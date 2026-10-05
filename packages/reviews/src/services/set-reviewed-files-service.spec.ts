@@ -41,23 +41,27 @@ function setup() {
   };
 }
 
-function marked(store: InMemoryReviewedFileStore, path: string) {
-  return store.list({ worktreeId }).find((mark) => mark.path === path);
+async function marked(store: InMemoryReviewedFileStore, path: string) {
+  return (await Effect.runPromise(store.list({ worktreeId }))).find(
+    (mark) => mark.path === path,
+  );
 }
 
-function fill(
+async function fill(
   store: InMemoryReviewedFileStore,
   reviewedAt: (index: number) => string,
 ) {
-  store.save({
-    worktreeId,
-    marks: Array.from({ length: 2000 }, (_, index) => ({
-      path: `file-${String(index).padStart(4, '0')}`,
-      fingerprint: 'f',
-      reviewedAt: reviewedAt(index),
-      stale: false,
-    })),
-  });
+  await Effect.runPromise(
+    store.save({
+      worktreeId,
+      marks: Array.from({ length: 2000 }, (_, index) => ({
+        path: `file-${String(index).padStart(4, '0')}`,
+        fingerprint: 'f',
+        reviewedAt: reviewedAt(index),
+        stale: false,
+      })),
+    }),
+  );
 }
 
 describe('SetReviewedFilesService', () => {
@@ -116,7 +120,7 @@ describe('SetReviewedFilesService', () => {
     expect(result.marked).toEqual(['b.txt', 'a.txt']);
   });
 
-  it('reports no change when every file conflicts', () => {
+  it('reports no change when every file conflicts', async () => {
     const { service, store } = setup();
     const result = Effect.runSync(
       service.execute({
@@ -127,10 +131,10 @@ describe('SetReviewedFilesService', () => {
       }),
     );
     expect(result.changed).toBe(false);
-    expect(store.list({ worktreeId })).toEqual([]);
+    expect(await Effect.runPromise(store.list({ worktreeId }))).toEqual([]);
   });
 
-  it('refuses the whole request when conflicts must not be reported', () => {
+  it('refuses the whole request when conflicts must not be reported', async () => {
     const { service, store } = setup();
     expect(() =>
       Effect.runSync(
@@ -142,22 +146,24 @@ describe('SetReviewedFilesService', () => {
         }),
       ),
     ).toThrow(ReviewedMarkConflictError);
-    expect(store.list({ worktreeId })).toEqual([]);
+    expect(await Effect.runPromise(store.list({ worktreeId }))).toEqual([]);
   });
 
-  it('clears staleness when a file is marked again', () => {
+  it('clears staleness when a file is marked again', async () => {
     const { service, store } = setup();
-    store.save({
-      worktreeId,
-      marks: [
-        {
-          path: 'a.txt',
-          fingerprint: 'old',
-          reviewedAt: '2026-01-01T00:00:00.000Z',
-          stale: true,
-        },
-      ],
-    });
+    await Effect.runPromise(
+      store.save({
+        worktreeId,
+        marks: [
+          {
+            path: 'a.txt',
+            fingerprint: 'old',
+            reviewedAt: '2026-01-01T00:00:00.000Z',
+            stale: true,
+          },
+        ],
+      }),
+    );
     Effect.runSync(
       service.execute({
         worktreeId,
@@ -166,7 +172,7 @@ describe('SetReviewedFilesService', () => {
         onConflict: 'refuse',
       }),
     );
-    expect(marked(store, 'a.txt')).toEqual({
+    expect(await marked(store, 'a.txt')).toEqual({
       path: 'a.txt',
       fingerprint: 'fa',
       reviewedAt: '2026-01-02T00:00:00.000Z',
@@ -174,9 +180,9 @@ describe('SetReviewedFilesService', () => {
     });
   });
 
-  it('keeps two thousand marks by evicting the oldest one, then the lowest path', () => {
+  it('keeps two thousand marks by evicting the oldest one, then the lowest path', async () => {
     const { service, store } = setup();
-    fill(store, (index) =>
+    await fill(store, (index) =>
       index === 1500 ? '2025-01-01T00:00:00.000Z' : '2025-06-01T00:00:00.000Z',
     );
     Effect.runSync(
@@ -193,17 +199,19 @@ describe('SetReviewedFilesService', () => {
         onConflict: 'report',
       }),
     );
-    expect(store.list({ worktreeId })).toHaveLength(2000);
-    expect(marked(store, 'file-1500')).toBeUndefined();
-    expect(marked(store, 'file-0000')).toBeUndefined();
-    expect(marked(store, 'file-0001')).toBeDefined();
-    expect(marked(store, 'new-1')).toBeDefined();
-    expect(marked(store, 'new-2')).toBeDefined();
+    expect(await Effect.runPromise(store.list({ worktreeId }))).toHaveLength(
+      2000,
+    );
+    expect(await marked(store, 'file-1500')).toBeUndefined();
+    expect(await marked(store, 'file-0000')).toBeUndefined();
+    expect(await marked(store, 'file-0001')).toBeDefined();
+    expect(await marked(store, 'new-1')).toBeDefined();
+    expect(await marked(store, 'new-2')).toBeDefined();
   });
 
-  it('evicts nothing when a mark already present is renewed at the limit', () => {
+  it('evicts nothing when a mark already present is renewed at the limit', async () => {
     const { service, store } = setup();
-    fill(store, () => '2025-06-01T00:00:00.000Z');
+    await fill(store, () => '2025-06-01T00:00:00.000Z');
     Effect.runSync(
       service.execute({
         worktreeId,
@@ -212,11 +220,13 @@ describe('SetReviewedFilesService', () => {
         onConflict: 'report',
       }),
     );
-    expect(store.list({ worktreeId })).toHaveLength(2000);
-    expect(marked(store, 'file-0000')).toBeDefined();
+    expect(await Effect.runPromise(store.list({ worktreeId }))).toHaveLength(
+      2000,
+    );
+    expect(await marked(store, 'file-0000')).toBeDefined();
   });
 
-  it('marks a branch file without touching the worktree mark of the same path', () => {
+  it('marks a branch file without touching the worktree mark of the same path', async () => {
     const { store, service } = setup();
     Effect.runSync(
       service.execute({
@@ -242,10 +252,10 @@ describe('SetReviewedFilesService', () => {
         reviewedAt: '2026-01-02T00:00:00.000Z',
       },
     ]);
-    expect(marked(store, 'a.txt')?.fingerprint).toBe('worktree');
+    expect((await marked(store, 'a.txt'))?.fingerprint).toBe('worktree');
   });
 
-  it('keeps every mark of a branch that changes more files than the worktree limit', () => {
+  it('keeps every mark of a branch that changes more files than the worktree limit', async () => {
     const store = new InMemoryReviewedFileStore();
     const service = Effect.runSync(
       SetReviewedFilesService.pipe(
@@ -286,12 +296,14 @@ describe('SetReviewedFilesService', () => {
         onConflict: 'report',
       }),
     );
-    expect(store.list({ worktreeId, scope: 'branch', branch })).toHaveLength(
-      2001,
-    );
+    expect(
+      await Effect.runPromise(
+        store.list({ worktreeId, scope: 'branch', branch }),
+      ),
+    ).toHaveLength(2001);
   });
 
-  it('never evicts the mark of a file the branch still changes, only marks it no longer shows', () => {
+  it('never evicts the mark of a file the branch still changes, only marks it no longer shows', async () => {
     const store = new InMemoryReviewedFileStore();
     const service = Effect.runSync(
       SetReviewedFilesService.pipe(
@@ -308,25 +320,27 @@ describe('SetReviewedFilesService', () => {
       ),
     );
     const branch = 'refs/heads/feature';
-    store.save({
-      worktreeId,
-      scope: 'branch',
-      branch,
-      marks: [
-        {
-          path: 'gone',
-          fingerprint: 'g',
-          reviewedAt: '2025-06-01T00:00:00.000Z',
-          stale: false,
-        },
-        {
-          path: 'kept',
-          fingerprint: 'k',
-          reviewedAt: '2025-01-01T00:00:00.000Z',
-          stale: false,
-        },
-      ],
-    });
+    await Effect.runPromise(
+      store.save({
+        worktreeId,
+        scope: 'branch',
+        branch,
+        marks: [
+          {
+            path: 'gone',
+            fingerprint: 'g',
+            reviewedAt: '2025-06-01T00:00:00.000Z',
+            stale: false,
+          },
+          {
+            path: 'kept',
+            fingerprint: 'k',
+            reviewedAt: '2025-01-01T00:00:00.000Z',
+            stale: false,
+          },
+        ],
+      }),
+    );
     Effect.runSync(
       service.execute({
         worktreeId,
@@ -341,9 +355,11 @@ describe('SetReviewedFilesService', () => {
       }),
     );
     expect(
-      store
-        .list({ worktreeId, scope: 'branch', branch })
-        .map((mark) => mark.path),
+      (
+        await Effect.runPromise(
+          store.list({ worktreeId, scope: 'branch', branch }),
+        )
+      ).map((mark) => mark.path),
     ).toEqual(['kept', 'new']);
   });
 });

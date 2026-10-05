@@ -79,9 +79,9 @@ const stillChanged: ReviewEvidence = {
   ],
 };
 
-function setup(stored: Review) {
+async function setup(stored: Review) {
   const store = new InMemoryReviewStore();
-  store.save(stored);
+  await Effect.runPromise(store.save(stored));
   return {
     store,
     service: Effect.runSync(
@@ -94,8 +94,8 @@ function setup(stored: Review) {
 }
 
 describe('RecordReviewActivityService', () => {
-  it('records the review inactive once every line it explains is committed', () => {
-    const { store, service } = setup(review());
+  it('records the review inactive once every line it explains is committed', async () => {
+    const { store, service } = await setup(review());
     expect(
       Effect.runSync(
         service.execute({ review: review(), evidence: committed }),
@@ -103,22 +103,26 @@ describe('RecordReviewActivityService', () => {
     ).toEqual({
       changed: true,
     });
-    expect(store.read({ worktreeId })?.active).toBe(false);
+    expect((await Effect.runPromise(store.read({ worktreeId })))?.active).toBe(
+      false,
+    );
   });
 
-  it('records the review active again while a line it explains still changes', () => {
-    const { store, service } = setup(review({ active: false }));
+  it('records the review active again while a line it explains still changes', async () => {
+    const { store, service } = await setup(review({ active: false }));
     Effect.runSync(
       service.execute({
         review: review({ active: false }),
         evidence: stillChanged,
       }),
     );
-    expect(store.read({ worktreeId })?.active).toBe(true);
+    expect((await Effect.runPromise(store.read({ worktreeId })))?.active).toBe(
+      true,
+    );
   });
 
-  it('reports no change while the review stays as active as it was', () => {
-    const { service } = setup(review());
+  it('reports no change while the review stays as active as it was', async () => {
+    const { service } = await setup(review());
     expect(
       Effect.runSync(
         service.execute({ review: review(), evidence: stillChanged }),
@@ -126,10 +130,10 @@ describe('RecordReviewActivityService', () => {
     ).toEqual({ changed: false });
   });
 
-  it('leaves a review published after the one it resolved alone', () => {
-    const { store, service } = setup(review({ revision: 2 }));
+  it('leaves a review published after the one it resolved alone', async () => {
+    const { store, service } = await setup(review({ revision: 2 }));
     Effect.runSync(service.execute({ review: review(), evidence: committed }));
-    expect(store.read({ worktreeId })).toMatchObject({
+    expect(await Effect.runPromise(store.read({ worktreeId }))).toMatchObject({
       revision: 2,
       active: true,
     });

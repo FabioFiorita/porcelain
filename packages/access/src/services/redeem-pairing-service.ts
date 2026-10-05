@@ -65,7 +65,7 @@ export class RedeemPairingService extends Context.Service<
             validPlatform(input.platform, options.platformLength),
           );
           const now = clock.now();
-          const grant = pairingGrants.find({ grantId: code.id });
+          const grant = yield* pairingGrants.find({ grantId: code.id });
           if (
             !grant ||
             !secretMatches(grant.secretHash, code.secret) ||
@@ -86,7 +86,7 @@ export class RedeemPairingService extends Context.Service<
             route: input.route,
             ...(grant.trusted === true ? { trusted: true } : {}),
           };
-          pairingGrants.redeem({
+          yield* pairingGrants.redeem({
             grant,
             redeemedAt: now,
             device: { ...device, secretHash: sha256Hex(issued.secret) },

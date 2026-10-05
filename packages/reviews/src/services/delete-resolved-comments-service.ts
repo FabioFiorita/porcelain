@@ -26,28 +26,26 @@ export class DeleteResolvedCommentsService extends Context.Service<
         execute: Effect.fn('DeleteResolvedCommentsService.execute')(function* (
           input: DeleteResolvedCommentsInput,
         ): Effect.fn.Return<DeleteResolvedCommentsResult, never> {
-          return yield* Effect.sync<DeleteResolvedCommentsResult>(() => {
-            const author = commentAuthor(input.writer);
-            const deleted: string[] = [];
-            const skipped: string[] = [];
-            for (const confirmed of input.threads) {
-              const thread = commentsCapability.find({
-                threadId: confirmed.threadId,
-              });
-              if (
-                thread !== undefined &&
-                unchangedResolvedThread(thread, {
-                  worktreeId: input.worktreeId,
-                  revision: confirmed.revision,
-                  author,
-                })
-              ) {
-                commentsCapability.remove({ threadId: thread.id });
-                deleted.push(thread.id);
-              } else skipped.push(confirmed.threadId);
-            }
-            return { deleted, skipped };
-          });
+          const author = commentAuthor(input.writer);
+          const deleted: string[] = [];
+          const skipped: string[] = [];
+          for (const confirmed of input.threads) {
+            const thread = yield* commentsCapability.find({
+              threadId: confirmed.threadId,
+            });
+            if (
+              thread !== undefined &&
+              unchangedResolvedThread(thread, {
+                worktreeId: input.worktreeId,
+                revision: confirmed.revision,
+                author,
+              })
+            ) {
+              yield* commentsCapability.remove({ threadId: thread.id });
+              deleted.push(thread.id);
+            } else skipped.push(confirmed.threadId);
+          }
+          return { deleted, skipped };
         }),
       };
     }),

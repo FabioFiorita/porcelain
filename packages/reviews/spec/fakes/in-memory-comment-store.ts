@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type {
   AgentReply,
   CommentEdit,
@@ -33,135 +34,166 @@ export class InMemoryCommentStore implements CommentStore {
   >();
   private readonly removedMessages = new Set<string>();
 
-  list(input: { worktreeId: string }): CommentThread[] {
-    return this.stored()
-      .filter((row) => row.thread.worktreeId === input.worktreeId)
-      .map((row) => structuredClone(row.thread));
-  }
-
-  find(input: { threadId: string }): CommentThread | undefined {
-    const row = this.rows.get(input.threadId);
-    return row && structuredClone(this.current(row).thread);
-  }
-
-  findMessage(input: { messageId: string }): PostedCommentMessage | undefined {
-    return this.stored()
-      .flatMap(({ thread }) =>
-        thread.messages
-          .filter((message) => message.id === input.messageId)
-          .map((message) => ({
-            ...structuredClone(message),
-            threadId: thread.id,
-            worktreeId: thread.worktreeId,
-          })),
-      )
-      .at(0);
-  }
-
-  usage(input: { worktreeId: string }): CommentUsage {
-    const rows = this.stored().filter(
-      (row) => row.thread.worktreeId === input.worktreeId,
-    );
-    return {
-      threads: rows.length,
-      bytes: rows.reduce((total, row) => total + row.sizeBytes, 0),
-    };
-  }
-
-  lastRevision(input: { worktreeId: string }): number {
-    return Math.max(0, ...this.list(input).map((thread) => thread.revision));
-  }
-
-  listAgentReplies(input: { worktreeIds: readonly string[] }): AgentReply[] {
-    return this.stored()
-      .filter(
-        (row) =>
-          row.writtenByAgent &&
-          input.worktreeIds.includes(row.thread.worktreeId),
-      )
-      .map(({ thread, agentRevision }) => ({
-        worktreeId: thread.worktreeId,
-        threadId: thread.id,
-        revision: agentRevision,
-        resolved: thread.resolved,
-      }));
-  }
-
-  insert(input: NewCommentThread): CommentThread {
-    const thread: CommentThread = {
-      ...structuredClone(input.content),
-      resolved: false,
-      revision: this.nextRevision(),
-    };
-    this.rows.set(thread.id, {
-      thread,
-      sizeBytes: input.sizeBytes,
-      writtenByAgent: input.writtenByAgent,
-      agentRevision: thread.revision,
-    });
-    return structuredClone(thread);
-  }
-
-  append(input: CommentReply): CommentThread {
-    const revision = this.nextRevision();
-    const threadId = input.thread.id;
-    this.replies.set(threadId, [
-      ...(this.replies.get(threadId) ?? []),
-      structuredClone(input.message),
-    ]);
-    this.writes.set(threadId, {
-      sizeBytes: input.sizeBytes,
-      writtenByAgent: input.writtenByAgent,
-      agentRevision: revision,
-    });
-    this.revisions.set(threadId, revision);
-    return structuredClone({
-      ...input.thread,
-      messages: [...input.thread.messages, input.message],
-      revision,
+  list(input: { worktreeId: string }): Effect.Effect<CommentThread[]> {
+    return Effect.sync(() => {
+      return this.stored()
+        .filter((row) => row.thread.worktreeId === input.worktreeId)
+        .map((row) => structuredClone(row.thread));
     });
   }
 
-  resolve(input: CommentResolution): CommentThread {
-    const revision = this.nextRevision();
-    this.resolutions.set(input.thread.id, input.resolved);
-    this.revisions.set(input.thread.id, revision);
-    return structuredClone({
-      ...input.thread,
-      resolved: input.resolved,
-      revision,
+  find(input: { threadId: string }): Effect.Effect<CommentThread | undefined> {
+    return Effect.sync(() => {
+      const row = this.rows.get(input.threadId);
+      return row && structuredClone(this.current(row).thread);
     });
   }
 
-  edit(input: CommentEdit): CommentThread {
-    const revision = this.nextRevision();
-    const threadId = input.thread.id;
-    this.edits.set(input.messageId, {
-      body: input.body,
-      editedAt: input.editedAt,
+  findMessage(input: {
+    messageId: string;
+  }): Effect.Effect<PostedCommentMessage | undefined> {
+    return Effect.sync(() => {
+      return this.stored()
+        .flatMap(({ thread }) =>
+          thread.messages
+            .filter((message) => message.id === input.messageId)
+            .map((message) => ({
+              ...structuredClone(message),
+              threadId: thread.id,
+              worktreeId: thread.worktreeId,
+            })),
+        )
+        .at(0);
     });
-    this.writes.set(threadId, {
-      ...this.writtenBy(threadId),
-      sizeBytes: input.sizeBytes,
-    });
-    this.revisions.set(threadId, revision);
-    return this.find({ threadId }) ?? structuredClone(input.thread);
   }
 
-  removeMessage(input: CommentRemoval): CommentThread {
-    const threadId = input.thread.id;
-    this.removedMessages.add(input.messageId);
-    const revision = this.nextRevision();
-    this.writes.set(threadId, {
-      ...this.writtenBy(threadId),
-      sizeBytes: input.sizeBytes,
+  usage(input: { worktreeId: string }): Effect.Effect<CommentUsage> {
+    return Effect.sync(() => {
+      const rows = this.stored().filter(
+        (row) => row.thread.worktreeId === input.worktreeId,
+      );
+      return {
+        threads: rows.length,
+        bytes: rows.reduce((total, row) => total + row.sizeBytes, 0),
+      };
     });
-    this.revisions.set(threadId, revision);
-    return this.find({ threadId }) ?? structuredClone(input.thread);
   }
 
-  remove(input: { threadId: string }): void {
-    this.rows.delete(input.threadId);
+  lastRevision(input: { worktreeId: string }): Effect.Effect<number> {
+    return Effect.gen({ self: this }, function* () {
+      return Math.max(
+        0,
+        ...(yield* this.list(input)).map((thread) => thread.revision),
+      );
+    });
+  }
+
+  listAgentReplies(input: {
+    worktreeIds: readonly string[];
+  }): Effect.Effect<AgentReply[]> {
+    return Effect.sync(() => {
+      return this.stored()
+        .filter(
+          (row) =>
+            row.writtenByAgent &&
+            input.worktreeIds.includes(row.thread.worktreeId),
+        )
+        .map(({ thread, agentRevision }) => ({
+          worktreeId: thread.worktreeId,
+          threadId: thread.id,
+          revision: agentRevision,
+          resolved: thread.resolved,
+        }));
+    });
+  }
+
+  insert(input: NewCommentThread): Effect.Effect<CommentThread> {
+    return Effect.sync(() => {
+      const thread: CommentThread = {
+        ...structuredClone(input.content),
+        resolved: false,
+        revision: this.nextRevision(),
+      };
+      this.rows.set(thread.id, {
+        thread,
+        sizeBytes: input.sizeBytes,
+        writtenByAgent: input.writtenByAgent,
+        agentRevision: thread.revision,
+      });
+      return structuredClone(thread);
+    });
+  }
+
+  append(input: CommentReply): Effect.Effect<CommentThread> {
+    return Effect.sync(() => {
+      const revision = this.nextRevision();
+      const threadId = input.thread.id;
+      this.replies.set(threadId, [
+        ...(this.replies.get(threadId) ?? []),
+        structuredClone(input.message),
+      ]);
+      this.writes.set(threadId, {
+        sizeBytes: input.sizeBytes,
+        writtenByAgent: input.writtenByAgent,
+        agentRevision: revision,
+      });
+      this.revisions.set(threadId, revision);
+      return structuredClone({
+        ...input.thread,
+        messages: [...input.thread.messages, input.message],
+        revision,
+      });
+    });
+  }
+
+  resolve(input: CommentResolution): Effect.Effect<CommentThread> {
+    return Effect.sync(() => {
+      const revision = this.nextRevision();
+      this.resolutions.set(input.thread.id, input.resolved);
+      this.revisions.set(input.thread.id, revision);
+      return structuredClone({
+        ...input.thread,
+        resolved: input.resolved,
+        revision,
+      });
+    });
+  }
+
+  edit(input: CommentEdit): Effect.Effect<CommentThread> {
+    return Effect.gen({ self: this }, function* () {
+      const revision = this.nextRevision();
+      const threadId = input.thread.id;
+      this.edits.set(input.messageId, {
+        body: input.body,
+        editedAt: input.editedAt,
+      });
+      this.writes.set(threadId, {
+        ...this.writtenBy(threadId),
+        sizeBytes: input.sizeBytes,
+      });
+      this.revisions.set(threadId, revision);
+      return (yield* this.find({ threadId })) ?? structuredClone(input.thread);
+    });
+  }
+
+  removeMessage(input: CommentRemoval): Effect.Effect<CommentThread> {
+    return Effect.gen({ self: this }, function* () {
+      const threadId = input.thread.id;
+      this.removedMessages.add(input.messageId);
+      const revision = this.nextRevision();
+      this.writes.set(threadId, {
+        ...this.writtenBy(threadId),
+        sizeBytes: input.sizeBytes,
+      });
+      this.revisions.set(threadId, revision);
+      return (yield* this.find({ threadId })) ?? structuredClone(input.thread);
+    });
+  }
+
+  remove(input: { threadId: string }): Effect.Effect<void> {
+    return Effect.sync(() => {
+      this.rows.delete(input.threadId);
+    });
   }
 
   private writtenBy(threadId: string): Write {

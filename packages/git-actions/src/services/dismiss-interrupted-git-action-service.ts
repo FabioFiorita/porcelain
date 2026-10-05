@@ -36,7 +36,7 @@ export class DismissInterruptedGitActionService extends Context.Service<
             GitActionNotFoundError | GitActionReceiptMismatchError,
             never
           > {
-            const receipt = gitActionReceiptsCapability.read({
+            const receipt = yield* gitActionReceiptsCapability.read({
               requestId: input.requestId,
             });
             if (!receipt)
@@ -56,7 +56,7 @@ export class DismissInterruptedGitActionService extends Context.Service<
               ...receipt,
               dismissedAt: clockCapability.now(),
             };
-            gitActionReceiptsCapability.save(dismissed);
+            yield* gitActionReceiptsCapability.save(dismissed);
             return {
               kind: 'dismissed',
               receipt: gitActionReceiptView(dismissed),

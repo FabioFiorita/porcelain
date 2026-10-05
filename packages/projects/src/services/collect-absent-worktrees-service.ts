@@ -25,18 +25,16 @@ export class CollectAbsentWorktreesService extends Context.Service<
         execute: Effect.fn('CollectAbsentWorktreesService.execute')(function* (
           input: WorktreeKeys,
         ): Effect.fn.Return<CollectAbsentWorktreesResult, never> {
-          return yield* Effect.sync<CollectAbsentWorktreesResult>(() => {
-            const named = new Set(input.worktreeIds);
-            const collected = expired(
-              worktreePresenceCapability
-                .list()
-                .filter((row) => named.has(row.worktreeId)),
-              clockCapability.now(),
-              optionsCapability.graceMs,
-            );
-            worktreePresenceCapability.remove({ worktreeIds: collected });
-            return { collected };
-          });
+          const named = new Set(input.worktreeIds);
+          const collected = expired(
+            (yield* worktreePresenceCapability.list()).filter((row) =>
+              named.has(row.worktreeId),
+            ),
+            clockCapability.now(),
+            optionsCapability.graceMs,
+          );
+          yield* worktreePresenceCapability.remove({ worktreeIds: collected });
+          return { collected };
         }),
       };
     }),

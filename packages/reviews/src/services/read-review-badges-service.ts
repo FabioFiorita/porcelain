@@ -29,18 +29,16 @@ export class ReadReviewBadgesService extends Context.Service<
         execute: Effect.fn('ReadReviewBadgesService.execute')(function* (
           input: ReadReviewBadgesInput,
         ): Effect.fn.Return<ReadReviewBadgesResult, never> {
-          return yield* Effect.sync<ReadReviewBadgesResult>(() => {
-            const { worktreeIds } = input;
-            return {
-              statuses: worktreeStatuses(
-                reviewsCapability.byWorktrees({ worktreeIds }),
-                reviewedLayersCapability.byWorktrees({ worktreeIds }),
-                commentsCapability.listAgentReplies({ worktreeIds }),
-                commentSeenCapability.seenByWorktrees({ worktreeIds }),
-                input.texts,
-              ),
-            };
-          });
+          const { worktreeIds } = input;
+          return {
+            statuses: worktreeStatuses(
+              yield* reviewsCapability.byWorktrees({ worktreeIds }),
+              yield* reviewedLayersCapability.byWorktrees({ worktreeIds }),
+              yield* commentsCapability.listAgentReplies({ worktreeIds }),
+              yield* commentSeenCapability.seenByWorktrees({ worktreeIds }),
+              input.texts,
+            ),
+          };
         }),
       };
     }),

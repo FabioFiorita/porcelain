@@ -131,7 +131,7 @@ function setup(totalBytes = 1024) {
 }
 
 describe('PublishReviewService', () => {
-  it('publishes the first review at revision one with the lines each step points at', () => {
+  it('publishes the first review at revision one with the lines each step points at', async () => {
     const { service, store } = setup();
     const { review, warnings } = Effect.runSync(
       service.execute({
@@ -149,10 +149,10 @@ describe('PublishReviewService', () => {
     });
     expect(review.layers[0]?.steps[0]?.published).toEqual(['second', 'added']);
     expect(warnings).toEqual([]);
-    expect(store.read({ worktreeId })).toEqual(review);
+    expect(await Effect.runPromise(store.read({ worktreeId }))).toEqual(review);
   });
 
-  it('stores the first review inactive when every line it explains is already committed', () => {
+  it('stores the first review inactive when every line it explains is already committed', async () => {
     const { service, store } = setup();
     const { review } = Effect.runSync(
       service.execute({
@@ -162,7 +162,9 @@ describe('PublishReviewService', () => {
       }),
     );
     expect(review.active).toBe(false);
-    expect(store.read({ worktreeId })?.active).toBe(false);
+    expect((await Effect.runPromise(store.read({ worktreeId })))?.active).toBe(
+      false,
+    );
   });
 
   it('keeps no lines for a step whose file could not be read or whose range runs past the file', () => {
@@ -227,7 +229,7 @@ describe('PublishReviewService', () => {
     { name: 'a revision it has not reached', expectedRevision: 2 },
   ])(
     'refuses a publish that states $name and keeps the stored review',
-    ({ expectedRevision }) => {
+    async ({ expectedRevision }) => {
       const { service, store } = setup();
       Effect.runSync(
         service.execute({ worktreeId, draft: draft(), evidence: evidence() }),
@@ -241,11 +243,13 @@ describe('PublishReviewService', () => {
           }),
         ),
       ).toThrow(ReviewConflictError);
-      expect(store.read({ worktreeId })?.summaryHtml).toBe(styled);
+      expect(
+        (await Effect.runPromise(store.read({ worktreeId })))?.summaryHtml,
+      ).toBe(styled);
     },
   );
 
-  it('warns when the summary carries no authored CSS but still publishes', () => {
+  it('warns when the summary carries no authored CSS but still publishes', async () => {
     const { service, store } = setup();
     const { warnings } = Effect.runSync(
       service.execute({
@@ -255,10 +259,12 @@ describe('PublishReviewService', () => {
       }),
     );
     expect(warnings).toEqual(['missing-style']);
-    expect(store.read({ worktreeId })?.revision).toBe(1);
+    expect(
+      (await Effect.runPromise(store.read({ worktreeId })))?.revision,
+    ).toBe(1);
   });
 
-  it('publishes checks as given and keeps each attached file under its own id with the type its bytes show', () => {
+  it('publishes checks as given and keeps each attached file under its own id with the type its bytes show', async () => {
     const { service, store } = setup();
     const { review } = Effect.runSync(
       service.execute({
@@ -339,19 +345,27 @@ describe('PublishReviewService', () => {
       },
     });
     expect(new Set([image?.id, video?.id, link?.id]).size).toBe(3);
-    expect(store.read({ worktreeId })?.proof).toEqual(review.proof);
     expect(
-      store.readProofFile({ worktreeId, proofId: image?.id ?? '' }),
+      (await Effect.runPromise(store.read({ worktreeId })))?.proof,
+    ).toEqual(review.proof);
+    expect(
+      await Effect.runPromise(
+        store.readProofFile({ worktreeId, proofId: image?.id ?? '' }),
+      ),
     ).toEqual({ id: image?.id, mediaType: 'image/png', bytes: png });
     expect(
-      store.readProofFile({ worktreeId, proofId: video?.id ?? '' }),
+      await Effect.runPromise(
+        store.readProofFile({ worktreeId, proofId: video?.id ?? '' }),
+      ),
     ).toEqual({ id: video?.id, mediaType: 'video/webm', bytes: webm });
     expect(
-      store.readProofFile({ worktreeId, proofId: link?.id ?? '' }),
+      await Effect.runPromise(
+        store.readProofFile({ worktreeId, proofId: link?.id ?? '' }),
+      ),
     ).toBeUndefined();
   });
 
-  it('drops the previous proof files when a later publish attaches none', () => {
+  it('drops the previous proof files when a later publish attaches none', async () => {
     const { service, store } = setup();
     const first = Effect.runSync(
       service.execute({
@@ -374,10 +388,12 @@ describe('PublishReviewService', () => {
     );
     expect(second.review.proof).toBeUndefined();
     expect(
-      store.readProofFile({
-        worktreeId,
-        proofId: first.review.proof?.assets[0]?.id ?? '',
-      }),
+      await Effect.runPromise(
+        store.readProofFile({
+          worktreeId,
+          proofId: first.review.proof?.assets[0]?.id ?? '',
+        }),
+      ),
     ).toBeUndefined();
   });
 
@@ -419,7 +435,7 @@ describe('PublishReviewService', () => {
     },
   ])(
     'refuses $name and keeps the stored review',
-    ({ kind, proofFiles, error }) => {
+    async ({ kind, proofFiles, error }) => {
       const { service, store } = setup();
       Effect.runSync(
         service.execute({ worktreeId, draft: draft(), evidence: evidence() }),
@@ -437,11 +453,13 @@ describe('PublishReviewService', () => {
           }),
         ),
       ).toThrow(error);
-      expect(store.read({ worktreeId })?.revision).toBe(1);
+      expect(
+        (await Effect.runPromise(store.read({ worktreeId })))?.revision,
+      ).toBe(1);
     },
   );
 
-  it('refuses files that fit one by one but not together', () => {
+  it('refuses files that fit one by one but not together', async () => {
     const { service, store } = setup(png.byteLength * 2 - 1);
     expect(() =>
       Effect.runSync(
@@ -463,10 +481,10 @@ describe('PublishReviewService', () => {
         }),
       ),
     ).toThrow(ProofTooLargeError);
-    expect(store.read({ worktreeId })).toBeUndefined();
+    expect(await Effect.runPromise(store.read({ worktreeId }))).toBeUndefined();
   });
 
-  it('keeps a published file when the next publish names it by its proof id', () => {
+  it('keeps a published file when the next publish names it by its proof id', async () => {
     const { service, store } = setup();
     const first = Effect.runSync(
       service.execute({
@@ -510,7 +528,9 @@ describe('PublishReviewService', () => {
       layerId: 'layer-1',
     });
     expect(
-      store.readProofFile({ worktreeId, proofId: asset?.id ?? '' }),
+      await Effect.runPromise(
+        store.readProofFile({ worktreeId, proofId: asset?.id ?? '' }),
+      ),
     ).toEqual({ id: asset?.id, mediaType: 'image/png', bytes: png });
   });
 
@@ -525,7 +545,7 @@ describe('PublishReviewService', () => {
       kind: 'video' as const,
       known: true,
     },
-  ])('refuses $name and keeps the stored review', ({ kind, known }) => {
+  ])('refuses $name and keeps the stored review', async ({ kind, known }) => {
     const { service, store } = setup();
     const first = Effect.runSync(
       service.execute({
@@ -554,6 +574,8 @@ describe('PublishReviewService', () => {
         }),
       ),
     ).toThrow(known ? UnsupportedProofFileError : UnknownProofFileError);
-    expect(store.read({ worktreeId })?.revision).toBe(1);
+    expect(
+      (await Effect.runPromise(store.read({ worktreeId })))?.revision,
+    ).toBe(1);
   });
 });

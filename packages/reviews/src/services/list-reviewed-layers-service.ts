@@ -25,17 +25,15 @@ export class ListReviewedLayersService extends Context.Service<
         execute: Effect.fn('ListReviewedLayersService.execute')(function* (
           input: ListReviewedLayersInput,
         ): Effect.fn.Return<ListReviewedLayersResult, never> {
-          return yield* Effect.sync<ListReviewedLayersResult>(() => {
-            const { worktreeId } = input;
-            return {
-              worktreeId,
-              marks: reviewedLayerMarks(
-                reviewedLayersCapability.list({ worktreeId }),
-                reviewsCapability.read({ worktreeId })?.layers ?? [],
-                input.texts,
-              ),
-            };
-          });
+          const { worktreeId } = input;
+          return {
+            worktreeId,
+            marks: reviewedLayerMarks(
+              yield* reviewedLayersCapability.list({ worktreeId }),
+              (yield* reviewsCapability.read({ worktreeId }))?.layers ?? [],
+              input.texts,
+            ),
+          };
         }),
       };
     }),

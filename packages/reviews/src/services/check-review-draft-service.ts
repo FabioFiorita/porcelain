@@ -20,7 +20,7 @@ export class CheckReviewDraftService extends Context.Service<
         execute: Effect.fn('CheckReviewDraftService.execute')(function* (
           input: CheckReviewDraftInput,
         ): Effect.fn.Return<void, ReviewConflictError> {
-          const current = reviewsCapability.read({
+          const current = yield* reviewsCapability.read({
             worktreeId: input.worktreeId,
           });
           if ((current?.revision ?? 0) !== input.draft.expectedRevision)

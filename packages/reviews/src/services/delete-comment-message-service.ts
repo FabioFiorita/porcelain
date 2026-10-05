@@ -31,7 +31,9 @@ export class DeleteCommentMessageService extends Context.Service<
           DeleteCommentMessageResult,
           CommentTargetNotFoundError | CommentAuthorMismatchError
         > {
-          const current = commentsCapability.find({ threadId: input.threadId });
+          const current = yield* commentsCapability.find({
+            threadId: input.threadId,
+          });
           const message = current?.messages.find(
             (entry) => entry.id === input.messageId,
           );
@@ -43,12 +45,12 @@ export class DeleteCommentMessageService extends Context.Service<
             (entry) => entry.id !== message.id,
           );
           if (messages.length === 0) {
-            commentsCapability.remove({ threadId: current.id });
+            yield* commentsCapability.remove({ threadId: current.id });
             return { threadId: current.id, thread: undefined };
           }
           return {
             threadId: current.id,
-            thread: commentsCapability.removeMessage({
+            thread: yield* commentsCapability.removeMessage({
               thread: current,
               messageId: message.id,
               sizeBytes: commentStorageSize({ ...current, messages }),

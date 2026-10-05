@@ -26,12 +26,12 @@ export class RecordWorktreePresenceService extends Context.Service<
           input: RecordWorktreePresenceInput,
         ): Effect.fn.Return<void, ProjectNotFoundError> {
           const { projectId, available, complete, worktrees } = input.worktrees;
-          const project = inventoryCapability.find({ projectId });
+          const project = yield* inventoryCapability.find({ projectId });
           if (!project) return yield* Effect.fail(new ProjectNotFoundError());
           if (!available) return;
-          const rows = worktreePresenceCapability.read({ projectId });
+          const rows = yield* worktreePresenceCapability.read({ projectId });
           const presentIds = worktrees.map((worktree) => worktree.id);
-          worktreePresenceCapability.save({
+          yield* worktreePresenceCapability.save({
             rows: complete
               ? observed(rows, projectId, presentIds, clockCapability.now())
               : sighted(rows, projectId, presentIds),

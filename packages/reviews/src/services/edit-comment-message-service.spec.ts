@@ -18,21 +18,23 @@ import { EditCommentMessageService } from './edit-comment-message-service.ts';
 const worktreeId = 'a'.repeat(64);
 const threadId = 'thread-1';
 
-function setup(bytesPerWorktree = 1024 * 1024) {
+async function setup(bytesPerWorktree = 1024 * 1024) {
   const store = new InMemoryCommentStore();
-  store.insert({
-    content: {
-      id: threadId,
-      worktreeId,
-      anchor: { kind: 'file', filePath: 'README.md' },
-      messages: [
-        { id: 'question', body: 'Why?', author: 'reviewer' },
-        { id: 'answer', body: 'Because.', author: 'agent' },
-      ],
-    },
-    sizeBytes: 300,
-    writtenByAgent: true,
-  });
+  await Effect.runPromise(
+    store.insert({
+      content: {
+        id: threadId,
+        worktreeId,
+        anchor: { kind: 'file', filePath: 'README.md' },
+        messages: [
+          { id: 'question', body: 'Why?', author: 'reviewer' },
+          { id: 'answer', body: 'Because.', author: 'agent' },
+        ],
+      },
+      sizeBytes: 300,
+      writtenByAgent: true,
+    }),
+  );
   const clock = new FixedClock();
   const service = Effect.runSync(
     EditCommentMessageService.pipe(
@@ -61,8 +63,8 @@ function input(
 }
 
 describe('EditCommentMessageService', () => {
-  it("rewrites the reviewer's own message, stamps the edit and moves the thread to the next revision", () => {
-    const { service, store, clock } = setup();
+  it("rewrites the reviewer's own message, stamps the edit and moves the thread to the next revision", async () => {
+    const { service, store, clock } = await setup();
     const { thread, changed } = Effect.runSync(service.execute(input()));
     expect(changed).toBe(true);
     expect(thread.revision).toBe(2);
@@ -75,19 +77,19 @@ describe('EditCommentMessageService', () => {
       },
       { id: 'answer', body: 'Because.', author: 'agent' },
     ]);
-    expect(store.find({ threadId })).toEqual(thread);
+    expect(await Effect.runPromise(store.find({ threadId }))).toEqual(thread);
   });
 
-  it('lets any reviewer device or the owner edit a reviewer message', () => {
-    const { service } = setup();
+  it('lets any reviewer device or the owner edit a reviewer message', async () => {
+    const { service } = await setup();
     expect(
       Effect.runSync(service.execute(input({ writer: { kind: 'owner' } })))
         .changed,
     ).toBe(true);
   });
 
-  it("lets the agent edit only the agent's own message", () => {
-    const { service } = setup();
+  it("lets the agent edit only the agent's own message", async () => {
+    const { service } = await setup();
     expect(
       Effect.runSync(
         service.execute(
@@ -104,27 +106,32 @@ describe('EditCommentMessageService', () => {
     ).toThrow(CommentAuthorMismatchError);
   });
 
-  it("refuses a reviewer editing the agent's message and keeps it", () => {
-    const { service, store } = setup();
+  it("refuses a reviewer editing the agent's message and keeps it", async () => {
+    const { service, store } = await setup();
     expect(() =>
       Effect.runSync(service.execute(input({ messageId: 'answer' }))),
     ).toThrow(CommentAuthorMismatchError);
-    expect(store.find({ threadId })?.messages[1]?.body).toBe('Because.');
+    expect(
+      (await Effect.runPromise(store.find({ threadId })))?.messages[1]?.body,
+    ).toBe('Because.');
   });
 
-  it('answers the same text without a new revision and reports no change', () => {
-    const { service, store } = setup();
+  it('answers the same text without a new revision and reports no change', async () => {
+    const { service, store } = await setup();
     expect(
       Effect.runSync(service.execute(input({ body: 'Why?' }))),
     ).toMatchObject({
       thread: { revision: 1 },
       changed: false,
     });
-    expect(store.find({ threadId })?.messages[0]?.editedAt).toBeUndefined();
+    expect(
+      (await Effect.runPromise(store.find({ threadId })))?.messages[0]
+        ?.editedAt,
+    ).toBeUndefined();
   });
 
-  it('does not find an unknown message, an unknown thread or a thread of another worktree', () => {
-    const { service } = setup();
+  it('does not find an unknown message, an unknown thread or a thread of another worktree', async () => {
+    const { service } = await setup();
     expect(() =>
       Effect.runSync(service.execute(input({ messageId: 'missing' }))),
     ).toThrow(CommentTargetNotFoundError);
@@ -136,11 +143,13 @@ describe('EditCommentMessageService', () => {
     ).toThrow(CommentTargetNotFoundError);
   });
 
-  it('refuses a longer text that would take the worktree past its capacity', () => {
-    const { service, store } = setup(320);
+  it('refuses a longer text that would take the worktree past its capacity', async () => {
+    const { service, store } = await setup(320);
     expect(() =>
       Effect.runSync(service.execute(input({ body: 'x'.repeat(400) }))),
     ).toThrow(CommentLimitExceededError);
-    expect(store.find({ threadId })?.messages[0]?.body).toBe('Why?');
+    expect(
+      (await Effect.runPromise(store.find({ threadId })))?.messages[0]?.body,
+    ).toBe('Why?');
   });
 });

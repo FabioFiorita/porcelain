@@ -15,10 +15,8 @@ export class FlushDeviceActivityService extends Context.Service<
       return {
         execute: Effect.fn('FlushDeviceActivityService.execute')(
           function* (): Effect.fn.Return<void, never> {
-            return yield* Effect.sync<void>(() => {
-              for (const device of deviceSightings.take())
-                devices.recordSighting({ device });
-            });
+            for (const device of deviceSightings.take())
+              yield* devices.recordSighting({ device });
           },
         ),
       };

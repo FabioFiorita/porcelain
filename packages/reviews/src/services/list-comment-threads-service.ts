@@ -23,14 +23,12 @@ export class ListCommentThreadsService extends Context.Service<
         execute: Effect.fn('ListCommentThreadsService.execute')(function* (
           input: ListCommentThreadsInput,
         ): Effect.fn.Return<ListCommentThreadsResult, never> {
-          return yield* Effect.sync<ListCommentThreadsResult>(() => {
-            const threads = commentsCapability.list({
-              worktreeId: input.worktreeId,
-            });
-            return input.scope === 'waiting'
-              ? threads.filter(waitsForAgent)
-              : threads;
+          const threads = yield* commentsCapability.list({
+            worktreeId: input.worktreeId,
           });
+          return input.scope === 'waiting'
+            ? threads.filter(waitsForAgent)
+            : threads;
         }),
       };
     }),

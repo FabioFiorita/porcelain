@@ -48,14 +48,7 @@ export const targetPackageExports: Record<string, Record<string, string>> = {
       domainPackages.map((name) => [`./${name}`, `./src/${name}/index.ts`]),
     ),
   },
-  storage: {
-    '.': './src/index.ts',
-    ...Object.fromEntries(
-      domainPackages
-        .filter((name) => name !== 'files' && name !== 'changes')
-        .map((name) => [`./${name}`, `./src/repositories/${name}/index.ts`]),
-    ),
-  },
+  storage: { '.': './src/index.ts' },
   agents: {
     './commit-planning': './src/commit-planning/index.ts',
   },
@@ -1733,22 +1726,27 @@ export const externalPackages: Record<Role, readonly string[]> = {
   port: [],
   'error-api': [],
   error: [],
-  'repository-api': ['drizzle-orm', 'better-sqlite3'],
-  repository: ['drizzle-orm', 'better-sqlite3'],
+  'repository-api': [],
+  repository: [
+    'effect',
+    'effect/sql',
+    'effect/schema',
+    '@effect/sql-sqlite-node',
+  ],
   'gateway-api': [],
   gateway: ['zod', 'trash', '@parcel/watcher'],
   'process-api': [],
   process: [],
   runtime: [],
   'server-port': [],
-  bootstrap: ['better-sqlite3', '@effect/platform-node'],
+  bootstrap: ['@effect/platform-node'],
   contract: ['zod', 'effect/ai'],
   config: ['zod'],
   kernel: [],
   fake: [],
   fixture: [],
   capture: [],
-  'store-contract': ['vitest'],
+  'store-contract': ['vitest', 'effect'],
   'server-kit': ['esbuild', 'zod', 'vitest', 'effect/Schema'],
   'integration-test': ['vitest', 'effect/Schema'],
   'server-cli': ['zod'],
@@ -1780,7 +1778,7 @@ export const externalPackages: Record<Role, readonly string[]> = {
     'vitest',
   ],
   'web-verify-cli': ['playwright', 'zod'],
-  'desktop-kit': ['@electron/rebuild', 'esbuild', 'zod'],
+  'desktop-kit': ['esbuild', 'zod'],
   'desktop-e2e': [],
   'desktop-e2e-kit': ['@playwright/test'],
   'desktop-verify-cli': ['playwright', 'zod', '@electron/fuses'],
@@ -1983,7 +1981,7 @@ const rolePurposes: Record<Role, string> = {
   'repository-api':
     "the storage package's public entry, index.ts or repositories/<domain>/index.ts",
   repository:
-    'storage internals: the SQLite schema and the repositories that implement domain ports',
+    'storage internals: native SQL models and the layers that implement domain ports',
   'gateway-api': "a git or agents capability's index.ts, its public entry",
   gateway:
     'an adapter that implements ports over git, coding agents, the file system or the network (packages/git, packages/agents, apps/server/src/adapters)',

@@ -96,7 +96,7 @@ export class AcceptGitActionService extends Context.Service<
           const { intent, expected } = input;
           const problem = gitActionProblem(intent, expected);
           if (problem) return yield* Effect.fail(operationFailure(problem));
-          const previous = gitActionReceiptsCapability.read({
+          const previous = yield* gitActionReceiptsCapability.read({
             requestId: input.requestId,
           });
           if (previous) {
@@ -119,7 +119,7 @@ export class AcceptGitActionService extends Context.Service<
             refreshRequired: false,
             acceptedAt: clockCapability.now(),
           };
-          gitActionReceiptsCapability.insert(receipt);
+          yield* gitActionReceiptsCapability.insert(receipt);
           return {
             kind: 'accepted',
             receipt: gitActionReceiptView(receipt),

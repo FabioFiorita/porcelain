@@ -26,14 +26,12 @@ export class ListReviewedLayerPathsService extends Context.Service<
         execute: Effect.fn('ListReviewedLayerPathsService.execute')(function* (
           input: ListReviewedLayerPathsInput,
         ): Effect.fn.Return<ListReviewedLayerPathsResult, never> {
-          return yield* Effect.sync<ListReviewedLayerPathsResult>(() => {
-            const { worktreeId } = input;
-            const layers = markedLayers(
-              reviewsCapability.read({ worktreeId })?.layers ?? [],
-              reviewedLayersCapability.list({ worktreeId }),
-            );
-            return { paths: reviewPaths(layers, []) };
-          });
+          const { worktreeId } = input;
+          const layers = markedLayers(
+            (yield* reviewsCapability.read({ worktreeId }))?.layers ?? [],
+            yield* reviewedLayersCapability.list({ worktreeId }),
+          );
+          return { paths: reviewPaths(layers, []) };
         }),
       };
     }),

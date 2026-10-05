@@ -3,7 +3,7 @@ import type { Probe } from '../probe.ts';
 export default {
   decision: 'P10',
   plants:
-    'an orphan 0015 migration with no journal entry or snapshot, which drizzle silently ignores',
+    'an orphan 0015 migration with no journal entry, so it is never applied',
   gate: 'db',
   rule: 'Migration outside the journal: 0015_probe_orphan.sql',
   edits: [

@@ -26,12 +26,10 @@ export class CheckRequestOriginService extends Context.Service<
         execute: Effect.fn('CheckRequestOriginService.execute')(function* (
           input: CheckRequestOriginInput,
         ): Effect.fn.Return<CheckRequestOriginResult, never> {
-          return yield* Effect.sync<CheckRequestOriginResult>(() => {
-            return requestOriginCheck(
-              input,
-              httpsHosts(remoteAccess.read(), routeStates.read(), input),
-            );
-          });
+          return requestOriginCheck(
+            input,
+            httpsHosts(yield* remoteAccess.read(), routeStates.read(), input),
+          );
         }),
       };
     }),

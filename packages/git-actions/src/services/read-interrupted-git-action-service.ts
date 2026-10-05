@@ -24,17 +24,16 @@ export class ReadInterruptedGitActionService extends Context.Service<
           function* (
             input: ReadInterruptedGitActionInput,
           ): Effect.fn.Return<ReadInterruptedGitActionResult, never, never> {
-            return yield* Effect.sync<ReadInterruptedGitActionResult>(() => {
-              const receipt = gitActionReceiptsCapability.latestInterrupted({
+            const receipt =
+              yield* gitActionReceiptsCapability.latestInterrupted({
                 worktreeId: input.worktreeId,
               });
-              return receipt
-                ? {
-                    kind: 'interrupted',
-                    receipt: gitActionReceiptView(receipt),
-                  }
-                : { kind: 'none' };
-            });
+            return receipt
+              ? {
+                  kind: 'interrupted',
+                  receipt: gitActionReceiptView(receipt),
+                }
+              : { kind: 'none' };
           },
         ),
       };

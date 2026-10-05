@@ -25,20 +25,18 @@ export class RecordGitActionProgressService extends Context.Service<
         execute: Effect.fn('RecordGitActionProgressService.execute')(function* (
           input: RecordGitActionProgressInput,
         ): Effect.fn.Return<RecordGitActionProgressResult, never, never> {
-          return yield* Effect.sync<RecordGitActionProgressResult>(() => {
-            const current = gitActionReceiptsCapability.read({
-              requestId: input.requestId,
-            });
-            if (current?.state !== 'running') return { kind: 'not-running' };
-            const updated = {
-              ...current,
-              progress: [...current.progress, input.line].slice(
-                -optionsCapability.progressLines,
-              ),
-            };
-            gitActionReceiptsCapability.save(updated);
-            return { kind: 'recorded', receipt: gitActionReceiptView(updated) };
+          const current = yield* gitActionReceiptsCapability.read({
+            requestId: input.requestId,
           });
+          if (current?.state !== 'running') return { kind: 'not-running' };
+          const updated = {
+            ...current,
+            progress: [...current.progress, input.line].slice(
+              -optionsCapability.progressLines,
+            ),
+          };
+          yield* gitActionReceiptsCapability.save(updated);
+          return { kind: 'recorded', receipt: gitActionReceiptView(updated) };
         }),
       };
     }),

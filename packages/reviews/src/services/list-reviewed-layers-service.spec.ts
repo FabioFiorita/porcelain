@@ -28,29 +28,33 @@ const layer: ReviewLayer = {
 };
 const reviewed = new Map([['README.md', 'first\nadded\n']]);
 
-function service() {
+async function service() {
   const reviews = new InMemoryReviewStore();
-  reviews.save({
-    worktreeId,
-    revision: 1,
-    publishedAt: '2026-01-01T00:00:00.000Z',
-    active: true,
-    summaryHtml: '<p>Summary</p>',
-    summaryToken: 'token',
-    summarySecret: 'secret',
-    layers: [layer],
-  });
+  await Effect.runPromise(
+    reviews.save({
+      worktreeId,
+      revision: 1,
+      publishedAt: '2026-01-01T00:00:00.000Z',
+      active: true,
+      summaryHtml: '<p>Summary</p>',
+      summaryToken: 'token',
+      summarySecret: 'secret',
+      layers: [layer],
+    }),
+  );
   const marks = new InMemoryReviewedLayerStore();
-  marks.save({
-    worktreeId,
-    marks: [
-      {
-        layerId: layer.id,
-        fingerprint: currentLayerFingerprint(layer, reviewed),
-        reviewedAt: '2026-01-01T00:00:00.000Z',
-      },
-    ],
-  });
+  await Effect.runPromise(
+    marks.save({
+      worktreeId,
+      marks: [
+        {
+          layerId: layer.id,
+          fingerprint: currentLayerFingerprint(layer, reviewed),
+          reviewedAt: '2026-01-01T00:00:00.000Z',
+        },
+      ],
+    }),
+  );
   return Effect.runSync(
     ListReviewedLayersService.pipe(
       Effect.provide(ListReviewedLayersService.layer),
@@ -61,16 +65,17 @@ function service() {
 }
 
 describe('ListReviewedLayersService', () => {
-  it('answers a mark fresh while the lines it covers read as they did', () => {
+  it('answers a mark fresh while the lines it covers read as they did', async () => {
     expect(
-      Effect.runSync(service().execute({ worktreeId, texts: reviewed })).marks,
+      Effect.runSync((await service()).execute({ worktreeId, texts: reviewed }))
+        .marks,
     ).toMatchObject([{ layerId: layer.id, stale: false }]);
   });
 
-  it('answers a mark stale once the lines it covers changed, computed on this read', () => {
+  it('answers a mark stale once the lines it covers changed, computed on this read', async () => {
     expect(
       Effect.runSync(
-        service().execute({
+        (await service()).execute({
           worktreeId,
           texts: new Map([['README.md', 'first\nchanged\n']]),
         }),

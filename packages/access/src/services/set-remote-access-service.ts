@@ -88,14 +88,14 @@ export class SetRemoteAccessService extends Context.Service<
             yield* Effect.interruptible(networkAddresses.defaultRoutes()),
           );
           const decision = changedRemoteAccess(
-            remoteAccess.read(),
+            yield* remoteAccess.read(),
             input,
             options.hostnameLength,
             here,
           );
           if (decision.kind !== 'settings')
             return yield* Effect.fail(operationFailure(decision));
-          remoteAccess.save(decision.settings);
+          yield* remoteAccess.save(decision.settings);
           const current = routeStates.read();
           const states = requestedStates(
             current.states,

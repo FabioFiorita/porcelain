@@ -44,7 +44,9 @@ export class EditCommentMessageService extends Context.Service<
           | CommentAuthorMismatchError
           | CommentLimitExceededError
         > {
-          const current = commentsCapability.find({ threadId: input.threadId });
+          const current = yield* commentsCapability.find({
+            threadId: input.threadId,
+          });
           const message = current?.messages.find(
             (entry) => entry.id === input.messageId,
           );
@@ -63,7 +65,7 @@ export class EditCommentMessageService extends Context.Service<
                 : entry,
             ),
           });
-          const usage = commentsCapability.usage({
+          const usage = yield* commentsCapability.usage({
             worktreeId: input.worktreeId,
           });
           if (
@@ -76,7 +78,7 @@ export class EditCommentMessageService extends Context.Service<
           )
             return yield* Effect.fail(new CommentLimitExceededError());
           return {
-            thread: commentsCapability.edit({
+            thread: yield* commentsCapability.edit({
               thread: current,
               messageId: message.id,
               body: input.body,

@@ -4,7 +4,10 @@ import { InvalidateReviewedMarksUseCasePort } from '../ports/invalidate-reviewed
 import { LaneOptions } from '../ports/lane-options.ts';
 import { WorktreeCatalogStore } from '@porcelain/projects/ports';
 import { Context, Effect, Layer } from 'effect';
-import { type StorageSession, openStorageSession } from '@porcelain/storage';
+import { storageLayer } from '@porcelain/storage';
+import { NodeServices } from '@effect/platform-node';
+import { cachedDeviceStoreLayer } from '../adapters/access/cached-device-store.ts';
+import { cachedRemoteAccessStoreLayer } from '../adapters/access/cached-remote-access-store.ts';
 import { nativeOperation } from '@porcelain/effects';
 import { releaseInOrder } from '../runtime/release-in-order.ts';
 import {
@@ -84,7 +87,6 @@ type RemoteRouteAdapters = {
 class ServerFoundation extends Context.Service<
   ServerFoundation,
   {
-    readonly session: StorageSession;
     readonly gitVersion: Awaited<ReturnType<typeof readGitVersion>>;
   }
 >()('@porcelain/server/ServerFoundation') {}
@@ -94,7 +96,7 @@ function serverResources(
   host: ServerHost,
   input: Parameters<OpenServer>[0],
 ) {
-  const foundation = Layer.effect(
+  const metadata = Layer.effect(
     ServerFoundation,
     Effect.gen(function* () {
       yield* Effect.addFinalizer(() => host.serviceUpdateRunner.close());
@@ -103,32 +105,35 @@ function serverResources(
       const gitVersion = yield* nativeOperation((signal) =>
         readGitVersion(limits.git, signal),
       );
-      const session = yield* Effect.acquireRelease(
-        Effect.sync(() =>
-          openStorageSession(settings.dataDirectory, {
-            worktreeIdLength: limits.projects.worktreeIds.length,
-            busyTimeoutMs: limits.storage.busyTimeoutMs,
-          }),
-        ),
-        (opened) => Effect.sync(() => opened.close()),
-      );
-      return { session, gitVersion };
+      return { gitVersion };
     }),
   );
+  const persistence = Layer.mergeAll(
+    cachedDeviceStoreLayer,
+    cachedRemoteAccessStoreLayer,
+  ).pipe(
+    Layer.provideMerge(
+      storageLayer(input.settings.dataDirectory, {
+        worktreeIdLength: input.settings.limits.projects.worktreeIds.length,
+        busyTimeoutMs: input.settings.limits.storage.busyTimeoutMs,
+      }).pipe(Layer.provide(NodeServices.layer)),
+    ),
+  );
+  const foundation = Layer.mergeAll(metadata, persistence);
   const components = Layer.effect(
     ServerComponents,
     Effect.acquireRelease(
       Effect.gen(function* () {
         const { settings } = input;
         const { limits } = settings;
-        const { session, gitVersion } = yield* ServerFoundation;
+        const { gitVersion } = yield* ServerFoundation;
         const worktreeId = (projectId: string, metadataIdentity: string) =>
           deriveWorktreeId(
             projectId,
             metadataIdentity,
             limits.projects.worktreeIds.length,
           );
-        const stores = composeStores(session);
+        const stores = yield* composeStores();
         const catalog = new InMemoryWorktreeCatalogStore();
         const clock = new SystemClock();
         const lanes = yield* Lanes.pipe(

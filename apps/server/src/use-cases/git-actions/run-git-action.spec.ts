@@ -46,26 +46,40 @@ import { RunGitActionUseCase } from './run-git-action.ts';
 class Receipts implements GitActionReceiptStore {
   private readonly rows = new Map<string, GitActionReceipt>();
   read({ requestId }: { requestId: string }) {
-    const row = this.rows.get(requestId);
-    return row && structuredClone(row);
+    return Effect.sync(() => {
+      const row = this.rows.get(requestId);
+      return row && structuredClone(row);
+    });
   }
   insert(row: GitActionReceipt) {
-    this.rows.set(row.requestId, structuredClone(row));
+    return Effect.sync(() => {
+      this.rows.set(row.requestId, structuredClone(row));
+    });
   }
   save(row: GitActionReceipt) {
-    this.rows.set(row.requestId, structuredClone(row));
+    return Effect.sync(() => {
+      this.rows.set(row.requestId, structuredClone(row));
+    });
   }
   running() {
-    return [...this.rows.values()].filter((row) => row.state === 'running');
+    return Effect.sync(() => {
+      return [...this.rows.values()].filter((row) => row.state === 'running');
+    });
   }
-  latestInterrupted(): GitActionReceipt | undefined {
-    return undefined;
+  latestInterrupted(): Effect.Effect<GitActionReceipt | undefined> {
+    return Effect.sync(() => {
+      return undefined;
+    });
   }
-  finished(): FinishedGitAction[] {
-    return [];
+  finished(): Effect.Effect<FinishedGitAction[]> {
+    return Effect.sync(() => {
+      return [];
+    });
   }
   remove({ requestIds }: { requestIds: string[] }) {
-    requestIds.forEach((id) => this.rows.delete(id));
+    return Effect.sync(() => {
+      requestIds.forEach((id) => this.rows.delete(id));
+    });
   }
 }
 const worktree: ListedWorktree = {
@@ -320,7 +334,9 @@ it('a disconnect during publication cannot orphan an accepted receipt', async ()
     test.cleanup.resolve();
     await response;
     await test.finished.promise;
-    expect(test.receipts.read({ requestId })?.state).toBe('succeeded');
+    expect(
+      (await Effect.runPromise(test.receipts.read({ requestId })))?.state,
+    ).toBe('succeeded');
     expect(test.calls()).toBe(1);
   } finally {
     test.cleanup.resolve();
@@ -335,10 +351,14 @@ it('shutdown records interruption only after the native action has stopped', asy
     await test.started.promise;
     const closing = test.lanes.close();
     await test.aborted.promise;
-    expect(test.receipts.read({ requestId })?.state).toBe('running');
+    expect(
+      (await Effect.runPromise(test.receipts.read({ requestId })))?.state,
+    ).toBe('running');
     test.cleanup.resolve();
     await closing;
-    expect(test.receipts.read({ requestId })).toMatchObject({
+    expect(
+      await Effect.runPromise(test.receipts.read({ requestId })),
+    ).toMatchObject({
       state: 'interrupted',
       reason: 'OUTCOME_UNKNOWN',
     });

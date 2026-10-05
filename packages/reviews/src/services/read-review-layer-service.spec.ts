@@ -45,9 +45,9 @@ const review: Review = {
 };
 
 describe('ReadReviewLayerService', () => {
-  it('reads a layer of the published review with the files its steps point at', () => {
+  it('reads a layer of the published review with the files its steps point at', async () => {
     const store = new InMemoryReviewStore();
-    store.save(review);
+    await Effect.runPromise(store.save(review));
     const read = Effect.runSync(
       Effect.runSync(
         ReadReviewLayerService.pipe(
@@ -63,7 +63,7 @@ describe('ReadReviewLayerService', () => {
     expect(read.paths).toEqual(['README.md', 'docs/guide.md']);
   });
 
-  it('does not find a layer the review does not have, nor any layer before a review is published', () => {
+  it('does not find a layer the review does not have, nor any layer before a review is published', async () => {
     const store = new InMemoryReviewStore();
     const service = Effect.runSync(
       ReadReviewLayerService.pipe(
@@ -74,7 +74,7 @@ describe('ReadReviewLayerService', () => {
     expect(() =>
       Effect.runSync(service.execute({ worktreeId, layerId: 'layer-1' })),
     ).toThrow(ReviewLayerNotFoundError);
-    store.save(review);
+    await Effect.runPromise(store.save(review));
     expect(() =>
       Effect.runSync(service.execute({ worktreeId, layerId: 'layer-9' })),
     ).toThrow(ReviewLayerNotFoundError);

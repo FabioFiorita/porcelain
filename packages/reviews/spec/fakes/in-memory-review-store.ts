@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type { WorktreeKey, WorktreeKeys } from '@porcelain/kernel/models';
 import type { ProofFile, ProofFileKey } from '../../src/models/review-proof.ts';
 import type {
@@ -24,48 +25,62 @@ export class InMemoryReviewStore implements ReviewStore {
     );
   }
 
-  read(input: WorktreeKey): Review | undefined {
-    const review = this.rows.get(input.worktreeId);
-    return review && this.current(review);
+  read(input: WorktreeKey): Effect.Effect<Review | undefined> {
+    return Effect.sync(() => {
+      const review = this.rows.get(input.worktreeId);
+      return review && this.current(review);
+    });
   }
 
-  byWorktrees(input: WorktreeKeys): Review[] {
-    return input.worktreeIds
-      .map((worktreeId) => this.rows.get(worktreeId))
-      .filter((review) => review !== undefined)
-      .map((review) => this.current(review));
+  byWorktrees(input: WorktreeKeys): Effect.Effect<Review[]> {
+    return Effect.sync(() => {
+      return input.worktreeIds
+        .map((worktreeId) => this.rows.get(worktreeId))
+        .filter((review) => review !== undefined)
+        .map((review) => this.current(review));
+    });
   }
 
-  findSummary(input: ReviewSummaryKey): ReviewSummary | undefined {
-    return [...this.rows.values()]
-      .filter((review) => review.summaryToken === input.token)
-      .map((review) => ({
-        summaryHtml: review.summaryHtml,
-        summaryToken: review.summaryToken,
-        summarySecret: review.summarySecret,
-      }))
-      .at(0);
+  findSummary(
+    input: ReviewSummaryKey,
+  ): Effect.Effect<ReviewSummary | undefined> {
+    return Effect.sync(() => {
+      return [...this.rows.values()]
+        .filter((review) => review.summaryToken === input.token)
+        .map((review) => ({
+          summaryHtml: review.summaryHtml,
+          summaryToken: review.summaryToken,
+          summarySecret: review.summarySecret,
+        }))
+        .at(0);
+    });
   }
 
-  save(input: ReviewSave): void {
-    const { proofFiles, ...review } = input;
-    this.rows.set(input.worktreeId, structuredClone(review));
-    this.proofFiles.set(input.worktreeId, structuredClone(proofFiles ?? []));
-    this.activity.delete(activityKey(input.worktreeId, input.revision));
+  save(input: ReviewSave): Effect.Effect<void> {
+    return Effect.sync(() => {
+      const { proofFiles, ...review } = input;
+      this.rows.set(input.worktreeId, structuredClone(review));
+      this.proofFiles.set(input.worktreeId, structuredClone(proofFiles ?? []));
+      this.activity.delete(activityKey(input.worktreeId, input.revision));
+    });
   }
 
-  readProofFile(input: ProofFileKey): ProofFile | undefined {
-    const file = this.proofFiles
-      .get(input.worktreeId)
-      ?.find((candidate) => candidate.id === input.proofId);
-    return file && structuredClone(file);
+  readProofFile(input: ProofFileKey): Effect.Effect<ProofFile | undefined> {
+    return Effect.sync(() => {
+      const file = this.proofFiles
+        .get(input.worktreeId)
+        ?.find((candidate) => candidate.id === input.proofId);
+      return file && structuredClone(file);
+    });
   }
 
-  setActive(input: ReviewActivity): void {
-    this.activity.set(
-      activityKey(input.worktreeId, input.revision),
-      input.active,
-    );
+  setActive(input: ReviewActivity): Effect.Effect<void> {
+    return Effect.sync(() => {
+      this.activity.set(
+        activityKey(input.worktreeId, input.revision),
+        input.active,
+      );
+    });
   }
 
   private current(review: Review): Review {

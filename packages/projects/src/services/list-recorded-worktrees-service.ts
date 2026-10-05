@@ -17,14 +17,12 @@ export class ListRecordedWorktreesService extends Context.Service<
       return {
         execute: Effect.fn('ListRecordedWorktreesService.execute')(
           function* (): Effect.fn.Return<RecordedWorktreesResult, never> {
-            return yield* Effect.sync<RecordedWorktreesResult>(() => {
-              return {
-                worktrees: recordedWorktrees(
-                  worktreePresenceCapability.list(),
-                  inventoryCapability.read().projects,
-                ),
-              };
-            });
+            return {
+              worktrees: recordedWorktrees(
+                yield* worktreePresenceCapability.list(),
+                (yield* inventoryCapability.read()).projects,
+              ),
+            };
           },
         ),
       };

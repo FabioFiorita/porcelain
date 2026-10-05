@@ -54,7 +54,7 @@ function input(
 }
 
 describe('CreateCommentThreadService', () => {
-  it('opens an unresolved thread with one message and the next revision', () => {
+  it('opens an unresolved thread with one message and the next revision', async () => {
     const { service, store } = setup();
     const thread = Effect.runSync(service.execute(input()));
     expect(thread).toMatchObject({
@@ -63,7 +63,9 @@ describe('CreateCommentThreadService', () => {
       revision: 1,
       messages: [{ body: 'Looks good', author: 'reviewer' }],
     });
-    expect(store.list({ worktreeId })).toEqual([thread]);
+    expect(await Effect.runPromise(store.list({ worktreeId }))).toEqual([
+      thread,
+    ]);
   });
 
   it('writes as the agent only when the writer is the agent', () => {
@@ -87,7 +89,7 @@ describe('CreateCommentThreadService', () => {
     ).toBe(2);
   });
 
-  it('answers a retried create with the original thread and stores nothing new', () => {
+  it('answers a retried create with the original thread and stores nothing new', async () => {
     const { service, store } = setup();
     const ids = { threadId: 'thread-1', messageId: 'message-1' };
     const first = Effect.runSync(service.execute(input(ids)));
@@ -100,7 +102,7 @@ describe('CreateCommentThreadService', () => {
       ),
     );
     expect(again).toEqual(first);
-    expect(store.list({ worktreeId })).toHaveLength(1);
+    expect(await Effect.runPromise(store.list({ worktreeId }))).toHaveLength(1);
   });
 
   const ids = { threadId: 'thread-1', messageId: 'message-1' };
@@ -171,7 +173,7 @@ describe('CreateCommentThreadService', () => {
     ).toThrow(CommentIdentityConflictError);
   });
 
-  it('refuses a code range that ends before it starts and stores nothing', () => {
+  it('refuses a code range that ends before it starts and stores nothing', async () => {
     const { service, store } = setup();
     expect(() =>
       Effect.runSync(
@@ -187,7 +189,7 @@ describe('CreateCommentThreadService', () => {
         ),
       ),
     ).toThrow(InvalidLineRangeError);
-    expect(store.list({ worktreeId })).toEqual([]);
+    expect(await Effect.runPromise(store.list({ worktreeId }))).toEqual([]);
   });
 
   it('opens a thread on a one-line code range', () => {
@@ -238,12 +240,12 @@ describe('CreateCommentThreadService', () => {
         revision: 'a'.repeat(40),
       },
     },
-  ])('refuses $name and stores nothing', ({ anchor }) => {
+  ])('refuses $name and stores nothing', async ({ anchor }) => {
     const { service, store } = setup();
     expect(() => Effect.runSync(service.execute(input({ anchor })))).toThrow(
       CommentRevisionMismatchError,
     );
-    expect(store.list({ worktreeId })).toEqual([]);
+    expect(await Effect.runPromise(store.list({ worktreeId }))).toEqual([]);
   });
 
   it('opens a thread on a commit comparison that names its object id', () => {
@@ -276,13 +278,15 @@ describe('CreateCommentThreadService', () => {
     );
   });
 
-  it('opens a thread on the whole working-tree change', () => {
+  it('opens a thread on the whole working-tree change', async () => {
     const { service, store } = setup();
     const thread = Effect.runSync(
       service.execute(input({ anchor: { kind: 'change' } })),
     );
     expect(thread.anchor).toEqual({ kind: 'change' });
-    expect(store.list({ worktreeId })).toEqual([thread]);
+    expect(await Effect.runPromise(store.list({ worktreeId }))).toEqual([
+      thread,
+    ]);
   });
 
   it('opens a thread on the whole branch change read at its tip', () => {
@@ -297,7 +301,7 @@ describe('CreateCommentThreadService', () => {
     );
   });
 
-  it('refuses a whole-branch comment that does not name the tip it was read at', () => {
+  it('refuses a whole-branch comment that does not name the tip it was read at', async () => {
     const { service, store } = setup();
     expect(() =>
       Effect.runSync(
@@ -311,7 +315,7 @@ describe('CreateCommentThreadService', () => {
         ),
       ),
     ).toThrow(CommentRevisionMismatchError);
-    expect(store.list({ worktreeId })).toEqual([]);
+    expect(await Effect.runPromise(store.list({ worktreeId }))).toEqual([]);
   });
 
   it.each<[string, CommentAnchor]>([
@@ -330,12 +334,12 @@ describe('CreateCommentThreadService', () => {
     ],
   ])(
     'refuses a whole-change comment against %s and stores nothing',
-    (_, anchor) => {
+    async (_, anchor) => {
       const { service, store } = setup();
       expect(() => Effect.runSync(service.execute(input({ anchor })))).toThrow(
         UnsupportedCommentComparisonError,
       );
-      expect(store.list({ worktreeId })).toEqual([]);
+      expect(await Effect.runPromise(store.list({ worktreeId }))).toEqual([]);
     },
   );
 
@@ -355,11 +359,13 @@ describe('CreateCommentThreadService', () => {
     );
   });
 
-  it('opens the hundredth thread of a worktree and refuses the next', () => {
+  it('opens the hundredth thread of a worktree and refuses the next', async () => {
     const { service, store } = setup();
     for (let index = 0; index < 100; index += 1)
       Effect.runSync(service.execute(input()));
-    expect(store.list({ worktreeId })).toHaveLength(100);
+    expect(await Effect.runPromise(store.list({ worktreeId }))).toHaveLength(
+      100,
+    );
     expect(() => Effect.runSync(service.execute(input()))).toThrow(
       CommentLimitExceededError,
     );
@@ -368,7 +374,7 @@ describe('CreateCommentThreadService', () => {
     ).not.toThrow();
   });
 
-  it('refuses a thread that would take the worktree past one mebibyte', () => {
+  it('refuses a thread that would take the worktree past one mebibyte', async () => {
     const { service, store } = setup();
     const body = 'x'.repeat(15_000);
     let created = 0;
@@ -382,10 +388,14 @@ describe('CreateCommentThreadService', () => {
       }
     }
     expect(refused).toBeInstanceOf(CommentLimitExceededError);
-    expect(store.usage({ worktreeId }).bytes).toBeLessThanOrEqual(1024 * 1024);
-    expect(store.usage({ worktreeId }).bytes + 15_000).toBeGreaterThan(
-      1024 * 1024,
+    expect(
+      (await Effect.runPromise(store.usage({ worktreeId }))).bytes,
+    ).toBeLessThanOrEqual(1024 * 1024);
+    expect(
+      (await Effect.runPromise(store.usage({ worktreeId }))).bytes + 15_000,
+    ).toBeGreaterThan(1024 * 1024);
+    expect(await Effect.runPromise(store.list({ worktreeId }))).toHaveLength(
+      created,
     );
-    expect(store.list({ worktreeId })).toHaveLength(created);
   });
 });

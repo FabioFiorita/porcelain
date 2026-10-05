@@ -1,21 +1,22 @@
-import type { RemoteAccessSettings } from '@porcelain/access/models';
-import type { RemoteAccessStore } from '@porcelain/access/ports';
+import { Duration, Effect, Layer } from 'effect';
+import { RemoteAccessStore } from '@porcelain/access/ports';
 
-export class CachedRemoteAccessStore implements RemoteAccessStore {
-  private readonly settings: RemoteAccessStore;
-  private cached: RemoteAccessSettings | undefined;
-
-  constructor(settings: RemoteAccessStore) {
-    this.settings = settings;
-  }
-
-  read(): RemoteAccessSettings {
-    this.cached ??= this.settings.read();
-    return { ...this.cached };
-  }
-
-  save(input: RemoteAccessSettings): void {
-    this.settings.save(input);
-    this.cached = { ...input };
-  }
-}
+export const cachedRemoteAccessStoreLayer = Layer.effect(
+  RemoteAccessStore,
+  Effect.gen(function* () {
+    const settings = yield* RemoteAccessStore;
+    const [read, invalidate] = yield* Effect.cachedInvalidateWithTTL(
+      settings.read(),
+      Duration.infinity,
+    );
+    return RemoteAccessStore.of({
+      read: Effect.fn('RemoteAccessCache.read')(function* () {
+        return structuredClone(yield* read);
+      }),
+      save: Effect.fn('RemoteAccessCache.save')(function* (input) {
+        yield* settings.save(input);
+        yield* invalidate;
+      }),
+    });
+  }),
+);

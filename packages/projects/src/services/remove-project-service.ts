@@ -22,13 +22,11 @@ export class RemoveProjectService extends Context.Service<
         execute: Effect.fn('RemoveProjectService.execute')(function* (
           input: RemoveProjectInput,
         ): Effect.fn.Return<RemoveProjectResult, never> {
-          return yield* Effect.sync<RemoveProjectResult>(() => {
-            const { projectId } = input;
-            if (!inventoryCapability.find({ projectId }))
-              return { deleted: false };
-            inventoryCapability.remove({ projectId });
-            return { deleted: true };
-          });
+          const { projectId } = input;
+          if (!(yield* inventoryCapability.find({ projectId })))
+            return { deleted: false };
+          yield* inventoryCapability.remove({ projectId });
+          return { deleted: true };
         }),
       };
     }),

@@ -5,7 +5,6 @@ import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isDeepStrictEqual } from 'node:util';
-import { rebuild } from '@electron/rebuild';
 import { build } from 'esbuild';
 import { z } from 'zod';
 
@@ -19,13 +18,7 @@ const manifestSchema = z.object({
   dependencies: z.record(z.string(), z.string()).default({}),
   optionalDependencies: z.record(z.string(), z.string()).default({}),
 });
-const external = [
-  'better-sqlite3',
-  '@parcel/watcher',
-  'trash',
-  'bufferutil',
-  'utf-8-validate',
-];
+const external = ['@parcel/watcher', 'trash', 'bufferutil', 'utf-8-validate'];
 
 export async function desktopCommand(command: string, args: readonly string[]) {
   await new Promise<void>((resolveCommand, rejectCommand) => {
@@ -115,13 +108,6 @@ async function stageNativeModules(
   await rm(modules, { recursive: true, force: true });
   for (const name of Object.keys(dependencies))
     await vendor(name, join(root, 'apps/server'), modules, new Set());
-  await rebuild({
-    buildPath: directory,
-    electronVersion,
-    arch: process.arch,
-    onlyModules: ['better-sqlite3'],
-    force: true,
-  });
   await writeFile(stamp, `${JSON.stringify(wanted)}\n`);
 }
 

@@ -45,7 +45,7 @@ function setup(projects: RegisteredProject[] = []) {
 }
 
 describe('RegisterProjectService', () => {
-  it('registers a new repository under a new id, named after its origin', () => {
+  it('registers a new repository under a new id, named after its origin', async () => {
     const { inventory, service } = setup();
     const { project } = Effect.runSync(
       service.execute({
@@ -62,7 +62,9 @@ describe('RegisterProjectService', () => {
       available: true,
       position: 1,
     });
-    expect(inventory.read().projects).toEqual([project]);
+    expect((await Effect.runPromise(inventory.read())).projects).toEqual([
+      project,
+    ]);
   });
 
   it('names a repository without an origin after its main checkout', () => {
@@ -89,7 +91,7 @@ describe('RegisterProjectService', () => {
     ).toBe('bare');
   });
 
-  it('returns the existing project when the repository is registered again', () => {
+  it('returns the existing project when the repository is registered again', async () => {
     const { inventory, service } = setup([registered({})]);
     const { project } = Effect.runSync(
       service.execute({ repository, originUrl: undefined }),
@@ -97,7 +99,9 @@ describe('RegisterProjectService', () => {
     expect(project.id).toBe('existing');
     expect(project.commonDirectory).toBe('/srv/api/.git');
     expect(project.available).toBe(true);
-    expect(inventory.read().projects).toHaveLength(1);
+    expect((await Effect.runPromise(inventory.read())).projects).toHaveLength(
+      1,
+    );
   });
 
   it("keeps the owner's name when the repository is registered again", () => {
@@ -151,7 +155,7 @@ describe('RegisterProjectService', () => {
     ).toBe(true);
   });
 
-  it('lists a new repository after every project registered before it', () => {
+  it('lists a new repository after every project registered before it', async () => {
     const { inventory, service } = setup([
       registered({ id: 'first', repositoryIdentity: 'other-1', position: 1 }),
       registered({ id: 'second', repositoryIdentity: 'other-2', position: 4 }),
@@ -160,22 +164,23 @@ describe('RegisterProjectService', () => {
       service.execute({ repository, originUrl: undefined }),
     );
     expect(project.position).toBe(5);
-    expect(inventory.read().projects.map((entry) => entry.id)).toEqual([
-      'first',
-      'second',
-      project.id,
-    ]);
+    expect(
+      (await Effect.runPromise(inventory.read())).projects.map(
+        (entry) => entry.id,
+      ),
+    ).toEqual(['first', 'second', project.id]);
   });
 
-  it('keeps its place in the inventory when the repository is registered again', () => {
+  it('keeps its place in the inventory when the repository is registered again', async () => {
     const { inventory, service } = setup([
       registered({ id: 'existing', position: 1 }),
       registered({ id: 'later', repositoryIdentity: 'other', position: 2 }),
     ]);
     Effect.runSync(service.execute({ repository, originUrl: undefined }));
-    expect(inventory.read().projects.map((entry) => entry.id)).toEqual([
-      'existing',
-      'later',
-    ]);
+    expect(
+      (await Effect.runPromise(inventory.read())).projects.map(
+        (entry) => entry.id,
+      ),
+    ).toEqual(['existing', 'later']);
   });
 });

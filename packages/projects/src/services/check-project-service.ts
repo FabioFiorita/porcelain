@@ -23,7 +23,7 @@ export class CheckProjectService extends Context.Service<
         execute: Effect.fn('CheckProjectService.execute')(function* (
           input: FindProjectInput,
         ): Effect.fn.Return<CheckProjectResult, ProjectNotFoundError> {
-          const project = inventoryCapability.find({
+          const project = yield* inventoryCapability.find({
             projectId: input.projectId,
           });
           if (!project) return yield* Effect.fail(new ProjectNotFoundError());

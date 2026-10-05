@@ -22,7 +22,6 @@ const repositoryRoot = resolve(kit, '../../../..');
 const CHILD_BUNDLE = 'server/src/bootstrap/dev-server-child.mjs';
 const CODING_TOOL_BUNDLE = 'coding-tool/claude.mjs';
 const unbundled = [
-  { name: 'better-sqlite3', via: [] },
   { name: '@parcel/watcher', via: [] },
   { name: '@stroncium/procfs', via: ['trash'] },
 ];

@@ -78,7 +78,7 @@ export class CreateCommentThreadService extends Context.Service<
           const threadId = input.threadId ?? idSourceCapability.next();
           const messageId = input.messageId ?? idSourceCapability.next();
           const author = commentAuthor(input.writer);
-          const existing = commentsCapability.find({ threadId });
+          const existing = yield* commentsCapability.find({ threadId });
           if (existing) {
             if (
               !repeatsCreation(existing, {
@@ -92,7 +92,7 @@ export class CreateCommentThreadService extends Context.Service<
               return yield* Effect.fail(new CommentIdentityConflictError());
             return existing;
           }
-          if (commentsCapability.findMessage({ messageId }))
+          if (yield* commentsCapability.findMessage({ messageId }))
             return yield* Effect.fail(new CommentIdentityConflictError());
           const content: CommentContent = {
             id: threadId,
@@ -108,12 +108,12 @@ export class CreateCommentThreadService extends Context.Service<
             ],
           };
           const sizeBytes = commentStorageSize(content);
-          const usage = commentsCapability.usage({
+          const usage = yield* commentsCapability.usage({
             worktreeId: input.worktreeId,
           });
           if (!threadFits(usage, sizeBytes, optionsCapability))
             return yield* Effect.fail(new CommentLimitExceededError());
-          return commentsCapability.insert({
+          return yield* commentsCapability.insert({
             content,
             sizeBytes,
             writtenByAgent: author === 'agent',

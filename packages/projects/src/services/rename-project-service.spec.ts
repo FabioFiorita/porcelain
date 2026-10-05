@@ -52,31 +52,33 @@ describe('RenameProjectService', () => {
     ).toBe(false);
   });
 
-  it('reports a change when the owner confirms a derived name as their own', () => {
+  it('reports a change when the owner confirms a derived name as their own', async () => {
     const { inventory, service } = setup();
     expect(
       Effect.runSync(
         service.execute({ projectId: project.id, name: project.name }),
       ).changed,
     ).toBe(true);
-    expect(inventory.read().projects).toEqual([
+    expect((await Effect.runPromise(inventory.read())).projects).toEqual([
       { ...project, namedByOwner: true },
     ]);
   });
 
-  it("stores the name as the owner's own, changing nothing else", () => {
+  it("stores the name as the owner's own, changing nothing else", async () => {
     const { inventory, service } = setup();
     Effect.runSync(service.execute({ projectId: project.id, name: 'Billing' }));
-    expect(inventory.read().projects).toEqual([
+    expect((await Effect.runPromise(inventory.read())).projects).toEqual([
       { ...project, name: 'Billing', namedByOwner: true },
     ]);
   });
 
-  it('refuses a project that is not registered', () => {
+  it('refuses a project that is not registered', async () => {
     const { inventory, service } = setup();
     expect(() =>
       Effect.runSync(service.execute({ projectId: 'unknown', name: 'x' })),
     ).toThrow(ProjectNotFoundError);
-    expect(inventory.read().projects).toEqual([project]);
+    expect((await Effect.runPromise(inventory.read())).projects).toEqual([
+      project,
+    ]);
   });
 });

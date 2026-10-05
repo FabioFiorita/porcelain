@@ -34,32 +34,36 @@ const readmeLayer = layer('layer-1', 'README.md');
 const guideLayer = layer('layer-2', 'GUIDE.md');
 const reviewed = 'first\nadded\n';
 
-function setup() {
+async function setup() {
   const reviews = new InMemoryReviewStore();
-  reviews.save({
-    worktreeId,
-    revision: 1,
-    publishedAt: '2026-01-01T00:00:00.000Z',
-    active: true,
-    summaryHtml: '<p>Summary</p>',
-    summaryToken: 'token',
-    summarySecret: 'secret',
-    layers: [readmeLayer, guideLayer],
-  });
+  await Effect.runPromise(
+    reviews.save({
+      worktreeId,
+      revision: 1,
+      publishedAt: '2026-01-01T00:00:00.000Z',
+      active: true,
+      summaryHtml: '<p>Summary</p>',
+      summaryToken: 'token',
+      summarySecret: 'secret',
+      layers: [readmeLayer, guideLayer],
+    }),
+  );
   const marks = new InMemoryReviewedLayerStore();
-  marks.save({
-    worktreeId,
-    marks: [
-      {
-        layerId: readmeLayer.id,
-        fingerprint: currentLayerFingerprint(
-          readmeLayer,
-          new Map([['README.md', reviewed]]),
-        ),
-        reviewedAt: '2026-01-01T00:00:00.000Z',
-      },
-    ],
-  });
+  await Effect.runPromise(
+    marks.save({
+      worktreeId,
+      marks: [
+        {
+          layerId: readmeLayer.id,
+          fingerprint: currentLayerFingerprint(
+            readmeLayer,
+            new Map([['README.md', reviewed]]),
+          ),
+          reviewedAt: '2026-01-01T00:00:00.000Z',
+        },
+      ],
+    }),
+  );
   return {
     marks,
     paths: Effect.runSync(
@@ -73,8 +77,10 @@ function setup() {
 }
 
 describe('ListReviewedLayerPathsService', () => {
-  it('names only the files that the marked layers point at', () => {
-    expect(Effect.runSync(setup().paths.execute({ worktreeId }))).toEqual({
+  it('names only the files that the marked layers point at', async () => {
+    expect(
+      Effect.runSync((await setup()).paths.execute({ worktreeId })),
+    ).toEqual({
       paths: ['README.md'],
     });
   });

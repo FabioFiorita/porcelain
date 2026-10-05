@@ -70,70 +70,70 @@ function setup() {
         },
       }),
     );
-  const missing = () =>
+  const missing = async () =>
     Object.fromEntries(
-      presence
-        .read({ projectId: project.id })
-        .map((row) => [row.worktreeId, row.missingSince]),
+      (await Effect.runPromise(presence.read({ projectId: project.id }))).map(
+        (row) => [row.worktreeId, row.missingSince],
+      ),
     );
   return { inventory, clock, record, missing };
 }
 
 describe('RecordWorktreePresenceService', () => {
-  it('records every listed worktree as present', () => {
+  it('records every listed worktree as present', async () => {
     const { record, missing } = setup();
     record(['main', 'feature']);
-    expect(missing()).toEqual({ main: undefined, feature: undefined });
+    expect(await missing()).toEqual({ main: undefined, feature: undefined });
   });
 
-  it('marks a worktree missing from a complete listing as absent from now', () => {
+  it('marks a worktree missing from a complete listing as absent from now', async () => {
     const { record, missing } = setup();
     record(['main', 'feature']);
     record(['main']);
-    expect(missing()).toEqual({ main: undefined, feature: FIRST });
+    expect(await missing()).toEqual({ main: undefined, feature: FIRST });
   });
 
-  it('keeps the moment a worktree first went missing while it stays away', () => {
+  it('keeps the moment a worktree first went missing while it stays away', async () => {
     const { clock, record, missing } = setup();
     record(['main', 'feature']);
     record(['main']);
     clock.set(LATER);
     record(['main']);
-    expect(missing().feature).toBe(FIRST);
+    expect((await missing()).feature).toBe(FIRST);
   });
 
-  it('clears the absence when the worktree comes back', () => {
+  it('clears the absence when the worktree comes back', async () => {
     const { clock, record, missing } = setup();
     record(['main', 'feature']);
     record(['main']);
     clock.set(LATER);
     record(['main', 'feature']);
-    expect(missing()).toEqual({ main: undefined, feature: undefined });
+    expect(await missing()).toEqual({ main: undefined, feature: undefined });
   });
 
-  it('keeps the worktrees an incomplete listing did reach without marking absences', () => {
+  it('keeps the worktrees an incomplete listing did reach without marking absences', async () => {
     const { record, missing } = setup();
     record(['main', 'feature']);
     record(['main'], { complete: false });
-    expect(missing()).toEqual({ main: undefined, feature: undefined });
+    expect(await missing()).toEqual({ main: undefined, feature: undefined });
   });
 
-  it('records a worktree first seen in an incomplete listing', () => {
+  it('records a worktree first seen in an incomplete listing', async () => {
     const { record, missing } = setup();
     record(['feature'], { complete: false });
-    expect(missing()).toEqual({ feature: undefined });
+    expect(await missing()).toEqual({ feature: undefined });
   });
 
-  it('records nothing while the project is unavailable', () => {
+  it('records nothing while the project is unavailable', async () => {
     const { record, missing } = setup();
     record(['main', 'feature']);
     record([], { available: false, complete: false });
-    expect(missing()).toEqual({ main: undefined, feature: undefined });
+    expect(await missing()).toEqual({ main: undefined, feature: undefined });
   });
 
-  it('refuses a project that is no longer registered', () => {
+  it('refuses a project that is no longer registered', async () => {
     const { inventory, record } = setup();
-    inventory.remove({ projectId: project.id });
+    await Effect.runPromise(inventory.remove({ projectId: project.id }));
     expect(() => record(['main'])).toThrow(ProjectNotFoundError);
   });
 });

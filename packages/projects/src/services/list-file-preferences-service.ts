@@ -22,13 +22,11 @@ export class ListFilePreferencesService extends Context.Service<
         execute: Effect.fn('ListFilePreferencesService.execute')(function* (
           input: ListFilePreferencesInput,
         ): Effect.fn.Return<ListFilePreferencesResult, never> {
-          return yield* Effect.sync<ListFilePreferencesResult>(() => {
-            return {
-              preferences: filePreferenceCapability.list({
-                projectId: input.projectId,
-              }),
-            };
-          });
+          return {
+            preferences: yield* filePreferenceCapability.list({
+              projectId: input.projectId,
+            }),
+          };
         }),
       };
     }),

@@ -146,10 +146,13 @@ describe('RedeemLiveTicketService', () => {
     });
   });
 
-  it('refuses the ticket of a device revoked since it was issued', () => {
+  it('refuses the ticket of a device revoked since it was issued', async () => {
     const { devices, service } = setup();
-    const device = devices.find({ deviceId });
-    if (device) devices.markRevoked({ device, revokedAt: issuedAt });
+    const device = await Effect.runPromise(devices.find({ deviceId }));
+    if (device)
+      await Effect.runPromise(
+        devices.markRevoked({ device, revokedAt: issuedAt }),
+      );
     expect(
       Effect.runSync(service.execute({ ticket, route: 'tailnet' })),
     ).toEqual(refused);

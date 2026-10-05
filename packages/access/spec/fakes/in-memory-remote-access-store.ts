@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type { RemoteAccessSettings } from '../../src/models/remote-access.ts';
 import type { RemoteAccessStore } from '../../src/ports/remote-access-store.ts';
 
@@ -8,11 +9,15 @@ export class InMemoryRemoteAccessStore implements RemoteAccessStore {
     cloudflare: false,
   };
 
-  read(): RemoteAccessSettings {
-    return { ...this.settings };
+  read(): Effect.Effect<RemoteAccessSettings> {
+    return Effect.sync(() => {
+      return { ...this.settings };
+    });
   }
 
-  save(input: RemoteAccessSettings): void {
-    this.settings = { ...input };
+  save(input: RemoteAccessSettings): Effect.Effect<void> {
+    return Effect.sync(() => {
+      this.settings = { ...input };
+    });
   }
 }

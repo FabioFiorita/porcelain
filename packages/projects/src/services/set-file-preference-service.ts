@@ -27,7 +27,10 @@ export class SetFilePreferenceService extends Context.Service<
           input: SetFilePreferenceInput,
         ): Effect.fn.Return<SetFilePreferenceResult, FilePreferenceLimitError> {
           const { projectId, path } = input;
-          const existing = filePreferenceCapability.find({ projectId, path });
+          const existing = yield* filePreferenceCapability.find({
+            projectId,
+            path,
+          });
           const next: FilePreference = {
             path,
             pinned: existing?.pinned ?? false,
@@ -39,22 +42,25 @@ export class SetFilePreferenceService extends Context.Service<
             (existing?.hidden ?? false) !== next.hidden;
           if (!changed)
             return {
-              preferences: filePreferenceCapability.list({ projectId }),
+              preferences: yield* filePreferenceCapability.list({ projectId }),
               changed,
             };
           if (!next.pinned && !next.hidden) {
-            filePreferenceCapability.remove({ projectId, path });
+            yield* filePreferenceCapability.remove({ projectId, path });
           } else {
             if (
               !existing &&
-              filePreferenceCapability.count({ projectId }) >=
+              (yield* filePreferenceCapability.count({ projectId })) >=
                 optionsCapability.maxPreferences
             )
               return yield* Effect.fail(new FilePreferenceLimitError());
-            filePreferenceCapability.save({ projectId, preference: next });
+            yield* filePreferenceCapability.save({
+              projectId,
+              preference: next,
+            });
           }
           return {
-            preferences: filePreferenceCapability.list({ projectId }),
+            preferences: yield* filePreferenceCapability.list({ projectId }),
             changed,
           };
         }),

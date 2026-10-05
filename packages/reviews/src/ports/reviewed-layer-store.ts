@@ -1,3 +1,4 @@
+import type { Effect } from 'effect';
 import { Context } from 'effect';
 import { type WorktreeKey, type WorktreeKeys } from '@porcelain/kernel/models';
 import {
@@ -8,10 +9,10 @@ import {
 } from '../models/reviewed-mark.ts';
 
 export interface ReviewedLayerStore {
-  list(input: WorktreeKey): ReviewedLayerMark[];
-  byWorktrees(input: WorktreeKeys): WorktreeReviewedLayerMark[];
-  save(input: ReviewedLayerSave): void;
-  remove(input: ReviewedLayerRemoval): void;
+  list(input: WorktreeKey): Effect.Effect<ReviewedLayerMark[]>;
+  byWorktrees(input: WorktreeKeys): Effect.Effect<WorktreeReviewedLayerMark[]>;
+  save(input: ReviewedLayerSave): Effect.Effect<void>;
+  remove(input: ReviewedLayerRemoval): Effect.Effect<void>;
 }
 
 export const ReviewedLayerStore = Context.Service<

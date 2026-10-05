@@ -92,7 +92,7 @@ export class IssuePairingService extends Context.Service<
             };
             return { grant, code };
           });
-          pairingGrants.add({
+          yield* pairingGrants.add({
             grants: issued.map(({ grant, code }) => ({
               ...grant,
               secretHash: sha256Hex(code.secret),

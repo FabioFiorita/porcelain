@@ -33,33 +33,31 @@ export class RedeemLiveTicketService extends Context.Service<
         execute: Effect.fn('RedeemLiveTicketService.execute')(function* (
           input: RedeemLiveTicketInput,
         ): Effect.fn.Return<RedeemLiveTicketResult, never> {
-          return yield* Effect.sync<RedeemLiveTicketResult>(() => {
-            const parts = parseCredential('pct', input.ticket);
-            if (!parts) return { kind: 'refused' };
-            const now = clock.now();
-            const { tickets, ticket } = liveTicketTaken(
-              liveTickets.read(),
-              parts.id,
-              now,
-            );
-            liveTickets.save(tickets);
-            if (
-              !ticket ||
-              !secretMatches(ticket.secretHash, parts.secret) ||
-              ticket.route !== input.route
-            )
-              return { kind: 'refused' };
-            const device =
-              deviceSightings.find({ deviceId: ticket.deviceId }) ??
-              devices.find({ deviceId: ticket.deviceId });
-            if (
-              !device ||
-              device.route !== input.route ||
-              !deviceUsable(device, now, options.unusedLifetimeMs)
-            )
-              return { kind: 'refused' };
-            return { kind: 'authenticated', deviceId: device.id };
-          });
+          const parts = parseCredential('pct', input.ticket);
+          if (!parts) return { kind: 'refused' };
+          const now = clock.now();
+          const { tickets, ticket } = liveTicketTaken(
+            liveTickets.read(),
+            parts.id,
+            now,
+          );
+          liveTickets.save(tickets);
+          if (
+            !ticket ||
+            !secretMatches(ticket.secretHash, parts.secret) ||
+            ticket.route !== input.route
+          )
+            return { kind: 'refused' };
+          const device =
+            deviceSightings.find({ deviceId: ticket.deviceId }) ??
+            (yield* devices.find({ deviceId: ticket.deviceId }));
+          if (
+            !device ||
+            device.route !== input.route ||
+            !deviceUsable(device, now, options.unusedLifetimeMs)
+          )
+            return { kind: 'refused' };
+          return { kind: 'authenticated', deviceId: device.id };
         }),
       };
     }),

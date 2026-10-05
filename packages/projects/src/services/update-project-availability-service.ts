@@ -22,10 +22,10 @@ export class UpdateProjectAvailabilityService extends Context.Service<
             input: UpdateProjectAvailabilityInput,
           ): Effect.fn.Return<void, ProjectNotFoundError> {
             const { projectId, available } = input.worktrees;
-            const project = inventoryCapability.find({ projectId });
+            const project = yield* inventoryCapability.find({ projectId });
             if (!project) return yield* Effect.fail(new ProjectNotFoundError());
             if (project.available === available) return;
-            inventoryCapability.save({ ...project, available });
+            yield* inventoryCapability.save({ ...project, available });
           },
         ),
       };

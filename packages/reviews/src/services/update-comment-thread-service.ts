@@ -26,13 +26,15 @@ export class UpdateCommentThreadService extends Context.Service<
           UpdateCommentThreadResult,
           CommentTargetNotFoundError
         > {
-          const current = commentsCapability.find({ threadId: input.threadId });
+          const current = yield* commentsCapability.find({
+            threadId: input.threadId,
+          });
           if (!current || current.worktreeId !== input.worktreeId)
             return yield* Effect.fail(new CommentTargetNotFoundError());
           if (current.resolved === input.resolved)
             return { thread: current, changed: false };
           return {
-            thread: commentsCapability.resolve({
+            thread: yield* commentsCapability.resolve({
               thread: current,
               resolved: input.resolved,
             }),

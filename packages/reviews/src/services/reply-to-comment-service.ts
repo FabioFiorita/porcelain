@@ -49,8 +49,10 @@ export class ReplyToCommentService extends Context.Service<
         > {
           const messageId = input.messageId ?? idSourceCapability.next();
           const author = commentAuthor(input.writer);
-          const earlier = commentsCapability.findMessage({ messageId });
-          const current = commentsCapability.find({ threadId: input.threadId });
+          const earlier = yield* commentsCapability.findMessage({ messageId });
+          const current = yield* commentsCapability.find({
+            threadId: input.threadId,
+          });
           if (earlier) {
             if (
               !current ||
@@ -76,12 +78,12 @@ export class ReplyToCommentService extends Context.Service<
             ...current,
             messages: [...current.messages, message],
           });
-          const usage = commentsCapability.usage({
+          const usage = yield* commentsCapability.usage({
             worktreeId: input.worktreeId,
           });
           if (!replyFits(current, usage, sizeBytes, optionsCapability))
             return yield* Effect.fail(new CommentLimitExceededError());
-          return commentsCapability.append({
+          return yield* commentsCapability.append({
             thread: current,
             message,
             sizeBytes,

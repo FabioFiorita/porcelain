@@ -34,7 +34,7 @@ function setup(...paired: StoredDevice[]) {
 }
 
 describe('SetDeviceTrustService', () => {
-  it('trusts the asked device and leaves the others untrusted', () => {
+  it('trusts the asked device and leaves the others untrusted', async () => {
     const { devices, service } = setup(device('phone'), device('tablet'));
     expect(
       Effect.runSync(service.execute({ id: 'phone', trusted: true })),
@@ -42,11 +42,15 @@ describe('SetDeviceTrustService', () => {
       id: 'phone',
       trusted: true,
     });
-    expect(devices.find({ deviceId: 'phone' })?.trusted).toBe(true);
-    expect(devices.find({ deviceId: 'tablet' })?.trusted).toBeUndefined();
+    expect(
+      (await Effect.runPromise(devices.find({ deviceId: 'phone' })))?.trusted,
+    ).toBe(true);
+    expect(
+      (await Effect.runPromise(devices.find({ deviceId: 'tablet' })))?.trusted,
+    ).toBeUndefined();
   });
 
-  it('stops trusting a trusted device', () => {
+  it('stops trusting a trusted device', async () => {
     const { devices, service } = setup(device('phone', { trusted: true }));
     expect(
       Effect.runSync(service.execute({ id: 'phone', trusted: false })),
@@ -54,10 +58,12 @@ describe('SetDeviceTrustService', () => {
       id: 'phone',
       trusted: false,
     });
-    expect(devices.find({ deviceId: 'phone' })?.trusted).toBeUndefined();
+    expect(
+      (await Effect.runPromise(devices.find({ deviceId: 'phone' })))?.trusted,
+    ).toBeUndefined();
   });
 
-  it('answers the same when the device already has the asked trust', () => {
+  it('answers the same when the device already has the asked trust', async () => {
     const { devices, service } = setup(device('phone', { trusted: true }));
     expect(
       Effect.runSync(service.execute({ id: 'phone', trusted: true })),
@@ -65,23 +71,27 @@ describe('SetDeviceTrustService', () => {
       id: 'phone',
       trusted: true,
     });
-    expect(devices.find({ deviceId: 'phone' })?.trusted).toBe(true);
+    expect(
+      (await Effect.runPromise(devices.find({ deviceId: 'phone' })))?.trusted,
+    ).toBe(true);
   });
 
-  it('refuses an unknown device and changes nothing', () => {
+  it('refuses an unknown device and changes nothing', async () => {
     const { devices, service } = setup(device('phone'));
     expect(() =>
       Effect.runSync(service.execute({ id: 'stranger', trusted: true })),
     ).toThrow(DeviceNotFoundError);
-    expect(devices.list()).toEqual([device('phone')]);
+    expect(await Effect.runPromise(devices.list())).toEqual([device('phone')]);
   });
 
-  it('refuses a revoked device, so trust never outlives its access', () => {
+  it('refuses a revoked device, so trust never outlives its access', async () => {
     const revoked = device('phone', { revokedAt: '2026-09-23T08:00:00.000Z' });
     const { devices, service } = setup(revoked);
     expect(() =>
       Effect.runSync(service.execute({ id: 'phone', trusted: true })),
     ).toThrow(DeviceNotFoundError);
-    expect(devices.find({ deviceId: 'phone' })?.trusted).toBeUndefined();
+    expect(
+      (await Effect.runPromise(devices.find({ deviceId: 'phone' })))?.trusted,
+    ).toBeUndefined();
   });
 });

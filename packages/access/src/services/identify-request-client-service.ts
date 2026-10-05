@@ -26,14 +26,12 @@ export class IdentifyRequestClientService extends Context.Service<
         execute: Effect.fn('IdentifyRequestClientService.execute')(function* (
           input: IdentifyRequestClientInput,
         ): Effect.fn.Return<RequestClient, never> {
-          return yield* Effect.sync<RequestClient>(() => {
-            const routes = routeStates.read();
-            return requestClient(
-              input,
-              answeredTunnelHosts(remoteAccess.read(), routes.states),
-              routes.tailnetProxy,
-            );
-          });
+          const routes = routeStates.read();
+          return requestClient(
+            input,
+            answeredTunnelHosts(yield* remoteAccess.read(), routes.states),
+            routes.tailnetProxy,
+          );
         }),
       };
     }),

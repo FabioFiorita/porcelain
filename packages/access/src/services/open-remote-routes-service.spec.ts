@@ -119,7 +119,7 @@ describe('OpenRemoteRoutesService', () => {
 
   it('listens on the local network only at its address on the network it was turned on for, never on Docker, libvirt or VPN interfaces', async () => {
     const { settings, routes, listeners, open } = setup();
-    settings.save(lanAtHome);
+    await Effect.runPromise(settings.save(lanAtHome));
     await open();
 
     expect(listeners.bound({ route: 'lan' })).toEqual(['192.168.1.20']);
@@ -135,11 +135,11 @@ describe('OpenRemoteRoutesService', () => {
 
   it('answers the tailnet through a loopback listener of its own once this server answers at the Tailscale name, records its port and offers the name for pairing', async () => {
     const { settings, routes, listeners, open } = setup();
-    settings.save(tailnetOnly);
+    await Effect.runPromise(settings.save(tailnetOnly));
     await open();
 
     expect(listeners.bound({ route: 'tailnet' })).toEqual(['127.0.0.1']);
-    expect(settings.read().tailnetPort).toBe(41000);
+    expect((await Effect.runPromise(settings.read())).tailnetPort).toBe(41000);
     expect(routes.read()).toEqual({
       states: {
         lan: { kind: 'off' },
@@ -157,10 +157,12 @@ describe('OpenRemoteRoutesService', () => {
 
   it('listens on its recorded port again after a restart, so the forward the owner set up in Tailscale keeps working', async () => {
     const { settings, routes, open } = setup();
-    settings.save({ ...tailnetOnly, tailnetPort: 39000 });
+    await Effect.runPromise(
+      settings.save({ ...tailnetOnly, tailnetPort: 39000 }),
+    );
     await open();
 
-    expect(settings.read().tailnetPort).toBe(39000);
+    expect((await Effect.runPromise(settings.read())).tailnetPort).toBe(39000);
     expect(routes.read().tailnetProxy).toEqual({
       hostname: tailnetName,
       address: '127.0.0.1',
@@ -180,7 +182,7 @@ describe('OpenRemoteRoutesService', () => {
     async (answer, reason) => {
       const { settings, routes, listeners, probe, open } = setup();
       probe.replace(answer);
-      settings.save(tailnetOnly);
+      await Effect.runPromise(settings.save(tailnetOnly));
       await open();
 
       expect(routes.read()).toEqual({
@@ -202,7 +204,9 @@ describe('OpenRemoteRoutesService', () => {
 
   it('fails the tailnet without asking its name when another program holds its recorded port, keeping the port it told the owner', async () => {
     const { settings, routes, open } = setup({ refusing: true });
-    settings.save({ ...tailnetOnly, tailnetPort: 39000 });
+    await Effect.runPromise(
+      settings.save({ ...tailnetOnly, tailnetPort: 39000 }),
+    );
     await open();
 
     expect(routes.read()).toEqual({
@@ -213,12 +217,12 @@ describe('OpenRemoteRoutesService', () => {
       },
       origins: [],
     });
-    expect(settings.read().tailnetPort).toBe(39000);
+    expect((await Effect.runPromise(settings.read())).tailnetPort).toBe(39000);
   });
 
   it('keeps a checked tailnet as it was until its settings change, rather than asking again on every pass', async () => {
     const { settings, routes, probe, open } = setup();
-    settings.save(tailnetOnly);
+    await Effect.runPromise(settings.save(tailnetOnly));
     await open();
     probe.replace({ kind: 'unreachable' });
     await open();
@@ -232,7 +236,7 @@ describe('OpenRemoteRoutesService', () => {
   it('asks the Tailscale name again on every pass while it fails, showing the failure meanwhile, and turns the tailnet on once it answers', async () => {
     const { settings, routes, probe, open } = setup();
     probe.replace({ kind: 'unreachable' });
-    settings.save(tailnetOnly);
+    await Effect.runPromise(settings.save(tailnetOnly));
     await open();
     await open();
     expect(routes.read().states.tailnet).toEqual({
@@ -250,9 +254,14 @@ describe('OpenRemoteRoutesService', () => {
 
   it('stops listening for Tailscale when the tailnet is turned off', async () => {
     const { settings, routes, listeners, open } = setup();
-    settings.save(tailnetOnly);
+    await Effect.runPromise(settings.save(tailnetOnly));
     await open();
-    settings.save({ ...settings.read(), tailnet: false });
+    await Effect.runPromise(
+      settings.save({
+        ...(await Effect.runPromise(settings.read())),
+        tailnet: false,
+      }),
+    );
     await open();
 
     expect(listeners.bound({ route: 'tailnet' })).toEqual([]);
@@ -268,13 +277,15 @@ describe('OpenRemoteRoutesService', () => {
 
   it('closes every route when the server stops, keeping what the owner turned on', async () => {
     const { settings, routes, listeners, open, close } = setup();
-    settings.save({ ...lanAtHome, ...tailnetOnly, lan: true });
+    await Effect.runPromise(
+      settings.save({ ...lanAtHome, ...tailnetOnly, lan: true }),
+    );
     await open();
     await close();
 
     expect(listeners.bound({ route: 'lan' })).toEqual([]);
     expect(listeners.bound({ route: 'tailnet' })).toEqual([]);
-    expect(settings.read()).toEqual({
+    expect(await Effect.runPromise(settings.read())).toEqual({
       ...lanAtHome,
       ...tailnetOnly,
       lan: true,
@@ -285,7 +296,7 @@ describe('OpenRemoteRoutesService', () => {
 
   it('follows a new address the computer gets on the same network', async () => {
     const { settings, routes, addresses, listeners, open } = setup();
-    settings.save(lanAtHome);
+    await Effect.runPromise(settings.save(lanAtHome));
     await open();
     addresses.replace([address('wlp2s0', '192.168.1.44/24', true)]);
     await open();
@@ -299,7 +310,7 @@ describe('OpenRemoteRoutesService', () => {
 
   it('pauses on another network, listening nowhere and offering nothing for pairing, and listens again back on its own network', async () => {
     const { settings, routes, addresses, listeners, open } = setup();
-    settings.save(lanAtHome);
+    await Effect.runPromise(settings.save(lanAtHome));
     await open();
 
     addresses.replace([address('wlp2s0', '10.0.0.7/24', true)]);
@@ -317,7 +328,7 @@ describe('OpenRemoteRoutesService', () => {
 
   it('pauses on a network with the same addresses reached through another interface', async () => {
     const { settings, routes, addresses, listeners, open } = setup();
-    settings.save(lanAtHome);
+    await Effect.runPromise(settings.save(lanAtHome));
     addresses.replace(
       [address('enp3s0', '192.168.1.20/24', true)],
       routesVia('enp3s0', HOME_ROUTER_HARDWARE),
@@ -330,7 +341,7 @@ describe('OpenRemoteRoutesService', () => {
 
   it('pauses on a café network with the same interface, subnet and router address but another router', async () => {
     const { settings, routes, addresses, listeners, open } = setup();
-    settings.save(lanAtHome);
+    await Effect.runPromise(settings.save(lanAtHome));
     addresses.replace(machine, routesVia('wlp2s0', '10:20:30:40:50:60'));
     await open();
 
@@ -340,7 +351,7 @@ describe('OpenRemoteRoutesService', () => {
 
   it('pauses while it cannot read the hardware address of the router, rather than guess the network', async () => {
     const { settings, routes, addresses, listeners, open } = setup();
-    settings.save(lanAtHome);
+    await Effect.runPromise(settings.save(lanAtHome));
     addresses.replace(machine, routesVia('wlp2s0'));
     await open();
 
@@ -350,7 +361,7 @@ describe('OpenRemoteRoutesService', () => {
 
   it('pauses while the computer is on no network', async () => {
     const { settings, routes, addresses, listeners, open } = setup();
-    settings.save(lanAtHome);
+    await Effect.runPromise(settings.save(lanAtHome));
     addresses.replace(machine, []);
     await open();
 
@@ -360,7 +371,9 @@ describe('OpenRemoteRoutesService', () => {
 
   it('pauses a local network that was turned on before its network was recorded', async () => {
     const { settings, routes, listeners, open } = setup();
-    settings.save({ lan: true, tailnet: false, cloudflare: false });
+    await Effect.runPromise(
+      settings.save({ lan: true, tailnet: false, cloudflare: false }),
+    );
     await open();
 
     expect(listeners.bound({ route: 'lan' })).toEqual([]);
@@ -369,9 +382,11 @@ describe('OpenRemoteRoutesService', () => {
 
   it('stops listening on a route that was turned off', async () => {
     const { settings, routes, listeners, open } = setup();
-    settings.save(lanAtHome);
+    await Effect.runPromise(settings.save(lanAtHome));
     await open();
-    settings.save({ lan: false, tailnet: false, cloudflare: false });
+    await Effect.runPromise(
+      settings.save({ lan: false, tailnet: false, cloudflare: false }),
+    );
     await open();
 
     expect(listeners.bound({ route: 'lan' })).toEqual([]);
@@ -383,7 +398,7 @@ describe('OpenRemoteRoutesService', () => {
 
   it('fails a route with the reason its addresses could not be bound', async () => {
     const { settings, routes, open } = setup({ refusing: true });
-    settings.save(lanAtHome);
+    await Effect.runPromise(settings.save(lanAtHome));
     await open();
 
     expect(routes.read().states.lan).toEqual({
@@ -394,12 +409,14 @@ describe('OpenRemoteRoutesService', () => {
 
   it('turns Cloudflare on once this server answers through the tunnel hostname', async () => {
     const { settings, routes, open } = setup();
-    settings.save({
-      lan: false,
-      tailnet: false,
-      cloudflare: true,
-      cloudflareHostname: 'porcelain.example.com',
-    });
+    await Effect.runPromise(
+      settings.save({
+        lan: false,
+        tailnet: false,
+        cloudflare: true,
+        cloudflareHostname: 'porcelain.example.com',
+      }),
+    );
     await open();
 
     expect(routes.read()).toMatchObject({
@@ -412,12 +429,14 @@ describe('OpenRemoteRoutesService', () => {
 
   it('fails Cloudflare when another server or nothing answers at the hostname', async () => {
     const { settings, routes, probe, open } = setup();
-    settings.save({
-      lan: false,
-      tailnet: false,
-      cloudflare: true,
-      cloudflareHostname: 'porcelain.example.com',
-    });
+    await Effect.runPromise(
+      settings.save({
+        lan: false,
+        tailnet: false,
+        cloudflare: true,
+        cloudflareHostname: 'porcelain.example.com',
+      }),
+    );
     probe.replace({ kind: 'answered', environmentId: 'somewhere-else' });
     await open();
     expect(routes.read().states.cloudflare).toEqual({
@@ -439,12 +458,14 @@ describe('OpenRemoteRoutesService', () => {
 
   it('keeps a checked tunnel as it was until its settings change, rather than asking again on every pass', async () => {
     const { settings, routes, probe, open } = setup();
-    settings.save({
-      lan: false,
-      tailnet: false,
-      cloudflare: true,
-      cloudflareHostname: 'porcelain.example.com',
-    });
+    await Effect.runPromise(
+      settings.save({
+        lan: false,
+        tailnet: false,
+        cloudflare: true,
+        cloudflareHostname: 'porcelain.example.com',
+      }),
+    );
     await open();
     probe.replace({ kind: 'unreachable' });
     await open();

@@ -43,14 +43,17 @@ function subject(receipt = interrupted) {
 }
 
 describe('DismissInterruptedGitActionService', () => {
-  it('dismisses an interrupted action so the worktree no longer shows it', () => {
+  it('dismisses an interrupted action so the worktree no longer shows it', async () => {
     const { store, service } = subject();
     Effect.runSync(service.execute(scope));
-    expect(store.read({ requestId: REQUEST_ID })?.dismissedAt).toBe(
-      dismissedAt,
-    );
     expect(
-      store.latestInterrupted({ worktreeId: WORKTREE_ID }),
+      (await Effect.runPromise(store.read({ requestId: REQUEST_ID })))
+        ?.dismissedAt,
+    ).toBe(dismissedAt);
+    expect(
+      await Effect.runPromise(
+        store.latestInterrupted({ worktreeId: WORKTREE_ID }),
+      ),
     ).toBeUndefined();
   });
 
@@ -62,7 +65,7 @@ describe('DismissInterruptedGitActionService', () => {
     });
   });
 
-  it('keeps the first dismissal when the same action is dismissed again', () => {
+  it('keeps the first dismissal when the same action is dismissed again', async () => {
     const { store, service } = subject();
     Effect.runSync(service.execute(scope));
     const again = Effect.runSync(
@@ -76,9 +79,10 @@ describe('DismissInterruptedGitActionService', () => {
       ),
     );
     expect(Effect.runSync(again.execute(scope)).kind).toBe('already-dismissed');
-    expect(store.read({ requestId: REQUEST_ID })?.dismissedAt).toBe(
-      dismissedAt,
-    );
+    expect(
+      (await Effect.runPromise(store.read({ requestId: REQUEST_ID })))
+        ?.dismissedAt,
+    ).toBe(dismissedAt);
   });
 
   it('does not find a request it never accepted', () => {
@@ -108,7 +112,7 @@ describe('DismissInterruptedGitActionService', () => {
     ).toThrow(GitActionReceiptMismatchError);
   });
 
-  it('refuses an action that did not end interrupted', () => {
+  it('refuses an action that did not end interrupted', async () => {
     const { store, service } = subject(
       sampleReceipt({
         state: 'succeeded',
@@ -118,6 +122,9 @@ describe('DismissInterruptedGitActionService', () => {
     expect(() => Effect.runSync(service.execute(scope))).toThrow(
       GitActionReceiptMismatchError,
     );
-    expect(store.read({ requestId: REQUEST_ID })?.dismissedAt).toBeUndefined();
+    expect(
+      (await Effect.runPromise(store.read({ requestId: REQUEST_ID })))
+        ?.dismissedAt,
+    ).toBeUndefined();
   });
 });

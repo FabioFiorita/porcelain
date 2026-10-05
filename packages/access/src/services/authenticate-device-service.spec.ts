@@ -73,7 +73,7 @@ describe('AuthenticateDeviceService', () => {
     ).toEqual({ kind: 'authenticated', deviceId });
   });
 
-  it('keeps when and from where the device was last seen as a pending sighting, not yet stored', () => {
+  it('keeps when and from where the device was last seen as a pending sighting, not yet stored', async () => {
     const { devices, sightings, clock, service, token } = setup();
     Effect.runSync(
       service.execute({
@@ -86,7 +86,9 @@ describe('AuthenticateDeviceService', () => {
       lastSeenAt: '2026-09-23T10:00:05.000Z',
       lastSeenAddress: '192.168.1.40',
     });
-    expect(devices.find({ deviceId })?.lastSeenAt).toBe(lastSeenAt);
+    expect(
+      (await Effect.runPromise(devices.find({ deviceId })))?.lastSeenAt,
+    ).toBe(lastSeenAt);
     clock.set('2026-09-23T10:00:06.000Z');
     Effect.runSync(service.execute({ credential: token, route: 'lan' }));
     expect(sightings.find({ deviceId })?.lastSeenAt).toBe(

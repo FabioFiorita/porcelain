@@ -91,13 +91,17 @@ describe('AuthorizeServiceUpdateService', () => {
     });
   });
 
-  it('follows the owner changing their mind', () => {
+  it('follows the owner changing their mind', async () => {
     const { devices, service } = setup(device('desktop'));
-    devices.recordTrust({ device: device('desktop'), trusted: true });
+    await Effect.runPromise(
+      devices.recordTrust({ device: device('desktop'), trusted: true }),
+    );
     expect(Effect.runSync(service.execute(remote('desktop')))).toEqual({
       canUpdate: true,
     });
-    devices.recordTrust({ device: device('desktop'), trusted: false });
+    await Effect.runPromise(
+      devices.recordTrust({ device: device('desktop'), trusted: false }),
+    );
     expect(Effect.runSync(service.execute(remote('desktop')))).toEqual({
       canUpdate: false,
     });

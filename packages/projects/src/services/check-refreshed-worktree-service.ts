@@ -45,7 +45,7 @@ export class CheckRefreshedWorktreeService extends Context.Service<
             entry,
             catalogCapability.listObservations(),
             entry && input.requireAvailableProject
-              ? inventoryCapability.find({
+              ? yield* inventoryCapability.find({
                   projectId: entry.worktree.projectId,
                 })
               : undefined,

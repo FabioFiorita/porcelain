@@ -1,53 +1,51 @@
-import type { StorageSession } from '@porcelain/storage';
+import { Effect } from 'effect';
 import {
-  createDeviceStore,
-  createEnvironmentIdentityReader,
-  createEnvironmentNameStore,
-  createPairingGrantStore,
-  createRemoteAccessStore,
-} from '@porcelain/storage/access';
-import { createGitActionReceiptStore } from '@porcelain/storage/git-actions';
+  DeviceStore,
+  EnvironmentIdentityReader,
+  EnvironmentNameStore,
+  PairingGrantStore,
+  RemoteAccessStore,
+} from '@porcelain/access/ports';
+import { GitActionReceiptStore } from '@porcelain/git-actions/ports';
 import {
-  createFilePreferenceStore,
-  createInventoryStore,
-  createWorktreePresenceStore,
-} from '@porcelain/storage/projects';
+  FilePreferenceStore,
+  InventoryStore,
+  WorktreePresenceStore,
+} from '@porcelain/projects/ports';
 import {
-  createCommentSeenStore,
-  createCommentStore,
-  createReviewedFileStore,
-  createReviewedLayerStore,
-  createReviewStore,
-} from '@porcelain/storage/reviews';
-import { CachedDeviceStore } from '../adapters/access/cached-device-store.ts';
+  CommentSeenStore,
+  CommentStore,
+  ReviewedFileStore,
+  ReviewedLayerStore,
+  ReviewStore,
+} from '@porcelain/reviews/ports';
 import { InMemoryDeviceSightingStore } from '../adapters/access/in-memory-device-sighting-store.ts';
 import { InMemoryPairingAttemptStore } from '../adapters/access/in-memory-pairing-attempt-store.ts';
-import { CachedRemoteAccessStore } from '../adapters/access/cached-remote-access-store.ts';
 import { InMemoryRouteStateStore } from '../adapters/access/in-memory-route-state-store.ts';
 
-export type Stores = ReturnType<typeof composeStores>;
+export type Stores = Effect.Success<ReturnType<typeof composeStores>>;
 
-export function composeStores(session: StorageSession) {
+export const composeStores = Effect.fn('Server.composeStores')(function* () {
   return {
-    inventory: createInventoryStore(session),
-    worktreePresence: createWorktreePresenceStore(session),
-    filePreferences: createFilePreferenceStore(session),
-    environmentIdentity: createEnvironmentIdentityReader(session),
-    environmentName: createEnvironmentNameStore(session),
-    devices: new CachedDeviceStore(createDeviceStore(session)),
+    inventory: yield* InventoryStore,
+    worktreePresence: yield* WorktreePresenceStore,
+    filePreferences: yield* FilePreferenceStore,
+    environmentIdentity: yield* EnvironmentIdentityReader,
+    environmentName: yield* EnvironmentNameStore,
+    devices: yield* DeviceStore,
     deviceSightings: new InMemoryDeviceSightingStore(),
-    pairingGrants: createPairingGrantStore(session),
+    pairingGrants: yield* PairingGrantStore,
     pairingAttempts: {
       sameOrigin: new InMemoryPairingAttemptStore(),
       crossOrigin: new InMemoryPairingAttemptStore(),
     },
-    remoteAccess: new CachedRemoteAccessStore(createRemoteAccessStore(session)),
+    remoteAccess: yield* RemoteAccessStore,
     routeStates: new InMemoryRouteStateStore(),
-    gitActions: createGitActionReceiptStore(session),
-    reviews: createReviewStore(session),
-    reviewedFiles: createReviewedFileStore(session),
-    reviewedLayers: createReviewedLayerStore(session),
-    comments: createCommentStore(session),
-    commentsSeen: createCommentSeenStore(session),
+    gitActions: yield* GitActionReceiptStore,
+    reviews: yield* ReviewStore,
+    reviewedFiles: yield* ReviewedFileStore,
+    reviewedLayers: yield* ReviewedLayerStore,
+    comments: yield* CommentStore,
+    commentsSeen: yield* CommentSeenStore,
   };
-}
+});

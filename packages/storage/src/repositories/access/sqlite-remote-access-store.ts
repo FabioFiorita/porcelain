@@ -1,63 +1,72 @@
-import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
-import type { RemoteAccessSettings } from '@porcelain/access/models';
-import type { RemoteAccessStore } from '@porcelain/access/ports';
-import { remoteAccess } from '../../db/schema/remote-access.ts';
+import { Effect, Layer, Option, Schema } from 'effect';
+import { SqlClient, SqlSchema } from 'effect/sql';
+import { RemoteAccessStore } from '@porcelain/access/ports';
 
-export class SqliteRemoteAccessStore implements RemoteAccessStore {
-  private readonly db: BetterSQLite3Database;
+import { RemoteAccessRow } from '../../db/models/remote-access.ts';
 
-  constructor(db: BetterSQLite3Database) {
-    this.db = db;
-  }
+export const sqliteRemoteAccessStoreLayer = Layer.effect(
+  RemoteAccessStore,
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    const read = SqlSchema.findOneOption({
+      Request: Schema.Void,
+      Result: RemoteAccessRow,
+      execute: () => sql`SELECT * FROM remote_access WHERE singleton = 1`,
+    });
 
-  read(): RemoteAccessSettings {
-    const row = this.db.select().from(remoteAccess).get();
-    if (!row) return { lan: false, tailnet: false, cloudflare: false };
-    return {
-      lan: row.lan,
-      ...(row.lanInterface === null ||
-      row.lanSubnet === null ||
-      row.lanGateway === null
-        ? {}
-        : {
-            lanNetwork: {
-              interfaceName: row.lanInterface,
-              subnet: row.lanSubnet,
-              gateway: row.lanGateway,
-              ...(row.lanGatewayHardware === null
-                ? {}
-                : { gatewayHardware: row.lanGatewayHardware }),
-            },
-          }),
-      tailnet: row.tailnet,
-      ...(row.tailnetHostname === null
-        ? {}
-        : { tailnetHostname: row.tailnetHostname }),
-      ...(row.tailnetPort === null ? {} : { tailnetPort: row.tailnetPort }),
-      cloudflare: row.cloudflare,
-      ...(row.cloudflareHostname === null
-        ? {}
-        : { cloudflareHostname: row.cloudflareHostname }),
-    };
-  }
-
-  save(input: RemoteAccessSettings): void {
-    const row = {
-      lan: input.lan,
-      lanInterface: input.lanNetwork?.interfaceName ?? null,
-      lanSubnet: input.lanNetwork?.subnet ?? null,
-      lanGateway: input.lanNetwork?.gateway ?? null,
-      lanGatewayHardware: input.lanNetwork?.gatewayHardware ?? null,
-      tailnet: input.tailnet,
-      tailnetHostname: input.tailnetHostname ?? null,
-      tailnetPort: input.tailnetPort ?? null,
-      cloudflare: input.cloudflare,
-      cloudflareHostname: input.cloudflareHostname ?? null,
-    };
-    this.db
-      .insert(remoteAccess)
-      .values({ singleton: 1, ...row })
-      .onConflictDoUpdate({ target: remoteAccess.singleton, set: row })
-      .run();
-  }
-}
+    return RemoteAccessStore.of({
+      read: Effect.fn('RemoteAccessStore.read')(function* () {
+        const result = yield* read(undefined).pipe(Effect.orDie);
+        if (Option.isNone(result))
+          return { lan: false, tailnet: false, cloudflare: false };
+        const row = result.value;
+        return {
+          lan: row.lan,
+          ...(row.lanInterface === null ||
+          row.lanSubnet === null ||
+          row.lanGateway === null
+            ? {}
+            : {
+                lanNetwork: {
+                  interfaceName: row.lanInterface,
+                  subnet: row.lanSubnet,
+                  gateway: row.lanGateway,
+                  ...(row.lanGatewayHardware === null
+                    ? {}
+                    : { gatewayHardware: row.lanGatewayHardware }),
+                },
+              }),
+          tailnet: row.tailnet,
+          ...(row.tailnetHostname === null
+            ? {}
+            : { tailnetHostname: row.tailnetHostname }),
+          ...(row.tailnetPort === null ? {} : { tailnetPort: row.tailnetPort }),
+          cloudflare: row.cloudflare,
+          ...(row.cloudflareHostname === null
+            ? {}
+            : { cloudflareHostname: row.cloudflareHostname }),
+        };
+      }),
+      save: Effect.fn('RemoteAccessStore.save')(function* (
+        input: Parameters<RemoteAccessStore['save']>[0],
+      ) {
+        return yield* Effect.gen(function* () {
+          const row = yield* Schema.encodeEffect(RemoteAccessRow.insert)({
+            singleton: 1,
+            lan: input.lan,
+            lanInterface: input.lanNetwork?.interfaceName ?? null,
+            lanSubnet: input.lanNetwork?.subnet ?? null,
+            lanGateway: input.lanNetwork?.gateway ?? null,
+            lanGatewayHardware: input.lanNetwork?.gatewayHardware ?? null,
+            tailnet: input.tailnet,
+            tailnetHostname: input.tailnetHostname ?? null,
+            tailnetPort: input.tailnetPort ?? null,
+            cloudflare: input.cloudflare,
+            cloudflareHostname: input.cloudflareHostname ?? null,
+          });
+          yield* sql`INSERT INTO remote_access ${sql.insert(row)} ON CONFLICT (singleton) DO UPDATE SET ${sql.update(row, ['singleton'])}`;
+        }).pipe(sql.withTransaction, Effect.asVoid, Effect.orDie);
+      }),
+    });
+  }),
+);

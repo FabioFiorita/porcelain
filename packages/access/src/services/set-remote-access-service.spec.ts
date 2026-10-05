@@ -88,7 +88,7 @@ describe('SetRemoteAccessService', () => {
       localNetwork: home,
       serviceUrl,
     });
-    expect(settings.read()).toEqual({
+    expect(await Effect.runPromise(settings.read())).toEqual({
       lan: true,
       lanNetwork: home,
       tailnet: false,
@@ -116,7 +116,9 @@ describe('SetRemoteAccessService', () => {
       lanNetwork: office,
       localNetwork: office,
     });
-    expect(settings.read().lanNetwork).toEqual(office);
+    expect((await Effect.runPromise(settings.read())).lanNetwork).toEqual(
+      office,
+    );
   });
 
   it('forgets the network when the local network is turned off', async () => {
@@ -126,7 +128,7 @@ describe('SetRemoteAccessService', () => {
 
     expect(view.lanNetwork).toBeUndefined();
     expect(view.localNetwork).toEqual(home);
-    expect(settings.read()).toEqual({
+    expect(await Effect.runPromise(settings.read())).toEqual({
       lan: false,
       tailnet: false,
       cloudflare: false,
@@ -140,7 +142,7 @@ describe('SetRemoteAccessService', () => {
     await expect(
       Effect.runPromise(service.execute({ lan: true })),
     ).rejects.toThrow(UnidentifiedLocalNetworkError);
-    expect(settings.read()).toEqual({
+    expect(await Effect.runPromise(settings.read())).toEqual({
       lan: false,
       tailnet: false,
       cloudflare: false,
@@ -159,7 +161,7 @@ describe('SetRemoteAccessService', () => {
     await expect(
       Effect.runPromise(service.execute({ lan: true })),
     ).rejects.toThrow(NoLocalNetworkError);
-    expect(settings.read()).toEqual({
+    expect(await Effect.runPromise(settings.read())).toEqual({
       lan: false,
       tailnet: false,
       cloudflare: false,
@@ -234,7 +236,7 @@ describe('SetRemoteAccessService', () => {
     await expect(
       Effect.runPromise(service.execute({ tailnet: true })),
     ).rejects.toThrow(MissingTailnetHostnameError);
-    expect(settings.read()).toEqual({
+    expect(await Effect.runPromise(settings.read())).toEqual({
       lan: false,
       tailnet: false,
       cloudflare: false,
@@ -309,7 +311,7 @@ describe('SetRemoteAccessService', () => {
     await expect(
       Effect.runPromise(service.execute({ tailnet: true, cloudflare: true })),
     ).rejects.toThrow(MissingTunnelHostnameError);
-    expect(settings.read()).toEqual({
+    expect(await Effect.runPromise(settings.read())).toEqual({
       lan: false,
       tailnet: false,
       cloudflare: false,
@@ -327,6 +329,8 @@ describe('SetRemoteAccessService', () => {
         }),
       ),
     ).rejects.toThrow(InvalidTunnelHostnameError);
-    expect(settings.read().cloudflareHostname).toBeUndefined();
+    expect(
+      (await Effect.runPromise(settings.read())).cloudflareHostname,
+    ).toBeUndefined();
   });
 });

@@ -25,10 +25,8 @@ export class RenameEnvironmentService extends Context.Service<
         execute: Effect.fn('RenameEnvironmentService.execute')(function* (
           input: ChosenEnvironmentName,
         ): Effect.fn.Return<EnvironmentName, never> {
-          return yield* Effect.sync<EnvironmentName>(() => {
-            names.save(input);
-            return environmentName(input, hostNames.hostName());
-          });
+          yield* names.save(input);
+          return environmentName(input, hostNames.hostName());
         }),
       };
     }),

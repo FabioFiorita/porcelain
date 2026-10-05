@@ -22,12 +22,10 @@ export class ReadPublishedReviewService extends Context.Service<
         execute: Effect.fn('ReadPublishedReviewService.execute')(function* (
           input: ReadPublishedReviewInput,
         ): Effect.fn.Return<ReadPublishedReviewResult, never> {
-          return yield* Effect.sync<ReadPublishedReviewResult>(() => {
-            const review = reviewsCapability.read({
-              worktreeId: input.worktreeId,
-            });
-            return review ? { kind: 'published', review } : { kind: 'none' };
+          const review = yield* reviewsCapability.read({
+            worktreeId: input.worktreeId,
           });
+          return review ? { kind: 'published', review } : { kind: 'none' };
         }),
       };
     }),

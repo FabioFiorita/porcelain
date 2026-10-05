@@ -25,13 +25,11 @@ export class RevokePairingGrantService extends Context.Service<
         execute: Effect.fn('RevokePairingGrantService.execute')(function* (
           input: RevokePairingGrantInput,
         ): Effect.fn.Return<RevokePairingGrantResult, never> {
-          return yield* Effect.sync<RevokePairingGrantResult>(() => {
-            const grant = pairingGrants.find({ grantId: input.id });
-            if (!grant || !pairingGrantRevocable(grant))
-              return { kind: 'not-revoked' };
-            pairingGrants.markRevoked({ grant, revokedAt: clock.now() });
-            return { kind: 'revoked' };
-          });
+          const grant = yield* pairingGrants.find({ grantId: input.id });
+          if (!grant || !pairingGrantRevocable(grant))
+            return { kind: 'not-revoked' };
+          yield* pairingGrants.markRevoked({ grant, revokedAt: clock.now() });
+          return { kind: 'revoked' };
         }),
       };
     }),

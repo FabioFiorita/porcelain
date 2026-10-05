@@ -29,7 +29,7 @@ function subject() {
 }
 
 describe('FinishGitActionService', () => {
-  it('settles the receipt with the outcome and the time it finished', () => {
+  it('settles the receipt with the outcome and the time it finished', async () => {
     const { store, service } = subject();
     const view = Effect.runSync(
       service.execute({
@@ -52,7 +52,9 @@ describe('FinishGitActionService', () => {
       acceptedAt: running.acceptedAt,
       finishedAt,
     });
-    expect(store.read({ requestId: REQUEST_ID })).toMatchObject({
+    expect(
+      await Effect.runPromise(store.read({ requestId: REQUEST_ID })),
+    ).toMatchObject({
       state: 'succeeded',
       refreshRequired: true,
       finishedAt,

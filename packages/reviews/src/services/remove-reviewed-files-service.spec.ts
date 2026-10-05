@@ -45,43 +45,48 @@ describe('RemoveReviewedFilesService', () => {
     });
   });
 
-  it('removes every listed mark in one call and keeps the unlisted ones', () => {
+  it('removes every listed mark in one call and keeps the unlisted ones', async () => {
     const { store, service } = setup();
     const result = Effect.runSync(
       service.execute({ worktreeId, paths: ['a.ts', 'c.ts'] }),
     );
     expect(result.removed).toBe(true);
-    expect(store.list({ worktreeId })).toEqual([mark('b.ts')]);
+    expect(await Effect.runPromise(store.list({ worktreeId }))).toEqual([
+      mark('b.ts'),
+    ]);
   });
 
-  it('removes the marked paths among unmarked ones and reports a removal', () => {
+  it('removes the marked paths among unmarked ones and reports a removal', async () => {
     const { store, service } = setup();
     const result = Effect.runSync(
       service.execute({ worktreeId, paths: ['x.ts', 'b.ts'] }),
     );
     expect(result.removed).toBe(true);
-    expect(store.list({ worktreeId }).map((entry) => entry.path)).toEqual([
-      'a.ts',
-      'c.ts',
-    ]);
+    expect(
+      (await Effect.runPromise(store.list({ worktreeId }))).map(
+        (entry) => entry.path,
+      ),
+    ).toEqual(['a.ts', 'c.ts']);
   });
 
-  it('leaves the same path marked in another worktree', () => {
+  it('leaves the same path marked in another worktree', async () => {
     const { store, service } = setup();
     Effect.runSync(
       service.execute({ worktreeId, paths: ['a.ts', 'b.ts', 'c.ts'] }),
     );
-    expect(store.list({ worktreeId })).toEqual([]);
-    expect(store.list({ worktreeId: other })).toEqual([mark('a.ts')]);
+    expect(await Effect.runPromise(store.list({ worktreeId }))).toEqual([]);
+    expect(await Effect.runPromise(store.list({ worktreeId: other }))).toEqual([
+      mark('a.ts'),
+    ]);
   });
 
-  it('reports nothing removed for paths that were never marked', () => {
+  it('reports nothing removed for paths that were never marked', async () => {
     const { store, service } = setup();
     expect(
       Effect.runSync(service.execute({ worktreeId, paths: ['x.ts', 'y.ts'] }))
         .removed,
     ).toBe(false);
-    expect(store.list({ worktreeId })).toHaveLength(3);
+    expect(await Effect.runPromise(store.list({ worktreeId }))).toHaveLength(3);
   });
 
   it('reports nothing removed when the same marks are removed twice', () => {
@@ -93,15 +98,16 @@ describe('RemoveReviewedFilesService', () => {
     ).toBe(false);
   });
 
-  it('removes a mark listed twice once', () => {
+  it('removes a mark listed twice once', async () => {
     const { store, service } = setup();
     expect(
       Effect.runSync(service.execute({ worktreeId, paths: ['a.ts', 'a.ts'] }))
         .removed,
     ).toBe(true);
-    expect(store.list({ worktreeId }).map((entry) => entry.path)).toEqual([
-      'b.ts',
-      'c.ts',
-    ]);
+    expect(
+      (await Effect.runPromise(store.list({ worktreeId }))).map(
+        (entry) => entry.path,
+      ),
+    ).toEqual(['b.ts', 'c.ts']);
   });
 });

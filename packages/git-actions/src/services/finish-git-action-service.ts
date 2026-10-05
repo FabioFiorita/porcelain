@@ -31,7 +31,7 @@ export class FinishGitActionService extends Context.Service<
           GitActionNotFoundError,
           never
         > {
-          const current = gitActionReceiptsCapability.read({
+          const current = yield* gitActionReceiptsCapability.read({
             requestId: input.requestId,
           });
           if (!current) return yield* Effect.fail(new GitActionNotFoundError());
@@ -46,7 +46,7 @@ export class FinishGitActionService extends Context.Service<
             refreshRequired: outcome.refreshRequired,
             finishedAt: clockCapability.now(),
           };
-          gitActionReceiptsCapability.save(finished);
+          yield* gitActionReceiptsCapability.save(finished);
           return gitActionReceiptView(finished);
         }),
       };

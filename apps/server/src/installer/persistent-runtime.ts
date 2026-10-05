@@ -12,8 +12,10 @@ export const PACKAGE_NAME = '@fabiofiorita/porcelain';
 const NATIVE_MODULES_LOAD = [
   "const load = require('node:module').createRequire(process.argv[1]);",
   'try {',
-  "  const Database = load('better-sqlite3');",
-  "  new Database(':memory:').prepare('select 1').get();",
+  "  const { DatabaseSync } = load('node:sqlite');",
+  "  const database = new DatabaseSync(':memory:');",
+  "  database.prepare('select 1').get();",
+  '  database.close();',
   "  load('@parcel/watcher');",
   '} catch (error) {',
   '  process.stderr.write(String(error?.message ?? error));',

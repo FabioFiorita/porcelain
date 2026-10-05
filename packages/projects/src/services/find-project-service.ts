@@ -22,12 +22,10 @@ export class FindProjectService extends Context.Service<
         execute: Effect.fn('FindProjectService.execute')(function* (
           input: FindProjectInput,
         ): Effect.fn.Return<FindProjectResult, never> {
-          return yield* Effect.sync<FindProjectResult>(() => {
-            const project = inventoryCapability.find({
-              projectId: input.projectId,
-            });
-            return project ? { kind: 'found', project } : { kind: 'missing' };
+          const project = yield* inventoryCapability.find({
+            projectId: input.projectId,
           });
+          return project ? { kind: 'found', project } : { kind: 'missing' };
         }),
       };
     }),

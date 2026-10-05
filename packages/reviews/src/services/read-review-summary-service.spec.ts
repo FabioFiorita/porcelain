@@ -24,9 +24,9 @@ const review: Review = {
   layers: [],
 };
 
-function setup(now = '2026-01-01T00:30:00.000Z') {
+async function setup(now = '2026-01-01T00:30:00.000Z') {
   const store = new InMemoryReviewStore();
-  store.save(review);
+  await Effect.runPromise(store.save(review));
   return Effect.runSync(
     ReadReviewSummaryService.pipe(
       Effect.provide(ReadReviewSummaryService.layer),
@@ -38,22 +38,24 @@ function setup(now = '2026-01-01T00:30:00.000Z') {
 }
 
 describe('ReadReviewSummaryService', () => {
-  it('serves the summary for a link signed with its secret until the link expires', () => {
+  it('serves the summary for a link signed with its secret until the link expires', async () => {
     expect(
-      Effect.runSync(setup().execute({ token, expires, signature })),
+      Effect.runSync((await setup()).execute({ token, expires, signature })),
     ).toEqual({
       html: '<h1>Summary</h1>',
     });
     expect(
-      Effect.runSync(setup(expires).execute({ token, expires, signature }))
-        .html,
+      Effect.runSync(
+        (await setup(expires)).execute({ token, expires, signature }),
+      ).html,
     ).toBe('<h1>Summary</h1>');
   });
 
-  it('refuses a link after it expired', () => {
+  it('refuses a link after it expired', async () => {
+    const service = await setup('2026-01-01T01:00:00.001Z');
     expect(() =>
       Effect.runSync(
-        setup('2026-01-01T01:00:00.001Z').execute({
+        service.execute({
           token,
           expires,
           signature,
@@ -62,8 +64,8 @@ describe('ReadReviewSummaryService', () => {
     ).toThrow(ReviewSummaryNotFoundError);
   });
 
-  it('refuses a wrong signature or an expiry changed after signing', () => {
-    const service = setup();
+  it('refuses a wrong signature or an expiry changed after signing', async () => {
+    const service = await setup();
     expect(() =>
       Effect.runSync(
         service.execute({ token, expires, signature: 'A'.repeat(43) }),
@@ -80,10 +82,11 @@ describe('ReadReviewSummaryService', () => {
     ).toThrow(ReviewSummaryNotFoundError);
   });
 
-  it('refuses the link of a summary that is no longer published', () => {
+  it('refuses the link of a summary that is no longer published', async () => {
+    const service = await setup();
     expect(() =>
       Effect.runSync(
-        setup().execute({
+        service.execute({
           token: '6f1c2f4e-7c1b-4b61-9d6e-2f0a4f3a9b11',
           expires,
           signature,

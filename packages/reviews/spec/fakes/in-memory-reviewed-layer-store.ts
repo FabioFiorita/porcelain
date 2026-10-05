@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type { WorktreeKey, WorktreeKeys } from '@porcelain/kernel/models';
 import type {
   ReviewedLayerMark,
@@ -20,38 +21,46 @@ export class InMemoryReviewedLayerStore implements ReviewedLayerStore {
     );
   }
 
-  list(input: WorktreeKey): ReviewedLayerMark[] {
-    return this.stored()
-      .filter((row) => row.worktreeId === input.worktreeId)
-      .map((row) => ({
-        layerId: row.layerId,
-        fingerprint: row.fingerprint,
-        reviewedAt: row.reviewedAt,
-      }))
-      .sort(
-        (left, right) =>
-          left.reviewedAt.localeCompare(right.reviewedAt) ||
-          left.layerId.localeCompare(right.layerId),
+  list(input: WorktreeKey): Effect.Effect<ReviewedLayerMark[]> {
+    return Effect.sync(() => {
+      return this.stored()
+        .filter((row) => row.worktreeId === input.worktreeId)
+        .map((row) => ({
+          layerId: row.layerId,
+          fingerprint: row.fingerprint,
+          reviewedAt: row.reviewedAt,
+        }))
+        .sort(
+          (left, right) =>
+            left.reviewedAt.localeCompare(right.reviewedAt) ||
+            left.layerId.localeCompare(right.layerId),
+        );
+    });
+  }
+
+  byWorktrees(input: WorktreeKeys): Effect.Effect<WorktreeReviewedLayerMark[]> {
+    return Effect.sync(() => {
+      return this.stored().filter((row) =>
+        input.worktreeIds.includes(row.worktreeId),
       );
+    });
   }
 
-  byWorktrees(input: WorktreeKeys): WorktreeReviewedLayerMark[] {
-    return this.stored().filter((row) =>
-      input.worktreeIds.includes(row.worktreeId),
-    );
-  }
-
-  save(input: ReviewedLayerSave): void {
-    input.marks.forEach((mark) => {
-      this.rows.set(rowKey(input.worktreeId, mark.layerId), {
-        worktreeId: input.worktreeId,
-        ...mark,
+  save(input: ReviewedLayerSave): Effect.Effect<void> {
+    return Effect.sync(() => {
+      input.marks.forEach((mark) => {
+        this.rows.set(rowKey(input.worktreeId, mark.layerId), {
+          worktreeId: input.worktreeId,
+          ...mark,
+        });
       });
     });
   }
 
-  remove(input: ReviewedLayerRemoval): void {
-    this.rows.delete(rowKey(input.worktreeId, input.layerId));
+  remove(input: ReviewedLayerRemoval): Effect.Effect<void> {
+    return Effect.sync(() => {
+      this.rows.delete(rowKey(input.worktreeId, input.layerId));
+    });
   }
 
   private stored(): WorktreeReviewedLayerMark[] {

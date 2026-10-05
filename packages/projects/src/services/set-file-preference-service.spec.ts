@@ -69,7 +69,7 @@ describe('SetFilePreferenceService', () => {
     });
   });
 
-  it('forgets a path once neither flag is set', () => {
+  it('forgets a path once neither flag is set', async () => {
     const { preferences, service } = setup();
     Effect.runSync(
       service.execute({
@@ -89,10 +89,12 @@ describe('SetFilePreferenceService', () => {
         }),
       ),
     ).toEqual({ preferences: [], changed: true });
-    expect(preferences.count({ projectId: project.id })).toBe(0);
+    expect(
+      await Effect.runPromise(preferences.count({ projectId: project.id })),
+    ).toBe(0);
   });
 
-  it('stores nothing and reports no change when clearing a flag on a path without preferences', () => {
+  it('stores nothing and reports no change when clearing a flag on a path without preferences', async () => {
     const { preferences, service } = setup();
     expect(
       Effect.runSync(
@@ -104,7 +106,9 @@ describe('SetFilePreferenceService', () => {
         }),
       ).changed,
     ).toBe(false);
-    expect(preferences.count({ projectId: project.id })).toBe(0);
+    expect(
+      await Effect.runPromise(preferences.count({ projectId: project.id })),
+    ).toBe(0);
   });
 
   it('reports no change when a flag is set to the value it already has', () => {
@@ -132,13 +136,15 @@ describe('SetFilePreferenceService', () => {
     });
   });
 
-  it('refuses a new path once the project holds as many preferences as allowed', () => {
+  it('refuses a new path once the project holds as many preferences as allowed', async () => {
     const { preferences, service } = setup();
     for (let index = 0; index < LIMIT; index++)
-      preferences.save({
-        projectId: project.id,
-        preference: { path: `f${index}`, pinned: true, hidden: false },
-      });
+      await Effect.runPromise(
+        preferences.save({
+          projectId: project.id,
+          preference: { path: `f${index}`, pinned: true, hidden: false },
+        }),
+      );
     expect(() =>
       Effect.runSync(
         service.execute({
@@ -150,17 +156,21 @@ describe('SetFilePreferenceService', () => {
       ),
     ).toThrow(FilePreferenceLimitError);
     expect(
-      preferences.find({ projectId: project.id, path: 'new.md' }),
+      await Effect.runPromise(
+        preferences.find({ projectId: project.id, path: 'new.md' }),
+      ),
     ).toBeUndefined();
   });
 
-  it('accepts the last preference the limit allows', () => {
+  it('accepts the last preference the limit allows', async () => {
     const { preferences, service } = setup();
     for (let index = 0; index < LIMIT - 1; index++)
-      preferences.save({
-        projectId: project.id,
-        preference: { path: `f${index}`, pinned: true, hidden: false },
-      });
+      await Effect.runPromise(
+        preferences.save({
+          projectId: project.id,
+          preference: { path: `f${index}`, pinned: true, hidden: false },
+        }),
+      );
     Effect.runSync(
       service.execute({
         projectId: project.id,
@@ -169,16 +179,20 @@ describe('SetFilePreferenceService', () => {
         value: true,
       }),
     );
-    expect(preferences.count({ projectId: project.id })).toBe(LIMIT);
+    expect(
+      await Effect.runPromise(preferences.count({ projectId: project.id })),
+    ).toBe(LIMIT);
   });
 
-  it('still changes and clears existing paths at the limit', () => {
+  it('still changes and clears existing paths at the limit', async () => {
     const { preferences, service } = setup();
     for (let index = 0; index < LIMIT; index++)
-      preferences.save({
-        projectId: project.id,
-        preference: { path: `f${index}`, pinned: true, hidden: false },
-      });
+      await Effect.runPromise(
+        preferences.save({
+          projectId: project.id,
+          preference: { path: `f${index}`, pinned: true, hidden: false },
+        }),
+      );
     Effect.runSync(
       service.execute({
         projectId: project.id,
@@ -187,7 +201,11 @@ describe('SetFilePreferenceService', () => {
         value: true,
       }),
     );
-    expect(preferences.find({ projectId: project.id, path: 'f0' })).toEqual({
+    expect(
+      await Effect.runPromise(
+        preferences.find({ projectId: project.id, path: 'f0' }),
+      ),
+    ).toEqual({
       path: 'f0',
       pinned: true,
       hidden: true,
@@ -200,6 +218,8 @@ describe('SetFilePreferenceService', () => {
         value: false,
       }),
     );
-    expect(preferences.count({ projectId: project.id })).toBe(LIMIT - 1);
+    expect(
+      await Effect.runPromise(preferences.count({ projectId: project.id })),
+    ).toBe(LIMIT - 1);
   });
 });

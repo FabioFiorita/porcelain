@@ -34,7 +34,7 @@ export class SetReviewedLayerService extends Context.Service<
             fingerprint,
             reviewedAt: clockCapability.now(),
           };
-          reviewedLayersCapability.save({ worktreeId, marks: [mark] });
+          yield* reviewedLayersCapability.save({ worktreeId, marks: [mark] });
           return mark;
         }),
       };

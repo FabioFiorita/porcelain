@@ -32,7 +32,9 @@ export class ReadReviewSummaryService extends Context.Service<
           ReadReviewSummaryResult,
           ReviewSummaryNotFoundError
         > {
-          const summary = reviewsCapability.findSummary({ token: input.token });
+          const summary = yield* reviewsCapability.findSummary({
+            token: input.token,
+          });
           if (
             summary === undefined ||
             summaryExpired(input.expires, clockCapability.now()) ||

@@ -1,25 +1,29 @@
+import { NodeServices } from '@effect/platform-node';
+import { Effect, Layer, ManagedRuntime } from 'effect';
+import { RemoteAccessStore } from '@porcelain/access/ports';
+import { storageLayer } from '../../index.ts';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { remoteAccessStoreContract } from '@porcelain/access/store-contracts';
-import { openStorageSession } from '../../index.ts';
-import { createRemoteAccessStore } from './index.ts';
 
 function open(dataDirectory: string) {
-  return openStorageSession(dataDirectory, {
-    worktreeIdLength: 32,
-    busyTimeoutMs: 5000,
-  });
+  return ManagedRuntime.make(
+    storageLayer(dataDirectory, {
+      worktreeIdLength: 32,
+      busyTimeoutMs: 5000,
+    }).pipe(Layer.provide(NodeServices.layer)),
+  );
 }
 
-remoteAccessStoreContract('SqliteRemoteAccessStore', () => {
+remoteAccessStoreContract('SqliteRemoteAccessStore', async () => {
   const dataDirectory = mkdtempSync(join(tmpdir(), 'porcelain-storage-'));
   const session = open(dataDirectory);
   return {
-    store: createRemoteAccessStore(session),
-    close: () => {
-      session.close();
+    store: await session.runPromise(RemoteAccessStore),
+    close: async () => {
+      await session.dispose();
       rmSync(dataDirectory, { recursive: true, force: true });
     },
   };
@@ -36,21 +40,25 @@ describe('SqliteRemoteAccessStore persistence', () => {
     rmSync(dataDirectory, { recursive: true, force: true });
   });
 
-  it('keeps the chosen routes when the data directory is opened again', () => {
+  it('keeps the chosen routes when the data directory is opened again', async () => {
     const first = open(dataDirectory);
-    createRemoteAccessStore(first).save({
-      lan: true,
-      tailnet: true,
-      tailnetHostname: 'laptop.tail0000.ts.net',
-      tailnetPort: 41000,
-      cloudflare: true,
-      cloudflareHostname: 'porcelain.example.com',
-    });
-    first.close();
+    await Effect.runPromise(
+      (await first.runPromise(RemoteAccessStore)).save({
+        lan: true,
+        tailnet: true,
+        tailnetHostname: 'laptop.tail0000.ts.net',
+        tailnetPort: 41000,
+        cloudflare: true,
+        cloudflareHostname: 'porcelain.example.com',
+      }),
+    );
+    await first.dispose();
 
     const second = open(dataDirectory);
-    const reopened = createRemoteAccessStore(second).read();
-    second.close();
+    const reopened = await Effect.runPromise(
+      (await second.runPromise(RemoteAccessStore)).read(),
+    );
+    await second.dispose();
 
     expect(reopened).toEqual({
       lan: true,

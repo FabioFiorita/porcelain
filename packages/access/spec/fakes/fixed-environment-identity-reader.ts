@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type { EnvironmentIdentityReader } from '../../src/ports/environment-identity-reader.ts';
 
 export class FixedEnvironmentIdentityReader implements EnvironmentIdentityReader {
@@ -7,7 +8,9 @@ export class FixedEnvironmentIdentityReader implements EnvironmentIdentityReader
     this.identity = identity;
   }
 
-  environmentId(): string | undefined {
-    return this.identity;
+  environmentId(): Effect.Effect<string | undefined> {
+    return Effect.sync(() => {
+      return this.identity;
+    });
   }
 }

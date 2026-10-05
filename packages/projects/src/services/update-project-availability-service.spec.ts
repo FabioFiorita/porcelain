@@ -27,7 +27,7 @@ function listing(available: boolean) {
 }
 
 describe('UpdateProjectAvailabilityService', () => {
-  it('stores the availability the listing observed', () => {
+  it('stores the availability the listing observed', async () => {
     const store = new InMemoryInventoryStore([project]);
     Effect.runSync(
       Effect.runSync(
@@ -37,12 +37,16 @@ describe('UpdateProjectAvailabilityService', () => {
         ),
       ).execute(listing(true)),
     );
-    expect(store.read().projects).toEqual([{ ...project, available: true }]);
+    expect((await Effect.runPromise(store.read())).projects).toEqual([
+      { ...project, available: true },
+    ]);
   });
 
-  it('keeps the rest of the stored project, including a rename made while listing', () => {
+  it('keeps the rest of the stored project, including a rename made while listing', async () => {
     const store = new InMemoryInventoryStore([project]);
-    store.save({ ...project, name: 'Renamed meanwhile' });
+    await Effect.runPromise(
+      store.save({ ...project, name: 'Renamed meanwhile' }),
+    );
     Effect.runSync(
       Effect.runSync(
         UpdateProjectAvailabilityService.pipe(
@@ -51,12 +55,14 @@ describe('UpdateProjectAvailabilityService', () => {
         ),
       ).execute(listing(true)),
     );
-    expect(store.read().projects[0]?.name).toBe('Renamed meanwhile');
+    expect((await Effect.runPromise(store.read())).projects[0]?.name).toBe(
+      'Renamed meanwhile',
+    );
   });
 
-  it('refuses a project that is no longer registered, without bringing it back', () => {
+  it('refuses a project that is no longer registered, without bringing it back', async () => {
     const store = new InMemoryInventoryStore([project]);
-    store.remove({ projectId: project.id });
+    await Effect.runPromise(store.remove({ projectId: project.id }));
     expect(() =>
       Effect.runSync(
         Effect.runSync(
@@ -67,10 +73,10 @@ describe('UpdateProjectAvailabilityService', () => {
         ).execute(listing(true)),
       ),
     ).toThrow(ProjectNotFoundError);
-    expect(store.read().projects).toEqual([]);
+    expect((await Effect.runPromise(store.read())).projects).toEqual([]);
   });
 
-  it('marks a listed project unavailable when the listing could not reach it', () => {
+  it('marks a listed project unavailable when the listing could not reach it', async () => {
     const store = new InMemoryInventoryStore([{ ...project, available: true }]);
     Effect.runSync(
       Effect.runSync(
@@ -80,6 +86,8 @@ describe('UpdateProjectAvailabilityService', () => {
         ),
       ).execute(listing(false)),
     );
-    expect(store.read().projects[0]?.available).toBe(false);
+    expect((await Effect.runPromise(store.read())).projects[0]?.available).toBe(
+      false,
+    );
   });
 });

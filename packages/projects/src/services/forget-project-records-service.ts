@@ -21,21 +21,19 @@ export class ForgetProjectRecordsService extends Context.Service<
         execute: Effect.fn('ForgetProjectRecordsService.execute')(function* (
           input: ForgetProjectRecordsInput,
         ): Effect.fn.Return<void, never> {
-          return yield* Effect.sync<void>(() => {
-            const { projectId } = input;
-            worktreePresenceCapability.remove({
-              worktreeIds: worktreePresenceCapability
-                .read({ projectId })
-                .map((row) => row.worktreeId),
-            });
-            for (const preference of filePreferenceCapability.list({
+          const { projectId } = input;
+          yield* worktreePresenceCapability.remove({
+            worktreeIds: (yield* worktreePresenceCapability.read({
               projectId,
-            }))
-              filePreferenceCapability.remove({
-                projectId,
-                path: preference.path,
-              });
+            })).map((row) => row.worktreeId),
           });
+          for (const preference of yield* filePreferenceCapability.list({
+            projectId,
+          }))
+            yield* filePreferenceCapability.remove({
+              projectId,
+              path: preference.path,
+            });
         }),
       };
     }),

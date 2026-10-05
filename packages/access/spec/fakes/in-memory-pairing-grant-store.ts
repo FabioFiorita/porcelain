@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type {
   PairingRedemption,
   StoredPairingGrant,
@@ -15,32 +16,47 @@ export class InMemoryPairingGrantStore implements PairingGrantStore {
     this.devices = devices;
   }
 
-  add(input: { grants: readonly StoredPairingGrant[] }): void {
-    input.grants.forEach((grant) => {
-      this.grants.set(grant.id, structuredClone(grant));
-      this.revocations.delete(grant.id);
-      this.redemptions.delete(grant.id);
+  add(input: { grants: readonly StoredPairingGrant[] }): Effect.Effect<void> {
+    return Effect.sync(() => {
+      input.grants.forEach((grant) => {
+        this.grants.set(grant.id, structuredClone(grant));
+        this.revocations.delete(grant.id);
+        this.redemptions.delete(grant.id);
+      });
     });
   }
 
-  find(input: { grantId: string }): StoredPairingGrant | undefined {
-    const grant = this.grants.get(input.grantId);
-    return grant && this.current(grant);
+  find(input: {
+    grantId: string;
+  }): Effect.Effect<StoredPairingGrant | undefined> {
+    return Effect.sync(() => {
+      const grant = this.grants.get(input.grantId);
+      return grant && this.current(grant);
+    });
   }
 
-  list(): StoredPairingGrant[] {
-    return [...this.grants.values()]
-      .map((grant) => this.current(grant))
-      .sort((left, right) => left.createdAt.localeCompare(right.createdAt));
+  list(): Effect.Effect<StoredPairingGrant[]> {
+    return Effect.sync(() => {
+      return [...this.grants.values()]
+        .map((grant) => this.current(grant))
+        .sort((left, right) => left.createdAt.localeCompare(right.createdAt));
+    });
   }
 
-  markRevoked(input: { grant: StoredPairingGrant; revokedAt: string }): void {
-    this.revocations.set(input.grant.id, input.revokedAt);
+  markRevoked(input: {
+    grant: StoredPairingGrant;
+    revokedAt: string;
+  }): Effect.Effect<void> {
+    return Effect.sync(() => {
+      this.revocations.set(input.grant.id, input.revokedAt);
+    });
   }
 
-  redeem(input: PairingRedemption): void {
-    this.redemptions.set(input.grant.id, input.redeemedAt);
-    this.devices.add(input.device);
+  redeem(input: PairingRedemption): Effect.Effect<void> {
+    return Effect.sync(() => {
+      this.redemptions.set(input.grant.id, input.redeemedAt);
+      this.devices.add(input.device);
+    });
   }
 
   private current(grant: StoredPairingGrant): StoredPairingGrant {

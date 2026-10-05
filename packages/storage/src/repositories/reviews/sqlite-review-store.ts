@@ -1,139 +1,111 @@
-import { and, eq, inArray } from 'drizzle-orm';
-import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
-import { reviewProofFiles } from '../../db/schema/review-proof-files.ts';
-import { reviews } from '../../db/schema/reviews.ts';
-import type {
-  ProofFile,
-  ProofFileKey,
-  Review,
-  ReviewSave,
-  ReviewSummary,
-} from '@porcelain/reviews/models';
-import type { ReviewStore } from '@porcelain/reviews/ports';
+import { Effect, Layer, Option, Schema } from 'effect';
+import { SqlClient, SqlSchema } from 'effect/sql';
+import { ReviewStore } from '@porcelain/reviews/ports';
 
-type ReviewRow = typeof reviews.$inferSelect;
+import { ReviewRow } from '../../db/models/reviews.ts';
+import { ProofFileRow } from '../../db/models/review-proof-files.ts';
 
-function reviewFromRow(row: ReviewRow): Review {
-  const { diagram, proof, ...rest } = row;
+function reviewFromRow({ diagram, proof, ...review }: ReviewRow) {
   return {
-    ...rest,
+    ...review,
     ...(diagram === null ? {} : { diagram }),
     ...(proof === null ? {} : { proof }),
   };
 }
+export const sqliteReviewStoreLayer = Layer.effect(
+  ReviewStore,
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    const read = SqlSchema.findOneOption({
+      Request: Schema.Struct({ worktreeId: Schema.String }),
+      Result: ReviewRow,
+      execute: (input) =>
+        sql`SELECT * FROM reviews WHERE worktree_id = ${input.worktreeId}`,
+    });
+    const byWorktrees = SqlSchema.findAll({
+      Request: Schema.Struct({ worktreeIds: Schema.Array(Schema.String) }),
+      Result: ReviewRow,
+      execute: (input) =>
+        sql`SELECT * FROM reviews WHERE ${sql.in('worktreeId', input.worktreeIds)}`,
+    });
+    const summary = SqlSchema.findOneOption({
+      Request: Schema.Struct({ token: Schema.String }),
+      Result: Schema.Struct({
+        summaryHtml: Schema.String,
+        summaryToken: Schema.String,
+        summarySecret: Schema.String,
+      }),
+      execute: (input) =>
+        sql`SELECT summary_html, summary_token, summary_secret FROM reviews WHERE summary_token = ${input.token}`,
+    });
+    const proofFile = SqlSchema.findOneOption({
+      Request: Schema.Struct({
+        worktreeId: Schema.String,
+        proofId: Schema.String,
+      }),
+      Result: Schema.Struct({
+        id: ProofFileRow.fields.id,
+        mediaType: ProofFileRow.fields.mediaType,
+        bytes: ProofFileRow.fields.bytes,
+      }),
+      execute: (input) =>
+        sql`SELECT id, media_type, bytes FROM review_proof_files WHERE worktree_id = ${input.worktreeId} AND id = ${input.proofId}`,
+    });
 
-export class SqliteReviewStore implements ReviewStore {
-  private readonly db: BetterSQLite3Database;
-
-  constructor(db: BetterSQLite3Database) {
-    this.db = db;
-  }
-
-  read(input: { worktreeId: string }): Review | undefined {
-    const row = this.db
-      .select()
-      .from(reviews)
-      .where(eq(reviews.worktreeId, input.worktreeId))
-      .get();
-    return row && reviewFromRow(row);
-  }
-
-  byWorktrees(input: { worktreeIds: readonly string[] }): Review[] {
-    return this.db
-      .select()
-      .from(reviews)
-      .where(inArray(reviews.worktreeId, [...input.worktreeIds]))
-      .all()
-      .map(reviewFromRow);
-  }
-
-  findSummary(input: { token: string }): ReviewSummary | undefined {
-    return this.db
-      .select({
-        summaryHtml: reviews.summaryHtml,
-        summaryToken: reviews.summaryToken,
-        summarySecret: reviews.summarySecret,
-      })
-      .from(reviews)
-      .where(eq(reviews.summaryToken, input.token))
-      .get();
-  }
-
-  save(input: ReviewSave): void {
-    const { proofFiles, ...review } = input;
-    const row = {
-      ...review,
-      diagram: review.diagram ?? null,
-      proof: review.proof ?? null,
-    };
-    const files = (proofFiles ?? []).map((file) => ({
-      worktreeId: review.worktreeId,
-      id: file.id,
-      mediaType: file.mediaType,
-      bytes: Buffer.from(
-        file.bytes.buffer,
-        file.bytes.byteOffset,
-        file.bytes.byteLength,
-      ),
-    }));
-    this.db.transaction(
-      (tx) => {
-        tx.insert(reviews)
-          .values(row)
-          .onConflictDoUpdate({ target: reviews.worktreeId, set: row })
-          .run();
-        tx.delete(reviewProofFiles)
-          .where(eq(reviewProofFiles.worktreeId, review.worktreeId))
-          .run();
-        for (const file of files)
-          tx.insert(reviewProofFiles).values(file).run();
-      },
-      { behavior: 'immediate' },
-    );
-  }
-
-  readProofFile(input: ProofFileKey): ProofFile | undefined {
-    const row = this.db
-      .select({
-        id: reviewProofFiles.id,
-        mediaType: reviewProofFiles.mediaType,
-        bytes: reviewProofFiles.bytes,
-      })
-      .from(reviewProofFiles)
-      .where(
-        and(
-          eq(reviewProofFiles.worktreeId, input.worktreeId),
-          eq(reviewProofFiles.id, input.proofId),
-        ),
-      )
-      .get();
-    return (
-      row && {
-        id: row.id,
-        mediaType: row.mediaType,
-        bytes: new Uint8Array(row.bytes),
-      }
-    );
-  }
-
-  setActive(input: {
-    worktreeId: string;
-    revision: number;
-    active: boolean;
-  }): void {
-    this.db.transaction(
-      (tx) => {
-        tx.update(reviews)
-          .set({ active: input.active })
-          .where(
-            and(
-              eq(reviews.worktreeId, input.worktreeId),
-              eq(reviews.revision, input.revision),
-            ),
-          )
-          .run();
-      },
-      { behavior: 'immediate' },
-    );
-  }
-}
+    return ReviewStore.of({
+      read: Effect.fn('ReviewStore.read')(function* (
+        input: Parameters<ReviewStore['read']>[0],
+      ) {
+        return Option.getOrUndefined(
+          Option.map(yield* read(input).pipe(Effect.orDie), reviewFromRow),
+        );
+      }),
+      byWorktrees: Effect.fn('ReviewStore.byWorktrees')(function* (
+        input: Parameters<ReviewStore['byWorktrees']>[0],
+      ) {
+        return (yield* byWorktrees(input).pipe(Effect.orDie)).map(
+          reviewFromRow,
+        );
+      }),
+      findSummary: Effect.fn('ReviewStore.findSummary')(function* (
+        input: Parameters<ReviewStore['findSummary']>[0],
+      ) {
+        return Option.getOrUndefined(yield* summary(input).pipe(Effect.orDie));
+      }),
+      readProofFile: Effect.fn('ReviewStore.readProofFile')(function* (
+        input: Parameters<ReviewStore['readProofFile']>[0],
+      ) {
+        return Option.getOrUndefined(
+          Option.map(yield* proofFile(input).pipe(Effect.orDie), (row) => ({
+            ...row,
+            bytes: Uint8Array.from(row.bytes),
+          })),
+        );
+      }),
+      save: Effect.fn('ReviewStore.save')(function* (
+        input: Parameters<ReviewStore['save']>[0],
+      ) {
+        return yield* Effect.gen(function* () {
+          const { proofFiles, ...review } = input;
+          const row = yield* Schema.encodeEffect(ReviewRow.insert)({
+            ...review,
+            diagram: review.diagram ?? null,
+            proof: review.proof ?? null,
+          });
+          yield* sql`INSERT INTO reviews ${sql.insert(row)} ON CONFLICT (worktree_id) DO UPDATE SET ${sql.update(row, ['worktreeId'])}`;
+          yield* sql`DELETE FROM review_proof_files WHERE worktree_id = ${review.worktreeId}`;
+          for (const file of proofFiles ?? []) {
+            yield* sql`INSERT INTO review_proof_files ${sql.insert({ worktreeId: review.worktreeId, id: file.id, mediaType: file.mediaType, bytes: Uint8Array.from(file.bytes) })}`;
+          }
+        }).pipe(sql.withTransaction, Effect.asVoid, Effect.orDie);
+      }),
+      setActive: Effect.fn('ReviewStore.setActive')(function* (
+        input: Parameters<ReviewStore['setActive']>[0],
+      ) {
+        yield* sql`UPDATE reviews SET active = ${input.active ? 1 : 0} WHERE worktree_id = ${input.worktreeId} AND revision = ${input.revision}`.pipe(
+          Effect.orDie,
+        );
+      }),
+    });
+  }),
+);

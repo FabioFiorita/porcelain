@@ -41,7 +41,7 @@ export class SetReviewedFilesService extends Context.Service<
           if (input.onConflict === 'refuse' && conflicts.length > 0)
             return yield* Effect.fail(new ReviewedMarkConflictError());
           const evicted = evictedPaths(
-            reviewedFilesCapability.list(key),
+            yield* reviewedFilesCapability.list(key),
             marked,
             scope === 'branch'
               ? (optionsCapability.marksPerBranch ??
@@ -49,9 +49,9 @@ export class SetReviewedFilesService extends Context.Service<
               : optionsCapability.marksPerWorktree,
             new Set(input.changes.map((change) => change.path)),
           );
-          reviewedFilesCapability.remove({ ...key, paths: evicted });
+          yield* reviewedFilesCapability.remove({ ...key, paths: evicted });
           const reviewedAt = clockCapability.now();
-          reviewedFilesCapability.save({
+          yield* reviewedFilesCapability.save({
             ...key,
             marks: marked.map((file) => ({
               ...file,
@@ -61,7 +61,7 @@ export class SetReviewedFilesService extends Context.Service<
           });
           return {
             worktreeId,
-            marks: reviewedMarks(reviewedFilesCapability.list(key)),
+            marks: reviewedMarks(yield* reviewedFilesCapability.list(key)),
             marked: marked.map((file) => file.path),
             conflicts,
             changed: marked.length > 0 || evicted.length > 0,

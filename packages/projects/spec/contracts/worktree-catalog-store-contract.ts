@@ -8,7 +8,7 @@ import type { WorktreeCatalogStore } from '../../src/ports/worktree-catalog-stor
 
 export type WorktreeCatalogStoreSubject = {
   store: WorktreeCatalogStore;
-  close: () => void;
+  close: () => Promise<void> | void;
 };
 
 function observation(id: string, listed = true): CatalogObservation {
@@ -46,19 +46,21 @@ function project(id: string, worktreeIds: string[]): CatalogProject {
 
 export function worktreeCatalogStoreContract(
   subject: string,
-  openSubject: () => WorktreeCatalogStoreSubject,
+  openSubject: () =>
+    | WorktreeCatalogStoreSubject
+    | Promise<WorktreeCatalogStoreSubject>,
 ): void {
   describe(subject, () => {
     let opened: WorktreeCatalogStoreSubject;
     let store: WorktreeCatalogStore;
 
-    beforeEach(() => {
-      opened = openSubject();
+    beforeEach(async () => {
+      opened = await openSubject();
       store = opened.store;
     });
 
-    afterEach(() => {
-      opened.close();
+    afterEach(async () => {
+      await opened.close();
     });
 
     it('knows no worktree and no observation before the first save', () => {

@@ -18,17 +18,19 @@ const tailnetProxy = {
   port: 41000,
 };
 
-function identify(
+async function identify(
   request: Partial<IdentifyRequestClientInput>,
   tunnel: { enabled?: boolean; state?: RouteState } = {},
 ) {
   const settings = new InMemoryRemoteAccessStore();
-  settings.save({
-    lan: false,
-    tailnet: false,
-    cloudflare: tunnel.enabled ?? true,
-    cloudflareHostname: tunnelHost,
-  });
+  await Effect.runPromise(
+    settings.save({
+      lan: false,
+      tailnet: false,
+      cloudflare: tunnel.enabled ?? true,
+      cloudflareHostname: tunnelHost,
+    }),
+  );
   const routes = new InMemoryRouteStateStore();
   routes.save({
     states: {
@@ -60,8 +62,8 @@ function identify(
 }
 
 describe('IdentifyRequestClientService', () => {
-  it('takes a request for the tunnel hostname as secure and from the visitor Cloudflare names', () => {
-    expect(identify({})).toEqual({
+  it('takes a request for the tunnel hostname as secure and from the visitor Cloudflare names', async () => {
+    expect(await identify({})).toEqual({
       route: 'tunnel',
       address: visitor,
       secure: true,
@@ -69,8 +71,8 @@ describe('IdentifyRequestClientService', () => {
     });
   });
 
-  it('reads the tunnel hostname whatever its case and with its port', () => {
-    expect(identify({ host: 'Porcelain.Example.com:443' })).toEqual({
+  it('reads the tunnel hostname whatever its case and with its port', async () => {
+    expect(await identify({ host: 'Porcelain.Example.com:443' })).toEqual({
       route: 'tunnel',
       address: visitor,
       secure: true,
@@ -78,14 +80,14 @@ describe('IdentifyRequestClientService', () => {
     });
   });
 
-  it('reads an IPv6 visitor address', () => {
-    expect(identify({ connectingAddress: '2001:DB8::7' }).address).toBe(
+  it('reads an IPv6 visitor address', async () => {
+    expect((await identify({ connectingAddress: '2001:DB8::7' })).address).toBe(
       '2001:db8::7',
     );
   });
 
-  it('keeps the socket address when the tunnel hostname arrives from another machine', () => {
-    expect(identify({ peerAddress: '192.168.1.30' })).toEqual({
+  it('keeps the socket address when the tunnel hostname arrives from another machine', async () => {
+    expect(await identify({ peerAddress: '192.168.1.30' })).toEqual({
       route: 'tunnel',
       address: '192.168.1.30',
       secure: true,
@@ -95,21 +97,21 @@ describe('IdentifyRequestClientService', () => {
 
   it.each(['porcelain.example.com', '203.0.113.7, 198.51.100.2', ''])(
     'keeps the socket address when the visitor address reads %j',
-    (connectingAddress) => {
-      expect(identify({ connectingAddress }).address).toBe('127.0.0.1');
+    async (connectingAddress) => {
+      expect((await identify({ connectingAddress })).address).toBe('127.0.0.1');
     },
   );
 
-  it('keeps the socket address when Cloudflare names no visitor', () => {
-    expect(identify({ connectingAddress: undefined }).address).toBe(
+  it('keeps the socket address when Cloudflare names no visitor', async () => {
+    expect((await identify({ connectingAddress: undefined })).address).toBe(
       '127.0.0.1',
     );
   });
 
   it.each(['127.0.0.1:4173', '192.168.1.20:4173', undefined])(
     'never trusts a visitor address on a request for %s, which did not come through the tunnel',
-    (host) => {
-      expect(identify({ host })).toEqual({
+    async (host) => {
+      expect(await identify({ host })).toEqual({
         route: 'loopback',
         address: '127.0.0.1',
         secure: false,
@@ -117,22 +119,22 @@ describe('IdentifyRequestClientService', () => {
     },
   );
 
-  it('does not take the saved hostname for the tunnel while Cloudflare is off', () => {
-    expect(identify({}, { enabled: false })).toEqual({
+  it('does not take the saved hostname for the tunnel while Cloudflare is off', async () => {
+    expect(await identify({}, { enabled: false })).toEqual({
       route: 'loopback',
       address: '127.0.0.1',
       secure: false,
     });
   });
 
-  it('does not take the hostname for the tunnel once another server answers there', () => {
+  it('does not take the hostname for the tunnel once another server answers there', async () => {
     expect(
-      identify({}, { state: { kind: 'failed', reason: 'other-server' } }),
+      await identify({}, { state: { kind: 'failed', reason: 'other-server' } }),
     ).toEqual({ route: 'loopback', address: '127.0.0.1', secure: false });
   });
 
-  it('takes the hostname for the tunnel while the tunnel is being checked', () => {
-    expect(identify({}, { state: { kind: 'starting' } })).toEqual({
+  it('takes the hostname for the tunnel while the tunnel is being checked', async () => {
+    expect(await identify({}, { state: { kind: 'starting' } })).toEqual({
       route: 'tunnel',
       address: visitor,
       secure: true,
@@ -140,19 +142,21 @@ describe('IdentifyRequestClientService', () => {
     });
   });
 
-  it('takes a request that arrived over HTTPS as secure', () => {
-    expect(identify({ host: '127.0.0.1:4173', scheme: 'https' })).toEqual({
-      route: 'loopback',
-      address: '127.0.0.1',
-      secure: true,
-    });
+  it('takes a request that arrived over HTTPS as secure', async () => {
+    expect(await identify({ host: '127.0.0.1:4173', scheme: 'https' })).toEqual(
+      {
+        route: 'loopback',
+        address: '127.0.0.1',
+        secure: true,
+      },
+    );
   });
 
   it.each([tunnelHost, '192.168.1.20:4173'])(
     'takes a request that reached a listener at a private address as the local network, even for %s',
-    (host) => {
+    async (host) => {
       expect(
-        identify({
+        await identify({
           host,
           localAddress: '192.168.1.20',
           peerAddress: '192.168.1.30',
@@ -161,32 +165,41 @@ describe('IdentifyRequestClientService', () => {
     },
   );
 
-  it('reads the listener address in its IPv4-mapped form', () => {
+  it('reads the listener address in its IPv4-mapped form', async () => {
     expect(
-      identify({ host: undefined, localAddress: '::ffff:127.0.0.1' }).route,
+      (await identify({ host: undefined, localAddress: '::ffff:127.0.0.1' }))
+        .route,
     ).toBe('loopback');
     expect(
-      identify({ localAddress: '::ffff:192.168.1.20', peerAddress: '::1' })
-        .route,
+      (
+        await identify({
+          localAddress: '::ffff:192.168.1.20',
+          peerAddress: '::1',
+        })
+      ).route,
     ).toBe('lan');
   });
 
   it.each(['100.101.102.103', 'fd7a:115c:a1e0::1'])(
     'takes a request that reached a listener at the tailnet address %s as the tailnet',
-    (localAddress) => {
+    async (localAddress) => {
       expect(
-        identify({ localAddress, peerAddress: '100.64.0.9', host: tunnelHost }),
+        await identify({
+          localAddress,
+          peerAddress: '100.64.0.9',
+          host: tunnelHost,
+        }),
       ).toEqual({ route: 'tailnet', address: '100.64.0.9', secure: false });
     },
   );
 
-  it('takes a request whose listener address is unknown as the local network', () => {
-    expect(identify({ localAddress: undefined }).route).toBe('lan');
+  it('takes a request whose listener address is unknown as the local network', async () => {
+    expect((await identify({ localAddress: undefined })).route).toBe('lan');
   });
 
-  it('takes a request on the loopback listener Tailscale Serve forwards to as the tailnet, secure, from the tailnet address it names', () => {
+  it('takes a request on the loopback listener Tailscale Serve forwards to as the tailnet, secure, from the tailnet address it names', async () => {
     expect(
-      identify({
+      await identify({
         host: tailnetProxy.hostname,
         localPort: tailnetProxy.port,
         forwardedFor: '100.64.0.9',
@@ -194,37 +207,40 @@ describe('IdentifyRequestClientService', () => {
     ).toEqual({ route: 'tailnet', address: '100.64.0.9', secure: true });
   });
 
-  it('takes the Serve listener as the tailnet whatever host the request names', () => {
+  it('takes the Serve listener as the tailnet whatever host the request names', async () => {
     expect(
-      identify({ localPort: tailnetProxy.port, forwardedFor: undefined }),
+      await identify({ localPort: tailnetProxy.port, forwardedFor: undefined }),
     ).toEqual({ route: 'tailnet', address: '127.0.0.1', secure: true });
   });
 
   it.each(['100.64.0.9, 203.0.113.7', 'laptop', ''])(
     'keeps the socket address when Serve names the client as %j',
-    (forwardedFor) => {
+    async (forwardedFor) => {
       expect(
-        identify({ localPort: tailnetProxy.port, forwardedFor }).address,
+        (await identify({ localPort: tailnetProxy.port, forwardedFor }))
+          .address,
       ).toBe('127.0.0.1');
     },
   );
 
-  it('never trusts a forwarded address on the main loopback listener', () => {
+  it('never trusts a forwarded address on the main loopback listener', async () => {
     expect(
-      identify({
+      await identify({
         host: tailnetProxy.hostname,
         forwardedFor: '100.64.0.9',
       }),
     ).toEqual({ route: 'loopback', address: '127.0.0.1', secure: false });
   });
 
-  it('does not take a listener at another address on the same port for the Serve listener', () => {
+  it('does not take a listener at another address on the same port for the Serve listener', async () => {
     expect(
-      identify({
-        localAddress: '192.168.1.20',
-        localPort: tailnetProxy.port,
-        peerAddress: '192.168.1.30',
-      }).route,
+      (
+        await identify({
+          localAddress: '192.168.1.20',
+          localPort: tailnetProxy.port,
+          peerAddress: '192.168.1.30',
+        })
+      ).route,
     ).toBe('lan');
   });
 });

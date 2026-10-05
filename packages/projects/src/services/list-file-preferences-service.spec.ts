@@ -16,16 +16,20 @@ function setup() {
 }
 
 describe('ListFilePreferencesService', () => {
-  it("answers the project's preferences ordered by path", () => {
+  it("answers the project's preferences ordered by path", async () => {
     const { preferences, service } = setup();
-    preferences.save({
-      projectId: 'api',
-      preference: { path: 'src/b.ts', pinned: true, hidden: false },
-    });
-    preferences.save({
-      projectId: 'api',
-      preference: { path: 'README.md', pinned: false, hidden: true },
-    });
+    await Effect.runPromise(
+      preferences.save({
+        projectId: 'api',
+        preference: { path: 'src/b.ts', pinned: true, hidden: false },
+      }),
+    );
+    await Effect.runPromise(
+      preferences.save({
+        projectId: 'api',
+        preference: { path: 'README.md', pinned: false, hidden: true },
+      }),
+    );
     expect(Effect.runSync(service.execute({ projectId: 'api' }))).toEqual({
       preferences: [
         { path: 'README.md', pinned: false, hidden: true },
@@ -34,12 +38,14 @@ describe('ListFilePreferencesService', () => {
     });
   });
 
-  it("never answers another project's preferences", () => {
+  it("never answers another project's preferences", async () => {
     const { preferences, service } = setup();
-    preferences.save({
-      projectId: 'web',
-      preference: { path: 'index.html', pinned: true, hidden: false },
-    });
+    await Effect.runPromise(
+      preferences.save({
+        projectId: 'web',
+        preference: { path: 'index.html', pinned: true, hidden: false },
+      }),
+    );
     expect(Effect.runSync(service.execute({ projectId: 'api' }))).toEqual({
       preferences: [],
     });

@@ -57,7 +57,7 @@ function setup() {
 }
 
 describe('SetReviewedLayerService', () => {
-  it('marks a layer at the fingerprint it has in the current files', () => {
+  it('marks a layer at the fingerprint it has in the current files', async () => {
     const { service, store } = setup();
     const result = Effect.runSync(
       service.execute({
@@ -73,7 +73,7 @@ describe('SetReviewedLayerService', () => {
       reviewedAt: '2026-01-01T00:00:00.000Z',
     };
     expect(result).toEqual(mark);
-    expect(store.list({ worktreeId })).toEqual([mark]);
+    expect(await Effect.runPromise(store.list({ worktreeId }))).toEqual([mark]);
   });
 
   it('still accepts the fingerprint when the step text only moved', () => {
@@ -95,14 +95,14 @@ describe('SetReviewedLayerService', () => {
     { name: 'its file is gone', texts: new Map<string, string>() },
   ])(
     'refuses a fingerprint the layer no longer has because $name, and stores nothing',
-    ({ texts }) => {
+    async ({ texts }) => {
       const { service, store } = setup();
       expect(() =>
         Effect.runSync(
           service.execute({ worktreeId, layer, fingerprint: seen, texts }),
         ),
       ).toThrow(ReviewedMarkConflictError);
-      expect(store.list({ worktreeId })).toEqual([]);
+      expect(await Effect.runPromise(store.list({ worktreeId }))).toEqual([]);
     },
   );
 });

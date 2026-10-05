@@ -14,9 +14,7 @@ export class ListRegisteredProjectsService extends Context.Service<
       return {
         execute: Effect.fn('ListRegisteredProjectsService.execute')(
           function* (): Effect.fn.Return<ListRegisteredProjectsResult, never> {
-            return yield* Effect.sync<ListRegisteredProjectsResult>(() => {
-              return inventoryCapability.read();
-            });
+            return yield* inventoryCapability.read();
           },
         ),
       };

@@ -18,13 +18,11 @@ export class CloseTunnelConnectionsService extends Context.Service<
       return {
         execute: Effect.fn('CloseTunnelConnectionsService.execute')(
           function* (): Effect.fn.Return<void, never> {
-            return yield* Effect.sync<void>(() => {
-              tunnelConnections.retain({
-                hostnames: answeredTunnelHosts(
-                  remoteAccess.read(),
-                  routeStates.read().states,
-                ),
-              });
+            tunnelConnections.retain({
+              hostnames: answeredTunnelHosts(
+                yield* remoteAccess.read(),
+                routeStates.read().states,
+              ),
             });
           },
         ),

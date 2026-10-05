@@ -28,7 +28,7 @@ function subject(receipt = sampleReceipt()) {
 }
 
 describe('InterruptGitActionService', () => {
-  it('settles a running action as interrupted with an unknown outcome', () => {
+  it('settles a running action as interrupted with an unknown outcome', async () => {
     const { store, service } = subject();
     const view = Effect.runSync(service.execute({ requestId: REQUEST_ID }));
     expect(view).toMatchObject({
@@ -36,13 +36,15 @@ describe('InterruptGitActionService', () => {
       reason: 'OUTCOME_UNKNOWN',
       finishedAt: interruptedAt,
     });
-    expect(store.read({ requestId: REQUEST_ID })).toMatchObject({
+    expect(
+      await Effect.runPromise(store.read({ requestId: REQUEST_ID })),
+    ).toMatchObject({
       state: 'interrupted',
       refreshRequired: true,
     });
   });
 
-  it('leaves an action that already settled as it was', () => {
+  it('leaves an action that already settled as it was', async () => {
     const settled = sampleReceipt({
       state: 'succeeded',
       finishedAt: '2026-09-23T12:00:00.000Z',
@@ -51,7 +53,9 @@ describe('InterruptGitActionService', () => {
     expect(
       Effect.runSync(service.execute({ requestId: REQUEST_ID })).state,
     ).toBe('succeeded');
-    expect(store.read({ requestId: REQUEST_ID })).toEqual(settled);
+    expect(
+      await Effect.runPromise(store.read({ requestId: REQUEST_ID })),
+    ).toEqual(settled);
   });
 
   it('does not find a request it never accepted', () => {

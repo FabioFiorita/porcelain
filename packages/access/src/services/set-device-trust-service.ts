@@ -24,10 +24,10 @@ export class SetDeviceTrustService extends Context.Service<
         execute: Effect.fn('SetDeviceTrustService.execute')(function* (
           input: SetDeviceTrustInput,
         ): Effect.fn.Return<SetDeviceTrustResult, DeviceNotFoundError> {
-          const device = devices.find({ deviceId: input.id });
+          const device = yield* devices.find({ deviceId: input.id });
           if (!device || deviceRevoked(device))
             return yield* Effect.fail(new DeviceNotFoundError());
-          devices.recordTrust({ device, trusted: input.trusted });
+          yield* devices.recordTrust({ device, trusted: input.trusted });
           return { id: device.id, trusted: input.trusted };
         }),
       };

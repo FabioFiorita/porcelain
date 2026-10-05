@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type {
   FilePreference,
   FilePreferenceKey,
@@ -20,36 +21,46 @@ export class InMemoryFilePreferenceStore implements FilePreferenceStore {
     );
   }
 
-  list(input: ProjectKey): FilePreference[] {
-    return this.project(input)
-      .map((row) => ({ ...row.preference }))
-      .sort(
-        (left, right) =>
-          Number(left.path > right.path) - Number(left.path < right.path),
+  list(input: ProjectKey): Effect.Effect<FilePreference[]> {
+    return Effect.sync(() => {
+      return this.project(input)
+        .map((row) => ({ ...row.preference }))
+        .sort(
+          (left, right) =>
+            Number(left.path > right.path) - Number(left.path < right.path),
+        );
+    });
+  }
+
+  find(input: FilePreferenceKey): Effect.Effect<FilePreference | undefined> {
+    return Effect.sync(() => {
+      const row = this.rows.get(key(input));
+      return row && { ...row.preference };
+    });
+  }
+
+  count(input: ProjectKey): Effect.Effect<number> {
+    return Effect.sync(() => {
+      return this.project(input).length;
+    });
+  }
+
+  save(input: ProjectFilePreference): Effect.Effect<void> {
+    return Effect.sync(() => {
+      this.rows.set(
+        key({ projectId: input.projectId, path: input.preference.path }),
+        {
+          projectId: input.projectId,
+          preference: { ...input.preference },
+        },
       );
+    });
   }
 
-  find(input: FilePreferenceKey): FilePreference | undefined {
-    const row = this.rows.get(key(input));
-    return row && { ...row.preference };
-  }
-
-  count(input: ProjectKey): number {
-    return this.project(input).length;
-  }
-
-  save(input: ProjectFilePreference): void {
-    this.rows.set(
-      key({ projectId: input.projectId, path: input.preference.path }),
-      {
-        projectId: input.projectId,
-        preference: { ...input.preference },
-      },
-    );
-  }
-
-  remove(input: FilePreferenceKey): void {
-    this.rows.delete(key(input));
+  remove(input: FilePreferenceKey): Effect.Effect<void> {
+    return Effect.sync(() => {
+      this.rows.delete(key(input));
+    });
   }
 
   private project(input: ProjectKey): Row[] {

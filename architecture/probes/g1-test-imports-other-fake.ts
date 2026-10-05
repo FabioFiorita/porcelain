@@ -17,11 +17,11 @@ import { InMemoryFilePreferenceStore } from '../../../projects/spec/fakes/in-mem
     {
       kind: 'replace',
       path: 'packages/reviews/src/services/mark-comments-seen-service.spec.ts',
-      old: `    expect(seen.seenThrough({ worktreeId })).toBe(2);
+      old: `    expect(await Effect.runPromise(seen.seenThrough({ worktreeId }))).toBe(2);
   });
 });
 `,
-      new: `    expect(seen.seenThrough({ worktreeId })).toBe(2);
+      new: `    expect(await Effect.runPromise(seen.seenThrough({ worktreeId }))).toBe(2);
   });
 
   it('keeps preferences apart from comment marks', () => {

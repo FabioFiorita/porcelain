@@ -24,9 +24,9 @@ export class ReadReviewLayerService extends Context.Service<
         execute: Effect.fn('ReadReviewLayerService.execute')(function* (
           input: ReadReviewLayerInput,
         ): Effect.fn.Return<ReadReviewLayerResult, ReviewLayerNotFoundError> {
-          const layer = reviewsCapability
-            .read({ worktreeId: input.worktreeId })
-            ?.layers.find((candidate) => candidate.id === input.layerId);
+          const layer = (yield* reviewsCapability.read({
+            worktreeId: input.worktreeId,
+          }))?.layers.find((candidate) => candidate.id === input.layerId);
           if (!layer) return yield* Effect.fail(new ReviewLayerNotFoundError());
           return { layer, paths: reviewPaths([layer], []) };
         }),

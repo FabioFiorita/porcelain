@@ -31,7 +31,7 @@ export class InterruptGitActionService extends Context.Service<
           GitActionNotFoundError,
           never
         > {
-          const current = gitActionReceiptsCapability.read({
+          const current = yield* gitActionReceiptsCapability.read({
             requestId: input.requestId,
           });
           if (!current) return yield* Effect.fail(new GitActionNotFoundError());
@@ -40,7 +40,7 @@ export class InterruptGitActionService extends Context.Service<
             current,
             clockCapability.now(),
           );
-          gitActionReceiptsCapability.save(interrupted);
+          yield* gitActionReceiptsCapability.save(interrupted);
           return gitActionReceiptView(interrupted);
         }),
       };

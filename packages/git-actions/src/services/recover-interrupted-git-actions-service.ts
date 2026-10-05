@@ -19,14 +19,12 @@ export class RecoverInterruptedGitActionsService extends Context.Service<
       return {
         execute: Effect.fn('RecoverInterruptedGitActionsService.execute')(
           function* (input: WorktreeKey): Effect.fn.Return<void, never, never> {
-            return yield* Effect.sync<void>(() => {
-              const finishedAt = clockCapability.now();
-              for (const receipt of gitActionReceiptsCapability.running())
-                if (receipt.worktreeId === input.worktreeId)
-                  gitActionReceiptsCapability.save(
-                    interruptedReceipt(receipt, finishedAt),
-                  );
-            });
+            const finishedAt = clockCapability.now();
+            for (const receipt of yield* gitActionReceiptsCapability.running())
+              if (receipt.worktreeId === input.worktreeId)
+                yield* gitActionReceiptsCapability.save(
+                  interruptedReceipt(receipt, finishedAt),
+                );
           },
         ),
       };

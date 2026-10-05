@@ -26,7 +26,7 @@ export class ReadProofFileService extends Context.Service<
         execute: Effect.fn('ReadProofFileService.execute')(function* (
           input: ReadProofFileInput,
         ): Effect.fn.Return<ReadProofFileResult, ProofFileNotFoundError> {
-          const file = reviewsCapability.readProofFile(input);
+          const file = yield* reviewsCapability.readProofFile(input);
           if (file === undefined)
             return yield* Effect.fail(new ProofFileNotFoundError());
           return {

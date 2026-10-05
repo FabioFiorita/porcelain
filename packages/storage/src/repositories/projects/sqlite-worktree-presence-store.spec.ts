@@ -1,32 +1,47 @@
+import { NodeServices } from '@effect/platform-node';
+import { Effect, Layer, ManagedRuntime } from 'effect';
+import {
+  InventoryStore,
+  WorktreePresenceStore,
+} from '@porcelain/projects/ports';
+import { storageLayer } from '../../index.ts';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { worktreePresenceStoreContract } from '@porcelain/projects/store-contracts';
-import { openStorageSession } from '../../index.ts';
-import { createWorktreePresenceStore, createInventoryStore } from './index.ts';
 
-worktreePresenceStoreContract('SqliteWorktreePresenceStore', (projectIds) => {
-  const dataDirectory = mkdtempSync(join(tmpdir(), 'porcelain-storage-'));
-  const session = openStorageSession(dataDirectory, {
-    worktreeIdLength: 32,
-    busyTimeoutMs: 5000,
-  });
-  projectIds.forEach((projectId, position) =>
-    createInventoryStore(session).save({
-      id: projectId,
-      name: projectId,
-      namedByOwner: false,
-      commonDirectory: `/repositories/${projectId}/.git`,
-      repositoryIdentity: `identity-${projectId}`,
-      available: true,
-      position,
-    }),
-  );
-  return {
-    store: createWorktreePresenceStore(session),
-    close: () => {
-      session.close();
-      rmSync(dataDirectory, { recursive: true, force: true });
-    },
-  };
-});
+worktreePresenceStoreContract(
+  'SqliteWorktreePresenceStore',
+  async (projectIds) => {
+    const dataDirectory = mkdtempSync(join(tmpdir(), 'porcelain-storage-'));
+    const session = ManagedRuntime.make(
+      storageLayer(dataDirectory, {
+        worktreeIdLength: 32,
+        busyTimeoutMs: 5000,
+      }).pipe(Layer.provide(NodeServices.layer)),
+    );
+    await Promise.all(
+      projectIds.map(
+        async (projectId, position) =>
+          await Effect.runPromise(
+            (await session.runPromise(InventoryStore)).save({
+              id: projectId,
+              name: projectId,
+              namedByOwner: false,
+              commonDirectory: `/repositories/${projectId}/.git`,
+              repositoryIdentity: `identity-${projectId}`,
+              available: true,
+              position,
+            }),
+          ),
+      ),
+    );
+    return {
+      store: await session.runPromise(WorktreePresenceStore),
+      close: async () => {
+        await session.dispose();
+        rmSync(dataDirectory, { recursive: true, force: true });
+      },
+    };
+  },
+);

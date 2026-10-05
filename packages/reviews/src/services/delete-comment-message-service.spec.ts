@@ -12,22 +12,24 @@ import { DeleteCommentMessageService } from './delete-comment-message-service.ts
 const worktreeId = 'a'.repeat(64);
 const threadId = 'thread-1';
 
-function setup() {
+async function setup() {
   const store = new InMemoryCommentStore();
-  store.insert({
-    content: {
-      id: threadId,
-      worktreeId,
-      anchor: { kind: 'file', filePath: 'README.md' },
-      messages: [
-        { id: 'question', body: 'Why?', author: 'reviewer' },
-        { id: 'answer', body: 'Because.', author: 'agent' },
-        { id: 'follow-up', body: 'Thanks', author: 'reviewer' },
-      ],
-    },
-    sizeBytes: 400,
-    writtenByAgent: false,
-  });
+  await Effect.runPromise(
+    store.insert({
+      content: {
+        id: threadId,
+        worktreeId,
+        anchor: { kind: 'file', filePath: 'README.md' },
+        messages: [
+          { id: 'question', body: 'Why?', author: 'reviewer' },
+          { id: 'answer', body: 'Because.', author: 'agent' },
+          { id: 'follow-up', body: 'Thanks', author: 'reviewer' },
+        ],
+      },
+      sizeBytes: 400,
+      writtenByAgent: false,
+    }),
+  );
   return {
     store,
     service: Effect.runSync(
@@ -52,8 +54,8 @@ function input(
 }
 
 describe('DeleteCommentMessageService', () => {
-  it("removes the reviewer's own message and answers the rest of the thread at the next revision", () => {
-    const { service, store } = setup();
+  it("removes the reviewer's own message and answers the rest of the thread at the next revision", async () => {
+    const { service, store } = await setup();
     const result = Effect.runSync(service.execute(input()));
     expect(result.threadId).toBe(threadId);
     expect(result.thread?.revision).toBe(2);
@@ -61,20 +63,26 @@ describe('DeleteCommentMessageService', () => {
       'question',
       'answer',
     ]);
-    expect(store.find({ threadId })).toEqual(result.thread);
-    expect(store.usage({ worktreeId }).bytes).toBeLessThan(400);
+    expect(await Effect.runPromise(store.find({ threadId }))).toEqual(
+      result.thread,
+    );
+    expect(
+      (await Effect.runPromise(store.usage({ worktreeId }))).bytes,
+    ).toBeLessThan(400);
   });
 
-  it('keeps the replies when the opening message is removed', () => {
-    const { service, store } = setup();
+  it('keeps the replies when the opening message is removed', async () => {
+    const { service, store } = await setup();
     Effect.runSync(service.execute(input({ messageId: 'question' })));
     expect(
-      store.find({ threadId })?.messages.map((message) => message.id),
+      (await Effect.runPromise(store.find({ threadId })))?.messages.map(
+        (message) => message.id,
+      ),
     ).toEqual(['answer', 'follow-up']);
   });
 
-  it('removes the thread with its last message', () => {
-    const { service, store } = setup();
+  it('removes the thread with its last message', async () => {
+    const { service, store } = await setup();
     Effect.runSync(service.execute(input({ messageId: 'question' })));
     Effect.runSync(service.execute(input()));
     expect(
@@ -84,28 +92,33 @@ describe('DeleteCommentMessageService', () => {
         ),
       ),
     ).toEqual({ threadId, thread: undefined });
-    expect(store.find({ threadId })).toBeUndefined();
-    expect(store.list({ worktreeId })).toEqual([]);
-    expect(store.usage({ worktreeId })).toEqual({ threads: 0, bytes: 0 });
+    expect(await Effect.runPromise(store.find({ threadId }))).toBeUndefined();
+    expect(await Effect.runPromise(store.list({ worktreeId }))).toEqual([]);
+    expect(await Effect.runPromise(store.usage({ worktreeId }))).toEqual({
+      threads: 0,
+      bytes: 0,
+    });
   });
 
-  it("refuses a reviewer removing the agent's message and keeps it", () => {
-    const { service, store } = setup();
+  it("refuses a reviewer removing the agent's message and keeps it", async () => {
+    const { service, store } = await setup();
     expect(() =>
       Effect.runSync(service.execute(input({ messageId: 'answer' }))),
     ).toThrow(CommentAuthorMismatchError);
-    expect(store.find({ threadId })?.messages).toHaveLength(3);
+    expect(
+      (await Effect.runPromise(store.find({ threadId })))?.messages,
+    ).toHaveLength(3);
   });
 
-  it("refuses the agent removing a reviewer's message", () => {
-    const { service } = setup();
+  it("refuses the agent removing a reviewer's message", async () => {
+    const { service } = await setup();
     expect(() =>
       Effect.runSync(service.execute(input({ writer: { kind: 'agent' } }))),
     ).toThrow(CommentAuthorMismatchError);
   });
 
-  it('does not find a message already removed, an unknown thread or a thread of another worktree', () => {
-    const { service } = setup();
+  it('does not find a message already removed, an unknown thread or a thread of another worktree', async () => {
+    const { service } = await setup();
     Effect.runSync(service.execute(input()));
     expect(() => Effect.runSync(service.execute(input()))).toThrow(
       CommentTargetNotFoundError,

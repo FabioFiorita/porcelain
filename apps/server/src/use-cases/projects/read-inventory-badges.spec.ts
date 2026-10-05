@@ -1,3 +1,10 @@
+import { NodeServices } from '@effect/platform-node';
+import { Layer, ManagedRuntime } from 'effect';
+import {
+  InventoryStore,
+  WorktreePresenceStore,
+} from '@porcelain/projects/ports';
+import { storageLayer } from '@porcelain/storage';
 import { WorktreeConsistencyProbe } from '../../ports/worktree-consistency-probe.ts';
 import { CheckWorktreeUseCasePort } from '../../ports/check-worktree-use-case-port.ts';
 import { LaneOptions } from '../../ports/lane-options.ts';
@@ -22,17 +29,7 @@ import {
 } from '@porcelain/reviews/services';
 import { currentLayerFingerprint } from '@porcelain/reviews/rules';
 import { type ReviewLayer } from '@porcelain/reviews/models';
-import { openStorageSession } from '@porcelain/storage';
-import {
-  createInventoryStore,
-  createWorktreePresenceStore,
-} from '@porcelain/storage/projects';
-import {
-  createReviewStore,
-  createReviewedLayerStore,
-  createCommentStore,
-  createCommentSeenStore,
-} from '@porcelain/storage/reviews';
+
 import { LaneKeys } from '../../runtime/lane-keys.ts';
 import { Lanes } from '../../runtime/lanes.ts';
 import { WorktreeAccess } from '../../runtime/worktree-access.ts';
@@ -40,10 +37,12 @@ import { ReadInventoryBadgesUseCase } from './read-inventory-badges.ts';
 
 it('lets an arriving writer finish before badge text reads, without holding a read that blocks its own admission', async () => {
   const directory = mkdtempSync(join(tmpdir(), 'pc-inventory-badges-'));
-  const session = openStorageSession(directory, {
-    worktreeIdLength: 32,
-    busyTimeoutMs: 1000,
-  });
+  const session = ManagedRuntime.make(
+    storageLayer(directory, {
+      worktreeIdLength: 32,
+      busyTimeoutMs: 1000,
+    }).pipe(Layer.provide(NodeServices.layer)),
+  );
   const worktree: ListedWorktree = {
     id: 'a'.repeat(32),
     projectId: 'project',
@@ -75,49 +74,57 @@ it('lets an arriving writer finish before badge text reads, without holding a re
       },
     ],
   };
-  const reviews = createReviewStore(session);
-  const marks = createReviewedLayerStore(session);
-  createInventoryStore(session).save({
-    id: 'project',
-    name: 'project',
-    namedByOwner: false,
-    commonDirectory: '/repo/.git',
-    repositoryIdentity: 'identity',
-    available: true,
-    position: 1,
-  });
-  createWorktreePresenceStore(session).save({
-    rows: [
-      {
-        worktreeId: worktree.id,
-        projectId: 'project',
-        missingSince: undefined,
-      },
-    ],
-  });
-  reviews.save({
-    worktreeId: worktree.id,
-    revision: 1,
-    publishedAt: '2026-01-01T00:00:00.000Z',
-    active: true,
-    summaryHtml: '<p>Review</p>',
-    summaryToken: 'token',
-    summarySecret: 'secret',
-    layers: [layer],
-  });
-  marks.save({
-    worktreeId: worktree.id,
-    marks: [
-      {
-        layerId: 'layer',
-        fingerprint: currentLayerFingerprint(
-          layer,
-          new Map([['README.md', 'current\n']]),
-        ),
-        reviewedAt: '2026-01-01T00:00:00.000Z',
-      },
-    ],
-  });
+  const reviews = await session.runPromise(ReviewStore);
+  const marks = await session.runPromise(ReviewedLayerStore);
+  await Effect.runPromise(
+    (await session.runPromise(InventoryStore)).save({
+      id: 'project',
+      name: 'project',
+      namedByOwner: false,
+      commonDirectory: '/repo/.git',
+      repositoryIdentity: 'identity',
+      available: true,
+      position: 1,
+    }),
+  );
+  await Effect.runPromise(
+    (await session.runPromise(WorktreePresenceStore)).save({
+      rows: [
+        {
+          worktreeId: worktree.id,
+          projectId: 'project',
+          missingSince: undefined,
+        },
+      ],
+    }),
+  );
+  await Effect.runPromise(
+    reviews.save({
+      worktreeId: worktree.id,
+      revision: 1,
+      publishedAt: '2026-01-01T00:00:00.000Z',
+      active: true,
+      summaryHtml: '<p>Review</p>',
+      summaryToken: 'token',
+      summarySecret: 'secret',
+      layers: [layer],
+    }),
+  );
+  await Effect.runPromise(
+    marks.save({
+      worktreeId: worktree.id,
+      marks: [
+        {
+          layerId: 'layer',
+          fingerprint: currentLayerFingerprint(
+            layer,
+            new Map([['README.md', 'current\n']]),
+          ),
+          reviewedAt: '2026-01-01T00:00:00.000Z',
+        },
+      ],
+    }),
+  );
   const consistency = { execute: () => Effect.void };
   const lanes = Effect.runSync(
     Lanes.pipe(
@@ -194,10 +201,13 @@ it('lets an arriving writer finish before badge text reads, without holding a re
             Effect.provide(ReadReviewBadgesService.layer),
             Effect.provideService(ReviewStore, reviews),
             Effect.provideService(ReviewedLayerStore, marks),
-            Effect.provideService(CommentStore, createCommentStore(session)),
+            Effect.provideService(
+              CommentStore,
+              await session.runPromise(CommentStore),
+            ),
             Effect.provideService(
               CommentSeenStore,
-              createCommentSeenStore(session),
+              await session.runPromise(CommentSeenStore),
             ),
           ),
         ),
@@ -219,7 +229,7 @@ it('lets an arriving writer finish before badge text reads, without holding a re
     expect(order).toEqual(['write', 'read:README.md']);
   } finally {
     await lanes.close();
-    session.close();
+    await session.dispose();
     rmSync(directory, { recursive: true, force: true });
   }
 });

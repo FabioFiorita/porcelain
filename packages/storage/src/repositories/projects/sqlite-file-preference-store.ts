@@ -1,86 +1,74 @@
-import { and, asc, count, eq } from 'drizzle-orm';
-import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
-import type {
-  FilePreference,
-  FilePreferenceKey,
-  ProjectFilePreference,
-  ProjectKey,
-} from '@porcelain/projects/models';
-import type { FilePreferenceStore } from '@porcelain/projects/ports';
-import { projectFilePreferences } from '../../db/schema/project-file-preferences.ts';
+import { Effect, Layer, Option, Schema } from 'effect';
+import { SqlClient, SqlSchema } from 'effect/sql';
+import { FilePreferenceStore } from '@porcelain/projects/ports';
 
-const COLUMNS = {
-  path: projectFilePreferences.path,
-  pinned: projectFilePreferences.pinned,
-  hidden: projectFilePreferences.hidden,
-};
+import { FilePreferenceRow } from '../../db/models/project-file-preferences.ts';
 
-function keyed(input: FilePreferenceKey) {
-  return and(
-    eq(projectFilePreferences.projectId, input.projectId),
-    eq(projectFilePreferences.path, input.path),
-  );
-}
+export const sqliteFilePreferenceStoreLayer = Layer.effect(
+  FilePreferenceStore,
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    const list = SqlSchema.findAll({
+      Request: Schema.Struct({ projectId: Schema.String }),
+      Result: Schema.Struct({
+        path: FilePreferenceRow.fields.path,
+        pinned: FilePreferenceRow.fields.pinned,
+        hidden: FilePreferenceRow.fields.hidden,
+      }),
+      execute: (input) =>
+        sql`SELECT path, pinned, hidden FROM project_file_preferences WHERE project_id = ${input.projectId} ORDER BY path`,
+    });
+    const find = SqlSchema.findOneOption({
+      Request: Schema.Struct({ projectId: Schema.String, path: Schema.String }),
+      Result: Schema.Struct({
+        path: FilePreferenceRow.fields.path,
+        pinned: FilePreferenceRow.fields.pinned,
+        hidden: FilePreferenceRow.fields.hidden,
+      }),
+      execute: (input) =>
+        sql`SELECT path, pinned, hidden FROM project_file_preferences WHERE project_id = ${input.projectId} AND path = ${input.path}`,
+    });
+    const count = SqlSchema.findOne({
+      Request: Schema.Struct({ projectId: Schema.String }),
+      Result: Schema.Struct({ total: Schema.Int }),
+      execute: (input) =>
+        sql`SELECT COUNT(*) AS total FROM project_file_preferences WHERE project_id = ${input.projectId}`,
+    });
 
-export class SqliteFilePreferenceStore implements FilePreferenceStore {
-  private readonly db: BetterSQLite3Database;
-
-  constructor(db: BetterSQLite3Database) {
-    this.db = db;
-  }
-
-  list(input: ProjectKey): FilePreference[] {
-    return this.db
-      .select(COLUMNS)
-      .from(projectFilePreferences)
-      .where(eq(projectFilePreferences.projectId, input.projectId))
-      .orderBy(asc(projectFilePreferences.path))
-      .all();
-  }
-
-  find(input: FilePreferenceKey): FilePreference | undefined {
-    return this.db
-      .select(COLUMNS)
-      .from(projectFilePreferences)
-      .where(keyed(input))
-      .get();
-  }
-
-  count(input: ProjectKey): number {
-    return (
-      this.db
-        .select({ total: count() })
-        .from(projectFilePreferences)
-        .where(eq(projectFilePreferences.projectId, input.projectId))
-        .get()?.total ?? 0
-    );
-  }
-
-  save(input: ProjectFilePreference): void {
-    const { projectId, preference } = input;
-    this.db.transaction(
-      (tx) => {
-        tx.insert(projectFilePreferences)
-          .values({ projectId, ...preference })
-          .onConflictDoUpdate({
-            target: [
-              projectFilePreferences.projectId,
-              projectFilePreferences.path,
-            ],
-            set: { pinned: preference.pinned, hidden: preference.hidden },
-          })
-          .run();
-      },
-      { behavior: 'immediate' },
-    );
-  }
-
-  remove(input: FilePreferenceKey): void {
-    this.db.transaction(
-      (tx) => {
-        tx.delete(projectFilePreferences).where(keyed(input)).run();
-      },
-      { behavior: 'immediate' },
-    );
-  }
-}
+    return FilePreferenceStore.of({
+      list: Effect.fn('FilePreferenceStore.list')(function* (
+        input: Parameters<FilePreferenceStore['list']>[0],
+      ) {
+        return yield* list(input).pipe(Effect.orDie);
+      }),
+      find: Effect.fn('FilePreferenceStore.find')(function* (
+        input: Parameters<FilePreferenceStore['find']>[0],
+      ) {
+        return Option.getOrUndefined(yield* find(input).pipe(Effect.orDie));
+      }),
+      count: Effect.fn('FilePreferenceStore.count')(function* (
+        input: Parameters<FilePreferenceStore['count']>[0],
+      ) {
+        return (yield* count(input).pipe(Effect.orDie)).total;
+      }),
+      save: Effect.fn('FilePreferenceStore.save')(function* (
+        input: Parameters<FilePreferenceStore['save']>[0],
+      ) {
+        return yield* Effect.gen(function* () {
+          const row = yield* Schema.encodeEffect(FilePreferenceRow.insert)({
+            projectId: input.projectId,
+            ...input.preference,
+          });
+          yield* sql`INSERT INTO project_file_preferences ${sql.insert(row)} ON CONFLICT (project_id, path) DO UPDATE SET ${sql.update(row, ['projectId', 'path'])}`;
+        }).pipe(sql.withTransaction, Effect.asVoid, Effect.orDie);
+      }),
+      remove: Effect.fn('FilePreferenceStore.remove')(function* (
+        input: Parameters<FilePreferenceStore['remove']>[0],
+      ) {
+        yield* sql`DELETE FROM project_file_preferences WHERE project_id = ${input.projectId} AND path = ${input.path}`.pipe(
+          Effect.orDie,
+        );
+      }),
+    });
+  }),
+);

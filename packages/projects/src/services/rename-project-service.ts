@@ -23,14 +23,14 @@ export class RenameProjectService extends Context.Service<
         execute: Effect.fn('RenameProjectService.execute')(function* (
           input: RenameProjectInput,
         ): Effect.fn.Return<RenameProjectResult, ProjectNotFoundError> {
-          const project = inventoryCapability.find({
+          const project = yield* inventoryCapability.find({
             projectId: input.projectId,
           });
           if (!project) return yield* Effect.fail(new ProjectNotFoundError());
           const renamed = { id: project.id, name: input.name };
           if (project.namedByOwner && project.name === input.name)
             return { project: renamed, changed: false };
-          inventoryCapability.save({
+          yield* inventoryCapability.save({
             ...project,
             name: input.name,
             namedByOwner: true,

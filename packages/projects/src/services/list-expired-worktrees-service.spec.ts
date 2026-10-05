@@ -29,12 +29,12 @@ function project(id: string, repositoryIdentity: string): RegisteredProject {
   };
 }
 
-function service(
+async function service(
   rows: WorktreePresence[],
   projects: RegisteredProject[] = [project('project-1', 'repository-1')],
 ) {
   const presence = new InMemoryWorktreePresenceStore();
-  presence.save({ rows });
+  await Effect.runPromise(presence.save({ rows }));
   return Effect.runSync(
     ListExpiredWorktreesService.pipe(
       Effect.provide(ListExpiredWorktreesService.layer),
@@ -52,16 +52,18 @@ function service(
 }
 
 describe('ListExpiredWorktreesService', () => {
-  it('answers each worktree absent past the grace period with the repository of its project', () => {
+  it('answers each worktree absent past the grace period with the repository of its project', async () => {
     expect(
       Effect.runSync(
-        service([
-          {
-            worktreeId: 'gone',
-            projectId: 'project-1',
-            missingSince: '2026-08-01T00:00:00.000Z',
-          },
-        ]).execute(),
+        (
+          await service([
+            {
+              worktreeId: 'gone',
+              projectId: 'project-1',
+              missingSince: '2026-08-01T00:00:00.000Z',
+            },
+          ])
+        ).execute(),
       ),
     ).toEqual({
       worktrees: [
@@ -70,37 +72,41 @@ describe('ListExpiredWorktreesService', () => {
     });
   });
 
-  it('leaves out present worktrees and those still within the grace period', () => {
+  it('leaves out present worktrees and those still within the grace period', async () => {
     expect(
       Effect.runSync(
-        service([
-          {
-            worktreeId: 'here',
-            projectId: 'project-1',
-            missingSince: undefined,
-          },
-          {
-            worktreeId: 'recent',
-            projectId: 'project-1',
-            missingSince: '2026-08-30T00:00:00.000Z',
-          },
-        ]).execute(),
+        (
+          await service([
+            {
+              worktreeId: 'here',
+              projectId: 'project-1',
+              missingSince: undefined,
+            },
+            {
+              worktreeId: 'recent',
+              projectId: 'project-1',
+              missingSince: '2026-08-30T00:00:00.000Z',
+            },
+          ])
+        ).execute(),
       ),
     ).toEqual({ worktrees: [] });
   });
 
-  it('leaves out a worktree whose project is no longer registered', () => {
+  it('leaves out a worktree whose project is no longer registered', async () => {
     expect(
       Effect.runSync(
-        service(
-          [
-            {
-              worktreeId: 'orphan',
-              projectId: 'project-gone',
-              missingSince: '2026-08-01T00:00:00.000Z',
-            },
-          ],
-          [],
+        (
+          await service(
+            [
+              {
+                worktreeId: 'orphan',
+                projectId: 'project-gone',
+                missingSince: '2026-08-01T00:00:00.000Z',
+              },
+            ],
+            [],
+          )
         ).execute(),
       ),
     ).toEqual({ worktrees: [] });

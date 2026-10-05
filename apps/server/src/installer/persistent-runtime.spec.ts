@@ -15,10 +15,6 @@ type Answer = { code: number; stdout: string; stderr: string };
 
 const serviceNode = '/opt/service/bin/node';
 const source = '/packages/porcelain-1.2.0.tgz';
-const workingSqlite =
-  'module.exports = class Database { prepare() { return { get: () => ({ one: 1 }) }; } };';
-const missingBinding =
-  "module.exports = class Database { constructor() { throw new Error('Could not locate the bindings file.'); } };";
 const workingWatcher = 'module.exports = { subscribe() {} };';
 
 let root: string;
@@ -27,6 +23,7 @@ let npmAnswer: Answer;
 let installedVersion: string;
 let modules: Record<string, string | undefined>;
 let commands: string[];
+let sqliteAvailable = true;
 
 function writeModule(prefix: string, name: string, body: string) {
   const folder = join(prefix, 'node_modules', name);
@@ -52,10 +49,14 @@ async function runner(command: string, args: readonly string[]) {
   if (command === 'npm' && args[0] === 'install' && args.at(-1) === source)
     return npmInstall(args);
   if (command === serviceNode) {
-    const run = spawnSync(process.execPath, args, {
-      encoding: 'utf8',
-      env: { ...process.env, NODE_PATH: '' },
-    });
+    const run = spawnSync(
+      process.execPath,
+      sqliteAvailable ? args : ['--no-experimental-sqlite', ...args],
+      {
+        encoding: 'utf8',
+        env: { ...process.env, NODE_PATH: '' },
+      },
+    );
     return { code: run.status ?? 1, stdout: run.stdout, stderr: run.stderr };
   }
   return { code: 1, stdout: '', stderr: `unexpected ${command}` };
@@ -70,10 +71,10 @@ beforeEach(() => {
   npmAnswer = { code: 0, stdout: '', stderr: '' };
   installedVersion = '1.2.0';
   modules = {
-    'better-sqlite3': workingSqlite,
     '@parcel/watcher': workingWatcher,
   };
   commands = [];
+  sqliteAvailable = true;
 });
 
 afterEach(() => {
@@ -89,24 +90,19 @@ describe('installing the persistent runtime', () => {
     expect(existsSync(join(destination, 'leftover'))).toBe(false);
   });
 
-  it.each([
-    [
-      'SQLite binding cannot load',
-      { 'better-sqlite3': missingBinding, '@parcel/watcher': workingWatcher },
-      /cannot load its native modules.*Could not locate the bindings file\.$/,
-    ],
-    [
-      'file watcher is missing',
-      { 'better-sqlite3': workingSqlite, '@parcel/watcher': undefined },
+  it('refuses a service node without its built-in SQLite and names the reason', async () => {
+    sqliteAvailable = false;
+    await expect(install()).rejects.toThrow(
+      /cannot load its native modules.*No such built-in module: node:sqlite$/,
+    );
+  });
+
+  it('refuses a runtime missing its file watcher and names the reason', async () => {
+    modules = { '@parcel/watcher': undefined };
+    await expect(install()).rejects.toThrow(
       /cannot load its native modules.*Cannot find module '@parcel\/watcher'/,
-    ],
-  ])(
-    'refuses a runtime whose %s and names the reason',
-    async (_, installed, reason) => {
-      modules = installed;
-      await expect(install()).rejects.toThrow(reason);
-    },
-  );
+    );
+  });
 
   it("reports npm's own reason when the install fails and checks nothing further", async () => {
     npmAnswer = { code: 1, stdout: '', stderr: 'npm error 404 Not Found\n' };

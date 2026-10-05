@@ -278,7 +278,7 @@ describe('the installed service update runner', () => {
         target: '1.1.0',
         stage: 'failed',
         reason:
-          'The persistent runtime cannot load its native modules (better-sqlite3, @parcel/watcher): Could not locate the bindings file.',
+          'The persistent runtime cannot load its native modules (node:sqlite, @parcel/watcher): Could not locate the bindings file.',
       });
     expect(commands).not.toContain('systemd-run');
   });

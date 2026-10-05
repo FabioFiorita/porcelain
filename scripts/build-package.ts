@@ -157,8 +157,7 @@ The Porcelain review server and bundled web app for a plain Node installation.
 
 ## Quick start
 
-The host needs Node 24+, Git, and a native build environment for the
-\`better-sqlite3\` dependency:
+The host needs Node 24+, Git, and the file watcher supported on its platform:
 
 \`\`\`sh
 npx @fabiofiorita/porcelain@latest serve

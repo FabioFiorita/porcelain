@@ -27,7 +27,7 @@ export class ReadRemoteAccessService extends Context.Service<
               yield* networkAddresses.defaultRoutes(),
             );
             return remoteAccessView(
-              remoteAccess.read(),
+              yield* remoteAccess.read(),
               routeStates.read(),
               runtimeStatusReader.current().address,
               here,

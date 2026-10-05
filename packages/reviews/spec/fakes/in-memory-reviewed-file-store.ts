@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type {
   ReviewedFileKey,
   ReviewedFileMark,
@@ -32,46 +33,55 @@ export class InMemoryReviewedFileStore implements ReviewedFileStore {
     );
   }
 
-  list(input: ReviewedFileKey): ReviewedFileMark[] {
-    return [...this.rows.values()]
-      .filter(
-        (row) =>
-          row.worktreeId === input.worktreeId &&
-          (row.scope ?? 'worktree') === (input.scope ?? 'worktree') &&
-          (row.branch ?? '') === (input.branch ?? ''),
-      )
-      .map((row) => ({
-        ...row.mark,
-        stale: this.staleness.get(rowKey(row, row.mark.path)) ?? row.mark.stale,
-      }))
-      .sort(
-        (left, right) =>
-          Number(left.path > right.path) - Number(left.path < right.path),
-      );
+  list(input: ReviewedFileKey): Effect.Effect<ReviewedFileMark[]> {
+    return Effect.sync(() => {
+      return [...this.rows.values()]
+        .filter(
+          (row) =>
+            row.worktreeId === input.worktreeId &&
+            (row.scope ?? 'worktree') === (input.scope ?? 'worktree') &&
+            (row.branch ?? '') === (input.branch ?? ''),
+        )
+        .map((row) => ({
+          ...row.mark,
+          stale:
+            this.staleness.get(rowKey(row, row.mark.path)) ?? row.mark.stale,
+        }))
+        .sort(
+          (left, right) =>
+            Number(left.path > right.path) - Number(left.path < right.path),
+        );
+    });
   }
 
-  save(input: ReviewedFileSave): void {
-    input.marks.forEach((mark) => {
-      this.rows.set(rowKey(input, mark.path), {
-        worktreeId: input.worktreeId,
-        scope: input.scope,
-        branch: input.branch,
-        mark: { ...mark },
+  save(input: ReviewedFileSave): Effect.Effect<void> {
+    return Effect.sync(() => {
+      input.marks.forEach((mark) => {
+        this.rows.set(rowKey(input, mark.path), {
+          worktreeId: input.worktreeId,
+          scope: input.scope,
+          branch: input.branch,
+          mark: { ...mark },
+        });
+        this.staleness.delete(rowKey(input, mark.path));
       });
-      this.staleness.delete(rowKey(input, mark.path));
     });
   }
 
-  remove(input: ReviewedFileRemoval): void {
-    input.paths.forEach((path) => {
-      this.rows.delete(rowKey(input, path));
-      this.staleness.delete(rowKey(input, path));
+  remove(input: ReviewedFileRemoval): Effect.Effect<void> {
+    return Effect.sync(() => {
+      input.paths.forEach((path) => {
+        this.rows.delete(rowKey(input, path));
+        this.staleness.delete(rowKey(input, path));
+      });
     });
   }
 
-  setStale(input: ReviewedFileStaleness): void {
-    input.paths.forEach((path) =>
-      this.staleness.set(rowKey(input, path), input.stale),
-    );
+  setStale(input: ReviewedFileStaleness): Effect.Effect<void> {
+    return Effect.sync(() => {
+      input.paths.forEach((path) =>
+        this.staleness.set(rowKey(input, path), input.stale),
+      );
+    });
   }
 }

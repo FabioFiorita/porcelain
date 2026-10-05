@@ -13,9 +13,7 @@ export class MarkProjectsUnavailableService extends Context.Service<
       return {
         execute: Effect.fn('MarkProjectsUnavailableService.execute')(
           function* (): Effect.fn.Return<void, never> {
-            return yield* Effect.sync<void>(() => {
-              inventoryCapability.markAllUnavailable();
-            });
+            yield* inventoryCapability.markAllUnavailable();
           },
         ),
       };

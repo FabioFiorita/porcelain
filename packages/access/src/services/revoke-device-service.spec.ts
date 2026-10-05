@@ -36,26 +36,28 @@ function setup() {
 }
 
 describe('RevokeDeviceService', () => {
-  it('revokes a paired device at the current time', () => {
+  it('revokes a paired device at the current time', async () => {
     const { devices, service } = setup();
     expect(Effect.runSync(service.execute({ id: 'device' }))).toEqual({
       kind: 'revoked',
     });
-    expect(devices.find({ deviceId: 'device' })?.revokedAt).toBe(
-      '2026-09-23T10:05:00.000Z',
-    );
+    expect(
+      (await Effect.runPromise(devices.find({ deviceId: 'device' })))
+        ?.revokedAt,
+    ).toBe('2026-09-23T10:05:00.000Z');
   });
 
-  it('keeps the first revocation time when the device is revoked again', () => {
+  it('keeps the first revocation time when the device is revoked again', async () => {
     const { devices, clock, service } = setup();
     Effect.runSync(service.execute({ id: 'device' }));
     clock.set('2026-09-23T10:06:00.000Z');
     expect(Effect.runSync(service.execute({ id: 'device' }))).toEqual({
       kind: 'not-revoked',
     });
-    expect(devices.find({ deviceId: 'device' })?.revokedAt).toBe(
-      '2026-09-23T10:05:00.000Z',
-    );
+    expect(
+      (await Effect.runPromise(devices.find({ deviceId: 'device' })))
+        ?.revokedAt,
+    ).toBe('2026-09-23T10:05:00.000Z');
   });
 
   it('drops the pending sighting of the device it revokes and keeps the sightings of other devices', () => {

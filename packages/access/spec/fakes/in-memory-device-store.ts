@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import type { StoredDevice } from '../../src/models/device.ts';
 import type { DeviceStore } from '../../src/ports/device-store.ts';
 
@@ -16,30 +17,46 @@ export class InMemoryDeviceStore implements DeviceStore {
     this.trust.set(device.id, device.trusted || undefined);
   }
 
-  find(input: { deviceId: string }): StoredDevice | undefined {
-    const device = this.devices.get(input.deviceId);
-    return device && this.current(device);
-  }
-
-  list(): StoredDevice[] {
-    return [...this.devices.values()]
-      .map((device) => this.current(device))
-      .sort((left, right) => left.createdAt.localeCompare(right.createdAt));
-  }
-
-  markRevoked(input: { device: StoredDevice; revokedAt: string }): void {
-    this.revocations.set(input.device.id, input.revokedAt);
-  }
-
-  recordSighting(input: { device: StoredDevice }): void {
-    this.sightings.set(input.device.id, {
-      lastSeenAt: input.device.lastSeenAt,
-      lastSeenAddress: input.device.lastSeenAddress,
+  find(input: { deviceId: string }): Effect.Effect<StoredDevice | undefined> {
+    return Effect.sync(() => {
+      const device = this.devices.get(input.deviceId);
+      return device && this.current(device);
     });
   }
 
-  recordTrust(input: { device: StoredDevice; trusted: boolean }): void {
-    this.trust.set(input.device.id, input.trusted || undefined);
+  list(): Effect.Effect<StoredDevice[]> {
+    return Effect.sync(() => {
+      return [...this.devices.values()]
+        .map((device) => this.current(device))
+        .sort((left, right) => left.createdAt.localeCompare(right.createdAt));
+    });
+  }
+
+  markRevoked(input: {
+    device: StoredDevice;
+    revokedAt: string;
+  }): Effect.Effect<void> {
+    return Effect.sync(() => {
+      this.revocations.set(input.device.id, input.revokedAt);
+    });
+  }
+
+  recordSighting(input: { device: StoredDevice }): Effect.Effect<void> {
+    return Effect.sync(() => {
+      this.sightings.set(input.device.id, {
+        lastSeenAt: input.device.lastSeenAt,
+        lastSeenAddress: input.device.lastSeenAddress,
+      });
+    });
+  }
+
+  recordTrust(input: {
+    device: StoredDevice;
+    trusted: boolean;
+  }): Effect.Effect<void> {
+    return Effect.sync(() => {
+      this.trust.set(input.device.id, input.trusted || undefined);
+    });
   }
 
   private current(device: StoredDevice): StoredDevice {

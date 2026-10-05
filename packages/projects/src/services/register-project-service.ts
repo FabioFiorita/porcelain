@@ -29,33 +29,31 @@ export class RegisterProjectService extends Context.Service<
         execute: Effect.fn('RegisterProjectService.execute')(function* (
           input: RegisterProjectInput,
         ): Effect.fn.Return<RegisterProjectResult, never> {
-          return yield* Effect.sync<RegisterProjectResult>(() => {
-            const { repository } = input;
-            const { projects } = inventoryCapability.read();
-            const previous = projects.find(
-              (project) =>
-                project.repositoryIdentity === repository.repositoryIdentity,
-            );
-            const project: RegisteredProject = {
-              id: previous?.id ?? idSourceCapability.next(),
-              name: previous?.namedByOwner
-                ? previous.name
-                : deriveProjectName(
-                    input.originUrl,
-                    repository.worktrees.find((worktree) => worktree.main)
-                      ?.path ?? parentFolder(repository.commonDirectory),
-                  ),
-              namedByOwner: previous?.namedByOwner ?? false,
-              commonDirectory: repository.commonDirectory,
-              repositoryIdentity: repository.repositoryIdentity,
-              available: true,
-              position: previous?.position ?? nextPosition(projects),
-            };
-            const changed =
-              previous === undefined || !sameProject(previous, project);
-            if (changed) inventoryCapability.save(project);
-            return { project, changed };
-          });
+          const { repository } = input;
+          const { projects } = yield* inventoryCapability.read();
+          const previous = projects.find(
+            (project) =>
+              project.repositoryIdentity === repository.repositoryIdentity,
+          );
+          const project: RegisteredProject = {
+            id: previous?.id ?? idSourceCapability.next(),
+            name: previous?.namedByOwner
+              ? previous.name
+              : deriveProjectName(
+                  input.originUrl,
+                  repository.worktrees.find((worktree) => worktree.main)
+                    ?.path ?? parentFolder(repository.commonDirectory),
+                ),
+            namedByOwner: previous?.namedByOwner ?? false,
+            commonDirectory: repository.commonDirectory,
+            repositoryIdentity: repository.repositoryIdentity,
+            available: true,
+            position: previous?.position ?? nextPosition(projects),
+          };
+          const changed =
+            previous === undefined || !sameProject(previous, project);
+          if (changed) yield* inventoryCapability.save(project);
+          return { project, changed };
         }),
       };
     }),

@@ -34,7 +34,7 @@ function setup() {
 }
 
 describe('FlushDeviceActivityService', () => {
-  it('stores each pending sighting and leaves none pending', () => {
+  it('stores each pending sighting and leaves none pending', async () => {
     const { devices, sightings, service } = setup();
     sightings.save({
       device: {
@@ -44,16 +44,20 @@ describe('FlushDeviceActivityService', () => {
       },
     });
     Effect.runSync(service.execute());
-    expect(devices.find({ deviceId: 'device' })).toMatchObject({
+    expect(
+      await Effect.runPromise(devices.find({ deviceId: 'device' })),
+    ).toMatchObject({
       lastSeenAt: '2026-09-23T10:00:00.000Z',
       lastSeenAddress: '10.0.0.1',
     });
     expect(sightings.take()).toEqual([]);
   });
 
-  it('changes nothing when no device was seen since the last flush', () => {
+  it('changes nothing when no device was seen since the last flush', async () => {
     const { devices, service } = setup();
     Effect.runSync(service.execute());
-    expect(devices.find({ deviceId: 'device' })).toEqual(device);
+    expect(
+      await Effect.runPromise(devices.find({ deviceId: 'device' })),
+    ).toEqual(device);
   });
 });

@@ -1,65 +1,119 @@
+import { Schema, Struct } from 'effect';
+const codePointerSchema = Schema.Struct({
+  path: Schema.mutableKey(Schema.String),
+  startLine: Schema.mutableKey(Schema.Number),
+  endLine: Schema.mutableKey(Schema.Number),
+  symbol: Schema.mutableKey(
+    Schema.optional(Schema.Union([Schema.String, Schema.Undefined])),
+  ),
+});
+const stepDraftSchema = Schema.Struct({
+  id: Schema.mutableKey(Schema.String),
+  lane: Schema.mutableKey(Schema.Number),
+  title: Schema.mutableKey(Schema.String),
+  text: Schema.mutableKey(Schema.String),
+  kind: Schema.mutableKey(
+    Schema.Union([Schema.Literal('changed'), Schema.Literal('context')]),
+  ),
+  pointer: Schema.mutableKey(codePointerSchema),
+});
+const layerArrowSchema = Schema.Struct({
+  from: Schema.mutableKey(Schema.String),
+  to: Schema.mutableKey(Schema.String),
+  label: Schema.mutableKey(
+    Schema.optional(Schema.Union([Schema.String, Schema.Undefined])),
+  ),
+});
+const layerDraftSchema = Schema.Struct({
+  id: Schema.mutableKey(Schema.String),
+  title: Schema.mutableKey(Schema.String),
+  summary: Schema.mutableKey(Schema.String),
+  lanes: Schema.mutableKey(Schema.Array(Schema.String)),
+  steps: Schema.mutableKey(Schema.Array(stepDraftSchema)),
+  arrows: Schema.mutableKey(
+    Schema.optional(
+      Schema.Union([Schema.Array(layerArrowSchema), Schema.Undefined]),
+    ),
+  ),
+});
+const reviewStepSchema = Schema.Struct({
+  ...stepDraftSchema.fields,
+  published: Schema.mutableKey(Schema.Array(Schema.String)),
+});
+export const reviewLayerSchema = Schema.Struct({
+  ...Struct.omit(layerDraftSchema.fields, ['steps']),
+  steps: Schema.mutableKey(Schema.Array(reviewStepSchema)),
+  fingerprint: Schema.mutableKey(Schema.String),
+});
+const diagramBoxSchema = Schema.Struct({
+  id: Schema.mutableKey(Schema.String),
+  lane: Schema.mutableKey(Schema.Number),
+  label: Schema.mutableKey(Schema.String),
+  detail: Schema.mutableKey(
+    Schema.optional(Schema.Union([Schema.String, Schema.Undefined])),
+  ),
+  kind: Schema.mutableKey(
+    Schema.Union([
+      Schema.Literal('actor'),
+      Schema.Literal('component'),
+      Schema.Literal('storage'),
+      Schema.Literal('transport'),
+      Schema.Literal('credential'),
+    ]),
+  ),
+  change: Schema.mutableKey(
+    Schema.optional(
+      Schema.Union([
+        Schema.Literal('new'),
+        Schema.Literal('changed'),
+        Schema.Literal('removed'),
+        Schema.Undefined,
+      ]),
+    ),
+  ),
+  problem: Schema.mutableKey(
+    Schema.optional(Schema.Union([Schema.String, Schema.Undefined])),
+  ),
+  layerId: Schema.mutableKey(
+    Schema.optional(Schema.Union([Schema.String, Schema.Undefined])),
+  ),
+});
+const diagramArrowSchema = Schema.Struct({
+  from: Schema.mutableKey(Schema.String),
+  to: Schema.mutableKey(Schema.String),
+  label: Schema.mutableKey(
+    Schema.optional(Schema.Union([Schema.String, Schema.Undefined])),
+  ),
+  dashed: Schema.mutableKey(
+    Schema.optional(Schema.Union([Schema.Boolean, Schema.Undefined])),
+  ),
+});
+const diagramSchema = Schema.Struct({
+  lanes: Schema.mutableKey(Schema.Array(Schema.String)),
+  boxes: Schema.mutableKey(Schema.Array(diagramBoxSchema)),
+  arrows: Schema.mutableKey(Schema.Array(diagramArrowSchema)),
+});
+export const reviewDiagramSchema = Schema.Struct({
+  after: Schema.mutableKey(diagramSchema),
+  before: Schema.mutableKey(
+    Schema.optional(Schema.Union([diagramSchema, Schema.Undefined])),
+  ),
+});
+
 import type { Brand } from 'effect';
 import type { ProofDraft, ProofFile, ReviewProof } from './review-proof.ts';
 
-export type CodePointer = {
-  path: string;
-  startLine: number;
-  endLine: number;
-  symbol?: string | undefined;
-};
+export type CodePointer = typeof codePointerSchema.Type;
 
-export type StepDraft = {
-  id: string;
-  lane: number;
-  title: string;
-  text: string;
-  kind: 'changed' | 'context';
-  pointer: CodePointer;
-};
+export type StepDraft = typeof stepDraftSchema.Type;
 
-type LayerArrow = {
-  from: string;
-  to: string;
-  label?: string | undefined;
-};
+export type LayerDraft = typeof layerDraftSchema.Type;
 
-export type LayerDraft = {
-  id: string;
-  title: string;
-  summary: string;
-  lanes: readonly string[];
-  steps: readonly StepDraft[];
-  arrows?: readonly LayerArrow[] | undefined;
-};
+export type DiagramBox = typeof diagramBoxSchema.Type;
 
-export type DiagramBox = {
-  id: string;
-  lane: number;
-  label: string;
-  detail?: string | undefined;
-  kind: 'actor' | 'component' | 'storage' | 'transport' | 'credential';
-  change?: 'new' | 'changed' | 'removed' | undefined;
-  problem?: string | undefined;
-  layerId?: string | undefined;
-};
+export type Diagram = typeof diagramSchema.Type;
 
-type DiagramArrow = {
-  from: string;
-  to: string;
-  label?: string | undefined;
-  dashed?: boolean | undefined;
-};
-
-export type Diagram = {
-  lanes: readonly string[];
-  boxes: readonly DiagramBox[];
-  arrows: readonly DiagramArrow[];
-};
-
-export type ReviewDiagram = {
-  after: Diagram;
-  before?: Diagram | undefined;
-};
+export type ReviewDiagram = typeof reviewDiagramSchema.Type;
 
 export type ReviewDraft = {
   expectedRevision: number;
@@ -69,14 +123,9 @@ export type ReviewDraft = {
   proof?: ProofDraft | undefined;
 };
 
-export type ReviewStep = StepDraft & {
-  published: readonly string[];
-};
+export type ReviewStep = typeof reviewStepSchema.Type;
 
-export type ReviewLayer = Omit<LayerDraft, 'steps'> & {
-  steps: readonly ReviewStep[];
-  fingerprint: string;
-};
+export type ReviewLayer = typeof reviewLayerSchema.Type;
 
 export type Review = {
   worktreeId: string;

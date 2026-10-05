@@ -20,23 +20,29 @@ const project: RegisteredProject = {
 };
 
 describe('ListRecordedWorktreesService', () => {
-  it('answers every recorded worktree, present or absent, with the repository of its registered project', () => {
+  it('answers every recorded worktree, present or absent, with the repository of its registered project', async () => {
     const presence = new InMemoryWorktreePresenceStore();
-    presence.save({
-      rows: [
-        { worktreeId: 'here', projectId: project.id, missingSince: undefined },
-        {
-          worktreeId: 'away',
-          projectId: project.id,
-          missingSince: '2026-08-01T00:00:00.000Z',
-        },
-        {
-          worktreeId: 'orphan',
-          projectId: 'project-gone',
-          missingSince: undefined,
-        },
-      ],
-    });
+    await Effect.runPromise(
+      presence.save({
+        rows: [
+          {
+            worktreeId: 'here',
+            projectId: project.id,
+            missingSince: undefined,
+          },
+          {
+            worktreeId: 'away',
+            projectId: project.id,
+            missingSince: '2026-08-01T00:00:00.000Z',
+          },
+          {
+            worktreeId: 'orphan',
+            projectId: 'project-gone',
+            missingSince: undefined,
+          },
+        ],
+      }),
+    );
     expect(
       Effect.runSync(
         Effect.runSync(

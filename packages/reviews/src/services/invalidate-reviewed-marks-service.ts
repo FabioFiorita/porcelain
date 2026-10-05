@@ -23,23 +23,20 @@ export class InvalidateReviewedMarksService extends Context.Service<
         execute: Effect.fn('InvalidateReviewedMarksService.execute')(function* (
           input: InvalidateReviewedMarksInput,
         ): Effect.fn.Return<InvalidateReviewedMarksResult, never> {
-          return yield* Effect.sync<InvalidateReviewedMarksResult>(() => {
-            const { worktreeId, paths } = input;
-            if (paths?.length === 0) return { changed: false };
-            const files = touchedMarks(
-              reviewedFilesCapability
-                .list({ worktreeId })
-                .filter((mark) => !mark.stale)
-                .map((mark) => mark.path),
-              paths,
-            );
-            reviewedFilesCapability.setStale({
-              worktreeId,
-              paths: files,
-              stale: true,
-            });
-            return { changed: files.length > 0 };
+          const { worktreeId, paths } = input;
+          if (paths?.length === 0) return { changed: false };
+          const files = touchedMarks(
+            (yield* reviewedFilesCapability.list({ worktreeId }))
+              .filter((mark) => !mark.stale)
+              .map((mark) => mark.path),
+            paths,
+          );
+          yield* reviewedFilesCapability.setStale({
+            worktreeId,
+            paths: files,
+            stale: true,
           });
+          return { changed: files.length > 0 };
         }),
       };
     }),

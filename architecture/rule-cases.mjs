@@ -259,28 +259,12 @@ export default [
   {
     rule: 'implementation-name',
     path: 'packages/storage/src/repositories/reviews/sqlite-comment-seen-store.ts',
-    valid: `import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
-import type { CommentSeenStore } from '@porcelain/reviews/ports';
-
-export class SqliteCommentSeenStore implements CommentSeenStore {
-  private readonly db: BetterSQLite3Database;
-
-  constructor(db: BetterSQLite3Database) {
-    this.db = db;
-  }
-}
-`,
-    invalid: `import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
-import type { CommentSeenStore, CommentStore } from '@porcelain/reviews/ports';
-
-export class SqliteCommentSeenStore implements CommentSeenStore, CommentStore {
-  private readonly db: BetterSQLite3Database;
-
-  constructor(db: BetterSQLite3Database) {
-    this.db = db;
-  }
-}
-`,
+    valid: `import { Effect, Layer } from 'effect';
+import { CommentSeenStore } from '@porcelain/reviews/ports';
+export const sqliteCommentSeenStoreLayer = Layer.effect(CommentSeenStore, Effect.succeed({}));`,
+    invalid: `import { Effect, Layer } from 'effect';
+import { CommentSeenStore, CommentStore } from '@porcelain/reviews/ports';
+export const sqliteCommentSeenStoreLayer = Layer.mergeAll(Layer.effect(CommentSeenStore, Effect.succeed({})), Layer.effect(CommentStore, Effect.succeed({})));`,
     errors: 1,
   },
   {
@@ -296,29 +280,10 @@ export class SqliteCommentSeenStore implements CommentSeenStore, CommentStore {
   {
     rule: 'interfaces-only-in-ports',
     path: 'packages/files/src/services/list-directory-service.ts',
-    valid: `import type { ListDirectoryOptions } from '../models/list-directory.ts';
-
-export class ListDirectoryService {
-  private readonly options: ListDirectoryOptions;
-
-  constructor(options: ListDirectoryOptions) {
-    this.options = options;
-  }
-}
-`,
-    invalid: `export interface ListDirectoryOptions {
-  maxEntries: number;
-  maxResponseBytes: number;
-}
-
-export class ListDirectoryService {
-  private readonly options: ListDirectoryOptions;
-
-  constructor(options: ListDirectoryOptions) {
-    this.options = options;
-  }
-}
-`,
+    valid:
+      "import type { ListDirectoryOptions } from '../models/list-directory.ts'; export type ListingOptions = ListDirectoryOptions;",
+    invalid:
+      'export interface ListDirectoryOptions { maxEntries: number; maxResponseBytes: number; }',
     errors: 1,
   },
   {
@@ -520,61 +485,18 @@ export interface ProbeDelay {
   {
     rule: 'no-comments',
     path: 'packages/files/src/services/list-directory-service.ts',
-    valid: `import type { ListDirectoryOptions } from '../models/list-directory.ts';
-
-export class ListDirectoryService {
-  private readonly options: ListDirectoryOptions;
-
-  constructor(options: ListDirectoryOptions) {
-    this.options = options;
-  }
-
-  execute(): number {
-    return this.options.maxEntries + 1;
-  }
-}
-`,
-    invalid: `/** oxlint-disable */
-import type { ListDirectoryOptions } from '../models/list-directory.ts';
-
-export class ListDirectoryService {
-  private readonly options: ListDirectoryOptions;
-
-  constructor(options: ListDirectoryOptions) {
-    this.options = options;
-  }
-
-  execute(): number {
-    return Math.min(this.options.maxEntries, 2000) + 1;
-  }
-}
-`,
+    valid:
+      "import { Effect } from 'effect'; export const execute = Effect.fn('ListDirectoryService.execute')(function* () { return limit; });",
+    invalid:
+      "/** oxlint-disable */\nimport { Effect } from 'effect'; export const execute = Effect.fn('ListDirectoryService.execute')(function* () { return limit; });",
     errors: 1,
   },
   {
     rule: 'no-comments',
     path: 'packages/files/src/services/list-directory-service.ts',
-    valid: `export class ListDirectoryService {
-  async execute(
-  ): Promise<ListDirectoryResult> {
-    const read = await this.directoryReader.list(
-      {
-        limit: this.options.maxEntries + 1,
-      },
-    );
-  }
-}`,
-    invalid: `export class ListDirectoryService {
-  async execute(
-  ): Promise<ListDirectoryResult> {
-    const read = await this.directoryReader.list(
-      {
-        /** eslint-disable-next-line */
-        limit: Math.min(this.options.maxEntries, 2000) + 1,
-      },
-    );
-  }
-}`,
+    valid: 'export const options = { limit: entries + 1 };',
+    invalid:
+      'export const options = { /** eslint-disable-next-line */ limit: entries + 1 };',
     errors: 1,
   },
   {
@@ -1586,17 +1508,29 @@ export function reviewMcpHandlers() { return ReviewToolkit.toLayer({ read_review
     path: 'packages/projects/src/models/probe/probe-model.ts',
     valid:
       "import type {ProjectKey} from '../project.ts'; export type ProbeResult = ProjectKey | undefined;",
-    invalid: `import type { ProjectKey } from '../project.ts';
-
-export type ProbeResult = ProjectKey | undefined;
-
-export function probeKey(projectId: string): ProjectKey {
-  return { projectId };
-}
-`,
+    invalid: `import type { ProjectKey } from '../project.ts'; export type ProbeResult = ProjectKey | undefined; export function probeKey(projectId: string): ProjectKey { return { projectId }; }`,
     errors: 1,
   },
 
+  {
+    rule: 'models-are-types',
+    path: 'packages/projects/src/models/probe/probe-model.ts',
+    valid: `import { Schema, Struct } from 'effect';
+const keySchema = Schema.Struct({ projectId: Schema.mutableKey(Schema.String) });
+export const projectSchema = Schema.Struct({ ...Struct.omit(keySchema.fields, []), name: Schema.String });
+export type Project = typeof projectSchema.Type;`,
+    invalid: `import { Effect, Schema } from 'effect';
+export const projectSchema = Schema.Struct({ projectId: Schema.String });
+export const readSchema = Effect.succeed('project');`,
+    errors: 2,
+  },
+  {
+    rule: 'models-are-types',
+    path: 'packages/projects/src/models/probe/probe-model.ts',
+    valid: `import { Schema } from 'effect'; export const projectSchema = Schema.Struct({ name: Schema.String });`,
+    invalid: `import { Schema } from 'effect'; const resultSchema = process.read(); export const projectSchema = Schema.Struct({ name: resultSchema });`,
+    errors: 2,
+  },
   {
     rule: 'no-blocking-child-process',
     path: 'packages/process/src/commands/read-command.ts',
@@ -1951,108 +1885,36 @@ export function probeParser(value: object): unknown {
   {
     rule: 'no-schema-parse-in-typed-code',
     path: 'packages/files/src/services/list-directory-service.ts',
-    valid: `import type { ListDirectoryInput } from '../models/list-directory.ts';
-
-export class ListDirectoryService {
-  execute(input: ListDirectoryInput): string {
-    return input.path;
-  }
-}
-`,
-    invalid: `import { z } from 'zod/v4';
-import type { ListDirectoryInput } from '../models/list-directory.ts';
-
-export class ListDirectoryService {
-  execute(input: ListDirectoryInput): string {
-    z.string().parse(input.path);
-    return input.path;
-  }
-}
-`,
+    valid:
+      "export const execute = Effect.fn('ListDirectoryService.execute')(function* (input: ListDirectoryInput) { return input.path; });",
+    invalid:
+      "export const execute = Effect.fn('ListDirectoryService.execute')(function* (input: ListDirectoryInput) { z.string().parse(input.path); return input.path; });",
     errors: 1,
   },
   {
     rule: 'no-undefined-union-result',
     path: 'packages/git-actions/src/services/read-interrupted-git-action-service.ts',
-    valid: `import type {
-  ReadInterruptedGitActionInput,
-  ReadInterruptedGitActionResult,
-} from '../models/read-interrupted-git-action.ts';
-import type { GitActionReceiptStore } from '../ports/git-action-receipt-store.ts';
-import { gitActionReceiptView } from '../rules/git-action-receipt-view.ts';
-
-export class ReadInterruptedGitActionService {
-  private readonly gitActionReceipts: GitActionReceiptStore;
-
-  constructor(gitActionReceipts: GitActionReceiptStore) {
-    this.gitActionReceipts = gitActionReceipts;
-  }
-
-  execute(input: ReadInterruptedGitActionInput): ReadInterruptedGitActionResult {
-    const receipt = this.gitActionReceipts.latestInterrupted(input);
-    return receipt
-      ? { kind: 'interrupted', receipt: gitActionReceiptView(receipt) }
-      : { kind: 'none' };
-  }
-}
-`,
-    invalid: `import type { GitActionReceiptView } from '../models/git-action-receipt-view.ts';
-import type { ReadInterruptedGitActionInput } from '../models/read-interrupted-git-action.ts';
-import type { GitActionReceiptStore } from '../ports/git-action-receipt-store.ts';
-import { gitActionReceiptView } from '../rules/git-action-receipt-view.ts';
-
-export class ReadInterruptedGitActionService {
-  private readonly gitActionReceipts: GitActionReceiptStore;
-
-  constructor(gitActionReceipts: GitActionReceiptStore) {
-    this.gitActionReceipts = gitActionReceipts;
-  }
-
-  execute(input: ReadInterruptedGitActionInput): GitActionReceiptView | undefined {
-    const receipt = this.gitActionReceipts.latestInterrupted(input);
-    return receipt && gitActionReceiptView(receipt);
-  }
-}
-`,
+    valid:
+      "export class ReadInterruptedGitActionService { execute(input: ReadInterruptedGitActionInput): ReadInterruptedGitActionResult { return { kind: 'none' }; } }",
+    invalid:
+      'export class ReadInterruptedGitActionService { execute(input: ReadInterruptedGitActionInput): GitActionReceiptView | undefined { return undefined; } }',
     errors: 1,
   },
   {
     rule: 'no-void-statement',
     path: 'packages/files/src/services/list-directory-service.ts',
-    valid: `export class ListDirectoryService {
-  async execute(
-  ): Promise<ListDirectoryResult> {
-    const read = await this.directoryReader.list(
-    );
-  }
-}`,
-    invalid: `export class ListDirectoryService {
-  async execute(
-  ): Promise<ListDirectoryResult> {
-    void signal;
-    const read = await this.directoryReader.list(
-    );
-  }
-}`,
+    valid:
+      "export const execute = Effect.fn('ListDirectoryService.execute')(function* () { return yield* reader.list(); });",
+    invalid:
+      "export const execute = Effect.fn('ListDirectoryService.execute')(function* (signal: AbortSignal) { void signal; return yield* reader.list(); });",
     errors: 1,
   },
   {
     rule: 'one-clock',
     path: 'packages/git-actions/src/services/accept-git-action-service.ts',
-    valid: `export class AcceptGitActionService {
-  constructor(gitActionReceipts: GitActionReceiptStore, clock: Clock) {
-    const receipt: GitActionReceipt = {
-      acceptedAt: this.clock.now(),
-    }
-  }
-}`,
-    invalid: `export class AcceptGitActionService {
-  constructor(gitActionReceipts: GitActionReceiptStore, clock: Clock) {
-    const receipt: GitActionReceipt = {
-      acceptedAt: new Date(Date.parse(this.clock.now())).toISOString(),
-    }
-  }
-}`,
+    valid: 'export const acceptedAt = clock.now();',
+    invalid:
+      'export const acceptedAt = new Date(Date.parse(clock.now())).toISOString();',
     errors: 2,
   },
   {
@@ -4338,12 +4200,9 @@ export const scriptCases = [
   },
   {
     folder: 'packages/storage',
-    required: [
-      ['drizzle-kit', 'check'],
-      ['node', 'scripts/check-migrations.ts'],
-    ],
-    valid: 'drizzle-kit check && node "./scripts/check-migrations.ts"',
-    invalid: 'drizzle-kit check',
+    required: [['node', 'scripts/check-migrations.ts']],
+    valid: 'node "./scripts/check-migrations.ts"',
+    invalid: 'node scripts/unrelated-check.ts',
   },
   {
     folder: 'apps/mobile',

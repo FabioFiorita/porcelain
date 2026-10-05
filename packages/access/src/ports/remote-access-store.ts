@@ -1,9 +1,10 @@
+import type { Effect } from 'effect';
 import { Context } from 'effect';
 import type { RemoteAccessSettings } from '../models/remote-access.ts';
 
 export interface RemoteAccessStore {
-  read(): RemoteAccessSettings;
-  save(input: RemoteAccessSettings): void;
+  read(): Effect.Effect<RemoteAccessSettings>;
+  save(input: RemoteAccessSettings): Effect.Effect<void>;
 }
 
 export const RemoteAccessStore = Context.Service<

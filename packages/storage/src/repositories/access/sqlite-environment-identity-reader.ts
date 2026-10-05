@@ -1,15 +1,30 @@
-import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
-import type { EnvironmentIdentityReader } from '@porcelain/access/ports';
-import { environment } from '../../db/schema/environment.ts';
+import { Effect, Layer, Option, Schema } from 'effect';
+import { SqlClient, SqlSchema } from 'effect/sql';
+import { EnvironmentIdentityReader } from '@porcelain/access/ports';
 
-export class SqliteEnvironmentIdentityReader implements EnvironmentIdentityReader {
-  private readonly db: BetterSQLite3Database;
+import { EnvironmentRow } from '../../db/models/environment.ts';
 
-  constructor(db: BetterSQLite3Database) {
-    this.db = db;
-  }
+export const sqliteEnvironmentIdentityReaderLayer = Layer.effect(
+  EnvironmentIdentityReader,
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    const read = SqlSchema.findOneOption({
+      Request: Schema.Void,
+      Result: EnvironmentRow,
+      execute: () => sql`SELECT * FROM environment WHERE singleton = 1`,
+    });
 
-  environmentId(): string | undefined {
-    return this.db.select().from(environment).get()?.id;
-  }
-}
+    return EnvironmentIdentityReader.of({
+      environmentId: Effect.fn('EnvironmentIdentityReader.environmentId')(
+        function* () {
+          return Option.getOrUndefined(
+            Option.map(
+              yield* read(undefined).pipe(Effect.orDie),
+              (row) => row.id,
+            ),
+          );
+        },
+      ),
+    });
+  }),
+);

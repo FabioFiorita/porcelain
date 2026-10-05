@@ -23,7 +23,7 @@ export class ReadEnvironmentService extends Context.Service<
             ReadEnvironmentResult,
             MissingEnvironmentIdentityError
           > {
-            const environmentId = environmentIdentity.environmentId();
+            const environmentId = yield* environmentIdentity.environmentId();
             if (environmentId === undefined)
               return yield* Effect.fail(new MissingEnvironmentIdentityError());
             return { environmentId };

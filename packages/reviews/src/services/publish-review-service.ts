@@ -106,7 +106,7 @@ export class PublishReviewService extends Context.Service<
           | ProofFileUnreadableError
         > {
           if (asset.proofId !== undefined) {
-            const kept = reviewsCapability.readProofFile({
+            const kept = yield* reviewsCapability.readProofFile({
               worktreeId,
               proofId: asset.proofId,
             });
@@ -159,7 +159,7 @@ export class PublishReviewService extends Context.Service<
           | ProofFileUnreadableError
         > {
           const { draft } = input;
-          const current = reviewsCapability.read({
+          const current = yield* reviewsCapability.read({
             worktreeId: input.worktreeId,
           });
           if ((current?.revision ?? 0) !== draft.expectedRevision)
@@ -209,7 +209,7 @@ export class PublishReviewService extends Context.Service<
             layers,
             ...(proven === undefined ? {} : { proof: proven }),
           };
-          reviewsCapability.save({ ...review, proofFiles });
+          yield* reviewsCapability.save({ ...review, proofFiles });
           return { review, warnings: summaryStyleWarnings(draft.summaryHtml) };
         }),
       };

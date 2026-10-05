@@ -22,19 +22,21 @@ function review(id: string): Review {
   };
 }
 
-function setup() {
+async function setup() {
   const store = new InMemoryReviewStore();
-  store.save({
-    ...review(worktreeId),
-    proofFiles: [
-      {
-        id: 'shot',
-        mediaType: 'image/png',
-        bytes: new Uint8Array([0, 255, 1]),
-      },
-    ],
-  });
-  store.save(review(otherWorktreeId));
+  await Effect.runPromise(
+    store.save({
+      ...review(worktreeId),
+      proofFiles: [
+        {
+          id: 'shot',
+          mediaType: 'image/png',
+          bytes: new Uint8Array([0, 255, 1]),
+        },
+      ],
+    }),
+  );
+  await Effect.runPromise(store.save(review(otherWorktreeId)));
   return Effect.runSync(
     ReadProofFileService.pipe(
       Effect.provide(ReadProofFileService.layer),
@@ -45,9 +47,9 @@ function setup() {
 }
 
 describe('ReadProofFileService', () => {
-  it('answers a stored proof file with its media type and base64 content', () => {
+  it('answers a stored proof file with its media type and base64 content', async () => {
     expect(
-      Effect.runSync(setup().execute({ worktreeId, proofId: 'shot' })),
+      Effect.runSync((await setup()).execute({ worktreeId, proofId: 'shot' })),
     ).toEqual({
       id: 'shot',
       mediaType: 'image/png',
@@ -55,16 +57,21 @@ describe('ReadProofFileService', () => {
     });
   });
 
-  it('refuses an id the review does not hold', () => {
+  it('refuses an id the review does not hold', async () => {
+    const service = await setup();
     expect(() =>
-      Effect.runSync(setup().execute({ worktreeId, proofId: 'other' })),
+      Effect.runSync(service.execute({ worktreeId, proofId: 'other' })),
     ).toThrow(ProofFileNotFoundError);
   });
 
-  it("refuses another worktree's proof file", () => {
+  it("refuses another worktree's proof file", async () => {
+    const service = await setup();
     expect(() =>
       Effect.runSync(
-        setup().execute({ worktreeId: otherWorktreeId, proofId: 'shot' }),
+        service.execute({
+          worktreeId: otherWorktreeId,
+          proofId: 'shot',
+        }),
       ),
     ).toThrow(ProofFileNotFoundError);
   });

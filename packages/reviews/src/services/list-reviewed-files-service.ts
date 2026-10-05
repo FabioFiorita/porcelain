@@ -23,15 +23,17 @@ export class ListReviewedFilesService extends Context.Service<
         execute: Effect.fn('ListReviewedFilesService.execute')(function* (
           input: ListReviewedFilesInput,
         ): Effect.fn.Return<ListReviewedFilesResult, never> {
-          return yield* Effect.sync<ListReviewedFilesResult>(() => {
-            const { worktreeId, scope, branch } = input;
-            return {
-              worktreeId,
-              marks: reviewedMarks(
-                reviewedFilesCapability.list({ worktreeId, scope, branch }),
-              ),
-            };
-          });
+          const { worktreeId, scope, branch } = input;
+          return {
+            worktreeId,
+            marks: reviewedMarks(
+              yield* reviewedFilesCapability.list({
+                worktreeId,
+                scope,
+                branch,
+              }),
+            ),
+          };
         }),
       };
     }),

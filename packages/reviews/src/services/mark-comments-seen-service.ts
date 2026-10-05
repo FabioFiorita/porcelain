@@ -25,19 +25,19 @@ export class MarkCommentsSeenService extends Context.Service<
         execute: Effect.fn('MarkCommentsSeenService.execute')(function* (
           input: MarkCommentsSeenInput,
         ): Effect.fn.Return<MarkCommentsSeenResult, never> {
-          return yield* Effect.sync<MarkCommentsSeenResult>(() => {
-            const { worktreeId } = input;
-            const before = commentSeenCapability.seenThrough({ worktreeId });
-            const seen = seenThrough(
-              before,
-              input.throughRevision,
-              commentsCapability.lastRevision({ worktreeId }),
-            );
-            if (seen === before)
-              return { worktreeId, seenThrough: seen, changed: false };
-            commentSeenCapability.save({ worktreeId, seenThrough: seen });
-            return { worktreeId, seenThrough: seen, changed: true };
+          const { worktreeId } = input;
+          const before = yield* commentSeenCapability.seenThrough({
+            worktreeId,
           });
+          const seen = seenThrough(
+            before,
+            input.throughRevision,
+            yield* commentsCapability.lastRevision({ worktreeId }),
+          );
+          if (seen === before)
+            return { worktreeId, seenThrough: seen, changed: false };
+          yield* commentSeenCapability.save({ worktreeId, seenThrough: seen });
+          return { worktreeId, seenThrough: seen, changed: true };
         }),
       };
     }),

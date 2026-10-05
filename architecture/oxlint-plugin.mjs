@@ -926,6 +926,92 @@ function nativeMember(node, context, namespace, names) {
   );
 }
 
+function nativeSchemaValue(node, context, seen = new Set()) {
+  if (!node) return false;
+  if (node.type === 'Literal') return true;
+  if (node.type === 'ArrayExpression')
+    return node.elements.every((element) =>
+      nativeSchemaValue(element, context, seen),
+    );
+  if (node.type === 'ObjectExpression')
+    return node.properties.every((property) =>
+      property.type === 'SpreadElement'
+        ? nativeSchemaValue(property.argument, context, seen)
+        : !property.computed &&
+          !property.method &&
+          property.kind === 'init' &&
+          nativeSchemaValue(property.value, context, seen),
+    );
+  if (node.type === 'MemberExpression') {
+    if (node.object.type === 'Identifier') {
+      const definition = findVariable(
+        context.sourceCode.getScope(node),
+        node.object.name,
+      )?.defs[0];
+      if (
+        definition?.type === 'ImportBinding' &&
+        definition.parent.source.value === 'effect' &&
+        definition.node.imported?.name === 'Schema'
+      )
+        return new Set([
+          'String',
+          'Number',
+          'Int',
+          'Boolean',
+          'Undefined',
+          'Null',
+          'Uint8Array',
+        ]).has(memberName(node));
+    }
+    return (
+      memberName(node) === 'fields' &&
+      nativeSchemaValue(node.object, context, seen)
+    );
+  }
+  if (node.type === 'Identifier') {
+    if (!/Schema$/.test(node.name) || seen.has(node.name)) return false;
+    const definition = findVariable(
+      context.sourceCode.getScope(node),
+      node.name,
+    )?.defs[0];
+    if (definition?.type === 'ImportBinding')
+      return (
+        /^(?:@porcelain\/[^/]+\/models|\.\.?\/[^/]+\.ts)$/.test(
+          definition.parent.source.value,
+        ) && /Schema$/.test(definition.node.imported?.name ?? '')
+      );
+    if (definition?.type !== 'Variable' || definition.parent.kind !== 'const')
+      return false;
+    return nativeSchemaValue(
+      definition.node.init,
+      context,
+      new Set([...seen, node.name]),
+    );
+  }
+  return (
+    (nativeMember(
+      node,
+      context,
+      'Schema',
+      new Set([
+        'Struct',
+        'Union',
+        'Literal',
+        'Array',
+        'mutable',
+        'mutableKey',
+        'optional',
+        'NullOr',
+        'Literals',
+      ]),
+    ) ||
+      nativeMember(node, context, 'Struct', new Set(['omit']))) &&
+    node.arguments.every((argument) =>
+      nativeSchemaValue(argument, context, seen),
+    )
+  );
+}
+
 function effectMember(node, context, names) {
   return nativeMember(node, context, 'Effect', names);
 }
@@ -1219,6 +1305,15 @@ function allowedSpecImport(filename, source) {
     if (source === 'effect/socket') return true;
   }
   if (statusPolicySpec.test(path) && gitCapabilityEntry.test(source))
+    return true;
+  if (
+    source === '@effect/platform-node' &&
+    (storageSpec.test(path) ||
+      adapterSpec.test(path) ||
+      /apps\/server\/src\/use-cases\/.+\.spec\.ts$/.test(path))
+  )
+    return true;
+  if (storageSpec.test(path) && ['node:crypto', 'node:sqlite'].includes(source))
     return true;
   if (adapterSpec.test(path) && storageEntry.test(source)) return true;
   if (!source.startsWith('.')) return false;
@@ -2767,8 +2862,48 @@ export default {
           isSpec(context)
         )
           return {};
+        const repository = storageRepositoryFile.test(path);
+        const layers = [];
+        const message =
+          'A repository exports one native Layer.effect for one canonical domain port, named sqlite<Port>Layer, because one owner and one construction pattern constrain agent choices.';
         return {
+          ExportNamedDeclaration(node) {
+            if (!repository || node.declaration?.type !== 'VariableDeclaration')
+              return;
+            for (const declaration of node.declaration.declarations) {
+              layers.push(declaration);
+              const port = declaration.init?.arguments?.[0];
+              const definition =
+                port?.type === 'Identifier' &&
+                findVariable(context.sourceCode.getScope(port), port.name)
+                  ?.defs[0];
+              if (
+                !nativeMember(
+                  declaration.init,
+                  context,
+                  'Layer',
+                  new Set(['effect']),
+                ) ||
+                declaration.init.arguments.length !== 2 ||
+                definition?.type !== 'ImportBinding' ||
+                !/^@porcelain\/[^/]+\/ports$/.test(
+                  definition.parent.source.value,
+                ) ||
+                declaration.id.name !==
+                  `sqlite${definition.node.imported?.name}Layer`
+              )
+                context.report({ node: declaration, message });
+            }
+          },
+          'Program:exit'(node) {
+            if (repository && layers.length !== 1)
+              context.report({ node, message });
+          },
           ClassDeclaration(node) {
+            if (repository) {
+              context.report({ node, message });
+              return;
+            }
             const implemented = node.implements ?? [];
             if (implemented.length !== 1) {
               context.report({
@@ -3267,7 +3402,7 @@ export default {
         const path = normalizedFilename(context.filename);
         if (!modelsSource.test(path) || isSpec(context)) return {};
         const message =
-          'Models hold types and ports hold types plus canonical Context.Service keys; behavior belongs in rules or services, because a capability key declares ownership without implementing it.';
+          'Models hold types and canonical native Schema declarations; ports add Context.Service keys, because schemas and keys constrain boundaries while behavior stays in rules or services.';
         const report = (node) => context.report({ node, message });
         return {
           FunctionDeclaration: report,
@@ -3277,12 +3412,39 @@ export default {
           ClassExpression: report,
           TSEnumDeclaration: report,
           VariableDeclaration(node) {
-            if (!nativePortKey(node, context))
+            if (
+              !nativePortKey(node, context) &&
+              !(
+                node.kind === 'const' &&
+                node.declarations.every(
+                  (declaration) =>
+                    declaration.id.type === 'Identifier' &&
+                    /Schema$/.test(declaration.id.name) &&
+                    nativeSchemaValue(declaration.init, context),
+                )
+              )
+            )
               context.report({ node, message });
           },
           ImportDeclaration(node) {
             if (
               !typeOnlyImport(node) &&
+              !(
+                /\/models\//.test(path) &&
+                node.specifiers.every(
+                  (specifier) =>
+                    specifier.type === 'ImportSpecifier' &&
+                    (specifier.importKind === 'type' ||
+                      (node.source.value === 'effect' &&
+                        ['Schema', 'Struct'].includes(
+                          specifier.imported.name,
+                        )) ||
+                      (/^(?:@porcelain\/[^/]+\/models|\.\.?\/[^/]+\.ts)$/.test(
+                        node.source.value,
+                      ) &&
+                        /Schema$/.test(specifier.imported.name))),
+                )
+              ) &&
               !(
                 /\/ports\//.test(path) &&
                 node.source.value === 'effect' &&
@@ -3297,7 +3459,7 @@ export default {
               context.report({
                 node,
                 message:
-                  'Models import types only, because runtime behavior in a model bypasses the rules and service owners.',
+                  'Models import types and canonical schemas only, because runtime business behavior belongs to rules and services.',
               });
           },
         };

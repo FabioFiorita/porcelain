@@ -23,22 +23,24 @@ function setup() {
 }
 
 describe('RenameEnvironmentService', () => {
-  it('keeps the chosen name and answers it', () => {
+  it('keeps the chosen name and answers it', async () => {
     const { rename, store } = setup();
     expect(Effect.runSync(rename.execute({ name: 'Workstation' }))).toEqual({
       name: 'Workstation',
       custom: true,
     });
-    expect(store.read()).toEqual({ name: 'Workstation' });
+    expect(await Effect.runPromise(store.read())).toEqual({
+      name: 'Workstation',
+    });
   });
 
-  it('goes back to the host name when the name is cleared', () => {
+  it('goes back to the host name when the name is cleared', async () => {
     const { rename, store } = setup();
     Effect.runSync(rename.execute({ name: 'Workstation' }));
     expect(Effect.runSync(rename.execute({ name: undefined }))).toEqual({
       name: 'linux-desktop',
       custom: false,
     });
-    expect(store.read()).toEqual({ name: undefined });
+    expect(await Effect.runPromise(store.read())).toEqual({ name: undefined });
   });
 });

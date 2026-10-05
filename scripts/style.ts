@@ -80,7 +80,6 @@ const serverRoots = [
   'apps/server/spec',
   ...packages,
   'packages/storage/scripts',
-  'packages/storage/drizzle.config.ts',
   'architecture',
   'scripts',
   'vitest.config.ts',
@@ -868,10 +867,7 @@ function scriptProblems(): Problem[] {
       if (folder === 'packages/storage')
         expected = {
           ...expected,
-          'db:check': [
-            ['drizzle-kit', 'check'],
-            ['node', 'scripts/check-migrations.ts'],
-          ],
+          'db:check': [['node', 'scripts/check-migrations.ts']],
         };
     }
     return Object.entries(expected).flatMap(([name, invocations]) =>

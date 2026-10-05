@@ -23,27 +23,32 @@ export class RemoveReviewedFilesService extends Context.Service<
         execute: Effect.fn('RemoveReviewedFilesService.execute')(function* (
           input: RemoveReviewedFilesInput,
         ): Effect.fn.Return<RemoveReviewedFilesResult, never> {
-          return yield* Effect.sync<RemoveReviewedFilesResult>(() => {
-            const { worktreeId, scope, branch } = input;
-            const wanted = new Set(input.paths);
-            const removed = reviewedFilesCapability
-              .list({ worktreeId, scope, branch })
-              .filter((mark) => wanted.has(mark.path))
-              .map((mark) => mark.path);
-            reviewedFilesCapability.remove({
-              worktreeId,
-              scope,
-              branch,
-              paths: removed,
-            });
-            return {
-              worktreeId,
-              marks: reviewedMarks(
-                reviewedFilesCapability.list({ worktreeId, scope, branch }),
-              ),
-              removed: removed.length > 0,
-            };
+          const { worktreeId, scope, branch } = input;
+          const wanted = new Set(input.paths);
+          const removed = (yield* reviewedFilesCapability.list({
+            worktreeId,
+            scope,
+            branch,
+          }))
+            .filter((mark) => wanted.has(mark.path))
+            .map((mark) => mark.path);
+          yield* reviewedFilesCapability.remove({
+            worktreeId,
+            scope,
+            branch,
+            paths: removed,
           });
+          return {
+            worktreeId,
+            marks: reviewedMarks(
+              yield* reviewedFilesCapability.list({
+                worktreeId,
+                scope,
+                branch,
+              }),
+            ),
+            removed: removed.length > 0,
+          };
         }),
       };
     }),

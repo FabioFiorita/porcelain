@@ -28,60 +28,47 @@ export class ListAccessService extends Context.Service<
         execute: Effect.fn('ListAccessService.execute')(function* (
           input?: ListAccessInput,
         ): Effect.fn.Return<ListAccessResult, never> {
-          return yield* Effect.sync<ListAccessResult>(() => {
-            const now = clock.now();
-            return {
-              grants: pairingGrants
-                .list()
-                .filter((grant) => pairingGrantPending(grant, now))
-                .map(
-                  ({
-                    id,
-                    label,
-                    addresses,
-                    createdAt,
-                    expiresAt,
-                    trusted,
-                  }) => ({
-                    id,
-                    label,
-                    addresses,
-                    createdAt,
-                    expiresAt,
-                    trusted: trusted === true,
-                  }),
-                ),
-              devices: devices
-                .list()
-                .filter((device) => !deviceRevoked(device))
-                .map(
-                  ({
-                    id,
-                    label,
-                    platform,
-                    createdAt,
-                    lastSeenAt,
-                    lastSeenAddress,
-                    route,
-                    routeInferred,
-                    trusted,
-                  }) => ({
-                    id,
-                    label,
-                    platform,
-                    createdAt,
-                    lastSeenAt,
-                    ...(lastSeenAddress === undefined
-                      ? {}
-                      : { lastSeenAddress }),
-                    route,
-                    ...(routeInferred === true ? { routeInferred } : {}),
-                    trusted: trusted === true,
-                    ...(id === input?.viewerDeviceId ? { current: true } : {}),
-                  }),
-                ),
-            };
-          });
+          const now = clock.now();
+          return {
+            grants: (yield* pairingGrants.list())
+              .filter((grant) => pairingGrantPending(grant, now))
+              .map(
+                ({ id, label, addresses, createdAt, expiresAt, trusted }) => ({
+                  id,
+                  label,
+                  addresses,
+                  createdAt,
+                  expiresAt,
+                  trusted: trusted === true,
+                }),
+              ),
+            devices: (yield* devices.list())
+              .filter((device) => !deviceRevoked(device))
+              .map(
+                ({
+                  id,
+                  label,
+                  platform,
+                  createdAt,
+                  lastSeenAt,
+                  lastSeenAddress,
+                  route,
+                  routeInferred,
+                  trusted,
+                }) => ({
+                  id,
+                  label,
+                  platform,
+                  createdAt,
+                  lastSeenAt,
+                  ...(lastSeenAddress === undefined ? {} : { lastSeenAddress }),
+                  route,
+                  ...(routeInferred === true ? { routeInferred } : {}),
+                  trusted: trusted === true,
+                  ...(id === input?.viewerDeviceId ? { current: true } : {}),
+                }),
+              ),
+          };
         }),
       };
     }),

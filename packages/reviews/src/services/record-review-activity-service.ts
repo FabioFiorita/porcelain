@@ -23,17 +23,15 @@ export class RecordReviewActivityService extends Context.Service<
         execute: Effect.fn('RecordReviewActivityService.execute')(function* (
           input: RecordReviewActivityInput,
         ): Effect.fn.Return<RecordReviewActivityResult, never> {
-          return yield* Effect.sync<RecordReviewActivityResult>(() => {
-            const { review } = input;
-            const active = reviewActivity(review, input.evidence);
-            if (active === review.active) return { changed: false };
-            reviewsCapability.setActive({
-              worktreeId: review.worktreeId,
-              revision: review.revision,
-              active,
-            });
-            return { changed: true };
+          const { review } = input;
+          const active = reviewActivity(review, input.evidence);
+          if (active === review.active) return { changed: false };
+          yield* reviewsCapability.setActive({
+            worktreeId: review.worktreeId,
+            revision: review.revision,
+            active,
           });
+          return { changed: true };
         }),
       };
     }),

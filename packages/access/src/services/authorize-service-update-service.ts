@@ -23,18 +23,16 @@ export class AuthorizeServiceUpdateService extends Context.Service<
         execute: Effect.fn('AuthorizeServiceUpdateService.execute')(function* (
           input: AuthorizeServiceUpdateInput,
         ): Effect.fn.Return<ServiceUpdateAuthority, never> {
-          return yield* Effect.sync<ServiceUpdateAuthority>(() => {
-            const { viewer } = input;
-            if (viewer.kind === 'owner' || input.local)
-              return { canUpdate: true };
-            const device = devices.find({ deviceId: viewer.deviceId });
-            return {
-              canUpdate:
-                device !== undefined &&
-                !deviceRevoked(device) &&
-                device.trusted === true,
-            };
-          });
+          const { viewer } = input;
+          if (viewer.kind === 'owner' || input.local)
+            return { canUpdate: true };
+          const device = yield* devices.find({ deviceId: viewer.deviceId });
+          return {
+            canUpdate:
+              device !== undefined &&
+              !deviceRevoked(device) &&
+              device.trusted === true,
+          };
         }),
       };
     }),
