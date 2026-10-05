@@ -79,8 +79,9 @@ export const ruleShapes: Readonly<
     shape: '<arch rule>: as arch:check prints its count line',
   },
   typecheck: {
-    pattern: /^error TS\d{4}$/,
-    shape: 'error TS<code>, as tsc prints a diagnostic',
+    pattern: /^error TS(?:\d{4}|377\d{3})$/,
+    shape:
+      'error TS<code>, as TypeScript or native Effect diagnostics print a diagnostic',
   },
   test: {
     pattern:

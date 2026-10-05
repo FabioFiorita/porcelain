@@ -5,7 +5,7 @@ export default {
   plants:
     'a secret source replaces the required id source despite having the same method shape',
   gate: 'typecheck',
-  rule: 'error TS2345',
+  rule: 'error TS377004',
   edits: [
     {
       kind: 'replace',
