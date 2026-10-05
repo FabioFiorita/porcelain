@@ -1,0 +1,132 @@
+import { homedir } from 'node:os';
+import { Cause, ConfigProvider, Console, Context, Effect, Layer } from 'effect';
+import type { Command } from 'effect/cli';
+import { nativeOperation } from '@porcelain/effects';
+import type { Clock } from '@porcelain/kernel/ports';
+import {
+  EnvironmentSettings,
+  type PorcelainEnvironment,
+} from '../config/environment-settings.ts';
+import type { Limits } from '../config/limits.ts';
+import type { OwnerProbe } from '../ports/owner-probe.ts';
+import { readPackageVersion } from '../installer/index.ts';
+import { cliProgram } from './cli-program.ts';
+import { CliHost, CliOperations } from './operations.ts';
+import { CliInvocation, defaultWebRoot } from './settings.ts';
+import { OwnerRequestError } from './errors/owner-request-error.ts';
+import { isServiceFailure, cliPackageRoot } from './service.ts';
+import { installShutdownSignals } from './signals.ts';
+import { writeStandardError, writeStandardOutput } from './standard-output.ts';
+import type { StartServer } from './launcher.ts';
+
+type ActionableError = abstract new (...args: never[]) => Error;
+
+export class CliRuntime extends Context.Service<
+  CliRuntime,
+  {
+    readonly startServer: StartServer;
+    readonly ownerProbe: OwnerProbe;
+    readonly clock: Clock;
+    readonly limits: Limits;
+    readonly wait: (ms: number) => Promise<void>;
+    readonly actionableErrors: readonly ActionableError[];
+  }
+>()('@porcelain/server/CliRuntime') {}
+
+function startupFailureMessage(
+  error: unknown,
+  actionableErrors: readonly ActionableError[],
+): string {
+  const actionable =
+    isServiceFailure(error) ||
+    error instanceof OwnerRequestError ||
+    actionableErrors.some((known) => error instanceof known);
+  return actionable && error instanceof Error
+    ? error.message
+    : 'Porcelain could not start. Check the build, data directory, and port.';
+}
+
+type CliOptions = {
+  readonly homeDirectory?: string;
+  readonly startServer?: StartServer;
+  readonly stdout?: (message: string) => void;
+  readonly stderr?: (message: string) => void;
+  readonly prepareWebRoot?: (signal: AbortSignal) => Promise<string>;
+};
+
+export function createCliRunner(
+  runtime: Layer.Layer<CliRuntime>,
+  platform: Layer.Layer<Command.Environment>,
+) {
+  return async function runCli(
+    args: readonly string[] = process.argv.slice(2),
+    environment: PorcelainEnvironment = process.env,
+    options: CliOptions = {},
+  ): Promise<void> {
+    const stdout = options.stdout ?? writeStandardOutput;
+    const stderr = options.stderr ?? writeStandardError;
+    const shutdown = new AbortController();
+    const removeShutdownSignals = installShutdownSignals(shutdown);
+    const homeDirectory = options.homeDirectory ?? homedir();
+    const host = Layer.effect(
+      CliHost,
+      Effect.gen(function* () {
+        const configured = yield* CliRuntime;
+        return {
+          startServer: options.startServer ?? configured.startServer,
+          ownerProbe: configured.ownerProbe,
+          clock: configured.clock,
+          limits: configured.limits,
+          wait: configured.wait,
+          homeDirectory,
+          searchPath: environment.PATH ?? '',
+          stdout,
+          stderr,
+          prepareWebRoot: options.prepareWebRoot,
+        };
+      }),
+    ).pipe(Layer.provide(runtime));
+    const services = Layer.mergeAll(
+      CliOperations.layer.pipe(Layer.provide(host)),
+      Layer.succeed(CliInvocation, { homeDirectory, webRoot: defaultWebRoot }),
+      EnvironmentSettings.layer,
+      ConfigProvider.layer(ConfigProvider.fromEnvRecord({ ...environment })),
+      platform,
+    );
+    const output: Console.Console = {
+      ...console,
+      log: (...values: readonly unknown[]) => stdout(`${values.join(' ')}\n`),
+      error: (...values: readonly unknown[]) => stderr(`${values.join(' ')}\n`),
+    };
+    const program = Effect.gen(function* () {
+      const configured = yield* CliRuntime;
+      const version = yield* nativeOperation(() =>
+        readPackageVersion(cliPackageRoot()),
+      );
+      return yield* cliProgram(args, version ?? '0.0.0').pipe(
+        Effect.catchCause((cause) =>
+          Effect.sync(() => {
+            if (shutdown.signal.aborted) return 0;
+            stderr(
+              `${startupFailureMessage(Cause.squash(cause), configured.actionableErrors)}\n`,
+            );
+            return 1;
+          }),
+        ),
+      );
+    }).pipe(
+      Effect.provideService(Console.Console, output),
+      Effect.provide(Layer.merge(services, runtime)),
+    );
+    try {
+      const exitCode = await Effect.runPromise(program, {
+        signal: shutdown.signal,
+      });
+      if (exitCode !== 0) process.exitCode = exitCode;
+    } catch (error) {
+      if (!shutdown.signal.aborted) throw error;
+    } finally {
+      removeShutdownSignals();
+    }
+  };
+}

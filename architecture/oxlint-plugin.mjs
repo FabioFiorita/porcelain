@@ -1084,7 +1084,13 @@ function allowedSpecImport(filename, source) {
     return true;
   if (
     /apps\/server\/src\/cli\/[^/]+\.spec\.ts$/.test(path) &&
-    (source === 'node:http' || source === '../config/owner-socket-settings.ts')
+    (source === 'node:http' ||
+      source === '@effect/platform-node' ||
+      source === 'effect/cli' ||
+      source === './operations.ts' ||
+      source === './settings.ts' ||
+      source === '../config/environment-settings.ts' ||
+      source === '../config/owner-socket-settings.ts')
   )
     return true;
 

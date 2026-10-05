@@ -99,6 +99,20 @@ const observedStoreState = `describe('MarkCommentsSeenService', () => {
 `;
 
 export default [
+  ...[
+    '@effect/platform-node',
+    'effect/cli',
+    './operations.ts',
+    './settings.ts',
+    '../config/environment-settings.ts',
+  ].map((source) => ({
+    rule: 'spec-imports',
+    path: 'apps/server/src/cli/cli-program.spec.ts',
+    valid: `import { capability } from '${source}';`,
+    invalid: "import { startServer } from '../bootstrap/compose-server.ts';",
+    errors: 1,
+  })),
+
   ...effectRuleCases,
   {
     rule: 'web-api-owns-request',
@@ -1014,7 +1028,7 @@ export async function entryNames(path: string): Promise<string[]> {
     path: 'apps/server/src/bootstrap/main.ts',
     valid: 'export const application = composeApplication();',
     invalid: `
-if (import.meta.main) await cli.run();
+if (import.meta.main) await runCli();
 `,
     errors: 1,
   },
@@ -4509,4 +4523,10 @@ export const scriptEvasions = [
   ],
   ['playwright test --list', [['playwright', 'test']]],
   ['turbo run test --dry-run', [['turbo', 'run', 'test']]],
+];
+
+export const externalCases = [
+  { role: 'config', valid: 'effect', invalid: 'effect/FileSystem' },
+  { role: 'transport', valid: 'effect/cli', invalid: '@effect/platform-node' },
+  { role: 'bootstrap', valid: '@effect/platform-node', invalid: 'effect/cli' },
 ];

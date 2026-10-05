@@ -1,5 +1,4 @@
-import { z } from 'zod';
-import { ServeConfigurationError } from './errors/serve-configuration-error.ts';
+import { Config, Context, Effect, Layer, Option, Schema } from 'effect';
 import {
   absolutePathSchema,
   listenHostSchema,
@@ -16,63 +15,54 @@ export type PorcelainEnvironment = {
   PORCELAIN_ALLOWED_HOSTS?: string | undefined;
 };
 
-export type EnvironmentSettings = {
-  dataDirectory: string | undefined;
-  host: string | undefined;
-  port: number | undefined;
-  projectHome: string | undefined;
-  webRoot: string | undefined;
-  allowedHosts: string[];
+const optional = <A>(
+  schema: Schema.ConstraintCodec<A, unknown>,
+  name: string,
+) =>
+  Config.schema(schema, name).pipe(
+    Config.option,
+    Config.map(Option.getOrUndefined),
+  );
+
+const configuration = Config.all({
+  dataDirectory: optional(absolutePathSchema, 'PORCELAIN_DATA_DIRECTORY'),
+  host: optional(listenHostSchema, 'PORCELAIN_HOST'),
+  port: optional(listenPortSchema, 'PORCELAIN_PORT'),
+  projectHome: optional(absolutePathSchema, 'PORCELAIN_PROJECT_HOME'),
+  webRoot: optional(absolutePathSchema, 'PORCELAIN_WEB_ROOT'),
+  allowedHosts: Config.String('PORCELAIN_ALLOWED_HOSTS').pipe(
+    Config.option,
+    Config.map((hosts) =>
+      Option.isSome(hosts) ? hosts.value.split(',').filter(Boolean) : [],
+    ),
+  ),
+});
+
+type Settings = {
+  readonly dataDirectory: string | undefined;
+  readonly host: string | undefined;
+  readonly port: number | undefined;
+  readonly projectHome: string | undefined;
+  readonly webRoot: string | undefined;
+  readonly allowedHosts: readonly string[];
 };
 
-const portText = z
-  .string()
-  .regex(/^\d+$/)
-  .transform(Number)
-  .pipe(listenPortSchema);
-
-function setting<Schema extends z.ZodType>(
-  value: string | undefined,
-  schema: Schema,
-  problem: string,
-): z.output<Schema> | undefined {
-  if (!value) return undefined;
-  const parsed = schema.safeParse(value);
-  if (!parsed.success) throw new ServeConfigurationError(problem);
-  return parsed.data;
-}
-
-export function readEnvironmentSettings(
-  environment: PorcelainEnvironment,
-): EnvironmentSettings {
-  const absolutePath = (name: keyof PorcelainEnvironment) =>
-    setting(
-      environment[name],
-      absolutePathSchema,
-      `${name} must be an absolute path`,
-    );
-  return {
-    dataDirectory: absolutePath('PORCELAIN_DATA_DIRECTORY'),
-    host: setting(
-      environment.PORCELAIN_HOST,
-      listenHostSchema,
-      'PORCELAIN_HOST must be a valid IP address or hostname',
-    ),
-    port: setting(
-      environment.PORCELAIN_PORT,
-      portText,
-      'PORCELAIN_PORT must be an integer from 0 to 65535',
-    ),
-    projectHome: absolutePath('PORCELAIN_PROJECT_HOME'),
-    webRoot: absolutePath('PORCELAIN_WEB_ROOT'),
-    allowedHosts:
-      setting(
-        environment.PORCELAIN_ALLOWED_HOSTS,
-        z
-          .string()
-          .transform((hosts) => hosts.split(',').filter(Boolean))
-          .pipe(z.array(listenHostSchema)),
-        'PORCELAIN_ALLOWED_HOSTS must list valid host names separated by commas',
-      ) ?? [],
-  };
+export class EnvironmentSettings extends Context.Service<
+  EnvironmentSettings,
+  {
+    readonly read: Effect.Effect<
+      Settings,
+      Config.ConfigError | Schema.SchemaError
+    >;
+  }
+>()('@porcelain/server/EnvironmentSettings') {
+  static readonly layer = Layer.succeed(this, {
+    read: Effect.gen(function* () {
+      const settings = yield* configuration;
+      const allowedHosts = yield* Schema.decodeUnknownEffect(
+        Schema.Array(listenHostSchema),
+      )(settings.allowedHosts);
+      return { ...settings, allowedHosts };
+    }),
+  });
 }

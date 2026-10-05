@@ -10,7 +10,7 @@ import {
 } from '../installer/index.ts';
 import type { Clock } from '@porcelain/kernel/ports';
 import type { OwnerProbe } from '../ports/owner-probe.ts';
-import type { ServiceSettings } from './arguments.ts';
+import type { ServiceSettings } from './settings.ts';
 
 type ServiceCommandDependencies = {
   homeDirectory: string;

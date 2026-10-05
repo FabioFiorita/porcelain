@@ -40,9 +40,9 @@ SOFTWARE.
 `;
 
 const binSource = `#!/usr/bin/env node
-import { cli } from '../server/src/bootstrap/main.mjs';
+import { runCli } from '../server/src/bootstrap/main.mjs';
 
-await cli.run();
+await runCli();
 `;
 
 const packageJsonSchema = z.object({

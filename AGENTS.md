@@ -6,6 +6,8 @@ Porcelain is a companion to coding agents: it is where a developer reviews what 
 
 Simple systems, the smallest model that makes the correct behaviour unsurprising, and no machinery because it looks impressive. Fight scope creep; honour the developer's intent in a minimal and realistic way. Everything below is a good default, and the developer's request overrides it. Work autonomously and ask only when the answer would change the result.
 
+Agents author this codebase. Prefer one enforced, typed abstraction per responsibility; dependency requirements and invalid alternatives should fail before runtime. Familiarity with the old implementation is not a reason to preserve it.
+
 The codebase is the example. Copy the nearest feature's shape, and extract a second copy into its owner rather than pasting it. TypeScript, Oxlint, Oxfmt and the architecture check are the rulebook, and every lint message says why its rule exists: when one blocks you, change the code. When a rule fights the task itself, say so and ask before changing the rule.
 
 ## Ways to hurt yourself
@@ -23,6 +25,10 @@ Before calling a change done, check each of these and say which applied:
 - **Contract:** anything crossing the wire is a schema in `packages/contracts`. The server contract stays the server's; clients follow it.
 - **The way back:** a way in needs a way out and a way to see it.
 - **Connections:** local, local network and remote environments behave differently.
+
+## Native Effect CLI
+
+Declare application CLI commands, flags, arguments and help in `apps/server/src/cli/command-tree.ts` with `effect/cli`. Commands obtain `CliOperations` through `yield*`; its Layer obtains machine capabilities through `CliHost`. Bootstrap composes the complete Layers and Node platform services. Configuration uses Effect Config and Schema. Change callers directly when removing an entry point; keep no forwarding files or compatibility exports.
 
 ## Building a feature
 

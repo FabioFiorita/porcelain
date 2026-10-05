@@ -3,7 +3,7 @@ import {
   type SetRemoteAccessRequest,
 } from '@porcelain/contracts/access';
 import type { Limits } from '../config/limits.ts';
-import type { ShareAction } from './arguments.ts';
+import type { ShareAction } from './settings.ts';
 import { ownerClient, runOwner } from './owner-client.ts';
 
 type Output = {

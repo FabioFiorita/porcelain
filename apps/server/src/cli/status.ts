@@ -1,6 +1,6 @@
 import { ownerSocketPath } from '../config/owner-socket-settings.ts';
 import type { OwnerProbe } from '../ports/owner-probe.ts';
-import type { StatusSettings } from './arguments.ts';
+import type { StatusSettings } from './settings.ts';
 
 const statusExitCodes = {
   running: 0,

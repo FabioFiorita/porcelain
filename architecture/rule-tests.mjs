@@ -9,6 +9,7 @@ import ruleCases, {
   scriptCases,
   scriptEvasions,
   proseCases,
+  externalCases,
 } from './rule-cases.mjs';
 import { unownedProse } from './prose-policy.ts';
 import {
@@ -20,7 +21,7 @@ import { architectureLines } from './guardrail-budget.ts';
 import { readFileSync } from 'node:fs';
 import { manualAuditProblems } from './ci-policy.ts';
 import { preflightEdits } from './probe-edits.ts';
-import { classify, violation } from './policy.ts';
+import { classify, violation, forbiddenExternal } from './policy.ts';
 import {
   mobileGeneratedTypesValid,
   mobileMetroValid,
@@ -29,6 +30,10 @@ import {
   themeTokensValid,
 } from './theme-policy.ts';
 
+for (const entry of externalCases) {
+  deepStrictEqual(forbiddenExternal(entry.role, entry.valid), false);
+  deepStrictEqual(forbiddenExternal(entry.role, entry.invalid), true);
+}
 for (const entry of scriptCases) {
   deepStrictEqual(
     scriptInvokes(entry.valid, entry.required, entry.folder),
