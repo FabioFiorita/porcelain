@@ -15,6 +15,20 @@ export const queryKeys = {
       queryKeys.reviewSurface(connection.environmentId, scope, surface),
       connection,
     ),
+  worktreeReads: (
+    connection: WorktreeConnection,
+    scope: ReviewScope,
+    surface: readonly unknown[],
+  ) => [
+    queryKeys.environment(connection.environmentId),
+    queryKeys.review(connection.environmentId, scope),
+    queryKeys.reviewSurface(
+      connection.environmentId,
+      scope,
+      surface.slice(0, 1),
+    ),
+    queryKeys.reviewSurface(connection.environmentId, scope, surface),
+  ],
   connectedInventory: (connection: WorktreeConnection) =>
     queryKeys.withIdentity(
       queryKeys.inventory(connection.environmentId),

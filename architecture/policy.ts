@@ -76,7 +76,6 @@ export const targetPackageExports: Record<string, Record<string, string>> = {
     './files/api': './src/features/files/api.ts',
     './files/rules': './src/features/files/rules/index.ts',
     './changes': './src/features/changes/index.ts',
-    './changes/api': './src/features/changes/api.ts',
     './changes/rules': './src/features/changes/rules/index.ts',
     './history': './src/features/history/index.ts',
     './history/rules': './src/features/history/rules/index.ts',

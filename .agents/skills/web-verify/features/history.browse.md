@@ -39,7 +39,7 @@ git -C "$REPO" branch before-commit
 1. `$C click --role button --name "Review"`
    Look for: dialog "Worktree review" with a tablist holding tabs "Changes", "Files", "History".
 2. `$C click --role tab --name "History"`
-   Look for: tab "History" selected; Page URL has `surface=history`; Page Title "History — repository"; one row, a button whose name starts "Initial commit" and goes on with the 7-character id, "Porcelain Development", the age and the ref chips "before-commit" and "main"; text "Start of history." below it.
+   Look for: tab "History" selected; Page URL has `surface=history`; the current document stays open (Page Title "Changes — repository" on the start fixture); one row, a button whose name starts "Initial commit" and goes on with the 7-character id, "Porcelain Development", the age and the ref chips "before-commit" and "main"; text "Start of history." below it.
 3. On disk: `git -C "$REPO" commit -am "Commit made on disk"`, then `$C snapshot`
    Look for: a new first row, button starting "Commit made on disk" with ref chip "main"; the "Initial commit" row now carries only "before-commit"; "Start of history." still last. Run `snapshot` again if the watcher has not caught up yet.
 

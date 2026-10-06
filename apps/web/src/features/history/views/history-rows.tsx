@@ -1,3 +1,4 @@
+import { AsyncResult } from 'effect/reactivity';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import { HistorySentinel } from '../adapters/history-sentinel';
@@ -35,15 +36,15 @@ export function HistoryRows({
 export function HistoryEnd({ history }: { history: History }) {
   return (
     <>
-      {history.isFetchingNextPage ? (
+      {history.result.waiting ? (
         <p className="flex items-center gap-2 px-2 py-3 text-[11px] text-muted-foreground">
           <Spinner className="size-3.5" />
           Loading older commits…
         </p>
-      ) : history.isFetchNextPageError ? (
+      ) : AsyncResult.isFailure(history.result) ? (
         <div className="flex items-center gap-2 px-2 py-2 text-[11px] text-muted-foreground">
           <span>Couldn&apos;t load older commits</span>
-          <Button size="xs" variant="outline" onClick={history.loadNextPage}>
+          <Button size="xs" variant="outline" onClick={history.readMore}>
             Retry
           </Button>
         </div>
@@ -58,11 +59,11 @@ export function HistoryEnd({ history }: { history: History }) {
       ) : null}
       <HistorySentinel
         enabled={
-          history.hasNextPage &&
-          !history.isFetchingNextPage &&
-          !history.isFetchNextPageError
+          history.nextAfter != null &&
+          !history.result.waiting &&
+          !AsyncResult.isFailure(history.result)
         }
-        onVisible={history.loadNextPage}
+        onVisible={history.readMore}
       />
     </>
   );

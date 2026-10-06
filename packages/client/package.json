@@ -13,7 +13,6 @@
     "./files": "./src/features/files/index.ts",
     "./files/api": "./src/features/files/api.ts",
     "./changes": "./src/features/changes/index.ts",
-    "./changes/api": "./src/features/changes/api.ts",
     "./history": "./src/features/history/index.ts",
     "./reviews": "./src/features/reviews/index.ts",
     "./reviews/api": "./src/features/reviews/api.ts",
