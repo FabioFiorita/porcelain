@@ -70,7 +70,7 @@ Sessions have no idle expiry. Stop your instance when finished. After stopping, 
 - `safeStorage` needs the logged-in session's Keychain; an SSH credential write can fail with “User interaction is not allowed”. Native journeys run in the logged-in macOS session with direct UI access. A failed Keychain write is a failed or blocked credential case, not pairing proof.
 - Full screen needs an awake, unlocked session. Wait for both the visible transition and passive status to show the expected native flag.
 - CUA app reads can activate the app and reopen its last window. After closing, use only launcher `status` until zero native windows and the same app/server process identities are recorded. Then perform an explicit reopen and inspect it. Process continuity alone does not establish HTTP responsiveness.
-- With two instances, select every launcher command by `--instance <id>` and every native target by its reported identity. An app Quit ends its session.
+- Select launcher commands by `--instance <id>` when several instances exist. Keep one development app for the foreground CUA journey: multiple launches share the Electron bundle identity. An app Quit ends its session.
 
 ## The installed app's lock
 
