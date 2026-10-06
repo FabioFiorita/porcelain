@@ -45,7 +45,11 @@ export {
   type WorktreeParams,
 } from './worktree-params.ts';
 
-export { projectIdSchema, worktreeIdSchema } from './schema.ts';
+export {
+  urlStringSchema,
+  projectIdSchema,
+  worktreeIdSchema,
+} from './schema.ts';
 export {
   RequestCaller,
   PairedRequest,

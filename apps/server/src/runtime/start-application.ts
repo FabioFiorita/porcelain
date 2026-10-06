@@ -93,7 +93,7 @@ export async function startApplication(
     port: 0,
     policy: { allowedHosts, localAddresses: [] },
   };
-  const status: OwnerStatus = {
+  let status: OwnerStatus = {
     address: '',
     dataDirectory: directory,
     pid: process.pid,
@@ -127,7 +127,7 @@ export async function startApplication(
     signal.throwIfAborted();
     parts.jobs = await startJobs(opened.jobs);
     const address = await opened.network.listen({ host, port });
-    status.address = address;
+    status = { ...status, address };
     reach.port = Number(new URL(address).port);
     reach.policy = { allowedHosts, localAddresses: listeningOn(host) };
     await opened.owner.listen({ path: socketPath });

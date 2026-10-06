@@ -1,5 +1,5 @@
+import { Schema } from 'effect';
 import { execFile, spawnSync } from 'node:child_process';
-import { z } from 'zod';
 import {
   buildCommand,
   identity,
@@ -12,38 +12,33 @@ import {
 } from '../../../../apps/mobile/spec/kit/simulator.ts';
 import { Refusal, Usage } from '../../verify-core/cli.ts';
 import { hubToken, hubUrl, type HostDetail } from './host.ts';
-
 const keyboardSettleMs = 1500;
 const leaseBeatMs = 2 * 60 * 1000;
 const families: Record<DeviceKind, string> = { iphone: 'iPhone', ipad: 'iPad' };
-const devicesSchema = z.object({
-  data: z.object({
-    devices: z.array(
-      z.object({
-        id: z.string(),
-        name: z.string(),
-        kind: z.string(),
-        booted: z.boolean(),
+const devicesSchema = Schema.Struct({
+  data: Schema.Struct({
+    devices: Schema.Array(
+      Schema.Struct({
+        id: Schema.String,
+        name: Schema.String,
+        kind: Schema.String,
+        booted: Schema.Boolean,
       }),
     ),
   }),
 });
-
 export type Target = {
   udid: string | undefined;
   session: string;
   cwd: string;
   host: HostDetail;
 };
-
 type Hosted = Target & { host: NonNullable<HostDetail> };
-
 function environmentOf(host: HostDetail): NodeJS.ProcessEnv {
   return host === null
     ? process.env
     : { ...process.env, AGENT_DEVICE_DAEMON_AUTH_TOKEN: hubToken(host) };
 }
-
 function argumentsOf(target: Target, args: readonly string[]): string[] {
   return [
     ...args,
@@ -54,7 +49,6 @@ function argumentsOf(target: Target, args: readonly string[]): string[] {
     target.session,
   ];
 }
-
 function run(target: Target, args: readonly string[]) {
   const result = spawnSync('agent-device', argumentsOf(target, args), {
     cwd: target.cwd,
@@ -69,7 +63,6 @@ function run(target: Target, args: readonly string[]) {
     output: `${result.stdout}${result.stderr}`,
   };
 }
-
 export function agentDevice(
   target: Target,
   args: readonly string[],
@@ -82,7 +75,6 @@ export function agentDevice(
     );
   return result.output;
 }
-
 export function fillField(
   target: Target,
   address: string,
@@ -92,7 +84,6 @@ export function fillField(
   agentDevice(target, ['wait', String(keyboardSettleMs)]);
   return filled;
 }
-
 export function selector(values: {
   id?: string | undefined;
   label?: string | undefined;
@@ -104,16 +95,15 @@ export function selector(values: {
     'Address the element with --id <testID> or --label <accessibility label>.',
   );
 }
-
 function remoteDevices(target: Hosted) {
   const result = run({ ...target, udid: undefined }, ['devices', '--json']);
   if (!result.ok)
     throw new Refusal(
       `the agent-device hub at ${target.host.hub} did not list its simulators: ${result.output.trim()}`,
     );
-  return devicesSchema.parse(JSON.parse(result.stdout)).data.devices;
+  return Schema.decodeUnknownSync(devicesSchema)(JSON.parse(result.stdout)).data
+    .devices;
 }
-
 function hub(target: Hosted, args: readonly string[]) {
   const result = spawnSync(
     'agent-device',
@@ -126,7 +116,6 @@ function hub(target: Hosted, args: readonly string[]) {
     output: `${result.stdout}${result.stderr}`.trim(),
   };
 }
-
 export function connectHub(target: Hosted): void {
   const connected = hub(target, [
     'connect',
@@ -140,11 +129,9 @@ export function connectHub(target: Hosted): void {
       `agent-device could not connect to the hub at ${target.host.hub}: ${connected.output}`,
     );
 }
-
 export function disconnectHub(target: Hosted): void {
   hub(target, ['disconnect']);
 }
-
 export function holdLease(target: Hosted): () => void {
   const beat = setInterval(() => {
     execFile(
@@ -156,13 +143,11 @@ export function holdLease(target: Hosted): () => void {
   }, leaseBeatMs);
   return () => clearInterval(beat);
 }
-
 export function remoteBooted(target: Hosted): boolean {
   return remoteDevices(target).some(
     (device) => device.id === target.udid && device.booted,
   );
 }
-
 export function remoteBootProblem(
   target: Hosted & { udid: string },
   limit: number | undefined,
@@ -178,7 +163,6 @@ export function remoteBootProblem(
         limit,
       );
 }
-
 export function remoteSimulator(
   target: Hosted,
   kind: DeviceKind,
@@ -193,7 +177,6 @@ export function remoteSimulator(
     );
   return { udid: found.id, name: found.name };
 }
-
 export async function resetRemoteApp(target: Hosted): Promise<void> {
   const client = sharedClientPath(await nativeFingerprint());
   agentDevice(target, ['open', 'com.apple.Preferences']);
@@ -208,7 +191,6 @@ export async function resetRemoteApp(target: Hosted): Promise<void> {
     );
   agentDevice(target, ['settings', 'reset-keychain', 'clear']);
 }
-
 export function isHosted(target: Target): target is Hosted {
   return target.host !== null;
 }

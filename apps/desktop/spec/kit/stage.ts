@@ -1,3 +1,4 @@
+import { Schema, Effect } from 'effect';
 import { spawn } from 'node:child_process';
 import { existsSync, realpathSync } from 'node:fs';
 import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
@@ -6,20 +7,21 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isDeepStrictEqual } from 'node:util';
 import { build } from 'esbuild';
-import { z } from 'zod';
-
 export const root = resolve(
   dirname(fileURLToPath(import.meta.url)),
   '../../../..',
 );
-const manifestSchema = z.object({
-  name: z.string(),
-  version: z.string().optional(),
-  dependencies: z.record(z.string(), z.string()).default({}),
-  optionalDependencies: z.record(z.string(), z.string()).default({}),
+const manifestSchema = Schema.Struct({
+  name: Schema.String,
+  version: Schema.optional(Schema.String),
+  dependencies: Schema.Record(Schema.String, Schema.String).pipe(
+    Schema.withDecodingDefault(Effect.succeed({})),
+  ),
+  optionalDependencies: Schema.Record(Schema.String, Schema.String).pipe(
+    Schema.withDecodingDefault(Effect.succeed({})),
+  ),
 });
 const external = ['@parcel/watcher', 'trash', 'bufferutil', 'utf-8-validate'];
-
 export async function desktopCommand(command: string, args: readonly string[]) {
   await new Promise<void>((resolveCommand, rejectCommand) => {
     const child = spawn(command, args, { cwd: root, stdio: 'inherit' });
@@ -30,19 +32,16 @@ export async function desktopCommand(command: string, args: readonly string[]) {
     });
   });
 }
-
 export function electronExecutable(): string {
-  return z
-    .string()
-    .parse(createRequire(join(root, 'apps/desktop/package.json'))('electron'));
+  return Schema.decodeUnknownSync(Schema.String)(
+    createRequire(join(root, 'apps/desktop/package.json'))('electron'),
+  );
 }
-
 async function manifest(directory: string) {
-  return manifestSchema.parse(
+  return Schema.decodeUnknownSync(manifestSchema)(
     JSON.parse(await readFile(join(directory, 'package.json'), 'utf8')),
   );
 }
-
 function locate(name: string, from: string): string | undefined {
   for (let directory = from; ; directory = dirname(directory)) {
     const candidate = join(directory, 'node_modules', name);
@@ -51,7 +50,6 @@ function locate(name: string, from: string): string | undefined {
     if (dirname(directory) === directory) return undefined;
   }
 }
-
 async function vendor(
   name: string,
   from: string,
@@ -87,7 +85,6 @@ async function vendor(
         visited,
       );
 }
-
 async function stageNativeModules(
   directory: string,
   electronVersion: string,
@@ -110,7 +107,6 @@ async function stageNativeModules(
     await vendor(name, join(root, 'apps/server'), modules, new Set());
   await writeFile(stamp, `${JSON.stringify(wanted)}\n`);
 }
-
 export async function stageDesktop(stage: {
   directory: string;
   productName: string;

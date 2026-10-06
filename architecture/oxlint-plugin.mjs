@@ -40,6 +40,14 @@ const parseMethods = new Set([
   'safeParseAsync',
   'decode',
   'spa',
+  'decodeUnknownSync',
+  'decodeUnknownResult',
+  'decodeUnknownEffect',
+  'decodeUnknownOption',
+  'decodeSync',
+  'decodeResult',
+  'decodeEffect',
+  'decodeOption',
 ]);
 const trustedParsers = new Set(['JSON', 'Date', 'Number', 'URL']);
 
@@ -1260,8 +1268,6 @@ function allowedSpecImport(filename, source) {
   )
     return true;
 
-  if (/packages\/contracts\/src\/.+\.spec\.ts$/.test(path) && source === 'zod')
-    return true;
   if (
     /packages\/client\/spec\/integration\/[a-z]+(?:-[a-z]+)*\.integration\.ts$/.test(
       path,
@@ -1680,7 +1686,7 @@ export default {
         };
       },
     },
-    'no-schema-parse-aliases': {
+    'no-schema-parse-in-typed-code': {
       create(context) {
         const path = normalizedFilename(context.filename);
         if (
@@ -1689,53 +1695,33 @@ export default {
           !useCaseFile.test(repositoryPath(context))
         )
           return {};
-        const message =
-          'Typed code trusts its input; parse, safeParse, decode and safeDecode run at the transport boundary, under any name, because the transport has already validated these contract types.';
         const trusted = (node) =>
           node?.type === 'Identifier' && trustedParsers.has(node.name);
+        const report = (node, name) => {
+          if (aliasedParseMethods.has(name ?? ''))
+            context.report({
+              node,
+              message:
+                'Validate untrusted data at transport boundaries, because domain and use-case inputs have already been validated.',
+            });
+        };
         return {
+          ImportSpecifier(node) {
+            report(node, node.imported.name ?? node.imported.value);
+          },
           MemberExpression(node) {
-            const name = propertyName(node, context);
-            if (!aliasedParseMethods.has(name ?? '') || trusted(node.object))
-              return;
-            if (
-              node.parent?.type === 'CallExpression' &&
-              node.parent.callee === node &&
-              parseMethods.has(memberName(node) ?? '')
-            )
-              return;
-            context.report({ node, message });
+            if (!trusted(node.object))
+              report(node, propertyName(node, context));
           },
           ObjectPattern(node) {
-            const declarator =
-              node.parent?.type === 'VariableDeclarator' &&
-              node.parent.id === node
-                ? node.parent
-                : undefined;
-            if (trusted(declarator?.init)) return;
-            for (const property of node.properties) {
-              if (property.type !== 'Property') continue;
-              const name = propertyName(property, context);
-              if (!aliasedParseMethods.has(name ?? '')) continue;
-              if (
-                declarator &&
-                !property.computed &&
-                property.key.type === 'Identifier' &&
-                parseMethods.has(name)
-              )
-                continue;
-              context.report({ node: property, message });
-            }
+            if (trusted(node.parent?.init)) return;
+            for (const property of node.properties)
+              if (property.type === 'Property')
+                report(property, propertyName(property, context));
           },
           CallExpression(node) {
-            const path = memberPath(node.callee);
-            if (
-              path?.[0] === 'Reflect' &&
-              aliasedParseMethods.has(
-                staticString(node.arguments[1], context) ?? '',
-              )
-            )
-              context.report({ node, message });
+            if (memberPath(node.callee)?.[0] === 'Reflect')
+              report(node, staticString(node.arguments[1], context));
           },
         };
       },
@@ -3609,43 +3595,6 @@ export default {
             if (node.source) reexport(node);
           },
           ExportAllDeclaration: reexport,
-        };
-      },
-    },
-    'no-schema-parse-in-typed-code': {
-      create(context) {
-        const path = normalizedFilename(context.filename);
-        if (!useCaseSource.test(path) && !typedPackageSource.test(path))
-          return {};
-        const message =
-          'Typed code trusts its input; parse untrusted data at the transport boundary, because the transport has already validated these contract types.';
-        return {
-          CallExpression(node) {
-            const callee = node.callee;
-            if (callee.type !== 'MemberExpression') return;
-            if (!parseMethods.has(memberName(callee))) return;
-            if (
-              callee.object.type === 'Identifier' &&
-              trustedParsers.has(callee.object.name)
-            )
-              return;
-            context.report({ node, message });
-          },
-          VariableDeclarator(node) {
-            if (node.id.type !== 'ObjectPattern') return;
-            if (
-              node.init?.type === 'Identifier' &&
-              trustedParsers.has(node.init.name)
-            )
-              return;
-            for (const property of node.id.properties)
-              if (
-                property.type === 'Property' &&
-                property.key.type === 'Identifier' &&
-                parseMethods.has(property.key.name)
-              )
-                context.report({ node: property, message });
-          },
         };
       },
     },

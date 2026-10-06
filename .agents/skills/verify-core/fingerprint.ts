@@ -1,13 +1,11 @@
+import { Schema } from 'effect';
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
-import { z } from 'zod';
-
 export type BuildInputs = {
   roots: readonly string[];
   apps: readonly string[];
 };
-
 const serverInputs: BuildInputs = {
   roots: [
     'apps/server/src',
@@ -20,12 +18,11 @@ const serverInputs: BuildInputs = {
 };
 const skipped = new Set(['node_modules', 'dist', '.turbo', 'test-results']);
 const testFile = /\.(?:spec|test|e2e|integration|perf)\.tsx?$/;
-const manifestSchema = z.object({
-  name: z.string(),
-  dependencies: z.record(z.string(), z.string()).optional(),
-  devDependencies: z.record(z.string(), z.string()).optional(),
+const manifestSchema = Schema.Struct({
+  name: Schema.String,
+  dependencies: Schema.optional(Schema.Record(Schema.String, Schema.String)),
+  devDependencies: Schema.optional(Schema.Record(Schema.String, Schema.String)),
 });
-
 function filesOf(root: string, path: string): string[] {
   const absolute = join(root, path);
   if (!existsSync(absolute)) return [];
@@ -36,7 +33,6 @@ function filesOf(root: string, path: string): string[] {
       : filesOf(root, join(path, entry.name)),
   );
 }
-
 export function hashOf(root: string, paths: readonly string[]): string {
   const hash = createHash('sha256');
   for (const file of [
@@ -47,13 +43,11 @@ export function hashOf(root: string, paths: readonly string[]): string {
   }
   return hash.digest('hex');
 }
-
 function manifest(root: string, folder: string) {
-  return manifestSchema.parse(
+  return Schema.decodeUnknownSync(manifestSchema)(
     JSON.parse(readFileSync(join(root, folder, 'package.json'), 'utf8')),
   );
 }
-
 function workspacePackages(root: string, apps: readonly string[]): string[] {
   const folders = new Map(
     readdirSync(join(root, 'packages'), { withFileTypes: true })
@@ -83,7 +77,6 @@ function workspacePackages(root: string, apps: readonly string[]): string[] {
   for (const app of apps) visit(app);
   return [...found].map((folder) => join(folder, 'src'));
 }
-
 export function buildFingerprint(
   root: string,
   surface: BuildInputs,

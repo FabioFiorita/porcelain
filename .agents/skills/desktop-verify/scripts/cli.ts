@@ -1,3 +1,4 @@
+import { Schema, Result } from 'effect';
 import { spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { existsSync } from 'node:fs';
@@ -8,7 +9,6 @@ import { parseArgs } from 'node:util';
 import { launchOptions, sampleRepository } from '@porcelain/desktop/kit/launch';
 import { electronExecutable, stageDesktop } from '@porcelain/desktop/kit/stage';
 import { _electron, type ElectronApplication } from 'playwright';
-import { z } from 'zod';
 import {
   freePort,
   Refusal,
@@ -34,7 +34,6 @@ import {
   nativeRequestSchema,
   type NativeRequest,
 } from './native.ts';
-
 const stagedApp = join(root, 'dist/desktop/verify');
 const readyWithinMs = 10 * 60 * 1000;
 const quitWithinMs = 15_000;
@@ -51,17 +50,16 @@ ${interactionUsage.replace('open a route of the web app', 'open a route of porce
                           answer the next native folder picker with a folder or a cancel; alone, record what the picker was asked
   installed-check         check the lock of the installed /Applications/Porcelain.app as a black box; needs no instance
 `;
-
 const registry = new Registry({
   name: 'desktop',
   cli: new URL('./cli.ts', import.meta.url).href,
-  detail: z.object({
-    session: z.string(),
-    workspace: z.string(),
-    profile: z.string(),
-    repository: z.string(),
-    control: z.string(),
-    token: z.string(),
+  detail: Schema.Struct({
+    session: Schema.String,
+    workspace: Schema.String,
+    profile: Schema.String,
+    repository: Schema.String,
+    control: Schema.String,
+    token: Schema.String,
   }),
   inputs: {
     roots: ['apps/desktop/src', 'apps/desktop/spec/kit', ...webInputs.roots],
@@ -74,13 +72,11 @@ const registry = new Registry({
       : undefined,
   stopWithinMs: 30_000,
 });
-
 function macProblem(): string | undefined {
   return process.platform === 'darwin'
     ? undefined
     : 'The desktop CLI needs macOS: it drives Porcelain Dev, the Mac app, through Playwright Electron. Run it on a Mac (see .agents/skills/desktop-verify/SKILL.md).';
 }
-
 function electronProblem(): string | undefined {
   try {
     return existsSync(electronExecutable())
@@ -90,7 +86,6 @@ function electronProblem(): string | undefined {
     return 'Electron is not installed for apps/desktop. Install it with: pnpm install --frozen-lockfile';
   }
 }
-
 async function quit(
   electron: ElectronApplication,
   child: ReturnType<ElectronApplication['process']>,
@@ -112,7 +107,6 @@ async function quit(
   });
   await Promise.race([electron.close(), expired]);
 }
-
 function control(
   electron: ElectronApplication,
   token: string,
@@ -124,14 +118,17 @@ function control(
       const answer = async () => {
         if (request.headers['x-porcelain-control'] !== token)
           return { status: 403, text: 'Refused: wrong control token\n' };
-        const parsed = nativeRequestSchema.safeParse(
+        const parsed = Schema.decodeUnknownResult(nativeRequestSchema)(
           JSON.parse(Buffer.concat(chunks).toString('utf8')),
         );
-        if (!parsed.success)
-          return { status: 400, text: `${parsed.error.message}\n` };
+        if (!Result.isSuccess(parsed))
+          return {
+            status: 400,
+            text: `${parsed.failure.message}\n`,
+          };
         return {
           status: 200,
-          text: await nativeCommand(electron, parsed.data),
+          text: await nativeCommand(electron, parsed.success),
         };
       };
       answer().then(
@@ -156,7 +153,6 @@ function control(
     });
   });
 }
-
 function serve(folder: string): Promise<void> {
   return registry.serve(folder, async (life) => {
     const evidence = registry.evidenceFolder(life.id);
@@ -240,14 +236,12 @@ function serve(folder: string): Promise<void> {
     };
   });
 }
-
 async function start(): Promise<string> {
   refuseMissing([macProblem() ?? electronProblem()]);
   const started = performance.now();
   const instance = await registry.launch({}, readyWithinMs);
   return `instance ${instance.id}\nevidence ${instance.evidence}\nrepository ${instance.detail.repository}\nprofile ${instance.detail.profile}\nstarted in ${Math.round(performance.now() - started)} ms\n`;
 }
-
 function doctor(): string {
   const checks = [
     `node ${process.versions.node}`,
@@ -261,7 +255,6 @@ function doctor(): string {
     .map(({ instance }) => `${instance.id} ${instance.detail.repository}`);
   return `${checks.join('\n')}\nlive instances: ${live.join(', ') || 'none'}\n`;
 }
-
 function nativeRequest(name: string, rest: readonly string[], cancel: boolean) {
   if (name === 'menu')
     return { command: 'menu', path: rest[0] } satisfies NativeRequest;
@@ -278,7 +271,6 @@ function nativeRequest(name: string, rest: readonly string[], cancel: boolean) {
     } satisfies NativeRequest;
   return undefined;
 }
-
 async function command(args: readonly string[]): Promise<string> {
   const { values, positionals } = parseArgs({
     args: [...args],
@@ -345,5 +337,4 @@ async function command(args: readonly string[]): Promise<string> {
     return output;
   });
 }
-
 await runCli(command);

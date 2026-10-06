@@ -1,8 +1,8 @@
+import { Schema, Result } from 'effect';
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseDocument } from 'yaml';
-import { z } from 'zod';
 import { webDomains } from '../architecture/policy.ts';
 import { selectorAppears } from '../architecture/feature-selectors.ts';
 import {
@@ -11,9 +11,7 @@ import {
   serverRoutes,
   type ApiCall,
 } from './api-calls.ts';
-
 export type Page = { file: string; path: string };
-
 export type Surface = {
   name: string;
   page: 'route' | 'screen';
@@ -28,7 +26,6 @@ export type Surface = {
   };
   flows?: string;
 };
-
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const sections = [
   'What it is',
@@ -39,25 +36,22 @@ const sections = [
 ];
 const skipped = new Set(['node_modules', 'dist', '.vite', '.turbo']);
 const sourceFile = /\.(?:tsx?|css|html)$/;
-
-const entrySchema = z.strictObject({
-  route: z.string().startsWith('/').optional(),
-  screen: z.string().startsWith('/').optional(),
-  shell: z.literal('desktop').optional(),
-  selectors: z.array(z.string().min(1)).min(1),
-  tests: z.array(z.string().min(1)).min(1),
-  api: z.array(
-    z
-      .string()
-      .regex(
-        /^(?:GET|POST|PUT|PATCH|DELETE) \/api\/\S*$/,
-        'an api entry is METHOD /api/<path> with the route parameters the server names',
-      ),
+const entrySchema = Schema.Struct({
+  route: Schema.optional(Schema.String.check(Schema.isStartingWith('/'))),
+  screen: Schema.optional(Schema.String.check(Schema.isStartingWith('/'))),
+  shell: Schema.optional(Schema.Literal('desktop')),
+  selectors: Schema.Array(Schema.NonEmptyString).check(Schema.isMinLength(1)),
+  tests: Schema.Array(Schema.NonEmptyString).check(Schema.isMinLength(1)),
+  api: Schema.Array(
+    Schema.String.check(
+      Schema.isPattern(/^(?:GET|POST|PUT|PATCH|DELETE) \/api\/\S*$/, {
+        expected:
+          'an api entry is METHOD /api/<path> with the route parameters the server names',
+      }),
+    ),
   ),
 });
-
-type Entry = z.output<typeof entrySchema> & { file: string };
-
+type Entry = typeof entrySchema.Type & { file: string };
 function filesUnder(folder: string): string[] {
   const absolute = join(root, folder);
   if (!existsSync(absolute)) return [];
@@ -69,9 +63,7 @@ function filesUnder(folder: string): string[] {
     return [path];
   });
 }
-
 type RouteFile = { file: string; segments: string[]; index: boolean };
-
 function routeFiles(folder: string, inside: string[] = []): RouteFile[] {
   return readdirSync(join(root, folder, ...inside), {
     withFileTypes: true,
@@ -93,7 +85,6 @@ function routeFiles(folder: string, inside: string[] = []): RouteFile[] {
     ];
   });
 }
-
 export function fileRoutes(folder: string): Page[] {
   const files = routeFiles(folder);
   const layout = (route: RouteFile) =>
@@ -117,7 +108,6 @@ export function fileRoutes(folder: string): Page[] {
         .join('/')}`,
     }));
 }
-
 const web: Surface = {
   name: 'web',
   page: 'route',
@@ -138,7 +128,6 @@ const web: Surface = {
       ['apps/web/src'],
     ),
 };
-
 const desktop: Surface = {
   name: 'desktop',
   page: 'route',
@@ -158,7 +147,6 @@ const desktop: Surface = {
     ),
   flows: 'apps/desktop/spec/e2e',
 };
-
 export function expoScreens(folder: string, inside: string[] = []): Page[] {
   return readdirSync(join(root, folder, ...inside), {
     withFileTypes: true,
@@ -178,7 +166,6 @@ export function expoScreens(folder: string, inside: string[] = []): Page[] {
     ];
   });
 }
-
 const mobile: Surface = {
   name: 'mobile',
   page: 'screen',
@@ -198,9 +185,7 @@ const mobile: Surface = {
       ['apps/mobile/src'],
     ),
 };
-
 export const surfaces: readonly Surface[] = [web, desktop, mobile];
-
 function frontmatter(text: string): { data: unknown; body: string } {
   const match = /^---\n([\s\S]*?)\n---\n([\s\S]*)$/.exec(text);
   if (match === null) return { data: undefined, body: text };
@@ -210,7 +195,6 @@ function frontmatter(text: string): { data: unknown; body: string } {
     body: match[2] ?? '',
   };
 }
-
 function entries(surface: Surface, problems: string[]): Entry[] {
   const folder = join(root, surface.features);
   if (!existsSync(folder)) {
@@ -235,10 +219,13 @@ function entries(surface: Surface, problems: string[]): Entry[] {
     const { data, body } = frontmatter(
       readFileSync(join(folder, file), 'utf8'),
     );
-    const parsed = entrySchema.safeParse(data);
-    if (!parsed.success) {
+    const parsed = Schema.decodeUnknownResult(entrySchema, {
+      onExcessProperty: 'error',
+      errors: 'all',
+    })(data);
+    if (!Result.isSuccess(parsed)) {
       problems.push(
-        `${at}: its frontmatter holds route, shell, selectors, tests and api: ${parsed.error.issues.map((issue) => `${issue.path.join('.') || 'frontmatter'} ${issue.message}`).join('; ')}`,
+        `${at}: its frontmatter holds route, shell, selectors, tests and api: ${parsed.failure.message}`,
       );
       continue;
     }
@@ -247,7 +234,10 @@ function entries(surface: Surface, problems: string[]): Entry[] {
       problems.push(
         `${at}: its sections are ${sections.map((section) => `## ${section}`).join(', ')}, in that order`,
       );
-    found.push({ ...parsed.data, file: at });
+    found.push({
+      ...parsed.success,
+      file: at,
+    });
   }
   if (found.length === 0)
     problems.push(
@@ -264,7 +254,6 @@ function entries(surface: Surface, problems: string[]): Entry[] {
   }
   return found;
 }
-
 function surfaceProblems(
   surface: Surface,
   routes: readonly string[],
@@ -343,7 +332,6 @@ function surfaceProblems(
     );
   return problems;
 }
-
 const started = performance.now();
 const routes = serverRoutes(root);
 const problems = surfaces.flatMap((surface) =>

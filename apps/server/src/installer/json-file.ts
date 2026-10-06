@@ -1,13 +1,11 @@
+import { Schema, Result } from 'effect';
 import { randomUUID } from 'node:crypto';
 import { access, mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
-import type { ZodType } from 'zod';
-
 type JsonFile<T> =
   | { kind: 'missing' }
   | { kind: 'invalid' }
   | { kind: 'value'; value: T };
-
 function errorCode(error: unknown): string | undefined {
   return error instanceof Error &&
     'code' in error &&
@@ -15,7 +13,6 @@ function errorCode(error: unknown): string | undefined {
     ? error.code
     : undefined;
 }
-
 export async function exists(path: string): Promise<boolean> {
   try {
     await access(path);
@@ -26,10 +23,9 @@ export async function exists(path: string): Promise<boolean> {
     throw error;
   }
 }
-
 export async function readJsonFile<T>(
   path: string,
-  schema: ZodType<T>,
+  schema: Schema.Codec<T>,
 ): Promise<JsonFile<T>> {
   let text: string;
   try {
@@ -44,12 +40,14 @@ export async function readJsonFile<T>(
   } catch {
     return { kind: 'invalid' };
   }
-  const result = schema.safeParse(parsed);
-  return result.success
-    ? { kind: 'value', value: result.data }
+  const result = Schema.decodeUnknownResult(schema)(parsed);
+  return Result.isSuccess(result)
+    ? {
+        kind: 'value',
+        value: result.success,
+      }
     : { kind: 'invalid' };
 }
-
 export async function writeJsonFile(
   path: string,
   value: unknown,

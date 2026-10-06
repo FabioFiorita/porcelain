@@ -1,3 +1,4 @@
+import { Schema } from 'effect';
 import { spawn } from 'node:child_process';
 import {
   chmod,
@@ -11,11 +12,8 @@ import {
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
-import { z } from 'zod';
-
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 export const packageOutput = join(repositoryRoot, 'dist-porcelain');
-
 const license = `MIT License
 
 Copyright (c) 2026 Fabio Fiorita
@@ -38,35 +36,38 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 `;
-
 const binSource = `#!/usr/bin/env node
 import { runCli } from '../server/src/bootstrap/main.mjs';
 
 await runCli();
 `;
-
-const packageJsonSchema = z.object({
-  version: z.string().optional(),
-  description: z.string().optional(),
-  license: z.string().optional(),
-  author: z
-    .union([
-      z.string(),
-      z.object({ name: z.string().optional(), email: z.string().optional() }),
-    ])
-    .optional(),
-  repository: z.unknown().optional(),
-  bugs: z.unknown().optional(),
-  homepage: z.string().optional(),
-  engines: z.object({ node: z.string().optional() }).optional(),
-  dependencies: z.record(z.string(), z.string()).optional(),
+const packageJsonSchema = Schema.Struct({
+  version: Schema.optional(Schema.String),
+  description: Schema.optional(Schema.String),
+  license: Schema.optional(Schema.String),
+  author: Schema.optional(
+    Schema.Union([
+      Schema.String,
+      Schema.Struct({
+        name: Schema.optional(Schema.String),
+        email: Schema.optional(Schema.String),
+      }),
+    ]),
+  ),
+  repository: Schema.optional(Schema.Unknown),
+  bugs: Schema.optional(Schema.Unknown),
+  homepage: Schema.optional(Schema.String),
+  engines: Schema.optional(
+    Schema.Struct({
+      node: Schema.optional(Schema.String),
+    }),
+  ),
+  dependencies: Schema.optional(Schema.Record(Schema.String, Schema.String)),
 });
-type PackageJson = z.output<typeof packageJsonSchema>;
-
+type PackageJson = typeof packageJsonSchema.Type;
 function pnpmCommand(): string {
   return process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
 }
-
 async function runCommand(command: string, args: readonly string[]) {
   await new Promise<void>((resolveCommand, rejectCommand) => {
     const child = spawn(command, args, {
@@ -89,7 +90,6 @@ async function runCommand(command: string, args: readonly string[]) {
     });
   });
 }
-
 async function requiredFile(path: string): Promise<void> {
   try {
     const metadata = await stat(path);
@@ -98,7 +98,6 @@ async function requiredFile(path: string): Promise<void> {
     throw new Error(`Required packaging input is missing: ${path}`);
   }
 }
-
 async function requiredDirectory(path: string): Promise<void> {
   try {
     const metadata = await stat(path);
@@ -107,11 +106,11 @@ async function requiredDirectory(path: string): Promise<void> {
     throw new Error(`Required packaging input is missing: ${path}`);
   }
 }
-
 async function readJson(path: string): Promise<PackageJson> {
-  return packageJsonSchema.parse(JSON.parse(await readFile(path, 'utf8')));
+  return Schema.decodeUnknownSync(packageJsonSchema)(
+    JSON.parse(await readFile(path, 'utf8')),
+  );
 }
-
 async function buildWeb(webOutput: string): Promise<void> {
   await runCommand(pnpmCommand(), [
     '--filter',
@@ -131,7 +130,6 @@ async function buildWeb(webOutput: string): Promise<void> {
     '--emptyOutDir',
   ]);
 }
-
 async function buildServer(
   serverOutput: string,
   externalDependencies: readonly string[],
@@ -149,7 +147,6 @@ async function buildServer(
     logLevel: 'info',
   });
 }
-
 function packageReadme(version: string): string {
   return `# @fabiofiorita/porcelain (${version})
 
@@ -205,7 +202,6 @@ cd dist-porcelain && npm pack
 edit it by hand.
 `;
 }
-
 export async function buildPackage(): Promise<string> {
   const rootPackage = await readJson(join(repositoryRoot, 'package.json'));
   const serverPackage = await readJson(
@@ -276,7 +272,6 @@ export async function buildPackage(): Promise<string> {
 
   return packageOutput;
 }
-
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   try {
     const output = await buildPackage();

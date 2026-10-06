@@ -1,16 +1,21 @@
+import { Schema } from 'effect';
 import { spawnSync } from 'node:child_process';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { KnipConfiguration } from 'knip';
 import { parseSync } from 'oxc-parser';
-import { z } from 'zod';
 import { generatedRouteTree, type ArchRule } from './policy.ts';
-
-const items = z.array(z.object({ name: z.string() })).optional();
-const reportSchema = z.object({
-  issues: z.array(
-    z.object({
-      file: z.string(),
+const items = Schema.optional(
+  Schema.Array(
+    Schema.Struct({
+      name: Schema.String,
+    }),
+  ),
+);
+const reportSchema = Schema.Struct({
+  issues: Schema.Array(
+    Schema.Struct({
+      file: Schema.String,
       files: items,
       exports: items,
       types: items,
@@ -23,7 +28,6 @@ const reportSchema = z.object({
 const source =
   /^(?:apps\/(?:server|desktop|web|mobile)|packages\/[^/]+)\/src\/.+\.tsx?$/;
 const skipped = /(?:\.spec|\.d)\.ts$|^apps\/web\/src\/components\/ui\//;
-
 export function knipFindings(root: string) {
   const checked = spawnSync(
     join(root, 'node_modules/.bin/knip'),
@@ -39,7 +43,9 @@ export function knipFindings(root: string) {
   if (checked.error) throw checked.error;
   if (checked.status !== 0 && checked.status !== 1)
     throw new Error(`Knip could not check unused code: ${checked.stderr}`);
-  const report = reportSchema.parse(JSON.parse(checked.stdout));
+  const report = Schema.decodeUnknownSync(reportSchema)(
+    JSON.parse(checked.stdout),
+  );
   const findings: { rule: ArchRule; from: string; to: string }[] = [];
   for (const issue of report.issues) {
     if (
@@ -70,7 +76,6 @@ export function knipFindings(root: string) {
   }
   return findings;
 }
-
 function expoEntries(source: string, path: string): string {
   if (!/\/apps\/mobile\/src\/app\/.+\.tsx$/.test(path)) return source;
   const parsed = parseSync(path, source, { lang: 'tsx' });
@@ -90,7 +95,6 @@ function expoEntries(source: string, path: string): string {
       source.slice(node.start);
   return source;
 }
-
 export default {
   include: [
     'files',

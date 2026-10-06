@@ -1,3 +1,4 @@
+import { Schema } from 'effect';
 import { selectedWorktreeInProject } from '@porcelain/client/projects/rules';
 import { createFileRoute, Navigate } from '@tanstack/react-router';
 import { useConnectedContext } from '@/features/access/index';
@@ -8,7 +9,7 @@ import { WorkspacePending } from '@/app/workspace-pending';
 import { workspaceSearchSchema } from '@/shared/workspace/search';
 
 export const Route = createFileRoute('/_paired/$projectId/$worktreeId')({
-  validateSearch: workspaceSearchSchema,
+  validateSearch: Schema.decodeUnknownSync(workspaceSearchSchema),
   pendingComponent: WorkspacePending,
   errorComponent: WorkspaceError,
   component: WorktreeLayout,

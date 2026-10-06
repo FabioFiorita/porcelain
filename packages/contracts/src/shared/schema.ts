@@ -1,5 +1,4 @@
-import { regexes } from 'zod/v4/core';
-import { Result, Schema, SchemaTransformation } from 'effect';
+import { DateTime, Result, Schema, SchemaTransformation } from 'effect';
 import { WORKTREE_ID_LENGTH } from './limits.ts';
 
 export const urlStringSchema = Schema.String.check(
@@ -11,7 +10,21 @@ export const urlStringSchema = Schema.String.check(
 );
 
 export const isoDateTimeSchema = Schema.String.check(
-  Schema.isPattern(regexes.datetime({})),
+  Schema.isPattern(
+    /^\d{4}-\d{2}-\d{2}T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?Z$/,
+  ),
+  Schema.makeFilter(
+    (value) => {
+      const parsed = Schema.decodeUnknownResult(Schema.DateTimeUtcFromString)(
+        value,
+      );
+      return (
+        Result.isSuccess(parsed) &&
+        DateTime.formatIsoDate(parsed.success) === value.split('T')[0]
+      );
+    },
+    { expected: 'a valid UTC timestamp' },
+  ),
 );
 
 export const projectIdSchema = Schema.String.check(Schema.isUUID());

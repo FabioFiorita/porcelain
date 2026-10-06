@@ -1743,16 +1743,15 @@ export function threadCapacityLeft(threads: number): number {
   },
 
   {
-    rule: 'no-schema-parse-aliases',
+    rule: 'no-schema-parse-in-typed-code',
     path: 'packages/files/src/rules/encode-base64.ts',
     valid:
       'export function byteLength(value: Uint8Array) { return value.byteLength; }',
-    invalid: `
-export function probeParser(value: object): unknown {
-  return Reflect.get(value, "safeParse");
-}
+    invalid: `import { decodeUnknownSync as parse } from 'effect/Schema';
+const { decodeUnknownResult: parseResult } = Schema;
+export function probeParser(value: object): unknown { return Reflect.get(value, "decodeUnknownSync"); }
 `,
-    errors: 1,
+    errors: 3,
   },
   {
     rule: 'no-schema-parse-in-typed-code',
@@ -1760,7 +1759,7 @@ export function probeParser(value: object): unknown {
     valid:
       "export const execute = Effect.fn('ListDirectoryService.execute')(function* (input: ListDirectoryInput) { return input.path; });",
     invalid:
-      "export const execute = Effect.fn('ListDirectoryService.execute')(function* (input: ListDirectoryInput) { z.string().parse(input.path); return input.path; });",
+      "export const execute = Effect.fn('ListDirectoryService.execute')(function* (input: ListDirectoryInput) { Schema.decodeUnknownSync(Schema.String)(input.path); return input.path; });",
     errors: 1,
   },
   {
@@ -1915,7 +1914,7 @@ process.stdout.write(\`\${deriveProjectName(undefined, '/tmp/probe')}\\n\`);
     rule: 'root-scripts-import-no-package',
     path: 'scripts/probe-reach.ts',
     valid:
-      "import {z} from 'zod'; process.stdout.write(z.string().parse('value'));",
+      "import { Schema } from 'effect'; process.stdout.write(Schema.decodeUnknownSync(Schema.String)('value'));",
     invalid: `import { redeemPairingResponseSchema } from '@porcelain/contracts/access';
 
 process.stdout.write(\`\${JSON.stringify(redeemPairingResponseSchema.parse({}))}\\n\`);

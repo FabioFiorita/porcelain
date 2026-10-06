@@ -1,24 +1,28 @@
+import { Schema } from 'effect';
 import type { ElectronApplication } from 'playwright';
-import { z } from 'zod';
-
-const selectionSchema = z.object({
-  canceled: z.boolean(),
-  filePaths: z.array(z.string()),
+const selectionSchema = Schema.Struct({
+  canceled: Schema.Boolean,
+  filePaths: Schema.Array(Schema.String),
 });
-
-export const nativeRequestSchema = z.discriminatedUnion('command', [
-  z.object({ command: z.literal('hold-picker') }),
-  z.object({ command: z.literal('menu'), path: z.string().optional() }),
-  z.object({ command: z.literal('window'), change: z.array(z.string()) }),
-  z.object({
-    command: z.literal('dialog'),
-    answer: selectionSchema.optional(),
+export const nativeRequestSchema = Schema.Union([
+  Schema.Struct({
+    command: Schema.Literal('hold-picker'),
+  }),
+  Schema.Struct({
+    command: Schema.Literal('menu'),
+    path: Schema.optional(Schema.String),
+  }),
+  Schema.Struct({
+    command: Schema.Literal('window'),
+    change: Schema.Array(Schema.String),
+  }),
+  Schema.Struct({
+    command: Schema.Literal('dialog'),
+    answer: Schema.optional(selectionSchema),
   }),
 ]);
-
-export type NativeRequest = z.input<typeof nativeRequestSchema>;
-type Selection = z.output<typeof selectionSchema>;
-
+export type NativeRequest = typeof nativeRequestSchema.Encoded;
+type Selection = typeof selectionSchema.Type;
 type MenuEntry = {
   label: string;
   id: string;
@@ -28,7 +32,6 @@ type MenuEntry = {
   visible: boolean;
   children: MenuEntry[];
 };
-
 function menuText(entries: readonly MenuEntry[], depth = 0): string {
   return entries
     .map((entry) => {
@@ -46,7 +49,6 @@ function menuText(entries: readonly MenuEntry[], depth = 0): string {
     })
     .join('\n');
 }
-
 async function menu(electron: ElectronApplication, path: string | undefined) {
   if (path !== undefined) {
     const clicked = await electron.evaluate(
@@ -108,7 +110,6 @@ async function menu(electron: ElectronApplication, path: string | undefined) {
   });
   return `${path === undefined ? '' : `clicked ${path}\n\n`}${menuText(entries)}\n`;
 }
-
 async function windowState(electron: ElectronApplication) {
   const state = await electron.evaluate(({ BrowserWindow, screen }) => ({
     workArea: screen.getPrimaryDisplay().workArea,
@@ -127,7 +128,6 @@ async function windowState(electron: ElectronApplication) {
   }));
   return `${JSON.stringify(state, null, 2)}\n`;
 }
-
 async function changeWindow(
   electron: ElectronApplication,
   change: readonly string[],
@@ -195,7 +195,6 @@ async function changeWindow(
   }
   return 'window takes resize <width> <height>, maximize, fullscreen on|off, close or activate\n';
 }
-
 function holdPicker(electron: ElectronApplication) {
   return electron.evaluate(({ BrowserWindow, dialog }) => {
     const requests: Record<string, unknown>[] = [];
@@ -248,7 +247,6 @@ function holdPicker(electron: ElectronApplication) {
     };
   });
 }
-
 async function answerPicker(
   electron: ElectronApplication,
   answer: Selection | undefined,
@@ -278,7 +276,6 @@ async function answerPicker(
   );
   return `${outcome === '' ? '' : `${outcome}\n\n`}picker requests so far:\n${requests}\n`;
 }
-
 export async function nativeCommand(
   electron: ElectronApplication,
   request: NativeRequest,

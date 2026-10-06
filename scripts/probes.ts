@@ -1,3 +1,4 @@
+import { Schema, Result } from 'effect';
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
 import {
   existsSync,
@@ -11,7 +12,6 @@ import {
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseArgs, stripVTControlCharacters } from 'node:util';
-import { z } from 'zod';
 import { edited, preflightAt } from '../architecture/probe-edits.ts';
 import {
   liveRuleNames,
@@ -21,8 +21,7 @@ import {
   type ProbeEdit,
   type ProbeGate,
 } from '../architecture/probe.ts';
-
-type LoadedProbe = z.output<typeof probeSchema> & { id: string };
+type LoadedProbe = typeof probeSchema.Type & { id: string };
 type Planted = { touched: Set<string>; files: string[]; folders: string[] };
 type Verdict = 'rejected' | 'NOT REJECTED' | 'STALE';
 type Outcome = { verdict: Verdict; detail: string[] };
@@ -32,7 +31,6 @@ type Selection = {
   shard: Shard | undefined;
   check: boolean;
 };
-
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const probeFolder = join(root, 'architecture', 'probes');
 const gateCommands: Record<
@@ -91,14 +89,12 @@ const expectedSeconds: Record<ProbeGate, (probe: LoadedProbe) => number> = {
   'web-verify': (probe) => (probe.feature === undefined ? 240 : 25),
   features: () => 2,
 };
-const moduleSchema = z.object({ default: probeSchema });
+const moduleSchema = Schema.Struct({ default: Schema.Unknown });
 const localEnvironment = Object.fromEntries(
   Object.entries(process.env).filter(([name]) => name !== 'CI'),
 );
-
 let running: ChildProcess | undefined;
 let interrupted = false;
-
 function git(args: readonly string[]): string {
   const result = spawnSync('git', args, { cwd: root, encoding: 'utf8' });
   if (result.error) throw result.error;
@@ -106,28 +102,34 @@ function git(args: readonly string[]): string {
     throw new Error(`git ${args.join(' ')} failed: ${result.stderr}`);
   return result.stdout;
 }
-
 function changedPaths(): string {
   return git(['status', '--porcelain', '--untracked-files=all'])
     .split('\n')
     .filter((line) => line !== '' && !line.startsWith('?? .claude/'))
     .join('\n');
 }
-
 async function loadProbes(): Promise<LoadedProbe[]> {
   const files = readdirSync(probeFolder)
     .filter((file) => file.endsWith('.ts'))
     .toSorted();
   const probes = await Promise.all(
     files.map(async (file) => {
-      const loaded = moduleSchema.safeParse(
-        await import(pathToFileURL(join(probeFolder, file)).href),
+      const loaded = Schema.decodeUnknownResult(probeSchema, {
+        onExcessProperty: 'error',
+        errors: 'all',
+      })(
+        Schema.decodeUnknownSync(moduleSchema)(
+          await import(pathToFileURL(join(probeFolder, file)).href),
+        ).default,
       );
-      if (!loaded.success)
+      if (!Result.isSuccess(loaded))
         throw new Error(
-          `architecture/probes/${file} does not export a probe: ${loaded.error.message}`,
+          `architecture/probes/${file} does not export a probe: ${loaded.failure.message}`,
         );
-      return { ...loaded.data.default, id: file.slice(0, -'.ts'.length) };
+      return {
+        ...loaded.success,
+        id: file.slice(0, -'.ts'.length),
+      };
     }),
   );
   const names = await liveRuleNames(root);
@@ -143,7 +145,6 @@ async function loadProbes(): Promise<LoadedProbe[]> {
     );
   return probes;
 }
-
 function parsedShard(value: string): Shard {
   const match = /^([1-9]\d*)\/([1-9]\d*)$/.exec(value);
   const index = Number(match?.[1] ?? 0);
@@ -154,7 +155,6 @@ function parsedShard(value: string): Shard {
     );
   return { index, count };
 }
-
 function selection(args: readonly string[]): Selection {
   const { values, positionals } = parseArgs({
     args: [...args],
@@ -179,7 +179,6 @@ function selection(args: readonly string[]): Selection {
     check: values.check,
   };
 }
-
 function namedProbes(
   probes: readonly LoadedProbe[],
   named: readonly string[],
@@ -193,7 +192,6 @@ function namedProbes(
     ? [...probes]
     : probes.filter((probe) => named.includes(probe.id));
 }
-
 function shardProbes(
   probes: readonly LoadedProbe[],
   shard: Shard,
@@ -218,7 +216,6 @@ function shardProbes(
   }
   return probes.filter((probe) => members.has(probe.id));
 }
-
 function chosenProbes(
   probes: readonly LoadedProbe[],
   { named, shard }: Selection,
@@ -231,7 +228,6 @@ function chosenProbes(
     scope: `Shard ${shard.index}/${shard.count}: ${chosen.length} of ${probes.length} probes.\n`,
   };
 }
-
 function missingFolders(path: string): string[] {
   const folders: string[] = [];
   for (
@@ -242,7 +238,6 @@ function missingFolders(path: string): string[] {
     folders.push(folder);
   return folders;
 }
-
 function plant(edits: readonly ProbeEdit[], planted: Planted): void {
   for (const edit of edits) {
     const path = join(root, edit.path);
@@ -265,7 +260,6 @@ function plant(edits: readonly ProbeEdit[], planted: Planted): void {
     writeFileSync(path, edited(readFileSync(path, 'utf8'), edit));
   }
 }
-
 function restore(planted: Planted): void {
   if (planted.touched.size > 0) git(['checkout', '--', ...planted.touched]);
   for (const file of planted.files) rmSync(file, { force: true });
@@ -274,7 +268,6 @@ function restore(planted: Planted): void {
   if (left !== '')
     throw new Error(`The checkout is not clean after a probe:\n${left}`);
 }
-
 function runGate(
   command: readonly [string, ...string[]],
 ): Promise<{ status: number; output: string }> {
@@ -312,7 +305,6 @@ function runGate(
     });
   });
 }
-
 async function attempt(probe: LoadedProbe): Promise<Outcome> {
   const planted: Planted = { touched: new Set(), files: [], folders: [] };
   try {
@@ -343,7 +335,6 @@ async function attempt(probe: LoadedProbe): Promise<Outcome> {
     restore(planted);
   }
 }
-
 function interrupt(signal: NodeJS.Signals): void {
   interrupted = true;
   if (running?.pid === undefined) return;
@@ -357,10 +348,8 @@ function interrupt(signal: NodeJS.Signals): void {
     running.kill(signal);
   }
 }
-
 process.on('SIGINT', () => interrupt('SIGINT'));
 process.on('SIGTERM', () => interrupt('SIGTERM'));
-
 function table(probes: readonly LoadedProbe[]) {
   const titles = ['probe', 'decision', 'gate', 'rule'] as const;
   const cells = (probe: LoadedProbe): readonly string[] => [
@@ -382,7 +371,6 @@ function table(probes: readonly LoadedProbe[]) {
     row: (probe: LoadedProbe, result: string) => line(cells(probe), result),
   };
 }
-
 async function main(): Promise<number> {
   const started = performance.now();
   const selected = selection(process.argv.slice(2));
@@ -444,7 +432,6 @@ async function main(): Promise<number> {
   );
   return interrupted || rejected !== probes.length ? 1 : 0;
 }
-
 try {
   process.exitCode = await main();
 } catch (error) {

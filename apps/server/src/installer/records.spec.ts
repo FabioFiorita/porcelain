@@ -2,7 +2,12 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { readServiceConfiguration } from './records.ts';
+import {
+  readServiceConfiguration,
+  readInstalledRecord,
+  readUpdateJournal,
+  readUpdateRecord,
+} from './records.ts';
 
 let folder: string;
 let path: string;
@@ -54,4 +59,64 @@ describe('readServiceConfiguration', () => {
       'The saved service configuration is invalid.',
     );
   });
+});
+
+it('distinguishes a missing install record from malformed saved installation data', async () => {
+  expect(await readInstalledRecord(path)).toBeUndefined();
+  writeFileSync(path, '{broken');
+  await expect(readInstalledRecord(path)).rejects.toThrow(
+    'The installed service record is invalid. Preserve the service directory for manual recovery.',
+  );
+});
+
+it('reads the saved rollback journal and refuses an invalid installed version', async () => {
+  writeFileSync(
+    path,
+    JSON.stringify({
+      installed: { version: '0.1.0' },
+      backup: '/tmp/backup',
+      target: '0.2.0',
+      healthy: false,
+    }),
+  );
+  expect(await readUpdateJournal(path)).toEqual({
+    installed: { version: '0.1.0' },
+    backup: '/tmp/backup',
+    target: '0.2.0',
+    healthy: false,
+  });
+  writeFileSync(
+    path,
+    JSON.stringify({ installed: { version: 1 }, backup: '/tmp/backup' }),
+  );
+  await expect(readUpdateJournal(path)).rejects.toThrow(
+    `The interrupted update record at ${path} is invalid. Preserve it and the service runtime for manual recovery.`,
+  );
+});
+
+it('accepts a known update stage and ignores an unreadable progress record', async () => {
+  writeFileSync(
+    path,
+    JSON.stringify({ from: '0.1.0', target: '0.2.0', stage: 'restarting' }),
+  );
+  expect(await readUpdateRecord(path)).toEqual({
+    from: '0.1.0',
+    target: '0.2.0',
+    stage: 'restarting',
+  });
+  writeFileSync(
+    path,
+    JSON.stringify({ from: '0.1.0', target: '0.2.0', stage: 'complete' }),
+  );
+  expect(await readUpdateRecord(path)).toBeUndefined();
+});
+
+it('refuses a fractional saved listen port', async () => {
+  writeFileSync(
+    path,
+    JSON.stringify({ dataDirectory: '/tmp/profile', port: 4738.5 }),
+  );
+  await expect(readServiceConfiguration(path)).rejects.toThrow(
+    'The saved service configuration is invalid.',
+  );
 });

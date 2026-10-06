@@ -16,8 +16,7 @@
     "@porcelain/server": "workspace:*",
     "effect": "4.0.0",
     "electron": "44.4.5",
-    "fix-path": "5.0.0",
-    "zod": "4.5.4"
+    "fix-path": "5.0.0"
   },
   "devDependencies": {
     "@playwright/test": "1.63.0"

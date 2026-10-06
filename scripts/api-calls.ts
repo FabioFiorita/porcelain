@@ -1,3 +1,4 @@
+import { Schema } from 'effect';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { parseSync, Visitor } from 'oxc-parser';
@@ -6,7 +7,6 @@ import {
   traverse,
   type NodePath,
 } from '@babel/core';
-import { z } from 'zod';
 import * as shared from '@porcelain/contracts/shared';
 import * as access from '@porcelain/contracts/access';
 import * as changes from '@porcelain/contracts/changes';
@@ -15,7 +15,6 @@ import * as gitActions from '@porcelain/contracts/git-actions';
 import * as projects from '@porcelain/contracts/projects';
 import * as reviews from '@porcelain/contracts/reviews';
 import { HttpApi, type HttpApiEndpoint } from 'effect/http-api';
-
 const contractApis = new Map<string, HttpApi.Top>();
 for (const [name, value] of Object.entries({
   ...shared,
@@ -32,14 +31,12 @@ const endpointNames = new Set(
     Object.values(api.groups).flatMap((group) => Object.keys(group.endpoints)),
   ),
 );
-
 export type ApiCall = {
   method: string;
   path: string;
   file: string;
   line: number;
 };
-
 type SourceRange = { start: number; end: number };
 type ReachableRange = SourceRange & {
   includesBody: boolean;
@@ -52,7 +49,6 @@ type Declaration = SourceRange & {
   path: NodePath;
   references: BindingReference[];
 };
-
 type Module = {
   file: string;
   apis: Map<string, HttpApi.Top>;
@@ -65,12 +61,10 @@ type Module = {
   startup: SourceRange[];
   startupReferences: Reference[];
 };
-
 const transportCallee = /(?:^|[a-z])(?:transport|Transport)$/;
-const clientManifestSchema = z.object({
-  exports: z.record(z.string(), z.string()),
+const clientManifestSchema = Schema.Struct({
+  exports: Schema.Record(Schema.String, Schema.String),
 });
-
 function filesUnder(root: string, folder: string): string[] {
   const absolute = join(root, folder);
   if (!existsSync(absolute)) return [];
@@ -79,11 +73,9 @@ function filesUnder(root: string, folder: string): string[] {
     return entry.isDirectory() ? filesUnder(root, path) : [path];
   });
 }
-
 function lineOf(source: string, offset: number): number {
   return source.slice(0, offset).split('\n').length;
 }
-
 function moduleFile(
   root: string,
   from: string,
@@ -112,11 +104,9 @@ function moduleFile(
   ].find((candidate) => existsSync(candidate) && candidate.match(/\.tsx?$/));
   return found === undefined ? undefined : relative(root, found);
 }
-
 function sourceRange(path: NodePath): SourceRange {
   return { start: path.node.start ?? 0, end: path.node.end ?? 0 };
 }
-
 function propertyName(path: NodePath): string | undefined {
   const node = path.node;
   if (
@@ -130,7 +120,6 @@ function propertyName(path: NodePath): string | undefined {
   if (key.type === 'StringLiteral') return key.value;
   return undefined;
 }
-
 function atomEndpoint(callee: NodePath) {
   if (
     !callee.isMemberExpression() ||
@@ -145,13 +134,11 @@ function atomEndpoint(callee: NodePath) {
     ? { group: group.node.value, endpoint: endpoint.node.value }
     : undefined;
 }
-
 function prependMember(name: string, chains: MemberChain[]): MemberChain[] {
   return chains.map((chain) =>
     chain === undefined ? undefined : [name, ...chain],
   );
 }
-
 function destructuredMembers(
   pattern: NodePath,
   seen: Set<NodePath>,
@@ -177,7 +164,6 @@ function destructuredMembers(
   }
   return chains.length === 0 ? [undefined] : chains;
 }
-
 function usedMembers(
   path: NodePath,
   seen = new Set<NodePath>(),
@@ -221,7 +207,6 @@ function usedMembers(
   }
   return afterMember ? [[]] : [undefined];
 }
-
 function returnedObject(declaration: NodePath): NodePath | undefined {
   const value = declaration.isVariableDeclarator()
     ? declaration.get('init')
@@ -244,7 +229,6 @@ function returnedObject(declaration: NodePath): NodePath | undefined {
     return returns[0];
   return undefined;
 }
-
 function unusedMethodRanges(property: NodePath): SourceRange[] {
   if (propertyName(property) === undefined) return [];
   if (property.isObjectMethod()) return [sourceRange(property)];
@@ -254,7 +238,6 @@ function unusedMethodRanges(property: NodePath): SourceRange[] {
   if (!value.isObjectExpression()) return [];
   return value.get('properties').flatMap(unusedMethodRanges);
 }
-
 function selectedMemberRanges(
   object: NodePath,
   members: readonly string[],
@@ -299,7 +282,6 @@ function selectedMemberRanges(
     if (sibling !== property) excluded.push(...unusedMethodRanges(sibling));
   return excluded;
 }
-
 function memberSelection(
   declaration: NodePath,
   member: MemberChain,
@@ -331,7 +313,6 @@ function memberSelection(
   if (selected !== undefined) excluded.push(...selected);
   return { excluded, forwarded };
 }
-
 function outsideExcluded(
   range: SourceRange,
   excluded: readonly SourceRange[],
@@ -340,21 +321,19 @@ function outsideExcluded(
     (skip) => range.start >= skip.start && range.end <= skip.end,
   );
 }
-
 class RouteReader {
   private readonly root: string;
   private readonly modules = new Map<string, Module>();
   private readonly clientExports: Readonly<Record<string, string>>;
-
   constructor(root: string) {
     this.root = root;
     const manifest = join(root, 'packages/client/package.json');
     this.clientExports = existsSync(manifest)
-      ? clientManifestSchema.parse(JSON.parse(readFileSync(manifest, 'utf8')))
-          .exports
+      ? Schema.decodeUnknownSync(clientManifestSchema)(
+          JSON.parse(readFileSync(manifest, 'utf8')),
+        ).exports
       : {};
   }
-
   module(file: string): Module {
     const known = this.modules.get(file);
     if (known) return known;
@@ -562,7 +541,6 @@ class RouteReader {
     });
     return loaded;
   }
-
   sdkEndpoint(
     file: string,
     callee: NodePath,
@@ -628,7 +606,6 @@ class RouteReader {
     const apis = this.sdkApis(file, object, new Set());
     return this.endpointFor(apis, name);
   }
-
   private exportedEndpoint(
     file: string,
     name: string,
@@ -657,7 +634,6 @@ class RouteReader {
       ? matches[0]
       : undefined;
   }
-
   private endpointFor(
     apis: readonly HttpApi.Top[],
     name: string,
@@ -676,7 +652,6 @@ class RouteReader {
     );
     return routes.size === 1 ? matches[0] : undefined;
   }
-
   isAtomClientCall(file: string, callee: NodePath): boolean {
     return (
       callee.isMemberExpression() &&
@@ -684,7 +659,6 @@ class RouteReader {
       this.sdkApis(file, callee.get('object'), new Set()).length > 0
     );
   }
-
   private sdkApis(
     file: string,
     expression: NodePath,
@@ -727,7 +701,6 @@ class RouteReader {
     });
     return apis;
   }
-
   private exportedApis(
     file: string,
     name: string,
@@ -755,7 +728,6 @@ class RouteReader {
     });
     return apis;
   }
-
   importedDeclarations(folders: readonly string[]) {
     const reached = new Map<string, ReachableRange[]>();
     const problems = new Set<string>();
@@ -873,7 +845,6 @@ class RouteReader {
     return { reached, problems: [...problems] };
   }
 }
-
 export function apiCalls(
   root: string,
   folders: readonly string[],
@@ -966,11 +937,9 @@ export function apiCalls(
     ),
   };
 }
-
 export function sameRoute(route: string, call: ApiCall): boolean {
   return route === `${call.method} ${call.path}`;
 }
-
 export function serverRoutes(_root: string): string[] {
   return [
     ...new Set(

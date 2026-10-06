@@ -1,23 +1,15 @@
+import { Schema, Result } from 'effect';
 import { request } from 'node:http';
 import { constants } from 'node:http2';
-import type { OwnerStatus } from '@porcelain/kernel/models';
-import { z } from 'zod';
+import { ownerStatusSchema } from '@porcelain/kernel/models';
 import type {
   OwnerProbe,
   OwnerProbeRequest,
   OwnerProbeResult,
 } from '../../ports/owner-probe.ts';
-
-const ownerStatusSchema: z.ZodType<OwnerStatus> = z.object({
-  address: z.string(),
-  dataDirectory: z.string(),
-  pid: z.number().int(),
-});
-
 type Answer =
   | { kind: 'answered'; status: number; body: string }
   | { kind: 'timed-out' };
-
 function ask(input: OwnerProbeRequest): Promise<Answer> {
   return new Promise((resolve, reject) => {
     const outgoing = request(
@@ -49,7 +41,6 @@ function ask(input: OwnerProbeRequest): Promise<Answer> {
     outgoing.end();
   });
 }
-
 function absent(error: unknown): boolean {
   return (
     error instanceof Error &&
@@ -57,7 +48,6 @@ function absent(error: unknown): boolean {
     (error.code === 'ENOENT' || error.code === 'ECONNREFUSED')
   );
 }
-
 function parsed(body: string): unknown {
   try {
     return JSON.parse(body);
@@ -65,7 +55,6 @@ function parsed(body: string): unknown {
     return undefined;
   }
 }
-
 export class SocketOwnerProbe implements OwnerProbe {
   async probe(input: OwnerProbeRequest): Promise<OwnerProbeResult> {
     let answer: Answer;
@@ -89,9 +78,14 @@ export class SocketOwnerProbe implements OwnerProbe {
         kind: 'unreadable',
         reason: `the owner socket answered ${answer.status || 'nothing'}`,
       };
-    const status = ownerStatusSchema.safeParse(parsed(answer.body));
-    return status.success
-      ? { kind: 'running', status: status.data }
+    const status = Schema.decodeUnknownResult(ownerStatusSchema)(
+      parsed(answer.body),
+    );
+    return Result.isSuccess(status)
+      ? {
+          kind: 'running',
+          status: status.success,
+        }
       : {
           kind: 'unreadable',
           reason: 'the owner socket answered something unrecognizable',

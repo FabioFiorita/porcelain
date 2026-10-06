@@ -1,3 +1,4 @@
+import { Schema } from 'effect';
 import { selectedWorktreeInProject } from '@porcelain/client/projects/rules';
 import { createFileRoute, Navigate } from '@tanstack/react-router';
 import { useRemoteConnection, useRemoteStatus } from '@/features/access/index';
@@ -14,7 +15,7 @@ import {
 export const Route = createFileRoute(
   '/_paired/remotes/$environmentId/$projectId/$worktreeId',
 )({
-  validateSearch: workspaceSearchSchema,
+  validateSearch: Schema.decodeUnknownSync(workspaceSearchSchema),
   pendingComponent: WorkspacePending,
   errorComponent: WorkspaceError,
   component: RemoteWorktreeLayout,

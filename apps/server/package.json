@@ -33,8 +33,7 @@
     "effect": "4.0.0",
     "qrcode-terminal": "0.12.0",
     "trash": "10.1.1",
-    "ws": "8.21.3",
-    "zod": "4.5.4"
+    "ws": "8.21.3"
   },
   "devDependencies": {
     "@modelcontextprotocol/sdk": "1.30.0",

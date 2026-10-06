@@ -1,3 +1,4 @@
+import { Schema } from 'effect';
 import { ownerClient, runOwner } from '../../src/cli/owner-client.ts';
 import { execFile } from 'node:child_process';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
@@ -7,7 +8,6 @@ import { mkdir, symlink, unlink, writeFile } from 'node:fs/promises';
 import { connect, createServer } from 'node:net';
 import { dirname, join } from 'node:path';
 import { promisify } from 'node:util';
-import { z } from 'zod';
 import { FixedNetworkAddressReader } from '../fakes/fixed-network-address-reader.ts';
 import { InMemoryRouteListenerRunner } from '../fakes/in-memory-route-listener-runner.ts';
 import { ScriptedServiceUpdateRunner } from '../fakes/scripted-service-update-runner.ts';
@@ -21,13 +21,19 @@ import {
   perfSample,
   placePerfSample,
 } from './perf-sample.ts';
-
-const issuedPairingSchema = z.object({
-  grants: z.array(z.object({ code: z.string() })),
+const issuedPairingSchema = Schema.Struct({
+  grants: Schema.Array(
+    Schema.Struct({
+      code: Schema.String,
+    }),
+  ),
 });
-const redeemedPairingSchema = z.object({ credential: z.string().optional() });
-const healthSchema = z.object({ environmentId: z.string() });
-
+const redeemedPairingSchema = Schema.Struct({
+  credential: Schema.optional(Schema.String),
+});
+const healthSchema = Schema.Struct({
+  environmentId: Schema.String,
+});
 const execute = promisify(execFile);
 const shutdown = new AbortController();
 const stop = () => shutdown.abort();
@@ -35,7 +41,6 @@ process.on('SIGINT', stop);
 process.on('SIGTERM', stop);
 process.stdin.on('end', stop);
 process.stdin.resume();
-
 const root = process.env.PORCELAIN_DEV_ROOT;
 if (!root) throw new Error('Missing development root');
 const port = Number(process.env.PORCELAIN_DEV_PORT ?? '0');
@@ -110,7 +115,9 @@ const startServer = composeServer({
       const health = await fetch(`${server?.address ?? ''}/api/health`);
       return {
         kind: 'answered',
-        environmentId: healthSchema.parse(await health.json()).environmentId,
+        environmentId: Schema.decodeUnknownSync(healthSchema)(
+          await health.json(),
+        ).environmentId,
       };
     }),
 });
@@ -121,7 +128,6 @@ const relay = createServer((incoming) => {
   incoming.on('error', () => outgoing.destroy());
   outgoing.on('error', () => incoming.destroy());
 });
-
 const listedMethods = new Set(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']);
 const routes = new Set<string>();
 const hitsFile = join(root, 'hits.jsonl');
@@ -160,7 +166,6 @@ subscribe('porcelain.http', (message) => {
 function registeredRoutes() {
   return [...routes].sort();
 }
-
 const sample = process.env.PORCELAIN_DEV_SAMPLE;
 const QUIET_INVENTORY_MS = 24 * 60 * 60 * 1000;
 const COMMITTED = '# Sample repository\n';
@@ -197,7 +202,6 @@ const fixture = {
     stepMs: 400,
   },
 };
-
 const offered = {
   managed: true,
   version: fixture.serviceUpdate.version,
@@ -251,7 +255,6 @@ const serviceUpdateRunner = new ScriptedServiceUpdateRunner(
   ],
   fixture.serviceUpdate.stepMs,
 );
-
 async function seedReviewSample(repository: string) {
   const write = async (path: string, text: string) => {
     const file = join(repository, path);
@@ -372,7 +375,6 @@ async function seedReviewSample(repository: string) {
     '# Draft\n\nHow search should treat an empty query.\n',
   );
 }
-
 try {
   const home = join(root, fixture.folders.home);
   const repository = join(root, fixture.folders.repository);
@@ -392,7 +394,6 @@ try {
     GIT_CONFIG_VALUE_0: '/dev/null',
     GCM_INTERACTIVE: 'Never',
   });
-
   const git = async (...args: string[]) => {
     await execute('git', args, { cwd: repository, env: process.env });
   };
@@ -423,13 +424,11 @@ try {
       join(home, '.gitconfig'),
       `[trace2]\n\teventTarget = ${gitTrace}\n\teventBrief = true\n`,
     );
-
   const web = join(root, fixture.folders.web);
   await mkdir(join(web, 'assets'), { recursive: true });
   await writeFile(join(web, 'index.html'), fixture.web.shell);
   await writeFile(join(web, fixture.web.asset.path), fixture.web.asset.text);
   await symlink('../credential.json', join(web, fixture.web.escape));
-
   const desktopCredential = randomBytes(32).toString('base64url');
   const settings = readServerSettings({
     dataDirectory: state,
@@ -482,7 +481,7 @@ try {
       },
     },
   );
-  const [grant] = issuedPairingSchema.parse(
+  const [grant] = Schema.decodeUnknownSync(issuedPairingSchema)(
     await runOwner(
       ownerClient(
         state,
@@ -508,7 +507,9 @@ try {
   });
   if (!paired.ok)
     throw new Error(`Development pairing failed: ${paired.status}`);
-  const pairing = redeemedPairingSchema.parse(await paired.json());
+  const pairing = Schema.decodeUnknownSync(redeemedPairingSchema)(
+    await paired.json(),
+  );
   const credential = pairing.credential;
   if (credential === undefined || credential === '')
     throw new Error('Development pairing returned no credential');
@@ -525,12 +526,10 @@ try {
     throw new Error(
       `Sample repository registration failed: ${registered.status}`,
     );
-
   await new Promise<void>((resolveRelay, rejectRelay) => {
     relay.once('error', rejectRelay);
     relay.listen(join(root, 'network.sock'), () => resolveRelay());
   });
-
   const credentialFile = join(root, 'credential.json');
   await writeFile(
     credentialFile,

@@ -1,3 +1,4 @@
+import { Schema } from 'effect';
 import { join } from 'node:path';
 import {
   openAppManagedUpdateRunner,
@@ -13,7 +14,7 @@ if (parent === null)
 const message = await new Promise<unknown>((resolveStart) =>
   parent.once('message', (event) => resolveStart(event.data)),
 );
-const startup = hostMessage.parse(message);
+const startup = Schema.decodeUnknownSync(hostMessage)(message);
 if (startup.kind !== 'start')
   throw new Error('The desktop server requires private startup configuration');
 const { profile, projectHome, packageRoot, session, outputEnd } = startup;
@@ -45,7 +46,7 @@ try {
     return closing;
   };
   const handle = async (message: unknown) => {
-    const parsed = hostMessage.parse(message);
+    const parsed = Schema.decodeUnknownSync(hostMessage)(message);
     if (parsed.kind === 'stop') {
       await close();
       return;
