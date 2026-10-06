@@ -2,7 +2,7 @@ import { Schema } from 'effect';
 import { spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { existsSync } from 'node:fs';
-import { cp, mkdtemp, realpath, rm } from 'node:fs/promises';
+import { cp, mkdtemp, readFile, realpath, rm } from 'node:fs/promises';
 import { createServer as createHttpServer } from 'node:http';
 import { join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
@@ -191,6 +191,9 @@ function serve(folder: string): Promise<void> {
     );
     const app = join(workspace, 'app');
     const profile = join(workspace, 'profile');
+    await life
+      .evidence()
+      .note('workspace.json', `${JSON.stringify(workspace)}\n`);
     let appStopped = true;
     const rendererErrors: string[] = [];
     const requests = new Map<string, number>();
@@ -209,7 +212,6 @@ function serve(folder: string): Promise<void> {
         throw new Refusal(
           `App shutdown incomplete; workspace kept: ${workspace}`,
         );
-      await rm(workspace, { recursive: true, force: true });
     });
     const awake = spawn('caffeinate', ['-d', '-u', '-w', String(process.pid)], {
       detached: true,
@@ -368,8 +370,34 @@ async function command(args: readonly string[]): Promise<string> {
       registry.evidenceFolder(`installed-${randomBytes(4).toString('hex')}`),
     );
   }
-  if (name === 'stop')
-    return stopOutput(await registry.stopById(values.instance));
+  if (name === 'stop') {
+    const stopped = await registry.stopById(values.instance);
+    if (stopped.complete) {
+      const evidence = registry.evidence({
+        evidence: stopped.evidence,
+        secrets: [],
+      });
+      const reference = join(stopped.evidence, 'workspace.json');
+      if (existsSync(reference)) {
+        const workspace = Schema.decodeUnknownSync(Schema.String)(
+          JSON.parse(await readFile(reference, 'utf8')),
+        );
+        try {
+          await rm(workspace, { recursive: true, force: true });
+          await evidence.note('workspace-stop.txt', 'Workspace removed.\n');
+        } catch (error) {
+          await evidence.note(
+            'workspace-stop.txt',
+            `Workspace cleanup incomplete: ${String(error)}\n`,
+          );
+          throw new Refusal(
+            `Workspace cleanup incomplete; read ${stopped.evidence}/workspace-stop.txt`,
+          );
+        }
+      }
+    }
+    return stopOutput(stopped);
+  }
   if (name === 'evidence')
     return registry
       .evidence({

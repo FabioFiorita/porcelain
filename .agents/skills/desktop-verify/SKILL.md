@@ -5,7 +5,7 @@ description: Launch disposable Porcelain Dev, use Computer Use for native macOS 
 
 # Desktop verification
 
-This skill covers the native folder picker, Keychain-backed remote credentials, windows and menus. Computer Use (CUA) drives the actual macOS UI. Direct Playwright Electron tests separately protect main-process, bridge, security and lifecycle promises. The web feature maps also describe renderer behavior; `web-verify start --desktop` provides a browser with desktop UI, so it cannot prove native behavior. Native launch and Electron tests need macOS.
+This skill covers the native folder picker, Keychain-backed remote credentials, windows and menus. Computer Use (CUA) drives the actual macOS UI. Direct Playwright Electron tests separately protect main-process, bridge, security and lifecycle promises. The web skill also covers renderer behavior; `web-verify start --desktop` provides a browser with desktop UI, so it cannot prove native behavior. Native launch and Electron tests need macOS.
 
 Set `C=.agents/skills/desktop-verify/scripts/cli` from the repository root. Run `$C` alone for help. Its public session commands are `start`, `status`, `doctor`, `evidence` and `stop`, with `--instance <id>` where an instance must be selected. It owns disposable launch, passive observation, evidence and teardown; it does not drive UI or run tests. `installed-check` is a separate, explicitly requested operation.
 
@@ -22,13 +22,13 @@ Use `$C doctor` for tool and instance diagnostics. Status reads `app`, `processe
 
 ## 2. Find the feature
 
-Read `.agents/skills/desktop-verify/features/README.md`, then the feature's map file.
+Optional journey guides are linked from `.agents/skills/desktop-verify/features/README.md`. Use the one relevant to the behavior being checked.
 
 ## 3. Drive it
 
-Follow the feature map's **Driving it** steps and compare actual state with its expected result. In CUA, select the exact running bundle, read the returned documentation, then use fresh native snapshots for menu, sheet, keyboard and window actions. The launcher leaves Electron's real folder sheet untouched. Observe and operate its native Cancel and Open project controls; a renderer screenshot or accepted Escape command does not establish native cancellation.
+Drive the relevant user journey and compare actual state with its expected result. In CUA, select the exact running bundle, read the returned documentation, then use fresh native snapshots for menu, sheet, keyboard and window actions. The launcher leaves Electron's real folder sheet untouched. Observe and operate its native Cancel and Open project controls; a renderer screenshot or accepted Escape command does not establish native cancellation.
 
-The common local journey is sidebar Open project → native Cancel → File › Open Project… → select the printed repository in the real sheet → History → native ⌘O → Cancel → Settings → Back → enter/exit full screen → close the window → passive status → reopen the exact development app. Read the folder-picker, menu and window maps for the expected state at each boundary.
+The common local journey is sidebar Open project → native Cancel → File › Open Project… → select the printed repository in the real sheet → History → native ⌘O → Cancel → Settings → Back → enter/exit full screen → close the window → passive status → reopen the exact development app. Read the folder-picker, menu and window guides for the expected state at each boundary.
 
 CUA can also drive History and Settings. An optional renderer companion may attach directly to the exact CDP endpoint. For `agent-browser`, create a fresh private namespace and named session, use a private JSON config containing `{}`, and supply `--cdp` and `--no-pin-tab` on every renderer command:
 
@@ -51,11 +51,11 @@ $C stop --instance <id>
 $C evidence --instance <id>
 ```
 
-Read `000-start.txt`, numbered status records, `renderer-errors.txt` and `renderer-network.txt` alongside CUA snapshots/screenshots and any private renderer transcript. Record the exact target, attempted actions, observed native/renderer state, failures and recovery. Read retained `server.log`, `app-stop.txt` and `stop-result.json` to establish owned teardown, including exit code/signal and whether termination was forced. Stop only this instance's captured processes. If an optional agent-browser session was used, clean up only its private namespace/session after the launcher confirms the external Electron target has stopped; never issue a generic close against a live external target.
+Read `000-start.txt`, numbered status records, `renderer-errors.txt` and `renderer-network.txt` alongside CUA snapshots/screenshots and any private renderer transcript. Record the exact target, attempted actions, observed native/renderer state, failures and recovery. Read retained `server.log`, `app-stop.txt`, `stop-result.json` and `workspace-stop.txt` to establish owned teardown, including exit code/signal and whether termination was forced. The workspace remains until explicit `stop` confirms owned-process completion and removes it; native Quit alone retains it. Stop only this instance's captured processes. If an optional agent-browser session was used, clean up only its private namespace/session after the launcher confirms the external Electron target has stopped; never issue a generic close against a live external target.
 
 Reports identify which entry points, clients, contract changes, return paths and connection types applied. A local fixture journey does not establish LAN/remote pairing or the installed lock. Describe unattempted or unavailable cases explicitly.
 
-## 5. Run the test file the entry names
+## 5. Run the focused regression
 
 ```sh
 pnpm --filter @porcelain/desktop exec playwright test spec/e2e/window.e2e.ts
@@ -80,4 +80,4 @@ Sessions have no idle expiry. Stop your instance when finished. After stopping, 
 $C installed-check
 ```
 
-It needs no instance, runs over SSH, launches the installed app only with disposable profiles and debugging switches, and records what each launch did; the map says what to look for.
+It needs no instance, runs over SSH, launches the installed app only with disposable profiles and debugging switches, and records what each launch did; the guide describes the expected result.
