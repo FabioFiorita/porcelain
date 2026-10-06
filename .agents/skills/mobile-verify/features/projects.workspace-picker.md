@@ -61,3 +61,4 @@ Look for: the sample project with its main worktree. Tap the project, then the w
 
 - After an environment is chosen the toolbar label becomes its name, so the second tap above reopens the picker through the new label.
 - The phone uses Expo Router's toolbar menu; the iPad uses a SwiftUI Menu with Pickers, which the e2e test does not drive yet.
+- The shared forget-environments flow ends in Settings. The workspace flow returns to Files before checking its toolbar's reset label and absence of the old worktree labels.
