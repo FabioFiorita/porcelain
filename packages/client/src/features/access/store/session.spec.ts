@@ -2,9 +2,11 @@ import { Crypto, Effect, Layer, ManagedRuntime } from 'effect';
 import { expect, it } from 'vitest';
 import {
   AccessSession,
-  sessionConnectionsLayer,
+  remoteConnectionsLayer,
   AccessStore,
   ConnectionFactory,
+  RemoteConnectionFactory,
+  RemoteConnections,
   EnvironmentStorage,
   type EnvironmentConnection,
 } from '@porcelain/client/access';
@@ -33,6 +35,7 @@ function fixture(
   options: {
     readonly saved?: readonly Remote[];
     readonly release?: () => Effect.Effect<void>;
+    readonly acquire?: () => Effect.Effect<void>;
   } = {},
 ) {
   const opened: EnvironmentConnection[] = [];
@@ -84,20 +87,31 @@ function fixture(
     ),
   );
   const runtime = ManagedRuntime.make(
-    sessionConnectionsLayer.pipe(
+    remoteConnectionsLayer.pipe(
       Layer.provideMerge(
-        AccessSession.layer.pipe(
+        Layer.merge(AccessSession.layer, RemoteConnections.layer).pipe(
           Layer.provideMerge(
             Layer.mergeAll(
               stores,
               FileDrafts.layer,
               Layer.succeed(ConnectionFactory, {
                 local: (session) =>
-                  open(
-                    session.inventory.environmentId,
-                    'https://local.example',
+                  Effect.acquireRelease(
+                    Effect.sync(() =>
+                      open(
+                        session.inventory.environmentId,
+                        'https://local.example',
+                      ),
+                    ),
+                    (connection) => Effect.promise(() => connection.close()),
+                  ).pipe(Effect.tap(() => options.acquire?.() ?? Effect.void)),
+              }),
+              Layer.succeed(RemoteConnectionFactory, {
+                open: (saved) =>
+                  Effect.acquireRelease(
+                    Effect.sync(() => open(saved.environmentId, saved.address)),
+                    (connection) => Effect.promise(() => connection.close()),
                   ),
-                remote: (saved) => open(saved.environmentId, saved.address),
               }),
             ),
           ),
@@ -109,6 +123,7 @@ function fixture(
     runtime,
     session: runtime.runSync(AccessSession),
     access: runtime.runSync(AccessStore),
+    connections: runtime.runSync(RemoteConnections),
     opened,
     closed,
   };
@@ -200,56 +215,59 @@ it('invalidates a session immediately and waits for its platform release before 
   }
 });
 
-it('retains renamed remotes but replaces a changed device journal and releases forgotten connections', async () => {
-  const { runtime, session, access, opened, closed } = fixture({
-    saved: [remote],
-  });
-  const changed = () =>
-    new Promise<void>((resolve) => {
-      const unsubscribe = session.state.subscribe(() => {
-        unsubscribe();
-        resolve();
-      });
+it.each([
+  ['credential', { credential: 'new-credential' }],
+  ['address', { address: 'https://other.example' }],
+  ['device', { deviceId: 'second-device' }],
+])(
+  'retains renamed remotes but replaces a changed %s and releases forgotten connections',
+  async (_, changedIdentity) => {
+    const { runtime, connections, access, opened, closed } = fixture({
+      saved: [remote],
     });
-  try {
-    const loaded = changed();
-    await runtime.runPromise(access.load());
-    await loaded;
-    const original = session.state.value.remoteConnections[0]?.connection;
-    const renamed = changed();
-    await runtime.runPromise(access.save({ ...remote, name: 'Renamed' }));
-    await renamed;
-    expect(session.state.value.remoteConnections[0]?.connection).toBe(original);
-    expect(opened).toHaveLength(1);
-    const renewed = changed();
-    await runtime.runPromise(
-      access.save({ ...remote, deviceId: 'second-device' }),
-    );
-    await renewed;
-    expect(opened).toHaveLength(2);
-    expect(session.state.value.remoteConnections[0]?.connection).toBe(
-      opened[1],
-    );
-    const forgotten = changed();
-    await runtime.runPromise(access.forget(remote.environmentId));
-    await forgotten;
-    expect(session.state.value.remoteConnections).toEqual([]);
-  } finally {
-    await runtime.dispose();
-  }
-  expect(closed).toEqual(['remote:0', 'remote:1']);
-  expect(
-    opened.every((connection) => connection.request().signal.aborted),
-  ).toBe(true);
-});
+    const changed = () =>
+      new Promise<void>((resolve) => {
+        const unsubscribe = connections.state.subscribe(() => {
+          unsubscribe();
+          resolve();
+        });
+      });
+    try {
+      const loaded = changed();
+      await runtime.runPromise(access.load());
+      await loaded;
+      const original = connections.state.value[0]?.connection;
+      const renamed = changed();
+      await runtime.runPromise(access.save({ ...remote, name: 'Renamed' }));
+      await renamed;
+      expect(connections.state.value[0]?.connection).toBe(original);
+      expect(opened).toHaveLength(1);
+      const renewed = changed();
+      await runtime.runPromise(access.save({ ...remote, ...changedIdentity }));
+      await renewed;
+      expect(opened).toHaveLength(2);
+      expect(connections.state.value[0]?.connection).toBe(opened[1]);
+      const forgotten = changed();
+      await runtime.runPromise(access.forget(remote.environmentId));
+      await forgotten;
+      expect(connections.state.value).toEqual([]);
+    } finally {
+      await runtime.dispose();
+    }
+    expect(closed).toEqual(['remote:0', 'remote:1']);
+    expect(
+      opened.every((connection) => connection.request().signal.aborted),
+    ).toBe(true);
+  },
+);
 
 it('releases every local and remote connection when the application scope closes', async () => {
-  const { runtime, session, access, opened, closed } = fixture({
+  const { runtime, session, connections, access, opened, closed } = fixture({
     saved: [remote],
   });
   const loaded = new Promise<void>((resolve) => {
-    const unsubscribe = session.state.subscribe(({ remoteConnections }) => {
-      if (remoteConnections.length !== 1) return;
+    const unsubscribe = connections.state.subscribe((remotes) => {
+      if (remotes.length !== 1) return;
       unsubscribe();
       resolve();
     });
@@ -260,11 +278,109 @@ it('releases every local and remote connection when the application scope closes
   if (!complete) throw new Error('Manual pairing must be admitted');
   await runtime.runPromise(complete(browser));
   await runtime.dispose();
-  expect(closed).toEqual(['remote:0', 'environment:1']);
+  expect(closed.toSorted()).toEqual(['environment:1', 'remote:0']);
   expect(
     opened.map((connection) => connection.operations.state.value.closed),
   ).toEqual([true, true]);
   expect(
     opened.map((connection) => connection.request().signal.aborted),
   ).toEqual([true, true]);
+});
+
+it('releases a connection acquired after disconnect instead of publishing its stale result', async () => {
+  const acquiring = Promise.withResolvers<void>();
+  const acquired = Promise.withResolvers<void>();
+  const { runtime, session, opened, closed } = fixture({
+    acquire: () =>
+      Effect.promise(() => {
+        acquiring.resolve();
+        return acquired.promise;
+      }),
+  });
+  try {
+    const complete = runtime.runSync(session.beginConnection());
+    if (!complete) throw new Error('Manual pairing must be admitted');
+    const completing = runtime.runPromise(complete(browser));
+    await acquiring.promise;
+    await runtime.runPromise(session.clear());
+    acquired.resolve();
+    expect(await completing).toBe(false);
+    expect(session.state.value.connection).toBeNull();
+    expect(closed).toEqual(['environment:0']);
+    expect(opened[0]?.request().signal.aborted).toBe(true);
+  } finally {
+    acquired.resolve();
+    await runtime.dispose();
+  }
+});
+
+it('serializes remote replacement and forgetting until the retired connection releases', async () => {
+  const releasing = Promise.withResolvers<void>();
+  const released = Promise.withResolvers<void>();
+  const started = Promise.withResolvers<void>();
+  const { runtime, connections, opened, closed } = fixture({
+    release: () =>
+      Effect.promise(() => {
+        releasing.resolve();
+        return released.promise;
+      }),
+  });
+  try {
+    await runtime.runPromise(connections.synchronize([remote]));
+    const replacing = runtime.runPromise(
+      connections.synchronize([{ ...remote, credential: 'new-credential' }]),
+    );
+    await releasing.promise;
+    const forgetting = runtime.runPromise(
+      Effect.gen(function* () {
+        started.resolve();
+        yield* connections.synchronize([]);
+      }),
+    );
+    await started.promise;
+    expect(connections.state.value[0]?.connection).toBe(opened[1]);
+    expect(opened).toHaveLength(2);
+    expect(closed).toEqual([]);
+    released.resolve();
+    await Promise.all([replacing, forgetting]);
+    expect(connections.state.value).toEqual([]);
+    expect(closed).toEqual(['remote:0', 'remote:1']);
+  } finally {
+    released.resolve();
+    await runtime.dispose();
+  }
+  expect(closed).toEqual(['remote:0', 'remote:1']);
+});
+
+it('keeps an application connection after a consuming screen scope releases', async () => {
+  const { runtime, connections, opened, closed } = fixture();
+  try {
+    await runtime.runPromise(connections.synchronize([remote]));
+    const consumerClosed: string[] = [];
+    const borrowed = await runtime.runPromise(
+      Effect.scoped(
+        Effect.gen(function* () {
+          const pool = yield* RemoteConnections;
+          yield* Effect.acquireRelease(
+            Effect.sync(() => pool.state.subscribe(() => {})),
+            (release) =>
+              Effect.sync(() => {
+                release();
+                consumerClosed.push('screen');
+              }),
+          );
+          return pool.state.value[0]?.connection;
+        }),
+      ),
+    );
+    expect(borrowed).toBe(opened[0]);
+    expect(consumerClosed).toEqual(['screen']);
+    expect(closed).toEqual([]);
+    expect(connections.state.value[0]?.connection).toBe(opened[0]);
+    expect(opened[0]?.request().signal.aborted).toBe(false);
+    expect(opened[0]?.operations.state.value.closed).toBe(false);
+  } finally {
+    await runtime.dispose();
+  }
+  expect(closed).toEqual(['remote:0']);
 });

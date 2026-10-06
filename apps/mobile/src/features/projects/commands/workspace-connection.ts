@@ -5,16 +5,14 @@ import { liveQueries, inactiveLiveQueries } from '@porcelain/client/live';
 import { useProjectConnection } from '../store';
 import type { Remote } from '@porcelain/client/access/rules';
 import { useInventory } from '../queries/inventory';
-import type { AccessPlatformValue } from '@porcelain/client/access';
 
 export function useWorkspaceConnection(
   remote: Remote | undefined,
-  send: AccessPlatformValue['send'],
   projectId: string | undefined,
   worktreeId: string | undefined,
   ready: boolean,
 ) {
-  const connection = useProjectConnection(remote, send);
+  const connection = useProjectConnection(remote);
   const inventory = useInventory(connection);
   const data = Option.getOrUndefined(AsyncResult.value(inventory.result));
   const project = data?.projects.find(

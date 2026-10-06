@@ -83,27 +83,13 @@ export function remoteKey(
   return `${remote.environmentId}:${remote.credential}`;
 }
 
-export function syncRemoteConnections<Connection>(
-  remotes: readonly Remote[],
-  current: readonly { remote: Remote; connection: Connection }[],
-  open: (remote: Remote) => Connection,
-) {
-  const next = remotes.map((remote) => {
-    const kept = current.find(
-      (entry) =>
-        entry.remote.environmentId === remote.environmentId &&
-        entry.remote.address === remote.address &&
-        entry.remote.credential === remote.credential &&
-        entry.remote.deviceId === remote.deviceId,
-    );
-    return { remote, connection: kept ? kept.connection : open(remote) };
-  });
-  const closed = current
-    .filter(
-      (entry) => !next.some((kept) => kept.connection === entry.connection),
-    )
-    .map((entry) => entry.connection);
-  return { next, closed };
+export function sameRemoteConnection(left: Remote, right: Remote): boolean {
+  return (
+    left.environmentId === right.environmentId &&
+    left.address === right.address &&
+    left.credential === right.credential &&
+    left.deviceId === right.deviceId
+  );
 }
 
 export function remoteStatusText(status: RemoteStatus): string {

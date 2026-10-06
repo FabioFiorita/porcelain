@@ -3,6 +3,8 @@ import { Atom } from 'effect/reactivity';
 import {
   AccessPlatform,
   AccessStore,
+  RemoteConnections,
+  remoteConnectionsLayer,
   EnvironmentCommands,
   EnvironmentMutations,
   EnvironmentStorage,
@@ -14,9 +16,13 @@ import {
   ProjectSelectionStore,
   WorkspaceSelectionCleanup,
 } from '@porcelain/client/projects';
+import { remoteConnectionFactoryLayer } from '../adapters/connection-factory';
 import { accessPlatform } from '../adapters/access-platform';
 import { environmentStorage } from '../adapters/environment-storage';
 import { projectSelectionStorage } from '../adapters/selection-storage';
+
+const memoMap = Layer.makeMemoMapUnsafe();
+const platform = Layer.succeed(AccessPlatform, accessPlatform);
 
 const stores = Layer.mergeAll(
   AccessStore.layer,
@@ -40,18 +46,25 @@ const cleanup = Layer.effect(
 const services = Layer.mergeAll(
   stores,
   cleanup,
-  Layer.succeed(AccessPlatform, accessPlatform),
+  platform,
+  remoteConnectionFactoryLayer(memoMap).pipe(Layer.provide(platform)),
   FileDrafts.layer,
 );
-const application = Layer.merge(
-  EnvironmentCommands.layer,
-  ProjectSelectionCommands.layer,
-).pipe(Layer.provideMerge(services));
-const applicationRuntime = ManagedRuntime.make(application);
-export const applicationMemoMap = applicationRuntime.memoMap;
+const application = remoteConnectionsLayer.pipe(
+  Layer.provideMerge(
+    Layer.mergeAll(
+      EnvironmentCommands.layer,
+      ProjectSelectionCommands.layer,
+      RemoteConnections.layer,
+    ).pipe(Layer.provideMerge(services)),
+  ),
+);
+const applicationRuntime = ManagedRuntime.make(application, { memoMap });
 export const clientRuntime = Atom.context({
   memoMap: applicationRuntime.memoMap,
 })(application);
+export const remoteConnectionState =
+  applicationRuntime.runSync(RemoteConnections).state;
 export const accessState = applicationRuntime.runSync(AccessStore).state;
 export const selectionState = applicationRuntime.runSync(
   ProjectSelectionStore,

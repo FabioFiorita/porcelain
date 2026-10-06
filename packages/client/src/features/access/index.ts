@@ -5,12 +5,14 @@ export {
 } from './ports/access-platform.ts';
 export { AccessStore } from './store.ts';
 export {
-  AccessSession,
   ConnectionFactory,
   type EnvironmentConnection,
   type RemoteConnection,
-} from './store/session.ts';
-export { sessionConnectionsLayer } from './commands/session-connections.ts';
+  RemoteConnectionFactory,
+} from './ports/connection-factory.ts';
+export { AccessSession } from './store/session.ts';
+export { RemoteConnections } from './store/remote-connections.ts';
+export { remoteConnectionsLayer } from './commands/remote-connections.ts';
 export { pairBrowserSession } from './commands/pairing.ts';
 export { readRemoteStatus } from './queries/environments.ts';
 export {

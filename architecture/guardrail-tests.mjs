@@ -38,6 +38,10 @@ function nativeTypeFixture(source) {
         __CLIENT_ACCESS__: 'packages/client/src/features/access/store.ts',
         __CLIENT_SESSION__:
           'packages/client/src/features/access/store/session.ts',
+        __CLIENT_FACTORY__:
+          'packages/client/src/features/access/ports/connection-factory.ts',
+        __CLIENT_REMOTE_CONNECTIONS__:
+          'packages/client/src/features/access/store/remote-connections.ts',
         __CLIENT_SELECTION__: 'packages/client/src/features/projects/store.ts',
         __CLIENT_QUEUES__: 'packages/client/src/shared/api/write-queue.ts',
         __CLIENT_OPERATIONS__:

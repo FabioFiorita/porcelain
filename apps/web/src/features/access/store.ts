@@ -5,8 +5,10 @@ import { WEB_PLATFORM_NAME_MAX_LENGTH } from '@/config/limits';
 import {
   AccessStore,
   AccessSession,
-  sessionConnectionsLayer,
+  remoteConnectionsLayer,
   ConnectionFactory,
+  RemoteConnectionFactory,
+  RemoteConnections,
   AccessPlatform,
   EnvironmentCommands,
   EnvironmentMutations,
@@ -117,18 +119,30 @@ const services = Layer.mergeAll(
   Layer.succeed(AccessPlatform, pairingPlatform),
   FileDrafts.layer,
   Layer.succeed(ConnectionFactory, {
-    local: localConnection,
-    remote: remoteConnection,
+    local: (session) =>
+      Effect.acquireRelease(
+        Effect.sync(() => localConnection(session)),
+        (connection) => Effect.promise(() => connection.close()),
+      ),
+  }),
+  Layer.succeed(RemoteConnectionFactory, {
+    open: (remote) =>
+      Effect.acquireRelease(
+        Effect.sync(() => remoteConnection(remote)),
+        (connection) => Effect.promise(() => connection.close()),
+      ),
   }),
   Layer.succeed(WorkspaceSelectionCleanup, {
     forgetEnvironment: () => Effect.void,
   }),
 );
-const application = sessionConnectionsLayer.pipe(
+const application = remoteConnectionsLayer.pipe(
   Layer.provideMerge(
-    Layer.merge(EnvironmentCommands.layer, AccessSession.layer).pipe(
-      Layer.provideMerge(services),
-    ),
+    Layer.mergeAll(
+      EnvironmentCommands.layer,
+      AccessSession.layer,
+      RemoteConnections.layer,
+    ).pipe(Layer.provideMerge(services)),
   ),
 );
 export const applicationRuntime = ManagedRuntime.make(application);
@@ -137,6 +151,7 @@ export const environmentRuntime = Atom.context({
 })(application);
 const accessStore = applicationRuntime.runSync(AccessStore);
 export const accessSession = applicationRuntime.runSync(AccessSession);
+const remoteConnections = applicationRuntime.runSync(RemoteConnections);
 const restoreSavedEnvironments = environmentRuntime.atom(
   Effect.gen(function* () {
     const commands = yield* EnvironmentCommands;
@@ -157,11 +172,11 @@ export function useLocalConnection() {
 }
 
 export function useRemoteConnections() {
-  return useAtomRef(accessSession.state).remoteConnections;
+  return useAtomRef(remoteConnections.state);
 }
 
 export function useRemoteConnection(environmentId: string) {
-  return useAtomRef(accessSession.state).remoteConnections.find(
+  return useAtomRef(remoteConnections.state).find(
     (entry) => entry.remote.environmentId === environmentId,
   );
 }
