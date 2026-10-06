@@ -173,3 +173,14 @@ export function commentsSeenThrough(
     ? null
     : counts.highest;
 }
+
+export function mergeCommentThreads(
+  current: readonly CommentThread[],
+  updated: readonly CommentThread[],
+  removed: readonly string[] = [],
+): readonly CommentThread[] {
+  const byId = new Map(current.map((thread) => [thread.id, thread]));
+  for (const thread of updated) byId.set(thread.id, thread);
+  for (const threadId of removed) byId.delete(threadId);
+  return [...byId.values()];
+}

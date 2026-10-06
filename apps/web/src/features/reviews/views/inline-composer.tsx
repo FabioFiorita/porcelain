@@ -1,3 +1,5 @@
+import { Cause } from 'effect';
+import { AsyncResult } from 'effect/reactivity';
 import { useId, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { HISTORY_OID_LENGTH } from '@/config/limits';
@@ -37,7 +39,7 @@ export function InlineComposer({
   const mutation = useCreateComment(scope, context);
   const valid = commentBodyValid(body);
   const submit = () => {
-    if (!valid || mutation.isPending) return;
+    if (!valid || mutation.result.waiting) return;
     const intent = retainIntent(
       pending.current?.anchor === anchorKey ? pending.current : undefined,
       body,
@@ -50,17 +52,10 @@ export function InlineComposer({
     );
     pending.current = intent;
     mutation.send(
-      {
-        anchor,
-        body,
-        threadId: intent.threadId,
-        messageId: intent.messageId,
-      },
-      {
-        onSuccess: () => {
-          pending.current = undefined;
-          onClose();
-        },
+      { anchor, body, threadId: intent.threadId, messageId: intent.messageId },
+      () => {
+        pending.current = undefined;
+        onClose();
       },
     );
   };
@@ -90,7 +85,7 @@ export function InlineComposer({
         placeholder="Share feedback…"
         value={body}
         maxLength={mutation.bodyLimit}
-        disabled={mutation.isPending}
+        disabled={mutation.result.waiting}
         onChange={(event) => {
           pending.current = undefined;
           setBody(event.target.value);
@@ -100,15 +95,15 @@ export function InlineComposer({
             event.preventDefault();
             submit();
           }
-          if (event.key === 'Escape' && !mutation.isPending) {
+          if (event.key === 'Escape' && !mutation.result.waiting) {
             event.stopPropagation();
             onClose();
           }
         }}
       />
-      {mutation.error && (
+      {AsyncResult.isFailure(mutation.result) && (
         <p role="alert" className="text-xs text-destructive">
-          {reviewErrorMessage(mutation.error)}
+          {reviewErrorMessage(Cause.squash(mutation.result.cause))}
         </p>
       )}
       <div className="flex justify-end gap-2">
@@ -116,13 +111,17 @@ export function InlineComposer({
           type="button"
           size="sm"
           variant="ghost"
-          disabled={mutation.isPending}
+          disabled={mutation.result.waiting}
           onClick={onClose}
         >
           Cancel
         </Button>
-        <Button type="submit" size="sm" disabled={!valid || mutation.isPending}>
-          {mutation.isPending ? 'Posting…' : 'Comment'}
+        <Button
+          type="submit"
+          size="sm"
+          disabled={!valid || mutation.result.waiting}
+        >
+          {mutation.result.waiting ? 'Posting…' : 'Comment'}
         </Button>
       </div>
     </form>

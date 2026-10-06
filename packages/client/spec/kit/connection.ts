@@ -23,6 +23,15 @@ export async function connection(server: IsolatedServer, session: Session) {
     controller: lifetime.controller,
     scope: { projectId: session.projectId, worktreeId: session.worktreeId },
     registry,
+    execute: <Input, A, E>(
+      atom: Atom.AtomResultFn<Input, A, E>,
+      input: Input,
+    ) => {
+      registry.set(atom, input);
+      return Effect.runPromise(
+        AtomRegistry.getResult(registry, atom, { suspendOnWaiting: true }),
+      );
+    },
     read: <A, E>(atom: Atom.Atom<AsyncResult.AsyncResult<A, E>>) =>
       Effect.runPromise(
         AtomRegistry.getResult(registry, atom, { suspendOnWaiting: true }),

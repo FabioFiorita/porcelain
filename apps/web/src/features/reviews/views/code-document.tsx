@@ -1,3 +1,4 @@
+import { AsyncResult } from 'effect/reactivity';
 import type {
   CodeViewItem,
   CodeViewLineSelection,
@@ -71,7 +72,7 @@ type Props = {
   range?: ReviewRange;
 };
 export function CodeDocument(props: Props) {
-  const { threads, error } = useComments(props.scope, props.context);
+  const { threads, result } = useComments(props.scope, props.context);
   const review = useToggleReviewed(
     props.scope,
     props.context,
@@ -80,7 +81,7 @@ export function CodeDocument(props: Props) {
   );
   return (
     <>
-      {error && (
+      {AsyncResult.isFailure(result) && (
         <p role="alert" className="px-3 text-xs text-destructive">
           Comments could not be refreshed.
         </p>

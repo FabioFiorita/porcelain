@@ -491,7 +491,7 @@ function CommentsView({
     (top, thread) => Math.max(top, thread.revision),
     0,
   );
-  const markSeen = useMarkCommentsSeen(scope, context).mutate;
+  const markSeen = useMarkCommentsSeen(scope, context);
   const shown = useRef({ snapshot: '', filters: new Set<string>() });
   useEffect(() => {
     if (shown.current.snapshot !== snapshot)

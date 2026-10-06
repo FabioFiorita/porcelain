@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   anchorBase,
+  mergeCommentThreads,
+  type CommentThread,
   commentBodyValid,
   commentIsStale,
   commentsSeenThrough,
@@ -182,4 +184,42 @@ describe('anchorBase', () => {
       }),
     ).toBeUndefined();
   });
+});
+
+function discussion(id: string, body: string): CommentThread {
+  return {
+    id,
+    worktreeId: 'worktree',
+    anchor: { kind: 'change' },
+    resolved: false,
+    revision: 1,
+    messages: [{ id: 'message', body, author: 'reviewer' }],
+  };
+}
+it('a confirmed edit replaces its discussion and leaves every unrelated discussion intact', () => {
+  const original = discussion('edited', 'Before');
+  const unrelated = discussion('unrelated', 'Keep this');
+  const edited = {
+    ...original,
+    revision: 2,
+    messages: [
+      {
+        ...original.messages[0],
+        id: 'message',
+        body: 'After',
+        author: 'reviewer' as const,
+      },
+    ],
+  };
+  expect(mergeCommentThreads([original, unrelated], [edited])).toEqual([
+    edited,
+    unrelated,
+  ]);
+});
+it('confirmed deletion removes only the acknowledged discussion and retains skipped discussions', () => {
+  const deleted = discussion('deleted', 'Delete this');
+  const skipped = discussion('skipped', 'The agent answered');
+  expect(mergeCommentThreads([deleted, skipped], [], ['deleted'])).toEqual([
+    skipped,
+  ]);
 });

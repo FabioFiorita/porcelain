@@ -9,7 +9,7 @@ import {
   worktreePath,
 } from '@porcelain/server/kit/requests';
 import { readPublishedReview } from '@porcelain/client/reviews';
-import { commentsQueryOptions } from '@porcelain/client/reviews';
+import { readCommentThreads } from '@porcelain/client/reviews';
 import {
   reviewedQueryOptions,
   readLayerMarks,
@@ -62,7 +62,9 @@ test('read an unpublished review, then its published layers and discussion', asy
     layers: [{ id: layerId, title: 'Readme', summary: 'Adds a line' }],
   });
   expect(review?.summary.token).toMatch(/^[0-9a-f-]{36}$/);
-  const threads = await cache.query(commentsQueryOptions(scope, connected));
+  const threads = await nativeRead(
+    readCommentThreads({ scope, connection: connected }),
+  );
   expect(threads).toHaveLength(1);
   expect(threads[0]?.messages[0]?.body).toBe('Please explain this line.');
   expect(
@@ -124,74 +126,55 @@ test('write the discussion through the shared owner and read each persisted edit
   server,
   session,
 }) => {
-  const { connected, scope } = await connection(server, session);
-  const cache = new QueryClient();
-  const commands = commentCommands(scope, connected, cache);
-  const created = await runClientRequest(
-    commands.create({
-      anchor: { kind: 'change' },
-      body: 'Explain the change.',
-    }),
-    connected.request().signal,
-    connected.runtime,
-  );
-  const thread = created[0];
-  if (!thread) throw new Error('Expected the created discussion');
+  const {
+    connected,
+    scope,
+    read: nativeRead,
+    execute,
+  } = await connection(server, session);
+  const commands = commentCommands({ scope, connection: connected });
+  const thread = await execute(commands.create, {
+    anchor: { kind: 'change' },
+    body: 'Explain the change.',
+  });
   expect(thread.messages.map((message) => message.body)).toEqual([
     'Explain the change.',
   ]);
-  const replied = await runClientRequest(
-    commands.reply({
-      threadId: thread.id,
-      body: 'Please include its test.',
-      messageId: 'eb90812a-6a3e-464e-92ca-5c962094b867',
-    }),
-    connected.request().signal,
-    connected.runtime,
-  );
-  expect(replied[0]?.messages.map((message) => message.body)).toEqual([
+  const replied = await execute(commands.reply, {
+    threadId: thread.id,
+    body: 'Please include its test.',
+    messageId: 'eb90812a-6a3e-464e-92ca-5c962094b867',
+  });
+  expect(replied.messages.map((message) => message.body)).toEqual([
     'Explain the change.',
     'Please include its test.',
   ]);
-  await runClientRequest(
-    commands.edit({
-      threadId: thread.id,
-      messageId: 'eb90812a-6a3e-464e-92ca-5c962094b867',
-      body: 'Include the regression test.',
-    }),
-    connected.request().signal,
-    connected.runtime,
-  );
-  const resolved = await runClientRequest(
-    commands.resolve({
-      threadId: thread.id,
-      resolved: true,
-    }),
-    connected.request().signal,
-    connected.runtime,
-  );
-  expect(resolved[0]?.resolved).toBe(true);
+  await execute(commands.edit, {
+    threadId: thread.id,
+    messageId: 'eb90812a-6a3e-464e-92ca-5c962094b867',
+    body: 'Include the regression test.',
+  });
+  const resolved = await execute(commands.resolve, {
+    threadId: thread.id,
+    resolved: true,
+  });
+  expect(resolved.resolved).toBe(true);
   expect(
-    (await cache.query(commentsQueryOptions(scope, connected)))
+    (await nativeRead(readCommentThreads({ scope, connection: connected })))
       .find((entry) => entry.id === thread.id)
       ?.messages.map((message) => message.body),
   ).toEqual(['Explain the change.', 'Include the regression test.']);
-  const revision = resolved[0]?.revision;
-  if (revision === undefined)
-    throw new Error('Expected the confirmed thread revision');
   expect(
     (
-      await runClientRequest(
-        commands.removeResolved([{ threadId: thread.id, revision }]),
-        connected.request().signal,
-        connected.runtime,
-      )
+      await execute(commands.removeResolved, [
+        { threadId: thread.id, revision: resolved.revision },
+      ])
     ).deleted,
   ).toEqual([thread.id]);
   expect(
-    (await cache.query(commentsQueryOptions(scope, connected))).some(
-      (entry) => entry.id === thread.id,
-    ),
+    (
+      await nativeRead(readCommentThreads({ scope, connection: connected }))
+    ).some((entry) => entry.id === thread.id),
   ).toBe(false);
 });
 

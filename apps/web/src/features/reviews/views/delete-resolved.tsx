@@ -1,3 +1,5 @@
+import { Cause, Option } from 'effect';
+import { AsyncResult } from 'effect/reactivity';
 import { Trash2Icon } from 'lucide-react';
 import { useState } from 'react';
 import {
@@ -38,7 +40,9 @@ export function DeleteResolved({
   const [confirming, setConfirming] = useState<ConfirmedThreads | null>(null);
   const remove = useDeleteResolvedComments(scope, context);
   const { confirmed, kept } = resolvedCleanup(threads);
-  const skipped = remove.result?.skipped.length ?? 0;
+  const skipped =
+    Option.getOrUndefined(AsyncResult.value(remove.result))?.skipped.length ??
+    0;
   const close = () => setConfirming(null);
   return (
     <>
@@ -57,20 +61,23 @@ export function DeleteResolved({
         Delete resolved
       </Button>
       <AlertDialog
-        open={confirming !== null && !(remove.isSuccess && skipped === 0)}
+        open={
+          confirming !== null &&
+          !(AsyncResult.isSuccess(remove.result) && skipped === 0)
+        }
         onOpenChange={(next) => {
-          if (!next && !remove.isPending) close();
+          if (!next && !remove.result.waiting) close();
         }}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {remove.isSuccess
+              {AsyncResult.isSuccess(remove.result)
                 ? `Kept ${skipped === 1 ? '1 thread' : `${skipped} threads`} that changed`
                 : `Delete ${threadCount(confirming?.length ?? 0)}?`}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              {remove.isSuccess
+              {AsyncResult.isSuccess(remove.result)
                 ? 'The agent answered or someone reopened them after you confirmed, so they stay for you to read first.'
                 : `This deletes the resolved threads you started, with the agent's replies in them, for you and for the agent.${
                     kept > 0
@@ -79,25 +86,25 @@ export function DeleteResolved({
                   }`}
             </AlertDialogDescription>
           </AlertDialogHeader>
-          {remove.error != null && (
+          {AsyncResult.isFailure(remove.result) && (
             <p role="alert" className="text-xs text-destructive">
-              {reviewErrorMessage(remove.error)}
+              {reviewErrorMessage(Cause.squash(remove.result.cause))}
             </p>
           )}
           <AlertDialogFooter>
-            {remove.isSuccess ? (
+            {AsyncResult.isSuccess(remove.result) ? (
               <Button onClick={close}>Close</Button>
             ) : (
               <>
-                <AlertDialogCancel disabled={remove.isPending}>
+                <AlertDialogCancel disabled={remove.result.waiting}>
                   Cancel
                 </AlertDialogCancel>
                 <Button
                   variant="destructive"
-                  disabled={remove.isPending}
+                  disabled={remove.result.waiting}
                   onClick={() => remove.send(confirming ?? [])}
                 >
-                  {remove.isPending ? 'Deleting…' : 'Delete'}
+                  {remove.result.waiting ? 'Deleting…' : 'Delete'}
                 </Button>
               </>
             )}

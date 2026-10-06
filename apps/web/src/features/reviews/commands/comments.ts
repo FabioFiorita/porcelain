@@ -1,42 +1,37 @@
 import { COMMENT_BODY_LENGTH } from '@porcelain/contracts/shared';
-import {
-  type UseMutationResult,
-  useMutation,
-  useQueryClient,
-} from '@tanstack/react-query';
+import { useAtom, useAtomSet } from '@effect/atom-react';
+import { Atom } from 'effect/reactivity';
+import { Exit } from 'effect';
 import { commentCommands } from '@porcelain/client/reviews';
-import { asMutation, operationMutation } from '@/shared/query/mutation';
 import type { ReviewScope } from '@porcelain/client/reviews/rules';
 import type { ConnectionContext } from '@/shared/workspace/connection';
 
-function useCommentCommands(scope: ReviewScope, context: ConnectionContext) {
-  return commentCommands(scope, context.connection, useQueryClient());
-}
-
-function withSend<TData, TVariables extends object>(
-  mutation: UseMutationResult<TData, Error, TVariables>,
-) {
+function useCommentWrite<Input, A, E>(command: Atom.AtomResultFn<Input, A, E>) {
+  const [result, submit] = useAtom(command, { mode: 'promiseExit' });
   return {
-    ...asMutation(mutation),
-    send: mutation.mutate,
+    result,
+    send: (input: Input, onConfirmed?: () => void) => {
+      void submit(input).then((exit) => {
+        if (Exit.isSuccess(exit)) onConfirmed?.();
+      });
+    },
   };
 }
-
 export function useMarkCommentsSeen(
   scope: ReviewScope,
   context: ConnectionContext,
 ) {
-  const commands = useCommentCommands(scope, context);
-  return useMutation(operationMutation(commands.seen, context.connection));
+  return useAtomSet(
+    commentCommands({ scope, connection: context.connection }).seen,
+  );
 }
 export function useCreateComment(
   scope: ReviewScope,
   context: ConnectionContext,
 ) {
-  const commands = useCommentCommands(scope, context);
   return {
-    ...withSend(
-      useMutation(operationMutation(commands.create, context.connection)),
+    ...useCommentWrite(
+      commentCommands({ scope, connection: context.connection }).create,
     ),
     bodyLimit: COMMENT_BODY_LENGTH,
   };
@@ -45,10 +40,9 @@ export function useReplyComment(
   scope: ReviewScope,
   context: ConnectionContext,
 ) {
-  const commands = useCommentCommands(scope, context);
   return {
-    ...withSend(
-      useMutation(operationMutation(commands.reply, context.connection)),
+    ...useCommentWrite(
+      commentCommands({ scope, connection: context.connection }).reply,
     ),
     bodyLimit: COMMENT_BODY_LENGTH,
   };
@@ -57,16 +51,14 @@ export function useResolveComment(
   scope: ReviewScope,
   context: ConnectionContext,
 ) {
-  const commands = useCommentCommands(scope, context);
-  return withSend(
-    useMutation(operationMutation(commands.resolve, context.connection)),
+  return useCommentWrite(
+    commentCommands({ scope, connection: context.connection }).resolve,
   );
 }
 export function useEditComment(scope: ReviewScope, context: ConnectionContext) {
-  const commands = useCommentCommands(scope, context);
   return {
-    ...withSend(
-      useMutation(operationMutation(commands.edit, context.connection)),
+    ...useCommentWrite(
+      commentCommands({ scope, connection: context.connection }).edit,
     ),
     bodyLimit: COMMENT_BODY_LENGTH,
   };
@@ -75,18 +67,16 @@ export function useDeleteComment(
   scope: ReviewScope,
   context: ConnectionContext,
 ) {
-  const commands = useCommentCommands(scope, context);
-  return withSend(
-    useMutation(operationMutation(commands.remove, context.connection)),
+  return useCommentWrite(
+    commentCommands({ scope, connection: context.connection }).remove,
   );
 }
 export function useDeleteResolvedComments(
   scope: ReviewScope,
   context: ConnectionContext,
 ) {
-  const commands = useCommentCommands(scope, context);
-  const mutation = useMutation(
-    operationMutation(commands.removeResolved, context.connection),
+  const [result, send] = useAtom(
+    commentCommands({ scope, connection: context.connection }).removeResolved,
   );
-  return { ...withSend(mutation), result: mutation.data };
+  return { result, send, reset: () => send(Atom.Reset) };
 }
