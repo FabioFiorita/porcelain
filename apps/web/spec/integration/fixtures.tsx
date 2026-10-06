@@ -268,7 +268,18 @@ export const test = base
     };
     return render;
   })
-  .extend('workspace', ({ render }) => render.workspace())
+  .extend('workspace', async ({ render, repo }) => {
+    const workspace = await render.workspace();
+    await expect
+      .element(
+        workspace.getByRole('button', {
+          name: `Mark ${repo.readme.path} as reviewed`,
+          exact: true,
+        }),
+      )
+      .toBeVisible();
+    return workspace;
+  })
   .extend('navigator', ({ render }) => render.navigator())
   .extend('fetchGate', ({ repo }, { onCleanup }) => {
     const gate = createFetchGate(repo.readme.path);
