@@ -1,3 +1,5 @@
+import { Cause, Option } from 'effect';
+import { AsyncResult } from 'effect/reactivity';
 import { ArrowUpIcon, FolderIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -14,24 +16,24 @@ export function ProjectFolderList({
   disabled: boolean;
 }) {
   const setPath = useAtomSet(projectFolder);
-  const current = folder.data;
+  const current = Option.getOrUndefined(AsyncResult.value(folder.value));
   return (
     <ScrollArea className="h-40" aria-label="Folders">
       <div className="flex flex-col p-1">
-        {folder.isPending ? (
+        {AsyncResult.isInitial(folder.value) ? (
           <p role="status" className="p-2 text-xs text-muted-foreground">
             Loading folders…
           </p>
-        ) : folder.error ? (
+        ) : AsyncResult.isFailure(folder.value) ? (
           <div className="flex flex-col items-start gap-2 p-2">
             <p role="alert" className="text-xs text-destructive">
-              {connectionErrorMessage(folder.error)}
+              {connectionErrorMessage(Cause.squash(folder.value.cause))}
             </p>
             <div className="flex gap-2">
               <Button
                 variant="outline"
                 size="xs"
-                onClick={() => void folder.refetch()}
+                onClick={folder.refresh}
                 disabled={disabled}
               >
                 Try again

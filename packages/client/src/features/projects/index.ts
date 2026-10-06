@@ -10,5 +10,5 @@ export {
 export { projectCommands, setFilePreference } from './commands/projects.ts';
 export { filePreferencesQueryOptions } from './queries/file-preferences.ts';
 
-export { projectFolderQueryOptions } from './queries/folders.ts';
+export { readProjectFolder } from './queries/folders.ts';
 export { projectSelectionSnapshotSchema } from './store/selection-snapshot.ts';

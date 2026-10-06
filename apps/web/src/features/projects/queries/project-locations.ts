@@ -1,11 +1,11 @@
-import { projectFolderQueryOptions } from '@porcelain/client/projects';
-import { useQuery } from '@tanstack/react-query';
+import { readProjectFolder } from '@porcelain/client/projects';
+import { useAtomValue, useAtomRefresh } from '@effect/atom-react';
 import type { Connection } from '@/shared/workspace/connection';
 
 export function useProjectFolder(
   connection: Connection,
   path: string | undefined,
-  enabled: boolean,
 ) {
-  return useQuery({ ...projectFolderQueryOptions(connection, path), enabled });
+  const folder = readProjectFolder(connection, path);
+  return { value: useAtomValue(folder), refresh: useAtomRefresh(folder) };
 }

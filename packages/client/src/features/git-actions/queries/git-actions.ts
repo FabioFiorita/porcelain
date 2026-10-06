@@ -1,10 +1,10 @@
 import { Atom } from 'effect/reactivity';
 import type { WorktreeConnection } from '../../../shared/api/connection.ts';
 import { COMMIT_MODELS_STALE_MS } from '../../../config/limits.ts';
-import { gitActionsClient } from '../api.ts';
+import { porcelainClient } from '../../../shared/api/client.ts';
 
 const models = Atom.family((connection: WorktreeConnection) =>
-  gitActionsClient(connection)
+  porcelainClient(connection)
     .query('gitActions', 'listCommitModels', {
       timeToLive: COMMIT_MODELS_STALE_MS,
     })

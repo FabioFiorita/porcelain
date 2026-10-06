@@ -52,3 +52,4 @@ export {
   RequestConnection,
   ClientRequest,
 } from './http-caller.ts';
+export { PorcelainClientApi } from './client-api.ts';

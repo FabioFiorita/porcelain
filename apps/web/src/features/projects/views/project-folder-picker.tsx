@@ -1,3 +1,5 @@
+import { Option } from 'effect';
+import { AsyncResult } from 'effect/reactivity';
 import { Fragment } from 'react';
 import {
   Breadcrumb,
@@ -26,8 +28,8 @@ export function ProjectFolderPicker({
 }) {
   const path = useAtomValue(projectFolder);
   const setPath = useAtomSet(projectFolder);
-  const folder = useProjectFolder(connection, path, true);
-  const current = folder.data;
+  const folder = useProjectFolder(connection, path);
+  const current = Option.getOrUndefined(AsyncResult.value(folder.value));
   const crumbs = current
     ? ['/', ...current.path.split('/').filter(Boolean)]
     : [];
@@ -89,8 +91,8 @@ export function ProjectFolderPicker({
           disabled={
             disabled ||
             !current?.repository ||
-            folder.isFetching ||
-            folder.isError
+            AsyncResult.isWaiting(folder.value) ||
+            AsyncResult.isFailure(folder.value)
           }
           onClick={() => {
             if (current) onOpen(current.path);

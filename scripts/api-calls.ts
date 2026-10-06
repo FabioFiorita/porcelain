@@ -7,6 +7,7 @@ import {
   type NodePath,
 } from '@babel/core';
 import { z } from 'zod';
+import * as shared from '@porcelain/contracts/shared';
 import * as access from '@porcelain/contracts/access';
 import * as changes from '@porcelain/contracts/changes';
 import * as files from '@porcelain/contracts/files';
@@ -17,6 +18,7 @@ import { HttpApi, type HttpApiEndpoint } from 'effect/http-api';
 
 const contractApis = new Map<string, HttpApi.Top>();
 for (const [name, value] of Object.entries({
+  ...shared,
   ...access,
   ...changes,
   ...files,
@@ -824,7 +826,9 @@ class RouteReader {
         ? declaration.path.get('init')
         : undefined;
       if (
-        /^packages\/client\/src\/features\/[^/]+\/api\.ts$/.test(file) &&
+        /^packages\/client\/src\/(?:features\/[^/]+\/api|shared\/api\/client)\.ts$/.test(
+          file,
+        ) &&
         declaration.references.some((reference) =>
           module.apis.has(reference.name),
         ) &&

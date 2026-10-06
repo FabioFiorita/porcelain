@@ -28,12 +28,8 @@ export const queryKeys = {
     ['remote-access', environmentId] as const,
   serviceUpdate: (environmentId: string) =>
     ['service-update', environmentId] as const,
-  projectFolder: (environmentId: string, path?: string) =>
-    ['project-folder', environmentId, path ?? null] as const,
   filePreferences: (environmentId: string, projectId: string) =>
     ['review', environmentId, projectId, 'file-preferences'] as const,
-  commitModels: (environmentId: string) =>
-    ['commit-models', environmentId] as const,
   inventory: (environmentId: string | undefined) =>
     ['inventory', environmentId] as const,
   reviewProject: (environmentId: string, projectId: string) =>
