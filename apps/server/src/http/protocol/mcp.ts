@@ -57,9 +57,8 @@ export function reviewMcp(options: {
       ],
     }).pipe(Layer.orDie),
   ).pipe(
-    Layer.provide(handlerAudit.layer),
     Layer.provide(requestBody.layer),
     Layer.provide(requestBodyLimit(endpoint, options.limits.reviewBodyBytes)),
-    Layer.provide(invocationPolicy.layer),
+    Layer.provide(invocationPolicy.combine(handlerAudit).layer),
   );
 }

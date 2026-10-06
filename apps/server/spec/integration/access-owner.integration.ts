@@ -294,6 +294,7 @@ test('the owner socket serves the review MCP endpoint with its review tools', as
 
 test('the review MCP endpoint refuses every method but POST', async ({
   session,
+  server,
 }) => {
   const methods: HttpRequest['method'][] = ['GET', 'PUT', 'PATCH', 'DELETE'];
   const responses = [];
@@ -314,6 +315,14 @@ test('the review MCP endpoint refuses every method but POST', async ({
     'POST',
     'POST',
   ]);
+  expect(await server.requestedRoutes()).toEqual(
+    expect.arrayContaining([
+      'owner DELETE /mcp',
+      'owner GET /mcp',
+      'owner PATCH /mcp',
+      'owner PUT /mcp',
+    ]),
+  );
 });
 
 test('the network listener answers owner reads with the web shell, does not find owner writes even with a paired credential, and nothing is issued or revoked', async ({
