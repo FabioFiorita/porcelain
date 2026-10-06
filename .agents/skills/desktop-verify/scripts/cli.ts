@@ -191,9 +191,14 @@ function serve(folder: string): Promise<void> {
     );
     const app = join(workspace, 'app');
     const profile = join(workspace, 'profile');
-    await life
-      .evidence()
-      .note('workspace.json', `${JSON.stringify(workspace)}\n`);
+    try {
+      await life
+        .evidence()
+        .note('workspace.json', `${JSON.stringify(workspace)}\n`);
+    } catch (error) {
+      await rm(workspace, { recursive: true, force: true });
+      throw error;
+    }
     let appStopped = true;
     const rendererErrors: string[] = [];
     const requests = new Map<string, number>();

@@ -11,15 +11,15 @@ The Mac app keeps the remote computers the owner pairs, with their bearer creden
 
 ## Driving it
 
-This is a separate pairing/security journey; the local folder-picker and window journey does not certify it. Start two disposable instances with `.agents/skills/desktop-verify/scripts/cli start`, one app under test and one loopback fixture representing another computer. Select launcher commands by `--instance <id>` and bind CUA to each reported running bundle/PID. A loopback fixture does not establish LAN or remote-network behavior.
+This is a separate pairing/security journey; the local folder-picker and window journey does not certify it. Start one app under test with `.agents/skills/desktop-verify/scripts/cli start` and bind CUA to its reported running development identity. Start a separate disposable server fixture using the server-verification skill, recording its address, data directory and owned teardown. This keeps one native target; two desktop launches share the Electron bundle identity. A loopback server fixture does not establish LAN or remote-network behavior.
 
 ### A paired computer is kept encrypted in the profile
 
-Read the second server's address and issue a pairing link using the profile its `start` printed:
+Issue a pairing link for that fixture using its actual data directory and address:
 
 ```sh
-pnpm --filter @porcelain/server start status --data-directory "<second profile>/server"
-pnpm --filter @porcelain/server start pair "Desktop verification" --data-directory "<second profile>/server" --address "<its address>"
+pnpm --filter @porcelain/server start status --data-directory "<fixture data directory>"
+pnpm --filter @porcelain/server start pair "Desktop verification" --data-directory "<fixture data directory>" --address "<its address>"
 ```
 
 On the first app, use CUA or the skill's optional exact-CDP renderer recipe:
@@ -27,7 +27,7 @@ On the first app, use CUA or the skill's optional exact-CDP renderer recipe:
 1. Open Settings, then Remote computers. Paste the fresh link into Pairing link and choose Add.
 2. Wait for the second computer's name to appear once with Online status and its expected address. Record the visible result without exposing the pairing link or bearer credential. Return with Back and confirm its sidebar group appears.
 3. Inspect `<first profile>/credentials.enc` metadata without printing its contents: require owner-only mode `-rw-------`. The bridge regression separately proves encrypted contents rather than plaintext; existence or mode alone does not prove encryption.
-4. Return to Remote computers and choose Remove for this fixture after any summary checks. Require its row and sidebar group to disappear. Finish by stopping both exact launcher instances and reading their evidence.
+4. Return to Remote computers and choose Remove for this fixture after any summary checks. Require its row and sidebar group to disappear. Finish by stopping the desktop instance and server fixture through their respective launchers and reading their evidence.
 
 Tool transcripts and screenshots may contain the pasted one-time link. Keep them private and redact secrets before sharing; direct CUA/CDP interaction has no launcher-wide redaction guarantee. Do not dump the encrypted store, decrypt credentials or use an installed app's profile.
 
