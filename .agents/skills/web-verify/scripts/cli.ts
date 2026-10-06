@@ -33,7 +33,7 @@ import {
   type Life,
 } from '../../verify-core/registry.ts';
 import {
-  daemonMarker,
+  startBrowser,
   interact,
   interactionOptions,
   interactionUsage,
@@ -222,16 +222,15 @@ function serve(folder: string): Promise<void> {
       config,
       `${JSON.stringify({ browser: { browserName: 'chromium', isolated: true, launchOptions: { headless: true }, contextOptions: { viewport } }, outputDir: join(evidence, 'browser') }, null, 2)}\n`,
     );
-    life.marker(daemonMarker(session));
     life.onStop(() => {
       playwrightCli(session, evidence, ['close']);
     });
-    playwrightCli(session, evidence, [
-      'open',
-      '--config',
-      config,
-      'about:blank',
-    ]);
+    startBrowser(
+      session,
+      evidence,
+      ['open', '--config', config, 'about:blank'],
+      life.own,
+    );
     runCode(session, evidence, installNetwork);
     if (unpaired) playwrightCli(session, evidence, ['goto', `${origin}/`]);
     else {

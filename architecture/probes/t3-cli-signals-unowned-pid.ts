@@ -3,16 +3,16 @@ import type { Probe } from '../probe.ts';
 export default {
   decision: 'T3',
   plants:
-    'the control CLI core signals the recorded supervisor PID without reading its command line, so a reused PID kills an unrelated process',
+    'the control CLI core ignores the captured process start identity, so a reused PID with the same command kills an unrelated process',
   gate: 'integration',
   feature: 'verification-cli',
-  rule: 'verification-cli.integration.ts > stop never signals a process whose command line is not the instance supervisor',
+  rule: 'verification-cli.integration.ts > stop refuses a stale process identity even when its PID and command still match',
   edits: [
     {
       kind: 'replace',
       path: '.agents/skills/verify-core/processes.ts',
-      old: 'if (leader !== undefined && !leader.command.includes(marker))',
-      new: "if (leader !== undefined && leader.command === '')",
+      old: 'current.birth === captured.birth',
+      new: 'true',
     },
   ],
 } satisfies Probe;

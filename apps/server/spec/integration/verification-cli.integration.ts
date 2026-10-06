@@ -355,11 +355,220 @@ test('stop never signals a process whose command line is not the instance superv
   );
   expect(stopped.stdout).toMatch(
     new RegExp(
-      `^process ${strangerPid} is not this instance's supervisor .*; it was not signalled\n`,
+      `^process ${strangerPid} is not this instance's supervisor; it was not signalled\n`,
     ),
   );
   expect(alive(strangerPid)).toBe(true);
   expect(alive(instance.pid)).toBe(true);
+});
+
+test('stop leaves an unrelated process alive even when its command contains a recorded marker', async ({
+  onTestFinished,
+}) => {
+  const instance = await started(onTestFinished);
+  const marker = `cliDaemon.js web-${instance.id}`;
+  const stranger = spawn(
+    process.execPath,
+    ['-e', 'setInterval(() => {}, 1000)', '--', marker],
+    { stdio: 'ignore', detached: true },
+  );
+  const strangerPid = stranger.pid ?? 0;
+  onTestFinished(() => {
+    stranger.kill('SIGKILL');
+  });
+  const saved = record(JSON.parse(await readFile(instance.file, 'utf8')));
+  await writeFile(
+    instance.file,
+    JSON.stringify({ ...saved, markers: [marker] }),
+  );
+
+  const stopped = await cli(
+    repositoryRoot,
+    SERVER_CLI,
+    'stop',
+    '--instance',
+    instance.id,
+  );
+
+  expect(stopped.code).toBe(0);
+  expect(alive(strangerPid)).toBe(true);
+  expect(alive(instance.pid)).toBe(false);
+});
+
+test('stop refuses a PID without a captured owner even when its command names the instance', async ({
+  onTestFinished,
+}) => {
+  const instance = await started(onTestFinished);
+  const marker = `${join(repositoryRoot, '.agents/skills/server-verify/scripts/cli.ts')} serve ${dirname(instance.file)}`;
+  const stranger = spawn(
+    process.execPath,
+    ['-e', 'setInterval(() => {}, 1000)', '--', marker],
+    {
+      stdio: 'ignore',
+      detached: true,
+    },
+  );
+  const strangerPid = stranger.pid ?? 0;
+  onTestFinished(async () => {
+    stranger.kill('SIGKILL');
+    if (alive(instance.pid)) process.kill(instance.pid, 'SIGTERM');
+    await settled(() => !alive(instance.pid));
+  });
+  const saved = record(JSON.parse(await readFile(instance.file, 'utf8')));
+  await writeFile(
+    instance.file,
+    JSON.stringify({ ...saved, pid: strangerPid }),
+  );
+
+  const stopped = await cli(
+    repositoryRoot,
+    SERVER_CLI,
+    'stop',
+    '--instance',
+    instance.id,
+  );
+
+  expect(stopped.code).toBe(0);
+  expect(stopped.stdout).toContain(
+    `process ${strangerPid} has no captured owner; it was not signalled`,
+  );
+  expect(alive(strangerPid)).toBe(true);
+  expect(alive(instance.pid)).toBe(true);
+});
+
+test('stop refuses a stale process identity even when its PID and command still match', async ({
+  onTestFinished,
+}) => {
+  const instance = await started(onTestFinished);
+  const stranger = spawn('sleep', ['300'], { stdio: 'ignore', detached: true });
+  const strangerPid = stranger.pid ?? 0;
+  onTestFinished(() => {
+    stranger.kill('SIGKILL');
+  });
+  const command = spawnSync(
+    'ps',
+    ['-p', String(strangerPid), '-ww', '-o', 'args='],
+    {
+      encoding: 'utf8',
+    },
+  ).stdout.trim();
+  const ledger = join(dirname(instance.file), 'processes.json');
+  const owned = list(JSON.parse(await readFile(ledger, 'utf8')));
+  await writeFile(
+    ledger,
+    JSON.stringify([
+      ...owned,
+      {
+        pid: strangerPid,
+        pgid: strangerPid,
+        command,
+        birth: 'a previous process at this PID',
+      },
+    ]),
+  );
+
+  const stopped = await cli(
+    repositoryRoot,
+    SERVER_CLI,
+    'stop',
+    '--instance',
+    instance.id,
+  );
+
+  expect(stopped.code).toBe(0);
+  expect(stopped.stdout).toContain(
+    `process ${strangerPid} has a different identity; it was not signalled`,
+  );
+  expect(alive(strangerPid)).toBe(true);
+  expect(alive(instance.pid)).toBe(false);
+});
+
+test('failed startup cleans a captured detached child even when the supervisor dies before readiness', async ({
+  onTestFinished,
+}) => {
+  const copy = await checkoutCopy(onTestFinished);
+  const fixture = '.agents/skills/server-verify/scripts/crash.mjs';
+  const pidFile = join(copy, 'crash-child.pid');
+  await writeFile(
+    join(copy, fixture),
+    String.raw`#!/usr/bin/env node
+import { Schema } from 'effect';
+import { spawn } from 'node:child_process';
+import { writeFileSync } from 'node:fs';
+import { Registry } from '../../verify-core/registry.ts';
+const registry = new Registry({
+  name: 'server',
+  cli: import.meta.url,
+  detail: Schema.Struct({}),
+  inputs: { roots: [], apps: [] },
+  format: 'text',
+  stale: () => undefined,
+  stopWithinMs: 1000,
+});
+if (process.argv[2] === 'serve') {
+  await registry.serve(process.argv[3], async (life) => {
+    const child = spawn('sleep', ['300'], { stdio: 'ignore', detached: true });
+    life.own(child.pid);
+    writeFileSync(${JSON.stringify(pidFile)}, String(child.pid));
+    process.kill(process.pid, 'SIGKILL');
+    return {};
+  });
+} else {
+  try {
+    await registry.launch({}, 5000);
+  } catch (error) {
+    process.stderr.write(error.message + '\n');
+    process.exitCode = 1;
+  }
+}
+`,
+    { mode: 0o700 },
+  );
+  let childPid = 0;
+  onTestFinished(() => {
+    if (childPid > 0 && alive(childPid)) process.kill(childPid, 'SIGKILL');
+  });
+
+  const run = await cli(copy, fixture, 'start');
+  childPid = Number(await readFile(pidFile, 'utf8'));
+  const [, id = ''] = /instance (\S+) did not start/.exec(run.stderr) ?? [];
+  const [, evidence = ''] = /evidence: (.+)\n/.exec(run.stderr) ?? [];
+
+  expect(run.code).toBe(1);
+  expect(id).not.toBe('');
+  expect(alive(childPid)).toBe(false);
+  expect(existsSync(dirname(instanceFile(copy, 'server', id)))).toBe(false);
+  expect(existsSync(join(evidence, 'supervisor.log'))).toBe(true);
+});
+
+test('stopping one instance leaves another instance in the same checkout usable', async ({
+  onTestFinished,
+}) => {
+  const first = await started(onTestFinished);
+  const second = await started(onTestFinished);
+
+  const stopped = await cli(
+    repositoryRoot,
+    SERVER_CLI,
+    'stop',
+    '--instance',
+    first.id,
+  );
+  const health = await cli(
+    repositoryRoot,
+    SERVER_CLI,
+    'request',
+    'GET',
+    '/api/health',
+    '--instance',
+    second.id,
+  );
+
+  expect(stopped.code).toBe(0);
+  expect(alive(first.pid)).toBe(false);
+  expect(alive(second.pid)).toBe(true);
+  expect(health.code).toBe(0);
+  expect(health.stdout).toMatch(/^HTTP 200\n/);
 });
 
 test('stop ends the sandboxed server of an instance whose supervisor is gone', async ({
@@ -384,7 +593,7 @@ test('stop ends the sandboxed server of an instance whose supervisor is gone', a
   );
   expect(stopped.code).toBe(0);
   expect(stopped.stdout).toMatch(
-    new RegExp(`^stopped 1 process left in process group ${instance.pid}\n`),
+    new RegExp(`^stopped owned process group ${instance.pid}\n`),
   );
   expect(running(build)).toStrictEqual([]);
 });

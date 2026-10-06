@@ -140,9 +140,6 @@ function dropTarget(values: Interaction): string {
     'to-',
   );
 }
-export function daemonMarker(session: string): string {
-  return `cliDaemon.js ${session}`;
-}
 export function playwrightCli(
   session: string,
   cwd: string,
@@ -160,6 +157,21 @@ export function playwrightCli(
       output.trim() || `playwright cli ${args[0] ?? ''} failed`,
     );
   return output;
+}
+export function startBrowser(
+  session: string,
+  cwd: string,
+  args: readonly string[],
+  own: (pid: number) => void,
+): void {
+  const started = Schema.decodeUnknownSync(
+    Schema.Struct({ session: Schema.String, pid: Schema.Finite }),
+  )(JSON.parse(playwrightCli(session, cwd, ['--json', ...args])));
+  if (started.session !== session)
+    throw new Refusal(
+      `the browser started a different session: ${started.session}`,
+    );
+  own(started.pid);
 }
 export function runCode(session: string, cwd: string, code: string): string {
   return Schema.decodeUnknownSync(Schema.String)(

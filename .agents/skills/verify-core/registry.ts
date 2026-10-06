@@ -18,7 +18,15 @@ import { fileURLToPath } from 'node:url';
 import { Refusal } from './cli.ts';
 import { Evidence, Redactor, type EvidenceFormat } from './evidence.ts';
 import { buildFingerprint, type BuildInputs } from './fingerprint.ts';
-import { endGroup, endLeader, endMatching, processes } from './processes.ts';
+import {
+  captureGroup,
+  captureProcess,
+  endGroup,
+  endLeader,
+  endProcess,
+  processes,
+  type ProcessIdentity,
+} from './processes.ts';
 const core = dirname(fileURLToPath(import.meta.url));
 export const repositoryRoot = resolve(core, '../../..');
 const idleLimitMs = 30 * 60 * 1000;
@@ -33,8 +41,13 @@ const instanceSchema = Schema.Struct({
   fingerprint: Schema.String,
   startedAt: Schema.String,
   secrets: Schema.Array(Schema.String),
-  markers: Schema.Array(Schema.String),
   detail: Schema.Unknown,
+});
+const processSchema = Schema.Struct({
+  pid: Schema.Finite,
+  pgid: Schema.Finite,
+  command: Schema.String,
+  birth: Schema.String,
 });
 const pendingSchema = Schema.Struct({
   id: Schema.String,
@@ -63,7 +76,7 @@ export type Life = {
   options: unknown;
   evidence: () => Evidence;
   secret: (...values: readonly string[]) => void;
-  marker: (value: string) => void;
+  own: (pid: number) => void;
   onStop: (cleanup: (reason: string) => Promise<void> | void) => void;
   stop: (reason: string) => void;
   stopping: () => boolean;
@@ -103,6 +116,38 @@ export class Registry<Detail> {
   }
   private marker(folder: string): string {
     return `${this.cli} serve ${folder}`;
+  }
+  private owned(folder: string): readonly ProcessIdentity[] {
+    const file = join(folder, 'processes.json');
+    return existsSync(file)
+      ? Schema.decodeUnknownSync(Schema.Array(processSchema))(
+          JSON.parse(readFileSync(file, 'utf8')),
+        )
+      : [];
+  }
+  private async finish(
+    pid: number,
+    folder: string,
+    owned: readonly ProcessIdentity[],
+  ): Promise<string[]> {
+    const report = await endLeader(
+      pid,
+      this.marker(folder),
+      this.surface.stopWithinMs,
+      owned.find((entry) => entry.pid === pid),
+      owned.filter((entry) => entry.pgid === pid),
+    );
+    const supervisorGroup = owned[0]?.pgid ?? pid;
+    for (const entry of owned)
+      if (entry.pgid !== supervisorGroup)
+        report.push(
+          ...(await endProcess(
+            entry,
+            this.surface.stopWithinMs,
+            owned.filter((member) => member.pgid === entry.pgid),
+          )),
+        );
+    return report;
   }
   redactor(instance: Pick<Instance<Detail>, 'secrets'>): Redactor {
     return new Redactor(instance.secrets);
@@ -230,12 +275,8 @@ export class Registry<Detail> {
     const deadline = Date.now() + readyWithinMs;
     while (!existsSync(file)) {
       if (exited || Date.now() > deadline) {
-        if (!exited && supervisor.pid !== undefined)
-          await endLeader(
-            supervisor.pid,
-            this.marker(folder),
-            this.surface.stopWithinMs,
-          );
+        if (supervisor.pid !== undefined)
+          await this.finish(supervisor.pid, folder, this.owned(folder));
         await rm(folder, { recursive: true, force: true });
         const failed = join(evidence, 'start-failed.txt');
         throw new Refusal(
@@ -282,13 +323,11 @@ export class Registry<Detail> {
     }
   }
   async stop(instance: Instance<Detail>): Promise<string[]> {
-    const report = await endLeader(
+    const report = await this.finish(
       instance.pid,
-      this.marker(instance.folder),
-      this.surface.stopWithinMs,
+      instance.folder,
+      this.owned(instance.folder),
     );
-    for (const marker of instance.markers)
-      report.push(...(await endMatching(marker)));
     await rm(instance.folder, { recursive: true, force: true });
     return report;
   }
@@ -300,7 +339,25 @@ export class Registry<Detail> {
       JSON.parse(await readFile(join(folder, 'pending.json'), 'utf8')),
     );
     const secrets: string[] = [];
-    const markers: string[] = [];
+    const owned: ProcessIdentity[] = [];
+    const own = (pid: number) => {
+      const identity = captureProcess(pid);
+      if (identity === undefined)
+        throw new Refusal(`could not capture the started process ${pid}`);
+      for (const entry of [identity, ...captureGroup(identity)]) {
+        const index = owned.findIndex(
+          (current) =>
+            current.pid === entry.pid && current.birth === entry.birth,
+        );
+        if (index === -1) owned.push(entry);
+        else owned[index] = entry;
+      }
+      const file = join(folder, 'processes.json');
+      const partial = `${file}.${process.pid}.partial`;
+      writeFileSync(partial, `${JSON.stringify(owned)}\n`, { mode: 0o600 });
+      renameSync(partial, file);
+    };
+    own(process.pid);
     const cleanups: ((reason: string) => Promise<void> | void)[] = [];
     const lastCommand = join(folder, 'last-command');
     const evidence = () =>
@@ -322,6 +379,14 @@ export class Registry<Detail> {
             `[supervisor] cleanup failed: ${String(error)}\n`,
           ),
         );
+      for (const entry of owned)
+        if (entry.pid !== process.pid && entry.pgid !== process.pid)
+          for (const line of await endProcess(
+            entry,
+            this.surface.stopWithinMs,
+            owned.filter((member) => member.pgid === entry.pgid),
+          ))
+            process.stdout.write(`[supervisor] ${line}\n`);
       for (const line of await endGroup(process.pid))
         process.stdout.write(`[supervisor] ${line}\n`);
       await evidence().scrub();
@@ -342,13 +407,17 @@ export class Registry<Detail> {
       options: pending.options,
       evidence,
       secret: (...values) => secrets.push(...values.filter(Boolean)),
-      marker: (value) => markers.push(value),
-      onStop: (cleanup) => cleanups.push(cleanup),
+      own,
+      onStop: (cleanup) => {
+        cleanups.push(cleanup);
+        own(process.pid);
+      },
       stop,
       stopping: () => stopping,
     };
     try {
       const detail = await start(life);
+      own(process.pid);
       touch(lastCommand);
       this.save({
         id: pending.id,
@@ -358,7 +427,6 @@ export class Registry<Detail> {
         fingerprint: pending.fingerprint,
         startedAt: new Date().toISOString(),
         secrets,
-        markers,
         detail,
       });
       await rm(join(folder, 'pending.json'));
