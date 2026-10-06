@@ -52,6 +52,8 @@ Choose test setups with judgment: weigh what each layer of isolation, retry or e
 
 Prove a change with the smallest local proof: `pnpm check:local`, the test files you changed by name, and the feature driven through its surface's skill (`server-verify`, `web-verify`, `desktop-verify`, `mobile-verify`). Each skill's CLI at `scripts/cli` starts a disposable instance, drives it and records evidence; its feature map says how to reach each feature. CI runs `pnpm check` and owns the full suites. A guardrail change proves its rule with a fixture in `architecture/rule-cases.mjs`, or a probe in `architecture/probes/` run by name.
 
+The root integration command runs suite tasks sequentially, because each Vitest runner already owns a machine-sized worker budget. Keep parallelism inside the suite; concurrent runners must not multiply that budget or require longer product deadlines.
+
 ## Pull requests
 
 Work on your own branch from `main`, in your own worktree, and open a pull request into `main` from the template. One concern per pull request. The developer reviews and merges, so make the body easy to read: what and why in a few sentences, how it was verified, screenshots attached with `gh pr create --attach` inside a collapsed section, and the risks. Commit only the paths you changed, each commit one short imperative sentence. Plans and scratch notes stay out of the repository.
