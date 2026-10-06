@@ -1,25 +1,13 @@
-import { Effect } from 'effect';
 import { Atom } from 'effect/reactivity';
 import { useAtomRef, useAtomValue } from '@effect/atom-react';
 import type { LiveConnection } from '@porcelain/client/live';
-import type { AccessPlatform } from '@porcelain/client/access';
+import type { AccessPlatformValue } from '@porcelain/client/access';
 import type { Remote } from '@porcelain/client/access/rules';
-import {
-  ProjectSelectionStore,
-  ProjectSelectionStorage,
-} from '@porcelain/client/projects';
-import { projectSelectionStorage } from './adapters/selection-storage';
+import { selectionState } from '../../shared/application/store';
 import { createProjectConnection } from './adapters/connection';
 
-export const projectSelectionStore = Effect.runSync(
-  ProjectSelectionStore.pipe(
-    Effect.provide(ProjectSelectionStore.layer),
-    Effect.provideService(ProjectSelectionStorage, projectSelectionStorage),
-  ),
-);
-
 export function useProjectSelection() {
-  return useAtomRef(projectSelectionStore.state);
+  return useAtomRef(selectionState);
 }
 
 const disconnected = Atom.make<LiveConnection | undefined>(undefined);
@@ -29,7 +17,7 @@ const environmentConnection = Atom.family(
     address: string;
     credential: string;
     deviceId: string | undefined;
-    send: AccessPlatform['send'];
+    send: AccessPlatformValue['send'];
   }) =>
     Atom.make((get) => {
       const lifetime = createProjectConnection(input);
@@ -40,7 +28,7 @@ const environmentConnection = Atom.family(
 
 export function useProjectConnection(
   remote: Remote | undefined,
-  send: AccessPlatform['send'],
+  send: AccessPlatformValue['send'],
 ) {
   return useAtomValue(
     remote

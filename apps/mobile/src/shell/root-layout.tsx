@@ -3,7 +3,7 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
 import type { ColorValue } from 'react-native';
 import { useCSSVariable, useUniwind } from 'uniwind';
 import { ShellStartup } from './shell-startup';
-import { QueryProvider } from '../shared/query/provider';
+import { RegistryProvider } from '@effect/atom-react';
 
 function themeColor(
   value: string | number | undefined,
@@ -33,9 +33,9 @@ export function RootLayout() {
         },
       }}
     >
-      <QueryProvider>
+      <RegistryProvider>
         <ShellStartup />
-      </QueryProvider>
+      </RegistryProvider>
     </ThemeProvider>
   );
 }

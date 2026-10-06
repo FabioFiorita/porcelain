@@ -1,6 +1,6 @@
 import { afterEach, describe, expect } from 'vitest';
 import { AtomRegistry } from 'effect/reactivity';
-import type { AccessPlatform } from '../ports/access-platform.ts';
+import type { AccessPlatformValue } from '../ports/access-platform.ts';
 import { it } from '@effect/vitest';
 import { Deferred, Effect, Fiber } from 'effect';
 import { TestClock } from 'effect/testing';
@@ -141,7 +141,9 @@ function registryFixture() {
   registries.add(registry);
   return registry;
 }
-function statusPlatform(send: AccessPlatform['send']): AccessPlatform {
+function statusPlatform(
+  send: AccessPlatformValue['send'],
+): AccessPlatformValue {
   return { send, name: () => 'Test device' };
 }
 

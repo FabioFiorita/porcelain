@@ -5,7 +5,10 @@ import { remoteTransport } from '../../../shared/api/transport.ts';
 import { ConnectionError } from '../../../shared/api/connection-error.ts';
 import { RequestError } from '../../../shared/api/request-error.ts';
 import { requestEffect } from '../../../shared/api/effect-client.ts';
-import type { AccessPlatform } from '../ports/access-platform.ts';
+import {
+  AccessPlatform,
+  type AccessPlatformValue,
+} from '../ports/access-platform.ts';
 import { PairingPlatform } from '../ports/pairing-platform.ts';
 import type { Transport } from '../../../shared/api/transport.ts';
 import { AccessStore } from '../store.ts';
@@ -34,7 +37,7 @@ function rejectedPairing(error: PairFailure) {
   );
 }
 
-function pairRemote(platform: AccessPlatform, value: string) {
+function pairRemote(platform: AccessPlatformValue, value: string) {
   return Effect.gen(function* () {
     const link = remoteLink(value);
     if (!link)
@@ -99,20 +102,21 @@ function pairRemote(platform: AccessPlatform, value: string) {
   });
 }
 
-export function pairEnvironment(platform: AccessPlatform, value: string) {
-  return Effect.gen(function* () {
-    const store = yield* AccessStore;
-    if (store.state.value.status !== 'ready')
-      return yield* Effect.fail(
-        new ConnectionError({
-          message: 'Read saved environments before pairing.',
-        }),
-      );
-    const remote = yield* pairRemote(platform, value);
-    yield* store.save(remote);
-    return remote;
-  });
-}
+export const pairEnvironment = Effect.fn('Environments.pairAndSave')(function* (
+  value: string,
+) {
+  const store = yield* AccessStore;
+  const platform = yield* AccessPlatform;
+  if (store.state.value.status !== 'ready')
+    return yield* Effect.fail(
+      new ConnectionError({
+        message: 'Read saved environments before pairing.',
+      }),
+    );
+  const remote = yield* pairRemote(platform, value);
+  yield* store.save(remote);
+  return remote;
+});
 
 const redeemBrowserPairing = Effect.fn('BrowserSession.pair')(function* (
   link: PairingCode,

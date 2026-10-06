@@ -11,7 +11,7 @@ import {
   remoteTransport,
   type Transport,
 } from '../../../shared/api/transport.ts';
-import type { AccessPlatform } from '../ports/access-platform.ts';
+import type { AccessPlatformValue } from '../ports/access-platform.ts';
 import {
   remoteStatus,
   type Remote,
@@ -51,7 +51,7 @@ export function readRemoteEnvironment(
 }
 
 const statusAtoms = Atom.family(
-  ({ send, remote }: { send: AccessPlatform['send']; remote: Remote }) =>
+  ({ send, remote }: { send: AccessPlatformValue['send']; remote: Remote }) =>
     Atom.make(
       Stream.fromEffect(
         readRemoteEnvironment(
@@ -67,6 +67,9 @@ const statusAtoms = Atom.family(
     ).pipe(Atom.setIdleTTL(0)),
 );
 
-export function readRemoteStatus(platform: AccessPlatform, remote: Remote) {
+export function readRemoteStatus(
+  platform: AccessPlatformValue,
+  remote: Remote,
+) {
   return statusAtoms({ send: platform.send, remote });
 }

@@ -5,11 +5,11 @@ import { liveQueries, inactiveLiveQueries } from '@porcelain/client/live';
 import { useProjectConnection } from '../store';
 import type { Remote } from '@porcelain/client/access/rules';
 import { useInventory } from '../queries/inventory';
-import type { AccessPlatform } from '@porcelain/client/access';
+import type { AccessPlatformValue } from '@porcelain/client/access';
 
 export function useWorkspaceConnection(
   remote: Remote | undefined,
-  send: AccessPlatform['send'],
+  send: AccessPlatformValue['send'],
   projectId: string | undefined,
   worktreeId: string | undefined,
   ready: boolean,

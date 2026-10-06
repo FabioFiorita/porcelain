@@ -1,3 +1,5 @@
+import { Cause } from 'effect';
+import { AsyncResult } from 'effect/reactivity';
 import {
   remoteStatusNote,
   remoteStatusText,
@@ -45,7 +47,7 @@ import { useSavedEnvironments } from '../store';
 
 function RemoteRow({ remote }: { remote: Remote }) {
   const status = useRemoteStatus(remote);
-  const forget = useForgetRemote();
+  const forget = useForgetRemote(remote);
   const note = remoteStatusNote(status);
   const name = status.kind === 'online' ? status.name : remote.name;
   return (
@@ -70,16 +72,18 @@ function RemoteRow({ remote }: { remote: Remote }) {
           variant="ghost"
           size="icon-sm"
           aria-label={`Remove ${name}`}
-          disabled={forget.isPending}
-          onClick={() => forget.onSubmit(remote)}
+          disabled={forget.result.waiting}
+          onClick={() => forget.submit()}
         >
           <Trash2Icon />
         </Button>
       </ItemActions>
-      {(note || forget.error) && (
+      {(note || AsyncResult.isFailure(forget.result)) && (
         <ItemFooter>
           <ItemDescription>
-            {forget.error ? connectionErrorMessage(forget.error) : note}
+            {AsyncResult.isFailure(forget.result)
+              ? connectionErrorMessage(Cause.squash(forget.result.cause))
+              : note}
           </ItemDescription>
         </ItemFooter>
       )}
@@ -89,7 +93,7 @@ function RemoteRow({ remote }: { remote: Remote }) {
 
 function AddRemote() {
   const [link, setLink] = useState('');
-  const add = useAddRemote();
+  const add = useAddRemote(() => setLink(''));
   const { status } = useSavedEnvironments();
   return (
     <Item variant="outline">
@@ -100,17 +104,13 @@ function AddRemote() {
         </ItemDescription>
         <form
           className="flex flex-col gap-2 sm:flex-row"
-          onSubmit={(event) =>
-            submitForm(event, () =>
-              add.submit(link, { onSuccess: () => setLink('') }),
-            )
-          }
+          onSubmit={(event) => submitForm(event, () => add.submit(link))}
         >
           <Input
             aria-label="Pairing link"
             placeholder="http://192.168.1.20:4738/pair#c=…"
             value={link}
-            disabled={add.isPending || status !== 'ready'}
+            disabled={add.result.waiting || status !== 'ready'}
             onChange={(event) => {
               add.reset();
               setLink(event.target.value);
@@ -119,15 +119,17 @@ function AddRemote() {
           <Button
             type="submit"
             className="shrink-0"
-            disabled={add.isPending || status !== 'ready' || link.trim() === ''}
+            disabled={
+              add.result.waiting || status !== 'ready' || link.trim() === ''
+            }
           >
-            {add.isPending ? 'Pairing…' : 'Add'}
+            {add.result.waiting ? 'Pairing…' : 'Add'}
           </Button>
         </form>
-        {add.error && (
+        {AsyncResult.isFailure(add.result) && (
           <Alert variant="destructive">
             <AlertDescription>
-              {connectionErrorMessage(add.error)}
+              {connectionErrorMessage(Cause.squash(add.result.cause))}
             </AlertDescription>
           </Alert>
         )}
@@ -151,7 +153,7 @@ export function RemoteComputers() {
             {unreadable}
             <Button
               variant="outline"
-              disabled={restore.isPending}
+              disabled={restore.result.waiting}
               onClick={() => restore.read()}
             >
               Read saved environments

@@ -1,7 +1,7 @@
 import { Context, Effect, Equal, Layer } from 'effect';
 import { OperationStore } from '../../git-actions/store/operations.ts';
 import type { Remote } from '../../access/rules/remotes.ts';
-import type { AccessPlatform } from '../../access/ports/access-platform.ts';
+import type { AccessPlatformValue } from '../../access/ports/access-platform.ts';
 import { createWorktreeConnection } from '../../../shared/api/worktree-connection.ts';
 import { remoteTransport } from '../../../shared/api/transport.ts';
 import { remoteLiveUpdates } from './remote-live-updates.ts';
@@ -17,7 +17,7 @@ export class RemoteConnection extends Context.Service<
       'environmentId' | 'address' | 'credential' | 'deviceId'
     > & {
       readonly cryptoLayer: LiveConnection['cryptoLayer'];
-      readonly send: AccessPlatform['send'];
+      readonly send: AccessPlatformValue['send'];
       readonly timeoutMs: number;
       readonly socket: Parameters<typeof remoteLiveUpdates>[2];
     },

@@ -1,17 +1,14 @@
 import { useEffect } from 'react';
-import {
-  useReadEnvironments,
-  environmentSelectionAccess,
-} from '../features/access';
+import { useReadEnvironments } from '../features/access';
 import { useProjectSelectionCommands } from '../features/projects';
 import { RootShell } from './root-shell';
 
 export function ShellStartup() {
   const readEnvironments = useReadEnvironments();
-  const { onSubmit } = useProjectSelectionCommands(environmentSelectionAccess);
+  const { submit } = useProjectSelectionCommands();
   useEffect(() => {
-    readEnvironments();
-    onSubmit({ kind: 'read' });
-  }, [readEnvironments, onSubmit]);
+    readEnvironments(undefined);
+    submit({ kind: 'read' });
+  }, [readEnvironments, submit]);
   return <RootShell />;
 }

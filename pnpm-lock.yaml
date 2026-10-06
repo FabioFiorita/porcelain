@@ -247,9 +247,6 @@ importers:
       '@porcelain/theme':
         specifier: workspace:*
         version: link:../../packages/theme
-      '@tanstack/react-query':
-        specifier: 5.102.8
-        version: 5.102.8(react@19.3.0)
       effect:
         specifier: 4.0.0
         version: 4.0.0
@@ -9609,11 +9606,6 @@ snapshots:
     dependencies:
       '@tanstack/query-core': 5.102.8
       react: 19.2.8
-
-  '@tanstack/react-query@5.102.8(react@19.3.0)':
-    dependencies:
-      '@tanstack/query-core': 5.102.8
-      react: 19.3.0
 
   '@tanstack/react-router@1.170.33(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
     dependencies:

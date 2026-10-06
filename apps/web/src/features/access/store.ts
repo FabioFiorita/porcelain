@@ -1,17 +1,21 @@
+import { WorkspaceSelectionCleanup } from '@porcelain/client/projects';
 import { InventorySeed } from '@porcelain/client/projects';
 import type { BrowserSession } from '@porcelain/client/access/rules';
 import { WEB_PLATFORM_NAME_MAX_LENGTH } from '@/config/limits';
 import {
   AccessStore,
+  AccessPlatform,
+  EnvironmentCommands,
+  EnvironmentMutations,
   EnvironmentStorage,
-  type AccessPlatform,
+  type AccessPlatformValue,
 } from '@porcelain/client/access';
 import { Effect, Equal, Layer, ManagedRuntime, Option } from 'effect';
 import { Atom, AtomRef } from 'effect/reactivity';
 import { useAtomRef, useAtomValue } from '@effect/atom-react';
 import { environmentStorage } from './adapters/environment-storage';
 
-export const pairingPlatform: AccessPlatform = {
+export const pairingPlatform: AccessPlatformValue = {
   name: () =>
     typeof navigator === 'undefined'
       ? 'Browser'
@@ -119,13 +123,24 @@ function close(connection: Connection) {
   void connection.operationRuntime.dispose();
 }
 
-export const accessStore = Effect.runSync(
-  AccessStore.pipe(
-    Effect.provide(AccessStore.layer),
-    Effect.provideService(EnvironmentStorage, environmentStorage),
-  ),
+const stores = Layer.merge(AccessStore.layer, EnvironmentMutations.layer).pipe(
+  Layer.provide(Layer.succeed(EnvironmentStorage, environmentStorage)),
 );
-const restoreSavedEnvironments = Atom.make((get) => {
+const services = Layer.mergeAll(
+  stores,
+  Layer.succeed(AccessPlatform, pairingPlatform),
+  Layer.succeed(FileDrafts, fileDraftRuntime.runSync(FileDrafts)),
+  Layer.succeed(WorkspaceSelectionCleanup, {
+    forgetEnvironment: () => Effect.void,
+  }),
+);
+const application = Layer.provideMerge(EnvironmentCommands.layer, services);
+const applicationRuntime = ManagedRuntime.make(application);
+export const environmentRuntime = Atom.context({
+  memoMap: applicationRuntime.memoMap,
+})(application);
+const accessStore = applicationRuntime.runSync(AccessStore);
+const restoreSavedEnvironments = environmentRuntime.atom((get) => {
   const synchronize = ({ remotes }: { remotes: readonly Remote[] }) =>
     state.update((current) => ({
       ...current,
@@ -133,7 +148,10 @@ const restoreSavedEnvironments = Atom.make((get) => {
     }));
   synchronize(accessStore.state.value);
   get.addFinalizer(accessStore.state.subscribe(synchronize));
-  return accessStore.load();
+  return Effect.gen(function* () {
+    const commands = yield* EnvironmentCommands;
+    yield* commands.read();
+  });
 });
 
 export function useRestoreEnvironments() {

@@ -1,8 +1,4 @@
-export {
-  parsePairingLink,
-  remoteLink,
-  type PairingCode,
-} from './pairing-link.ts';
+export { parsePairingLink, type PairingCode } from './pairing-link.ts';
 export {
   remoteKey,
   syncRemoteConnections,
@@ -13,10 +9,7 @@ export {
   type Remote,
   type RemoteStatus,
 } from './remotes.ts';
-export {
-  connectionErrorMessage,
-  UNSAVED_DRAFTS_MESSAGE,
-} from './connection-error-message.ts';
+export { connectionErrorMessage } from './connection-error-message.ts';
 export {
   deviceRouteTitles,
   localNetworkNote,

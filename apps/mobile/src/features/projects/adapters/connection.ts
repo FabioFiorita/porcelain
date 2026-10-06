@@ -4,7 +4,7 @@ import {
   OperationStore,
   OperationStorage,
 } from '@porcelain/client/git-actions';
-import type { AccessPlatform } from '@porcelain/client/access';
+import type { AccessPlatformValue } from '@porcelain/client/access';
 import type { Remote } from '@porcelain/client/access/rules';
 import { operationStorage } from './operation-storage';
 import { mobileSocket } from '../../../shared/adapters/live-socket';
@@ -15,7 +15,7 @@ export function createProjectConnection(
   input: Pick<
     Remote,
     'environmentId' | 'address' | 'credential' | 'deviceId'
-  > & { send: AccessPlatform['send'] },
+  > & { send: AccessPlatformValue['send'] },
 ) {
   const runtime = ManagedRuntime.make(
     RemoteConnection.layer({

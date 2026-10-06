@@ -1,25 +1,20 @@
 import { Effect } from 'effect';
-import { useMutation } from '@tanstack/react-query';
+import { Atom } from 'effect/reactivity';
+import { useAtom } from '@effect/atom-react';
+import { EnvironmentCommands } from '@porcelain/client/access';
 import type { Remote } from '@porcelain/client/access/rules';
-import { accessStore } from '../store';
+import { clientRuntime } from '../../../shared/application/store';
 
-export type ProjectCleanup = (environmentId: string) => Promise<void>;
+const forgetEnvironment = Atom.family((environmentId: string) =>
+  clientRuntime.fn((_: void) =>
+    Effect.gen(function* () {
+      const commands = yield* EnvironmentCommands;
+      yield* commands.forget(environmentId);
+    }),
+  ),
+);
 
-export function useForgetEnvironment(
-  remote: Remote,
-  forgetProjectEnvironment: ProjectCleanup,
-) {
-  const mutation = useMutation({
-    scope: { id: 'access.environments' },
-    mutationKey: ['projects', 'selection'],
-    mutationFn: async () => {
-      await Effect.runPromise(accessStore.forget(remote.environmentId));
-      await forgetProjectEnvironment(remote.environmentId);
-    },
-  });
-  return {
-    forget: mutation.mutate,
-    isPending: mutation.isPending,
-    error: mutation.error,
-  };
+export function useForgetEnvironment(remote: Remote) {
+  const [result, run] = useAtom(forgetEnvironment(remote.environmentId));
+  return { result, forget: () => run(undefined) };
 }
