@@ -191,7 +191,7 @@ export function serve(folder: string): Promise<void> {
     const metro = await phase(timings, 'metro', () =>
       startMetro(join(evidence, 'metro.log'), ports[1]),
     );
-    life.marker(`--localhost --port ${metro.port} --max-workers`);
+    life.own(metro.pid);
     life.onStop(() => metro.stop());
     const hub =
       host === null

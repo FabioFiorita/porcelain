@@ -21,7 +21,7 @@ import {
   repositoryRoot as root,
 } from '../../verify-core/registry.ts';
 import {
-  daemonMarker,
+  startBrowser,
   interact,
   interactionOptions,
   interactionUsage,
@@ -166,10 +166,12 @@ function serve(folder: string): Promise<void> {
       if (existsSync(log)) await cp(log, join(evidence, 'server.log'));
       await rm(workspace, { recursive: true, force: true });
     });
-    spawn('caffeinate', ['-d', '-u', '-w', String(process.pid)], {
+    const awake = spawn('caffeinate', ['-d', '-u', '-w', String(process.pid)], {
       detached: true,
       stdio: 'ignore',
-    }).unref();
+    });
+    if (awake.pid !== undefined) life.own(awake.pid);
+    awake.unref();
     await stageDesktop({
       directory: stagedApp,
       productName: 'Porcelain Dev',
@@ -208,14 +210,15 @@ function serve(folder: string): Promise<void> {
       (url) => url.protocol === 'porcelain:' && url.pathname !== '/pair',
     );
     await nativeCommand(electron, { command: 'hold-picker' });
-    life.marker(daemonMarker(session));
     life.onStop(() => {
       playwrightCli(session, evidence, ['detach']);
     });
-    playwrightCli(session, evidence, [
-      'attach',
-      `--cdp=http://127.0.0.1:${devtools}`,
-    ]);
+    startBrowser(
+      session,
+      evidence,
+      ['attach', `--cdp=http://127.0.0.1:${devtools}`],
+      life.own,
+    );
     const token = randomBytes(16).toString('hex');
     life.secret(token);
     const served = await control(electron, token);
