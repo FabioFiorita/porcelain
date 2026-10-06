@@ -20,6 +20,8 @@ export const queryKeys = {
       queryKeys.inventory(connection.environmentId),
       connection,
     ),
+  environment: (environmentId: string) =>
+    ['environment', environmentId] as const,
   session: () => ['access', 'session'] as const,
   appUpdate: () => ['desktop-app-update'] as const,
   filePreferences: (environmentId: string, projectId: string) =>

@@ -1,5 +1,6 @@
 import { AtomRegistry, Reactivity } from 'effect/reactivity';
-import { Layer, ManagedRuntime, type Context } from 'effect';
+import { readFilePreferences } from '@porcelain/client/projects';
+import { Equal, Layer, ManagedRuntime, type Context } from 'effect';
 import { afterEach } from 'vitest';
 import { Effect } from 'effect';
 import { QueryClient, QueryObserver } from '@tanstack/query-core';
@@ -72,19 +73,17 @@ function setup(
       };
     },
   };
-  const close = connectLiveQueries(
-    client,
-    {
-      ...lifetime.connection,
-      controller: lifetime.controller,
-      operations,
-      liveUpdates,
-    },
-    () => {},
-    registry,
-  );
+  const connection = Equal.byReference({
+    ...lifetime.connection,
+    controller: lifetime.controller,
+    operations,
+    liveUpdates,
+  });
+  const close = connectLiveQueries(client, connection, () => {}, registry);
   return {
     ...lifetime,
+    connection,
+    registry,
     operations,
     client,
     sent,
@@ -289,6 +288,56 @@ it('native inventory updates change the live project subscription without a lega
     expect(reads).toBe(2);
     expect(subject.client.getQueryCache().findAll()).toEqual([]);
   } finally {
+    await subject.cleanup();
+  }
+});
+
+it('a project preference notice refreshes its native preferences while leaving inventory and legacy review reads untouched', async () => {
+  let preferences = 0;
+  let inventories = 0;
+  const subject = setup((path) => {
+    if (path.endsWith('/file-preferences')) {
+      preferences += 1;
+      return Promise.resolve(
+        Response.json({
+          preferences: [
+            { path: 'README.md', hidden: preferences > 1, pinned: false },
+          ],
+        }),
+      );
+    }
+    inventories += 1;
+    return Promise.resolve(
+      Response.json({
+        environmentId,
+        environment: { name: 'Live', custom: false },
+        projects: [],
+      }),
+    );
+  });
+  const state = readFilePreferences({
+    connection: subject.connection,
+    projectId,
+  });
+  const stop = subject.registry.mount(state);
+  const read = () =>
+    Effect.runPromise(
+      AtomRegistry.getResult(subject.registry, state, {
+        suspendOnWaiting: true,
+      }),
+    );
+  try {
+    await subject.subscribed;
+    expect((await read()).preferences[0]?.hidden).toBe(false);
+    subject
+      .live()
+      ?.onNotice({ type: 'project', projectId, change: 'preferences' });
+    expect((await read()).preferences[0]?.hidden).toBe(true);
+    expect(preferences).toBe(2);
+    expect(inventories).toBe(1);
+    expect(subject.client.getQueryCache().findAll()).toEqual([]);
+  } finally {
+    stop();
     await subject.cleanup();
   }
 });

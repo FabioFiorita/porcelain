@@ -1,3 +1,5 @@
+import { Cause } from 'effect';
+import { AsyncResult } from 'effect/reactivity';
 import type { GitStatusEntry } from '@pierre/trees';
 import { useHotkey } from '@tanstack/react-hotkeys';
 import {
@@ -412,14 +414,14 @@ function ScopedFileNavigation({
           {fileErrorMessage(edit.error)}
         </p>
       )}
-      {setPinned.error && (
+      {AsyncResult.isFailure(setPinned.result) && (
         <p role="alert" className="border-t px-3 py-2 text-xs text-destructive">
-          {surfaceErrorMessage(setPinned.error)}
+          {surfaceErrorMessage(Cause.squash(setPinned.result.cause))}
         </p>
       )}
-      {setHidden.error && (
+      {AsyncResult.isFailure(setHidden.result) && (
         <p role="alert" className="border-t px-3 py-2 text-xs text-destructive">
-          {surfaceErrorMessage(setHidden.error)}
+          {surfaceErrorMessage(Cause.squash(setHidden.result.cause))}
         </p>
       )}
       {failed.length > 0 && (

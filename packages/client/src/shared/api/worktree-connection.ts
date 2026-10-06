@@ -1,5 +1,5 @@
 import { Atom, Reactivity } from 'effect/reactivity';
-import { Layer, ManagedRuntime } from 'effect';
+import { Equal, Layer, ManagedRuntime } from 'effect';
 import { WriteQueues } from './write-queue.ts';
 import type { RuntimeConnection, WorktreeConnection } from './connection.ts';
 
@@ -23,7 +23,7 @@ export function createWorktreeConnection(
     },
     { once: true },
   );
-  const connection: RuntimeConnection = {
+  const connection = Equal.byReference<RuntimeConnection>({
     runtime,
     atoms,
     close,
@@ -35,6 +35,6 @@ export function createWorktreeConnection(
         ...(signal ? [signal] : []),
       ]),
     }),
-  };
+  });
   return { connection, controller, close };
 }

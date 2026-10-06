@@ -6,7 +6,7 @@ import {
   EnvironmentStorage,
   type AccessPlatform,
 } from '@porcelain/client/access';
-import { Effect, Layer, ManagedRuntime, Option } from 'effect';
+import { Effect, Equal, Layer, ManagedRuntime, Option } from 'effect';
 import { Atom, AtomRef } from 'effect/reactivity';
 import { useAtomRef, useAtomValue } from '@effect/atom-react';
 import { environmentStorage } from './adapters/environment-storage';
@@ -73,7 +73,7 @@ function createConnection(environmentId: string, server: Server): Connection {
       ),
     ),
   );
-  const connection: Connection = {
+  const connection = Equal.byReference<Connection>({
     ...requests,
     address: server.address,
     environmentId,
@@ -81,7 +81,7 @@ function createConnection(environmentId: string, server: Server): Connection {
     operationRuntime,
     operations: operationRuntime.runSync(OperationStore),
     liveUpdates: server.liveUpdates,
-  };
+  });
   fileDraftRuntime.runSync(FileDrafts).adopt(connection);
   return connection;
 }

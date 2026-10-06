@@ -1,17 +1,19 @@
 import type { ReadInventoryResponse } from '@porcelain/contracts/projects';
-import { Context, Effect, Layer, Option, SubscriptionRef } from 'effect';
-import { AsyncResult, Atom, Reactivity } from 'effect/reactivity';
-import {
-  WriteQueues,
-  type WriteNotSentError,
-} from '../../../shared/api/write-queue.ts';
+import { Context, Effect, Layer, Option } from 'effect';
+import { Atom } from 'effect/reactivity';
+import { type WriteNotSentError } from '../../../shared/api/write-queue.ts';
 import { queryKeys } from '../../../shared/api/query-keys.ts';
 import { currentAnswerEffect } from '../../../shared/api/stale-answer.ts';
 import type { RuntimeConnection } from '../../../shared/api/connection.ts';
 import { clientRuntime } from '../../../shared/api/runtime.ts';
 import type { ConnectionError } from '../../../shared/api/connection-error.ts';
 import type { RequestError } from '../../../shared/api/request-error.ts';
-import type { porcelainClient } from '../../../shared/api/client.ts';
+import { porcelainClient } from '../../../shared/api/client.ts';
+import { requestEffect } from '../../../shared/api/effect-client.ts';
+import {
+  confirmedResource,
+  type ConfirmedResource,
+} from '../../../shared/api/confirmed-resource.ts';
 
 type InventoryFailure =
   | Effect.Error<
@@ -30,18 +32,13 @@ export const InventorySeed = Context.Reference(
     defaultValue: () => Option.none<ReadInventoryResponse>(),
   },
 );
-type InventorySnapshot = {
-  readonly epoch: number;
-  readonly result: AsyncResult.AsyncResult<
-    ReadInventoryResponse,
-    InventoryFailure
-  >;
-};
-
 export class InventoryState extends Context.Service<
   InventoryState,
   {
-    readonly state: SubscriptionRef.SubscriptionRef<InventorySnapshot>;
+    readonly stream: ConfirmedResource<
+      ReadInventoryResponse,
+      InventoryFailure
+    >['stream'];
     readonly confirm: <A, E, R>(
       operation: Effect.Effect<A, E, R>,
       change: (
@@ -56,19 +53,20 @@ export class InventoryState extends Context.Service<
       InventoryState,
       Effect.gen(function* () {
         const seed = yield* InventorySeed;
-        const queues = yield* WriteQueues;
-        const reactivity = yield* Reactivity.Reactivity;
-        const state = yield* SubscriptionRef.make<InventorySnapshot>({
-          epoch: 0,
-          result: Option.match(seed, {
-            onNone: () =>
-              AsyncResult.initial<ReadInventoryResponse, InventoryFailure>(),
-            onSome: (value) =>
-              AsyncResult.success<ReadInventoryResponse, InventoryFailure>(
-                value,
+        const api = yield* porcelainClient(connection);
+        const resource = yield* confirmedResource(
+          connection,
+          queryKeys.inventory(connection.environmentId),
+          requestEffect(api.projects.readInventory()).pipe(
+            Effect.tap((inventory) =>
+              currentAnswerEffect(
+                connection.request().signal,
+                inventory.environmentId === connection.environmentId,
               ),
-          }),
-        });
+            ),
+          ),
+          seed,
+        );
         function confirm<A, E, R>(
           operation: Effect.Effect<A, E, R>,
           change: (
@@ -76,35 +74,11 @@ export class InventoryState extends Context.Service<
             answer: A,
           ) => ReadInventoryResponse,
         ) {
-          return queues.run(
-            queryKeys.connectedInventory(connection),
-            Effect.gen(function* () {
-              yield* currentAnswerEffect(connection.request().signal);
-              yield* SubscriptionRef.update(state, (current) => ({
-                ...current,
-                epoch: current.epoch + 1,
-              }));
-              const answer = yield* operation;
-              yield* currentAnswerEffect(connection.request().signal);
-              yield* SubscriptionRef.update(state, (current) => ({
-                epoch: current.epoch + 1,
-                result: Option.match(AsyncResult.value(current.result), {
-                  onNone: () => current.result,
-                  onSome: (inventory) =>
-                    AsyncResult.success(change(inventory, answer)),
-                }),
-              }));
-              return answer;
-            }).pipe(
-              Effect.ensuring(
-                reactivity.invalidate([
-                  queryKeys.inventory(connection.environmentId),
-                ]),
-              ),
-            ),
+          return resource.confirm(operation, (previous, answer) =>
+            Option.map(previous, (inventory) => change(inventory, answer)),
           );
         }
-        return { state, confirm };
+        return { stream: resource.stream, confirm };
       }),
     );
   }

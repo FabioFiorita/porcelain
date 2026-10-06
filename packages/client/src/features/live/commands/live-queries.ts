@@ -98,6 +98,10 @@ function applyLiveNotice(
   return Effect.gen(function* () {
     if (notice.type === 'inventory' || notice.type === 'worktree')
       yield* Reactivity.invalidate([queryKeys.inventory(environmentId)]);
+    if (notice.type === 'project' && notice.change === 'preferences')
+      yield* Reactivity.invalidate([
+        queryKeys.filePreferences(environmentId, notice.projectId),
+      ]);
     yield* Effect.forEach(
       noticeQueryFilters(environmentId, notice),
       (filters) => nativeOperation(() => client.invalidateQueries(filters)),
@@ -179,7 +183,9 @@ export function connectLiveQueries(
     onReconnect: () => {
       if (signal.aborted) return;
       const refresh = Effect.andThen(
-        Reactivity.invalidate([queryKeys.inventory(connection.environmentId)]),
+        Reactivity.invalidate([
+          queryKeys.environment(connection.environmentId),
+        ]),
         nativeOperation(() =>
           client.invalidateQueries({
             type: 'active',

@@ -1,4 +1,4 @@
-import { Context, Effect, Layer } from 'effect';
+import { Context, Effect, Equal, Layer } from 'effect';
 import { OperationStore } from '../../git-actions/store/operations.ts';
 import type { Remote } from '../../access/rules/remotes.ts';
 import type { AccessPlatform } from '../../access/ports/access-platform.ts';
@@ -40,7 +40,7 @@ export class RemoteConnection extends Context.Service<
           ),
           (connection) => Effect.promise(connection.close),
         );
-        return {
+        return Equal.byReference({
           ...lifetime.connection,
           controller: lifetime.controller,
           operations,
@@ -49,7 +49,7 @@ export class RemoteConnection extends Context.Service<
             lifetime.connection.transport,
             input.socket,
           ),
-        };
+        });
       }),
     );
   }

@@ -1,27 +1,21 @@
-import { runRequest } from '../../../shared/api/effect-client.ts';
-import type { QueryFunctionContext } from '@tanstack/query-core';
-import type { WorktreeConnection } from '../../../shared/api/connection.ts';
-import { queryKeys } from '../../../shared/api/query-keys.ts';
-import { assertCurrentAnswer } from '../../../shared/api/stale-answer.ts';
-import { projectsApi } from '../api.ts';
+import { Effect, Stream } from 'effect';
+import { AsyncResult, Atom } from 'effect/reactivity';
+import type { RuntimeConnection } from '../../../shared/api/connection.ts';
+import {
+  FilePreferencesState,
+  filePreferencesRuntime,
+} from '../store/file-preferences.ts';
 
-export function filePreferencesQueryOptions(
-  connection: WorktreeConnection,
-  projectId: string,
-) {
-  return {
-    queryKey: queryKeys.withIdentity(
-      queryKeys.filePreferences(connection.environmentId, projectId),
-      connection,
-    ),
-    queryFn: async ({ signal }: Pick<QueryFunctionContext, 'signal'>) => {
-      const connected = connection.request(signal);
-      const result = await runRequest(
-        projectsApi(connection).listFilePreferences({ params: { projectId } }),
-        connected.signal,
-      );
-      assertCurrentAnswer(connected.signal);
-      return result;
-    },
-  };
-}
+export const readFilePreferences = Atom.family(
+  (input: { connection: RuntimeConnection; projectId: string }) =>
+    filePreferencesRuntime(input)
+      .atom(
+        Stream.unwrap(
+          Effect.map(FilePreferencesState, (preferences) => preferences.stream),
+        ),
+      )
+      .pipe(
+        Atom.map((result) => AsyncResult.flatMap(result, (answer) => answer)),
+        Atom.setIdleTTL(0),
+      ),
+);

@@ -1,41 +1,37 @@
-import { Effect } from 'effect';
-import { nativeOperation } from '@porcelain/effects';
-import type { QueryClient } from '@tanstack/query-core';
+import { Effect, Option } from 'effect';
+import { Atom } from 'effect/reactivity';
 import type { SetFilePreferenceRequest } from '@porcelain/contracts/projects';
-import type { WorktreeConnection } from '../../../shared/api/connection.ts';
+import type { RuntimeConnection } from '../../../shared/api/connection.ts';
+import { porcelainClient } from '../../../shared/api/client.ts';
 import { requestEffect } from '../../../shared/api/effect-client.ts';
-import { currentAnswerEffect } from '../../../shared/api/stale-answer.ts';
-import { WriteQueues } from '../../../shared/api/write-queue.ts';
-import { projectsApi } from '../api.ts';
-import { filePreferencesQueryOptions } from '../queries/file-preferences.ts';
+import {
+  FilePreferencesState,
+  filePreferencesRuntime,
+} from '../store/file-preferences.ts';
 
-export function setFilePreference(
-  connection: WorktreeConnection,
-  client: QueryClient,
-  projectId: string,
-  input: SetFilePreferenceRequest,
-) {
-  const key = filePreferencesQueryOptions(connection, projectId).queryKey;
-  return WriteQueues.use((queues) =>
-    queues.run(
-      key,
-      Effect.gen(function* () {
-        const request = connection.request();
-        const result = yield* requestEffect(
-          projectsApi(connection).setFilePreference({
-            params: { projectId },
-            payload: input,
-          }),
-          request.signal,
-        );
-        yield* currentAnswerEffect(request.signal);
-        yield* nativeOperation(() =>
-          client.cancelQueries({ queryKey: key, exact: true }),
-        );
-        yield* currentAnswerEffect(request.signal);
-        client.setQueryData(key, result);
-        return result;
-      }),
+export const setFilePreference = Atom.family(
+  ({
+    connection,
+    projectId,
+  }: {
+    connection: RuntimeConnection;
+    projectId: string;
+  }) =>
+    filePreferencesRuntime({ connection, projectId }).fn(
+      (input: SetFilePreferenceRequest) =>
+        Effect.gen(function* () {
+          const api = yield* porcelainClient(connection);
+          const preferences = yield* FilePreferencesState;
+          return yield* preferences.confirm(
+            requestEffect(
+              api.projects.setFilePreference({
+                params: { projectId },
+                payload: input,
+              }),
+            ),
+            (_, answer) => Option.some(answer),
+          );
+        }),
+      { concurrent: true },
     ),
-  );
-}
+);

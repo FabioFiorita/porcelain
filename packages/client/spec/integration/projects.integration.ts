@@ -1,4 +1,3 @@
-import { runClientRequest } from '@porcelain/client/transport';
 import { afterEach, expect } from 'vitest';
 import { Effect } from 'effect';
 import { AtomRegistry } from 'effect/reactivity';
@@ -10,7 +9,7 @@ import {
   removeProject,
   readInventory,
   setFilePreference,
-  filePreferencesQueryOptions,
+  readFilePreferences,
 } from '@porcelain/client/projects';
 import { connection } from '../kit/connection.ts';
 
@@ -54,18 +53,34 @@ test('register, rename, pin and remove a repository through the shared project o
       )
     ).projects.find((entry) => entry.id === project.id)?.name,
   ).toBe('Shared project');
-  await runClientRequest(
-    setFilePreference(connected, cache, project.id, {
-      path: session.fixture.readme.path,
-      flag: 'pinned',
-      value: true,
-    }),
-    connected.request().signal,
-    connected.runtime,
+  const preferences = readFilePreferences({
+    connection: connected,
+    projectId: project.id,
+  });
+  registry.mount(preferences);
+  await Effect.runPromise(
+    AtomRegistry.getResult(registry, preferences, { suspendOnWaiting: true }),
+  );
+  const preference = setFilePreference({
+    connection: connected,
+    projectId: project.id,
+  });
+  registry.set(preference, {
+    path: session.fixture.readme.path,
+    flag: 'pinned',
+    value: true,
+  });
+  await Effect.runPromise(
+    AtomRegistry.getResult(registry, preference, { suspendOnWaiting: true }),
   );
   expect(
-    (await cache.query(filePreferencesQueryOptions(connected, project.id)))
-      .preferences,
+    (
+      await Effect.runPromise(
+        AtomRegistry.getResult(registry, preferences, {
+          suspendOnWaiting: true,
+        }),
+      )
+    ).preferences,
   ).toContainEqual({
     path: session.fixture.readme.path,
     hidden: false,

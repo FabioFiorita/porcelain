@@ -18,7 +18,6 @@ const receipt: RunGitActionResponse = {
 function cache() {
   const client = new QueryClient();
   const keys = {
-    preferences: queryKeys.filePreferences('environment', scope.projectId),
     changes: queryKeys.reviewSurface('environment', scope, ['changes']),
     file: queryKeys.reviewSurface('environment', scope, ['text', 'file.ts']),
     branch: queryKeys.reviewSurface('environment', scope, ['branch']),
@@ -47,7 +46,6 @@ it.each([
   {
     change: 'files',
     expected: {
-      preferences: false,
       changes: true,
       file: true,
       branch: false,
@@ -60,7 +58,6 @@ it.each([
   {
     change: 'git',
     expected: {
-      preferences: false,
       changes: true,
       file: false,
       branch: true,
@@ -73,7 +70,6 @@ it.each([
   {
     change: 'comments',
     expected: {
-      preferences: false,
       changes: false,
       file: false,
       branch: false,
@@ -101,7 +97,7 @@ it.each([
   },
 );
 
-it('a preference notice leaves file contents and inventory untouched', async () => {
+it('a preference notice leaves the remaining review caches untouched', async () => {
   const subject = cache();
   await Promise.all(
     noticeQueryFilters('environment', {
@@ -111,7 +107,6 @@ it('a preference notice leaves file contents and inventory untouched', async () 
     }).map((filters) => subject.client.invalidateQueries(filters)),
   );
   expect(subject.invalidated()).toEqual({
-    preferences: true,
     changes: false,
     file: false,
     branch: false,
@@ -131,7 +126,6 @@ it('a completed push refreshes branch and history without invalidating published
     ),
   );
   expect(subject.invalidated()).toEqual({
-    preferences: false,
     changes: true,
     file: false,
     branch: true,
@@ -153,7 +147,6 @@ it.each(['running', 'rejected', 'no-change'] as const)(
       ),
     );
     expect(subject.invalidated()).toEqual({
-      preferences: false,
       changes: false,
       file: false,
       branch: false,

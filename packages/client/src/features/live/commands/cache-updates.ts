@@ -4,7 +4,6 @@ import type { QueryFilters } from '@tanstack/query-core';
 import {
   fileSurfaces,
   gitSurfaces,
-  queryKeys,
   reviewSurfaceFilters,
 } from '../../../shared/api/query-keys.ts';
 import {
@@ -26,17 +25,7 @@ export function noticeQueryFilters(
   )
     return [];
   if (notice.type === 'inventory') return [];
-  if (notice.type === 'project')
-    return notice.change === 'preferences'
-      ? [
-          {
-            queryKey: queryKeys.filePreferences(
-              environmentId,
-              notice.projectId,
-            ),
-          },
-        ]
-      : [];
+  if (notice.type === 'project') return [];
   const surfaces = new Set(noticeSurfaces(notice)?.surfaces);
   if (notice.change === 'files')
     for (const surface of fileSurfaces) surfaces.add(surface);
