@@ -1,5 +1,5 @@
 import { AtomRegistry, AsyncResult, Reactivity } from 'effect/reactivity';
-import { Context, Effect, Fiber, Option } from 'effect';
+import { Layer, Context, Effect, Fiber, Option } from 'effect';
 import { expect, it } from 'vitest';
 import type { RunGitActionResponse } from '@porcelain/contracts/git-actions';
 import {
@@ -32,11 +32,15 @@ const before = {
 const after = { ...before, statusToken: 'b'.repeat(64) };
 
 async function setup(transport: Transport) {
-  const lifetime = createWorktreeConnection({
-    environmentId: '44444444-4444-4444-8444-444444444444',
-    transport,
-    timeoutMs: 1000,
-  });
+  const lifetime = createWorktreeConnection(
+    {
+      environmentId: '44444444-4444-4444-8444-444444444444',
+      transport,
+      timeoutMs: 1000,
+    },
+    undefined,
+    Layer.empty,
+  );
   const registry = AtomRegistry.make();
   const runtime = receiptRuntime(lifetime.connection);
   const stopRuntime = registry.mount(runtime);

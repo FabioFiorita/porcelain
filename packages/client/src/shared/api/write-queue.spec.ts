@@ -313,8 +313,8 @@ it('shares an application memo map without sharing connection write admission', 
     transport: () => Promise.resolve(Response.json({})),
     timeoutMs: 1000,
   };
-  const first = createWorktreeConnection(input, memoMap);
-  const second = createWorktreeConnection(input, memoMap);
+  const first = createWorktreeConnection(input, memoMap, Layer.empty);
+  const second = createWorktreeConnection(input, memoMap, Layer.empty);
   const entered = Deferred.makeUnsafe<void>();
   first.connection.runtime.runFork(
     WriteQueues.use((queues) =>

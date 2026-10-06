@@ -34,12 +34,16 @@ function inventory(
   };
 }
 function fixture(transport: Transport, cacheIdentity?: readonly string[]) {
-  const lifetime = createWorktreeConnection({
-    environmentId,
-    transport,
-    timeoutMs: 10_000,
-    ...(cacheIdentity ? { cacheIdentity } : {}),
-  });
+  const lifetime = createWorktreeConnection(
+    {
+      environmentId,
+      transport,
+      timeoutMs: 10_000,
+      ...(cacheIdentity ? { cacheIdentity } : {}),
+    },
+    undefined,
+    Layer.empty,
+  );
   const registry = AtomRegistry.make();
   owned.add({ connection: lifetime.connection, registry });
   return { ...lifetime, registry };

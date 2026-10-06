@@ -21,9 +21,10 @@ import {
 import { ConnectionError } from '../../../shared/api/connection-error.ts';
 import { GitReceiptRefresh, receiptRuntime } from './refresh-receipt.ts';
 
-export type GitConnection = RuntimeConnection & {
+export type GitConnection = RuntimeConnection<
+  OperationStore | Crypto.Crypto
+> & {
   readonly operations: Context.Service.Shape<typeof OperationStore>;
-  readonly cryptoLayer: Layer.Layer<Crypto.Crypto>;
 };
 type Selection = {
   readonly connection: GitConnection;
@@ -189,8 +190,7 @@ const controllerRuntime = Atom.family((selection: Selection) =>
       GitActionController.layer(selection),
       Layer.mergeAll(
         get(receiptRuntime(selection.connection).layer),
-        Layer.succeed(OperationStore, selection.connection.operations),
-        selection.connection.cryptoLayer,
+        Layer.effectContext(selection.connection.runtime.contextEffect),
       ),
     ),
   ),

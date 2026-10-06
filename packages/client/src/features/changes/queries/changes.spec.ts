@@ -1,6 +1,6 @@
 import { editFile } from '@porcelain/client/files';
 import { afterEach, expect, it } from 'vitest';
-import { Effect, Option, Schema, Stream } from 'effect';
+import { Layer, Effect, Option, Schema, Stream } from 'effect';
 import { DIFFS_PER_REQUEST } from '@porcelain/contracts/shared';
 import {
   readChangeDiffs,
@@ -36,11 +36,15 @@ afterEach(async () => {
   owned.length = 0;
 });
 function fixture(transport: Transport) {
-  const lifetime = createWorktreeConnection({
-    environmentId,
-    transport,
-    timeoutMs: 10_000,
-  });
+  const lifetime = createWorktreeConnection(
+    {
+      environmentId,
+      transport,
+      timeoutMs: 10_000,
+    },
+    undefined,
+    Layer.empty,
+  );
   const registry = AtomRegistry.make();
   owned.push(async () => {
     registry.dispose();

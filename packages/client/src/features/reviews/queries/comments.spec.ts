@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { Effect } from 'effect';
+import { Layer, Effect } from 'effect';
 import { AtomRegistry } from 'effect/reactivity';
 import { createWorktreeConnection } from '@porcelain/client/transport';
 import { readCommentThreads } from './comments.ts';
@@ -27,11 +27,15 @@ const owned: {
   registry: AtomRegistry.AtomRegistry;
 }[] = [];
 function read(answer: object[]) {
-  const lifetime = createWorktreeConnection({
-    environmentId: 'environment',
-    timeoutMs: 10_000,
-    transport: () => Promise.resolve(Response.json(answer)),
-  });
+  const lifetime = createWorktreeConnection(
+    {
+      environmentId: 'environment',
+      timeoutMs: 10_000,
+      transport: () => Promise.resolve(Response.json(answer)),
+    },
+    undefined,
+    Layer.empty,
+  );
   const registry = AtomRegistry.make();
   owned.push({ close: lifetime.close, registry });
   return Effect.runPromise(

@@ -55,31 +55,37 @@ function setup(
     typeof OperationStore
   > = operationStoreFixture().store,
 ) {
-  const lifetime = createWorktreeConnection({
-    environmentId: '44444444-4444-4444-8444-444444444444',
-    transport,
-    timeoutMs: 1000,
-  });
   const registry = AtomRegistry.make();
   let ids = 0;
+  const lifetime = createWorktreeConnection(
+    {
+      environmentId: '44444444-4444-4444-8444-444444444444',
+      transport,
+      timeoutMs: 1000,
+    },
+    undefined,
+    Layer.merge(
+      Layer.succeed(OperationStore, operations),
+      Layer.succeed(
+        Crypto.Crypto,
+        Crypto.make({
+          randomBytes: () => {
+            ids++;
+            return new Uint8Array(
+              requestId
+                .replaceAll('-', '')
+                .match(/../g)
+                ?.map((part) => parseInt(part, 16)) ?? [],
+            );
+          },
+          digest: (_, bytes) => Effect.succeed(bytes),
+        }),
+      ),
+    ),
+  );
   const connection = Equal.byReference({
     ...lifetime.connection,
     operations,
-    cryptoLayer: Layer.succeed(
-      Crypto.Crypto,
-      Crypto.make({
-        randomBytes: () => {
-          ids++;
-          return new Uint8Array(
-            requestId
-              .replaceAll('-', '')
-              .match(/../g)
-              ?.map((part) => parseInt(part, 16)) ?? [],
-          );
-        },
-        digest: (_, bytes) => Effect.succeed(bytes),
-      }),
-    ),
   });
   const selection = { connection, scope, action: 'commit' as const };
   const command = runGitAction(selection);

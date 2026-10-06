@@ -1,4 +1,4 @@
-import { Effect, ManagedRuntime } from 'effect';
+import { Layer, Effect, ManagedRuntime } from 'effect';
 import type { EditFileRequest } from '@porcelain/contracts/files';
 
 import { describe, expect, it } from 'vitest';
@@ -35,6 +35,7 @@ function setup(
       timeoutMs: 1000,
     },
     application.memoMap,
+    Layer.empty,
   );
   const registry = AtomRegistry.make();
   const command = editFile({ connection: lifetime.connection, scope });

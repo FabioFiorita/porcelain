@@ -23,11 +23,15 @@ afterEach(async () => {
   scopes.clear();
 });
 function fixture(transport: Transport) {
-  const { connection } = createWorktreeConnection({
-    environmentId: 'environment',
-    transport,
-    timeoutMs: 10_000,
-  });
+  const { connection } = createWorktreeConnection(
+    {
+      environmentId: 'environment',
+      transport,
+      timeoutMs: 10_000,
+    },
+    undefined,
+    Layer.empty,
+  );
   const registry = AtomRegistry.make();
   scopes.add({ connection, registry });
   return { connection, registry };

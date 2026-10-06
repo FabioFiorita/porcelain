@@ -4,9 +4,10 @@ import { WriteQueues } from './write-queue.ts';
 import { ReadSubscriptions } from './read-subscriptions.ts';
 import type { RuntimeConnection, WorktreeConnection } from './connection.ts';
 
-export function createWorktreeConnection(
+export function createWorktreeConnection<R = never>(
   input: Omit<WorktreeConnection, 'request'> & { timeoutMs: number },
-  memoMap?: Layer.MemoMap,
+  memoMap: Layer.MemoMap | undefined,
+  services: Layer.Layer<R, never>,
 ) {
   const controller = new AbortController();
   const { timeoutMs, ...context } = input;
@@ -15,6 +16,7 @@ export function createWorktreeConnection(
       Layer.fresh(WriteQueues.layer),
       Reactivity.layer,
       Layer.fresh(ReadSubscriptions.layer),
+      services,
     ),
     { memoMap },
   );
@@ -30,7 +32,7 @@ export function createWorktreeConnection(
     },
     { once: true },
   );
-  const connection = Equal.byReference<RuntimeConnection>({
+  const connection = Equal.byReference<RuntimeConnection<R>>({
     runtime,
     atoms,
     close,

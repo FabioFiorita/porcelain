@@ -1,5 +1,5 @@
 import { afterEach, expect, it } from 'vitest';
-import { Effect, Option, Stream } from 'effect';
+import { Layer, Effect, Option, Stream } from 'effect';
 import { AsyncResult, AtomRegistry, Reactivity } from 'effect/reactivity';
 import {
   readFilePreferences,
@@ -26,11 +26,15 @@ afterEach(async () => {
   owned.clear();
 });
 function fixture(transport: Transport) {
-  const { connection } = createWorktreeConnection({
-    environmentId,
-    transport,
-    timeoutMs: 10_000,
-  });
+  const { connection } = createWorktreeConnection(
+    {
+      environmentId,
+      transport,
+      timeoutMs: 10_000,
+    },
+    undefined,
+    Layer.empty,
+  );
   const registry = AtomRegistry.make();
   const subject = { connection, registry };
   owned.add(subject);

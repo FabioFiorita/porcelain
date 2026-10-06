@@ -10,7 +10,7 @@ import {
   EnvironmentStorage,
   type AccessPlatformValue,
 } from '@porcelain/client/access';
-import { Effect, Equal, Layer, ManagedRuntime, Option } from 'effect';
+import { Effect, Layer, ManagedRuntime, Option } from 'effect';
 import { Atom, AtomRef } from 'effect/reactivity';
 import { useAtomRef, useAtomValue } from '@effect/atom-react';
 import { environmentStorage } from './adapters/environment-storage';
@@ -26,21 +26,18 @@ import { syncRemoteConnections } from '@porcelain/client/access/rules';
 import { type Remote } from '@porcelain/client/access/rules';
 import { REQUEST_TIMEOUT_MS } from '@/config/limits';
 import { browserTransport } from '@/shared/api/transport';
+import type { Transport } from '@porcelain/client/transport';
 import {
-  createWorktreeConnection,
-  remoteTransport,
-  type Transport,
-} from '@porcelain/client/transport';
-import { remoteLiveUpdates, type LiveUpdatePort } from '@porcelain/client/live';
+  openLiveConnection,
+  openRemoteConnection,
+  type LiveUpdatePort,
+} from '@porcelain/client/live';
 import {
   sameOriginLiveUpdates,
   webSocket,
 } from '@/shared/adapters/live-socket';
 import { FileDrafts } from '@porcelain/client/files';
-import {
-  OperationStore,
-  OperationStorage,
-} from '@porcelain/client/git-actions';
+import { OperationStorage } from '@porcelain/client/git-actions';
 import { operationStorage } from './adapters/operation-storage';
 import { BrowserCrypto } from '@effect/platform-browser';
 import {
@@ -66,33 +63,20 @@ type AccessState = {
 };
 
 function createConnection(environmentId: string, server: Server): Connection {
-  const { connection: requests, controller } = createWorktreeConnection(
+  return openLiveConnection(
     {
       environmentId,
+      address: server.address,
       transport: server.transport,
+      liveUpdates: server.liveUpdates,
       timeoutMs: REQUEST_TIMEOUT_MS,
     },
+    Layer.merge(
+      BrowserCrypto.layer,
+      Layer.succeed(OperationStorage, operationStorage(server.operationsKey)),
+    ),
     applicationRuntime.memoMap,
   );
-  const operationRuntime = ManagedRuntime.make(
-    OperationStore.layer.pipe(
-      Layer.provide(
-        Layer.succeed(OperationStorage, operationStorage(server.operationsKey)),
-      ),
-    ),
-  );
-  const connection = Equal.byReference<Connection>({
-    ...requests,
-    address: server.address,
-    environmentId,
-    controller,
-    operationRuntime,
-    operations: operationRuntime.runSync(OperationStore),
-    cryptoLayer: BrowserCrypto.layer,
-    liveUpdates: server.liveUpdates,
-  });
-  applicationRuntime.runSync(FileDrafts).adopt(connection);
-  return connection;
 }
 
 function localConnection({ inventory, principal }: BrowserSession) {
@@ -110,20 +94,30 @@ function localConnection({ inventory, principal }: BrowserSession) {
 }
 
 function remoteConnection(remote: Remote) {
-  const transport = remoteTransport(remote.address, remote.credential, fetch);
-  return createConnection(remote.environmentId, {
-    address: remote.address,
-    transport,
-    liveUpdates: remoteLiveUpdates(remote.address, transport, webSocket),
-    operationsKey: remote.deviceId
-      ? `porcelain-git-requests:${JSON.stringify([remote.environmentId, remote.address, remote.deviceId])}`
-      : undefined,
-  });
+  return openRemoteConnection(
+    {
+      ...remote,
+      send: fetch,
+      socket: webSocket,
+      timeoutMs: REQUEST_TIMEOUT_MS,
+    },
+    Layer.merge(
+      BrowserCrypto.layer,
+      Layer.succeed(
+        OperationStorage,
+        operationStorage(
+          remote.deviceId
+            ? `porcelain-git-requests:${JSON.stringify([remote.environmentId, remote.address, remote.deviceId])}`
+            : undefined,
+        ),
+      ),
+    ),
+    applicationRuntime.memoMap,
+  );
 }
 
 function close(connection: Connection) {
   void connection.close();
-  void connection.operationRuntime.dispose();
 }
 
 const stores = Layer.merge(AccessStore.layer, EnvironmentMutations.layer).pipe(

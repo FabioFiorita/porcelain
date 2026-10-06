@@ -1,9 +1,6 @@
-import { Layer, ManagedRuntime } from 'effect';
-import { RemoteConnection } from '@porcelain/client/live';
-import {
-  OperationStore,
-  OperationStorage,
-} from '@porcelain/client/git-actions';
+import { Layer } from 'effect';
+import { openRemoteConnection } from '@porcelain/client/live';
+import { OperationStorage } from '@porcelain/client/git-actions';
 import type { AccessPlatformValue } from '@porcelain/client/access';
 import type { Remote } from '@porcelain/client/access/rules';
 import { operationStorage } from './operation-storage';
@@ -11,7 +8,6 @@ import { mobileSocket } from '../../../shared/adapters/live-socket';
 import { cryptoLayer } from './crypto';
 import { REQUEST_TIMEOUT_MS } from '../../../config/limits';
 import { applicationMemoMap } from '../../../shared/application/store';
-import { FileDrafts } from '@porcelain/client/files';
 
 export function createProjectConnection(
   input: Pick<
@@ -19,37 +15,27 @@ export function createProjectConnection(
     'environmentId' | 'address' | 'credential' | 'deviceId'
   > & { send: AccessPlatformValue['send'] },
 ) {
-  const runtime = ManagedRuntime.make(
-    RemoteConnection.layer({
+  const connection = openRemoteConnection(
+    {
       ...input,
       socket: mobileSocket,
-      cryptoLayer,
       timeoutMs: REQUEST_TIMEOUT_MS,
-      memoMap: applicationMemoMap,
-    }).pipe(
-      Layer.provide(
-        Layer.merge(Layer.fresh(OperationStore.layer), FileDrafts.layer),
-      ),
-      Layer.provide(
-        Layer.succeed(
-          OperationStorage,
-          operationStorage(
-            JSON.stringify([
-              input.environmentId,
-              input.address,
-              input.deviceId,
-            ]),
-          ),
+    },
+    Layer.merge(
+      cryptoLayer,
+      Layer.succeed(
+        OperationStorage,
+        operationStorage(
+          JSON.stringify([input.environmentId, input.address, input.deviceId]),
         ),
       ),
     ),
-    { memoMap: applicationMemoMap },
+    applicationMemoMap,
   );
-  const connection = runtime.runSync(RemoteConnection);
   return {
     connection,
     close: () => {
-      void runtime.dispose();
+      void connection.close();
     },
   };
 }

@@ -1,4 +1,4 @@
-import { Effect } from 'effect';
+import { Layer, Effect } from 'effect';
 import { AtomRegistry } from 'effect/reactivity';
 import { expect, it } from 'vitest';
 import {
@@ -23,11 +23,15 @@ const draft = {
 };
 
 function setup(transport: Transport) {
-  const lifetime = createWorktreeConnection({
-    environmentId: 'draft',
-    transport,
-    timeoutMs: 1000,
-  });
+  const lifetime = createWorktreeConnection(
+    {
+      environmentId: 'draft',
+      transport,
+      timeoutMs: 1000,
+    },
+    undefined,
+    Layer.empty,
+  );
   const registry = AtomRegistry.make();
   const command = generateCommitDraft({
     connection: lifetime.connection,

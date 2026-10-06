@@ -1,4 +1,4 @@
-import { Effect, Exit } from 'effect';
+import { Layer, Effect, Exit } from 'effect';
 import { AtomRegistry } from 'effect/reactivity';
 import { afterEach, expect, it } from 'vitest';
 import {
@@ -21,11 +21,15 @@ afterEach(async () => {
   scopes.clear();
 });
 function fixture(transport: Transport) {
-  const { connection } = createWorktreeConnection({
-    environmentId: 'environment',
-    transport,
-    timeoutMs: 10_000,
-  });
+  const { connection } = createWorktreeConnection(
+    {
+      environmentId: 'environment',
+      transport,
+      timeoutMs: 10_000,
+    },
+    undefined,
+    Layer.empty,
+  );
   const registry = AtomRegistry.make();
   scopes.add({ connection, registry });
   return { connection, registry };

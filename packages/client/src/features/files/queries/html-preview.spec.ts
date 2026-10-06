@@ -15,11 +15,15 @@ afterEach(async () => {
   owned.length = 0;
 });
 function fixture(transport: Transport) {
-  const lifetime = createWorktreeConnection({
-    environmentId: 'environment-1',
-    transport,
-    timeoutMs: 10_000,
-  });
+  const lifetime = createWorktreeConnection(
+    {
+      environmentId: 'environment-1',
+      transport,
+      timeoutMs: 10_000,
+    },
+    undefined,
+    Layer.empty,
+  );
   const registry = AtomRegistry.make();
   owned.push(async () => {
     registry.dispose();

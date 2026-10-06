@@ -41,22 +41,35 @@ async function setup(
   transport?: Transport,
   onSubscription?: (subscription: LiveSubscription) => void,
 ) {
-  const lifetime = createWorktreeConnection({
-    environmentId,
-    transport:
-      transport ??
-      (() =>
-        Promise.resolve(
-          Response.json({
-            environmentId,
-            environment: { name: 'Live', custom: false },
-            projects: [],
-          }),
-        )),
-    timeoutMs: 1000,
-  });
-  const registry = AtomRegistry.make();
   const { store: operations } = operationStoreFixture();
+  const lifetime = createWorktreeConnection(
+    {
+      environmentId,
+      transport:
+        transport ??
+        (() =>
+          Promise.resolve(
+            Response.json({
+              environmentId,
+              environment: { name: 'Live', custom: false },
+              projects: [],
+            }),
+          )),
+      timeoutMs: 1000,
+    },
+    undefined,
+    Layer.merge(
+      Layer.succeed(OperationStore, operations),
+      Layer.succeed(
+        Crypto.Crypto,
+        Crypto.make({
+          randomBytes: (size) => new Uint8Array(size),
+          digest: (_, bytes) => Effect.succeed(bytes),
+        }),
+      ),
+    ),
+  );
+  const registry = AtomRegistry.make();
   const sent: LiveSubscription[] = [];
   const subscribed = Promise.withResolvers<void>();
   let live: Parameters<LiveUpdatePort['connect']>[0] | undefined;
@@ -76,13 +89,6 @@ async function setup(
     ...lifetime.connection,
     controller: lifetime.controller,
     operations,
-    cryptoLayer: Layer.succeed(
-      Crypto.Crypto,
-      Crypto.make({
-        randomBytes: (size) => new Uint8Array(size),
-        digest: (_, bytes) => Effect.succeed(bytes),
-      }),
-    ),
     liveUpdates,
   });
   const owner = liveQueries({ connection, onUnauthorized: () => {} });

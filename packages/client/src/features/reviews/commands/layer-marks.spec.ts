@@ -1,5 +1,5 @@
 import { expect, it } from '@effect/vitest';
-import { Effect, Fiber, Option, Stream } from 'effect';
+import { Layer, Effect, Fiber, Option, Stream } from 'effect';
 import { AtomRegistry, AsyncResult, Reactivity } from 'effect/reactivity';
 import {
   createWorktreeConnection,
@@ -25,11 +25,15 @@ const confirmed = {
 function fixture(transport: Transport) {
   return Effect.acquireRelease(
     Effect.sync(() => ({
-      ...createWorktreeConnection({
-        environmentId: 'environment',
-        timeoutMs: 10_000,
-        transport,
-      }),
+      ...createWorktreeConnection(
+        {
+          environmentId: 'environment',
+          timeoutMs: 10_000,
+          transport,
+        },
+        undefined,
+        Layer.empty,
+      ),
       registry: AtomRegistry.make(),
     })),
     (subject) =>

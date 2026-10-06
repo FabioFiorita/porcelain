@@ -1,5 +1,5 @@
 import { afterEach, expect, it } from 'vitest';
-import { Effect } from 'effect';
+import { Layer, Effect } from 'effect';
 import { AtomRegistry } from 'effect/reactivity';
 import {
   createWorktreeConnection,
@@ -16,12 +16,16 @@ afterEach(async () => {
   owned.length = 0;
 });
 function fixture(transport: Transport, cacheIdentity?: readonly string[]) {
-  const lifetime = createWorktreeConnection({
-    environmentId: 'environment',
-    transport,
-    timeoutMs: 10_000,
-    ...(cacheIdentity ? { cacheIdentity } : {}),
-  });
+  const lifetime = createWorktreeConnection(
+    {
+      environmentId: 'environment',
+      transport,
+      timeoutMs: 10_000,
+      ...(cacheIdentity ? { cacheIdentity } : {}),
+    },
+    undefined,
+    Layer.empty,
+  );
   const registry = AtomRegistry.make();
   owned.push(async () => {
     registry.dispose();

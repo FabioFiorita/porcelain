@@ -58,6 +58,7 @@ function fixture(steps: string[], transport?: Transport) {
         }),
     },
     application.memoMap,
+    Layer.empty,
   );
   connection.atoms.addGlobalLayer(
     Layer.succeed(InventorySeed, Option.some(initial)),

@@ -1,4 +1,4 @@
-import { Effect, Schema } from 'effect';
+import { Effect, Layer, Schema } from 'effect';
 import { AtomRegistry, type Atom, type AsyncResult } from 'effect/reactivity';
 import { afterEach } from 'vitest';
 import { createWorktreeConnection } from '../../src/shared/api/worktree-connection.ts';
@@ -9,13 +9,17 @@ import { inventory } from '@porcelain/server/kit/reads';
 import { readInventoryResponseSchema } from '@porcelain/contracts/projects';
 
 export async function connection(server: IsolatedServer, session: Session) {
-  const lifetime = createWorktreeConnection({
-    timeoutMs: 15_000,
-    environmentId: Schema.decodeUnknownSync(readInventoryResponseSchema)(
-      await inventory(session),
-    ).environmentId,
-    transport: remoteTransport(server.address, server.credential, fetch),
-  });
+  const lifetime = createWorktreeConnection(
+    {
+      timeoutMs: 15_000,
+      environmentId: Schema.decodeUnknownSync(readInventoryResponseSchema)(
+        await inventory(session),
+      ).environmentId,
+      transport: remoteTransport(server.address, server.credential, fetch),
+    },
+    undefined,
+    Layer.empty,
+  );
   const registry = AtomRegistry.make();
   lifetimes.add({ lifetime, registry });
   return {
@@ -40,7 +44,7 @@ export async function connection(server: IsolatedServer, session: Session) {
 }
 
 const lifetimes = new Set<{
-  lifetime: ReturnType<typeof createWorktreeConnection>;
+  lifetime: ReturnType<typeof createWorktreeConnection<never>>;
   registry: AtomRegistry.AtomRegistry;
 }>();
 afterEach(async () => {

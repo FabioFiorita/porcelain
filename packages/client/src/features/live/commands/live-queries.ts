@@ -216,7 +216,7 @@ const liveRuntime = Atom.family((connection: LiveConnection) =>
     Layer.mergeAll(
       get(inventoryRuntime(connection).layer),
       get(receiptRuntime(connection).layer),
-      Layer.succeed(OperationStore, connection.operations),
+      Layer.effectContext(connection.runtime.contextEffect),
     ),
   ),
 );
