@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { Effect, Layer, Option, Stream } from 'effect';
+import { Cause, Effect, Exit, Layer, Option, Stream } from 'effect';
 import { InventorySeed, registerProject } from '@porcelain/client/projects';
 import { AsyncResult, AtomRegistry, Reactivity } from 'effect/reactivity';
 import type { ReadInventoryResponse } from '@porcelain/contracts/projects';
@@ -76,18 +76,67 @@ describe('reading a connected project inventory', () => {
     );
   });
   it('rejects a completed read when its connection was cancelled', async () => {
+    let requests = 0;
     const subject = fixture(() => {
+      requests += 1;
       subject.controller.abort();
       return Promise.resolve(Response.json(inventory()));
     });
-    await expect(read(subject)).rejects.toThrow();
-    expect(
-      Option.getOrUndefined(
-        AsyncResult.value(
-          subject.registry.get(readInventory(subject.connection)),
-        ),
+    const answer = await Effect.runPromiseExit(
+      AtomRegistry.getResult(
+        subject.registry,
+        readInventory(subject.connection),
+        { suspendOnWaiting: true },
       ),
-    ).toBeUndefined();
+    );
+    expect(Exit.isFailure(answer)).toBe(true);
+    if (Exit.isFailure(answer))
+      expect(Cause.hasInterrupts(answer.cause)).toBe(true);
+    const result = subject.registry.get(readInventory(subject.connection));
+    expect(AsyncResult.isFailure(result)).toBe(true);
+    expect(result.waiting).toBe(false);
+    expect(Option.getOrUndefined(AsyncResult.value(result))).toBeUndefined();
+    expect(requests).toBe(1);
+  });
+  it('settles a cancelled refresh without replacing its confirmed inventory', async () => {
+    const held = Promise.withResolvers<Response>();
+    const started = Promise.withResolvers<void>();
+    let requests = 0;
+    const subject = fixture(() => {
+      requests += 1;
+      if (requests === 1)
+        return Promise.resolve(Response.json(inventory('Confirmed computer')));
+      started.resolve();
+      return held.promise;
+    });
+    const state = readInventory(subject.connection);
+    const stop = subject.registry.mount(state);
+    try {
+      expect(await read(subject)).toEqual(inventory('Confirmed computer'));
+      subject.registry.refresh(state);
+      await started.promise;
+      const interrupted = Effect.runPromiseExit(
+        AtomRegistry.getResult(subject.registry, state, {
+          suspendOnWaiting: true,
+        }),
+      );
+      subject.controller.abort();
+      held.resolve(Response.json(inventory('Late computer')));
+      const answer = await interrupted;
+      expect(Exit.isFailure(answer)).toBe(true);
+      if (Exit.isFailure(answer))
+        expect(Cause.hasInterrupts(answer.cause)).toBe(true);
+      const result = subject.registry.get(state);
+      expect(AsyncResult.isFailure(result)).toBe(true);
+      expect(result.waiting).toBe(false);
+      expect(Option.getOrThrow(AsyncResult.value(result))).toEqual(
+        inventory('Confirmed computer'),
+      );
+      expect(requests).toBe(2);
+    } finally {
+      held.resolve(Response.json(inventory('Late computer')));
+      stop();
+    }
   });
   it('unmounting the read cancels its HTTP request without closing the connection', async () => {
     const started = Promise.withResolvers<void>();

@@ -1,4 +1,4 @@
-import { Cause, Effect, Exit, Option, Stream, SubscriptionRef } from 'effect';
+import { Effect, Option, Stream, SubscriptionRef } from 'effect';
 import { AsyncResult, Reactivity } from 'effect/reactivity';
 import type { WorktreeConnection } from './connection.ts';
 import type { ConnectionError } from './connection-error.ts';
@@ -50,7 +50,6 @@ export function confirmedResource<A, E>(
           Effect.tap(() => currentAnswerEffect(connection.request().signal)),
         ),
       );
-      if (Exit.isFailure(answer) && Cause.hasInterrupts(answer.cause)) return;
       yield* SubscriptionRef.update(state, (current) =>
         current.epoch === epoch
           ? {

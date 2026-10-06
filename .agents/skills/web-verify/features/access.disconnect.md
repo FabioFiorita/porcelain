@@ -19,6 +19,7 @@ tests:
   - apps/web/spec/e2e/access-disconnect.e2e.ts
 api:
   - DELETE /api/session
+  - GET /api/session
   - GET /api/inventory
 ---
 
@@ -79,14 +80,14 @@ None before step 1. Step 5 writes README.md on disk in the middle of the flow (a
     Look for: heading "This browser is not paired", the text `porcelain pair "This browser" --address http://127.0.0.1:<port>`, Page URL `/pair`.
 14. `$C open /`
     Look for: redirected to Page URL `/pair` with heading "This browser is not paired" again (the session is really gone, not just the page state).
-    `$C network` lists only the requests since the last page load: run right after step 13 it shows `DELETE /api/session` answered 204; run after step 14 it shows `GET /api/inventory` answered 401.
+    `$C network` lists only the requests since the last page load: run right after step 13 it shows `DELETE /api/session` answered 204; run after step 14 it shows `GET /api/session` answered 401.
 15. `$C server devices`
     Look for: "Verification browser" still listed: the device stays paired, only this browser's session ended.
 
 ## What proves it works
 
 - Refusal: the alert "Save or discard unsaved file drafts before disconnecting.", README.md on disk still holding the outside change, one refused file write (409) and no `DELETE /api/session` in `$C network`.
-- Disconnect: heading "This browser is not paired" after the click, and still after `$C open /` (inventory now answers 401).
+- Disconnect: heading "This browser is not paired" after the click, and still after `$C open /` (session restoration now answers 401).
 - The device staying paired: `$C server devices` still lists "Verification browser" after step 14.
 - `apps/web/spec/e2e/access-disconnect.e2e.ts`: (1) the refusal alert shows, the server saw exactly one file write before and after the click, and README.md on disk keeps its outside change; (2) after Back, Resume edit, Reload and Disconnect, the not-paired heading shows and `server.devices()` still contains the browser's label.
 
