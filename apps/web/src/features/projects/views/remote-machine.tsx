@@ -1,3 +1,4 @@
+import type { RemoteConnection } from '@porcelain/client/access';
 import {
   remoteStatusNote,
   remoteStatusText,
@@ -6,11 +7,7 @@ import { ServerIcon } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { SidebarMenuSubItem } from '@/components/ui/sidebar';
-import {
-  remoteStatusVariant,
-  useRemoteStatus,
-  type RemoteConnection,
-} from '@/features/access/index';
+import { remoteStatusVariant, useRemoteStatus } from '@/features/access/index';
 import { useRemoteInventory } from '../queries/inventory';
 import type { WorktreeTarget } from '../rules/worktree-target';
 import { MachineSection } from './machine-section';

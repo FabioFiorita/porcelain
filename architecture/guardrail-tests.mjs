@@ -39,6 +39,8 @@ function nativeTypeFixture(source) {
         __CLIENT_SELECTION__: 'packages/client/src/features/projects/store.ts',
         __CLIENT_QUEUES__: 'packages/client/src/shared/api/write-queue.ts',
         __CLIENT_OPERATIONS__:
+          'packages/client/src/features/git-actions/ports/operation-store.ts',
+        __CLIENT_OPERATION_LAYER__:
           'packages/client/src/features/git-actions/store/operations.ts',
         __PROCESS_COMMAND__: 'packages/process/src/commands/run-command.ts',
         __COMMIT_PLANNING__: 'packages/agents/src/commit-planning/index.ts',

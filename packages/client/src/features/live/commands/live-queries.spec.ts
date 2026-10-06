@@ -1,3 +1,4 @@
+import { operationStoreLayer } from '@porcelain/client/git-actions';
 import { AtomRegistry, Reactivity } from 'effect/reactivity';
 import { readFilePreferences } from '@porcelain/client/projects';
 import { readTextFile } from '@porcelain/client/files';
@@ -292,7 +293,7 @@ function operationStoreFixture(
   storage?: Context.Service.Shape<typeof OperationStorage>,
 ) {
   const runtime = ManagedRuntime.make(
-    OperationStore.layer.pipe(
+    operationStoreLayer.pipe(
       Layer.provide(
         Layer.succeed(
           OperationStorage,

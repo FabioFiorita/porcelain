@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { connectionErrorMessage } from '@porcelain/client/access/rules';
-import { type RemoteConnection } from '@/features/access/index';
+import type { RemoteConnection } from '@porcelain/client/access';
 import {
   useResetProjectBrowser,
   useOpenProject,

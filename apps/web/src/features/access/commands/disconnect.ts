@@ -1,15 +1,19 @@
 import { useAtom } from '@effect/atom-react';
 import { Effect } from 'effect';
 import { Atom } from 'effect/reactivity';
-import { disconnectBrowserSession } from '@porcelain/client/access';
+import {
+  AccessSession,
+  disconnectBrowserSession,
+} from '@porcelain/client/access';
 import type { Connection } from '@/shared/workspace/connection';
-import { accessSession } from '../store';
+import { environmentRuntime } from '../store';
 
 const disconnectAndClear = Atom.family((connection: Connection) =>
-  Atom.fn((_: void, get) =>
+  environmentRuntime.fn((_: void, get) =>
     Effect.gen(function* () {
       yield* get.setResult(disconnectBrowserSession(connection), undefined);
-      accessSession.clear();
+      const session = yield* AccessSession;
+      yield* session.clear();
     }),
   ),
 );

@@ -4,6 +4,9 @@ import type { BrowserSession } from '@porcelain/client/access/rules';
 import { WEB_PLATFORM_NAME_MAX_LENGTH } from '@/config/limits';
 import {
   AccessStore,
+  AccessSession,
+  sessionConnectionsLayer,
+  ConnectionFactory,
   AccessPlatform,
   EnvironmentCommands,
   EnvironmentMutations,
@@ -11,7 +14,7 @@ import {
   type AccessPlatformValue,
 } from '@porcelain/client/access';
 import { Effect, Layer, ManagedRuntime, Option } from 'effect';
-import { Atom, AtomRef } from 'effect/reactivity';
+import { Atom } from 'effect/reactivity';
 import { useAtomRef, useAtomValue } from '@effect/atom-react';
 import { environmentStorage } from './adapters/environment-storage';
 
@@ -22,7 +25,6 @@ export const pairingPlatform: AccessPlatformValue = {
       : navigator.userAgent.slice(0, WEB_PLATFORM_NAME_MAX_LENGTH) || 'Browser',
   send: fetch,
 };
-import { syncRemoteConnections } from '@porcelain/client/access/rules';
 import { type Remote } from '@porcelain/client/access/rules';
 import { REQUEST_TIMEOUT_MS } from '@/config/limits';
 import { browserTransport } from '@/shared/api/transport';
@@ -46,20 +48,11 @@ import {
   requireConnection,
 } from '@/shared/workspace/connection';
 
-export type RemoteConnection = { remote: Remote; connection: Connection };
-
 type Server = {
   address: string;
   transport: Transport;
   liveUpdates: LiveUpdatePort;
   operationsKey: string | undefined;
-};
-
-type AccessState = {
-  readonly connection: Connection | null;
-  readonly remoteConnections: readonly RemoteConnection[];
-  readonly generation: number;
-  readonly writerIdentity: string | undefined;
 };
 
 function createConnection(environmentId: string, server: Server): Connection {
@@ -79,7 +72,7 @@ function createConnection(environmentId: string, server: Server): Connection {
   );
 }
 
-function localConnection({ inventory, principal }: BrowserSession) {
+function localConnection({ inventory, principal }: BrowserSession): Connection {
   const writer = principal.kind === 'owner' ? 'owner' : principal.deviceId;
   const connection = createConnection(inventory.environmentId, {
     address: window.location.href,
@@ -93,7 +86,7 @@ function localConnection({ inventory, principal }: BrowserSession) {
   return connection;
 }
 
-function remoteConnection(remote: Remote) {
+function remoteConnection(remote: Remote): Connection {
   return openRemoteConnection(
     {
       ...remote,
@@ -116,10 +109,6 @@ function remoteConnection(remote: Remote) {
   );
 }
 
-function close(connection: Connection) {
-  void connection.close();
-}
-
 const stores = Layer.merge(AccessStore.layer, EnvironmentMutations.layer).pipe(
   Layer.provide(Layer.succeed(EnvironmentStorage, environmentStorage)),
 );
@@ -127,29 +116,33 @@ const services = Layer.mergeAll(
   stores,
   Layer.succeed(AccessPlatform, pairingPlatform),
   FileDrafts.layer,
+  Layer.succeed(ConnectionFactory, {
+    local: localConnection,
+    remote: remoteConnection,
+  }),
   Layer.succeed(WorkspaceSelectionCleanup, {
     forgetEnvironment: () => Effect.void,
   }),
 );
-const application = Layer.provideMerge(EnvironmentCommands.layer, services);
-const applicationRuntime = ManagedRuntime.make(application);
+const application = sessionConnectionsLayer.pipe(
+  Layer.provideMerge(
+    Layer.merge(EnvironmentCommands.layer, AccessSession.layer).pipe(
+      Layer.provideMerge(services),
+    ),
+  ),
+);
+export const applicationRuntime = ManagedRuntime.make(application);
 export const environmentRuntime = Atom.context({
   memoMap: applicationRuntime.memoMap,
 })(application);
 const accessStore = applicationRuntime.runSync(AccessStore);
-const restoreSavedEnvironments = environmentRuntime.atom((get) => {
-  const synchronize = ({ remotes }: { remotes: readonly Remote[] }) =>
-    state.update((current) => ({
-      ...current,
-      remoteConnections: remoteConnections(remotes, current.remoteConnections),
-    }));
-  synchronize(accessStore.state.value);
-  get.addFinalizer(accessStore.state.subscribe(synchronize));
-  return Effect.gen(function* () {
+export const accessSession = applicationRuntime.runSync(AccessSession);
+const restoreSavedEnvironments = environmentRuntime.atom(
+  Effect.gen(function* () {
     const commands = yield* EnvironmentCommands;
     yield* commands.read();
-  });
-});
+  }),
+);
 
 export function useRestoreEnvironments() {
   useAtomValue(restoreSavedEnvironments);
@@ -159,77 +152,16 @@ export function useSavedEnvironments() {
   return useAtomRef(accessStore.state);
 }
 
-function remoteConnections(
-  remotes: readonly Remote[],
-  current: readonly RemoteConnection[],
-) {
-  const { next, closed } = syncRemoteConnections(
-    remotes,
-    current,
-    remoteConnection,
-  );
-  for (const connection of closed) close(connection);
-  return next;
-}
-
-const state = AtomRef.make<AccessState>({
-  connection: null,
-  remoteConnections: [],
-  generation: 0,
-  writerIdentity: undefined,
-});
-
-function connect(session: BrowserSession) {
-  const environmentId = session.inventory.environmentId;
-  const writerIdentity = JSON.stringify(session.principal);
-  const current = state.value.connection;
-  if (
-    current?.environmentId === environmentId &&
-    state.value.writerIdentity === writerIdentity
-  )
-    return current;
-  if (current) close(current);
-  const connection = localConnection(session);
-  state.update((current) => ({ ...current, connection, writerIdentity }));
-  return connection;
-}
-
-const snapshot: AtomRef.ReadonlyRef<AccessState> = state;
-
-export const accessSession = {
-  state: snapshot,
-  beginConnection(automatic = false) {
-    if (automatic && state.value.generation !== 0) return null;
-    const attempt = state.value.generation;
-    return (session: BrowserSession) => {
-      if (attempt !== state.value.generation) return false;
-      state.update((current) => ({ ...current, generation: attempt + 1 }));
-      connect(session);
-      return true;
-    };
-  },
-  clear() {
-    const current = state.value.connection;
-    if (current) close(current);
-    state.update((current) => ({
-      ...current,
-      connection: null,
-      writerIdentity: undefined,
-      generation: current.generation + 1,
-    }));
-  },
-};
-
 export function useLocalConnection() {
-  return useAtomRef(state).connection;
+  return useAtomRef(accessSession.state).connection;
 }
 
 export function useRemoteConnections() {
-  return useAtomRef(state).remoteConnections;
+  return useAtomRef(accessSession.state).remoteConnections;
 }
 
 export function useRemoteConnection(environmentId: string) {
-  return useAtomRef(state).remoteConnections.find(
+  return useAtomRef(accessSession.state).remoteConnections.find(
     (entry) => entry.remote.environmentId === environmentId,
   );
 }

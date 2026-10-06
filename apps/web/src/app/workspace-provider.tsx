@@ -1,3 +1,4 @@
+import type { RemoteConnection } from '@porcelain/client/access';
 import { remoteKey } from '@porcelain/client/access/rules';
 import type { ReactNode } from 'react';
 import {
@@ -8,7 +9,6 @@ import {
   useRemoteConnections,
   useRemoteStatus,
   useSignOutWhenUnauthorized,
-  type RemoteConnection,
 } from '@/features/access/index';
 import { useUnsavedDraftsGuard } from '@/features/files/index';
 import { useLiveQueries } from '@/features/live/index';

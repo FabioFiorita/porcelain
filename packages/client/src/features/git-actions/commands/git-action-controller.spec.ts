@@ -1,3 +1,4 @@
+import { operationStoreLayer } from '@porcelain/client/git-actions';
 import { Crypto, Equal, Exit, Layer, ManagedRuntime } from 'effect';
 import { afterEach } from 'vitest';
 import type { Context } from 'effect';
@@ -334,7 +335,7 @@ function operationStoreFixture(
   storage?: Context.Service.Shape<typeof OperationStorage>,
 ) {
   const runtime = ManagedRuntime.make(
-    OperationStore.layer.pipe(
+    operationStoreLayer.pipe(
       Layer.provide(
         Layer.succeed(
           OperationStorage,

@@ -1,3 +1,5 @@
+import { OperationStore } from '../../git-actions/ports/operation-store.ts';
+import type { LiveConnection } from '../ports/connection.ts';
 import type { LiveNotice } from '@porcelain/contracts/access';
 import { type Context, Effect, FiberMap, HashMap, Layer, Stream } from 'effect';
 import { AsyncResult, Atom, AtomRegistry, Reactivity } from 'effect/reactivity';
@@ -10,8 +12,6 @@ import {
   LIVE_PROJECTS,
   LIVE_WORKTREES,
 } from '@porcelain/contracts/shared';
-import type { GitConnection } from '../../git-actions/commands/git-action-controller.ts';
-import type { LiveUpdatePort } from '../ports/live-update.ts';
 import type { ReadInventoryResponse } from '@porcelain/contracts/projects';
 import { queryKeys } from '../../../shared/api/query-keys.ts';
 import { noticeReadKeys } from './cache-updates.ts';
@@ -19,21 +19,12 @@ import {
   ReadSubscriptions,
   type ReadSubscription,
 } from '../../../shared/api/read-subscriptions.ts';
-import {
-  isTerminal,
-  OperationStore,
-} from '../../git-actions/store/operations.ts';
+import { isTerminal } from '../../git-actions/store/operations.ts';
 import { readGitReceipt } from '../../git-actions/queries/read-receipt.ts';
 import {
   GitReceiptRefresh,
   receiptRuntime,
 } from '../../git-actions/commands/refresh-receipt.ts';
-
-export type LiveConnection = GitConnection & {
-  controller: AbortController;
-  operations: Context.Service.Shape<typeof OperationStore>;
-  liveUpdates: LiveUpdatePort;
-};
 
 type Watched = { projectId: string; worktreeId: string; paths: Set<string> };
 

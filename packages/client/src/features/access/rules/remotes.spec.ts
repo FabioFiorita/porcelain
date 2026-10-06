@@ -102,6 +102,7 @@ describe('syncRemoteConnections', () => {
   it.each([
     ['a new credential', { ...remote, credential: 'pcd_new' }],
     ['a new address', { ...remote, address: 'http://192.0.2.11:4738' }],
+    ['a new device identity', { ...remote, deviceId: 'new-device' }],
   ])('replaces the connection of a remote paired with %s', (_, changed) => {
     const old = { opened: 'pcd_secret' };
     const { next, closed } = syncRemoteConnections(

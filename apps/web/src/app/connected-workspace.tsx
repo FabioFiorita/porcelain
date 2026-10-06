@@ -1,3 +1,4 @@
+import type { RemoteConnection } from '@porcelain/client/access';
 import type { selectedWorktreeInProject } from '@porcelain/client/projects/rules';
 import { detectPlatform, useHotkey } from '@tanstack/react-hotkeys';
 import { useNavigate } from '@tanstack/react-router';
@@ -13,7 +14,6 @@ import {
   RemoteUnavailable,
   useConnectedContext,
   useRemoteConnections,
-  type RemoteConnection,
 } from '@/features/access/index';
 import { type RemoteStatus } from '@porcelain/client/access/rules';
 import {

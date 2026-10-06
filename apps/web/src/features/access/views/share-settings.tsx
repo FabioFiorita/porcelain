@@ -1,3 +1,4 @@
+import type { RemoteConnection } from '@porcelain/client/access';
 import { Cause, Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import { remoteStatusText } from '@porcelain/client/access/rules';
@@ -16,11 +17,7 @@ import { desktopShell } from '@/shared/shell';
 import { useRemoteAccess } from '../queries/share';
 import { connectionErrorMessage } from '@porcelain/client/access/rules';
 import type { Environment, RemoteAccess } from '@porcelain/client/access/rules';
-import {
-  useLocalConnection,
-  useRemoteConnections,
-  type RemoteConnection,
-} from '../store';
+import { useLocalConnection, useRemoteConnections } from '../store';
 import { useRemoteStatus } from '../queries/remotes';
 
 import { useAppUpdateCapability } from '../queries/app-update';

@@ -8,12 +8,12 @@ export { useRemoteStatus } from './queries/remotes';
 export { remoteLiveOpen, remoteStatusVariant } from './rules/remotes';
 export {
   accessSession,
+  applicationRuntime,
   useLocalConnection,
   useRestoreEnvironments,
   useConnectedContext,
   useRemoteConnection,
   useRemoteConnections,
-  type RemoteConnection,
 } from './store';
 export { DisconnectBrowser } from './views/disconnect-browser';
 export { DisconnectedPage } from './views/disconnected-page';

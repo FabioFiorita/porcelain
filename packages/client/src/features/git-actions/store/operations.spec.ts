@@ -1,3 +1,4 @@
+import { operationStoreLayer } from './operations.ts';
 import type { Context } from 'effect';
 import { OperationStorage } from '../ports/operation-storage.ts';
 import { Layer, ManagedRuntime } from 'effect';
@@ -8,7 +9,8 @@ import type {
   RunGitActionRequest,
   RunGitActionResponse,
 } from '@porcelain/contracts/git-actions';
-import { OperationStore, operationKey } from './operations.ts';
+import { operationKey } from './operations.ts';
+import { OperationStore } from '../ports/operation-store.ts';
 
 const scope = {
   projectId: '11111111-1111-4111-8111-111111111111',
@@ -355,7 +357,7 @@ function operationStoreFixture(
   storage?: Context.Service.Shape<typeof OperationStorage>,
 ) {
   const runtime = ManagedRuntime.make(
-    OperationStore.layer.pipe(
+    operationStoreLayer.pipe(
       Layer.provide(
         Layer.succeed(
           OperationStorage,

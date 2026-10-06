@@ -1,8 +1,6 @@
-import type { LiveConnection } from '@porcelain/client/live';
+import type { EnvironmentConnection } from '@porcelain/client/access';
 
-export type Connection = LiveConnection & {
-  address: string;
-};
+export type Connection = EnvironmentConnection;
 
 export type ConnectionContext = { connection: Connection };
 

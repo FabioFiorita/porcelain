@@ -1,13 +1,11 @@
+export { OperationStore } from './ports/operation-store.ts';
+export { operationStoreLayer } from './store/operations.ts';
 export { readCommitModels } from './queries/git-actions.ts';
 export {
   generateCommitDraft,
   dismissInterruptedGitAction,
 } from './commands/git-actions.ts';
-export {
-  OperationStore,
-  operationKey,
-  isTerminal,
-} from './store/operations.ts';
+export { operationKey, isTerminal } from './store/operations.ts';
 export {
   runGitAction,
   recoverGitAction,

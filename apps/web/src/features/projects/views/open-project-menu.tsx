@@ -1,3 +1,4 @@
+import type { RemoteConnection } from '@porcelain/client/access';
 import { remoteStatusText } from '@porcelain/client/access/rules';
 import { MonitorIcon, PlusIcon, ServerIcon } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -10,11 +11,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-  remoteStatusVariant,
-  useRemoteStatus,
-  type RemoteConnection,
-} from '@/features/access/index';
+import { remoteStatusVariant, useRemoteStatus } from '@/features/access/index';
 
 export function OpenProjectMenu({
   remotes,

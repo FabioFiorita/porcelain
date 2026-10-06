@@ -5,7 +5,7 @@ import { browserTransport } from '@/shared/api/transport';
 import { pairingPlatform } from '../store';
 import { connectionErrorMessage } from '@porcelain/client/access/rules';
 import type { PairingCode } from '@porcelain/client/access/rules';
-import { accessSession } from '../store';
+import { accessSession, applicationRuntime } from '../store';
 import { ConnectionError } from '@porcelain/client/transport';
 import { REQUEST_TIMEOUT_MS } from '@/config/limits';
 
@@ -19,7 +19,7 @@ export async function pairBrowser(
   link: PairingCode,
   signal: AbortSignal,
 ) {
-  const complete = accessSession.beginConnection();
+  const complete = applicationRuntime.runSync(accessSession.beginConnection());
   const requestSignal = AbortSignal.any([
     signal,
     AbortSignal.timeout(REQUEST_TIMEOUT_MS),
@@ -35,7 +35,7 @@ export async function pairBrowser(
       cause: Cause.squash(exit.cause),
     });
   const session = exit.value;
-  complete?.(session);
+  if (complete) await applicationRuntime.runPromise(complete(session));
   if (
     accessSession.state.value.connection?.environmentId !==
     session.inventory.environmentId

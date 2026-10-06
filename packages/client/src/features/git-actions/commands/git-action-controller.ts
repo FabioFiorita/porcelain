@@ -1,31 +1,21 @@
+import { OperationStore } from '../ports/operation-store.ts';
+import type { GitConnection } from '../ports/git-connection.ts';
 import { Context, Crypto, Effect, Layer, Schema, Semaphore } from 'effect';
 import { Atom } from 'effect/reactivity';
 import type {
   RunGitActionRequest,
   RunGitActionResponse,
 } from '@porcelain/contracts/git-actions';
-import type {
-  RuntimeConnection,
-  WorktreeScope,
-} from '../../../shared/api/connection.ts';
+import type { WorktreeScope } from '../../../shared/api/connection.ts';
 import { porcelainClient } from '../../../shared/api/client.ts';
 import { requestEffect } from '../../../shared/api/effect-client.ts';
 import { currentAnswerEffect } from '../../../shared/api/stale-answer.ts';
 import { RequestError } from '../../../shared/api/request-error.ts';
 import { withSignal } from '@porcelain/effects';
-import {
-  isTerminal,
-  operationKey,
-  OperationStore,
-} from '../store/operations.ts';
+import { isTerminal, operationKey } from '../store/operations.ts';
 import { ConnectionError } from '../../../shared/api/connection-error.ts';
 import { GitReceiptRefresh, receiptRuntime } from './refresh-receipt.ts';
 
-export type GitConnection = RuntimeConnection<
-  OperationStore | Crypto.Crypto
-> & {
-  readonly operations: Context.Service.Shape<typeof OperationStore>;
-};
 type Selection = {
   readonly connection: GitConnection;
   readonly scope: WorktreeScope;

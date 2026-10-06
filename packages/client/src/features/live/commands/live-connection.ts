@@ -1,10 +1,11 @@
+import { operationStoreLayer } from '../../git-actions/store/operations.ts';
 import { Equal, Layer, type Crypto } from 'effect';
-import { OperationStore } from '../../git-actions/store/operations.ts';
+import { OperationStore } from '../../git-actions/ports/operation-store.ts';
 import type { OperationStorage } from '../../git-actions/ports/operation-storage.ts';
 import { FileDrafts } from '../../files/store.ts';
 import { createWorktreeConnection } from '../../../shared/api/worktree-connection.ts';
 import type { WorktreeConnection } from '../../../shared/api/connection.ts';
-import type { LiveConnection } from './live-queries.ts';
+import type { LiveConnection } from '../ports/connection.ts';
 import type { Remote } from '../../access/rules/remotes.ts';
 import type { AccessPlatformValue } from '../../access/ports/access-platform.ts';
 import { remoteTransport } from '../../../shared/api/transport.ts';
@@ -20,7 +21,7 @@ export function openLiveConnection(
   memoMap: Layer.MemoMap,
 ): LiveConnection & { readonly address: string } {
   const services = Layer.merge(
-    Layer.fresh(OperationStore.layer),
+    Layer.fresh(operationStoreLayer),
     FileDrafts.layer,
   ).pipe(Layer.provideMerge(platform));
   const { connection: requests, controller } = createWorktreeConnection(

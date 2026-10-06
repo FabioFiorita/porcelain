@@ -93,7 +93,8 @@ export function syncRemoteConnections<Connection>(
       (entry) =>
         entry.remote.environmentId === remote.environmentId &&
         entry.remote.address === remote.address &&
-        entry.remote.credential === remote.credential,
+        entry.remote.credential === remote.credential &&
+        entry.remote.deviceId === remote.deviceId,
     );
     return { remote, connection: kept ? kept.connection : open(remote) };
   });

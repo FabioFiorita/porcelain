@@ -10,6 +10,7 @@ import {
   pairBrowser,
   restoreSession,
   accessSession,
+  applicationRuntime,
 } from '@/features/access/index';
 import { ThemeProvider } from '@/features/preferences/index';
 import { ProjectNavigator, useInventory } from '@/features/projects/index';
@@ -176,11 +177,11 @@ async function mount(view: (connection: Connection) => ReactNode) {
   document.body.append(element);
   const root = createRoot(element);
   root.render(<Providers registry={registry}>{view(connection)}</Providers>);
-  return () => {
+  return async () => {
     watching = false;
     root.unmount();
     element.remove();
-    accessSession.clear();
+    await applicationRuntime.runPromise(accessSession.clear());
     registry.dispose();
     localStorage.clear();
     sessionStorage.clear();
@@ -236,7 +237,7 @@ export const test = base
     install: () => host.porcelainCodingTool(),
   }))
   .extend('render', async ({ world: _world }, { onCleanup }) => {
-    let unmount: (() => void) | undefined;
+    let unmount: (() => Promise<void>) | undefined;
     onCleanup(() => unmount?.());
     const show = async (view: (connection: Connection) => ReactNode) => {
       if (unmount !== undefined)

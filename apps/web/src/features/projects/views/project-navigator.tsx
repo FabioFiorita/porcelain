@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/empty';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { SidebarMenuSubItem } from '@/components/ui/sidebar';
-import type { RemoteConnection } from '@/features/access/index';
+import type { RemoteConnection } from '@porcelain/client/access';
 import type { WorktreeTarget } from '../rules/worktree-target';
 import type { Inventory } from '@porcelain/client/projects/rules';
 import { MachineSection } from './machine-section';

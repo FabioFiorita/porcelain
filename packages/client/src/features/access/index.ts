@@ -4,6 +4,13 @@ export {
   type AccessPlatformValue,
 } from './ports/access-platform.ts';
 export { AccessStore } from './store.ts';
+export {
+  AccessSession,
+  ConnectionFactory,
+  type EnvironmentConnection,
+  type RemoteConnection,
+} from './store/session.ts';
+export { sessionConnectionsLayer } from './commands/session-connections.ts';
 export { pairBrowserSession } from './commands/pairing.ts';
 export { readRemoteStatus } from './queries/environments.ts';
 export {
