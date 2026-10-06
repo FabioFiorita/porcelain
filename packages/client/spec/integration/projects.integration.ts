@@ -1,7 +1,6 @@
 import { afterEach, expect } from 'vitest';
 import { Effect } from 'effect';
 import { AtomRegistry } from 'effect/reactivity';
-import { QueryClient } from '@tanstack/query-core';
 import { test } from '@porcelain/server/kit/server-test';
 import {
   registerProject,
@@ -25,7 +24,6 @@ test('register, rename, pin and remove a repository through the shared project o
   const { connected } = await connection(server, session);
   const registry = AtomRegistry.make();
   registries.add(registry);
-  const cache = new QueryClient();
   const inventory = readInventory(connected);
   registry.mount(inventory);
   await Effect.runPromise(
@@ -86,7 +84,7 @@ test('register, rename, pin and remove a repository through the shared project o
     hidden: false,
     pinned: true,
   });
-  const remove = removeProject({ connection: connected, client: cache });
+  const remove = removeProject(connected);
   registry.set(remove, project.id);
   await Effect.runPromise(
     AtomRegistry.getResult(registry, remove, { suspendOnWaiting: true }),
@@ -98,5 +96,4 @@ test('register, rename, pin and remove a repository through the shared project o
       )
     ).projects,
   ).toEqual([]);
-  cache.clear();
 });

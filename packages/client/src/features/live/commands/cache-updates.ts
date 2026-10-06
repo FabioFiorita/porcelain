@@ -1,10 +1,8 @@
 import type { LiveNotice } from '@porcelain/contracts/access';
 import type { RunGitActionResponse } from '@porcelain/contracts/git-actions';
-import type { QueryFilters } from '@tanstack/query-core';
 import {
   fileSurfaces,
   gitSurfaces,
-  reviewSurfaceFilters,
   queryKeys,
 } from '../../../shared/api/query-keys.ts';
 import {
@@ -31,16 +29,6 @@ function noticeReadSurfaces(notice: LiveNotice) {
     for (const surface of [...gitSurfaces, ...BRANCH_SURFACES])
       surfaces.add(surface);
   return { scope: notice, surfaces };
-}
-
-export function noticeQueryFilters(
-  environmentId: string,
-  notice: LiveNotice,
-): QueryFilters[] {
-  const read = noticeReadSurfaces(notice);
-  return read
-    ? [reviewSurfaceFilters(environmentId, read.scope, read.surfaces)]
-    : [];
 }
 
 export function noticeReadKeys(environmentId: string, notice: LiveNotice) {
@@ -71,19 +59,6 @@ function receiptReadSurfaces(
     ...BRANCH_SURFACES,
     ...(receiptSurfaces(receipt)?.surfaces ?? []),
   ]);
-}
-
-export function receiptQueryFilters(
-  environmentId: string,
-  receipt: Pick<
-    RunGitActionResponse,
-    'projectId' | 'worktreeId' | 'action' | 'state'
-  >,
-): QueryFilters[] {
-  const surfaces = receiptReadSurfaces(receipt);
-  return surfaces
-    ? [reviewSurfaceFilters(environmentId, receipt, surfaces)]
-    : [];
 }
 
 export function receiptReadKeys(

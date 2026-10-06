@@ -1,7 +1,6 @@
 import { afterEach, expect, it } from 'vitest';
 import { Effect, Layer, Option } from 'effect';
 import { AtomRegistry } from 'effect/reactivity';
-import { QueryClient } from '@tanstack/query-core';
 import type { ReadInventoryResponse } from '@porcelain/contracts/projects';
 import { FileDrafts, fileDraftRuntime } from '@porcelain/client/files';
 import { ContentChangedError } from '@porcelain/files/errors';
@@ -25,13 +24,11 @@ const initial: ReadInventoryResponse = {
 const owned = new Set<{
   connection: RuntimeConnection;
   registry: AtomRegistry.AtomRegistry;
-  client: QueryClient;
 }>();
 afterEach(async () => {
-  for (const { connection, registry, client } of owned) {
+  for (const { connection, registry } of owned) {
     registry.dispose();
     await connection.close();
-    client.clear();
   }
   owned.clear();
 });
@@ -59,9 +56,8 @@ function fixture(steps: string[], transport?: Transport) {
     Layer.succeed(InventorySeed, Option.some(initial)),
   );
   const registry = AtomRegistry.make();
-  const client = new QueryClient();
-  owned.add({ connection, registry, client });
-  const atom = removeProject({ connection, client });
+  owned.add({ connection, registry });
+  const atom = removeProject(connection);
   return {
     connection,
     registry,

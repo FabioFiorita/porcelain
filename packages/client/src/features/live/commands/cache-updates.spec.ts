@@ -1,9 +1,10 @@
-import { QueryClient } from '@tanstack/query-core';
+import { Effect } from 'effect';
+import { Reactivity } from 'effect/reactivity';
 import { expect, it } from 'vitest';
 import type { LiveNotice } from '@porcelain/contracts/access';
 import type { RunGitActionResponse } from '@porcelain/contracts/git-actions';
 import { queryKeys } from '@porcelain/client/transport';
-import { noticeQueryFilters, receiptQueryFilters } from './cache-updates.ts';
+import { noticeReadKeys, receiptReadKeys } from './cache-updates.ts';
 
 const scope = { projectId: 'project', worktreeId: 'tree' };
 const receipt: RunGitActionResponse = {
@@ -16,7 +17,7 @@ const receipt: RunGitActionResponse = {
 };
 
 function cache() {
-  const client = new QueryClient();
+  const reactivity = Effect.runSync(Reactivity.make);
   const keys = {
     changes: queryKeys.reviewSurface('environment', scope, ['changes']),
     file: queryKeys.reviewSurface('environment', scope, ['text', 'file.ts']),
@@ -29,16 +30,20 @@ function cache() {
     comments: queryKeys.reviewSurface('environment', scope, ['comments']),
     foreign: queryKeys.reviewSurface('other-environment', scope, ['changes']),
   };
-  for (const key of Object.values(keys)) client.setQueryData(key, 'cached');
+  const flags = Object.fromEntries(
+    Object.keys(keys).map((key) => [key, false]),
+  );
+  const stops = Object.entries(keys).map(([name, key]) =>
+    reactivity.registerUnsafe([key.slice(0, 5)], () => {
+      flags[name] = true;
+    }),
+  );
   return {
-    client,
-    invalidated: () =>
-      Object.fromEntries(
-        Object.entries(keys).map(([name, key]) => [
-          name,
-          client.getQueryState(key)?.isInvalidated,
-        ]),
-      ),
+    reactivity,
+    invalidated: () => flags,
+    close: () => {
+      for (const stop of stops) stop();
+    },
   };
 }
 
@@ -87,24 +92,24 @@ it.each([
   async ({ change, expected }) => {
     const subject = cache();
     const notice: LiveNotice = { type: 'worktree', ...scope, change };
-    await Promise.all(
-      noticeQueryFilters('environment', notice).map((filters) =>
-        subject.client.invalidateQueries(filters),
-      ),
+    await Effect.runPromise(
+      subject.reactivity.invalidate(noticeReadKeys('environment', notice)),
     );
     expect(subject.invalidated()).toEqual(expected);
-    subject.client.clear();
+    subject.close();
   },
 );
 
 it('a preference notice leaves the remaining review caches untouched', async () => {
   const subject = cache();
-  await Promise.all(
-    noticeQueryFilters('environment', {
-      type: 'project',
-      projectId: scope.projectId,
-      change: 'preferences',
-    }).map((filters) => subject.client.invalidateQueries(filters)),
+  await Effect.runPromise(
+    subject.reactivity.invalidate(
+      noticeReadKeys('environment', {
+        type: 'project',
+        projectId: scope.projectId,
+        change: 'preferences',
+      }),
+    ),
   );
   expect(subject.invalidated()).toEqual({
     changes: false,
@@ -115,14 +120,14 @@ it('a preference notice leaves the remaining review caches untouched', async () 
     comments: false,
     foreign: false,
   });
-  subject.client.clear();
+  subject.close();
 });
 
 it('a completed push refreshes branch and history without invalidating published review evidence', async () => {
   const subject = cache();
-  await Promise.all(
-    receiptQueryFilters('environment', { ...receipt, action: 'push' }).map(
-      (filters) => subject.client.invalidateQueries(filters),
+  await Effect.runPromise(
+    subject.reactivity.invalidate(
+      receiptReadKeys('environment', { ...receipt, action: 'push' }),
     ),
   );
   expect(subject.invalidated()).toEqual({
@@ -134,16 +139,16 @@ it('a completed push refreshes branch and history without invalidating published
     comments: false,
     foreign: false,
   });
-  subject.client.clear();
+  subject.close();
 });
 
 it.each(['running', 'rejected', 'no-change'] as const)(
   'a $state receipt leaves confirmed data alone',
   async (state) => {
     const subject = cache();
-    await Promise.all(
-      receiptQueryFilters('environment', { ...receipt, state }).map((filters) =>
-        subject.client.invalidateQueries(filters),
+    await Effect.runPromise(
+      subject.reactivity.invalidate(
+        receiptReadKeys('environment', { ...receipt, state }),
       ),
     );
     expect(subject.invalidated()).toEqual({
@@ -155,6 +160,6 @@ it.each(['running', 'rejected', 'no-change'] as const)(
       comments: false,
       foreign: false,
     });
-    subject.client.clear();
+    subject.close();
   },
 );

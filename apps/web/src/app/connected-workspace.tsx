@@ -93,7 +93,6 @@ export function ConnectedWorkspace({
   };
   const navigator = {
     inventory: localInventory,
-    connection: local.connection,
     remotes: desktopShell ? remotes : undefined,
     selected: shown,
     onOpenProject: (entry: RemoteConnection | null) =>

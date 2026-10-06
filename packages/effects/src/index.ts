@@ -1,5 +1,4 @@
 export { nativeOperation } from './native-operation.ts';
-export { ScopedTasks } from './scoped-tasks.ts';
 export { withSignal } from './with-signal.ts';
 export {
   WorktreeRead,

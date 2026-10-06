@@ -4,7 +4,6 @@ import { readTextFile } from '@porcelain/client/files';
 import { Crypto, Equal, Layer, ManagedRuntime, type Context } from 'effect';
 import { afterEach } from 'vitest';
 import { Effect } from 'effect';
-import { QueryClient, QueryObserver } from '@tanstack/query-core';
 import { expect, it } from 'vitest';
 import {
   createWorktreeConnection,
@@ -18,7 +17,7 @@ import {
 } from '@porcelain/client/git-actions';
 import type { RunGitActionRequest } from '@porcelain/contracts/git-actions';
 import type { LiveSubscription, LiveUpdatePort } from '../ports/live-update.ts';
-import { connectLiveQueries } from './live-queries.ts';
+import { liveQueries } from './live-queries.ts';
 
 const environmentId = '44444444-4444-4444-8444-444444444444';
 const projectId = '11111111-1111-4111-8111-111111111111';
@@ -38,7 +37,7 @@ const request: RunGitActionRequest = {
   },
 };
 
-function setup(
+async function setup(
   transport?: Transport,
   onSubscription?: (subscription: LiveSubscription) => void,
 ) {
@@ -57,7 +56,6 @@ function setup(
     timeoutMs: 1000,
   });
   const registry = AtomRegistry.make();
-  const client = new QueryClient();
   const { store: operations } = operationStoreFixture();
   const sent: LiveSubscription[] = [];
   const subscribed = Promise.withResolvers<void>();
@@ -87,45 +85,78 @@ function setup(
     ),
     liveUpdates,
   });
-  const close = connectLiveQueries(client, connection, () => {}, registry);
+  const owner = liveQueries({ connection, onUnauthorized: () => {} });
+  const unmount = registry.mount(owner);
+  const close = async () => {
+    const stopped = Promise.withResolvers<void>();
+    if (!live || live.signal.aborted) stopped.resolve();
+    else
+      live.signal.addEventListener('abort', () => stopped.resolve(), {
+        once: true,
+      });
+    unmount();
+    await stopped.promise;
+  };
+  await Effect.runPromise(AtomRegistry.getResult(registry, owner));
   return {
     ...lifetime,
     connection,
     registry,
     operations,
-    client,
     sent,
     subscribed: subscribed.promise,
     live: () => live,
     close,
     cleanup: async () => {
-      close();
+      await close();
       registry.dispose();
       await lifetime.close();
-      client.clear();
     },
   };
 }
 
 it('keeps pending operations subscribed within the server limit and retains their active paths', async () => {
-  const subject = setup();
+  const capped = Promise.withResolvers<void>();
+  const subject = await setup(
+    (path) => {
+      if (path.endsWith('/inventory'))
+        return Promise.resolve(
+          Response.json({
+            environmentId,
+            environment: { name: 'Live', custom: false },
+            projects: [],
+          }),
+        );
+      const url = new URL(path, 'http://localhost');
+      return Promise.resolve(
+        Response.json({
+          worktreeId: path.split('/')[3],
+          path: url.searchParams.get('path'),
+          encoding: 'utf-8',
+          byteLength: 4,
+          text: 'Read',
+        }),
+      );
+    },
+    (subscription) => {
+      if (
+        subscription.worktrees.length === 32 &&
+        subscription.worktrees[0]?.paths.includes('file-32.ts')
+      )
+        capped.resolve();
+    },
+  );
   const unsubscribe: (() => void)[] = [];
   const pendingTree = '00000000000000000000000000000020';
   try {
     for (let index = 0; index < 33; index += 1) {
       const worktreeId = index.toString(16).padStart(32, '0');
-      const key = queryKeys.worktreeSurface(
-        subject.connection,
-        { projectId, worktreeId },
-        ['text', `file-${index}.ts`],
-      );
-      subject.client.setQueryData(key, 'cached');
-      unsubscribe.push(
-        new QueryObserver(subject.client, {
-          queryKey: key,
-          staleTime: Infinity,
-        }).subscribe(() => {}),
-      );
+      const query = readTextFile({
+        connection: subject.connection,
+        scope: { projectId, worktreeId },
+        path: `file-${index}.ts`,
+      });
+      unsubscribe.push(subject.registry.mount(query));
     }
     const scope = { projectId, worktreeId: pendingTree };
     await Effect.runPromise(
@@ -135,17 +166,18 @@ it('keeps pending operations subscribed within the server limit and retains thei
         request,
       }),
     );
-    await subject.subscribed;
-    expect(subject.sent).toHaveLength(1);
-    expect(subject.sent[0]?.worktrees).toHaveLength(32);
-    expect(subject.sent[0]?.worktrees[0]).toEqual({
+    await capped.promise;
+    expect(subject.sent.at(-1)?.worktrees).toHaveLength(32);
+    expect(subject.sent.at(-1)?.worktrees[0]).toEqual({
       ...scope,
       paths: ['file-32.ts'],
     });
     expect(
-      subject.sent[0]?.worktrees.some(
-        (entry) => entry.worktreeId === '0000000000000000000000000000001f',
-      ),
+      subject.sent
+        .at(-1)
+        ?.worktrees.some(
+          (entry) => entry.worktreeId === '0000000000000000000000000000001f',
+        ),
     ).toBe(false);
   } finally {
     for (const stop of unsubscribe) stop();
@@ -153,20 +185,34 @@ it('keeps pending operations subscribed within the server limit and retains thei
   }
 });
 
-it('does not send a queued subscription after the live session closes', async () => {
-  const subject = setup();
+it('releases queued subscription work when its native scope closes', async () => {
+  const subject = await setup();
   try {
-    subject.close();
-    await Promise.resolve();
-    expect(subject.sent).toEqual([]);
+    await subject.close();
+    const before = [...subject.sent];
+    await Effect.runPromise(
+      subject.operations.set(
+        operationKey(
+          { projectId, worktreeId: '0123456789abcdef0123456789abcdef' },
+          'fetch',
+        ),
+        {
+          projectId,
+          worktreeId: '0123456789abcdef0123456789abcdef',
+          requestId,
+          request,
+        },
+      ),
+    );
     expect(subject.live()?.signal.aborted).toBe(true);
+    expect(subject.sent).toEqual(before);
   } finally {
     await subject.cleanup();
   }
 });
 
 it('ignores late notices and reconnect callbacks after closing the live session', async () => {
-  const subject = setup();
+  const subject = await setup();
   let refreshes = 0;
   const unregister = subject.connection.runtime
     .runSync(Reactivity.Reactivity)
@@ -174,12 +220,13 @@ it('ignores late notices and reconnect callbacks after closing the live session'
       refreshes += 1;
     });
   try {
-    subject.close();
+    await subject.close();
+    const before = [...subject.sent];
     subject.live()?.onNotice({ type: 'inventory' });
     subject.live()?.onReconnect();
     await Promise.resolve();
     expect(refreshes).toBe(0);
-    expect(subject.sent).toEqual([]);
+    expect(subject.sent).toEqual(before);
   } finally {
     unregister();
     await subject.cleanup();
@@ -187,7 +234,7 @@ it('ignores late notices and reconnect callbacks after closing the live session'
 });
 
 it('a file notice invalidates only the connected environment', async () => {
-  const subject = setup();
+  const subject = await setup();
   let inventoryRefreshes = 0;
   const unregister = subject.connection.runtime
     .runSync(Reactivity.Reactivity)
@@ -195,21 +242,27 @@ it('a file notice invalidates only the connected environment', async () => {
       inventoryRefreshes += 1;
     });
   const scope = { projectId, worktreeId: '00000000000000000000000000000001' };
-  const current = queryKeys.worktreeSurface(subject.connection, scope, [
-    'text',
-    'file.ts',
-  ]);
-  const other = queryKeys.reviewSurface('other', scope, ['text', 'file.ts']);
-  subject.client.setQueryData(current, 'current');
-  subject.client.setQueryData(other, 'other');
+  const current = queryKeys.reviewSurface(environmentId, scope, ['text']);
+  const other = queryKeys.reviewSurface('other', scope, ['text']);
+  let currentRefreshes = 0;
+  let otherRefreshes = 0;
+  const reactivity = subject.connection.runtime.runSync(Reactivity.Reactivity);
+  const stopCurrent = reactivity.registerUnsafe([current], () => {
+    currentRefreshes++;
+  });
+  const stopOther = reactivity.registerUnsafe([other], () => {
+    otherRefreshes++;
+  });
   try {
     subject.live()?.onNotice({ type: 'worktree', ...scope, change: 'files' });
     await Promise.resolve();
     expect(inventoryRefreshes).toBe(1);
-    expect(subject.client.getQueryState(current)?.isInvalidated).toBe(true);
-    expect(subject.client.getQueryState(other)?.isInvalidated).toBe(false);
+    expect(currentRefreshes).toBe(1);
+    expect(otherRefreshes).toBe(0);
   } finally {
     unregister();
+    stopCurrent();
+    stopOther();
     await subject.cleanup();
   }
 });
@@ -259,12 +312,12 @@ function operationStoreFixture(
   return { runtime, store: runtime.runSync(OperationStore) };
 }
 
-it('native inventory updates change the live project subscription without a legacy inventory cache', async () => {
+it('inventory updates change the live project subscription', async () => {
   const initial = Promise.withResolvers<void>();
   const refreshed = Promise.withResolvers<void>();
   const another = '33333333-3333-4333-8333-333333333333';
   let reads = 0;
-  const subject = setup(
+  const subject = await setup(
     () => {
       reads += 1;
       return Promise.resolve(
@@ -294,16 +347,15 @@ it('native inventory updates change the live project subscription without a lega
     await refreshed.promise;
     expect(subject.sent.at(-1)?.projects).toEqual([projectId, another]);
     expect(reads).toBe(2);
-    expect(subject.client.getQueryCache().findAll()).toEqual([]);
   } finally {
     await subject.cleanup();
   }
 });
 
-it('a project preference notice refreshes its native preferences while leaving inventory and legacy review reads untouched', async () => {
+it('a project preference notice refreshes its preferences while leaving inventory untouched', async () => {
   let preferences = 0;
   let inventories = 0;
-  const subject = setup((path) => {
+  const subject = await setup((path) => {
     if (path.endsWith('/file-preferences')) {
       preferences += 1;
       return Promise.resolve(
@@ -343,7 +395,6 @@ it('a project preference notice refreshes its native preferences while leaving i
     expect((await read()).preferences[0]?.hidden).toBe(true);
     expect(preferences).toBe(2);
     expect(inventories).toBe(1);
-    expect(subject.client.getQueryCache().findAll()).toEqual([]);
   } finally {
     stop();
     await subject.cleanup();
@@ -356,7 +407,7 @@ it('native file reads subscribe their paths, refresh from a live notice and rele
   const released = Promise.withResolvers<void>();
   let watched = false;
   let reads = 0;
-  const subject = setup(
+  const subject = await setup(
     (path) => {
       if (path.endsWith('/text?path=README.md')) {
         reads += 1;
@@ -412,7 +463,6 @@ it('native file reads subscribe their paths, refresh from a live notice and rele
       ?.onNotice({ type: 'worktree', projectId, worktreeId, change: 'files' });
     expect(await read()).toMatchObject({ text: 'After' });
     expect(reads).toBe(2);
-    expect(subject.client.getQueryCache().findAll()).toEqual([]);
     stop();
     await released.promise;
     expect(subject.sent.at(-1)?.worktrees).toEqual([]);

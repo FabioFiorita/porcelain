@@ -1,5 +1,4 @@
 import type { WorktreeConnection } from './connection.ts';
-import type { QueryFilters } from '@tanstack/query-core';
 
 type ReviewScope = { projectId: string; worktreeId: string };
 
@@ -55,18 +54,6 @@ export const queryKeys = {
     surface: readonly unknown[],
   ) => [...queryKeys.review(environmentId, scope), ...surface] as const,
 };
-
-export function reviewSurfaceFilters(
-  environmentId: string,
-  scope: ReviewScope,
-  surfaces: ReadonlySet<string>,
-): QueryFilters {
-  const prefix = queryKeys.review(environmentId, scope);
-  return {
-    queryKey: prefix,
-    predicate: (query) => surfaces.has(String(query.queryKey[prefix.length])),
-  };
-}
 
 export const fileSurfaces: ReadonlySet<string> = new Set([
   'changes',

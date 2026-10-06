@@ -148,7 +148,6 @@ function Navigator({ connection }: { connection: Connection }) {
   return (
     <ProjectNavigator
       inventory={inventory}
-      connection={connection}
       remotes={undefined}
       selected={undefined}
       onSelect={() => {}}

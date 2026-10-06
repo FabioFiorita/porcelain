@@ -1,11 +1,7 @@
 import { Context, Effect, Layer } from 'effect';
 import { Atom } from 'effect/reactivity';
-import { nativeOperation } from '@porcelain/effects';
-import type { QueryClient } from '@tanstack/query-core';
 import type { RuntimeConnection } from '../../../shared/api/connection.ts';
 import { porcelainClient } from '../../../shared/api/client.ts';
-import { queryKeys } from '../../../shared/api/query-keys.ts';
-import { currentAnswerEffect } from '../../../shared/api/stale-answer.ts';
 import { requestEffect } from '../../../shared/api/effect-client.ts';
 import { FileDrafts, fileDraftRuntime } from '../../files/store.ts';
 import { ConnectionError } from '../../../shared/api/connection-error.ts';
@@ -101,29 +97,10 @@ export const renameProject = Atom.family((connection: RuntimeConnection) =>
     { concurrent: true },
   ),
 );
-export const removeProject = Atom.family(
-  ({
-    connection,
-    client,
-  }: {
-    connection: RuntimeConnection;
-    client: QueryClient;
-  }) =>
-    projectCommandRuntime(connection).fn(
-      (projectId: string) =>
-        Effect.gen(function* () {
-          const answer = yield* ProjectCommands.use((commands) =>
-            commands.remove(projectId),
-          );
-          const key = queryKeys.reviewProject(
-            connection.environmentId,
-            projectId,
-          );
-          yield* nativeOperation(() => client.cancelQueries({ queryKey: key }));
-          yield* currentAnswerEffect(connection.request().signal);
-          client.removeQueries({ queryKey: key });
-          return answer;
-        }),
-      { concurrent: true },
-    ),
+export const removeProject = Atom.family((connection: RuntimeConnection) =>
+  projectCommandRuntime(connection).fn(
+    (projectId: string) =>
+      ProjectCommands.use((commands) => commands.remove(projectId)),
+    { concurrent: true },
+  ),
 );

@@ -1,4 +1,3 @@
-import { useQueryClient } from '@tanstack/react-query';
 import { useAtomValue } from '@effect/atom-react';
 import { AsyncResult } from 'effect/reactivity';
 import { Option } from 'effect';
@@ -15,7 +14,6 @@ export function useWorkspaceConnection(
   worktreeId: string | undefined,
   ready: boolean,
 ) {
-  const client = useQueryClient();
   const connection = useProjectConnection(remote, send);
   const inventory = useInventory(connection);
   const data = Option.getOrUndefined(AsyncResult.value(inventory.result));
@@ -31,9 +29,7 @@ export function useWorkspaceConnection(
     project?.available &&
     worktree?.available;
   useAtomValue(
-    selected && connection
-      ? liveQueries({ client, connection })
-      : inactiveLiveQueries,
+    selected && connection ? liveQueries({ connection }) : inactiveLiveQueries,
   );
   const current =
     selected && remote && project && worktree && connection
