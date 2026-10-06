@@ -167,3 +167,21 @@ export const readDiffBatches = Atom.family((queries: readonly DiffAtom[]) =>
     },
   ),
 );
+
+export const readCompleteDiffWindow = Atom.family(
+  (queries: readonly DiffAtom[]) =>
+    Atom.make((get) =>
+      Effect.map(
+        Effect.forEach(
+          queries,
+          (query) =>
+            Effect.map(
+              get.result(query, { suspendOnWaiting: true }),
+              diffEntries,
+            ),
+          { concurrency: 'unbounded' },
+        ),
+        (entries) => new Map(entries.flatMap((entry) => [...entry])),
+      ),
+    ).pipe(Atom.setIdleTTL(0)),
+);

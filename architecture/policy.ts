@@ -73,7 +73,6 @@ export const targetPackageExports: Record<string, Record<string, string>> = {
     './projects/api': './src/features/projects/api.ts',
     './projects/rules': './src/features/projects/rules/index.ts',
     './files': './src/features/files/index.ts',
-    './files/api': './src/features/files/api.ts',
     './files/rules': './src/features/files/rules/index.ts',
     './changes': './src/features/changes/index.ts',
     './changes/rules': './src/features/changes/rules/index.ts',

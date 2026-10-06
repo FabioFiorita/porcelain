@@ -31,7 +31,7 @@ export type FileDraftState = {
   readonly savedText: string;
   readonly fingerprint: string;
   readonly saving: boolean;
-  readonly owner: string | null;
+  readonly owner: string | symbol | null;
   readonly error: unknown;
   readonly diskChanged: ReadonlySet<string>;
 };
@@ -51,8 +51,8 @@ class FileDraft extends Context.Service<
   {
     readonly state: AtomRef.ReadonlyRef<FileDraftState>;
     readonly blocked: boolean;
-    readonly claim: (owner: string) => boolean;
-    readonly release: (owner: string) => void;
+    readonly claim: (owner: string | symbol) => boolean;
+    readonly release: (owner: string | symbol) => void;
     readonly attachEditor: (owner: string) => void;
     readonly finishEditing: (
       owner: string,
@@ -110,7 +110,7 @@ class FileDraft extends Context.Service<
           const fiber = yield* Ref.getAndSet(autosave, undefined);
           if (fiber) yield* Fiber.interrupt(fiber);
         });
-        const release = (owner: string) => {
+        const release = (owner: string | symbol) => {
           if (state.value.owner === owner) update({ owner: null });
         };
         const removeNotice = (viewer: string) => {

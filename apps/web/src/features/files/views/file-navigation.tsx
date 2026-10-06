@@ -100,6 +100,9 @@ function ScopedFileNavigation({
 }: Props) {
   const root = useDirectory(connection, scope, '');
   const edit = useEditFile(connection, scope);
+  const editError = AsyncResult.isFailure(edit.result)
+    ? Cause.squash(edit.result.cause)
+    : undefined;
   const [creating, setCreating] = useState<{
     kind: 'file' | 'directory';
     folder: string;
@@ -174,7 +177,7 @@ function ScopedFileNavigation({
   useHotkey(
     SHORTCUTS.duplicateFile,
     () => {
-      if (!edit.isPending) duplicate(selected);
+      if (!edit.result.waiting) duplicate(selected);
     },
     { enabled: openable.has(selected), ignoreInputs: true },
   );
@@ -218,7 +221,7 @@ function ScopedFileNavigation({
           close,
           rename,
           onStartCreate: (kind, parent) => {
-            if (!edit.isPending)
+            if (!edit.result.waiting)
               setCreating({ kind, folder: parent, nonce: Date.now() });
           },
           onOpenFile: (next) => onOpen({ kind: 'file', path: next }),
@@ -235,7 +238,7 @@ function ScopedFileNavigation({
             ),
           onTrash: setDeleting,
           onDuplicate: (next) => {
-            if (!edit.isPending) duplicate(next);
+            if (!edit.result.waiting) duplicate(next);
           },
         }),
     };
@@ -280,7 +283,7 @@ function ScopedFileNavigation({
           size="icon-sm"
           variant="ghost"
           aria-label="New file"
-          disabled={edit.isPending}
+          disabled={edit.result.waiting}
           onClick={() =>
             setCreating({ kind: 'file', folder: '', nonce: Date.now() })
           }
@@ -291,7 +294,7 @@ function ScopedFileNavigation({
           size="icon-sm"
           variant="ghost"
           aria-label="New folder"
-          disabled={edit.isPending}
+          disabled={edit.result.waiting}
           onClick={() =>
             setCreating({ kind: 'directory', folder: '', nonce: Date.now() })
           }
@@ -380,7 +383,7 @@ function ScopedFileNavigation({
       <AlertDialog
         open={deleting !== null}
         onOpenChange={(open) => {
-          if (!open && !edit.isPending) setDeleting(null);
+          if (!open && !edit.result.waiting) setDeleting(null);
         }}
       >
         <AlertDialogContent>
@@ -393,12 +396,12 @@ function ScopedFileNavigation({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={edit.isPending}>
+            <AlertDialogCancel disabled={edit.result.waiting}>
               Cancel
             </AlertDialogCancel>
             <Button
               variant="destructive"
-              disabled={edit.isPending}
+              disabled={edit.result.waiting}
               onClick={() => {
                 if (deleting) edit.trash(deleting, () => setDeleting(null));
               }}
@@ -406,16 +409,16 @@ function ScopedFileNavigation({
               Move to trash
             </Button>
           </AlertDialogFooter>
-          {edit.error && (
+          {editError !== undefined && (
             <p role="alert" className="text-xs text-destructive">
-              {fileErrorMessage(edit.error)}
+              {fileErrorMessage(editError)}
             </p>
           )}
         </AlertDialogContent>
       </AlertDialog>
-      {edit.error && !deleting && (
+      {editError !== undefined && !deleting && (
         <p role="alert" className="px-3 py-2 text-xs text-destructive">
-          {fileErrorMessage(edit.error)}
+          {fileErrorMessage(editError)}
         </p>
       )}
       {AsyncResult.isFailure(setPinned.result) && (

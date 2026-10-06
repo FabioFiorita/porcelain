@@ -2,8 +2,7 @@ export { readTextFile } from './queries/text.ts';
 export { readDirectory } from './queries/directory.ts';
 export { readWorktreePaths } from './queries/paths.ts';
 export { readAsset } from './queries/asset.ts';
-export { refreshFileEdit } from './commands/edit-file.ts';
-export { FileEditCoordinator } from './commands/file-edit-coordinator.ts';
+export { editFile, retainFileDraft } from './commands/edit-file.ts';
 export {
   FileDrafts,
   FileDraftTiming,

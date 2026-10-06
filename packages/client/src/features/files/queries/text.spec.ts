@@ -111,6 +111,51 @@ it('rejects another worktree returned by the transport', async () => {
   );
   await expect(read(subject)).rejects.toThrow('The connected context changed.');
 });
+it('rejects text returned for another path', async () => {
+  const subject = fixture(() =>
+    Promise.resolve(
+      Response.json({
+        ...response,
+        path: 'other.md',
+      }),
+    ),
+  );
+  await expect(read(subject)).rejects.toThrow('The connected context changed.');
+});
+it('encodes reserved path characters once and preserves the transport policy', async () => {
+  const sent: { path: string; init: RequestInit | undefined }[] = [];
+  const subject = fixture((path, init) => {
+    sent.push({ path, init });
+    return Promise.resolve(Response.json({ ...response, path: 'a b/#?.txt' }));
+  });
+  expect(await read(subject, 'a b/#?.txt')).toMatchObject({ text: 'Hello' });
+  expect(sent).toHaveLength(1);
+  expect(sent[0]?.path).toBe(
+    `/api/worktrees/${scope.worktreeId}/text?path=a+b%2F%23%3F.txt`,
+  );
+  expect(sent[0]?.init).toMatchObject({
+    method: 'GET',
+    redirect: 'error',
+    cache: 'no-store',
+  });
+  expect(sent[0]?.init?.signal?.aborted).toBe(false);
+});
+it('rejects malformed success data', async () => {
+  const subject = fixture(() =>
+    Promise.resolve(Response.json({ malformed: true })),
+  );
+  await expect(read(subject)).rejects.toThrow();
+});
+it('does not send a read after disconnect', async () => {
+  let sent = 0;
+  const subject = fixture(() => {
+    sent += 1;
+    return Promise.resolve(Response.json(response));
+  });
+  subject.controller.abort();
+  await expect(read(subject)).rejects.toThrow();
+  expect(sent).toBe(0);
+});
 it('rejects a response after disconnect even when transport ignores cancellation', async () => {
   const held = Promise.withResolvers<Response>();
   const started = Promise.withResolvers<void>();

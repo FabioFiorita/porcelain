@@ -1,12 +1,9 @@
-import { filesApi } from '@porcelain/client/files/api';
-import { runRequest } from '@porcelain/client/transport';
-import { refreshFileEdit } from '@porcelain/client/files';
+import { editFile } from '@porcelain/client/files';
 import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, expect } from 'vitest';
 import { Effect } from 'effect';
 import { AtomRegistry, type Atom, type AsyncResult } from 'effect/reactivity';
-import { QueryClient } from '@tanstack/query-core';
 import { test } from '@porcelain/server/kit/server-test';
 import { readDirectory } from '@porcelain/client/files';
 import { readWorktreePaths } from '@porcelain/client/files';
@@ -86,7 +83,7 @@ test('save exact text through the shared writer and refuse an older fingerprint'
   server,
   session,
 }) => {
-  const { connected, scope } = await connection(server, session);
+  const { connected, scope, execute } = await connection(server, session);
   const read = reader();
   const original = await read(
     readTextFile({
@@ -103,18 +100,9 @@ test('save exact text through the shared writer and refuse an older fingerprint'
     text: 'Saved by the shared client.\n',
     expectedFingerprint: original.contentFingerprint,
   };
-  const saved = await runRequest(
-    filesApi(connected).editFile({
-      params: { worktreeId: scope.worktreeId },
-      payload: input,
-    }),
-    connected.request().signal,
-  );
+  const command = editFile({ connection: connected, scope });
+  const saved = await execute(command, input);
   expect(saved.contentFingerprint).not.toBe(original.contentFingerprint);
-  await runRequest(
-    refreshFileEdit(new QueryClient(), connected, scope, input),
-    connected.request().signal,
-  );
   const current = await read(
     readTextFile({
       scope,
@@ -127,13 +115,10 @@ test('save exact text through the shared writer and refuse an older fingerprint'
     contentFingerprint: saved.contentFingerprint,
   });
   await expect(
-    runRequest(
-      filesApi(connected).editFile({
-        params: { worktreeId: scope.worktreeId },
-        payload: { ...input, text: 'Overwrite with an old fingerprint.\n' },
-      }),
-      connected.request().signal,
-    ),
+    execute(command, {
+      ...input,
+      text: 'Overwrite with an old fingerprint.\n',
+    }),
   ).rejects.toMatchObject({
     _tag: 'ContentChangedError',
     message: 'Content changed; retry the operation',

@@ -4,7 +4,11 @@ import { DIFFS_PER_REQUEST } from '@porcelain/contracts/shared';
 import { isStaleChangeObservation } from '../../../shared/api/stale-answer.ts';
 import { diffBatches } from '../rules/diff-batches.ts';
 import type { ChangeSelection, ExpectedFile } from '../rules/changes.ts';
-import { readChangeDiffs, readDiffBatches } from './diffs.ts';
+import {
+  readChangeDiffs,
+  readDiffBatches,
+  readCompleteDiffWindow,
+} from './diffs.ts';
 import { readCurrentDiffObservation } from './read-current-observation.ts';
 import type {
   RuntimeConnection,
@@ -46,23 +50,23 @@ export const readChangeDiffWindow = Atom.family(
     selections: readonly ChangeSelection[];
   }) => {
     const { connection, scope, statusToken } = selection;
-    const batches = readDiffBatches(
-      diffBatches(
-        selection.expectedFiles,
-        selection.selections,
-        DIFFS_PER_REQUEST,
-      ).map((batch) =>
-        readChangeDiffs({
-          connection,
-          scope,
-          input: {
-            expectedStatusToken: statusToken,
-            expectedFiles: batch.expectedFiles,
-            selections: batch.selections,
-          },
-        }),
-      ),
+    const queries = diffBatches(
+      selection.expectedFiles,
+      selection.selections,
+      DIFFS_PER_REQUEST,
+    ).map((batch) =>
+      readChangeDiffs({
+        connection,
+        scope,
+        input: {
+          expectedStatusToken: statusToken,
+          expectedFiles: batch.expectedFiles,
+          selections: batch.selections,
+        },
+      }),
     );
+    const batches = readDiffBatches(queries);
+    const window = readCompleteDiffWindow(queries);
     const recover = readCurrentDiffObservation({ connection, scope });
     return Atom.readable(
       (get) => {
@@ -81,10 +85,7 @@ export const readChangeDiffWindow = Atom.family(
           get.set(recover, statusToken);
         }
         return {
-          result: AsyncResult.map(
-            AsyncResult.all(results),
-            (entries) => new Map(entries.flatMap((entry) => [...entry])),
-          ),
+          result: get(window),
           recovery,
         };
       },

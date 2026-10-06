@@ -1,12 +1,12 @@
 import { afterEach, expect, it } from 'vitest';
-import { Effect, Option } from 'effect';
+import { Effect, Option, Schema, Stream } from 'effect';
 import { DIFFS_PER_REQUEST } from '@porcelain/contracts/shared';
 import {
   readChangeDiffs,
   readCommitDiffs,
   readChangeDiffWindow,
 } from '@porcelain/client/changes';
-import { AtomRegistry, AsyncResult } from 'effect/reactivity';
+import { AtomRegistry, AsyncResult, type Atom } from 'effect/reactivity';
 import {
   createWorktreeConnection,
   type Transport,
@@ -341,6 +341,107 @@ it('keeps a multi-request window incomplete until every batch succeeds and expos
   expect(Option.isNone(AsyncResult.value(result))).toBe(true);
   expect(requests).toBe(2);
   stop();
+});
+
+it('retains the entire confirmed diff window when one refreshed batch fails', async () => {
+  const held = Promise.withResolvers<Response>();
+  const started = Promise.withResolvers<void>();
+  let refreshing = false;
+  const payload = Schema.fromJsonString(
+    Schema.Struct({
+      selections: Schema.Array(
+        Schema.Struct({
+          scope: Schema.Literals(['staged', 'unstaged']),
+          oldPath: Schema.String,
+          newPath: Schema.String,
+        }),
+      ),
+    }),
+  );
+  const subject = fixture((_, init) => {
+    const bytes = init?.body;
+    if (!(bytes instanceof Uint8Array))
+      throw new Error('Expected request bytes');
+    const { selections } = Schema.decodeUnknownSync(payload)(
+      new TextDecoder().decode(bytes),
+    );
+    const suffix = selections.length === 1;
+    if (refreshing && suffix) {
+      started.resolve();
+      return held.promise;
+    }
+    return Promise.resolve(
+      Response.json({
+        ...diffSnapshot,
+        diffs: selections.map((selection) => ({
+          selection,
+          content: {
+            kind: 'text',
+            patch: refreshing
+              ? 'New prefix'
+              : suffix
+                ? 'Confirmed suffix'
+                : 'Confirmed prefix',
+          },
+        })),
+      }),
+    );
+  });
+  const window = readChangeDiffWindow({
+    connection: subject.connection,
+    ...windowInput(),
+  });
+  const stop = subject.registry.mount(window);
+  const observe = (
+    predicate: (result: Atom.Type<typeof window>['result']) => boolean,
+  ) =>
+    Effect.runPromise(
+      AtomRegistry.toStream(subject.registry, window).pipe(
+        Stream.map((value) => value.result),
+        Stream.filter(predicate),
+        Stream.take(1),
+        Stream.runHead,
+      ),
+    );
+  try {
+    const complete = Option.getOrThrow(
+      await observe(
+        (result) => AsyncResult.isSuccess(result) && !result.waiting,
+      ),
+    );
+    const expected = [
+      ...Array.from({ length: DIFFS_PER_REQUEST }, () => ({
+        kind: 'text',
+        patch: 'Confirmed prefix',
+      })),
+      { kind: 'text', patch: 'Confirmed suffix' },
+    ];
+    expect([
+      ...Option.getOrThrow(AsyncResult.value(complete)).values(),
+    ]).toEqual(expected);
+    refreshing = true;
+    const failed = observe(AsyncResult.isFailure);
+    subject.registry.refresh(window);
+    await started.promise;
+    expect([
+      ...Option.getOrThrow(
+        AsyncResult.value(subject.registry.get(window).result),
+      ).values(),
+    ]).toEqual(expected);
+    held.resolve(
+      Response.json({ message: 'Git inspection unavailable' }, { status: 503 }),
+    );
+    const result = Option.getOrThrow(await failed);
+    expect(AsyncResult.isFailure(result)).toBe(true);
+    expect([...Option.getOrThrow(AsyncResult.value(result)).values()]).toEqual(
+      expected,
+    );
+  } finally {
+    held.resolve(
+      Response.json({ message: 'Git inspection unavailable' }, { status: 503 }),
+    );
+    stop();
+  }
 });
 
 it('unmounting a diff window cancels each in-flight batch without disconnecting its environment', async () => {

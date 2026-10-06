@@ -9,7 +9,18 @@ import { worktreeRead } from '../../../shared/api/worktree-read.ts';
 import { requestEffect } from '../../../shared/api/effect-client.ts';
 import { Effect } from 'effect';
 import { currentAnswerEffect } from '../../../shared/api/stale-answer.ts';
-import { unreadableFileReason } from '../api.ts';
+import {
+  FileTooLargeError,
+  UnsupportedTextError,
+} from '@porcelain/files/errors';
+
+function unreadableFileReason(error: unknown) {
+  if (error instanceof UnsupportedTextError)
+    return 'This file is binary or uses an unsupported text encoding.';
+  if (error instanceof FileTooLargeError)
+    return 'This file is too large to display as text.';
+  return null;
+}
 
 export const readTextFile = Atom.family(
   ({
@@ -36,7 +47,7 @@ export const readTextFile = Atom.family(
           Effect.tap((answer) =>
             currentAnswerEffect(
               connection.request().signal,
-              answer.worktreeId === scope.worktreeId,
+              answer.worktreeId === scope.worktreeId && answer.path === path,
             ),
           ),
           Effect.catch((error) => {
