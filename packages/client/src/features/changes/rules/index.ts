@@ -19,4 +19,4 @@ export {
 } from './branch.ts';
 export { commitFiles } from './commit-files.ts';
 export { commitDiffPath, showsWorktreeDiff } from './diff-eligibility.ts';
-export { consecutiveBatches, diffBatches } from './diff-batches.ts';
+export { consecutiveBatches } from './diff-batches.ts';

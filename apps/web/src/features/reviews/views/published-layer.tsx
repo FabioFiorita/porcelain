@@ -1,3 +1,5 @@
+import { Option } from 'effect';
+import { AsyncResult } from 'effect/reactivity';
 import { parsePatchFiles } from '@pierre/diffs';
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -7,7 +9,6 @@ import {
   useChangeDiffs,
   useChangeLines,
   useChanges,
-  useRecoverChangedDiffs,
 } from '@/features/changes/index';
 import { MarkdownView } from '@/features/files/index';
 import { contentVersion } from '@/shared/lib/pierre';
@@ -194,7 +195,6 @@ function LayerSteps({
 }) {
   const { scope, context } = props;
   const { connection } = context;
-  const recover = useRecoverChangedDiffs(scope, connection);
   usePrefetchReviewed(scope, context);
   const changes = useChanges(scope, connection);
   const items = useReviewChangeItems(
@@ -226,7 +226,6 @@ function LayerSteps({
       )
       .map(({ path, fingerprint }) => ({ path, fingerprint })),
     selections,
-    recover,
   );
   return (
     <div className="space-y-6">
@@ -284,16 +283,17 @@ function Step({
     location.endLine,
     !changed && Boolean(plain) && (!committed || expanded),
   );
+  const contextLines = Option.getOrUndefined(AsyncResult.value(lines));
   const entries: CodeEntry[] = [];
   if (!changed && (!committed || expanded)) {
     const patches =
-      plain && lines.data
+      plain && contextLines
         ? [
             {
               patch: contextPatch(
                 step.pointer.path,
-                lines.data.from,
-                lines.data.lines,
+                contextLines.from,
+                contextLines.lines,
               ),
               comparison: undefined,
             },
@@ -391,9 +391,9 @@ function Step({
         </div>
       ) : (
         <p role="status" className="text-sm text-muted-foreground">
-          {lines.isError || diffs.failed
+          {AsyncResult.isFailure(lines) || diffs.failed
             ? 'Code could not be loaded.'
-            : lines.isFetching || diffs.pending
+            : lines.waiting || diffs.pending
               ? 'Loading code…'
               : 'No textual code at this location. Open the file to inspect it.'}
         </p>

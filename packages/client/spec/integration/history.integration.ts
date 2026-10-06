@@ -6,7 +6,7 @@ import { test } from '@porcelain/server/kit/server-test';
 import { threeCommits } from '@porcelain/server/kit/reads';
 import { historyQueryOptions } from '@porcelain/client/history';
 import { commitQueryOptions } from '@porcelain/client/history';
-import { commitDiffsQueryOptions } from '@porcelain/client/changes';
+import { readCommitDiffs } from '@porcelain/client/changes';
 import { connection } from '../kit/connection.ts';
 
 test('read commit metadata, renamed paths and the selected commit patch', async ({
@@ -14,7 +14,11 @@ test('read commit metadata, renamed paths and the selected commit patch', async 
   session,
 }) => {
   const state = await threeCommits(session);
-  const { connected, scope } = await connection(server, session);
+  const {
+    connected,
+    scope,
+    read: nativeRead,
+  } = await connection(server, session);
   const cache = new QueryClient();
   const history = await cache.infiniteQuery(
     historyQueryOptions(scope, connected),
@@ -34,10 +38,14 @@ test('read commit metadata, renamed paths and the selected commit patch', async 
       body: 'With a body',
     },
   });
-  const diffs = await cache.query(
-    commitDiffsQueryOptions(scope, connected, state.second, 1, [
-      [session.fixture.readme.path],
-    ]),
+  const diffs = await nativeRead(
+    readCommitDiffs({
+      scope,
+      connection: connected,
+      oid: state.second,
+      parent: 1,
+      paths: [[session.fixture.readme.path]],
+    }),
   );
   expect(diffs).toEqual({
     commitOid: state.second,
@@ -73,7 +81,11 @@ test('read root, deleted, binary and empty commit changes without inventing a pa
   server,
   session,
 }) => {
-  const { connected, scope } = await connection(server, session);
+  const {
+    connected,
+    scope,
+    read: nativeRead,
+  } = await connection(server, session);
   const cache = new QueryClient();
   const rootOid = (
     await session.git('rev-list', '--max-parents=0', 'HEAD')
@@ -87,10 +99,14 @@ test('read root, deleted, binary and empty commit changes without inventing a pa
     oldMode: '000000',
     newMode: '100644',
   });
-  const rootDiff = await cache.query(
-    commitDiffsQueryOptions(scope, connected, rootOid, 1, [
-      [session.fixture.readme.path],
-    ]),
+  const rootDiff = await nativeRead(
+    readCommitDiffs({
+      scope,
+      connection: connected,
+      oid: rootOid,
+      parent: 1,
+      paths: [[session.fixture.readme.path]],
+    }),
   );
   expect(rootDiff).toEqual({
     commitOid: rootOid,
@@ -133,11 +149,14 @@ test('read root, deleted, binary and empty commit changes without inventing a pa
       newMode: '100644',
     },
   ]);
-  const diffs = await cache.query(
-    commitDiffsQueryOptions(scope, connected, oid, 1, [
-      [session.fixture.readme.path],
-      ['image.bin'],
-    ]),
+  const diffs = await nativeRead(
+    readCommitDiffs({
+      scope,
+      connection: connected,
+      oid,
+      parent: 1,
+      paths: [[session.fixture.readme.path], ['image.bin']],
+    }),
   );
   expect(diffs).toEqual({
     commitOid: oid,
@@ -185,7 +204,11 @@ test('compare a merge with the chosen parent and cache each parent independently
   const main = (await session.git('rev-parse', 'HEAD')).trim();
   await session.git('merge', '--no-ff', 'topic', '-m', 'Merge topic');
   const oid = (await session.git('rev-parse', 'HEAD')).trim();
-  const { connected, scope } = await connection(server, session);
+  const {
+    connected,
+    scope,
+    read: nativeRead,
+  } = await connection(server, session);
   const cache = new QueryClient();
   const first = await cache.query(commitQueryOptions(scope, connected, oid, 1));
   const second = await cache.query(
@@ -204,8 +227,14 @@ test('compare a merge with the chosen parent and cache each parent independently
     baseOid: topic,
   });
   expect(second.files.map((file) => file.newPath)).toEqual(['MAIN.md']);
-  const diff = await cache.query(
-    commitDiffsQueryOptions(scope, connected, oid, 2, [['MAIN.md']]),
+  const diff = await nativeRead(
+    readCommitDiffs({
+      scope,
+      connection: connected,
+      oid,
+      parent: 2,
+      paths: [['MAIN.md']],
+    }),
   );
   expect(diff).toEqual({
     commitOid: oid,

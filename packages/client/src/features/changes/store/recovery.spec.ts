@@ -14,7 +14,7 @@ it('attempts recovery only once for an observation, even after it finishes', () 
         first,
         duplicate,
         repeated,
-        pending: recovery.state.value.pending,
+        pending: (yield* recovery.state).pending,
       };
     }).pipe(Effect.provide(ChangedDiffRecovery.layer)),
   );
@@ -33,7 +33,7 @@ it('keeps the newer recovery pending when an older observation finishes', () => 
       yield* recovery.begin('worktree/path', 'observation-1');
       const accepted = yield* recovery.begin('worktree/path', 'observation-2');
       yield* recovery.finish('worktree/path', 'observation-1');
-      return { accepted, pending: recovery.state.value.pending };
+      return { accepted, pending: (yield* recovery.state).pending };
     }).pipe(Effect.provide(ChangedDiffRecovery.layer)),
   );
   expect(result).toEqual({
@@ -49,7 +49,7 @@ it('recovers different file observations independently', () => {
       yield* recovery.begin('first/path', 'observation');
       const accepted = yield* recovery.begin('second/path', 'observation');
       yield* recovery.finish('first/path', 'observation');
-      return { accepted, pending: recovery.state.value.pending };
+      return { accepted, pending: (yield* recovery.state).pending };
     }).pipe(Effect.provide(ChangedDiffRecovery.layer)),
   );
   expect(result).toEqual({

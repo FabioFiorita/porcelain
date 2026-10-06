@@ -6,7 +6,6 @@ import {
   diffEntry,
   useChangeDiffs,
   useChanges,
-  useRecoverChangedDiffs,
 } from '@/features/changes/index';
 import {
   ImagePreview,
@@ -56,7 +55,6 @@ export function ReviewCodeDocument({
   toolbar?: (collapseControl: ReactNode) => ReactNode;
 }) {
   const { connection } = context;
-  const recover = useRecoverChangedDiffs(scope, connection);
   usePrefetchReviewed(scope, context);
   const changes = useChanges(scope, connection);
   const items = orderReviewChanges(
@@ -76,7 +74,6 @@ export function ReviewCodeDocument({
         : [],
     ),
     items.flatMap((item) => item.comparisons.flatMap(selectionOf)),
-    recover,
   );
   const untracked = useTextContents(
     connection,

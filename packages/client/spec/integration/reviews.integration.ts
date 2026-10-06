@@ -15,22 +15,7 @@ import {
   layerMarksQueryOptions,
 } from '@porcelain/client/reviews';
 import { readChanges } from '@porcelain/client/changes';
-import { Effect } from 'effect';
-import { AtomRegistry } from 'effect/reactivity';
-import { afterEach } from 'vitest';
-
-const registries = new Set<AtomRegistry.AtomRegistry>();
-afterEach(() => {
-  for (const registry of registries) registry.dispose();
-  registries.clear();
-});
-function nativeReader() {
-  const registry = AtomRegistry.make();
-  registries.add(registry);
-  return (atom: ReturnType<typeof readChanges>) =>
-    Effect.runPromise(AtomRegistry.getResult(registry, atom));
-}
-import { changeDiffsQueryOptions } from '@porcelain/client/changes';
+import { readChangeDiffs } from '@porcelain/client/changes';
 import { connection } from '../kit/connection.ts';
 
 test('read an unpublished review, then its published layers and discussion', async ({
@@ -88,9 +73,12 @@ test('read changes and the exact Git patch, and refuse a stale diff snapshot', a
   server,
   session,
 }) => {
-  const { connected, scope } = await connection(server, session);
-  const cache = new QueryClient();
-  const changes = await nativeReader()(
+  const {
+    connected,
+    scope,
+    read: nativeRead,
+  } = await connection(server, session);
+  const changes = await nativeRead(
     readChanges({ scope, connection: connected }),
   );
   expect(changes.changes).toHaveLength(1);
@@ -104,8 +92,8 @@ test('read changes and the exact Git patch, and refuse a stale diff snapshot', a
       { scope: 'unstaged' as const, oldPath: file.path, newPath: file.path },
     ],
   };
-  const diffs = await cache.query(
-    changeDiffsQueryOptions(scope, connected, input),
+  const diffs = await nativeRead(
+    readChangeDiffs({ scope, connection: connected, input }),
   );
   expect(diffs.diffs).toEqual([
     {
@@ -118,7 +106,7 @@ test('read changes and the exact Git patch, and refuse a stale diff snapshot', a
   ]);
   await session.writeFile(file.path, 'A newer change\n');
   await expect(
-    cache.query(changeDiffsQueryOptions(scope, connected, input)),
+    nativeRead(readChangeDiffs({ scope, connection: connected, input })),
   ).rejects.toMatchObject({
     _tag: 'WorktreeChangedError',
     message: 'Worktree changed during inspection',
@@ -204,9 +192,13 @@ test('mark and unmark the actual changed file through the shared reviewed owner'
   server,
   session,
 }) => {
-  const { connected, scope } = await connection(server, session);
+  const {
+    connected,
+    scope,
+    read: nativeRead,
+  } = await connection(server, session);
   const cache = new QueryClient();
-  const changes = await nativeReader()(
+  const changes = await nativeRead(
     readChanges({ scope, connection: connected }),
   );
   const file = changes.changes[0];

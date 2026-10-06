@@ -152,7 +152,7 @@ export function CommitDocument({
               oid={oid}
               omitted={omitted}
               patchOf={patchOf}
-              failed={diffs.isError}
+              failed={diffs.failed}
               onRetry={diffs.retry}
             />
           </>
@@ -160,7 +160,7 @@ export function CommitDocument({
       />
       <ReadMoreFiles
         more={more}
-        pending={diffs.isPending}
+        pending={diffs.pending}
         onReadMore={readMore}
       />
     </div>

@@ -1,3 +1,5 @@
+import { Option } from 'effect';
+import { AsyncResult } from 'effect/reactivity';
 import { ChevronsUpDownIcon, GitBranchIcon } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -32,17 +34,18 @@ export function BranchBasePicker({
 }) {
   const [open, setOpen] = useState(false);
   const bases = useBranchBases(scope, connection, open);
+  const branches = Option.getOrUndefined(AsyncResult.value(bases.result));
   const label = base == null ? 'the default branch' : branchName(base);
-  const defaultRef = bases.data?.defaultRef ?? null;
+  const defaultRef = branches?.defaultRef ?? null;
   const chosen = base ?? defaultRef;
   const groups = [
     {
       heading: 'Local',
-      entries: bases.data?.bases.filter((entry) => !entry.remote) ?? [],
+      entries: branches?.bases.filter((entry) => !entry.remote) ?? [],
     },
     {
       heading: 'Remote',
-      entries: bases.data?.bases.filter((entry) => entry.remote) ?? [],
+      entries: branches?.bases.filter((entry) => entry.remote) ?? [],
     },
   ].filter((group) => group.entries.length > 0);
   const choose = (ref: string) => {
@@ -79,25 +82,27 @@ export function BranchBasePicker({
             placeholder="Find a branch"
           />
           <CommandList aria-label="Base branches">
-            {bases.isPending && (
+            {AsyncResult.isInitial(bases.result) && (
               <p role="status" className="p-3 text-xs text-muted-foreground">
                 Reading branches…
               </p>
             )}
-            {bases.isError && (
+            {AsyncResult.isFailure(bases.result) && (
               <div className="p-3 text-xs text-muted-foreground">
                 <span className="block">The branches could not be read.</span>
                 <Button
                   variant="outline"
                   size="xs"
                   className="mt-2"
-                  onClick={() => void bases.refetch()}
+                  onClick={bases.refresh}
                 >
                   Try again
                 </Button>
               </div>
             )}
-            {bases.isSuccess && <CommandEmpty>No branch matches.</CommandEmpty>}
+            {AsyncResult.isSuccess(bases.result) && (
+              <CommandEmpty>No branch matches.</CommandEmpty>
+            )}
             {groups.map((group) => (
               <CommandGroup key={group.heading} heading={group.heading}>
                 {group.entries.map((entry) => (

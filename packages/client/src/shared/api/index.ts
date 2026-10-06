@@ -6,9 +6,5 @@ export type { RuntimeConnection } from './connection.ts';
 export { createWorktreeConnection } from './worktree-connection.ts';
 
 export { queryKeys } from './query-keys.ts';
-export {
-  assertCurrentAnswer,
-  isStaleChangeObservation,
-} from './stale-answer.ts';
 export { runRequest, runClientRequest } from './effect-client.ts';
 export { WriteQueues } from './write-queue.ts';

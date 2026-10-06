@@ -1,55 +1,64 @@
 import {
-  branchQueryOptions,
-  branchBasesQueryOptions,
-  branchDiffsQueryOptions,
+  readBranchChanges,
+  readBranchBases,
+  readBranchDiffs,
 } from '@porcelain/client/changes';
-import { useQuery } from '@tanstack/react-query';
-import { usePathDiffs } from './path-diffs';
-import type { BranchRange } from '@porcelain/client/changes/rules';
-import { type ChangesScope } from '@porcelain/client/changes/rules';
-import { type Connection } from '@/shared/workspace/connection';
+import { useAtomValue, useAtomRefresh } from '@effect/atom-react';
+import { Atom, AsyncResult } from 'effect/reactivity';
+import { usePathDiffs } from './batched-reads';
+import {
+  consecutiveBatches,
+  type BranchRange,
+  type ChangesScope,
+} from '@porcelain/client/changes/rules';
+import { DIFF_WINDOW_FILES } from '@/config/limits';
+import type { Connection } from '@/shared/workspace/connection';
+
+const inactiveBases = Atom.make(
+  AsyncResult.initial<Atom.Success<ReturnType<typeof readBranchBases>>>(),
+);
 
 export function useBranchChanges(
   scope: ChangesScope,
   connection: Connection,
   base: string | undefined,
 ) {
-  return useQuery(branchQueryOptions(scope, connection, base));
+  const state = readBranchChanges({
+    connection,
+    scope,
+    ...(base === undefined ? {} : { base }),
+  });
+  return { result: useAtomValue(state), refresh: useAtomRefresh(state) };
 }
-
 export function useBranchBases(
   scope: ChangesScope,
   connection: Connection,
   enabled: boolean,
 ) {
-  return useQuery({ ...branchBasesQueryOptions(scope, connection), enabled });
+  const state = enabled
+    ? readBranchBases({ connection, scope })
+    : inactiveBases;
+  return { result: useAtomValue(state), refresh: useAtomRefresh(state) };
 }
-
 export function useBranchDiffs(
   scope: ChangesScope,
   connection: Connection,
   range: BranchRange | null,
   paths: readonly (readonly string[])[],
 ) {
-  const connected = connection;
-  return usePathDiffs({
-    connection: connected,
-    paths: range ? paths : [],
-    key: (batch) =>
-      range
-        ? branchDiffsQueryOptions(scope, connected, {
-            baseOid: range.baseOid,
-            headOid: range.headOid,
-            paths: batch.map((entry) => [...entry]),
-          }).queryKey
-        : [],
-    read: async (signal, batch) =>
-      range
-        ? branchDiffsQueryOptions(scope, connected, {
-            baseOid: range.baseOid,
-            headOid: range.headOid,
-            paths: batch,
-          }).queryFn({ signal })
-        : { diffs: [] },
-  });
+  return usePathDiffs(
+    range
+      ? consecutiveBatches(paths, DIFF_WINDOW_FILES).map((batch) =>
+          readBranchDiffs({
+            connection,
+            scope,
+            input: {
+              baseOid: range.baseOid,
+              headOid: range.headOid,
+              paths: batch.map((entry) => [...entry]),
+            },
+          }),
+        )
+      : [],
+  );
 }

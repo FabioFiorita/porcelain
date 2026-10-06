@@ -387,31 +387,25 @@ deepStrictEqual(
   ),
   'client-public-api-only',
 );
-deepStrictEqual(
-  classify('packages/client/spec/integration/files.integration.ts'),
-  {
-    role: 'client-integration-test',
-    owner: 'client',
-  },
-);
-deepStrictEqual(classify('packages/client/spec/kit/connection.ts'), {
-  role: 'client-test-kit',
-  owner: 'client',
-});
-deepStrictEqual(
-  violation(
-    { role: 'client-integration-test', owner: 'client' },
-    { role: 'server-kit', owner: 'server' },
-  ),
-  undefined,
-);
-deepStrictEqual(
-  violation(
-    { role: 'client-integration-test', owner: 'client' },
-    { role: 'bootstrap', owner: 'server' },
-  ),
-  'client-imports-client-and-contracts-only',
-);
+for (const [path, role] of [
+  [
+    'packages/client/spec/integration/files.integration.ts',
+    'client-integration-test',
+  ],
+  ['packages/client/spec/kit/connection.ts', 'client-test-kit'],
+])
+  deepStrictEqual(classify(path), { role, owner: 'client' });
+for (const [role, expected] of [
+  ['server-kit', undefined],
+  ['bootstrap', 'client-imports-client-and-contracts-only'],
+])
+  deepStrictEqual(
+    violation(
+      { role: 'client-integration-test', owner: 'client' },
+      { role, owner: 'server' },
+    ),
+    expected,
+  );
 deepStrictEqual(
   violation(
     { role: 'query', owner: 'client' },

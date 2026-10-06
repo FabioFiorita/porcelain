@@ -1,3 +1,5 @@
+import { AsyncResult } from 'effect/reactivity';
+import { Cause } from 'effect';
 import { GitBranchIcon } from 'lucide-react';
 import { Suspense } from 'react';
 import { Button } from '@/components/ui/button';
@@ -84,22 +86,28 @@ function BranchFiles({
 }) {
   const { connection } = context;
   const changes = useBranchChanges(scope, connection, base);
-  if (changes.isError)
+  if (AsyncResult.isFailure(changes.result))
     return (
       <div role="alert" className="p-3 text-xs text-muted-foreground">
-        <span className="block">{branchErrorMessage(changes.error)}</span>
+        <span className="block">
+          {branchErrorMessage(
+            AsyncResult.isFailure(changes.result)
+              ? Cause.squash(changes.result.cause)
+              : undefined,
+          )}
+        </span>
         <Button
           variant="outline"
           size="xs"
           className="mt-2"
-          onClick={() => void changes.refetch()}
+          onClick={changes.refresh}
         >
           Try again
         </Button>
       </div>
     );
-  if (changes.isPending || changes.data == null) return <ComparingBranch />;
-  if (changes.data.base == null)
+  if (!AsyncResult.isSuccess(changes.result)) return <ComparingBranch />;
+  if (changes.result.value.base == null)
     return (
       <div className="p-3">
         <ReviewEmpty
@@ -113,7 +121,7 @@ function BranchFiles({
       <BranchFileList
         scope={scope}
         context={context}
-        branch={changes.data}
+        branch={changes.result.value}
         activeEntry={activeEntry}
         threads={threads}
         onOpen={onOpen}
@@ -140,7 +148,9 @@ function BranchFileList({
 }: {
   scope: ReviewScope;
   context: ConnectionContext;
-  branch: NonNullable<ReturnType<typeof useBranchChanges>['data']>;
+  branch: AsyncResult.AsyncResult.Success<
+    ReturnType<typeof useBranchChanges>['result']
+  >;
   activeEntry: string | undefined;
   threads: readonly CommentThread[];
   onOpen: OpenDocument;

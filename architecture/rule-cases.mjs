@@ -4130,11 +4130,14 @@ export const scriptEvasions = [
   ['turbo run test --dry-run', [['turbo', 'run', 'test']]],
 ];
 
-const ciRole = 'client-integration-test';
 export const externalCases = [
   { role: 'mobile-config', valid: 'tsx/cjs', invalid: 'tsx' },
   { role: 'mobile-test-kit', valid: 'expo/fingerprint', invalid: 'expo' },
-  { role: ciRole, valid: 'effect/reactivity', invalid: 'effect/http' },
+  ...['client-integration-test', 'client-test-kit'].map((role) => ({
+    role,
+    valid: 'effect/reactivity',
+    invalid: 'effect/http',
+  })),
   { role: 'process', valid: 'effect/process', invalid: 'node:child_process' },
   { role: 'config', valid: 'effect', invalid: 'effect/FileSystem' },
   { role: 'transport', valid: '@effect/platform-node', invalid: 'fastify' },

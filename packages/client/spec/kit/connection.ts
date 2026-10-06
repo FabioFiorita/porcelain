@@ -1,4 +1,5 @@
-import { Schema } from 'effect';
+import { Effect, Schema } from 'effect';
+import { AtomRegistry, type Atom, type AsyncResult } from 'effect/reactivity';
 import { afterEach } from 'vitest';
 import { createWorktreeConnection } from '../../src/shared/api/worktree-connection.ts';
 import { remoteTransport } from '../../src/shared/api/transport.ts';
@@ -15,16 +16,28 @@ export async function connection(server: IsolatedServer, session: Session) {
     ).environmentId,
     transport: remoteTransport(server.address, server.credential, fetch),
   });
-  lifetimes.add(lifetime);
+  const registry = AtomRegistry.make();
+  lifetimes.add({ lifetime, registry });
   return {
     connected: lifetime.connection,
     controller: lifetime.controller,
     scope: { projectId: session.projectId, worktreeId: session.worktreeId },
+    registry,
+    read: <A, E>(atom: Atom.Atom<AsyncResult.AsyncResult<A, E>>) =>
+      Effect.runPromise(
+        AtomRegistry.getResult(registry, atom, { suspendOnWaiting: true }),
+      ),
   };
 }
 
-const lifetimes = new Set<ReturnType<typeof createWorktreeConnection>>();
+const lifetimes = new Set<{
+  lifetime: ReturnType<typeof createWorktreeConnection>;
+  registry: AtomRegistry.AtomRegistry;
+}>();
 afterEach(async () => {
-  for (const lifetime of lifetimes) await lifetime.close();
+  for (const { lifetime, registry } of lifetimes) {
+    registry.dispose();
+    await lifetime.close();
+  }
   lifetimes.clear();
 });

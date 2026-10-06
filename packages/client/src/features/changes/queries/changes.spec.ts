@@ -1,5 +1,11 @@
 import { afterEach, expect, it } from 'vitest';
 import { Effect, Option } from 'effect';
+import { DIFFS_PER_REQUEST } from '@porcelain/contracts/shared';
+import {
+  readChangeDiffs,
+  readCommitDiffs,
+  readChangeDiffWindow,
+} from '@porcelain/client/changes';
 import { AtomRegistry, AsyncResult } from 'effect/reactivity';
 import {
   createWorktreeConnection,
@@ -165,4 +171,277 @@ it('looking again refreshes Changes and invalidates the mounted detailed Git sta
   );
   expect(gitReads).toBe(2);
   stop();
+});
+
+const diffSelection = {
+  scope: 'unstaged' as const,
+  oldPath: 'README.md',
+  newPath: 'README.md',
+};
+const diffInput = {
+  expectedStatusToken: snapshot.statusToken,
+  expectedFiles: [{ path: 'README.md', fingerprint: 'c'.repeat(64) }],
+  selections: [diffSelection],
+};
+const diffSnapshot = {
+  environmentId,
+  worktreeId: scope.worktreeId,
+  statusToken: snapshot.statusToken,
+  diffs: [
+    {
+      selection: diffSelection,
+      content: { kind: 'text', patch: 'Readme patch' },
+    },
+  ],
+};
+
+it.each([
+  { environmentId: '5c9f2dc8-a554-45f1-aeab-0b22431137b4' },
+  { worktreeId: '11111111111111111111111111111111' },
+  { statusToken: 'b'.repeat(64) },
+])(
+  'rejects a diff window that belongs to another observation: %j',
+  async (changed) => {
+    const subject = fixture(() =>
+      Promise.resolve(Response.json({ ...diffSnapshot, ...changed })),
+    );
+    await expect(
+      Effect.runPromise(
+        AtomRegistry.getResult(
+          subject.registry,
+          readChangeDiffs({
+            connection: subject.connection,
+            scope,
+            input: diffInput,
+          }),
+        ),
+      ),
+    ).rejects.toThrow('The connected context changed.');
+  },
+);
+
+it('isolates a commit comparison by parent and preserves its requested rename paths', async () => {
+  const oid = 'a'.repeat(40);
+  const sent: { path: string; body: string }[] = [];
+  const subject = fixture(async (path, init) => {
+    const body = await new Response(init?.body).text();
+    sent.push({ path, body });
+    return Response.json({
+      commitOid: oid,
+      diffs: [
+        {
+          paths: ['before.md', 'after.md'],
+          content: {
+            kind: 'text',
+            patch: body.includes('"parent":2')
+              ? 'Second parent'
+              : 'First parent',
+          },
+        },
+      ],
+    });
+  });
+  const selection = {
+    connection: subject.connection,
+    scope,
+    oid,
+    paths: [['before.md', 'after.md']],
+  };
+  const first = await Effect.runPromise(
+    AtomRegistry.getResult(
+      subject.registry,
+      readCommitDiffs({ ...selection, parent: 1 }),
+    ),
+  );
+  const second = await Effect.runPromise(
+    AtomRegistry.getResult(
+      subject.registry,
+      readCommitDiffs({ ...selection, parent: 2 }),
+    ),
+  );
+  expect(first.diffs).toEqual([
+    {
+      paths: ['before.md', 'after.md'],
+      content: { kind: 'text', patch: 'First parent' },
+    },
+  ]);
+  expect(second.diffs).toEqual([
+    {
+      paths: ['before.md', 'after.md'],
+      content: { kind: 'text', patch: 'Second parent' },
+    },
+  ]);
+  expect(sent).toEqual([
+    {
+      path: `/api/worktrees/${scope.worktreeId}/commits/${oid}/diffs`,
+      body: '{"paths":[["before.md","after.md"]]}',
+    },
+    {
+      path: `/api/worktrees/${scope.worktreeId}/commits/${oid}/diffs`,
+      body: '{"parent":2,"paths":[["before.md","after.md"]]}',
+    },
+  ]);
+});
+
+function windowInput() {
+  const expectedFiles = Array.from(
+    { length: DIFFS_PER_REQUEST + 1 },
+    (_, index) => ({ path: `file-${index}.md`, fingerprint: 'c'.repeat(64) }),
+  );
+  return {
+    scope,
+    statusToken: snapshot.statusToken,
+    expectedFiles,
+    selections: expectedFiles.map(({ path }) => ({
+      scope: 'unstaged' as const,
+      oldPath: path,
+      newPath: path,
+    })),
+  };
+}
+
+it('keeps a multi-request window incomplete until every batch succeeds and exposes a partial failure', async () => {
+  const held = Promise.withResolvers<Response>();
+  const started = Promise.withResolvers<void>();
+  let requests = 0;
+  const subject = fixture(() => {
+    if (++requests === 1) return held.promise;
+    started.resolve();
+    return Promise.resolve(
+      Response.json({ message: 'Could not inspect Git' }, { status: 500 }),
+    );
+  });
+  const input = windowInput();
+  const window = readChangeDiffWindow({
+    connection: subject.connection,
+    ...input,
+  });
+  const failed = Promise.withResolvers<void>();
+  const stop = subject.registry.subscribe(
+    window,
+    (value) => {
+      if (AsyncResult.isFailure(value.result)) failed.resolve();
+    },
+    { immediate: true },
+  );
+  await started.promise;
+  expect(AsyncResult.isInitial(subject.registry.get(window).result)).toBe(true);
+  held.resolve(
+    Response.json({
+      ...diffSnapshot,
+      diffs: input.selections.slice(0, DIFFS_PER_REQUEST).map((selection) => ({
+        selection,
+        content: { kind: 'text', patch: 'First batch' },
+      })),
+    }),
+  );
+  await failed.promise;
+  const result = subject.registry.get(window).result;
+  expect(AsyncResult.isFailure(result)).toBe(true);
+  expect(Option.isNone(AsyncResult.value(result))).toBe(true);
+  expect(requests).toBe(2);
+  stop();
+});
+
+it('unmounting a diff window cancels each in-flight batch without disconnecting its environment', async () => {
+  const started = Promise.withResolvers<void>();
+  const aborted = Promise.withResolvers<void>();
+  let requests = 0;
+  let cancellations = 0;
+  const subject = fixture((_, init) => {
+    const held = Promise.withResolvers<Response>();
+    init?.signal?.addEventListener(
+      'abort',
+      () => {
+        if (++cancellations === 2) aborted.resolve();
+        held.resolve(Response.json(diffSnapshot));
+      },
+      { once: true },
+    );
+    if (++requests === 2) started.resolve();
+    return held.promise;
+  });
+  const stop = subject.registry.mount(
+    readChangeDiffWindow({ connection: subject.connection, ...windowInput() }),
+  );
+  await started.promise;
+  stop();
+  await aborted.promise;
+  expect(cancellations).toBe(2);
+  expect(subject.controller.signal.aborted).toBe(false);
+});
+
+it('a failed stale-diff recovery finishes once per observation and remains independent across connections', async () => {
+  const recoveries = [0, 0];
+  const settleRecovery = async (index: number) => {
+    const recovered = Promise.withResolvers<void>();
+    const pendingReached = Promise.withResolvers<void>();
+    const inspection = Promise.withResolvers<Response>();
+    const subject = fixture((path) => {
+      if (path.endsWith('/diffs'))
+        return Promise.resolve(
+          Response.json(
+            {
+              statusCode: 409,
+              error: 'Conflict',
+              message: 'Refresh status and retry inspection',
+              code: 'worktree_changed',
+            },
+            { status: 409 },
+          ),
+        );
+      recoveries[index] = (recoveries[index] ?? 0) + 1;
+      return inspection.promise;
+    });
+    const window = readChangeDiffWindow({
+      connection: subject.connection,
+      scope,
+      statusToken: snapshot.statusToken,
+      expectedFiles: diffInput.expectedFiles,
+      selections: diffInput.selections,
+    });
+    let sawPending = false;
+    const stop = subject.registry.subscribe(
+      window,
+      ({ recovery }) => {
+        const pending = Option.exists(
+          AsyncResult.value(recovery),
+          (state) => state.pending,
+        );
+        if (pending) {
+          sawPending = true;
+          pendingReached.resolve();
+        }
+        if (sawPending && !pending) recovered.resolve();
+      },
+      { immediate: true },
+    );
+    await pendingReached.promise;
+    inspection.resolve(
+      Response.json({ message: 'Could not inspect Git' }, { status: 500 }),
+    );
+    await recovered.promise;
+    subject.registry.refresh(window);
+    const answer = await Effect.runPromise(
+      AtomRegistry.getResult(
+        subject.registry,
+        readChangeDiffs({
+          connection: subject.connection,
+          scope,
+          input: diffInput,
+        }),
+        { suspendOnWaiting: true },
+      ).pipe(Effect.exit),
+    );
+    const pending = Option.getOrThrow(
+      AsyncResult.value(subject.registry.get(window).recovery),
+    ).pending;
+    stop();
+    return { outcome: answer._tag, pending };
+  };
+  const first = await settleRecovery(0);
+  const replacement = await settleRecovery(1);
+  expect(first).toEqual({ outcome: 'Failure', pending: false });
+  expect(replacement).toEqual({ outcome: 'Failure', pending: false });
+  expect(recoveries).toEqual([1, 1]);
 });

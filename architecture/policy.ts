@@ -1701,7 +1701,7 @@ export const externalPackages: Record<Role, readonly string[]> = {
     'effect',
     'effect/reactivity',
   ],
-  'client-test-kit': ['vitest'],
+  'client-test-kit': ['vitest', 'effect/reactivity'],
   'client-transport-api': [],
   'client-transport-spec': ['vitest', '@effect/vitest'],
   desktop: ['electron', 'fix-path', 'zod'],

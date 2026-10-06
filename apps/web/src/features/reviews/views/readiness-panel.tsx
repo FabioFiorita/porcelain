@@ -5,6 +5,8 @@ import {
   CircleXIcon,
 } from 'lucide-react';
 import { Suspense } from 'react';
+import { Option } from 'effect';
+import { AsyncResult } from 'effect/reactivity';
 import {
   Collapsible,
   CollapsibleContent,
@@ -70,13 +72,14 @@ export function BranchReadiness({
 }) {
   const { connection } = context;
   const changes = useBranchChanges(scope, connection, base);
-  if (changes.data?.base == null) return null;
+  const branch = Option.getOrUndefined(AsyncResult.value(changes.result));
+  if (branch?.base == null) return null;
   return (
     <Suspense fallback={null}>
       <BranchReadinessMarks
         scope={scope}
         context={context}
-        branch={changes.data}
+        branch={branch}
         review={review}
         threads={threads}
         onSelect={onSelect}
@@ -95,7 +98,9 @@ function BranchReadinessMarks({
 }: {
   scope: ReviewScope;
   context: ConnectionContext;
-  branch: NonNullable<ReturnType<typeof useBranchChanges>['data']>;
+  branch: AsyncResult.AsyncResult.Success<
+    ReturnType<typeof useBranchChanges>['result']
+  >;
   review: ReviewResponse | null;
   threads: readonly CommentThread[];
   onSelect: Select;

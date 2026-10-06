@@ -1,3 +1,5 @@
+import { Option } from 'effect';
+import { AsyncResult } from 'effect/reactivity';
 import {
   FileQuestionIcon,
   FlaskConicalIcon,
@@ -435,8 +437,9 @@ function BranchChangeComment({
 }) {
   const { connection } = context;
   const changes = useBranchChanges(scope, connection, base);
-  const ref = changes.data?.base?.ref;
-  const tip = changes.data?.head.oid;
+  const branch = Option.getOrUndefined(AsyncResult.value(changes.result));
+  const ref = branch?.base?.ref;
+  const tip = branch?.head.oid;
   return (
     <ChangeComment
       scope={scope}

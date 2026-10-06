@@ -1,10 +1,6 @@
 import { expect } from 'vitest';
-import { QueryClient } from '@tanstack/query-core';
 import { test } from '@porcelain/server/kit/server-test';
-import {
-  branchQueryOptions,
-  branchDiffsQueryOptions,
-} from '@porcelain/client/changes';
+import { readBranchChanges, readBranchDiffs } from '@porcelain/client/changes';
 import { connection } from '../kit/connection.ts';
 
 test('read the branch range and its patch using the same selected revisions', async ({
@@ -13,10 +9,13 @@ test('read the branch range and its patch using the same selected revisions', as
 }) => {
   await session.git('branch', 'base');
   await session.git('commit', '-am', 'Update the readme');
-  const { connected, scope } = await connection(server, session);
-  const cache = new QueryClient();
-  const branch = await cache.query(
-    branchQueryOptions(scope, connected, 'refs/heads/base'),
+  const { connected, scope, read } = await connection(server, session);
+  const branch = await read(
+    readBranchChanges({
+      scope,
+      connection: connected,
+      base: 'refs/heads/base',
+    }),
   );
   expect(branch.worktreeId).toBe(scope.worktreeId);
   expect(branch.commits).toBe(1);
@@ -25,11 +24,15 @@ test('read the branch range and its patch using the same selected revisions', as
     session.fixture.readme.path,
   ]);
   if (!branch.base) throw new Error('Expected the selected base');
-  const diffs = await cache.query(
-    branchDiffsQueryOptions(scope, connected, {
-      baseOid: branch.base.oid,
-      headOid: branch.head.oid,
-      paths: [[session.fixture.readme.path]],
+  const diffs = await read(
+    readBranchDiffs({
+      scope,
+      connection: connected,
+      input: {
+        baseOid: branch.base.oid,
+        headOid: branch.head.oid,
+        paths: [[session.fixture.readme.path]],
+      },
     }),
   );
   expect(diffs.diffs).toEqual([
