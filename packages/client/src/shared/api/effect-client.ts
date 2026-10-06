@@ -1,5 +1,12 @@
 import { apiErrorSchema } from '@porcelain/contracts/shared';
-import { Cause, Effect, Exit, Result, Schema } from 'effect';
+import {
+  Cause,
+  Effect,
+  Exit,
+  Result,
+  Schema,
+  type ManagedRuntime,
+} from 'effect';
 import {
   HttpClient,
   HttpClientError,
@@ -89,14 +96,32 @@ export function requestEffect<A, E, R>(
   return signal ? withSignal(checked, signal) : checked;
 }
 
-export async function runRequest<A, E>(
+async function settleRequest<A, E>(
+  signal: AbortSignal,
+  execute: () => Promise<Exit.Exit<A, E>>,
+): Promise<A> {
+  signal.throwIfAborted();
+  const exit = await execute();
+  signal.throwIfAborted();
+  if (Exit.isSuccess(exit)) return exit.value;
+  throw Cause.squash(exit.cause);
+}
+
+export function runRequest<A, E>(
   request: Effect.Effect<A, E>,
   signal: AbortSignal,
 ): Promise<A> {
-  signal.throwIfAborted();
-  const exit = await Effect.runPromiseExit(requestEffect(request), { signal });
-  signal.throwIfAborted();
-  if (Exit.isSuccess(exit)) return exit.value;
-  const error = Cause.squash(exit.cause);
-  throw error;
+  return settleRequest(signal, () =>
+    Effect.runPromiseExit(requestEffect(request), { signal }),
+  );
+}
+
+export function runClientRequest<A, E, R>(
+  request: Effect.Effect<A, E, R>,
+  signal: AbortSignal,
+  runtime: ManagedRuntime.ManagedRuntime<R, never>,
+): Promise<A> {
+  return settleRequest(signal, () =>
+    runtime.runPromiseExit(requestEffect(request), { signal }),
+  );
 }

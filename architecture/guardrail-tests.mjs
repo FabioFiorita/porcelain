@@ -37,6 +37,7 @@ function nativeTypeFixture(source) {
         __REVIEW_MODELS__: 'packages/reviews/src/models/index.ts',
         __CLIENT_ACCESS__: 'packages/client/src/features/access/store.ts',
         __CLIENT_SELECTION__: 'packages/client/src/features/projects/store.ts',
+        __CLIENT_QUEUES__: 'packages/client/src/shared/api/write-queue.ts',
         __CLIENT_OPERATIONS__:
           'packages/client/src/features/git-actions/store/operations.ts',
         __PROCESS_COMMAND__: 'packages/process/src/commands/run-command.ts',

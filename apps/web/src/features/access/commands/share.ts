@@ -1,4 +1,4 @@
-import { runRequest } from '@porcelain/client/transport';
+import { runClientRequest } from '@porcelain/client/transport';
 import { operationMutation } from '@/shared/query/mutation';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { shareCommands } from '@porcelain/client/access';
@@ -14,7 +14,11 @@ export function useIssuePairing(connection: Connection) {
       trusted: boolean;
     }) =>
       issuedLink(
-        await runRequest(commands.issue(input), connection.request().signal),
+        await runClientRequest(
+          commands.issue(input),
+          connection.request().signal,
+          connection.runtime,
+        ),
       ),
   });
   return {

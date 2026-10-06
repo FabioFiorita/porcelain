@@ -1,4 +1,4 @@
-import { runRequest } from '@porcelain/client/transport';
+import { runClientRequest } from '@porcelain/client/transport';
 import { expect } from 'vitest';
 import { QueryClient } from '@tanstack/query-core';
 import { test } from '@porcelain/server/kit/server-test';
@@ -18,16 +18,18 @@ test('register, rename, pin and remove a repository through the shared project o
   const cache = new QueryClient();
   await cache.query(inventoryQueryOptions(connected));
   const commands = projectCommands(connected, cache);
-  const project = await runRequest(
+  const project = await runClientRequest(
     commands.register(session.repository),
     connected.request().signal,
+    connected.runtime,
   );
   expect(project.id).toBe(session.projectId);
   expect(
     (
-      await runRequest(
+      await runClientRequest(
         commands.rename({ projectId: project.id, name: 'Shared project' }),
         connected.request().signal,
+        connected.runtime,
       )
     ).name,
   ).toBe('Shared project');
@@ -36,13 +38,14 @@ test('register, rename, pin and remove a repository through the shared project o
       (entry) => entry.id === project.id,
     )?.name,
   ).toBe('Shared project');
-  await runRequest(
+  await runClientRequest(
     setFilePreference(connected, cache, project.id, {
       path: session.fixture.readme.path,
       flag: 'pinned',
       value: true,
     }),
     connected.request().signal,
+    connected.runtime,
   );
   expect(
     (await cache.query(filePreferencesQueryOptions(connected, project.id)))
@@ -52,7 +55,11 @@ test('register, rename, pin and remove a repository through the shared project o
     hidden: false,
     pinned: true,
   });
-  await runRequest(commands.remove(project.id), connected.request().signal);
+  await runClientRequest(
+    commands.remove(project.id),
+    connected.request().signal,
+    connected.runtime,
+  );
   expect(
     (await cache.query(inventoryQueryOptions(connected))).projects,
   ).toEqual([]);

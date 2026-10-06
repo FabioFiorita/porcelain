@@ -1,4 +1,7 @@
-import { runRequest } from '@porcelain/client/transport';
+import { afterEach } from 'vitest';
+import { ManagedRuntime } from 'effect';
+import { WriteQueues } from '@porcelain/client/transport';
+import { runClientRequest } from '@porcelain/client/transport';
 import { describe, expect, it } from 'vitest';
 import { QueryClient } from '@tanstack/query-core';
 import { commentCommands } from './comments.ts';
@@ -11,6 +14,8 @@ const scope = {
 
 describe('comment writes report failed intent', () => {
   it('rejects dependent writes and leaves the discussion cache unchanged after a failed create', async () => {
+    const requestRuntime = runtimeFixture();
+
     const requests: string[] = [];
     const controller = new AbortController();
     const connection = {
@@ -34,20 +39,22 @@ describe('comment writes report failed intent', () => {
     const key = commentsQueryOptions(scope, connection).queryKey;
     client.setQueryData(key, []);
     const commands = commentCommands(scope, connection, client);
-    const create = runRequest(
+    const create = runClientRequest(
       commands.create({
         anchor: { kind: 'change' },
         body: 'Please explain the change.',
       }),
       controller.signal,
+      requestRuntime,
     );
-    const reply = runRequest(
+    const reply = runClientRequest(
       commands.reply({
         threadId: 'bb6a4c6a-4898-426c-ac20-bf4f53fc47d7',
         body: 'A dependent reply.',
         messageId: 'eb90812a-6a3e-464e-92ca-5c962094b867',
       }),
       controller.signal,
+      requestRuntime,
     );
     const results = await Promise.allSettled([create, reply]);
     expect(results.map((result) => result.status)).toEqual([
@@ -70,4 +77,15 @@ describe('comment writes report failed intent', () => {
     ]);
     expect(client.getQueryData(key)).toEqual([]);
   });
+});
+
+const runtimes = new Set<ManagedRuntime.ManagedRuntime<WriteQueues, never>>();
+function runtimeFixture() {
+  const runtime = ManagedRuntime.make(WriteQueues.layer);
+  runtimes.add(runtime);
+  return runtime;
+}
+afterEach(async () => {
+  for (const runtime of runtimes) await runtime.dispose();
+  runtimes.clear();
 });

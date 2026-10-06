@@ -92,7 +92,7 @@ export function useWorkspaceConnection(
     setConnected({ key, credential, connection });
     return () => {
       closeLive();
-      lifetime.close();
+      void lifetime.close();
       void operationRuntime.dispose();
     };
   }, [key, environmentId, address, credential, deviceId, send, client]);

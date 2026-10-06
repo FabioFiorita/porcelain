@@ -73,9 +73,9 @@ function setup() {
     subscribed: subscribed.promise,
     live: () => live,
     close,
-    cleanup: () => {
+    cleanup: async () => {
       close();
-      lifetime.close();
+      await lifetime.close();
       client.clear();
     },
   };
@@ -123,7 +123,7 @@ it('keeps pending operations subscribed within the server limit and retains thei
     ).toBe(false);
   } finally {
     for (const stop of unsubscribe) stop();
-    subject.cleanup();
+    await subject.cleanup();
   }
 });
 
@@ -135,7 +135,7 @@ it('does not send a queued subscription after the live session closes', async ()
     expect(subject.sent).toEqual([]);
     expect(subject.live()?.signal.aborted).toBe(true);
   } finally {
-    subject.cleanup();
+    await subject.cleanup();
   }
 });
 
@@ -151,7 +151,7 @@ it('ignores late notices and reconnect callbacks after closing the live session'
     expect(subject.client.getQueryState(key)?.isInvalidated).toBe(false);
     expect(subject.sent).toEqual([]);
   } finally {
-    subject.cleanup();
+    await subject.cleanup();
   }
 });
 
@@ -171,7 +171,7 @@ it('a file notice invalidates only the connected environment', async () => {
     expect(subject.client.getQueryState(current)?.isInvalidated).toBe(true);
     expect(subject.client.getQueryState(other)?.isInvalidated).toBe(false);
   } finally {
-    subject.cleanup();
+    await subject.cleanup();
   }
 });
 

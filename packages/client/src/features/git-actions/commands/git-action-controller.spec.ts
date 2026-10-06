@@ -79,8 +79,8 @@ function setup(
     ids: () => ids,
     run: () =>
       runRequest(controller.execute(input), lifetime.controller.signal),
-    close: () => {
-      lifetime.close();
+    close: async () => {
+      await lifetime.close();
       client.clear();
     },
   };
@@ -115,7 +115,7 @@ it('retains the original request after an unanswered write and resends that exac
         ?.receipt,
     ).toEqual(receipt);
   } finally {
-    subject.close();
+    await subject.close();
   }
 });
 
@@ -143,7 +143,7 @@ it('refuses an action mismatch before retaining a request or contacting the serv
     expect(subject.ids()).toBe(0);
     expect([...subject.operations.state.value.operations.values()]).toEqual([]);
   } finally {
-    subject.close();
+    await subject.close();
   }
 });
 
@@ -163,7 +163,7 @@ it('rejects a receipt for another worktree without accepting it into the retaine
         ?.receipt,
     ).toBeUndefined();
   } finally {
-    subject.close();
+    await subject.close();
   }
 });
 
@@ -207,7 +207,7 @@ it('rejects an old receipt when a newer operation replaces it during cache refre
   } finally {
     refresh.resolve('cleanup');
     unsubscribe();
-    subject.close();
+    await subject.close();
   }
 });
 
@@ -243,7 +243,7 @@ it('keeps an accepted running request recoverable when its caller cancels waitin
     expect([...subject.operations.state.value.operations.values()]).toEqual([]);
   } finally {
     unsubscribe();
-    subject.close();
+    await subject.close();
   }
 });
 
@@ -276,7 +276,7 @@ it('does not send or publish a Git operation when its recovery identity cannot b
     expect([...operations.state.value.operations.values()]).toEqual([]);
   } finally {
     unsubscribe();
-    subject.close();
+    await subject.close();
   }
 });
 

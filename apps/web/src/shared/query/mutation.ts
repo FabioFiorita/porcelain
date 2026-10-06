@@ -1,17 +1,22 @@
+import type { WriteQueues } from '@porcelain/client/transport';
 import { type UseMutationResult } from '@tanstack/react-query';
 import type { Effect } from 'effect';
 import {
-  runRequest,
-  type WorktreeConnection,
+  runClientRequest,
+  type RuntimeConnection,
 } from '@porcelain/client/transport';
 
 export function operationMutation<A, E, Input>(
-  operation: (input: Input) => Effect.Effect<A, E>,
-  connection: WorktreeConnection,
+  operation: (input: Input) => Effect.Effect<A, E, WriteQueues>,
+  connection: RuntimeConnection,
 ) {
   return {
     mutationFn: (input: Input) =>
-      runRequest(operation(input), connection.request().signal),
+      runClientRequest(
+        operation(input),
+        connection.request().signal,
+        connection.runtime,
+      ),
   };
 }
 

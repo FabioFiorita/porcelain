@@ -1,4 +1,4 @@
-import { runRequest } from '@porcelain/client/transport';
+import { runClientRequest } from '@porcelain/client/transport';
 import { commentCommands, reviewedCommands } from '@porcelain/client/reviews';
 import { expect } from 'vitest';
 import { QueryClient } from '@tanstack/query-core';
@@ -115,44 +115,48 @@ test('write the discussion through the shared owner and read each persisted edit
   const { connected, scope } = await connection(server, session);
   const cache = new QueryClient();
   const commands = commentCommands(scope, connected, cache);
-  const created = await runRequest(
+  const created = await runClientRequest(
     commands.create({
       anchor: { kind: 'change' },
       body: 'Explain the change.',
     }),
     connected.request().signal,
+    connected.runtime,
   );
   const thread = created[0];
   if (!thread) throw new Error('Expected the created discussion');
   expect(thread.messages.map((message) => message.body)).toEqual([
     'Explain the change.',
   ]);
-  const replied = await runRequest(
+  const replied = await runClientRequest(
     commands.reply({
       threadId: thread.id,
       body: 'Please include its test.',
       messageId: 'eb90812a-6a3e-464e-92ca-5c962094b867',
     }),
     connected.request().signal,
+    connected.runtime,
   );
   expect(replied[0]?.messages.map((message) => message.body)).toEqual([
     'Explain the change.',
     'Please include its test.',
   ]);
-  await runRequest(
+  await runClientRequest(
     commands.edit({
       threadId: thread.id,
       messageId: 'eb90812a-6a3e-464e-92ca-5c962094b867',
       body: 'Include the regression test.',
     }),
     connected.request().signal,
+    connected.runtime,
   );
-  const resolved = await runRequest(
+  const resolved = await runClientRequest(
     commands.resolve({
       threadId: thread.id,
       resolved: true,
     }),
     connected.request().signal,
+    connected.runtime,
   );
   expect(resolved[0]?.resolved).toBe(true);
   expect(
@@ -165,9 +169,10 @@ test('write the discussion through the shared owner and read each persisted edit
     throw new Error('Expected the confirmed thread revision');
   expect(
     (
-      await runRequest(
+      await runClientRequest(
         commands.removeResolved([{ threadId: thread.id, revision }]),
         connected.request().signal,
+        connected.runtime,
       )
     ).deleted,
   ).toEqual([thread.id]);
@@ -198,9 +203,10 @@ test('mark and unmark the actual changed file through the shared reviewed owner'
   await cache.query(reviewedQueryOptions(scope, connected));
   expect(
     (
-      await runRequest(
+      await runClientRequest(
         commands.set({ path: file.path, fingerprint: file.fingerprint }),
         connected.request().signal,
+        connected.runtime,
       )
     ).marks.map((mark) => mark.path),
   ).toEqual([session.fixture.readme.path]);
@@ -210,8 +216,13 @@ test('mark and unmark the actual changed file through the shared reviewed owner'
     ),
   ).toEqual([session.fixture.readme.path]);
   expect(
-    (await runRequest(commands.remove(file.path), connected.request().signal))
-      .marks,
+    (
+      await runClientRequest(
+        commands.remove(file.path),
+        connected.request().signal,
+        connected.runtime,
+      )
+    ).marks,
   ).toEqual([]);
   expect(
     (await cache.query(reviewedQueryOptions(scope, connected))).marks,

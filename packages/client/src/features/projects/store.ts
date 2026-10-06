@@ -1,7 +1,7 @@
 import { Context, Effect, Layer } from 'effect';
 import { AtomRef } from 'effect/reactivity';
 import {
-  createWriteQueue,
+  WriteQueue,
   type WriteNotSentError,
 } from '../../shared/api/write-queue.ts';
 import { ConnectionError } from '../../shared/api/connection-error.ts';
@@ -45,7 +45,7 @@ export class ProjectSelectionStore extends Context.Service<
         status: 'loading',
         error: undefined,
       });
-      const queue = createWriteQueue();
+      const queue = yield* WriteQueue.make;
       const write = Effect.fn('ProjectSelectionStore.write')(function* (
         update: (
           snapshot: ProjectSelectionSnapshot,

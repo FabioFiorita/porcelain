@@ -108,7 +108,7 @@ function remoteConnection(remote: Remote) {
 }
 
 function close(connection: Connection) {
-  connection.controller.abort();
+  void connection.close();
   void connection.operationRuntime.dispose();
 }
 

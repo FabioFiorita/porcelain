@@ -1,14 +1,23 @@
 import { it } from '@effect/vitest';
 import { expect } from 'vitest';
-import { Cause, Deferred, Effect, Exit, Fiber } from 'effect';
-import { createWriteQueue, createScopedWriteQueues } from './write-queue.ts';
+import {
+  Cause,
+  Context,
+  Deferred,
+  Effect,
+  Exit,
+  Fiber,
+  Layer,
+  Scope,
+} from 'effect';
+import { WriteQueue, WriteQueues } from './write-queue.ts';
 import { ConnectionError } from '@porcelain/client/transport';
 
 it.effect(
   'starts the next write only after the preceding write completes',
   () =>
     Effect.gen(function* () {
-      const queue = createWriteQueue();
+      const queue = yield* WriteQueue.make;
       const gate = Deferred.makeUnsafe<void>();
       const started = Deferred.makeUnsafe<void>();
       const steps: string[] = [];
@@ -50,7 +59,7 @@ it.effect(
   'rejects already queued writes with the original failure and allows a later explicit retry',
   () =>
     Effect.gen(function* () {
-      const queue = createWriteQueue();
+      const queue = yield* WriteQueue.make;
       const failure = new ConnectionError({
         message: 'The file changed since it was shown.',
       });
@@ -87,101 +96,79 @@ it.effect(
     }),
 );
 
-it.effect('isolates owners and scopes while sharing equivalent keys', () =>
-  Effect.gen(function* () {
-    const queues = createScopedWriteQueues();
-    const firstOwner = {};
-    const secondOwner = {};
-    const failure = new ConnectionError({ message: 'First worktree failed' });
-    const failed = yield* Effect.forkChild(
-      Effect.exit(
-        queues(firstOwner, ['comments', 'tree-one']).enqueue(
-          Effect.fail(failure),
-        ),
-      ),
-      { startImmediately: true },
-    );
-    const blocked = yield* Effect.forkChild(
-      Effect.exit(
-        queues(firstOwner, ['comments', 'tree-one']).enqueue(
-          Effect.succeed('should not run'),
-        ),
-      ),
-      { startImmediately: true },
-    );
-    const otherTree = yield* Effect.forkChild(
-      queues(firstOwner, ['comments', 'tree-two']).enqueue(
-        Effect.succeed('other tree'),
-      ),
-      { startImmediately: true },
-    );
-    const otherOwner = yield* Effect.forkChild(
-      queues(secondOwner, ['comments', 'tree-one']).enqueue(
-        Effect.succeed('other connection'),
-      ),
-      { startImmediately: true },
-    );
-    expect(yield* Fiber.join(failed)).toEqual(Exit.fail(failure));
-    const blockedExit = yield* Fiber.join(blocked);
-    expect(
-      Exit.isFailure(blockedExit) ? Cause.squash(blockedExit.cause) : null,
-    ).toMatchObject({ cause: failure });
-    expect(yield* Fiber.join(otherTree)).toBe('other tree');
-    expect(yield* Fiber.join(otherOwner)).toBe('other connection');
-  }),
-);
-
-it.effect('reports a drain once after the last queued write settles', () =>
-  Effect.gen(function* () {
-    let drains = 0;
-    const queue = createWriteQueue(() => {
-      drains += 1;
-    });
-    const gate = Deferred.makeUnsafe<void>();
-    const first = yield* Effect.forkChild(
-      queue.enqueue(Effect.succeed('saved')),
-      { startImmediately: true },
-    );
-    const second = yield* Effect.forkChild(
-      Effect.exit(
-        queue.enqueue(
-          Deferred.await(gate).pipe(
-            Effect.andThen(
-              Effect.fail(new ConnectionError({ message: 'Refused' })),
-            ),
+it.effect(
+  'isolates connection runtimes and scopes while sharing equivalent keys',
+  () =>
+    Effect.gen(function* () {
+      const queues = Context.get(
+        yield* Layer.build(WriteQueues.layer),
+        WriteQueues,
+      );
+      const otherQueues = Context.get(
+        yield* Layer.build(WriteQueues.layer),
+        WriteQueues,
+      );
+      const failure = new ConnectionError({ message: 'First worktree failed' });
+      const failed = yield* Effect.forkChild(
+        Effect.exit(queues.run(['comments', 'tree-one'], Effect.fail(failure))),
+        { startImmediately: true },
+      );
+      const blocked = yield* Effect.forkChild(
+        Effect.exit(
+          queues.run(
+            ['comments', 'tree-one'],
+            Effect.succeed('should not run'),
           ),
         ),
-      ),
-      { startImmediately: true },
-    );
-    expect(yield* Fiber.join(first)).toBe('saved');
-    expect(drains).toBe(0);
-    yield* Deferred.succeed(gate, undefined);
-    expect(yield* Fiber.join(second)).toEqual(
-      Exit.fail(new ConnectionError({ message: 'Refused' })),
-    );
-    expect(drains).toBe(1);
-    expect(yield* queue.enqueue(Effect.succeed('retry'))).toBe('retry');
-    expect(drains).toBe(2);
-  }),
+        { startImmediately: true },
+      );
+      const otherTree = yield* Effect.forkChild(
+        queues.run(['comments', 'tree-two'], Effect.succeed('other tree')),
+        { startImmediately: true },
+      );
+      const otherOwner = yield* Effect.forkChild(
+        otherQueues.run(
+          ['comments', 'tree-one'],
+          Effect.succeed('other connection'),
+        ),
+        { startImmediately: true },
+      );
+      expect(yield* Fiber.join(failed)).toEqual(Exit.fail(failure));
+      const blockedExit = yield* Fiber.join(blocked);
+      expect(
+        Exit.isFailure(blockedExit) ? Cause.squash(blockedExit.cause) : null,
+      ).toMatchObject({ cause: failure });
+      expect(yield* Fiber.join(otherTree)).toBe('other tree');
+      expect(yield* Fiber.join(otherOwner)).toBe('other connection');
+      expect(
+        yield* queues.run(
+          ['comments', 'tree-one'],
+          Effect.succeed('explicit retry'),
+        ),
+      ).toBe('explicit retry');
+    }),
 );
 
 it.effect(
-  'serializes retained scope handles after their earlier queue drains',
+  'serializes equivalent native scope keys after their earlier queue drains',
   () =>
     Effect.gen(function* () {
-      const queues = createScopedWriteQueues();
-      const owner = {};
-      const retained = queues(owner, ['comments', 'tree']);
-      expect(yield* retained.enqueue(Effect.succeed('initial write'))).toBe(
-        'initial write',
+      const queues = Context.get(
+        yield* Layer.build(WriteQueues.layer),
+        WriteQueues,
       );
-      const reopened = queues(owner, ['comments', 'tree']);
+      expect(
+        yield* queues.run(
+          ['comments', 'tree'],
+          Effect.succeed('initial write'),
+        ),
+      ).toBe('initial write');
       const gate = Deferred.makeUnsafe<void>();
       const started = Deferred.makeUnsafe<void>();
       const steps: string[] = [];
       const first = yield* Effect.forkChild(
-        retained.enqueue(
+        queues.run(
+          ['comments', 'tree'],
           Effect.gen(function* () {
             steps.push('retained started');
             yield* Deferred.succeed(started, undefined);
@@ -192,7 +179,10 @@ it.effect(
         { startImmediately: true },
       );
       const second = yield* Effect.forkChild(
-        reopened.enqueue(Effect.sync(() => steps.push('reopened started'))),
+        queues.run(
+          ['comments', 'tree'],
+          Effect.sync(() => steps.push('reopened started')),
+        ),
         { startImmediately: true },
       );
       yield* Deferred.await(started);
@@ -212,7 +202,7 @@ it.effect(
   'keeps a cancelled waiter in order until its predecessor settles',
   () =>
     Effect.gen(function* () {
-      const queue = createWriteQueue();
+      const queue = yield* WriteQueue.make;
       const gate = Deferred.makeUnsafe<void>();
       const started = Deferred.makeUnsafe<void>();
       const steps: string[] = [];
@@ -251,5 +241,64 @@ it.effect(
       ).toMatchObject({ name: 'WriteNotSentError' });
       expect(steps).toEqual(['first started', 'first finished']);
       expect(yield* queue.enqueue(Effect.succeed('recovery'))).toBe('recovery');
+    }),
+);
+
+it.effect(
+  'closing the native owner cancels writes and waits for admitted cleanup',
+  () =>
+    Effect.gen(function* () {
+      const owner = yield* Scope.make();
+      const context = yield* Layer.build(WriteQueues.layer).pipe(
+        Effect.provideService(Scope.Scope, owner),
+      );
+      const queues = Context.get(context, WriteQueues);
+      const started = Deferred.makeUnsafe<void>();
+      const cleaning = Deferred.makeUnsafe<void>();
+      const drain = Deferred.makeUnsafe<void>();
+      const steps: string[] = [];
+      const first = yield* Effect.forkChild(
+        Effect.exit(
+          queues.run(
+            ['comments'],
+            Effect.gen(function* () {
+              steps.push('started');
+              yield* Deferred.succeed(started, undefined);
+              return yield* Effect.never;
+            }).pipe(
+              Effect.ensuring(
+                Effect.gen(function* () {
+                  steps.push('cleaning');
+                  yield* Deferred.succeed(cleaning, undefined);
+                  yield* Deferred.await(drain);
+                  steps.push('cleaned');
+                }),
+              ),
+            ),
+          ),
+        ),
+        { startImmediately: true },
+      );
+      yield* Deferred.await(started);
+      const second = yield* Effect.forkChild(
+        Effect.exit(
+          queues.run(
+            ['comments'],
+            Effect.sync(() => steps.push('follower sent')),
+          ),
+        ),
+        { startImmediately: true },
+      );
+      const closed = yield* Effect.forkChild(Scope.close(owner, Exit.void), {
+        startImmediately: true,
+      });
+      yield* Deferred.await(cleaning);
+      expect(steps).toEqual(['started', 'cleaning']);
+      expect(closed.pollUnsafe()).toBeUndefined();
+      yield* Deferred.succeed(drain, undefined);
+      yield* Fiber.join(closed);
+      expect(Exit.isFailure(yield* Fiber.join(first))).toBe(true);
+      expect(Exit.isFailure(yield* Fiber.join(second))).toBe(true);
+      expect(steps).toEqual(['started', 'cleaning', 'cleaned']);
     }),
 );

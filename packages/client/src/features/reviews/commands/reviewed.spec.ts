@@ -1,4 +1,7 @@
-import { runRequest } from '@porcelain/client/transport';
+import { afterEach } from 'vitest';
+import { ManagedRuntime } from 'effect';
+import { WriteQueues } from '@porcelain/client/transport';
+import { runClientRequest } from '@porcelain/client/transport';
 import { describe, expect, it } from 'vitest';
 import { QueryClient } from '@tanstack/query-core';
 import { reviewedCommands } from './reviewed.ts';
@@ -14,6 +17,8 @@ const fingerprint = 'a'.repeat(64);
 
 describe('reviewed writes keep confirmed marks', () => {
   it('rolls back every pending mark after a failure and never sends the dependent write', async () => {
+    const requestRuntime = runtimeFixture();
+
     const paths: string[] = [];
     const connection = {
       environmentId: 'environment',
@@ -47,13 +52,15 @@ describe('reviewed writes keep confirmed marks', () => {
       { kind: 'worktree' },
       { now: () => '2026-10-03T10:00:00.000Z' },
     );
-    const first = runRequest(
+    const first = runClientRequest(
       commands.set({ path: 'first.md', fingerprint }),
       connection.request().signal,
+      requestRuntime,
     );
-    const second = runRequest(
+    const second = runClientRequest(
       commands.set({ path: 'second.md', fingerprint }),
       connection.request().signal,
+      requestRuntime,
     );
     const results = await Promise.allSettled([first, second]);
     expect(results.map((result) => result.status)).toEqual([
@@ -67,6 +74,8 @@ describe('reviewed writes keep confirmed marks', () => {
   });
 
   it('refuses to publish an answer completed after disconnect', async () => {
+    const requestRuntime = runtimeFixture();
+
     const controller = new AbortController();
     const connection = {
       environmentId: 'environment',
@@ -96,7 +105,7 @@ describe('reviewed writes keep confirmed marks', () => {
     const key = reviewedQueryOptions(scope, connection).queryKey;
     client.setQueryData(key, { worktreeId: scope.worktreeId, marks: [] });
     await expect(
-      runRequest(
+      runClientRequest(
         reviewedCommands(
           scope,
           connection,
@@ -105,6 +114,7 @@ describe('reviewed writes keep confirmed marks', () => {
           { now: () => '2026-10-03T10:00:00.000Z' },
         ).set({ path: 'first.md', fingerprint }),
         connection.request().signal,
+        requestRuntime,
       ),
     ).rejects.toMatchObject({ name: 'AbortError' });
     expect(client.getQueryData(key)).toBeUndefined();
@@ -147,6 +157,8 @@ function bulkConnection(
   };
 }
 it('chunks bulk marks at the wire limit and reports partial conflicts without losing later marks', async () => {
+  const requestRuntime = runtimeFixture();
+
   const connection = bulkConnection((files, number) =>
     Response.json({
       worktreeId: scope.worktreeId,
@@ -164,7 +176,7 @@ it('chunks bulk marks at the wire limit and reports partial conflicts without lo
     { kind: 'worktree' },
     { now: () => '2026-10-05T04:00:00.000Z' },
   );
-  const report = await runRequest(
+  const report = await runClientRequest(
     commands.markAll(
       Array.from({ length: REVIEWED_FILE_MARKS + 1 }, (_, number) => ({
         path: `file-${number}`,
@@ -173,6 +185,7 @@ it('chunks bulk marks at the wire limit and reports partial conflicts without lo
       })),
     ),
     connection.request().signal,
+    requestRuntime,
   );
   expect(connection.requests.map((request) => request.files.length)).toEqual([
     2000, 1,
@@ -190,6 +203,8 @@ it('chunks bulk marks at the wire limit and reports partial conflicts without lo
   expect(report.skipped).toEqual([]);
 });
 it('stops a bulk operation after its first refused chunk', async () => {
+  const requestRuntime = runtimeFixture();
+
   const connection = bulkConnection(() =>
     Response.json(
       { statusCode: 403, error: 'Forbidden', message: 'Review refused' },
@@ -204,7 +219,7 @@ it('stops a bulk operation after its first refused chunk', async () => {
     { now: () => '2026-10-05T04:00:00.000Z' },
   );
   await expect(
-    runRequest(
+    runClientRequest(
       commands.markAll(
         Array.from({ length: REVIEWED_FILE_MARKS + 1 }, (_, number) => ({
           path: `file-${number}`,
@@ -213,6 +228,7 @@ it('stops a bulk operation after its first refused chunk', async () => {
         })),
       ),
       connection.request().signal,
+      requestRuntime,
     ),
   ).rejects.toMatchObject({ message: 'Review refused', status: 403 });
   expect(connection.requests.map((request) => request.files.length)).toEqual([
@@ -220,6 +236,8 @@ it('stops a bulk operation after its first refused chunk', async () => {
   ]);
 });
 it('uses the selected branch when reading and removing marks', async () => {
+  const requestRuntime = runtimeFixture();
+
   const requests: { path: string; body: unknown }[] = [];
   const signal = new AbortController().signal;
   const connection = {
@@ -252,10 +270,15 @@ it('uses the selected branch when reading and removing marks', async () => {
     range,
     { now: () => '2026-10-05T04:00:00.000Z' },
   );
-  await runRequest(commands.remove('README.md'), connection.request().signal);
-  await runRequest(
+  await runClientRequest(
+    commands.remove('README.md'),
+    connection.request().signal,
+    requestRuntime,
+  );
+  await runClientRequest(
     commands.removeAll(['README.md']),
     connection.request().signal,
+    requestRuntime,
   );
   expect(requests).toEqual([
     {
@@ -275,4 +298,15 @@ it('uses the selected branch when reading and removing marks', async () => {
       },
     },
   ]);
+});
+
+const runtimes = new Set<ManagedRuntime.ManagedRuntime<WriteQueues, never>>();
+function runtimeFixture() {
+  const runtime = ManagedRuntime.make(WriteQueues.layer);
+  runtimes.add(runtime);
+  return runtime;
+}
+afterEach(async () => {
+  for (const runtime of runtimes) await runtime.dispose();
+  runtimes.clear();
 });

@@ -5,11 +5,9 @@ import { nativeOperation } from '@porcelain/effects';
 import type { WorktreeConnection } from '../../../shared/api/connection.ts';
 import { queryKeys } from '../../../shared/api/query-keys.ts';
 import { currentAnswerEffect } from '../../../shared/api/stale-answer.ts';
-import { createScopedWriteQueues } from '../../../shared/api/write-queue.ts';
+import { WriteQueues } from '../../../shared/api/write-queue.ts';
 import { accessApi } from '../api.ts';
 import { requestEffect } from '../../../shared/api/effect-client.ts';
-
-const writeQueue = createScopedWriteQueues();
 
 export function shareCommands(
   connection: WorktreeConnection,
@@ -24,15 +22,18 @@ export function shareCommands(
     send: (signal: AbortSignal) => Effect.Effect<A, E>,
     publish: (answer: A, signal: AbortSignal) => Effect.Effect<void, P>,
   ) {
-    return writeQueue(connection, key).enqueue(
-      Effect.gen(function* () {
-        const request = connection.request();
-        yield* currentAnswerEffect(request.signal);
-        const answer = yield* send(request.signal);
-        yield* currentAnswerEffect(request.signal);
-        yield* publish(answer, request.signal);
-        return answer;
-      }),
+    return WriteQueues.use((queues) =>
+      queues.run(
+        key,
+        Effect.gen(function* () {
+          const request = connection.request();
+          yield* currentAnswerEffect(request.signal);
+          const answer = yield* send(request.signal);
+          yield* currentAnswerEffect(request.signal);
+          yield* publish(answer, request.signal);
+          return answer;
+        }),
+      ),
     );
   }
   function refresh(key: readonly unknown[], signal: AbortSignal) {

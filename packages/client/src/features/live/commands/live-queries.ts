@@ -8,7 +8,7 @@ import {
   LIVE_WORKTREES,
 } from '@porcelain/contracts/shared';
 import type { QueryClient } from '@tanstack/query-core';
-import type { WorktreeConnection } from '../../../shared/api/connection.ts';
+import type { RuntimeConnection } from '../../../shared/api/connection.ts';
 import type { LiveUpdatePort } from '../ports/live-update.ts';
 import type { ReadInventoryResponse } from '@porcelain/contracts/projects';
 import { queryKeys } from '../../../shared/api/query-keys.ts';
@@ -20,7 +20,7 @@ import {
 import { readGitReceipt } from '../../git-actions/queries/read-receipt.ts';
 import { refreshGitReceipt } from '../../git-actions/commands/refresh-receipt.ts';
 
-export type LiveConnection = WorktreeConnection & {
+export type LiveConnection = RuntimeConnection & {
   controller: AbortController;
   operations: Context.Service.Shape<typeof OperationStore>;
   liveUpdates: LiveUpdatePort;

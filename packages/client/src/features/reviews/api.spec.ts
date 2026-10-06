@@ -1,6 +1,9 @@
+import { afterEach } from 'vitest';
+import { ManagedRuntime } from 'effect';
+import { WriteQueues } from '@porcelain/client/transport';
 import { expect, it } from 'vitest';
 import { reviewsApi } from './api.ts';
-import { runRequest } from '@porcelain/client/transport';
+import { runClientRequest } from '@porcelain/client/transport';
 import { reviewedCommands } from '@porcelain/client/reviews';
 import { QueryClient } from '@tanstack/query-core';
 
@@ -10,6 +13,8 @@ const messageId = 'e34ac2de-0a58-4d9c-9890-8384b4e3d6a8';
 const signal = new AbortController().signal;
 
 it('uses the generated contract to encode and decode a comment create', async () => {
+  const requestRuntime = runtimeFixture();
+
   const sent: { path: string; init: RequestInit | undefined }[] = [];
   const thread = {
     id: threadId,
@@ -32,7 +37,7 @@ it('uses the generated contract to encode and decode a comment create', async ()
       return Promise.resolve(Response.json(thread));
     },
   });
-  const answer = await runRequest(
+  const answer = await runClientRequest(
     api.createCommentThread({
       params: { worktreeId },
       payload: {
@@ -43,6 +48,7 @@ it('uses the generated contract to encode and decode a comment create', async ()
       },
     }),
     signal,
+    requestRuntime,
   );
   expect(answer).toEqual(thread);
   expect(sent[0]?.path).toBe(`/api/worktrees/${worktreeId}/comments`);
@@ -59,6 +65,8 @@ it('uses the generated contract to encode and decode a comment create', async ()
 });
 
 it('sends a branch bulk mark against the declared base and preserves the fingerprints', async () => {
+  const requestRuntime = runtimeFixture();
+
   let body: unknown;
   const fingerprint = 'b'.repeat(64);
   const connection = {
@@ -74,7 +82,7 @@ it('sends a branch bulk mark against the declared base and preserves the fingerp
       );
     },
   };
-  await runRequest(
+  await runClientRequest(
     reviewedCommands(
       { projectId: 'project', worktreeId },
       connection,
@@ -87,6 +95,7 @@ it('sends a branch bulk mark against the declared base and preserves the fingerp
       { now: () => '2026-10-05T04:00:00.000Z' },
     ).setAll([{ path: 'README.md', fingerprint }]),
     signal,
+    requestRuntime,
   );
   expect(body).toEqual({
     files: [{ path: 'README.md', fingerprint }],
@@ -96,6 +105,8 @@ it('sends a branch bulk mark against the declared base and preserves the fingerp
 });
 
 it('rejects an already cancelled write before invoking transport', async () => {
+  const requestRuntime = runtimeFixture();
+
   const controller = new AbortController();
   controller.abort();
   let sent = 0;
@@ -106,7 +117,7 @@ it('rejects an already cancelled write before invoking transport', async () => {
     },
   });
   await expect(
-    runRequest(
+    runClientRequest(
       api.createCommentThread({
         params: { worktreeId },
         payload: {
@@ -115,7 +126,19 @@ it('rejects an already cancelled write before invoking transport', async () => {
         },
       }),
       controller.signal,
+      requestRuntime,
     ),
   ).rejects.toThrow();
   expect(sent).toBe(0);
+});
+
+const runtimes = new Set<ManagedRuntime.ManagedRuntime<WriteQueues, never>>();
+function runtimeFixture() {
+  const runtime = ManagedRuntime.make(WriteQueues.layer);
+  runtimes.add(runtime);
+  return runtime;
+}
+afterEach(async () => {
+  for (const runtime of runtimes) await runtime.dispose();
+  runtimes.clear();
 });

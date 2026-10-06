@@ -66,7 +66,7 @@ function setup(environmentId: string, transport: Transport) {
       await Effect.runPromise(
         fileDraftRuntime.runSync(FileDrafts).drop(environmentId),
       );
-      lifetime.close();
+      await lifetime.close();
       cache.clear();
     },
   };

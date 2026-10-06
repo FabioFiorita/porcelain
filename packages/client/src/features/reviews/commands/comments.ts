@@ -7,7 +7,7 @@ import { currentAnswerEffect } from '../../../shared/api/stale-answer.ts';
 import { Effect } from 'effect';
 import { nativeOperation } from '@porcelain/effects';
 import { queryKeys } from '../../../shared/api/query-keys.ts';
-import { createScopedWriteQueues } from '../../../shared/api/write-queue.ts';
+import { WriteQueues } from '../../../shared/api/write-queue.ts';
 import { reviewsApi } from '../api.ts';
 import { requestEffect } from '../../../shared/api/effect-client.ts';
 import { commentsQueryOptions } from '../queries/comments.ts';
@@ -24,8 +24,6 @@ type ResolveCommentInput = { threadId: string } & UpdateCommentThreadRequest;
 type EditCommentInput = { threadId: string } & EditCommentMessageRequest;
 type DeleteCommentInput = { threadId: string; messageId: string };
 
-const writeQueue = createScopedWriteQueues();
-
 export function commentCommands(
   scope: WorktreeScope,
   connection: WorktreeConnection,
@@ -33,7 +31,9 @@ export function commentCommands(
 ) {
   const api = reviewsApi(connection);
   const key = commentsQueryOptions(scope, connection).queryKey;
-  const queue = writeQueue(connection, key);
+
+  const enqueue = <A, E, R>(operation: Effect.Effect<A, E, R>) =>
+    WriteQueues.use((queues) => queues.run(key, operation));
   const request = () => ({ ...scope, ...connection.request() });
 
   function merge(
@@ -72,7 +72,7 @@ export function commentCommands(
     ) => Effect.Effect<CommentThread, E>,
     refreshInventory = false,
   ) {
-    return queue.enqueue(
+    return enqueue(
       Effect.gen(function* () {
         const connected = request();
         yield* currentAnswerEffect(connected.signal);
@@ -132,7 +132,7 @@ export function commentCommands(
         ),
       ),
     remove: (input: DeleteCommentInput) =>
-      queue.enqueue(
+      enqueue(
         Effect.gen(function* () {
           const connected = request();
           const result = yield* requestEffect(
@@ -160,7 +160,7 @@ export function commentCommands(
         }),
       ),
     removeResolved: (threads: ConfirmedThreads) =>
-      queue.enqueue(
+      enqueue(
         Effect.gen(function* () {
           const connected = request();
           const result = yield* requestEffect(
@@ -176,7 +176,7 @@ export function commentCommands(
         }),
       ),
     seen: (throughRevision: number) =>
-      queue.enqueue(
+      enqueue(
         Effect.gen(function* () {
           const connected = request();
           const result = yield* requestEffect(

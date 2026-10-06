@@ -1,6 +1,6 @@
 import { Effect, Fiber } from 'effect';
 import { nativeOperation } from '@porcelain/effects';
-import { createWriteQueue } from '../../../shared/api/write-queue.ts';
+import { WriteQueues } from '../../../shared/api/write-queue.ts';
 import { currentAnswerEffect } from '../../../shared/api/stale-answer.ts';
 import type { ReviewClock } from '../ports/review-clock.ts';
 import type { WorktreeConnection } from '../../../shared/api/connection.ts';
@@ -8,7 +8,6 @@ import type { QueryClient } from '@tanstack/query-core';
 import type { ListReviewedFilesResponse } from '@porcelain/contracts/reviews';
 
 type Queue = {
-  writes: ReturnType<typeof createWriteQueue>;
   confirmed: ListReviewedFilesResponse | undefined;
   pending: Intent[];
 };
@@ -49,7 +48,6 @@ export function enqueueReviewedMany<A extends ListReviewedFilesResponse, E>(
       let queue = entries.get(hash);
       if (!queue) {
         queue = {
-          writes: createWriteQueue(),
           confirmed: client.getQueryData(context.key),
           pending: [],
         };
@@ -100,8 +98,9 @@ export function enqueueReviewedMany<A extends ListReviewedFilesResponse, E>(
       });
       let started = false;
       return yield* restore(
-        current.writes
-          .enqueue(
+        WriteQueues.use((writes) =>
+          writes.run(
+            context.key,
             Effect.gen(function* () {
               started = true;
               yield* Fiber.join(ready);
@@ -117,12 +116,12 @@ export function enqueueReviewedMany<A extends ListReviewedFilesResponse, E>(
               };
               return response;
             }).pipe(Effect.ensuring(settled)),
-          )
-          .pipe(
-            Effect.ensuring(
-              Effect.suspend(() => (started ? Effect.void : settled)),
-            ),
           ),
+        ).pipe(
+          Effect.ensuring(
+            Effect.suspend(() => (started ? Effect.void : settled)),
+          ),
+        ),
       );
     }),
   );

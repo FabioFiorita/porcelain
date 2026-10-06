@@ -1,9 +1,12 @@
+import { afterEach } from 'vitest';
+import { ManagedRuntime } from 'effect';
+import { WriteQueues } from '@porcelain/client/transport';
 import { expect, it } from 'vitest';
 import { Effect } from 'effect';
 import { QueryClient } from '@tanstack/query-core';
 import { FileDrafts, fileDraftRuntime } from '@porcelain/client/files';
 import { ContentChangedError } from '@porcelain/files/errors';
-import { runRequest } from '@porcelain/client/transport';
+import { runClientRequest } from '@porcelain/client/transport';
 import { inventoryQueryOptions } from '@porcelain/client/projects';
 import { projectCommands } from './projects.ts';
 
@@ -22,6 +25,8 @@ function connection(steps: string[]) {
 }
 
 it('saves a retained project draft before removing the project and updating inventory', async () => {
+  const requestRuntime = runtimeFixture();
+
   const steps: string[] = [];
   const connected = connection(steps);
   const cache = new QueryClient();
@@ -46,9 +51,10 @@ it('saves a retained project draft before removing the project and updating inve
   try {
     await Effect.runPromise(draft.change('updated'));
     expect(
-      await runRequest(
+      await runClientRequest(
         projectCommands(connected, cache).remove(projectId),
         connected.request().signal,
+        requestRuntime,
       ),
     ).toEqual({ deleted: true });
     expect(steps).toEqual(['draft saved', `/api/projects/${projectId}`]);
@@ -65,6 +71,8 @@ it('saves a retained project draft before removing the project and updating inve
 });
 
 it('keeps the project and its unsaved draft when a save conflicts', async () => {
+  const requestRuntime = runtimeFixture();
+
   const steps: string[] = [];
   const connected = connection(steps);
   const cache = new QueryClient();
@@ -84,9 +92,10 @@ it('keeps the project and its unsaved draft when a save conflicts', async () => 
   try {
     await Effect.runPromise(draft.change('unsaved'));
     await expect(
-      runRequest(
+      runClientRequest(
         projectCommands(connected, cache).remove(projectId),
         connected.request().signal,
+        requestRuntime,
       ),
     ).rejects.toThrow(
       'Save or discard unsaved file drafts before removing this project.',
@@ -105,6 +114,8 @@ it('keeps the project and its unsaved draft when a save conflicts', async () => 
 });
 
 it('leaves another project draft alone when removing the selected project', async () => {
+  const requestRuntime = runtimeFixture();
+
   const steps: string[] = [];
   const connected = connection(steps);
   const cache = new QueryClient();
@@ -127,9 +138,10 @@ it('leaves another project draft alone when removing the selected project', asyn
   try {
     await Effect.runPromise(draft.change('unsaved'));
     expect(
-      await runRequest(
+      await runClientRequest(
         projectCommands(connected, cache).remove(projectId),
         connected.request().signal,
+        requestRuntime,
       ),
     ).toEqual({ deleted: true });
     expect(steps).toEqual([`/api/projects/${projectId}`]);
@@ -142,4 +154,15 @@ it('leaves another project draft alone when removing the selected project', asyn
     await Effect.runPromise(draft.dispose());
     cache.clear();
   }
+});
+
+const runtimes = new Set<ManagedRuntime.ManagedRuntime<WriteQueues, never>>();
+function runtimeFixture() {
+  const runtime = ManagedRuntime.make(WriteQueues.layer);
+  runtimes.add(runtime);
+  return runtime;
+}
+afterEach(async () => {
+  for (const runtime of runtimes) await runtime.dispose();
+  runtimes.clear();
 });

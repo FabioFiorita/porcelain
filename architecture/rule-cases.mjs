@@ -3647,19 +3647,13 @@ const save = Effect.fail(new Error('Refused'));`,
   {
     rule: 'native-client-state-types',
     valid:
-      "import { Effect, type Context } from 'effect';\nimport { AccessStore } from '__CLIENT_ACCESS__';\nimport { ProjectSelectionStore } from '__CLIENT_SELECTION__';\ndeclare const access: Context.Service.Shape<typeof AccessStore>;\ndeclare const selection: Context.Service.Shape<typeof ProjectSelectionStore>;\nconst saved = access.save({environmentId: 'computer', name: 'Computer', address: 'http://localhost', credential: 'secret'});\nconst selected = selection.selectWorktree('computer', 'project', 'tree');\nconst remotes = access.state.value.remotes;\nimport { OperationStore } from '__CLIENT_OPERATIONS__';\ndeclare const operations: Context.Service.Shape<typeof OperationStore>;\nconst pending = operations.state.value.operations.get('fetch');",
+      "import { Effect, type Context } from 'effect';\nimport { AccessStore } from '__CLIENT_ACCESS__';\nimport { ProjectSelectionStore } from '__CLIENT_SELECTION__';\ndeclare const access: Context.Service.Shape<typeof AccessStore>;\ndeclare const selection: Context.Service.Shape<typeof ProjectSelectionStore>;\nconst saved = access.save({environmentId: 'computer', name: 'Computer', address: 'http://localhost', credential: 'secret'});\nconst selected = selection.selectWorktree('computer', 'project', 'tree');\nconst remotes = access.state.value.remotes;\nimport { OperationStore } from '__CLIENT_OPERATIONS__';\ndeclare const operations: Context.Service.Shape<typeof OperationStore>;\nconst pending = operations.state.value.operations.get('fetch');\nimport { WriteQueues } from '__CLIENT_QUEUES__';\nconst writes = WriteQueues.use((queues) => queues.run(['comments', 'tree'], Effect.succeed('written')));\nconst written = Effect.runPromise(Effect.provide(writes, WriteQueues.layer));",
     invalid:
-      "import { Effect, type Context } from 'effect';\nimport { AccessStore } from '__CLIENT_ACCESS__';\nimport { ProjectSelectionStore } from '__CLIENT_SELECTION__';\ndeclare const access: Context.Service.Shape<typeof AccessStore>;\ndeclare const selection: Context.Service.Shape<typeof ProjectSelectionStore>;\nEffect.runSync(AccessStore.pipe(Effect.provide(AccessStore.layer)));\naccess.state.set({remotes: [], status: 'ready', error: undefined});\naccess.state.value.remotes.push({environmentId: 'computer', name: 'Computer', address: 'http://localhost', credential: 'secret'});\nselection.state.value.selections.computer = {projectId: 'project', worktreeId: 'tree'};\nimport { OperationStore } from '__CLIENT_OPERATIONS__';\ndeclare const operations: Context.Service.Shape<typeof OperationStore>;\nEffect.runSync(OperationStore.pipe(Effect.provide(OperationStore.layer)));\noperations.state.value.operations.clear();",
-    errors: [
-      'TS2379',
-      'TS377004',
-      'TS2339',
-      'TS2339',
-      'TS2542',
-      'TS2379',
-      'TS377004',
-      'TS2339',
-    ],
+      "import { Effect, type Context } from 'effect';\nimport { AccessStore } from '__CLIENT_ACCESS__';\nimport { ProjectSelectionStore } from '__CLIENT_SELECTION__';\ndeclare const access: Context.Service.Shape<typeof AccessStore>;\ndeclare const selection: Context.Service.Shape<typeof ProjectSelectionStore>;\nEffect.runSync(AccessStore.pipe(Effect.provide(AccessStore.layer)));\naccess.state.set({remotes: [], status: 'ready', error: undefined});\naccess.state.value.remotes.push({environmentId: 'computer', name: 'Computer', address: 'http://localhost', credential: 'secret'});\nselection.state.value.selections.computer = {projectId: 'project', worktreeId: 'tree'};\nimport { OperationStore } from '__CLIENT_OPERATIONS__';\ndeclare const operations: Context.Service.Shape<typeof OperationStore>;\nEffect.runSync(OperationStore.pipe(Effect.provide(OperationStore.layer)));\noperations.state.value.operations.clear();\nimport { WriteQueues } from '__CLIENT_QUEUES__';\nconst writes = WriteQueues.use((queues) => queues.run(['comments', 'tree'], Effect.succeed('written')));\nconst written = Effect.runPromise(writes);",
+    errors:
+      'TS2379 TS377004 TS2339 TS2339 TS2542 TS2379 TS377004 TS2339 TS2379 TS377004'.split(
+        ' ',
+      ),
   },
   {
     rule: 'native-process-types',

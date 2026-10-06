@@ -9,14 +9,12 @@ import type {
 import type { WorktreeConnection } from '../../../shared/api/connection.ts';
 import { queryKeys } from '../../../shared/api/query-keys.ts';
 import { currentAnswerEffect } from '../../../shared/api/stale-answer.ts';
-import { createScopedWriteQueues } from '../../../shared/api/write-queue.ts';
+import { WriteQueues } from '../../../shared/api/write-queue.ts';
 import { projectsApi } from '../api.ts';
 import { inventoryQueryOptions } from '../queries/inventory.ts';
 import { filePreferencesQueryOptions } from '../queries/file-preferences.ts';
 import { FileDrafts, fileDraftRuntime } from '../../files/store.ts';
 import { ConnectionError } from '../../../shared/api/connection-error.ts';
-
-const writeQueue = createScopedWriteQueues();
 
 export function projectCommands(
   connection: WorktreeConnection,
@@ -24,7 +22,9 @@ export function projectCommands(
 ) {
   const api = projectsApi(connection);
   const key = inventoryQueryOptions(connection).queryKey;
-  const queue = writeQueue(connection, key);
+
+  const enqueue = <A, E, R>(operation: Effect.Effect<A, E, R>) =>
+    WriteQueues.use((queues) => queues.run(key, operation));
   function update(
     change: (inventory: ReadInventoryResponse) => ReadInventoryResponse,
     signal: AbortSignal,
@@ -40,7 +40,7 @@ export function projectCommands(
   }
   return {
     register: (path: string) =>
-      queue.enqueue(
+      enqueue(
         Effect.gen(function* () {
           const request = connection.request();
           yield* currentAnswerEffect(request.signal);
@@ -65,7 +65,7 @@ export function projectCommands(
         }),
       ),
     rename: (input: { projectId: string; name: string }) =>
-      queue.enqueue(
+      enqueue(
         Effect.gen(function* () {
           const request = connection.request();
           const project = yield* requestEffect(
@@ -91,7 +91,7 @@ export function projectCommands(
         }),
       ),
     remove: (projectId: string) =>
-      queue.enqueue(
+      enqueue(
         Effect.gen(function* () {
           const request = connection.request();
           yield* currentAnswerEffect(request.signal);
@@ -143,23 +143,26 @@ export function setFilePreference(
   input: SetFilePreferenceRequest,
 ) {
   const key = filePreferencesQueryOptions(connection, projectId).queryKey;
-  return writeQueue(connection, key).enqueue(
-    Effect.gen(function* () {
-      const request = connection.request();
-      const result = yield* requestEffect(
-        projectsApi(connection).setFilePreference({
-          params: { projectId },
-          payload: input,
-        }),
-        request.signal,
-      );
-      yield* currentAnswerEffect(request.signal);
-      yield* nativeOperation(() =>
-        client.cancelQueries({ queryKey: key, exact: true }),
-      );
-      yield* currentAnswerEffect(request.signal);
-      client.setQueryData(key, result);
-      return result;
-    }),
+  return WriteQueues.use((queues) =>
+    queues.run(
+      key,
+      Effect.gen(function* () {
+        const request = connection.request();
+        const result = yield* requestEffect(
+          projectsApi(connection).setFilePreference({
+            params: { projectId },
+            payload: input,
+          }),
+          request.signal,
+        );
+        yield* currentAnswerEffect(request.signal);
+        yield* nativeOperation(() =>
+          client.cancelQueries({ queryKey: key, exact: true }),
+        );
+        yield* currentAnswerEffect(request.signal);
+        client.setQueryData(key, result);
+        return result;
+      }),
+    ),
   );
 }
