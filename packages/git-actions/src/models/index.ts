@@ -21,11 +21,11 @@ export type {
 } from './git-action-receipt.ts';
 export type { GitActionReceiptView } from './git-action-receipt-view.ts';
 export type {
-  GitActionRun,
   GitActionRunnerOutcome,
   GitActionRunRequest,
 } from './git-action-run.ts';
 export type { RunGitActionInput } from './run-git-action.ts';
+export type { QueueGitActionInput } from './queue-git-action.ts';
 
 export { gitActionIntentSchema } from './git-action-intent.ts';
 export { gitActionExpectationSchema } from './git-action-expectation.ts';

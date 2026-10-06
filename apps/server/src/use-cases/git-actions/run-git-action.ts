@@ -10,7 +10,7 @@ import {
 } from '@porcelain/git-actions/services';
 import { EventPublisher } from '../../ports/event-publisher.ts';
 import { type WorktreeAccessFailure } from '../../ports/worktree-access-failure.ts';
-import { GitActionQueuePort } from '../../ports/git-action-queue-port.ts';
+import { GitActionQueueRunner } from '../../ports/git-action-queue-runner.ts';
 import { WorktreeAccess } from '../../runtime/worktree-access.ts';
 
 export class RunGitActionUseCase extends Context.Service<
@@ -35,7 +35,7 @@ export class RunGitActionUseCase extends Context.Service<
       const access = yield* WorktreeAccess;
       const expire = yield* ExpireGitActionReceiptsService;
       const accept = yield* AcceptGitActionService;
-      const workflow = yield* GitActionQueuePort;
+      const queue = yield* GitActionQueueRunner;
       const events = yield* EventPublisher;
       return {
         execute: Effect.fn('RunGitActionUseCase.execute')(function* (
@@ -68,7 +68,7 @@ export class RunGitActionUseCase extends Context.Service<
                   if (accepted.kind !== 'accepted') return;
                   yield* events.gitActionChanged(accepted.receipt).pipe(
                     Effect.ensuring(
-                      workflow.execute({
+                      queue.execute({
                         requestId: accepted.receipt.requestId,
                       }),
                     ),

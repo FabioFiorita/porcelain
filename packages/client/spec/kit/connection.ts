@@ -1,4 +1,4 @@
-import { Effect, Layer, Schema } from 'effect';
+import { Effect, Layer, Redacted, Schema } from 'effect';
 import { AtomRegistry, type Atom, type AsyncResult } from 'effect/reactivity';
 import { afterEach } from 'vitest';
 import { createWorktreeConnection } from '../../src/shared/api/worktree-connection.ts';
@@ -15,7 +15,11 @@ export async function connection(server: IsolatedServer, session: Session) {
       environmentId: Schema.decodeUnknownSync(readInventoryResponseSchema)(
         await inventory(session),
       ).environmentId,
-      transport: remoteTransport(server.address, server.credential, fetch),
+      transport: remoteTransport(
+        server.address,
+        Redacted.make(server.credential),
+        fetch,
+      ),
     },
     undefined,
     Layer.empty,

@@ -1224,6 +1224,7 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
   'server-kit': new Set([
     'server-kit',
     'bootstrap',
+    'runtime',
     'transport',
     'config',
     'server-port',
@@ -2054,7 +2055,7 @@ const rolePurposes: Record<Role, string> = {
   'store-contract':
     'a store contract in spec/contracts/, the spec every implementation of a store passes',
   'server-kit':
-    'the disposable-server kit in apps/server/spec/kit/, which builds the server, starts it sandboxed with the sample project, pairs, reads its state back, redacts secrets and stops only what it started, for integration tests, e2e setup and the verification CLIs',
+    'the disposable-server kit in apps/server/spec/kit/, which builds scoped runtime Layers and the server, starts it sandboxed with the sample project, pairs, reads its state back, redacts secrets and stops only what it started, for integration tests, e2e setup and the verification CLIs',
   'integration-test':
     'a server integration test in apps/server/spec/integration/<feature>.integration.ts, or a route budget test in apps/server/spec/perf/<name>.perf.ts, which drives the built, sandboxed server over HTTP through the kit with a real database and real Git',
   'server-cli':

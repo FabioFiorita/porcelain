@@ -13,8 +13,11 @@ import {
 import { Activity, Workflow, WorkflowEngine } from 'effect/workflow';
 import { ClusterSchema } from 'effect/cluster';
 import { GitActionReceiptStore } from '@porcelain/git-actions/ports';
-import { queuedGitActionRunSchema } from '@porcelain/git-actions/models';
-import { GitActionQueuePort } from '../ports/git-action-queue-port.ts';
+import {
+  queuedGitActionRunSchema,
+  type QueueGitActionInput,
+} from '@porcelain/git-actions/models';
+import { GitActionQueueRunner } from '../ports/git-action-queue-runner.ts';
 import { RunQueuedGitActionUseCasePort } from '../ports/run-queued-git-action-use-case-port.ts';
 import { ApplicationClosedError } from './errors/application-closed-error.ts';
 
@@ -28,7 +31,7 @@ const gitActionWorkflow = Workflow.make('PorcelainGitActionV1', {
 export class GitActionWorkflow extends Context.Service<
   GitActionWorkflow,
   {
-    readonly execute: (input: { requestId: string }) => Effect.Effect<void>;
+    readonly execute: (input: QueueGitActionInput) => Effect.Effect<void>;
     readonly recover: () => Effect.Effect<void>;
     readonly stop: () => Effect.Effect<void>;
   }
@@ -56,9 +59,9 @@ export class GitActionWorkflow extends Context.Service<
           }).annotate(ClusterSchema.WithTransaction, false),
         )
         .pipe(Scope.provide(registrationScope));
-      const execute = Effect.fn('GitActionWorkflow.execute')(function* (input: {
-        requestId: string;
-      }) {
+      const execute = Effect.fn('GitActionWorkflow.execute')(function* (
+        input: QueueGitActionInput,
+      ) {
         if (yield* Ref.get(stopped))
           return yield* Effect.die(new ApplicationClosedError());
         const receipt = yield* receipts.read(input);
@@ -97,7 +100,7 @@ export class GitActionWorkflow extends Context.Service<
         }
       });
       return Context.make(GitActionWorkflow, { execute, recover, stop }).pipe(
-        Context.add(GitActionQueuePort, { execute }),
+        Context.add(GitActionQueueRunner, { execute }),
       );
     }),
   );

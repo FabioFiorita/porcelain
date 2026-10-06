@@ -15,7 +15,7 @@ import { type ListedWorktree } from '@porcelain/projects/models';
 import { Clock, Effect, Layer, ManagedRuntime } from 'effect';
 import { expect, it } from 'vitest';
 import { EventPublisher } from '../../ports/event-publisher.ts';
-import { GitActionQueuePort } from '../../ports/git-action-queue-port.ts';
+import { GitActionQueueRunner } from '../../ports/git-action-queue-runner.ts';
 import { WorktreeConsistencyProbe } from '../../ports/worktree-consistency-probe.ts';
 import { CheckWorktreeUseCasePort } from '../../ports/check-worktree-use-case-port.ts';
 import { LaneOptions } from '../../ports/lane-options.ts';
@@ -120,7 +120,7 @@ async function fixture(onAccepted?: () => void) {
     Layer.succeed(Clock.Clock, await testClock('2026-10-05T05:00:00.000Z')),
     Layer.succeed(ExpireGitActionReceiptsOptions, { retentionMs: 10000 }),
     Layer.succeed(WorktreeAccess, access),
-    Layer.succeed(GitActionQueuePort, {
+    Layer.succeed(GitActionQueueRunner, {
       execute: ({ requestId }) =>
         Effect.sync(() => {
           queued.push(requestId);

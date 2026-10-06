@@ -3907,33 +3907,36 @@ export const unusedQuery = () => ({ queryFn: () => { ${use} } });`,
   ...[
     {
       rule: 'lane-per-table',
-      call: 'this.lanes.commit(this.laneKeys.access(), () => this.receipts.claimExecution());',
-      errors: ['lane-per-table'],
+      call: 'return yield* lanes.commit(keys.access(), () => receipts.claimExecution());',
     },
     {
       rule: 'lane-mode-matches-service',
-      call: "this.lanes.run(this.laneKeys.receipts(), 'read', () => this.receipts.claimExecution());",
-      errors: ['lane-mode-matches-service'],
+      call: "return yield* lanes.run(keys.receipts(), 'read', () => receipts.claimExecution());",
     },
-  ].map(({ rule, call, errors }) => ({
-    rule,
-    files: {
-      'packages/git-actions/src/ports/git-action-receipt-store.ts':
-        'export interface GitActionReceiptStore { claimExecution(): boolean; }',
-      'apps/server/src/runtime/lanes.ts':
-        'export class Lanes { commit(key: string, work: () => boolean): boolean { return work(); } run(key: string, mode: string, work: () => boolean): boolean { return work(); } }',
-      'apps/server/src/runtime/lane-keys.ts':
-        "export class LaneKeys { receipts(): string { return 'receipts'; } access(): string { return 'access'; } }",
-    },
-    valid: {
-      'apps/server/src/runtime/git-action-workflow.ts':
-        "import type { GitActionReceiptStore } from '../../../../../packages/git-actions/src/ports/git-action-receipt-store.ts'; import type { Lanes } from './lanes.ts'; import type { LaneKeys } from './lane-keys.ts'; export class GitActionWorkflow { constructor(private readonly receipts: GitActionReceiptStore, private readonly lanes: Lanes, private readonly laneKeys: LaneKeys) {} execute() { return this.lanes.commit(this.laneKeys.receipts(), () => this.receipts.claimExecution()); } }",
-    },
-    invalid: {
-      'apps/server/src/runtime/git-action-workflow.ts': `import type { GitActionReceiptStore } from '../../../../../packages/git-actions/src/ports/git-action-receipt-store.ts'; import type { Lanes } from './lanes.ts'; import type { LaneKeys } from './lane-keys.ts'; export class GitActionWorkflow { constructor(private readonly receipts: GitActionReceiptStore, private readonly lanes: Lanes, private readonly laneKeys: LaneKeys) {} execute() { ${call} } }`,
-    },
-    errors,
-  })),
+  ].map(({ rule, call }) => {
+    const workflow = (body) =>
+      `import { Context, Effect, Layer } from 'effect'; import { GitActionReceiptStore } from '../../../../packages/git-actions/src/ports/git-action-receipt-store.ts'; import { Lanes } from './lanes.ts'; import { LaneKeys } from './lane-keys.ts'; export class GitActionWorkflow extends Context.Service<GitActionWorkflow, { readonly execute: () => Effect.Effect<boolean>; }>()('@porcelain/server/GitActionWorkflow') { static readonly layer = Layer.effect(GitActionWorkflow, Effect.gen(function* () { const receipts = yield* GitActionReceiptStore; const lanes = yield* Lanes; const keys = yield* LaneKeys; return { execute: Effect.fn('GitActionWorkflow.execute')(function* () { ${body} }), }; })); }`;
+    return {
+      rule,
+      files: {
+        'packages/git-actions/src/ports/git-action-receipt-store.ts':
+          "import { Context, type Effect } from 'effect'; export interface GitActionReceiptStore { claimExecution(): Effect.Effect<boolean>; } export const GitActionReceiptStore = Context.Service<'@porcelain/git-actions/GitActionReceiptStore', GitActionReceiptStore>('@porcelain/git-actions/GitActionReceiptStore');",
+        'apps/server/src/runtime/lanes.ts':
+          "import { Context, type Effect } from 'effect'; export class Lanes extends Context.Service<Lanes, { readonly commit: (key: string, work: () => Effect.Effect<boolean>) => Effect.Effect<boolean>; readonly run: (key: string, mode: string, work: () => Effect.Effect<boolean>) => Effect.Effect<boolean>; }>()('@porcelain/server/Lanes') {}",
+        'apps/server/src/runtime/lane-keys.ts':
+          "import { Context } from 'effect'; export class LaneKeys extends Context.Service<LaneKeys, { readonly receipts: () => string; readonly access: () => string; }>()('@porcelain/server/LaneKeys') {}",
+      },
+      valid: {
+        'apps/server/src/runtime/git-action-workflow.ts': workflow(
+          'return yield* lanes.commit(keys.receipts(), () => receipts.claimExecution());',
+        ),
+      },
+      invalid: {
+        'apps/server/src/runtime/git-action-workflow.ts': workflow(call),
+      },
+      errors: [rule],
+    };
+  }),
   {
     rule: 'status-policy-complete',
     files: {

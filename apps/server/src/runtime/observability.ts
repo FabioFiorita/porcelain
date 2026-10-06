@@ -44,7 +44,7 @@ export class Observability extends Context.Service<
     readonly measure: <A, E, R>(
       operation: Operation,
       effect: Effect.Effect<A, E, R>,
-      outcome?: ((value: A) => 'success' | 'failure') | undefined,
+      outcome?: (value: A) => 'success' | 'failure',
     ) => Effect.Effect<A, E, R>;
     readonly snapshot: Effect.Effect<ReadonlyArray<Metric.Metric.Snapshot>>;
   }
@@ -59,7 +59,7 @@ export class Observability extends Context.Service<
         measure: <A, E, R>(
           operation: Operation,
           effect: Effect.Effect<A, E, R>,
-          outcome?: ((value: A) => 'success' | 'failure') | undefined,
+          outcome?: (value: A) => 'success' | 'failure',
         ): Effect.Effect<A, E, R> => {
           const attributes = { ...operation, service: 'porcelain' };
           return effect.pipe(
