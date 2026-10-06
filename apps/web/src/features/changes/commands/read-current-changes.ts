@@ -1,5 +1,4 @@
-import { runRequest } from '@porcelain/client/transport';
-import { useQueryClient } from '@tanstack/react-query';
+import { useAtomSet } from '@effect/atom-react';
 import { readCurrentChanges, refreshGitLook } from '@porcelain/client/changes';
 import type { ChangesScope } from '@porcelain/client/changes/rules';
 import type { Connection } from '@/shared/workspace/connection';
@@ -8,19 +7,11 @@ export function useReadCurrentChanges(
   scope: ChangesScope,
   connection: Connection,
 ) {
-  const client = useQueryClient();
-  return () =>
-    runRequest(
-      readCurrentChanges(client, connection, scope),
-      connection.request().signal,
-    );
+  return useAtomSet(readCurrentChanges({ connection, scope }), {
+    mode: 'promise',
+  });
 }
 
 export function useRefreshGitLook(scope: ChangesScope, connection: Connection) {
-  const client = useQueryClient();
-  return () =>
-    runRequest(
-      refreshGitLook(client, connection, scope),
-      connection.request().signal,
-    );
+  return useAtomSet(refreshGitLook({ connection, scope }), { mode: 'promise' });
 }

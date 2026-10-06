@@ -1,3 +1,5 @@
+import { AsyncResult } from 'effect/reactivity';
+import { Option } from 'effect';
 import {
   detectPlatform,
   formatForDisplay,
@@ -298,12 +300,14 @@ function DocumentArea({
   focused: PaneIndex;
 }) {
   const { connection } = context;
-  const overview = useReviewOverview(scope, connection);
+  const overview = Option.getOrUndefined(
+    AsyncResult.value(useReviewOverview(scope, connection)),
+  );
   const published = usePublishedReview(scope, context);
   const layers = published.data?.active ? published.data.layers : [];
   const hasHandoff =
     Boolean(published.data?.active) ||
-    (overview != null && overview.changes.changes.length > 0);
+    (overview != null && overview.changes.length > 0);
   const layout = useTabLayout({
     worktreeId,
     entry,

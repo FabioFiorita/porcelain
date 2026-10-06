@@ -14,7 +14,22 @@ import {
   reviewedQueryOptions,
   layerMarksQueryOptions,
 } from '@porcelain/client/reviews';
-import { changesQueryOptions } from '@porcelain/client/changes';
+import { readChanges } from '@porcelain/client/changes';
+import { Effect } from 'effect';
+import { AtomRegistry } from 'effect/reactivity';
+import { afterEach } from 'vitest';
+
+const registries = new Set<AtomRegistry.AtomRegistry>();
+afterEach(() => {
+  for (const registry of registries) registry.dispose();
+  registries.clear();
+});
+function nativeReader() {
+  const registry = AtomRegistry.make();
+  registries.add(registry);
+  return (atom: ReturnType<typeof readChanges>) =>
+    Effect.runPromise(AtomRegistry.getResult(registry, atom));
+}
 import { changeDiffsQueryOptions } from '@porcelain/client/changes';
 import { connection } from '../kit/connection.ts';
 
@@ -75,7 +90,9 @@ test('read changes and the exact Git patch, and refuse a stale diff snapshot', a
 }) => {
   const { connected, scope } = await connection(server, session);
   const cache = new QueryClient();
-  const { changes } = await cache.query(changesQueryOptions(scope, connected));
+  const changes = await nativeReader()(
+    readChanges({ scope, connection: connected }),
+  );
   expect(changes.changes).toHaveLength(1);
   const file = changes.changes[0];
   if (!file) throw new Error('Expected the changed readme');
@@ -189,7 +206,9 @@ test('mark and unmark the actual changed file through the shared reviewed owner'
 }) => {
   const { connected, scope } = await connection(server, session);
   const cache = new QueryClient();
-  const { changes } = await cache.query(changesQueryOptions(scope, connected));
+  const changes = await nativeReader()(
+    readChanges({ scope, connection: connected }),
+  );
   const file = changes.changes[0];
   if (!file?.fingerprint)
     throw new Error('Expected the changed file fingerprint');

@@ -1,3 +1,6 @@
+import { Cause } from 'effect';
+import type { ReactNode } from 'react';
+import { AsyncResult } from 'effect/reactivity';
 import { useState } from 'react';
 import { useGitStatus } from '@/features/changes/index';
 import { Button } from '@/components/ui/button';
@@ -94,44 +97,50 @@ function CommitActionForm({
   onBusy,
   onLookAgain,
 }: InspectionFormProps<'commit' | 'amend'>) {
-  const { connection } = context;
-  const details = useGitStatus(scope, connection);
-  if (details.pending)
-    return (
-      <>
-        <CommitInspectionHeader action={action} />
-        <p role="status">Reading commit details…</p>
-      </>
-    );
-  if (action === 'amend' && !details.status?.headCommit)
-    return (
-      <>
-        <CommitInspectionHeader action={action} />
-        <p role="alert">
-          The last commit could not be read. Close and try again.
-        </p>
-      </>
-    );
-  const head = details.status?.headCommit;
   return (
-    <CommitForm
+    <GitStatusInspection
       scope={scope}
       context={context}
-      action={action}
-      status={status}
-      liveBranch={details.status?.branch ?? status.branch}
-      initialMessage={
-        action === 'amend' && head
-          ? [head.subject, head.body].filter(Boolean).join('\n\n')
-          : ''
+      pending={
+        <>
+          <CommitInspectionHeader action={action} />
+          <p role="status">Reading commit details…</p>
+        </>
       }
-      lastCommitMessage={
-        head ? [head.subject, head.body].filter(Boolean).join('\n\n') : ''
-      }
-      {...(head ? { replacedSubject: head.subject } : {})}
-      onBusy={onBusy}
-      onLookAgain={onLookAgain}
-    />
+    >
+      {(details) => {
+        const head = details.headCommit;
+        if (action === 'amend' && !head)
+          return (
+            <>
+              <CommitInspectionHeader action={action} />
+              <p role="alert">
+                The last commit could not be read. Close and try again.
+              </p>
+            </>
+          );
+        return (
+          <CommitForm
+            scope={scope}
+            context={context}
+            action={action}
+            status={status}
+            liveBranch={details.branch ?? status.branch}
+            initialMessage={
+              action === 'amend' && head
+                ? [head.subject, head.body].filter(Boolean).join('\n\n')
+                : ''
+            }
+            lastCommitMessage={
+              head ? [head.subject, head.body].filter(Boolean).join('\n\n') : ''
+            }
+            {...(head ? { replacedSubject: head.subject } : {})}
+            onBusy={onBusy}
+            onLookAgain={onLookAgain}
+          />
+        );
+      }}
+    </GitStatusInspection>
   );
 }
 
@@ -158,28 +167,60 @@ function StashActionForm({
   onBusy,
   onLookAgain,
 }: InspectionFormProps<FormAction>) {
-  const { connection } = context;
-  const details = useGitStatus(scope, connection);
-  if (details.pending)
-    return (
-      <p role="status" className="text-sm text-muted-foreground">
-        Reading branch…
-      </p>
-    );
   return (
-    <ActionForm
+    <GitStatusInspection
       scope={scope}
       context={context}
-      action={action}
-      status={{
-        ...status,
-        branch: details.status?.branch ?? status.branch,
-      }}
-      expectedStatus={status}
-      onBusy={onBusy}
-      onLookAgain={onLookAgain}
-    />
+      pending={
+        <p role="status" className="text-sm text-muted-foreground">
+          Reading branch…
+        </p>
+      }
+    >
+      {(details) => (
+        <ActionForm
+          scope={scope}
+          context={context}
+          action={action}
+          status={{ ...status, branch: details.branch ?? status.branch }}
+          expectedStatus={status}
+          onBusy={onBusy}
+          onLookAgain={onLookAgain}
+        />
+      )}
+    </GitStatusInspection>
   );
+}
+
+function GitStatusInspection({
+  scope,
+  context,
+  pending,
+  children,
+}: {
+  scope: GitScope;
+  context: ConnectionContext;
+  pending: ReactNode;
+  children: (
+    status: AsyncResult.AsyncResult.Success<
+      ReturnType<typeof useGitStatus>['result']
+    >,
+  ) => ReactNode;
+}) {
+  const details = useGitStatus(scope, context.connection);
+  if (AsyncResult.isFailure(details.result))
+    return (
+      <>
+        <GitActionError
+          text={gitErrorMessage(Cause.squash(details.result.cause))}
+        />
+        <Button variant="outline" onClick={details.refresh}>
+          Read status again
+        </Button>
+      </>
+    );
+  if (!AsyncResult.isSuccess(details.result)) return pending;
+  return children(details.result.value);
 }
 
 function ActionForm({

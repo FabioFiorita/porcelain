@@ -1,3 +1,5 @@
+import { AsyncResult } from 'effect/reactivity';
+import { Option } from 'effect';
 import { Button } from '@/components/ui/button';
 import { useReviewOverview } from '@/features/changes/index';
 import type { GitScope } from '@porcelain/client/git-actions/rules';
@@ -12,9 +14,11 @@ export function InterruptedActionNotice({
   context: Parameters<typeof useDismissInterrupted>[1];
 }) {
   const { connection } = context;
-  const overview = useReviewOverview(scope, connection);
+  const overview = Option.getOrUndefined(
+    AsyncResult.value(useReviewOverview(scope, connection)),
+  );
   const dismiss = useDismissInterrupted(scope, context);
-  const interrupted = overview?.changes.interrupted;
+  const interrupted = overview?.interrupted;
   if (!interrupted) return null;
   return (
     <div

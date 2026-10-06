@@ -1,3 +1,5 @@
+import { AsyncResult } from 'effect/reactivity';
+import { Option } from 'effect';
 import { type ReactNode, Suspense, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -176,7 +178,9 @@ function BranchDiffs({
   };
 }) {
   const { connection } = context;
-  const overview = useReviewOverview(scope, connection);
+  const overview = Option.getOrUndefined(
+    AsyncResult.value(useReviewOverview(scope, connection)),
+  );
   const [window, setWindow] = useState({
     of: branch.head.oid,
     shown: DIFF_WINDOW_FILES,
@@ -230,7 +234,7 @@ function BranchDiffs({
   const rendered = new Set(entries.map((entry) => entry.path));
   const omitted = reached.filter((item) => !rendered.has(item.path));
   const more = items.length - reached.length;
-  const uncommitted = overview?.changes.changes.length ?? 0;
+  const uncommitted = overview?.changes.length ?? 0;
   const [first] = items;
 
   return (

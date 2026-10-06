@@ -2,6 +2,8 @@ import type {
   ReadChangesResponse,
   ReadGitStatusResponse,
 } from '@porcelain/contracts/changes';
+import { Option } from 'effect';
+import { AsyncResult } from 'effect/reactivity';
 import type {
   ActionInput,
   GitScope,
@@ -31,8 +33,8 @@ type DiscardedItem = { oid: string; path: string; kind: 'hunk' | 'rename' };
 
 type Menu = {
   details: {
-    status: ReadGitStatusResponse | undefined;
-    read: () => Promise<ReadGitStatusResponse | undefined>;
+    result: AsyncResult.AsyncResult<ReadGitStatusResponse, unknown>;
+    read: () => Promise<ReadGitStatusResponse>;
   };
   enableDetails: () => void;
   pullStrategy: 'merge' | 'rebase';
@@ -52,35 +54,32 @@ async function runNetwork(
   const { details } = menu;
   const notify = menu.onResult;
   const label = networkTitle(next);
-  const freshlyRead = !details.status;
-  if (freshlyRead) menu.enableDetails();
-  const target = networkTarget(
-    details.status ?? (await details.read()),
-    displayedBranch,
-    freshlyRead,
-  );
-  if (!target.ready) {
-    notify({
-      title: `${label} did not run`,
-      description: target.reason,
-      type: 'error',
-    });
-    return;
-  }
-  const { looked } = target;
-  let input: ActionInput;
   try {
-    input = networkInput(next, looked.branch, menu.pullStrategy);
-  } catch (error) {
-    notify({
-      title: `${label} did not run`,
-      description: gitErrorMessage(error),
-      type: 'error',
-    });
-    return;
-  }
-  menu.onProgress(true);
-  try {
+    const status = AsyncResult.isSuccess(details.result)
+      ? details.result.value
+      : undefined;
+    const freshlyRead = !status;
+    if (freshlyRead) menu.enableDetails();
+    const target = networkTarget(
+      status ?? (await details.read()),
+      displayedBranch,
+      freshlyRead,
+    );
+    if (!target.ready) {
+      notify({
+        title: `${label} did not run`,
+        description: target.reason,
+        type: 'error',
+      });
+      return;
+    }
+    const { looked } = target;
+    const input: ActionInput = networkInput(
+      next,
+      looked.branch,
+      menu.pullStrategy,
+    );
+    menu.onProgress(true);
     const receipt = await runner.run(
       input,
       expectationFor(looked, [], looked.branch?.upstreamOid ?? null),
@@ -107,31 +106,31 @@ async function restoreDiscarded(
   item: DiscardedItem,
 ) {
   const { details, notify } = menu;
-  let looked = details.status;
-  if (!looked) {
-    menu.enableDetails();
-    looked = await details.read();
-  }
-  if (!looked) {
-    notify({
-      title: 'Could not restore the discarded change',
-      description: 'The worktree status is still loading. Try again.',
-      type: 'error',
-    });
-    return;
-  }
   const label =
     item.kind === 'rename' ? `rename of ${item.path}` : `hunk of ${item.path}`;
-  await restoreStash(
-    runner,
-    { stashOid: item.oid, restoreIndex: item.kind === 'rename' },
-    expectationFor(looked, [item.path], undefined, true),
-    notify,
-    {
-      restored: `Restored the discarded ${label}`,
-      failed: `Could not restore the discarded ${label}`,
-    },
-  );
+  try {
+    let looked = Option.getOrUndefined(AsyncResult.value(details.result));
+    if (!looked || AsyncResult.isFailure(details.result)) {
+      menu.enableDetails();
+      looked = await details.read();
+    }
+    await restoreStash(
+      runner,
+      { stashOid: item.oid, restoreIndex: item.kind === 'rename' },
+      expectationFor(looked, [item.path], undefined, true),
+      notify,
+      {
+        restored: `Restored the discarded ${label}`,
+        failed: `Could not restore the discarded ${label}`,
+      },
+    );
+  } catch (error) {
+    notify({
+      title: `Could not restore the discarded ${label}`,
+      description: gitErrorMessage(error),
+      type: 'error',
+    });
+  }
 }
 
 export function useGitMenu(

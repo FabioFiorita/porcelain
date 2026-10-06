@@ -196,7 +196,7 @@ function LayerSteps({
   const { connection } = context;
   const recover = useRecoverChangedDiffs(scope, connection);
   usePrefetchReviewed(scope, context);
-  const { changes } = useChanges(scope, connection);
+  const changes = useChanges(scope, connection);
   const items = useReviewChangeItems(
     scope,
     context,

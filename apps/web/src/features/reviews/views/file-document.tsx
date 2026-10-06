@@ -159,7 +159,7 @@ function ReadableFileDocument({
 }) {
   const { preferences } = usePreferences();
   const { connection } = context;
-  const { changes } = useChanges(scope, connection);
+  const changes = useChanges(scope, connection);
   const kind = fileKind(path);
   const changed = changes.changes.some((entry) => entry.path === path);
   const [mode, setMode] = useState<FileDisplayMode>(() =>

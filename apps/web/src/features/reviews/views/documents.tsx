@@ -175,7 +175,7 @@ function HandoffDocument(props: DocumentProps) {
 function PlainChangesDocument({ scope, context, interaction }: DocumentProps) {
   const { connection } = context;
   usePrefetchReviewed(scope, context);
-  const list = useChanges(scope, connection).changes;
+  const list = useChanges(scope, connection);
   const changes = useReviewChangeItems(scope, context, list);
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -240,7 +240,7 @@ function ChangeDocument({
 }: DocumentProps & { path: string }) {
   const { connection } = context;
   usePrefetchReviewed(scope, context);
-  const list = useChanges(scope, connection).changes;
+  const list = useChanges(scope, connection);
   const change = useReviewChangeItems(scope, context, list, [path]).find(
     (entry) => entry.path === path,
   );

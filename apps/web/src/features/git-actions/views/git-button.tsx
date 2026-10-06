@@ -1,3 +1,5 @@
+import { AsyncResult } from 'effect/reactivity';
+import { Option } from 'effect';
 import { ChevronDownIcon, GitBranchIcon, Undo2Icon } from 'lucide-react';
 import { Fragment, useState } from 'react';
 import {
@@ -68,14 +70,19 @@ export function GitButton({
   context: Parameters<typeof useGitMenu>[1];
 }) {
   const { connection } = context;
-  const overview = useReviewOverview(scope, connection);
+  const overview = Option.getOrUndefined(
+    AsyncResult.value(useReviewOverview(scope, connection)),
+  );
   const [detailsEnabled, setDetailsEnabled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const settled =
     overview != null &&
-    primaryGitAction(statusFromChanges(overview.changes)).kind === 'hint';
+    primaryGitAction(statusFromChanges(overview)).kind === 'hint';
   const detailsLive = detailsEnabled || settled;
   const details = useGitStatus(scope, connection, detailsLive);
+  const detailedStatus = Option.getOrUndefined(
+    AsyncResult.value(details.result),
+  );
   const refreshLook = useRefreshGitLook(scope, connection);
   const { preferences } = usePreferences();
   const [busy, setBusy] = useState(false);
@@ -108,10 +115,10 @@ export function GitButton({
   });
   if (overview == null) return null;
   const status = {
-    ...statusFromChanges(overview.changes),
+    ...statusFromChanges(overview),
     branch: shownBranch(
-      overview.changes.branch,
-      detailsLive ? details.status?.branch : undefined,
+      overview.branch,
+      detailsLive ? detailedStatus?.branch : undefined,
     ),
   };
   const selected = gitActions.find((candidate) => candidate.id === action);
@@ -266,7 +273,9 @@ export function GitButton({
                 <DropdownMenuGroup>
                   {group.actions.map((candidate) => {
                     const blocker =
-                      isNetworkAction(candidate.id) && details.pending
+                      isNetworkAction(candidate.id) &&
+                      detailsLive &&
+                      AsyncResult.isInitial(details.result)
                         ? 'Reading the configured upstream.'
                         : gitActionBlocker(candidate.id, status);
                     const reason =

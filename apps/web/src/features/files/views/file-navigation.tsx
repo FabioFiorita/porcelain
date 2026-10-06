@@ -106,7 +106,9 @@ function ScopedFileNavigation({
     nonce: number;
   }>();
   const [deleting, setDeleting] = useState<string | null>(null);
-  const overview = useReviewOverview(scope, connection);
+  const overview = Option.getOrUndefined(
+    AsyncResult.value(useReviewOverview(scope, connection)),
+  );
   const hidden = useHiddenPaths(connection, scope.projectId);
   const setHidden = useSetHidden(connection, scope.projectId);
   const pinned = usePinnedPaths(connection, scope.projectId);
@@ -136,7 +138,7 @@ function ScopedFileNavigation({
     ...entries
       .filter((entry) => entry.ignored)
       .map((entry) => ({ path: entry.path, status: 'ignored' as const })),
-    ...(overview?.changes.changes ?? [])
+    ...(overview?.changes ?? [])
       .flatMap((entry) => entry.comparisons)
       .map((change): GitStatusEntry => ({
         path: changePath(change),
@@ -149,7 +151,7 @@ function ScopedFileNavigation({
       })),
   ];
   const changed = new Set<string>(
-    (overview?.changes.changes ?? []).map((entry) => entry.path),
+    (overview?.changes ?? []).map((entry) => entry.path),
   );
   const openable = new Set(
     entries.filter((entry) => entry.kind === 'file').map((entry) => entry.path),

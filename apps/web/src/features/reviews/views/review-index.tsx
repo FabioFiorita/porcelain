@@ -87,7 +87,7 @@ export function ReviewIndex({
   const [view, setView] = useState<'layers' | 'comments'>('layers');
   usePrefetchReviewed(scope, context);
   usePrefetchComments(scope, context);
-  const { changes: list } = useChanges(scope, connection);
+  const list = useChanges(scope, connection);
   const published = usePublishedReview(scope, context);
   const review = published.data?.active ? published.data : null;
   const { threads } = useComments(scope, context);

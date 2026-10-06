@@ -1,37 +1,54 @@
 import { Effect } from 'effect';
-import { nativeOperation } from '@porcelain/effects';
-import type { QueryClient } from '@tanstack/query-core';
+import { Atom, Reactivity } from 'effect/reactivity';
 import type {
-  WorktreeConnection,
+  RuntimeConnection,
   WorktreeScope,
 } from '../../../shared/api/connection.ts';
-import { changesQueryOptions } from '../queries/changes.ts';
-import { gitStatusQueryOptions } from '../queries/git-status.ts';
+import { clientRuntime } from '../../../shared/api/runtime.ts';
+import { queryKeys } from '../../../shared/api/query-keys.ts';
+import {
+  readChangesSnapshot,
+  readGitStatusSnapshot,
+} from '../queries/changes.ts';
 
-export function readCurrentChanges(
-  client: QueryClient,
-  connection: WorktreeConnection,
-  scope: WorktreeScope,
-) {
-  return Effect.map(
-    nativeOperation(() =>
-      client.query({ ...changesQueryOptions(scope, connection), staleTime: 0 }),
-    ),
-    (result) => result.changes,
-  );
-}
+type Selection = { connection: RuntimeConnection; scope: WorktreeScope };
 
-export function refreshGitLook(
-  client: QueryClient,
-  connection: WorktreeConnection,
-  scope: WorktreeScope,
-) {
-  return Effect.tap(readCurrentChanges(client, connection, scope), () =>
-    nativeOperation(() =>
-      client.invalidateQueries({
-        queryKey: gitStatusQueryOptions(scope, connection).queryKey,
-        exact: true,
-      }),
+function invalidate(selection: Selection, surfaces: readonly string[]) {
+  return Reactivity.invalidate(
+    surfaces.map((surface) =>
+      queryKeys.reviewSurface(
+        selection.connection.environmentId,
+        selection.scope,
+        [surface],
+      ),
     ),
   );
 }
+
+export const readCurrentChanges = Atom.family((selection: Selection) =>
+  clientRuntime(selection.connection).fn(
+    Effect.fn('Changes.readCurrent')((_: void) =>
+      Effect.tap(readChangesSnapshot(selection), () =>
+        invalidate(selection, ['changes']),
+      ),
+    ),
+  ),
+);
+export const refreshGitLook = Atom.family((selection: Selection) =>
+  clientRuntime(selection.connection).fn(
+    Effect.fn('Changes.refreshGitLook')((_: void) =>
+      Effect.tap(readChangesSnapshot(selection), () =>
+        invalidate(selection, ['changes', 'git-status']),
+      ),
+    ),
+  ),
+);
+export const readCurrentGitStatus = Atom.family((selection: Selection) =>
+  clientRuntime(selection.connection).fn(
+    Effect.fn('Changes.readCurrentGitStatus')((_: void) =>
+      Effect.tap(readGitStatusSnapshot(selection), () =>
+        invalidate(selection, ['git-status']),
+      ),
+    ),
+  ),
+);
