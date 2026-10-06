@@ -42,4 +42,5 @@ An initial review read that fails without a confirmed reply shows its error and 
 
 - A failed refresh with a previous confirmed reply keeps that reply on screen; this boundary is for a read that has no confirmed reply.
 - A source edit requires stopping and starting the disposable instance before driving it again.
+- Test outages restore by passing requests through the existing context interceptor. Removing the last interceptor while module workers load can strand their dependency requests and leave the code viewer initializing.
 - An E2E failure attaches `code-viewer.json`: page closure, worker URLs, renderer bounds and virtual window, rendered file count and optional upstream worker-pool statistics. The upstream debug handle may be absent; the snapshot never creates or mutates a viewer or worker pool. Use this with the trace to distinguish a missing read from an unfinished renderer.
