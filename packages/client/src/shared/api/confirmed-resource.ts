@@ -50,8 +50,7 @@ export function confirmedResource<A, E>(
           Effect.tap(() => currentAnswerEffect(connection.request().signal)),
         ),
       );
-      if (Exit.isFailure(answer) && Cause.hasInterrupts(answer.cause))
-        return yield* Effect.interrupt;
+      if (Exit.isFailure(answer) && Cause.hasInterrupts(answer.cause)) return;
       yield* SubscriptionRef.update(state, (current) =>
         current.epoch === epoch
           ? {

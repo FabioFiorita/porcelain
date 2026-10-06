@@ -1,4 +1,7 @@
-import type { ListReviewedLayersResponse } from '@porcelain/contracts/reviews';
+import type {
+  ListReviewedLayersResponse,
+  ListReviewedFilesResponse,
+} from '@porcelain/contracts/reviews';
 import {
   isFingerprintable,
   type ReviewChangeItem,
@@ -94,13 +97,6 @@ export function bulkMarkReport(
       })),
     ],
   };
-}
-
-export function visibleBulkReport(
-  bulk: { report: BulkReviewReport | undefined; submittedAt: number },
-  unmarkSubmittedAt: number,
-): BulkReviewReport | null {
-  return bulk.submittedAt >= unmarkSubmittedAt ? (bulk.report ?? null) : null;
 }
 
 export function bulkReportText(report: BulkReviewReport) {
@@ -219,4 +215,45 @@ export function reviewToggle(
         kind: 'mark',
         input: { path: target.path, fingerprint: target.fingerprint },
       };
+}
+
+export type ReviewedChange = {
+  readonly path: string;
+  readonly fingerprint?: string;
+};
+export type ReviewedIntent = {
+  readonly id: symbol;
+  readonly changes: readonly ReviewedChange[];
+  readonly reviewedAt: string;
+};
+export type ReviewedReadRange =
+  | { kind: 'worktree' }
+  | { kind: 'branch'; branch: string | undefined };
+export function reviewedReadRange(range: ReviewedReadRange): ReviewedReadRange {
+  return range.kind === 'branch'
+    ? { kind: 'branch', branch: range.branch }
+    : { kind: 'worktree' };
+}
+export function reviewedSurface(range: ReviewedReadRange): readonly string[] {
+  return [
+    'reviewed',
+    ...(range.kind === 'branch' ? ['branch', range.branch ?? ''] : []),
+  ];
+}
+export function applyReviewedIntents(
+  confirmed: ListReviewedFilesResponse,
+  intents: readonly ReviewedIntent[],
+): ListReviewedFilesResponse {
+  const marks = new Map(confirmed.marks.map((mark) => [mark.path, mark]));
+  for (const intent of intents)
+    for (const change of intent.changes) {
+      if (change.fingerprint)
+        marks.set(change.path, {
+          path: change.path,
+          fingerprint: change.fingerprint,
+          reviewedAt: intent.reviewedAt,
+        });
+      else marks.delete(change.path);
+    }
+  return { ...confirmed, marks: [...marks.values()] };
 }

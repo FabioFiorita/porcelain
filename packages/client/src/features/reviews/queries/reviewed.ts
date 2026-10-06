@@ -1,48 +1,31 @@
-import { assertCurrentAnswer } from '../../../shared/api/stale-answer.ts';
-import { queryKeys } from '../../../shared/api/query-keys.ts';
-import type { QueryFunctionContext } from '@tanstack/query-core';
-import {
-  type WorktreeConnection,
-  type WorktreeScope,
+import { Atom } from 'effect/reactivity';
+import type {
+  RuntimeConnection,
+  WorktreeScope,
 } from '../../../shared/api/connection.ts';
-import { reviewsApi } from '../api.ts';
-import { runRequest } from '../../../shared/api/effect-client.ts';
+import { worktreeResource } from '../../../shared/api/worktree-read.ts';
+import { ReviewedFilesState, reviewedRuntime } from '../store/reviewed.ts';
+import {
+  reviewedReadRange,
+  type ReviewedReadRange,
+  WORKTREE_RANGE,
+} from '../rules/reviewed.ts';
 
-export function reviewedQueryOptions(
-  scope: WorktreeScope,
-  connection: WorktreeConnection,
-  range:
-    | { kind: 'worktree' }
-    | { kind: 'branch'; branch: string | undefined } = { kind: 'worktree' },
-) {
-  return {
-    queryKey: queryKeys.worktreeSurface(connection, scope, [
-      'reviewed',
-      ...(range.kind === 'branch' ? ['branch', range.branch ?? ''] : []),
-    ]),
-    queryFn: async ({ signal }: Pick<QueryFunctionContext, 'signal'>) => {
-      const connected = connection.request(signal);
-      const result = await runRequest(
-        reviewsApi(connection).listReviewedFiles({
-          params: { worktreeId: scope.worktreeId },
-          query:
-            range.kind === 'branch'
-              ? {
-                  scope: 'branch',
-                  ...(range.branch === undefined
-                    ? {}
-                    : { branch: range.branch }),
-                }
-              : {},
-        }),
-        connected.signal,
-      );
-      assertCurrentAnswer(
-        connected.signal,
-        result.worktreeId === scope.worktreeId,
-      );
-
-      return result;
-    },
-  };
+const reads = Atom.family(
+  (input: {
+    connection: RuntimeConnection;
+    scope: WorktreeScope;
+    range: ReviewedReadRange;
+  }) =>
+    worktreeResource(input.scope, ReviewedFilesState, reviewedRuntime(input)),
+);
+export function readReviewedFiles({
+  range = WORKTREE_RANGE,
+  ...input
+}: {
+  connection: RuntimeConnection;
+  scope: WorktreeScope;
+  range?: ReviewedReadRange;
+}) {
+  return reads({ ...input, range: reviewedReadRange(range) });
 }

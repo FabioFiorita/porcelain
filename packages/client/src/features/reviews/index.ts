@@ -1,4 +1,4 @@
-export { reviewedQueryOptions } from './queries/reviewed.ts';
+export { readReviewedFiles } from './queries/reviewed.ts';
 export {
   readLayerMarks,
   readPublishedReview,

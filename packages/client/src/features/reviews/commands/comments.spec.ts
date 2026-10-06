@@ -190,3 +190,71 @@ it('a confirmed edit survives an unfinished older read and a failed refresh', as
     stop();
   }
 });
+
+it('uses the generated contract to encode and decode a comment create', async () => {
+  const threadId = 'e460d734-9c2d-4769-bf11-ce78d14848c7';
+  const messageId = 'e34ac2de-0a58-4d9c-9890-8384b4e3d6a8';
+  const sent: { path: string; init: RequestInit | undefined }[] = [];
+  const created = {
+    id: threadId,
+    worktreeId: scope.worktreeId,
+    anchor: { kind: 'file', filePath: 'README.md' },
+    messages: [
+      {
+        id: messageId,
+        body: 'Ready',
+        author: 'reviewer',
+        createdAt: '2026-10-05T04:00:00.000Z',
+      },
+    ],
+    resolved: false,
+    revision: 1,
+  };
+  const subject = fixture((path, init) => {
+    sent.push({ path, init });
+    return Promise.resolve(Response.json(created));
+  });
+  subject.registry.set(subject.commands.create, {
+    anchor: { kind: 'file', filePath: 'README.md' },
+    body: 'Ready',
+    threadId,
+    messageId,
+  });
+  expect(
+    await Effect.runPromise(
+      AtomRegistry.getResult(subject.registry, subject.commands.create, {
+        suspendOnWaiting: true,
+      }),
+    ),
+  ).toEqual(created);
+  expect(sent[0]?.path).toBe(`/api/worktrees/${scope.worktreeId}/comments`);
+  expect(sent[0]?.init?.method).toBe('POST');
+  const bytes = sent[0]?.init?.body;
+  if (!(bytes instanceof Uint8Array))
+    throw new Error('Expected encoded request bytes');
+  expect(JSON.parse(new TextDecoder().decode(bytes))).toEqual({
+    anchor: { kind: 'file', filePath: 'README.md' },
+    body: 'Ready',
+    threadId,
+    messageId,
+  });
+});
+it('rejects an already disconnected create before invoking transport', async () => {
+  let sent = 0;
+  const subject = fixture(() => {
+    sent += 1;
+    return Promise.resolve(Response.json({}));
+  });
+  subject.controller.abort();
+  subject.registry.set(subject.commands.create, {
+    anchor: { kind: 'file', filePath: 'README.md' },
+    body: 'Ready',
+  });
+  const exit = await Effect.runPromiseExit(
+    AtomRegistry.getResult(subject.registry, subject.commands.create, {
+      suspendOnWaiting: true,
+    }),
+  );
+  expect(exit._tag).toBe('Failure');
+  expect(sent).toBe(0);
+});

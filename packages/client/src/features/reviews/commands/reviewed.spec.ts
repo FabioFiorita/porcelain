@@ -1,127 +1,250 @@
-import { afterEach } from 'vitest';
-import { ManagedRuntime } from 'effect';
-import { WriteQueues } from '@porcelain/client/transport';
-import { runClientRequest } from '@porcelain/client/transport';
-import { describe, expect, it } from 'vitest';
-import { QueryClient } from '@tanstack/query-core';
+import { afterEach, expect, it } from 'vitest';
+import { Effect, Option, Stream, Schema } from 'effect';
+import { AtomRegistry, AsyncResult, type Atom } from 'effect/reactivity';
+import {
+  createWorktreeConnection,
+  type Transport,
+} from '@porcelain/client/transport';
+import { readReviewedFiles } from '@porcelain/client/reviews';
+import type { ReviewRange } from '@porcelain/client/reviews/rules';
 import { reviewedCommands } from './reviewed.ts';
-import { reviewedQueryOptions } from '@porcelain/client/reviews';
-import { REVIEWED_FILE_MARKS } from '@porcelain/contracts/shared';
-import { Schema } from 'effect';
 
-const scope = {
-  projectId: 'project',
-  worktreeId: '00000000000000000000000000000000',
-};
+const scope = { projectId: 'project', worktreeId: '0'.repeat(32) };
 const fingerprint = 'a'.repeat(64);
+const kept = {
+  path: 'kept.md',
+  fingerprint,
+  reviewedAt: '2026-10-03T10:00:00.000Z',
+};
+const confirmed = { worktreeId: scope.worktreeId, marks: [kept] };
+const owned: {
+  close: () => Promise<void>;
+  registry: AtomRegistry.AtomRegistry;
+}[] = [];
+function fixture(
+  transport: Transport,
+  range: ReviewRange = { kind: 'worktree' },
+) {
+  const lifetime = createWorktreeConnection({
+    environmentId: 'environment',
+    timeoutMs: 10_000,
+    transport,
+  });
+  const registry = AtomRegistry.make();
+  owned.push({ close: lifetime.close, registry });
+  return {
+    ...lifetime,
+    registry,
+    state: readReviewedFiles({ scope, connection: lifetime.connection, range }),
+    commands: reviewedCommands({
+      scope,
+      connection: lifetime.connection,
+      range,
+    }),
+  };
+}
+function read<A, E>(
+  subject: { registry: AtomRegistry.AtomRegistry },
+  atom: Atom.Atom<AsyncResult.AsyncResult<A, E>>,
+) {
+  return Effect.runPromise(
+    AtomRegistry.getResult(subject.registry, atom, { suspendOnWaiting: true }),
+  );
+}
+function execute<Input, A, E>(
+  subject: { registry: AtomRegistry.AtomRegistry },
+  command: Atom.AtomResultFn<Input, A, E>,
+  input: Input,
+) {
+  subject.registry.set(command, input);
+  return read(subject, command);
+}
+function shown(subject: ReturnType<typeof fixture>, paths: readonly string[]) {
+  return Effect.runPromise(
+    AtomRegistry.toStream(subject.registry, subject.state).pipe(
+      Stream.filter(
+        (result) =>
+          JSON.stringify(
+            Option.getOrUndefined(AsyncResult.value(result))?.marks.map(
+              (mark) => mark.path,
+            ),
+          ) === JSON.stringify(paths),
+      ),
+      Stream.take(1),
+      Stream.runHead,
+    ),
+  );
+}
+afterEach(async () => {
+  for (const subject of owned) {
+    subject.registry.dispose();
+    await subject.close();
+  }
+  owned.length = 0;
+});
 
-describe('reviewed writes keep confirmed marks', () => {
-  it('rolls back every pending mark after a failure and never sends the dependent write', async () => {
-    const requestRuntime = runtimeFixture();
+it('shows both queued intents immediately, then rolls both back after the first fails without sending the dependent mark', async () => {
+  const held = Promise.withResolvers<Response>();
+  const writes: string[] = [];
+  const subject = fixture((path, init) => {
+    if (init?.method === 'PUT') {
+      writes.push(path);
+      return held.promise;
+    }
+    return Promise.resolve(Response.json(confirmed));
+  });
+  const stop = subject.registry.mount(subject.state);
+  try {
+    expect(await read(subject, subject.state)).toEqual(confirmed);
+    const first = execute(subject, subject.commands.set, {
+      path: 'first.md',
+      fingerprint,
+    });
+    const second = execute(subject, subject.commands.set, {
+      path: 'second.md',
+      fingerprint,
+    });
+    const completed = Promise.allSettled([first, second]);
+    expect(
+      Option.getOrThrow(
+        await shown(subject, ['kept.md', 'first.md', 'second.md']),
+      )._tag,
+    ).toBe('Success');
+    const rolledBack = shown(subject, ['kept.md']);
+    held.resolve(
+      Response.json(
+        { statusCode: 409, error: 'Conflict', message: 'File changed' },
+        { status: 409 },
+      ),
+    );
+    expect((await completed).map((result) => result.status)).toEqual([
+      'rejected',
+      'rejected',
+    ]);
+    expect(
+      Option.getOrThrow(AsyncResult.value(Option.getOrThrow(await rolledBack))),
+    ).toEqual(confirmed);
+    expect(writes).toEqual([`/api/worktrees/${scope.worktreeId}/reviewed`]);
+  } finally {
+    held.resolve(Response.json(confirmed));
+    stop();
+  }
+});
 
-    const paths: string[] = [];
-    const connection = {
-      environmentId: 'environment',
-      request: (signal?: AbortSignal) => ({
-        signal: signal ?? new AbortController().signal,
+it('rebases the remaining optimistic mark over a partial-conflict reply instead of retaining a refused mark', async () => {
+  const firstReply = Promise.withResolvers<Response>();
+  const secondReply = Promise.withResolvers<Response>();
+  const subject = fixture((path, init) => {
+    if (path.endsWith('/reviewed-bulk')) return firstReply.promise;
+    if (init?.method === 'PUT') return secondReply.promise;
+    return Promise.resolve(Response.json(confirmed));
+  });
+  const stop = subject.registry.mount(subject.state);
+  try {
+    await read(subject, subject.state);
+    const bulk = execute(subject, subject.commands.bulk, {
+      kind: 'mark',
+      entries: [{ path: 'first.md', fingerprint, reviewStatus: 'unreviewed' }],
+    });
+    const second = execute(subject, subject.commands.set, {
+      path: 'second.md',
+      fingerprint,
+    });
+    const completed = Promise.allSettled([bulk, second]);
+    await shown(subject, ['kept.md', 'first.md', 'second.md']);
+    const rebased = shown(subject, ['kept.md', 'second.md']);
+    firstReply.resolve(
+      Response.json({
+        ...confirmed,
+        marked: [],
+        conflicts: [{ path: 'first.md', reason: 'stale' }],
       }),
-      transport: (path: string) => {
-        paths.push(path);
-        return Promise.resolve(
-          Response.json({ message: 'File changed' }, { status: 409 }),
-        );
-      },
-    };
-    const client = new QueryClient();
-    const key = reviewedQueryOptions(scope, connection).queryKey;
-    const confirmed = {
+    );
+    expect(await bulk).toMatchObject({
+      kind: 'mark',
+      report: { marked: [], failed: [{ path: 'first.md' }] },
+    });
+    expect(
+      Option.getOrThrow(
+        AsyncResult.value(Option.getOrThrow(await rebased)),
+      ).marks.map((mark) => mark.path),
+    ).toEqual(['kept.md', 'second.md']);
+    const saved = {
       worktreeId: scope.worktreeId,
       marks: [
+        kept,
         {
-          path: 'kept.md',
+          path: 'second.md',
           fingerprint,
-          reviewedAt: '2026-10-03T10:00:00.000Z',
+          reviewedAt: '2026-10-06T04:00:00.000Z',
         },
       ],
     };
-    client.setQueryData(key, confirmed);
-    const commands = reviewedCommands(
-      scope,
-      connection,
-      client,
-      { kind: 'worktree' },
-      { now: () => '2026-10-03T10:00:00.000Z' },
-    );
-    const first = runClientRequest(
-      commands.set({ path: 'first.md', fingerprint }),
-      connection.request().signal,
-      requestRuntime,
-    );
-    const second = runClientRequest(
-      commands.set({ path: 'second.md', fingerprint }),
-      connection.request().signal,
-      requestRuntime,
-    );
-    const results = await Promise.allSettled([first, second]);
-    expect(results.map((result) => result.status)).toEqual([
-      'rejected',
-      'rejected',
+    secondReply.resolve(Response.json(saved));
+    expect(await second).toEqual(saved);
+    expect((await completed).map((result) => result.status)).toEqual([
+      'fulfilled',
+      'fulfilled',
     ]);
-    expect(paths).toEqual([
-      '/api/worktrees/00000000000000000000000000000000/reviewed',
-    ]);
-    expect(client.getQueryData(key)).toEqual(confirmed);
-  });
-
-  it('refuses to publish an answer completed after disconnect', async () => {
-    const requestRuntime = runtimeFixture();
-
-    const controller = new AbortController();
-    const connection = {
-      environmentId: 'environment',
-      request: (signal?: AbortSignal) => ({
-        signal: signal
-          ? AbortSignal.any([controller.signal, signal])
-          : controller.signal,
-      }),
-      transport: () => {
-        controller.abort();
-        client.clear();
-        return Promise.resolve(
-          Response.json({
-            worktreeId: scope.worktreeId,
-            marks: [
-              {
-                path: 'first.md',
-                fingerprint,
-                reviewedAt: '2026-10-03T10:00:00.000Z',
-              },
-            ],
-          }),
-        );
-      },
-    };
-    const client = new QueryClient();
-    const key = reviewedQueryOptions(scope, connection).queryKey;
-    client.setQueryData(key, { worktreeId: scope.worktreeId, marks: [] });
-    await expect(
-      runClientRequest(
-        reviewedCommands(
-          scope,
-          connection,
-          client,
-          { kind: 'worktree' },
-          { now: () => '2026-10-03T10:00:00.000Z' },
-        ).set({ path: 'first.md', fingerprint }),
-        connection.request().signal,
-        requestRuntime,
-      ),
-    ).rejects.toMatchObject({ name: 'AbortError' });
-    expect(client.getQueryData(key)).toBeUndefined();
-  });
+  } finally {
+    firstReply.resolve(
+      Response.json({ ...confirmed, marked: [], conflicts: [] }),
+    );
+    secondReply.resolve(Response.json(confirmed));
+    stop();
+  }
 });
 
-function bulkConnection(
+it('refuses a write completed after disconnect and never publishes its mark', async () => {
+  const held = Promise.withResolvers<Response>();
+  const started = Promise.withResolvers<void>();
+  const subject = fixture((_, init) => {
+    if (init?.method === 'PUT') {
+      started.resolve();
+      return held.promise;
+    }
+    return Promise.resolve(Response.json(confirmed));
+  });
+  const stop = subject.registry.mount(subject.state);
+  try {
+    await read(subject, subject.state);
+    subject.registry.set(subject.commands.set, {
+      path: 'late.md',
+      fingerprint,
+    });
+    const completed = Effect.runPromiseExit(
+      AtomRegistry.getResult(subject.registry, subject.commands.set, {
+        suspendOnWaiting: true,
+      }),
+    );
+    await started.promise;
+    await shown(subject, ['kept.md', 'late.md']);
+    const rolledBack = shown(subject, ['kept.md']);
+    subject.controller.abort();
+    held.resolve(
+      Response.json({
+        worktreeId: scope.worktreeId,
+        marks: [
+          kept,
+          {
+            path: 'late.md',
+            fingerprint,
+            reviewedAt: '2026-10-06T04:00:00.000Z',
+          },
+        ],
+      }),
+    );
+    expect((await completed)._tag).toBe('Failure');
+    expect(
+      Option.getOrThrow(AsyncResult.value(Option.getOrThrow(await rolledBack))),
+    ).toEqual(confirmed);
+  } finally {
+    held.resolve(Response.json(confirmed));
+    stop();
+  }
+});
+
+function bulkFixture(
   answer: (
     files: readonly { path: string; fingerprint: string }[],
     number: number,
@@ -131,35 +254,31 @@ function bulkConnection(
     path: string;
     files: readonly { path: string; fingerprint: string }[];
   }[] = [];
-  return {
-    requests,
-    environmentId: 'environment',
-    request: () => ({ signal: new AbortController().signal }),
-    transport: (path: string, init?: RequestInit) => {
-      const body = init?.body;
-      if (!(body instanceof Uint8Array))
-        throw new Error('Expected request bytes');
-      const parsed = Schema.decodeUnknownSync(
-        Schema.fromJsonString(
-          Schema.Struct({
-            files: Schema.Array(
-              Schema.Struct({
-                path: Schema.String,
-                fingerprint: Schema.String,
-              }),
-            ),
-          }),
-        ),
-      )(new TextDecoder().decode(body));
-      requests.push({ path, files: parsed.files });
-      return Promise.resolve(answer(parsed.files, requests.length));
-    },
-  };
+  const subject = fixture((path, init) => {
+    const body = init?.body;
+    if (!(body instanceof Uint8Array))
+      throw new Error('Expected request bytes');
+    const parsed = Schema.decodeUnknownSync(
+      Schema.fromJsonString(
+        Schema.Struct({
+          files: Schema.Array(
+            Schema.Struct({ path: Schema.String, fingerprint: Schema.String }),
+          ),
+        }),
+      ),
+    )(new TextDecoder().decode(body));
+    requests.push({ path, files: parsed.files });
+    return Promise.resolve(answer(parsed.files, requests.length));
+  });
+  return { ...subject, requests };
 }
+const entries = Array.from({ length: 2001 }, (_, number) => ({
+  path: `file-${number}`,
+  fingerprint,
+  reviewStatus: 'unreviewed' as const,
+}));
 it('chunks bulk marks at the wire limit and reports partial conflicts without losing later marks', async () => {
-  const requestRuntime = runtimeFixture();
-
-  const connection = bulkConnection((files, number) =>
+  const subject = bulkFixture((files, number) =>
     Response.json({
       worktreeId: scope.worktreeId,
       marks: [],
@@ -169,144 +288,110 @@ it('chunks bulk marks at the wire limit and reports partial conflicts without lo
       conflicts: number === 1 ? [{ path: 'file-1', reason: 'stale' }] : [],
     }),
   );
-  const commands = reviewedCommands(
-    scope,
-    connection,
-    new QueryClient(),
-    { kind: 'worktree' },
-    { now: () => '2026-10-05T04:00:00.000Z' },
-  );
-  const report = await runClientRequest(
-    commands.markAll(
-      Array.from({ length: REVIEWED_FILE_MARKS + 1 }, (_, number) => ({
-        path: `file-${number}`,
-        fingerprint,
-        reviewStatus: 'unreviewed' as const,
-      })),
-    ),
-    connection.request().signal,
-    requestRuntime,
-  );
-  expect(connection.requests.map((request) => request.files.length)).toEqual([
+  const result = await execute(subject, subject.commands.bulk, {
+    kind: 'mark',
+    entries,
+  });
+  if (result.kind !== 'mark') throw new Error('Expected a mark report');
+  expect(subject.requests.map((request) => request.files.length)).toEqual([
     2000, 1,
   ]);
-  expect(connection.requests[1]?.files).toEqual([
+  expect(subject.requests[1]?.files).toEqual([
     { path: 'file-2000', fingerprint },
   ]);
-  expect(report.marked.length).toBe(2000);
-  expect(report.failed).toEqual([
+  expect(result.report.marked).toHaveLength(2000);
+  expect(result.report.failed).toEqual([
     {
       path: 'file-1',
       error: new Error('The file changed since it was shown.'),
     },
   ]);
-  expect(report.skipped).toEqual([]);
+  expect(result.report.skipped).toEqual([]);
 });
 it('stops a bulk operation after its first refused chunk', async () => {
-  const requestRuntime = runtimeFixture();
-
-  const connection = bulkConnection(() =>
+  const subject = bulkFixture(() =>
     Response.json(
       { statusCode: 403, error: 'Forbidden', message: 'Review refused' },
       { status: 403 },
     ),
   );
-  const commands = reviewedCommands(
-    scope,
-    connection,
-    new QueryClient(),
-    { kind: 'worktree' },
-    { now: () => '2026-10-05T04:00:00.000Z' },
-  );
   await expect(
-    runClientRequest(
-      commands.markAll(
-        Array.from({ length: REVIEWED_FILE_MARKS + 1 }, (_, number) => ({
-          path: `file-${number}`,
-          fingerprint,
-          reviewStatus: 'unreviewed' as const,
-        })),
-      ),
-      connection.request().signal,
-      requestRuntime,
-    ),
+    execute(subject, subject.commands.bulk, { kind: 'mark', entries }),
   ).rejects.toMatchObject({ message: 'Review refused', status: 403 });
-  expect(connection.requests.map((request) => request.files.length)).toEqual([
+  expect(subject.requests.map((request) => request.files.length)).toEqual([
     2000,
   ]);
 });
-it('uses the selected branch when reading and removing marks', async () => {
-  const requestRuntime = runtimeFixture();
-
-  const requests: { path: string; body: unknown }[] = [];
-  const signal = new AbortController().signal;
-  const connection = {
-    environmentId: 'environment',
-    request: () => ({ signal }),
-    transport: (path: string, init?: RequestInit) => {
-      const bytes = init?.body;
-      requests.push({
-        path,
-        body:
-          bytes instanceof Uint8Array
-            ? JSON.parse(new TextDecoder().decode(bytes))
-            : null,
-      });
-      return Promise.resolve(
-        Response.json({ worktreeId: scope.worktreeId, marks: [] }),
-      );
-    },
-  };
-  const range = {
-    kind: 'branch' as const,
+it('uses the selected branch for reads and unmarks, its declared base for marks, and one read owner across base choices', async () => {
+  const requests: { path: string; method: string; body: unknown }[] = [];
+  const range: ReviewRange = {
+    kind: 'branch',
     base: 'refs/heads/main',
     branch: 'refs/heads/topic',
   };
-  await reviewedQueryOptions(scope, connection, range).queryFn({ signal });
-  const commands = reviewedCommands(
-    scope,
-    connection,
-    new QueryClient(),
-    range,
-    { now: () => '2026-10-05T04:00:00.000Z' },
+  const subject = fixture((path, init) => {
+    const bytes = init?.body;
+    requests.push({
+      path,
+      method: init?.method ?? 'GET',
+      body:
+        bytes instanceof Uint8Array
+          ? JSON.parse(new TextDecoder().decode(bytes))
+          : null,
+    });
+    return Promise.resolve(
+      Response.json({
+        worktreeId: scope.worktreeId,
+        marks: [],
+        marked: [],
+        conflicts: [],
+      }),
+    );
+  }, range);
+  const otherBase: ReviewRange = { ...range, base: 'refs/heads/other' };
+  expect(subject.state).toBe(
+    readReviewedFiles({
+      scope,
+      connection: subject.connection,
+      range: otherBase,
+    }),
   );
-  await runClientRequest(
-    commands.remove('README.md'),
-    connection.request().signal,
-    requestRuntime,
+  await read(subject, subject.state);
+  await execute(subject, subject.commands.remove, 'README.md');
+  await execute(subject, subject.commands.bulk, {
+    kind: 'unmark',
+    paths: ['README.md'],
+  });
+  await execute(subject, subject.commands.bulk, {
+    kind: 'mark',
+    entries: [{ path: 'README.md', fingerprint, reviewStatus: 'unreviewed' }],
+  });
+  expect(requests[0]?.path).toBe(
+    `/api/worktrees/${scope.worktreeId}/reviewed?scope=branch&branch=refs%2Fheads%2Ftopic`,
   );
-  await runClientRequest(
-    commands.removeAll(['README.md']),
-    connection.request().signal,
-    requestRuntime,
-  );
-  expect(requests).toEqual([
-    {
-      path: `/api/worktrees/${scope.worktreeId}/reviewed?scope=branch&branch=refs%2Fheads%2Ftopic`,
-      body: null,
-    },
+  expect(requests.filter((request) => request.method !== 'GET')).toEqual([
     {
       path: `/api/worktrees/${scope.worktreeId}/reviewed?path=README.md&scope=branch&branch=refs%2Fheads%2Ftopic`,
+      method: 'DELETE',
       body: null,
     },
     {
       path: `/api/worktrees/${scope.worktreeId}/reviewed-bulk`,
+      method: 'DELETE',
       body: {
         paths: ['README.md'],
         scope: 'branch',
         branch: 'refs/heads/topic',
       },
     },
+    {
+      path: `/api/worktrees/${scope.worktreeId}/reviewed-bulk`,
+      method: 'PUT',
+      body: {
+        files: [{ path: 'README.md', fingerprint }],
+        scope: 'branch',
+        base: 'refs/heads/main',
+      },
+    },
   ]);
-});
-
-const runtimes = new Set<ManagedRuntime.ManagedRuntime<WriteQueues, never>>();
-function runtimeFixture() {
-  const runtime = ManagedRuntime.make(WriteQueues.layer);
-  runtimes.add(runtime);
-  return runtime;
-}
-afterEach(async () => {
-  for (const runtime of runtimes) await runtime.dispose();
-  runtimes.clear();
 });

@@ -7,7 +7,7 @@ import {
   layerReviewState,
   markAllPlan,
   reviewToggle,
-  visibleBulkReport,
+  applyReviewedIntents,
 } from './reviewed.ts';
 
 const entry = (
@@ -212,22 +212,53 @@ describe('layerReviewState', () => {
   });
 });
 
-describe('visibleBulkReport', () => {
-  const report = { marked: ['a.ts'], skipped: [], failed: [] };
-
-  it('shows the report of the latest mark-all', () => {
-    expect(visibleBulkReport({ report, submittedAt: 20 }, 10)).toEqual(report);
-  });
-
-  it('hides the report once an unmark-all started after it', () => {
-    expect(visibleBulkReport({ report, submittedAt: 20 }, 30)).toBe(null);
-  });
-
-  it('shows nothing while a mark-all has no result yet', () => {
-    expect(visibleBulkReport({ report: undefined, submittedAt: 20 }, 0)).toBe(
-      null,
-    );
-  });
+it('reapplies a pending mark over a confirmed reply while preserving unrelated server marks', () => {
+  const confirmed = {
+    worktreeId: 'worktree',
+    marks: [
+      {
+        path: 'server.md',
+        fingerprint: 'confirmed',
+        reviewedAt: 'server-time',
+      },
+    ],
+  };
+  const result = applyReviewedIntents(confirmed, [
+    {
+      id: Symbol(),
+      changes: [{ path: 'pending.md', fingerprint: 'pending' }],
+      reviewedAt: 'pending-time',
+    },
+  ]);
+  expect(result.marks).toEqual([
+    { path: 'server.md', fingerprint: 'confirmed', reviewedAt: 'server-time' },
+    { path: 'pending.md', fingerprint: 'pending', reviewedAt: 'pending-time' },
+  ]);
+  expect(confirmed.marks.map((mark) => mark.path)).toEqual(['server.md']);
+});
+it('applies pending path edits in admission order, including an unmark followed by another mark', () => {
+  expect(
+    applyReviewedIntents(
+      {
+        worktreeId: 'worktree',
+        marks: [
+          { path: 'file.md', fingerprint: 'old', reviewedAt: 'old-time' },
+        ],
+      },
+      [
+        {
+          id: Symbol(),
+          changes: [{ path: 'file.md' }],
+          reviewedAt: 'unmark-time',
+        },
+        {
+          id: Symbol(),
+          changes: [{ path: 'file.md', fingerprint: 'new' }],
+          reviewedAt: 'new-time',
+        },
+      ],
+    ).marks,
+  ).toEqual([{ path: 'file.md', fingerprint: 'new', reviewedAt: 'new-time' }]);
 });
 
 describe('reviewToggle', () => {

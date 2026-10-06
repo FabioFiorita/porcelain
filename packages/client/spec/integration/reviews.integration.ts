@@ -1,7 +1,5 @@
-import { runClientRequest } from '@porcelain/client/transport';
 import { commentCommands, reviewedCommands } from '@porcelain/client/reviews';
 import { expect } from 'vitest';
-import { QueryClient } from '@tanstack/query-core';
 import { test } from '@porcelain/server/kit/server-test';
 import {
   read,
@@ -10,10 +8,7 @@ import {
 } from '@porcelain/server/kit/requests';
 import { readPublishedReview } from '@porcelain/client/reviews';
 import { readCommentThreads } from '@porcelain/client/reviews';
-import {
-  reviewedQueryOptions,
-  readLayerMarks,
-} from '@porcelain/client/reviews';
+import { readReviewedFiles, readLayerMarks } from '@porcelain/client/reviews';
 import { readChanges } from '@porcelain/client/changes';
 import { readChangeDiffs } from '@porcelain/client/changes';
 import { connection } from '../kit/connection.ts';
@@ -28,7 +23,6 @@ test('read an unpublished review, then its published layers and discussion', asy
     read: nativeRead,
     registry,
   } = await connection(server, session);
-  const cache = new QueryClient();
   expect(
     await nativeRead(readPublishedReview({ scope, connection: connected })),
   ).toBeNull();
@@ -68,7 +62,7 @@ test('read an unpublished review, then its published layers and discussion', asy
   expect(threads).toHaveLength(1);
   expect(threads[0]?.messages[0]?.body).toBe('Please explain this line.');
   expect(
-    await cache.query(reviewedQueryOptions(scope, connected)),
+    await nativeRead(readReviewedFiles({ scope, connection: connected })),
   ).toMatchObject({ worktreeId: scope.worktreeId, marks: [] });
   expect(
     await nativeRead(readLayerMarks({ scope, connection: connected })),
@@ -186,46 +180,36 @@ test('mark and unmark the actual changed file through the shared reviewed owner'
     connected,
     scope,
     read: nativeRead,
+    execute,
   } = await connection(server, session);
-  const cache = new QueryClient();
   const changes = await nativeRead(
     readChanges({ scope, connection: connected }),
   );
   const file = changes.changes[0];
   if (!file?.fingerprint)
     throw new Error('Expected the changed file fingerprint');
-  const commands = reviewedCommands(
+  const commands = reviewedCommands({
     scope,
-    connected,
-    cache,
-    { kind: 'worktree' },
-    { now: () => '2026-10-03T10:00:00.000Z' },
-  );
-  await cache.query(reviewedQueryOptions(scope, connected));
+    connection: connected,
+    range: { kind: 'worktree' },
+  });
+  await nativeRead(readReviewedFiles({ scope, connection: connected }));
   expect(
     (
-      await runClientRequest(
-        commands.set({ path: file.path, fingerprint: file.fingerprint }),
-        connected.request().signal,
-        connected.runtime,
-      )
+      await execute(commands.set, {
+        path: file.path,
+        fingerprint: file.fingerprint,
+      })
     ).marks.map((mark) => mark.path),
   ).toEqual([session.fixture.readme.path]);
   expect(
-    (await cache.query(reviewedQueryOptions(scope, connected))).marks.map(
-      (mark) => mark.path,
-    ),
-  ).toEqual([session.fixture.readme.path]);
-  expect(
     (
-      await runClientRequest(
-        commands.remove(file.path),
-        connected.request().signal,
-        connected.runtime,
-      )
-    ).marks,
-  ).toEqual([]);
+      await nativeRead(readReviewedFiles({ scope, connection: connected }))
+    ).marks.map((mark) => mark.path),
+  ).toEqual([session.fixture.readme.path]);
+  expect((await execute(commands.remove, file.path)).marks).toEqual([]);
   expect(
-    (await cache.query(reviewedQueryOptions(scope, connected))).marks,
+    (await nativeRead(readReviewedFiles({ scope, connection: connected })))
+      .marks,
   ).toEqual([]);
 });

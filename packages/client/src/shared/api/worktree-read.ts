@@ -69,7 +69,7 @@ function reactiveRead<A extends Atom.Atom<unknown>>(
 
 export function worktreeResource<A, E, R>(
   scope: WorktreeScope,
-  resource: Effect.Effect<ConfirmedResource<A, E>, never, R>,
+  resource: Effect.Effect<Pick<ConfirmedResource<A, E>, 'stream'>, never, R>,
   runtime: Atom.AtomRuntime<R | ReadSubscriptions>,
 ) {
   return runtime

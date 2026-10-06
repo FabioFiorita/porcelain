@@ -1,3 +1,5 @@
+import { Cause } from 'effect';
+import { AsyncResult } from 'effect/reactivity';
 import {
   CheckIcon,
   CircleAlertIcon,
@@ -72,8 +74,12 @@ export function ReviewedControl({
 }) {
   const mark = useMarkReviewed(scope, context, range);
   const unmark = useUnmarkReviewed(scope, context, range);
-  const pending = mark.isPending || unmark.isPending;
-  const error = mark.error ?? unmark.error;
+  const pending = mark.result.waiting || unmark.result.waiting;
+  const error = AsyncResult.isFailure(mark.result)
+    ? Cause.squash(mark.result.cause)
+    : AsyncResult.isFailure(unmark.result)
+      ? Cause.squash(unmark.result.cause)
+      : undefined;
 
   if (fingerprint == null)
     return (
@@ -120,7 +126,7 @@ export function ReviewedControl({
               ? 'Review again'
               : 'Mark reviewed')}
       </Button>
-      {error && (
+      {error !== undefined && (
         <span
           role="alert"
           className="max-w-52 truncate text-[11px] text-destructive"
@@ -149,12 +155,13 @@ export function MarkAllReviewed({
 }) {
   const bulk = useMarkAllReviewed(scope, context, range);
   const plan = markAllPlan(entries, kind);
-  const pending = bulk.isPending;
+  const pending = bulk.result.waiting;
   const disabled = plan.blocked || pending;
   const submit = () => {
     if (disabled) return;
-    if (plan.unmarking) bulk.unmarkAll(plan.reviewedPaths);
-    else bulk.markAll(plan.entries);
+    if (plan.unmarking)
+      bulk.start({ kind: 'unmark', paths: plan.reviewedPaths });
+    else bulk.start({ kind: 'mark', entries: plan.entries });
   };
 
   return (
@@ -179,12 +186,12 @@ export function MarkAllReviewed({
           (pending ? (plan.unmarking ? 'Unmarking…' : 'Marking…') : plan.text)}
       </Button>
       {bulk.report && <BulkReport report={bulk.report} />}
-      {bulk.error && (
+      {AsyncResult.isFailure(bulk.result) && (
         <span
           role="alert"
           className="max-w-64 text-right text-[11px] text-destructive"
         >
-          {reviewErrorMessage(bulk.error)}
+          {reviewErrorMessage(Cause.squash(bulk.result.cause))}
         </span>
       )}
     </span>

@@ -68,12 +68,10 @@ export {
   reviewToggle,
   reviewedControlLabel,
   type BulkReviewReport,
-  type MarkReviewedInput,
   type ReviewNotice,
   type ReviewRange,
   type ReviewToggleTarget,
   type ReviewableItem,
-  visibleBulkReport,
 } from './reviewed.ts';
 export {
   readinessItems,
