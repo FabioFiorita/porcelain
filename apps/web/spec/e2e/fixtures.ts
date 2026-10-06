@@ -53,12 +53,13 @@ async function transformApp(
   );
 }
 
-async function startVite(shell: Shell) {
+async function startVite(shell: Shell, cacheDir: string) {
   let target = 'http://127.0.0.1';
   const retarget: Array<(address: string) => void> = [];
   const vite: ViteDevServer = await createServer({
     configFile: join(webRoot, 'vite.config.ts'),
     root: webRoot,
+    cacheDir,
     mode: viteModes[shell],
     logLevel: 'error',
     clearScreen: false,
@@ -80,18 +81,23 @@ async function startVite(shell: Shell) {
       },
     },
   });
-  await vite.listen();
-  await transformApp(vite.environments.client);
-  const url = vite.resolvedUrls?.local[0];
-  if (url === undefined) throw new Error('Vite printed no local address.');
-  return {
-    url,
-    target(address: string) {
-      target = address;
-      for (const change of retarget) change(address);
-    },
-    close: () => vite.close(),
-  };
+  try {
+    await vite.listen();
+    await transformApp(vite.environments.client);
+    const url = vite.resolvedUrls?.local[0];
+    if (url === undefined) throw new Error('Vite printed no local address.');
+    return {
+      url,
+      target(address: string) {
+        target = address;
+        for (const change of retarget) change(address);
+      },
+      close: () => vite.close(),
+    };
+  } catch (error) {
+    await vite.close();
+    throw error;
+  }
 }
 
 type Vite = Awaited<ReturnType<typeof startVite>>;
@@ -234,9 +240,20 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
   shell: ['web', { scope: 'worker', option: true }],
   vite: [
     async ({ shell }, use) => {
-      const vite = await startVite(shell);
-      await use(vite);
-      await vite.close();
+      const cacheRoot = await mkdtemp(join(tmpdir(), 'porcelain-e2e-vite-'));
+      try {
+        const vite = await startVite(
+          shell,
+          join(cacheRoot, 'node_modules/.vite'),
+        );
+        try {
+          await use(vite);
+        } finally {
+          await vite.close();
+        }
+      } finally {
+        await rm(cacheRoot, { recursive: true, force: true });
+      }
     },
     { scope: 'worker' },
   ],
