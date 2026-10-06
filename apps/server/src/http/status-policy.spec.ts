@@ -4,10 +4,7 @@ import * as filesErrors from '@porcelain/files/errors';
 import * as gitActionsErrors from '@porcelain/git-actions/errors';
 import * as projectsErrors from '@porcelain/projects/errors';
 import * as reviewsErrors from '@porcelain/reviews/errors';
-import * as gitActions from '@porcelain/git/actions';
-import * as gitDiscovery from '@porcelain/git/discovery';
-import * as gitHistory from '@porcelain/git/history';
-import * as gitInspection from '@porcelain/git/inspection';
+import * as gitErrors from '@porcelain/git/errors';
 import * as kernelErrors from '@porcelain/kernel/errors';
 import { describe, expect, it } from 'vitest';
 import { abandonedByClient, toStatusResponse } from './status-policy.ts';
@@ -19,10 +16,7 @@ const domainErrors: Record<string, Record<string, unknown>> = {
   'git-actions': gitActionsErrors,
   projects: projectsErrors,
   reviews: reviewsErrors,
-  'git/actions': gitActions,
-  'git/discovery': gitDiscovery,
-  'git/history': gitHistory,
-  'git/inspection': gitInspection,
+  git: gitErrors,
   kernel: kernelErrors,
 };
 
@@ -46,14 +40,22 @@ function errorClasses(): { name: string; instance: unknown }[] {
 }
 
 describe('status policy', () => {
-  it('finds the error classes every domain exports', () => {
-    expect(errorClasses().length).toBeGreaterThan(
-      Object.keys(domainErrors).length,
-    );
-  });
-
   it('answers every domain and Git error with a deliberate status instead of an unexpected failure', () => {
-    const unexpected = errorClasses()
+    const discovered = errorClasses();
+    expect(discovered.map(({ name }) => name)).toEqual(
+      expect.arrayContaining([
+        'access/InvalidPairingError',
+        'changes/CommitNotFoundError',
+        'files/ContentChangedError',
+        'git-actions/GitActionNotFoundError',
+        'projects/ProjectNotFoundError',
+        'reviews/ReviewSummaryNotFoundError',
+        'git/GitTimeoutError',
+        'git/RepositoryIdentityMismatchError',
+        'kernel/WorktreeChangedError',
+      ]),
+    );
+    const unexpected = discovered
       .filter(({ instance }) => toStatusResponse(instance).statusCode === 500)
       .map(({ name }) => name);
     expect(unexpected).toEqual([]);

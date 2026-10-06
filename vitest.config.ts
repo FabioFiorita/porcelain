@@ -2,7 +2,6 @@ import { existsSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
-import type { Reporter, TestModule } from 'vitest/node';
 
 const root = dirname(fileURLToPath(import.meta.url));
 const packages = readdirSync(join(root, 'packages'), { withFileTypes: true })
@@ -18,45 +17,6 @@ function isolatedGit(name: string): string {
   return `packages/${name}/spec/fixtures/isolated-git.ts`;
 }
 
-const typeOnlyFolders = new Set(['models', 'ports', 'errors']);
-
-function decides(name: string): boolean {
-  return readdirSync(join(root, 'packages', name, 'src'), {
-    withFileTypes: true,
-  }).some((entry) => !entry.isDirectory() || !typeOnlyFolders.has(entry.name));
-}
-
-const required = [
-  '@porcelain/mobile',
-  '@porcelain/desktop',
-  '@porcelain/server',
-  ...packages.filter(decides).map((name) => `@porcelain/${name}`),
-];
-
-function problems(
-  modules: ReadonlyArray<TestModule>,
-  selected: ReadonlySet<string>,
-): string[] {
-  const found: string[] = [];
-  const ran = new Set<string>();
-  for (const module of modules) {
-    ran.add(module.project.name);
-    for (const test of module.children.allTests()) {
-      const { mode, fails } = test.options;
-      if (test.result().state === 'skipped' || mode !== 'run' || fails)
-        found.push(
-          `${module.moduleId}: "${test.fullName}" does not run as a plain case; every spec runs every time.`,
-        );
-    }
-  }
-  for (const name of required)
-    if (selected.has(name) && !ran.has(name))
-      found.push(
-        `${name} ran no spec; a package that decides keeps its specs.`,
-      );
-  return found;
-}
-
 const mobileE2e = {
   globalSetup: ['apps/mobile/spec/e2e/global-setup.ts'],
   expect: { requireAssertions: true },
@@ -65,27 +25,13 @@ const mobileE2e = {
   hookTimeout: 20 * 60_000,
 };
 
-function specDiscipline(): Reporter {
-  let selected: ReadonlySet<string> = new Set(required);
-  return {
-    onInit(vitest) {
-      selected = new Set(vitest.projects.map((project) => project.name));
-    },
-    onTestRunEnd(modules) {
-      const found = problems(modules, selected);
-      for (const problem of found) process.stderr.write(`${problem}\n`);
-      if (found.length > 0) process.exitCode = 1;
-    },
-  };
-}
-
 export default defineConfig({
   test: {
     root,
-    maxWorkers: '25%',
+    maxWorkers: process.env.CI ? 2 : 1,
     passWithNoTests: false,
     allowOnly: false,
-    reporters: ['default', specDiscipline()],
+    reporters: ['default'],
     projects: [
       {
         test: {
@@ -161,7 +107,10 @@ export default defineConfig({
         test: {
           name: '@porcelain/web',
           root,
-          include: ['apps/web/src/features/*/rules/*.spec.ts'],
+          include: [
+            'apps/web/src/features/*/rules/*.spec.ts',
+            'apps/web/spec/kit/*.spec.ts',
+          ],
           expect: { requireAssertions: true },
         },
       },

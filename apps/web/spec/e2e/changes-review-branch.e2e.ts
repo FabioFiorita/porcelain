@@ -55,34 +55,6 @@ test('reviewing the branch lists the files committed since the default branch an
   await expect.poll(() => search().get('entry')).toBe('branch:notes.md');
 });
 
-test('marking a branch file reviewed keeps the mark in the branch review only', async ({
-  pairedPage,
-  repo,
-  server,
-}) => {
-  await openBranchFile(pairedPage, repo);
-  const branchMarks = async () =>
-    (await server.reviewedFiles('refs/heads/feature')).marks.map(
-      (mark) => mark.path,
-    );
-  await pairedPage
-    .getByRole('button', { name: 'Mark notes.md as reviewed', exact: true })
-    .first()
-    .click();
-  await expect.poll(branchMarks).toEqual(['notes.md']);
-  await expect(
-    pairedPage
-      .getByRole('button', {
-        name: 'Unmark notes.md as unreviewed',
-        exact: true,
-      })
-      .first(),
-  ).toBeEnabled();
-  await expect
-    .poll(async () => (await server.reviewedFiles()).marks)
-    .toEqual([]);
-});
-
 test('a comment on a branch file is saved against the branch and waits for the agent', async ({
   pairedPage,
   repo,

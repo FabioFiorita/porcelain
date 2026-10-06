@@ -30,8 +30,8 @@ function setup() {
 }
 
 describe('RenameProjectService', () => {
-  it('answers the project under its new name', () => {
-    const { service } = setup();
+  it("answers and stores the new name as the owner's own, changing nothing else", async () => {
+    const { inventory, service } = setup();
     expect(
       Effect.runSync(
         service.execute({ projectId: project.id, name: 'Billing' }),
@@ -40,6 +40,9 @@ describe('RenameProjectService', () => {
       project: { id: project.id, name: 'Billing' },
       changed: true,
     });
+    expect((await Effect.runPromise(inventory.read())).projects).toEqual([
+      { ...project, name: 'Billing', namedByOwner: true },
+    ]);
   });
 
   it('reports no change when the owner gives the name the project already has', () => {
@@ -61,14 +64,6 @@ describe('RenameProjectService', () => {
     ).toBe(true);
     expect((await Effect.runPromise(inventory.read())).projects).toEqual([
       { ...project, namedByOwner: true },
-    ]);
-  });
-
-  it("stores the name as the owner's own, changing nothing else", async () => {
-    const { inventory, service } = setup();
-    Effect.runSync(service.execute({ projectId: project.id, name: 'Billing' }));
-    expect((await Effect.runPromise(inventory.read())).projects).toEqual([
-      { ...project, name: 'Billing', namedByOwner: true },
     ]);
   });
 

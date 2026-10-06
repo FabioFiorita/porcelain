@@ -1,4 +1,3 @@
-import { availableParallelism } from 'node:os';
 import { playwright } from '@vitest/browser-playwright';
 import { defineConfig } from 'vitest/config';
 import { hostCommands, serverProxy } from './spec/integration/host.ts';
@@ -14,10 +13,7 @@ export default defineConfig({
     globalSetup: ['spec/integration/host.ts'],
     allowOnly: false,
     passWithNoTests: false,
-    maxWorkers: Math.max(
-      1,
-      Math.min(4, Math.floor(availableParallelism() / 4)),
-    ),
+    maxWorkers: process.env.CI ? 2 : 1,
     retry: 0,
     attachmentsDir: 'test-results/integration/attachments',
     expect: { requireAssertions: true },

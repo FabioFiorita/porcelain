@@ -29,6 +29,19 @@ test('a branch mark belongs to its branch: another branch starts fresh and switc
       ),
     )
     .toEqual(['notes.md']);
+  await expect
+    .element(
+      workspace
+        .getByRole('button', {
+          name: 'Unmark notes.md as unreviewed',
+          exact: true,
+        })
+        .first(),
+    )
+    .toBeEnabled();
+  await expect
+    .poll(async () => (await server.reviewedFiles()).marks)
+    .toEqual([]);
 
   await repo.branch('copy');
   await repo.switch('copy');

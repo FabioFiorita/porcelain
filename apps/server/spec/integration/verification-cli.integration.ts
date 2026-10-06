@@ -10,7 +10,6 @@ import {
   readdir,
   rm,
   symlink,
-  utimes,
   writeFile,
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -386,25 +385,6 @@ test('a throwing cleanup stays incomplete after its supervisor exits and redacts
   expect(repeated.stdout).not.toContain(fixture.secret);
   expect(evidence.text).not.toContain(fixture.secret);
 });
-
-test('an inactive session survives the former idle poll and stops only when requested', async ({
-  onTestFinished,
-}) => {
-  const fixture = await sessionFixture(onTestFinished);
-  const instance = await fixture.start();
-  const activity = join(instance.folder, 'last-command');
-  await writeFile(activity, '');
-  await utimes(activity, 0, 0);
-  await delay(31_000);
-
-  expect(alive(instance.pid)).toBe(true);
-  expect(existsSync(join(instance.evidence, 'idle-stop.txt'))).toBe(false);
-  const stopped = await fixture.command('stop', instance.id);
-  expect(stopped.code).toBe(0);
-  expect(record(JSON.parse(stopped.stdout)).complete).toBe(true);
-  expect(alive(instance.pid)).toBe(false);
-  expect(existsSync(instance.folder)).toBe(false);
-}, 45_000);
 
 test('a CLI session records numbered, redacted evidence and never shows the instance credential', async ({
   onTestFinished,

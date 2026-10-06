@@ -1,4 +1,3 @@
-import { availableParallelism } from 'node:os';
 import { defineConfig } from '@playwright/test';
 import type { Shell } from './spec/e2e/fixtures.ts';
 
@@ -12,7 +11,7 @@ export default defineConfig<{ shell: Shell }>({
   fullyParallel: true,
   forbidOnly: true,
   retries: 0,
-  workers: Math.max(1, Math.min(6, Math.floor(availableParallelism() / 2))),
+  workers: process.env.CI ? 2 : 1,
   timeout: 60_000,
   reporter: [
     ['list'],
