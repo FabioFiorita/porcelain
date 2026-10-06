@@ -1,49 +1,32 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { runRequest } from '@porcelain/client/transport';
-import { asMutation } from '@/shared/query/mutation';
+import { useAtom } from '@effect/atom-react';
+import { Cause, Exit } from 'effect';
+import { generateCommitDraft } from '@porcelain/client/git-actions';
 import type {
-  CommitDraft,
   CommitDraftInput,
   GitScope,
 } from '@porcelain/client/git-actions/rules';
 import { type ConnectionContext } from '@/shared/workspace/connection';
-import { gitActionCommands } from '@porcelain/client/git-actions';
 
 export function useCommitDraft(
   scope: GitScope,
   context: ConnectionContext,
   drafts: Set<AbortController>,
 ) {
-  const { connection } = context;
-  const commands = gitActionCommands(scope, connection, useQueryClient());
-  const mutation = asMutation(
-    useMutation({
-      mutationFn: ({
-        signal,
-        ...input
-      }: CommitDraftInput & { signal?: AbortSignal }) =>
-        runRequest(commands.draft(input), connection.request(signal).signal),
-    }),
+  const [result, generate] = useAtom(
+    generateCommitDraft({ connection: context.connection, scope }),
+    { mode: 'promiseExit' },
   );
   return {
-    ...mutation,
-    submit: (input: CommitDraftInput) =>
-      submitDraft(mutation.submit, drafts, input),
+    result,
+    submit: (input: CommitDraftInput) => {
+      const controller = new AbortController();
+      drafts.add(controller);
+      return generate({ ...input, signal: controller.signal })
+        .then((completed) => {
+          if (Exit.isFailure(completed)) throw Cause.squash(completed.cause);
+          return completed.value;
+        })
+        .finally(() => drafts.delete(controller));
+    },
   };
-}
-
-async function submitDraft(
-  submit: (
-    input: CommitDraftInput & { signal?: AbortSignal },
-  ) => Promise<CommitDraft>,
-  drafts: Set<AbortController>,
-  input: CommitDraftInput,
-) {
-  const controller = new AbortController();
-  drafts.add(controller);
-  try {
-    return await submit({ ...input, signal: controller.signal });
-  } finally {
-    drafts.delete(controller);
-  }
 }

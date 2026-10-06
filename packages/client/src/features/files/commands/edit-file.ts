@@ -13,7 +13,7 @@ import { ConnectionError } from '../../../shared/api/connection-error.ts';
 import { porcelainClient } from '../../../shared/api/client.ts';
 import { clientRuntime } from '../../../shared/api/runtime.ts';
 import { requestEffect } from '../../../shared/api/effect-client.ts';
-import { queryKeys } from '../../../shared/api/query-keys.ts';
+import { noticeReadKeys } from '../../live/commands/cache-updates.ts';
 import { currentAnswerEffect } from '../../../shared/api/stale-answer.ts';
 import { FileDrafts, fileDraftRuntime } from '../store.ts';
 import type { FileDraftWriteFailure } from '../ports/file-draft-writer.ts';
@@ -117,9 +117,13 @@ class FileEdits extends Context.Service<
                 Effect.gen(function* () {
                   for (const [, draft] of moving) draft.release(owner);
                   if (!signal.aborted)
-                    yield* reactivity.invalidate([
-                      queryKeys.review(connection.environmentId, scope),
-                    ]);
+                    yield* reactivity.invalidate(
+                      noticeReadKeys(connection.environmentId, {
+                        type: 'worktree',
+                        ...scope,
+                        change: 'files',
+                      }),
+                    );
                 }),
             ),
             signal,

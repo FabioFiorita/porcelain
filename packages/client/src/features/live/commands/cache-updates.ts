@@ -52,7 +52,12 @@ export function noticeReadKeys(environmentId: string, notice: LiveNotice) {
     : [];
 }
 
-function receiptReadSurfaces(receipt: RunGitActionResponse) {
+function receiptReadSurfaces(
+  receipt: Pick<
+    RunGitActionResponse,
+    'projectId' | 'worktreeId' | 'action' | 'state'
+  >,
+) {
   if (
     receipt.state === 'running' ||
     receipt.state === 'rejected' ||
@@ -70,7 +75,10 @@ function receiptReadSurfaces(receipt: RunGitActionResponse) {
 
 export function receiptQueryFilters(
   environmentId: string,
-  receipt: RunGitActionResponse,
+  receipt: Pick<
+    RunGitActionResponse,
+    'projectId' | 'worktreeId' | 'action' | 'state'
+  >,
 ): QueryFilters[] {
   const surfaces = receiptReadSurfaces(receipt);
   return surfaces
@@ -80,7 +88,10 @@ export function receiptQueryFilters(
 
 export function receiptReadKeys(
   environmentId: string,
-  receipt: RunGitActionResponse,
+  receipt: Pick<
+    RunGitActionResponse,
+    'projectId' | 'worktreeId' | 'action' | 'state'
+  >,
 ) {
   const surfaces = receiptReadSurfaces(receipt);
   return surfaces

@@ -1,11 +1,11 @@
-import type { WorktreeConnection } from '../../../shared/api/connection.ts';
+import type { RuntimeConnection } from '../../../shared/api/connection.ts';
 import { Effect } from 'effect';
 import { requestEffect } from '../../../shared/api/effect-client.ts';
 import { currentAnswerEffect } from '../../../shared/api/stale-answer.ts';
-import { gitActionsApi } from '../api.ts';
+import { porcelainClient } from '../../../shared/api/client.ts';
 
 export function readGitReceipt(
-  connection: WorktreeConnection,
+  connection: RuntimeConnection,
   request: {
     projectId: string;
     worktreeId: string;
@@ -16,7 +16,8 @@ export function readGitReceipt(
   const { signal } = connection.request(request.signal);
   return requestEffect(
     Effect.gen(function* () {
-      const receipt = yield* gitActionsApi(connection).readGitActionReceipt({
+      const api = yield* porcelainClient(connection);
+      const receipt = yield* api.gitActions.readGitActionReceipt({
         params: {
           worktreeId: request.worktreeId,
           requestId: request.requestId,

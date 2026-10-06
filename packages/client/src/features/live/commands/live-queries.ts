@@ -12,7 +12,7 @@ import {
   LIVE_WORKTREES,
 } from '@porcelain/contracts/shared';
 import type { QueryClient } from '@tanstack/query-core';
-import type { RuntimeConnection } from '../../../shared/api/connection.ts';
+import type { GitConnection } from '../../git-actions/commands/git-action-controller.ts';
 import type { LiveUpdatePort } from '../ports/live-update.ts';
 import type { ReadInventoryResponse } from '@porcelain/contracts/projects';
 import { queryKeys } from '../../../shared/api/query-keys.ts';
@@ -26,9 +26,13 @@ import {
   type OperationStore,
 } from '../../git-actions/store/operations.ts';
 import { readGitReceipt } from '../../git-actions/queries/read-receipt.ts';
-import { refreshGitReceipt } from '../../git-actions/commands/refresh-receipt.ts';
+import {
+  GitReceiptRefresh,
+  receiptRuntime,
+} from '../../git-actions/commands/refresh-receipt.ts';
+import { Layer } from 'effect';
 
-export type LiveConnection = RuntimeConnection & {
+export type LiveConnection = GitConnection & {
   controller: AbortController;
   operations: Context.Service.Shape<typeof OperationStore>;
   liveUpdates: LiveUpdatePort;
@@ -108,7 +112,7 @@ function applyLiveNotice(
   notice: LiveNotice,
 ) {
   if (notice.type === 'git-action') {
-    return refreshGitReceipt(client, environmentId, notice.receipt);
+    return GitReceiptRefresh.use((refresh) => refresh.refresh(notice.receipt));
   }
   return Effect.gen(function* () {
     if (notice.type === 'inventory' || notice.type === 'worktree')
@@ -135,8 +139,12 @@ export function connectLiveQueries(
   const lifecycle = new AbortController();
   const reads = connection.runtime.runSync(ReadSubscriptions);
   const tasks = new ScopedTasks();
-  const services = connection.runtime.runSync(
-    Effect.context<Reactivity.Reactivity>(),
+  const refreshRuntime = receiptRuntime(connection);
+  const unsubscribeRefresh = registry.mount(refreshRuntime);
+  const services = Layer.unwrap(
+    AtomRegistry.getResult(registry, refreshRuntime).pipe(
+      Effect.map(Layer.succeedContext),
+    ),
   );
   const signal = AbortSignal.any([
     connection.controller.signal,
@@ -167,7 +175,7 @@ export function connectLiveQueries(
         .run(
           withSignal(recovery, signal).pipe(
             Effect.ignore,
-            Effect.provideContext(services),
+            Effect.provide(services),
           ),
         )
         .catch(() => undefined);
@@ -194,7 +202,7 @@ export function connectLiveQueries(
         ),
       );
       void tasks
-        .run(withSignal(update, signal).pipe(Effect.provideContext(services)))
+        .run(withSignal(update, signal).pipe(Effect.provide(services)))
         .catch(() => undefined);
     },
     onReconnect: () => {
@@ -212,7 +220,7 @@ export function connectLiveQueries(
         ),
       );
       void tasks
-        .run(withSignal(refresh, signal).pipe(Effect.provideContext(services)))
+        .run(withSignal(refresh, signal).pipe(Effect.provide(services)))
         .catch(() => undefined);
     },
     onUnauthorized: () => {
@@ -262,6 +270,7 @@ export function connectLiveQueries(
   const unsubscribeOperations = connection.operations.state.subscribe(changed);
   changed();
   return () => {
+    unsubscribeRefresh();
     unsubscribeInventory();
     unsubscribe();
     unsubscribeOperations?.();

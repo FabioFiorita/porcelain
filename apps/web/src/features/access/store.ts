@@ -38,6 +38,7 @@ import {
   OperationStorage,
 } from '@porcelain/client/git-actions';
 import { operationStorage } from './adapters/operation-storage';
+import { BrowserCrypto } from '@effect/platform-browser';
 import {
   type Connection,
   type ConnectionContext,
@@ -80,6 +81,7 @@ function createConnection(environmentId: string, server: Server): Connection {
     controller,
     operationRuntime,
     operations: operationRuntime.runSync(OperationStore),
+    cryptoLayer: BrowserCrypto.layer,
     liveUpdates: server.liveUpdates,
   });
   fileDraftRuntime.runSync(FileDrafts).adopt(connection);

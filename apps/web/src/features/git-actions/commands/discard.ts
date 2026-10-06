@@ -1,5 +1,8 @@
 import type { ReadChangesResponse } from '@porcelain/contracts/changes';
-import { useMutation } from '@tanstack/react-query';
+import { useAtom, useAtomSet } from '@effect/atom-react';
+import { Atom, AsyncResult } from 'effect/reactivity';
+import { Cause, Effect, Option } from 'effect';
+import { useState } from 'react';
 import type { GitScope, Receipt } from '@porcelain/client/git-actions/rules';
 import {
   changedSinceLooked,
@@ -141,46 +144,59 @@ export function useDiscard(
     restore,
   };
 
-  const submit = useMutation({
-    mutationFn: async (looked: GitActionStatus) =>
-      finish(
-        discarding,
-        await discard.run(
-          { action: 'discard', path, ...(hunk ? { hunk } : {}) },
-          expectationFor(looked, [path]),
-        ),
-      ),
-  });
-  const recover = useMutation({
-    mutationFn: async () => finish(discarding, await discard.recover.submit()),
-  });
-  const busy = submit.isPending || recover.isPending;
-  const failure = (
-    data: DiscardFailure | null | undefined,
-    error: unknown,
-  ): DiscardFailure | null =>
-    data ?? (error ? { text: gitErrorMessage(error), moved: false } : null);
-
+  const [submitCommand] = useState(() =>
+    Atom.fn((input: { run: () => Promise<Receipt>; discarding: Discarding }) =>
+      Effect.tryPromise({
+        try: async () => finish(input.discarding, await input.run()),
+        catch: (cause) => new Cause.UnknownError(cause, gitErrorMessage(cause)),
+      }),
+    ),
+  );
+  const [recoverCommand] = useState(() =>
+    Atom.fn(
+      (input: { recover: () => Promise<Receipt>; discarding: Discarding }) =>
+        Effect.tryPromise({
+          try: async () => finish(input.discarding, await input.recover()),
+          catch: (cause) =>
+            new Cause.UnknownError(cause, gitErrorMessage(cause)),
+        }),
+    ),
+  );
+  const [submitted, submit] = useAtom(submitCommand, { mode: 'promiseExit' });
+  const [recovered, recover] = useAtom(recoverCommand, { mode: 'promiseExit' });
+  const resetSubmit = useAtomSet(submitCommand);
+  const resetRecover = useAtomSet(recoverCommand);
+  const busy = submitted.waiting || recovered.waiting;
+  const failure = (result: typeof submitted): DiscardFailure | null =>
+    Option.getOrUndefined(AsyncResult.value(result)) ??
+    (AsyncResult.isFailure(result)
+      ? { text: gitErrorMessage(Cause.squash(result.cause)), moved: false }
+      : null);
   return {
     operation: discard.operation,
     uncertain,
     busy,
-    error:
-      failure(submit.data, submit.error) ??
-      failure(recover.data, recover.error),
+    error: failure(submitted) ?? failure(recovered),
     reset: () => {
-      submit.reset();
-      recover.reset();
+      resetSubmit(Atom.Reset);
+      resetRecover(Atom.Reset);
     },
     run: () => {
       if (busy || uncertain || !look) return;
-      recover.reset();
-      submit.mutate(look);
+      resetRecover(Atom.Reset);
+      void submit({
+        run: () =>
+          discard.run(
+            { action: 'discard', path, ...(hunk ? { hunk } : {}) },
+            expectationFor(look, [path]),
+          ),
+        discarding,
+      });
     },
     checkOutcome: () => {
       if (busy) return;
-      submit.reset();
-      recover.mutate();
+      resetSubmit(Atom.Reset);
+      void recover({ recover: discard.recover, discarding });
     },
   };
 }

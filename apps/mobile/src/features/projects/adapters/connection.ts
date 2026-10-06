@@ -8,6 +8,7 @@ import type { AccessPlatform } from '@porcelain/client/access';
 import type { Remote } from '@porcelain/client/access/rules';
 import { operationStorage } from './operation-storage';
 import { mobileSocket } from '../../../shared/adapters/live-socket';
+import { cryptoLayer } from './crypto';
 import { REQUEST_TIMEOUT_MS } from '../../../config/limits';
 
 export function createProjectConnection(
@@ -20,6 +21,7 @@ export function createProjectConnection(
     RemoteConnection.layer({
       ...input,
       socket: mobileSocket,
+      cryptoLayer,
       timeoutMs: REQUEST_TIMEOUT_MS,
     }).pipe(
       Layer.provide(OperationStore.layer),
@@ -37,8 +39,9 @@ export function createProjectConnection(
       ),
     ),
   );
+  const connection = runtime.runSync(RemoteConnection);
   return {
-    connection: runtime.runSync(RemoteConnection),
+    connection,
     close: () => {
       void runtime.dispose();
     },

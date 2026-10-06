@@ -1,7 +1,8 @@
-import { Layer, ManagedRuntime } from 'effect';
+import { Crypto, Equal, Exit, Layer, ManagedRuntime } from 'effect';
 import { afterEach } from 'vitest';
 import type { Context } from 'effect';
-import { QueryClient, QueryObserver } from '@tanstack/query-core';
+import { Atom, AtomRegistry } from 'effect/reactivity';
+import { readChanges } from '@porcelain/client/changes';
 import { expect, it } from 'vitest';
 import { Effect, Schema } from 'effect';
 import {
@@ -11,15 +12,18 @@ import {
 } from '@porcelain/contracts/git-actions';
 import {
   createWorktreeConnection,
-  queryKeys,
-  runClientRequest,
   type Transport,
 } from '@porcelain/client/transport';
 import {
   OperationStore,
   OperationStorage,
+  operationKey,
 } from '@porcelain/client/git-actions';
-import { GitActionController } from './git-action-controller.ts';
+import {
+  runGitAction,
+  recoverGitAction,
+  startNewGitAction,
+} from './git-action-controller.ts';
 
 const scope = {
   projectId: '11111111-1111-4111-8111-111111111111',
@@ -52,40 +56,58 @@ function setup(
   > = operationStoreFixture().store,
 ) {
   const lifetime = createWorktreeConnection({
-    environmentId: 'controller',
+    environmentId: '44444444-4444-4444-8444-444444444444',
     transport,
     timeoutMs: 1000,
   });
-  const client = new QueryClient();
+  const registry = AtomRegistry.make();
   let ids = 0;
-  const controller = new GitActionController(
-    scope,
-    'commit',
-    lifetime.connection,
+  const connection = Equal.byReference({
+    ...lifetime.connection,
     operations,
-    client,
-    lifetime.controller.signal,
-    () => {
-      ids += 1;
-      return requestId;
-    },
-  );
+    cryptoLayer: Layer.succeed(
+      Crypto.Crypto,
+      Crypto.make({
+        randomBytes: () => {
+          ids++;
+          return new Uint8Array(
+            requestId
+              .replaceAll('-', '')
+              .match(/../g)
+              ?.map((part) => parseInt(part, 16)) ?? [],
+          );
+        },
+        digest: (_, bytes) => Effect.succeed(bytes),
+      }),
+    ),
+  });
+  const selection = { connection, scope, action: 'commit' as const };
+  const command = runGitAction(selection);
+  const recover = recoverGitAction(selection);
+  const startNew = startNewGitAction(selection);
+  const execute = <Input, A, E>(
+    atom: Atom.AtomResultFn<Input, A, E>,
+    input: Input,
+  ) => {
+    registry.set(atom, input);
+    return Effect.runPromise(
+      AtomRegistry.getResult(registry, atom, { suspendOnWaiting: true }),
+    );
+  };
   return {
-    ...lifetime,
-    signal: lifetime.controller.signal,
-    controller,
+    connection,
+    key: operationKey(scope, 'commit'),
+    command,
     operations,
-    client,
+    registry,
     ids: () => ids,
-    run: () =>
-      runClientRequest(
-        controller.execute(input),
-        lifetime.controller.signal,
-        lifetime.connection.runtime,
-      ),
+    run: (request: Pick<RunGitActionRequest, 'input' | 'expected'> = input) =>
+      execute(command, request),
+    recover: () => execute(recover, undefined),
+    startNew: () => execute(startNew, undefined),
     close: async () => {
+      registry.dispose();
       await lifetime.close();
-      client.clear();
     },
   };
 }
@@ -104,13 +126,7 @@ it('retains the original request after an unanswered write and resends that exac
     await expect(subject.run()).rejects.toThrow('Could not reach Porcelain');
     await expect(subject.run()).rejects.toThrow('Check the existing receipt');
     expect(sent).toHaveLength(1);
-    await expect(
-      runClientRequest(
-        subject.controller.recover(),
-        subject.signal,
-        subject.connection.runtime,
-      ),
-    ).resolves.toEqual(receipt);
+    await expect(subject.recover()).resolves.toEqual(receipt);
     expect(sent).toEqual([
       JSON.stringify(
         Schema.encodeSync(runGitActionRequestSchema)({ ...input, requestId }),
@@ -119,8 +135,7 @@ it('retains the original request after an unanswered write and resends that exac
     ]);
     expect(subject.ids()).toBe(1);
     expect(
-      subject.operations.state.value.operations.get(subject.controller.key)
-        ?.receipt,
+      subject.operations.state.value.operations.get(subject.key)?.receipt,
     ).toEqual(receipt);
   } finally {
     await subject.close();
@@ -135,18 +150,14 @@ it('refuses an action mismatch before retaining a request or contacting the serv
   });
   try {
     await expect(
-      runClientRequest(
-        subject.controller.execute({
-          ...input,
-          input: {
-            action: 'stash-create',
-            message: 'Save changes',
-            includeUntracked: true,
-          },
-        }),
-        subject.signal,
-        subject.connection.runtime,
-      ),
+      subject.run({
+        ...input,
+        input: {
+          action: 'stash-create',
+          message: 'Save changes',
+          includeUntracked: true,
+        },
+      }),
     ).rejects.toThrow('Action mismatch');
     expect(sent).toBe(0);
     expect(subject.ids()).toBe(0);
@@ -168,8 +179,7 @@ it('rejects a receipt for another worktree without accepting it into the retaine
   try {
     await expect(subject.run()).rejects.toThrow('connected context changed');
     expect(
-      subject.operations.state.value.operations.get(subject.controller.key)
-        ?.receipt,
+      subject.operations.state.value.operations.get(subject.key)?.receipt,
     ).toBeUndefined();
   } finally {
     await subject.close();
@@ -177,44 +187,52 @@ it('rejects a receipt for another worktree without accepting it into the retaine
 });
 
 it('rejects an old receipt when a newer operation replaces it during cache refresh', async () => {
-  const subject = setup(() => Promise.resolve(Response.json(receipt)));
   const refreshStarted = Promise.withResolvers<void>();
-  const refresh = Promise.withResolvers<string>();
-  const key = queryKeys.worktreeSurface(subject.connection, scope, ['changes']);
-  subject.client.setQueryData(key, 'before');
-  const observer = new QueryObserver(subject.client, {
-    queryKey: key,
-    staleTime: Infinity,
-    queryFn: () => {
-      refreshStarted.resolve();
-      return refresh.promise;
-    },
+  const refresh = Promise.withResolvers<Response>();
+  let reads = 0;
+  const before = {
+    environmentId: '44444444-4444-4444-8444-444444444444',
+    worktreeId: scope.worktreeId,
+    statusToken: 'a'.repeat(64),
+    headOid: null,
+    branch: null,
+    inProgress: null,
+    mergeHeadOid: null,
+    changes: [],
+  };
+  const subject = setup((path) => {
+    if (!path.endsWith('/changes'))
+      return Promise.resolve(Response.json(receipt));
+    if (++reads === 1) return Promise.resolve(Response.json(before));
+    refreshStarted.resolve();
+    return refresh.promise;
   });
-  const unsubscribe = observer.subscribe(() => {});
+  const query = readChanges({ connection: subject.connection, scope });
+  const unsubscribe = subject.registry.mount(query);
+  await Effect.runPromise(AtomRegistry.getResult(subject.registry, query));
   try {
     const result = subject.run();
     const failure = expect(result).rejects.toThrow('connected context changed');
     await refreshStarted.promise;
     await Effect.runPromise(
-      subject.operations.set(subject.controller.key, {
+      subject.operations.set(subject.key, {
         ...scope,
         requestId: nextRequestId,
         request: { ...input, requestId: nextRequestId },
       }),
     );
-    refresh.resolve('after');
+    refresh.resolve(Response.json({ ...before, statusToken: 'b'.repeat(64) }));
     await failure;
     expect(
-      subject.operations.state.value.operations.get(subject.controller.key),
+      subject.operations.state.value.operations.get(subject.key),
     ).toMatchObject({
       requestId: nextRequestId,
     });
     expect(
-      subject.operations.state.value.operations.get(subject.controller.key)
-        ?.receipt,
+      subject.operations.state.value.operations.get(subject.key)?.receipt,
     ).toBeUndefined();
   } finally {
-    refresh.resolve('cleanup');
+    refresh.resolve(Response.json(before));
     unsubscribe();
     await subject.close();
   }
@@ -227,32 +245,30 @@ it('keeps an accepted running request recoverable when its caller cancels waitin
   );
   const unsubscribe = subject.operations.state.subscribe(() => {
     if (
-      subject.operations.state.value.operations.get(subject.controller.key)
-        ?.receipt?.state === 'running'
+      subject.operations.state.value.operations.get(subject.key)?.receipt
+        ?.state === 'running'
     )
       received.resolve();
   });
-  const caller = new AbortController();
-  const cancelled = new Error('Dialog closed');
+
   try {
-    const result = runClientRequest(
-      subject.controller.execute(input),
-      caller.signal,
-      subject.connection.runtime,
+    subject.registry.set(subject.command, input);
+    const result = Effect.runPromiseExit(
+      AtomRegistry.getResult(subject.registry, subject.command, {
+        suspendOnWaiting: true,
+      }),
     );
-    const failure = expect(result).rejects.toBe(cancelled);
     await received.promise;
-    caller.abort(cancelled);
-    await failure;
+    subject.registry.set(subject.command, Atom.Interrupt);
+    expect(Exit.isFailure(await result)).toBe(true);
     expect(
-      subject.operations.state.value.operations.get(subject.controller.key)
-        ?.requestId,
+      subject.operations.state.value.operations.get(subject.key)?.requestId,
     ).toBe(requestId);
-    expect(await Effect.runPromise(subject.controller.startNew())).toBe(false);
+    expect(await subject.startNew()).toBe(false);
     expect(await Effect.runPromise(subject.operations.accept(receipt))).toBe(
       true,
     );
-    expect(await Effect.runPromise(subject.controller.startNew())).toBe(true);
+    expect(await subject.startNew()).toBe(true);
     expect([...subject.operations.state.value.operations.values()]).toEqual([]);
   } finally {
     unsubscribe();

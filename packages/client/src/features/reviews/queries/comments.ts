@@ -8,5 +8,10 @@ import { CommentThreadsState, commentsRuntime } from '../store/comments.ts';
 
 export const readCommentThreads = Atom.family(
   (input: { connection: RuntimeConnection; scope: WorktreeScope }) =>
-    worktreeResource(input.scope, CommentThreadsState, commentsRuntime(input)),
+    worktreeResource(
+      input.scope,
+      'comments',
+      CommentThreadsState,
+      commentsRuntime(input),
+    ),
 );

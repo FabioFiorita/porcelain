@@ -121,7 +121,7 @@ function useCommitFormState(
   const currentMessage = commitAction === 'amend' ? amendMessage : message;
   const uncertain = Boolean(git.operation && !git.canStartNew);
   const receipt = git.operation?.receipt;
-  const working = busy || generator.isPending;
+  const working = busy || generator.result.waiting;
 
   const activeDraft = groups ? drafted.groups : drafted.message;
   const staleDraft =
@@ -365,7 +365,7 @@ async function checkOutcome(controls: ReturnType<typeof useCommitFormState>) {
   const { setError, git, activeGroup, setDone, setActiveGroup } = controls;
   setError(null);
   try {
-    const receipt = await git.recover.submit();
+    const receipt = await git.recover();
     if (activeGroup && ['succeeded', 'no-change'].includes(receipt.state)) {
       setDone((current) => new Set([...current, activeGroup]));
       setActiveGroup(null);

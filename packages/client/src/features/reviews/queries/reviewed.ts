@@ -17,7 +17,12 @@ const reads = Atom.family(
     scope: WorktreeScope;
     range: ReviewedReadRange;
   }) =>
-    worktreeResource(input.scope, ReviewedFilesState, reviewedRuntime(input)),
+    worktreeResource(
+      input.scope,
+      'reviewed',
+      ReviewedFilesState,
+      reviewedRuntime(input),
+    ),
 );
 export function readReviewedFiles({
   range = WORKTREE_RANGE,

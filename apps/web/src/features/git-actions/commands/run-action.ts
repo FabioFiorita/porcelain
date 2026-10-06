@@ -1,4 +1,6 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAtom, useAtomSet } from '@effect/atom-react';
+import { Atom } from 'effect/reactivity';
+import { Cause, Exit } from 'effect';
 import { useState } from 'react';
 import type {
   ActionInput,
@@ -6,13 +8,15 @@ import type {
   GitAction,
   GitScope,
 } from '@porcelain/client/git-actions/rules';
+import {
+  isTerminal,
+  operationKey,
+  runGitAction,
+  recoverGitAction,
+  startNewGitAction,
+} from '@porcelain/client/git-actions';
 import { useGitOperation } from '../store';
-import { createId } from '@/shared/lib/id';
-import { asMutation } from '@/shared/query/mutation';
-import { isTerminal, operationKey } from '@porcelain/client/git-actions';
 import { type ConnectionContext } from '@/shared/workspace/connection';
-import { GitActionController } from '@porcelain/client/git-actions';
-import { runClientRequest, runRequest } from '@porcelain/client/transport';
 
 export function useGitAction(
   scope: GitScope,
@@ -20,7 +24,6 @@ export function useGitAction(
   context: ConnectionContext,
 ) {
   const { connection } = context;
-  const client = useQueryClient();
   const { operations } = connection;
   const key = operationKey(scope, action);
   const [settledBefore] = useState(() => {
@@ -31,46 +34,42 @@ export function useGitAction(
   });
   const followed = useGitOperation(operations, key);
   const operation = followed?.requestId === settledBefore ? null : followed;
-  const controller = new GitActionController(
-    scope,
-    action,
-    connection,
-    operations,
-    client,
-    connection.controller.signal,
-    createId,
-  );
-  const execution = useMutation({
-    mutationFn: (input: { input: ActionInput; expected: Expectation }) =>
-      runClientRequest(
-        controller.execute(input),
-        connection.request().signal,
-        connection.runtime,
-      ),
+  const selection = { connection, scope, action };
+  const execute = runGitAction(selection);
+  const recovery = recoverGitAction(selection);
+  const [execution, run] = useAtom(execute, { mode: 'promiseExit' });
+  const [recovered, recover] = useAtom(recovery, { mode: 'promiseExit' });
+  const [, startNew] = useAtom(startNewGitAction(selection), {
+    mode: 'promiseExit',
   });
-  const recovery = useMutation({
-    mutationFn: () =>
-      runClientRequest(
-        controller.recover(),
-        connection.request().signal,
-        connection.runtime,
-      ),
-  });
-  const terminal = operation?.receipt && isTerminal(operation.receipt);
+  const resetExecute = useAtomSet(execute);
+  const resetRecovery = useAtomSet(recovery);
   return {
-    run: (input: ActionInput, expected: Expectation) =>
-      execution.mutateAsync({ input, expected }),
-    execute: asMutation(execution),
-    recover: asMutation(recovery),
+    run: async (input: ActionInput, expected: Expectation) => {
+      const result = await run({ input, expected });
+      if (Exit.isFailure(result)) throw Cause.squash(result.cause);
+      return result.value;
+    },
+    recover: async () => {
+      const result = await recover();
+      if (Exit.isFailure(result)) throw Cause.squash(result.cause);
+      return result.value;
+    },
+    execution,
+    recovered,
     operation,
     startNew: async () => {
-      if (
-        await runRequest(controller.startNew(), connection.request().signal)
-      ) {
-        execution.reset();
-        recovery.reset();
+      const result = await startNew();
+      if (Exit.isFailure(result)) throw Cause.squash(result.cause);
+      if (result.value) {
+        resetExecute(Atom.Reset);
+        resetRecovery(Atom.Reset);
       }
     },
-    canStartNew: Boolean(terminal),
+    reset: () => {
+      resetExecute(Atom.Reset);
+      resetRecovery(Atom.Reset);
+    },
+    canStartNew: Boolean(operation?.receipt && isTerminal(operation.receipt)),
   };
 }

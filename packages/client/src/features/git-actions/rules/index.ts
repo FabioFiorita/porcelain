@@ -2,7 +2,6 @@ export { groupedCommitModels, resolveCommitModel } from './commit-model.ts';
 export {
   fileName,
   type ActionInput,
-  type CommitDraft,
   type CommitDraftInput,
   type Expectation,
   type GitAction,

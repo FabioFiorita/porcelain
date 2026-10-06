@@ -79,7 +79,6 @@ export const targetPackageExports: Record<string, Record<string, string>> = {
     './history': './src/features/history/index.ts',
     './history/rules': './src/features/history/rules/index.ts',
     './git-actions': './src/features/git-actions/index.ts',
-    './git-actions/api': './src/features/git-actions/api.ts',
     './git-actions/rules': './src/features/git-actions/rules/index.ts',
     './reviews': './src/features/reviews/index.ts',
     './reviews/rules': './src/features/reviews/rules/index.ts',

@@ -1,119 +1,117 @@
+import { Atom } from 'effect/reactivity';
+import {
+  Cache,
+  Context,
+  Data,
+  Duration,
+  Effect,
+  Fiber,
+  HashMap,
+  Layer,
+} from 'effect';
 import { Reactivity } from 'effect/reactivity';
 import type { RunGitActionResponse } from '@porcelain/contracts/git-actions';
-import type { QueryClient, QueryFilters } from '@tanstack/query-core';
-import { Effect, Exit, Fiber } from 'effect';
-import { ScopedTasks } from '@porcelain/effects';
+import type { RuntimeConnection } from '../../../shared/api/connection.ts';
+import { clientRuntime } from '../../../shared/api/runtime.ts';
+import { ReadSubscriptions } from '../../../shared/api/read-subscriptions.ts';
 import { queryKeys } from '../../../shared/api/query-keys.ts';
-import { ConnectionError } from '../../../shared/api/connection-error.ts';
-import { isTerminal } from '../store/operations.ts';
-import {
-  receiptQueryFilters,
-  receiptReadKeys,
-} from '../../live/commands/cache-updates.ts';
+import { receiptReadKeys } from '../../live/commands/cache-updates.ts';
 
-type Receipt = RunGitActionResponse;
+type RefreshFields = Pick<
+  RunGitActionResponse,
+  'projectId' | 'worktreeId' | 'requestId' | 'action' | 'state'
+>;
 
-function refreshActiveQueries(client: QueryClient, filters: QueryFilters) {
-  return Effect.gen(function* () {
-    const active = client
-      .getQueryCache()
-      .findAll(filters)
-      .filter((query) => query.isActive());
-    yield* Effect.tryPromise({
-      try: () => client.invalidateQueries(filters),
-      catch: (cause) =>
-        new ConnectionError({
-          message: 'Git state refresh was interrupted. Check the action again.',
-          cause,
-        }),
-    });
-    yield* Effect.forEach(
-      active,
-      (query) =>
-        Effect.gen(function* () {
-          while (
-            query.state.isInvalidated &&
-            query.state.status === 'success'
-          ) {
-            yield* Effect.tryPromise({
-              try: () => query.fetch(),
-              catch: (cause) =>
-                new ConnectionError({
-                  message:
-                    'Git state refresh was interrupted. Check the action again.',
-                  cause,
-                }),
-            }).pipe(Effect.ignore);
-            if (query.state.fetchStatus === 'idle') break;
-          }
-          if (query.state.isInvalidated && query.state.status === 'success')
-            return yield* Effect.fail(
-              new ConnectionError({
-                message:
-                  'Git state refresh was interrupted. Check the action again.',
-              }),
-            );
-        }),
-      { concurrency: 'unbounded', discard: true },
-    );
-  });
-}
+class Refresh extends Data.Class<RefreshFields> {}
 
-const receiptRefreshes = new WeakMap<
-  QueryClient,
+export class GitReceiptRefresh extends Context.Service<
+  GitReceiptRefresh,
   {
-    tasks: ScopedTasks;
-    pending: Map<string, Fiber.Fiber<void, ConnectionError>>;
+    readonly refresh: (receipt: RunGitActionResponse) => Effect.Effect<void>;
   }
->();
-
-export function refreshGitReceipt(
-  client: QueryClient,
-  environmentId: string,
-  receipt: Receipt,
-): Effect.Effect<void, ConnectionError, Reactivity.Reactivity> {
-  return Effect.gen(function* () {
-    if (
-      !isTerminal(receipt) ||
-      receipt.state === 'rejected' ||
-      receipt.state === 'no-change'
-    )
-      return;
-    const reactivity = yield* Reactivity.Reactivity;
-    let state = receiptRefreshes.get(client);
-    if (!state) {
-      state = { tasks: new ScopedTasks(), pending: new Map() };
-      receiptRefreshes.set(client, state);
-    }
-    const key = JSON.stringify([
-      environmentId,
-      receipt.projectId,
-      receipt.worktreeId,
-      receipt.requestId,
-    ]);
-    const existing = state.pending.get(key);
-    if (existing) return yield* Fiber.join(existing);
-    const refresh = Effect.gen(function* () {
-      yield* reactivity.invalidate([queryKeys.inventory(environmentId)]);
-      yield* reactivity.invalidate(receiptReadKeys(environmentId, receipt));
-      const settled = yield* Effect.forEach(
-        receiptQueryFilters(environmentId, receipt),
-        (filters) => Effect.exit(refreshActiveQueries(client, filters)),
-        { concurrency: 'unbounded' },
-      );
-      const failed = settled.find(Exit.isFailure);
-      if (failed) return yield* Effect.failCause(failed.cause);
-    });
-    const fiber = state.tasks.fork(refresh);
-    state.pending.set(key, fiber);
-    const owned = state;
-    fiber.addObserver(() => {
-      owned.pending.delete(key);
-      if (owned.pending.size === 0) {
-        receiptRefreshes.delete(client);
-        void Effect.runPromise(owned.tasks.close());
-      }
-    });
-    return yield* Fiber.join(fiber);
-  });
+>()('@porcelain/client/GitReceiptRefresh') {
+  static layer(connection: RuntimeConnection) {
+    return Layer.effect(
+      GitReceiptRefresh,
+      Effect.gen(function* () {
+        const scope = yield* Effect.scope;
+        const reactivity = yield* Reactivity.Reactivity;
+        const subscriptions = yield* ReadSubscriptions;
+        const cache: Cache.Cache<
+          Refresh,
+          Fiber.Fiber<void>
+        > = yield* Cache.make({
+          capacity: Number.POSITIVE_INFINITY,
+          timeToLive: Duration.infinity,
+          lookup: (receipt: Refresh) =>
+            Effect.gen(function* () {
+              const surfaces = new Set(
+                receiptReadKeys(connection.environmentId, receipt).map((key) =>
+                  String(key[4]),
+                ),
+              );
+              const reads = [
+                ...HashMap.values(yield* subscriptions.snapshot),
+              ].filter(
+                (read) =>
+                  read.projectId === receipt.projectId &&
+                  read.worktreeId === receipt.worktreeId &&
+                  surfaces.has(read.surface),
+              );
+              const fiber = yield* Effect.forkIn(
+                Effect.gen(function* () {
+                  reactivity.invalidateUnsafe([
+                    queryKeys.inventory(connection.environmentId),
+                    ...receiptReadKeys(connection.environmentId, receipt),
+                  ]);
+                  yield* Effect.forEach(reads, (read) => read.settled, {
+                    concurrency: 'unbounded',
+                    discard: true,
+                  });
+                }),
+                scope,
+              );
+              yield* Effect.forkIn(
+                Fiber.await(fiber).pipe(
+                  Effect.andThen(Cache.invalidate(cache, receipt)),
+                ),
+                scope,
+              );
+              return fiber;
+            }),
+        });
+        return {
+          refresh: Effect.fn('GitReceiptRefresh.refresh')(function* (
+            receipt: RunGitActionResponse,
+          ) {
+            if (
+              receipt.state === 'running' ||
+              receipt.state === 'rejected' ||
+              receipt.state === 'no-change'
+            )
+              return;
+            const key = new Refresh({
+              projectId: receipt.projectId,
+              worktreeId: receipt.worktreeId,
+              requestId: receipt.requestId,
+              action: receipt.action,
+              state: receipt.state,
+            });
+            const fiber = yield* Cache.get(cache, key);
+            if (fiber.pollUnsafe()) yield* Cache.invalidate(cache, key);
+            yield* Fiber.join(fiber);
+          }),
+        };
+      }),
+    );
+  }
 }
+
+export const receiptRuntime = Atom.family((connection: RuntimeConnection) =>
+  connection.atoms((get) =>
+    Layer.provideMerge(
+      GitReceiptRefresh.layer(connection),
+      get(clientRuntime(connection).layer),
+    ),
+  ),
+);

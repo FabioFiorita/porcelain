@@ -1,3 +1,4 @@
+import { editFile } from '@porcelain/client/files';
 import { afterEach, expect, it } from 'vitest';
 import { Effect, Option, Schema, Stream } from 'effect';
 import { DIFFS_PER_REQUEST } from '@porcelain/contracts/shared';
@@ -545,4 +546,56 @@ it('a failed stale-diff recovery finishes once per observation and remains indep
   expect(first).toEqual({ outcome: 'Failure', pending: false });
   expect(replacement).toEqual({ outcome: 'Failure', pending: false });
   expect(recoveries).toEqual([1, 1]);
+});
+
+it('a file edit refreshes the current Changes snapshot without rereading a diff tied to its old observation', async () => {
+  let changed = false;
+  let diffReads = 0;
+  const reread = Promise.withResolvers<void>();
+  const subject = fixture((path, init) => {
+    if (path.endsWith('/files') && init?.method === 'POST') {
+      changed = true;
+      return Promise.resolve(Response.json({ path: 'README.md' }));
+    }
+    if (path.endsWith('/changes/diffs')) {
+      diffReads++;
+      return Promise.resolve(Response.json(diffSnapshot));
+    }
+    if (changed) reread.resolve();
+    return Promise.resolve(
+      Response.json(
+        changed ? { ...snapshot, statusToken: 'b'.repeat(64) } : snapshot,
+      ),
+    );
+  });
+  const selection = { connection: subject.connection, scope };
+  const changes = readChanges(selection);
+  const diff = readChangeDiffs({ ...selection, input: diffInput });
+  const stopChanges = subject.registry.mount(changes);
+  const stopDiff = subject.registry.mount(diff);
+  await Effect.runPromise(AtomRegistry.getResult(subject.registry, changes));
+  await Effect.runPromise(AtomRegistry.getResult(subject.registry, diff));
+  const edit = editFile(selection);
+  subject.registry.set(edit, {
+    kind: 'write',
+    path: 'README.md',
+    text: 'Updated',
+    expectedFingerprint: 'c'.repeat(64),
+  });
+  await Effect.runPromise(
+    AtomRegistry.getResult(subject.registry, edit, { suspendOnWaiting: true }),
+  );
+  await reread.promise;
+  expect(
+    (
+      await Effect.runPromise(
+        AtomRegistry.getResult(subject.registry, changes, {
+          suspendOnWaiting: true,
+        }),
+      )
+    ).statusToken,
+  ).toBe('b'.repeat(64));
+  expect(diffReads).toBe(1);
+  stopChanges();
+  stopDiff();
 });

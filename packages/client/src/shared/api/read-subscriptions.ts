@@ -13,14 +13,22 @@ export type ReadSubscription = {
   readonly worktreeId: string;
   readonly paths: readonly string[];
 };
+export type ActiveWorktreeRead = ReadSubscription & {
+  readonly surface: string;
+  readonly settled: Effect.Effect<void>;
+};
 
 export class ReadSubscriptions extends Context.Service<
   ReadSubscriptions,
   {
-    readonly snapshot: Effect.Effect<HashMap.HashMap<symbol, ReadSubscription>>;
-    readonly changes: Stream.Stream<HashMap.HashMap<symbol, ReadSubscription>>;
+    readonly snapshot: Effect.Effect<
+      HashMap.HashMap<symbol, ActiveWorktreeRead>
+    >;
+    readonly changes: Stream.Stream<
+      HashMap.HashMap<symbol, ActiveWorktreeRead>
+    >;
     readonly retain: (
-      subscription: ReadSubscription,
+      subscription: ActiveWorktreeRead,
     ) => Effect.Effect<void, never, Scope.Scope>;
   }
 >()('@porcelain/client/ReadSubscriptions') {
@@ -28,13 +36,13 @@ export class ReadSubscriptions extends Context.Service<
     ReadSubscriptions,
     Effect.gen(function* () {
       const state = yield* SubscriptionRef.make(
-        HashMap.empty<symbol, ReadSubscription>(),
+        HashMap.empty<symbol, ActiveWorktreeRead>(),
       );
       return {
         snapshot: SubscriptionRef.get(state),
         changes: SubscriptionRef.changes(state),
         retain: Effect.fn('ReadSubscriptions.retain')(function* (
-          subscription: ReadSubscription,
+          subscription: ActiveWorktreeRead,
         ) {
           yield* Effect.acquireRelease(
             Effect.gen(function* () {

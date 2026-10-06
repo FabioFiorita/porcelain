@@ -1,56 +1,59 @@
 import { Effect } from 'effect';
-import { nativeOperation } from '@porcelain/effects';
-import { requestEffect } from '../../../shared/api/effect-client.ts';
-import type { QueryClient } from '@tanstack/query-core';
+import { Atom, Reactivity } from 'effect/reactivity';
+import { withSignal } from '@porcelain/effects';
 import type { GenerateCommitDraftRequest } from '@porcelain/contracts/git-actions';
 import type {
-  WorktreeConnection,
+  RuntimeConnection,
   WorktreeScope,
 } from '../../../shared/api/connection.ts';
+import { porcelainClient } from '../../../shared/api/client.ts';
+import { clientRuntime } from '../../../shared/api/runtime.ts';
+import { requestEffect } from '../../../shared/api/effect-client.ts';
 import { currentAnswerEffect } from '../../../shared/api/stale-answer.ts';
 import { queryKeys } from '../../../shared/api/query-keys.ts';
-import { gitActionsApi } from '../api.ts';
 
-export function gitActionCommands(
-  scope: WorktreeScope,
-  connection: WorktreeConnection,
-  client: QueryClient,
-) {
-  const api = gitActionsApi(connection);
-  const request = () => ({
-    ...scope,
-    ...connection.request(),
-  });
-  return {
-    draft: (input: GenerateCommitDraftRequest) =>
-      Effect.gen(function* () {
-        const connected = request();
-        const result = yield* requestEffect(
-          api.generateCommitDraft({
-            params: { worktreeId: scope.worktreeId },
-            payload: input,
-          }),
-          connected.signal,
+type Selection = {
+  readonly connection: RuntimeConnection;
+  readonly scope: WorktreeScope;
+};
+export const generateCommitDraft = Atom.family(
+  ({ connection, scope }: Selection) =>
+    clientRuntime(connection).fn(
+      Effect.fn('GitActions.generateCommitDraft')(function* ({
+        signal: caller,
+        ...input
+      }: GenerateCommitDraftRequest & { signal?: AbortSignal }) {
+        const signal = connection.request(caller).signal;
+        const api = yield* porcelainClient(connection);
+        const result = yield* withSignal(
+          requestEffect(
+            api.gitActions.generateCommitDraft({
+              params: { worktreeId: scope.worktreeId },
+              payload: input,
+            }),
+          ),
+          signal,
         );
-        yield* currentAnswerEffect(connected.signal);
+        yield* currentAnswerEffect(signal);
         return result;
       }),
-    dismiss: (requestId: string) =>
-      Effect.gen(function* () {
-        const connected = request();
+      { concurrent: true },
+    ),
+);
+export const dismissInterruptedGitAction = Atom.family(
+  ({ connection, scope }: Selection) =>
+    clientRuntime(connection).fn(
+      Effect.fn('GitActions.dismissInterrupted')(function* (requestId: string) {
+        const api = yield* porcelainClient(connection);
         yield* requestEffect(
-          api.dismissInterruptedGitAction({
+          api.gitActions.dismissInterruptedGitAction({
             params: { worktreeId: scope.worktreeId, requestId },
           }),
-          connected.signal,
         );
-        yield* currentAnswerEffect(connected.signal);
-        yield* nativeOperation(() =>
-          client.invalidateQueries({
-            queryKey: queryKeys.worktreeSurface(connection, scope, ['changes']),
-            exact: true,
-          }),
-        );
+        yield* currentAnswerEffect(connection.request().signal);
+        yield* Reactivity.invalidate([
+          queryKeys.reviewSurface(connection.environmentId, scope, ['changes']),
+        ]);
       }),
-  };
-}
+    ),
+);

@@ -16,6 +16,7 @@ export class RemoteConnection extends Context.Service<
       Remote,
       'environmentId' | 'address' | 'credential' | 'deviceId'
     > & {
+      readonly cryptoLayer: LiveConnection['cryptoLayer'];
       readonly send: AccessPlatform['send'];
       readonly timeoutMs: number;
       readonly socket: Parameters<typeof remoteLiveUpdates>[2];
@@ -44,6 +45,7 @@ export class RemoteConnection extends Context.Service<
           ...lifetime.connection,
           controller: lifetime.controller,
           operations,
+          cryptoLayer: input.cryptoLayer,
           liveUpdates: remoteLiveUpdates(
             input.address,
             lifetime.connection.transport,

@@ -1,5 +1,5 @@
 import { AsyncResult } from 'effect/reactivity';
-import { Option } from 'effect';
+import { Cause, Option } from 'effect';
 import { Button } from '@/components/ui/button';
 import { useReviewOverview } from '@/features/changes/index';
 import type { GitScope } from '@porcelain/client/git-actions/rules';
@@ -33,16 +33,16 @@ export function InterruptedActionNotice({
         <p className="mt-1 text-muted-foreground">
           Check the current changes before trying again.
         </p>
-        {dismiss.error && (
+        {AsyncResult.isFailure(dismiss.result) && (
           <p role="alert" className="mt-1 text-destructive">
-            {gitErrorMessage(dismiss.error)}
+            {gitErrorMessage(Cause.squash(dismiss.result.cause))}
           </p>
         )}
       </div>
       <Button
         size="xs"
         variant="ghost"
-        disabled={dismiss.isPending}
+        disabled={dismiss.result.waiting}
         onClick={() => dismiss.dismiss(interrupted.requestId)}
       >
         Got it

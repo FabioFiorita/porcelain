@@ -454,7 +454,7 @@ export function CommitForm(
         }
       >
         {working
-          ? generator.isPending
+          ? generator.result.waiting
             ? 'Generating…'
             : commitAction === 'amend'
               ? 'Amending…'

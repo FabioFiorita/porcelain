@@ -82,5 +82,10 @@ export const readProofFile = Atom.family(
 
 export const readLayerMarks = Atom.family(
   (input: { connection: RuntimeConnection; scope: WorktreeScope }) =>
-    worktreeResource(input.scope, LayerMarksState, layerMarksRuntime(input)),
+    worktreeResource(
+      input.scope,
+      'reviewed-layers',
+      LayerMarksState,
+      layerMarksRuntime(input),
+    ),
 );

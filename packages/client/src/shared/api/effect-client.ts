@@ -1,12 +1,5 @@
 import { apiErrorSchema } from '@porcelain/contracts/shared';
-import {
-  Cause,
-  Effect,
-  Exit,
-  Result,
-  Schema,
-  type ManagedRuntime,
-} from 'effect';
+import { Cause, Effect, Exit, Result, Schema } from 'effect';
 import {
   HttpClient,
   HttpClientError,
@@ -113,15 +106,5 @@ export function runRequest<A, E>(
 ): Promise<A> {
   return settleRequest(signal, () =>
     Effect.runPromiseExit(requestEffect(request), { signal }),
-  );
-}
-
-export function runClientRequest<A, E, R>(
-  request: Effect.Effect<A, E, R>,
-  signal: AbortSignal,
-  runtime: ManagedRuntime.ManagedRuntime<R, never>,
-): Promise<A> {
-  return settleRequest(signal, () =>
-    runtime.runPromiseExit(requestEffect(request), { signal }),
   );
 }

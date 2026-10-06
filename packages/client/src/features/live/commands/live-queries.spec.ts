@@ -1,7 +1,7 @@
 import { AtomRegistry, Reactivity } from 'effect/reactivity';
 import { readFilePreferences } from '@porcelain/client/projects';
 import { readTextFile } from '@porcelain/client/files';
-import { Equal, Layer, ManagedRuntime, type Context } from 'effect';
+import { Crypto, Equal, Layer, ManagedRuntime, type Context } from 'effect';
 import { afterEach } from 'vitest';
 import { Effect } from 'effect';
 import { QueryClient, QueryObserver } from '@tanstack/query-core';
@@ -78,6 +78,13 @@ function setup(
     ...lifetime.connection,
     controller: lifetime.controller,
     operations,
+    cryptoLayer: Layer.succeed(
+      Crypto.Crypto,
+      Crypto.make({
+        randomBytes: (size) => new Uint8Array(size),
+        digest: (_, bytes) => Effect.succeed(bytes),
+      }),
+    ),
     liveUpdates,
   });
   const close = connectLiveQueries(client, connection, () => {}, registry);
