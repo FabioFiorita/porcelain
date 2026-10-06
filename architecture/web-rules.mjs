@@ -67,7 +67,7 @@ const keyTargets = new Set([...globalObjects, 'document']);
 const keyEvents = new Set(['keydown', 'keyup', 'keypress']);
 const historyGlobals = new Set(['history']);
 const pureRuleModules =
-  /^(?:@porcelain\/contracts(?:\/|$)|@porcelain\/client\/[^/]+\/rules$)/;
+  /^(?:@porcelain\/contracts(?:\/|$)|@porcelain\/client\/[^/]+\/rules$|effect\/(?:Schema|Redacted)$)/;
 const loopStatements = new Set([
   'ForStatement',
   'ForInStatement',
@@ -923,7 +923,7 @@ export const webRules = {
       const path = webPath(context);
       if (webPart(path) !== 'web-rule') return {};
       const message =
-        'features/<domain>/rules/ holds pure functions: no React, no I/O, only sibling rules, config/limits.ts, contracts and shared client rules, because a decision must not depend on browser state or perform effects.';
+        'features/<domain>/rules/ holds pure functions: no React, no I/O, only sibling rules, limits, contracts, shared client rules and native Schema/Redacted, because a decision must not depend on browser state or perform effects.';
       const check = (node) => {
         const specifier = sourceOf(node);
         if (specifier === undefined) return;

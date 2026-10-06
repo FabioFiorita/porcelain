@@ -89,7 +89,6 @@ export const startApplication = Effect.fn('startApplication')(function* (
         dataDirectory: directory,
         pid: process.pid,
       };
-      // The lock outlives startup and releases after the resource child and shutdown finalizer.
       yield* acquireDirectoryLock({
         path: pathApi.join(directory, 'server.lock'),
         waitMs: limits.locks.startupWaitMs,
@@ -113,7 +112,6 @@ export const startApplication = Effect.fn('startApplication')(function* (
         );
       yield* fs.remove(socketPath, { force: true });
       yield* Effect.sync(() => signal.throwIfAborted());
-      // Register shutdown after the resource child: listeners and jobs drain before storage finalizers.
       parts.opened = yield* starter
         .openServer({
           settings: { ...settings, dataDirectory: directory },
@@ -129,7 +127,6 @@ export const startApplication = Effect.fn('startApplication')(function* (
       const opened = parts.opened;
       yield* Effect.sync(() => signal.throwIfAborted());
       for (const job of opened.jobs) {
-        // Record ownership before starting; stop also handles partially started jobs.
         parts.jobs.push(job);
         yield* job.start();
       }

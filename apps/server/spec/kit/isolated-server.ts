@@ -431,7 +431,7 @@ function readyManifestPath(line: string): string | undefined {
 
 function waitForReady(
   child: ChildProcess,
-  output: { stdout: string },
+  output: { stdout: string; stderr: string },
 ): Promise<string> {
   return new Promise((resolveReady, rejectReady) => {
     let pending = '';
@@ -447,7 +447,9 @@ function waitForReady(
     child.once('close', (code) => {
       clearTimeout(timeout);
       rejectReady(
-        new Error(`Isolated server exited before ready: ${code ?? 'signal'}`),
+        new Error(
+          `Isolated server exited before ready: ${code ?? 'signal'}${output.stderr.trim() ? `\n${output.stderr.trim()}` : ''}`,
+        ),
       );
     });
     child.stdout?.on('data', (chunk: Buffer) => {

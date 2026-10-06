@@ -11,3 +11,4 @@ export { ReadInterruptedGitActionService } from './read-interrupted-git-action-s
 export { RecordGitActionProgressService } from './record-git-action-progress-service.ts';
 export { RunGitActionService } from './run-git-action-service.ts';
 export { BeginGitActionService } from './begin-git-action-service.ts';
+export { ReadQueuedGitActionService } from './read-queued-git-action-service.ts';

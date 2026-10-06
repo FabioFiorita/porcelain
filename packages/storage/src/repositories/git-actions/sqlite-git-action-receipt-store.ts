@@ -35,8 +35,6 @@ export const sqliteGitActionReceiptStoreLayer = Layer.effect(
   GitActionReceiptStore,
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
-    // Keep the execution fence separate from the public receipt's running state.
-    // Shipped receipts without a fence predate durable execution and are ambiguous.
     yield* sql`CREATE TABLE IF NOT EXISTS porcelain_git_action_execution_v1 (
       request_id TEXT PRIMARY KEY REFERENCES git_action_receipts(request_id) ON DELETE CASCADE,
       phase TEXT NOT NULL CHECK (phase IN ('queued', 'started'))

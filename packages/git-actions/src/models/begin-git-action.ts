@@ -5,7 +5,7 @@ export const beginGitActionInputSchema = Schema.Struct({
   requestId: Schema.String,
   acceptedAt: Schema.String,
 });
-export const beginGitActionResultSchema = Schema.Union([
+const beginGitActionResultSchema = Schema.Union([
   Schema.Struct({ kind: Schema.Literal('ready'), run: gitActionRunSchema }),
   Schema.Struct({ kind: Schema.Literal('unavailable') }),
 ]);

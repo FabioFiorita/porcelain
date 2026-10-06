@@ -6,7 +6,6 @@ export class ServerComponents extends Context.Service<
   OpenedServer
 >()('@porcelain/server/ServerComponents') {}
 
-/** Build borrowed services in a child of the application's scope, never an Effect.provide scope. */
 export const openServerResources = Effect.fn('openServerResources')(function* (
   resources: Layer.Layer<ServerComponents>,
 ) {

@@ -78,7 +78,7 @@ export function admittedRead<A, E, R>(
   work: Effect.Effect<A, E, R>,
 ): Effect.Effect<A, E, R | WorktreeRead> {
   return Effect.flatMap(WorktreeRead, (lease) =>
-    Effect.zipRight(
+    Effect.andThen(
       Effect.sync(() => lease.assert(worktreeId)),
       work,
     ),
@@ -90,7 +90,7 @@ export function admittedWrite<A, E, R>(
   work: (committed: () => void) => Effect.Effect<A, E, R>,
 ): Effect.Effect<A, E, R | WorktreeWrite> {
   return Effect.flatMap(WorktreeWrite, (lease) =>
-    Effect.zipRight(
+    Effect.andThen(
       Effect.sync(() => lease.assertWrite(worktreeId)),
       Effect.suspend(() => work(() => lease.confirmCommit(worktreeId))),
     ),

@@ -5,7 +5,6 @@ import { sampleReceipt } from '../../spec/fixtures/git-action-samples.ts';
 import { InMemoryGitActionReceiptStore } from '../../spec/fakes/in-memory-git-action-receipt-store.ts';
 import { GitActionReceiptStore } from '../ports/git-action-receipt-store.ts';
 import { BeginGitActionService } from './begin-git-action-service.ts';
-import { InterruptGitActionService } from './interrupt-git-action-service.ts';
 
 async function begin(store: InMemoryGitActionReceiptStore) {
   const ports = Layer.mergeAll(
@@ -14,13 +13,7 @@ async function begin(store: InMemoryGitActionReceiptStore) {
   );
   return Effect.runSync(
     BeginGitActionService.pipe(
-      Effect.provide(
-        BeginGitActionService.layer.pipe(
-          Layer.provide(
-            InterruptGitActionService.layer.pipe(Layer.provideMerge(ports)),
-          ),
-        ),
-      ),
+      Effect.provide(BeginGitActionService.layer.pipe(Layer.provide(ports))),
     ),
   );
 }

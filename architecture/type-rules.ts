@@ -95,6 +95,8 @@ const tableLanes: Readonly<
   DeviceConnectionStore: { any: ['access'] },
 };
 const readsBeforeLane: Readonly<Record<string, string>> = {
+  ReadQueuedGitActionService:
+    'resolves the exact persisted accepted request and its worktree before its repository lane can be chosen; acceptedAt must match before it returns',
   CheckWorktreeService:
     'resolves the worktree from the catalog before its lane can be chosen; a stale entry is refreshed by the refresh use case under its own inventory lane',
   CheckRefreshedWorktreeService:

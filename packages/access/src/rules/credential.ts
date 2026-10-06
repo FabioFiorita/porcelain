@@ -1,5 +1,5 @@
 import { constantTimeEquals, sha256Hex } from '@porcelain/kernel/rules';
-import { Redacted } from 'effect';
+import * as Redacted from 'effect/Redacted';
 import type {
   Credential,
   CredentialKind,

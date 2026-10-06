@@ -6,6 +6,7 @@ export interface WebRootReader {
   exists(input: WebRootPath): Effect.Effect<boolean>;
   open(input: WebRootFile): Stream.Stream<Uint8Array, Error>;
 }
-export const WebRootReader = Context.Service<WebRootReader>(
+export const WebRootReader = Context.Service<
   '@porcelain/server/WebRootReader',
-);
+  WebRootReader
+>('@porcelain/server/WebRootReader');

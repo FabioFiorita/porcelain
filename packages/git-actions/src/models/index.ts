@@ -33,9 +33,8 @@ export { gitActionExpectationSchema } from './git-action-expectation.ts';
 export { gitActionResultSchema } from './git-action-outcome.ts';
 export { gitActionReasonSchema } from './git-action-reason.ts';
 export { gitActionReceiptStateSchema } from './git-action-receipt.ts';
+export { type BeginGitActionInput } from './begin-git-action.ts';
 export {
-  beginGitActionInputSchema,
-  beginGitActionResultSchema,
-  type BeginGitActionInput,
-  type BeginGitActionResult,
-} from './begin-git-action.ts';
+  queuedGitActionRunSchema,
+  type QueuedGitActionInput,
+} from './queued-git-action.ts';

@@ -41,6 +41,7 @@ import {
   InterruptGitActionService,
   ListCommitModelsService,
   ReadGitActionReceiptService,
+  ReadQueuedGitActionService,
   RecordGitActionProgressService,
   RunGitActionService,
 } from '@porcelain/git-actions/services';
@@ -52,6 +53,8 @@ import { GenerateCommitDraftUseCase } from '../use-cases/git-actions/generate-co
 import { ListCommitModelsUseCase } from '../use-cases/git-actions/list-commit-models.ts';
 import { ReadGitActionReceiptUseCase } from '../use-cases/git-actions/read-git-action-receipt.ts';
 import { RunGitActionUseCase } from '../use-cases/git-actions/run-git-action.ts';
+import { RunQueuedGitActionUseCase } from '../use-cases/git-actions/run-queued-git-action.ts';
+import { RunQueuedGitActionUseCasePort } from '../ports/run-queued-git-action-use-case-port.ts';
 import { CheckWorktreeUseCasePort } from '../ports/check-worktree-use-case-port.ts';
 import { RefreshWorktreeReviewUseCasePort } from '../ports/refresh-worktree-review-use-case-port.ts';
 import { type ComposeContext } from './compose-context.ts';
@@ -137,21 +140,31 @@ export function composeGitActions(
     FinishGitActionService.layer,
     InterruptGitActionService.layer,
     ReadGitActionReceiptService.layer,
+    ReadQueuedGitActionService.layer,
     DismissInterruptedGitActionService.layer,
     ListCommitModelsService.layer,
     ConfirmDiffObservationService.layer,
     CaptureCommitDraftService.layer,
     GenerateCommitDraftService.layer,
   ).pipe(Layer.provideMerge(ports));
-  const beginning = BeginGitActionService.layer.pipe(
-    Layer.provideMerge(services),
+  const queued = Layer.effect(
+    RunQueuedGitActionUseCasePort,
+    RunQueuedGitActionUseCase,
+  ).pipe(
+    Layer.provideMerge(
+      RunQueuedGitActionUseCase.layer.pipe(
+        Layer.provideMerge(
+          BeginGitActionService.layer.pipe(Layer.provideMerge(services)),
+        ),
+      ),
+    ),
   );
   const engine = ClusterWorkflowEngine.layer.pipe(
     Layer.provideMerge(SingleRunner.layer({ runnerStorage: 'memory' })),
     Layer.orDie,
   );
   const workflow = GitActionWorkflow.layer.pipe(
-    Layer.provideMerge(beginning),
+    Layer.provideMerge(queued),
     Layer.provideMerge(engine),
   );
   const operations = Layer.mergeAll(

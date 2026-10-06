@@ -1,11 +1,11 @@
-import { Context, Effect, Layer } from 'effect';
+import { Clock, Context, DateTime, Effect, Layer } from 'effect';
 import {
   type BeginGitActionInput,
   type BeginGitActionResult,
 } from '../models/begin-git-action.ts';
 import { GitActionReceiptStore } from '../ports/git-action-receipt-store.ts';
 import { gitActionTarget } from '../rules/git-action-target.ts';
-import { InterruptGitActionService } from './interrupt-git-action-service.ts';
+import { interruptedReceipt } from '../rules/interrupted-receipt.ts';
 
 export class BeginGitActionService extends Context.Service<
   BeginGitActionService,
@@ -19,7 +19,7 @@ export class BeginGitActionService extends Context.Service<
     BeginGitActionService,
     Effect.gen(function* () {
       const receipts = yield* GitActionReceiptStore;
-      const interrupt = yield* InterruptGitActionService;
+      const clock = yield* Clock.Clock;
       return {
         execute: Effect.fn('BeginGitActionService.execute')(function* (
           input: BeginGitActionInput,
@@ -27,14 +27,16 @@ export class BeginGitActionService extends Context.Service<
           const receipt = yield* receipts.read(input);
           if (
             !receipt ||
+            receipt.requestId !== input.requestId ||
             receipt.state !== 'running' ||
             receipt.acceptedAt !== input.acceptedAt
           )
             return { kind: 'unavailable' };
-          // This durable claim precedes foreign IO; missing legacy claims and
-          // previously started writes have an unknown outcome and never replay.
           if (!(yield* receipts.claimExecution(input))) {
-            yield* interrupt.execute(input).pipe(Effect.orDie);
+            const finishedAt = DateTime.formatIso(
+              DateTime.makeUnsafe(yield* clock.currentTimeMillis),
+            );
+            yield* receipts.save(interruptedReceipt(receipt, finishedAt));
             return { kind: 'unavailable' };
           }
           return {

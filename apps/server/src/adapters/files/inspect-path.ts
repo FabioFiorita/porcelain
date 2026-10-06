@@ -1,8 +1,7 @@
 import { Effect } from 'effect';
-import {
-  GuardedFilesystemError,
-  syscall,
-} from './guarded-filesystem-syscalls.ts';
+import { syscall } from './guarded-filesystem-syscalls.ts';
+import { GuardedFilesystemError } from '../../runtime/errors/guarded-filesystem-error.ts';
+import { PathRefusedError } from '../../runtime/errors/path-refused-error.ts';
 import type { BigIntStats } from 'node:fs';
 import { lstat, realpath } from 'node:fs/promises';
 import { isAbsolute, relative, resolve, sep } from 'node:path';
@@ -16,21 +15,20 @@ export type InspectedPath = {
   evidence: { path: string; info: BigIntStats }[];
 };
 
-type Refusal = 'unreadable' | 'changed' | 'trash-unavailable' | 'too-large';
+export type GuardedPathFailure = GuardedFilesystemError | PathRefusedError;
 
-const refusals = new WeakMap<Error, Refusal>();
-
-export function pathRefused(refusal: Refusal, options?: ErrorOptions): Error {
-  const error = new Error(
-    `The path guard refused the path: ${refusal}`,
-    options,
-  );
-  refusals.set(error, refusal);
-  return error;
+export function pathRefused(
+  refusal: PathRefusedError['refusal'],
+  options?: ErrorOptions,
+): PathRefusedError {
+  return new PathRefusedError({
+    refusal,
+    ...(options?.cause === undefined ? {} : { cause: options.cause }),
+  });
 }
 
-function refusalOf(error: unknown): Refusal | undefined {
-  return error instanceof Error ? refusals.get(error) : undefined;
+function refusalOf(error: unknown): PathRefusedError['refusal'] | undefined {
+  return error instanceof PathRefusedError ? error.refusal : undefined;
 }
 
 const unreadableCodes = new Set([
@@ -110,7 +108,7 @@ export function fileIdentity(info: BigIntStats): string {
 
 export const inspectPath = Effect.fn('inspectPath')(function* (
   target: CheckoutPath,
-): Effect.fn.Return<InspectedPath, unknown> {
+): Effect.fn.Return<InspectedPath, GuardedPathFailure> {
   const root = resolve(target.root);
   const path = resolve(root, target.path);
   const local = relative(root, path);

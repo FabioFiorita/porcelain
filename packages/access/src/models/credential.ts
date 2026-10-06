@@ -2,13 +2,14 @@ import { Schema } from 'effect';
 
 export type CredentialKind = 'pcp' | 'pcd' | 'pct';
 
-export const credentialPartsSchema = Schema.Struct({
+const credentialPartsSchema = Schema.Struct({
   id: Schema.String,
   secret: Schema.Redacted(Schema.String),
 });
 
-export const credentialSchema = Schema.Struct({
-  ...credentialPartsSchema.fields,
+const credentialSchema = Schema.Struct({
+  id: Schema.String,
+  secret: Schema.Redacted(Schema.String),
   token: Schema.Redacted(Schema.String),
 });
 

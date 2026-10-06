@@ -10,8 +10,6 @@ export const StderrLogger = {
       yield* Observability;
       const context = yield* Effect.context<never>();
       return {
-        // Foreign callbacks report failures synchronously; the native scope
-        // owns formatting, timestamps, filtering and stderr routing.
         failure: (input: FailureReport): void => {
           Effect.runSync(
             Effect.logError('Porcelain operation failed').pipe(

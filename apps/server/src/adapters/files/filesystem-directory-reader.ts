@@ -10,7 +10,12 @@ import type {
 } from '@porcelain/files/models';
 import { DirectoryReader } from '@porcelain/files/ports';
 import { Effect, Layer, type Scope } from 'effect';
-import { inspectPath, readFailure, verifyPath } from './inspect-path.ts';
+import {
+  type GuardedPathFailure,
+  inspectPath,
+  readFailure,
+  verifyPath,
+} from './inspect-path.ts';
 import { openRawDirectory, syscall } from './guarded-filesystem-syscalls.ts';
 import {
   listedWorktree,
@@ -36,7 +41,7 @@ export const filesystemDirectoryReaderLayer = (
             return yield* Effect.scoped(
               Effect.gen(function* (): Effect.fn.Return<
                 DirectoryRead,
-                unknown,
+                GuardedPathFailure,
                 Scope.Scope
               > {
                 const before = yield* inspectPath(target);

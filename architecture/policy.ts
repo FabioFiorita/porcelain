@@ -983,6 +983,7 @@ const everything: readonly Role[] = [
   'gateway-api',
   'gateway',
   'runtime',
+  'workflow',
   'server-port',
   'bootstrap',
   'contract',
@@ -1721,7 +1722,7 @@ export const externalPackages: Record<Role, readonly string[]> = {
   'client-test-kit': ['vitest', 'effect/reactivity'],
   'client-transport-api': [],
   'client-transport-spec': ['vitest', '@effect/vitest'],
-  desktop: ['electron', 'fix-path'],
+  desktop: ['electron', 'fix-path', '@effect/platform-node'],
   'desktop-gateway': [],
   'desktop-server-api': [],
   transport: [
@@ -1741,7 +1742,7 @@ export const externalPackages: Record<Role, readonly string[]> = {
   'domain-api': [],
   service: [],
   'rule-api': [],
-  rule: ['effect/DateTime'],
+  rule: ['effect/DateTime', 'effect/Redacted'],
   'model-api': [],
   model: [],
   'port-api': [],
@@ -1779,6 +1780,7 @@ export const externalPackages: Record<Role, readonly string[]> = {
   'store-contract': ['vitest', 'effect'],
   'server-kit': [
     'esbuild',
+    '@effect/platform-node',
     'vitest',
     'effect/Schema',
     'effect/rpc',

@@ -10,7 +10,7 @@ import {
 } from '@porcelain/git-actions/services';
 import { EventPublisher } from '../../ports/event-publisher.ts';
 import { type WorktreeAccessFailure } from '../../ports/worktree-access-failure.ts';
-import { GitActionWorkflow } from '../../runtime/git-action-workflow.ts';
+import { GitActionQueuePort } from '../../ports/git-action-queue-port.ts';
 import { WorktreeAccess } from '../../runtime/worktree-access.ts';
 
 export class RunGitActionUseCase extends Context.Service<
@@ -35,7 +35,7 @@ export class RunGitActionUseCase extends Context.Service<
       const access = yield* WorktreeAccess;
       const expire = yield* ExpireGitActionReceiptsService;
       const accept = yield* AcceptGitActionService;
-      const workflow = yield* GitActionWorkflow;
+      const workflow = yield* GitActionQueuePort;
       const events = yield* EventPublisher;
       return {
         execute: Effect.fn('RunGitActionUseCase.execute')(function* (
@@ -66,17 +66,13 @@ export class RunGitActionUseCase extends Context.Service<
               Effect.uninterruptible(
                 Effect.gen(function* () {
                   if (accepted.kind !== 'accepted') return;
-                  // Publish acceptance before native execution can emit a terminal
-                  // receipt; queue admission still runs if publication fails.
-                  yield* events
-                    .gitActionChanged(accepted.receipt)
-                    .pipe(
-                      Effect.ensuring(
-                        workflow.execute({
-                          requestId: accepted.receipt.requestId,
-                        }),
-                      ),
-                    );
+                  yield* events.gitActionChanged(accepted.receipt).pipe(
+                    Effect.ensuring(
+                      workflow.execute({
+                        requestId: accepted.receipt.requestId,
+                      }),
+                    ),
+                  );
                 }),
               ),
             { requireAvailableProject: true },

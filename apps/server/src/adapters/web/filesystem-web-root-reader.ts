@@ -50,7 +50,6 @@ export const filesystemWebRootReaderLayer = (root: string | undefined) =>
         ) {
           const candidate = inside(input.path);
           if (candidate === undefined) return false;
-          // lstat distinguishes a dangling entry from an absent path, preserving SPA fallback policy.
           return yield* syscall(() => lstat(candidate)).pipe(
             Effect.as(true),
             Effect.catch(() => Effect.succeed(false)),

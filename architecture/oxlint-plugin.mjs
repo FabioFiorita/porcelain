@@ -961,15 +961,9 @@ function nativeSchemaValue(node, context, seen = new Set()) {
         definition.parent.source.value === 'effect' &&
         definition.node.imported?.name === 'Schema'
       )
-        return new Set([
-          'String',
-          'Number',
-          'Int',
-          'Boolean',
-          'Undefined',
-          'Null',
-          'Uint8Array',
-        ]).has(memberName(node));
+        return /^(?:String|Number|Int|Boolean|Undefined|Null|Never|Uint8Array)$/.test(
+          memberName(node),
+        );
     }
     return (
       memberName(node) === 'fields' &&
@@ -1011,6 +1005,9 @@ function nativeSchemaValue(node, context, seen = new Set()) {
         'optional',
         'NullOr',
         'Literals',
+        'Redacted',
+        'Cause',
+        'Defect',
       ]),
     ) ||
       nativeMember(node, context, 'Struct', new Set(['omit']))) &&
@@ -1190,18 +1187,13 @@ function caseTitle(node) {
 
 function allowedSpecImport(filename, source) {
   if (
-    [
-      'vitest',
-      '@effect/vitest',
-      'effect',
-      'effect/testing',
-      'effect/reactivity',
-      '@porcelain/effects',
-      '@porcelain/effects/worktree',
-    ].includes(source)
+    /^(?:vitest|@effect\/vitest|effect(?:\/(?:testing|reactivity|workflow))?|@porcelain\/effects(?:\/worktree)?)$/.test(
+      source,
+    ) ||
+    specNodeModule.test(source) ||
+    specPackageEntry.test(source)
   )
     return true;
-  if (specNodeModule.test(source) || specPackageEntry.test(source)) return true;
   const path = normalizedFilename(filename);
   if (
     /apps\/web\/src\/features\/[^/]+\/rules\/[^/]+\.spec\.ts$/.test(path) &&
@@ -1244,8 +1236,8 @@ function allowedSpecImport(filename, source) {
   )
     return true;
   if (
-    /apps\/server\/src\/(?:runtime|use-cases)\/.+\.spec\.ts$/.test(path) &&
-    /^(?:(?:\.\.\/){1,2}(?:runtime\/)?|\.\/)(?:lanes|lane-keys|worktree-access)\.ts$/.test(
+    /apps\/server\/src\/(?:http|runtime|use-cases)\/.+\.spec\.ts$/.test(path) &&
+    /^(?:(?:\.\.\/){1,3}(?:runtime\/)?|\.\/)(?:lanes|lane-keys|worktree-access|observability|git-action-workflow)\.ts$/.test(
       source,
     )
   )
@@ -1324,7 +1316,7 @@ function allowedSpecImport(filename, source) {
     (/\/packages\/(?:git|agents|process)\/src\/.+\.spec\.ts$/.test(path) ||
       storageSpec.test(path) ||
       adapterSpec.test(path) ||
-      /apps\/server\/src\/use-cases\/.+\.spec\.ts$/.test(path))
+      /apps\/server\/src\/(?:runtime|use-cases)\/.+\.spec\.ts$/.test(path))
   )
     return true;
   if (storageSpec.test(path) && ['node:crypto', 'node:sqlite'].includes(source))

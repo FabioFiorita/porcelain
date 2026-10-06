@@ -1,6 +1,7 @@
 import { ENVIRONMENT_PROTOCOL } from '@porcelain/contracts/shared';
 import type { ReadEnvironmentResponse } from '@porcelain/contracts/access';
-import { Redacted, Schema } from 'effect';
+import * as Redacted from 'effect/Redacted';
+import * as Schema from 'effect/Schema';
 
 export type RemoteAnswer =
   | { kind: 'described'; environment: ReadEnvironmentResponse }
@@ -16,8 +17,6 @@ const remoteSchema = Schema.Struct({
 });
 export type Remote = typeof remoteSchema.Type;
 
-// This codec is the browser/desktop storage boundary. In-memory remotes stay
-// redacted; the persisted JSON remains the format existing installations read.
 export function serializeRemotes(remotes: readonly Remote[]): string {
   return JSON.stringify(Schema.encodeSync(Schema.Array(remoteSchema))(remotes));
 }

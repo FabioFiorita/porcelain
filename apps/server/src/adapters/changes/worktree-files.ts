@@ -12,6 +12,7 @@ import {
 import {
   fileIdentity,
   inspectPath,
+  type GuardedPathFailure,
   readFailure,
   sameFile,
   unchanged,
@@ -59,7 +60,7 @@ const readEntry = Effect.fn('readWorktreeFiles.readEntry')(function* (
   path: string,
   maxDigestBytes: number,
   buffer: Buffer,
-): Effect.fn.Return<WorktreeEntry | undefined, unknown> {
+): Effect.fn.Return<WorktreeEntry | undefined, GuardedPathFailure> {
   const parent = dirname(path);
   const target = { root, path: parent === '.' ? '' : parent };
   const before = yield* inspectPath(target);
@@ -90,7 +91,7 @@ const digestFile = Effect.fn('readWorktreeFiles.digestFile')(
     Effect.scoped(
       Effect.gen(function* (): Effect.fn.Return<
         WorktreeEntry,
-        unknown,
+        GuardedPathFailure,
         Scope.Scope
       > {
         const handle = yield* openGuardedFile(full, constants.O_RDONLY);

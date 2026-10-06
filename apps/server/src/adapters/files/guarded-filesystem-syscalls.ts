@@ -1,12 +1,8 @@
-import { Data, Effect } from 'effect';
+import { Effect } from 'effect';
+import { GuardedFilesystemError } from '../../runtime/errors/guarded-filesystem-error.ts';
 import { constants } from 'node:fs';
 import { open, opendir } from 'node:fs/promises';
 
-export class GuardedFilesystemError extends Data.TaggedError(
-  'GuardedFilesystemError',
-)<{ readonly cause: unknown }> {}
-
-/** A single foreign syscall. Interruption drains its pending IO before releasing handles. */
 export function syscall<A>(
   work: (signal: AbortSignal) => Promise<A>,
 ): Effect.Effect<A, GuardedFilesystemError> {
