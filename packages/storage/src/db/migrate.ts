@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { DatabaseSync } from 'node:sqlite';
 import { Effect, FileSystem, Schema } from 'effect';
+import { Migrator } from 'effect/sql';
 import { UnsupportedDatabaseVersionError } from '../errors/unsupported-database-version-error.ts';
 import { worktreeIdV1 } from './worktree-id-v1.ts';
 
@@ -21,6 +22,14 @@ const tableRowsSchema = Schema.Array(Schema.Struct({ name: Schema.String }));
 const versionRowsSchema = Schema.Array(
   Schema.Struct({ user_version: Schema.Int }),
 );
+
+const nativeHistorySchema = Schema.Array(
+  Schema.Struct({ migration_id: Schema.Int, name: Schema.String }),
+);
+
+export const nativeMigrations = Migrator.fromRecord({
+  '001_adopt_legacy_schema': Effect.void,
+});
 
 export const readLegacyMigrations = Effect.fn('Storage.readLegacyMigrations')(
   function* () {
@@ -59,6 +68,58 @@ function appliedHashes(database: DatabaseSync): readonly string[] {
   ).map((entry) => entry.hash);
 }
 
+function assertNativeMigrationHistory(
+  database: DatabaseSync,
+  available: readonly Migrator.ResolvedMigration[],
+) {
+  const objects = database
+    .prepare(
+      "SELECT type FROM sqlite_master WHERE name = 'porcelain_migrations'",
+    )
+    .all();
+  if (objects.length === 0) return;
+  try {
+    if (objects.length !== 1 || objects[0]?.type !== 'table')
+      throw new UnsupportedDatabaseVersionError(
+        'invalid native migration table',
+      );
+    const columns = Schema.decodeUnknownSync(tableRowsSchema)(
+      database.prepare('PRAGMA table_info(porcelain_migrations)').all(),
+    );
+    const expectedColumns = ['migration_id', 'name', 'created_at'];
+    if (
+      columns.length !== expectedColumns.length ||
+      expectedColumns.some(
+        (name) => !columns.some((column) => column.name === name),
+      )
+    )
+      throw new UnsupportedDatabaseVersionError(
+        'invalid native migration table',
+      );
+    const history = Schema.decodeUnknownSync(nativeHistorySchema)(
+      database
+        .prepare(
+          'SELECT migration_id, name FROM porcelain_migrations ORDER BY migration_id',
+        )
+        .all(),
+    );
+    if (
+      history.some(
+        (entry, index) =>
+          entry.migration_id !== available[index]?.[0] ||
+          entry.name !== available[index]?.[1],
+      )
+    )
+      throw new UnsupportedDatabaseVersionError(
+        'incompatible native migration history',
+      );
+  } catch {
+    throw new UnsupportedDatabaseVersionError(
+      'incompatible native migration history',
+    );
+  }
+}
+
 function assertMigrationHistory(
   database: DatabaseSync,
   shipped: readonly LegacyMigration[],
@@ -92,10 +153,12 @@ export const upgradeLegacyDatabase = Effect.fn('Storage.upgradeLegacyDatabase')(
     options: { worktreeIdLength: number; busyTimeoutMs: number },
   ) {
     const shipped = yield* readLegacyMigrations();
+    const available = yield* nativeMigrations;
     yield* Effect.acquireUseRelease(
       Effect.sync(() => new DatabaseSync(filename)),
       (database) =>
         Effect.sync(() => {
+          assertNativeMigrationHistory(database, available);
           assertMigrationHistory(database, shipped);
           database.exec(`PRAGMA busy_timeout = ${options.busyTimeoutMs}`);
           database.exec('PRAGMA journal_mode = WAL');
