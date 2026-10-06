@@ -9,7 +9,12 @@ import {
   type GitSubcommand,
   type Session,
 } from '../../../../apps/server/spec/kit/session.ts';
-import { runCli, sandboxProblems, Usage } from '../../verify-core/cli.ts';
+import {
+  runCli,
+  sandboxProblems,
+  stopOutput,
+  Usage,
+} from '../../verify-core/cli.ts';
 import { registry, STALE_BUILD, type ServerInstance } from './instance.ts';
 import { serve, start } from './start.ts';
 
@@ -235,20 +240,22 @@ async function doctor(
   ].join('\n');
 }
 
-async function stop(
-  requested: string | undefined,
-  argv: readonly string[],
-): Promise<string> {
+async function stop(requested: string | undefined): Promise<string> {
   const started = performance.now();
-  const instance = registry.chosen(requested, { includeStopped: true });
-  const report = await registry.stop(instance);
-  await finish(instance, 'stop', registry.redactor(instance).recorder(), {
-    command: argv,
-    durationMs: Math.round(performance.now() - started),
-    stopped: instance.id,
-    report,
-  });
-  return `${report.map((line) => `${line}\n`).join('')}stopped ${instance.id}; evidence kept in ${instance.evidence}\n`;
+  const result = await registry.stopById(requested);
+  if (!result.alreadyStopped) {
+    const file = await registry
+      .evidence({ evidence: result.evidence, secrets: [] })
+      .json('stop', {
+        command: ['stop', '--instance', result.id],
+        durationMs: Math.round(performance.now() - started),
+        instance: result.id,
+        complete: result.complete,
+        report: result.report,
+      });
+    process.stderr.write(`evidence: ${file}\n`);
+  }
+  return stopOutput(result);
 }
 
 function live(
@@ -301,7 +308,7 @@ async function main(argv: readonly string[]): Promise<string> {
     await serve(rest[0]);
     return '';
   }
-  if (command === 'evidence') return `${registry.chosen(requested).evidence}\n`;
+  if (command === 'evidence') return `${registry.evidencePath(requested)}\n`;
   if (command === 'logs') {
     const instance = registry.chosen(requested);
     return registry
@@ -309,7 +316,7 @@ async function main(argv: readonly string[]): Promise<string> {
       .text(await readFile(instance.detail.logFile, 'utf8'));
   }
   if (command === 'doctor') return doctor(requested, argv);
-  if (command === 'stop') return stop(requested, argv);
+  if (command === 'stop') return stop(requested);
   if (command === 'live') return live(requested, argv, rest);
   if (command === 'ids')
     return driven(command, requested, argv, async ({ instance }) => {

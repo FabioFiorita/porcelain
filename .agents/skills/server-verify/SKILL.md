@@ -52,9 +52,11 @@ $C stop
 
 The argument filters by file name in `apps/server/spec/integration/`. `stop` keeps the evidence folder.
 
+Sessions have no idle expiry. Stop your instance when finished. After stopping, `$C evidence --instance <id>` reads the retained evidence and `$C stop --instance <id>` repeats a confirmed stop without signaling processes. A failed stop exits nonzero and retains private runtime state; inspect its report before retrying.
+
 ## Gotchas
 
 - After you edit server or CLI code, every driving command refuses until you `stop` and `start` again.
-- With two instances in the checkout, every command needs `--instance <id>`. An instance idle for 30 minutes stops itself.
+- With two instances in the checkout, every command needs `--instance <id>`.
 - CI's full integration run fails when a registered route is requested by no test, so a new route's test must request it.
 - When a change moves a route's cost or its Git work, run `pnpm --filter @porcelain/server test:perf` and set the route's entry in `ROUTE_BUDGETS` (`apps/server/src/config/limits.ts`) in the same commit: Git processes exactly as measured, wall time three times the worst p95 of a few runs, rounded up to 50 ms and at least 100 ms.

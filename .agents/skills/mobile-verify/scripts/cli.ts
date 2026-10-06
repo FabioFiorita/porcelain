@@ -15,7 +15,12 @@ import {
 } from '../../../../apps/mobile/spec/kit/simulator.ts';
 import { missingTools } from '../../../../apps/mobile/spec/kit/tools.ts';
 import { ServerHandle } from '../../../../apps/server/spec/kit/isolated-server.ts';
-import { refuseMissing, runCli, Usage } from '../../verify-core/cli.ts';
+import {
+  refuseMissing,
+  runCli,
+  stopOutput,
+  Usage,
+} from '../../verify-core/cli.ts';
 import {
   agentDevice,
   connectHub,
@@ -42,7 +47,7 @@ const usage = `Usage: .agents/skills/mobile-verify/scripts/cli <command> [--inst
   start [--device iphone|ipad]
                            start a disposable server, Metro and a simulator of its own, install and open the development client and pair it
   doctor                   check the tools, the development client build and the live instances
-  stop                     shut down the instance's simulator, Metro and server; the evidence stays
+  stop                     stop owned processes and request simulator shutdown; the evidence stays
   evidence                 print the evidence folder and what it holds
   open <screen|deep link>  open a screen such as /files, or a ${identity.scheme}:// deep link
   tap --id <testID> | --label <label> [--long]
@@ -231,27 +236,43 @@ async function command(args: readonly string[]): Promise<string> {
   }
   if (name === 'doctor') return doctor();
   if (name === undefined) throw new Usage(usage);
-  const instance = registry.chosen(values.instance, {
-    includeStopped: name === 'stop',
-  });
   if (name === 'stop') {
-    const report = await registry.stop(instance);
-    const target = targetOf(instance);
-    if (isHosted(target)) {
-      connectHub(target);
-      if (remoteBooted(target)) {
-        agentDevice(target, ['close', '--shutdown'], { allowFailure: true });
-        report.push(`shut down the simulator ${instance.detail.udid}`);
+    const instance =
+      values.instance === undefined
+        ? registry.chosen(undefined)
+        : registry.list().find((entry) => entry.instance.id === values.instance)
+            ?.instance;
+    const result = await registry.stopById(values.instance);
+    const report = [...result.report];
+    if (result.complete && !result.alreadyStopped && instance !== undefined) {
+      const target = targetOf(instance);
+      if (isHosted(target)) {
+        connectHub(target);
+        try {
+          if (remoteBooted(target)) {
+            agentDevice(target, ['close', '--shutdown'], {
+              allowFailure: true,
+            });
+            report.push(`requested simulator shutdown ${instance.detail.udid}`);
+          }
+        } finally {
+          disconnectHub(target);
+        }
+      } else if (await isBooted(instance.detail.udid)) {
+        await shutdownSimulator(instance.detail.udid);
+        report.push(`requested simulator shutdown ${instance.detail.udid}`);
       }
-      disconnectHub(target);
     }
-    if (!isHosted(target) && (await isBooted(instance.detail.udid))) {
-      await shutdownSimulator(instance.detail.udid);
-      report.push(`shut down the simulator ${instance.detail.udid}`);
-    }
-    return `${report.map((line) => `${line}\n`).join('')}stopped ${instance.id}; simulator ${instance.detail.udid} shut down\nevidence ${instance.evidence}\n`;
+    return stopOutput({ ...result, report });
   }
-  if (name === 'evidence') return registry.evidence(instance).listing();
+  if (name === 'evidence')
+    return registry
+      .evidence({
+        evidence: registry.evidencePath(values.instance),
+        secrets: [],
+      })
+      .listing();
+  const instance = registry.chosen(values.instance);
   return registry.drive(instance, args, async () => {
     const note = reloaded(instance);
     const target = targetOf(instance);

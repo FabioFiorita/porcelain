@@ -1,3 +1,4 @@
+import { Schema } from 'effect';
 import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { setTimeout as sleep } from 'node:timers/promises';
@@ -8,6 +9,12 @@ export type ProcessIdentity = {
   command: string;
   birth: string;
 };
+
+export const stopResultSchema = Schema.Struct({
+  complete: Schema.Boolean,
+  report: Schema.Array(Schema.String),
+});
+export type StopResult = typeof stopResultSchema.Type;
 
 type Running = ProcessIdentity & { state: string };
 
@@ -137,96 +144,153 @@ async function settled(done: () => boolean, withinMs: number) {
 export async function endGroup(
   pgid: number,
   captured?: readonly ProcessIdentity[],
-): Promise<string[]> {
-  const members = () =>
-    processes(pgid).filter((entry) => entry.pid !== process.pid);
-  const initial = captured ?? (pgid === process.pid ? members() : []);
-  const owned = new Map(initial.map((entry) => [entry.pid, entry]));
-  if (owned.size === 0)
-    return members().length === 0
-      ? []
-      : [`process group ${pgid} has no captured owner; it was not signalled`];
-  const eligible = () => {
-    const current = members();
-    if (
-      current.some((entry) => {
+): Promise<StopResult> {
+  try {
+    if (!Number.isSafeInteger(pgid) || pgid <= 0)
+      return {
+        complete: false,
+        report: ['invalid captured process group; it was not signalled'],
+      };
+    const members = () =>
+      processes(pgid).filter((entry) => entry.pid !== process.pid);
+    const initial = captured ?? (pgid === process.pid ? members() : []);
+    const owned = new Map(initial.map((entry) => [entry.pid, entry]));
+    if (owned.size === 0)
+      return members().length === 0
+        ? { complete: true, report: [] }
+        : {
+            complete: false,
+            report: [
+              `process group ${pgid} has no captured owner; it was not signalled`,
+            ],
+          };
+    const eligible = () => {
+      const current = members();
+      if (
+        current.some((entry) => {
+          const identity = owned.get(entry.pid);
+          return identity !== undefined && matches(entry, identity);
+        })
+      )
+        for (const entry of current)
+          if (!owned.has(entry.pid)) owned.set(entry.pid, entry);
+      return current.filter((entry) => {
         const identity = owned.get(entry.pid);
         return identity !== undefined && matches(entry, identity);
-      })
-    )
-      for (const entry of current)
-        if (!owned.has(entry.pid)) owned.set(entry.pid, entry);
-    return current.filter((entry) => {
-      const identity = owned.get(entry.pid);
-      return identity !== undefined && matches(entry, identity);
-    });
-  };
-  const ending = eligible();
-  if (ending.length === 0)
-    return members().length === 0
-      ? []
-      : [
-          `process group ${pgid} has no matching captured owner; it was not signalled`,
-        ];
-  for (const entry of ending) signal(entry, 'SIGTERM');
-  if (await settled(() => members().length === 0, killWithinMs))
-    return [`stopped owned process group ${pgid}`];
-  for (const entry of eligible()) signal(entry, 'SIGKILL');
-  const stopped = await settled(() => members().length === 0, killWithinMs);
-  return [
-    stopped
-      ? `stopped owned process group ${pgid} after SIGKILL`
-      : `process group ${pgid} still has live processes; changed or unverified identities were not signalled`,
-  ];
+      });
+    };
+    const ending = eligible();
+    if (ending.length === 0)
+      return members().length === 0
+        ? { complete: true, report: [] }
+        : {
+            complete: false,
+            report: [
+              `process group ${pgid} has no matching captured owner; it was not signalled`,
+            ],
+          };
+    for (const entry of ending) signal(entry, 'SIGTERM');
+    if (await settled(() => members().length === 0, killWithinMs))
+      return {
+        complete: true,
+        report: [`stopped owned process group ${pgid}`],
+      };
+    for (const entry of eligible()) signal(entry, 'SIGKILL');
+    const stopped = await settled(() => members().length === 0, killWithinMs);
+    return {
+      complete: stopped,
+      report: [
+        stopped
+          ? `stopped owned process group ${pgid} after SIGKILL`
+          : `process group ${pgid} still has live processes; changed or unverified identities were not signalled`,
+      ],
+    };
+  } catch (error) {
+    return {
+      complete: false,
+      report: [
+        `cleanup of process group ${pgid} could not be confirmed: ${String(error)}`,
+      ],
+    };
+  }
 }
 
 export async function endProcess(
   identity: ProcessIdentity,
   withinMs: number,
   capturedGroup?: readonly ProcessIdentity[],
-): Promise<string[]> {
-  if (
-    !Number.isSafeInteger(identity.pid) ||
-    identity.pid <= 0 ||
-    !Number.isSafeInteger(identity.pgid) ||
-    identity.pgid <= 0
-  )
-    return ['invalid captured process identity; it was not signalled'];
-  if (identity.pid === process.pid)
-    return [`process ${identity.pid} is this command; it was not signalled`];
-  const current = listed([identity.pid]).find(live);
-  if (current !== undefined && !matches(current, identity))
-    return [
-      `process ${identity.pid} has a different identity; it was not signalled`,
-    ];
-  const group =
-    identity.pgid === identity.pid
-      ? (capturedGroup ?? captureGroup(identity)).filter(
-          (entry) => entry.pgid === identity.pgid,
-        )
-      : undefined;
-  const report: string[] = [];
-  if (current !== undefined) {
-    signal(identity, 'SIGTERM');
-    if (!(await settled(() => !sameProcess(identity), withinMs))) {
-      report.push(
-        `process ${identity.pid} did not stop within ${withinMs} ms after SIGTERM`,
-      );
-      if (group === undefined) {
-        signal(identity, 'SIGKILL');
-        if (!(await settled(() => !sameProcess(identity), killWithinMs)))
-          report.push(`process ${identity.pid} is still running after SIGKILL`);
+): Promise<StopResult> {
+  try {
+    if (
+      !Number.isSafeInteger(identity.pid) ||
+      identity.pid <= 0 ||
+      !Number.isSafeInteger(identity.pgid) ||
+      identity.pgid <= 0 ||
+      identity.birth.length === 0 ||
+      identity.command.length === 0
+    )
+      return {
+        complete: false,
+        report: ['invalid captured process identity; it was not signalled'],
+      };
+    if (identity.pid === process.pid)
+      return {
+        complete: false,
+        report: [
+          `process ${identity.pid} is this command; it was not signalled`,
+        ],
+      };
+    const current = listed([identity.pid]).find(live);
+    if (current !== undefined && !matches(current, identity))
+      return {
+        complete: false,
+        report: [
+          `process ${identity.pid} has a different identity; it was not signalled`,
+        ],
+      };
+    const group =
+      identity.pgid === identity.pid
+        ? (capturedGroup ?? captureGroup(identity)).filter(
+            (entry) => entry.pgid === identity.pgid,
+          )
+        : undefined;
+    const report: string[] = [];
+    if (current !== undefined) {
+      signal(identity, 'SIGTERM');
+      if (!(await settled(() => !sameProcess(identity), withinMs))) {
+        report.push(
+          `process ${identity.pid} did not stop within ${withinMs} ms after SIGTERM`,
+        );
+        if (group === undefined) {
+          signal(identity, 'SIGKILL');
+          if (!(await settled(() => !sameProcess(identity), killWithinMs)))
+            report.push(
+              `process ${identity.pid} is still running after SIGKILL`,
+            );
+        }
       }
     }
+    if (group !== undefined) {
+      const result = await endGroup(identity.pgid, group);
+      return {
+        complete: result.complete,
+        report: [...report, ...result.report],
+      };
+    }
+    const left = listed([identity.pid]).find(live);
+    if (left !== undefined && !matches(left, identity))
+      report.push(
+        `process ${identity.pid} has a different identity; it was not signalled`,
+      );
+    return { complete: left === undefined, report };
+  } catch (error) {
+    return {
+      complete: false,
+      report: [
+        `cleanup of process ${identity.pid} could not be confirmed: ${String(error)}`,
+      ],
+    };
   }
-  if (group !== undefined)
-    return [...report, ...(await endGroup(identity.pgid, group))];
-  const left = listed([identity.pid]).find(live);
-  if (left !== undefined && !matches(left, identity))
-    report.push(
-      `process ${identity.pid} has a different identity; it was not signalled`,
-    );
-  return report;
 }
 
 export async function endLeader(
@@ -235,19 +299,40 @@ export async function endLeader(
   withinMs: number,
   captured?: ProcessIdentity,
   capturedGroup?: readonly ProcessIdentity[],
-): Promise<string[]> {
-  if (pid === process.pid)
-    return [`process ${pid} is this command; it was not signalled`];
-  const leader = listed([pid]).find(live);
-  if (leader !== undefined && !leader.command.includes(marker))
-    return [
-      `process ${pid} is not this instance's supervisor; it was not signalled`,
-    ];
-  if (captured === undefined)
-    return [`process ${pid} has no captured owner; it was not signalled`];
-  if (captured.pid !== pid || !captured.command.includes(marker))
-    return [
-      `process ${pid} does not match the captured supervisor; it was not signalled`,
-    ];
-  return endProcess(captured, withinMs, capturedGroup);
+): Promise<StopResult> {
+  try {
+    if (pid === process.pid)
+      return {
+        complete: false,
+        report: [`process ${pid} is this command; it was not signalled`],
+      };
+    const leader = listed([pid]).find(live);
+    if (leader !== undefined && !leader.command.includes(marker))
+      return {
+        complete: false,
+        report: [
+          `process ${pid} is not this instance's supervisor; it was not signalled`,
+        ],
+      };
+    if (captured === undefined)
+      return {
+        complete: false,
+        report: [`process ${pid} has no captured owner; it was not signalled`],
+      };
+    if (captured.pid !== pid || !captured.command.includes(marker))
+      return {
+        complete: false,
+        report: [
+          `process ${pid} does not match the captured supervisor; it was not signalled`,
+        ],
+      };
+    return await endProcess(captured, withinMs, capturedGroup);
+  } catch (error) {
+    return {
+      complete: false,
+      report: [
+        `cleanup of supervisor ${pid} could not be confirmed: ${String(error)}`,
+      ],
+    };
+  }
 }
