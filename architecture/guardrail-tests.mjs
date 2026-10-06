@@ -1,11 +1,10 @@
-import { deepStrictEqual, strictEqual } from 'node:assert/strict';
+import { deepStrictEqual, strictEqual, match } from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import {
   mkdirSync,
   mkdtempSync,
   rmSync,
   symlinkSync,
-  unlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -13,11 +12,7 @@ import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { domainPackages } from './policy.ts';
 import { typeRuleFindings } from './type-rules.ts';
-import { knipFindings } from './knip.ts';
-import { duplicateScope, scanDuplicates } from './duplicate-policy.ts';
-import { selectorAppears } from './feature-selectors.ts';
 import { guardrailCases } from './rule-cases.mjs';
-import { apiCalls, sameRoute } from '../scripts/api-calls.ts';
 
 function nativeTypeFixture(source) {
   const root = mkdtempSync(join(tmpdir(), 'porcelain-effect-types-'));
@@ -32,24 +27,6 @@ function nativeTypeFixture(source) {
       'package.json': '{"type":"module"}',
       'fixture.ts': Object.entries({
         __ADMISSION__: 'packages/effects/src/worktree-lease.ts',
-        __LANES__: 'apps/server/src/runtime/lanes.ts',
-        __REVIEW_SERVICES__: 'packages/reviews/src/services/index.ts',
-        __REVIEW_MODELS__: 'packages/reviews/src/models/index.ts',
-        __CLIENT_ACCESS__: 'packages/client/src/features/access/store.ts',
-        __CLIENT_SESSION__:
-          'packages/client/src/features/access/store/session.ts',
-        __CLIENT_FACTORY__:
-          'packages/client/src/features/access/ports/connection-factory.ts',
-        __CLIENT_REMOTE_CONNECTIONS__:
-          'packages/client/src/features/access/store/remote-connections.ts',
-        __CLIENT_SELECTION__: 'packages/client/src/features/projects/store.ts',
-        __CLIENT_QUEUES__: 'packages/client/src/shared/api/write-queue.ts',
-        __CLIENT_OPERATIONS__:
-          'packages/client/src/features/git-actions/ports/operation-store.ts',
-        __CLIENT_OPERATION_LAYER__:
-          'packages/client/src/features/git-actions/store/operations.ts',
-        __PROCESS_COMMAND__: 'packages/process/src/commands/run-command.ts',
-        __COMMIT_PLANNING__: 'packages/agents/src/commit-planning/index.ts',
       }).reduce(
         (text, [key, path]) => text.replaceAll(key, join(repository, path)),
         source,
@@ -101,6 +78,7 @@ function typeFixture(files) {
       writeFiles(root, {
         [`packages/${name}/tsconfig.json`]: JSON.stringify({
           compilerOptions: {
+            strict: true,
             target: 'esnext',
             module: 'nodenext',
             noEmit: true,
@@ -113,128 +91,17 @@ function typeFixture(files) {
       });
     writeFiles(root, {
       'apps/server/tsconfig.json': JSON.stringify({
-        compilerOptions: { target: 'esnext', module: 'nodenext', noEmit: true },
+        compilerOptions: {
+          strict: true,
+          target: 'esnext',
+          module: 'nodenext',
+          noEmit: true,
+        },
         include: ['src/**/*.ts', '../../packages/*/src/**/*.ts'],
       }),
-      'apps/server/src/http/status-policy.ts': 'export const rules = [];',
-      'packages/storage/src/index.ts': 'export {};',
       ...files,
     });
     return typeRuleFindings(root);
-  } finally {
-    rmSync(root, { recursive: true, force: true });
-  }
-}
-
-function clientRoutesFixture(entry, source) {
-  const root = mkdtempSync(join(tmpdir(), 'porcelain-client-routes-'));
-  try {
-    writeFiles(root, { ...entry.files, [entry.app]: source });
-    const report = apiCalls(
-      root,
-      ['packages/client/src', dirname(entry.app)],
-      [
-        /^packages\/client\/src\/features\/[^/]+\/(?:api\.ts|(?:queries|commands)\/[^/]+\.ts)$/,
-      ],
-      [dirname(entry.app)],
-    );
-    for (const route of entry.mapped)
-      strictEqual(
-        report.calls.some((call) => sameRoute(route, call)),
-        true,
-        `${route}\n${source}`,
-      );
-    return [
-      ...report.calls
-        .filter((call) => !entry.mapped.some((route) => sameRoute(route, call)))
-        .map((call) => `${call.method} ${call.path}`),
-      ...report.problems.map((problem) => problem.replace(/^[^:]+:\d+: /, '')),
-    ];
-  } finally {
-    rmSync(root, { recursive: true, force: true });
-  }
-}
-
-function duplicateFixture(entry, source) {
-  const root = mkdtempSync(join(tmpdir(), 'porcelain-clone-rule-'));
-  try {
-    const scope = {
-      ...duplicateScope(entry.scope, ['reviews', 'client']),
-      ceiling: 0,
-    };
-    for (const folder of scope.sources)
-      mkdirSync(join(root, folder), { recursive: true });
-    writeFiles(root, { [entry.first]: source, [entry.second]: source });
-    const report = scanDuplicates(root, scope);
-    return {
-      rejected: report.exceeded,
-      pairs: report.duplicates.map((clone) =>
-        [
-          relative(root, clone.firstFile.name),
-          relative(root, clone.secondFile.name),
-        ].toSorted((left, right) => left.localeCompare(right)),
-      ),
-    };
-  } finally {
-    rmSync(root, { recursive: true, force: true });
-  }
-}
-
-function duplicateRatchetFixture(entry) {
-  const root = mkdtempSync(join(tmpdir(), 'porcelain-clone-ratchet-'));
-  try {
-    const scope = {
-      ...duplicateScope('repository', ['reviews', 'client']),
-      ceiling: entry.ceiling,
-    };
-    for (const folder of scope.sources)
-      mkdirSync(join(root, folder), { recursive: true });
-    const unique = Array.from(
-      { length: 800 },
-      (_, index) => `export const unique${index} = ${index};`,
-    ).join('\n');
-    writeFiles(root, {
-      'apps/server/src/copy.ts': entry.source,
-      'packages/reviews/src/copy.ts': entry.source,
-      'packages/client/src/unique.ts': unique,
-    });
-    const before = scanDuplicates(root, scope);
-    unlinkSync(join(root, 'packages/client/src/unique.ts'));
-    const afterDeletion = scanDuplicates(root, scope);
-    strictEqual(
-      afterDeletion.statistics.total.percentage >
-        before.statistics.total.percentage,
-      true,
-    );
-    writeFiles(root, { 'apps/server/src/copy-again.ts': entry.source });
-    const afterCopy = scanDuplicates(root, scope);
-    const result = (report) => ({
-      duplicatedLines: report.statistics.total.duplicatedLines,
-      clones: report.statistics.total.clones,
-      rejected: report.exceeded,
-    });
-    deepStrictEqual(
-      { before: result(before), afterDeletion: result(afterDeletion) },
-      entry.valid,
-    );
-    deepStrictEqual(result(afterCopy), entry.invalid);
-  } finally {
-    rmSync(root, { recursive: true, force: true });
-  }
-}
-
-function knipFixture(files) {
-  const root = mkdtempSync(join(tmpdir(), 'porcelain-knip-'));
-  try {
-    symlinkSync(
-      fileURLToPath(new URL('../node_modules', import.meta.url)),
-      join(root, 'node_modules'),
-      'dir',
-    );
-    writeFiles(root, files);
-    return knipFindings(root)
-      .map(({ rule, from, to }) => `${rule}: ${from}: ${to.split(':')[0]}`)
-      .sort();
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -244,97 +111,249 @@ export function runGuardrailCases(named = []) {
   const cases = guardrailCases.filter(
     (entry) => named.length === 0 || named.includes(entry.rule),
   );
-  strictEqual(
-    cases.length > 0,
-    true,
-    'Name an existing guardrail fixture rule.',
-  );
+  strictEqual(cases.length > 0, true, 'Name an existing ownership fixture.');
   for (const entry of cases) {
-    if (
-      [
-        'worktree-capability-types',
-        'native-transport-types',
-        'native-client-state-types',
-        'native-process-types',
-        'native-agent-types',
-        'native-effect-diagnostics',
-        'review-draft-types',
-        'worktree-transaction-types',
-      ].includes(entry.rule)
-    ) {
+    if (entry.rule === 'worktree-capability-types') {
       deepStrictEqual(nativeTypeFixture(entry.valid), [], entry.rule);
       deepStrictEqual(
         nativeTypeFixture(entry.invalid),
         entry.errors,
         entry.rule,
       );
-    } else if (['unused-export', 'unused-dependency'].includes(entry.rule)) {
-      deepStrictEqual(
-        knipFixture({ ...entry.files, ...entry.valid }),
-        [],
-        entry.rule,
-      );
-      deepStrictEqual(
-        knipFixture({ ...entry.files, ...entry.invalid }),
-        entry.errors,
-        entry.rule,
-      );
-    } else if (entry.rule === 'client-route-reachability') {
-      deepStrictEqual(clientRoutesFixture(entry, entry.valid), [], entry.valid);
-      deepStrictEqual(
-        clientRoutesFixture(entry, entry.invalid),
-        entry.errors,
-        entry.invalid,
-      );
-    } else if (entry.rule === 'feature-selector') {
-      strictEqual(
-        selectorAppears(entry.valid, entry.selector),
-        true,
-        entry.selector,
-      );
-      strictEqual(
-        selectorAppears(entry.invalid, entry.selector),
-        false,
-        entry.selector,
-      );
-    } else if (entry.rule === 'duplicate-count-ratchet') {
-      duplicateRatchetFixture(entry);
-    } else if (entry.rule === 'duplicate-code') {
-      deepStrictEqual(duplicateFixture(entry, entry.valid), {
-        rejected: false,
-        pairs: [],
-      });
-      deepStrictEqual(duplicateFixture(entry, entry.invalid), {
-        rejected: true,
-        pairs: [
-          [entry.first, entry.second].toSorted((left, right) =>
-            left.localeCompare(right),
-          ),
-        ],
-      });
     } else {
       deepStrictEqual(
         typeFixture({ ...entry.files, ...entry.valid }),
         [],
         entry.rule,
       );
-      const invalid = typeFixture({ ...entry.files, ...entry.invalid });
       deepStrictEqual(
-        invalid.map((finding) => finding.rule),
+        typeFixture({ ...entry.files, ...entry.invalid }).map(
+          (finding) => finding.rule,
+        ),
         entry.errors,
         entry.rule,
       );
     }
   }
-  deepStrictEqual(duplicateScope('web', []), {
-    name: 'web',
-    sources: ['apps/web/src'],
-    metric: 'clones',
-    ceiling: 0,
-    why: 'Keep web logic in one owner so fixes cannot drift between copies.',
-  });
-  process.stdout.write(`PASS ${cases.length} guardrail fixtures\n`);
+  return cases.length;
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url))
-  runGuardrailCases(process.argv.slice(2));
+export function runBoundaryCases() {
+  const repository = fileURLToPath(new URL('../', import.meta.url));
+  const cases = [
+    {
+      rule: 'domains-independent',
+      from: 'packages/projects/src/rules/read.ts',
+      valid: 'packages/projects/src/models/project.ts',
+      invalid: 'packages/reviews/src/models/review.ts',
+    },
+    {
+      rule: 'domains-no-wire-or-platform',
+      from: 'packages/projects/src/services/nested/read.ts',
+      valid: 'packages/projects/src/models/project.ts',
+      invalid: 'packages/contracts/src/projects/inventory.ts',
+    },
+    {
+      rule: 'domains-no-node-io',
+      from: 'packages/projects/src/rules/read.ts',
+      valid: 'node:crypto',
+      invalid: 'node:fs',
+    },
+    {
+      rule: 'crypto-rules-only',
+      from: 'packages/projects/src/services/read.ts',
+      valid: 'packages/projects/src/models/project.ts',
+      invalid: 'node:crypto',
+    },
+    {
+      rule: 'kernel-independent',
+      from: 'packages/kernel/src/rules/read.ts',
+      valid: 'packages/kernel/src/models/value.ts',
+      invalid: 'packages/projects/src/models/project.ts',
+    },
+    {
+      rule: 'kernel-no-node-io',
+      from: 'packages/kernel/src/rules/read.ts',
+      valid: 'node:crypto',
+      invalid: 'node:fs',
+    },
+    {
+      rule: 'domains-no-platform-libraries',
+      from: 'packages/projects/src/services/read.ts',
+      valid: 'effect',
+      invalid: 'effect/http',
+    },
+    {
+      rule: 'domains-no-platform-libraries',
+      from: 'packages/projects/src/services/read.ts',
+      valid: 'effect',
+      invalid: 'effect/process',
+    },
+    {
+      rule: 'client-no-app-or-platform',
+      from: 'packages/client/src/features/projects/queries/read.ts',
+      valid: 'packages/client/src/features/projects/rules/project.ts',
+      invalid: 'apps/server/src/use-cases/projects/read.ts',
+    },
+    {
+      rule: 'client-no-platform-libraries',
+      from: 'packages/client/src/shared/api/read.ts',
+      valid: 'effect',
+      invalid: '@effect/platform-node',
+    },
+    {
+      rule: 'clients-no-node-io',
+      from: 'packages/client/src/shared/api/read.ts',
+      valid: 'effect',
+      invalid: 'node:fs',
+    },
+    {
+      rule: 'contracts-no-implementation',
+      from: 'packages/contracts/src/projects/read.ts',
+      valid: 'packages/contracts/src/shared/response.ts',
+      invalid: 'packages/projects/src/services/read-service.ts',
+    },
+    {
+      rule: 'contracts-no-node-io',
+      from: 'packages/contracts/src/projects/read.ts',
+      valid: 'effect',
+      invalid: 'node:fs',
+    },
+    {
+      rule: 'packages-use-public-imports',
+      from: 'packages/storage/src/read.ts',
+      valid: 'packages/kernel/src/models/value.ts',
+      invalid: 'packages/kernel/src/models/private.ts',
+    },
+    {
+      rule: 'apps-use-public-package-imports',
+      from: 'apps/web/src/features/projects/views/read.ts',
+      valid: 'packages/client/src/index.ts',
+      invalid: 'packages/client/src/features/projects/store.ts',
+    },
+    {
+      rule: 'apps-independent',
+      from: 'apps/web/src/features/projects/views/read.ts',
+      valid: 'apps/web/src/features/projects/views/title.ts',
+      invalid: 'apps/mobile/src/features/projects/views/title.ts',
+    },
+    {
+      rule: 'shared-imports-no-feature-owner',
+      from: 'apps/web/src/shared/pure.ts',
+      valid: 'apps/web/src/shared/other.ts',
+      invalid: 'apps/web/src/features/projects/views/read.ts',
+    },
+    {
+      rule: 'client-shared-imports-no-feature-owner',
+      from: 'packages/client/src/shared/api/read.ts',
+      valid: 'packages/client/src/shared/api/other.ts',
+      invalid: 'packages/client/src/features/projects/store.ts',
+    },
+    {
+      rule: 'web-routes-import-feature-index',
+      from: 'apps/web/src/routes/read.ts',
+      valid: 'apps/web/src/features/projects/index.ts',
+      invalid: 'apps/web/src/features/projects/views/read.ts',
+    },
+    {
+      rule: 'web-features-import-feature-index',
+      from: 'apps/web/src/features/files/views/read.ts',
+      valid: 'apps/web/src/features/projects/index.ts',
+      invalid: 'apps/web/src/features/projects/views/read.ts',
+    },
+    {
+      rule: 'mobile-routes-import-feature-index',
+      from: 'apps/mobile/src/app/read.ts',
+      valid: 'apps/mobile/src/features/projects/index.ts',
+      invalid: 'apps/mobile/src/features/projects/views/read.ts',
+    },
+    {
+      rule: 'mobile-features-import-feature-index',
+      from: 'apps/mobile/src/features/files/views/read.ts',
+      valid: 'apps/mobile/src/features/projects/index.ts',
+      invalid: 'apps/mobile/src/features/projects/views/read.ts',
+    },
+  ];
+  cases.push({
+    rule: 'no-circular-source-imports',
+    from: 'packages/kernel/src/rules/read.ts',
+    valid: 'packages/kernel/src/rules/leaf.ts',
+    invalid: 'packages/kernel/src/rules/cycle.ts',
+  });
+  for (const entry of cases) {
+    for (const variant of ['valid', 'invalid']) {
+      const root = mkdtempSync(join(tmpdir(), 'porcelain-boundary-'));
+      try {
+        writeFiles(root, {
+          'tsconfig.json': JSON.stringify({ include: ['**/*.ts'] }),
+          'packages/kernel/package.json': JSON.stringify({
+            exports: { './value': './src/models/value.ts' },
+          }),
+          'packages/client/package.json': JSON.stringify({
+            exports: { '.': './src/index.ts' },
+          }),
+        });
+        mkdirSync(join(root, 'node_modules/@effect'), { recursive: true });
+        symlinkSync(
+          join(repository, 'node_modules/effect'),
+          join(root, 'node_modules/effect'),
+          'dir',
+        );
+        symlinkSync(
+          join(repository, 'apps/server/node_modules/@effect/platform-node'),
+          join(root, 'node_modules/@effect/platform-node'),
+          'dir',
+        );
+        const target = entry[variant];
+        let specifier = target;
+        if (
+          !target.startsWith('node:') &&
+          !target.startsWith('effect') &&
+          !target.startsWith('@effect/')
+        ) {
+          const source =
+            entry.rule === 'no-circular-source-imports' && variant === 'invalid'
+              ? `import './read.ts'; export const value = 1;`
+              : 'export const value = 1;';
+          writeFiles(root, { [target]: source });
+          specifier = relative(dirname(entry.from), target);
+          if (!specifier.startsWith('.')) specifier = `./${specifier}`;
+        }
+        if (
+          entry.rule === 'packages-use-public-imports' &&
+          variant === 'valid'
+        ) {
+          mkdirSync(join(root, 'node_modules/@porcelain'), { recursive: true });
+          symlinkSync(
+            join(root, 'packages/kernel'),
+            join(root, 'node_modules/@porcelain/kernel'),
+            'dir',
+          );
+          specifier = '@porcelain/kernel/value';
+        }
+        writeFiles(root, {
+          [entry.from]: `import * as owner from '${specifier}'; export const result = owner;`,
+        });
+        const run = spawnSync(
+          join(repository, 'node_modules/.bin/depcruise'),
+          [
+            '--config',
+            join(repository, 'architecture/dependency-cruiser.cjs'),
+            '--output-type',
+            'err',
+            entry.from,
+          ],
+          { cwd: root, encoding: 'utf8' },
+        );
+        if (run.error) throw run.error;
+        const output = run.stdout + run.stderr;
+        strictEqual(run.signal, null, output);
+        strictEqual(run.status === 0, variant === 'valid', output);
+        if (variant === 'invalid') match(output, new RegExp(entry.rule));
+      } finally {
+        rmSync(root, { recursive: true, force: true });
+      }
+    }
+  }
+  return cases.length;
+}

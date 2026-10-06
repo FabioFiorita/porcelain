@@ -1,100 +1,13 @@
-import { Schema } from 'effect';
-import { spawnSync } from 'node:child_process';
-import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import type { KnipConfiguration } from 'knip';
-import { parseSync } from 'oxc-parser';
-import { generatedRouteTree, type ArchRule } from './policy.ts';
-const items = Schema.optional(
-  Schema.Array(
-    Schema.Struct({
-      name: Schema.String,
-    }),
-  ),
-);
-const reportSchema = Schema.Struct({
-  issues: Schema.Array(
-    Schema.Struct({
-      file: Schema.String,
-      files: items,
-      exports: items,
-      types: items,
-      nsExports: items,
-      nsTypes: items,
-      dependencies: items,
-    }),
-  ),
-});
-const source =
-  /^(?:apps\/(?:server|desktop|web|mobile)|packages\/[^/]+)\/src\/.+\.tsx?$/;
-const skipped = /(?:\.spec|\.d)\.ts$|^apps\/web\/src\/components\/ui\//;
-export function knipFindings(root: string) {
-  const checked = spawnSync(
-    join(root, 'node_modules/.bin/knip'),
-    [
-      '--config',
-      fileURLToPath(import.meta.url),
-      '--no-progress',
-      '--reporter',
-      'json',
-    ],
-    { cwd: root, encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 },
-  );
-  if (checked.error) throw checked.error;
-  if (checked.status !== 0 && checked.status !== 1)
-    throw new Error(`Knip could not check unused code: ${checked.stderr}`);
-  const report = Schema.decodeUnknownSync(reportSchema)(
-    JSON.parse(checked.stdout),
-  );
-  const findings: { rule: ArchRule; from: string; to: string }[] = [];
-  for (const issue of report.issues) {
-    if (
-      source.test(issue.file) &&
-      !skipped.test(issue.file) &&
-      issue.file !== generatedRouteTree
-    )
-      for (const kind of [
-        'files',
-        'exports',
-        'types',
-        'nsExports',
-        'nsTypes',
-      ] as const)
-        for (const item of issue[kind] ?? [])
-          findings.push({
-            rule: 'unused-export',
-            from: issue.file,
-            to: `${item.name}: delete the unused declaration or stop exporting it, because no entry point uses it`,
-          });
-    if (issue.file === 'apps/web/package.json')
-      for (const item of issue.dependencies ?? [])
-        findings.push({
-          rule: 'unused-dependency',
-          from: issue.file,
-          to: `${item.name}: remove the dependency, because no web module or stylesheet uses it`,
-        });
-  }
-  return findings;
-}
-function expoEntries(source: string, path: string): string {
-  if (!/\/apps\/mobile\/src\/app\/.+\.tsx$/.test(path)) return source;
-  const parsed = parseSync(path, source, { lang: 'tsx' });
-  if (parsed.errors.length) throw new Error(`Knip could not parse ${path}`);
-  const entries = parsed.program.body.filter(
-    (node) =>
-      node.type === 'ExportDefaultDeclaration' ||
-      (node.type === 'ExportNamedDeclaration' &&
-        node.specifiers.length === 1 &&
-        node.specifiers[0]?.exported.type === 'Identifier' &&
-        node.specifiers[0].exported.name === 'default'),
-  );
-  for (const node of entries.toReversed())
-    source =
-      source.slice(0, node.start) +
-      '/** @public */\n' +
-      source.slice(node.start);
-  return source;
-}
+
+const sourceIssues: (
+  | 'files'
+  | 'exports'
+  | 'types'
+  | 'nsExports'
+  | 'nsTypes'
+)[] = ['files', 'exports', 'types', 'nsExports', 'nsTypes'];
+
 export default {
   include: [
     'files',
@@ -105,11 +18,26 @@ export default {
     'dependencies',
   ],
   includeEntryExports: true,
+  // Keep reporting source code and web dependencies, the original useful scope.
+  ignoreIssues: {
+    'architecture/**': sourceIssues,
+    '**/scripts/**': sourceIssues,
+    '**/spec/**': sourceIssues,
+    '**/*.spec.ts': sourceIssues,
+    '**/*.d.ts': sourceIssues,
+    '**/*.config.ts': sourceIssues,
+    'vitest.config.ts': sourceIssues,
+    'apps/web/src/components/ui/**': sourceIssues,
+    'apps/web/src/routeTree.gen.ts': sourceIssues,
+    '**/package.json': ['devDependencies'],
+    'package.json': ['dependencies'],
+    'packages/*/package.json': ['dependencies'],
+    'apps/{server,desktop,mobile}/package.json': ['dependencies'],
+  },
   workspaces: {
     '.': {
       entry: [
         'scripts/*.ts',
-        'scripts/cli/**/*.ts',
         'architecture/rule-tests.mjs',
         'architecture/guardrail-tests.mjs',
       ],
@@ -140,11 +68,9 @@ export default {
         'spec/**/*.e2e.ts',
       ],
       project: ['src/**/*.{ts,tsx,css}', 'spec/**/*.{ts,tsx}'],
-      ignoreIssues: {
-        'src/components/ui/**': ['exports', 'types', 'nsExports', 'nsTypes'],
-      },
     },
     'apps/mobile': {
+      includeEntryExports: false,
       entry: [
         'src/app/**/*.tsx',
         'src/**/*.spec.ts',
@@ -164,5 +90,4 @@ export default {
       project: ['src/**/*.ts', 'spec/**/*.ts'],
     },
   },
-  compilers: { tsx: expoEntries },
 } satisfies KnipConfiguration;

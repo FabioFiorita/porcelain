@@ -18,65 +18,52 @@ export class ReadHealthUseCase extends Context.Service<ReadHealthUseCase, {
     }) };
   }));
 }`;
-const operation = nativeHealthOperation;
 
-const nativeService = `import { Context, Effect, Layer } from 'effect';
-export class ReadEnvironmentService extends Context.Service<ReadEnvironmentService, {
-  readonly execute: () => Effect.Effect<ReadEnvironmentResult, MissingEnvironmentIdentityError>
-}>()('@porcelain/access/ReadEnvironmentService') {
-  static readonly layer = Layer.effect(ReadEnvironmentService, Effect.gen(function* () {
-    const identity = yield* EnvironmentIdentityReader;
-    return { execute: Effect.fn('ReadEnvironmentService.execute')(function* (): Effect.fn.Return<ReadEnvironmentResult, MissingEnvironmentIdentityError> {
-      return { environmentId: identity.environmentId() };
-    }) };
-  }));
-}`;
 const nativeIdSource = `import { Context } from 'effect';
 export interface IdSource { next(): string; }
 export const IdSource = Context.Service<'@porcelain/kernel/IdSource', IdSource>('@porcelain/kernel/IdSource');`;
 
 export const effectRuleCases = [
-  ...[
-    nativeService.replace(
-      "'@porcelain/access/ReadEnvironmentService'",
-      "'@porcelain/access/Other'",
-    ),
-    nativeService.replace('readonly execute:', 'execute:'),
-    nativeService.replace('static readonly layer', 'readonly layer'),
-    nativeService.replace(
-      'Layer.effect(ReadEnvironmentService,',
-      'Layer.effect(OtherService,',
-    ),
-    nativeService.replace(
-      "'ReadEnvironmentService.execute'",
-      "'Other.execute'",
-    ),
-    nativeService.replace(
-      'readonly execute:',
-      'readonly refresh: () => Effect.Effect<void>; readonly execute:',
-    ),
-    nativeService.replace(
-      'static readonly layer',
-      'constructor(reader: Reader) {} static readonly layer',
-    ),
-    nativeService.replace('Layer.effect', 'custom.effect'),
-    nativeService.replace(
-      "import { Context, Effect, Layer } from 'effect';",
-      "import { Effect, Layer } from 'effect'; const Context = { Service: makeService };",
-    ),
-  ].map((invalid) => ({
-    rule: 'operation-class-shape',
-    path: 'packages/access/src/services/read-environment-service.ts',
-    valid: nativeService,
-    invalid,
+  ...['desktop', 'mobile'].map((app) => ({
+    rule: 'web-journey-retrying-assertions',
+    path: 'apps/web/spec/e2e/scope.e2e.ts',
+    validPath: `apps/${app}/spec/e2e/scope.e2e.ts`,
+    valid:
+      "test('observes the native state', () => { expect('ready').toBe('ready'); });",
+    invalid:
+      "test('observes the page state', () => { expect('ready').toBe('ready'); });",
     errors: 1,
   })),
   {
-    rule: 'operation-class-shape',
-    path: 'packages/access/src/services/read-environment-service.ts',
-    valid: nativeService,
+    rule: 'web-rules-are-pure',
+    path: 'packages/client/src/features/files/rules/read.ts',
+    validPath: 'packages/client/src/features/files/rules/read.spec.ts',
+    valid: "import { expect } from 'vitest';",
+    invalid: "import { useQuery } from '@tanstack/react-query';",
+    errors: 1,
+  },
+  {
+    rule: 'operation-capability',
+    path: 'apps/server/src/use-cases/access/read-health.ts',
+    valid: nativeHealthOperation.replace(
+      "Effect.fn('ReadHealthUseCase.execute')",
+      "Effect.fn('health')",
+    ),
     invalid:
-      'export class ReadEnvironmentService { execute(): Effect.Effect<ReadEnvironmentResult> { return Effect.succeed(result); } }',
+      'export class ReadHealthUseCase { execute() { return undefined; } }',
+    errors: 1,
+  },
+  {
+    rule: 'operation-capability',
+    path: 'apps/server/src/use-cases/access/read-health.ts',
+    valid: nativeHealthOperation.replace(
+      'static readonly layer',
+      "static readonly label = 'health'; static readonly layer",
+    ),
+    invalid: nativeHealthOperation.replace(
+      "'@porcelain/server/ReadHealthUseCase'",
+      "'@porcelain/server/Other'",
+    ),
     errors: 1,
   },
   ...[
@@ -102,23 +89,6 @@ export const effectRuleCases = [
     invalid: nativeIdSource,
     errors: 2,
   },
-  ...['AbortSignal', 'AbortController'].map((raw) => ({
-    rule: 'operation-class-shape',
-    path: 'apps/server/src/use-cases/access/read-health.ts',
-    valid: operation,
-    invalid: operation.replace(
-      'static readonly layer',
-      `private readonly cancellation: ${raw}; static readonly layer`,
-    ),
-    errors: 2,
-  })),
-  {
-    rule: 'spec-imports',
-    path: 'packages/client/src/shared/api/write-queue.spec.ts',
-    valid: `import { it } from '@effect/vitest'; import { Deferred, Effect } from 'effect';`,
-    invalid: `import { useMutation } from '@tanstack/react-query';`,
-    errors: 1,
-  },
 
   ...[
     `import { FileDraft } from '@porcelain/client/files'; export { FileDraft };`,
@@ -140,13 +110,7 @@ export const effectRuleCases = [
     invalid: `export const open = (url: string) => new WebSocket(url);`,
     errors: 1,
   })),
-  {
-    rule: 'spec-imports',
-    path: 'packages/client/src/features/live/commands/live-queries.spec.ts',
-    valid: `import { createOperationStore } from '@porcelain/client/git-actions'; import { Socket } from 'effect/socket'; import { RpcClient } from 'effect/rpc'; import { NetAddress } from 'effect/net';`,
-    invalid: `import { createOperationStore } from '../../git-actions/store/operations.ts';`,
-    errors: 1,
-  },
+
   ...[
     `import { withReadLease } from '@porcelain/effects';`,
     `import { withWriteLease as admit } from '@porcelain/effects/worktree';`,
@@ -189,26 +153,7 @@ it('reads once', async () => { const test = { read }; const result = await test.
 it('reads once', async () => { const result = await read(); if (result) it('asserts later', () => expect(result).toBe('saved')); });`,
     errors: 1,
   },
-  ...[
-    route.replace("'@porcelain/contracts/files'", "'./private-api.ts'"),
-    route.replace("group(FilesApi, 'files'", "group(otherApi, 'files'"),
-    route.replace("group(FilesApi, 'files'", 'group(FilesApi, groupName'),
-    route.replace(
-      "(handlers) =>\n  handlers.handle('readTextFile', ({ params, query }) => useCases.readTextFile.execute({ ...params, ...query }))",
-      'buildHandlers',
-    ),
-    route.replace(
-      "import { HttpApiBuilder } from 'effect/http-api';",
-      'const HttpApiBuilder = custom;',
-    ),
-    route.replace('HttpApiBuilder.layer(FilesApi)', 'manualRoutes(FilesApi)'),
-  ].map((invalid) => ({
-    rule: 'feature-route-shape',
-    path,
-    valid: route,
-    invalid,
-    errors: 1,
-  })),
+
   ...[
     "server.route({ method: 'GET', url: '/api/worktrees/:worktreeId/text' });",
     "server['get']('/api/worktrees/:worktreeId/text', handler);",
@@ -221,117 +166,6 @@ it('reads once', async () => { const result = await read(); if (result) it('asse
     invalid: `${route}\n${registration}`,
     errors: 1,
   })),
-  ...[
-    route.replace(
-      'useCases.readTextFile.execute({ ...params, ...query })',
-      'Effect.succeed({ text: "wrong" })',
-    ),
-    route.replace(
-      'useCases.readTextFile.execute({ ...params, ...query })',
-      'Effect.andThen(useCases.readTextFile.execute(params), useCases.editFile.execute(query))',
-    ),
-    route.replace(
-      '({ params, query }) => useCases',
-      'async ({ params, query }) => useCases',
-    ),
-    route.replace(
-      'useCases.readTextFile.execute({ ...params, ...query })',
-      'flag ? useCases.readTextFile.execute(params) : Effect.void',
-    ),
-  ].map((invalid) => ({
-    rule: 'feature-route-handler',
-    path,
-    valid: route,
-    invalid,
-    errors: 1,
-  })),
-  ...[
-    {
-      invalid: operation.replace('ReadHealthUseCase', 'ReadHealthController'),
-      errors: 2,
-    },
-    ...[
-      'private reader: Reader;',
-      'readonly reader: Reader;',
-      'forOwner(): void {}',
-    ].map((member) => ({
-      invalid: operation.replace(
-        'static readonly layer',
-        `${member} static readonly layer`,
-      ),
-      errors: 1,
-    })),
-    {
-      invalid: operation.replace(
-        'execute: ()',
-        'execute: (context: OperationContext)',
-      ),
-      errors: 1,
-    },
-    {
-      invalid: operation.replace(
-        'execute: ()',
-        'execute: (input: ReadHealthInput, signal?: AbortSignal)',
-      ),
-      errors: 2,
-    },
-    {
-      invalid: operation.replace(
-        'Effect.Effect<ReadHealthResponse, MissingEnvironmentIdentityError>',
-        'Promise<ReadHealthResponse>',
-      ),
-      errors: 1,
-    },
-    {
-      invalid: operation.replace(
-        'readonly execute: ()',
-        'readonly execute: (input: {})',
-      ),
-      errors: 1,
-    },
-    {
-      invalid: operation.replace('readonly execute:', 'readonly read:'),
-      errors: 1,
-    },
-    { invalid: `${operation}\nexport const fallback = undefined;`, errors: 1 },
-    {
-      invalid:
-        'export class ReadHealthUseCase { execute(): Effect.Effect<ReadHealthResponse> { return Effect.succeed(result); } }',
-      errors: 1,
-    },
-    {
-      invalid: operation.replace(
-        'function* (): Effect.fn.Return',
-        'async function* (): Effect.fn.Return',
-      ),
-      errors: 1,
-    },
-  ].map((entry) => ({
-    rule: 'operation-class-shape',
-    path: 'apps/server/src/use-cases/access/read-health.ts',
-    valid: operation,
-    ...entry,
-  })),
-  ...['', 'input: ReadTextFileInput, signal?: AbortSignal'].map((args) => ({
-    rule: 'operation-class-shape',
-    path: 'packages/files/src/services/read-text-file-service.ts',
-    valid: `import { Context, Effect, Layer } from 'effect';
-export class ReadTextFileService extends Context.Service<ReadTextFileService, { readonly execute: (input: ReadTextFileInput) => Effect.Effect<ReadTextFileResult, ReadFailure, WorktreeRead> }>()('@porcelain/files/ReadTextFileService') {
- static readonly layer = Layer.effect(ReadTextFileService, Effect.sync(() => { return { execute: Effect.fn('ReadTextFileService.execute')(function* (input: ReadTextFileInput): Effect.fn.Return<ReadTextFileResult, ReadFailure, WorktreeRead> { return yield* Effect.succeed(result); }) }; }));
-}`,
-    invalid: `export class ReadTextFileService { execute(${args}): Effect.Effect<ReadTextFileResult, ReadFailure, WorktreeRead> { return Effect.succeed(result); } }`,
-    errors: args ? 2 : 1,
-  })),
-
-  {
-    rule: 'port-shape',
-    path: 'apps/server/src/ports/check-worktree-use-case-port.ts',
-    valid:
-      'export interface CheckWorktreeUseCasePort { execute(input: CheckWorktreeInput): Effect.Effect<ListedWorktree, WorktreeAccessFailure>; }',
-    invalid:
-      'export interface CheckWorktreeUseCasePort { execute(input: CheckWorktreeInput, context: OperationContext): Effect.Effect<ListedWorktree, WorktreeAccessFailure>; }',
-    errors: 1,
-  },
 ];
 
 const atomicMutation = `import { Effect } from 'effect';

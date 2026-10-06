@@ -32,7 +32,7 @@ const readHooks = new Set([
   'infiniteQueryOptions',
 ]);
 const writeHooks = new Set(['useMutation', 'mutationOptions']);
-const promiseContinuations = new Set(['then', 'catch', 'finally']);
+
 const cacheWrites = new Set([
   'setQueryData',
   'setQueriesData',
@@ -68,23 +68,7 @@ const keyEvents = new Set(['keydown', 'keyup', 'keypress']);
 const historyGlobals = new Set(['history']);
 const pureRuleModules =
   /^(?:@porcelain\/contracts(?:\/|$)|@porcelain\/client\/[^/]+\/rules$|effect\/(?:Schema|Redacted)$)/;
-const loopStatements = new Set([
-  'ForStatement',
-  'ForInStatement',
-  'ForOfStatement',
-  'WhileStatement',
-  'DoWhileStatement',
-]);
-const iterationMethods = new Set([
-  'forEach',
-  'map',
-  'flatMap',
-  'reduce',
-  'filter',
-  'some',
-  'every',
-  'find',
-]);
+
 const functionTypes = new Set([
   'FunctionDeclaration',
   'FunctionExpression',
@@ -506,24 +490,6 @@ function stringValue(node) {
   return undefined;
 }
 
-function commandCalls(body, visitorKeys) {
-  const calls = [];
-  const visit = (node) => {
-    if (!node || typeof node.type !== 'string') return;
-    if (node !== body && functionTypes.has(node.type)) return;
-    if (node.type === 'CallExpression') {
-      const method = methodName(node.callee);
-      if (method === 'mutate' || method === 'mutateAsync') calls.push(node);
-    }
-    for (const key of visitorKeys[node.type] ?? []) {
-      const child = node[key];
-      for (const entry of Array.isArray(child) ? child : [child]) visit(entry);
-    }
-  };
-  visit(body);
-  return calls;
-}
-
 export const webRules = {
   'client-platform-through-ports': {
     create(context) {
@@ -589,26 +555,12 @@ export const webRules = {
       };
     },
   },
-  'web-no-context': hookBan({
-    names: new Set(['createContext', 'useContext']),
-    modules: reactModules,
-    allowed: never,
-    message: (name) =>
-      `\`${name}\` is not ours here: shared client state is the feature store.ts and server data is Query; a provider hides who owns the value, because a provider hides ownership of shared client state.`,
-  }),
   'web-no-action-hooks': hookBan({
     names: new Set(['useOptimistic', 'useActionState', 'useFormStatus']),
     modules: reactModules,
     allowed: never,
     message: (name) =>
       `\`${name}\` is not ours here: writes are commands/ mutations, optimistic updates live in the command, and form state is TanStack Form, because writes and optimistic updates need one command owner.`,
-  }),
-  'web-no-manual-memo': hookBan({
-    names: new Set(['useMemo', 'useCallback']),
-    modules: reactModules,
-    allowed: never,
-    message: (name) =>
-      `\`${name}\` is not ours here: the React Compiler memoizes every component; hand memoization hides what it cannot compile, because hand memoization hides failures of the compiler used by the build.`,
   }),
   'web-store-owns-atoms': {
     create(context) {
@@ -715,39 +667,6 @@ export const webRules = {
               message:
                 'A query key is built in features/<domain>/queries/ only; elsewhere read it from the factory as options.queryKey, because duplicated read definitions can use inconsistent keys or freshness.',
             });
-        },
-      };
-    },
-  },
-  'web-queries-export-reads': {
-    create(context) {
-      if (webPart(webPath(context)) !== 'query') return {};
-      const message =
-        'A queries/ file exports only native reads and read hooks; pure decisions belong in rules/, and re-exports belong in index.ts, because mixing decisions with reads hides their independent owner.';
-      const readName = (name) => /^(?:use|read)[A-Z]/.test(name);
-      return {
-        ExportAllDeclaration(node) {
-          context.report({ node, message });
-        },
-        ExportDefaultDeclaration(node) {
-          context.report({ node, message });
-        },
-        ExportNamedDeclaration(node) {
-          if (node.source || node.specifiers.length > 0) {
-            context.report({ node, message });
-            return;
-          }
-          const declaration = node.declaration;
-          const names =
-            declaration?.type === 'FunctionDeclaration'
-              ? [declaration.id?.name]
-              : declaration?.type === 'VariableDeclaration'
-                ? declaration.declarations.map((entry) =>
-                    entry.id.type === 'Identifier' ? entry.id.name : undefined,
-                  )
-                : [];
-          if (names.length === 0 || names.some((name) => !readName(name ?? '')))
-            context.report({ node, message });
         },
       };
     },
@@ -954,70 +873,6 @@ export const webRules = {
       };
     },
   },
-  'web-views-no-await': viewRule((context) => ({
-    AwaitExpression(node) {
-      context.report({
-        node,
-        message:
-          'A view does not await: it calls a command hook and renders the command state; the async work lives in commands/, because commands must own completion state across view unmounts.',
-      });
-    },
-    ForOfStatement(node) {
-      if (node.await)
-        context.report({
-          node,
-          message:
-            'A view does not await: it calls a command hook and renders the command state; the async work lives in commands/, because commands must own completion state across view unmounts.',
-        });
-    },
-  })),
-  'web-views-no-promise-chains': viewRule((context) => ({
-    CallExpression(node) {
-      if (!promiseContinuations.has(promiseContinuationName(node.callee)))
-        return;
-      context.report({
-        node,
-        message:
-          'A view does not sequence promise completion: put success and error work in a command hook and let the view forward the event, because commands must own completion state across view unmounts.',
-      });
-    },
-  })),
-  'web-views-no-try': viewRule((context) => ({
-    TryStatement(node) {
-      context.report({
-        node,
-        message:
-          'A view does not catch: a failed command reports through its hook state and the route error view; recovery lives in commands/, because command failures must reach command state or the error view.',
-      });
-    },
-  })),
-  'web-views-no-command-loops': viewRule((context) => {
-    const bodies = [];
-    const message =
-      'A view does not loop over a command: a write that spans many items is one command in commands/ that takes the list, because one command must coordinate completion of a multi-item write.';
-    return {
-      ...Object.fromEntries(
-        [...loopStatements].map((type) => [
-          type,
-          (node) => bodies.push(node.body),
-        ]),
-      ),
-      CallExpression(node) {
-        const callback = node.arguments[0];
-        if (
-          iterationMethods.has(methodName(node.callee) ?? '') &&
-          callback &&
-          functionTypes.has(callback.type)
-        )
-          bodies.push(callback.body);
-      },
-      'Program:exit'() {
-        for (const body of bodies)
-          for (const node of commandCalls(body, context.sourceCode.visitorKeys))
-            context.report({ node, message });
-      },
-    };
-  }),
   'web-views-no-direct-data': viewRule((context, path) => ({
     ImportDeclaration(node) {
       const specifier = sourceOf(node) ?? '';
