@@ -13,7 +13,7 @@ import { DesktopActions } from '@/app/desktop-actions';
 
 export const Route = createFileRoute('/_paired')({
   beforeLoad: async ({ context }) => {
-    if (!(await restoreSession(context.queryClient)))
+    if (!(await restoreSession(context.registry)))
       redirect({ to: '/pair', replace: true, throw: true });
   },
   pendingMs: 0,

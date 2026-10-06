@@ -1,4 +1,5 @@
 import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
+import { AtomRegistry } from 'effect/reactivity';
 import { Suspense, useRef, useState, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { expect, test as base } from 'vitest';
@@ -100,13 +101,16 @@ function readersOf(server: ServerName) {
 
 function Providers({
   client,
+  registry,
   children,
 }: {
   client: QueryClient;
+  registry: AtomRegistry.AtomRegistry;
   children: ReactNode;
 }) {
   return (
     <AppProviders
+      registry={registry}
       query={(app) => (
         <QueryClientProvider client={client}>{app}</QueryClientProvider>
       )}
@@ -159,32 +163,40 @@ function Navigator({ connection }: { connection: Connection }) {
   );
 }
 
-async function pairedConnection(client: QueryClient): Promise<Connection> {
+async function pairedConnection(
+  registry: AtomRegistry.AtomRegistry,
+): Promise<Connection> {
   const issued = await host.porcelainPairingLink('Journey browser', 'this');
   await pairBrowser(
-    client,
+    registry,
     { code: issued.code, environmentId: issued.environmentId },
     new AbortController().signal,
   );
   const { connection } = accessSession.state.value;
-  if (!(await restoreSession(client)) || connection === null)
+  if (!(await restoreSession(registry)) || connection === null)
     throw new Error('Pairing left no session the paired routes restore.');
   return connection;
 }
 
 async function mount(view: (connection: Connection) => ReactNode) {
   const client = createQueryClient();
-  const connection = await pairedConnection(client);
+  const registry = AtomRegistry.make();
+  const connection = await pairedConnection(registry);
   const element = document.createElement('div');
   document.body.append(element);
   const root = createRoot(element);
-  root.render(<Providers client={client}>{view(connection)}</Providers>);
+  root.render(
+    <Providers client={client} registry={registry}>
+      {view(connection)}
+    </Providers>,
+  );
   return () => {
     watching = false;
     root.unmount();
     element.remove();
     accessSession.clear();
     client.clear();
+    registry.dispose();
     localStorage.clear();
     sessionStorage.clear();
   };

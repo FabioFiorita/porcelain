@@ -1,7 +1,7 @@
 export { EnvironmentStorage } from './ports/environment-storage.ts';
 export type { AccessPlatform } from './ports/access-platform.ts';
 export { AccessStore } from './store.ts';
-export { pairEnvironment, redeemBrowserPairing } from './commands/pairing.ts';
+export { pairEnvironment, pairBrowserSession } from './commands/pairing.ts';
 export { readRemoteStatus } from './queries/environments.ts';
 export {
   issuePairing,
@@ -16,5 +16,5 @@ export {
   readRemoteAccess,
   readServiceUpdate,
 } from './queries/share.ts';
-export { sessionQueryOptions } from './queries/session.ts';
+export { readBrowserSession } from './queries/session.ts';
 export { disconnectBrowserSession } from './commands/session.ts';

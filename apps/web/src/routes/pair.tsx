@@ -19,7 +19,7 @@ export const Route = createFileRoute('/pair')({
   loader: async ({ context, abortController }) => {
     const fragment = window.location.hash;
     if (!fragment) {
-      if (await restoreSession(context.queryClient))
+      if (await restoreSession(context.registry))
         redirect({ to: '/', replace: true, throw: true });
       return undefined;
     }
@@ -31,7 +31,7 @@ export const Route = createFileRoute('/pair')({
     const link = parsePairingLink(fragment);
     if (!link) return { reason: 'That link carried no pairing code.' };
     try {
-      await pairBrowser(context.queryClient, link, abortController.signal);
+      await pairBrowser(context.registry, link, abortController.signal);
     } catch (error) {
       return { reason: connectionErrorMessage(error) };
     }

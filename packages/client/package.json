@@ -8,7 +8,6 @@
     "./access": "./src/features/access/index.ts",
     "./access/api": "./src/features/access/api.ts",
     "./projects": "./src/features/projects/index.ts",
-    "./projects/api": "./src/features/projects/api.ts",
     "./projects/rules": "./src/features/projects/rules/index.ts",
     "./files": "./src/features/files/index.ts",
     "./changes": "./src/features/changes/index.ts",
@@ -33,7 +32,6 @@
     "@porcelain/effects": "workspace:*",
     "@porcelain/files": "workspace:*",
     "@porcelain/kernel": "workspace:*",
-    "@tanstack/query-core": "5.102.8",
     "effect": "4.0.0"
   },
   "devDependencies": {

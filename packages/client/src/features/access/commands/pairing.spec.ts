@@ -1,14 +1,94 @@
-import { Effect } from 'effect';
-import { describe, expect, it } from 'vitest';
+import { Cause, Effect, Exit } from 'effect';
+import { AtomRegistry } from 'effect/reactivity';
+import { afterEach, describe, expect, it } from 'vitest';
 import { ENVIRONMENT_PROTOCOL } from '@porcelain/contracts/shared';
 import { runRequest } from '@porcelain/client/transport';
-import { pairEnvironment } from './pairing.ts';
+import { pairBrowserSession, pairEnvironment } from './pairing.ts';
 import {
   AccessStore,
   EnvironmentStorage,
   type AccessPlatform,
 } from '@porcelain/client/access';
 import type { Remote } from '@porcelain/client/access/rules';
+
+const registries = new Set<AtomRegistry.AtomRegistry>();
+afterEach(() => {
+  for (const registry of registries) registry.dispose();
+  registries.clear();
+});
+
+it('does not send a browser pairing request after its caller has already cancelled', async () => {
+  const registry = AtomRegistry.make();
+  registries.add(registry);
+  const paths: string[] = [];
+  const command = pairBrowserSession({
+    transport: (path) => {
+      paths.push(path);
+      return Promise.reject(
+        new Error('Cancelled pairing must not reach transport.'),
+      );
+    },
+    platform: { name: () => 'Browser' },
+  });
+  const controller = new AbortController();
+  controller.abort();
+  registry.set(command, {
+    link: { code: 'cancelled', environmentId: 'installation' },
+    signal: controller.signal,
+  });
+  const exit = await Effect.runPromiseExit(
+    AtomRegistry.getResult(registry, command, { suspendOnWaiting: true }),
+  );
+  expect(Exit.isFailure(exit) && Cause.hasInterrupts(exit.cause)).toBe(true);
+  expect(paths).toEqual([]);
+});
+
+it('cancels the actual browser pairing transport before reading or publishing a workspace', async () => {
+  const registry = AtomRegistry.make();
+  registries.add(registry);
+  const paths: string[] = [];
+  const requested = Promise.withResolvers<void>();
+  const aborted = Promise.withResolvers<void>();
+  let requestSignal: AbortSignal | null | undefined;
+  const command = pairBrowserSession({
+    transport: (path, init) => {
+      paths.push(path);
+      if (path === '/api/health')
+        return Promise.resolve(
+          Response.json({ status: 'ok', environmentId: 'installation' }),
+        );
+      requestSignal = init?.signal;
+      requested.resolve();
+      return new Promise<Response>((_resolve, reject) => {
+        requestSignal?.addEventListener(
+          'abort',
+          () => {
+            aborted.resolve();
+            reject(requestSignal?.reason);
+          },
+          { once: true },
+        );
+      });
+    },
+    platform: { name: () => 'Browser' },
+  });
+  const controller = new AbortController();
+  registry.set(command, {
+    link: { code: 'cancelled', environmentId: 'installation' },
+    signal: controller.signal,
+  });
+  const result = Effect.runPromiseExit(
+    AtomRegistry.getResult(registry, command, { suspendOnWaiting: true }),
+  );
+  await requested.promise;
+  expect(requestSignal?.aborted).toBe(false);
+  controller.abort();
+  const exit = await result;
+  await aborted.promise;
+  expect(Exit.isFailure(exit) && Cause.hasInterrupts(exit.cause)).toBe(true);
+  expect(requestSignal?.aborted).toBe(true);
+  expect(paths).toEqual(['/api/health', '/api/pair']);
+});
 
 function fixture(
   environmentId = 'installation',

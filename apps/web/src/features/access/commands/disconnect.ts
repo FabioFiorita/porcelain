@@ -1,35 +1,27 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAtom } from '@effect/atom-react';
+import { Effect } from 'effect';
+import { Atom } from 'effect/reactivity';
 import { disconnectBrowserSession } from '@porcelain/client/access';
-import { runRequest } from '@porcelain/client/transport';
-import { browserTransport } from '@/shared/api/transport';
-import { REQUEST_TIMEOUT_MS } from '@/config/limits';
+import type { Connection } from '@/shared/workspace/connection';
 import { accessSession } from '../store';
 
-function disconnectSession() {
-  return runRequest(
-    disconnectBrowserSession(
-      browserTransport(fetch),
-      accessSession.state.value.connection?.environmentId,
-    ),
-    AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-  );
-}
-
-export function useDisconnect() {
-  const client = useQueryClient();
-  const mutation = useMutation({
-    scope: { id: 'access.session' },
-    mutationFn: disconnectSession,
-    onSuccess: async () => {
+const disconnectAndClear = Atom.family((connection: Connection) =>
+  Atom.fn((_: void, get) =>
+    Effect.gen(function* () {
+      yield* get.setResult(disconnectBrowserSession(connection), undefined);
       accessSession.clear();
-      await client.cancelQueries();
-      client.clear();
-    },
+    }),
+  ),
+);
+
+export function useDisconnect(connection: Connection) {
+  const [result, run] = useAtom(disconnectAndClear(connection), {
+    mode: 'promiseExit',
   });
   return {
-    submit: mutation.mutateAsync,
-    onSubmit: mutation.mutate,
-    isPending: mutation.isPending,
-    error: mutation.error,
+    result,
+    submit: () => {
+      void run();
+    },
   };
 }

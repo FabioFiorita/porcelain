@@ -17,14 +17,14 @@ import {
   type Remote,
   type RemoteAnswer,
 } from '../rules/remotes.ts';
-import { accessApi } from '../api.ts';
+import { BootstrapClient } from '../../../shared/api/bootstrap-client.ts';
 
 export function readRemoteEnvironment(
   transport: Transport,
   environmentId: string,
 ): Effect.Effect<RemoteAnswer> {
-  const api = accessApi({ transport });
   return Effect.gen(function* () {
+    const api = yield* BootstrapClient;
     const environment = yield* requestEffect(
       api.publicAccess.readEnvironment(),
     );
@@ -35,6 +35,7 @@ export function readRemoteEnvironment(
       yield* requestEffect(api.session.readSession());
     return { kind: 'described' as const, environment };
   }).pipe(
+    Effect.provide(BootstrapClient.layer(transport)),
     Effect.catch((error) =>
       Effect.succeed<RemoteAnswer>(
         error instanceof RequestError && error.status === 401

@@ -1,4 +1,5 @@
-import { RegistryProvider } from '@effect/atom-react';
+import { RegistryContext } from '@effect/atom-react';
+import type { AtomRegistry } from 'effect/reactivity';
 import { StrictMode, type ReactNode } from 'react';
 import { toast, Toaster } from '@/components/ui/toast';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -9,14 +10,16 @@ onCopyNotice((notice) => toast.add(notice));
 
 export function AppProviders({
   query,
+  registry,
   children,
 }: {
   query: (app: ReactNode) => ReactNode;
+  registry: AtomRegistry.AtomRegistry;
   children: ReactNode;
 }) {
   return (
     <StrictMode>
-      <RegistryProvider>
+      <RegistryContext.Provider value={registry}>
         <TooltipProvider>
           {query(
             <WorkspaceProvider>
@@ -24,7 +27,7 @@ export function AppProviders({
             </WorkspaceProvider>,
           )}
         </TooltipProvider>
-      </RegistryProvider>
+      </RegistryContext.Provider>
     </StrictMode>
   );
 }

@@ -1,6 +1,6 @@
-import { MutationObserver, type QueryClient } from '@tanstack/react-query';
-import { redeemBrowserPairing } from '@porcelain/client/access';
-import { runRequest } from '@porcelain/client/transport';
+import { Cause, Effect, Exit } from 'effect';
+import { AtomRegistry } from 'effect/reactivity';
+import { pairBrowserSession } from '@porcelain/client/access';
 import { browserTransport } from '@/shared/api/transport';
 import { pairingPlatform } from '../store';
 import { connectionErrorMessage } from '@porcelain/client/access/rules';
@@ -9,37 +9,33 @@ import { accessSession } from '../store';
 import { ConnectionError } from '@porcelain/client/transport';
 import { REQUEST_TIMEOUT_MS } from '@/config/limits';
 
-async function redeemPairing(link: PairingCode, signal: AbortSignal) {
-  try {
-    return await runRequest(
-      redeemBrowserPairing(browserTransport(fetch), pairingPlatform, link),
-      AbortSignal.any([signal, AbortSignal.timeout(REQUEST_TIMEOUT_MS)]),
-    );
-  } catch (error) {
-    throw new ConnectionError({
-      message: connectionErrorMessage(error),
-      cause: error,
-    });
-  }
-}
+const pairing = pairBrowserSession({
+  transport: browserTransport(fetch),
+  platform: pairingPlatform,
+});
 
 export async function pairBrowser(
-  client: QueryClient,
+  registry: AtomRegistry.AtomRegistry,
   link: PairingCode,
   signal: AbortSignal,
 ) {
-  const mutation = new MutationObserver(client, {
-    scope: { id: 'access.pairing' },
-    onMutate: () => ({
-      complete: accessSession.beginConnection(),
-    }),
-    mutationFn: (code: PairingCode) => redeemPairing(code, signal),
-    onSuccess: (session, _link, context) => {
-      if (!context.complete?.(session)) return;
-      client.clear();
-    },
-  });
-  const session = await mutation.mutate(link);
+  const complete = accessSession.beginConnection();
+  const requestSignal = AbortSignal.any([
+    signal,
+    AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+  ]);
+  registry.set(pairing, { link, signal: requestSignal });
+  const exit = await Effect.runPromiseExit(
+    AtomRegistry.getResult(registry, pairing, { suspendOnWaiting: true }),
+    { signal: requestSignal },
+  );
+  if (Exit.isFailure(exit))
+    throw new ConnectionError({
+      message: connectionErrorMessage(Cause.squash(exit.cause)),
+      cause: Cause.squash(exit.cause),
+    });
+  const session = exit.value;
+  complete?.(session);
   if (
     accessSession.state.value.connection?.environmentId !==
     session.inventory.environmentId
