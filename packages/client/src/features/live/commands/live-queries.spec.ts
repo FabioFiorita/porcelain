@@ -1,4 +1,4 @@
-import { AtomRegistry } from 'effect/reactivity';
+import { AtomRegistry, Reactivity } from 'effect/reactivity';
 import { Layer, ManagedRuntime, type Context } from 'effect';
 import { afterEach } from 'vitest';
 import { Effect } from 'effect';
@@ -7,6 +7,7 @@ import { expect, it } from 'vitest';
 import {
   createWorktreeConnection,
   queryKeys,
+  type Transport,
 } from '@porcelain/client/transport';
 import {
   OperationStore,
@@ -17,6 +18,7 @@ import type { RunGitActionRequest } from '@porcelain/contracts/git-actions';
 import type { LiveSubscription, LiveUpdatePort } from '../ports/live-update.ts';
 import { connectLiveQueries } from './live-queries.ts';
 
+const environmentId = '44444444-4444-4444-8444-444444444444';
 const projectId = '11111111-1111-4111-8111-111111111111';
 const requestId = '22222222-2222-4222-8222-222222222222';
 const request: RunGitActionRequest = {
@@ -34,17 +36,22 @@ const request: RunGitActionRequest = {
   },
 };
 
-function setup() {
+function setup(
+  transport?: Transport,
+  onSubscription?: (subscription: LiveSubscription) => void,
+) {
   const lifetime = createWorktreeConnection({
-    environmentId: 'live',
-    transport: () =>
-      Promise.resolve(
-        Response.json({
-          environmentId: 'live',
-          environment: { name: 'Live', custom: false },
-          projects: [],
-        }),
-      ),
+    environmentId,
+    transport:
+      transport ??
+      (() =>
+        Promise.resolve(
+          Response.json({
+            environmentId,
+            environment: { name: 'Live', custom: false },
+            projects: [],
+          }),
+        )),
     timeoutMs: 1000,
   });
   const registry = AtomRegistry.make();
@@ -59,6 +66,7 @@ function setup() {
       return {
         subscribe: (value) => {
           sent.push(value);
+          onSubscription?.(value);
           subscribed.resolve();
         },
       };
@@ -152,22 +160,33 @@ it('does not send a queued subscription after the live session closes', async ()
 
 it('ignores late notices and reconnect callbacks after closing the live session', async () => {
   const subject = setup();
-  const key = queryKeys.inventory('live');
-  subject.client.setQueryData(key, 'cached');
+  let refreshes = 0;
+  const unregister = subject.connection.runtime
+    .runSync(Reactivity.Reactivity)
+    .registerUnsafe([queryKeys.inventory(environmentId)], () => {
+      refreshes += 1;
+    });
   try {
     subject.close();
     subject.live()?.onNotice({ type: 'inventory' });
     subject.live()?.onReconnect();
     await Promise.resolve();
-    expect(subject.client.getQueryState(key)?.isInvalidated).toBe(false);
+    expect(refreshes).toBe(0);
     expect(subject.sent).toEqual([]);
   } finally {
+    unregister();
     await subject.cleanup();
   }
 });
 
 it('a file notice invalidates only the connected environment', async () => {
   const subject = setup();
+  let inventoryRefreshes = 0;
+  const unregister = subject.connection.runtime
+    .runSync(Reactivity.Reactivity)
+    .registerUnsafe([queryKeys.inventory(environmentId)], () => {
+      inventoryRefreshes += 1;
+    });
   const scope = { projectId, worktreeId: '00000000000000000000000000000001' };
   const current = queryKeys.worktreeSurface(subject.connection, scope, [
     'text',
@@ -179,9 +198,11 @@ it('a file notice invalidates only the connected environment', async () => {
   try {
     subject.live()?.onNotice({ type: 'worktree', ...scope, change: 'files' });
     await Promise.resolve();
+    expect(inventoryRefreshes).toBe(1);
     expect(subject.client.getQueryState(current)?.isInvalidated).toBe(true);
     expect(subject.client.getQueryState(other)?.isInvalidated).toBe(false);
   } finally {
+    unregister();
     await subject.cleanup();
   }
 });
@@ -230,3 +251,44 @@ function operationStoreFixture(
   owned.add(runtime);
   return { runtime, store: runtime.runSync(OperationStore) };
 }
+
+it('native inventory updates change the live project subscription without a legacy inventory cache', async () => {
+  const initial = Promise.withResolvers<void>();
+  const refreshed = Promise.withResolvers<void>();
+  const another = '33333333-3333-4333-8333-333333333333';
+  let reads = 0;
+  const subject = setup(
+    () => {
+      reads += 1;
+      return Promise.resolve(
+        Response.json({
+          environmentId,
+          environment: { name: 'Live', custom: false },
+          projects: (reads === 1 ? [projectId] : [projectId, another]).map(
+            (id) => ({
+              id,
+              name: id === projectId ? 'First' : 'Second',
+              available: true,
+              worktrees: [],
+            }),
+          ),
+        }),
+      );
+    },
+    (subscription) => {
+      if (subscription.projects.length === 1) initial.resolve();
+      if (subscription.projects.length === 2) refreshed.resolve();
+    },
+  );
+  try {
+    await initial.promise;
+    expect(subject.sent.at(-1)?.projects).toEqual([projectId]);
+    subject.live()?.onNotice({ type: 'inventory' });
+    await refreshed.promise;
+    expect(subject.sent.at(-1)?.projects).toEqual([projectId, another]);
+    expect(reads).toBe(2);
+    expect(subject.client.getQueryCache().findAll()).toEqual([]);
+  } finally {
+    await subject.cleanup();
+  }
+});

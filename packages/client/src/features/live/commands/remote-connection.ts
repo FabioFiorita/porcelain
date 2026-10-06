@@ -1,6 +1,5 @@
 import { Context, Effect, Layer } from 'effect';
-import type { OperationStore } from '../../git-actions/store/operations.ts';
-import { OperationStore as Operations } from '../../git-actions/store/operations.ts';
+import { OperationStore } from '../../git-actions/store/operations.ts';
 import type { Remote } from '../../access/rules/remotes.ts';
 import type { AccessPlatform } from '../../access/ports/access-platform.ts';
 import { createWorktreeConnection } from '../../../shared/api/worktree-connection.ts';
@@ -25,7 +24,7 @@ export class RemoteConnection extends Context.Service<
     return Layer.effect(
       RemoteConnection,
       Effect.gen(function* () {
-        const operations = yield* Operations;
+        const operations = yield* OperationStore;
         const lifetime = yield* Effect.acquireRelease(
           Effect.sync(() =>
             createWorktreeConnection({

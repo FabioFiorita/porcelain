@@ -42,6 +42,13 @@ it('coalesces a live receipt with its command, keeps refreshing when one waiter 
   }).subscribe(() => {});
   try {
     const reactivity = Effect.runSync(Reactivity.make);
+    let inventoryRefreshes = 0;
+    const unregister = reactivity.registerUnsafe(
+      [queryKeys.inventory('environment')],
+      () => {
+        inventoryRefreshes += 1;
+      },
+    );
     const command = Effect.runFork(
       refreshGitReceipt(client, 'environment', receipt).pipe(
         Effect.provideService(Reactivity.Reactivity, reactivity),
@@ -55,6 +62,7 @@ it('coalesces a live receipt with its command, keeps refreshing when one waiter 
     );
     await Effect.runPromise(Fiber.interrupt(command));
     expect(reads).toBe(1);
+    expect(inventoryRefreshes).toBe(1);
     expect(client.getQueryData(key)).toBe('before');
     answer.resolve('after');
     await Effect.runPromise(Fiber.join(notice));
@@ -65,6 +73,8 @@ it('coalesces a live receipt with its command, keeps refreshing when one waiter 
       ),
     );
     expect(reads).toBe(2);
+    expect(inventoryRefreshes).toBe(2);
+    unregister();
   } finally {
     answer.resolve('cleanup');
     unsubscribe();
@@ -76,17 +86,27 @@ it.each(['running', 'rejected', 'no-change'] as const)(
   'keeps confirmed caches intact for a %s receipt',
   async (state) => {
     const client = new QueryClient();
-    const key = queryKeys.inventory('environment');
+    const key = queryKeys.reviewSurface('environment', receipt, ['changes']);
+    const reactivity = Effect.runSync(Reactivity.make);
+    let refreshes = 0;
+    const unregister = reactivity.registerUnsafe(
+      [queryKeys.inventory('environment')],
+      () => {
+        refreshes += 1;
+      },
+    );
     client.setQueryData(key, 'confirmed');
     try {
       await Effect.runPromise(
         refreshGitReceipt(client, 'environment', { ...receipt, state }).pipe(
-          Effect.provide(Reactivity.layer),
+          Effect.provideService(Reactivity.Reactivity, reactivity),
         ),
       );
+      expect(refreshes).toBe(0);
       expect(client.getQueryState(key)?.isInvalidated).toBe(false);
       expect(client.getQueryData(key)).toBe('confirmed');
     } finally {
+      unregister();
       client.clear();
     }
   },

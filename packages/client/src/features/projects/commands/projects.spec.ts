@@ -16,7 +16,7 @@ import { removeProject } from './projects.ts';
 const projectId = '00000000-0000-4000-8000-000000000001';
 const worktreeId = 'a'.repeat(32);
 const initial: ReadInventoryResponse = {
-  environmentId: 'environment',
+  environmentId: '44444444-4444-4444-8444-444444444444',
   environment: { name: 'Computer', custom: false },
   projects: [
     { id: projectId, name: 'Project', available: true, worktrees: [] },
@@ -38,7 +38,7 @@ afterEach(async () => {
 function fixture(steps: string[], transport?: Transport) {
   let deleted = false;
   const { connection } = createWorktreeConnection({
-    environmentId: 'environment',
+    environmentId: '44444444-4444-4444-8444-444444444444',
     timeoutMs: 10_000,
     transport:
       transport ??
