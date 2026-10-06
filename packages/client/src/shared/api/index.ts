@@ -1,6 +1,6 @@
 export { ConnectionError } from './connection-error.ts';
 export { RequestError } from './request-error.ts';
-export { remoteTransport, type Transport } from './transport.ts';
+export type { Transport } from './transport.ts';
 
 export type { RuntimeConnection } from './connection.ts';
 export { createWorktreeConnection } from './worktree-connection.ts';

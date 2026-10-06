@@ -57,7 +57,7 @@ Look for: the sample project with its main worktree. Tap the project, then the w
 
 ## Gotchas
 
-- Live tickets and receipt recovery use the shared client. The focused shared live and operation-store specs prove their lifecycle; this native flow still needs a drive that observes a server-side project rename updating the picker.
+- Live tickets and receipt recovery use the shared client. An iPhone development-client drive selected the sample worktree, observed a server-side project rename update the picker without reloading, restored the selection after a cold launch, and forgot the environment. The server recorded the native inventory read, live ticket and live subscription. This proves the phone's shared connection graph; iPad and Android need separate native proof.
 
 - After an environment is chosen the toolbar label becomes its name, so the second tap above reopens the picker through the new label.
 - The phone uses Expo Router's toolbar menu; the iPad uses a SwiftUI Menu with Pickers, which the e2e test does not drive yet.
