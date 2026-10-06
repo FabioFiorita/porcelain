@@ -104,7 +104,7 @@ Then `$C wait --role button --name "Mark README.md as reviewed"`.
 ## What proves it works
 
 - The drafted subjects land on disk in order (`git log`), the refusal leaves the commit history untouched, and the uncovered draft is refused with the server's message. `$C network` shows `POST /api/worktrees/<worktreeId>/git/commit-draft` (200 for drafts, 422 for the uncovered draft in case 3 step 5) and `POST /api/worktrees/<worktreeId>/git/actions`.
-- `apps/web/spec/integration/git-actions-draft-commit.test.tsx`: case 1 selects "Haiku", drafts and commits the drafted subject; case 2 checks each group's message and the two subjects in reverse order on the server; case 3 checks the refusal, LATER.md after Look again, the "did not cover" text, and that only LATER.md stays changed after the final commit.
+- `apps/web/spec/integration/git-actions-draft-commit.test.tsx`: case 1 selects "Haiku", drafts and commits the drafted subject; case 2 checks each group's message and the two subjects in reverse order on the server; case 3 checks the refusal, LATER.md after Look again, the "did not cover" text, waits for the final commit's "succeeded" status, and checks that only LATER.md stays changed.
 
 ## Gotchas
 
