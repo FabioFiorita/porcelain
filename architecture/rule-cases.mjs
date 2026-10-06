@@ -3208,7 +3208,7 @@ export const probeHandle = Dialog.createHandle();
     rule: 'web-queries-export-reads',
     path: 'apps/web/src/features/access/queries/probe-query.ts',
     valid:
-      "import {queryOptions} from '@tanstack/react-query'; export const pairingQueryOptions = () => queryOptions({queryKey: ['pairing'], queryFn: () => 'paired'});",
+      "import { useAtomValue } from '@effect/atom-react'; import { readPairedAccess } from '@porcelain/client/access'; export function usePairedAccess(connection: Parameters<typeof readPairedAccess>[0]) { return useAtomValue(readPairedAccess(connection)); }",
     invalid: `export { connectionErrorMessage } from '../rules/connection-error-message';
 `,
     errors: 1,
