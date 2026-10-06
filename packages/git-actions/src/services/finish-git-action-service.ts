@@ -1,5 +1,4 @@
-import { Effect, Context, Layer } from 'effect';
-import { Clock } from '@porcelain/kernel/ports';
+import { Effect, Context, Layer, Clock, DateTime } from 'effect';
 import { GitActionNotFoundError } from '../errors/git-action-not-found-error.ts';
 import {
   type FinishGitActionInput,
@@ -21,7 +20,7 @@ export class FinishGitActionService extends Context.Service<
     FinishGitActionService,
     Effect.gen(function* () {
       const gitActionReceiptsCapability = yield* GitActionReceiptStore;
-      const clockCapability = yield* Clock;
+      const clockCapability = yield* Clock.Clock;
 
       return {
         execute: Effect.fn('FinishGitActionService.execute')(function* (
@@ -44,7 +43,9 @@ export class FinishGitActionService extends Context.Service<
             message: outcome.message,
             result: outcome.result,
             refreshRequired: outcome.refreshRequired,
-            finishedAt: clockCapability.now(),
+            finishedAt: DateTime.formatIso(
+              DateTime.makeUnsafe(yield* clockCapability.currentTimeMillis),
+            ),
           };
           yield* gitActionReceiptsCapability.save(finished);
           return gitActionReceiptView(finished);

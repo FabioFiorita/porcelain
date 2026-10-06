@@ -1,5 +1,4 @@
-import { Effect, Context, Layer } from 'effect';
-import { Clock } from '@porcelain/kernel/ports';
+import { Effect, Context, Layer, Clock, DateTime } from 'effect';
 import { ProjectNotFoundError } from '../errors/project-not-found-error.ts';
 import { type RecordWorktreePresenceInput } from '../models/record-worktree-presence.ts';
 import { InventoryStore } from '../ports/inventory-store.ts';
@@ -19,7 +18,7 @@ export class RecordWorktreePresenceService extends Context.Service<
     Effect.gen(function* () {
       const inventoryCapability = yield* InventoryStore;
       const worktreePresenceCapability = yield* WorktreePresenceStore;
-      const clockCapability = yield* Clock;
+      const clockCapability = yield* Clock.Clock;
 
       return {
         execute: Effect.fn('RecordWorktreePresenceService.execute')(function* (
@@ -33,7 +32,16 @@ export class RecordWorktreePresenceService extends Context.Service<
           const presentIds = worktrees.map((worktree) => worktree.id);
           yield* worktreePresenceCapability.save({
             rows: complete
-              ? observed(rows, projectId, presentIds, clockCapability.now())
+              ? observed(
+                  rows,
+                  projectId,
+                  presentIds,
+                  DateTime.formatIso(
+                    DateTime.makeUnsafe(
+                      yield* clockCapability.currentTimeMillis,
+                    ),
+                  ),
+                )
               : sighted(rows, projectId, presentIds),
           });
         }),

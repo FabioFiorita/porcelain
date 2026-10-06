@@ -9,7 +9,7 @@ import { InventoryRefresh } from '../ports/inventory-refresh.ts';
 import { InvalidateReviewedMarksUseCasePort } from '../ports/invalidate-reviewed-marks-use-case-port.ts';
 import { LaneOptions } from '../ports/lane-options.ts';
 import { WorktreeCatalogStore } from '@porcelain/projects/ports';
-import { Context, Effect, Layer } from 'effect';
+import { Context, Effect, Layer, Clock } from 'effect';
 import { storageLayer } from '@porcelain/storage';
 import { NodeServices } from '@effect/platform-node';
 import { cachedDeviceStoreLayer } from '../adapters/access/cached-device-store.ts';
@@ -53,7 +53,6 @@ import { FilesystemProjectFolderReader } from '../adapters/projects/filesystem-p
 import { InMemoryWorktreeCatalogStore } from '../adapters/projects/in-memory-worktree-catalog-store.ts';
 import { RandomIdSource } from '../adapters/runtime/random-id-source.ts';
 import { StderrLogger } from '../adapters/runtime/stderr-logger.ts';
-import { SystemClock } from '../adapters/runtime/system-clock.ts';
 import { FilesystemWebRootReader } from '../adapters/web/filesystem-web-root-reader.ts';
 import { operationDeadlineMs } from '../config/operation-deadline.ts';
 import { type Limits } from '../config/limits.ts';
@@ -141,7 +140,7 @@ function serverResources(
           );
         const stores = yield* composeStores();
         const catalog = new InMemoryWorktreeCatalogStore();
-        const clock = new SystemClock();
+        const clock = yield* Clock.Clock;
         const laneContext = yield* Layer.build(Lanes.layer).pipe(
           Effect.provideService(LaneOptions, {
             deadlineMs: () =>
@@ -403,7 +402,7 @@ export const composeServer =
     startApplication(settings, signal, {
       openServer: openServerWith(adapters, host),
       ownerProbe: new SocketOwnerProbe(),
-      clock: new SystemClock(),
+      clock: Effect.runSync(Clock.Clock),
     });
 
 const networkReaders = {

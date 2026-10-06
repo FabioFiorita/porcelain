@@ -1,5 +1,4 @@
-import { Effect, Context, Layer } from 'effect';
-import { Clock } from '@porcelain/kernel/ports';
+import { Effect, Context, Layer, Clock, DateTime } from 'effect';
 import { constantTimeEquals } from '@porcelain/kernel/rules';
 import { ReviewSummaryNotFoundError } from '../errors/review-summary-not-found-error.ts';
 import {
@@ -22,7 +21,7 @@ export class ReadReviewSummaryService extends Context.Service<
     ReadReviewSummaryService,
     Effect.gen(function* () {
       const reviewsCapability = yield* ReviewStore;
-      const clockCapability = yield* Clock;
+      const clockCapability = yield* Clock.Clock;
       const signatureSourceCapability = yield* SignatureSource;
 
       return {
@@ -37,7 +36,12 @@ export class ReadReviewSummaryService extends Context.Service<
           });
           if (
             summary === undefined ||
-            summaryExpired(input.expires, clockCapability.now()) ||
+            summaryExpired(
+              input.expires,
+              DateTime.formatIso(
+                DateTime.makeUnsafe(yield* clockCapability.currentTimeMillis),
+              ),
+            ) ||
             !constantTimeEquals(
               signatureSourceCapability.sign({
                 secret: summary.summarySecret,

@@ -62,6 +62,7 @@ export const targetPackageExports: Record<string, Record<string, string>> = {
     './rules': './src/rules/index.ts',
     './errors': './src/errors/index.ts',
     './fakes': './spec/fakes/index.ts',
+    './test-kit': './spec/kit/test-clock.ts',
   },
   process: { '.': './src/index.ts' },
   theme: { './tokens.css': './src/tokens.css' },
@@ -144,6 +145,7 @@ export const roles = [
   'contract',
   'config',
   'kernel',
+  'kernel-test-kit',
   'fake',
   'fixture',
   'capture',
@@ -853,6 +855,8 @@ export function classify(path: string): Classification | undefined {
     return classified('client-integration-test', 'client');
   if (/^packages\/client\/spec\/kit\/[a-z]+(?:-[a-z]+)*\.ts$/.test(path))
     return classified('client-test-kit', 'client');
+  if (/^packages\/kernel\/spec\/kit\/[a-z]+(?:-[a-z]+)*\.ts$/.test(path))
+    return classified('kernel-test-kit', 'kernel');
   const packageFake = /^packages\/([^/]+)\/spec\/fakes\/.+\.ts$/.exec(path);
   if (packageFake) return classified('fake', packageFake[1] ?? '');
   const capture = /^packages\/([^/]+)\/spec\/fixtures\/capture\.ts$/.exec(path);
@@ -1177,6 +1181,7 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
   contract: new Set(['contract', 'rule-api', 'error-api']),
   config: new Set(['config', 'contract']),
   kernel: new Set(['kernel']),
+  'kernel-test-kit': new Set(['kernel-test-kit']),
   fake: new Set([
     'kernel',
     'port',
@@ -1213,6 +1218,7 @@ export const allowedTargets: Record<Role, ReadonlySet<Role>> = {
   'verify-core': new Set(['verify-core', 'server-kit']),
   test: new Set([
     ...everything,
+    'kernel-test-kit',
     'fake',
     'fixture',
     'store-contract',
@@ -1720,7 +1726,7 @@ export const externalPackages: Record<Role, readonly string[]> = {
   'domain-api': [],
   service: [],
   'rule-api': [],
-  rule: [],
+  rule: ['effect/DateTime'],
   'model-api': [],
   model: [],
   'port-api': [],
@@ -1751,6 +1757,7 @@ export const externalPackages: Record<Role, readonly string[]> = {
   contract: ['zod', 'effect/ai', 'effect/rpc'],
   config: ['zod'],
   kernel: [],
+  'kernel-test-kit': ['effect', 'effect/testing', 'vitest'],
   fake: [],
   fixture: [],
   capture: [],
@@ -1894,7 +1901,8 @@ function forbiddenNodeModule(role: Role, name: string): boolean {
     return false;
   if (role === 'capture') return !captureNodeModules.has(base);
   if (base === 'child_process') return true;
-  if (role === 'kernel' || role === 'fake') return true;
+  if (role === 'kernel' || role === 'kernel-test-kit' || role === 'fake')
+    return true;
   if (role === 'fixture') return !fixtureNodeModules.has(base);
   if (typedRoles.has(role))
     return !((role === 'rule' || role === 'rule-api') && name === 'crypto');
@@ -2012,6 +2020,8 @@ const rolePurposes: Record<Role, string> = {
     'the HTTP contract in packages/contracts, the schemas server and clients share',
   config: 'server configuration and limits in apps/server/src/config',
   kernel: 'the kernel models and ports every package shares',
+  'kernel-test-kit':
+    'scoped native Effect test resources shared by unit specs; production roles cannot import them',
   fake: 'a fake in spec/fakes/ that stands in for a port in specs',
   fixture: 'spec data in spec/fixtures/',
   capture:

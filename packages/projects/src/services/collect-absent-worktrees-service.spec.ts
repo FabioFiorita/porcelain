@@ -1,11 +1,10 @@
-import { Clock } from '@porcelain/kernel/ports';
+import { testClock } from '@porcelain/kernel/test-kit';
 import {
   WorktreePresenceStore,
   CollectAbsentWorktreesOptions,
 } from '@porcelain/projects/ports';
-import { Effect } from 'effect';
+import { Effect, Clock } from 'effect';
 import { describe, expect, it } from 'vitest';
-import { FixedClock } from '@porcelain/kernel/fakes';
 import { type WorktreePresence } from '@porcelain/projects/models';
 import { InMemoryWorktreePresenceStore } from '../../spec/fakes/in-memory-worktree-presence-store.ts';
 import { CollectAbsentWorktreesService } from './collect-absent-worktrees-service.ts';
@@ -27,7 +26,7 @@ async function setup(now: string, rows: WorktreePresence[]) {
     CollectAbsentWorktreesService.pipe(
       Effect.provide(CollectAbsentWorktreesService.layer),
       Effect.provideService(WorktreePresenceStore, presence),
-      Effect.provideService(Clock, new FixedClock(now)),
+      Effect.provideService(Clock.Clock, await testClock(now)),
       Effect.provideService(CollectAbsentWorktreesOptions, {
         graceMs: THIRTY_DAYS_MS,
       }),

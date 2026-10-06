@@ -1,3 +1,4 @@
+import type { Clock } from 'effect';
 import { ServiceCommandError } from './errors/service-command-error.ts';
 import type { Limits } from '../config/limits.ts';
 import { dirname, resolve } from 'node:path';
@@ -8,14 +9,13 @@ import {
   readPackageIdentity,
   type ServiceStatus,
 } from '../installer/index.ts';
-import type { Clock } from '@porcelain/kernel/ports';
 import type { OwnerProbe } from '../ports/owner-probe.ts';
 import type { ServiceSettings } from './settings.ts';
 
 type ServiceCommandDependencies = {
   homeDirectory: string;
   searchPath: string;
-  clock: Clock;
+  clock: Clock.Clock;
   ownerProbe: OwnerProbe;
   limits: Limits;
   stdout: (message: string) => void;

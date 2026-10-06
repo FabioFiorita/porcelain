@@ -1,5 +1,4 @@
-import { Effect, Context, Layer } from 'effect';
-import { Clock } from '@porcelain/kernel/ports';
+import { Effect, Context, Layer, Clock, DateTime } from 'effect';
 import { GitActionNotFoundError } from '../errors/git-action-not-found-error.ts';
 import {
   type InterruptGitActionInput,
@@ -21,7 +20,7 @@ export class InterruptGitActionService extends Context.Service<
     InterruptGitActionService,
     Effect.gen(function* () {
       const gitActionReceiptsCapability = yield* GitActionReceiptStore;
-      const clockCapability = yield* Clock;
+      const clockCapability = yield* Clock.Clock;
 
       return {
         execute: Effect.fn('InterruptGitActionService.execute')(function* (
@@ -38,7 +37,9 @@ export class InterruptGitActionService extends Context.Service<
           if (current.state !== 'running') return gitActionReceiptView(current);
           const interrupted = interruptedReceipt(
             current,
-            clockCapability.now(),
+            DateTime.formatIso(
+              DateTime.makeUnsafe(yield* clockCapability.currentTimeMillis),
+            ),
           );
           yield* gitActionReceiptsCapability.save(interrupted);
           return gitActionReceiptView(interrupted);

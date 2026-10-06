@@ -1,5 +1,4 @@
-import { Effect, Context, Layer } from 'effect';
-import { Clock } from '@porcelain/kernel/ports';
+import { Effect, Context, Layer, Clock, DateTime } from 'effect';
 import type {
   ListAccessInput,
   ListAccessResult,
@@ -22,13 +21,15 @@ export class ListAccessService extends Context.Service<
     Effect.gen(function* () {
       const pairingGrants = yield* PairingGrantStore;
       const devices = yield* DeviceStore;
-      const clock = yield* Clock;
+      const clock = yield* Clock.Clock;
 
       return {
         execute: Effect.fn('ListAccessService.execute')(function* (
           input?: ListAccessInput,
         ): Effect.fn.Return<ListAccessResult, never> {
-          const now = clock.now();
+          const now = DateTime.formatIso(
+            DateTime.makeUnsafe(yield* clock.currentTimeMillis),
+          );
           return {
             grants: (yield* pairingGrants.list())
               .filter((grant) => pairingGrantPending(grant, now))

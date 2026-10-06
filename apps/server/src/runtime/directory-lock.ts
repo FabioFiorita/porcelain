@@ -1,7 +1,7 @@
+import { type Clock, DateTime } from 'effect';
 import { randomUUID } from 'node:crypto';
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
-import type { Clock } from '@porcelain/kernel/ports';
 import { delay } from './delay.ts';
 import type { DirectoryLock } from '../ports/directory-lock.ts';
 
@@ -10,7 +10,7 @@ type DirectoryLockOptions = {
   waitMs: number;
   pollMs: number;
   staleTakeovers: number;
-  clock: Clock;
+  clock: Clock.Clock;
   held: () => Error;
 };
 
@@ -90,7 +90,9 @@ export async function acquireDirectoryLock(
       join(candidate, OWNER_FILE),
       JSON.stringify({
         pid: process.pid,
-        createdAt: options.clock.now(),
+        createdAt: DateTime.formatIso(
+          DateTime.makeUnsafe(options.clock.currentTimeMillisUnsafe()),
+        ),
         token,
       }),
       { mode: 0o600 },

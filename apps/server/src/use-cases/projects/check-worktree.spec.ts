@@ -1,13 +1,12 @@
+import { testClock } from '@porcelain/kernel/test-kit';
 import { InventoryRefresh } from '../../ports/inventory-refresh.ts';
-import { Clock } from '@porcelain/kernel/ports';
 import {
   WorktreeCatalogStore,
   InventoryStore,
   CheckWorktreeOptions,
 } from '@porcelain/projects/ports';
-import { Effect } from 'effect';
+import { Effect, Clock } from 'effect';
 import { WorktreeNotFoundError } from '@porcelain/kernel/errors';
-import { FixedClock } from '@porcelain/kernel/fakes';
 import { WorktreeUnavailableError } from '@porcelain/projects/errors';
 import {
   type CatalogProject,
@@ -68,11 +67,11 @@ function observed(
   };
 }
 
-function useCase(before: CatalogSnapshot, afterRefresh: CatalogSnapshot) {
+async function useCase(before: CatalogSnapshot, afterRefresh: CatalogSnapshot) {
   const catalog = new InMemoryWorktreeCatalogStore();
   catalog.save(before);
   const inventory = new InMemoryInventoryStore([project]);
-  const clock = new FixedClock(now);
+  const clock = await testClock(now);
   const staleness = { staleAfterMs: 60 * 1000 };
   return Effect.runSync(
     CheckWorktreeUseCase.pipe(
@@ -84,7 +83,7 @@ function useCase(before: CatalogSnapshot, afterRefresh: CatalogSnapshot) {
             Effect.provide(CheckWorktreeService.layer),
             Effect.provideService(WorktreeCatalogStore, catalog),
             Effect.provideService(InventoryStore, inventory),
-            Effect.provideService(Clock, clock),
+            Effect.provideService(Clock.Clock, clock),
             Effect.provideService(CheckWorktreeOptions, staleness),
           ),
         ),
@@ -96,7 +95,7 @@ function useCase(before: CatalogSnapshot, afterRefresh: CatalogSnapshot) {
             Effect.provide(CheckRefreshedWorktreeService.layer),
             Effect.provideService(WorktreeCatalogStore, catalog),
             Effect.provideService(InventoryStore, inventory),
-            Effect.provideService(Clock, clock),
+            Effect.provideService(Clock.Clock, clock),
             Effect.provideService(CheckWorktreeOptions, staleness),
           ),
         ),
@@ -113,7 +112,7 @@ const check = { worktreeId: worktree.id, requireAvailableProject: false };
 
 describe('CheckWorktreeUseCase', () => {
   it('answers a freshly observed worktree without refreshing the inventory', async () => {
-    const subject = useCase(
+    const subject = await useCase(
       { projects: [observed(now, [worktree])] },
       { projects: [observed(now, [])] },
     );
@@ -124,7 +123,7 @@ describe('CheckWorktreeUseCase', () => {
 
   it('refreshes a stale worktree once and answers it as the refresh found it', async () => {
     const moved = { ...worktree, path: '/srv/api-moved' };
-    const subject = useCase(
+    const subject = await useCase(
       { projects: [observed(longAgo, [worktree])] },
       { projects: [observed(now, [moved])] },
     );
@@ -134,7 +133,7 @@ describe('CheckWorktreeUseCase', () => {
   });
 
   it('refreshes before refusing a worktree no refresh has observed yet', async () => {
-    const subject = useCase(
+    const subject = await useCase(
       { projects: [] },
       { projects: [observed(now, [worktree])] },
     );
@@ -144,7 +143,7 @@ describe('CheckWorktreeUseCase', () => {
   });
 
   it('refuses a worktree the refresh did not find', async () => {
-    const subject = useCase(
+    const subject = await useCase(
       { projects: [] },
       { projects: [observed(now, [])] },
     );
@@ -155,7 +154,7 @@ describe('CheckWorktreeUseCase', () => {
 
   it('refuses as unavailable a worktree still stale after the refresh', async () => {
     const stale = { projects: [observed(longAgo, [worktree])] };
-    const subject = useCase(stale, stale);
+    const subject = await useCase(stale, stale);
     await expect(Effect.runPromise(subject.execute(check))).rejects.toThrow(
       WorktreeUnavailableError,
     );

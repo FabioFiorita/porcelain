@@ -1,8 +1,7 @@
-import { Clock } from '@porcelain/kernel/ports';
+import { testClock } from '@porcelain/kernel/test-kit';
 import { ReviewStore, SignatureSource } from '@porcelain/reviews/ports';
-import { Effect } from 'effect';
+import { Effect, Clock } from 'effect';
 import { describe, expect, it } from 'vitest';
-import { FixedClock } from '@porcelain/kernel/fakes';
 import { ReviewSummaryNotFoundError } from '@porcelain/reviews/errors';
 import { type Review } from '@porcelain/reviews/models';
 import { InMemoryReviewStore } from '../../spec/fakes/in-memory-review-store.ts';
@@ -31,7 +30,7 @@ async function setup(now = '2026-01-01T00:30:00.000Z') {
     ReadReviewSummaryService.pipe(
       Effect.provide(ReadReviewSummaryService.layer),
       Effect.provideService(ReviewStore, store),
-      Effect.provideService(Clock, new FixedClock(now)),
+      Effect.provideService(Clock.Clock, await testClock(now)),
       Effect.provideService(SignatureSource, new ScriptedSignatureSource()),
     ),
   );

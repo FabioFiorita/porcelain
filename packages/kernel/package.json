@@ -7,7 +7,8 @@
     "./ports": "./src/ports/index.ts",
     "./rules": "./src/rules/index.ts",
     "./errors": "./src/errors/index.ts",
-    "./fakes": "./spec/fakes/index.ts"
+    "./fakes": "./spec/fakes/index.ts",
+    "./test-kit": "./spec/kit/test-clock.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

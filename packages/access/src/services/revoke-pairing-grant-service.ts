@@ -1,5 +1,4 @@
-import { Effect, Context, Layer } from 'effect';
-import { Clock } from '@porcelain/kernel/ports';
+import { Effect, Context, Layer, Clock, DateTime } from 'effect';
 import type {
   RevokePairingGrantInput,
   RevokePairingGrantResult,
@@ -19,7 +18,7 @@ export class RevokePairingGrantService extends Context.Service<
     RevokePairingGrantService,
     Effect.gen(function* () {
       const pairingGrants = yield* PairingGrantStore;
-      const clock = yield* Clock;
+      const clock = yield* Clock.Clock;
 
       return {
         execute: Effect.fn('RevokePairingGrantService.execute')(function* (
@@ -28,7 +27,12 @@ export class RevokePairingGrantService extends Context.Service<
           const grant = yield* pairingGrants.find({ grantId: input.id });
           if (!grant || !pairingGrantRevocable(grant))
             return { kind: 'not-revoked' };
-          yield* pairingGrants.markRevoked({ grant, revokedAt: clock.now() });
+          yield* pairingGrants.markRevoked({
+            grant,
+            revokedAt: DateTime.formatIso(
+              DateTime.makeUnsafe(yield* clock.currentTimeMillis),
+            ),
+          });
           return { kind: 'revoked' };
         }),
       };

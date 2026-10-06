@@ -230,15 +230,6 @@ export default [
   },
   {
     rule: 'implementation-name',
-    path: 'apps/server/src/adapters/runtime/system-clock.ts',
-    valid: `export class SystemClock implements Clock {
-}`,
-    invalid: `export class SystemClockAdapter implements Clock {
-}`,
-    errors: 1,
-  },
-  {
-    rule: 'implementation-name',
     path: 'packages/storage/src/repositories/reviews/sqlite-comment-seen-store.ts',
     valid: `import { Effect, Layer } from 'effect';
 import { CommentSeenStore } from '@porcelain/reviews/ports';
@@ -1839,7 +1830,7 @@ export interface ContextualEditWriter {
     rule: 'port-shape',
     path: 'apps/server/src/ports/notice-port.ts',
     valid: 'export interface NoticeWriter { send(input: NoticeInput): void; }',
-    invalid: `export interface NoticePort {
+    invalid: `export interface Clock {
   send(worktreeId: string, kind: string, revision: number): void;
 }
 `,
@@ -4131,6 +4122,9 @@ export const scriptEvasions = [
 ];
 
 export const externalCases = [
+  { role: 'rule', valid: 'effect/DateTime', invalid: 'effect' },
+  { role: 'kernel-test-kit', valid: 'effect/testing', invalid: 'node:fs' },
+  { role: 'kernel-test-kit', valid: 'vitest', invalid: 'effect/http' },
   { role: 'mobile-config', valid: 'tsx/cjs', invalid: 'tsx' },
   { role: 'mobile-test-kit', valid: 'expo/fingerprint', invalid: 'expo' },
   ...['client-integration-test', 'client-test-kit'].map((role) => ({

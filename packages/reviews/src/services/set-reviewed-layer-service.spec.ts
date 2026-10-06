@@ -1,8 +1,7 @@
-import { Clock } from '@porcelain/kernel/ports';
+import { testClock } from '@porcelain/kernel/test-kit';
 import { ReviewedLayerStore } from '@porcelain/reviews/ports';
-import { Effect } from 'effect';
+import { Effect, Clock } from 'effect';
 import { describe, expect, it } from 'vitest';
-import { FixedClock } from '@porcelain/kernel/fakes';
 import { ReviewedMarkConflictError } from '@porcelain/reviews/errors';
 import { type ReviewLayer, type ReviewTexts } from '@porcelain/reviews/models';
 import { currentLayerFingerprint } from '@porcelain/reviews/rules';
@@ -39,7 +38,7 @@ const seen = currentLayerFingerprint(
   new Map([['README.md', 'first\nadded\n']]),
 );
 
-function setup() {
+async function setup() {
   const store = new InMemoryReviewedLayerStore();
   return {
     store,
@@ -48,8 +47,8 @@ function setup() {
         Effect.provide(SetReviewedLayerService.layer),
         Effect.provideService(ReviewedLayerStore, store),
         Effect.provideService(
-          Clock,
-          new FixedClock('2026-01-01T00:00:00.000Z'),
+          Clock.Clock,
+          await testClock('2026-01-01T00:00:00.000Z'),
         ),
       ),
     ),
@@ -58,7 +57,7 @@ function setup() {
 
 describe('SetReviewedLayerService', () => {
   it('marks a layer at the fingerprint it has in the current files', async () => {
-    const { service, store } = setup();
+    const { service, store } = await setup();
     const result = Effect.runSync(
       service.execute({
         worktreeId,
@@ -76,8 +75,8 @@ describe('SetReviewedLayerService', () => {
     expect(await Effect.runPromise(store.list({ worktreeId }))).toEqual([mark]);
   });
 
-  it('still accepts the fingerprint when the step text only moved', () => {
-    const { service } = setup();
+  it('still accepts the fingerprint when the step text only moved', async () => {
+    const { service } = await setup();
     expect(
       Effect.runSync(
         service.execute({
@@ -96,7 +95,7 @@ describe('SetReviewedLayerService', () => {
   ])(
     'refuses a fingerprint the layer no longer has because $name, and stores nothing',
     async ({ texts }) => {
-      const { service, store } = setup();
+      const { service, store } = await setup();
       expect(() =>
         Effect.runSync(
           service.execute({ worktreeId, layer, fingerprint: seen, texts }),

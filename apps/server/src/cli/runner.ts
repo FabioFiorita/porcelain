@@ -1,8 +1,15 @@
 import { homedir } from 'node:os';
-import { Cause, ConfigProvider, Console, Context, Effect, Layer } from 'effect';
+import {
+  Cause,
+  ConfigProvider,
+  Console,
+  Context,
+  Effect,
+  Layer,
+  type Clock,
+} from 'effect';
 import type { Command } from 'effect/cli';
 import { nativeOperation } from '@porcelain/effects';
-import type { Clock } from '@porcelain/kernel/ports';
 import {
   EnvironmentSettings,
   type PorcelainEnvironment,
@@ -26,7 +33,7 @@ export class CliRuntime extends Context.Service<
   {
     readonly startServer: StartServer;
     readonly ownerProbe: OwnerProbe;
-    readonly clock: Clock;
+    readonly clock: Clock.Clock;
     readonly limits: Limits;
     readonly wait: (ms: number) => Promise<void>;
     readonly actionableErrors: readonly ActionableError[];

@@ -1,13 +1,13 @@
-import { Clock, IdSource, SecretSource } from '@porcelain/kernel/ports';
-import { ReviewStore, ProofLimits } from '@porcelain/reviews/ports';
-import { ValidateReviewDraftService } from '@porcelain/reviews/services';
-import { Effect } from 'effect';
-import { describe, expect, it } from 'vitest';
+import { testClock } from '@porcelain/kernel/test-kit';
 import {
-  FixedClock,
   SequentialIdSource,
   SequentialSecretSource,
 } from '@porcelain/kernel/fakes';
+import { IdSource, SecretSource } from '@porcelain/kernel/ports';
+import { ReviewStore, ProofLimits } from '@porcelain/reviews/ports';
+import { ValidateReviewDraftService } from '@porcelain/reviews/services';
+import { Effect, Clock } from 'effect';
+import { describe, expect, it } from 'vitest';
 import {
   ProofFileUnreadableError,
   ProofTooLargeError,
@@ -115,13 +115,16 @@ function reads(
   return { files: new Map(files), tooLarge };
 }
 
-function setup(totalBytes = 1024) {
+async function setup(totalBytes = 1024) {
   const store = new InMemoryReviewStore();
   const service = Effect.runSync(
     PublishReviewService.pipe(
       Effect.provide(PublishReviewService.layer),
       Effect.provideService(ReviewStore, store),
-      Effect.provideService(Clock, new FixedClock('2026-01-01T00:00:00.000Z')),
+      Effect.provideService(
+        Clock.Clock,
+        await testClock('2026-01-01T00:00:00.000Z'),
+      ),
       Effect.provideService(IdSource, new SequentialIdSource()),
       Effect.provideService(SecretSource, new SequentialSecretSource()),
       Effect.provideService(ProofLimits, { totalBytes, signatureBytes: 16 }),
@@ -132,7 +135,7 @@ function setup(totalBytes = 1024) {
 
 describe('PublishReviewService', () => {
   it('publishes the first review at revision one with the lines each step points at', async () => {
-    const { service, store } = setup();
+    const { service, store } = await setup();
     const { review, warnings } = Effect.runSync(
       service.execute({
         worktreeId,
@@ -153,7 +156,7 @@ describe('PublishReviewService', () => {
   });
 
   it('stores the first review inactive when every line it explains is already committed', async () => {
-    const { service, store } = setup();
+    const { service, store } = await setup();
     const { review } = Effect.runSync(
       service.execute({
         worktreeId,
@@ -167,8 +170,8 @@ describe('PublishReviewService', () => {
     );
   });
 
-  it('keeps no lines for a step whose file could not be read or whose range runs past the file', () => {
-    const { service } = setup();
+  it('keeps no lines for a step whose file could not be read or whose range runs past the file', async () => {
+    const { service } = await setup();
     const past = layer({
       id: 'layer-2',
       steps: [
@@ -195,7 +198,7 @@ describe('PublishReviewService', () => {
     ]);
     expect(
       Effect.runSync(
-        setup().service.execute({
+        (await setup()).service.execute({
           worktreeId,
           draft: draft({ layers: [past] }),
           evidence: evidence([['README.md', readme]]),
@@ -204,8 +207,8 @@ describe('PublishReviewService', () => {
     ).toEqual([]);
   });
 
-  it('replaces the review when the publisher states the current revision, with a fresh summary link', () => {
-    const { service } = setup();
+  it('replaces the review when the publisher states the current revision, with a fresh summary link', async () => {
+    const { service } = await setup();
     const first = Effect.runSync(
       service.execute({
         worktreeId,
@@ -230,7 +233,7 @@ describe('PublishReviewService', () => {
   ])(
     'refuses a publish that states $name and keeps the stored review',
     async ({ expectedRevision }) => {
-      const { service, store } = setup();
+      const { service, store } = await setup();
       Effect.runSync(
         service.execute({ worktreeId, draft: draft(), evidence: evidence() }),
       );
@@ -250,7 +253,7 @@ describe('PublishReviewService', () => {
   );
 
   it('warns when the summary carries no authored CSS but still publishes', async () => {
-    const { service, store } = setup();
+    const { service, store } = await setup();
     const { warnings } = Effect.runSync(
       service.execute({
         worktreeId,
@@ -265,7 +268,7 @@ describe('PublishReviewService', () => {
   });
 
   it('publishes checks as given and keeps each attached file under its own id with the type its bytes show', async () => {
-    const { service, store } = setup();
+    const { service, store } = await setup();
     const { review } = Effect.runSync(
       service.execute({
         worktreeId,
@@ -366,7 +369,7 @@ describe('PublishReviewService', () => {
   });
 
   it('drops the previous proof files when a later publish attaches none', async () => {
-    const { service, store } = setup();
+    const { service, store } = await setup();
     const first = Effect.runSync(
       service.execute({
         worktreeId,
@@ -436,7 +439,7 @@ describe('PublishReviewService', () => {
   ])(
     'refuses $name and keeps the stored review',
     async ({ kind, proofFiles, error }) => {
-      const { service, store } = setup();
+      const { service, store } = await setup();
       Effect.runSync(
         service.execute({ worktreeId, draft: draft(), evidence: evidence() }),
       );
@@ -460,7 +463,7 @@ describe('PublishReviewService', () => {
   );
 
   it('refuses files that fit one by one but not together', async () => {
-    const { service, store } = setup(png.byteLength * 2 - 1);
+    const { service, store } = await setup(png.byteLength * 2 - 1);
     expect(() =>
       Effect.runSync(
         service.execute({
@@ -485,7 +488,7 @@ describe('PublishReviewService', () => {
   });
 
   it('keeps a published file when the next publish names it by its proof id', async () => {
-    const { service, store } = setup();
+    const { service, store } = await setup();
     const first = Effect.runSync(
       service.execute({
         worktreeId,
@@ -546,7 +549,7 @@ describe('PublishReviewService', () => {
       known: true,
     },
   ])('refuses $name and keeps the stored review', async ({ kind, known }) => {
-    const { service, store } = setup();
+    const { service, store } = await setup();
     const first = Effect.runSync(
       service.execute({
         worktreeId,

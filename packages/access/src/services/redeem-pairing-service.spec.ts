@@ -1,15 +1,15 @@
-import { Clock, IdSource, SecretSource } from '@porcelain/kernel/ports';
+import { testClock } from '@porcelain/kernel/test-kit';
+import {
+  SequentialIdSource,
+  SequentialSecretSource,
+} from '@porcelain/kernel/fakes';
+import { IdSource, SecretSource } from '@porcelain/kernel/ports';
 import {
   PairingGrantStore,
   RedeemPairingOptions,
 } from '@porcelain/access/ports';
-import { Effect } from 'effect';
+import { Effect, Clock } from 'effect';
 import { describe, expect, it } from 'vitest';
-import {
-  FixedClock,
-  SequentialIdSource,
-  SequentialSecretSource,
-} from '@porcelain/kernel/fakes';
 import {
   InvalidDeviceDetailsError,
   InvalidPairingError,
@@ -47,12 +47,12 @@ async function setup(grant: Partial<StoredPairingGrant> = {}) {
       ],
     }),
   );
-  const clock = new FixedClock('2026-09-23T10:05:00.000Z');
+  const clock = await testClock('2026-09-23T10:05:00.000Z');
   const service = Effect.runSync(
     RedeemPairingService.pipe(
       Effect.provide(RedeemPairingService.layer),
       Effect.provideService(PairingGrantStore, grants),
-      Effect.provideService(Clock, clock),
+      Effect.provideService(Clock.Clock, clock),
       Effect.provideService(IdSource, new SequentialIdSource()),
       Effect.provideService(SecretSource, new SequentialSecretSource()),
       Effect.provideService(RedeemPairingOptions, {
@@ -189,7 +189,9 @@ describe('RedeemPairingService', () => {
 
   it('accepts a code until the moment it expires', async () => {
     const early = await setup();
-    early.clock.set('2026-09-23T10:14:59.999Z');
+    await Effect.runPromise(
+      early.clock.setTime(Date.parse('2026-09-23T10:14:59.999Z')),
+    );
     expect(
       Effect.runSync(
         early.service.execute({
@@ -200,7 +202,9 @@ describe('RedeemPairingService', () => {
       ).device.label,
     ).toBe('Phone');
     const late = await setup();
-    late.clock.set('2026-09-23T10:15:00.000Z');
+    await Effect.runPromise(
+      late.clock.setTime(Date.parse('2026-09-23T10:15:00.000Z')),
+    );
     expect(() =>
       Effect.runSync(
         late.service.execute({
@@ -214,7 +218,9 @@ describe('RedeemPairingService', () => {
 
   it('refuses a code issued later than the current time', async () => {
     const { clock, service, code } = await setup();
-    clock.set('2026-09-23T09:59:59.999Z');
+    await Effect.runPromise(
+      clock.setTime(Date.parse('2026-09-23T09:59:59.999Z')),
+    );
     expect(() =>
       Effect.runSync(service.execute({ code, platform: 'iOS', route: 'lan' })),
     ).toThrow(InvalidPairingError);

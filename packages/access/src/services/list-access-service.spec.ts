@@ -1,8 +1,7 @@
-import { Clock } from '@porcelain/kernel/ports';
+import { testClock } from '@porcelain/kernel/test-kit';
 import { PairingGrantStore, DeviceStore } from '@porcelain/access/ports';
-import { Effect } from 'effect';
+import { Effect, Clock } from 'effect';
 import { describe, expect, it } from 'vitest';
-import { FixedClock } from '@porcelain/kernel/fakes';
 import type {
   StoredDevice,
   StoredPairingGrant,
@@ -39,7 +38,7 @@ function device(id: string, extra: Partial<StoredDevice> = {}): StoredDevice {
   };
 }
 
-function setup() {
+async function setup() {
   const devices = new InMemoryDeviceStore();
   const grants = new InMemoryPairingGrantStore(devices);
   const service = Effect.runSync(
@@ -47,7 +46,10 @@ function setup() {
       Effect.provide(ListAccessService.layer),
       Effect.provideService(PairingGrantStore, grants),
       Effect.provideService(DeviceStore, devices),
-      Effect.provideService(Clock, new FixedClock('2026-09-23T10:05:00.000Z')),
+      Effect.provideService(
+        Clock.Clock,
+        await testClock('2026-09-23T10:05:00.000Z'),
+      ),
     ),
   );
   return { devices, grants, service };
@@ -55,7 +57,7 @@ function setup() {
 
 describe('ListAccessService', () => {
   it('lists only grants that can still be redeemed, oldest first, without their secrets', async () => {
-    const { grants, service } = setup();
+    const { grants, service } = await setup();
     await Effect.runPromise(
       grants.add({
         grants: [
@@ -88,8 +90,8 @@ describe('ListAccessService', () => {
     ]);
   });
 
-  it('lists paired devices that are not revoked, oldest first, without their secrets', () => {
-    const { devices, service } = setup();
+  it('lists paired devices that are not revoked, oldest first, without their secrets', async () => {
+    const { devices, service } = await setup();
     devices.add(
       device('2', { lastSeenAddress: '100.64.0.9', route: 'tailnet' }),
     );
@@ -119,8 +121,8 @@ describe('ListAccessService', () => {
     ]);
   });
 
-  it('says which devices had their route inferred from where they were last seen', () => {
-    const { devices, service } = setup();
+  it('says which devices had their route inferred from where they were last seen', async () => {
+    const { devices, service } = await setup();
     devices.add(device('1', { routeInferred: true }));
     devices.add(device('2', { routeInferred: false }));
 
@@ -135,7 +137,7 @@ describe('ListAccessService', () => {
   });
 
   it('says which devices and which pending links the owner trusts', async () => {
-    const { devices, grants, service } = setup();
+    const { devices, grants, service } = await setup();
     devices.add(device('1', { trusted: true }));
     devices.add(device('2'));
     await Effect.runPromise(
@@ -155,15 +157,15 @@ describe('ListAccessService', () => {
     ]);
   });
 
-  it('lists nothing when nothing was ever paired', () => {
-    expect(Effect.runSync(setup().service.execute())).toEqual({
+  it('lists nothing when nothing was ever paired', async () => {
+    expect(Effect.runSync((await setup()).service.execute())).toEqual({
       grants: [],
       devices: [],
     });
   });
 
-  it('marks the device that asks as the current one and no other', () => {
-    const { devices, service } = setup();
+  it('marks the device that asks as the current one and no other', async () => {
+    const { devices, service } = await setup();
     devices.add(device('1'));
     devices.add(device('2'));
 

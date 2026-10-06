@@ -7,8 +7,7 @@ import { EventPublisher } from '../ports/event-publisher.ts';
 import { LaneKeys } from '../runtime/lane-keys.ts';
 import { Lanes } from '../runtime/lanes.ts';
 import { WorktreeConsistencyProbe } from '../ports/worktree-consistency-probe.ts';
-import { Clock } from '@porcelain/kernel/ports';
-import { Effect, Layer } from 'effect';
+import { Effect, Layer, Clock } from 'effect';
 import { WorktreeAccess } from '../runtime/worktree-access.ts';
 import { gitActionsRoutes } from '../http/routes/git-actions/git-actions-api.ts';
 import {
@@ -76,7 +75,7 @@ export function composeGitActions(
   const store = stores.gitActions;
   const ports = Layer.mergeAll(
     Layer.succeed(GitActionReceiptStore, store),
-    Layer.succeed(Clock, clock),
+    Layer.succeed(Clock.Clock, clock),
     Layer.succeed(ExpireGitActionReceiptsOptions, limits.receipts),
     Layer.succeed(CheckWorktreeUseCasePort, dependencies.checkWorktree),
     Layer.succeed(WorktreeConsistencyProbe, shared.confirmWorktree),

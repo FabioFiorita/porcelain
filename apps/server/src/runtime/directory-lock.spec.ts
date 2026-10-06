@@ -1,3 +1,4 @@
+import { testClock } from '@porcelain/kernel/test-kit';
 import { spawnSync } from 'node:child_process';
 import {
   existsSync,
@@ -13,7 +14,6 @@ import { acquireDirectoryLock } from './directory-lock.ts';
 
 class HeldError extends Error {}
 
-const clock = { now: () => '2026-09-24T00:00:00.000Z' };
 const roots: string[] = [];
 
 function lockPath(): string {
@@ -22,7 +22,8 @@ function lockPath(): string {
   return join(root, 'server.lock');
 }
 
-function options(path: string, waitMs = 0) {
+async function options(path: string, waitMs = 0) {
+  const clock = await testClock('2026-09-24T00:00:00.000Z');
   return {
     path,
     waitMs,
@@ -49,7 +50,7 @@ afterEach(() => {
 describe('acquireDirectoryLock', () => {
   it('takes a free lock and removes it on release', async () => {
     const path = lockPath();
-    const lock = await acquireDirectoryLock(options(path));
+    const lock = await acquireDirectoryLock(await options(path));
     expect(existsSync(path)).toBe(true);
     await lock.release();
     expect(existsSync(path)).toBe(false);
@@ -57,8 +58,8 @@ describe('acquireDirectoryLock', () => {
 
   it('refuses with the held error while a live process holds the lock', async () => {
     const path = lockPath();
-    await acquireDirectoryLock(options(path));
-    await expect(acquireDirectoryLock(options(path))).rejects.toThrow(
+    await acquireDirectoryLock(await options(path));
+    await expect(acquireDirectoryLock(await options(path))).rejects.toThrow(
       HeldError,
     );
   });
@@ -67,15 +68,15 @@ describe('acquireDirectoryLock', () => {
     const path = lockPath();
     const exited = spawnSync(process.execPath, ['-e', '']).pid;
     leaveLock(path, exited);
-    const lock = await acquireDirectoryLock(options(path));
+    const lock = await acquireDirectoryLock(await options(path));
     await lock.release();
     expect(existsSync(path)).toBe(false);
   });
 
   it('waits for a holder that releases within the wait', async () => {
     const path = lockPath();
-    const first = await acquireDirectoryLock(options(path));
-    const second = acquireDirectoryLock(options(path, 500));
+    const first = await acquireDirectoryLock(await options(path));
+    const second = acquireDirectoryLock(await options(path, 500));
     await first.release();
     await expect(second).resolves.toBeDefined();
     expect(existsSync(path)).toBe(true);
@@ -83,9 +84,9 @@ describe('acquireDirectoryLock', () => {
 
   it('never removes a lock another holder took after it', async () => {
     const path = lockPath();
-    const first = await acquireDirectoryLock(options(path));
+    const first = await acquireDirectoryLock(await options(path));
     rmSync(path, { recursive: true, force: true });
-    const second = await acquireDirectoryLock(options(path));
+    const second = await acquireDirectoryLock(await options(path));
     await first.release();
     expect(existsSync(path)).toBe(true);
     await second.release();

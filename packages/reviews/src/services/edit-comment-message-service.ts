@@ -1,6 +1,5 @@
 import { EditCommentMessageOptions } from '../ports/edit-comment-message-options.ts';
-import { Effect, Context, Layer } from 'effect';
-import { Clock } from '@porcelain/kernel/ports';
+import { Effect, Context, Layer, Clock, DateTime } from 'effect';
 import { CommentAuthorMismatchError } from '../errors/comment-author-mismatch-error.ts';
 import { CommentLimitExceededError } from '../errors/comment-limit-exceeded-error.ts';
 import { CommentTargetNotFoundError } from '../errors/comment-target-not-found-error.ts';
@@ -32,7 +31,7 @@ export class EditCommentMessageService extends Context.Service<
     EditCommentMessageService,
     Effect.gen(function* () {
       const commentsCapability = yield* CommentStore;
-      const clockCapability = yield* Clock;
+      const clockCapability = yield* Clock.Clock;
       const optionsCapability = yield* EditCommentMessageOptions;
 
       return {
@@ -56,7 +55,9 @@ export class EditCommentMessageService extends Context.Service<
             return yield* Effect.fail(new CommentAuthorMismatchError());
           if (message.body === input.body)
             return { thread: current, changed: false };
-          const editedAt = clockCapability.now();
+          const editedAt = DateTime.formatIso(
+            DateTime.makeUnsafe(yield* clockCapability.currentTimeMillis),
+          );
           const sizeBytes = commentStorageSize({
             ...current,
             messages: current.messages.map((entry) =>

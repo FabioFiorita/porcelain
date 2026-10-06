@@ -1,7 +1,6 @@
 import { ExpireGitActionReceiptsOptions } from '../ports/expire-git-action-receipts-options.ts';
-import { Effect, Context, Layer } from 'effect';
+import { Effect, Context, Layer, Clock, DateTime } from 'effect';
 import { type WorktreeKey } from '@porcelain/kernel/models';
-import { Clock } from '@porcelain/kernel/ports';
 import { GitActionReceiptStore } from '../ports/git-action-receipt-store.ts';
 import { expiredReceipts } from '../rules/expired-receipts.ts';
 
@@ -15,7 +14,7 @@ export class ExpireGitActionReceiptsService extends Context.Service<
     ExpireGitActionReceiptsService,
     Effect.gen(function* () {
       const gitActionReceiptsCapability = yield* GitActionReceiptStore;
-      const clockCapability = yield* Clock;
+      const clockCapability = yield* Clock.Clock;
       const optionsCapability = yield* ExpireGitActionReceiptsOptions;
 
       return {
@@ -24,7 +23,9 @@ export class ExpireGitActionReceiptsService extends Context.Service<
         ): Effect.fn.Return<void, never, never> {
           const expired = expiredReceipts(
             yield* gitActionReceiptsCapability.finished(),
-            clockCapability.now(),
+            DateTime.formatIso(
+              DateTime.makeUnsafe(yield* clockCapability.currentTimeMillis),
+            ),
             optionsCapability.retentionMs,
           );
           const requestIds: string[] = [];

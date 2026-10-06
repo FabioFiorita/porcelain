@@ -1,5 +1,4 @@
-import { Effect, Context, Layer } from 'effect';
-import { Clock } from '@porcelain/kernel/ports';
+import { Effect, Context, Layer, Clock, DateTime } from 'effect';
 import type {
   RevokeDeviceInput,
   RevokeDeviceResult,
@@ -21,7 +20,7 @@ export class RevokeDeviceService extends Context.Service<
     Effect.gen(function* () {
       const devices = yield* DeviceStore;
       const deviceSightings = yield* DeviceSightingStore;
-      const clock = yield* Clock;
+      const clock = yield* Clock.Clock;
 
       return {
         execute: Effect.fn('RevokeDeviceService.execute')(function* (
@@ -29,7 +28,12 @@ export class RevokeDeviceService extends Context.Service<
         ): Effect.fn.Return<RevokeDeviceResult, never> {
           const device = yield* devices.find({ deviceId: input.id });
           if (!device || deviceRevoked(device)) return { kind: 'not-revoked' };
-          yield* devices.markRevoked({ device, revokedAt: clock.now() });
+          yield* devices.markRevoked({
+            device,
+            revokedAt: DateTime.formatIso(
+              DateTime.makeUnsafe(yield* clock.currentTimeMillis),
+            ),
+          });
           deviceSightings.remove({ deviceId: device.id });
           return { kind: 'revoked' };
         }),

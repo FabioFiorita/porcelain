@@ -10,9 +10,9 @@ export default {
     {
       kind: 'replace',
       path: 'packages/access/src/services/issue-pairing-service.ts',
-      old: "import { Clock, IdSource, SecretSource } from '@porcelain/kernel/ports';",
+      old: "import { IdSource, SecretSource } from '@porcelain/kernel/ports';",
       new: `import { randomUUID } from 'node:crypto';
-import { Clock, IdSource, SecretSource } from '@porcelain/kernel/ports';`,
+import { IdSource, SecretSource } from '@porcelain/kernel/ports';`,
     },
     {
       kind: 'replace',

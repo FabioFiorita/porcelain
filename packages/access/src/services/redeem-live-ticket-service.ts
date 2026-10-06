@@ -1,6 +1,5 @@
 import { RedeemLiveTicketOptions } from '../ports/redeem-live-ticket-options.ts';
-import { Effect, Context, Layer } from 'effect';
-import { Clock } from '@porcelain/kernel/ports';
+import { Effect, Context, Layer, Clock, DateTime } from 'effect';
 import type {
   RedeemLiveTicketInput,
   RedeemLiveTicketResult,
@@ -26,7 +25,7 @@ export class RedeemLiveTicketService extends Context.Service<
       const liveTickets = yield* LiveTicketStore;
       const devices = yield* DeviceStore;
       const deviceSightings = yield* DeviceSightingStore;
-      const clock = yield* Clock;
+      const clock = yield* Clock.Clock;
       const options = yield* RedeemLiveTicketOptions;
 
       return {
@@ -35,7 +34,9 @@ export class RedeemLiveTicketService extends Context.Service<
         ): Effect.fn.Return<RedeemLiveTicketResult, never> {
           const parts = parseCredential('pct', input.ticket);
           if (!parts) return { kind: 'refused' };
-          const now = clock.now();
+          const now = DateTime.formatIso(
+            DateTime.makeUnsafe(yield* clock.currentTimeMillis),
+          );
           const { tickets, ticket } = liveTicketTaken(
             liveTickets.read(),
             parts.id,

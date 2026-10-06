@@ -1,8 +1,9 @@
-import { IdSource, Clock } from '@porcelain/kernel/ports';
+import { testClock } from '@porcelain/kernel/test-kit';
+import { SequentialIdSource } from '@porcelain/kernel/fakes';
+import { IdSource } from '@porcelain/kernel/ports';
 import { CommentStore, ReplyToCommentOptions } from '@porcelain/reviews/ports';
-import { Effect } from 'effect';
+import { Effect, Clock } from 'effect';
 import { describe, expect, it } from 'vitest';
-import { FixedClock, SequentialIdSource } from '@porcelain/kernel/fakes';
 import {
   CommentIdentityConflictError,
   CommentLimitExceededError,
@@ -39,7 +40,7 @@ async function setup(body = 'Opening message') {
       Effect.provide(ReplyToCommentService.layer),
       Effect.provideService(CommentStore, store),
       Effect.provideService(IdSource, new SequentialIdSource()),
-      Effect.provideService(Clock, new FixedClock()),
+      Effect.provideService(Clock.Clock, await testClock()),
       Effect.provideService(ReplyToCommentOptions, limits),
     ),
   );

@@ -15,8 +15,8 @@ import { LaneKeys } from '../runtime/lane-keys.ts';
 import { Lanes } from '../runtime/lanes.ts';
 import { WorktreeConsistencyProbe } from '../ports/worktree-consistency-probe.ts';
 import { CheckWorktreeUseCasePort } from '../ports/check-worktree-use-case-port.ts';
-import { Clock, IdSource } from '@porcelain/kernel/ports';
-import { Context, Effect, Layer } from 'effect';
+import { IdSource } from '@porcelain/kernel/ports';
+import { Context, Effect, Layer, Clock } from 'effect';
 import { projectsRoutes } from '../http/routes/projects/projects-api.ts';
 import {
   ProjectFolderReader,
@@ -108,7 +108,7 @@ export function composeProjects(
     Layer.succeed(WorktreeCatalogStore, catalog),
     Layer.succeed(InventoryStore, inventory),
     Layer.succeed(WorktreePresenceStore, worktreePresence),
-    Layer.succeed(Clock, clock),
+    Layer.succeed(Clock.Clock, clock),
     Layer.succeed(ListRegisteredProjectsService, listRegisteredProjects),
     Layer.succeed(ListKnownWorktreesService, listKnownWorktrees),
     Layer.succeed(Lanes, lanes),

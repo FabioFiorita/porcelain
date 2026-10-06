@@ -1,12 +1,11 @@
-import { Clock } from '@porcelain/kernel/ports';
+import { testClock } from '@porcelain/kernel/test-kit';
 import {
   WorktreePresenceStore,
   InventoryStore,
   CollectAbsentWorktreesOptions,
 } from '@porcelain/projects/ports';
-import { Effect } from 'effect';
+import { Effect, Clock } from 'effect';
 import { describe, expect, it } from 'vitest';
-import { FixedClock } from '@porcelain/kernel/fakes';
 import {
   type RegisteredProject,
   type WorktreePresence,
@@ -43,7 +42,10 @@ async function service(
         InventoryStore,
         new InMemoryInventoryStore(projects),
       ),
-      Effect.provideService(Clock, new FixedClock('2026-08-31T00:00:00.001Z')),
+      Effect.provideService(
+        Clock.Clock,
+        await testClock('2026-08-31T00:00:00.001Z'),
+      ),
       Effect.provideService(CollectAbsentWorktreesOptions, {
         graceMs: THIRTY_DAYS_MS,
       }),

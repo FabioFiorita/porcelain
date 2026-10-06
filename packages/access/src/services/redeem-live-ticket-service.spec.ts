@@ -1,13 +1,12 @@
-import { Clock } from '@porcelain/kernel/ports';
+import { testClock } from '@porcelain/kernel/test-kit';
 import {
   LiveTicketStore,
   DeviceStore,
   DeviceSightingStore,
   RedeemLiveTicketOptions,
 } from '@porcelain/access/ports';
-import { Effect } from 'effect';
+import { Effect, Clock } from 'effect';
 import { describe, expect, it } from 'vitest';
-import { FixedClock } from '@porcelain/kernel/fakes';
 import type { StoredDevice } from '@porcelain/access/models';
 import { credential } from '@porcelain/access/rules';
 import { sha256Hex } from '@porcelain/kernel/rules';
@@ -24,7 +23,7 @@ const expiresAt = '2026-09-30T10:00:30.000Z';
 const day = 24 * 60 * 60 * 1000;
 const ticket = credential('pct', ticketId, secret).token;
 
-function setup(device: Partial<StoredDevice> = {}) {
+async function setup(device: Partial<StoredDevice> = {}) {
   const devices = new InMemoryDeviceStore();
   devices.add({
     id: deviceId,
@@ -48,7 +47,7 @@ function setup(device: Partial<StoredDevice> = {}) {
       },
     ],
   });
-  const clock = new FixedClock('2026-09-30T10:00:05.000Z');
+  const clock = await testClock('2026-09-30T10:00:05.000Z');
   const service = Effect.runSync(
     RedeemLiveTicketService.pipe(
       Effect.provide(RedeemLiveTicketService.layer),
@@ -58,7 +57,7 @@ function setup(device: Partial<StoredDevice> = {}) {
         DeviceSightingStore,
         new InMemoryDeviceSightingStore(),
       ),
-      Effect.provideService(Clock, clock),
+      Effect.provideService(Clock.Clock, clock),
       Effect.provideService(RedeemLiveTicketOptions, {
         unusedLifetimeMs: 90 * day,
       }),
@@ -70,8 +69,8 @@ function setup(device: Partial<StoredDevice> = {}) {
 const refused = { kind: 'refused' };
 
 describe('RedeemLiveTicketService', () => {
-  it('authenticates the device the ticket was issued to, over the same route', () => {
-    const { service } = setup();
+  it('authenticates the device the ticket was issued to, over the same route', async () => {
+    const { service } = await setup();
     expect(
       Effect.runSync(service.execute({ ticket, route: 'tailnet' })),
     ).toEqual({
@@ -80,8 +79,8 @@ describe('RedeemLiveTicketService', () => {
     });
   });
 
-  it('refuses a ticket used once already', () => {
-    const { tickets, service } = setup();
+  it('refuses a ticket used once already', async () => {
+    const { tickets, service } = await setup();
     Effect.runSync(service.execute({ ticket, route: 'tailnet' }));
     expect(
       Effect.runSync(service.execute({ ticket, route: 'tailnet' })),
@@ -89,24 +88,26 @@ describe('RedeemLiveTicketService', () => {
     expect(tickets.read().tickets).toEqual([]);
   });
 
-  it('accepts a ticket until the moment it expires and refuses it from then on', () => {
-    const early = setup();
-    early.clock.set('2026-09-30T10:00:29.999Z');
+  it('accepts a ticket until the moment it expires and refuses it from then on', async () => {
+    const early = await setup();
+    await Effect.runPromise(
+      early.clock.setTime(Date.parse('2026-09-30T10:00:29.999Z')),
+    );
     expect(
       Effect.runSync(early.service.execute({ ticket, route: 'tailnet' })),
     ).toEqual({
       kind: 'authenticated',
       deviceId,
     });
-    const late = setup();
-    late.clock.set(expiresAt);
+    const late = await setup();
+    await Effect.runPromise(late.clock.setTime(Date.parse(expiresAt)));
     expect(
       Effect.runSync(late.service.execute({ ticket, route: 'tailnet' })),
     ).toEqual(refused);
   });
 
-  it('refuses a ticket over another route and does not let it be tried again', () => {
-    const { service } = setup();
+  it('refuses a ticket over another route and does not let it be tried again', async () => {
+    const { service } = await setup();
     expect(
       Effect.runSync(service.execute({ ticket, route: 'tunnel' })),
     ).toEqual(refused);
@@ -115,8 +116,8 @@ describe('RedeemLiveTicketService', () => {
     ).toEqual(refused);
   });
 
-  it('refuses a ticket whose secret does not match', () => {
-    const { service } = setup();
+  it('refuses a ticket whose secret does not match', async () => {
+    const { service } = await setup();
     expect(
       Effect.runSync(
         service.execute({
@@ -133,8 +134,8 @@ describe('RedeemLiveTicketService', () => {
     ['a pairing code', credential('pcp', ticketId, secret).token],
     ['an empty value', ''],
     ['a malformed value', `pct_${ticketId}_short`],
-  ])('refuses %s without spending the ticket', (_, value) => {
-    const { service } = setup();
+  ])('refuses %s without spending the ticket', async (_, value) => {
+    const { service } = await setup();
     expect(
       Effect.runSync(service.execute({ ticket: value, route: 'tailnet' })),
     ).toEqual(refused);
@@ -147,7 +148,7 @@ describe('RedeemLiveTicketService', () => {
   });
 
   it('refuses the ticket of a device revoked since it was issued', async () => {
-    const { devices, service } = setup();
+    const { devices, service } = await setup();
     const device = await Effect.runPromise(devices.find({ deviceId }));
     if (device)
       await Effect.runPromise(
@@ -158,8 +159,8 @@ describe('RedeemLiveTicketService', () => {
     ).toEqual(refused);
   });
 
-  it('refuses the ticket of a device left unused past its lifetime', () => {
-    const { service } = setup({ lastSeenAt: '2026-06-01T10:00:00.000Z' });
+  it('refuses the ticket of a device left unused past its lifetime', async () => {
+    const { service } = await setup({ lastSeenAt: '2026-06-01T10:00:00.000Z' });
     expect(
       Effect.runSync(service.execute({ ticket, route: 'tailnet' })),
     ).toEqual(refused);

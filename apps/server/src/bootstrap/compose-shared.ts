@@ -20,7 +20,7 @@ import {
   ReadTextFilesOptions,
   ReadBinaryFilesOptions,
 } from '@porcelain/files/ports';
-import { Effect, Layer, Semaphore } from 'effect';
+import { Effect, Layer, Semaphore, Clock } from 'effect';
 import {
   EnvironmentIdentityReader,
   EnvironmentNameStore,
@@ -30,7 +30,6 @@ import {
   ReadEnvironmentNameService,
   ReadEnvironmentService,
 } from '@porcelain/access/services';
-import { Clock } from '@porcelain/kernel/ports';
 import { OsHostNameReader } from '../adapters/access/os-host-name-reader.ts';
 import {
   ReadBranchChangesService,
@@ -104,7 +103,7 @@ type SharedDependencies = {
   catalog: WorktreeCatalogStore;
   gitVersion: Awaited<ReturnType<typeof readGitVersion>>;
   worktreeId: (projectId: string, metadataIdentity: string) => string;
-  clock: Clock;
+  clock: Clock.Clock;
   logger: Logger;
 };
 
@@ -157,7 +156,7 @@ export function composeShared(dependencies: SharedDependencies) {
       Layer.succeed(ChangeDiffReader, new GitChangeDiffReader(openInspection)),
       Layer.succeed(WorktreeCatalogStore, catalog),
       Layer.succeed(InventoryStore, stores.inventory),
-      Layer.succeed(Clock, dependencies.clock),
+      Layer.succeed(Clock.Clock, dependencies.clock),
       Layer.succeed(CheckWorktreeOptions, staleness),
       Layer.succeed(BranchRangeReader, branchRangeReader),
       Layer.succeed(GitActionReceiptStore, stores.gitActions),

@@ -1,12 +1,13 @@
-import { IdSource, Clock } from '@porcelain/kernel/ports';
+import { testClock } from '@porcelain/kernel/test-kit';
+import { SequentialIdSource } from '@porcelain/kernel/fakes';
+import { IdSource } from '@porcelain/kernel/ports';
 import {
   CommentStore,
   CreateCommentThreadOptions,
 } from '@porcelain/reviews/ports';
-import { Effect } from 'effect';
+import { Effect, Clock } from 'effect';
 import { InvalidLineRangeError } from '@porcelain/kernel/errors';
 import { describe, expect, it } from 'vitest';
-import { FixedClock, SequentialIdSource } from '@porcelain/kernel/fakes';
 import {
   CommentIdentityConflictError,
   CommentLimitExceededError,
@@ -27,14 +28,14 @@ const limits = {
   bytesPerWorktree: 1024 * 1024,
 };
 
-function setup() {
+async function setup() {
   const store = new InMemoryCommentStore();
   const service = Effect.runSync(
     CreateCommentThreadService.pipe(
       Effect.provide(CreateCommentThreadService.layer),
       Effect.provideService(CommentStore, store),
       Effect.provideService(IdSource, new SequentialIdSource()),
-      Effect.provideService(Clock, new FixedClock()),
+      Effect.provideService(Clock.Clock, await testClock()),
       Effect.provideService(CreateCommentThreadOptions, limits),
     ),
   );
@@ -55,7 +56,7 @@ function input(
 
 describe('CreateCommentThreadService', () => {
   it('opens an unresolved thread with one message and the next revision', async () => {
-    const { service, store } = setup();
+    const { service, store } = await setup();
     const thread = Effect.runSync(service.execute(input()));
     expect(thread).toMatchObject({
       worktreeId,
@@ -68,8 +69,8 @@ describe('CreateCommentThreadService', () => {
     ]);
   });
 
-  it('writes as the agent only when the writer is the agent', () => {
-    const { service } = setup();
+  it('writes as the agent only when the writer is the agent', async () => {
+    const { service } = await setup();
     expect(
       Effect.runSync(service.execute(input({ writer: { kind: 'agent' } })))
         .messages[0]?.author,
@@ -80,8 +81,8 @@ describe('CreateCommentThreadService', () => {
     ).toBe('reviewer');
   });
 
-  it('numbers revisions across worktrees', () => {
-    const { service } = setup();
+  it('numbers revisions across worktrees', async () => {
+    const { service } = await setup();
     Effect.runSync(service.execute(input()));
     expect(
       Effect.runSync(service.execute(input({ worktreeId: 'b'.repeat(64) })))
@@ -90,7 +91,7 @@ describe('CreateCommentThreadService', () => {
   });
 
   it('answers a retried create with the original thread and stores nothing new', async () => {
-    const { service, store } = setup();
+    const { service, store } = await setup();
     const ids = { threadId: 'thread-1', messageId: 'message-1' };
     const first = Effect.runSync(service.execute(input(ids)));
     const again = Effect.runSync(
@@ -130,16 +131,16 @@ describe('CreateCommentThreadService', () => {
       name: 'another message id',
       attempt: input({ ...ids, messageId: 'message-2' }),
     },
-  ])('refuses a thread id reused for $name', ({ attempt }) => {
-    const { service } = setup();
+  ])('refuses a thread id reused for $name', async ({ attempt }) => {
+    const { service } = await setup();
     Effect.runSync(service.execute(input(ids)));
     expect(() => Effect.runSync(service.execute(attempt))).toThrow(
       CommentIdentityConflictError,
     );
   });
 
-  it('answers a repeated branch comment and refuses the same id against another base', () => {
-    const { service } = setup();
+  it('answers a repeated branch comment and refuses the same id against another base', async () => {
+    const { service } = await setup();
     const onBase = (base: string) =>
       input({
         ...ids,
@@ -159,8 +160,8 @@ describe('CreateCommentThreadService', () => {
     ).toThrow(CommentIdentityConflictError);
   });
 
-  it('refuses a new thread whose message id already belongs to another thread', () => {
-    const { service } = setup();
+  it('refuses a new thread whose message id already belongs to another thread', async () => {
+    const { service } = await setup();
     Effect.runSync(
       service.execute(input({ threadId: 'thread-1', messageId: 'message-1' })),
     );
@@ -174,7 +175,7 @@ describe('CreateCommentThreadService', () => {
   });
 
   it('refuses a code range that ends before it starts and stores nothing', async () => {
-    const { service, store } = setup();
+    const { service, store } = await setup();
     expect(() =>
       Effect.runSync(
         service.execute(
@@ -192,8 +193,8 @@ describe('CreateCommentThreadService', () => {
     expect(await Effect.runPromise(store.list({ worktreeId }))).toEqual([]);
   });
 
-  it('opens a thread on a one-line code range', () => {
-    const { service } = setup();
+  it('opens a thread on a one-line code range', async () => {
+    const { service } = await setup();
     expect(
       Effect.runSync(
         service.execute(
@@ -241,15 +242,15 @@ describe('CreateCommentThreadService', () => {
       },
     },
   ])('refuses $name and stores nothing', async ({ anchor }) => {
-    const { service, store } = setup();
+    const { service, store } = await setup();
     expect(() => Effect.runSync(service.execute(input({ anchor })))).toThrow(
       CommentRevisionMismatchError,
     );
     expect(await Effect.runPromise(store.list({ worktreeId }))).toEqual([]);
   });
 
-  it('opens a thread on a commit comparison that names its object id', () => {
-    const { service } = setup();
+  it('opens a thread on a commit comparison that names its object id', async () => {
+    const { service } = await setup();
     const anchor: CommentAnchor = {
       kind: 'file',
       filePath: 'README.md',
@@ -261,8 +262,8 @@ describe('CreateCommentThreadService', () => {
     );
   });
 
-  it('opens a thread on a branch comparison that names the tip it was read at', () => {
-    const { service } = setup();
+  it('opens a thread on a branch comparison that names the tip it was read at', async () => {
+    const { service } = await setup();
     const anchor: CommentAnchor = {
       kind: 'codeRange',
       filePath: 'README.md',
@@ -279,7 +280,7 @@ describe('CreateCommentThreadService', () => {
   });
 
   it('opens a thread on the whole working-tree change', async () => {
-    const { service, store } = setup();
+    const { service, store } = await setup();
     const thread = Effect.runSync(
       service.execute(input({ anchor: { kind: 'change' } })),
     );
@@ -289,8 +290,8 @@ describe('CreateCommentThreadService', () => {
     ]);
   });
 
-  it('opens a thread on the whole branch change read at its tip', () => {
-    const { service } = setup();
+  it('opens a thread on the whole branch change read at its tip', async () => {
+    const { service } = await setup();
     const anchor: CommentAnchor = {
       kind: 'change',
       comparison: { kind: 'branch', base: 'refs/heads/main' },
@@ -302,7 +303,7 @@ describe('CreateCommentThreadService', () => {
   });
 
   it('refuses a whole-branch comment that does not name the tip it was read at', async () => {
-    const { service, store } = setup();
+    const { service, store } = await setup();
     expect(() =>
       Effect.runSync(
         service.execute(
@@ -335,7 +336,7 @@ describe('CreateCommentThreadService', () => {
   ])(
     'refuses a whole-change comment against %s and stores nothing',
     async (_, anchor) => {
-      const { service, store } = setup();
+      const { service, store } = await setup();
       expect(() => Effect.runSync(service.execute(input({ anchor })))).toThrow(
         UnsupportedCommentComparisonError,
       );
@@ -343,8 +344,8 @@ describe('CreateCommentThreadService', () => {
     },
   );
 
-  it('answers a repeated whole-change comment and refuses the same id on a file', () => {
-    const { service } = setup();
+  it('answers a repeated whole-change comment and refuses the same id on a file', async () => {
+    const { service } = await setup();
     const ids = { threadId: 'thread-1', messageId: 'message-1' };
     const first = Effect.runSync(
       service.execute(input({ ...ids, anchor: { kind: 'change' } })),
@@ -360,7 +361,7 @@ describe('CreateCommentThreadService', () => {
   });
 
   it('opens the hundredth thread of a worktree and refuses the next', async () => {
-    const { service, store } = setup();
+    const { service, store } = await setup();
     for (let index = 0; index < 100; index += 1)
       Effect.runSync(service.execute(input()));
     expect(await Effect.runPromise(store.list({ worktreeId }))).toHaveLength(
@@ -375,7 +376,7 @@ describe('CreateCommentThreadService', () => {
   });
 
   it('refuses a thread that would take the worktree past one mebibyte', async () => {
-    const { service, store } = setup();
+    const { service, store } = await setup();
     const body = 'x'.repeat(15_000);
     let created = 0;
     let refused: unknown;

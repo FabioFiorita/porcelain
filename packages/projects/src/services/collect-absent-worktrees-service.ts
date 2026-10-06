@@ -1,7 +1,6 @@
 import { CollectAbsentWorktreesOptions } from '../ports/collect-absent-worktrees-options.ts';
-import { Effect, Context, Layer } from 'effect';
+import { Effect, Context, Layer, Clock, DateTime } from 'effect';
 import { type WorktreeKeys } from '@porcelain/kernel/models';
-import { Clock } from '@porcelain/kernel/ports';
 import { type CollectAbsentWorktreesResult } from '../models/collect-absent-worktrees.ts';
 import { WorktreePresenceStore } from '../ports/worktree-presence-store.ts';
 import { expired } from '../rules/worktree-presence.ts';
@@ -18,7 +17,7 @@ export class CollectAbsentWorktreesService extends Context.Service<
     CollectAbsentWorktreesService,
     Effect.gen(function* () {
       const worktreePresenceCapability = yield* WorktreePresenceStore;
-      const clockCapability = yield* Clock;
+      const clockCapability = yield* Clock.Clock;
       const optionsCapability = yield* CollectAbsentWorktreesOptions;
 
       return {
@@ -30,7 +29,9 @@ export class CollectAbsentWorktreesService extends Context.Service<
             (yield* worktreePresenceCapability.list()).filter((row) =>
               named.has(row.worktreeId),
             ),
-            clockCapability.now(),
+            DateTime.formatIso(
+              DateTime.makeUnsafe(yield* clockCapability.currentTimeMillis),
+            ),
             optionsCapability.graceMs,
           );
           yield* worktreePresenceCapability.remove({ worktreeIds: collected });

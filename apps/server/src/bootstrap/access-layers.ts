@@ -1,4 +1,4 @@
-import { Layer } from 'effect';
+import { Layer, Clock } from 'effect';
 import {
   OpenRemoteRoutesService,
   CloseTunnelConnectionsService,
@@ -54,7 +54,7 @@ import {
   TakePairingAttemptOptions,
   RefundPairingAttemptOptions,
 } from '@porcelain/access/ports';
-import { Clock, IdSource, SecretSource } from '@porcelain/kernel/ports';
+import { IdSource, SecretSource } from '@porcelain/kernel/ports';
 import { InMemoryLiveTicketStore } from '../adapters/access/in-memory-live-ticket-store.ts';
 import { RandomSecretSource } from '../adapters/runtime/random-secret-source.ts';
 import type { ComposeContext } from './compose-context.ts';
@@ -108,7 +108,7 @@ export function accessServicesLayer(
       Layer.succeed(TunnelProbe, dependencies.tunnelProbe),
       Layer.succeed(RemoteRouteOptions, { loopbackAddress: LOOPBACK_ADDRESS }),
       Layer.succeed(TunnelConnectionStore, dependencies.tunnelConnections),
-      Layer.succeed(Clock, clock),
+      Layer.succeed(Clock.Clock, clock),
       Layer.succeed(ServiceUpdateCheckOptions, limits.serviceUpdate),
       Layer.succeed(DeviceStore, deviceStore),
       Layer.succeed(DeviceSightingStore, deviceSightingStore),

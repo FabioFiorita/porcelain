@@ -1,6 +1,5 @@
-import { Effect, Context, Layer } from 'effect';
+import { Effect, Context, Layer, Clock, DateTime } from 'effect';
 import { type WorktreeKey } from '@porcelain/kernel/models';
-import { Clock } from '@porcelain/kernel/ports';
 import { GitActionReceiptStore } from '../ports/git-action-receipt-store.ts';
 import { interruptedReceipt } from '../rules/interrupted-receipt.ts';
 
@@ -14,12 +13,14 @@ export class RecoverInterruptedGitActionsService extends Context.Service<
     RecoverInterruptedGitActionsService,
     Effect.gen(function* () {
       const gitActionReceiptsCapability = yield* GitActionReceiptStore;
-      const clockCapability = yield* Clock;
+      const clockCapability = yield* Clock.Clock;
 
       return {
         execute: Effect.fn('RecoverInterruptedGitActionsService.execute')(
           function* (input: WorktreeKey): Effect.fn.Return<void, never, never> {
-            const finishedAt = clockCapability.now();
+            const finishedAt = DateTime.formatIso(
+              DateTime.makeUnsafe(yield* clockCapability.currentTimeMillis),
+            );
             for (const receipt of yield* gitActionReceiptsCapability.running())
               if (receipt.worktreeId === input.worktreeId)
                 yield* gitActionReceiptsCapability.save(

@@ -1,6 +1,5 @@
 import { ServiceUpdateCheckOptions } from '../ports/service-update-check-options.ts';
-import { Effect, Context, Layer } from 'effect';
-import { Clock } from '@porcelain/kernel/ports';
+import { Effect, Context, Layer, Clock, DateTime } from 'effect';
 import type { ServiceUpdateCheck } from '../models/service-update.ts';
 import { serviceUpdateCheck } from '../rules/service-update-check.ts';
 
@@ -11,17 +10,17 @@ export class PlanServiceUpdateCheckService extends Context.Service<
   static readonly layer = Layer.effect(
     PlanServiceUpdateCheckService,
     Effect.gen(function* () {
-      const clock = yield* Clock;
+      const clock = yield* Clock.Clock;
       const options = yield* ServiceUpdateCheckOptions;
 
       return {
         execute: Effect.fn('PlanServiceUpdateCheckService.execute')(
           function* (): Effect.fn.Return<ServiceUpdateCheck, never> {
+            const observedAt = DateTime.formatIso(
+              DateTime.makeUnsafe(yield* clock.currentTimeMillis),
+            );
             return yield* Effect.sync<ServiceUpdateCheck>(() => {
-              return serviceUpdateCheck(
-                clock.now(),
-                options.latestVersionTtlMs,
-              );
+              return serviceUpdateCheck(observedAt, options.latestVersionTtlMs);
             });
           },
         ),

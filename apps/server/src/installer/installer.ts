@@ -1,3 +1,4 @@
+import type { Clock } from 'effect';
 import { commandRunner, type CommandRunner } from './command-runner.ts';
 import type { InstallerContext } from './context.ts';
 import { NoUserIdError } from './errors/no-user-id-error.ts';
@@ -13,7 +14,6 @@ import { acquireDirectoryLock } from '../runtime/directory-lock.ts';
 import { ManagementLockHeldError } from './errors/management-lock-held-error.ts';
 import { servicePaths } from './paths.ts';
 import { serviceSearchPath } from './search-path.ts';
-import type { Clock } from '@porcelain/kernel/ports';
 import type { OwnerProbe } from '../ports/owner-probe.ts';
 import { readServiceStatus, type ServiceStatus } from './status.ts';
 import { SystemdService } from './systemd-service.ts';
@@ -30,7 +30,7 @@ type InstallerOptions = {
   packageVersion: string;
   searchPath: string;
   ownerProbe: OwnerProbe;
-  clock: Clock;
+  clock: Clock.Clock;
   limits: Limits;
   uid?: number | undefined;
   runner?: CommandRunner | undefined;

@@ -1,17 +1,17 @@
-import { Clock, IdSource, SecretSource } from '@porcelain/kernel/ports';
+import { testClock } from '@porcelain/kernel/test-kit';
+import {
+  SequentialIdSource,
+  SequentialSecretSource,
+} from '@porcelain/kernel/fakes';
+import { IdSource, SecretSource } from '@porcelain/kernel/ports';
 import {
   PairingGrantStore,
   PairingReachReader,
   IssuePairingOptions,
 } from '@porcelain/access/ports';
 import type { Context } from 'effect';
-import { Effect } from 'effect';
+import { Effect, Clock } from 'effect';
 import { describe, expect, it } from 'vitest';
-import {
-  FixedClock,
-  SequentialIdSource,
-  SequentialSecretSource,
-} from '@porcelain/kernel/fakes';
 import {
   InvalidDeviceDetailsError,
   InvalidPairingAddressError,
@@ -24,7 +24,7 @@ import { IssuePairingService } from './issue-pairing-service.ts';
 const address = 'http://192.168.1.20:4173';
 const environmentId = 'e0000000-0000-4000-8000-000000000001';
 
-function setup() {
+async function setup() {
   const grants = new InMemoryPairingGrantStore();
   const service = Effect.runSync(
     IssuePairingService.pipe(
@@ -40,7 +40,10 @@ function setup() {
           },
         }),
       ),
-      Effect.provideService(Clock, new FixedClock('2026-09-23T10:00:00.000Z')),
+      Effect.provideService(
+        Clock.Clock,
+        await testClock('2026-09-23T10:00:00.000Z'),
+      ),
       Effect.provideService(IdSource, new SequentialIdSource()),
       Effect.provideService(SecretSource, new SequentialSecretSource()),
       Effect.provideService(IssuePairingOptions, {
@@ -68,8 +71,8 @@ function issueOne(
 }
 
 describe('IssuePairingService', () => {
-  it('issues one grant per label, each with its own one-time code', () => {
-    const { service } = setup();
+  it('issues one grant per label, each with its own one-time code', async () => {
+    const { service } = await setup();
     const { grants } = Effect.runSync(
       service.execute({
         labels: ['Phone', 'Tablet'],
@@ -85,7 +88,7 @@ describe('IssuePairingService', () => {
   });
 
   it('keeps only a hash of the code, which the code matches', async () => {
-    const { grants, service } = setup();
+    const { grants, service } = await setup();
     const issued = issueOne(service);
     const secret = parseCredential('pcp', issued.code)?.secret ?? '';
     const stored = await Effect.runPromise(
@@ -95,21 +98,21 @@ describe('IssuePairingService', () => {
     expect(secretMatches(stored?.secretHash ?? '', secret)).toBe(true);
   });
 
-  it('expires the grant one pairing lifetime after it was issued', () => {
-    const { service } = setup();
+  it('expires the grant one pairing lifetime after it was issued', async () => {
+    const { service } = await setup();
     const issued = issueOne(service);
     expect(issued.grant.createdAt).toBe('2026-09-23T10:00:00.000Z');
     expect(issued.grant.expiresAt).toBe('2026-09-23T10:15:00.000Z');
   });
 
-  it('records every address the link may be opened at, in order', () => {
-    const { service } = setup();
+  it('records every address the link may be opened at, in order', async () => {
+    const { service } = await setup();
     const addresses = ['http://laptop.local:4173', address];
     expect(issueOne(service, addresses).grant.addresses).toEqual(addresses);
   });
 
-  it('hands the link its parts: every address in order, the code and the environment', () => {
-    const { service } = setup();
+  it('hands the link its parts: every address in order, the code and the environment', async () => {
+    const { service } = await setup();
     const addresses = ['http://laptop.local:4173', address];
     const issued = issueOne(service, addresses);
     expect(issued.link).toEqual({
@@ -120,7 +123,7 @@ describe('IssuePairingService', () => {
   });
 
   it('issues an untrusted grant unless the owner asks for a trusted one', async () => {
-    const { grants, service } = setup();
+    const { grants, service } = await setup();
     const plain = issueOne(service);
     const [trusted] = Effect.runSync(
       service.execute({
@@ -146,7 +149,7 @@ describe('IssuePairingService', () => {
   });
 
   it('refuses an address the server does not answer at and issues nothing', async () => {
-    const { grants, service } = setup();
+    const { grants, service } = await setup();
     expect(() =>
       Effect.runSync(
         service.execute({
@@ -160,7 +163,7 @@ describe('IssuePairingService', () => {
   });
 
   it('refuses the whole request when any label is invalid', async () => {
-    const { grants, service } = setup();
+    const { grants, service } = await setup();
     expect(() =>
       Effect.runSync(
         service.execute({

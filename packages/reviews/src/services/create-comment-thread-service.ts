@@ -1,7 +1,7 @@
 import { CreateCommentThreadOptions } from '../ports/create-comment-thread-options.ts';
-import { Effect, Context, Layer } from 'effect';
+import { Effect, Context, Layer, Clock, DateTime } from 'effect';
 import { InvalidLineRangeError } from '@porcelain/kernel/errors';
-import { Clock, IdSource } from '@porcelain/kernel/ports';
+import { IdSource } from '@porcelain/kernel/ports';
 import { CommentIdentityConflictError } from '../errors/comment-identity-conflict-error.ts';
 import { CommentLimitExceededError } from '../errors/comment-limit-exceeded-error.ts';
 import { CommentRevisionMismatchError } from '../errors/comment-revision-mismatch-error.ts';
@@ -43,7 +43,7 @@ export class CreateCommentThreadService extends Context.Service<
     Effect.gen(function* () {
       const commentsCapability = yield* CommentStore;
       const idSourceCapability = yield* IdSource;
-      const clockCapability = yield* Clock;
+      const clockCapability = yield* Clock.Clock;
       const optionsCapability = yield* CreateCommentThreadOptions;
       function operationFailure(
         problem: CommentAnchorProblem,
@@ -103,7 +103,9 @@ export class CreateCommentThreadService extends Context.Service<
                 id: messageId,
                 body: input.body,
                 author,
-                createdAt: clockCapability.now(),
+                createdAt: DateTime.formatIso(
+                  DateTime.makeUnsafe(yield* clockCapability.currentTimeMillis),
+                ),
               },
             ],
           };

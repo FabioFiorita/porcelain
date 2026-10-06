@@ -1,13 +1,12 @@
-import { Clock } from '@porcelain/kernel/ports';
+import { testClock } from '@porcelain/kernel/test-kit';
 import {
   WorktreeCatalogStore,
   InventoryStore,
   CheckWorktreeOptions,
 } from '@porcelain/projects/ports';
-import { Effect } from 'effect';
+import { Effect, Clock } from 'effect';
 import { WorktreeNotFoundError } from '@porcelain/kernel/errors';
 import { describe, expect, it } from 'vitest';
-import { FixedClock } from '@porcelain/kernel/fakes';
 import { WorktreeUnavailableError } from '@porcelain/projects/errors';
 import {
   type CatalogProject,
@@ -42,7 +41,10 @@ const worktree: ListedWorktree = {
   repositoryId: project.repositoryIdentity,
 };
 
-function service(observedAt: string, worktrees: ListedWorktree[] = [worktree]) {
+async function service(
+  observedAt: string,
+  worktrees: ListedWorktree[] = [worktree],
+) {
   const snapshot: CatalogProject = {
     observation: {
       id: project.id,
@@ -63,17 +65,20 @@ function service(observedAt: string, worktrees: ListedWorktree[] = [worktree]) {
         InventoryStore,
         new InMemoryInventoryStore([project]),
       ),
-      Effect.provideService(Clock, new FixedClock('2026-09-24T12:00:00.000Z')),
+      Effect.provideService(
+        Clock.Clock,
+        await testClock('2026-09-24T12:00:00.000Z'),
+      ),
       Effect.provideService(CheckWorktreeOptions, { staleAfterMs: 60 * 1000 }),
     ),
   );
 }
 
 describe('CheckRefreshedWorktreeService', () => {
-  it('answers the worktree the refresh just found', () => {
+  it('answers the worktree the refresh just found', async () => {
     expect(
       Effect.runSync(
-        service('2026-09-24T12:00:00.000Z').execute({
+        (await service('2026-09-24T12:00:00.000Z')).execute({
           worktreeId: worktree.id,
           requireAvailableProject: false,
         }),
@@ -81,10 +86,11 @@ describe('CheckRefreshedWorktreeService', () => {
     ).toEqual(worktree);
   });
 
-  it('refuses a worktree the refresh did not observe as unavailable instead of asking for another refresh', () => {
+  it('refuses a worktree the refresh did not observe as unavailable instead of asking for another refresh', async () => {
+    const checked = await service('2026-09-24T11:00:00.000Z');
     expect(() =>
       Effect.runSync(
-        service('2026-09-24T11:00:00.000Z').execute({
+        checked.execute({
           worktreeId: worktree.id,
           requireAvailableProject: false,
         }),
@@ -92,10 +98,11 @@ describe('CheckRefreshedWorktreeService', () => {
     ).toThrow(WorktreeUnavailableError);
   });
 
-  it('refuses a worktree the refresh did not find', () => {
+  it('refuses a worktree the refresh did not find', async () => {
+    const checked = await service('2026-09-24T12:00:00.000Z', []);
     expect(() =>
       Effect.runSync(
-        service('2026-09-24T12:00:00.000Z', []).execute({
+        checked.execute({
           worktreeId: worktree.id,
           requireAvailableProject: false,
         }),

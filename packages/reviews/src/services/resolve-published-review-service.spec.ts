@@ -1,15 +1,14 @@
+import { testClock } from '@porcelain/kernel/test-kit';
 import {
   SignatureSource,
   ResolvePublishedReviewOptions,
 } from '@porcelain/reviews/ports';
-import { Clock } from '@porcelain/kernel/ports';
-import { Effect } from 'effect';
-import { describe, expect, it } from 'vitest';
+import { Effect, Clock, type Context } from 'effect';
+import { beforeEach, describe, expect, it } from 'vitest';
 import {
   type FileChange,
   type TrackedComparison,
 } from '@porcelain/kernel/models';
-import { FixedClock } from '@porcelain/kernel/fakes';
 import {
   type Review,
   type ReviewDiff,
@@ -87,16 +86,23 @@ function text(path: string, content: string): [string, string] {
   return [path, content];
 }
 
-const service = Effect.runSync(
-  ResolvePublishedReviewService.pipe(
-    Effect.provide(ResolvePublishedReviewService.layer),
-    Effect.provideService(Clock, new FixedClock('2026-01-01T00:00:00.000Z')),
-    Effect.provideService(SignatureSource, new ScriptedSignatureSource()),
-    Effect.provideService(ResolvePublishedReviewOptions, {
-      lifetimeMs: 3_600_000,
-    }),
-  ),
-);
+let service: Context.Service.Shape<typeof ResolvePublishedReviewService>;
+
+beforeEach(async () => {
+  service = Effect.runSync(
+    ResolvePublishedReviewService.pipe(
+      Effect.provide(ResolvePublishedReviewService.layer),
+      Effect.provideService(
+        Clock.Clock,
+        await testClock('2026-01-01T00:00:00.000Z'),
+      ),
+      Effect.provideService(SignatureSource, new ScriptedSignatureSource()),
+      Effect.provideService(ResolvePublishedReviewOptions, {
+        lifetimeMs: 3_600_000,
+      }),
+    ),
+  );
+});
 
 function generate(evidence: {
   steps?: ReviewStep[];

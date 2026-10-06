@@ -1,6 +1,6 @@
 import { ReplyToCommentOptions } from '../ports/reply-to-comment-options.ts';
-import { Effect, Context, Layer } from 'effect';
-import { Clock, IdSource } from '@porcelain/kernel/ports';
+import { Effect, Context, Layer, Clock, DateTime } from 'effect';
+import { IdSource } from '@porcelain/kernel/ports';
 import { CommentIdentityConflictError } from '../errors/comment-identity-conflict-error.ts';
 import { CommentLimitExceededError } from '../errors/comment-limit-exceeded-error.ts';
 import { CommentTargetNotFoundError } from '../errors/comment-target-not-found-error.ts';
@@ -35,7 +35,7 @@ export class ReplyToCommentService extends Context.Service<
     Effect.gen(function* () {
       const commentsCapability = yield* CommentStore;
       const idSourceCapability = yield* IdSource;
-      const clockCapability = yield* Clock;
+      const clockCapability = yield* Clock.Clock;
       const optionsCapability = yield* ReplyToCommentOptions;
 
       return {
@@ -72,7 +72,9 @@ export class ReplyToCommentService extends Context.Service<
             id: messageId,
             body: input.body,
             author,
-            createdAt: clockCapability.now(),
+            createdAt: DateTime.formatIso(
+              DateTime.makeUnsafe(yield* clockCapability.currentTimeMillis),
+            ),
           };
           const sizeBytes = commentStorageSize({
             ...current,

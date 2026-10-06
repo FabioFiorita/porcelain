@@ -1,6 +1,5 @@
 import { CollectAbsentWorktreesOptions } from '../ports/collect-absent-worktrees-options.ts';
-import { Effect, Context, Layer } from 'effect';
-import { Clock } from '@porcelain/kernel/ports';
+import { Effect, Context, Layer, Clock, DateTime } from 'effect';
 import { type RecordedWorktreesResult } from '../models/collect-absent-worktrees.ts';
 import { InventoryStore } from '../ports/inventory-store.ts';
 import { WorktreePresenceStore } from '../ports/worktree-presence-store.ts';
@@ -15,7 +14,7 @@ export class ListExpiredWorktreesService extends Context.Service<
     Effect.gen(function* () {
       const worktreePresenceCapability = yield* WorktreePresenceStore;
       const inventoryCapability = yield* InventoryStore;
-      const clockCapability = yield* Clock;
+      const clockCapability = yield* Clock.Clock;
       const optionsCapability = yield* CollectAbsentWorktreesOptions;
 
       return {
@@ -23,7 +22,13 @@ export class ListExpiredWorktreesService extends Context.Service<
           function* (): Effect.fn.Return<RecordedWorktreesResult, never> {
             const rows = yield* worktreePresenceCapability.list();
             const expiredIds = new Set(
-              expired(rows, clockCapability.now(), optionsCapability.graceMs),
+              expired(
+                rows,
+                DateTime.formatIso(
+                  DateTime.makeUnsafe(yield* clockCapability.currentTimeMillis),
+                ),
+                optionsCapability.graceMs,
+              ),
             );
             return {
               worktrees: recordedWorktrees(

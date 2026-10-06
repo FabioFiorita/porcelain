@@ -1,10 +1,9 @@
-import { Effect } from 'effect';
+import { Effect, type Clock } from 'effect';
 import { rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { networkInterfaces } from 'node:os';
 import type { HostPolicy, PairingReach } from '@porcelain/access/models';
 import type { OwnerStatus } from '@porcelain/kernel/models';
-import type { Clock } from '@porcelain/kernel/ports';
 import { ownerSocketPath } from '../config/owner-socket-settings.ts';
 import type { ServerSettings } from '../config/server-settings.ts';
 import type { Job } from '../ports/job.ts';
@@ -28,7 +27,7 @@ export type OpenServer = (input: {
 type ApplicationStarter = {
   openServer: OpenServer;
   ownerProbe: OwnerProbe;
-  clock: Clock;
+  clock: Clock.Clock;
 };
 
 type RuntimeParts = {

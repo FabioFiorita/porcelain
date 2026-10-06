@@ -31,9 +31,9 @@ export class ReadEnvironmentService extends Context.Service<ReadEnvironmentServi
     }) };
   }));
 }`;
-const nativeClock = `import { Context } from 'effect';
-export interface Clock { now(): string; }
-export const Clock = Context.Service<'@porcelain/kernel/Clock', Clock>('@porcelain/kernel/Clock');`;
+const nativeIdSource = `import { Context } from 'effect';
+export interface IdSource { next(): string; }
+export const IdSource = Context.Service<'@porcelain/kernel/IdSource', IdSource>('@porcelain/kernel/IdSource');`;
 
 export const effectRuleCases = [
   ...[
@@ -80,26 +80,26 @@ export const effectRuleCases = [
     errors: 1,
   },
   ...[
-    nativeClock.replace(
-      "Clock>('@porcelain/kernel/Clock')",
-      "Clock>('@porcelain/kernel/Other')",
+    nativeIdSource.replace("IdSource>('", "IdSource>('wrong"),
+    nativeIdSource.replace(
+      "'@porcelain/kernel/IdSource', IdSource",
+      'IdSource, IdSource',
     ),
-    nativeClock.replace("'@porcelain/kernel/Clock', Clock", 'Clock, Clock'),
-    nativeClock.replace('Context.Service', 'Context.Reference'),
-    nativeClock.replace('const Clock', 'let Clock'),
+    nativeIdSource.replace('Context.Service', 'Context.Reference'),
+    nativeIdSource.replace('const IdSource', 'let IdSource'),
   ].map((invalid) => ({
     rule: 'models-are-types',
-    path: 'packages/kernel/src/ports/clock.ts',
-    valid: nativeClock,
+    path: 'packages/kernel/src/ports/id-source.ts',
+    valid: nativeIdSource,
     invalid,
     errors: 1,
   })),
   {
     rule: 'models-are-types',
-    path: 'packages/kernel/src/models/clock.ts',
-    validPath: 'packages/kernel/src/ports/clock.ts',
-    valid: nativeClock,
-    invalid: nativeClock,
+    path: 'packages/kernel/src/models/id-source.ts',
+    validPath: 'packages/kernel/src/ports/id-source.ts',
+    valid: nativeIdSource,
+    invalid: nativeIdSource,
     errors: 2,
   },
   ...['AbortSignal', 'AbortController'].map((raw) => ({

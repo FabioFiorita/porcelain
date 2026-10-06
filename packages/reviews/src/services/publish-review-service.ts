@@ -1,6 +1,6 @@
 import { ProofLimits } from '../ports/proof-limits.ts';
-import { Effect, Context, Layer } from 'effect';
-import { Clock, IdSource, SecretSource } from '@porcelain/kernel/ports';
+import { Effect, Context, Layer, Clock, DateTime } from 'effect';
+import { IdSource, SecretSource } from '@porcelain/kernel/ports';
 import { ProofFileUnreadableError } from '../errors/proof-file-unreadable-error.ts';
 import { ProofTooLargeError } from '../errors/proof-too-large-error.ts';
 import { ReviewConflictError } from '../errors/review-conflict-error.ts';
@@ -50,7 +50,7 @@ export class PublishReviewService extends Context.Service<
     PublishReviewService,
     Effect.gen(function* () {
       const reviewsCapability = yield* ReviewStore;
-      const clockCapability = yield* Clock;
+      const clockCapability = yield* Clock.Clock;
       const idSourceCapability = yield* IdSource;
       const secretSourceCapability = yield* SecretSource;
       const proofLimitsCapability = yield* ProofLimits;
@@ -198,7 +198,9 @@ export class PublishReviewService extends Context.Service<
           const review: Review = {
             worktreeId: input.worktreeId,
             revision: draft.expectedRevision + 1,
-            publishedAt: clockCapability.now(),
+            publishedAt: DateTime.formatIso(
+              DateTime.makeUnsafe(yield* clockCapability.currentTimeMillis),
+            ),
             active: reviewActivity({ layers }, input.evidence),
             summaryHtml: draft.summaryHtml,
             summaryToken: idSourceCapability.next(),

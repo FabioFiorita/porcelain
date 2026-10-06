@@ -1,6 +1,5 @@
 import { AuthenticateDeviceOptions } from '../ports/authenticate-device-options.ts';
-import { Effect, Context, Layer } from 'effect';
-import { Clock } from '@porcelain/kernel/ports';
+import { Effect, Context, Layer, Clock, DateTime } from 'effect';
 import type {
   AuthenticateDeviceInput,
   AuthenticateDeviceResult,
@@ -27,7 +26,7 @@ export class AuthenticateDeviceService extends Context.Service<
     Effect.gen(function* () {
       const devices = yield* DeviceStore;
       const deviceSightings = yield* DeviceSightingStore;
-      const clock = yield* Clock;
+      const clock = yield* Clock.Clock;
       const options = yield* AuthenticateDeviceOptions;
 
       return {
@@ -45,7 +44,9 @@ export class AuthenticateDeviceService extends Context.Service<
             device.route !== input.route
           )
             return { kind: 'refused' };
-          const now = clock.now();
+          const now = DateTime.formatIso(
+            DateTime.makeUnsafe(yield* clock.currentTimeMillis),
+          );
           if (!deviceUsable(device, now, options.unusedLifetimeMs))
             return { kind: 'refused' };
           if (sightingDue(device, now))

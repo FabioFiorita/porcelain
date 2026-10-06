@@ -35,8 +35,8 @@ import {
   CommentSeenStore,
   ReadProofFileOptions,
 } from '@porcelain/reviews/ports';
-import { Clock, IdSource, SecretSource } from '@porcelain/kernel/ports';
-import { Effect, Layer } from 'effect';
+import { IdSource, SecretSource } from '@porcelain/kernel/ports';
+import { Effect, Layer, Clock } from 'effect';
 import { summaryRoutes } from '../http/routes/reviews/summary-api.ts';
 import { reviewsRoutes } from '../http/routes/reviews/reviews-api.ts';
 import { WorktreeAccess } from '../runtime/worktree-access.ts';
@@ -125,7 +125,7 @@ export function composeReviews(
     Layer.succeed(WorktreeConsistencyProbe, shared.confirmWorktree),
     Layer.succeed(Lanes, lanes),
     Layer.succeed(LaneKeys, laneKeys),
-    Layer.succeed(Clock, clock),
+    Layer.succeed(Clock.Clock, clock),
     Layer.succeed(SignatureSource, signatureSource),
     Layer.succeed(ResolvePublishedReviewOptions, limits.summaryLink),
     Layer.succeed(ReviewedFileStore, reviewedFileStore),

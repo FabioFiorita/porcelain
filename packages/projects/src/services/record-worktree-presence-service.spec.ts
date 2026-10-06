@@ -1,11 +1,10 @@
-import { Clock } from '@porcelain/kernel/ports';
+import { testClock } from '@porcelain/kernel/test-kit';
 import {
   InventoryStore,
   WorktreePresenceStore,
 } from '@porcelain/projects/ports';
-import { Effect } from 'effect';
+import { Effect, Clock } from 'effect';
 import { describe, expect, it } from 'vitest';
-import { FixedClock } from '@porcelain/kernel/fakes';
 import { ProjectNotFoundError } from '@porcelain/projects/errors';
 import {
   type ListedWorktree,
@@ -44,16 +43,16 @@ function worktree(id: string): ListedWorktree {
   };
 }
 
-function setup() {
+async function setup() {
   const inventory = new InMemoryInventoryStore([project]);
   const presence = new InMemoryWorktreePresenceStore();
-  const clock = new FixedClock(FIRST);
+  const clock = await testClock(FIRST);
   const service = Effect.runSync(
     RecordWorktreePresenceService.pipe(
       Effect.provide(RecordWorktreePresenceService.layer),
       Effect.provideService(InventoryStore, inventory),
       Effect.provideService(WorktreePresenceStore, presence),
-      Effect.provideService(Clock, clock),
+      Effect.provideService(Clock.Clock, clock),
     ),
   );
   const record = (
@@ -81,58 +80,58 @@ function setup() {
 
 describe('RecordWorktreePresenceService', () => {
   it('records every listed worktree as present', async () => {
-    const { record, missing } = setup();
+    const { record, missing } = await setup();
     record(['main', 'feature']);
     expect(await missing()).toEqual({ main: undefined, feature: undefined });
   });
 
   it('marks a worktree missing from a complete listing as absent from now', async () => {
-    const { record, missing } = setup();
+    const { record, missing } = await setup();
     record(['main', 'feature']);
     record(['main']);
     expect(await missing()).toEqual({ main: undefined, feature: FIRST });
   });
 
   it('keeps the moment a worktree first went missing while it stays away', async () => {
-    const { clock, record, missing } = setup();
+    const { clock, record, missing } = await setup();
     record(['main', 'feature']);
     record(['main']);
-    clock.set(LATER);
+    await Effect.runPromise(clock.setTime(Date.parse(LATER)));
     record(['main']);
     expect((await missing()).feature).toBe(FIRST);
   });
 
   it('clears the absence when the worktree comes back', async () => {
-    const { clock, record, missing } = setup();
+    const { clock, record, missing } = await setup();
     record(['main', 'feature']);
     record(['main']);
-    clock.set(LATER);
+    await Effect.runPromise(clock.setTime(Date.parse(LATER)));
     record(['main', 'feature']);
     expect(await missing()).toEqual({ main: undefined, feature: undefined });
   });
 
   it('keeps the worktrees an incomplete listing did reach without marking absences', async () => {
-    const { record, missing } = setup();
+    const { record, missing } = await setup();
     record(['main', 'feature']);
     record(['main'], { complete: false });
     expect(await missing()).toEqual({ main: undefined, feature: undefined });
   });
 
   it('records a worktree first seen in an incomplete listing', async () => {
-    const { record, missing } = setup();
+    const { record, missing } = await setup();
     record(['feature'], { complete: false });
     expect(await missing()).toEqual({ feature: undefined });
   });
 
   it('records nothing while the project is unavailable', async () => {
-    const { record, missing } = setup();
+    const { record, missing } = await setup();
     record(['main', 'feature']);
     record([], { available: false, complete: false });
     expect(await missing()).toEqual({ main: undefined, feature: undefined });
   });
 
   it('refuses a project that is no longer registered', async () => {
-    const { inventory, record } = setup();
+    const { inventory, record } = await setup();
     await Effect.runPromise(inventory.remove({ projectId: project.id }));
     expect(() => record(['main'])).toThrow(ProjectNotFoundError);
   });

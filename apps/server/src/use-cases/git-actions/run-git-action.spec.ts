@@ -1,3 +1,4 @@
+import { testClock } from '@porcelain/kernel/test-kit';
 import { RunGitActionUseCaseOptions } from '../../ports/run-git-action-use-case-options.ts';
 import { Logger } from '../../ports/logger.ts';
 import { RefreshWorktreeReviewUseCasePort } from '../../ports/refresh-worktree-review-use-case-port.ts';
@@ -9,7 +10,6 @@ import {
   WorktreeSideReader,
   ReadChangeFingerprintsOptions,
 } from '@porcelain/changes/ports';
-import { Clock } from '@porcelain/kernel/ports';
 import { nativeWrite } from '@porcelain/effects';
 import {
   ReadChangeFingerprintsService,
@@ -35,7 +35,7 @@ import {
   RunGitActionService,
 } from '@porcelain/git-actions/services';
 import { type ListedWorktree } from '@porcelain/projects/models';
-import { Effect, Layer, ManagedRuntime } from 'effect';
+import { Effect, Layer, ManagedRuntime, Clock } from 'effect';
 import { expect, it } from 'vitest';
 import { EventPublisher } from '../../ports/event-publisher.ts';
 import { LaneKeys } from '../../runtime/lane-keys.ts';
@@ -112,9 +112,9 @@ const input = {
     upstreamOid: null,
   },
 };
-const clock = { now: () => '2026-10-05T05:00:00.000Z' };
 
 async function fixture(onAccepted?: () => void) {
+  const clock = await testClock('2026-10-05T05:00:00.000Z');
   const receipts = new Receipts();
   const started = Promise.withResolvers<void>();
   const aborted = Promise.withResolvers<void>();
@@ -186,7 +186,7 @@ async function fixture(onAccepted?: () => void) {
           ExpireGitActionReceiptsService.pipe(
             Effect.provide(ExpireGitActionReceiptsService.layer),
             Effect.provideService(GitActionReceiptStore, receipts),
-            Effect.provideService(Clock, clock),
+            Effect.provideService(Clock.Clock, clock),
             Effect.provideService(ExpireGitActionReceiptsOptions, {
               retentionMs: 10000,
             }),
@@ -199,7 +199,7 @@ async function fixture(onAccepted?: () => void) {
           AcceptGitActionService.pipe(
             Effect.provide(AcceptGitActionService.layer),
             Effect.provideService(GitActionReceiptStore, receipts),
-            Effect.provideService(Clock, clock),
+            Effect.provideService(Clock.Clock, clock),
           ),
         ),
       ),
@@ -259,7 +259,7 @@ async function fixture(onAccepted?: () => void) {
           FinishGitActionService.pipe(
             Effect.provide(FinishGitActionService.layer),
             Effect.provideService(GitActionReceiptStore, receipts),
-            Effect.provideService(Clock, clock),
+            Effect.provideService(Clock.Clock, clock),
           ),
         ),
       ),
@@ -272,7 +272,7 @@ async function fixture(onAccepted?: () => void) {
           InterruptGitActionService.pipe(
             Effect.provide(InterruptGitActionService.layer),
             Effect.provideService(GitActionReceiptStore, receipts),
-            Effect.provideService(Clock, clock),
+            Effect.provideService(Clock.Clock, clock),
           ),
         ),
       ),

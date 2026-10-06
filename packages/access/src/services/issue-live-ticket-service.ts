@@ -1,6 +1,6 @@
 import { IssueLiveTicketOptions } from '../ports/issue-live-ticket-options.ts';
-import { Effect, Context, Layer } from 'effect';
-import { Clock, IdSource, SecretSource } from '@porcelain/kernel/ports';
+import { Effect, Context, Layer, Clock, DateTime } from 'effect';
+import { IdSource, SecretSource } from '@porcelain/kernel/ports';
 import { instantAfter, sha256Hex } from '@porcelain/kernel/rules';
 import { DeviceViewerRequiredError } from '../errors/device-viewer-required-error.ts';
 import { TooManyLiveTicketsError } from '../errors/too-many-live-tickets-error.ts';
@@ -27,7 +27,7 @@ export class IssueLiveTicketService extends Context.Service<
     IssueLiveTicketService,
     Effect.gen(function* () {
       const liveTickets = yield* LiveTicketStore;
-      const clock = yield* Clock;
+      const clock = yield* Clock.Clock;
       const idSource = yield* IdSource;
       const secretSource = yield* SecretSource;
       const options = yield* IssueLiveTicketOptions;
@@ -42,7 +42,9 @@ export class IssueLiveTicketService extends Context.Service<
           const { viewer } = input;
           if (viewer.kind !== 'device')
             return yield* Effect.fail(new DeviceViewerRequiredError());
-          const now = clock.now();
+          const now = DateTime.formatIso(
+            DateTime.makeUnsafe(yield* clock.currentTimeMillis),
+          );
           const expiresAt = instantAfter(now, options.lifetimeMs);
           const issued = credential(
             'pct',

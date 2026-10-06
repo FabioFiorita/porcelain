@@ -1,6 +1,5 @@
 import { SetReviewedFilesOptions } from '../ports/set-reviewed-files-options.ts';
-import { Effect, Context, Layer } from 'effect';
-import { Clock } from '@porcelain/kernel/ports';
+import { Effect, Context, Layer, Clock, DateTime } from 'effect';
 import { ReviewedMarkConflictError } from '../errors/reviewed-mark-conflict-error.ts';
 import {
   type SetReviewedFilesInput,
@@ -25,7 +24,7 @@ export class SetReviewedFilesService extends Context.Service<
     SetReviewedFilesService,
     Effect.gen(function* () {
       const reviewedFilesCapability = yield* ReviewedFileStore;
-      const clockCapability = yield* Clock;
+      const clockCapability = yield* Clock.Clock;
       const optionsCapability = yield* SetReviewedFilesOptions;
 
       return {
@@ -50,7 +49,9 @@ export class SetReviewedFilesService extends Context.Service<
             new Set(input.changes.map((change) => change.path)),
           );
           yield* reviewedFilesCapability.remove({ ...key, paths: evicted });
-          const reviewedAt = clockCapability.now();
+          const reviewedAt = DateTime.formatIso(
+            DateTime.makeUnsafe(yield* clockCapability.currentTimeMillis),
+          );
           yield* reviewedFilesCapability.save({
             ...key,
             marks: marked.map((file) => ({

@@ -1,8 +1,7 @@
-import { Clock } from '@porcelain/kernel/ports';
+import { testClock } from '@porcelain/kernel/test-kit';
 import { PairingGrantStore } from '@porcelain/access/ports';
-import { Effect } from 'effect';
+import { Effect, Clock } from 'effect';
 import { describe, expect, it } from 'vitest';
-import { FixedClock } from '@porcelain/kernel/fakes';
 import type { StoredPairingGrant } from '@porcelain/access/models';
 import { InMemoryPairingGrantStore } from '../../spec/fakes/in-memory-pairing-grant-store.ts';
 import { RevokePairingGrantService } from './revoke-pairing-grant-service.ts';
@@ -24,7 +23,7 @@ async function setup(grant: Partial<StoredPairingGrant> = {}) {
       ],
     }),
   );
-  const clock = new FixedClock('2026-09-23T10:05:00.000Z');
+  const clock = await testClock('2026-09-23T10:05:00.000Z');
   return {
     grants,
     clock,
@@ -32,7 +31,7 @@ async function setup(grant: Partial<StoredPairingGrant> = {}) {
       RevokePairingGrantService.pipe(
         Effect.provide(RevokePairingGrantService.layer),
         Effect.provideService(PairingGrantStore, grants),
-        Effect.provideService(Clock, clock),
+        Effect.provideService(Clock.Clock, clock),
       ),
     ),
   };
@@ -52,7 +51,9 @@ describe('RevokePairingGrantService', () => {
   it('keeps the first revocation time when the grant is revoked again', async () => {
     const { grants, clock, service } = await setup();
     Effect.runSync(service.execute({ id: 'grant' }));
-    clock.set('2026-09-23T10:06:00.000Z');
+    await Effect.runPromise(
+      clock.setTime(Date.parse('2026-09-23T10:06:00.000Z')),
+    );
     expect(Effect.runSync(service.execute({ id: 'grant' }))).toEqual({
       kind: 'not-revoked',
     });

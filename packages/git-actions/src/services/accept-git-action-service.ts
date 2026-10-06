@@ -1,5 +1,4 @@
-import { Effect, Context, Layer } from 'effect';
-import { Clock } from '@porcelain/kernel/ports';
+import { Effect, Context, Layer, Clock, DateTime } from 'effect';
 import { DiscardExpectationMismatchError } from '../errors/discard-expectation-mismatch-error.ts';
 import { DuplicateExpectedFileError } from '../errors/duplicate-expected-file-error.ts';
 import { EmptyCommitSelectionError } from '../errors/empty-commit-selection-error.ts';
@@ -45,7 +44,7 @@ export class AcceptGitActionService extends Context.Service<
     AcceptGitActionService,
     Effect.gen(function* () {
       const gitActionReceiptsCapability = yield* GitActionReceiptStore;
-      const clockCapability = yield* Clock;
+      const clockCapability = yield* Clock.Clock;
       function operationFailure(
         problem: GitActionProblem,
       ):
@@ -117,7 +116,9 @@ export class AcceptGitActionService extends Context.Service<
             state: 'running',
             progress: [],
             refreshRequired: false,
-            acceptedAt: clockCapability.now(),
+            acceptedAt: DateTime.formatIso(
+              DateTime.makeUnsafe(yield* clockCapability.currentTimeMillis),
+            ),
           };
           yield* gitActionReceiptsCapability.insert(receipt);
           return {

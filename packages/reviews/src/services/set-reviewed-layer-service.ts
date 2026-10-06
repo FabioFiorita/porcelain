@@ -1,5 +1,4 @@
-import { Effect, Context, Layer } from 'effect';
-import { Clock } from '@porcelain/kernel/ports';
+import { Effect, Context, Layer, Clock, DateTime } from 'effect';
 import { ReviewedMarkConflictError } from '../errors/reviewed-mark-conflict-error.ts';
 import {
   type SetReviewedLayerInput,
@@ -20,7 +19,7 @@ export class SetReviewedLayerService extends Context.Service<
     SetReviewedLayerService,
     Effect.gen(function* () {
       const reviewedLayersCapability = yield* ReviewedLayerStore;
-      const clockCapability = yield* Clock;
+      const clockCapability = yield* Clock.Clock;
 
       return {
         execute: Effect.fn('SetReviewedLayerService.execute')(function* (
@@ -32,7 +31,9 @@ export class SetReviewedLayerService extends Context.Service<
           const mark = {
             layerId: layer.id,
             fingerprint,
-            reviewedAt: clockCapability.now(),
+            reviewedAt: DateTime.formatIso(
+              DateTime.makeUnsafe(yield* clockCapability.currentTimeMillis),
+            ),
           };
           yield* reviewedLayersCapability.save({ worktreeId, marks: [mark] });
           return mark;

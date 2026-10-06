@@ -1,11 +1,10 @@
-import { Clock } from '@porcelain/kernel/ports';
+import { testClock } from '@porcelain/kernel/test-kit';
 import { GitActionReceiptStore } from '@porcelain/git-actions/ports';
-import { Effect } from 'effect';
+import { Effect, Clock } from 'effect';
 import {
   GitActionNotFoundError,
   GitActionReceiptMismatchError,
 } from '@porcelain/git-actions/errors';
-import { FixedClock } from '@porcelain/kernel/fakes';
 import { describe, expect, it } from 'vitest';
 import {
   PROJECT_ID,
@@ -28,7 +27,7 @@ const scope = {
   requestId: REQUEST_ID,
 };
 
-function subject(receipt = interrupted) {
+async function subject(receipt = interrupted) {
   const store = new InMemoryGitActionReceiptStore([receipt]);
   return {
     store,
@@ -36,7 +35,7 @@ function subject(receipt = interrupted) {
       DismissInterruptedGitActionService.pipe(
         Effect.provide(DismissInterruptedGitActionService.layer),
         Effect.provideService(GitActionReceiptStore, store),
-        Effect.provideService(Clock, new FixedClock(dismissedAt)),
+        Effect.provideService(Clock.Clock, await testClock(dismissedAt)),
       ),
     ),
   };
@@ -44,7 +43,7 @@ function subject(receipt = interrupted) {
 
 describe('DismissInterruptedGitActionService', () => {
   it('dismisses an interrupted action so the worktree no longer shows it', async () => {
-    const { store, service } = subject();
+    const { store, service } = await subject();
     Effect.runSync(service.execute(scope));
     expect(
       (await Effect.runPromise(store.read({ requestId: REQUEST_ID })))
@@ -57,8 +56,8 @@ describe('DismissInterruptedGitActionService', () => {
     ).toBeUndefined();
   });
 
-  it('answers the dismissed receipt', () => {
-    const { service } = subject();
+  it('answers the dismissed receipt', async () => {
+    const { service } = await subject();
     expect(Effect.runSync(service.execute(scope))).toMatchObject({
       kind: 'dismissed',
       receipt: { requestId: REQUEST_ID, state: 'interrupted' },
@@ -66,15 +65,15 @@ describe('DismissInterruptedGitActionService', () => {
   });
 
   it('keeps the first dismissal when the same action is dismissed again', async () => {
-    const { store, service } = subject();
+    const { store, service } = await subject();
     Effect.runSync(service.execute(scope));
     const again = Effect.runSync(
       DismissInterruptedGitActionService.pipe(
         Effect.provide(DismissInterruptedGitActionService.layer),
         Effect.provideService(GitActionReceiptStore, store),
         Effect.provideService(
-          Clock,
-          new FixedClock('2026-09-23T14:00:00.000Z'),
+          Clock.Clock,
+          await testClock('2026-09-23T14:00:00.000Z'),
         ),
       ),
     );
@@ -85,8 +84,8 @@ describe('DismissInterruptedGitActionService', () => {
     ).toBe(dismissedAt);
   });
 
-  it('does not find a request it never accepted', () => {
-    const { service } = subject();
+  it('does not find a request it never accepted', async () => {
+    const { service } = await subject();
     expect(() =>
       Effect.runSync(
         service.execute({
@@ -97,8 +96,8 @@ describe('DismissInterruptedGitActionService', () => {
     ).toThrow(GitActionNotFoundError);
   });
 
-  it('refuses a request that belongs to another worktree or project', () => {
-    const { service } = subject();
+  it('refuses a request that belongs to another worktree or project', async () => {
+    const { service } = await subject();
     expect(() =>
       Effect.runSync(service.execute({ ...scope, worktreeId: 'f'.repeat(32) })),
     ).toThrow(GitActionReceiptMismatchError);
@@ -113,7 +112,7 @@ describe('DismissInterruptedGitActionService', () => {
   });
 
   it('refuses an action that did not end interrupted', async () => {
-    const { store, service } = subject(
+    const { store, service } = await subject(
       sampleReceipt({
         state: 'succeeded',
         finishedAt: '2026-09-23T12:00:00.000Z',

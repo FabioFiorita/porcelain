@@ -1,7 +1,6 @@
 import { TakePairingAttemptOptions } from '../ports/take-pairing-attempt-options.ts';
 import { PairingAttemptBudgetStore } from '../ports/pairing-attempt-budget-store.ts';
-import { Effect, Context, Layer } from 'effect';
-import { Clock } from '@porcelain/kernel/ports';
+import { Effect, Context, Layer, Clock, DateTime } from 'effect';
 import { TooManyPairingAttemptsError } from '../errors/too-many-pairing-attempts-error.ts';
 
 import type { TakePairingAttemptInput } from '../models/take-pairing-attempt.ts';
@@ -19,7 +18,7 @@ export class TakePairingAttemptService extends Context.Service<
     TakePairingAttemptService,
     Effect.gen(function* () {
       const pairingAttempts = yield* PairingAttemptBudgetStore;
-      const clock = yield* Clock;
+      const clock = yield* Clock.Clock;
       const options = yield* TakePairingAttemptOptions;
 
       return {
@@ -31,7 +30,9 @@ export class TakePairingAttemptService extends Context.Service<
           const { attempts, taken } = takePairingAttempt(
             store.read(),
             input.peer,
-            clock.now(),
+            DateTime.formatIso(
+              DateTime.makeUnsafe(yield* clock.currentTimeMillis),
+            ),
             options[budget],
           );
           store.save(attempts);

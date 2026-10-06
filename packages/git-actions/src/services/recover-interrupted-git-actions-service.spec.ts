@@ -1,7 +1,6 @@
-import { Clock } from '@porcelain/kernel/ports';
+import { testClock } from '@porcelain/kernel/test-kit';
 import { GitActionReceiptStore } from '@porcelain/git-actions/ports';
-import { Effect } from 'effect';
-import { FixedClock } from '@porcelain/kernel/fakes';
+import { Effect, Clock } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { sampleReceipt } from '../../spec/fixtures/git-action-samples.ts';
 import { InMemoryGitActionReceiptStore } from '../../spec/fakes/in-memory-git-action-receipt-store.ts';
@@ -23,7 +22,7 @@ describe('RecoverInterruptedGitActionsService', () => {
         RecoverInterruptedGitActionsService.pipe(
           Effect.provide(RecoverInterruptedGitActionsService.layer),
           Effect.provideService(GitActionReceiptStore, store),
-          Effect.provideService(Clock, new FixedClock(restartedAt)),
+          Effect.provideService(Clock.Clock, await testClock(restartedAt)),
         ),
       ).execute({ worktreeId: running.worktreeId }),
     );
@@ -48,7 +47,7 @@ describe('RecoverInterruptedGitActionsService', () => {
         RecoverInterruptedGitActionsService.pipe(
           Effect.provide(RecoverInterruptedGitActionsService.layer),
           Effect.provideService(GitActionReceiptStore, store),
-          Effect.provideService(Clock, new FixedClock(restartedAt)),
+          Effect.provideService(Clock.Clock, await testClock(restartedAt)),
         ),
       ).execute({ worktreeId: 'worktree-without-actions' }),
     );

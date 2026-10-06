@@ -1,6 +1,5 @@
 import { ResolvePublishedReviewOptions } from '../ports/resolve-published-review-options.ts';
-import { Effect, Context, Layer } from 'effect';
-import { Clock } from '@porcelain/kernel/ports';
+import { Effect, Context, Layer, Clock, DateTime } from 'effect';
 import { instantAfter, utf8ByteLength } from '@porcelain/kernel/rules';
 import {
   type ResolvePublishedReviewInput,
@@ -26,7 +25,7 @@ export class ResolvePublishedReviewService extends Context.Service<
   static readonly layer = Layer.effect(
     ResolvePublishedReviewService,
     Effect.gen(function* () {
-      const clockCapability = yield* Clock;
+      const clockCapability = yield* Clock.Clock;
       const signatureSourceCapability = yield* SignatureSource;
       const optionsCapability = yield* ResolvePublishedReviewOptions;
 
@@ -34,6 +33,9 @@ export class ResolvePublishedReviewService extends Context.Service<
         execute: Effect.fn('ResolvePublishedReviewService.execute')(function* (
           input: ResolvePublishedReviewInput,
         ): Effect.fn.Return<ResolvePublishedReviewResult, never> {
+          const observedAt = DateTime.formatIso(
+            DateTime.makeUnsafe(yield* clockCapability.currentTimeMillis),
+          );
           return yield* Effect.sync<ResolvePublishedReviewResult>(() => {
             const { review, evidence } = input;
             const { changes, diagnostics, layers } = resolveReview(
@@ -41,7 +43,7 @@ export class ResolvePublishedReviewService extends Context.Service<
               evidence,
             );
             const expires = instantAfter(
-              clockCapability.now(),
+              observedAt,
               optionsCapability.lifetimeMs,
             );
             const signature = signatureSourceCapability.sign({

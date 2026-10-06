@@ -1,6 +1,6 @@
 import { IssuePairingOptions } from '../ports/issue-pairing-options.ts';
-import { Effect, Context, Layer } from 'effect';
-import { Clock, IdSource, SecretSource } from '@porcelain/kernel/ports';
+import { Effect, Context, Layer, Clock, DateTime } from 'effect';
+import { IdSource, SecretSource } from '@porcelain/kernel/ports';
 import { instantAfter, sha256Hex } from '@porcelain/kernel/rules';
 import { InvalidDeviceDetailsError } from '../errors/invalid-device-details-error.ts';
 import { InvalidPairingAddressError } from '../errors/invalid-pairing-address-error.ts';
@@ -32,7 +32,7 @@ export class IssuePairingService extends Context.Service<
     Effect.gen(function* () {
       const pairingGrants = yield* PairingGrantStore;
       const pairingReachReader = yield* PairingReachReader;
-      const clock = yield* Clock;
+      const clock = yield* Clock.Clock;
       const idSource = yield* IdSource;
       const secretSource = yield* SecretSource;
       const options = yield* IssuePairingOptions;
@@ -74,7 +74,9 @@ export class IssuePairingService extends Context.Service<
             operationDetail(validLabel(label, options.labelLength)),
           );
           const trusted = input.trusted === true;
-          const createdAt = clock.now();
+          const createdAt = DateTime.formatIso(
+            DateTime.makeUnsafe(yield* clock.currentTimeMillis),
+          );
           const expiresAt = instantAfter(createdAt, options.lifetimeMs);
           const issued = labels.map((label) => {
             const code = credential(

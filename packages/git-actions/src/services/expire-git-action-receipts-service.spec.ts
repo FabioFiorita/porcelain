@@ -1,10 +1,9 @@
-import { Clock } from '@porcelain/kernel/ports';
+import { testClock } from '@porcelain/kernel/test-kit';
 import {
   GitActionReceiptStore,
   ExpireGitActionReceiptsOptions,
 } from '@porcelain/git-actions/ports';
-import { Effect } from 'effect';
-import { FixedClock } from '@porcelain/kernel/fakes';
+import { Effect, Clock } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { sampleReceipt } from '../../spec/fixtures/git-action-samples.ts';
 import { InMemoryGitActionReceiptStore } from '../../spec/fakes/in-memory-git-action-receipt-store.ts';
@@ -12,7 +11,7 @@ import { ExpireGitActionReceiptsService } from './expire-git-action-receipts-ser
 
 const day = 24 * 60 * 60 * 1000;
 
-function expire(
+async function expire(
   store: InMemoryGitActionReceiptStore,
   worktreeId = sampleReceipt().worktreeId,
 ) {
@@ -22,8 +21,8 @@ function expire(
         Effect.provide(ExpireGitActionReceiptsService.layer),
         Effect.provideService(GitActionReceiptStore, store),
         Effect.provideService(
-          Clock,
-          new FixedClock('2026-09-23T12:00:00.000Z'),
+          Clock.Clock,
+          await testClock('2026-09-23T12:00:00.000Z'),
         ),
         Effect.provideService(ExpireGitActionReceiptsOptions, {
           retentionMs: 30 * day,
@@ -34,7 +33,7 @@ function expire(
 }
 
 describe('ExpireGitActionReceiptsService', () => {
-  it('forgets receipts that finished longer ago than the retention and keeps the rest', () => {
+  it('forgets receipts that finished longer ago than the retention and keeps the rest', async () => {
     const expired = sampleReceipt({
       requestId: '00000000-0000-4000-8000-000000000001',
       state: 'succeeded',
@@ -54,14 +53,14 @@ describe('ExpireGitActionReceiptsService', () => {
       atLimit,
       running,
     ]);
-    expire(store);
+    await expire(store);
     expect(store.all().map((receipt) => receipt.requestId)).toEqual([
       atLimit.requestId,
       running.requestId,
     ]);
   });
 
-  it("keeps another worktree's expired receipts for that worktree's own lane", () => {
+  it("keeps another worktree's expired receipts for that worktree's own lane", async () => {
     const mine = sampleReceipt({
       requestId: '00000000-0000-4000-8000-000000000001',
       state: 'succeeded',
@@ -74,7 +73,7 @@ describe('ExpireGitActionReceiptsService', () => {
       finishedAt: '2026-08-01T12:00:00.000Z',
     });
     const store = new InMemoryGitActionReceiptStore([mine, theirs]);
-    expire(store, mine.worktreeId);
+    await expire(store, mine.worktreeId);
     expect(store.all().map((receipt) => receipt.requestId)).toEqual([
       theirs.requestId,
     ]);

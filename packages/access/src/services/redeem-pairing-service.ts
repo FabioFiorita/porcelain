@@ -1,6 +1,6 @@
 import { RedeemPairingOptions } from '../ports/redeem-pairing-options.ts';
-import { Effect, Context, Layer } from 'effect';
-import { Clock, IdSource, SecretSource } from '@porcelain/kernel/ports';
+import { Effect, Context, Layer, Clock, DateTime } from 'effect';
+import { IdSource, SecretSource } from '@porcelain/kernel/ports';
 import { sha256Hex } from '@porcelain/kernel/rules';
 import { InvalidDeviceDetailsError } from '../errors/invalid-device-details-error.ts';
 import { InvalidPairingError } from '../errors/invalid-pairing-error.ts';
@@ -33,7 +33,7 @@ export class RedeemPairingService extends Context.Service<
     RedeemPairingService,
     Effect.gen(function* () {
       const pairingGrants = yield* PairingGrantStore;
-      const clock = yield* Clock;
+      const clock = yield* Clock.Clock;
       const idSource = yield* IdSource;
       const secretSource = yield* SecretSource;
       const options = yield* RedeemPairingOptions;
@@ -64,7 +64,9 @@ export class RedeemPairingService extends Context.Service<
           const platform = yield* operationDetail(
             validPlatform(input.platform, options.platformLength),
           );
-          const now = clock.now();
+          const now = DateTime.formatIso(
+            DateTime.makeUnsafe(yield* clock.currentTimeMillis),
+          );
           const grant = yield* pairingGrants.find({ grantId: code.id });
           if (
             !grant ||

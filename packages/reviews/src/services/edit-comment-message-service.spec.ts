@@ -1,11 +1,10 @@
-import { Clock } from '@porcelain/kernel/ports';
+import { testClock } from '@porcelain/kernel/test-kit';
 import {
   CommentStore,
   EditCommentMessageOptions,
 } from '@porcelain/reviews/ports';
-import { Effect } from 'effect';
+import { Effect, Clock } from 'effect';
 import { describe, expect, it } from 'vitest';
-import { FixedClock } from '@porcelain/kernel/fakes';
 import {
   CommentAuthorMismatchError,
   CommentLimitExceededError,
@@ -35,12 +34,12 @@ async function setup(bytesPerWorktree = 1024 * 1024) {
       writtenByAgent: true,
     }),
   );
-  const clock = new FixedClock();
+  const clock = await testClock();
   const service = Effect.runSync(
     EditCommentMessageService.pipe(
       Effect.provide(EditCommentMessageService.layer),
       Effect.provideService(CommentStore, store),
-      Effect.provideService(Clock, clock),
+      Effect.provideService(Clock.Clock, clock),
       Effect.provideService(EditCommentMessageOptions, {
         bytesPerWorktree,
       }),
@@ -64,7 +63,7 @@ function input(
 
 describe('EditCommentMessageService', () => {
   it("rewrites the reviewer's own message, stamps the edit and moves the thread to the next revision", async () => {
-    const { service, store, clock } = await setup();
+    const { service, store } = await setup();
     const { thread, changed } = Effect.runSync(service.execute(input()));
     expect(changed).toBe(true);
     expect(thread.revision).toBe(2);
@@ -73,7 +72,7 @@ describe('EditCommentMessageService', () => {
         id: 'question',
         body: 'Why this line?',
         author: 'reviewer',
-        editedAt: clock.now(),
+        editedAt: '2026-01-01T00:00:00.000Z',
       },
       { id: 'answer', body: 'Because.', author: 'agent' },
     ]);

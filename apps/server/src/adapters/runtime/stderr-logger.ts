@@ -1,4 +1,4 @@
-import type { Clock } from '@porcelain/kernel/ports';
+import { type Clock, DateTime } from 'effect';
 import type { FailureReport, Logger } from '../../ports/logger.ts';
 
 function described(error: unknown) {
@@ -8,16 +8,16 @@ function described(error: unknown) {
 }
 
 export class StderrLogger implements Logger {
-  private readonly clock: Clock;
+  private readonly clock: Clock.Clock;
 
-  constructor(clock: Clock) {
+  constructor(clock: Clock.Clock) {
     this.clock = clock;
   }
 
   failure(input: FailureReport): void {
     const { error, ...fields } = input;
     process.stderr.write(
-      `${JSON.stringify({ at: this.clock.now(), level: 'error', ...fields, error: described(error) })}\n`,
+      `${JSON.stringify({ at: DateTime.formatIso(DateTime.makeUnsafe(this.clock.currentTimeMillisUnsafe())), level: 'error', ...fields, error: described(error) })}\n`,
     );
   }
 }

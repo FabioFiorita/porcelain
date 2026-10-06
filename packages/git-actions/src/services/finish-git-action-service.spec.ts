@@ -1,8 +1,7 @@
-import { Clock } from '@porcelain/kernel/ports';
+import { testClock } from '@porcelain/kernel/test-kit';
 import { GitActionReceiptStore } from '@porcelain/git-actions/ports';
-import { Effect } from 'effect';
+import { Effect, Clock } from 'effect';
 import { GitActionNotFoundError } from '@porcelain/git-actions/errors';
-import { FixedClock } from '@porcelain/kernel/fakes';
 import { describe, expect, it } from 'vitest';
 import {
   REQUEST_ID,
@@ -14,7 +13,7 @@ import { FinishGitActionService } from './finish-git-action-service.ts';
 const finishedAt = '2026-09-23T12:00:05.000Z';
 const running = sampleReceipt();
 
-function subject() {
+async function subject() {
   const store = new InMemoryGitActionReceiptStore([running]);
   return {
     store,
@@ -22,7 +21,7 @@ function subject() {
       FinishGitActionService.pipe(
         Effect.provide(FinishGitActionService.layer),
         Effect.provideService(GitActionReceiptStore, store),
-        Effect.provideService(Clock, new FixedClock(finishedAt)),
+        Effect.provideService(Clock.Clock, await testClock(finishedAt)),
       ),
     ),
   };
@@ -30,7 +29,7 @@ function subject() {
 
 describe('FinishGitActionService', () => {
   it('settles the receipt with the outcome and the time it finished', async () => {
-    const { store, service } = subject();
+    const { store, service } = await subject();
     const view = Effect.runSync(
       service.execute({
         requestId: REQUEST_ID,
@@ -61,8 +60,8 @@ describe('FinishGitActionService', () => {
     });
   });
 
-  it('records an outcome Git could not determine as interrupted', () => {
-    const { service } = subject();
+  it('records an outcome Git could not determine as interrupted', async () => {
+    const { service } = await subject();
     const view = Effect.runSync(
       service.execute({
         requestId: REQUEST_ID,
@@ -77,8 +76,8 @@ describe('FinishGitActionService', () => {
     expect(view.reason).toBe('OUTCOME_UNKNOWN');
   });
 
-  it('does not find a request it never accepted', () => {
-    const { service } = subject();
+  it('does not find a request it never accepted', async () => {
+    const { service } = await subject();
     expect(() =>
       Effect.runSync(
         service.execute({

@@ -144,7 +144,7 @@ const storageEntry = /^@porcelain\/storage(?:\/[a-z-]+)?$/;
 const gitCapabilityEntry =
   /^@porcelain\/git\/(?:discovery|inspection|history|actions)$/;
 const specPackageEntry = new RegExp(
-  `^@porcelain/(?:${domainPackage}/(?:services|rules|models|ports|errors|store-contracts)|kernel/(?:models|ports|rules|errors|fakes))$`,
+  `^@porcelain/(?:${domainPackage}/(?:services|rules|models|ports|errors|store-contracts)|kernel/(?:models|ports|rules|errors|fakes|test-kit))$`,
 );
 const interactionMatchers = new Set([
   'toHaveBeenCalled',
@@ -1364,7 +1364,7 @@ const primitiveTypes = new Set([
 ]);
 
 const portName =
-  /(?:Store|Reader|Writer|Runner|Source|Publisher|Watcher|Probe|Logger|UseCasePort|^Clock)$/;
+  /(?:Store|Reader|Writer|Runner|Source|Publisher|Watcher|Probe|Logger|UseCasePort)$/;
 
 const fakeName = /^(?:InMemory|Scripted|Fixed|Sequential|Recording)[A-Z]/;
 
@@ -2595,7 +2595,7 @@ export default {
               context.report({
                 node: identifier,
                 message:
-                  'Time comes from the Clock port as an ISO string; Date arithmetic lives in rules/ and adapters/ only, because tests must control the instant an operation observes.',
+                  'Time comes from native Effect Clock and DateTime; Date arithmetic lives in rules/ and adapters/ only, because tests must control the instant an operation observes.',
               });
           },
         };
@@ -2727,7 +2727,7 @@ export default {
               context.report({
                 node: node.id,
                 message:
-                  'Name a port for its role: it ends in Store, Reader, Writer, Runner, Source, Publisher, Watcher, Probe or Logger, or it is Clock; a server port standing for a use case ends in UseCasePort, because consistent role names and method shapes give agents one dependency contract pattern to copy.',
+                  'Name a port for its role: it ends in Store, Reader, Writer, Runner, Source, Publisher, Watcher, Probe or Logger; time uses native Effect Clock. A server port standing for a use case ends in UseCasePort, because consistent role names and method shapes give agents one dependency contract pattern to copy.',
               });
             for (const member of node.body.body) {
               if (useCase && member.type !== 'TSMethodSignature')

@@ -1,3 +1,4 @@
+import { DateTime } from 'effect';
 import { rename, rm } from 'node:fs/promises';
 import { ownerSocketPath } from '../config/owner-socket-settings.ts';
 import {
@@ -95,7 +96,9 @@ async function replaceRuntime(
   const previous = paths.previousRuntime;
   const backup = backupLocation(
     paths.backups,
-    context.clock.now(),
+    DateTime.formatIso(
+      DateTime.makeUnsafe(context.clock.currentTimeMillisUnsafe()),
+    ),
     installed.version,
   );
   await installRuntime(

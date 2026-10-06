@@ -1,3 +1,4 @@
+import type { Clock } from 'effect';
 import type { Context } from 'effect';
 import {
   type NetworkAddressReader,
@@ -12,7 +13,7 @@ import { type ServiceUpdateRunner } from '../ports/service-update-runner.ts';
 import { type Shared } from './compose-shared.ts';
 import { type Stores } from './compose-stores.ts';
 import { type ServerHost } from '../ports/server-host.ts';
-import { type Clock, type IdSource } from '@porcelain/kernel/ports';
+import { type IdSource } from '@porcelain/kernel/ports';
 import { type ServerSettings } from '../config/server-settings.ts';
 import { type EventPublisher } from '../ports/event-publisher.ts';
 import { type Logger } from '../ports/logger.ts';
@@ -24,7 +25,7 @@ export type ComposeContext = {
   laneKeys: Context.Service.Shape<typeof LaneKeys>;
   events: EventPublisher;
   settings: ServerSettings;
-  clock: Clock;
+  clock: Clock.Clock;
   ids: IdSource;
   logger: Logger;
 };

@@ -1,6 +1,5 @@
-import { Context, Effect, Layer } from 'effect';
+import { Context, Effect, Layer, type Clock } from 'effect';
 import { nativeOperation } from '@porcelain/effects';
-import type { Clock } from '@porcelain/kernel/ports';
 import type { Limits } from '../config/limits.ts';
 import type { ServerSettings } from '../config/server-settings.ts';
 import type { OwnerProbe } from '../ports/owner-probe.ts';
@@ -36,7 +35,7 @@ export class CliHost extends Context.Service<
   {
     readonly startServer: StartServer;
     readonly ownerProbe: OwnerProbe;
-    readonly clock: Clock;
+    readonly clock: Clock.Clock;
     readonly limits: Limits;
     readonly wait: (ms: number) => Promise<void>;
     readonly homeDirectory: string;
