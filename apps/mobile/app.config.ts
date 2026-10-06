@@ -11,6 +11,7 @@ const config: ExpoConfig = {
   owner: 'fabiofiorita',
   version: '1.0.0',
   scheme: identity.scheme,
+  platforms: ['ios', 'android'],
   userInterfaceStyle: 'automatic',
   ios: {
     bundleIdentifier: identity.bundleIdentifier,
