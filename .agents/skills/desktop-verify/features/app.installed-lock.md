@@ -19,7 +19,7 @@ The installed app, `/Applications/Porcelain.app`, is locked against debugging, b
 
 ## Driving it
 
-Never as a test of a change: only after the owner installs a build that changes the lock, and with the owner's go-ahead, since it launches the installed app. It needs no instance and runs over SSH.
+This is outside the disposable interactive journey. Run it only when explicitly requested after a build changing the lock has been installed: it launches the installed app. It needs no launcher instance and runs over SSH. A successful local development journey or an unrun recipe does not certify this lock.
 
 ```sh
 .agents/skills/desktop-verify/scripts/cli installed-check
@@ -37,6 +37,12 @@ Look for, in the printed report and `installed-check.json` in its evidence folde
 
 - `apps/desktop/src/rules/launch-refusal.spec.ts` (unit): the packaged host refuses each debugging switch and Node variable, and an unpackaged one starts.
 - `installed-check` above, on the installed build; the fuses are flipped by `pnpm desktop:build` and exist only in the packaged app, so no test of a change can reach them.
+
+The refusal rule has a focused source regression that does not access the installed app:
+
+```sh
+pnpm exec vitest run --project @porcelain/desktop apps/desktop/src/rules/launch-refusal.spec.ts
+```
 
 ## Gotchas
 

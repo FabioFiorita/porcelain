@@ -22,34 +22,40 @@ The Mac app opens a project through the native folder sheet instead of the web's
 
 ## Driving it
 
-Start an instance first: `.agents/skills/desktop-verify/scripts/cli start`. It prints the sample repository; the picker is held, so a sheet the app opens waits for `dialog` instead of showing.
+Start with `.agents/skills/desktop-verify/scripts/cli start`. Bind CUA to the reported running development bundle and confirm its PID. Read the sample repository path and preserve the real OS sheet; no picker response is injected.
 
-### The menu opens the sheet directly, and a cancel registers nothing
+### Sidebar cancellation registers nothing
 
-```sh
-.agents/skills/desktop-verify/scripts/cli menu "File/Open Project…"
-.agents/skills/desktop-verify/scripts/cli dialog --cancel
-.agents/skills/desktop-verify/scripts/cli snapshot
-```
+1. Read the empty window in CUA. Look for “No projects registered” and the sidebar's Open project button.
+2. Click Open project. Read the actual macOS folder sheet attached to this app, with its folder browser and Open project/Cancel controls. No web folder browser should appear first.
+3. Click the sheet's native Cancel. Read the window again: the sheet is gone, “No projects registered” remains and no project was added.
 
-After `dialog --cancel`, look for: one picker request with `ownerIsAppWindow: true`, title and button label “Open project”, `defaultPath` the sample repository and `properties: ["openDirectory"]`, answered with the cancel. The snapshot shows no dialog and the Open project button still there.
+### The File menu selects the supplied repository
 
-### The button opens the chosen repository as a project
+1. Through CUA, open the native File menu and select Open Project…. Observe the real sheet directly.
+2. In the sheet, navigate to the exact repository printed by `start` using the native folder browser or Go to Folder. Confirm that directory is selected and click the native Open project control.
+3. Look for `desktop-smoke` in the sidebar with the printed repository path and its `main` worktree. Open that worktree and its History tab with CUA or the optional exact-CDP renderer recipe in the skill.
+4. Look for the real seed commit “Create smoke project”, its actual abbreviated Git hash, author “Desktop proof”, branch `main` and “Start of history.” Compare the displayed hash with `git -C <repository> rev-parse --short HEAD`.
 
-```sh
-.agents/skills/desktop-verify/scripts/cli click --role button --name "Open project"
-.agents/skills/desktop-verify/scripts/cli dialog <repository>
-.agents/skills/desktop-verify/scripts/cli snapshot
-.agents/skills/desktop-verify/scripts/cli network
-```
+### The native accelerator also opens a cancellable sheet
 
-After the snapshot, look for: a `desktop-smoke` button in the sidebar. `network` lists no request to `/api/projects/folders`.
+Focus the exact native development window through CUA and press ⌘O. Observe the actual folder sheet, then click native Cancel. The registered project remains once, with the same path/worktree; History still loads its seed commit. A renderer key command accepted over CDP is not accelerator evidence.
+
+Keep native sheet captures and renderer results with the launcher evidence. The automated regression supplies the exact picker options and absence of `/api/projects/folders` requests; a screenshot alone cannot prove that transport promise.
 
 ## What proves it works
 
-- `apps/desktop/spec/e2e/folder-picker.e2e.ts` (Playwright Electron): the menu opens the sheet with the exact options and no dialog before it, a cancel registers nothing, the button registers the chosen repository with no folder browsing, and the app then serves its history and live file changes.
+- The CUA journey above establishes actual sidebar/menu/accelerator sheet opening, native cancellation and native folder selection followed by real History.
+- `apps/desktop/spec/e2e/folder-picker.e2e.ts` (Playwright Electron) intercepts the picker in its fixture: the menu callback requests the app-owned sheet with title/button “Open project”, the sample repository as default and `openDirectory`; a supplied cancel registers nothing; the button registers the supplied repository with no server folder-browsing requests; real History and live file changes load. This proves request/options and bridge registration, not physical menu or OS-sheet selection.
+
+Run the focused regression when this feature changes:
+
+```sh
+pnpm --filter @porcelain/desktop exec playwright test spec/e2e/folder-picker.e2e.ts
+```
 
 ## Gotchas
 
-- `dialog <folder>` answers the sheet that is waiting, or the next one the app opens; `dialog` alone records every request so far.
-- A real sheet never shows during verification; driving the picker without `dialog` leaves the app waiting for an answer.
+- Native Cancel must dismiss the actual sheet. Renderer Escape and browser JS-dialog status can return success or “no dialog” while the OS sheet remains.
+- A supplied path is not a native selection until the OS sheet shows it selected and its Open project control is used.
+- Reinspect native state after a menu or accelerator action. An About dialog or an unchanged window does not count as picker success; record the failure and any recovery separately.

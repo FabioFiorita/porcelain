@@ -27,42 +27,45 @@ The Mac app keeps the remote computers the owner pairs, with their bearer creden
 
 ## Driving it
 
-Start two instances, the app under test and a second computer: `.agents/skills/desktop-verify/scripts/cli start`, twice. Every command then takes `--instance <id>`.
+This is a separate pairing/security journey; the local folder-picker and window journey does not certify it. Start two disposable instances with `.agents/skills/desktop-verify/scripts/cli start`, one app under test and one loopback fixture representing another computer. Select launcher commands by `--instance <id>` and bind CUA to each reported running bundle/PID. A loopback fixture does not establish LAN or remote-network behavior.
 
 ### A paired computer is kept encrypted in the profile
 
-Issue a pairing link on the second instance's server, with the profile its `start` printed:
+Read the second server's address and issue a pairing link using the profile its `start` printed:
 
 ```sh
-pnpm --filter @porcelain/server start status --data-directory <second profile>/server
-pnpm --filter @porcelain/server start pair "Desktop verification" --data-directory <second profile>/server --address <its address>
+pnpm --filter @porcelain/server start status --data-directory "<second profile>/server"
+pnpm --filter @porcelain/server start pair "Desktop verification" --data-directory "<second profile>/server" --address "<its address>"
 ```
 
-Then, on the first instance:
+On the first app, use CUA or the skill's optional exact-CDP renderer recipe:
 
-```sh
-.agents/skills/desktop-verify/scripts/cli click --role button --name "Settings" --instance <first>
-.agents/skills/desktop-verify/scripts/cli click --role button --name "Remote computers" --instance <first>
-.agents/skills/desktop-verify/scripts/cli fill --role textbox --name "Pairing link" "<link>" --instance <first>
-.agents/skills/desktop-verify/scripts/cli click --role button --name "Add" --instance <first>
-.agents/skills/desktop-verify/scripts/cli snapshot --instance <first>
-ls -l <first profile>/credentials.enc
-```
+1. Open Settings, then Remote computers. Paste the fresh link into Pairing link and choose Add.
+2. Wait for the second computer's name to appear once with Online status and its expected address. Record the visible result without exposing the pairing link or bearer credential. Return with Back and confirm its sidebar group appears.
+3. Inspect `<first profile>/credentials.enc` metadata without printing its contents: require owner-only mode `-rw-------`. The bridge regression separately proves encrypted contents rather than plaintext; existence or mode alone does not prove encryption.
+4. Return to Remote computers and choose Remove for this fixture after any summary checks. Require its row and sidebar group to disappear. Finish by stopping both exact launcher instances and reading their evidence.
 
-After the snapshot, look for: the second computer's name in the Remote computers list. `ls` shows `credentials.enc` with mode `-rw-------`; its bytes are ciphertext, never the pairing link or a bearer. The evidence records the link as `[redacted]`.
+Tool transcripts and screenshots may contain the pasted one-time link. Keep them private and redact secrets before sharing; direct CUA/CDP interaction has no launcher-wide redaction guarantee. Do not dump the encrypted store, decrypt credentials or use an installed app's profile.
 
 ### The paired computer's summary stays sandboxed
 
-Open the second computer's worktree from its sidebar group, then its Review summary, and `screenshot`. Publishing a review there is part of the e2e test; driving it needs a published review on the second computer.
+With a review published on the second disposable fixture, open its worktree from the first app's remote sidebar group and then its Review summary. Capture the rendered summary and follow a layer link through CUA or exact-CDP interaction. Require the expected layer to open. A summary screenshot does not prove the security boundary; the named regression checks sandboxing, bridge/Node/app access refusal and blocked website requests. If no published fixture review is available, report that summary case as unattempted.
 
 ## What proves it works
 
 - `apps/desktop/spec/e2e/bridge.e2e.ts` (Playwright Electron): one opaque string kept encrypted with mode 0600 and restored after a restart; undecryptable credentials read as unreadable, are never saved over, and Settings says so; unavailable encryption refuses a write and keeps the ciphertext; clear removes it; a window the app did not open is refused every credential and app update request; the bridge reports the version and that the local build has no update feed.
 - `apps/desktop/spec/e2e/review-summaries.e2e.ts` (Playwright Electron): local and remote summaries render through the app origin in their sandbox with theme and layer links, cannot reach the app, Node or the bridge, and cannot show a website.
 
+Run only the relevant focused regression when its promise changes:
+
+```sh
+pnpm --filter @porcelain/desktop exec playwright test spec/e2e/bridge.e2e.ts
+pnpm --filter @porcelain/desktop exec playwright test spec/e2e/review-summaries.e2e.ts
+```
+
 ## Gotchas
 
-- `safeStorage` needs the Keychain of the logged-in session. Over SSH every credential write fails with “User interaction is not allowed”; run the instance or the tests in a Terminal window of the logged-in session (see the skill).
+- `safeStorage` needs the Keychain of the logged-in session. An SSH credential write can fail with “User interaction is not allowed”; run native work with direct UI access in the logged-in session. Record refused storage as a failed or blocked case.
 - Each `start` has a fresh profile, so persistence across a restart is proven by the e2e test, not by driving.
 - The remote-summary test closes the second app's setup window while keeping its server, establishes the primary app's focus, waits for the loaded summary and focuses the intended link. A parent observer requires its trusted activation because the transition can replace the iframe. Release Enter only after the layer tab takes focus or the blocked website's error document loads.
 - Require the actual layer opening, or an enforced `frame-src` violation in the app document with zero website requests at Electron's network port. The request observer cancels any unexpected request to keep the test off the public network, and that request still fails the assertion.
